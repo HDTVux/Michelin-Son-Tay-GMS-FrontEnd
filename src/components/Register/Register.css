@@ -1,0 +1,194 @@
+/* Ensure the page background fills the entire viewport and remove default body margins */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background-color: #1a1a1a;
+}
+/* Ensure page can scroll on small viewports */
+body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+.registerContainer {
+  display: flex;
+  min-height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+  padding: 40px 0;
+  background-color: #1a1a1a; 
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
+}
+
+.registerCard {
+  display: flex;
+  width: min(95vw, 900px);
+  max-width: 1100px;
+  height: auto;
+  max-height: 85vh;
+  background-color: #24242c;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Phần bên trái: Hình ảnh */
+.registerImageSection {
+  flex: 1 1 45%;
+  min-width: 260px;
+  background: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.2)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1000&q=80');
+  background-size: cover;
+  background-position: center;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: white;
+}
+
+.logo { font-weight: bold; font-size: 24px; }
+
+.imageText h2 { font-size: 28px; line-height: 1.2; margin-bottom: 20px; }
+
+/* Phần bên phải: Form */
+.registerFormSection {
+  flex: 1 1 55%;
+  padding: 60px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch; /* stretch children to fill available width */
+}
+
+.registerFormSection h2 { font-size: 32px; margin-bottom: 8px; }
+.registerFormSection p { color: #888; margin-bottom: 30px; font-size: 14px; }
+.registerFormSection a { color: #7c5dfa; text-decoration: none; }
+
+.inputGroup { margin-bottom: 15px; }
+
+.inputGroup input {
+  width: 100%;
+  padding: 14px 18px;
+  height: 50px;
+  background-color: #2d2d39;
+  border: 1px solid #3d3d4d;
+  border-radius: 10px;
+  color: white;
+  outline: none;
+  font-size: 15px;
+}
+
+.inputGroup input:focus { border-color: #7c5dfa; }
+
+.btnRegister {
+  width: 100%;
+  padding: 14px 18px;
+  background-color: #7c5dfa;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  margin-top: 14px;
+  height: 52px;
+  font-size: 16px;
+}
+
+/* Make form controls symmetric and flexible */
+.registerFormSection .formInner,
+.registerFormSection .inputGroup,
+.registerFormSection .socialButtons,
+.registerFormSection .divider,
+.registerFormSection .btnregister {
+  width: 100%;
+  max-width: none; /* allow controls to span the full form column */
+  box-sizing: border-box;
+}
+
+.inputGroup { margin-bottom: 15px; width: 100%; }
+.inputGroup input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.socialButtons { display: flex; gap: 12px; width: 100%; }
+.socialBtn { flex: 1; min-width: 0; padding: 12px; }
+
+/* Reduce max-width on smaller screens for better symmetry */
+@media (max-width: 820px) {
+  .registerFormSection .formInner,
+  .registerFormSection .inputGroup,
+  .registerFormSection .socialButtons,
+  .registerFormSection .divider,
+  .registerFormSection .btnregister {
+    max-width: 360px;
+  }
+}
+
+@media (max-width: 420px) {
+  .registerFormSection .formInner,
+  .registerFormSection .inputGroup,
+  .registerFormSection .socialButtons,
+  .registerFormSection .divider,
+  .registerFormSection .btnregister {
+    max-width: 320px;
+  }
+}
+
+/* Responsive: stack columns on narrow screens */
+@media (max-width: 820px) {
+  .registerCard {
+    flex-direction: column;
+    width: min(95vw, 720px);
+    height: auto;
+    max-height: none; /* allow card to grow taller than viewport so page can scroll */
+    overflow: visible;
+    margin: 20px auto; 
+  }
+
+  .registerImageSection {
+    flex: 0 0 220px;
+    padding: 24px;
+    background-position: center top;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+  }
+
+  .registerFormSection {
+    padding: 28px;
+    align-items: center; 
+  }
+
+  .imageText h2 { font-size: 22px; }
+  .logo { font-size: 20px; }
+  .registerFormSection h2 { font-size: 24px; }
+}
+
+@media (max-width: 420px) {
+  .registerImageSection { padding: 16px; }
+  .registerFormSection { padding: 18px; }
+  .imageText h2 { font-size: 18px; }
+  .registerFormSection h2 { font-size: 20px; }
+}
+
+.divider {
+  text-align: center;
+  margin: 20px 0;
+  color: #555;
+  position: relative;
+}
+
+.socialButtons { display: flex; gap: 10px; }
+.socialBtn {
+  flex: 1;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid #3d3d4d;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
