@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Header from '../Header/Header.jsx';
 import Footer from '../Footer/Footer.jsx';
+import BackToTop from '../BackToTop/BackToTop.jsx';
 import './MainLayout.css';
 
 const MainLayout = () => {
@@ -12,6 +13,7 @@ const MainLayout = () => {
         <Outlet />
       </main>
       <Footer />
+      <BackToTop />
     </div>
   );
 };

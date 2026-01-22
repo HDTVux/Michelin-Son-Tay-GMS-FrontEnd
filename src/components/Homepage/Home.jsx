@@ -1,21 +1,52 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext.jsx';
 import './Home.css';
 import TVC from '../../assets/tvc.mp4'
 
 const Home = () => {
+    const [isVisible, setIsVisible] = useState(false);
+    const { t } = useLanguage();
+
+    useEffect(() => {
+        setIsVisible(true);
+    }, []);
+
+    const services = [
+        { icon: '🚗', text: t('home.services.0') },
+        { icon: '⚡', text: t('home.services.1') },
+        { icon: '🔧', text: t('home.services.2') },
+        { icon: '🎨', text: t('home.services.3') },
+        { icon: '✨', text: t('home.services.4') }
+    ];
+
     return (
         <section className="homePage">
-            <div className="homeContainer">
-                <h1>Welcome to Michellin Sơn Tây</h1>
+            <div className={`homeContainer ${isVisible ? 'fadeIn' : ''}`}>
+                <h1 className="homeTitle">
+                    {t('home.title')}
+                    <span>{t('home.subtitle')}</span>
+                </h1>
                 <div className='homeContent'>
-                <p>Michelin sơn tây là địa chỉ lốp uy tín ở sơn tây.</p> 
-                <p>Là đại lý duy nhất. Chuyên cung cấp lốp dầu ắc quy chính hãng.</p>
-                <p>Sửa chữa ôtô cứu hộ 24/7</p>
-                <p>Sơn- Gò- Hàn.</p>
-                <p>Chăm sóc làm đẹp xe từ A-Z.</p>
+                    {services.map((service, index) => (
+                        <div 
+                            key={index}
+                            className="serviceItem fadeInUp" 
+                            style={{ animationDelay: `${(index + 1) * 0.1}s` }}
+                        >
+                            <div className="serviceIcon">{service.icon}</div>
+                            <p className="serviceText">{service.text}</p>
+                        </div>
+                    ))}
+                </div>
+                <div className="homeActions fadeInUp" style={{ animationDelay: '0.6s' }}>
+                    <Link to="/register" className="btnPrimary">{t('home.bookNow')}</Link>
+                    <Link to="/services" className="btnSecondary">{t('home.viewServices')}</Link>
                 </div>
             </div>
-            <div className='videocontainer'>
-                <video autoPlay muted loop >
+            <div className={`videocontainer ${isVisible ? 'slideIn' : ''}`}>
+                <div className="videoOverlay"></div>
+                <video autoPlay muted loop playsInline>
                     <source src={TVC} type="video/mp4" />
                     Your browser does not support the video tag.
                 </video>

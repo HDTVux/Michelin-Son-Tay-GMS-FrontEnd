@@ -2,17 +2,61 @@ import React, { useState } from 'react';
 import './Login.css';
 import Mascot from '../../assets/Mascot.jpg';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext.jsx';
 
 export default function Login(){
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: '' });
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Dữ liệu đăng nhập:", formData);
-    // Xử lý API 
+    const newErrors = {};
+
+    // Validation
+    if (!formData.email) {
+      newErrors.email = t('login.emailRequired');
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = t('login.emailInvalid');
+    }
+
+    if (!formData.password) {
+      newErrors.password = t('login.passwordRequired');
+    } else if (formData.password.length < 6) {
+      newErrors.password = t('login.passwordMinLength');
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsLoading(true);
+    // Simulate API call
+    setTimeout(() => {
+      console.log("Dữ liệu đăng nhập:", formData);
+      setIsLoading(false);
+      // Xử lý API ở đây
+    }, 1000);
   };
 
   return (
@@ -37,37 +81,72 @@ export default function Login(){
         </div>
 
         <div className="loginFormSection">
-          <h2>Welcome Back</h2>
-          <p>Haven't had an account yet? 
-            <Link to="/register" className="link-style"> Register</Link>
+          <div className="formHeader">
+            <h2>{t('login.title')}</h2>
+            <p className="formSubtitle">{t('login.subtitle')}</p>
+          </div>
+          <p className="formPrompt">
+            {t('login.noAccount')}
+            <Link to="/register" className="link-style"> {t('login.register')}</Link>
           </p>
 
           <form onSubmit={handleSubmit}>
             <div className="inputGroup">
+              <label className="inputLabel">{t('login.emailPlaceholder')}</label>
               <input 
                 type="email" 
-                placeholder="Email"
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                required 
+                name="email"
+                placeholder={t('login.emailPlaceholder')}
+                value={formData.email}
+                onChange={handleChange}
+                className={errors.email ? 'error' : ''}
               />
+              {errors.email && <span className="errorMessage">{errors.email}</span>}
             </div>
             <div className="inputGroup">
-              <input 
-                type="password" 
-                placeholder="Enter your password" 
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-                required
-              />
+              <label className="inputLabel">{t('login.passwordPlaceholder')}</label>
+              <div className="passwordWrapper">
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder={t('login.passwordPlaceholder')}
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={errors.password ? 'error' : ''}
+                />
+                <button
+                  type="button"
+                  className="togglePassword"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label="Toggle password visibility"
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
+              {errors.password && <span className="errorMessage">{errors.password}</span>}
             </div>
-            <p>You forgot your password?  
-            <Link to="/register" className="link-style"> Forgot</Link>
-          </p>
+            <p className="forgotPassword">
+              {t('login.forgotPassword')}
+              <Link to="/register" className="link-style"> {t('login.forgot')}</Link>
+            </p>
 
-
-            <button type="submit" className="btnLogin">Login</button>
+            <button 
+              type="submit" 
+              className={`btnLogin ${isLoading ? 'loading' : ''}`}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <span className="spinner"></span>
+                  {t('login.loggingIn')}
+                </>
+              ) : (
+                t('login.loginButton')
+              )}
+            </button>
           </form>
 
-          <div className="divider"><span>Or login with</span></div>
+          <div className="divider"><span>{t('login.orLoginWith')}</span></div>
 
           <div className="socialButtons">
             <button className="socialBtn">

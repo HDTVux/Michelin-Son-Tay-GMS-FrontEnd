@@ -4,37 +4,204 @@
     align-items: center;
     justify-content: center;
     color: #ffffff;
+    position: relative;
+    overflow: hidden;
 }
 
 /* ===== Main wrapper ===== */
 .homeContainer {
     flex: 1;
-    max-width: 560px;
+    max-width: 580px;
+    z-index: 2;
+    padding: 24px;
+}
+
+/* ===== Animations ===== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.fadeIn {
+    animation: fadeIn 0.8s ease-out forwards;
+}
+
+.fadeInUp {
+    opacity: 0;
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.slideIn {
+    animation: slideIn 1s ease-out forwards;
 }
 
 /* ===== Title ===== */
-.homeContainer h1 {
+.homeTitle {
     font-size: 52px;
     font-weight: 800;
-    line-height: 1.15;
-    margin-bottom: 28px;
+    line-height: 1.2;
+    margin-bottom: 36px;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.homeContainer h1 span {
-    color: #ff5c5c;
+.homeTitle span {
+    color: #7c5dfa;
+    display: block;
+    margin-top: 10px;
+    font-size: 46px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #7c5dfa 0%, #a78bfa 50%, #7c5dfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    background-size: 200% auto;
+    animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 0% center;
+    }
+    100% {
+        background-position: 200% center;
+    }
 }
 
 /* ===== Content ===== */
-.homeContent p {
-    font-size: 20px;
-    color: #cbd5e1;
-    margin-bottom: 10px;
-    line-height: 1.7;
+.homeContent {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
 }
 
-.homeContent:hover::after {
+.serviceItem {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 20px 24px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.25s ease;
+    cursor: pointer;
+}
+
+.serviceItem:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(124, 93, 250, 0.4);
+    transform: translateX(6px);
+    box-shadow: 0 4px 20px rgba(124, 93, 250, 0.15);
+}
+
+.serviceIcon {
+    font-size: 40px;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    flex-shrink: 0;
+    transition: all 0.25s ease;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));
+}
+
+.serviceItem:hover .serviceIcon {
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.serviceText {
+    font-size: 17px;
+    color: #f0f0f0;
+    line-height: 1.75;
+    margin: 0;
+    flex: 1;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ===== Action Buttons ===== */
+.homeActions {
+    display: flex;
+    gap: 14px;
+    margin-top: 36px;
+    flex-wrap: wrap;
+}
+
+.btnPrimary, .btnSecondary {
+    padding: 16px 40px;
+    border-radius: 14px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-block;
+    border: 2px solid transparent;
+    letter-spacing: 0.02em;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    text-transform: none;
+}
+
+.btnPrimary {
+    background: linear-gradient(135deg, #7c5dfa 0%, #5a3fd9 100%);
+    color: white;
+    box-shadow: 0 4px 20px rgba(124, 93, 250, 0.35);
+    font-weight: 700;
+}
+
+.btnPrimary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(255, 92, 92, 0.4);
+    box-shadow: 0 6px 25px rgba(124, 93, 250, 0.45);
+    background: linear-gradient(135deg, #8c6dfa 0%, #6a4fe9 100%);
+}
+
+.btnSecondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.btnSecondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    transform: translateY(-2px);
 }
 
 /* ===== Video card ===== */
@@ -42,6 +209,20 @@
     flex: 1;
     display: flex;
     justify-content: center;
+    position: relative;
+    z-index: 1;
+}
+
+.videoOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 28px;
+    z-index: 1;
+    pointer-events: none;
 }
 
 .videocontainer video {
@@ -54,21 +235,147 @@
         0 30px 60px rgba(0, 0, 0, 0.6),
         inset 0 0 0 1px rgba(255, 255, 255, 0.06);
     background: #000;
+    position: relative;
+    transition: transform 0.3s ease;
+}
+
+.videocontainer:hover video {
+    transform: scale(1.02);
 }
 
 /* ===== Responsive ===== */
 @media (max-width: 1024px) {
     .homePage {
         flex-direction: column;
-        text-align: center;
-        padding: 60px 5%;
+        text-align: left;
+        padding: 40px 5%;
+        gap: 40px;
     }
 
-    .homeContainer h1 {
-        font-size: 42px;
+    .homeContainer {
+        max-width: 100%;
+    }
+
+    .homeTitle {
+        font-size: 40px;
+        text-align: center;
+    }
+
+    .homeTitle span {
+        font-size: 36px;
+    }
+
+    .serviceItem {
+        padding: 16px;
+    }
+
+    .serviceIcon {
+        width: 48px;
+        height: 48px;
+        font-size: 28px;
+    }
+
+    .serviceText {
+        font-size: 16px;
     }
 
     .videocontainer {
-        margin-top: 40px;
+        margin-top: 0;
+        width: 100%;
+    }
+
+    .videocontainer video {
+        max-width: 100%;
+    }
+
+    .homeActions {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btnPrimary, .btnSecondary {
+        flex: 1;
+        min-width: 150px;
+    }
+}
+
+@media (max-width: 768px) {
+    .homePage {
+        padding: 30px 4%;
+        gap: 30px;
+    }
+
+    .homeTitle {
+        font-size: 32px;
+        margin-bottom: 24px;
+    }
+
+    .homeTitle span {
+        font-size: 28px;
+    }
+
+    .homeContent {
+        gap: 12px;
+    }
+
+    .serviceItem {
+        padding: 14px;
+        gap: 12px;
+        flex-direction: row;
+    }
+
+    .serviceIcon {
+        width: 44px;
+        height: 44px;
+        font-size: 24px;
+    }
+
+    .serviceText {
+        font-size: 15px;
+        line-height: 1.5;
+    }
+
+    .homeActions {
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 30px;
+    }
+
+    .btnPrimary, .btnSecondary {
+        width: 100%;
+        padding: 12px 24px;
+        font-size: 15px;
+    }
+
+    .videocontainer video {
+        border-radius: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .homePage {
+        padding: 20px 3%;
+    }
+
+    .homeTitle {
+        font-size: 28px;
+    }
+
+    .homeTitle span {
+        font-size: 24px;
+    }
+
+    .serviceItem {
+        padding: 12px;
+    }
+
+    .serviceIcon {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+
+    .serviceText {
+        font-size: 14px;
     }
 }
