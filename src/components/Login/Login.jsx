@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './Login.css';
-import Mascot from "../../../src/assets/Mascot.jpg";
+import Mascot from '../../assets/Mascot.jpg';
 import { Link } from 'react-router-dom';
 
 export default function Login(){

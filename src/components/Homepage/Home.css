@@ -1,0 +1,74 @@
+.homePage {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+}
+
+/* ===== Main wrapper ===== */
+.homeContainer {
+    flex: 1;
+    max-width: 560px;
+}
+
+/* ===== Title ===== */
+.homeContainer h1 {
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 28px;
+}
+
+.homeContainer h1 span {
+    color: #ff5c5c;
+}
+
+/* ===== Content ===== */
+.homeContent p {
+    font-size: 20px;
+    color: #cbd5e1;
+    margin-bottom: 10px;
+    line-height: 1.7;
+}
+
+.homeContent:hover::after {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(255, 92, 92, 0.4);
+}
+
+/* ===== Video card ===== */
+.videocontainer {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.videocontainer video {
+    width: 100%;
+    max-width: 150%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: 28px;
+    box-shadow: 
+        0 30px 60px rgba(0, 0, 0, 0.6),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    background: #000;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+    .homePage {
+        flex-direction: column;
+        text-align: center;
+        padding: 60px 5%;
+    }
+
+    .homeContainer h1 {
+        font-size: 42px;
+    }
+
+    .videocontainer {
+        margin-top: 40px;
+    }
+}

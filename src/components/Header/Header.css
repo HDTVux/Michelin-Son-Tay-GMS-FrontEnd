@@ -1,0 +1,68 @@
+.mainHeader {
+  background-color: #24242c;
+  padding: 15px 5%;
+  border-bottom: 1px solid #3d3d4d;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.headerContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.headerLogo { font-size: 24px; font-weight: bold; color: white; text-decoration: none; }
+
+.headerNav a {
+  color: #ccc;
+  text-decoration: none;
+  margin: 0 15px;
+  font-size: 14px;
+  transition: 0.3s;
+}
+
+.headerNav a:hover { color: #7c5dfa; }
+
+.btnNavRegister {
+  background-color: #7c5dfa;
+  color: white;
+  padding: 8px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-left: 15px;
+}
+
+.headerAuth {
+  display: flex;
+  align-items: center;
+}
+
+.btnNavLogin {
+  color: #ccc;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: transparent;
+}
+
+/* Responsive: stack nav on small screens */
+@media (max-width: 768px) {
+  .headerContainer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .headerNav {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .headerNav a { margin: 8px 10px; }
+
+  .headerAuth { justify-content: center; }
+}
