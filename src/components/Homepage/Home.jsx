@@ -13,11 +13,11 @@ const Home = () => {
     }, []);
 
     const services = [
-        { icon: '🚗', text: t('home.services.0') },
-        { icon: '⚡', text: t('home.services.1') },
-        { icon: '🔧', text: t('home.services.2') },
-        { icon: '🎨', text: t('home.services.3') },
-        { icon: '✨', text: t('home.services.4') }
+        {  text: t('home.services.0') },
+        {  text: t('home.services.1') },
+        { text: t('home.services.2') },
+        {  text: t('home.services.3') },
+        {  text: t('home.services.4') }
     ];
 
     return (
@@ -34,7 +34,7 @@ const Home = () => {
                             className="serviceItem fadeInUp" 
                             style={{ animationDelay: `${(index + 1) * 0.1}s` }}
                         >
-                            <div className="serviceIcon">{service.icon}</div>
+
                             <p className="serviceText">{service.text}</p>
                         </div>
                     ))}
