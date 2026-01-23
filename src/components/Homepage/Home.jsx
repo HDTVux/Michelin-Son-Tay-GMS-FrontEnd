@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext.jsx';
 import './Home.css';
 import TVC from '../../assets/tvc.mp4'
+import Service from '../Services/Services.jsx';
 
 const Home = () => {
     const [isVisible, setIsVisible] = useState(false);
@@ -21,6 +22,7 @@ const Home = () => {
     ];
 
     return (
+        <>
         <section className="homePage">
             <div className={`homeContainer ${isVisible ? 'fadeIn' : ''}`}>
                 <h1 className="homeTitle">
@@ -50,8 +52,11 @@ const Home = () => {
                     <source src={TVC} type="video/mp4" />
                     Your browser does not support the video tag.
                 </video>
-            </div>
+                
+            </div>           
         </section>
+        <Service/>
+        </>
     );
 };
 

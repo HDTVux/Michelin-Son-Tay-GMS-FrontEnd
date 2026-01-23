@@ -1,4 +1,5 @@
 import './Services.css';
+import { useEffect, useState } from 'react';
 
 const Services = () => {
   const services = [
@@ -39,6 +40,26 @@ const Services = () => {
       features: ['Tư vấn 24/7', 'Chuyên nghiệp', 'Miễn phí', 'Nhiệt tình']
     }
   ];
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(3);
+
+  useEffect(() => {
+    const calc = () => {
+      const w = window.innerWidth;
+      if (w <= 480) setVisible(1);
+      else if (w <= 900) setVisible(2);
+      else setVisible(3);
+      setIndex(0);
+    };
+    calc();
+    window.addEventListener('resize', calc);
+    return () => window.removeEventListener('resize', calc);
+  }, []);
+
+  const maxIndex = Math.max(0, services.length - visible);
+  const offset = (index * 100) / visible;
+  const prev = () => setIndex(i => Math.max(0, i - 1));
+  const next = () => setIndex(i => Math.min(maxIndex, i + 1));
 
   return (
     <section className="servicesPage">
@@ -49,22 +70,37 @@ const Services = () => {
         </p>
       </div>
 
-      <div className="servicesGrid">
-        {services.map((service, index) => (
-          <div key={index} className="serviceCard" style={{ animationDelay: `${index * 0.1}s` }}>
-            <div className="serviceIcon">{service.icon}</div>
-            <h3 className="serviceTitle">{service.title}</h3>
-            <p className="serviceDescription">{service.description}</p>
-            <ul className="serviceFeatures">
-              {service.features.map((feature, idx) => (
-                <li key={idx}>
-                  <span className="checkIcon">✓</span>
-                  {feature}
-                </li>
-              ))}
-            </ul>
+      <div className="servicesSlider">
+        <button className="sliderArrow left" onClick={prev} aria-label="Previous" disabled={index === 0}>&lt;</button>
+        <div className="sliderViewport">
+          <div
+            className="sliderTrack"
+            style={{ 
+            transform: `translateX(-${offset}%)`,
+            display: 'flex',
+            transition: 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)'
+            }}
+>
+            {services.map((service, idx) => (
+              <div key={idx} className="slide" style={{ animationDelay: `${idx * 0.1}s` }}>
+                <div className="serviceCard">
+                  <div className="serviceIcon">{service.icon}</div>
+                  <h3 className="serviceTitle">{service.title}</h3>
+                  <p className="serviceDescription">{service.description}</p>
+                  <ul className="serviceFeatures">
+                    {service.features.map((feature, fidx) => (
+                      <li key={fidx}>
+                        <span className="checkIcon">✓</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+        <button className="sliderArrow right" onClick={next} aria-label="Next" disabled={index >= maxIndex}>&gt;</button>
       </div>
 
       <div className="servicesCTA">

@@ -38,6 +38,77 @@
   margin-right: auto;
 }
 
+/* Slider styles */
+.servicesSlider {
+  position: relative;
+  margin-bottom: 60px;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.sliderViewport {
+  overflow: hidden;
+}
+
+.sliderTrack {
+  display: flex;
+  gap: 0; 
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.slide {
+  /* Mỗi slide sẽ tự mang padding để tạo khoảng cách thay vì dùng gap ở container */
+  flex: 0 0 calc(100% / 3);
+  padding: 0 15px; /* Tạo khoảng cách 30px giữa các card (15px mỗi bên) */
+  box-sizing: border-box;
+  display: flex;
+}
+
+.slide .serviceCard {
+  width: 100%;
+}
+
+.sliderArrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.sliderArrow:hover { transform: translateY(-50%) scale(1.04); background: rgba(255,255,255,0.06); }
+.sliderArrow:disabled { opacity: 0.35; cursor: default; }
+.sliderArrow.left { 
+  left: -50px; 
+}
+.sliderArrow.right {
+    right: -50px;
+}
+@media (max-width: 900px) {
+  .slide {
+    flex: 0 0 calc(100% / 2);
+  }
+}
+
+@media (max-width: 480px) {
+  .slide {
+    flex: 0 0 100%;
+  }
+}
+
 .serviceCard {
   background: #2d2d39;
   border-radius: 20px;
@@ -191,6 +262,9 @@
     gap: 20px;
   }
 
+  /* adjust slider for tablets */
+  .slide { flex: 0 0 calc(100% / 2); }
+
   .serviceCard {
     padding: 25px;
   }
@@ -274,4 +348,10 @@
     padding: 12px 28px;
     font-size: 15px;
   }
+
+  /* mobile slider: one per view */
+  .slide { flex: 0 0 100%; }
+
+  .sliderArrow.left { left: 6px; }
+  .sliderArrow.right { right: 6px; }
 }

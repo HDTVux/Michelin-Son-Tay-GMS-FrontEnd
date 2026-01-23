@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext.jsx';
 import './Header.css';
+import CustomerLogin from '../Login/CustomerLogin.jsx';
+import logo from '../../assets/Logo2.png';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -18,11 +20,13 @@ const Header = () => {
     setIsMenuOpen(false);
   };
 
+  const [showCustomerLogin, setShowCustomerLogin] = useState(false);
+
   return (
     <header className="mainHeader">
       <div className="headerContainer">
         <Link to="/" className="headerLogo" onClick={closeMenu}>
-          <span className="logoText">Michellin Son Tay</span>
+          <img src={logo} alt='logo' id='Logo' />
         </Link>
         
         <button 
@@ -69,13 +73,12 @@ const Header = () => {
             <span>{language === 'vi' ? '🇻🇳' : '🇬🇧'}</span>
             <span className="languageText">{language === 'vi' ? 'VI' : 'EN'}</span>
           </button>
-          <Link 
-            to="/login" 
+          <button
             className="btnNavLogin"
-            onClick={closeMenu}
+            onClick={() => { setShowCustomerLogin(true); closeMenu(); }}
           >
             {t('header.login')}
-          </Link>
+          </button>
           <Link 
             to="/register" 
             className="btnNavRegister"
@@ -84,6 +87,9 @@ const Header = () => {
             {t('header.register')}
           </Link>
         </div>
+        {showCustomerLogin && (
+          <CustomerLogin onClose={() => setShowCustomerLogin(false)} />
+        )}
       </div>
     </header>
   );
