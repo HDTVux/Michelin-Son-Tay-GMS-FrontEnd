@@ -82,7 +82,7 @@ const Services = () => {
             }}
 >
             {services.map((service, idx) => (
-              <div key={idx} className="slide" style={{ animationDelay: `${idx * 0.1}s` }}>
+              <div key={idx} className="serviceSlide" style={{ animationDelay: `${idx * 0.1}s` }}>
                 <div className="serviceCard">
                   <div className="serviceIcon">{service.icon}</div>
                   <h3 className="serviceTitle">{service.title}</h3>

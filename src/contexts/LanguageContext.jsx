@@ -20,7 +20,7 @@ const translations = {
       register: 'Đăng ký'
     },
     home: {
-      title: 'Chào mừng đến với',
+      title: 'Giới thiệu về',
       subtitle: 'Michellin Sơn Tây',
       services: {
         0: 'Michelin sơn tây là địa chỉ lốp uy tín ở sơn tây.',
@@ -94,7 +94,7 @@ const translations = {
       register: 'Register'
     },
     home: {
-      title: 'Welcome to',
+      title: 'About',
       subtitle: 'Michellin Son Tay',
       services: {
         0: 'Michelin Son Tay is a reputable tire address in Son Tay.',

@@ -5,7 +5,7 @@ import Home from './components/Homepage/Home.jsx';
 import Login from './components/Login/Login.jsx';
 import CustomerLogin from './components/Login/CustomerLogin.jsx';
 import Register from './components/Register/Register.jsx';
-import Services from './components/Services/Services.jsx';
+import Services from './components/Homepage/Services/Services.jsx';
 import About from './components/About/About.jsx';
 
 export default function App() {

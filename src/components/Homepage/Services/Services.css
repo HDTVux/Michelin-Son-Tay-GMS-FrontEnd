@@ -58,7 +58,7 @@
   will-change: transform;
 }
 
-.slide {
+.serviceSlide {
   /* Mỗi slide sẽ tự mang padding để tạo khoảng cách thay vì dùng gap ở container */
   flex: 0 0 calc(100% / 3);
   padding: 0 15px; /* Tạo khoảng cách 30px giữa các card (15px mỗi bên) */
@@ -66,7 +66,7 @@
   display: flex;
 }
 
-.slide .serviceCard {
+.serviceSlide .serviceCard {
   width: 100%;
 }
 
@@ -98,13 +98,13 @@
     right: -50px;
 }
 @media (max-width: 900px) {
-  .slide {
+  .serviceSlide {
     flex: 0 0 calc(100% / 2);
   }
 }
 
 @media (max-width: 480px) {
-  .slide {
+  .serviceSlide {
     flex: 0 0 100%;
   }
 }
@@ -350,7 +350,7 @@
   }
 
   /* mobile slider: one per view */
-  .slide { flex: 0 0 100%; }
+  .serviceSlide { flex: 0 0 100%; }
 
   .sliderArrow.left { left: 6px; }
   .sliderArrow.right { right: 6px; }
