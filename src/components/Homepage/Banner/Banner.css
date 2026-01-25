@@ -3,8 +3,8 @@
 
 /* Banner styles matching provided design */
 .banner {
-    background: #2f2f2f;
-    color: #fff;
+    background: #ffffff;
+    color: #0a0f1c;
     padding: 50px ;
 }
 
@@ -22,7 +22,7 @@
 }
 
 .banner-sub{
-	color: #d9d9d9;
+    color: #475569;
 	margin: 0 auto 28px;
 	max-width: 760px;
 	line-height: 1.6;
@@ -49,10 +49,10 @@
     width: 100%;
     height: 300px; 
     
-    background-size: contain;      
+    background-size: cover;      
     background-position: center;  /* Giữ trọng tâm ảnh ở giữa */
     background-repeat: no-repeat;
-    background-color: #2f2f2f;   /* Đổi nền trắng thành màu tối để nếu ảnh chưa load cũng không bị chói */
+    background-color: #eef2f8;   /* Nền sáng nhạt để ảnh chưa load cũng không bị chói */
 }
 
 
@@ -63,7 +63,7 @@
 	left: -10%;
 	right: -10%;
 	height: 2px;
-	background: #222;
+    background: #d7deed;
 	top: 50%;
 }
 
@@ -79,8 +79,8 @@
 .dot-btn{
 	width: 10px;
 	height: 10px;
-	background: #fff;
-	opacity: 0.45;
+    background: rgba(255, 255, 255, 0.6);
+    opacity: 0.75;
 	border-radius: 50%;
 	border: none;
 	padding: 0;
@@ -90,7 +90,8 @@
 	width: 28px;
 	height: 10px;
 	border-radius: 999px;
-	opacity: 1;
+    opacity: 1;
+    background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
 }
 
 @media (max-width: 768px) {

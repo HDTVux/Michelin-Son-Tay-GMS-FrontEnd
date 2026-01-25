@@ -1,13 +1,26 @@
 .mainHeader {
-  background-color: rgba(36, 36, 44, 0.95);
-  backdrop-filter: blur(10px);
-  padding: 15px 5%;
-  border-bottom: 1px solid #3d3d4d;
+  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+  backdrop-filter: blur(8px);
+  padding: 16px 5%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+  transition: background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, padding 0.25s ease;
+}
+
+.mainHeader:hover {
+  background: linear-gradient(135deg, #3a8de0 0%, #005aa9 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.mainHeader.scrolled {
+  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  padding: 10px 5%;
 }
 
 .headerContainer {
@@ -16,6 +29,7 @@
   align-items: center;
   margin: 0 auto;
   max-width: 1400px;
+  transition: transform 0.2s ease;
 }
 
 .headerLogo {
@@ -33,7 +47,7 @@
 /* Logo image styling */
 .headerLogo img,
 .headerLogo #Logo {
-  height: 100px;
+  height: 88px;
   width: auto;
   display: block;
   object-fit: contain;
@@ -44,6 +58,15 @@
 .headerLogo:hover img,
 .headerLogo:hover #Logo {
   transform: translateY(-2px) scale(1.03);
+}
+
+.mainHeader.scrolled .headerLogo img,
+.mainHeader.scrolled .headerLogo #Logo {
+  transform: scale(0.88);
+}
+
+.mainHeader.scrolled .headerContainer {
+  transform: scale(0.96) translateY(-2px);
 }
 
 /* If you want a compact variant (small screens) */
@@ -62,7 +85,7 @@
 }
 
 .logoText {
-  background: linear-gradient(135deg, #ffffff 0%, #7c5dfa 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #005aa9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -74,7 +97,7 @@
 }
 
 .headerNav a {
-  color: #ccc;
+  color: #ffffff;
   text-decoration: none;
   padding: 8px 16px;
   font-size: 14px;
@@ -92,13 +115,13 @@
   transform: translateX(-50%);
   width: 0;
   height: 2px;
-  background: linear-gradient(90deg, #7c5dfa, #ff5c5c);
+  background: linear-gradient(90deg, #ffffff, rgba(255, 255, 255, 0.8));
   transition: width 0.3s ease;
 }
 
 .headerNav a:hover {
   color: #ffffff;
-  background: rgba(124, 93, 250, 0.1);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .headerNav a:hover::before {
@@ -106,8 +129,8 @@
 }
 
 .headerNav a.active {
-  color: #7c5dfa;
-  background: rgba(124, 93, 250, 0.15);
+  color: #e8f2ff;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .headerNav a.active::before {
@@ -125,8 +148,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
   color: #ffffff;
   padding: 8px 14px;
   border-radius: 12px;
@@ -155,11 +178,11 @@
 }
 
 .languageToggle:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 107, 107, 0.4);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.8);
+  color: #0a0f1c;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
 .languageToggle:active {
@@ -180,7 +203,7 @@
 }
 
 .btnNavLogin {
-  color: #e0e0e0;
+  color: #ffffff;
   text-decoration: none;
   padding: 9px 18px;
   border-radius: 10px;
@@ -189,18 +212,18 @@
   font-weight: 600;
   font-size: 14px;
   letter-spacing: 0.01em;
-  border: 1.5px solid transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
 }
 
 .btnNavLogin:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.8);
   transform: translateY(-1px);
 }
 
 .btnNavRegister {
-  background: linear-gradient(135deg, #7c5dfa 0%, #5a3fd9 100%);
+  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
   color: white;
   padding: 9px 22px;
   border-radius: 10px;
@@ -209,14 +232,14 @@
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 0.02em;
-  box-shadow: 0 4px 15px rgba(124, 93, 250, 0.35);
-  border: 1.5px solid transparent;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.28);
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
 }
 
 .btnNavRegister:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(124, 93, 250, 0.5);
-  background: linear-gradient(135deg, #8c6dfa 0%, #6a4fe9 100%);
+  box-shadow: 0 6px 20px rgba(0, 90, 169, 0.5);
+  background: linear-gradient(135deg, #3a8de0 0%, #005aa9 100%);
 }
 
 .btnNavRegister:active {
@@ -238,10 +261,11 @@
 .mobileMenuToggle span {
   width: 25px;
   height: 3px;
-  background: #ccc;
+  background: #ffffff;
   border-radius: 3px;
   transition: all 0.3s ease;
 }
+
 
 .mobileMenuToggle.active span:nth-child(1) {
   transform: rotate(45deg) translate(8px, 8px);
@@ -266,7 +290,7 @@
     top: 70px;
     left: 0;
     right: 0;
-    background: rgba(36, 36, 44, 0.98);
+    background: rgba(10, 15, 28, 0.98);
     backdrop-filter: blur(10px);
     flex-direction: column;
     padding: 20px 5%;
@@ -274,7 +298,7 @@
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
-    border-bottom: 1px solid #3d3d4d;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
 
@@ -296,7 +320,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(36, 36, 44, 0.98);
+    background: rgba(10, 15, 28, 0.98);
     backdrop-filter: blur(10px);
     padding: 15px 5%;
     justify-content: center;
@@ -304,7 +328,7 @@
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
-    border-top: 1px solid #3d3d4d;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
   }
 

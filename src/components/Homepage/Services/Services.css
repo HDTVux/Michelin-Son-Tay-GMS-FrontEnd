@@ -1,8 +1,8 @@
 .servicesPage {
   min-height: 100vh;
   padding: 60px 5%;
-  background: linear-gradient(180deg, #1a1a1a 0%, #24242c 100%);
-  color: #ffffff;
+  background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
+  color: #0a0f1c;
 }
 
 .servicesHero {
@@ -15,7 +15,7 @@
   font-size: 48px;
   font-weight: 800;
   margin-bottom: 16px;
-  background: linear-gradient(135deg, #ffffff 0%, #7c5dfa 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #005aa9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -23,7 +23,7 @@
 
 .servicesSubtitle {
   font-size: 20px;
-  color: #cbd5e1;
+  color: #475569;
   max-width: 600px;
   margin: 0 auto;
 }
@@ -77,9 +77,9 @@
   width: 56px;
   height: 56px;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.04);
-  color: #fff;
+  border: 1px solid rgba(0,90,169,0.18);
+  background: rgba(0,90,169,0.08);
+  color: #005aa9;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -89,7 +89,7 @@
   transition: transform 0.18s ease, background 0.18s ease;
 }
 
-.sliderArrow:hover { transform: translateY(-50%) scale(1.04); background: rgba(255,255,255,0.06); }
+.sliderArrow:hover { transform: translateY(-50%) scale(1.04); background: rgba(0,90,169,0.14); }
 .sliderArrow:disabled { opacity: 0.35; cursor: default; }
 .sliderArrow.left { 
   left: -50px; 
@@ -110,20 +110,20 @@
 }
 
 .serviceCard {
-  background: #2d2d39;
+  background: #ffffff;
   border-radius: 20px;
   padding: 40px;
   transition: all 0.3s ease;
-  border: 1px solid #3d3d4d;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   opacity: 0;
   animation: fadeInUp 0.6s ease-out forwards;
 }
 
 .serviceCard:hover {
   transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(124, 93, 250, 0.2);
-  border-color: #7c5dfa;
-  background: #333340;
+  box-shadow: 0 20px 40px rgba(0, 90, 169, 0.18);
+  border-color: #005aa9;
+  background: #f4f7fb;
 }
 
 .serviceIcon {
@@ -141,12 +141,12 @@
   font-size: 24px;
   font-weight: 700;
   margin-bottom: 12px;
-  color: #ffffff;
+  color: #0a0f1c;
 }
 
 .serviceDescription {
   font-size: 15px;
-  color: #a0a0a8;
+  color: #475569;
   line-height: 1.6;
   margin-bottom: 20px;
 }
@@ -161,7 +161,7 @@
   display: flex;
   align-items: center;
   font-size: 14px;
-  color: #cbd5e1;
+  color: #475569;
   margin-bottom: 10px;
   padding: 8px 0;
 }
@@ -172,7 +172,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  background: linear-gradient(135deg, #7c5dfa 0%, #5a3fd9 100%);
+  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
   color: white;
   border-radius: 50%;
   font-size: 12px;
@@ -184,42 +184,42 @@
 .servicesCTA {
   text-align: center;
   padding: 60px 20px;
-  background: linear-gradient(135deg, rgba(124, 93, 250, 0.1) 0%, rgba(255, 92, 92, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(0, 90, 169, 0.12) 0%, rgba(0, 64, 127, 0.08) 100%);
   border-radius: 20px;
   max-width: 800px;
   margin: 0 auto;
-  border: 1px solid rgba(124, 93, 250, 0.2);
+  border: 1px solid rgba(0, 90, 169, 0.2);
 }
 
 .servicesCTA h2 {
   font-size: 36px;
   margin-bottom: 16px;
-  color: #ffffff;
+  color: #0a0f1c;
 }
 
 .servicesCTA p {
   font-size: 18px;
-  color: #cbd5e1;
+  color: #475569;
   margin-bottom: 30px;
 }
 
 .ctaButton {
   display: inline-block;
   padding: 16px 40px;
-  background: linear-gradient(135deg, #7c5dfa 0%, #5a3fd9 100%);
+  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
   color: white;
   text-decoration: none;
   border-radius: 12px;
   font-weight: 700;
   font-size: 18px;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(124, 93, 250, 0.4);
+  box-shadow: 0 4px 15px rgba(0, 90, 169, 0.4);
 }
 
 .ctaButton:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(124, 93, 250, 0.6);
-  background: linear-gradient(135deg, #8c6dfa 0%, #6a4fe9 100%);
+  box-shadow: 0 8px 25px rgba(0, 90, 169, 0.6);
+  background: linear-gradient(135deg, #3a8de0 0%, #005aa9 100%);
 }
 
 @keyframes fadeIn {

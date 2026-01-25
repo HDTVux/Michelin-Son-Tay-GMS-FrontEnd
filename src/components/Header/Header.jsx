@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext.jsx';
 import './Header.css';
@@ -7,6 +7,7 @@ import logo from '../../assets/Logo2.png';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const { t, language, toggleLanguage } = useLanguage();
 
@@ -22,8 +23,17 @@ const Header = () => {
 
   const [showCustomerLogin, setShowCustomerLogin] = useState(false);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <header className="mainHeader">
+    <header className={`mainHeader ${isScrolled ? 'scrolled' : ''}`}>
       <div className="headerContainer">
         <Link to="/" className="headerLogo" onClick={closeMenu}>
           <img src={logo} alt='logo' id='Logo' />

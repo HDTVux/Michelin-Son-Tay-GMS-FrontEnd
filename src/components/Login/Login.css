@@ -2,7 +2,7 @@
 html, body, #root {
   height: 100%;
   margin: 0;
-  background-color: #1a1a1a;
+  background-color: #f5f7fb;
 }
 /* Ensure page can scroll on small viewports */
 body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -13,7 +13,7 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   width: 100vw;
   box-sizing: border-box;
   padding: 40px 0;
-  background-color: #1a1a1a; /* Màu nền tối bên ngoài */
+  background-color: #f5f7fb; /* Nền sáng */
   align-items: center;
   justify-content: center;
   font-family: 'Inter', sans-serif;
@@ -25,25 +25,25 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   max-width: 1100px;
   height: auto;
   max-height: 85vh;
-  background-color: #24242c;
+  background-color: #ffffff;
   border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 /* Phần bên trái: Hình ảnh */
 .loginImageSection {
   flex: 1 1 45%;
   min-width: 260px;
-  background: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.2)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1000&q=80');
+  background: linear-gradient(rgba(255,255,255,0.65), rgba(255,255,255,0.65)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1000&q=80');
   background-size: cover;
   background-position: center;
   padding: 48px 40px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  color: white;
+  color: #0a0f1c;
   position: relative;
 }
 
@@ -54,7 +54,7 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(124, 93, 250, 0.1) 0%, rgba(90, 63, 217, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(0, 90, 169, 0.12) 0%, rgba(0, 64, 127, 0.08) 100%);
   z-index: 0;
 }
 
@@ -83,12 +83,12 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .loginFormSection {
   flex: 1 1 55%;
   padding: 64px 60px;
-  color: #ffffff;
+  color: #0a0f1c;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: stretch;
-  background: linear-gradient(180deg, #24242c 0%, #1f1f26 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f5f7fb 100%);
 }
 
 .formHeader {
@@ -99,34 +99,34 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   font-size: 36px; 
   font-weight: 800;
   margin-bottom: 6px;
-  color: #ffffff;
+  color: #0a0f1c;
   letter-spacing: -0.02em;
   font-family: 'Inter', sans-serif;
 }
 
 .formSubtitle {
   font-size: 16px;
-  color: #a0a0a8;
+  color: #475569;
   font-weight: 500;
   margin: 0;
 }
 
 .formPrompt {
-  color: #888;
+  color: #64748b;
   margin-bottom: 32px;
   font-size: 15px;
   font-weight: 400;
 }
 
 .loginFormSection a { 
-  color: #7c5dfa; 
+  color: #005aa9; 
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s ease;
 }
 
 .loginFormSection a:hover {
-  color: #8c6dfa;
+  color: #3a8de0;
 }
 
 .inputGroup { 
@@ -147,10 +147,10 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   width: 100%;
   padding: 16px 18px;
   height: 54px;
-  background-color: #2d2d39;
-  border: 2px solid #3d3d4d;
+  background-color: #ffffff;
+  border: 2px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
-  color: #ffffff;
+  color: #0a0f1c;
   outline: none;
   font-size: 15px;
   font-weight: 400;
@@ -165,9 +165,9 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 
 .inputGroup input:focus { 
-  border-color: #7c5dfa;
-  box-shadow: 0 0 0 4px rgba(124, 93, 250, 0.15);
-  background-color: #333340;
+  border-color: #005aa9;
+  box-shadow: 0 0 0 4px rgba(0, 90, 169, 0.14);
+  background-color: #f4f7fb;
 }
 
 .inputGroup input.error {
@@ -212,7 +212,7 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   right: 12px;
   background: transparent;
   border: none;
-  color: #888;
+  color: #64748b;
   cursor: pointer;
   font-size: 18px;
   padding: 8px;
@@ -223,7 +223,7 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 
 .togglePassword:hover {
-  color: #7c5dfa;
+  color: #005aa9;
 }
 
 .forgotPassword {
@@ -233,7 +233,7 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .btnLogin {
   width: 100%;
   padding: 16px 24px;
-  background: linear-gradient(135deg, #7c5dfa 0%, #5a3fd9 100%);
+  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
   color: white;
   border: none;
   border-radius: 12px;
@@ -248,14 +248,14 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   align-items: center;
   justify-content: center;
   gap: 10px;
-  box-shadow: 0 4px 20px rgba(124, 93, 250, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 90, 169, 0.35);
   font-family: 'Inter', sans-serif;
 }
 
 .btnLogin:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(124, 93, 250, 0.4);
-  background: linear-gradient(135deg, #8c6dfa 0%, #6a4fe9 100%);
+  box-shadow: 0 6px 20px rgba(0, 90, 169, 0.4);
+  background: linear-gradient(135deg, #3a8de0 0%, #005aa9 100%);
 }
 
 .btnLogin:disabled {
@@ -409,7 +409,7 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   top: 50%;
   width: 40%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #3d3d4d, transparent);
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
 }
 
 .divider::before {
@@ -421,7 +421,7 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 
 .divider span {
-  background: #24242c;
+  background: #ffffff;
   padding: 0 12px;
   position: relative;
   z-index: 1;
@@ -437,8 +437,8 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   flex: 1;
   padding: 12px 16px;
   background: rgba(255, 255, 255, 0.05);
-  border: 2px solid #3d3d4d;
-  color: #ffffff;
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  color: #0a0f1c;
   border-radius: 10px;
   cursor: pointer;
   display: flex;
@@ -452,8 +452,8 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 
 .socialBtn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: #7c5dfa;
+  background: rgba(0, 90, 169, 0.08);
+  border-color: #005aa9;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(124, 93, 250, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.2);
 }
