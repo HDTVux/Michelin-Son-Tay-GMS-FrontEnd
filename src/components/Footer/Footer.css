@@ -1,8 +1,8 @@
 /* Basic footer styles */
 .mainFooter {
 	background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
-	color: #0a0f1c;
-	border-top: 1px solid rgba(0, 0, 0, 0.06);
+	color: #ffffff;
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
 	padding: 60px 5% 20px;
 }
 
@@ -25,23 +25,20 @@
 	font-size: 24px;
 	font-weight: 700;
 	margin: 0 0 12px 0;
-	background: linear-gradient(135deg, #ffffff 0%, #005aa9 100%);
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
+	color: #ffffff;
 }
 
 .footerSubtitle {
 	font-size: 18px;
 	font-weight: 600;
-	color: yellow;
+	color: #ffffff;
 	margin: 0 0 12px 0;
 }
 
 .footerDescription {
 	font-size: 14px;
 	line-height: 1.6;
-	color: white;
+	color: #ffffff;
 	margin: 0;
 }
 
@@ -60,19 +57,19 @@
 	align-items: center;
 	justify-content: center;
 	border-radius: 50%;
-	background: rgba(244, 246, 248, 0.08);
-	color: #0a0f1c;
+	background: rgba(244, 246, 248, 0.12);
+	color: #ffffff;
 	text-decoration: none;
 	transition: all 0.3s ease;
-	border: 1px solid rgba(0, 90, 169, 0.2);
+	border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .socialLink:hover {
-	background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+	background: rgba(255, 255, 255, 0.2);
 	color: #ffffff;
 	transform: translateY(-3px);
-	box-shadow: 0 4px 12px rgba(0, 90, 169, 0.4);
-	border-color: transparent;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+	border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Contact Info */
@@ -85,14 +82,14 @@
 .footerContact p {
 	margin: 0;
 	font-size: 14px;
-	color: white;
+	color: #ffffff;
 	display: flex;
 	align-items: center;
 	transition: color 0.3s ease;
 }
 
 .footerContact p:hover {
-	color: #0a0f1c;
+	color: #e9edf7;
 }
 
 /* Footer Links */
@@ -103,7 +100,7 @@
 }
 
 .footerLinks a {
-	color: white;
+	color: #ffffff;
 	text-decoration: none;
 	font-size: 14px;
 	transition: all 0.3s ease;
@@ -123,7 +120,7 @@
 }
 
 .footerLinks a:hover {
-	color: #005aa9;
+	color: #ffffff;
 	padding-left: 20px;
 }
 
@@ -134,7 +131,7 @@
 
 /* Footer Bottom */
 .footerBottom {
-	border-top: 1px solid rgba(0, 0, 0, 0.06);
+	border-top: 1px solid rgba(255, 255, 255, 0.12);
 	padding-top: 20px;
 	text-align: center;
 }
@@ -142,7 +139,7 @@
 .footerBottom p {
 	margin: 0;
 	font-size: 14px;
-	color: white;
+	color: #ffffff;
 }
 
 @media (max-width: 768px) {

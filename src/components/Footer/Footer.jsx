@@ -78,7 +78,7 @@ const Footer = () => {
       </div>
 
       <div className="footerBottom">
-        <p>{t('footer.copyright')}</p>
+        <p>© 2026 Michelin Sơn Tây</p>
       </div>
     </footer>
   );

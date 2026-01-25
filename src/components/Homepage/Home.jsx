@@ -61,6 +61,7 @@ const Home = () => {
             </div>           
         </section>
         <Service/>
+        <Service/>
         <BussinessInfor/>
         </>
     );

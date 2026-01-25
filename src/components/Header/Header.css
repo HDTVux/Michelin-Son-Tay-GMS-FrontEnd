@@ -1,5 +1,5 @@
 .mainHeader {
-  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+  background: #094F9D;
   backdrop-filter: blur(8px);
   padding: 16px 5%;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
@@ -11,13 +11,13 @@
 }
 
 .mainHeader:hover {
-  background: linear-gradient(135deg, #3a8de0 0%, #005aa9 100%);
+  background: #094F9D;
   border-bottom: 1px solid rgba(255, 255, 255, 0.28);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
 }
 
 .mainHeader.scrolled {
-  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+  background: #094F9D;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
   padding: 10px 5%;
@@ -51,8 +51,8 @@
   width: auto;
   display: block;
   object-fit: contain;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
-  transition: transform 0.25s ease, filter 0.25s ease, opacity 0.25s ease;
+  filter: none;
+  transition: transform 0.25s ease, opacity 0.25s ease;
 }
 
 .headerLogo:hover img,
@@ -207,7 +207,7 @@
   text-decoration: none;
   padding: 9px 18px;
   border-radius: 10px;
-  background: yellow;
+  background: #27509B ;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-weight: 600;
   font-size: 14px;
@@ -223,7 +223,7 @@
 }
 
 .btnNavRegister {
-  background: yellow;
+  background: #e4c901;
   color: black;
   padding: 9px 22px;
   border-radius: 10px;
