@@ -103,11 +103,6 @@ const Services = () => {
         <button className="sliderArrow right" onClick={next} aria-label="Next" disabled={index >= maxIndex}>&gt;</button>
       </div>
 
-      <div className="servicesCTA">
-        <h2>Bạn cần tư vấn?</h2>
-        <p>Liên hệ với chúng tôi ngay để được hỗ trợ tốt nhất</p>
-        <a href="/register" className="ctaButton">Đặt lịch ngay</a>
-      </div>
     </section>
   );
 };

@@ -332,22 +332,6 @@
     font-size: 13px;
   }
 
-  .servicesCTA {
-    padding: 30px 15px;
-  }
-
-  .servicesCTA h2 {
-    font-size: 24px;
-  }
-
-  .servicesCTA p {
-    font-size: 16px;
-  }
-
-  .ctaButton {
-    padding: 12px 28px;
-    font-size: 15px;
-  }
 
   /* mobile slider: one per view */
   .serviceSlide { flex: 0 0 100%; }

@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext.jsx';
 import './Header.css';
 import CustomerLogin from '../Login/CustomerLogin.jsx';
-import logo from '../../assets/Logo2.png';
+import logo from '../../assets/Logo3.jpg';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

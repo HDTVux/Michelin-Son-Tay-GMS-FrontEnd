@@ -5,6 +5,8 @@ import './Home.css';
 import TVC from '../../assets/tvc.mp4'
 import Service from './Services/Services.jsx';
 import Banner from './Banner/Banner.jsx';
+import Form from './Form/Form.jsx';
+import BussinessInfor from './BusinessInfo/BussinessInfor.jsx';
 
 const Home = () => {
     const [isVisible, setIsVisible] = useState(false);
@@ -25,6 +27,7 @@ const Home = () => {
     return (
         <>
         <Banner/>
+        <Form/>
         <section className="homePage">
             <div className={`homeContainer ${isVisible ? 'fadeIn' : ''}`}>
                 <h1 className="homeTitle">
@@ -58,6 +61,7 @@ const Home = () => {
             </div>           
         </section>
         <Service/>
+        <BussinessInfor/>
         </>
     );
 };

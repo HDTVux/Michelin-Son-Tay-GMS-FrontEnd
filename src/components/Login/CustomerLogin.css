@@ -11,7 +11,7 @@
 .customerLoginModal{
   width:420px;
   max-width:100%;
-  background:#0f172a;
+  background:white;
   color:#ffffff;
   border-radius:10px;
   padding:26px;
@@ -27,7 +27,7 @@
   border:0;
   background:transparent;
   font-size:22px;
-  color:#cfd8e3;
+  color:black;
   cursor:pointer;
 }
 .modalTitle{ 
@@ -37,11 +37,11 @@
  }
 .brand{ margin:6px 0 16px; font-size:20px; color:#ffffff; }
 .form{ display:flex; flex-direction:column; gap:12px; align-items:stretch; }
-.label{ text-align:left; font-size:13px; color:#cfd8e3; }
+.label{ text-align:left; font-size:13px; color:black; }
 .input{ padding:12px 10px; border:1px solid rgba(255,255,255,0.12); background:#111a2c; color:#ffffff; border-radius:8px; font-size:14px; }
 .input.error{ border-color:#e25; }
 .errorText{ color:#d23; font-size:13px; text-align:left; }
 .primaryBtn{ background:linear-gradient(135deg,#005aa9 0%,#00407f 100%); color:#fff; padding:12px; border-radius:8px; border:0; cursor:pointer; box-shadow:0 6px 18px rgba(0,90,169,0.35); }
-.secondaryBtn{ background:rgba(255,255,255,0.08); color:#ffffff; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.16); cursor:pointer; }
+.secondaryBtn{ background:rgba(255,255,255,0.08); color:black; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.16); cursor:pointer; }
 .otpActions{ display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
 .linkBtn{ background:transparent; border:0; color:#3a8de0; cursor:pointer; font-size:13px; }

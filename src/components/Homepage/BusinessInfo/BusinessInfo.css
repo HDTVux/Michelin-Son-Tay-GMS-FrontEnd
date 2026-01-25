@@ -1,0 +1,210 @@
+.businessSection {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 32px;
+	padding: 40px 24px;
+	background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
+}
+
+.infoCard,
+.mapCard {
+	background: #ffffff;
+	border-radius: 18px;
+	padding: 28px 26px;
+	box-shadow: 0 14px 42px rgba(0, 0, 0, 0.14);
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.infoCard h2 {
+	margin: 0 0 12px;
+	font-size: 28px;
+	color: #2b2b2b;
+}
+
+.textRow {
+	margin: 0 0 10px;
+	color: #2f2f2f;
+	font-size: 16px;
+}
+
+.label {
+	font-weight: 600;
+	margin-right: 6px;
+}
+
+.value {
+	color: #2f2f2f;
+}
+
+.strong {
+	font-weight: 700;
+}
+
+.hotlineRow {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 2px 0 12px;
+	color: #2f2f2f;
+	font-size: 16px;
+}
+
+.badge {
+	background: #2f2f2f;
+	color: #ffffff;
+	padding: 6px 10px;
+	border-radius: 10px;
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.hoursCard {
+	background: #f4f6f8;
+	border-radius: 12px;
+	padding: 16px 18px;
+	margin: 12px 0 22px;
+	border: 1px solid #e8eaee;
+}
+
+.hoursTitle {
+	font-weight: 700;
+	font-size: 16px;
+	margin-bottom: 14px;
+	color: #2f2f2f;
+}
+
+.hoursRow {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	color: #2f2f2f;
+	font-size: 15px;
+}
+
+.divider {
+	height: 1px;
+	background: #e5e7eb;
+	margin: 12px 0;
+}
+
+.hoursTime {
+	font-weight: 700;
+}
+
+.contactTitle {
+	font-weight: 700;
+	font-size: 16px;
+	margin-bottom: 12px;
+	color: #2f2f2f;
+}
+
+.contactActions {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.contactCircle {
+	width: 54px;
+	height: 54px;
+	border: 1px solid #d9dce2;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: #ffffff;
+	color: #2f2f2f;
+	text-decoration: none;
+	font-weight: 600;
+	font-size: 15px;
+	transition: transform 120ms ease, box-shadow 160ms ease;
+}
+
+.contactCircle:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.mapCard {
+	padding: 28px 20px 20px;
+}
+
+.mapFrame {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 4 / 3;
+	border-radius: 12px;
+	overflow: hidden;
+	border: 1px solid #e8eaee;
+	background: linear-gradient(135deg, #f5f6f8 0%, #ffffff 100%);
+	cursor: pointer;
+}
+
+.mapFrame iframe {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
+
+.mapOverlay {
+	position: absolute;
+	bottom: 12px;
+	right: 12px;
+	background: rgba(0, 0, 0, 0.65);
+	color: #ffffff;
+	padding: 8px 12px;
+	border-radius: 10px;
+	font-weight: 600;
+	font-size: 14px;
+	pointer-events: none;
+}
+
+.mapButton {
+	margin-top: 18px;
+	width: 100%;
+	padding: 16px;
+	background: #2f2f2f;
+	color: #ffffff;
+	font-size: 16px;
+	font-weight: 700;
+	border: 1px solid #2f2f2f;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: transform 120ms ease, box-shadow 160ms ease;
+}
+
+.mapButton:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+@media (max-width: 960px) {
+	.businessSection {
+		grid-template-columns: 1fr;
+	}
+
+	.mapCard {
+		order: 2;
+	}
+}
+
+@media (max-width: 640px) {
+	.businessSection {
+		padding: 28px 14px;
+	}
+
+	.infoCard h2 {
+		font-size: 24px;
+	}
+
+	.hoursRow,
+	.textRow,
+	.hotlineRow {
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+}

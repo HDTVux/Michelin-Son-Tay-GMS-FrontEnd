@@ -82,7 +82,7 @@ const translations = {
       email: 'info@michellinsonay.com',
       services: 'Dịch vụ',
       info: 'Thông tin',
-      copyright: '© 2026 AMU Studio. All rights reserved.'
+      copyright: 'Bản quyền @ 2025 Michelin. Đã đăng ký Bản quyền'
     }
   },
   en: {
@@ -156,7 +156,7 @@ const translations = {
       email: 'info@michellinsonay.com',
       services: 'Services',
       info: 'Information',
-      copyright: '© 2026 AMU Studio. All rights reserved.'
+      copyright: 'Bản quyền (c) 2025 Michelin. Đã đăng ký Bản quyền'
     }
   }
 };
