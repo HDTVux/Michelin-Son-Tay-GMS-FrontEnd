@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext.jsx';
 import './Header.css';
 import CustomerLogin from '../Login/CustomerLogin.jsx';
+import CustomerRegister from '../Register/CustomerRegister.jsx';
 import logo from '../../assets/Logo3.jpg';
 
 const Header = () => {
@@ -22,6 +23,7 @@ const Header = () => {
   };
 
   const [showCustomerLogin, setShowCustomerLogin] = useState(false);
+  const [showCustomerRegister, setShowCustomerRegister] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -89,16 +91,18 @@ const Header = () => {
           >
             {t('header.login')}
           </button>
-          <Link 
-            to="/register" 
+          <button
             className="btnNavRegister"
-            onClick={closeMenu}
+            onClick={() => { setShowCustomerRegister(true); closeMenu(); }}
           >
             {t('header.register')}
-          </Link>
+          </button>
         </div>
         {showCustomerLogin && (
           <CustomerLogin onClose={() => setShowCustomerLogin(false)} />
+        )}
+        {showCustomerRegister && (
+          <CustomerRegister onClose={() => setShowCustomerRegister(false)} />
         )}
       </div>
     </header>

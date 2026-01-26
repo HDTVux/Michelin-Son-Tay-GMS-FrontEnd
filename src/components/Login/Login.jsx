@@ -85,10 +85,6 @@ export default function Login(){
             <h2>{t('login.title')}</h2>
             <p className="formSubtitle">{t('login.subtitle')}</p>
           </div>
-          <p className="formPrompt">
-            {t('login.noAccount')}
-            <Link to="/register" className="link-style"> {t('login.register')}</Link>
-          </p>
 
           <form onSubmit={handleSubmit}>
             <div className="inputGroup">
@@ -127,7 +123,7 @@ export default function Login(){
             </div>
             <p className="forgotPassword">
               {t('login.forgotPassword')}
-              <Link to="/register" className="link-style"> {t('login.forgot')}</Link>
+              <Link to="/forgot-password" className="link-style"> {t('login.forgot')}</Link>
             </p>
 
             <button 
@@ -150,12 +146,7 @@ export default function Login(){
 
           <div className="socialButtons">
             <button className="socialBtn">
-              <img src="https://www.svgrepo.com/show/355037/google.svg" width="18" alt="Google" />
-              Google
-            </button>
-            <button className="socialBtn">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Apple_logo_grey.svg/1724px-Apple_logo_grey.svg.png" width="18" alt="Apple" />
-              Apple
+              Zalo
             </button>
           </div>
         </div>

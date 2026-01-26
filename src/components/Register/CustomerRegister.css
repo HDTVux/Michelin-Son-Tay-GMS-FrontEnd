@@ -1,0 +1,57 @@
+.crBackdrop{
+	position:fixed;
+	inset:0;
+	display:flex;
+	align-items:center;
+	justify-content:center;
+	background: rgba(10,15,28,0.55);
+	z-index:9999;
+	padding:20px;
+}
+.crModal{
+	width:420px;
+	max-width:100%;
+	background:white;
+	color:#0a0f1c;
+	border-radius:10px;
+	padding:26px;
+	box-shadow:0 12px 30px rgba(0,0,0,0.35);
+	position:relative;
+	text-align:center;
+	border:1px solid rgba(0,0,0,0.04);
+}
+.crCloseBtn{
+	position:absolute;
+	right:10px;
+	top:8px;
+	border:0;
+	background:transparent;
+	font-size:22px;
+	color:black;
+	cursor:pointer;
+}
+.crTitle{ 
+	margin:6px 0 2px; 
+	font-weight:600;
+	color: #005aa9;
+ }
+.crBrand{ margin:6px 0 16px; font-size:20px; color:#005aa9; font-weight:800; }
+.crForm{ display:flex; flex-direction:column; gap:12px; align-items:stretch; }
+.crLabel{ text-align:left; font-size:13px; color:#0a0f1c; }
+.crInput{ padding:12px 10px; border:1px solid #d0d5dd; background:#f3f4f6; color:#0a0f1c; border-radius:8px; font-size:14px; }
+.crInputError{ border-color:#e25; }
+.crInput::placeholder{ color:#6b7280; }
+.crErrorText{ color:#d23; font-size:13px; text-align:left; }
+.crPrimaryBtn{ background:linear-gradient(135deg, #F7DC03 0%, #F7DC03 100%); color:black; padding:12px; border-radius:8px; border:0; cursor:pointer; box-shadow:0 6px 18px rgba(45,107,240,0.35); font-weight:700; }
+.crPrimaryBtn:disabled{ opacity:0.75; cursor:not-allowed; }
+.crOtpActions{ display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
+.crLinkBtn{ background:transparent; border:0; color:#3a8de0; cursor:pointer; font-size:13px; }
+.crSuccessBox{ display:flex; flex-direction:column; align-items:center; gap:12px; padding:10px 6px; }
+.crSuccessIcon{ width:76px; height:76px; border-radius:50%; border:2px solid #22c55e; display:flex; align-items:center; justify-content:center; background:#e7f8ee; }
+.crTick{ display:block; width:24px; height:12px; border-left:4px solid #16a34a; border-bottom:4px solid #16a34a; transform:rotate(-45deg); }
+.crSuccessTitle{ margin:0; font-size:18px; color:#0a0f1c; font-weight:700; }
+.crSuccessText{ margin:0; color:#4b5563; font-size:14px; text-align:center; }
+@media (max-width:480px){
+	.crModal{ width:100%; padding:20px; }
+	.crOtpActions{ flex-direction:column; gap:8px; }
+}

@@ -7,7 +7,8 @@ import CustomerLogin from './components/Login/CustomerLogin.jsx';
 import Register from './components/Register/Register.jsx';
 import Services from './components/Homepage/Services/Services.jsx';
 import About from './components/About/About.jsx';
-
+import CustomerRegister from './components/Register/CustomerRegister.jsx';
+import ForgotPassword from './components/Homepage/ForgotPassword/ForgotPassword.jsx';
 export default function App() {
   return (
     <LanguageProvider>
@@ -21,6 +22,8 @@ export default function App() {
             <Route path="login" element={<Login />} />
             <Route path="customer-login" element={<CustomerLogin />} />
             <Route path="register" element={<Register />} />
+            <Route path="customer-register" element={<CustomerRegister />} />
+            <Route path="forgot-password" element={<ForgotPassword />} />
           </Route>
         </Routes>
       </BrowserRouter>
