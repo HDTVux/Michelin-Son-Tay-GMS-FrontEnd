@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import './Register.css';
 import Mascot from '../../assets/Mascot.jpg';
 import { Link } from 'react-router-dom';
-import { useLanguage } from '../../contexts/LanguageContext.jsx';
 
 export default function Register(){
-  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name:'',
     phoneNumber:'',
@@ -30,12 +28,12 @@ export default function Register(){
 
   const getPasswordStrength = (password) => {
     if (password.length === 0) return { strength: 0, text: '' };
-    if (password.length < 6) return { strength: 1, text: t('register.passwordWeak') };
-    if (password.length < 8) return { strength: 2, text: t('register.passwordMedium') };
+    if (password.length < 6) return { strength: 1, text: 'Yếu' };
+    if (password.length < 8) return { strength: 2, text: 'Trung bình' };
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])/.test(password)) {
-      return { strength: 2, text: t('register.passwordMedium') };
+      return { strength: 2, text: 'Trung bình' };
     }
-    return { strength: 3, text: t('register.passwordStrong') };
+    return { strength: 3, text: 'Mạnh' };
   };
 
   const handleChange = (e) => {
@@ -53,31 +51,31 @@ export default function Register(){
 
     // Validation
     if (!formData.name.trim()) {
-      newErrors.name = t('register.nameRequired');
+      newErrors.name = 'Tên là bắt buộc';
     }
 
     if (!formData.phoneNumber) {
-      newErrors.phoneNumber = t('register.phoneRequired');
+      newErrors.phoneNumber = 'Số điện thoại là bắt buộc';
     } else if (!validatePhone(formData.phoneNumber)) {
-      newErrors.phoneNumber = t('register.phoneInvalid');
+      newErrors.phoneNumber = 'Số điện thoại không hợp lệ';
     }
 
     if (!formData.email) {
-      newErrors.email = t('register.emailRequired');
+      newErrors.email = 'Email là bắt buộc';
     } else if (!validateEmail(formData.email)) {
-      newErrors.email = t('register.emailInvalid');
+      newErrors.email = 'Email không hợp lệ';
     }
 
     if (!formData.password) {
-      newErrors.password = t('register.passwordRequired');
+      newErrors.password = 'Mật khẩu là bắt buộc';
     } else if (formData.password.length < 6) {
-      newErrors.password = t('register.passwordMinLength');
+      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
     }
 
     if (!formData.repassword) {
-      newErrors.repassword = t('register.repasswordRequired');
+      newErrors.repassword = 'Vui lòng xác nhận mật khẩu';
     } else if (formData.password !== formData.repassword) {
-      newErrors.repassword = t('register.passwordMismatch');
+      newErrors.repassword = 'Mật khẩu không khớp';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -119,21 +117,21 @@ export default function Register(){
 
         <div className="registerFormSection">
           <div className="formHeader">
-            <h2>{t('register.title')}</h2>
-            <p className="formSubtitle">{t('register.subtitle')}</p>
+            <h2>Xin chào</h2>
+            <p className="formSubtitle">Hi there</p>
           </div>
           <p className="formPrompt">
-            {t('register.haveAccount')}
-            <Link to="/login" className="link-style"> {t('register.login')}</Link>
+            Đã có tài khoản?
+            <Link to="/login" className="link-style"> Đăng nhập</Link>
           </p>
 
           <form onSubmit={handleSubmit}>
             <div className="inputGroup">
-              <label className="inputLabel">{t('register.namePlaceholder')}</label>
+              <label className="inputLabel">Tên</label>
               <input 
                 type="text" 
                 name="name"
-                placeholder={t('register.namePlaceholder')}
+                placeholder="Tên"
                 value={formData.name}
                 onChange={handleChange}
                 className={errors.name ? 'error' : ''}
@@ -141,11 +139,11 @@ export default function Register(){
               {errors.name && <span className="errorMessage">{errors.name}</span>}
             </div>
             <div className="inputGroup">
-              <label className="inputLabel">{t('register.phonePlaceholder')}</label>
+              <label className="inputLabel">Số điện thoại</label>
               <input 
                 type="tel" 
                 name="phoneNumber"
-                placeholder={t('register.phonePlaceholder')}
+                placeholder="Số điện thoại"
                 value={formData.phoneNumber}
                 onChange={handleChange}
                 className={errors.phoneNumber ? 'error' : ''}
@@ -153,11 +151,11 @@ export default function Register(){
               {errors.phoneNumber && <span className="errorMessage">{errors.phoneNumber}</span>}
             </div>
             <div className="inputGroup">
-              <label className="inputLabel">{t('register.emailPlaceholder')}</label>
+              <label className="inputLabel">Email</label>
               <input 
                 type="email" 
                 name="email"
-                placeholder={t('register.emailPlaceholder')}
+                placeholder="Email"
                 value={formData.email}
                 onChange={handleChange}
                 className={errors.email ? 'error' : ''}
@@ -165,12 +163,12 @@ export default function Register(){
               {errors.email && <span className="errorMessage">{errors.email}</span>}
             </div>
             <div className="inputGroup">
-              <label className="inputLabel">{t('register.passwordPlaceholder')}</label>
+              <label className="inputLabel">Nhập mật khẩu</label>
               <div className="passwordWrapper">
                 <input 
                   type={showPassword ? "text" : "password"}
                   name="password"
-                  placeholder={t('register.passwordPlaceholder')}
+                  placeholder="Nhập mật khẩu"
                   value={formData.password}
                   onChange={handleChange}
                   className={errors.password ? 'error' : ''}
@@ -200,12 +198,12 @@ export default function Register(){
               {errors.password && <span className="errorMessage">{errors.password}</span>}
             </div>
             <div className="inputGroup">
-              <label className="inputLabel">{t('register.repasswordPlaceholder')}</label>
+              <label className="inputLabel">Nhập lại mật khẩu</label>
               <div className="passwordWrapper">
                 <input 
                   type={showRePassword ? "text" : "password"}
                   name="repassword"
-                  placeholder={t('register.repasswordPlaceholder')}
+                  placeholder="Nhập lại mật khẩu"
                   value={formData.repassword}
                   onChange={handleChange}
                   className={errors.repassword ? 'error' : ''}
@@ -229,10 +227,10 @@ export default function Register(){
               {isLoading ? (
                 <>
                   <span className="spinner"></span>
-                  {t('register.registering')}
+                    Đang đăng ký...
                 </>
               ) : (
-                t('register.registerButton')
+                  'Đăng ký'
               )}
             </button>
           </form>

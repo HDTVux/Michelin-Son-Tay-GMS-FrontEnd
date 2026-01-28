@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import './Login.css';
 import Mascot from '../../assets/Mascot.jpg';
 import { Link } from 'react-router-dom';
-import { useLanguage } from '../../contexts/LanguageContext.jsx';
 
 export default function Login(){
-  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -34,15 +32,15 @@ export default function Login(){
 
     // Validation
     if (!formData.email) {
-      newErrors.email = t('login.emailRequired');
+      newErrors.email = 'Email là bắt buộc';
     } else if (!validateEmail(formData.email)) {
-      newErrors.email = t('login.emailInvalid');
+      newErrors.email = 'Email không hợp lệ';
     }
 
     if (!formData.password) {
-      newErrors.password = t('login.passwordRequired');
+      newErrors.password = 'Mật khẩu là bắt buộc';
     } else if (formData.password.length < 6) {
-      newErrors.password = t('login.passwordMinLength');
+      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -82,17 +80,17 @@ export default function Login(){
 
         <div className="loginFormSection">
           <div className="formHeader">
-            <h2>{t('login.title')}</h2>
-            <p className="formSubtitle">{t('login.subtitle')}</p>
+            <h2>Chào mừng trở lại</h2>
+            <p className="formSubtitle">Welcome Back</p>
           </div>
 
           <form onSubmit={handleSubmit}>
             <div className="inputGroup">
-              <label className="inputLabel">{t('login.emailPlaceholder')}</label>
+              <label className="inputLabel">Email</label>
               <input 
                 type="email" 
                 name="email"
-                placeholder={t('login.emailPlaceholder')}
+                placeholder="Email"
                 value={formData.email}
                 onChange={handleChange}
                 className={errors.email ? 'error' : ''}
@@ -100,12 +98,12 @@ export default function Login(){
               {errors.email && <span className="errorMessage">{errors.email}</span>}
             </div>
             <div className="inputGroup">
-              <label className="inputLabel">{t('login.passwordPlaceholder')}</label>
+              <label className="inputLabel">Nhập mật khẩu</label>
               <div className="passwordWrapper">
                 <input 
                   type={showPassword ? "text" : "password"}
                   name="password"
-                  placeholder={t('login.passwordPlaceholder')}
+                  placeholder="Nhập mật khẩu"
                   value={formData.password}
                   onChange={handleChange}
                   className={errors.password ? 'error' : ''}
@@ -122,8 +120,8 @@ export default function Login(){
               {errors.password && <span className="errorMessage">{errors.password}</span>}
             </div>
             <p className="forgotPassword">
-              {t('login.forgotPassword')}
-              <Link to="/forgot-password" className="link-style"> {t('login.forgot')}</Link>
+              Quên mật khẩu?
+              <Link to="/forgot-password" className="link-style"> Quên</Link>
             </p>
 
             <button 
@@ -134,15 +132,15 @@ export default function Login(){
               {isLoading ? (
                 <>
                   <span className="spinner"></span>
-                  {t('login.loggingIn')}
+                  Đang đăng nhập...
                 </>
               ) : (
-                t('login.loginButton')
+                'Đăng nhập'
               )}
             </button>
           </form>
 
-          <div className="divider"><span>{t('login.orLoginWith')}</span></div>
+          <div className="divider"><span>Hoặc đăng nhập bằng</span></div>
 
           <div className="socialButtons">
             <button className="socialBtn">

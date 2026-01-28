@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useLanguage } from '../../contexts/LanguageContext.jsx';
 import './Home.css';
 import TVC from '../../assets/tvc.mp4'
 import Service from './Services/Services.jsx';
@@ -10,18 +9,17 @@ import BussinessInfor from './BusinessInfo/BussinessInfor.jsx';
 
 const Home = () => {
     const [isVisible, setIsVisible] = useState(false);
-    const { t } = useLanguage();
 
     useEffect(() => {
         setIsVisible(true);
     }, []);
 
     const services = [
-        {  text: t('home.services.0') },
-        {  text: t('home.services.1') },
-        { text: t('home.services.2') },
-        {  text: t('home.services.3') },
-        {  text: t('home.services.4') }
+        { text: 'Michelin sơn tây là địa chỉ lốp uy tín ở sơn tây.' },
+        { text: 'Là đại lý duy nhất. Chuyên cung cấp lốp dầu ắc quy chính hãng.' },
+        { text: 'Sửa chữa ôtô cứu hộ 24/7' },
+        { text: 'Sơn- Gò- Hàn.' },
+        { text: 'Chăm sóc làm đẹp xe từ A-Z.' }
     ];
 
     return (
@@ -31,8 +29,8 @@ const Home = () => {
         <section className="homePage">
             <div className={`homeContainer ${isVisible ? 'fadeIn' : ''}`}>
                 <h1 className="homeTitle">
-                    {t('home.title')}
-                    <span>{t('home.subtitle')}</span>
+                    Giới thiệu về
+                    <span>Michellin Sơn Tây</span>
                 </h1>
                 <div className='homeContent'>
                     {services.map((service, index) => (
@@ -47,8 +45,8 @@ const Home = () => {
                     ))}
                 </div>
                 <div className="homeActions fadeInUp" style={{ animationDelay: '0.6s' }}>
-                    <Link to="/register" className="btnPrimary">{t('home.bookNow')}</Link>
-                    <Link to="/services" className="btnSecondary">{t('home.viewServices')}</Link>
+                    <Link to="/register" className="btnPrimary">Đặt lịch ngay</Link>
+                    <Link to="/services" className="btnSecondary">Xem dịch vụ</Link>
                 </div>
             </div>
             <div className={`videocontainer ${isVisible ? 'slideIn' : ''}`}>

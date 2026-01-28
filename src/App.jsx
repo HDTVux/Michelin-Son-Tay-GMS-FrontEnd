@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { LanguageProvider } from './contexts/LanguageContext.jsx';
 import MainLayout from './components/Homepage/MainLayout.jsx';
 import Home from './components/Homepage/Home.jsx';
 import Login from './components/Login/Login.jsx';
@@ -11,22 +10,20 @@ import CustomerRegister from './components/Register/CustomerRegister.jsx';
 import ForgotPassword from './components/Homepage/ForgotPassword/ForgotPassword.jsx';
 export default function App() {
   return (
-    <LanguageProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Nhóm các trang có Header & Footer */}
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="services" element={<Services />} />
-            <Route path="about" element={<About />} />
-            <Route path="login" element={<Login />} />
-            <Route path="customer-login" element={<CustomerLogin />} />
-            <Route path="register" element={<Register />} />
-            <Route path="customer-register" element={<CustomerRegister />} />
-            <Route path="forgot-password" element={<ForgotPassword />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </LanguageProvider>
+    <BrowserRouter>
+      <Routes>
+        {/* Nhóm các trang có Header & Footer */}
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="services" element={<Services />} />
+          <Route path="about" element={<About />} />
+          <Route path="login" element={<Login />} />
+          <Route path="customer-login" element={<CustomerLogin />} />
+          <Route path="register" element={<Register />} />
+          <Route path="customer-register" element={<CustomerRegister />} />
+          <Route path="forgot-password" element={<ForgotPassword />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }

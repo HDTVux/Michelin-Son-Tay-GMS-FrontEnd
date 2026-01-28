@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useLanguage } from '../../contexts/LanguageContext.jsx';
 import './Header.css';
 import CustomerLogin from '../Login/CustomerLogin.jsx';
 import CustomerRegister from '../Register/CustomerRegister.jsx';
@@ -10,7 +9,6 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
-  const { t, language, toggleLanguage } = useLanguage();
 
   const isActive = (path) => location.pathname === path;
 
@@ -57,45 +55,36 @@ const Header = () => {
             className={isActive('/') ? 'active' : ''}
             onClick={closeMenu}
           >
-            {t('header.home')}
+            Trang chủ
           </Link>
           <Link 
             to="/services" 
             className={isActive('/services') ? 'active' : ''}
             onClick={closeMenu}
           >
-            {t('header.services')}
+            Dịch vụ
           </Link>
           <Link 
             to="/about" 
             className={isActive('/about') ? 'active' : ''}
             onClick={closeMenu}
           >
-            {t('header.about')}
+            Về chúng tôi
           </Link>
         </nav>
         
         <div className={`headerAuth ${isMenuOpen ? 'open' : ''}`}>
-          <button 
-            className="languageToggle"
-            onClick={toggleLanguage}
-            aria-label="Toggle language"
-            title={language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
-          >
-            <span>{language === 'vi' ? '🇻🇳' : '🇬🇧'}</span>
-            <span className="languageText">{language === 'vi' ? 'VI' : 'EN'}</span>
-          </button>
           <button
             className="btnNavLogin"
             onClick={() => { setShowCustomerLogin(true); closeMenu(); }}
           >
-            {t('header.login')}
+            Đăng nhập
           </button>
           <button
             className="btnNavRegister"
             onClick={() => { setShowCustomerRegister(true); closeMenu(); }}
           >
-            {t('header.register')}
+            Đăng ký
           </button>
         </div>
         {showCustomerLogin && (
