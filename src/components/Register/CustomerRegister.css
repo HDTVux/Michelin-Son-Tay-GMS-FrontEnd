@@ -44,6 +44,9 @@
 .crErrorText{ color:#d23; font-size:13px; text-align:left; }
 .crPrimaryBtn{ background:linear-gradient(135deg, #F7DC03 0%, #F7DC03 100%); color:black; padding:12px; border-radius:8px; border:0; cursor:pointer; box-shadow:0 6px 18px rgba(45,107,240,0.35); font-weight:700; }
 .crPrimaryBtn:disabled{ opacity:0.75; cursor:not-allowed; }
+.crOtpGrid{ display:grid; grid-template-columns:repeat(6, minmax(44px, 1fr)); gap:8px; }
+.crOtpGrid .crInput{ text-align:center; font-size:17px; padding:12px 0; letter-spacing:0.06em; }
+.crOtpGrid .crInputError{ border-color:#e25; }
 .crOtpActions{ display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
 .crLinkBtn{ background:transparent; border:0; color:#3a8de0; cursor:pointer; font-size:13px; }
 .crSuccessBox{ display:flex; flex-direction:column; align-items:center; gap:12px; padding:10px 6px; }

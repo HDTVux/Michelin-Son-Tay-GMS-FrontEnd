@@ -1,16 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import './CustomerLogin.css';
 
 function CustomerLoginInner({ onClose }){
-  const [step, setStep] = useState(1); // 1: phone, 2: otp
+  const [step, setStep] = useState(1); // 1: phone, 2: otp, 3: reset
   const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpReset, setOtpReset] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
+  const [otpDigits, setOtpDigits] = useState(Array(6).fill(''));
+  const [otpResetDigits, setOtpResetDigits] = useState(Array(6).fill(''));
+  const [newPinDigits, setNewPinDigits] = useState(Array(6).fill(''));
+  const [confirmPinDigits, setConfirmPinDigits] = useState(Array(6).fill(''));
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const otpRefs = useRef([]);
+  const otpResetRefs = useRef([]);
+  const newPinRefs = useRef([]);
+  const confirmPinRefs = useRef([]);
 
   const validatePhone = (p) => {
     const cleaned = p.replace(/[^0-9]/g, '');
@@ -35,7 +40,7 @@ function CustomerLoginInner({ onClose }){
 
   const handleOtpSubmit = (e) => {
     e.preventDefault();
-    const cleaned = otp.replace(/[^0-9]/g, '');
+    const cleaned = otpDigits.join('');
     if (cleaned.length !== 6) {
       setError('Mã OTP cần 6 chữ số');
       return;
@@ -50,7 +55,7 @@ function CustomerLoginInner({ onClose }){
       // reset for demo
       setStep(1);
       setPhone('');
-      setOtp('');
+      setOtpDigits(Array(6).fill(''));
       if (onClose) onClose(); // Call onClose on successful login
     }, 800);
   };
@@ -68,16 +73,16 @@ function CustomerLoginInner({ onClose }){
 
   const handleResetSubmit = (e) => {
     e.preventDefault();
-    const cleaned = otpReset.replace(/[^0-9]/g, '');
+    const cleaned = otpResetDigits.join('');
     if (cleaned.length !== 6) {
       setError('Mã OTP cần 6 chữ số');
       return;
     }
-    if (newPin.replace(/[^0-9]/g, '').length !== 6) {
+    if (newPinDigits.join('').length !== 6) {
       setError('Mật PIN mới cần 6 chữ số');
       return;
     }
-    if (newPin !== confirmPin) {
+    if (newPinDigits.join('') !== confirmPinDigits.join('')) {
       setError('Mật PIN xác nhận không khớp');
       return;
     }
@@ -90,11 +95,38 @@ function CustomerLoginInner({ onClose }){
       // reset and close
       setStep(1);
       setPhone('');
-      setOtpReset('');
-      setNewPin('');
-      setConfirmPin('');
+      setOtpResetDigits(Array(6).fill(''));
+      setNewPinDigits(Array(6).fill(''));
+      setConfirmPinDigits(Array(6).fill(''));
       if (onClose) onClose();
     }, 900);
+  };
+
+  const handleDigitChange = (event, index, digits, setDigits, refs) => {
+    const value = event.target.value.replace(/\D/g, '').slice(-1);
+    const updated = [...digits];
+    updated[index] = value;
+    setDigits(updated);
+    if (value && index < updated.length - 1) {
+      refs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleDigitKeyDown = (event, index, digits, refs) => {
+    if (event.key === 'Backspace' && !digits[index] && index > 0) {
+      refs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleDigitPaste = (event, setDigits, refs) => {
+    event.preventDefault();
+    const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6).split('');
+    const filled = Array(6).fill('');
+    for (let i = 0; i < pasted.length; i++) {
+      filled[i] = pasted[i];
+    }
+    setDigits(filled);
+    refs.current[Math.min(pasted.length, 5)]?.focus();
   };
 
   return (
@@ -127,19 +159,28 @@ function CustomerLoginInner({ onClose }){
         {step === 2 && (
           <form onSubmit={handleOtpSubmit} className="form">
             <label className="label">Mã OTP (6 chữ số)</label>
-            <input
-              className={error ? 'input error' : 'input'}
-              placeholder="Nhập mã OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              inputMode="numeric"
-            />
+            <div className="clOtpGrid">
+              {otpDigits.map((digit, index) => (
+                <input
+                  key={index}
+                  ref={el => { otpRefs.current[index] = el; }}
+                  className={error ? 'input error' : 'input'}
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleDigitChange(e, index, otpDigits, setOtpDigits, otpRefs)}
+                  onKeyDown={(e) => handleDigitKeyDown(e, index, otpDigits, otpRefs)}
+                  onPaste={(e) => handleDigitPaste(e, setOtpDigits, otpRefs)}
+                  aria-label={`OTP digit ${index + 1}`}
+                />
+              ))}
+            </div>
             {error && <div className="errorText">{error}</div>}
             <button className="primaryBtn" type="submit" disabled={isLoading}>
               {isLoading ? 'Đang xác thực...' : 'Đăng nhập'}
             </button>
             <div className="otpActions">
-              <button type="button" className="linkBtn" onClick={() => { setStep(1); setOtp(''); }}>Quay lại</button>
+              <button type="button" className="linkBtn" onClick={() => { setStep(1); setOtpDigits(Array(6).fill('')); setError(''); }}>Quay lại</button>
               <button type="button" className="linkBtn" onClick={() => { setIsLoading(true); setTimeout(()=>{ setIsLoading(false); alert('OTP mới đã được gửi'); },700); }}>Gửi lại OTP</button>
             </div>
             <div style={{marginTop:6}}>
@@ -153,29 +194,56 @@ function CustomerLoginInner({ onClose }){
         {step === 3 && (
           <form onSubmit={handleResetSubmit} className="form">
             <label className="label">Mã OTP (6 chữ số)</label>
-            <input
-              className={error ? 'input error' : 'input'}
-              placeholder="Nhập mã OTP"
-              value={otpReset}
-              onChange={(e) => setOtpReset(e.target.value)}
-              inputMode="numeric"
-            />
+            <div className="clOtpGrid">
+              {otpResetDigits.map((digit, index) => (
+                <input
+                  key={`otpReset-${index}`}
+                  ref={el => { otpResetRefs.current[index] = el; }}
+                  className={error ? 'input error' : 'input'}
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleDigitChange(e, index, otpResetDigits, setOtpResetDigits, otpResetRefs)}
+                  onKeyDown={(e) => handleDigitKeyDown(e, index, otpResetDigits, otpResetRefs)}
+                  onPaste={(e) => handleDigitPaste(e, setOtpResetDigits, otpResetRefs)}
+                  aria-label={`Reset OTP digit ${index + 1}`}
+                />
+              ))}
+            </div>
             <label className="label">Mã PIN mới (6 chữ số)</label>
-            <input
-              className={error ? 'input error' : 'input'}
-              placeholder="Nhập mã PIN mới"
-              value={newPin}
-              onChange={(e) => setNewPin(e.target.value)}
-              inputMode="numeric"
-            />
+            <div className="clOtpGrid">
+              {newPinDigits.map((digit, index) => (
+                <input
+                  key={`newPin-${index}`}
+                  ref={el => { newPinRefs.current[index] = el; }}
+                  className={error ? 'input error' : 'input'}
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleDigitChange(e, index, newPinDigits, setNewPinDigits, newPinRefs)}
+                  onKeyDown={(e) => handleDigitKeyDown(e, index, newPinDigits, newPinRefs)}
+                  onPaste={(e) => handleDigitPaste(e, setNewPinDigits, newPinRefs)}
+                  aria-label={`New PIN digit ${index + 1}`}
+                />
+              ))}
+            </div>
             <label className="label">Xác nhận mã PIN mới</label>
-            <input
-              className={error ? 'input error' : 'input'}
-              placeholder="Xác nhận mã PIN mới"
-              value={confirmPin}
-              onChange={(e) => setConfirmPin(e.target.value)}
-              inputMode="numeric"
-            />
+            <div className="clOtpGrid">
+              {confirmPinDigits.map((digit, index) => (
+                <input
+                  key={`confirm-${index}`}
+                  ref={el => { confirmPinRefs.current[index] = el; }}
+                  className={error ? 'input error' : 'input'}
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleDigitChange(e, index, confirmPinDigits, setConfirmPinDigits, confirmPinRefs)}
+                  onKeyDown={(e) => handleDigitKeyDown(e, index, confirmPinDigits, confirmPinRefs)}
+                  onPaste={(e) => handleDigitPaste(e, setConfirmPinDigits, confirmPinRefs)}
+                  aria-label={`Confirm PIN digit ${index + 1}`}
+                />
+              ))}
+            </div>
             {error && <div className="errorText">{error}</div>}
             <button className="primaryBtn" type="submit" disabled={isLoading}>
               {isLoading ? 'Đang xác nhận...' : 'Xác nhận'}
