@@ -1,0 +1,358 @@
+.mainHeader {
+  background: #094F9D;
+  backdrop-filter: blur(8px);
+  padding: 16px 5%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+  transition: background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, padding 0.25s ease;
+}
+
+.mainHeader:hover {
+  background: #094F9D;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.mainHeader.scrolled {
+  background: #094F9D;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  padding: 10px 5%;
+}
+
+.headerContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 auto;
+  max-width: 1400px;
+  transition: transform 0.2s ease;
+}
+
+.headerLogo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  transition: transform 0.3s ease;
+}
+
+.headerLogo:hover {
+  transform: scale(1.02);
+}
+
+/* Logo image styling */
+.headerLogo img,
+.headerLogo #Logo {
+  height: 88px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  filter: none;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.headerLogo:hover img,
+.headerLogo:hover #Logo {
+  transform: translateY(-2px) scale(1.03);
+}
+
+.mainHeader.scrolled .headerLogo img,
+.mainHeader.scrolled .headerLogo #Logo {
+  transform: scale(0.88);
+}
+
+.mainHeader.scrolled .headerContainer {
+  transform: scale(0.96) translateY(-2px);
+}
+
+/* If you want a compact variant (small screens) */
+@media (max-width: 768px) {
+  .headerLogo img,
+  .headerLogo #Logo {
+    height: 38px;
+  }
+}
+
+@media (max-width: 480px) {
+  .headerLogo img,
+  .headerLogo #Logo {
+    height: 34px;
+  }
+}
+
+.logoText {
+  background: linear-gradient(135deg, #ffffff 0%, #005aa9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.headerNav {
+  display: flex;
+  gap: 8px;
+}
+
+.headerNav a {
+  color: #ffffff;
+  text-decoration: none;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  position: relative;
+}
+
+.headerNav a::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ffffff, rgba(255, 255, 255, 0.8));
+  transition: width 0.3s ease;
+}
+
+.headerNav a:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.headerNav a:hover::before {
+  width: 60%;
+}
+
+.headerNav a.active {
+  color: #e8f2ff;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.headerNav a.active::before {
+  width: 60%;
+}
+
+.headerAuth {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.languageToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 14px;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+  min-width: 70px;
+}
+
+.languageToggle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.languageToggle:hover::before {
+  left: 100%;
+}
+
+.languageToggle:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.8);
+  color: #0a0f1c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.languageToggle:active {
+  transform: translateY(0);
+}
+
+.languageToggle span {
+  font-size: 18px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+.languageText {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.btnNavLogin {
+  color: black;
+  text-decoration: none;
+  padding: 9px 18px;
+  border-radius: 10px;
+  background: #FCE500 ;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+}
+
+.btnNavLogin:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-1px);
+}
+
+
+/* Mobile Menu Toggle */
+.mobileMenuToggle {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  z-index: 1001;
+}
+
+.mobileMenuToggle span {
+  width: 25px;
+  height: 3px;
+  background: #ffffff;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+
+.mobileMenuToggle.active span:nth-child(1) {
+  transform: rotate(45deg) translate(8px, 8px);
+}
+
+.mobileMenuToggle.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.mobileMenuToggle.active span:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -7px);
+}
+
+/* Responsive: Mobile Menu */
+@media (max-width: 768px) {
+  .mobileMenuToggle {
+    display: flex;
+  }
+
+  .headerNav {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    right: 0;
+    background: rgba(10, 15, 28, 0.98);
+    backdrop-filter: blur(10px);
+    flex-direction: column;
+    padding: 20px 5%;
+    transform: translateY(-100%);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .headerNav.open {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .headerNav a {
+    padding: 12px 16px;
+    margin: 4px 0;
+    text-align: left;
+  }
+
+  .headerAuth {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(10, 15, 28, 0.98);
+    backdrop-filter: blur(10px);
+    padding: 15px 5%;
+    justify-content: center;
+    transform: translateY(100%);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .headerAuth.open {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .languageToggle {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 8px;
+    padding: 10px 16px;
+  }
+
+  .btnNavLogin{
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+}
+
+@media (max-width: 480px) {
+  .mainHeader {
+    padding: 10px 3%;
+  }
+
+  .headerLogo {
+    font-size: 18px;
+  }
+
+  .headerNav {
+    top: 55px;
+    padding: 15px 4%;
+  }
+
+  .headerAuth {
+    padding: 12px 4%;
+  }
+
+  .btnNavLogin{
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+}

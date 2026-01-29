@@ -1,0 +1,117 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap');
+
+/* Banner styles matching provided design */
+.banner {
+    background: #ffffff;
+    color: #0a0f1c;
+    padding: 50px ;
+}
+
+.banner-inner {
+    max-width: 100%; /* Cho phép nội dung chiếm hết chiều ngang */
+    margin: 0 auto;
+    text-align: center;
+}
+.banner-title{
+	font-family: 'Baloo 2', 'Segoe UI', Tahoma, Arial, sans-serif;
+	font-size: 48px;
+	margin: 0 0 12px;
+	font-weight: 800;
+	letter-spacing: 0.5px;
+}
+
+.banner-sub{
+    color: #475569;
+	margin: 0 auto 28px;
+	max-width: 760px;
+	line-height: 1.6;
+}
+
+.banner-carousel {
+    width: 100%;
+    max-width: 1250px; 
+    margin: 0 auto;
+    overflow: hidden;
+    position: relative;
+    display: block;
+}
+
+.slides {
+    display: flex;
+    width: 100%; 
+    transition: transform 600ms cubic-bezier(.22, .9, .18, 1);
+    will-change: transform;
+}
+
+.slide {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 300px; 
+    
+    background-size: cover;      
+    background-position: center;  /* Giữ trọng tâm ảnh ở giữa */
+    background-repeat: no-repeat;
+    background-color: #eef2f8;   /* Nền sáng nhạt để ảnh chưa load cũng không bị chói */
+}
+
+
+.slide-overlay .diag{position:absolute; inset:0;}
+.slide-overlay .diag::before{
+	content: '';
+	position: absolute;
+	left: -10%;
+	right: -10%;
+	height: 2px;
+    background: #d7deed;
+	top: 50%;
+}
+
+.slide-overlay .diag-1::before{ transform: rotate(10deg); }
+.slide-overlay .diag-2::before{ transform: rotate(-10deg); }
+
+.banner-dots{
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	justify-content: center;
+}
+.dot-btn{
+	width: 10px;
+	height: 10px;
+    background: rgba(255, 255, 255, 0.6);
+    opacity: 0.75;
+	border-radius: 50%;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+}
+.dot-btn.active{
+	width: 28px;
+	height: 10px;
+	border-radius: 999px;
+    opacity: 1;
+    background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+}
+
+@media (max-width: 768px) {
+    .banner {
+        padding: 30px 10px;
+    }
+    .banner-title {
+        font-size: 28px;
+    }
+    .slide {
+        aspect-ratio: 16 / 9; 
+    }
+}
+
+@media (max-width: 480px) {
+    .banner-title {
+        font-size: 22px;
+    }
+    .slide {
+        aspect-ratio: 4 / 3; 
+    }
+}
+

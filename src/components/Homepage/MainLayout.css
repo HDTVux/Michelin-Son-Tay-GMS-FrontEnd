@@ -1,7 +1,0 @@
-.layoutRoot { 
-    min-height: 100vh; display: flex; flex-direction: column; 
-}
-.layoutMain { 
-    flex: 1;
-    padding: 10px 5%; 
-}
