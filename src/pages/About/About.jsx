@@ -6,7 +6,7 @@ const About = () => {
       <div className="aboutHero">
         <h1 className="aboutTitle">Về chúng tôi</h1>
         <p className="aboutSubtitle">
-          Michellin Sơn Tây - Địa chỉ tin cậy cho mọi dịch vụ chăm sóc xe
+          Michelin Sơn Tây - Địa chỉ tin cậy cho mọi dịch vụ chăm sóc xe
         </p>
       </div>
 

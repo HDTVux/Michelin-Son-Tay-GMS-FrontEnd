@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './Header.css';
-import CustomerLogin from '../Login/CustomerLogin.jsx';
-import CustomerRegister from '../Register/CustomerRegister.jsx';
+import CustomerLogin from '../../features/auth/components/CustomerLoginModal.jsx';
 import logo from '../../assets/Logo3.jpg';
 
 const Header = () => {
@@ -21,8 +20,7 @@ const Header = () => {
   };
 
   const [showCustomerLogin, setShowCustomerLogin] = useState(false);
-  const [showCustomerRegister, setShowCustomerRegister] = useState(false);
-
+  
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -80,18 +78,9 @@ const Header = () => {
           >
             Đăng nhập
           </button>
-          <button
-            className="btnNavRegister"
-            onClick={() => { setShowCustomerRegister(true); closeMenu(); }}
-          >
-            Đăng ký
-          </button>
         </div>
         {showCustomerLogin && (
           <CustomerLogin onClose={() => setShowCustomerLogin(false)} />
-        )}
-        {showCustomerRegister && (
-          <CustomerRegister onClose={() => setShowCustomerRegister(false)} />
         )}
       </div>
     </header>

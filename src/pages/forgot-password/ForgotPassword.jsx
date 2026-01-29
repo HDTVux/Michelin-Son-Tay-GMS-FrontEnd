@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Mascot from '../../../assets/Mascot.jpg';
+import Mascot from '../../assets/Mascot.jpg';
 import './ForgotPassword.css';
 
 export default function ForgotPassword() {

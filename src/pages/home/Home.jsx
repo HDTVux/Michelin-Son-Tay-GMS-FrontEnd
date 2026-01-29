@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './Home.css';
-import TVC from '../../assets/tvc.mp4'
+import TVC from '../../assets/tvc.mp4';
 import Service from './Services/Services.jsx';
 import Banner from './Banner/Banner.jsx';
 import Form from './Form/Form.jsx';
