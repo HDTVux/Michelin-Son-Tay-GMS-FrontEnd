@@ -38,8 +38,24 @@ const SLOT_GROUPS = [
   }
 ];
 
+const DATE_RANGE_DAYS = 10;
+
+const buildDateOptions = () => {
+  const today = new Date();
+  const options = [];
+  for (let i = 0; i < DATE_RANGE_DAYS; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const value = d.toISOString().slice(0, 10);
+    const label = d.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    options.push({ value, label });
+  }
+  return options;
+};
+
 export default function StepSchedule({ value, onChange, onBack, onNext }) {
   const canNext = value.date && value.time;
+  const dateOptions = buildDateOptions();
 
   const handleDate = (e) => onChange({ date: e.target.value });
   const handleTime = (time, available) => {
@@ -55,7 +71,12 @@ export default function StepSchedule({ value, onChange, onBack, onNext }) {
         <label className="slot-title">Chọn ngày đặt lịch</label>
         <div className="date-input">
           <span className="date-icon">📅</span>
-          <input type="date" value={value.date} onChange={handleDate} />
+          <select value={value.date} onChange={handleDate}>
+            <option value="">Chọn ngày</option>
+            {dateOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 
