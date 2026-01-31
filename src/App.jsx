@@ -7,6 +7,8 @@ import Services from './pages/home/Services/Services.jsx';
 import About from './pages/About/About.jsx';
 import ForgotPassword from './pages/forgot-password/ForgotPassword.jsx';
 import Booking from './pages/Booking/Booking.jsx';
+import UserProfile from './pages/UserProfile/UserProfile.jsx';
+import ManageProfile from './pages/UserProfile/ManageProfile.jsx';
 export default function App() {
   return (
     <BrowserRouter>
@@ -20,6 +22,8 @@ export default function App() {
           <Route path="customer-login" element={<CustomerLogin />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="booking" element={<Booking />} />
+          <Route path="user-profile" element={<UserProfile />} />
+          <Route path="manage-profile" element={<ManageProfile />} />
         </Route>
       </Routes>
     </BrowserRouter>
