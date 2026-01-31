@@ -128,7 +128,7 @@ export default function StepService({ services, selectedIds, onToggle, search, o
 
         <div className="booking-actions">
           <button className="btn">Quay lại</button>
-          <button className="btn primary" onClick={onNext} disabled={selectedIds.length === 0}>
+          <button className="btn primary" onClick={onNext}>
             Tiếp tục
           </button>
         </div>

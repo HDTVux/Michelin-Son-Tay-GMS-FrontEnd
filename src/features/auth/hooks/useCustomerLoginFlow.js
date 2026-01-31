@@ -10,11 +10,12 @@ import {
 
 // Quản lý luồng đăng nhập/kích hoạt/quên PIN cho khách hàng
 export function useCustomerLoginFlow({ onClose } = {}) {
-  const [step, setStep] = useState(1); // 1: nhập số, 2: nhập PIN đăng nhập, 3: OTP + đặt PIN
+  const [step, setStep] = useState(1); // 1: nhập số, 2: nhập PIN đăng nhập, 3: OTP, 4: đặt PIN
   const [flow, setFlow] = useState('login'); // 'login' | 'activate' | 'reset'
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
 
   const otpLogin = useOtpDigits(6);
   const otpReset = useOtpDigits(6);
@@ -54,13 +55,16 @@ export function useCustomerLoginFlow({ onClose } = {}) {
       }
 
       if (isActiveWithPin) {
+        // Tài khoản đã active và có PIN -> đi thẳng tới bước đăng nhập PIN
         setFlow('login');
         setStep(2);
       } else {
+        // Tài khoản chưa có PIN -> gửi OTP kích hoạt rồi sang bước nhập OTP
         await requestCustomerOtp(sanitizedPhone);
         otpReset.resetDigits();
         newPin.resetDigits();
         confirmPin.resetDigits();
+        setOtpVerified(false);
         setFlow('activate');
         setStep(3);
         alert('OTP kích hoạt đã được gửi tới số điện thoại');
@@ -115,6 +119,7 @@ export function useCustomerLoginFlow({ onClose } = {}) {
       otpReset.resetDigits();
       newPin.resetDigits();
       confirmPin.resetDigits();
+      setOtpVerified(false);
       setFlow('reset');
       setStep(3);
       alert('Mã OTP phục hồi đã được gửi tới số điện thoại');
@@ -136,6 +141,7 @@ export function useCustomerLoginFlow({ onClose } = {}) {
     try {
       const sanitizedPhone = sanitizePhone(phone);
       await requestCustomerOtp(sanitizedPhone);
+      setOtpVerified(false);
       alert('OTP mới đã được gửi');
     } catch (err) {
       setError(err?.message || 'Không thể gửi lại OTP');
@@ -144,12 +150,35 @@ export function useCustomerLoginFlow({ onClose } = {}) {
     }
   };
 
-  // Bước 3: xác thực OTP rồi đặt/đặt lại PIN
-  const handleResetSubmit = async (e) => {
+  // Bước 3: xác thực OTP (reset/activate), thành công mới cho sang bước đặt PIN
+  const handleOtpSubmit = async (e) => {
     e.preventDefault();
     const cleaned = otpReset.joinDigits();
     if (cleaned.length !== 6) {
       setError('Mã OTP cần 6 chữ số');
+      return;
+    }
+    setError('');
+    setIsLoading(true);
+    const sanitizedPhone = sanitizePhone(phone);
+    try {
+      await verifyCustomerOtp(sanitizedPhone, cleaned);
+      setOtpVerified(true);
+      setStep(4);
+      alert('OTP hợp lệ, hãy đặt PIN');
+    } catch (err) {
+      setError(err?.message || 'OTP không hợp lệ');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Bước 4: đặt/đặt lại PIN sau khi OTP đã xác thực
+  const handlePinSetupSubmit = async (e) => {
+    e.preventDefault();
+    if (!otpVerified) {
+      setError('Vui lòng xác thực OTP trước khi đặt PIN');
+      setStep(3);
       return;
     }
     if (newPin.joinDigits().length !== 6) {
@@ -164,7 +193,6 @@ export function useCustomerLoginFlow({ onClose } = {}) {
     setIsLoading(true);
     const sanitizedPhone = sanitizePhone(phone);
     try {
-      await verifyCustomerOtp(sanitizedPhone, cleaned);
       await setupCustomerPin({
         phone: sanitizedPhone,
         pin: newPin.joinDigits(),
@@ -173,6 +201,7 @@ export function useCustomerLoginFlow({ onClose } = {}) {
       alert(flow === 'reset' ? 'Đặt lại PIN thành công, vui lòng đăng nhập' : 'Đã tạo PIN, vui lòng đăng nhập');
       setFlow('login');
       setStep(2);
+      setOtpVerified(false);
       otpReset.resetDigits();
       newPin.resetDigits();
       confirmPin.resetDigits();
@@ -191,8 +220,18 @@ export function useCustomerLoginFlow({ onClose } = {}) {
     otpReset.resetDigits();
     newPin.resetDigits();
     confirmPin.resetDigits();
+    setOtpVerified(false);
     setError('');
     if (onClose) onClose();
+  };
+
+  const backToOtpStep = () => {
+    setOtpVerified(false);
+    otpReset.resetDigits();
+    newPin.resetDigits();
+    confirmPin.resetDigits();
+    setError('');
+    setStep(3);
   };
 
   return {
@@ -210,8 +249,11 @@ export function useCustomerLoginFlow({ onClose } = {}) {
     handlePinLoginSubmit,
     handleForgotPassword,
     handleResendOtp,
-    handleResetSubmit,
+    handleOtpSubmit,
+    handlePinSetupSubmit,
     handleClose,
     setError,
+    setStep,
+    backToOtpStep,
   };
 }

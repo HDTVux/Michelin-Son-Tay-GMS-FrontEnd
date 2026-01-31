@@ -20,8 +20,12 @@ function CustomerLoginInner({ onClose }){
     handlePinLoginSubmit,
     handleForgotPassword,
     handleResendOtp,
-    handleResetSubmit,
+    handleOtpSubmit,
+    handlePinSetupSubmit,
     handleClose,
+    setError,
+    setStep,
+    backToOtpStep,
   } = useCustomerLoginFlow({ onClose });
 
   return (
@@ -31,6 +35,7 @@ function CustomerLoginInner({ onClose }){
         <h3 className="modalTitle">Đăng nhập khách hàng</h3>
         <h2 className="brand">Michelin Sơn Tây</h2>
 
+        {/* Bước 1: nhập số điện thoại để quyết định nhánh flow */}
         {step === 1 && (
           <form onSubmit={handlePhoneSubmit} className="form">
             <label className="label">Số điện thoại</label>
@@ -51,6 +56,7 @@ function CustomerLoginInner({ onClose }){
           </form>
         )}
 
+        {/* Bước 2: đăng nhập bằng PIN hiện có (chỉ khi account đã active + có PIN) */}
         {step === 2 && (
           <form onSubmit={handlePinLoginSubmit} className="form">
             <label className="label">Mã PIN (6 chữ số)</label>
@@ -66,13 +72,27 @@ function CustomerLoginInner({ onClose }){
           </form>
         )}
 
+        {/* Bước 3: nhập OTP cho nhánh reset/activate; xác thực xong mới cho đặt PIN */}
         {step === 3 && (
-          <form onSubmit={handleResetSubmit} className="form">
+          <form onSubmit={handleOtpSubmit} className="form">
             <label className="label">{flow === 'reset' ? 'OTP quên mật khẩu (6 chữ số)' : 'OTP kích hoạt (6 chữ số)'}</label>
             <OTPGrid state={otpReset} ariaPrefix="Reset OTP" error={!!error} />
             <div className="otpActions" style={{ marginTop: 8 }}>
               <button type="button" className="linkBtn" onClick={handleResendOtp} disabled={isLoading}>Gửi lại OTP</button>
             </div>
+            {error && <div className="errorText">{error}</div>}
+            <button className="primaryBtn" type="submit" disabled={isLoading}>
+              {isLoading ? 'Đang xác thực...' : 'Xác thực OTP'}
+            </button>
+            <div style={{textAlign:'center', marginTop:8}}>
+              <button type="button" className="linkBtn" onClick={handleClose}>Hủy</button>
+            </div>
+          </form>
+        )}
+
+        {/* Bước 4: đặt PIN mới sau khi OTP hợp lệ */}
+        {step === 4 && (
+          <form onSubmit={handlePinSetupSubmit} className="form">
             <label className="label">Mã PIN mới (6 chữ số)</label>
             <OTPGrid state={newPin} ariaPrefix="New PIN" error={!!error} />
             <label className="label">Xác nhận mã PIN mới</label>
