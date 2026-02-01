@@ -9,6 +9,9 @@ import ForgotPassword from './pages/forgot-password/ForgotPassword.jsx';
 import Booking from './pages/Booking/Booking.jsx';
 import UserProfile from './pages/UserProfile/UserProfile.jsx';
 import ManageProfile from './pages/UserProfile/ManageProfile.jsx';
+import MyBookings from './pages/MyBookings/MyBookings.jsx';
+import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
+import EditBooking from './pages/EditBooking/EditBooking.jsx';
 export default function App() {
   return (
     <BrowserRouter>
@@ -24,6 +27,9 @@ export default function App() {
           <Route path="booking" element={<Booking />} />
           <Route path="user-profile" element={<UserProfile />} />
           <Route path="manage-profile" element={<ManageProfile />} />
+          <Route path="my-bookings" element={<MyBookings />} />
+          <Route path="booking-detail/:id" element={<BookingDetail />} />
+          <Route path="edit-booking/:id" element={<EditBooking />} />
         </Route>
       </Routes>
     </BrowserRouter>

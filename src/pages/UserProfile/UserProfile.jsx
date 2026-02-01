@@ -19,6 +19,13 @@ const UserProfile = () => {
 
   const quickActions = [
     {
+      id: 0,
+      icon: '📅',
+      title: 'Lịch hẹn của tôi',
+      description: 'Xem và quản lý các lịch hẹn đã đặt',
+      link: '/my-bookings'
+    },
+    {
       id: 1,
       icon: '📋',
       title: 'Xem lịch sử dịch vụ',
