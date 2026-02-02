@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './UserProfile.css';
+import './UserProfile.header.css';
+import './UserProfile.personalInfo.css';
+import './UserProfile.stats.css';
+import './UserProfile.quickActions.css';
 
 const UserProfile = () => {
   // Dữ liệu mẫu - sau này sẽ lấy từ API hoặc context

@@ -1,6 +1,10 @@
 import { useState, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import './BookingDetail.css';
+import './BookingDetail.header.css';
+import './BookingDetail.sections.css';
+import './BookingDetail.actions.css';
+import './BookingDetail.modal.css';
 
 const BookingDetail = () => {
   const { id } = useParams();

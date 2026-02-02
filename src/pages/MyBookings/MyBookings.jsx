@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './MyBookings.css';
+import './MyBookings.header.css';
+import './MyBookings.filter.css';
+import './MyBookings.list.css';
 
 const MyBookings = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -71,8 +74,8 @@ const MyBookings = () => {
 
   const statusFilters = [
     { value: 'all', label: 'Tất cả' },
-    { value: 'confirmed', label: 'Đã xác nhận' },
     { value: 'processing', label: 'Đang xử lý' },
+    { value: 'confirmed', label: 'Đã xác nhận' },
     { value: 'completed', label: 'Hoàn tất' },
     { value: 'cancelled', label: 'Đã hủy' }
   ];

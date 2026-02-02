@@ -1,6 +1,11 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import './ManageProfile.css';
+import './ManageProfile.header.css';
+import './ManageProfile.avatar.css';
+import './ManageProfile.form.css';
+import './ManageProfile.linkedAccounts.css';
+import './ManageProfile.footer.css';
 
 const ManageProfile = () => {
   const [formData, setFormData] = useState({
