@@ -1,0 +1,121 @@
+/* Schedule Step - Giống StepSchedule */
+.editBookingPage .schedule-step { 
+  background: #fff;   
+  padding: 18px; 
+}
+
+.editBookingPage .schedule-step .field { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
+  margin-bottom: 16px; 
+}
+
+.editBookingPage .date-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  max-width: 320px;
+  background: #fff;
+}
+
+.editBookingPage .date-input input { 
+  border: none; 
+  outline: none; 
+  font-size: 14px; 
+  width: 100%; 
+}
+
+.editBookingPage .date-icon { 
+  font-size: 16px; 
+}
+
+.editBookingPage .slot-section { 
+  margin-top: 8px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 14px; 
+}
+
+.editBookingPage .slot-title { 
+  font-weight: 800; 
+  font-size: 16px; 
+}
+
+.editBookingPage .slot-sub { 
+  color: #475569; 
+  font-size: 14px; 
+}
+
+.editBookingPage .slot-group { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 10px; 
+}
+
+.editBookingPage .slot-group-label { 
+  font-weight: 800; 
+  color: #1f2937; 
+}
+
+.editBookingPage .slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.editBookingPage .slot-btn {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 10px;
+  background: #fff;
+  cursor: pointer;
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.editBookingPage .slot-btn .slot-time { 
+  font-weight: 800; 
+  color: #0f172a; 
+}
+
+.editBookingPage .slot-btn .slot-status { 
+  font-weight: 700; 
+  color: #16a34a; 
+  font-size: 13px; 
+}
+
+.editBookingPage .slot-btn.active { 
+  border-color: #1d4ed8; 
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); 
+}
+
+.editBookingPage .slot-btn.disabled { 
+  color: #9ca3af; 
+  cursor: not-allowed; 
+}
+
+.editBookingPage .slot-btn.disabled .slot-status { 
+  color: #9ca3af; 
+}
+
+.editBookingPage .slot-btn.disabled .slot-time { 
+  color: #9ca3af; 
+}
+
+.editBookingPage .slot-btn:not(.disabled):hover { 
+  box-shadow: 0 6px 14px rgba(0,0,0,0.06); 
+  transform: translateY(-1px); 
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .slot-grid { 
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); 
+  }
+}

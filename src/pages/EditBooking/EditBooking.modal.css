@@ -1,0 +1,71 @@
+/* Success Modal */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.successModal {
+  padding: 40px 30px;
+}
+
+.successIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #10b981;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+  margin: 0 auto 20px;
+}
+
+.modalTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0a0f1c;
+  margin: 0 0 12px 0;
+}
+
+.modalMessage {
+  color: #475569;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+
+.btnBackToDetail {
+  padding: 12px 24px;
+  background: #005aa9;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  font-size: 15px;
+}
+
+.btnBackToDetail:hover {
+  background: #004080;
+}

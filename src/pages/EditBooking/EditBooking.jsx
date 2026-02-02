@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import './EditBooking.css';
+import './EditBooking.header.css';
+import './EditBooking.service.css';
+import './EditBooking.schedule.css';
+import './EditBooking.actions.css';
+import './EditBooking.modal.css';
 
 const EditBooking = () => {
   const { id } = useParams();

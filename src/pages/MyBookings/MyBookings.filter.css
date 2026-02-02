@@ -1,0 +1,52 @@
+/* Filter Tabs */
+.bookingStatusFilter {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0;
+}
+
+.filterTab {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: -2px;
+}
+
+.filterTab:hover {
+  color: #005aa9;
+  background: rgba(0, 90, 169, 0.05);
+}
+
+.filterTab.active {
+  color: #005aa9;
+  border-bottom-color: #005aa9;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bookingStatusFilter {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .bookingStatusFilter::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filterTab {
+    white-space: nowrap;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}
