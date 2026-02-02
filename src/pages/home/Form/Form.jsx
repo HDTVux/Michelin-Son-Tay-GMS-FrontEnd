@@ -1,12 +1,17 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Form.css';
 
 export default function Form() {
     const [phone, setPhone] = useState('');
+    const navigate = useNavigate();
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        alert('Sẽ chuyển sang trang đặt lịch.');
+        const trimmedPhone = phone.trim();
+        if (!trimmedPhone) return;
+
+        navigate('/booking', { state: { phone: trimmedPhone } });
     };
 
     return (

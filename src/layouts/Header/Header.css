@@ -143,6 +143,87 @@
   gap: 12px;
 }
 
+.headerUser {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.userChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.userChip:hover,
+.userChip.open {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: translateY(-1px);
+}
+
+.avatarCircle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fce500, #fcb900);
+  color: #0a0f1c;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  text-transform: uppercase;
+}
+
+.userGreeting {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.userDropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 200px;
+  background: #0a0f1c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 1100;
+}
+
+.userDropdown a,
+.userDropdown button {
+  background: transparent;
+  border: none;
+  text-align: left;
+  color: #ffffff;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.userDropdown a:hover,
+.userDropdown button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fce500;
+}
+
 .languageToggle {
   display: flex;
   align-items: center;
@@ -329,6 +410,22 @@
     text-align: center;
     padding: 10px 16px;
     font-size: 14px;
+  }
+
+  .headerUser {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .userDropdown {
+    right: 50%;
+    transform: translateX(50%);
+  }
+
+  .userGreeting {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
 }

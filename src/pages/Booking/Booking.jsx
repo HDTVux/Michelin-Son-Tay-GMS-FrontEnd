@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import './Booking.css';
 import StepService from './steps/StepService.jsx';
 import StepSchedule from './steps/StepSchedule.jsx';
@@ -44,6 +45,8 @@ const STEPS = [
 ];
 
 export default function Booking() {
+ const location = useLocation();
+ const prefilledPhone = location.state?.phone || '';
  // State bước hiện tại
  const [stepIndex, setStepIndex] = useState(0);
  // State lọc/chọn dịch vụ
@@ -53,14 +56,19 @@ export default function Booking() {
  // State cho lịch hẹn
  const [schedule, setSchedule] = useState({ date: '', time: '' });
  // State cho thông tin cá nhân
- const [info, setInfo] = useState({ name: '', phone: '', note: '' });
+ const [info, setInfo] = useState({ name: '', phone: prefilledPhone, note: '' });
+
+ useEffect(() => {
+	if (prefilledPhone) {
+	 setInfo((prev) => ({ ...prev, phone: prefilledPhone }));
+  }
+ }, [prefilledPhone]);
 
 	const toggle = (id) => {
 		setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 	};
 
 	const goNextFromService = () => {
-		if (selectedIds.length === 0) return;
 		setStepIndex(1);
 	};
 
