@@ -60,22 +60,23 @@
 	font-weight: 700;
 }
 
-.hoursCard {
+.infoCard .hoursCard {
 	background: #f4f6f8;
 	border-radius: 12px;
 	padding: 16px 18px;
 	margin: 12px 0 22px;
 	border: 1px solid #e8eaee;
+	width: 100%;
 }
 
-.hoursTitle {
+.infoCard .hoursTitle {
 	font-weight: 700;
 	font-size: 16px;
 	margin-bottom: 14px;
 	color: #2f2f2f;
 }
 
-.hoursRow {
+.infoCard .hoursRow {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;

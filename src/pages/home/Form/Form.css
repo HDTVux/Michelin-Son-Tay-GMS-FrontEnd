@@ -5,7 +5,7 @@
   background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
 }
 
-.bookingCard {
+.bookingWrapper .bookingCard {
   width: min(900px, 100%);
   background: linear-gradient(360deg, #ffffff 0%, #005aa9 100%);
   border-radius: 18px;
@@ -14,14 +14,14 @@
   text-align: center;
 }
 
-.bookingCard h2 {
+.bookingWrapper .bookingCard h2 {
   margin: 0 0 10px;
   font-size: 30px;
-  color: #ffffff;
+  color: #f4f6f8;
   font-weight: 700;
 }
 
-.bookingCard p {
+.bookingWrapper .bookingCard p {
   margin: 0 0 26px;
   font-size: 18px;
   color: black;
