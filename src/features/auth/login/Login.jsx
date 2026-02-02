@@ -1,28 +1,42 @@
 import React, { useState } from 'react';
 import './Login.css';
-import Mascot from '../../assets/Mascot.jpg';
+import Mascot from '../../../assets/Mascot.jpg';
 import { Link } from 'react-router-dom';
+import { loginStaff, getStaffGoogleOAuthUrl } from '../../../services/authService';
 
-export default function Login(){
+export default function Login() {
   const [formData, setFormData] = useState({
-    email: '',
+    phone: '',
     password: ''
   });
   const [errors, setErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
+  const [serverMessage, setServerMessage] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
+  const validatePhoneOrEmail = (value) => {
+    if (!value) return 'Số điện thoại hoặc email là bắt buộc';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (emailRegex.test(value)) return '';
+    if (value.replace(/\D/g, '').length < 6) return 'Số điện thoại không hợp lệ';
+    return '';
   };
+
+  const validatePassword = (value) => {
+    if (!value) return 'Mật khẩu là bắt buộc';
+    if (value.length < 4) return 'Mật khẩu phải có ít nhất 4 ký tự';
+    return '';
+  };
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors({ ...errors, [name]: '' });
+    }
+    if (errors.api) {
+      setErrors((prev) => ({ ...prev, api: '' }));
     }
   };
 
@@ -30,18 +44,11 @@ export default function Login(){
     e.preventDefault();
     const newErrors = {};
 
-    // Validation
-    if (!formData.email) {
-      newErrors.email = 'Email là bắt buộc';
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Email không hợp lệ';
-    }
+    const phoneError = validatePhoneOrEmail(formData.phone);
+    const pinError = validatePassword(formData.password);
 
-    if (!formData.password) {
-      newErrors.password = 'Mật khẩu là bắt buộc';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
-    }
+    if (phoneError) newErrors.phone = phoneError;
+    if (pinError) newErrors.password = pinError;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -49,12 +56,30 @@ export default function Login(){
     }
 
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Dữ liệu đăng nhập:", formData);
+    setErrors({});
+    setServerMessage('');
+
+    try {
+      // Gọi API đăng nhập staff; backend yêu cầu field pin nên map từ password
+      const data = await loginStaff({
+        phone: formData.phone,
+        pin: formData.password,
+      });
+
+      if (data?.data?.token) {
+        localStorage.setItem('authToken', data.data.token);
+      }
+
+      setServerMessage(data?.data?.message || data?.message || 'Đăng nhập thành công');
+    } catch (error) {
+      setErrors({ api: error.message || 'Không thể kết nối máy chủ. Vui lòng thử lại.' });
+    } finally {
       setIsLoading(false);
-      // Xử lý API ở đây
-    }, 1000);
+    }
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.href = getStaffGoogleOAuthUrl();
   };
 
   return (
@@ -85,23 +110,26 @@ export default function Login(){
           </div>
 
           <form onSubmit={handleSubmit}>
+            {errors.api && <div className="errorBanner">{errors.api}</div>}
+            {serverMessage && <div className="successBanner">{serverMessage}</div>}
+
             <div className="inputGroup">
-              <label className="inputLabel">Email</label>
-              <input 
-                type="email" 
-                name="email"
-                placeholder="Email"
-                value={formData.email}
+              <label className="inputLabel">Số điện thoại hoặc email</label>
+              <input
+                type="text"
+                name="phone"
+                placeholder="Nhập số điện thoại hoặc email"
+                value={formData.phone}
                 onChange={handleChange}
-                className={errors.email ? 'error' : ''}
+                className={errors.phone ? 'error' : ''}
               />
-              {errors.email && <span className="errorMessage">{errors.email}</span>}
+              {errors.phone && <span className="errorMessage">{errors.phone}</span>}
             </div>
             <div className="inputGroup">
               <label className="inputLabel">Nhập mật khẩu</label>
               <div className="passwordWrapper">
-                <input 
-                  type={showPassword ? "text" : "password"}
+                <input
+                  type={showPin ? 'text' : 'password'}
                   name="password"
                   placeholder="Nhập mật khẩu"
                   value={formData.password}
@@ -111,10 +139,10 @@ export default function Login(){
                 <button
                   type="button"
                   className="togglePassword"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label="Toggle password visibility"
+                  onClick={() => setShowPin(!showPin)}
+                  aria-label="Toggle PIN visibility"
                 >
-                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                  {showPin ? '👁️' : '👁️‍🗨️'}
                 </button>
               </div>
               {errors.password && <span className="errorMessage">{errors.password}</span>}
@@ -143,7 +171,10 @@ export default function Login(){
           <div className="divider"><span>Hoặc đăng nhập bằng</span></div>
 
           <div className="socialButtons">
-            <button className="socialBtn">
+            <button type="button" className="socialBtn" onClick={handleGoogleLogin}>
+              Google
+            </button>
+            <button type="button" className="socialBtn">
               Zalo
             </button>
           </div>
