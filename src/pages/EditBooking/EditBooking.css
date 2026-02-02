@@ -67,12 +67,12 @@
 }
 
 /* Service Step - Giống StepService */
-.service-step { 
+.editBookingPage .service-step { 
   background: #fff; 
   padding: 18px; 
 }
 
-.service-top {
+.editBookingPage .service-top {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -80,12 +80,12 @@
   margin-bottom: 16px;
 }
 
-.tabs { 
+.editBookingPage .tabs { 
   display: flex; 
   gap: 8px; 
 }
 
-.tab {
+.editBookingPage .tab {
   padding: 10px 14px;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
@@ -95,13 +95,13 @@
   border: none;
 }
 
-.tab.active {
+.editBookingPage .tab.active {
   background: #1d4ed8;
   color: #fff;
   border-color: #1d4ed8;
 }
 
-.search-filter {
+.editBookingPage .search-filter {
   display: flex;
   gap: 10px;
   flex: 1;
@@ -109,7 +109,7 @@
   justify-content: flex-end;
 }
 
-.search-box {
+.editBookingPage .search-box {
   flex: 1;
   display: flex;
   align-items: center;
@@ -120,14 +120,14 @@
   background: #fff;
 }
 
-.search-box input {
+.editBookingPage .search-box input {
   flex: 1;
   border: none;
   outline: none;
   font-size: 14px;
 }
 
-.search-filter select {
+.editBookingPage .search-filter select {
   min-width: 140px;
   padding: 10px 12px;
   border-radius: 10px;
@@ -135,14 +135,14 @@
   background: #fff;
 }
 
-.carousel-shell {
+.editBookingPage .carousel-shell {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 10px;
 }
 
-.nav-btn {
+.editBookingPage .nav-btn {
   width: 38px;
   height: 38px;
   border-radius: 12px;
@@ -154,31 +154,31 @@
   transition: all 0.2s ease;
 }
 
-.nav-btn:disabled { 
+.editBookingPage .nav-btn:disabled { 
   opacity: 0.4; 
   cursor: not-allowed; 
 }
 
-.nav-btn:not(:disabled):hover { 
+.editBookingPage .nav-btn:not(:disabled):hover { 
   box-shadow: 0 6px 14px rgba(0,0,0,0.08); 
   transform: translateY(-1px); 
 }
 
-.slider-viewport { 
+.editBookingPage .slider-viewport { 
   overflow: hidden; 
 }
 
-.slider-track {
+.editBookingPage .slider-track {
   display: flex;
   gap: 12px;
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.service-slide { 
+.editBookingPage .service-slide { 
   min-height: 260px; 
 }
 
-.service-card {
+.editBookingPage .service-card {
   position: relative;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
@@ -188,12 +188,12 @@
   padding-bottom: 12px;
 }
 
-.service-card .thumb {
+.editBookingPage .service-card .thumb {
   height: 120px;
   background: linear-gradient(90deg, #e2e8f0, #f8fafc);
 }
 
-.service-card .check {
+.editBookingPage .service-card .check {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -207,13 +207,13 @@
   border: none;
 }
 
-.service-card .check.checked {
+.editBookingPage .service-card .check.checked {
   background: #1d4ed8;
   color: #fff;
   border-color: #1d4ed8;
 }
 
-.service-card .pill {
+.editBookingPage .service-card .pill {
   margin: 12px 12px 6px;
   display: inline-flex;
   padding: 6px 10px;
@@ -224,35 +224,35 @@
   font-size: 12px;
 }
 
-.service-card .name {
+.editBookingPage .service-card .name {
   margin: 0 12px 6px;
   font-weight: 800;
   color: #111827;
 }
 
-.service-card .desc {
+.editBookingPage .service-card .desc {
   margin: 0 12px 10px;
   color: #475569;
   font-size: 14px;
 }
 
-.selected-box {
+.editBookingPage .selected-box {
   padding: 12px;
   margin: 16px 0;
 }
 
-.selected-title { 
+.editBookingPage .selected-title { 
   font-weight: 700; 
   margin-bottom: 8px; 
 }
 
-.chip-row { 
+.editBookingPage .chip-row { 
   display: flex; 
   flex-wrap: wrap; 
   gap: 8px; 
 }
 
-.chip {
+.editBookingPage .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -263,7 +263,7 @@
   font-weight: 700;
 }
 
-.chip-remove {
+.editBookingPage .chip-remove {
   background: transparent;
   border: none;
   cursor: pointer;
@@ -272,19 +272,19 @@
 }
 
 /* Schedule Step - Giống StepSchedule */
-.schedule-step { 
+.editBookingPage .schedule-step { 
   background: #fff;   
   padding: 18px; 
 }
 
-.schedule-step .field { 
+.editBookingPage .schedule-step .field { 
   display: flex; 
   flex-direction: column; 
   gap: 8px; 
   margin-bottom: 16px; 
 }
 
-.date-input {
+.editBookingPage .date-input {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -295,52 +295,52 @@
   background: #fff;
 }
 
-.date-input input { 
+.editBookingPage .date-input input { 
   border: none; 
   outline: none; 
   font-size: 14px; 
   width: 100%; 
 }
 
-.date-icon { 
+.editBookingPage .date-icon { 
   font-size: 16px; 
 }
 
-.slot-section { 
+.editBookingPage .slot-section { 
   margin-top: 8px; 
   display: flex; 
   flex-direction: column; 
   gap: 14px; 
 }
 
-.slot-title { 
+.editBookingPage .slot-title { 
   font-weight: 800; 
   font-size: 16px; 
 }
 
-.slot-sub { 
+.editBookingPage .slot-sub { 
   color: #475569; 
   font-size: 14px; 
 }
 
-.slot-group { 
+.editBookingPage .slot-group { 
   display: flex; 
   flex-direction: column; 
   gap: 10px; 
 }
 
-.slot-group-label { 
+.editBookingPage .slot-group-label { 
   font-weight: 800; 
   color: #1f2937; 
 }
 
-.slot-grid {
+.editBookingPage .slot-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
 }
 
-.slot-btn {
+.editBookingPage .slot-btn {
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 12px 10px;
@@ -352,36 +352,36 @@
   transition: all 0.2s ease;
 }
 
-.slot-btn .slot-time { 
+.editBookingPage .slot-btn .slot-time { 
   font-weight: 800; 
   color: #0f172a; 
 }
 
-.slot-btn .slot-status { 
+.editBookingPage .slot-btn .slot-status { 
   font-weight: 700; 
   color: #16a34a; 
   font-size: 13px; 
 }
 
-.slot-btn.active { 
+.editBookingPage .slot-btn.active { 
   border-color: #1d4ed8; 
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); 
 }
 
-.slot-btn.disabled { 
+.editBookingPage .slot-btn.disabled { 
   color: #9ca3af; 
   cursor: not-allowed; 
 }
 
-.slot-btn.disabled .slot-status { 
+.editBookingPage .slot-btn.disabled .slot-status { 
   color: #9ca3af; 
 }
 
-.slot-btn.disabled .slot-time { 
+.editBookingPage .slot-btn.disabled .slot-time { 
   color: #9ca3af; 
 }
 
-.slot-btn:not(.disabled):hover { 
+.editBookingPage .slot-btn:not(.disabled):hover { 
   box-shadow: 0 6px 14px rgba(0,0,0,0.06); 
   transform: translateY(-1px); 
 }
