@@ -21,9 +21,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="services" element={<Services />} />
           <Route path="about" element={<About />} />
-          <Route path="login" element={<Login />} />
           <Route path="customer-login" element={<CustomerLogin />} />
-          <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="booking" element={<Booking />} />
           <Route path="user-profile" element={<UserProfile />} />
           <Route path="manage-profile" element={<ManageProfile />} />
@@ -31,6 +29,8 @@ export default function App() {
           <Route path="booking-detail/:id" element={<BookingDetail />} />
           <Route path="edit-booking/:id" element={<EditBooking />} />
         </Route>
+        <Route path="login" element={<Login />} />
+        <Route path="forgot-password" element={<ForgotPassword />} />
       </Routes>
     </BrowserRouter>
   );
