@@ -137,6 +137,7 @@ const Header = () => {
               {isUserDropdownOpen && (
                 <div className="userDropdown">
                   <Link to="/user-profile" onClick={() => setIsUserDropdownOpen(false)}>Tài khoản của tôi</Link>
+                  <Link to="/my-bookings" onClick={() => setIsUserDropdownOpen(false)}>Đặt lịch của tôi</Link>
                   <button type="button" onClick={handleLogout}>Đăng xuất</button>
                 </div>
               )}
