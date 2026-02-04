@@ -134,11 +134,11 @@
 
 /* ===== Content ===== */
 .homeContent {
-    display: flex;
-    flex-wrap: nowrap;              /* Desktop: luôn 1 hàng */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
     gap: 14px;
     max-width: 1200px;
-    overflow-x: visible;
+    width: 100%;
 }
 
 .homeContent.belowVideo{
@@ -169,7 +169,7 @@
     padding: 14px 16px;
     box-shadow: 0 12px 26px rgba(2, 6, 23, 0.08);
     backdrop-filter: blur(4px);
-    flex: 1 1 0;
+    flex: 1 1 auto;
 }
 
 .serviceItem:hover{
@@ -546,17 +546,15 @@
     }
 
     .homeContent {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 6px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
     }
 
     .serviceItem {
         padding: 14px;
         gap: 12px;
         flex-direction: row;
-        flex: 0 0 70%;            /* Mỗi card chiếm ~70% màn hình, kéo ngang để xem thêm */
-        min-width: 260px;
+        min-width: 0;
     }
 
     .serviceIcon {
@@ -631,15 +629,13 @@
     }
 
     .homeContent {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 6px;
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
 
     .serviceItem {
         padding: 12px;
-        flex: 0 0 78%;            /* Card rộng hơn trên mobile nhỏ */
-        min-width: 240px;
+        min-width: 0;
     }
 
     .serviceIcon {
