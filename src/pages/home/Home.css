@@ -108,13 +108,13 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.homeTitle span {
+.homeTitle #name {
     color: #005aa9;
     display: block;
     margin-top: 10px;
-    font-size: 46px;
-    font-weight: 900;
-    letter-spacing: -0.03em;
+    font-size: 60px;
+    font-weight: 1000;
+    letter-spacing: 0.5 em;
     background: linear-gradient(135deg, #005aa9 0%, #3a8de0 50%, #005aa9 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;

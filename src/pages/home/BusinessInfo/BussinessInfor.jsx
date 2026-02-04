@@ -30,7 +30,7 @@ export default function BussinessInfor() {
 						<div className="contactItemBody">
 							<div className="contactItemTitle">Hotline</div>
 							<div className="contactItemText">
-								0987 545 680 <span className="badge">24/7</span>
+								0987 545 680 
 							</div>
 						</div>
 					</div>
@@ -43,15 +43,7 @@ export default function BussinessInfor() {
 						</div>
 					</div>
 
-					<div className="contactItemCard">
-						<div className="contactIconCircle">📅</div>
-						<div className="contactItemBody">
-							<div className="contactItemTitle">Đặt lịch</div>
-							<div className="contactItemText">
-								<a href="/booking" className="contactBookingLink">Đặt lịch dịch vụ ngay</a>
-							</div>
-						</div>
-					</div>
+
 				</div>
 
 				<div className="hoursCard">

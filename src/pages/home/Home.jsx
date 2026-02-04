@@ -81,8 +81,7 @@ const Home = () => {
         <section className="homePage">
             <div className={`homeTop ${isVisible ? 'fadeIn' : ''}`}>
                 <h1 className="homeTitle">
-                    Giới thiệu về
-                    <span>Michellin Sơn Tây</span>
+                    Giới thiệu về <h1 id='name'>Michelin Sơn Tây</h1>
                 </h1>
 
                 {/* Intro bên trái - Video bên phải */}
