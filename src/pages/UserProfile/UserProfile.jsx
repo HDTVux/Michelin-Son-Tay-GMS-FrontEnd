@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './UserProfile.css';
+import './UserProfile.header.css';
+import './UserProfile.personalInfo.css';
+import './UserProfile.stats.css';
+import './UserProfile.quickActions.css';
 
 const UserProfile = () => {
   // Dữ liệu mẫu - sau này sẽ lấy từ API hoặc context
@@ -51,14 +55,14 @@ const UserProfile = () => {
       icon: '🔗',
       title: 'Liên kết tài khoản',
       description: 'Liên kết tài khoản Zalo, Google',
-      link: '/link-account'
+      link: '/linked-accounts'
     },
     {
       id: 5,
       icon: '🔒',
       title: 'Đổi mật khẩu',
       description: 'Thay đổi mật khẩu tài khoản',
-      link: '/change-password'
+      link: '/account-security'
     }
   ];
 

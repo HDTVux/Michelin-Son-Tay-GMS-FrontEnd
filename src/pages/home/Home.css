@@ -7,7 +7,36 @@
     color: #0a0f1c;
     position: relative;
     overflow: hidden;
-    background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
+    background: #ffffff;          /* Bỏ nền xám, đổi thành trắng */
+}
+
+.homeBookingIntro {
+    padding: 32px 5% 12px;
+    text-align: center;
+    background: #ffffff;
+}
+
+.homeBookingTitle {
+    margin: 0 0 8px;
+    font-size: 28px;
+    font-weight: 800;
+    color: #0a0f1c;
+}
+
+.homeBookingSub {
+    margin: 0;
+    font-size: 16px;
+    color: #4b5563;
+}
+
+/* wrapper mới cho phần trên của Home */
+.homeTop{
+    width: 100%;
+    max-width: 1200px;
+    padding: 0 5%;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 18px;
 }
 
 /* ===== Main wrapper ===== */
@@ -16,6 +45,8 @@
     max-width: 580px;
     z-index: 2;
     padding: 24px;
+    display: flex;
+    flex-direction: column;
 }
 
 /* ===== Animations ===== */
@@ -67,10 +98,10 @@
 
 /* ===== Title ===== */
 .homeTitle {
-    font-size: 52px;
+    font-size: 54px;
     font-weight: 800;
     line-height: 1.2;
-    margin-bottom: 36px;
+    margin-bottom: 6px;
     color: #0a0f1c;
     letter-spacing: -0.02em;
     text-shadow: none;
@@ -104,16 +135,47 @@
 /* ===== Content ===== */
 .homeContent {
     display: flex;
-    flex-direction: column;
+    flex-wrap: nowrap;              /* Desktop: luôn 1 hàng */
     gap: 14px;
+    max-width: 1200px;
+    overflow-x: visible;
+}
+
+.homeContent.belowVideo{
+    margin: 8px auto 0;
+}
+
+.videoRow{
+    display: grid;
+    grid-template-columns: 1fr 1.25fr; /* trái chữ - phải video */
+    gap: 18px;
+    align-items: stretch;
+    background: linear-gradient(145deg, rgba(0,90,169,0.08), rgba(0,90,169,0.02));
+    border: 1px solid rgba(0, 90, 169, 0.08);
+    border-radius: 24px;
+    padding: 18px;
+    box-shadow: 0 28px 60px rgba(2,6,23,0.08);
 }
 
 .serviceItem {
     display: flex;
-    align-items: center;
-    gap: 18px;
+    align-items: flex-start;
+    gap: 12px;
     transition: all 0.25s ease;
     cursor: pointer;
+    background: #ffffff;          /* Xóa nền xám: dùng nền trắng sạch */
+    border: 1px solid rgba(2, 6, 23, 0.05);
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: 0 12px 26px rgba(2, 6, 23, 0.08);
+    backdrop-filter: blur(4px);
+    flex: 1 1 0;
+}
+
+.serviceItem:hover{
+    transform: translateY(-2px);
+    border-color: rgba(0, 90, 169, 0.22);
+    box-shadow: 0 14px 32px rgba(0, 90, 169, 0.14);
 }
 
 
@@ -122,22 +184,49 @@
     background: rgba(0, 90, 169, 0.18);
 }
 
-.serviceText {
-    font-size: 125%;
-    color: #334155;
-    line-height: 2;
-    margin: 0;
-    flex: 1;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+.serviceText { flex: 1; min-width: 0; }
+
+.serviceIconCircle{
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #9fd8ff, #005aa9);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
+    box-shadow: 0 6px 14px rgba(0, 90, 169, 0.28);
+}
+
+.serviceTextTitle{
+    font-size: 18px;
+    font-weight: 800;
+    color: #0a0f1c;
+    line-height: 1.25;
+    margin: 0 0 4px;
+}
+
+.serviceTextSub{
+    font-size: 14px;
+    font-weight: 600;
+    color: #4b5563;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 /* ===== Action Buttons ===== */
 .homeActions {
     display: flex;
     gap: 14px;
-    margin-top: 36px;
+    margin-top: auto;
+    padding-top: 18px;
     flex-wrap: wrap;
 }
 
@@ -155,6 +244,32 @@
     text-transform: none;
 }
 
+.btnPrimary.iconOnly,
+.btnSecondary.iconOnly{
+    width: 96px;
+    height: 56px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+}
+
+.btnIcon{
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btnIcon svg{
+    width: 26px;
+    height: 26px;
+    fill: currentColor;
+    display: block;
+}
+
 .btnPrimary {
     background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
     color: white;
@@ -169,11 +284,135 @@
 }
 
 .btnSecondary {
-    background: rgba(0, 90, 169, 0.08);
-    color: #0a0f1c;
-    border-color: rgba(0, 90, 169, 0.25);
+    background: #ffffff;
+    color: #005aa9;
+    border-color: rgba(0, 90, 169, 0.35);
     backdrop-filter: blur(10px);
 }
+
+/* ===== Process section ===== */
+.processSection{
+    background: #ffffff;
+    padding: 56px 0 20px;
+}
+
+.processInner{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 5%;
+}
+
+.processHeader{
+    text-align: center;
+    margin-bottom: 18px;
+}
+
+.processTitle{
+    margin: 0 0 10px;
+    font-size: 38px;
+    font-weight: 900;
+    color: #005aa9;
+    letter-spacing: -0.02em;
+}
+
+.processSub{
+    margin: 0 auto;
+    max-width: 760px;
+    color: #475569;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+.processDiagram{
+    position: relative;
+    max-width: 1120px;
+    margin: 26px auto 0;
+    padding: 8px 0 40px;
+}
+
+.processImageWrapper{
+    max-width: 640px;               /* Thu nhỏ thêm ảnh để text hẳn ra ngoài */
+    margin: 0 auto;
+}
+
+.processImageCenter{
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 20px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+}
+
+.processStepBubble{
+    position: absolute;
+    max-width: 260px;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 10px 12px;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    z-index: 2;
+}
+
+/* Mũi tên (đường kẻ) từ trung tâm ra từng bubble – không đè lên chữ */
+.processStepBubble::before{
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 2px;
+    background: rgba(15,23,42,0.28);
+    transform-origin: left center;
+    z-index: -1;
+}
+
+.step-1::before{ transform: rotate(180deg); }
+.step-2::before{ transform: rotate(200deg); }
+.step-3::before{ transform: rotate(230deg); }
+.step-4::before{ transform: rotate(270deg); }
+.step-5::before{ transform: rotate(-50deg); }
+.step-6::before{ transform: rotate(-20deg); }
+.step-7::before{ transform: rotate(0deg); }
+}
+
+.processNo{
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #005aa9 0%, #3a8de0 100%);
+    color: #fff;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 18px rgba(0, 90, 169, 0.28);
+    flex-shrink: 0;
+}
+
+.processStepTitle{
+    font-weight: 900;
+    color: #0a0f1c;
+    line-height: 1.2;
+    margin: 0 0 4px;
+}
+
+.processStepDesc{
+    color: #475569;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+/* Vị trí 7 bubble xung quanh ảnh quy trình (màn hình lớn) */
+.step-1{ top: 2%; left: -10%; }
+.step-2{ top: 24%; left: -12%; }
+.step-3{ top: 46%; left: -12%; }
+.step-4{ bottom: 2%; left: -10%; }
+.step-5{ top: 24%; right: -12%; }
+.step-6{ top: 46%; right: -12%; }
+.step-7{ bottom: 2%; right: -10%; }
 
 .btnSecondary:hover {
     background: rgba(0, 90, 169, 0.14);
@@ -183,12 +422,10 @@
 }
 
 /* ===== Video card ===== */
-.videocontainer {
-    flex: 1;
-    display: flex;
-    justify-content: center;
+.videoMedia{
     position: relative;
-    z-index: 1;
+    display: flex;
+    align-items: center;
 }
 
 .videoOverlay {
@@ -203,7 +440,7 @@
     pointer-events: none;
 }
 
-.videocontainer video {
+.videoMedia video {
     width: 100%;
     max-width: 100%;
     aspect-ratio: 16 / 10;
@@ -217,8 +454,29 @@
     transition: transform 0.3s ease;
 }
 
-.videocontainer:hover video {
+.videoMedia:hover video {
     transform: scale(1.02);
+}
+
+.videoTextCard{
+    flex: 1;
+    background: #ffffff;
+    border: 1px solid rgba(2, 6, 23, 0.06);
+    border-radius: 18px;
+    padding: 18px 18px;
+    box-shadow: 0 10px 28px rgba(2, 6, 23, 0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+}
+
+.videoText{
+    margin: 0;
+    color: #334155;
+    font-size: 14px;
+    line-height: 1.55;
+    font-weight: 600;
 }
 
 /* ===== Responsive ===== */
@@ -230,7 +488,7 @@
         gap: 40px;
     }
 
-    .homeContainer {
+    .homeTop{
         max-width: 100%;
     }
 
@@ -243,10 +501,6 @@
         font-size: 36px;
     }
 
-    .serviceItem {
-        padding: 16px;
-    }
-
     .serviceIcon {
         width: 48px;
         height: 48px;
@@ -257,12 +511,11 @@
         font-size: 16px;
     }
 
-    .videocontainer {
-        margin-top: 0;
-        width: 100%;
+    .videoRow{
+        grid-template-columns: 1fr; /* xuống 1 cột */
     }
 
-    .videocontainer video {
+    .videoMedia video {
         max-width: 100%;
     }
 
@@ -293,13 +546,17 @@
     }
 
     .homeContent {
-        gap: 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 6px;
     }
 
     .serviceItem {
         padding: 14px;
         gap: 12px;
         flex-direction: row;
+        flex: 0 0 70%;            /* Mỗi card chiếm ~70% màn hình, kéo ngang để xem thêm */
+        min-width: 260px;
     }
 
     .serviceIcon {
@@ -316,17 +573,47 @@
     .homeActions {
         flex-direction: column;
         gap: 12px;
-        margin-top: 30px;
+        margin-top: auto;
     }
 
     .btnPrimary, .btnSecondary {
         width: 100%;
-        padding: 12px 24px;
         font-size: 15px;
     }
 
-    .videocontainer video {
+    .btnPrimary.iconOnly,
+    .btnSecondary.iconOnly{
+        width: 100%;
+        height: 56px;
+    }
+
+    .videoMedia video {
         border-radius: 16px;
+    }
+
+    .videoOverlay{
+        border-radius: 16px;
+    }
+
+    .processSection{
+        padding: 44px 0 12px;
+    }
+    .processTitle{
+        font-size: 30px;
+    }
+    .processDiagram{
+        position: static;
+        max-width: 100%;
+        padding-top: 10px;
+        padding-bottom: 20px;
+    }
+    .processImageWrapper{
+        max-width: 100%;
+    }
+    .processStepBubble{
+        position: static;
+        max-width: 100%;
+        margin-top: 10px;
     }
 }
 
@@ -343,8 +630,16 @@
         font-size: 24px;
     }
 
+    .homeContent {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 6px;
+    }
+
     .serviceItem {
         padding: 12px;
+        flex: 0 0 78%;            /* Card rộng hơn trên mobile nhỏ */
+        min-width: 240px;
     }
 
     .serviceIcon {

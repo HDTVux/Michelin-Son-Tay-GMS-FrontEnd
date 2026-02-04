@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Header.css';
 import CustomerLogin from '../../features/auth/components/CustomerLoginModal.jsx';
 import logo from '../../assets/Logo3.jpg';
@@ -13,8 +13,16 @@ const Header = () => {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path) => location.pathname === path;
+
+  const scrollToContact = () => {
+    const el = document.getElementById('contact');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -107,19 +115,35 @@ const Header = () => {
           >
             Trang chủ
           </Link>
-            <Link 
-            to="/booking" 
-            className={isActive('/booking') ? 'active' : ''}
-            onClick={closeMenu}
-          >
-            Đặt lịch
-          </Link>
           <Link 
             to="/about" 
             className={isActive('/about') ? 'active' : ''}
             onClick={closeMenu}
           >
-            Về chúng tôi
+            Giới thiệu
+          </Link>
+          <Link 
+            to="/services" 
+            className={isActive('/services') ? 'active' : ''}
+            onClick={closeMenu}
+          >
+            Dịch vụ
+          </Link>
+          <Link 
+            to="/" 
+            className={location.pathname === '/' ? '' : ''}
+            onClick={(e) => {
+              e.preventDefault();
+              closeMenu();
+              if (location.pathname !== '/') {
+                navigate('/');
+                setTimeout(scrollToContact, 100);
+              } else {
+                scrollToContact();
+              }
+            }}
+          >
+            Liên hệ
           </Link>
         </nav>
         

@@ -1,0 +1,224 @@
+/* Service Step - Giống StepService */
+.editBookingPage .service-step { 
+  background: #fff; 
+  padding: 18px; 
+}
+
+.editBookingPage .service-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.editBookingPage .tabs { 
+  display: flex; 
+  gap: 8px; 
+}
+
+.editBookingPage .tab {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+
+.editBookingPage .tab.active {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+
+.editBookingPage .search-filter {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  min-width: 320px;
+  justify-content: flex-end;
+}
+
+.editBookingPage .search-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.editBookingPage .search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+}
+
+.editBookingPage .search-filter select {
+  min-width: 140px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.editBookingPage .carousel-shell {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.editBookingPage .nav-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s ease;
+}
+
+.editBookingPage .nav-btn:disabled { 
+  opacity: 0.4; 
+  cursor: not-allowed; 
+}
+
+.editBookingPage .nav-btn:not(:disabled):hover { 
+  box-shadow: 0 6px 14px rgba(0,0,0,0.08); 
+  transform: translateY(-1px); 
+}
+
+.editBookingPage .slider-viewport { 
+  overflow: hidden; 
+}
+
+.editBookingPage .slider-track {
+  display: flex;
+  gap: 12px;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.editBookingPage .service-slide { 
+  min-height: 260px; 
+}
+
+.editBookingPage .service-card {
+  position: relative;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  min-height: 260px;
+  padding-bottom: 12px;
+}
+
+.editBookingPage .service-card .thumb {
+  height: 120px;
+  background: linear-gradient(90deg, #e2e8f0, #f8fafc);
+}
+
+.editBookingPage .service-card .check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+
+.editBookingPage .service-card .check.checked {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+
+.editBookingPage .service-card .pill {
+  margin: 12px 12px 6px;
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.editBookingPage .service-card .name {
+  margin: 0 12px 6px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.editBookingPage .service-card .desc {
+  margin: 0 12px 10px;
+  color: #475569;
+  font-size: 14px;
+}
+
+.editBookingPage .selected-box {
+  padding: 12px;
+  margin: 16px 0;
+}
+
+.editBookingPage .selected-title { 
+  font-weight: 700; 
+  margin-bottom: 8px; 
+}
+
+.editBookingPage .chip-row { 
+  display: flex; 
+  flex-wrap: wrap; 
+  gap: 8px; 
+}
+
+.editBookingPage .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.editBookingPage .chip-remove {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #ef4444;
+  font-size: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .search-filter { 
+    flex-direction: column; 
+    align-items: stretch; 
+  }
+
+  .carousel-shell { 
+    grid-template-columns: 1fr; 
+  }
+
+  .nav-btn { 
+    display: none; 
+  }
+
+  .slider-track { 
+    gap: 10px; 
+  }
+}

@@ -20,6 +20,8 @@ export default function StepService({ services, selectedIds, onToggle, search, o
     return () => window.removeEventListener('resize', handle);
   }, []);
 
+  const isMobileSlider = visible === 1;
+
   // Lọc theo từ khóa và category
   const filtered = useMemo(() => {
     const cleaned = search.toLowerCase();
@@ -30,7 +32,7 @@ export default function StepService({ services, selectedIds, onToggle, search, o
     });
   }, [services, search, filter]);
 
-  // Tổng số slide tối đa có thể lùi/tiến
+  // Tổng số slide tối đa có thể lùi/tiến (chỉ dùng cho desktop / tablet)
   const maxIndex = Math.max(0, filtered.length - visible);
 
   // Nếu số lượng item thay đổi, đảm bảo index không vượt quá maxIndex
@@ -69,16 +71,22 @@ export default function StepService({ services, selectedIds, onToggle, search, o
             <option value="check">Chăm sóc & OTOT</option>
           </select>
         </div>
+        <p className="slider-hint">Kéo vuốt ngang để xem thêm dịch vụ.</p>
       </div>
 
       <div className="carousel-shell">
-        <button className="nav-btn" aria-label="Prev" onClick={prev} disabled={index === 0}>
-          ⟨
-        </button>
-        <div className="slider-viewport">
+        {!isMobileSlider && (
+          <button className="nav-btn" aria-label="Prev" onClick={prev} disabled={index === 0}>
+            ⟨
+          </button>
+        )}
+        <div
+          className="slider-viewport"
+          style={isMobileSlider ? { overflowX: 'auto' } : {}}
+        >
           <div
             className="slider-track"
-            style={{ transform: `translateX(-${offset}%)` }}
+            style={isMobileSlider ? {} : { transform: `translateX(-${offset}%)` }}
           >
             {filtered.map((item) => {
               const active = selectedIds.includes(item.id);
@@ -86,7 +94,11 @@ export default function StepService({ services, selectedIds, onToggle, search, o
                 <div
                   key={item.id}
                   className="service-slide"
-                  style={{ flex: `0 0 calc((100% - 12px * ${visible - 1}) / ${visible})` }}
+                  style={
+                    isMobileSlider
+                      ? { flex: '0 0 100%' }
+                      : { flex: `0 0 calc((100% - 12px * ${visible - 1}) / ${visible})` }
+                  }
                 >
                   <div className="service-card">
                     <div className="thumb" />
@@ -102,9 +114,11 @@ export default function StepService({ services, selectedIds, onToggle, search, o
             })}
           </div>
         </div>
-        <button className="nav-btn" aria-label="Next" onClick={next} disabled={index >= maxIndex}>
-          ⟩
-        </button>
+        {!isMobileSlider && (
+          <button className="nav-btn" aria-label="Next" onClick={next} disabled={index >= maxIndex}>
+            ⟩
+          </button>
+        )}
       </div>
 
       <div className="selected-box">

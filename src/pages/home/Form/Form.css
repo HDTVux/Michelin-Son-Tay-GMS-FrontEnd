@@ -2,7 +2,7 @@
   display: flex;
   justify-content: center;
   padding: 40px 16px;
-  background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
+  background: #ffffff;           /* Bỏ nền xám, đổi thành trắng */
 }
 
 .bookingWrapper .bookingCard {

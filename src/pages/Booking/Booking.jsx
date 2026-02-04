@@ -58,11 +58,19 @@ export default function Booking() {
  // State cho thông tin cá nhân
  const [info, setInfo] = useState({ name: '', phone: prefilledPhone, note: '' });
 
- useEffect(() => {
-	if (prefilledPhone) {
-	 setInfo((prev) => ({ ...prev, phone: prefilledPhone }));
-  }
- }, [prefilledPhone]);
+	useEffect(() => {
+	 if (prefilledPhone) {
+	  setInfo((prev) => ({ ...prev, phone: prefilledPhone }));
+   }
+	}, [prefilledPhone]);
+
+	// Mỗi khi đổi bước, cuộn về đầu trang đặt lịch để không bị nhảy xuống cuối
+	useEffect(() => {
+	 const root = document.querySelector('.booking-page');
+	 if (root) {
+	  root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	 }
+	}, [stepIndex]);
 
 	const toggle = (id) => {
 		setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -80,7 +88,9 @@ export default function Booking() {
 
 	 const goBackFromInfo = () => setStepIndex(1);
 	 const goSubmitInfo = () => {
+	  const isNoteRequired = selectedIds.length === 0;
 	  if (!info.name || !info.phone) return;
+	  if (isNoteRequired && !info.note.trim()) return;
 	  setStepIndex(3);
 	 };
 
@@ -100,12 +110,21 @@ export default function Booking() {
 			 <div className="progress-fill" style={{ width: `${((stepIndex + 1) / STEPS.length) * 100}%` }} />
 			</div>
 			<div className="stepper">
-			 {STEPS.map((step, idx) => (
-				<div key={step.id} className={`step ${idx <= stepIndex ? 'active' : ''}`}>
-				 <div className="dot">{idx + 1}</div>
-				 <div className="label">{step.label}</div>
-				</div>
-			 ))}
+			 {STEPS.map((step, idx) => {
+			  const isCompleted = idx < stepIndex;
+			  const isActive = idx === stepIndex;
+			  return (
+			   <div
+			    key={step.id}
+			    className={`step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}`.trim()}
+			   >
+			    <div className="dot">
+			     {isCompleted ? '✓' : idx + 1}
+			    </div>
+			    <div className="label">{step.label}</div>
+			   </div>
+			  );
+			 })}
 			</div>
 		 </div>
 
@@ -138,6 +157,7 @@ export default function Booking() {
 			  onChange={(patch) => setInfo((prev) => ({ ...prev, ...patch }))}
 			  onBack={goBackFromInfo}
 			  onSubmit={goSubmitInfo}
+			  requireNote={selectedIds.length === 0}
 			 />
 			)}
 

@@ -1,0 +1,97 @@
+/* Linked Accounts */
+.linkedAccountsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.linkedAccountItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.accountInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.accountIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.accountIcon.google {
+  background: #4285f4;
+  color: white;
+}
+
+.accountIcon.zalo {
+  background: #0068ff;
+  color: white;
+}
+
+.accountDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.accountName {
+  font-weight: 600;
+  color: #0a0f1c;
+}
+
+.accountStatus {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.btnLink {
+  padding: 8px 16px;
+  background: #005aa9;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btnLink:hover {
+  background: #004080;
+}
+
+.btnUnlink {
+  padding: 8px 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btnUnlink:hover {
+  background: #dc2626;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .linkedAccountItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

@@ -1,0 +1,73 @@
+/* Stats Section */
+.statsSection {
+  margin-bottom: 40px;
+}
+
+.sectionTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0a0f1c;
+  margin-bottom: 24px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.statCard {
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.statCard.white {
+  background: white;
+}
+
+.statCard.blue {
+  background: #005aa9;
+  color: white;
+}
+
+.statCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.statIcon {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+.statLabel {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 12px;
+}
+
+.statCard.blue .statLabel {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.statValue {
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.statValue.blue {
+  color: #005aa9;
+}
+
+.statValue.white {
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}

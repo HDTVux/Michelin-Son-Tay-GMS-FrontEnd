@@ -3,38 +3,56 @@
 
 /* Banner styles matching provided design */
 .banner {
-    background: #ffffff;
+    background: #ffffff;          /* Nền trắng, không có nền xám */
     color: #0a0f1c;
-    padding: 50px ;
+    padding: 0;                   /* Bỏ tất cả padding */
+    overflow-x: hidden;           /* Ẩn scrollbar ngang nếu có */
+    width: 100vw;                 /* Chiếm toàn bộ chiều rộng viewport */
+    margin-left: calc(-50vw + 50%); /* Căn giữa và kéo dài full màn hình */
+    position: relative;
+    max-width: 100vw;             /* Đảm bảo không vượt quá viewport */
 }
 
 .banner-inner {
     max-width: 100%; /* Cho phép nội dung chiếm hết chiều ngang */
-    margin: 0 auto;
+    margin: 0 auto;  /* Căn giữa hoàn toàn */
     text-align: center;
+    padding: 50px 5% 0;          /* Padding trên và 2 bên cho chữ */
+    position: relative;
+    width: 100%;                 /* Đảm bảo chiếm hết chiều rộng */
 }
+
 .banner-title{
 	font-family: 'Baloo 2', 'Segoe UI', Tahoma, Arial, sans-serif;
 	font-size: 48px;
 	margin: 0 0 12px;
 	font-weight: 800;
 	letter-spacing: 0.5px;
+	position: relative;
+	color: #0a0f1c;                /* Chữ đen để hiển thị trên nền trắng */
+	text-shadow: none;            /* Bỏ đổ bóng vì không cần nữa */
 }
 
 .banner-sub{
-    color: #475569;
+    color: #475569;                /* Chữ xám đậm */
 	margin: 0 auto 28px;
 	max-width: 760px;
 	line-height: 1.6;
+	position: relative;
+	text-shadow: none;            /* Bỏ đổ bóng vì không cần nữa */
 }
 
 .banner-carousel {
-    width: 100%;
-    max-width: 1250px; 
-    margin: 0 auto;
+    width: 100vw;                 /* Chiếm toàn bộ chiều rộng viewport */
+    max-width: 100vw;             /* Đảm bảo không vượt quá viewport */
+    margin: 0 auto;               /* Căn giữa hoàn toàn */
+    padding: 0;                   /* Đảm bảo không có padding gây lệch */
     overflow: hidden;
     position: relative;
     display: block;
+    background: transparent;      /* Nền trong suốt */
+    left: 0;                      /* Đảm bảo không bị lệch */
+    right: 0;                     /* Đảm bảo không bị lệch */
 }
 
 .slides {
@@ -42,17 +60,31 @@
     width: 100%; 
     transition: transform 600ms cubic-bezier(.22, .9, .18, 1);
     will-change: transform;
+    margin: 0;                     /* Đảm bảo không có margin gây lệch */
+    padding: 0;                    /* Đảm bảo không có padding gây lệch */
 }
 
 .slide {
     flex: 0 0 100%;
     width: 100%;
-    height: 300px; 
-    
-    background-size: cover;      
-    background-position: center;  /* Giữ trọng tâm ảnh ở giữa */
-    background-repeat: no-repeat;
-    background-color: #eef2f8;   /* Nền sáng nhạt để ảnh chưa load cũng không bị chói */
+    height: 600px;                 /* Tăng chiều cao lên 600px để banner lớn hơn, hiển thị rõ chữ */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent; /* Nền trong suốt để ảnh phủ kín */
+    overflow: hidden;
+    position: relative;
+    margin: 0;                     /* Đảm bảo không có margin gây lệch */
+    padding: 0;                    /* Đảm bảo không có padding gây lệch */
+}
+
+.slide-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;             /* Ảnh phủ kín toàn bộ không gian, không để khoảng trống */
+    object-position: center center; /* Căn giữa cả ngang và dọc, cân bằng hoàn hảo */
+    min-height: 600px;            /* Đảm bảo chiều cao tối thiểu */
+    display: block;               /* Đảm bảo ảnh hiển thị đúng */
 }
 
 
@@ -75,6 +107,11 @@
 	gap: 10px;
 	align-items: center;
 	justify-content: center;
+	position: absolute;
+	bottom: 20px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 20;                   /* Dots hiển thị trên ảnh và chữ */
 }
 .dot-btn{
 	width: 10px;
@@ -96,22 +133,49 @@
 
 @media (max-width: 768px) {
     .banner {
-        padding: 30px 10px;
+        padding: 0;
+    }
+    .banner-inner {
+        padding: 30px 3% 0;
     }
     .banner-title {
         font-size: 28px;
     }
+    .banner-sub {
+        font-size: 14px;
+    }
     .slide {
-        aspect-ratio: 16 / 9; 
+        height: 400px;             /* Mobile vẫn giữ chiều cao đủ lớn */
+        min-height: 400px;
+    }
+    .slide-image {
+        min-height: 400px;
+        object-fit: cover;         /* Mobile cũng phủ kín không gian */
     }
 }
 
 @media (max-width: 480px) {
+    .banner {
+        padding: 0;
+    }
+    .banner-inner {
+        padding: 20px 3% 0;
+    }
     .banner-title {
         font-size: 22px;
+        margin-bottom: 8px;
+    }
+    .banner-sub {
+        font-size: 13px;
+        margin-bottom: 20px;
     }
     .slide {
-        aspect-ratio: 4 / 3; 
+        height: 350px;             /* Mobile nhỏ vẫn đủ lớn để hiển thị chữ */
+        min-height: 350px;
+    }
+    .slide-image {
+        min-height: 350px;
+        object-fit: cover;         /* Mobile nhỏ cũng phủ kín không gian */
     }
 }
 

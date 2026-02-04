@@ -186,6 +186,29 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   animation: slideDown 0.3s ease;
 }
 
+.errorBanner,
+.successBanner {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.errorBanner {
+  background: #ffecec;
+  color: #c72b2b;
+  border: 1px solid #ffc7c7;
+}
+
+.successBanner {
+  background: #ecf9ee;
+  color: #1b7b3f;
+  border: 1px solid #c6efcf;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;

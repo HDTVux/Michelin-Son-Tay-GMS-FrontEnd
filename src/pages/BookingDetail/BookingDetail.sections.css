@@ -1,0 +1,147 @@
+/* Detail Sections */
+.detailSection {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.sectionTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0a0f1c;
+  margin: 0 0 20px 0;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.infoLabel {
+  font-weight: 600;
+  color: #475569;
+  font-size: 14px;
+}
+
+.infoValue {
+  color: #0a0f1c;
+  font-size: 15px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  width: fit-content;
+}
+
+.status-confirmed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-processing {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-pending {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+/* Services List */
+.servicesList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.serviceItem {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.serviceNumber {
+  font-weight: 600;
+  color: #005aa9;
+  min-width: 100px;
+}
+
+.serviceInfo {
+  flex: 1;
+}
+
+.serviceName {
+  font-weight: 600;
+  color: #0a0f1c;
+  margin-bottom: 4px;
+}
+
+.serviceDescription {
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* Note Content */
+.noteContent {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.noteContent p {
+  margin: 0;
+  color: #0a0f1c;
+  line-height: 1.6;
+}
+
+/* Workshop Info */
+.workshopInfo {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.workshopName {
+  font-weight: 600;
+  color: #0a0f1c;
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.workshopAddress {
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+}

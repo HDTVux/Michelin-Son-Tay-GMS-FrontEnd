@@ -1,4 +1,9 @@
 import './About.css';
+import visionImage from '../../assets/anh_tam_nhin.jpg';
+import facilityImg1 from '../../assets/z7501188211493_472143d80204db754b377a67838c33f5.jpg';
+import facilityImg2 from '../../assets/z7501188266461_80cd9d87424adaf8b0a78bd40b3545a1.jpg';
+import facilityImg3 from '../../assets/z7501188266555_1d32eab995cb25311ddb7d0ce6a4172c.jpg';
+import facilityImg4 from '../../assets/z7501188266556_2e19562ee0b89224a3f3ec42d4b9232f.jpg';
 
 const About = () => {
   return (
@@ -13,47 +18,44 @@ const About = () => {
       <div className="aboutContent">
         <div className="aboutSection">
           <div className="aboutText">
-            <h2>Giới thiệu</h2>
+            <h2>Tầm nhìn & Ảnh hưởng</h2>
             <p>
-              Michellin Sơn Tây là đại lý chính thức của thương hiệu Michelin tại khu vực Sơn Tây, 
-              Hà Nội. Với nhiều năm kinh nghiệm trong ngành, chúng tôi tự hào là địa chỉ uy tín 
-              cung cấp các sản phẩm và dịch vụ chăm sóc xe chất lượng cao.
+              Michelin Sơn Tây hướng tới trở thành trung tâm dịch vụ lốp và chăm sóc xe chuẩn mực tại khu vực,
+              nơi mọi khách hàng đều cảm thấy an tâm mỗi khi giao xe cho chúng tôi.
             </p>
             <p>
-              Chúng tôi chuyên cung cấp lốp xe, dầu nhớt, ắc quy chính hãng cùng với các dịch vụ 
-              sửa chữa, sơn gò hàn và chăm sóc làm đẹp xe từ A-Z. Đội ngũ kỹ thuật viên chuyên nghiệp 
-              và hệ thống cứu hộ 24/7 luôn sẵn sàng phục vụ quý khách.
+              Bằng việc áp dụng quy trình minh bạch, kỹ thuật hiện đại và trải nghiệm dịch vụ nhất quán,
+              chúng tôi mong muốn góp phần nâng cao tiêu chuẩn an toàn giao thông và thói quen bảo dưỡng xe
+              chuyên nghiệp cho cộng đồng địa phương.
             </p>
           </div>
           <div className="aboutImage">
-            <div className="imagePlaceholder">
-              <span>🚗</span>
-            </div>
+            <img src={visionImage} alt="Tầm nhìn Michelin Sơn Tây" className="aboutVisionImage" />
           </div>
         </div>
 
         <div className="aboutValues">
-          <h2 className="valuesTitle">Giá trị cốt lõi</h2>
-          <div className="valuesGrid">
-            <div className="valueCard">
-              <div className="valueIcon">✓</div>
-              <h3>Chất lượng</h3>
-              <p>Sản phẩm chính hãng, đảm bảo chất lượng và an toàn</p>
+          <h2 className="valuesTitle">Cơ sở vật chất</h2>
+          <div className="valuesGrid facilityGrid">
+            <div className="facilityCard">
+              <img src={facilityImg1} alt="Khu sửa chữa" />
+              <h3>Khu sửa chữa tiêu chuẩn</h3>
+              <p>Trang bị thiết bị nâng hạ, dụng cụ đo kiểm hiện đại, đáp ứng các hạng mục sửa chữa quan trọng.</p>
             </div>
-            <div className="valueCard">
-              <div className="valueIcon">⚡</div>
-              <h3>Nhanh chóng</h3>
-              <p>Dịch vụ nhanh chóng, tiết kiệm thời gian của bạn</p>
+            <div className="facilityCard">
+              <img src={facilityImg2} alt="Khu tiếp nhận khách hàng" />
+              <h3>Khu tiếp nhận & chờ</h3>
+              <p>Không gian tiếp khách thoáng, sạch và tiện nghi để bạn nghỉ ngơi trong lúc xe được chăm sóc.</p>
             </div>
-            <div className="valueCard">
-              <div className="valueIcon">💎</div>
-              <h3>Chuyên nghiệp</h3>
-              <p>Đội ngũ kỹ thuật viên giàu kinh nghiệm và chuyên nghiệp</p>
+            <div className="facilityCard">
+              <img src={facilityImg3} alt="Khu lốp & cân chỉnh" />
+              <h3>Khu lốp & cân chỉnh</h3>
+              <p>Máy ra vào lốp, cân bằng động và căn chỉnh góc đặt bánh giúp xe vận hành êm ái, an toàn.</p>
             </div>
-            <div className="valueCard">
-              <div className="valueIcon">❤️</div>
-              <h3>Tận tâm</h3>
-              <p>Phục vụ tận tâm, đặt lợi ích khách hàng lên hàng đầu</p>
+            <div className="facilityCard">
+              <img src={facilityImg4} alt="Kho vật tư" />
+              <h3>Khu kho & vật tư</h3>
+              <p>Khu vực kho lốp và phụ tùng được sắp xếp gọn gàng, đảm bảo nguồn linh kiện luôn sẵn sàng.</p>
             </div>
           </div>
         </div>
