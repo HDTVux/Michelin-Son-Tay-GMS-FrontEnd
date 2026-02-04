@@ -4,7 +4,6 @@ import './ManageProfile.css';
 import './ManageProfile.header.css';
 import './ManageProfile.avatar.css';
 import './ManageProfile.form.css';
-import './ManageProfile.linkedAccounts.css';
 import './ManageProfile.footer.css';
 
 const ManageProfile = () => {
@@ -12,17 +11,10 @@ const ManageProfile = () => {
     name: 'Họ tên người dùng',
     email: 'user@example.com',
     gender: 'Nam',
-    phone: '0901234567',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    phone: '0901234567'
   });
 
   const [avatar, setAvatar] = useState(null);
-  const [linkedAccounts, setLinkedAccounts] = useState({
-    google: true,
-    zalo: false
-  });
   const fileInputRef = useRef(null);
 
   const handleInputChange = (e) => {
@@ -56,31 +48,8 @@ const ManageProfile = () => {
     }
   };
 
-  const handleLinkAccount = (provider) => {
-    if (provider === 'zalo' && !linkedAccounts.zalo) {
-      setLinkedAccounts(prev => ({ ...prev, zalo: true }));
-      alert('Đã liên kết tài khoản Zalo');
-    }
-  };
-
-  const handleUnlinkAccount = (provider) => {
-    if (provider === 'google' && linkedAccounts.google) {
-      setLinkedAccounts(prev => ({ ...prev, google: false }));
-      alert('Đã hủy liên kết tài khoản Google');
-    }
-  };
-
   const handleSave = (e) => {
     e.preventDefault();
-    // Validate password
-    if (formData.newPassword && formData.newPassword.length < 8) {
-      alert('Mật khẩu phải có tối thiểu 8 ký tự');
-      return;
-    }
-    if (formData.newPassword !== formData.confirmPassword) {
-      alert('Mật khẩu xác nhận không khớp');
-      return;
-    }
     // TODO: Gọi API lưu thông tin
     alert('Đã lưu thông tin thành công');
   };
@@ -102,9 +71,9 @@ const ManageProfile = () => {
         </div>
 
         <form onSubmit={handleSave}>
-          {/* Ảnh đại diện */}
+          {/* Ảnh đại diện + thông tin cá nhân */}
           <section className="avatarSection">
-            <h2 className="sectionTitle">Ảnh đại diện</h2>
+            <h2 className="sectionTitle">Thông tin cá nhân</h2>
             <div className="avatarUploadArea">
               <div className="avatarPreview">
                 {avatar ? (
@@ -143,11 +112,7 @@ const ManageProfile = () => {
             <p className="avatarHint">
               Chấp nhận định dạng: JPG, PNG. Dung lượng tối đa: 2MB. Ảnh sẽ được tự động cắt vuông (1:1).
             </p>
-          </section>
 
-          {/* Thông tin cá nhân */}
-          <section className="personalInfoFormSection">
-            <h2 className="sectionTitle">Thông tin cá nhân</h2>
             <div className="formGrid">
               <div className="formColumn">
                 <div className="formGroup">
@@ -198,117 +163,6 @@ const ManageProfile = () => {
                     placeholder="0901234567"
                   />
                 </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Bảo mật tài khoản */}
-          <section className="securitySection">
-            <h2 className="sectionTitle">Bảo mật tài khoản</h2>
-            <div className="formGrid">
-              <div className="formColumn">
-                <div className="formGroup">
-                  <label className="formLabel">Mật khẩu hiện tại</label>
-                  <input
-                    type="password"
-                    name="currentPassword"
-                    value={formData.currentPassword}
-                    onChange={handleInputChange}
-                    className="formInput"
-                    placeholder="Nhập mật khẩu hiện tại"
-                  />
-                </div>
-              </div>
-              <div className="formColumn">
-                <div className="formGroup">
-                  <label className="formLabel">Mật khẩu mới</label>
-                  <input
-                    type="password"
-                    name="newPassword"
-                    value={formData.newPassword}
-                    onChange={handleInputChange}
-                    className="formInput"
-                    placeholder="Nhập mật khẩu mới"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="formGroup">
-              <label className="formLabel">Xác nhận mật khẩu mới</label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                className="formInput"
-                placeholder="Nhập lại mật khẩu mới"
-              />
-            </div>
-            <p className="passwordHint">
-              Mật khẩu phải có tối thiểu 8 ký tự, bao gồm ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt. 
-              Mật khẩu mới không được trùng mật khẩu cũ.
-            </p>
-          </section>
-
-          {/* Liên kết tài khoản */}
-          <section className="linkedAccountsSection">
-            <h2 className="sectionTitle">Liên kết tài khoản</h2>
-            <div className="linkedAccountsList">
-              <div className="linkedAccountItem">
-                <div className="accountInfo">
-                  <div className="accountIcon google">G</div>
-                  <div className="accountDetails">
-                    <span className="accountName">Google</span>
-                    <span className="accountStatus">
-                      {linkedAccounts.google ? '(Đã liên kết)' : '(Chưa liên kết)'}
-                    </span>
-                  </div>
-                </div>
-                {linkedAccounts.google ? (
-                  <button
-                    type="button"
-                    className="btnUnlink"
-                    onClick={() => handleUnlinkAccount('google')}
-                  >
-                    Hủy liên kết
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="btnLink"
-                    onClick={() => handleLinkAccount('google')}
-                  >
-                    Liên kết
-                  </button>
-                )}
-              </div>
-              <div className="linkedAccountItem">
-                <div className="accountInfo">
-                  <div className="accountIcon zalo">💬</div>
-                  <div className="accountDetails">
-                    <span className="accountName">Zalo</span>
-                    <span className="accountStatus">
-                      {linkedAccounts.zalo ? '(Đã liên kết)' : '(Chưa liên kết)'}
-                    </span>
-                  </div>
-                </div>
-                {linkedAccounts.zalo ? (
-                  <button
-                    type="button"
-                    className="btnUnlink"
-                    onClick={() => handleUnlinkAccount('zalo')}
-                  >
-                    Hủy liên kết
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="btnLink"
-                    onClick={() => handleLinkAccount('zalo')}
-                  >
-                    Liên kết
-                  </button>
-                )}
               </div>
             </div>
           </section>

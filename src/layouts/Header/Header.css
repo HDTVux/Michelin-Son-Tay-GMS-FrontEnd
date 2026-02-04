@@ -73,14 +73,14 @@
 @media (max-width: 768px) {
   .headerLogo img,
   .headerLogo #Logo {
-    height: 38px;
+    height: 32px;
   }
 }
 
 @media (max-width: 480px) {
   .headerLogo img,
   .headerLogo #Logo {
-    height: 34px;
+    height: 28px;
   }
 }
 
@@ -339,6 +339,23 @@
 
 /* Responsive: Mobile Menu */
 @media (max-width: 768px) {
+  .mainHeader {
+    padding: 10px 4%;
+  }
+
+  .mainHeader.scrolled {
+    padding: 10px 4%;
+  }
+
+  .mainHeader.scrolled .headerContainer {
+    transform: none;
+  }
+
+  .mainHeader.scrolled .headerLogo img,
+  .mainHeader.scrolled .headerLogo #Logo {
+    transform: none;
+  }
+
   .mobileMenuToggle {
     display: flex;
   }

@@ -8,16 +8,17 @@
 
 .stepper-wrapper {
   position: relative;
-  margin-bottom: 32px;
+  margin-bottom: 40px;
 }
 
 .progress-track {
   position: absolute;
-  inset: 18px 0 auto;
+  inset: 32px 10px auto;
   height: 6px;
-  background: #e5e7eb;
+  background: linear-gradient(90deg, #e5e7eb, #e5e7eb);
   border-radius: 999px;
   overflow: hidden;
+  z-index: 0;
 }
 
 .progress-fill {
@@ -28,40 +29,61 @@
 }
 
 .stepper {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  align-items: center;
-  gap: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
 }
 
 .stepper .step {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   position: relative;
-  padding-top: 10px;
+  padding-top: 4px;
+  flex: 1;
 }
 
 .stepper .dot {
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  background: #e5e7eb;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #f3f4f6;
   color: #111827;
   display: grid;
   place-items: center;
   font-weight: 700;
   border: 2px solid #e5e7eb;
   z-index: 1;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  transition: all 0.25s ease;
 }
 
 .stepper .step.active .dot {
-  background: #1d4ed8;
+  background: #2563eb;
   color: #fff;
-  border-color: #1d4ed8;
+  border-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
 }
 
-.stepper .label { font-weight: 700; font-size: 14px; text-align: center; }
+.stepper .step.completed .dot {
+  background: #22c55e;
+  border-color: #16a34a;
+  color: #fff;
+}
+
+.stepper .label {
+  font-weight: 600;
+  font-size: 13px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.stepper .step.active .label {
+  color: #111827;
+}
 
 .section-title { font-size: 18px; font-weight: 800; margin: 0 0 12px; }
 
@@ -92,5 +114,6 @@
 @media (max-width: 768px) {
   .booking-page { padding: 20px 14px 48px; }
   .stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; }
-  .progress-track { inset: 14px 0 auto; }
+  /* Trên mobile cũng giữ khoảng cách hợp lý giữa số bước và thanh tiến trình */
+  .progress-track { inset: 32px 0 auto; }
 }

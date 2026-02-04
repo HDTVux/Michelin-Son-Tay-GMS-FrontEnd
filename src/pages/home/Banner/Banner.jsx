@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import './Banner.css';
-import banner1 from '../../../assets/Logo2.png'
-import banner2 from '../../../assets/Logo.png'
+import banner1 from '../../../assets/logo4.jpg'
+import banner2 from '../../../assets/logo5.jpg'
+import banner3 from '../../../assets/logo6.jpg'
 
 export default function Banner(){
     const slides = [
         { id: 1, img: banner1 },
         { id: 2, img: banner2 },
-        { id: 3, img: banner1 }
+        { id: 3, img: banner3 }
     ];
 
     const [index, setIndex] = useState(0);
@@ -63,8 +64,9 @@ export default function Banner(){
                         onPointerCancel={onPointerUp}
                     >
                         {slides.map((s) => (
-                        <div className="slide" key={s.id} style={{ backgroundImage: `url(${s.img})` }}>
-                            </div>
+                        <div className="slide" key={s.id}>
+                            <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image" />
+                        </div>
                         ))} 
                     </div>
 

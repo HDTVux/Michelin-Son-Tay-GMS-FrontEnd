@@ -2,7 +2,7 @@
 .bookingStatusFilter {
   display: flex;
   gap: 12px;
-  margin-bottom: 30px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
   border-bottom: 2px solid #e2e8f0;
   padding-bottom: 0;
@@ -32,6 +32,51 @@
   font-weight: 600;
 }
 
+.bookingSearchSort {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.bookingSearch {
+  flex: 1 1 220px;
+}
+
+.bookingSearch input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 2px solid #005aa9;
+  font-size: 14px;
+  background-color: #0f172a;
+  color: #e5e7eb;
+  box-shadow: 0 0 0 1px #60a5fa;
+}
+
+.bookingSearch input::placeholder {
+  color: #9ca3af;
+}
+
+.bookingSearch input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #1d4ed8;
+}
+
+.bookingSort {
+  flex: 0 0 180px;
+}
+
+.bookingSort select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
+  background-color: #ffffff;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .bookingStatusFilter {
@@ -48,5 +93,13 @@
     white-space: nowrap;
     padding: 10px 16px;
     font-size: 14px;
+  }
+
+  .bookingSearchSort {
+    flex-direction: column;
+  }
+
+  .bookingSort {
+    flex: 1 1 auto;
   }
 }

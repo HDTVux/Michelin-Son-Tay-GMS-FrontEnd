@@ -55,14 +55,14 @@ const UserProfile = () => {
       icon: '🔗',
       title: 'Liên kết tài khoản',
       description: 'Liên kết tài khoản Zalo, Google',
-      link: '/link-account'
+      link: '/linked-accounts'
     },
     {
       id: 5,
       icon: '🔒',
       title: 'Đổi mật khẩu',
       description: 'Thay đổi mật khẩu tài khoản',
-      link: '/change-password'
+      link: '/account-security'
     }
   ];
 

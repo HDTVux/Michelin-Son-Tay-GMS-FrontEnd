@@ -40,19 +40,14 @@
   font-weight: 500;
 }
 
-.status-confirmed {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.status-processing {
+.status-pending {
   background: #fef3c7;
   color: #92400e;
 }
 
-.status-completed {
-  background: #d1fae5;
-  color: #065f46;
+.status-confirmed {
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .status-cancelled {

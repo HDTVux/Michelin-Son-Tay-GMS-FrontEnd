@@ -1,9 +1,12 @@
 import React from 'react'
 import './StepInfo.css'
 
-export default function StepInfo({ value, onChange, onBack, onSubmit }) {
+export default function StepInfo({ value, onChange, onBack, onSubmit, requireNote = false }) {
   const handleChange = (key) => (e) => onChange({ [key]: e.target.value })
-  const canSubmit = value.name.trim() && value.phone.trim()
+  const canSubmit =
+    value.name.trim() &&
+    value.phone.trim() &&
+    (!requireNote || value.note.trim())
 
   return (
     <>
@@ -37,7 +40,10 @@ export default function StepInfo({ value, onChange, onBack, onSubmit }) {
 
       <div className="section-block">
         <div className="section-title-row">
-          <h4 className="section-title">Yêu cầu đặc biệt (không bắt buộc)</h4>
+          <h4 className="section-title">
+            Yêu cầu đặc biệt
+            {requireNote ? ' (bắt buộc khi chưa chọn dịch vụ)' : ' (không bắt buộc)'}
+          </h4>
         </div>
         <div className="field">
           <textarea

@@ -11,25 +11,47 @@ export default function BussinessInfor() {
 	};
 
 	return (
-		<section className="businessSection">
+		<section className="businessSection" id="contact">
 			<div className="infoCard">
-				<div>
-					<h2>Michelin Sơn Tây</h2>
-					<p className="textRow">
-						<span className="label">Địa chỉ:</span>
-						<span className="value">674 QL21, Tân Phúc, Sơn Tây, Hà Nội</span>
-					</p>
-
-					<div className="hotlineRow">
-						<span className="label">Hotline:</span>
-						<span className="value strong">0987 545 680</span>
-						<span className="badge">24/7</span>
+				<h2 className="contactMainTitle">Liên hệ</h2>
+				<div className="contactCardGrid">
+					<div className="contactItemCard">
+						<div className="contactIconCircle">📍</div>
+						<div className="contactItemBody">
+							<div className="contactItemTitle">Địa chỉ</div>
+							<div className="contactItemText">
+								674 QL21, Tân Phúc, Sơn Tây, Hà Nội
+							</div>
+						</div>
 					</div>
 
-					<p className="textRow">
-						<span className="label">Email:</span>
-						<span className="value">info@michelin.com</span>
-					</p>
+					<div className="contactItemCard">
+						<div className="contactIconCircle">☎</div>
+						<div className="contactItemBody">
+							<div className="contactItemTitle">Hotline</div>
+							<div className="contactItemText">
+								0987 545 680 <span className="badge">24/7</span>
+							</div>
+						</div>
+					</div>
+
+					<div className="contactItemCard">
+						<div className="contactIconCircle">✉</div>
+						<div className="contactItemBody">
+							<div className="contactItemTitle">Email</div>
+							<div className="contactItemText">info@michelin.com</div>
+						</div>
+					</div>
+
+					<div className="contactItemCard">
+						<div className="contactIconCircle">📅</div>
+						<div className="contactItemBody">
+							<div className="contactItemTitle">Đặt lịch</div>
+							<div className="contactItemText">
+								<a href="/booking" className="contactBookingLink">Đặt lịch dịch vụ ngay</a>
+							</div>
+						</div>
+					</div>
 				</div>
 
 				<div className="hoursCard">
@@ -46,7 +68,7 @@ export default function BussinessInfor() {
 				</div>
 
 				<div>
-					<div className="contactTitle">Liên hệ với chúng tôi</div>
+					<div className="contactTitle">Kênh liên hệ</div>
 					<div className="contactActions">
 						<a className="contactCircle" href="https://zalo.me" target="_blank" rel="noreferrer">
 							Zalo

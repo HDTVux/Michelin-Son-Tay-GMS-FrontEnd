@@ -3,7 +3,7 @@
 	grid-template-columns: 1fr 1fr;
 	gap: 32px;
 	padding: 40px 24px;
-	background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
+	background: #ffffff;
 }
 
 .infoCard,
@@ -21,6 +21,67 @@
 	margin: 0 0 12px;
 	font-size: 28px;
 	color: #2b2b2b;
+}
+
+.contactMainTitle {
+	margin: 0 0 20px;
+	font-size: 28px;
+	font-weight: 800;
+	color: #1f2937;
+}
+
+.contactCardGrid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+	margin-bottom: 24px;
+}
+
+.contactItemCard {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 16px 18px;
+	border-radius: 16px;
+	background: #f9fafb;
+	border: 1px solid #e5e7eb;
+}
+
+.contactIconCircle {
+	width: 44px;
+	height: 44px;
+	border-radius: 999px;
+	background: #005aa9;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 22px;
+	color: #ffffff;
+}
+
+.contactItemTitle {
+	font-weight: 700;
+	font-size: 15px;
+	color: #111827;
+	margin-bottom: 4px;
+}
+
+.contactItemText {
+	font-size: 14px;
+	color: #4b5563;
+}
+
+.contactBookingLink {
+	display: inline-flex;
+	align-items: center;
+	padding: 6px 12px;
+	border-radius: 999px;
+	background: #005aa9;
+	color: #ffffff;
+	font-weight: 600;
+	font-size: 13px;
+	text-decoration: none;
+	white-space: nowrap;
 }
 
 .textRow {
@@ -207,5 +268,9 @@
 	.hotlineRow {
 		flex-wrap: wrap;
 		gap: 6px;
+	}
+
+	.contactCardGrid {
+		grid-template-columns: 1fr;
 	}
 }

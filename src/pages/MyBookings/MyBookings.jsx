@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './MyBookings.css';
 import './MyBookings.header.css';
@@ -7,6 +7,8 @@ import './MyBookings.list.css';
 
 const MyBookings = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('date-desc');
 
   // Dữ liệu mẫu - sau này sẽ lấy từ API
   const [bookings] = useState([
@@ -14,8 +16,8 @@ const MyBookings = () => {
       id: 'LH001',
       date: '23/10/2023',
       time: '10:00',
-      status: 'confirmed', // confirmed, processing, completed, cancelled
-      statusText: 'Đã xác nhận',
+      status: 'confirmed', // pending, confirmed, cancelled
+      statusText: 'Xác nhận',
       services: ['Thay dầu', 'Kiểm tra phanh'],
       workshop: {
         name: 'Xưởng sửa chữa ABC',
@@ -26,8 +28,8 @@ const MyBookings = () => {
       id: 'LH002',
       date: '19/10/2023',
       time: '14:30',
-      status: 'confirmed',
-      statusText: 'Đã xác nhận',
+      status: 'pending',
+      statusText: 'Đang chờ',
       services: ['Sửa chữa động cơ'],
       workshop: {
         name: 'Xưởng sửa chữa XYZ',
@@ -38,8 +40,8 @@ const MyBookings = () => {
       id: 'LH003',
       date: '19/10/2023',
       time: '09:00',
-      status: 'processing',
-      statusText: 'Đang xử lý',
+      status: 'pending',
+      statusText: 'Đang chờ',
       services: ['Bảo dưỡng định kỳ'],
       workshop: {
         name: 'Xưởng sửa chữa ABC',
@@ -50,8 +52,8 @@ const MyBookings = () => {
       id: 'LH004',
       date: '15/10/2023',
       time: '11:00',
-      status: 'completed',
-      statusText: 'Hoàn tất',
+      status: 'confirmed',
+      statusText: 'Xác nhận',
       services: ['Thay lốp', 'Cân bằng'],
       workshop: {
         name: 'Xưởng sửa chữa ABC',
@@ -74,21 +76,52 @@ const MyBookings = () => {
 
   const statusFilters = [
     { value: 'all', label: 'Tất cả' },
-    { value: 'processing', label: 'Đang xử lý' },
-    { value: 'confirmed', label: 'Đã xác nhận' },
-    { value: 'completed', label: 'Hoàn tất' },
+    { value: 'pending', label: 'Đang chờ' },
+    { value: 'confirmed', label: 'Xác nhận' },
     { value: 'cancelled', label: 'Đã hủy' }
   ];
 
-  const filteredBookings = selectedStatus === 'all' 
-    ? bookings 
-    : bookings.filter(booking => booking.status === selectedStatus);
+  const parseDateTime = (date, time) => {
+    // date: dd/mm/yyyy, time: HH:MM
+    const [day, month, year] = date.split('/').map(Number);
+    const [hour, minute] = time.split(':').map(Number);
+    return new Date(year, month - 1, day, hour, minute).getTime();
+  };
+
+  const filteredBookings = useMemo(() => {
+    let result = selectedStatus === 'all'
+      ? bookings
+      : bookings.filter((booking) => booking.status === selectedStatus);
+
+    if (searchTerm.trim()) {
+      const keyword = searchTerm.toLowerCase();
+      result = result.filter((booking) => {
+        const servicesText = booking.services.join(' ').toLowerCase();
+        const workshopText = `${booking.workshop.name} ${booking.workshop.address}`.toLowerCase();
+        return (
+          booking.id.toLowerCase().includes(keyword) ||
+          servicesText.includes(keyword) ||
+          workshopText.includes(keyword)
+        );
+      });
+    }
+
+    result = [...result].sort((a, b) => {
+      const timeA = parseDateTime(a.date, a.time);
+      const timeB = parseDateTime(b.date, b.time);
+      if (sortBy === 'date-asc') return timeA - timeB;
+      if (sortBy === 'status') return a.status.localeCompare(b.status) || timeB - timeA;
+      // mặc định: mới nhất lên trước
+      return timeB - timeA;
+    });
+
+    return result;
+  }, [bookings, selectedStatus, searchTerm, sortBy]);
 
   const getStatusClass = (status) => {
     const statusMap = {
+      pending: 'status-pending',
       confirmed: 'status-confirmed',
-      processing: 'status-processing',
-      completed: 'status-completed',
       cancelled: 'status-cancelled'
     };
     return statusMap[status] || '';
@@ -116,6 +149,25 @@ const MyBookings = () => {
               {filter.label}
             </button>
           ))}
+        </div>
+
+        {/* Search & Sort */}
+        <div className="bookingSearchSort">
+          <div className="bookingSearch">
+            <input
+              type="text"
+              placeholder="Tìm theo mã lịch, dịch vụ hoặc xưởng..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="bookingSort">
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="date-desc">Mới nhất</option>
+              <option value="date-asc">Cũ nhất</option>
+              <option value="status">Theo trạng thái</option>
+            </select>
+          </div>
         </div>
 
         {/* Booking List */}
