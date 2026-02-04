@@ -7,18 +7,20 @@
     color: #0a0f1c;
     padding: 0;
     overflow: hidden;
-    width: 100%;
+    width: 100vw;                    /* Full-bleed banner */
+    margin-left: 50%;               /* Pull to viewport edges regardless of parent padding */
+    transform: translateX(-50%);
     position: relative;
-    max-width: 150%;
+    max-width: none;
 }
 
 .banner-inner {
-    max-width: 1200px;
+    width: 100%;
+    max-width: none;
     margin: 0 auto;
     text-align: center;
-    padding: 10px 1% 0;
+    padding: 10px 0 0;
     position: relative;
-    width: 100%;
 }
 
 .banner-title{
@@ -42,8 +44,7 @@
 }
 
 .banner-carousel {
-    width: 100%;
-    max-width: 1200px;
+    width: 100vw;
     margin: 0 auto;
     padding: 0;
     overflow: hidden;

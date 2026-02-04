@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import './Home.css';
 import TVC from '../../assets/tvc.mp4';
 import processImg from '../../assets/{CCEDBCC3-2144-40E6-B397-8E9D2FA15587}.png';
@@ -15,19 +14,12 @@ const Home = () => {
         setIsVisible(true);
     }, []);
 
-    // Hiển thị dạng 2 dòng: dòng 1 nổi bật + dòng 2 mô tả ngắn, rút gọn cho mobile
-    const services = [
-        { title: 'Michelin Sơn Tây', sub: 'Địa chỉ lốp uy tín tại Sơn Tây.', icon: '📍' },
-        { title: 'Đại lý duy nhất', sub: 'Lốp, dầu, ắc quy chính hãng.', icon: '🏬' },
-        { title: 'Cứu hộ 24/7', sub: 'Hỗ trợ cứu hộ mọi lúc.', icon: '🚑' },
-        { title: 'Sơn – Gò – Hàn', sub: 'Sửa va quệt nhanh, thẩm mỹ.', icon: '🛠️' },
-        { title: 'Chăm sóc xe A–Z', sub: 'Vệ sinh, làm đẹp, bảo dưỡng.', icon: '✨' }
-    ];
-
-    // Đoạn giới thiệu ngắn gọn, dễ đọc trên mobile
     const introText = [
-        'Michelin Sơn Tây là trung tâm dịch vụ lốp và chăm sóc xe tại Sơn Tây, tập trung vào an toàn và độ bền cho từng hành trình.',
-        'Chúng tôi cung cấp lốp chính hãng, dịch vụ lắp đặt – cân chỉnh – bảo dưỡng chuyên nghiệp với đội ngũ kỹ thuật viên được đào tạo bài bản.'
+        'Michelin sơn tây là địa chỉ lốp uy tín ở sơn tây.',
+        'Là đại lý duy nhất. Chuyên cung cấp lốp dầu ắc quy chính hãng.',
+        'Sửa chữa ôtô cứu hộ 24/7',
+        'Sơn- Gò- Hàn.',
+        'Chăm sóc làm đẹp xe từ A–Z.'
     ];
 
     const processSteps = [
@@ -80,13 +72,14 @@ const Home = () => {
         <Form/>
         <section className="homePage">
             <div className={`homeTop ${isVisible ? 'fadeIn' : ''}`}>
-                <h1 className="homeTitle">
-                    Giới thiệu về <h1 id='name'>Michelin Sơn Tây</h1>
-                </h1>
+
 
                 {/* Intro bên trái - Video bên phải */}
                 <div className={`videoRow ${isVisible ? 'slideIn' : ''}`}>
                     <div className="videoTextCard" aria-label="Giới thiệu Michelin Sơn Tây">
+                    <h1 className="homeTitle">
+                    Giới thiệu về <span>Michelin Sơn Tây</span>
+                </h1>
                         {introText.map((t, i) => (
                             <p key={i} className="videoText">{t}</p>
                         ))}
@@ -102,21 +95,6 @@ const Home = () => {
                 </div>
 
                 {/* 5 ô nằm ngang bên dưới video */}
-                <div className="homeContent belowVideo">
-                    {services.map((service, index) => (
-                        <div 
-                            key={index}
-                            className="serviceItem fadeInUp" 
-                            style={{ animationDelay: `${(index + 1) * 0.08}s` }}
-                        >
-                            <div className="serviceText">
-                                <span className="serviceIconCircle" aria-hidden="true">{service.icon}</span>
-                                <div className="serviceTextTitle">{service.title}</div>
-                                <div className="serviceTextSub">{service.sub}</div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
             </div>
         </section>
 

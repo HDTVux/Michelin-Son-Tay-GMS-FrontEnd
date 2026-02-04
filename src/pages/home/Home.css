@@ -32,8 +32,8 @@
 /* wrapper mới cho phần trên của Home */
 .homeTop{
     width: 100%;
-    max-width: 1200px;
-    padding: 0 5%;
+    max-width: 1600px;
+    padding: 0 2%;
     display: grid;
     grid-template-rows: auto auto;
     gap: 18px;
@@ -98,7 +98,7 @@
 
 /* ===== Title ===== */
 .homeTitle {
-    font-size: 54px;
+    font-size: 50px;
     font-weight: 800;
     line-height: 1.2;
     margin-bottom: 6px;
@@ -108,11 +108,11 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.homeTitle #name {
+.homeTitle span {
     color: #005aa9;
     display: block;
     margin-top: 10px;
-    font-size: 60px;
+    font-size: 50px;
     font-weight: 1000;
     letter-spacing: 0.5 em;
     background: linear-gradient(135deg, #005aa9 0%, #3a8de0 50%, #005aa9 100%);
@@ -147,14 +147,29 @@
 
 .videoRow{
     display: grid;
-    grid-template-columns: 1fr 1.25fr; /* trái chữ - phải video */
-    gap: 18px;
+    grid-template-columns: 0.95fr 1.35fr; /* ưu tiên rộng hơn cho video */
+    gap: 26px;
     align-items: stretch;
     background: linear-gradient(145deg, rgba(0,90,169,0.08), rgba(0,90,169,0.02));
     border: 1px solid rgba(0, 90, 169, 0.08);
     border-radius: 24px;
-    padding: 18px;
+    padding: 34px 38px;
     box-shadow: 0 28px 60px rgba(2,6,23,0.08);
+    width: 100%;                  /* fill container width */
+    max-width: 1500px;
+    margin: 0 auto;
+}
+
+.videoInfoCol{
+    display: flex;
+    align-items: stretch;
+}
+
+.videoInfoGrid{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    width: 100%;
 }
 
 .serviceItem {
@@ -401,7 +416,7 @@
 
 .processStepDesc{
     color: #475569;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.45;
 }
 
@@ -443,7 +458,8 @@
 .videoMedia video {
     width: 100%;
     max-width: 100%;
-    aspect-ratio: 16 / 10;
+    aspect-ratio: 16 / 9;
+    min-height: 480px;
     object-fit: cover;
     border-radius: 28px;
     box-shadow: 
@@ -474,9 +490,9 @@
 .videoText{
     margin: 0;
     color: #334155;
-    font-size: 14px;
-    line-height: 1.55;
-    font-weight: 600;
+    font-size: 20px;
+    line-height: 1.65;
+    font-weight: 500;
 }
 
 /* ===== Responsive ===== */
@@ -493,12 +509,12 @@
     }
 
     .homeTitle {
-        font-size: 40px;
+        font-size: 44px;
         text-align: center;
     }
 
     .homeTitle span {
-        font-size: 36px;
+        font-size: 40px;
     }
 
     .serviceIcon {
@@ -513,10 +529,15 @@
 
     .videoRow{
         grid-template-columns: 1fr; /* xuống 1 cột */
+        width: 100%;
+        margin-left: 0;
+        transform: none;
+        padding: 20px;
     }
 
     .videoMedia video {
         max-width: 100%;
+        min-height: 360px;
     }
 
     .homeActions {
