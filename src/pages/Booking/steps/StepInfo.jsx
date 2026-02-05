@@ -1,12 +1,11 @@
 import React from 'react'
 import './StepInfo.css'
 
-export default function StepInfo({ value, onChange, onBack, onSubmit, requireNote = false }) {
+export default function StepInfo({ value, onChange, onBack, onSubmit }) {
   const handleChange = (key) => (e) => onChange({ [key]: e.target.value })
   const canSubmit =
     value.name.trim() &&
-    value.phone.trim() &&
-    (!requireNote || value.note.trim())
+    value.phone.trim()
 
   return (
     <>
@@ -41,8 +40,7 @@ export default function StepInfo({ value, onChange, onBack, onSubmit, requireNot
       <div className="section-block">
         <div className="section-title-row">
           <h4 className="section-title">
-            Yêu cầu đặc biệt
-            {requireNote ? ' (bắt buộc khi chưa chọn dịch vụ)' : ' (không bắt buộc)'}
+            Yêu cầu đặc biệt (không bắt buộc)
           </h4>
         </div>
         <div className="field">

@@ -90,7 +90,7 @@ const MyBookings = () => {
 
   const filteredBookings = useMemo(() => {
     let result = selectedStatus === 'all'
-      ? bookings
+    ? bookings 
       : bookings.filter((booking) => booking.status === selectedStatus);
 
     if (searchTerm.trim()) {

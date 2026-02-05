@@ -63,12 +63,6 @@ const Home = () => {
     return (
         <>
         <Banner/>
-        <section className="homeBookingIntro">
-            <h2 className="homeBookingTitle">Đặt lịch dịch vụ</h2>
-            <p className="homeBookingSub">
-                Nhập số điện thoại để chúng tôi hỗ trợ sắp xếp lịch hẹn phù hợp cho bạn.
-            </p>
-        </section>
         <Form/>
         <section className="homePage">
             <div className={`homeTop ${isVisible ? 'fadeIn' : ''}`}>
@@ -95,35 +89,6 @@ const Home = () => {
                 </div>
 
                 {/* 5 ô nằm ngang bên dưới video */}
-            </div>
-        </section>
-
-        {/* Quy trình dịch vụ (đặt giữa phần giới thiệu và phần Dịch vụ của chúng tôi) */}
-        <section className="processSection">
-            <div className="processInner">
-                <div className="processHeader">
-                    <h2 className="processTitle">Quy trình dịch vụ</h2>
-                    <p className="processSub">7 bước rõ ràng, minh bạch – giúp bạn yên tâm trong suốt quá trình</p>
-                </div>
-
-                <div className="processDiagram">
-                    <div className="processImageWrapper">
-                        <img className="processImageCenter" src={processImg} alt="Quy trình dịch vụ Michelin Sơn Tây" />
-                    </div>
-
-                    {processSteps.map((s) => (
-                        <div
-                            key={s.no}
-                            className={`processStepBubble step-${s.no}`}
-                        >
-                            <div className="processNo">{s.no}</div>
-                            <div className="processText">
-                                <div className="processStepTitle">{s.title}</div>
-                                <div className="processStepDesc">{s.desc}</div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
             </div>
         </section>
 

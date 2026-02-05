@@ -10,25 +10,6 @@
     background: #ffffff;          /* Bỏ nền xám, đổi thành trắng */
 }
 
-.homeBookingIntro {
-    padding: 32px 5% 12px;
-    text-align: center;
-    background: #ffffff;
-}
-
-.homeBookingTitle {
-    margin: 0 0 8px;
-    font-size: 28px;
-    font-weight: 800;
-    color: #0a0f1c;
-}
-
-.homeBookingSub {
-    margin: 0;
-    font-size: 16px;
-    color: #4b5563;
-}
-
 /* wrapper mới cho phần trên của Home */
 .homeTop{
     width: 100%;

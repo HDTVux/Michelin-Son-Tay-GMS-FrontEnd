@@ -88,9 +88,7 @@ export default function Booking() {
 
 	 const goBackFromInfo = () => setStepIndex(1);
 	 const goSubmitInfo = () => {
-	  const isNoteRequired = selectedIds.length === 0;
 	  if (!info.name || !info.phone) return;
-	  if (isNoteRequired && !info.note.trim()) return;
 	  setStepIndex(3);
 	 };
 
@@ -111,7 +109,7 @@ export default function Booking() {
 			</div>
 			<div className="stepper">
 			 {STEPS.map((step, idx) => {
-			  const isCompleted = idx < stepIndex;
+			  const isCompleted = idx <= stepIndex;
 			  const isActive = idx === stepIndex;
 			  return (
 			   <div
@@ -157,7 +155,6 @@ export default function Booking() {
 			  onChange={(patch) => setInfo((prev) => ({ ...prev, ...patch }))}
 			  onBack={goBackFromInfo}
 			  onSubmit={goSubmitInfo}
-			  requireNote={selectedIds.length === 0}
 			 />
 			)}
 
