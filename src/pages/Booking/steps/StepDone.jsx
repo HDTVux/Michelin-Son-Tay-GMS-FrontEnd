@@ -14,6 +14,14 @@ export default function StepDone({ schedule, info, services, selectedIds, onResc
     [services, selectedIds]
   )
 
+  // Tạo mã lịch hẹn từ ngày và timestamp
+  const bookingCode = useMemo(() => {
+    const date = schedule.date ? new Date(schedule.date) : new Date();
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `DB-${dateStr}-${random}`;
+  }, [schedule.date]);
+
   return (
     <div className="done-card">
       <div className="done-header">
@@ -21,6 +29,27 @@ export default function StepDone({ schedule, info, services, selectedIds, onResc
         <h2 className="done-title">Đặt lịch giữ chỗ thành công!</h2>
         <p className="done-sub">Chúng tôi sẽ liên hệ xác nhận lại nếu cần.</p>
       </div>
+
+      <div className="done-section">
+        <div className="row-icon">📋</div>
+        <div className="row-content">
+          <div className="row-title">Mã lịch hẹn:</div>
+          <div className="row-desc booking-code">{bookingCode}</div>
+        </div>
+      </div>
+
+      <hr className="done-sep" />
+
+      <div className="done-section">
+        <div className="row-icon">👤</div>
+        <div className="row-content">
+          <div className="row-title">Thông tin khách hàng:</div>
+          <div className="row-desc">{info.name || 'Chưa có tên'}</div>
+          <div className="row-desc phone-info">📞 {info.phone || 'Chưa có số điện thoại'}</div>
+        </div>
+      </div>
+
+      <hr className="done-sep" />
 
       <div className="done-section">
         <div className="row-icon">📅</div>

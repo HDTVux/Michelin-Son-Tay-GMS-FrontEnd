@@ -399,7 +399,7 @@ const Services = () => {
                       <div className="servicePrice">Giá: {combo.price}</div>
                       <div className="serviceActions">
                         <Link to="/services" className="btnViewDetail">Xem chi tiết</Link>
-                        <Link to="/booking" className="btnBookNow">Đặt lịch ngay</Link>
+                        <Link to="/booking" className="btnBookNow">Đặt lịch nhanh</Link>
                       </div>
                     </div>
                   </div>

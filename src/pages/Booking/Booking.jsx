@@ -109,7 +109,9 @@ export default function Booking() {
 			</div>
 			<div className="stepper">
 			 {STEPS.map((step, idx) => {
-			  const isCompleted = idx <= stepIndex;
+			  // Chỉ tích bước khi đã vượt qua bước đó (đã nhấn tiếp tục)
+			  // Bước 3 (done) chỉ tích khi stepIndex === 3 (đã hoàn tất)
+			  const isCompleted = idx < stepIndex || (idx === 3 && stepIndex === 3);
 			  const isActive = idx === stepIndex;
 			  return (
 			   <div

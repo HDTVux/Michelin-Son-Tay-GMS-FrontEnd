@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import './Banner.css';
-import banner1 from '../../../assets/logo4.jpg'
-import banner2 from '../../../assets/logo5.jpg'
-import banner3 from '../../../assets/logo6.jpg'
+import banner1 from '../../../assets/anh_slide1.jpg'
+import banner2 from '../../../assets/ảnh_slide2.jpg'
+import banner3 from '../../../assets/anh_side3.jpg'
 
 export default function Banner(){
     const slides = [
@@ -47,9 +47,6 @@ export default function Banner(){
     return (
         <section className="banner">
             <div className="banner-inner">
-                <h1 className="banner-title">Chào mừng đến với Michelin Sơn Tây</h1>
-                <p className="banner-sub">Trung tâm dịch vụ lốp xe hàng đầu, cam kết mang đến chất lượng và sự an toàn.</p>
-
                 <div className="banner-carousel"
                     onMouseEnter={() => setIsPaused(true)}
                     onMouseLeave={() => setIsPaused(false)}

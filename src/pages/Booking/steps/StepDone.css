@@ -27,8 +27,26 @@
 .done-section { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
 .row-icon { font-size: 20px; }
 .row-content { display: grid; gap: 4px; }
-.row-title { font-weight: 800; color: #1f2937; }
-.row-desc { color: #475569; font-size: 14px; }
+.row-title { font-weight: 800; color: #1f2937; font-size: 15px; }
+.row-desc { color: #475569; font-size: 14px; line-height: 1.5; }
+
+.booking-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 16px;
+  color: #005aa9;
+  background: rgba(0, 90, 169, 0.08);
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-top: 4px;
+}
+
+.phone-info {
+  color: #005aa9;
+  font-weight: 600;
+  margin-top: 4px;
+}
 
 .bullet-list { margin: 4px 0 0; padding-left: 18px; color: #111827; }
 .bullet-list li { margin: 4px 0; }

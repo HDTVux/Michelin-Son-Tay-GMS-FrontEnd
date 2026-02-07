@@ -19,8 +19,9 @@
     max-width: none;
     margin: 0 auto;
     text-align: center;
-    padding: 10px 0 0;
+    padding: 0;
     position: relative;
+    z-index: 10;
 }
 
 .banner-title{
@@ -31,16 +32,19 @@
 	letter-spacing: 0.5px;
 	position: relative;
 	color: #0a0f1c;                /* Chữ đen để hiển thị trên nền trắng */
-	text-shadow: none;            /* Bỏ đổ bóng vì không cần nữa */
+	text-shadow: 0 2px 8px rgba(255, 255, 255, 0.8); /* Đổ bóng trắng để chữ nổi bật trên ảnh */
+	z-index: 15;
 }
 
 .banner-sub{
-    color: #475569;                /* Chữ xám đậm */
+    color: #1e293b;                /* Chữ xám đậm hơn */
 	margin: 0 auto 28px;
 	max-width: 760px;
 	line-height: 1.6;
 	position: relative;
-	text-shadow: none;            /* Bỏ đổ bóng vì không cần nữa */
+	text-shadow: 0 2px 6px rgba(255, 255, 255, 0.8); /* Đổ bóng trắng để chữ nổi bật */
+	z-index: 15;
+	font-weight: 600;
 }
 
 .banner-carousel {
@@ -67,7 +71,7 @@
 .slide {
     flex: 0 0 100%;
     width: 100%;
-    height: 420px;
+    height: 600px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -82,8 +86,8 @@
     width: 100%;
     height: 100%;
     object-fit: cover;             /* Ảnh phủ kín toàn bộ không gian, không để khoảng trống */
-    object-position: center center; /* Căn giữa cả ngang và dọc, cân bằng hoàn hảo */
-    min-height: 420px;
+    object-position: center 30%;   /* Căn giữa ngang và 30% từ trên để hiển thị cả avatar và chữ */
+    min-height: 600px;
     display: block;               /* Đảm bảo ảnh hiển thị đúng */
 }
 
@@ -145,12 +149,14 @@
         font-size: 14px;
     }
     .slide {
-        height: 360px;
-        min-height: 360px;
+        height: 480px;
+        min-height: 480px;
     }
     .slide-image {
-        min-height: 360px;
+        height: 100%;
+        min-height: 480px;
         object-fit: cover;         /* Mobile cũng phủ kín không gian */
+        object-position: center 30%; /* Cân bằng để hiển thị cả avatar và chữ */
     }
 }
 
@@ -170,12 +176,14 @@
         margin-bottom: 20px;
     }
     .slide {
-        height: 320px;
-        min-height: 320px;
+        height: 420px;
+        min-height: 420px;
     }
     .slide-image {
-        min-height: 320px;
+        height: 100%;
+        min-height: 420px;
         object-fit: cover;         /* Mobile nhỏ cũng phủ kín không gian */
+        object-position: center 30%; /* Cân bằng để hiển thị cả avatar và chữ */
     }
 }
 

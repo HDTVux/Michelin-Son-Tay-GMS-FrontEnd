@@ -149,59 +149,201 @@
 
 	.footerContainer {
 		grid-template-columns: 1fr;
-		gap: 30px;
+		gap: 32px;
 		padding: 0;
 	}
 
 	.footerSection {
-		text-align: center;
+		text-align: left;
+		padding: 20px 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.footerSection:last-of-type {
+		border-bottom: none;
 	}
 
 	.footerTitle {
 		font-size: 22px;
+		margin-bottom: 12px;
+		text-align: center;
 	}
 
-	.footerSubtitle {
-		font-size: 16px;
+	.footerDescription {
+		text-align: center;
+		font-size: 13px;
+		line-height: 1.7;
+		margin-bottom: 16px;
 	}
 
 	.socialLinks {
 		justify-content: center;
+		margin-top: 0;
+	}
+
+	.footerSubtitle {
+		font-size: 17px;
+		font-weight: 700;
+		margin-bottom: 16px;
+		text-align: center;
+		position: relative;
+		padding-bottom: 12px;
+	}
+
+	.footerSubtitle::after {
+		content: '';
+		position: absolute;
+		bottom: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 40px;
+		height: 2px;
+		background: rgba(255, 255, 255, 0.3);
+		border-radius: 2px;
+	}
+
+	.footerContact {
+		gap: 14px;
 	}
 
 	.footerContact p {
-		justify-content: center;
-		font-size: 13px;
+		justify-content: flex-start;
+		font-size: 14px;
+		padding: 8px 0;
+		align-items: center;
+	}
+
+	.footerContact p svg {
+		flex-shrink: 0;
+		margin-right: 12px;
+		opacity: 0.9;
+	}
+
+	.footerLinks {
+		gap: 12px;
 	}
 
 	.footerLinks a {
-		text-align: center;
-		font-size: 13px;
+		text-align: left;
+		font-size: 14px;
+		padding: 10px 0;
+		padding-left: 0;
+		display: flex;
+		align-items: center;
+		transition: all 0.2s ease;
+	}
+
+	.footerLinks a::before {
+		content: '•';
+		position: static;
+		opacity: 1;
+		margin-right: 12px;
+		color: rgba(255, 255, 255, 0.6);
+		font-size: 18px;
+		transition: all 0.2s ease;
+	}
+
+	.footerLinks a:hover {
+		padding-left: 8px;
+		color: #ffffff;
+	}
+
+	.footerLinks a:hover::before {
+		color: #ffffff;
+		margin-right: 16px;
 	}
 
 	.footerBottom {
-		padding-top: 15px;
+		padding-top: 20px;
+		margin-top: 20px;
 	}
 
 	.footerBottom p {
-		font-size: 12px;
+		font-size: 13px;
+		opacity: 0.9;
 	}
 }
 
 @media (max-width: 480px) {
 	.mainFooter {
-		padding: 30px 3% 15px;
+		padding: 35px 4% 20px;
 	}
 
 	.footerContainer {
-		gap: 25px;
+		gap: 28px;
+	}
+
+	.footerSection {
+		padding: 18px 0;
 	}
 
 	.footerTitle {
 		font-size: 20px;
+		margin-bottom: 10px;
 	}
 
 	.footerDescription {
+		font-size: 12px;
+		line-height: 1.6;
+		margin-bottom: 14px;
+	}
+
+	.socialLinks {
+		gap: 10px;
+	}
+
+	.socialLink {
+		width: 44px;
+		height: 44px;
+	}
+
+	.footerSubtitle {
+		font-size: 16px;
+		margin-bottom: 14px;
+		padding-bottom: 10px;
+	}
+
+	.footerSubtitle::after {
+		width: 35px;
+		height: 2px;
+	}
+
+	.footerContact {
+		gap: 12px;
+	}
+
+	.footerContact p {
 		font-size: 13px;
+		padding: 6px 0;
+		flex-wrap: wrap;
+	}
+
+	.footerContact p svg {
+		width: 14px;
+		height: 14px;
+		margin-right: 10px;
+	}
+
+	.footerLinks {
+		gap: 10px;
+	}
+
+	.footerLinks a {
+		font-size: 13px;
+		padding: 8px 0;
+	}
+
+	.footerLinks a::before {
+		margin-right: 10px;
+		font-size: 16px;
+	}
+
+	.footerBottom {
+		padding-top: 18px;
+		margin-top: 18px;
+	}
+
+	.footerBottom p {
+		font-size: 12px;
 	}
 }

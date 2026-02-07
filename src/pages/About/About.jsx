@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import './About.css';
 import visionImage from '../../assets/anh_tam_nhin.jpg';
 import facilityImg1 from '../../assets/z7501188211493_472143d80204db754b377a67838c33f5.jpg';
@@ -6,6 +8,40 @@ import facilityImg3 from '../../assets/z7501188266555_1d32eab995cb25311ddb7d0ce6
 import facilityImg4 from '../../assets/z7501188266556_2e19562ee0b89224a3f3ec42d4b9232f.jpg';
 
 const About = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    checkAuthStatus();
+    
+    const handleStorageChange = (e) => {
+      if (e.key === 'customerToken' || !e.key) {
+        checkAuthStatus();
+      }
+    };
+    
+    const handleFocus = () => {
+      checkAuthStatus();
+    };
+    
+    const handleAuthChange = () => {
+      checkAuthStatus();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('authChange', handleAuthChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('authChange', handleAuthChange);
+    };
+  }, []);
+
+  const checkAuthStatus = () => {
+    const token = localStorage.getItem('customerToken');
+    setIsAuthenticated(!!token);
+  };
   return (
     <section className="aboutPage">
       <div className="aboutHero">
@@ -79,11 +115,13 @@ const About = () => {
           </div>
         </div>
 
-        <div className="aboutCTA">
-          <h2>Bạn muốn trải nghiệm dịch vụ của chúng tôi?</h2>
-          <p>Hãy đặt lịch ngay hôm nay để được phục vụ tốt nhất</p>
-          <a href="/register" className="ctaButton">Đặt lịch ngay</a>
-        </div>
+        {!isAuthenticated && (
+          <div className="aboutCTA">
+            <h2>Bạn muốn trải nghiệm dịch vụ của chúng tôi?</h2>
+            <p>Hãy đặt lịch nhanh hôm nay để được phục vụ tốt nhất</p>
+            <Link to="/booking" className="ctaButton">Đặt lịch nhanh</Link>
+          </div>
+        )}
       </div>
     </section>
   );
