@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
 import Home from './pages/home/Home.jsx';
 import Login from './features/auth/login/Login.jsx';
@@ -15,9 +16,11 @@ import MyBookings from './pages/MyBookings/MyBookings.jsx';
 import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
 import EditBooking from './pages/EditBooking/EditBooking.jsx';
 import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
+import ToastBox from './components/Toast/ToastBox.jsx';
 export default function App() {
   return (
     <BrowserRouter>
+      <ToastBox />
       <Routes>
         {/* Nhóm các trang có Header & Footer */}
         <Route element={<MainLayout />}>

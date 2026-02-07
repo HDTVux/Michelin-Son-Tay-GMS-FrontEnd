@@ -1,10 +1,12 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'react-toastify';
 import OTPGrid from './OTPGrid.jsx';
 import { useCustomerLoginFlow } from '../hooks/useCustomerLoginFlow.js';
 import './CustomerLoginModal.css';
 
 function CustomerLoginInner({ onClose }){
+  const notify = (message) => toast(message, { containerId: 'app-toast' });
   const {
     step,
     flow,
@@ -26,7 +28,7 @@ function CustomerLoginInner({ onClose }){
     setError,
     setStep,
     backToOtpStep,
-  } = useCustomerLoginFlow({ onClose });
+  } = useCustomerLoginFlow({ onClose, onNotify: notify });
 
   return (
     <div className="customerLoginBackdrop" onClick={(e) => { if (e.target === e.currentTarget && onClose) onClose(); }}>
