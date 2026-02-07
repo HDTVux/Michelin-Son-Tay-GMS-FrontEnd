@@ -1,10 +1,8 @@
 import './Services.css';
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import lopMam from '../../../assets/lop and mam.jpg';
-import baoDuong from '../../../assets/baoduongnhanh.jpg';
-import veSinh from '../../../assets/ve_sinh_xe.jpg';
-import ruaXe from '../../../assets/cham_soc_xe.jpg';
+import { fetchHomeServices } from '../../../services/homeService';
+import serviceFallback from '../../../assets/lop and mam.jpg';
 import combo1 from '../../../assets/z7498307797407_a65c60e07a1b8983cdf5350f98b6cc1d.jpg';
 import combo2 from '../../../assets/z7498310198837_146b124ec8cd2391c04e27a0dde397ff.jpg';
 import combo3 from '../../../assets/z7498315906940_a22d5305d93086e7d629fd4795a6e222.jpg';
@@ -12,33 +10,9 @@ import combo4 from '../../../assets/phanh_an_tam.jpg';
 import processImg from '../../../assets/{CCEDBCC3-2144-40E6-B397-8E9D2FA15587}.png';
 
 const Services = () => {
-  // Danh sách dịch vụ tiện ích nổi bật
-  const services = [
-    {
-      title: 'DỊCH VỤ LỐP & MÂM',
-      description: 'Dịch vụ thay lốp và mâm xe chuyên nghiệp, đảm bảo chất lượng và an toàn.',
-      image: lopMam,
-      price: 'Liên hệ'
-    },
-    {
-      title: 'BẢO DƯỠNG',
-      description: 'Bảo dưỡng định kỳ cho xe của bạn, giúp xe luôn hoạt động tốt nhất.',
-      image: baoDuong,
-      price: 'Liên hệ'
-    },
-    {
-      title: 'VỆ SINH VÀ KIỂM TRA',
-      description: 'Dịch vụ vệ sinh và kiểm tra toàn diện cho xe của bạn.',
-      image: veSinh,
-      price: 'Liên hệ'
-    },
-    {
-      title: 'RỬA XE',
-      description: 'Dịch vụ rửa xe chuyên nghiệp, giúp xe luôn sáng bóng như mới.',
-      image: ruaXe,
-      price: 'Liên hệ'
-    }
-  ];
+  const [services, setServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [servicesError, setServicesError] = useState('');
 
   // Gói dịch vụ được tin dùng
   const combos = [
@@ -92,6 +66,37 @@ const Services = () => {
     }
   ];
 
+  useEffect(() => {
+    let active = true;
+    setServicesLoading(true);
+    setServicesError('');
+
+    fetchHomeServices()
+      .then((res) => {
+        if (!active) return;
+        const list = Array.isArray(res?.data) ? res.data : [];
+        const mapped = list.map((item) => ({
+          id: item.serviceId,
+          title: item.title || 'Dịch vụ',
+          description: item.shortDescription || '',
+          image: item.mediaThumbnail || '',
+          price: item.showPrice ? item.displayPrice || 'Liên hệ' : 'Liên hệ',
+        }));
+        setServices(mapped);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setServicesError(err?.message || 'Không thể tải danh sách dịch vụ.');
+      })
+      .finally(() => {
+        if (active) setServicesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // State cho dịch vụ slider
   const [serviceIndex, setServiceIndex] = useState(0);
   const [serviceVisible, setServiceVisible] = useState(4);
@@ -129,6 +134,10 @@ const Services = () => {
     window.addEventListener('resize', calc);
     return () => window.removeEventListener('resize', calc);
   }, []);
+
+  useEffect(() => {
+    setServiceIndex(0);
+  }, [serviceVisible, services.length]);
 
   const serviceMaxIndex = Math.max(0, services.length - serviceVisible);
   const serviceOffset = (serviceIndex * 100) / serviceVisible;
@@ -233,41 +242,63 @@ const Services = () => {
             &lt;
           </button>
           <div className="sliderViewport">
-            <div
-              className="sliderTrack"
-              ref={serviceTrackRef}
-              style={{ 
-                transform: `translateX(-${serviceOffset}%)`,
-                display: 'flex',
-                transition: 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)'
-              }}
-              onPointerDown={handleServicePointerDown}
-              onPointerMove={handleServicePointerMove}
-              onPointerUp={handleServicePointerUp}
-              onPointerCancel={handleServicePointerUp}
-              onTouchStart={handleServicePointerDown}
-              onTouchMove={handleServicePointerMove}
-              onTouchEnd={handleServicePointerUp}
-            >
-              {services.map((service, idx) => (
-                <div key={idx} className="serviceSlide">
-                  <div className="serviceCard">
-                    <div className="serviceCard-imageTop">
-                      <img src={service.image} alt={service.title} className="serviceCard-image" />
-                    </div>
-                    <div className="serviceCard-content">
-                      <h3 className="serviceTitle">{service.title}</h3>
-                      <p className="serviceDescription">{service.description}</p>
-                      <div className="servicePrice">Giá: {service.price}</div>
-                      <div className="serviceActions">
-                        <Link to="/services" className="btnViewDetail">Xem chi tiết</Link>
-                        <Link to="/booking" className="btnBookNow">Đặt lịch</Link>
+            {servicesLoading && (
+              <div className="serviceStatus">Đang tải dịch vụ...</div>
+            )}
+            {!servicesLoading && servicesError && (
+              <div className="serviceStatus error">{servicesError}</div>
+            )}
+            {!servicesLoading && !servicesError && services.length === 0 && (
+              <div className="serviceStatus">Chưa có dịch vụ để hiển thị.</div>
+            )}
+            {services.length > 0 && (
+              <div
+                className="sliderTrack"
+                ref={serviceTrackRef}
+                style={{ 
+                  transform: `translateX(-${serviceOffset}%)`,
+                  display: 'flex',
+                  transition: 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)'
+                }}
+                onPointerDown={handleServicePointerDown}
+                onPointerMove={handleServicePointerMove}
+                onPointerUp={handleServicePointerUp}
+                onPointerCancel={handleServicePointerUp}
+                onTouchStart={handleServicePointerDown}
+                onTouchMove={handleServicePointerMove}
+                onTouchEnd={handleServicePointerUp}
+              >
+                {services.map((service, idx) => (
+                  <div key={service.id || idx} className="serviceSlide">
+                    <div className="serviceCard">
+                      <div className="serviceCard-imageTop">
+                        <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
+                      </div>
+                      <div className="serviceCard-content">
+                        <h3 className="serviceTitle">{service.title}</h3>
+                        <p className="serviceDescription">{service.description || 'Hiện chưa có mô tả cho dịch vụ này.'}</p>
+                        <div className="servicePrice">Giá: {service.price || 'Liên hệ'}</div>
+                        <div className="serviceActions">
+                          <Link
+                            to={service.id ? `/services/${service.id}` : '/services'}
+                            className="btnViewDetail"
+                          >
+                            Xem chi tiết
+                          </Link>
+                          <Link
+                            to="/booking"
+                            state={service.id ? { serviceId: service.id } : undefined}
+                            className="btnBookNow"
+                          >
+                            Đặt lịch
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
           <button 
             className="sliderArrow right" 

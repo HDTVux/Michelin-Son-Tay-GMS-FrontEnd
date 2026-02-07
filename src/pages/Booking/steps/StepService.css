@@ -1,4 +1,10 @@
-.service-step { background: #fff; padding: 18px; }
+.service-step {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
 
 .service-top {
   display: flex;
@@ -17,12 +23,18 @@
   background: #f8fafc;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .tab.active {
   background: #1d4ed8;
   color: #fff;
   border-color: #1d4ed8;
+}
+
+.tab:not(.active):hover {
+  border-color: #cbd5e1;
+  background: #eef2ff;
 }
 
 .search-filter {
@@ -42,6 +54,7 @@
   border-radius: 10px;
   padding: 10px 12px;
   background: #fff;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .search-box input {
@@ -57,6 +70,7 @@
   border-radius: 10px;
   border: 1px solid #e5e7eb;
   background: #fff;
+  font-weight: 600;
 }
 
 .carousel-shell {
@@ -64,6 +78,7 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 10px;
+  margin-top: 8px;
 }
 
 .nav-btn {
@@ -87,6 +102,7 @@
   display: flex;
   gap: 12px;
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+   padding: 2px;
 }
 
 .service-slide { min-height: 260px; }
@@ -105,11 +121,20 @@
   overflow: hidden;
   min-height: 260px;
   padding-bottom: 12px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.service-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
 }
 
 .service-card .thumb {
   height: 120px;
   background: linear-gradient(90deg, #e2e8f0, #f8fafc);
+  background-size: cover;
+  background-position: center;
 }
 
 .service-card .check {
@@ -123,6 +148,7 @@
   background: #fff;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.14);
 }
 
 .service-card .check.checked {
@@ -131,27 +157,22 @@
   border-color: #1d4ed8;
 }
 
-.service-card .pill {
-  margin: 12px 12px 6px;
-  display: inline-flex;
-  padding: 6px 10px;
-  border-radius: 12px;
-  background: #e0f2fe;
-  color: #0369a1;
-  font-weight: 700;
-  font-size: 12px;
-}
-
 .service-card .name {
-  margin: 0 12px 6px;
+  margin: 16px 12px 8px;
   font-weight: 800;
-  color: #111827;
+  color: #0f172a;
+  font-size: 16px;
 }
 
 .service-card .desc {
-  margin: 0 12px 10px;
+  margin: 0 12px 16px;
   color: #475569;
   font-size: 14px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .link-btn {
@@ -164,9 +185,11 @@
 }
 
 .selected-box {
-
   padding: 12px;
   margin: 16px 0;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
 }
 
 .selected-title { font-weight: 700; margin-bottom: 8px; }
@@ -190,6 +213,28 @@
   cursor: pointer;
   color: #ef4444;
   font-size: 16px;
+}
+
+.slider-hint {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.service-status {
+  margin: 12px 0 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.service-status.error {
+  background: #fef2f2;
+  border-color: #fecdd3;
+  color: #b91c1c;
 }
 
 @media (max-width: 768px) {

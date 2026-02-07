@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import './StepService.css'
 
 // Chọn dịch vụ với slider + tìm kiếm + lọc
-export default function StepService({ services, selectedIds, onToggle, search, onSearch, filter, onFilter, onNext }) {
+export default function StepService({ services, selectedIds, onToggle, search, onSearch, filter, onFilter, onNext, loading = false, error = '' }) {
   const [visible, setVisible] = useState(3); // số thẻ hiển thị cùng lúc
   const [index, setIndex] = useState(0); // vị trí slide hiện tại
 
@@ -24,10 +24,12 @@ export default function StepService({ services, selectedIds, onToggle, search, o
 
   // Lọc theo từ khóa và category
   const filtered = useMemo(() => {
-    const cleaned = search.toLowerCase();
-    return services.filter((item) => {
-      const matchSearch = item.name.toLowerCase().includes(cleaned);
-      const matchFilter = filter === 'all' || item.category === filter;
+    const cleaned = (search || '').toLowerCase();
+    const list = Array.isArray(services) ? services : [];
+    return list.filter((item) => {
+      const name = (item.name || '').toLowerCase();
+      const matchSearch = name.includes(cleaned);
+      const matchFilter = filter === 'all' || !filter || (item.category || 'all') === filter;
       return matchSearch && matchFilter;
     });
   }, [services, search, filter]);
@@ -69,57 +71,68 @@ export default function StepService({ services, selectedIds, onToggle, search, o
             <option value="tires">Lốp & lốp</option>
             <option value="engine">Bảo dưỡng nhanh</option>
             <option value="check">Chăm sóc & OTOT</option>
+            <option value="general">Khác</option>
           </select>
         </div>
         <p className="slider-hint">Kéo vuốt ngang để xem thêm dịch vụ.</p>
       </div>
 
-      <div className="carousel-shell">
-        {!isMobileSlider && (
-          <button className="nav-btn" aria-label="Prev" onClick={prev} disabled={index === 0}>
-            ⟨
-          </button>
-        )}
-        <div
-          className="slider-viewport"
-          style={isMobileSlider ? { overflowX: 'auto' } : {}}
-        >
+      {loading && <div className="service-status">Đang tải danh sách dịch vụ...</div>}
+      {!loading && error && <div className="service-status error">{error}</div>}
+      {!loading && !error && filtered.length === 0 && (
+        <div className="service-status">Chưa có dịch vụ phù hợp.</div>
+      )}
+
+      {!loading && !error && filtered.length > 0 && (
+        <div className="carousel-shell">
+          {!isMobileSlider && (
+            <button className="nav-btn" aria-label="Prev" onClick={prev} disabled={index === 0}>
+              ⟨
+            </button>
+          )}
           <div
-            className="slider-track"
-            style={isMobileSlider ? {} : { transform: `translateX(-${offset}%)` }}
+            className="slider-viewport"
+            style={isMobileSlider ? { overflowX: 'auto' } : {}}
           >
-            {filtered.map((item) => {
-              const active = selectedIds.includes(item.id);
-              return (
-                <div
-                  key={item.id}
-                  className="service-slide"
-                  style={
-                    isMobileSlider
-                      ? { flex: '0 0 100%' }
-                      : { flex: `0 0 calc((100% - 12px * ${visible - 1}) / ${visible})` }
-                  }
-                >
-                  <div className="service-card">
-                    <div className="thumb" />
-                    <button className={`check ${active ? 'checked' : ''}`} onClick={() => onToggle(item.id)}>
-                      {active ? '✓' : ''}
-                    </button>
-                    <div className="pill">{item.tag}</div>
-                    <div className="name">{item.name}</div>
-                    <div className="desc">{item.desc}</div>
+            <div
+              className="slider-track"
+              style={isMobileSlider ? {} : { transform: `translateX(-${offset}%)` }}
+            >
+              {filtered.map((item) => {
+                const active = selectedIds.includes(item.id);
+                const thumbStyle = item.thumbnail
+                  ? { backgroundImage: `url(${item.thumbnail})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                  : undefined;
+                return (
+                  <div
+                    key={item.id}
+                    className="service-slide"
+                    style={
+                      isMobileSlider
+                        ? { flex: '0 0 100%' }
+                        : { flex: `0 0 calc((100% - 12px * ${visible - 1}) / ${visible})` }
+                    }
+                  >
+                    <div className="service-card">
+                      <div className="thumb" style={thumbStyle} />
+                      <button className={`check ${active ? 'checked' : ''}`} onClick={() => onToggle(item.id)}>
+                        {active ? '✓' : ''}
+                      </button>
+                      <div className="name">{item.name}</div>
+                      <div className="desc">{item.desc}</div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
+          {!isMobileSlider && (
+            <button className="nav-btn" aria-label="Next" onClick={next} disabled={index >= maxIndex}>
+              ⟩
+            </button>
+          )}
         </div>
-        {!isMobileSlider && (
-          <button className="nav-btn" aria-label="Next" onClick={next} disabled={index >= maxIndex}>
-            ⟩
-          </button>
-        )}
-      </div>
+      )}
 
       <div className="selected-box">
         <div className="selected-title">Dịch vụ đã chọn ({selectedIds.length} mục)</div>
