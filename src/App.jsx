@@ -14,6 +14,7 @@ import LinkedAccounts from './pages/UserProfile/LinkedAccounts.jsx';
 import MyBookings from './pages/MyBookings/MyBookings.jsx';
 import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
 import EditBooking from './pages/EditBooking/EditBooking.jsx';
+import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
 export default function App() {
   return (
     <BrowserRouter>
@@ -22,6 +23,7 @@ export default function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="services" element={<Services />} />
+          <Route path="services/:serviceId" element={<ServiceDetail />} />
           <Route path="about" element={<About />} />
           <Route path="customer-login" element={<CustomerLogin />} />
           <Route path="booking" element={<Booking />} />
