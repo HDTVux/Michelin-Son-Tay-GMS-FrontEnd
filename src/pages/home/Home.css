@@ -321,94 +321,198 @@
 
 .processDiagram{
     position: relative;
-    max-width: 1120px;
-    margin: 26px auto 0;
-    padding: 8px 0 40px;
+    max-width: 1400px;
+    margin: 40px auto 0;
+    padding: 80px 40px 100px;
+    min-height: 900px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .processImageWrapper{
-    max-width: 640px;               /* Thu nhỏ thêm ảnh để text hẳn ra ngoài */
+    position: relative;
+    width: 550px;
+    height: 550px;
     margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
 }
 
 .processImageCenter{
     width: 100%;
-    height: auto;
+    height: 100%;
+    object-fit: contain;
     display: block;
     border-radius: 20px;
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+    position: relative;
+    z-index: 2;
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
 }
 
 .processStepBubble{
     position: absolute;
-    max-width: 260px;
+    max-width: 280px;
+    min-width: 240px;
     background: #ffffff;
-    border-radius: 16px;
-    padding: 10px 12px;
-    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+    border-radius: 18px;
+    padding: 16px 18px;
+    box-shadow: 0 16px 40px rgba(0, 90, 169, 0.2);
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: flex-start;
-    z-index: 2;
+    z-index: 10;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Mũi tên (đường kẻ) từ trung tâm ra từng bubble – không đè lên chữ */
+.processStepBubble:hover{
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 20px 50px rgba(0, 90, 169, 0.3);
+}
+
+/* Mũi tên kết nối từ trung tâm ra từng bubble */
 .processStepBubble::before{
     content: '';
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 40px;
-    height: 2px;
-    background: rgba(15,23,42,0.28);
-    transform-origin: left center;
+    width: 80px;
+    height: 3px;
+    background: linear-gradient(90deg, rgba(0, 90, 169, 0.4) 0%, rgba(0, 90, 169, 0.1) 100%);
     z-index: -1;
+    transform-origin: left center;
 }
 
-.step-1::before{ transform: rotate(180deg); }
-.step-2::before{ transform: rotate(200deg); }
-.step-3::before{ transform: rotate(230deg); }
-.step-4::before{ transform: rotate(270deg); }
-.step-5::before{ transform: rotate(-50deg); }
-.step-6::before{ transform: rotate(-20deg); }
-.step-7::before{ transform: rotate(0deg); }
+/* Vị trí và góc độ cho từng bước theo vòng tròn (chiều kim đồng hồ) */
+/* Step 1: Top-right (12h-1h) */
+.step-1{ 
+    top: 8%;
+    right: 8%;
+    transform: translate(0, 0);
+}
+.step-1::before{
+    top: 50%;
+    left: -100px;
+    transform: rotate(-30deg);
+    width: 100px;
+}
+
+/* Step 2: Right (2h-3h) */
+.step-2{ 
+    top: 50%;
+    right: -10%;
+    transform: translate(0, -50%);
+}
+.step-2::before{
+    top: 50%;
+    left: -100px;
+    transform: rotate(0deg);
+    width: 100px;
+}
+
+/* Step 3: Bottom-right (4h-5h) */
+.step-3{ 
+    bottom: 18%;
+    right: 8%;
+    transform: translate(0, 0);
+}
+.step-3::before{
+    top: 50%;
+    left: -100px;
+    transform: rotate(30deg);
+    width: 100px;
+}
+
+/* Step 4: Bottom (6h) */
+.step-4{ 
+    bottom: -8%;
+    left: 50%;
+    transform: translate(-50%, 0);
+}
+.step-4::before{
+    top: -100px;
+    left: 50%;
+    width: 3px;
+    height: 100px;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, rgba(0, 90, 169, 0.4) 0%, rgba(0, 90, 169, 0.1) 100%);
+}
+
+/* Step 5: Bottom-left (7h-8h) */
+.step-5{ 
+    bottom: 18%;
+    left: 8%;
+    transform: translate(0, 0);
+}
+.step-5::before{
+    top: 50%;
+    right: -100px;
+    transform: rotate(-30deg);
+    width: 100px;
+}
+
+/* Step 6: Left (9h-10h) */
+.step-6{ 
+    top: 50%;
+    left: -10%;
+    transform: translate(0, -50%);
+}
+.step-6::before{
+    top: 50%;
+    right: -100px;
+    transform: rotate(0deg);
+    width: 100px;
+}
+
+/* Step 7: Top-left (11h) */
+.step-7{ 
+    top: 8%;
+    left: 8%;
+    transform: translate(0, 0);
+}
+.step-7::before{
+    top: 50%;
+    right: -100px;
+    transform: rotate(30deg);
+    width: 100px;
 }
 
 .processNo{
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     border-radius: 999px;
     background: linear-gradient(135deg, #005aa9 0%, #3a8de0 100%);
     color: #fff;
     font-weight: 900;
+    font-size: 18px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 18px rgba(0, 90, 169, 0.28);
+    box-shadow: 0 8px 20px rgba(0, 90, 169, 0.35);
     flex-shrink: 0;
 }
 
+.processText{
+    flex: 1;
+    min-width: 0;
+}
+
 .processStepTitle{
-    font-weight: 900;
+    font-weight: 800;
+    font-size: 15px;
     color: #0a0f1c;
-    line-height: 1.2;
-    margin: 0 0 4px;
+    line-height: 1.3;
+    margin: 0 0 6px;
 }
 
 .processStepDesc{
     color: #475569;
     font-weight: 500;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
 }
-
-/* Vị trí 7 bubble xung quanh ảnh quy trình (màn hình lớn) */
-.step-1{ top: 2%; left: -10%; }
-.step-2{ top: 24%; left: -12%; }
-.step-3{ top: 46%; left: -12%; }
-.step-4{ bottom: 2%; left: -10%; }
-.step-5{ top: 24%; right: -12%; }
-.step-6{ top: 46%; right: -12%; }
-.step-7{ bottom: 2%; right: -10%; }
 
 .btnSecondary:hover {
     background: rgba(0, 90, 169, 0.14);
@@ -602,18 +706,45 @@
         font-size: 30px;
     }
     .processDiagram{
-        position: static;
-        max-width: 100%;
-        padding-top: 10px;
-        padding-bottom: 20px;
+        min-height: auto;
+        padding: 50px 30px 70px;
     }
     .processImageWrapper{
-        max-width: 100%;
+        width: 450px;
+        height: 450px;
     }
     .processStepBubble{
-        position: static;
-        max-width: 100%;
-        margin-top: 10px;
+        max-width: 220px;
+        min-width: 180px;
+        padding: 14px 16px;
+    }
+    .processStepBubble::before{
+        width: 80px;
+    }
+    .step-1{ top: 6%; right: 4%; }
+    .step-1::before{ left: -90px; width: 90px; }
+    .step-2{ top: 50%; right: -8%; }
+    .step-2::before{ left: -90px; width: 90px; }
+    .step-3{ bottom: 16%; right: 4%; }
+    .step-3::before{ left: -90px; width: 90px; }
+    .step-4{ bottom: -6%; }
+    .step-4::before{ top: -90px; height: 90px; }
+    .step-5{ bottom: 16%; left: 4%; }
+    .step-5::before{ right: -90px; width: 90px; }
+    .step-6{ top: 50%; left: -8%; }
+    .step-6::before{ right: -90px; width: 90px; }
+    .step-7{ top: 6%; left: 4%; }
+    .step-7::before{ right: -90px; width: 90px; }
+    .processNo{
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+    .processStepTitle{
+        font-size: 14px;
+    }
+    .processStepDesc{
+        font-size: 12px;
     }
 }
 
@@ -648,5 +779,50 @@
 
     .serviceText {
         font-size: 14px;
+    }
+
+    .processSection{
+        padding: 36px 0 8px;
+    }
+    .processTitle{
+        font-size: 24px;
+        margin-bottom: 8px;
+    }
+    .processSub{
+        font-size: 13px;
+        padding: 0 10px;
+    }
+    .processDiagram{
+        padding: 30px 10px 50px;
+        min-height: auto;
+    }
+    .processImageWrapper{
+        width: 100%;
+        max-width: 320px;
+        height: 320px;
+    }
+    .processStepBubble{
+        position: static;
+        max-width: 100%;
+        min-width: auto;
+        margin: 12px auto;
+        padding: 12px 14px;
+        transform: none !important;
+    }
+    .processStepBubble::before{
+        display: none;
+    }
+    .processNo{
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+    .processStepTitle{
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+    .processStepDesc{
+        font-size: 11px;
+        line-height: 1.4;
     }
 }

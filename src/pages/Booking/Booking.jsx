@@ -58,11 +58,11 @@ export default function Booking() {
  // State cho thông tin cá nhân
  const [info, setInfo] = useState({ name: '', phone: prefilledPhone, note: '' });
 
-	useEffect(() => {
-	 if (prefilledPhone) {
-	  setInfo((prev) => ({ ...prev, phone: prefilledPhone }));
-   }
-	}, [prefilledPhone]);
+ useEffect(() => {
+	if (prefilledPhone) {
+	 setInfo((prev) => ({ ...prev, phone: prefilledPhone }));
+  }
+ }, [prefilledPhone]);
 
 	// Mỗi khi đổi bước, cuộn về đầu trang đặt lịch để không bị nhảy xuống cuối
 	useEffect(() => {
@@ -119,8 +119,8 @@ export default function Booking() {
 			    <div className="dot">
 			     {isCompleted ? '✓' : idx + 1}
 			    </div>
-			    <div className="label">{step.label}</div>
-			   </div>
+				 <div className="label">{step.label}</div>
+				</div>
 			  );
 			 })}
 			</div>

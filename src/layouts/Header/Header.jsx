@@ -88,6 +88,7 @@ const Header = () => {
     setIsAuthed(false);
     setCustomerName('Khách hàng');
     setIsUserDropdownOpen(false);
+    window.dispatchEvent(new Event('authChange'));
   };
 
   return (

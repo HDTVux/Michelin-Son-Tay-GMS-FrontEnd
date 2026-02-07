@@ -9,10 +9,41 @@ import BussinessInfor from './BusinessInfo/BussinessInfor.jsx';
 
 const Home = () => {
     const [isVisible, setIsVisible] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
         setIsVisible(true);
+        checkAuthStatus();
+        
+        const handleStorageChange = (e) => {
+            if (e.key === 'customerToken' || !e.key) {
+                checkAuthStatus();
+            }
+        };
+        
+        const handleFocus = () => {
+            checkAuthStatus();
+        };
+        
+        const handleAuthChange = () => {
+            checkAuthStatus();
+        };
+        
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('focus', handleFocus);
+        window.addEventListener('authChange', handleAuthChange);
+        
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('authChange', handleAuthChange);
+        };
     }, []);
+
+    const checkAuthStatus = () => {
+        const token = localStorage.getItem('customerToken');
+        setIsAuthenticated(!!token);
+    };
 
     const introText = [
         'Michelin sơn tây là địa chỉ lốp uy tín ở sơn tây.',
@@ -63,7 +94,7 @@ const Home = () => {
     return (
         <>
         <Banner/>
-        <Form/>
+        {!isAuthenticated && <Form/>}
         <section className="homePage">
             <div className={`homeTop ${isVisible ? 'fadeIn' : ''}`}>
 
