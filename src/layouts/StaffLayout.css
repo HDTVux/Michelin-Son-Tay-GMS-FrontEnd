@@ -1,0 +1,11 @@
+.staffLayout {
+  display: flex;
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+.staffLayout__content {
+  flex: 1;
+  padding: 24px;
+  overflow: auto;
+}

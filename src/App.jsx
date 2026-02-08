@@ -16,7 +16,10 @@ import MyBookings from './pages/MyBookings/MyBookings.jsx';
 import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
 import EditBooking from './pages/EditBooking/EditBooking.jsx';
 import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
+import StaffLayout from './layouts/StaffLayout.jsx';
 import ToastBox from './components/Toast/ToastBox.jsx';
+import BookingManagement from './pages/DashBoard/BookingManagement/BookingManagement.jsx';
+import ModalsDemo from './pages/DashBoard/BookingManagement/ModalsDemo.jsx';
 export default function App() {
   return (
     <BrowserRouter>
@@ -37,6 +40,11 @@ export default function App() {
           <Route path="my-bookings" element={<MyBookings />} />
           <Route path="booking-detail/:id" element={<BookingDetail />} />
           <Route path="edit-booking/:id" element={<EditBooking />} />
+        </Route>
+        {/* Nhóm trang dashboard nhân viên dùng SideBar */}
+        <Route element={<StaffLayout />}>
+          <Route path="booking-management" element={<BookingManagement />} />
+          <Route path="booking-management/modals-demo" element={<ModalsDemo />} />
         </Route>
         <Route path="login" element={<Login />} />
         <Route path="forgot-password" element={<ForgotPassword />} />

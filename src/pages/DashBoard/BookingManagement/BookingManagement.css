@@ -1,0 +1,255 @@
+/* Layout */
+.booking-page {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	color: #1f1f1f;
+}
+
+.filter-row,
+.tables-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+}
+
+/* Filter cards */
+.filter-card {
+	background: #ffffff;
+	border: 1px solid #e4e4e4;
+	border-radius: 8px;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.filter-card__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-weight: 700;
+}
+
+.filter-card__title {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.filter-card__controls {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.filter-card select,
+.filter-card input {
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 6px;
+	border: 1px solid #d9d9d9;
+	background: #fff;
+	font-size: 14px;
+}
+
+.filter-card__actions {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+}
+
+.search-box {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	border: 1px solid #d9d9d9;
+	border-radius: 6px;
+	background: #fff;
+}
+
+.search-box input {
+	border: none;
+	padding: 0;
+	outline: none;
+	flex: 1;
+}
+
+.filter-card__hint {
+	margin: 0;
+	font-size: 12px;
+	color: #666;
+}
+
+/* Booking cards */
+.booking-card {
+	background: #ffffff;
+	border: 1px solid #e4e4e4;
+	border-radius: 12px;
+	padding: 16px;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.booking-card__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-weight: 700;
+}
+
+.booking-card__title {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.booking-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.booking-table th,
+.booking-table td {
+	padding: 12px 10px;
+	text-align: left;
+	font-size: 14px;
+}
+
+.booking-table th {
+	font-weight: 700;
+}
+
+.booking-table tbody tr:nth-child(odd) {
+	background: #fafafa;
+}
+
+.booking-table tbody tr:hover {
+	background: #f5f8ff;
+}
+
+.booking-card__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.page-size {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.page-size select {
+	padding: 8px 10px;
+	border-radius: 6px;
+	border: 1px solid #d9d9d9;
+	background: #fff;
+}
+
+.pagination {
+	display: inline-flex;
+	gap: 8px;
+}
+
+/* Buttons & badges */
+.ghost-button {
+	border: 1px solid #d9d9d9;
+	background: #f7f7f7;
+	color: #333;
+	padding: 10px 14px;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.primary-button {
+	border: none;
+	background: #1d72f3;
+	color: #fff;
+	padding: 10px 14px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: 700;
+}
+
+.primary-button.is-ghost {
+	background: #e8f0ff;
+	color: #1d72f3;
+}
+
+.primary-button:disabled,
+.ghost-button:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.status-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 92px;
+	padding: 8px 10px;
+	border-radius: 10px;
+	font-weight: 700;
+	font-size: 13px;
+	border: 1px solid transparent;
+}
+
+.status-badge--warning {
+	background: #feecc8;
+	border-color: #f5d18a;
+	color: #c47a00;
+}
+
+.status-badge--info {
+	background: #e6f2ff;
+	border-color: #b6d6ff;
+	color: #0a63c8;
+}
+
+.status-badge--danger {
+	background: #ffe7e7;
+	border-color: #ffb8b8;
+	color: #c22727;
+}
+
+.status-badge--success {
+	background: #dff6ea;
+	border-color: #b4e3cb;
+	color: #11804b;
+}
+
+.link-cell {
+	color: #1268d3;
+	font-weight: 700;
+}
+
+/* Tones */
+.filter-card--warning .filter-card__title,
+.booking-card--warning .booking-card__title {
+	color: #d18a00;
+}
+
+.filter-card--success .filter-card__title,
+.booking-card--success .booking-card__title {
+	color: #108a4a;
+}
+
+/* Icons */
+.icon {
+	width: 18px;
+	height: 18px;
+}
+
+@media (max-width: 1024px) {
+	.filter-row,
+	.tables-row {
+		grid-template-columns: 1fr;
+	}
+}
