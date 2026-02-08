@@ -9,7 +9,7 @@ import {
 } from '../../../services/authService.js';
 
 // Quản lý luồng đăng nhập/kích hoạt/quên PIN cho khách hàng
-export function useCustomerLoginFlow({ onClose } = {}) {
+export function useCustomerLoginFlow({ onClose, onNotify } = {}) {
   const [step, setStep] = useState(1); // 1: nhập số, 2: nhập PIN đăng nhập, 3: OTP, 4: đặt PIN
   const [flow, setFlow] = useState('login'); // 'login' | 'activate' | 'reset'
   const [phone, setPhone] = useState('');
@@ -67,7 +67,7 @@ export function useCustomerLoginFlow({ onClose } = {}) {
         setOtpVerified(false);
         setFlow('activate');
         setStep(3);
-        alert('OTP kích hoạt đã được gửi tới số điện thoại');
+        onNotify?.('OTP kích hoạt đã được gửi tới số điện thoại');
       }
     } catch (err) {
       setError(err?.message || 'Không thể kiểm tra trạng thái');
@@ -93,7 +93,7 @@ export function useCustomerLoginFlow({ onClose } = {}) {
       if (token) {
         localStorage.setItem('customerToken', token);
       }
-      alert('Đăng nhập thành công');
+      onNotify?.('Đăng nhập thành công');
       setStep(1);
       setPhone('');
       otpLogin.resetDigits();
@@ -122,7 +122,7 @@ export function useCustomerLoginFlow({ onClose } = {}) {
       setOtpVerified(false);
       setFlow('reset');
       setStep(3);
-      alert('Mã OTP phục hồi đã được gửi tới số điện thoại');
+      onNotify?.('Mã OTP phục hồi đã được gửi tới số điện thoại');
     } catch (err) {
       setError(err?.message || 'Không thể gửi OTP phục hồi');
     } finally {
@@ -142,7 +142,7 @@ export function useCustomerLoginFlow({ onClose } = {}) {
       const sanitizedPhone = sanitizePhone(phone);
       await requestCustomerOtp(sanitizedPhone);
       setOtpVerified(false);
-      alert('OTP mới đã được gửi');
+      onNotify?.('OTP mới đã được gửi');
     } catch (err) {
       setError(err?.message || 'Không thể gửi lại OTP');
     } finally {
@@ -165,7 +165,7 @@ export function useCustomerLoginFlow({ onClose } = {}) {
       await verifyCustomerOtp(sanitizedPhone, cleaned);
       setOtpVerified(true);
       setStep(4);
-      alert('OTP hợp lệ, hãy đặt PIN');
+      onNotify?.('OTP hợp lệ, hãy đặt PIN');
     } catch (err) {
       setError(err?.message || 'OTP không hợp lệ');
     } finally {
@@ -198,7 +198,7 @@ export function useCustomerLoginFlow({ onClose } = {}) {
         pin: newPin.joinDigits(),
         confirmPin: confirmPin.joinDigits(),
       });
-      alert(flow === 'reset' ? 'Đặt lại PIN thành công, vui lòng đăng nhập' : 'Đã tạo PIN, vui lòng đăng nhập');
+      onNotify?.(flow === 'reset' ? 'Đặt lại PIN thành công, vui lòng đăng nhập' : 'Đã tạo PIN, vui lòng đăng nhập');
       setFlow('login');
       setStep(2);
       setOtpVerified(false);
