@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import './SideBar.css';
 
 const navItems = [
@@ -11,6 +12,11 @@ const navItems = [
 ];
 
 const SideBar = () => {
+	const [isOpen, setIsOpen] = useState(false);
+
+	const toggleMenu = () => setIsOpen((prev) => !prev);
+	const handleNavClick = () => setIsOpen(false);
+
 	return (
 		<aside className="sidebar">
 			<div className="sidebar__profile">
@@ -23,9 +29,20 @@ const SideBar = () => {
 				</div>
 			</div>
 
-			<nav className="sidebar__nav">
+			<button
+				type="button"
+				className="sidebar__toggle"
+				onClick={toggleMenu}
+				aria-expanded={isOpen}
+				aria-label={isOpen ? 'Đóng menu' : 'Mở menu'}
+			>
+				<span className="sidebar__toggleIcon">{isOpen ? <IconClose /> : <IconMenu />}</span>
+				<span className="sidebar__toggleLabel">Menu</span>
+			</button>
+
+			<nav className={`sidebar__nav ${isOpen ? 'is-open' : ''}`}>
 				{navItems.map((item) => (
-					<button className="navItem" key={item.label} type="button">
+					<button className="navItem" key={item.label} type="button" onClick={handleNavClick}>
 						<span className="navItem__icon">{item.icon}</span>
 						<span className="navItem__label">{item.label}</span>
 					</button>
@@ -103,6 +120,22 @@ function IconLogout() {
 		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
 			<path d="M16 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v2h-2V5H5v14h9v-2z" />
 			<path d="m14 13-6 .02V11h6V8l6 4z" />
+		</svg>
+	);
+}
+
+function IconMenu() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M4 7.5h16M4 12h16M4 16.5h16" />
+		</svg>
+	);
+}
+
+function IconClose() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M7 7l10 10M17 7 7 17" />
 		</svg>
 	);
 }
