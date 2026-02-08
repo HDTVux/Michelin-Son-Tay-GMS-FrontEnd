@@ -18,17 +18,13 @@ export default function Form() {
     return (
         <div className="bookingWrapper">
             <div className="bookingCard">
-                <div className="bookingImageContainer">
-                    <img 
-                        src={bookingImage} 
-                        alt="Đặt lịch dịch vụ" 
-                        className="bookingImage"
-                    />
-                    <div className="bookingImageOverlay"></div>
-                </div>
                 <div className="bookingContent">
-                    <h2>Đặt lịch nhanh</h2>
-                    <p>Nhập số điện thoại để chúng tôi liên hệ tư vấn</p>
+                    <div className="formLabel">/ĐẶT LỊCH NHANH/</div>
+                    <h2 className="formTitle">
+                        <span className="titlePart1">Đặt lịch</span>
+                        <span className="titlePart2"> ngay!</span>
+                    </h2>
+                    <p className="formSubtitle">Nhập số điện thoại để chúng tôi liên hệ tư vấn</p>
                     <form className="bookingForm" onSubmit={handleSubmit}>
                         <input
                             type="tel"

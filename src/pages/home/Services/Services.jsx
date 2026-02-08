@@ -96,6 +96,7 @@ const Services = () => {
   const [serviceIndex, setServiceIndex] = useState(0);
   const [serviceVisible, setServiceVisible] = useState(4);
   const [isServicePaused, setIsServicePaused] = useState(false);
+  const [serviceDragOffset, setServiceDragOffset] = useState(0);
   const serviceTrackRef = useRef(null);
   const servicePointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
@@ -103,14 +104,17 @@ const Services = () => {
   const [comboIndex, setComboIndex] = useState(0);
   const [comboVisible, setComboVisible] = useState(3);
   const [isComboPaused, setIsComboPaused] = useState(false);
+  const [comboDragOffset, setComboDragOffset] = useState(0);
   const comboTrackRef = useRef(null);
   const comboPointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
   // Refs cho animation scroll
   const servicesHeroRef = useRef(null);
   const combosHeroRef = useRef(null);
+  const processHeaderRef = useRef(null);
   const [servicesTitleVisible, setServicesTitleVisible] = useState(false);
   const [combosTitleVisible, setCombosTitleVisible] = useState(false);
+  const [processTitleVisible, setProcessTitleVisible] = useState(false);
 
   useEffect(() => {
     const calc = () => {
@@ -160,16 +164,31 @@ const Services = () => {
       { threshold: 0.2, rootMargin: '0px 0px -100px 0px' }
     );
 
+    const processObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setProcessTitleVisible(true);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '0px 0px -100px 0px' }
+    );
+
     if (servicesHeroRef.current) {
       servicesObserver.observe(servicesHeroRef.current);
     }
     if (combosHeroRef.current) {
       combosObserver.observe(combosHeroRef.current);
     }
+    if (processHeaderRef.current) {
+      processObserver.observe(processHeaderRef.current);
+    }
 
     return () => {
       servicesObserver.disconnect();
       combosObserver.disconnect();
+      processObserver.disconnect();
     };
   }, []);
 
@@ -205,24 +224,40 @@ const Services = () => {
   const handleServicePointerDown = (event) => {
     setIsServicePaused(true);
     servicePointer.current.dragging = true;
-    servicePointer.current.startX = event.clientX ?? event.touches?.[0]?.clientX;
+    const startX = event.clientX ?? event.touches?.[0]?.clientX;
+    if (startX !== undefined) {
+      servicePointer.current.startX = startX;
+    }
+    setServiceDragOffset(0);
   };
 
   const handleServicePointerMove = (event) => {
     if (!servicePointer.current.dragging) return;
+    event.preventDefault();
     const x = event.clientX ?? event.touches?.[0]?.clientX;
-    servicePointer.current.deltaX = x - servicePointer.current.startX;
+    if (x === undefined) return;
+    const deltaX = x - servicePointer.current.startX;
+    servicePointer.current.deltaX = deltaX;
+    setServiceDragOffset(deltaX);
   };
 
   const handleServicePointerUp = () => {
     if (!servicePointer.current.dragging) return;
     servicePointer.current.dragging = false;
     const dx = servicePointer.current.deltaX;
-    if (Math.abs(dx) > 50) {
-      if (dx < 0) serviceNext();
-      else servicePrev();
+    const threshold = 50; // Ngưỡng kéo để chuyển slide
+    
+    if (Math.abs(dx) > threshold) {
+      if (dx < 0) {
+        // Kéo sang trái -> slide tiếp theo
+        serviceNext();
+      } else {
+        // Kéo sang phải -> slide trước
+        servicePrev();
+      }
     }
     servicePointer.current.deltaX = 0;
+    setServiceDragOffset(0);
     setTimeout(() => setIsServicePaused(false), 300);
   };
 
@@ -230,24 +265,40 @@ const Services = () => {
   const handleComboPointerDown = (event) => {
     setIsComboPaused(true);
     comboPointer.current.dragging = true;
-    comboPointer.current.startX = event.clientX ?? event.touches?.[0]?.clientX;
+    const startX = event.clientX ?? event.touches?.[0]?.clientX;
+    if (startX !== undefined) {
+      comboPointer.current.startX = startX;
+    }
+    setComboDragOffset(0);
   };
 
   const handleComboPointerMove = (event) => {
     if (!comboPointer.current.dragging) return;
+    event.preventDefault();
     const x = event.clientX ?? event.touches?.[0]?.clientX;
-    comboPointer.current.deltaX = x - comboPointer.current.startX;
+    if (x === undefined) return;
+    const deltaX = x - comboPointer.current.startX;
+    comboPointer.current.deltaX = deltaX;
+    setComboDragOffset(deltaX);
   };
 
   const handleComboPointerUp = () => {
     if (!comboPointer.current.dragging) return;
     comboPointer.current.dragging = false;
     const dx = comboPointer.current.deltaX;
-    if (Math.abs(dx) > 50) {
-      if (dx < 0) comboNext();
-      else comboPrev();
+    const threshold = 50; // Ngưỡng kéo để chuyển slide
+    
+    if (Math.abs(dx) > threshold) {
+      if (dx < 0) {
+        // Kéo sang trái -> slide tiếp theo
+        comboNext();
+      } else {
+        // Kéo sang phải -> slide trước
+        comboPrev();
+      }
     }
     comboPointer.current.deltaX = 0;
+    setComboDragOffset(0);
     setTimeout(() => setIsComboPaused(false), 300);
   };
 
@@ -288,9 +339,11 @@ const Services = () => {
               className="sliderTrack"
               ref={serviceTrackRef}
               style={{ 
-                transform: `translateX(-${serviceOffset}%)`,
+                transform: `translateX(calc(-${serviceOffset}% + ${serviceDragOffset}px))`,
                 display: 'flex',
-                transition: 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)'
+                transition: servicePointer.current.dragging ? 'none' : 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
+                cursor: servicePointer.current.dragging ? 'grabbing' : 'grab',
+                touchAction: 'pan-y pinch-zoom'
               }}
               onPointerDown={handleServicePointerDown}
               onPointerMove={handleServicePointerMove}
@@ -299,6 +352,7 @@ const Services = () => {
               onTouchStart={handleServicePointerDown}
               onTouchMove={handleServicePointerMove}
               onTouchEnd={handleServicePointerUp}
+              onTouchCancel={handleServicePointerUp}
             >
               {services.map((service, idx) => (
                 <div key={idx} className="serviceSlide">
@@ -334,8 +388,15 @@ const Services = () => {
       {/* Quy trình dịch vụ */}
       <section className="processSection">
         <div className="processInner">
-          <div className="processHeader">
-            <h2 className="processTitle">Quy trình dịch vụ</h2>
+          <div 
+            className={`processHeader ${processTitleVisible ? 'visible' : ''}`}
+            ref={processHeaderRef}
+          >
+            <div className="servicesLabel">/QUY TRÌNH/</div>
+            <h2 className="processTitle">
+              <span className="titlePart1">Quy trình</span>
+              <span className="titlePart2"> dịch vụ</span>
+            </h2>
             <p className="processSub">7 bước rõ ràng, minh bạch – giúp bạn yên tâm trong suốt quá trình</p>
           </div>
 
@@ -430,9 +491,11 @@ const Services = () => {
               className="sliderTrack"
               ref={comboTrackRef}
               style={{ 
-                transform: `translateX(-${comboOffset}%)`,
+                transform: `translateX(calc(-${comboOffset}% + ${comboDragOffset}px))`,
                 display: 'flex',
-                transition: 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)'
+                transition: comboPointer.current.dragging ? 'none' : 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
+                cursor: comboPointer.current.dragging ? 'grabbing' : 'grab',
+                touchAction: 'pan-y pinch-zoom'
               }}
               onPointerDown={handleComboPointerDown}
               onPointerMove={handleComboPointerMove}
@@ -441,6 +504,7 @@ const Services = () => {
               onTouchStart={handleComboPointerDown}
               onTouchMove={handleComboPointerMove}
               onTouchEnd={handleComboPointerUp}
+              onTouchCancel={handleComboPointerUp}
             >
               {combos.map((combo, idx) => (
                 <div key={idx} className="serviceSlide">

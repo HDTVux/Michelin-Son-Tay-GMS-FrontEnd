@@ -1,10 +1,26 @@
 .bookingWrapper {
   display: flex;
-  justify-content: center;
-  padding: 40px 16px;
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #ffffff 100%);
+  justify-content: flex-start;
+  align-items: center;
+  padding: 60px 5%;
+  background-image: url('../../../assets/anh_nen1.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   position: relative;
   overflow: hidden;
+  min-height: 600px;
+}
+
+.bookingWrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 0;
 }
 
 .bookingWrapper::before {
@@ -29,23 +45,17 @@
 }
 
 .bookingWrapper .bookingCard {
-  width: min(1100px, 100%);
-  background: #ffffff;
+  width: min(550px, 100%);
+  background: transparent;
   border-radius: 24px;
-  box-shadow: 0 24px 80px rgba(16, 185, 129, 0.2), 0 0 0 1px rgba(16, 185, 129, 0.1) inset;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  min-height: 400px;
-  border: 2px solid rgba(16, 185, 129, 0.15);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  position: relative;
+  z-index: 1;
 }
 
-.bookingWrapper .bookingCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 32px 100px rgba(16, 185, 129, 0.25), 0 0 0 1px rgba(16, 185, 129, 0.2) inset;
-  border-color: rgba(16, 185, 129, 0.25);
-}
 
 .bookingWrapper .bookingCard .bookingImageContainer {
   order: 2;
@@ -61,6 +71,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 0 24px 24px 0;
 }
 
 .bookingImage {
@@ -82,27 +93,68 @@
 }
 
 .bookingContent {
-  padding: 40px 36px 34px;
+  padding: 52px 44px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  text-align: center;
+  text-align: left;
+  background: rgba(20, 20, 25, 0.98);
+  backdrop-filter: blur(25px);
+  border-radius: 20px;
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.6), 
+              0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+              0 0 100px rgba(0, 90, 169, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.3s ease;
 }
 
-.bookingWrapper .bookingCard h2 {
-  margin: 0 0 12px;
-  font-size: 32px;
-  color: #005aa9;
+.bookingContent:hover {
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7), 
+              0 0 0 1px rgba(255, 255, 255, 0.18) inset,
+              0 0 120px rgba(0, 90, 169, 0.3);
+  transform: translateY(-2px);
+}
+
+.formLabel {
+  font-size: 13px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 3.5px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  opacity: 0.9;
 }
 
-.bookingWrapper .bookingCard p {
-  margin: 0 0 28px;
-  font-size: 16px;
-  color: #475569;
-  font-weight: 500;
-  line-height: 1.6;
+.formTitle {
+  margin: 0 0 20px;
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: baseline;
+}
+
+.formTitle .titlePart1 {
+  color: #ffffff;
+  margin-right: 8px;
+}
+
+.formTitle .titlePart2 {
+  color: #005aa9;
+}
+
+.formSubtitle {
+  margin: 0 0 32px;
+  font-size: 15px;
+  color: #9ca3af;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
 .bookingForm {
@@ -113,139 +165,126 @@
 
 .phoneInput {
   width: 100%;
-  padding: 18px 20px;
+  padding: 18px 22px;
   font-size: 16px;
-  border: 2px solid #e5e7eb;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
-  background: #f9fafb;
-  color: #111827;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
 .phoneInput:focus {
   outline: none;
   border-color: #005aa9;
-  background: #ffffff;
-  box-shadow: 0 0 0 4px rgba(0, 90, 169, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.15);
 }
 
 .phoneInput::placeholder {
-  color: #9ca3af;
+  color: #6b7280;
 }
 
 .actionRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .primaryButton,
 .secondaryButton {
-  padding: 18px;
-  font-size: 17px;
+  padding: 16px 24px;
+  font-size: 16px;
   font-weight: 700;
-  border-radius: 12px;
-  border: 1px solid transparent;
+  border-radius: 10px;
+  border: none;
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 160ms ease, background 160ms ease;
+  transition: all 0.25s ease;
 }
 
 .primaryButton {
-  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
-  color: #ffffff;
-  border-color: #005aa9;
-  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
-  position: relative;
-  animation: pulseGlow 2s ease-in-out infinite;
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
-  }
-  50% {
-    box-shadow: 0 4px 20px rgba(0, 90, 169, 0.5), 0 0 0 4px rgba(0, 90, 169, 0.1);
-  }
+  background: #ffffff;
+  color: #111827;
 }
 
 .primaryButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 90, 169, 0.4);
-  background: linear-gradient(135deg, #3a8de0 0%, #005aa9 100%);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+  background: #f9fafb;
 }
 
 .secondaryButton {
-  background: #ffffff;
-  color: #005aa9;
-  border: 2px solid #005aa9;
-  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
 }
 
 .secondaryButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 90, 169, 0.2);
-  background: rgba(0, 90, 169, 0.05);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 @media (max-width: 968px) {
-  .bookingWrapper .bookingCard {
-    grid-template-columns: 1fr;
-    min-height: auto;
+  .bookingWrapper {
+    justify-content: center;
+    padding: 50px 4%;
   }
 
-  .bookingImageContainer {
-    height: 250px;
-    order: -1;
-    overflow: hidden;
+  .bookingWrapper .bookingCard {
+    width: min(600px, 100%);
   }
 
   .bookingContent {
-    padding: 32px 28px 28px;
+    padding: 48px 40px;
   }
 }
 
 @media (max-width: 640px) {
   .bookingWrapper {
-    padding: 30px 12px;
+    padding: 40px 3%;
+    min-height: 500px;
   }
 
   .bookingWrapper .bookingCard {
-    border-radius: 20px;
-  }
-
-  .bookingImageContainer {
-    height: 200px;
-    overflow: hidden;
+    width: 100%;
   }
 
   .bookingContent {
-    padding: 28px 20px 24px;
+    padding: 40px 28px;
+    border-radius: 18px;
   }
 
-  .bookingCard h2 {
-    font-size: 26px;
-    margin-bottom: 10px;
+  .formLabel {
+    font-size: 11px;
+    margin-bottom: 14px;
+    letter-spacing: 2.5px;
   }
 
-  .bookingCard p {
-    font-size: 15px;
-    margin-bottom: 24px;
+  .formTitle {
+    font-size: 32px;
+    margin-bottom: 16px;
+  }
+
+  .formSubtitle {
+    font-size: 14px;
+    margin-bottom: 28px;
   }
 
   .phoneInput {
-    padding: 16px 18px;
+    padding: 16px 20px;
     font-size: 15px;
   }
 
   .actionRow {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
   }
 
   .primaryButton,
   .secondaryButton {
-    padding: 16px;
-    font-size: 16px;
+    padding: 15px 20px;
+    font-size: 15px;
   }
 }

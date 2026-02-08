@@ -105,19 +105,127 @@
 .scrollingItem {
   font-size: 42px;
   font-weight: 900;
-  color: #005aa9;
-  text-transform: uppercase;
-  letter-spacing: 2px;
   display: inline-flex;
   align-items: center;
-  gap: 40px;
+  gap: 24px;
   flex-shrink: 0;
-  text-shadow: 0 2px 8px rgba(0, 90, 169, 0.2);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: linear-gradient(135deg, #005aa9 0%, #3a8de0 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+}
+
+.partnerWrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.partnerIcon {
+  font-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.partnerName {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Castrol - Red italic */
+.scrollingItem.castrol .partnerName {
+  color: #dc2626;
+  font-style: italic;
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* TotalEnergies - Red */
+.scrollingItem.totalenergies .partnerName {
+  color: #dc2626;
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* TECH - White on dark background */
+.scrollingItem.tech .partnerName {
+  color: #ffffff;
+  background: #000000;
+  padding: 4px 12px;
+  border-radius: 20px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Bendix - Black */
+.scrollingItem.bendix .partnerName {
+  color: #000000;
+  background: #3b82f6;
+  padding: 4px 12px;
+  border-radius: 8px;
+  text-shadow: none;
+}
+
+/* LIQUI MOLY - White on blue */
+.scrollingItem.liquimoly .partnerName {
+  color: #ffffff;
+  background: #2563eb;
+  padding: 4px 12px;
+  border-radius: 8px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* VARTA - Blue */
+.scrollingItem.varta .partnerName {
+  color: #2563eb;
+  text-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+/* BOSCH - Red */
+.scrollingItem.bosch .partnerName {
+  color: #dc2626;
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* brembo - Red lowercase */
+.scrollingItem.brembo .partnerName {
+  color: #dc2626;
+  text-transform: lowercase;
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* WURTH - Black */
+.scrollingItem.wurth .partnerName {
+  color: #000000;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* JS ASAKASHI - Red with different sizes */
+.scrollingItem.jsasakashi .partnerName {
+  color: #dc2626;
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  gap: 2px;
+}
+
+.scrollingItem.jsasakashi .jsLarge {
+  font-size: 1.2em;
+  font-weight: 900;
+}
+
+.scrollingItem.jsasakashi .asakashiSmall {
+  font-size: 0.7em;
+  font-weight: 700;
+}
+
+/* MONROE - Blue */
+.scrollingItem.monroe .partnerName {
+  color: #2563eb;
+  text-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
 }
 
 .starSeparator {
@@ -134,7 +242,15 @@
 @media (max-width: 1024px) {
   .scrollingItem {
     font-size: 36px;
-    gap: 32px;
+    gap: 20px;
+  }
+
+  .partnerWrapper {
+    gap: 6px;
+  }
+
+  .partnerIcon {
+    font-size: 40px;
   }
 
   .starSeparator {
@@ -170,8 +286,19 @@
 
   .scrollingItem {
     font-size: 28px;
+    gap: 16px;
+  }
+
+  .partnerWrapper {
+    gap: 6px;
+  }
+
+  .partnerIcon {
+    font-size: 32px;
+  }
+
+  .partnerName {
     letter-spacing: 1.5px;
-    gap: 24px;
   }
 
   .starSeparator {
@@ -212,7 +339,18 @@
 
   .scrollingItem {
     font-size: 24px;
-    gap: 20px;
+    gap: 14px;
+  }
+
+  .partnerWrapper {
+    gap: 4px;
+  }
+
+  .partnerIcon {
+    font-size: 28px;
+  }
+
+  .partnerName {
     letter-spacing: 1px;
   }
 
