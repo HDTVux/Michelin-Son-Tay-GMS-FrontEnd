@@ -1,7 +1,7 @@
 .servicesPage {
   min-height: auto;
-  padding: 60px 5%;
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #ffffff 100%);
+  padding: 80px 5%;
+  background: #ffffff;
   color: #0a0f1c;
   position: relative;
   overflow: hidden;
@@ -30,8 +30,8 @@
 
 .combosPage {
   min-height: auto;
-  padding: 60px 5%;
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #ffffff 100%);
+  padding: 80px 5%;
+  background: #fafafa;
   color: #0a0f1c;
   position: relative;
   overflow: hidden;
@@ -50,24 +50,70 @@
 }
 
 .servicesHero {
-  text-align: center;
+  text-align: left;
   margin-bottom: 60px;
-  animation: fadeIn 0.8s ease-out;
+  padding-left: 0;
+  opacity: 0;
+  transform: translateX(100px);
+  transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.servicesHero.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.servicesLabel {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #005aa9;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  opacity: 0;
+  transform: translateX(50px);
+  transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
+}
+
+.servicesHero.visible .servicesLabel {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .servicesTitle {
-  font-size: 48px;
+  font-size: 56px;
   font-weight: 800;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  line-height: 1.2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.titlePart1 {
+  color: #0a0f1c;
+}
+
+.titlePart2 {
   color: #005aa9;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .servicesSubtitle {
-  font-size: 20px;
-  color: #475569;
-  max-width: 600px;
-  margin: 0 auto;
+  font-size: 18px;
+  color: #64748b;
+  max-width: 700px;
+  margin: 0;
+  font-weight: 400;
+  line-height: 1.6;
+  opacity: 0;
+  transform: translateX(50px);
+  transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
+}
+
+.servicesHero.visible .servicesSubtitle {
+  opacity: 1;
+  transform: translateX(0);
 }
 .servicesSlider {
   position: relative;
@@ -156,39 +202,67 @@
 
 .serviceCard {
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: 16px;
   padding: 0;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 2px solid rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   height: auto;
-  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12), 0 0 0 1px rgba(16, 185, 129, 0.08) inset;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  position: relative;
 }
 
 .serviceCard:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 24px 60px rgba(16, 185, 129, 0.22), 0 0 0 1px rgba(16, 185, 129, 0.15) inset;
-  border-color: rgba(16, 185, 129, 0.3);
+  transform: translateY(-6px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  border-color: rgba(0, 90, 169, 0.2);
 }
 
 .serviceCard-imageTop {
   width: 100%;
-  height: 200px;
+  height: 240px;
   overflow: hidden;
   position: relative;
+}
+
+.serviceCard-imageTop::after {
+  content: '→';
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  background: #005aa9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 1;
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.serviceCard:hover .serviceCard-imageTop::after {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 90, 169, 0.4);
 }
 
 .serviceCard-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .serviceCard:hover .serviceCard-image {
-  transform: scale(1.05);
+  transform: scale(1.08);
 }
 
 .serviceCard-content {
@@ -361,7 +435,11 @@
   }
 
   .servicesTitle {
-    font-size: 32px;
+    font-size: 40px;
+  }
+
+  .servicesLabel {
+    font-size: 12px;
   }
 
   .servicesSubtitle {
@@ -434,8 +512,13 @@
   }
 
   .servicesTitle {
-    font-size: 24px;
+    font-size: 28px;
     margin-bottom: 12px;
+  }
+
+  .servicesLabel {
+    font-size: 11px;
+    letter-spacing: 1.5px;
   }
 
   .servicesSubtitle {

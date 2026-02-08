@@ -106,6 +106,12 @@ const Services = () => {
   const comboTrackRef = useRef(null);
   const comboPointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
+  // Refs cho animation scroll
+  const servicesHeroRef = useRef(null);
+  const combosHeroRef = useRef(null);
+  const [servicesTitleVisible, setServicesTitleVisible] = useState(false);
+  const [combosTitleVisible, setCombosTitleVisible] = useState(false);
+
   useEffect(() => {
     const calc = () => {
       const w = window.innerWidth;
@@ -128,6 +134,43 @@ const Services = () => {
     calc();
     window.addEventListener('resize', calc);
     return () => window.removeEventListener('resize', calc);
+  }, []);
+
+  // Intersection Observer cho animation tiêu đề
+  useEffect(() => {
+    const servicesObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setServicesTitleVisible(true);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '0px 0px -100px 0px' }
+    );
+
+    const combosObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setCombosTitleVisible(true);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '0px 0px -100px 0px' }
+    );
+
+    if (servicesHeroRef.current) {
+      servicesObserver.observe(servicesHeroRef.current);
+    }
+    if (combosHeroRef.current) {
+      combosObserver.observe(combosHeroRef.current);
+    }
+
+    return () => {
+      servicesObserver.disconnect();
+      combosObserver.disconnect();
+    };
   }, []);
 
   const serviceMaxIndex = Math.max(0, services.length - serviceVisible);
@@ -212,8 +255,16 @@ const Services = () => {
     <>
       {/* Danh sách dịch vụ tiện ích nổi bật */}
       <section className="servicesPage">
-        <div className="servicesHero">
-          <h1 className="servicesTitle">Danh sách dịch vụ tiện ích nổi bật</h1>
+        <div 
+          className={`servicesHero ${servicesTitleVisible ? 'visible' : ''}`}
+          ref={servicesHeroRef}
+        >
+          <div className="servicesLabel">/DỊCH VỤ/</div>
+          <h1 className="servicesTitle">
+            <span className="titlePart1">Chúng tôi cung cấp</span>
+            <span className="titlePart2"> đa dạng</span>
+            <span className="titlePart1"> dịch vụ</span>
+          </h1>
           <p className="servicesSubtitle">
             Các dịch vụ chuyên nghiệp cho xe của bạn
           </p>
@@ -347,8 +398,15 @@ const Services = () => {
 
       {/* Gói dịch vụ được tin dùng */}
       <section className="combosPage">
-        <div className="servicesHero">
-          <h1 className="servicesTitle">Gói dịch vụ được tin dùng</h1>
+        <div 
+          className={`servicesHero ${combosTitleVisible ? 'visible' : ''}`}
+          ref={combosHeroRef}
+        >
+          <div className="servicesLabel">/GÓI DỊCH VỤ/</div>
+          <h1 className="servicesTitle">
+            <span className="titlePart1">Gói dịch vụ</span>
+            <span className="titlePart2"> được tin dùng</span>
+          </h1>
           <p className="servicesSubtitle">
             Giá cả minh bạch, dịch vụ chất lượng
           </p>
