@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
 import Home from './pages/home/Home.jsx';
 import Login from './features/auth/login/Login.jsx';
@@ -17,14 +18,21 @@ import EditBooking from './pages/EditBooking/EditBooking.jsx';
 import StaffProfile from './pages/StaffProfile/StaffProfile.jsx';
 import StaffChangePassword from './pages/StaffProfile/StaffChangePassword.jsx';
 import StaffManageSSO from './pages/StaffProfile/StaffManageSSO.jsx';
+import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
+import StaffLayout from './layouts/StaffLayout.jsx';
+import ToastBox from './components/Toast/ToastBox.jsx';
+import BookingManagement from './pages/DashBoard/BookingManagement/BookingManagement.jsx';
+import ModalsDemo from './pages/DashBoard/BookingManagement/ModalsDemo.jsx';
 export default function App() {
   return (
     <BrowserRouter>
+      <ToastBox />
       <Routes>
         {/* Nhóm các trang có Header & Footer */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="services" element={<Services />} />
+          <Route path="services/:serviceId" element={<ServiceDetail />} />
           <Route path="about" element={<About />} />
           <Route path="customer-login" element={<CustomerLogin />} />
           <Route path="booking" element={<Booking />} />
@@ -38,6 +46,11 @@ export default function App() {
           <Route path="staff-profile" element={<StaffProfile />} />
           <Route path="staff-change-password" element={<StaffChangePassword />} />
           <Route path="staff-manage-sso" element={<StaffManageSSO />} />
+        </Route>
+        {/* Nhóm trang dashboard nhân viên dùng SideBar */}
+        <Route element={<StaffLayout />}>
+          <Route path="booking-management" element={<BookingManagement />} />
+          <Route path="booking-management/modals-demo" element={<ModalsDemo />} />
         </Route>
         <Route path="login" element={<Login />} />
         <Route path="forgot-password" element={<ForgotPassword />} />

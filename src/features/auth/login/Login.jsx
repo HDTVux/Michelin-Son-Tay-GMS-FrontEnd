@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './Login.css';
 import Mascot from '../../../assets/Mascot.jpg';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { loginStaff, getStaffGoogleOAuthUrl } from '../../../services/authService';
 
 export default function Login() {
@@ -13,6 +13,15 @@ export default function Login() {
   const [serverMessage, setServerMessage] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  // Nếu đã có token (login trước đó hoặc sau khi Google callback) thì vào BookingManagement
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      navigate('/booking-management', { replace: true });
+    }
+  }, [navigate]);
 
   const validatePhoneOrEmail = (value) => {
     if (!value) return 'Số điện thoại hoặc email là bắt buộc';
@@ -69,8 +78,8 @@ export default function Login() {
       if (data?.data?.token) {
         localStorage.setItem('authToken', data.data.token);
       }
-
       setServerMessage(data?.data?.message || data?.message || 'Đăng nhập thành công');
+      navigate('/booking-management', { replace: true });
     } catch (error) {
       setErrors({ api: error.message || 'Không thể kết nối máy chủ. Vui lòng thử lại.' });
     } finally {
@@ -79,7 +88,9 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = getStaffGoogleOAuthUrl();
+    // Lưu ý: backend cần hỗ trợ redirect_uri. Ở đây ưu tiên quay về trang quản lý booking.
+    const redirectUrl = `${getStaffGoogleOAuthUrl()}?redirect_uri=${encodeURIComponent(window.location.origin + '/booking-management')}`;
+    window.location.href = redirectUrl;
   };
 
   return (

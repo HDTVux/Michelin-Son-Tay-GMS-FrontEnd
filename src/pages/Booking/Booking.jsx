@@ -5,37 +5,7 @@ import StepService from './steps/StepService.jsx';
 import StepSchedule from './steps/StepSchedule.jsx';
 import StepInfo from './steps/StepInfo.jsx';
 import StepDone from './steps/StepDone.jsx';
-
-const SERVICES = [
-	{
-		id: 'tire',
-		name: 'Thay lốp xe',
-		desc: 'Thay lốp, cân mâm cao su mới và vệ sinh chi tiết cụng.',
-		tag: 'Lốp & lốp',
-		category: 'tires'
-	},
-	{
-		id: 'oil',
-		name: 'Thay dầu động cơ',
-		desc: 'Xả dầu cũ, thay lọc, đệm cổ xả và châm dầu mới đúng định cấp.',
-		tag: 'Bảo dưỡng nhanh',
-		category: 'engine'
-	},
-	{
-		id: 'check12',
-		name: 'Kiểm tra an toàn 12 điểm',
-		desc: 'Kiểm tra tổng quát lốp, phanh, điện, dầu, gầm, nước mát...',
-		tag: 'Chăm sóc & OTOT',
-		category: 'check'
-	},
-    {
-		id: 'lll',
-		name: 'okokol',
-		desc: 'Kiểm tra tổng quát lốp, phanh, điện, dầu, gầm, nước mát...',
-		tag: 'Chăm sóc & OTOT',
-		category: 'check'
-	}
-];
+import { fetchHomeServices } from '../../services/homeService.js';
 
 const STEPS = [
 	{ id: 'service', label: 'Chọn dịch vụ' },
@@ -47,10 +17,15 @@ const STEPS = [
 export default function Booking() {
  const location = useLocation();
  const prefilledPhone = location.state?.phone || '';
+ const preselectedServiceId = location.state?.serviceId ? String(location.state.serviceId) : null;
  // State bước hiện tại
  const [stepIndex, setStepIndex] = useState(0);
+ // Dịch vụ (lấy từ API Home)
+ const [services, setServices] = useState([]);
+ const [servicesLoading, setServicesLoading] = useState(false);
+ const [servicesError, setServicesError] = useState('');
  // State lọc/chọn dịch vụ
- const [selectedIds, setSelectedIds] = useState([]);
+ const [selectedIds, setSelectedIds] = useState(() => (preselectedServiceId ? [preselectedServiceId] : []));
  const [search, setSearch] = useState('');
  const [filter, setFilter] = useState('all');
  // State cho lịch hẹn
@@ -63,6 +38,38 @@ export default function Booking() {
 	 setInfo((prev) => ({ ...prev, phone: prefilledPhone }));
   }
  }, [prefilledPhone]);
+
+	// Lấy dịch vụ từ API Home (ngắn gọn cho booking)
+	useEffect(() => {
+		let active = true;
+		setServicesLoading(true);
+		setServicesError('');
+
+		fetchHomeServices()
+			.then((res) => {
+				if (!active) return;
+				const list = Array.isArray(res?.data) ? res.data : [];
+				const mapped = list.map((item) => ({
+					id: String(item.serviceId),
+					name: item.title || 'Dịch vụ',
+					desc: item.shortDescription || 'Hiện chưa có mô tả ngắn.',
+					category: 'all',
+					thumbnail: item.mediaThumbnail || '',
+				}));
+				setServices(mapped);
+			})
+			.catch((err) => {
+				if (!active) return;
+				setServicesError(err?.message || 'Không thể tải danh sách dịch vụ.');
+			})
+			.finally(() => {
+				if (active) setServicesLoading(false);
+			});
+
+		return () => {
+			active = false;
+		};
+	}, []);
 
 	// Mỗi khi đổi bước, cuộn về đầu trang đặt lịch để không bị nhảy xuống cuối
 	useEffect(() => {
@@ -131,13 +138,15 @@ export default function Booking() {
 
 			{stepIndex === 0 && (
 				<StepService
-					services={SERVICES}
+					services={services}
 					selectedIds={selectedIds}
 					onToggle={toggle}
 					search={search}
 					onSearch={setSearch}
 					filter={filter}
 					onFilter={setFilter}
+					loading={servicesLoading}
+					error={servicesError}
 					onNext={goNextFromService}
 				/>
 			)}
@@ -164,7 +173,7 @@ export default function Booking() {
 			 <StepDone
 			  schedule={schedule}
 			  info={info}
-			  services={SERVICES}
+					services={services}
 			  selectedIds={selectedIds}
 			  onReschedule={goReschedule}
 			  onCancel={goCancel}

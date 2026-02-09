@@ -1,0 +1,25 @@
+.appToastContainer{
+  top:0 !important;
+  padding:0 !important;
+  margin:0 !important;
+  left:50% !important;
+  transform:translateX(-50%) !important;
+  pointer-events:none;
+  width:auto !important;
+  z-index:10000;
+}
+
+.appToast{
+  border-radius:12px;
+  background:#fff;
+  color:#000;
+  box-shadow:0 12px 32px rgba(0,0,0,0.35);
+  pointer-events:auto;
+  min-width:280px;
+  text-align:center;
+}
+
+.appToastBody{
+  font-weight:700;
+  letter-spacing:0.01em;
+}
