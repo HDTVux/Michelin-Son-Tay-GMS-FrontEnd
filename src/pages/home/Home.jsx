@@ -6,13 +6,45 @@ import Service from './Services/Services.jsx';
 import Banner from './Banner/Banner.jsx';
 import Form from './Form/Form.jsx';
 import BussinessInfor from './BusinessInfo/BussinessInfor.jsx';
+import Partners from './Partners/Partners.jsx';
 
 const Home = () => {
     const [isVisible, setIsVisible] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
         setIsVisible(true);
+        checkAuthStatus();
+        
+        const handleStorageChange = (e) => {
+            if (e.key === 'customerToken' || !e.key) {
+                checkAuthStatus();
+            }
+        };
+        
+        const handleFocus = () => {
+            checkAuthStatus();
+        };
+        
+        const handleAuthChange = () => {
+            checkAuthStatus();
+        };
+        
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('focus', handleFocus);
+        window.addEventListener('authChange', handleAuthChange);
+        
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('authChange', handleAuthChange);
+        };
     }, []);
+
+    const checkAuthStatus = () => {
+        const token = localStorage.getItem('customerToken');
+        setIsAuthenticated(!!token);
+    };
 
     const introText = [
         'Michelin sơn tây là địa chỉ lốp uy tín ở sơn tây.',
@@ -63,36 +95,9 @@ const Home = () => {
     return (
         <>
         <Banner/>
-        <Form/>
-        <section className="homePage">
-            <div className={`homeTop ${isVisible ? 'fadeIn' : ''}`}>
-
-
-                {/* Intro bên trái - Video bên phải */}
-                <div className={`videoRow ${isVisible ? 'slideIn' : ''}`}>
-                    <div className="videoTextCard" aria-label="Giới thiệu Michelin Sơn Tây">
-                    <h1 className="homeTitle">
-                    Giới thiệu về <span>Michelin Sơn Tây</span>
-                </h1>
-                        {introText.map((t, i) => (
-                            <p key={i} className="videoText">{t}</p>
-                        ))}
-                    </div>
-
-                    <div className="videoMedia">
-                        <div className="videoOverlay"></div>
-                        <video autoPlay muted loop playsInline>
-                            <source src={TVC} type="video/mp4" />
-                            Your browser does not support the video tag.
-                        </video>
-                    </div>
-                </div>
-
-                {/* 5 ô nằm ngang bên dưới video */}
-            </div>
-        </section>
-
+        {!isAuthenticated && <Form/>}
         <Service/>
+        <Partners/>
         <BussinessInfor/>
         </>
     );

@@ -1,27 +1,57 @@
 import { useState, useEffect, useRef } from 'react';
 import './Banner.css';
-import banner1 from '../../../assets/logo4.jpg'
-import banner2 from '../../../assets/logo5.jpg'
-import banner3 from '../../../assets/logo6.jpg'
+import combo7 from '../../../assets/anh_combo7.jpg'
+import combo8 from '../../../assets/anh_combo8.jpg'
+import combo9 from '../../../assets/anh_com9.jpg'
 
 export default function Banner(){
     const slides = [
-        { id: 1, img: banner1 },
-        { id: 2, img: banner2 },
-        { id: 3, img: banner3 }
+        { 
+            id: 1, 
+            img: combo7, 
+            title: 'HIỆU SUẤT BỀN BỈ, AN TOÀN TỐI ĐA', 
+            subtitle: 'MICHELIN' 
+        },
+        { 
+            id: 2, 
+            img: combo8, 
+            title: 'CHINH PHỤC MỌI ĐỊA HÌNH', 
+            subtitle: 'MICHELIN' 
+        },
+        { 
+            id: 3, 
+            img: combo9, 
+            title: 'ÊM ÁI VÀ AN TOÀN TRÊN MỌI CUNG ĐƯỜNG ƯỚT', 
+            subtitle: 'MICHELIN' 
+        }
     ];
 
     const [index, setIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
+    const [textVisible, setTextVisible] = useState(true);
     const slidesRef = useRef(null);
+    const bannerRef = useRef(null);
     const pointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
     useEffect(() => {
         const id = setInterval(() => {
-            if (!isPaused) setIndex(i => (i + 1) % slides.length);
+            if (!isPaused) {
+                setTextVisible(false);
+                setTimeout(() => {
+                    setIndex(i => (i + 1) % slides.length);
+                    setTextVisible(true);
+                }, 300);
+            }
         }, 4000);
         return () => clearInterval(id);
     }, [isPaused, slides.length]);
+
+    // Reset text animation when index changes
+    useEffect(() => {
+        setTextVisible(false);
+        const timer = setTimeout(() => setTextVisible(true), 100);
+        return () => clearTimeout(timer);
+    }, [index]);
 
     function goTo(i){ setIndex(i); }
 
@@ -45,11 +75,8 @@ export default function Banner(){
     }
 
     return (
-        <section className="banner">
+        <section className="banner" ref={bannerRef}>
             <div className="banner-inner">
-                <h1 className="banner-title">Chào mừng đến với Michelin Sơn Tây</h1>
-                <p className="banner-sub">Trung tâm dịch vụ lốp xe hàng đầu, cam kết mang đến chất lượng và sự an toàn.</p>
-
                 <div className="banner-carousel"
                     onMouseEnter={() => setIsPaused(true)}
                     onMouseLeave={() => setIsPaused(false)}
@@ -62,10 +89,20 @@ export default function Banner(){
                         onPointerMove={onPointerMove}
                         onPointerUp={onPointerUp}
                         onPointerCancel={onPointerUp}
+                        onTouchStart={onPointerDown}
+                        onTouchMove={onPointerMove}
+                        onTouchEnd={onPointerUp}
                     >
                         {slides.map((s) => (
                         <div className="slide" key={s.id}>
                             <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image" />
+                            <div className={`slide-text ${textVisible && index === s.id - 1 ? 'visible' : ''}`}>
+                                <div className="banner-label">/MICHELIN/</div>
+                                <h1 className="banner-title">
+                                    <span className="titlePart1">{s.title}</span>
+                                </h1>
+                                <p className="banner-sub">{s.subtitle}</p>
+                            </div>
                         </div>
                         ))} 
                     </div>

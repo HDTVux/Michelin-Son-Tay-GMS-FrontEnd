@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Form.css';
+import bookingImage from '../../../assets/anh_dat_lich_ngay.jpg';
 
 export default function Form() {
     const [phone, setPhone] = useState('');
@@ -17,8 +18,13 @@ export default function Form() {
     return (
         <div className="bookingWrapper">
             <div className="bookingCard">
-                <h2>Đặt lịch nhanh</h2>
-                <p>Nhập số điện thoại để chúng tôi liên hệ tư vấn</p>
+                <div className="bookingContent">
+                    <div className="formLabel">/ĐẶT LỊCH NHANH/</div>
+                    <h2 className="formTitle">
+                        <span className="titlePart1">Đặt lịch</span>
+                        <span className="titlePart2"> ngay!</span>
+                    </h2>
+                    <p className="formSubtitle">Nhập số điện thoại để chúng tôi liên hệ tư vấn</p>
                 <form className="bookingForm" onSubmit={handleSubmit}>
                     <input
                         type="tel"
@@ -42,6 +48,7 @@ export default function Form() {
                         </button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
     );

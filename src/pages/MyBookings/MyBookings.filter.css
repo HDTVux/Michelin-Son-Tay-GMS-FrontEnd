@@ -46,13 +46,13 @@
 
 .bookingSearch input {
   width: 100%;
-  padding: 11px 14px;
-  border-radius: 10px;
-  border: 2px solid #005aa9;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
   font-size: 14px;
-  background-color: #0f172a;
-  color: #e5e7eb;
-  box-shadow: 0 0 0 1px #60a5fa;
+  background-color: #ffffff;
+  color: #111827;
+  transition: all 0.2s ease;
 }
 
 .bookingSearch input::placeholder {
@@ -61,7 +61,9 @@
 
 .bookingSearch input:focus {
   outline: none;
-  box-shadow: 0 0 0 2px #1d4ed8;
+  border-color: #005aa9;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(0, 90, 169, 0.1);
 }
 
 .bookingSort {
@@ -70,11 +72,20 @@
 
 .bookingSort select {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
   font-size: 14px;
   background-color: #ffffff;
+  color: #111827;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.bookingSort select:focus {
+  outline: none;
+  border-color: #005aa9;
+  box-shadow: 0 0 0 4px rgba(0, 90, 169, 0.1);
 }
 
 /* Responsive */

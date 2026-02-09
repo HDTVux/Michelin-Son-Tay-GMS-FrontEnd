@@ -3,18 +3,67 @@
 	grid-template-columns: 1fr 1fr;
 	gap: 32px;
 	padding: 40px 24px;
-	background: #ffffff;
+	background-image: url('../../../assets/anh_nen3.jpg');
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-attachment: fixed;
+	position: relative;
+	overflow: hidden;
+}
+
+.businessSection::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.4);
+	z-index: 0;
+}
+
+.businessSection::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 4px;
+	background: linear-gradient(90deg, #64748b, #94a3b8, #64748b);
+	background-size: 200% 100%;
+	animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+	0% {
+		background-position: 0% center;
+	}
+	100% {
+		background-position: 200% center;
+	}
 }
 
 .infoCard,
 .mapCard {
 	background: #ffffff;
-	border-radius: 18px;
+	border-radius: 20px;
 	padding: 28px 26px;
-	box-shadow: 0 14px 42px rgba(0, 0, 0, 0.14);
+	box-shadow: 0 20px 60px rgba(100, 116, 139, 0.18), 0 0 0 1px rgba(100, 116, 139, 0.08) inset;
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
+	border: 2px solid rgba(100, 116, 139, 0.12);
+	transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+	position: relative;
+	z-index: 1;
+}
+
+.infoCard:hover,
+.mapCard:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 28px 80px rgba(100, 116, 139, 0.22), 0 0 0 1px rgba(100, 116, 139, 0.15) inset;
+	border-color: rgba(100, 116, 139, 0.2);
 }
 
 .infoCard h2 {
@@ -69,6 +118,10 @@
 .contactItemText {
 	font-size: 14px;
 	color: #4b5563;
+	word-break: break-word;
+	line-height: 1.5;
+	overflow-wrap: break-word;
+	hyphens: auto;
 }
 
 .contactBookingLink {
@@ -264,5 +317,43 @@
 
 	.contactCardGrid {
 		grid-template-columns: 1fr;
+	}
+
+	.contactItemCard {
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		padding: 20px 16px;
+		gap: 12px;
+	}
+
+	.contactItemText {
+		font-size: 13px;
+		line-height: 1.6;
+		word-break: break-word;
+		overflow-wrap: break-word;
+		width: 100%;
+		padding: 0;
+	}
+
+	.contactItemBody {
+		width: 100%;
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+	}
+
+	.contactItemTitle {
+		text-align: center;
+		width: 100%;
+	}
+
+	.contactItemText {
+		text-align: center;
+		width: 100%;
 	}
 }

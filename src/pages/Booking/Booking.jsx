@@ -33,11 +33,11 @@ export default function Booking() {
  // State cho thông tin cá nhân
  const [info, setInfo] = useState({ name: '', phone: prefilledPhone, note: '' });
 
-	useEffect(() => {
-	 if (prefilledPhone) {
-	  setInfo((prev) => ({ ...prev, phone: prefilledPhone }));
-   }
-	}, [prefilledPhone]);
+ useEffect(() => {
+	if (prefilledPhone) {
+	 setInfo((prev) => ({ ...prev, phone: prefilledPhone }));
+  }
+ }, [prefilledPhone]);
 
 	// Lấy dịch vụ từ API Home (ngắn gọn cho booking)
 	useEffect(() => {
@@ -116,7 +116,9 @@ export default function Booking() {
 			</div>
 			<div className="stepper">
 			 {STEPS.map((step, idx) => {
-			  const isCompleted = idx <= stepIndex;
+			  // Chỉ tích bước khi đã vượt qua bước đó (đã nhấn tiếp tục)
+			  // Bước 3 (done) chỉ tích khi stepIndex === 3 (đã hoàn tất)
+			  const isCompleted = idx < stepIndex || (idx === 3 && stepIndex === 3);
 			  const isActive = idx === stepIndex;
 			  return (
 			   <div
@@ -126,8 +128,8 @@ export default function Booking() {
 			    <div className="dot">
 			     {isCompleted ? '✓' : idx + 1}
 			    </div>
-			    <div className="label">{step.label}</div>
-			   </div>
+				 <div className="label">{step.label}</div>
+				</div>
 			  );
 			 })}
 			</div>

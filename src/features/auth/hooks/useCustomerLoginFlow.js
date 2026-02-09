@@ -92,6 +92,7 @@ export function useCustomerLoginFlow({ onClose, onNotify } = {}) {
       const token = response?.data?.token || response?.data?.accessToken;
       if (token) {
         localStorage.setItem('customerToken', token);
+        window.dispatchEvent(new Event('authChange'));
       }
       onNotify?.('Đăng nhập thành công');
       setStep(1);

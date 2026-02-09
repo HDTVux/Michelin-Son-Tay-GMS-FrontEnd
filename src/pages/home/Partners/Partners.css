@@ -1,0 +1,364 @@
+.partnersSection {
+  padding: 60px 0;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #ffffff 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.partnersSection::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #64748b, #94a3b8, #64748b);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.partnersContainer {
+  max-width: 100%;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.partnersHeader {
+  text-align: center;
+  margin-bottom: 40px;
+  padding: 0 5%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.partnersTitle {
+  font-size: 36px;
+  font-weight: 800;
+  color: #005aa9;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.02em;
+}
+
+.partnersSubtitle {
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Scrolling Text Banner */
+.partnersBanner {
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  border-radius: 0;
+  padding: 40px 0;
+  margin-bottom: 0;
+  box-shadow: 0 8px 32px rgba(0, 90, 169, 0.12);
+  border: none;
+  border-top: 2px solid rgba(0, 90, 169, 0.1);
+  border-bottom: 2px solid rgba(0, 90, 169, 0.1);
+  overflow: hidden;
+  position: relative;
+  width: 100vw;
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+
+.scrollingText {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+}
+
+.scrollingContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 32px;
+  animation: scroll 40s linear infinite;
+  will-change: transform;
+}
+
+.partnersBanner:hover .scrollingContent {
+  animation-play-state: paused;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.scrollingItem {
+  font-size: 42px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.partnerWrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.partnerIcon {
+  font-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.partnerName {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Castrol - Red italic */
+.scrollingItem.castrol .partnerName {
+  color: #dc2626;
+  font-style: italic;
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* TotalEnergies - Red */
+.scrollingItem.totalenergies .partnerName {
+  color: #dc2626;
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* TECH - White on dark background */
+.scrollingItem.tech .partnerName {
+  color: #ffffff;
+  background: #000000;
+  padding: 4px 12px;
+  border-radius: 20px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Bendix - Black */
+.scrollingItem.bendix .partnerName {
+  color: #000000;
+  background: #3b82f6;
+  padding: 4px 12px;
+  border-radius: 8px;
+  text-shadow: none;
+}
+
+/* LIQUI MOLY - White on blue */
+.scrollingItem.liquimoly .partnerName {
+  color: #ffffff;
+  background: #2563eb;
+  padding: 4px 12px;
+  border-radius: 8px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* VARTA - Blue */
+.scrollingItem.varta .partnerName {
+  color: #2563eb;
+  text-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+/* BOSCH - Red */
+.scrollingItem.bosch .partnerName {
+  color: #dc2626;
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* brembo - Red lowercase */
+.scrollingItem.brembo .partnerName {
+  color: #dc2626;
+  text-transform: lowercase;
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* WURTH - Black */
+.scrollingItem.wurth .partnerName {
+  color: #000000;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* JS ASAKASHI - Red with different sizes */
+.scrollingItem.jsasakashi .partnerName {
+  color: #dc2626;
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  gap: 2px;
+}
+
+.scrollingItem.jsasakashi .jsLarge {
+  font-size: 1.2em;
+  font-weight: 900;
+}
+
+.scrollingItem.jsasakashi .asakashiSmall {
+  font-size: 0.7em;
+  font-weight: 700;
+}
+
+/* MONROE - Blue */
+.scrollingItem.monroe .partnerName {
+  color: #2563eb;
+  text-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.starSeparator {
+  color: #005aa9;
+  font-size: 32px;
+  display: inline-block;
+  filter: drop-shadow(0 2px 6px rgba(0, 90, 169, 0.4));
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .scrollingItem {
+    font-size: 36px;
+    gap: 20px;
+  }
+
+  .partnerWrapper {
+    gap: 6px;
+  }
+
+  .partnerIcon {
+    font-size: 40px;
+  }
+
+  .starSeparator {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 768px) {
+  .partnersSection {
+    padding: 40px 0;
+  }
+
+  .partnersHeader {
+    padding: 0 4%;
+  }
+
+  .partnersHeader {
+    margin-bottom: 32px;
+  }
+
+  .partnersTitle {
+    font-size: 28px;
+  }
+
+  .partnersSubtitle {
+    font-size: 14px;
+  }
+
+  .partnersBanner {
+    padding: 32px 0;
+    margin-bottom: 0;
+  }
+
+  .scrollingItem {
+    font-size: 28px;
+    gap: 16px;
+  }
+
+  .partnerWrapper {
+    gap: 6px;
+  }
+
+  .partnerIcon {
+    font-size: 32px;
+  }
+
+  .partnerName {
+    letter-spacing: 1.5px;
+  }
+
+  .starSeparator {
+    font-size: 24px;
+  }
+
+  .scrollingContent {
+    gap: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .partnersSection {
+    padding: 30px 0;
+  }
+
+  .partnersHeader {
+    padding: 0 3%;
+  }
+
+  .partnersHeader {
+    margin-bottom: 24px;
+  }
+
+  .partnersTitle {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .partnersSubtitle {
+    font-size: 13px;
+  }
+
+  .partnersBanner {
+    padding: 28px 0;
+    margin-bottom: 0;
+  }
+
+  .scrollingItem {
+    font-size: 24px;
+    gap: 14px;
+  }
+
+  .partnerWrapper {
+    gap: 4px;
+  }
+
+  .partnerIcon {
+    font-size: 28px;
+  }
+
+  .partnerName {
+    letter-spacing: 1px;
+  }
+
+  .starSeparator {
+    font-size: 20px;
+  }
+
+  .scrollingContent {
+    gap: 20px;
+  }
+}

@@ -7,7 +7,7 @@
     color: #0a0f1c;
     position: relative;
     overflow: hidden;
-    background: #ffffff;          /* Bỏ nền xám, đổi thành trắng */
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #ffffff 100%);
 }
 
 /* wrapper mới cho phần trên của Home */
@@ -131,14 +131,35 @@
     grid-template-columns: 0.95fr 1.35fr; /* ưu tiên rộng hơn cho video */
     gap: 26px;
     align-items: stretch;
-    background: linear-gradient(145deg, rgba(0,90,169,0.08), rgba(0,90,169,0.02));
-    border: 1px solid rgba(0, 90, 169, 0.08);
-    border-radius: 24px;
+    background: linear-gradient(145deg, rgba(0,90,169,0.12), rgba(0,90,169,0.04));
+    border: 2px solid rgba(0, 90, 169, 0.15);
+    border-radius: 28px;
     padding: 34px 38px;
-    box-shadow: 0 28px 60px rgba(2,6,23,0.08);
+    box-shadow: 0 32px 80px rgba(0, 90, 169, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
     width: 100%;                  /* fill container width */
     max-width: 1500px;
     margin: 0 auto;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.videoRow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #005aa9, #3a8de0, #005aa9);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+}
+
+.videoRow:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 40px 100px rgba(0, 90, 169, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+    border-color: rgba(0, 90, 169, 0.25);
 }
 
 .videoInfoCol{
@@ -288,127 +309,349 @@
 
 /* ===== Process section ===== */
 .processSection{
-    background: #ffffff;
-    padding: 56px 0 20px;
+    background-image: url('../../assets/anh_nen2.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    padding: 56px 0 60px;
+    margin-bottom: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.processSection::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.2);
+    z-index: 0;
+}
+
+.processSection::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
 }
 
 .processInner{
-    max-width: 1200px;
+    max-width: 1240px;
     margin: 0 auto;
     padding: 0 5%;
+    position: relative;
+    z-index: 1;
 }
 
 .processHeader{
-    text-align: center;
-    margin-bottom: 18px;
+    text-align: left;
+    margin-bottom: 50px;
+    padding-left: 0;
+    opacity: 0;
+    transform: translateX(100px);
+    transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.processHeader.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.processHeader .servicesLabel {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #ffffff;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 90, 169, 0.5);
+}
+
+.processHeader.visible .servicesLabel {
+    opacity: 1;
+    transform: translateX(0);
 }
 
 .processTitle{
-    margin: 0 0 10px;
-    font-size: 38px;
+    margin: 0 0 20px;
+    font-size: 56px;
     font-weight: 900;
-    color: #005aa9;
     letter-spacing: -0.02em;
+    line-height: 1.2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.processTitle .titlePart1 {
+    color: #ffffff;
+}
+
+.processTitle .titlePart2 {
+    color: #ffffff;
+    text-shadow: 0 0 30px rgba(0, 90, 169, 0.8), 0 4px 20px rgba(0, 0, 0, 0.6);
 }
 
 .processSub{
-    margin: 0 auto;
-    max-width: 760px;
-    color: #475569;
-    font-weight: 600;
+    margin: 0;
+    max-width: 700px;
+    font-size: 18px;
+    color: #ffffff;
     line-height: 1.6;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.processHeader.visible .processSub {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Desktop layout: tiêu đề bên trái, hình/process bên phải, bố cục cân đối */
+@media (min-width: 1024px) {
+    .processInner{
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        align-items: center;
+        column-gap: 56px;
+        justify-content: center;
+    }
+
+    .processHeader{
+        margin-bottom: 0;
+        max-width: 460px;
+    }
+
+    .processDiagram{
+        margin: 0;
+    }
 }
 
 .processDiagram{
     position: relative;
-    max-width: 1120px;
-    margin: 26px auto 0;
-    padding: 8px 0 40px;
+    max-width: 980px;
+    margin: 32px auto 0;
+    padding: 56px 40px 56px;
+    min-height: 760px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 32px;
+    box-shadow: 0 24px 80px rgba(59, 130, 246, 0.2);
+    backdrop-filter: blur(10px);
+    margin-bottom: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.processDiagram:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 32px 100px rgba(59, 130, 246, 0.25);
 }
 
 .processImageWrapper{
-    max-width: 640px;               /* Thu nhỏ thêm ảnh để text hẳn ra ngoài */
+    position: relative;
+    width: 520px;
+    height: 520px;
     margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
 }
 
 .processImageCenter{
     width: 100%;
-    height: auto;
+    height: 100%;
+    object-fit: contain;
     display: block;
     border-radius: 20px;
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+    position: relative;
+    z-index: 2;
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
 }
 
 .processStepBubble{
     position: absolute;
-    max-width: 260px;
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 10px 12px;
-    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+    max-width: 280px;
+    min-width: 240px;
+    background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+    border-radius: 18px;
+    padding: 16px 18px;
+    box-shadow: 0 16px 40px rgba(59, 130, 246, 0.25);
+    border: 2px solid rgba(59, 130, 246, 0.2);
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: flex-start;
-    z-index: 2;
+    z-index: 10;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Mũi tên (đường kẻ) từ trung tâm ra từng bubble – không đè lên chữ */
+.processStepBubble:hover{
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 24px 60px rgba(59, 130, 246, 0.35);
+    border-color: rgba(59, 130, 246, 0.4);
+    background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+}
+
+/* Mũi tên kết nối từ trung tâm ra từng bubble */
 .processStepBubble::before{
     content: '';
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 40px;
-    height: 2px;
-    background: rgba(15,23,42,0.28);
-    transform-origin: left center;
+    width: 80px;
+    height: 3px;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.5) 0%, rgba(59, 130, 246, 0.15) 100%);
     z-index: -1;
+    transform-origin: left center;
 }
 
-.step-1::before{ transform: rotate(180deg); }
-.step-2::before{ transform: rotate(200deg); }
-.step-3::before{ transform: rotate(230deg); }
-.step-4::before{ transform: rotate(270deg); }
-.step-5::before{ transform: rotate(-50deg); }
-.step-6::before{ transform: rotate(-20deg); }
-.step-7::before{ transform: rotate(0deg); }
+/* Vị trí và góc độ cho từng bước theo vòng tròn (chiều kim đồng hồ) */
+/* Step 1: Top-right (12h-1h) */
+.step-1{ 
+    top: 8%;
+    right: 8%;
+    transform: translate(0, 0);
+}
+.step-1::before{
+    top: 50%;
+    left: -100px;
+    transform: rotate(-30deg);
+    width: 100px;
+}
+
+/* Step 2: Right (2h-3h) */
+.step-2{ 
+    top: 50%;
+    right: -10%;
+    transform: translate(0, -50%);
+}
+.step-2::before{
+    top: 50%;
+    left: -100px;
+    transform: rotate(0deg);
+    width: 100px;
+}
+
+/* Step 3: Bottom-right (4h-5h) */
+.step-3{ 
+    bottom: 18%;
+    right: 8%;
+    transform: translate(0, 0);
+}
+.step-3::before{
+    top: 50%;
+    left: -100px;
+    transform: rotate(30deg);
+    width: 100px;
+}
+
+/* Step 4: Bottom (6h) */
+.step-4{ 
+    bottom: 2%;
+    left: 50%;
+    transform: translate(-50%, 0);
+}
+.step-4::before{
+    top: -100px;
+    left: 50%;
+    width: 3px;
+    height: 100px;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.5) 0%, rgba(59, 130, 246, 0.15) 100%);
+}
+
+/* Step 5: Bottom-left (7h-8h) */
+.step-5{ 
+    bottom: 18%;
+    left: 8%;
+    transform: translate(0, 0);
+}
+.step-5::before{
+    top: 50%;
+    right: -100px;
+    transform: rotate(-30deg);
+    width: 100px;
+}
+
+/* Step 6: Left (9h-10h) */
+.step-6{ 
+    top: 50%;
+    left: -10%;
+    transform: translate(0, -50%);
+}
+.step-6::before{
+    top: 50%;
+    right: -100px;
+    transform: rotate(0deg);
+    width: 100px;
+}
+
+/* Step 7: Top-left (11h) */
+.step-7{ 
+    top: 8%;
+    left: 8%;
+    transform: translate(0, 0);
+}
+.step-7::before{
+    top: 50%;
+    right: -100px;
+    transform: rotate(30deg);
+    width: 100px;
 }
 
 .processNo{
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     border-radius: 999px;
-    background: linear-gradient(135deg, #005aa9 0%, #3a8de0 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: #fff;
     font-weight: 900;
+    font-size: 18px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 18px rgba(0, 90, 169, 0.28);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
     flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.processText{
+    flex: 1;
+    min-width: 0;
 }
 
 .processStepTitle{
-    font-weight: 900;
+    font-weight: 800;
+    font-size: 15px;
     color: #0a0f1c;
-    line-height: 1.2;
-    margin: 0 0 4px;
+    line-height: 1.3;
+    margin: 0 0 6px;
 }
 
 .processStepDesc{
     color: #475569;
     font-weight: 500;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
 }
-
-/* Vị trí 7 bubble xung quanh ảnh quy trình (màn hình lớn) */
-.step-1{ top: 2%; left: -10%; }
-.step-2{ top: 24%; left: -12%; }
-.step-3{ top: 46%; left: -12%; }
-.step-4{ bottom: 2%; left: -10%; }
-.step-5{ top: 24%; right: -12%; }
-.step-6{ top: 46%; right: -12%; }
-.step-7{ bottom: 2%; right: -10%; }
 
 .btnSecondary:hover {
     background: rgba(0, 90, 169, 0.14);
@@ -596,24 +839,57 @@
     }
 
     .processSection{
-        padding: 44px 0 12px;
+        padding: 44px 0 50px;
+        margin-bottom: 0;
     }
     .processTitle{
         font-size: 30px;
     }
     .processDiagram{
-        position: static;
-        max-width: 100%;
-        padding-top: 10px;
-        padding-bottom: 20px;
+        min-height: auto;
+        padding: 40px 20px;
+        border-radius: 24px;
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
     }
     .processImageWrapper{
-        max-width: 100%;
+        display: none;
     }
     .processStepBubble{
-        position: static;
+        position: static !important;
         max-width: 100%;
-        margin-top: 10px;
+        min-width: auto;
+        width: 100%;
+        margin: 0 0 16px 0;
+        padding: 16px;
+        transform: none !important;
+        order: 0;
+    }
+    .processStepBubble::before{
+        display: none;
+    }
+    
+    /* Sắp xếp thứ tự các bước cho tablet */
+    .step-1 { order: 1; }
+    .step-2 { order: 2; }
+    .step-3 { order: 3; }
+    .step-4 { order: 4; }
+    .step-5 { order: 5; }
+    .step-6 { order: 6; }
+    .step-7 { order: 7; }
+    .processNo{
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+    .processStepTitle{
+        font-size: 14px;
+    }
+    .processStepDesc{
+        font-size: 12px;
     }
 }
 
@@ -648,5 +924,73 @@
 
     .serviceText {
         font-size: 14px;
+    }
+
+    .processSection{
+        padding: 36px 0 40px;
+        margin-bottom: 0;
+    }
+    .processTitle{
+        font-size: 24px;
+        margin-bottom: 8px;
+    }
+    .processSub{
+        font-size: 13px;
+        padding: 0 10px;
+    }
+    .processDiagram{
+        padding: 20px 15px;
+        min-height: auto;
+        border-radius: 20px;
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+    }
+    .processImageWrapper{
+        display: none;
+    }
+    .processStepBubble{
+        position: static !important;
+        max-width: 100%;
+        min-width: auto;
+        width: 100%;
+        margin: 0 0 16px 0;
+        padding: 16px;
+        transform: none !important;
+        order: 0;
+    }
+    .processStepBubble::before{
+        display: none;
+    }
+    
+    /* Sắp xếp thứ tự các bước */
+    .step-1 { order: 1; }
+    .step-2 { order: 2; }
+    .step-3 { order: 3; }
+    .step-4 { order: 4; }
+    .step-5 { order: 5; }
+    .step-6 { order: 6; }
+    .step-7 { order: 7; }
+    .processNo{
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+    .processStepTitle{
+        font-size: 15px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+    .processStepDesc{
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .processNo{
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+        margin-right: 12px;
     }
 }

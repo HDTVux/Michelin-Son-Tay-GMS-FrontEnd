@@ -1,30 +1,160 @@
 .bookingWrapper {
   display: flex;
-  justify-content: center;
-  padding: 40px 16px;
-  background: #ffffff;           /* Bỏ nền xám, đổi thành trắng */
+  justify-content: flex-start;
+  align-items: center;
+  padding: 60px 5%;
+  background-image: url('../../../assets/anh_nen1.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+  overflow: hidden;
+  min-height: 600px;
+}
+
+.bookingWrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 0;
+}
+
+.bookingWrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #10b981, #34d399, #10b981);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
 }
 
 .bookingWrapper .bookingCard {
-  width: min(900px, 100%);
-  background: linear-gradient(360deg, #ffffff 0%, #005aa9 100%);
-  border-radius: 18px;
-  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.14);
-  padding: 40px 36px 34px;
-  text-align: center;
+  width: min(550px, 100%);
+  background: transparent;
+  border-radius: 24px;
+  overflow: visible;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  position: relative;
+  z-index: 1;
 }
 
-.bookingWrapper .bookingCard h2 {
-  margin: 0 0 10px;
-  font-size: 30px;
-  color: #f4f6f8;
-  font-weight: 700;
+
+.bookingWrapper .bookingCard .bookingImageContainer {
+  order: 2;
 }
 
-.bookingWrapper .bookingCard p {
-  margin: 0 0 26px;
-  font-size: 18px;
-  color: black;
+.bookingWrapper .bookingCard .bookingContent {
+  order: 1;
+}
+
+.bookingImageContainer {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 24px 24px 0;
+}
+
+.bookingImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+  display: block;
+}
+
+.bookingImageOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 90, 169, 0.1) 0%, rgba(0, 90, 169, 0.3) 100%);
+  pointer-events: none;
+}
+
+.bookingContent {
+  padding: 52px 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+  background: rgba(20, 20, 25, 0.98);
+  backdrop-filter: blur(25px);
+  border-radius: 20px;
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.6), 
+              0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+              0 0 100px rgba(0, 90, 169, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.3s ease;
+}
+
+.bookingContent:hover {
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7), 
+              0 0 0 1px rgba(255, 255, 255, 0.18) inset,
+              0 0 120px rgba(0, 90, 169, 0.3);
+  transform: translateY(-2px);
+}
+
+.formLabel {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 3.5px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  opacity: 0.9;
+}
+
+.formTitle {
+  margin: 0 0 20px;
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: baseline;
+}
+
+.formTitle .titlePart1 {
+  color: #ffffff;
+  margin-right: 8px;
+}
+
+.formTitle .titlePart2 {
+  color: #005aa9;
+}
+
+.formSubtitle {
+  margin: 0 0 32px;
+  font-size: 15px;
+  color: #9ca3af;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
 .bookingForm {
@@ -35,69 +165,126 @@
 
 .phoneInput {
   width: 100%;
-  padding: 18px 18px;
+  padding: 18px 22px;
   font-size: 16px;
-  border: 1px solid #e0e0e0;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
-  background: #f3f4f6;
-  color: #2b2b2b;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-weight: 500;
+  transition: all 0.25s ease;
 }
 
 .phoneInput:focus {
-  outline: 2px solid #3e3e3e;
-  border-color: #3e3e3e;
-  background: #ffffff;
+  outline: none;
+  border-color: #005aa9;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.15);
+}
+
+.phoneInput::placeholder {
+  color: #6b7280;
 }
 
 .actionRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .primaryButton,
 .secondaryButton {
-  padding: 18px;
-  font-size: 17px;
+  padding: 16px 24px;
+  font-size: 16px;
   font-weight: 700;
-  border-radius: 12px;
-  border: 1px solid transparent;
+  border-radius: 10px;
+  border: none;
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 160ms ease, background 160ms ease;
+  transition: all 0.25s ease;
 }
 
 .primaryButton {
-  background: #2f2f2f;
-  color: #ffffff;
-  border-color: #2f2f2f;
+  background: #ffffff;
+  color: #111827;
 }
 
 .primaryButton:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+  background: #f9fafb;
 }
 
 .secondaryButton {
-  background: #f3f4f6;
-  color: #2f2f2f;
-  border-color: #e1e1e1;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
 }
 
 .secondaryButton:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 968px) {
+  .bookingWrapper {
+    justify-content: center;
+    padding: 50px 4%;
+  }
+
+  .bookingWrapper .bookingCard {
+    width: min(600px, 100%);
+  }
+
+  .bookingContent {
+    padding: 48px 40px;
+  }
 }
 
 @media (max-width: 640px) {
-  .bookingCard {
-    padding: 28px 20px 24px;
+  .bookingWrapper {
+    padding: 40px 3%;
+    min-height: 500px;
   }
 
-  .bookingCard h2 {
-    font-size: 24px;
+  .bookingWrapper .bookingCard {
+    width: 100%;
   }
 
-  .bookingCard p {
-    font-size: 16px;
+  .bookingContent {
+    padding: 40px 28px;
+    border-radius: 18px;
+  }
+
+  .formLabel {
+    font-size: 11px;
+    margin-bottom: 14px;
+    letter-spacing: 2.5px;
+  }
+
+  .formTitle {
+    font-size: 32px;
+    margin-bottom: 16px;
+  }
+
+  .formSubtitle {
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+
+  .phoneInput {
+    padding: 16px 20px;
+    font-size: 15px;
+  }
+
+  .actionRow {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    padding: 15px 20px;
+    font-size: 15px;
   }
 }
