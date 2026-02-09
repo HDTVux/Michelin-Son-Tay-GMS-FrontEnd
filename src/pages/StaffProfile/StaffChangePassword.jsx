@@ -1,18 +1,17 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import ChangePassword from '../../components/ChangePassword/ChangePassword';
-import './ManageProfile.css';
-import './ManageProfile.header.css';
+import './StaffChangePassword.css';
 
-const AccountSecurity = () => {
+const StaffChangePassword = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (formData) => {
     setIsLoading(true);
     try {
-      // TODO: Gọi API đổi mật khẩu cho khách hàng
-      // const response = await changeCustomerPassword({
+      // TODO: Gọi API đổi mật khẩu cho nhân viên
+      // const response = await changeStaffPassword({
       //   currentPassword: formData.currentPassword,
       //   newPassword: formData.newPassword
       // });
@@ -21,7 +20,7 @@ const AccountSecurity = () => {
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       alert('Đổi mật khẩu thành công!');
-      navigate('/user-profile');
+      navigate('/staff-profile');
     } catch (error) {
       alert('Đổi mật khẩu thất bại. Vui lòng thử lại.');
       console.error('Error changing password:', error);
@@ -31,31 +30,24 @@ const AccountSecurity = () => {
   };
 
   const handleCancel = () => {
-    navigate('/user-profile');
+    navigate('/staff-profile');
   };
 
   return (
-    <div className="manageProfilePage">
-      <div className="manageProfileContainer">
-        <div className="manageProfileHeader">
-          <h1 className="manageProfileTitle">Bảo mật tài khoản</h1>
-          <Link to="/user-profile" className="backButton">
-            ← Về Thông tin cá nhân
-          </Link>
-        </div>
-
+    <div className="staffChangePasswordPage">
+      <div className="staffChangePasswordContainer">
         <ChangePassword
           onCancel={handleCancel}
           onSubmit={handleSubmit}
-          backLink="/user-profile"
-          backLinkText="Về Thông tin cá nhân"
+          backLink="/staff-profile"
+          backLinkText="Quay lại hồ sơ nhân viên"
           title="Đổi mật khẩu"
           isLoading={isLoading}
+          showHeader={true}
         />
       </div>
     </div>
   );
 };
 
-export default AccountSecurity;
-
+export default StaffChangePassword;

@@ -344,7 +344,7 @@
 }
 
 .processInner{
-    max-width: 1200px;
+    max-width: 1240px;
     margin: 0 auto;
     padding: 0 5%;
     position: relative;
@@ -423,34 +423,52 @@
     transform: translateX(0);
 }
 
+/* Desktop layout: tiêu đề bên trái, hình/process bên phải, bố cục cân đối */
+@media (min-width: 1024px) {
+    .processInner{
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        align-items: center;
+        column-gap: 56px;
+        justify-content: center;
+    }
+
+    .processHeader{
+        margin-bottom: 0;
+        max-width: 460px;
+    }
+
+    .processDiagram{
+        margin: 0;
+    }
+}
+
 .processDiagram{
     position: relative;
-    max-width: 1400px;
-    margin: 40px auto 0;
-    padding: 80px 40px 80px;
-    min-height: 900px;
+    max-width: 980px;
+    margin: 32px auto 0;
+    padding: 56px 40px 56px;
+    min-height: 760px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: rgba(255, 255, 255, 0.8);
     border-radius: 32px;
-    box-shadow: 0 24px 80px rgba(59, 130, 246, 0.2), 0 0 0 1px rgba(59, 130, 246, 0.1) inset;
+    box-shadow: 0 24px 80px rgba(59, 130, 246, 0.2);
     backdrop-filter: blur(10px);
     margin-bottom: 0;
-    border: 2px solid rgba(59, 130, 246, 0.15);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .processDiagram:hover {
     transform: translateY(-4px);
-    box-shadow: 0 32px 100px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.2) inset;
-    border-color: rgba(59, 130, 246, 0.25);
+    box-shadow: 0 32px 100px rgba(59, 130, 246, 0.25);
 }
 
 .processImageWrapper{
     position: relative;
-    width: 550px;
-    height: 550px;
+    width: 520px;
+    height: 520px;
     margin: 0 auto;
     display: flex;
     align-items: center;

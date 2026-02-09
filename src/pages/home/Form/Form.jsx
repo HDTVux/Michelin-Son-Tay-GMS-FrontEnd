@@ -25,29 +25,29 @@ export default function Form() {
                         <span className="titlePart2"> ngay!</span>
                     </h2>
                     <p className="formSubtitle">Nhập số điện thoại để chúng tôi liên hệ tư vấn</p>
-                    <form className="bookingForm" onSubmit={handleSubmit}>
-                        <input
-                            type="tel"
-                            name="phone"
-                            value={phone}
-                            onChange={(event) => setPhone(event.target.value)}
-                            placeholder="Nhập số điện thoại của bạn"
-                            required
-                            className="phoneInput"
-                        />
-                        <div className="actionRow">
-                            <button type="submit" className="primaryButton">
-                                Đặt ngay
-                            </button>
-                            <button
-                                type="button"
-                                className="secondaryButton"
-                                onClick={() => window.open('tel:0935464515')}
-                            >
-                                Gọi ngay
-                            </button>
-                        </div>
-                    </form>
+                <form className="bookingForm" onSubmit={handleSubmit}>
+                    <input
+                        type="tel"
+                        name="phone"
+                        value={phone}
+                        onChange={(event) => setPhone(event.target.value)}
+                        placeholder="Nhập số điện thoại của bạn"
+                        required
+                        className="phoneInput"
+                    />
+                    <div className="actionRow">
+                        <button type="submit" className="primaryButton">
+                            Đặt ngay
+                        </button>
+                        <button
+                            type="button"
+                            className="secondaryButton"
+                            onClick={() => window.open('tel:0935464515')}
+                        >
+                            Gọi ngay
+                        </button>
+                    </div>
+                </form>
                 </div>
             </div>
         </div>
