@@ -142,6 +142,28 @@
 	overflow: auto;
 	border: 1px solid #f0f0f0;
 	border-radius: 10px;
+	scrollbar-width: thin;
+	scrollbar-color: #9333ea #f1f1f1;
+}
+
+.booking-table__wrapper::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+.booking-table__wrapper::-webkit-scrollbar-track {
+	background: #f1f1f1;
+	border-radius: 10px;
+}
+
+.booking-table__wrapper::-webkit-scrollbar-thumb {
+	background-color: #9333ea;
+	border-radius: 10px;
+	border: 2px solid #f1f1f1;
+}
+
+.booking-table__wrapper::-webkit-scrollbar-thumb:hover {
+	background-color: #7e22ce;
 }
 
 .booking-card__title {
