@@ -10,9 +10,9 @@ export default function Form() {
     const handleSubmit = (event) => {
         event.preventDefault();
         const trimmedPhone = phone.trim();
-        if (!trimmedPhone) return;
+        const bookingState = trimmedPhone ? { phone: trimmedPhone } : {};
 
-        navigate('/booking', { state: { phone: trimmedPhone } });
+        navigate('/booking', { state: bookingState });
     };
 
     return (
@@ -32,7 +32,6 @@ export default function Form() {
                         value={phone}
                         onChange={(event) => setPhone(event.target.value)}
                         placeholder="Nhập số điện thoại của bạn"
-                        required
                         className="phoneInput"
                     />
                     <div className="actionRow">
