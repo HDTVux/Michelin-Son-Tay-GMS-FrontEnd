@@ -10,6 +10,207 @@
     background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #ffffff 100%);
 }
 
+/* ===== Intro Video Section ===== */
+.introVideoSection {
+    position: relative;
+    padding: 80px 5%;
+    background-image: url('../../assets/anh_nen3.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    overflow: hidden;
+}
+
+.introVideoSection::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 0;
+}
+
+.introVideoContainer {
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.introVideoRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: stretch;
+}
+
+.introTextCol {
+    background: rgba(51, 51, 51, 0.85);
+    padding: 50px 40px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transform: translateY(50px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100%;
+}
+
+.introTextCol.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.introWelcome {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #ffffff;
+    text-transform: uppercase;
+    margin: 0 0 16px 0;
+    line-height: 1.2;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
+}
+
+.introTextCol.visible .introWelcome {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.introTitle {
+    font-size: 72px;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0 0 40px 0;
+    line-height: 1.2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
+}
+
+.introTextCol.visible .introTitle {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.introTitle .titlePart1 {
+    color: #ffffff;
+}
+
+.introTitle .titlePart2 {
+    color: #005aa9;
+    text-shadow: 0 0 30px rgba(0, 90, 169, 0.8);
+}
+
+.introTextList {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.introTextItemWrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.introTextCol.visible .introTextItemWrapper {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(1) {
+    transition-delay: 0.6s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(2) {
+    transition-delay: 0.7s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(3) {
+    transition-delay: 0.8s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(4) {
+    transition-delay: 0.9s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(5) {
+    transition-delay: 1.0s;
+}
+
+.introTextIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #005aa9;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 90, 169, 0.4);
+}
+
+.introTextItem {
+    font-size: 22px;
+    color: #ffffff;
+    line-height: 1.6;
+    margin: 0;
+    font-weight: 400;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    flex: 1;
+}
+
+.introVideoMedia {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+}
+
+.introVideoMedia video {
+    width: 100%;
+    height: 100%;
+    min-height: 600px;
+    object-fit: cover;
+    display: block;
+    border-radius: 20px;
+}
+
+.introVideoOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    pointer-events: none;
+}
+
 /* wrapper mới cho phần trên của Home */
 .homeTop{
     width: 100%;
@@ -311,10 +512,11 @@
 .processSection{
     background-image: url('../../assets/anh_nen2.jpg');
     background-size: cover;
-    background-position: center;
+    background-position: center top;
     background-repeat: no-repeat;
     background-attachment: fixed;
-    padding: 56px 0 60px;
+    padding: 44px 0 60px;
+    margin-top: -12px;
     margin-bottom: 0;
     position: relative;
     overflow: hidden;
@@ -344,9 +546,9 @@
 }
 
 .processInner{
-    max-width: 1240px;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 0 5%;
+    padding: 0 2%;
     position: relative;
     z-index: 1;
 }
@@ -445,10 +647,10 @@
 
 .processDiagram{
     position: relative;
-    max-width: 980px;
+    max-width: 1180px;
     margin: 32px auto 0;
-    padding: 56px 40px 56px;
-    min-height: 760px;
+    padding: 48px 32px 48px;
+    min-height: 780px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -467,8 +669,8 @@
 
 .processImageWrapper{
     position: relative;
-    width: 520px;
-    height: 520px;
+    width: 620px;
+    height: 620px;
     margin: 0 auto;
     display: flex;
     align-items: center;
@@ -481,17 +683,17 @@
     height: 100%;
     object-fit: contain;
     display: block;
-    border-radius: 20px;
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+    border-radius: 0;
+    box-shadow: none;
     position: relative;
     z-index: 2;
-    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+    background: transparent;
 }
 
 .processStepBubble{
     position: absolute;
-    max-width: 280px;
-    min-width: 240px;
+    max-width: 260px;
+    min-width: 220px;
     background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
     border-radius: 18px;
     padding: 16px 18px;
@@ -525,95 +727,95 @@
 /* Vị trí và góc độ cho từng bước theo vòng tròn (chiều kim đồng hồ) */
 /* Step 1: Top-right (12h-1h) */
 .step-1{ 
-    top: 8%;
-    right: 8%;
+    top: 4%;
+    right: -2%;
     transform: translate(0, 0);
 }
 .step-1::before{
     top: 50%;
-    left: -100px;
+    left: -120px;
     transform: rotate(-30deg);
-    width: 100px;
+    width: 120px;
 }
 
 /* Step 2: Right (2h-3h) */
 .step-2{ 
     top: 50%;
-    right: -10%;
+    right: -8%;
     transform: translate(0, -50%);
 }
 .step-2::before{
     top: 50%;
-    left: -100px;
+    left: -120px;
     transform: rotate(0deg);
-    width: 100px;
+    width: 120px;
 }
 
 /* Step 3: Bottom-right (4h-5h) */
 .step-3{ 
-    bottom: 18%;
-    right: 8%;
+    bottom: 12%;
+    right: -2%;
     transform: translate(0, 0);
 }
 .step-3::before{
     top: 50%;
-    left: -100px;
+    left: -120px;
     transform: rotate(30deg);
-    width: 100px;
+    width: 120px;
 }
 
 /* Step 4: Bottom (6h) */
 .step-4{ 
-    bottom: 2%;
+    bottom: -2%;
     left: 50%;
     transform: translate(-50%, 0);
 }
 .step-4::before{
-    top: -100px;
+    top: -120px;
     left: 50%;
     width: 3px;
-    height: 100px;
+    height: 120px;
     transform: translateX(-50%);
     background: linear-gradient(180deg, rgba(59, 130, 246, 0.5) 0%, rgba(59, 130, 246, 0.15) 100%);
 }
 
 /* Step 5: Bottom-left (7h-8h) */
 .step-5{ 
-    bottom: 18%;
-    left: 8%;
+    bottom: 12%;
+    left: -2%;
     transform: translate(0, 0);
 }
 .step-5::before{
     top: 50%;
-    right: -100px;
+    right: -120px;
     transform: rotate(-30deg);
-    width: 100px;
+    width: 120px;
 }
 
 /* Step 6: Left (9h-10h) */
 .step-6{ 
     top: 50%;
-    left: -10%;
+    left: -8%;
     transform: translate(0, -50%);
 }
 .step-6::before{
     top: 50%;
-    right: -100px;
+    right: -120px;
     transform: rotate(0deg);
-    width: 100px;
+    width: 120px;
 }
 
 /* Step 7: Top-left (11h) */
 .step-7{ 
-    top: 8%;
-    left: 8%;
+    top: 4%;
+    left: -2%;
     transform: translate(0, 0);
 }
 .step-7::before{
     top: 50%;
-    right: -100px;
+    right: -120px;
     transform: rotate(30deg);
-    width: 100px;
+    width: 120px;
 }
 
 .processNo{
@@ -773,6 +975,42 @@
         flex: 1;
         min-width: 150px;
     }
+
+    .introVideoSection {
+        padding: 60px 4%;
+    }
+
+    .introVideoRow {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .introTextCol {
+        padding: 40px 30px;
+    }
+
+    .introWelcome {
+        font-size: 14px;
+    }
+
+    .introTitle {
+        font-size: 40px;
+    }
+
+    .introTextItem {
+        font-size: 18px;
+    }
+
+    .introTextIcon {
+        width: 28px;
+        height: 28px;
+        font-size: 16px;
+    }
+
+    .introVideoMedia video {
+        min-height: 500px;
+        max-height: 70vh;
+    }
 }
 
 @media (max-width: 768px) {
@@ -822,6 +1060,38 @@
     .btnPrimary, .btnSecondary {
         width: 100%;
         font-size: 15px;
+    }
+
+    .introVideoSection {
+        padding: 40px 3%;
+    }
+
+    .introTextCol {
+        padding: 30px 24px;
+    }
+
+    .introWelcome {
+        font-size: 14px;
+    }
+
+    .introTitle {
+        font-size: 32px;
+        margin-bottom: 24px;
+    }
+
+    .introTextItem {
+        font-size: 16px;
+    }
+
+    .introTextIcon {
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
+    }
+
+    .introVideoMedia video {
+        min-height: 400px;
+        max-height: 60vh;
     }
 
     .btnPrimary.iconOnly,

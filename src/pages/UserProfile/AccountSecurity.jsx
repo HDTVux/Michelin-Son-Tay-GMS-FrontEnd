@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import ChangePassword from '../../components/ChangePassword/ChangePassword';
 import './ManageProfile.css';
 import './ManageProfile.header.css';
 
 const AccountSecurity = () => {
+  useScrollToTop();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 

@@ -11,6 +11,9 @@
 	display: grid;
 	grid-template-columns: 1fr 1.05fr;
 	gap: 16px;
+	align-items: stretch;
+	max-width: 100%;
+	width: 100%;
 }
 
 .booking-left {
@@ -52,6 +55,16 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
+}
+
+.filter-card__labels {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+	font-weight: 700;
+	font-size: 14px;
+	color: #1f1f1f;
+	margin-bottom: 6px;
 }
 
 .filter-card__controls {
@@ -129,6 +142,28 @@
 	overflow: auto;
 	border: 1px solid #f0f0f0;
 	border-radius: 10px;
+	scrollbar-width: thin;
+	scrollbar-color: #9333ea #f1f1f1;
+}
+
+.booking-table__wrapper::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+.booking-table__wrapper::-webkit-scrollbar-track {
+	background: #f1f1f1;
+	border-radius: 10px;
+}
+
+.booking-table__wrapper::-webkit-scrollbar-thumb {
+	background-color: #9333ea;
+	border-radius: 10px;
+	border: 2px solid #f1f1f1;
+}
+
+.booking-table__wrapper::-webkit-scrollbar-thumb:hover {
+	background-color: #7e22ce;
 }
 
 .booking-card__title {
@@ -286,7 +321,6 @@
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	height: 100%;
 }
 
 .schedule-card__header {
@@ -319,13 +353,65 @@
 	background: #fff;
 }
 
+.schedule-search-box {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	border: 1px solid #d9d9d9;
+	border-radius: 6px;
+	background: #fff;
+}
+
+.schedule-search-box input {
+	border: none;
+	padding: 0;
+	outline: none;
+	flex: 1;
+	font-size: 14px;
+}
+
+.schedule-search-box .icon {
+	width: 18px;
+	height: 18px;
+	color: #6b7280;
+}
+
+.schedule-card__footer {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	margin-top: 4px;
+}
+
 .slot-list {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
-	max-height: 820px;
+	max-height: 600px;
 	overflow-y: auto;
-	padding-right: 4px;
+	padding-right: 8px;
+	scrollbar-width: thin;
+	scrollbar-color: #9333ea #f1f1f1;
+}
+
+.slot-list::-webkit-scrollbar {
+	width: 8px;
+}
+
+.slot-list::-webkit-scrollbar-track {
+	background: #f1f1f1;
+	border-radius: 10px;
+}
+
+.slot-list::-webkit-scrollbar-thumb {
+	background-color: #9333ea;
+	border-radius: 10px;
+	border: 2px solid #f1f1f1;
+}
+
+.slot-list::-webkit-scrollbar-thumb:hover {
+	background-color: #7e22ce;
 }
 
 .slot-item {
@@ -526,6 +612,41 @@
 	.slot-item__actions {
 		grid-area: actions;
 		justify-content: flex-end;
+	}
+}
+
+@media (max-width: 960px) {
+	.booking-layout {
+		display: flex;
+		flex-direction: row;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		gap: 16px;
+		padding: 24px;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: thin;
+		scrollbar-color: #9333ea #f1f1f1;
+	}
+
+	.booking-layout::-webkit-scrollbar {
+		height: 8px;
+	}
+
+	.booking-layout::-webkit-scrollbar-track {
+		background: #f1f1f1;
+		border-radius: 10px;
+	}
+
+	.booking-layout::-webkit-scrollbar-thumb {
+		background-color: #9333ea;
+		border-radius: 10px;
+	}
+
+	.booking-left,
+	.schedule-card {
+		flex: 0 0 90%;
+		min-width: 90%;
+		scroll-snap-align: start;
 	}
 }
 

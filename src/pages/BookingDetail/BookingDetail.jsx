@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import './BookingDetail.css';
 import './BookingDetail.header.css';
 import './BookingDetail.sections.css';
@@ -7,6 +8,7 @@ import './BookingDetail.actions.css';
 import './BookingDetail.modal.css';
 
 const BookingDetail = () => {
+  useScrollToTop();
   const { id } = useParams();
   const navigate = useNavigate();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);

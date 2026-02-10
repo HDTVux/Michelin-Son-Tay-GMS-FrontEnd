@@ -11,6 +11,7 @@ import Partners from './Partners/Partners.jsx';
 const Home = () => {
     const [isVisible, setIsVisible] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [introVisible, setIntroVisible] = useState(false);
 
     useEffect(() => {
         setIsVisible(true);
@@ -38,6 +39,30 @@ const Home = () => {
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('focus', handleFocus);
             window.removeEventListener('authChange', handleAuthChange);
+        };
+    }, []);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        setIntroVisible(true);
+                    }
+                });
+            },
+            { threshold: 0.2 }
+        );
+
+        const introSection = document.querySelector('.introVideoSection');
+        if (introSection) {
+            observer.observe(introSection);
+        }
+
+        return () => {
+            if (introSection) {
+                observer.unobserve(introSection);
+            }
         };
     }, []);
 
@@ -95,6 +120,36 @@ const Home = () => {
     return (
         <>
         <Banner/>
+        
+        {/* Phần giới thiệu về Michelin và Video */}
+        <section className="introVideoSection">
+            <div className="introVideoContainer">
+                <div className="introVideoRow">
+                    <div className={`introTextCol ${introVisible ? 'visible' : ''}`}>
+                        <h2 className="introWelcome">Chào mừng đến với</h2>
+                        <h1 className="introTitle">
+                            <span className="titlePart1">Michellin</span>
+                            <span className="titlePart2">Sơn Tây</span>
+                        </h1>
+                        <div className="introTextList">
+                            {introText.map((text, idx) => (
+                                <div key={idx} className="introTextItemWrapper">
+                                    <div className="introTextIcon">✓</div>
+                                    <p className="introTextItem">{text}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="introVideoMedia">
+                        <video autoPlay loop muted playsInline>
+                            <source src={TVC} type="video/mp4" />
+                        </video>
+                        <div className="introVideoOverlay" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
         {!isAuthenticated && <Form/>}
         <Service/>
         <Partners/>

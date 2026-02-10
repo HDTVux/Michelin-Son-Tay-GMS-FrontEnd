@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import './MyBookings.css';
 import './MyBookings.header.css';
 import './MyBookings.filter.css';
 import './MyBookings.list.css';
 
 const MyBookings = () => {
+  useScrollToTop();
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('date-desc');

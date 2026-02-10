@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import './BookingManagement.css';
 import Dayslot from './Dayslot.jsx';
+import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 
 const pendingBookings = [
     {
@@ -55,6 +56,7 @@ const sampleSlotData = {
 };
 
 const fixedSlots = buildSlots();
+const allSlots = buildAllSlots();
 
 const approvedBookingsBySlot = {
     '08:30': [
@@ -78,6 +80,7 @@ const approvedBookingsBySlot = {
 };
 
 export default function BookingManagement() {
+    useScrollToTop(); // Tự động scroll lên đầu trang khi vào
     const [selectedSlot, setSelectedSlot] = useState(null);
 
     const handleSlotOpen = (slot) => {
@@ -119,27 +122,31 @@ function PendingPanel({ title, icon, tone, data, actionLabel }) {
             </div>
 
             <div className="pending-filters">
+                <div className="filter-card__labels">
+                    <label>Loại khách hàng</label>
+                    <label>Thời gian gửi yêu cầu</label>
+                    <label>Trạng thái</label>
+                </div>
                 <div className="filter-card__controls">
                     <select>
-                        <option>Loại khách hàng</option>
                         <option>Tất cả</option>
                         <option>Vãng Lai</option>
                         <option>có tài khoản</option>
                     </select>
                     <select>
-                        <option>Thời gian gửi yêu cầu</option>
                         <option>Hôm nay</option>
                         <option>Hôm qua</option>
-                        <option>7 ngày qua</option>
-                        <option>30 ngày qua</option>
+                        <option>Tuần này</option>
+                        <option>Tuần trước</option>
                         <option>Tháng này</option>
                         <option>Tháng trước</option>
                     </select>
                     <select>
-                        <option>Trạng thái</option>
+                        <option>Tất cả</option>
                         <option>chờ/xác nhận</option>
                         <option>đã liên hệ</option>
                         <option>hủy lịch</option>
+                        <option>spam</option>
                     </select>
                 </div>
                 <div className="filter-card__actions">
@@ -202,6 +209,16 @@ function PendingPanel({ title, icon, tone, data, actionLabel }) {
 }
 
 function SchedulePanel({ dateLabel, slots, onOpenSlot }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    const allDisplaySlots = allSlots;
+    const filteredSlots = searchTerm 
+        ? allDisplaySlots.filter(slot => 
+            slot.time.includes(searchTerm) || 
+            slot.customers.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
+        : allDisplaySlots;
+
     return (
         <section className="schedule-card">
             <div className="schedule-card__header">
@@ -215,8 +232,18 @@ function SchedulePanel({ dateLabel, slots, onOpenSlot }) {
                 </div>
             </div>
 
+            <div className="schedule-search-box">
+                <input 
+                    type="text" 
+                    placeholder="Tìm kiếm thời gian hoặc khách hàng..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <SearchIcon />
+            </div>
+
             <div className="slot-list">
-                {slots.map((slot) => (
+                {filteredSlots.map((slot) => (
                     <button
                         type="button"
                         key={slot.time}
@@ -306,9 +333,31 @@ function WarnIcon() {
 
 function buildSlots() {
     const slots = [];
-    for (let hour = 6; hour <= 18; hour++) {
+	for (let hour = 6; hour <= 10; hour++) {
         ['00', '30'].forEach((minute) => {
-            if (hour === 18 && minute === '30') return;
+            const time = `${String(hour).padStart(2, '0')}:${minute}`;
+            const data = sampleSlotData[time] || { customers: [], current: 0, capacity: 3 };
+            const { current, capacity } = data;
+            let state = 'ok';
+            if (current === capacity) state = 'full';
+            if (current > capacity) state = 'over';
+            slots.push({
+                time,
+                customers: data.customers,
+                quota: `${current}/${capacity}`,
+                state,
+            });
+        });
+    }
+    return slots;
+}
+
+function buildAllSlots() {
+    const slots = [];
+	for (let hour = 6; hour <= 24; hour++) {
+        ['00', '30'].forEach((minute) => {
+			// Với 24h chỉ lấy 24:00, bỏ 24:30
+			if (hour === 24 && minute === '30') return;
             const time = `${String(hour).padStart(2, '0')}:${minute}`;
             const data = sampleSlotData[time] || { customers: [], current: 0, capacity: 3 };
             const { current, capacity } = data;

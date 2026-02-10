@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import './ManageProfile.css';
 import './ManageProfile.header.css';
 import './ManageProfile.linkedAccounts.css';
 import './ManageProfile.footer.css';
 
 const LinkedAccounts = () => {
+  useScrollToTop();
   const [linkedAccounts, setLinkedAccounts] = useState({
     google: true,
     zalo: false

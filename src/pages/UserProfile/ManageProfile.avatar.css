@@ -1,9 +1,11 @@
 /* Avatar Section */
 .avatarUploadArea {
   display: flex;
-  gap: 24px;
-  align-items: flex-start;
-  margin-bottom: 12px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .avatarPreview {
@@ -11,9 +13,9 @@
 }
 
 .avatarPreviewPlaceholder {
-  width: 120px;
-  height: 120px;
-  border-radius: 12px;
+  width: 140px;
+  height: 140px;
+  border-radius: 999px;
   background: #eef2f8;
   display: flex;
   align-items: center;
@@ -27,21 +29,14 @@
 }
 
 .avatarPreviewImage {
-  width: 120px;
-  height: 120px;
-  border-radius: 12px;
+  width: 140px;
+  height: 140px;
+  border-radius: 999px;
   object-fit: cover;
 }
 
-.avatarActions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-top: 12px;
-}
-
 .btnUpload {
-  padding: 10px 20px;
+  padding: 10px 32px;
   background: #005aa9;
   color: white;
   border: none;
@@ -55,30 +50,25 @@
   background: #004080;
 }
 
-.btnDelete {
-  padding: 10px 20px;
-  background: #e2e8f0;
-  color: #475569;
+.btnDeleteInline {
+  padding: 0;
+  background: transparent;
   border: none;
-  border-radius: 8px;
-  font-weight: 500;
+  color: #64748b;
+  font-size: 13px;
+  text-decoration: underline;
   cursor: pointer;
-  transition: all 0.3s ease;
 }
 
-.btnDelete:hover:not(:disabled) {
-  background: #cbd5e1;
-}
-
-.btnDelete:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.btnDeleteInline:hover {
+  color: #475569;
 }
 
 .avatarHint {
   font-size: 13px;
   color: #64748b;
-  margin: 0;
+  margin: 0 0 24px;
+  text-align: center;
 }
 
 /* Responsive */
