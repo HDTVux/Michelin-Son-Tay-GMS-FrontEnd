@@ -1,10 +1,8 @@
 import './Services.css';
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import lopMam from '../../../assets/lop and mam.jpg';
-import baoDuong from '../../../assets/baoduongnhanh.jpg';
-import veSinh from '../../../assets/ve_sinh_xe.jpg';
-import ruaXe from '../../../assets/cham_soc_xe.jpg';
+import { fetchHomeServices } from '../../../services/homeService';
+import serviceFallback from '../../../assets/lop and mam.jpg';
 import combo1 from '../../../assets/z7498307797407_a65c60e07a1b8983cdf5350f98b6cc1d.jpg';
 import combo2 from '../../../assets/z7498310198837_146b124ec8cd2391c04e27a0dde397ff.jpg';
 import combo3 from '../../../assets/z7498315906940_a22d5305d93086e7d629fd4795a6e222.jpg';
@@ -12,33 +10,9 @@ import combo4 from '../../../assets/phanh_an_tam.jpg';
 import processImg from '../../../assets/{CCEDBCC3-2144-40E6-B397-8E9D2FA15587}.png';
 
 const Services = () => {
-  // Danh sách dịch vụ tiện ích nổi bật
-  const services = [
-    {
-      title: 'DỊCH VỤ LỐP & MÂM',
-      description: 'Dịch vụ thay lốp và mâm xe chuyên nghiệp, đảm bảo chất lượng và an toàn.',
-      image: lopMam,
-      price: 'Liên hệ'
-    },
-    {
-      title: 'BẢO DƯỠNG',
-      description: 'Bảo dưỡng định kỳ cho xe của bạn, giúp xe luôn hoạt động tốt nhất.',
-      image: baoDuong,
-      price: 'Liên hệ'
-    },
-    {
-      title: 'VỆ SINH VÀ KIỂM TRA',
-      description: 'Dịch vụ vệ sinh và kiểm tra toàn diện cho xe của bạn.',
-      image: veSinh,
-      price: 'Liên hệ'
-    },
-    {
-      title: 'RỬA XE',
-      description: 'Dịch vụ rửa xe chuyên nghiệp, giúp xe luôn sáng bóng như mới.',
-      image: ruaXe,
-      price: 'Liên hệ'
-    }
-  ];
+  const [services, setServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [servicesError, setServicesError] = useState('');
 
   // Gói dịch vụ được tin dùng
   const combos = [
@@ -92,11 +66,41 @@ const Services = () => {
     }
   ];
 
+  useEffect(() => {
+    let active = true;
+    setServicesLoading(true);
+    setServicesError('');
+
+    fetchHomeServices()
+      .then((res) => {
+        if (!active) return;
+        const list = Array.isArray(res?.data) ? res.data : [];
+        const mapped = list.map((item) => ({
+          id: item.serviceId,
+          title: item.title || 'Dịch vụ',
+          description: item.shortDescription || '',
+          image: item.mediaThumbnail || '',
+          price: item.showPrice ? item.displayPrice || 'Liên hệ' : 'Liên hệ',
+        }));
+        setServices(mapped);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setServicesError(err?.message || 'Không thể tải danh sách dịch vụ.');
+      })
+      .finally(() => {
+        if (active) setServicesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // State cho dịch vụ slider
   const [serviceIndex, setServiceIndex] = useState(0);
   const [serviceVisible, setServiceVisible] = useState(4);
   const [isServicePaused, setIsServicePaused] = useState(false);
-  const [serviceDragOffset, setServiceDragOffset] = useState(0);
   const serviceTrackRef = useRef(null);
   const servicePointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
@@ -104,17 +108,8 @@ const Services = () => {
   const [comboIndex, setComboIndex] = useState(0);
   const [comboVisible, setComboVisible] = useState(3);
   const [isComboPaused, setIsComboPaused] = useState(false);
-  const [comboDragOffset, setComboDragOffset] = useState(0);
   const comboTrackRef = useRef(null);
   const comboPointer = useRef({ startX: 0, deltaX: 0, dragging: false });
-
-  // Refs cho animation scroll
-  const servicesHeroRef = useRef(null);
-  const combosHeroRef = useRef(null);
-  const processHeaderRef = useRef(null);
-  const [servicesTitleVisible, setServicesTitleVisible] = useState(false);
-  const [combosTitleVisible, setCombosTitleVisible] = useState(false);
-  const [processTitleVisible, setProcessTitleVisible] = useState(false);
 
   useEffect(() => {
     const calc = () => {
@@ -140,57 +135,9 @@ const Services = () => {
     return () => window.removeEventListener('resize', calc);
   }, []);
 
-  // Intersection Observer cho animation tiêu đề
   useEffect(() => {
-    const servicesObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setServicesTitleVisible(true);
-          }
-        });
-      },
-      { threshold: 0.2, rootMargin: '0px 0px -100px 0px' }
-    );
-
-    const combosObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setCombosTitleVisible(true);
-          }
-        });
-      },
-      { threshold: 0.2, rootMargin: '0px 0px -100px 0px' }
-    );
-
-    const processObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setProcessTitleVisible(true);
-          }
-        });
-      },
-      { threshold: 0.2, rootMargin: '0px 0px -100px 0px' }
-    );
-
-    if (servicesHeroRef.current) {
-      servicesObserver.observe(servicesHeroRef.current);
-    }
-    if (combosHeroRef.current) {
-      combosObserver.observe(combosHeroRef.current);
-    }
-    if (processHeaderRef.current) {
-      processObserver.observe(processHeaderRef.current);
-    }
-
-    return () => {
-      servicesObserver.disconnect();
-      combosObserver.disconnect();
-      processObserver.disconnect();
-    };
-  }, []);
+    setServiceIndex(0);
+  }, [serviceVisible, services.length]);
 
   const serviceMaxIndex = Math.max(0, services.length - serviceVisible);
   const serviceOffset = (serviceIndex * 100) / serviceVisible;
@@ -224,40 +171,24 @@ const Services = () => {
   const handleServicePointerDown = (event) => {
     setIsServicePaused(true);
     servicePointer.current.dragging = true;
-    const startX = event.clientX ?? event.touches?.[0]?.clientX;
-    if (startX !== undefined) {
-      servicePointer.current.startX = startX;
-    }
-    setServiceDragOffset(0);
+    servicePointer.current.startX = event.clientX ?? event.touches?.[0]?.clientX;
   };
 
   const handleServicePointerMove = (event) => {
     if (!servicePointer.current.dragging) return;
-    event.preventDefault();
     const x = event.clientX ?? event.touches?.[0]?.clientX;
-    if (x === undefined) return;
-    const deltaX = x - servicePointer.current.startX;
-    servicePointer.current.deltaX = deltaX;
-    setServiceDragOffset(deltaX);
+    servicePointer.current.deltaX = x - servicePointer.current.startX;
   };
 
   const handleServicePointerUp = () => {
     if (!servicePointer.current.dragging) return;
     servicePointer.current.dragging = false;
     const dx = servicePointer.current.deltaX;
-    const threshold = 50; // Ngưỡng kéo để chuyển slide
-    
-    if (Math.abs(dx) > threshold) {
-      if (dx < 0) {
-        // Kéo sang trái -> slide tiếp theo
-        serviceNext();
-      } else {
-        // Kéo sang phải -> slide trước
-        servicePrev();
-      }
+    if (Math.abs(dx) > 50) {
+      if (dx < 0) serviceNext();
+      else servicePrev();
     }
     servicePointer.current.deltaX = 0;
-    setServiceDragOffset(0);
     setTimeout(() => setIsServicePaused(false), 300);
   };
 
@@ -265,40 +196,24 @@ const Services = () => {
   const handleComboPointerDown = (event) => {
     setIsComboPaused(true);
     comboPointer.current.dragging = true;
-    const startX = event.clientX ?? event.touches?.[0]?.clientX;
-    if (startX !== undefined) {
-      comboPointer.current.startX = startX;
-    }
-    setComboDragOffset(0);
+    comboPointer.current.startX = event.clientX ?? event.touches?.[0]?.clientX;
   };
 
   const handleComboPointerMove = (event) => {
     if (!comboPointer.current.dragging) return;
-    event.preventDefault();
     const x = event.clientX ?? event.touches?.[0]?.clientX;
-    if (x === undefined) return;
-    const deltaX = x - comboPointer.current.startX;
-    comboPointer.current.deltaX = deltaX;
-    setComboDragOffset(deltaX);
+    comboPointer.current.deltaX = x - comboPointer.current.startX;
   };
 
   const handleComboPointerUp = () => {
     if (!comboPointer.current.dragging) return;
     comboPointer.current.dragging = false;
     const dx = comboPointer.current.deltaX;
-    const threshold = 50; // Ngưỡng kéo để chuyển slide
-    
-    if (Math.abs(dx) > threshold) {
-      if (dx < 0) {
-        // Kéo sang trái -> slide tiếp theo
-        comboNext();
-      } else {
-        // Kéo sang phải -> slide trước
-        comboPrev();
-      }
+    if (Math.abs(dx) > 50) {
+      if (dx < 0) comboNext();
+      else comboPrev();
     }
     comboPointer.current.deltaX = 0;
-    setComboDragOffset(0);
     setTimeout(() => setIsComboPaused(false), 300);
   };
 
@@ -306,16 +221,8 @@ const Services = () => {
     <>
       {/* Danh sách dịch vụ tiện ích nổi bật */}
       <section className="servicesPage">
-        <div 
-          className={`servicesHero ${servicesTitleVisible ? 'visible' : ''}`}
-          ref={servicesHeroRef}
-        >
-          <div className="servicesLabel">/DỊCH VỤ/</div>
-          <h1 className="servicesTitle">
-            <span className="titlePart1">Chúng tôi cung cấp</span>
-            <span className="titlePart2"> đa dạng</span>
-            <span className="titlePart1"> dịch vụ</span>
-          </h1>
+        <div className="servicesHero">
+          <h1 className="servicesTitle">Danh sách dịch vụ tiện ích nổi bật</h1>
           <p className="servicesSubtitle">
             Các dịch vụ chuyên nghiệp cho xe của bạn
           </p>
@@ -335,44 +242,63 @@ const Services = () => {
             &lt;
           </button>
           <div className="sliderViewport">
-            <div
-              className="sliderTrack"
-              ref={serviceTrackRef}
-              style={{ 
-                transform: `translateX(calc(-${serviceOffset}% + ${serviceDragOffset}px))`,
-                display: 'flex',
-                transition: servicePointer.current.dragging ? 'none' : 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
-                cursor: servicePointer.current.dragging ? 'grabbing' : 'grab',
-                touchAction: 'pan-y pinch-zoom'
-              }}
-              onPointerDown={handleServicePointerDown}
-              onPointerMove={handleServicePointerMove}
-              onPointerUp={handleServicePointerUp}
-              onPointerCancel={handleServicePointerUp}
-              onTouchStart={handleServicePointerDown}
-              onTouchMove={handleServicePointerMove}
-              onTouchEnd={handleServicePointerUp}
-              onTouchCancel={handleServicePointerUp}
-            >
-              {services.map((service, idx) => (
-                <div key={idx} className="serviceSlide">
-                  <div className="serviceCard">
-                    <div className="serviceCard-imageTop">
-                      <img src={service.image} alt={service.title} className="serviceCard-image" />
-                    </div>
-                    <div className="serviceCard-content">
-                      <h3 className="serviceTitle">{service.title}</h3>
-                      <p className="serviceDescription">{service.description}</p>
-                      <div className="servicePrice">Giá: {service.price}</div>
-                      <div className="serviceActions">
-                        <Link to="/services" className="btnViewDetail">Xem chi tiết</Link>
-                        <Link to="/booking" className="btnBookNow">Đặt lịch</Link>
+            {servicesLoading && (
+              <div className="serviceStatus">Đang tải dịch vụ...</div>
+            )}
+            {!servicesLoading && servicesError && (
+              <div className="serviceStatus error">{servicesError}</div>
+            )}
+            {!servicesLoading && !servicesError && services.length === 0 && (
+              <div className="serviceStatus">Chưa có dịch vụ để hiển thị.</div>
+            )}
+            {services.length > 0 && (
+              <div
+                className="sliderTrack"
+                ref={serviceTrackRef}
+                style={{ 
+                  transform: `translateX(-${serviceOffset}%)`,
+                  display: 'flex',
+                  transition: 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)'
+                }}
+                onPointerDown={handleServicePointerDown}
+                onPointerMove={handleServicePointerMove}
+                onPointerUp={handleServicePointerUp}
+                onPointerCancel={handleServicePointerUp}
+                onTouchStart={handleServicePointerDown}
+                onTouchMove={handleServicePointerMove}
+                onTouchEnd={handleServicePointerUp}
+              >
+                {services.map((service, idx) => (
+                  <div key={service.id || idx} className="serviceSlide">
+                    <div className="serviceCard">
+                      <div className="serviceCard-imageTop">
+                        <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
+                      </div>
+                      <div className="serviceCard-content">
+                        <h3 className="serviceTitle">{service.title}</h3>
+                        <p className="serviceDescription">{service.description || 'Hiện chưa có mô tả cho dịch vụ này.'}</p>
+                        <div className="servicePrice">Giá: {service.price || 'Liên hệ'}</div>
+                        <div className="serviceActions">
+                          <Link
+                            to={service.id ? `/services/${service.id}` : '/services'}
+                            className="btnViewDetail"
+                          >
+                            Xem chi tiết
+                          </Link>
+                          <Link
+                            to="/booking"
+                            state={service.id ? { serviceId: service.id } : undefined}
+                            className="btnBookNow"
+                          >
+                            Đặt lịch
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
           <button 
             className="sliderArrow right" 
@@ -388,15 +314,8 @@ const Services = () => {
       {/* Quy trình dịch vụ */}
       <section className="processSection">
         <div className="processInner">
-          <div 
-            className={`processHeader ${processTitleVisible ? 'visible' : ''}`}
-            ref={processHeaderRef}
-          >
-            <div className="servicesLabel">/QUY TRÌNH/</div>
-            <h2 className="processTitle">
-              <span className="titlePart1">Quy trình</span>
-              <span className="titlePart2"> dịch vụ</span>
-            </h2>
+          <div className="processHeader">
+            <h2 className="processTitle">Quy trình dịch vụ</h2>
             <p className="processSub">7 bước rõ ràng, minh bạch – giúp bạn yên tâm trong suốt quá trình</p>
           </div>
 
@@ -459,15 +378,8 @@ const Services = () => {
 
       {/* Gói dịch vụ được tin dùng */}
       <section className="combosPage">
-        <div 
-          className={`servicesHero ${combosTitleVisible ? 'visible' : ''}`}
-          ref={combosHeroRef}
-        >
-          <div className="servicesLabel">/GÓI DỊCH VỤ/</div>
-          <h1 className="servicesTitle">
-            <span className="titlePart1">Gói dịch vụ</span>
-            <span className="titlePart2"> được tin dùng</span>
-          </h1>
+        <div className="servicesHero">
+          <h1 className="servicesTitle">Gói dịch vụ được tin dùng</h1>
           <p className="servicesSubtitle">
             Giá cả minh bạch, dịch vụ chất lượng
           </p>
@@ -491,11 +403,9 @@ const Services = () => {
               className="sliderTrack"
               ref={comboTrackRef}
               style={{ 
-                transform: `translateX(calc(-${comboOffset}% + ${comboDragOffset}px))`,
+                transform: `translateX(-${comboOffset}%)`,
                 display: 'flex',
-                transition: comboPointer.current.dragging ? 'none' : 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
-                cursor: comboPointer.current.dragging ? 'grabbing' : 'grab',
-                touchAction: 'pan-y pinch-zoom'
+                transition: 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)'
               }}
               onPointerDown={handleComboPointerDown}
               onPointerMove={handleComboPointerMove}
@@ -504,7 +414,6 @@ const Services = () => {
               onTouchStart={handleComboPointerDown}
               onTouchMove={handleComboPointerMove}
               onTouchEnd={handleComboPointerUp}
-              onTouchCancel={handleComboPointerUp}
             >
               {combos.map((combo, idx) => (
                 <div key={idx} className="serviceSlide">
@@ -521,7 +430,7 @@ const Services = () => {
                       <div className="servicePrice">Giá: {combo.price}</div>
                       <div className="serviceActions">
                         <Link to="/services" className="btnViewDetail">Xem chi tiết</Link>
-                        <Link to="/booking" className="btnBookNow">Đặt lịch nhanh</Link>
+                        <Link to="/booking" className="btnBookNow">Đặt lịch ngay</Link>
                       </div>
                     </div>
                   </div>

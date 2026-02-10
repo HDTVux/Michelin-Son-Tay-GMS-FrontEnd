@@ -6,12 +6,12 @@
   font-family: 'Inter', sans-serif;
 }
 
-.stepper-wrapper {
+.booking-page .stepper-wrapper {
   position: relative;
   margin-bottom: 40px;
 }
 
-.progress-track {
+.booking-page .progress-track {
   position: absolute;
   inset: 32px 10px auto;
   height: 6px;
@@ -21,21 +21,21 @@
   z-index: 0;
 }
 
-.progress-fill {
+.booking-page .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #2563eb, #60a5fa);
   width: 0%;
   transition: width 0.4s ease;
 }
 
-.stepper {
+.booking-page .stepper {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
 }
 
-.stepper .step {
+.booking-page .stepper .step {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -45,7 +45,7 @@
   flex: 1;
 }
 
-.stepper .dot {
+.booking-page .stepper .dot {
   width: 40px;
   height: 40px;
   border-radius: 999px;
@@ -60,7 +60,7 @@
   transition: all 0.25s ease;
 }
 
-.stepper .step.active .dot {
+.booking-page .stepper .step.active .dot {
   background: #2563eb;
   color: #fff;
   border-color: #2563eb;
@@ -68,33 +68,33 @@
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
 }
 
-.stepper .step.completed .dot {
+.booking-page .stepper .step.completed .dot {
   background: #22c55e;
   border-color: #16a34a;
   color: #fff;
 }
 
-.stepper .label {
+.booking-page .stepper .label {
   font-weight: 600;
   font-size: 13px;
   text-align: center;
   color: #6b7280;
 }
 
-.stepper .step.active .label {
+.booking-page .stepper .step.active .label {
   color: #111827;
 }
 
-.section-title { font-size: 18px; font-weight: 800; margin: 0 0 12px; }
+.booking-page .section-title { font-size: 18px; font-weight: 800; margin: 0 0 12px; }
 
-.booking-actions {
+.booking-page .booking-actions {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   margin-top: 12px;
 }
 
-.btn {
+.booking-page .btn {
   padding: 12px 18px;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
@@ -103,17 +103,26 @@
   font-weight: 700;
 }
 
-.btn.primary {
+.booking-page .btn.primary {
   background: #1d4ed8;
   color: #fff;
   border-color: #1d4ed8;
 }
 
-.btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+.booking-page .btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+
+.booking-page .link-btn {
+  margin-left: 12px;
+  color: #1d4ed8;
+  background: transparent;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
 
 @media (max-width: 768px) {
   .booking-page { padding: 20px 14px 48px; }
-  .stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; }
+  .booking-page .stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; }
   /* Trên mobile cũng giữ khoảng cách hợp lý giữa số bước và thanh tiến trình */
-  .progress-track { inset: 32px 0 auto; }
+  .booking-page .progress-track { inset: 32px 0 auto; }
 }

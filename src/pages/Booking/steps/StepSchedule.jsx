@@ -1,5 +1,6 @@
 import React from 'react';
-import './StepSchedule.css';
+import styles from './StepSchedule.module.css';
+import bookingStyles from '../Booking.module.css';
 
 const SLOT_GROUPS = [
   {
@@ -65,12 +66,12 @@ export default function StepSchedule({ value, onChange, onBack, onNext }) {
 
   return (
     <>
-    <h3 className="section-title">Chọn ngày & giờ</h3>
-    <div className="schedule-step">
-      <div className="field">
-        <label className="slot-title">Chọn ngày đặt lịch</label>
-        <div className="date-input">
-          <span className="date-icon">📅</span>
+    <h3 className={bookingStyles['section-title']}>Chọn ngày & giờ</h3>
+    <div className={styles['schedule-step']}>
+      <div className={styles.field}>
+        <label className={styles['slot-title']}>Chọn ngày đặt lịch</label>
+        <div className={styles['date-input']}>
+          <span className={styles['date-icon']}>📅</span>
           <select value={value.date} onChange={handleDate}>
             <option value="">Chọn ngày</option>
             {dateOptions.map((opt) => (
@@ -80,26 +81,26 @@ export default function StepSchedule({ value, onChange, onBack, onNext }) {
         </div>
       </div>
 
-      <div className="slot-section">
-        <div className="slot-title">Chọn khung giờ</div>
-        <div className="slot-sub">Khung giờ phục vụ từ 06h đến 24h. Chọn theo buổi Sáng / Chiều / Tối.</div>
+      <div className={styles['slot-section']}>
+        <div className={styles['slot-title']}>Chọn khung giờ</div>
+        <div className={styles['slot-sub']}>Khung giờ phục vụ từ 06h đến 24h. Chọn theo buổi Sáng / Chiều / Tối.</div>
 
         {SLOT_GROUPS.map((group) => (
-          <div key={group.label} className="slot-group">
-            <div className="slot-group-label">{group.label}</div>
-            <div className="slot-grid">
+          <div key={group.label} className={styles['slot-group']}>
+            <div className={styles['slot-group-label']}>{group.label}</div>
+            <div className={styles['slot-grid']}>
               {group.items.map((item) => {
                 const active = value.time === item.time;
                 return (
                   <button
                     key={item.time}
                     type="button"
-                    className={`slot-btn ${active ? 'active' : ''} ${!item.available ? 'disabled' : ''}`}
+                    className={[styles['slot-btn'], active ? styles.active : '', !item.available ? styles.disabled : ''].filter(Boolean).join(' ')}
                     onClick={() => handleTime(item.time, item.available)}
                     disabled={!item.available}
                   >
-                    <div className="slot-time">{item.time}</div>
-                    <div className="slot-status">{item.available ? 'Còn trống' : 'Đã đầy'}</div>
+                    <div className={styles['slot-time']}>{item.time}</div>
+                    <div className={styles['slot-status']}>{item.available ? 'Còn trống' : 'Đã đầy'}</div>
                   </button>
                 );
               })}
@@ -108,9 +109,9 @@ export default function StepSchedule({ value, onChange, onBack, onNext }) {
         ))}
       </div>
 
-      <div className="booking-actions">
-        <button className="btn" onClick={onBack}>Quay lại</button>
-        <button className="btn primary" onClick={onNext} disabled={!canNext}>
+      <div className={bookingStyles['booking-actions']}>
+        <button className={bookingStyles.btn} onClick={onBack}>Quay lại</button>
+        <button className={`${bookingStyles.btn} ${bookingStyles.primary}`} onClick={onNext} disabled={!canNext}>
           Tiếp tục
         </button>
       </div>

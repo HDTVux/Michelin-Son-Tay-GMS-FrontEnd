@@ -1,5 +1,6 @@
 import React from 'react'
-import './StepInfo.css'
+import styles from './StepInfo.module.css'
+import bookingStyles from '../Booking.module.css'
 
 export default function StepInfo({ value, onChange, onBack, onSubmit }) {
   const handleChange = (key) => (e) => onChange({ [key]: e.target.value })
@@ -9,11 +10,11 @@ export default function StepInfo({ value, onChange, onBack, onSubmit }) {
 
   return (
     <>
-      <h3 className="section-title">Thông tin cá nhân</h3>
-      <p className="info-note">Vui lòng nhập thông tin để tiếp tục.</p>
+      <h3 className={bookingStyles['section-title']}>Thông tin cá nhân</h3>
+      <p className={styles['info-note']}>Vui lòng nhập thông tin để tiếp tục.</p>
 
-      <div className="info-card">
-        <div className="field">
+      <div className={styles['info-card']}>
+        <div className={styles.field}>
           <label>Họ và tên</label>
           <input
             type="text"
@@ -23,27 +24,27 @@ export default function StepInfo({ value, onChange, onBack, onSubmit }) {
           />
         </div>
 
-        <div className="field">
+        <div className={styles.field}>
           <label>Số điện thoại</label>
-          <div className="inline-input">
+          <div className={styles['inline-input']}>
             <input
               type="tel"
               placeholder="Nhập số điện thoại"
               value={value.phone}
               onChange={handleChange('phone')}
             />
-            <button type="button" className="link-btn">Thay đổi</button>
+            <button type="button" className={bookingStyles['link-btn']}>Thay đổi</button>
           </div>
         </div>
       </div>
 
-      <div className="section-block">
-        <div className="section-title-row">
-          <h4 className="section-title">
+      <div className={styles['section-block']}>
+        <div className={styles['section-title-row']}>
+          <h4 className={bookingStyles['section-title']}>
             Yêu cầu đặc biệt (không bắt buộc)
           </h4>
         </div>
-        <div className="field">
+        <div className={styles.field}>
           <textarea
             rows="6"
             placeholder="VD: Kiểm tra thêm tiếng kêu ở bánh trước, cần lấy xe trước 17h, ..."
@@ -53,9 +54,9 @@ export default function StepInfo({ value, onChange, onBack, onSubmit }) {
         </div>
       </div>
 
-      <div className="booking-actions">
-        <button className="btn" onClick={onBack}>Quay lại</button>
-        <button className="btn primary" onClick={onSubmit} disabled={!canSubmit}>
+      <div className={bookingStyles['booking-actions']}>
+        <button className={bookingStyles.btn} onClick={onBack}>Quay lại</button>
+        <button className={`${bookingStyles.btn} ${bookingStyles.primary}`} onClick={onSubmit} disabled={!canSubmit}>
           Hoàn tất
         </button>
       </div>

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import './Booking.css';
+import styles from './Booking.module.css';
 import StepService from './steps/StepService.jsx';
 import StepSchedule from './steps/StepSchedule.jsx';
 import StepInfo from './steps/StepInfo.jsx';
 import StepDone from './steps/StepDone.jsx';
 import { fetchHomeServices } from '../../services/homeService.js';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 
 const STEPS = [
 	{ id: 'service', label: 'Chọn dịch vụ' },
@@ -72,12 +73,8 @@ export default function Booking() {
 	}, []);
 
 	// Mỗi khi đổi bước, cuộn về đầu trang đặt lịch để không bị nhảy xuống cuối
-	useEffect(() => {
-	 const root = document.querySelector('.booking-page');
-	 if (root) {
-	  root.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	 }
-	}, [stepIndex]);
+	 // Kéo lên đầu trang mỗi khi đổi bước (dùng window scroll thay vì query class CSS module)
+	 useScrollToTop([stepIndex], 'smooth');
 
 	const toggle = (id) => {
 		setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -108,32 +105,33 @@ export default function Booking() {
 		window.location.href = '/';
 	 };
 
-	return (
-		<div className="booking-page">
-		 <div className="stepper-wrapper">
-			<div className="progress-track">
-			 <div className="progress-fill" style={{ width: `${((stepIndex + 1) / STEPS.length) * 100}%` }} />
-			</div>
-			<div className="stepper">
-			 {STEPS.map((step, idx) => {
-			  // Chỉ tích bước khi đã vượt qua bước đó (đã nhấn tiếp tục)
-			  // Bước 3 (done) chỉ tích khi stepIndex === 3 (đã hoàn tất)
-			  const isCompleted = idx < stepIndex || (idx === 3 && stepIndex === 3);
-			  const isActive = idx === stepIndex;
-			  return (
-			   <div
-			    key={step.id}
-			    className={`step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}`.trim()}
-			   >
-			    <div className="dot">
-			     {isCompleted ? '✓' : idx + 1}
-			    </div>
-				 <div className="label">{step.label}</div>
+	 return (
+			<div className={styles['booking-page']}>
+			 <div className={styles['stepper-wrapper']}>
+				<div className={styles['progress-track']}>
+				 <div className={styles['progress-fill']} style={{ width: `${((stepIndex + 1) / STEPS.length) * 100}%` }} />
 				</div>
-			  );
-			 })}
-			</div>
-		 </div>
+				<div className={styles.stepper}>
+				 {STEPS.map((step, idx) => {
+				  const isCompleted = idx < stepIndex || (idx === 3 && stepIndex === 3);
+				  const isActive = idx === stepIndex;
+				  const stepClass = [styles.step, isCompleted ? styles.completed : '', isActive ? styles.active : '']
+				    .filter(Boolean)
+				    .join(' ');
+				  return (
+				   <div
+				    key={step.id}
+				    className={stepClass}
+				   >
+				    <div className={styles.dot}>
+				     {isCompleted ? '✓' : idx + 1}
+				    </div>
+					 <div className={styles.label}>{step.label}</div>
+					</div>
+				  );
+				 })}
+				</div>
+			 </div>
 
 
 			{stepIndex === 0 && (
