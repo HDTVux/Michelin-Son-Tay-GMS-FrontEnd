@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import './StaffProfile.css';
 import './StaffProfile.header.css';
 
 const StaffProfile = () => {
+  useScrollToTop();
   // Dữ liệu mẫu - sau này sẽ lấy từ API hoặc context
   const [staffInfo] = useState({
     avatar: null, // null hoặc URL ảnh

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import './ManageProfile.css';
 import './ManageProfile.header.css';
 import './ManageProfile.avatar.css';
@@ -7,6 +8,7 @@ import './ManageProfile.form.css';
 import './ManageProfile.footer.css';
 
 const ManageProfile = () => {
+  useScrollToTop();
   const [formData, setFormData] = useState({
     name: 'Họ tên người dùng',
     email: 'user@example.com',
@@ -64,7 +66,7 @@ const ManageProfile = () => {
       <div className="manageProfileContainer">
         {/* Header */}
         <div className="manageProfileHeader">
-          <h1 className="manageProfileTitle">Quản lý thông tin cá nhân</h1>
+          <h1 className="manageProfileTitle">Cập nhật thông tin cá nhân</h1>
           <Link to="/user-profile" className="backButton">
             ← Quay lại trang Thông tin cá nhân
           </Link>
@@ -73,7 +75,6 @@ const ManageProfile = () => {
         <form onSubmit={handleSave}>
           {/* Ảnh đại diện + thông tin cá nhân */}
           <section className="avatarSection">
-            <h2 className="sectionTitle">Thông tin cá nhân</h2>
             <div className="avatarUploadArea">
               <div className="avatarPreview">
                 {avatar ? (
@@ -84,85 +85,80 @@ const ManageProfile = () => {
                   </div>
                 )}
               </div>
-              <div className="avatarActions">
+              <button
+                type="button"
+                className="btnUpload"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Thay avatar
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png"
+                onChange={handleAvatarUpload}
+                style={{ display: 'none' }}
+              />
+              {avatar && (
                 <button
                   type="button"
-                  className="btnUpload"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Tải ảnh mới
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png"
-                  onChange={handleAvatarUpload}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  type="button"
-                  className="btnDelete"
+                  className="btnDeleteInline"
                   onClick={handleDeleteAvatar}
-                  disabled={!avatar}
                 >
-                  Xóa ảnh
+                  Xóa ảnh hiện tại
                 </button>
-              </div>
+              )}
             </div>
             <p className="avatarHint">
               Chấp nhận định dạng: JPG, PNG. Dung lượng tối đa: 2MB. Ảnh sẽ được tự động cắt vuông (1:1).
             </p>
 
-            <div className="formGrid">
-              <div className="formColumn">
-                <div className="formGroup">
-                  <label className="formLabel">Họ và tên</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="formInput"
-                    placeholder="Họ tên người dùng"
-                  />
-                </div>
-                <div className="formGroup">
-                  <label className="formLabel">Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="formInput"
-                    placeholder="user@example.com"
-                  />
-                </div>
+            <div className="profileForm">
+              <div className="formGroup">
+                <label className="formLabel">Họ và tên</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="formInput"
+                  placeholder="Họ tên người dùng"
+                />
               </div>
-              <div className="formColumn">
-                <div className="formGroup">
-                  <label className="formLabel">Giới tính</label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleInputChange}
-                    className="formInput"
-                  >
-                    <option value="Nam">Nam</option>
-                    <option value="Nữ">Nữ</option>
-                    <option value="Khác">Khác</option>
-                  </select>
-                </div>
-                <div className="formGroup">
-                  <label className="formLabel">Số điện thoại</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="formInput"
-                    placeholder="0901234567"
-                  />
-                </div>
+              <div className="formGroup">
+                <label className="formLabel">Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="formInput"
+                  placeholder="user@example.com"
+                />
+              </div>
+              <div className="formGroup">
+                <label className="formLabel">Số điện thoại</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className="formInput"
+                  placeholder="0901234567"
+                />
+              </div>
+              <div className="formGroup">
+                <label className="formLabel">Giới tính</label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleInputChange}
+                  className="formInput"
+                >
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                  <option value="Khác">Khác</option>
+                </select>
               </div>
             </div>
           </section>

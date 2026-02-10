@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import './UserProfile.css';
 import './UserProfile.header.css';
 import './UserProfile.personalInfo.css';
@@ -7,6 +8,7 @@ import './UserProfile.stats.css';
 import './UserProfile.quickActions.css';
 
 const UserProfile = () => {
+  useScrollToTop();
   // Dữ liệu mẫu - sau này sẽ lấy từ API hoặc context
   const [userInfo] = useState({
     name: 'Nguyễn Văn A',

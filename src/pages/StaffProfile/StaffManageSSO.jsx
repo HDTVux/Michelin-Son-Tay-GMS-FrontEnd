@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import './StaffManageSSO.css';
 
 const StaffManageSSO = () => {
+  useScrollToTop();
   const [providers, setProviders] = useState([
     {
       id: 'google',
@@ -68,9 +69,6 @@ const StaffManageSSO = () => {
       <div className="staffSsoContainer">
         <div className="staffSsoHeader">
           <h1 className="staffSsoTitle">Quản lý tài khoản liên kết</h1>
-          <Link to="/staff-profile" className="staffSsoBackButton">
-            Quay lại hồ sơ nhân viên
-          </Link>
         </div>
 
         <div className="staffSsoActionsBar">
