@@ -2,7 +2,7 @@
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 32px;
-	padding: 40px 0;
+	padding: 40px 24px;
 	background-image: url('../../../assets/anh_nen3.jpg');
 	background-size: cover;
 	background-position: center;
@@ -10,15 +10,7 @@
 	background-attachment: fixed;
 	position: relative;
 	overflow: hidden;
-	width: 100vw;
-	margin-left: calc(50% - 50vw);
-	margin-right: calc(50% - 50vw);
-	max-width: 100vw;
-}
-
-.businessSection .infoCard,
-.businessSection .mapCard {
-	max-width: calc(50vw - 48px);
+	max-width: 1400px;
 	margin: 0 auto;
 }
 
