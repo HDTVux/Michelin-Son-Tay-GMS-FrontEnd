@@ -1,0 +1,124 @@
+import { useState, useEffect, useRef } from 'react';
+import './Banner.css';
+import combo7 from '../../../assets/anh_combo7.jpg'
+import combo8 from '../../../assets/anh_combo8.jpg'
+import combo9 from '../../../assets/anh_com9.jpg'
+
+export default function Banner(){
+    const slides = [
+        { 
+            id: 1, 
+            img: combo7, 
+            title: 'HIỆU SUẤT BỀN BỈ, AN TOÀN TỐI ĐA', 
+            subtitle: 'MICHELIN' 
+        },
+        { 
+            id: 2, 
+            img: combo8, 
+            title: 'CHINH PHỤC MỌI ĐỊA HÌNH', 
+            subtitle: 'MICHELIN' 
+        },
+        { 
+            id: 3, 
+            img: combo9, 
+            title: 'ÊM ÁI VÀ AN TOÀN TRÊN MỌI CUNG ĐƯỜNG ƯỚT', 
+            subtitle: 'MICHELIN' 
+        }
+    ];
+
+    const [index, setIndex] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+    const [textVisible, setTextVisible] = useState(true);
+    const slidesRef = useRef(null);
+    const bannerRef = useRef(null);
+    const pointer = useRef({ startX: 0, deltaX: 0, dragging: false });
+
+    useEffect(() => {
+        const id = setInterval(() => {
+            if (!isPaused) {
+                setTextVisible(false);
+                setTimeout(() => {
+                    setIndex(i => (i + 1) % slides.length);
+                    setTextVisible(true);
+                }, 300);
+            }
+        }, 4000);
+        return () => clearInterval(id);
+    }, [isPaused, slides.length]);
+
+    // Reset text animation when index changes
+    useEffect(() => {
+        setTextVisible(false);
+        const timer = setTimeout(() => setTextVisible(true), 100);
+        return () => clearTimeout(timer);
+    }, [index]);
+
+    function goTo(i){ setIndex(i); }
+
+    function onPointerDown(e){
+        pointer.current.dragging = true;
+        pointer.current.startX = e.clientX ?? e.touches?.[0]?.clientX;
+    }
+    function onPointerMove(e){
+        if(!pointer.current.dragging) return;
+        const x = e.clientX ?? e.touches?.[0]?.clientX;
+        pointer.current.deltaX = x - pointer.current.startX;
+    }
+    function onPointerUp(){
+        pointer.current.dragging = false;
+        const dx = pointer.current.deltaX;
+        if (Math.abs(dx) > 50){
+            if (dx < 0) setIndex(i => (i + 1) % slides.length);
+            else setIndex(i => (i - 1 + slides.length) % slides.length);
+        }
+        pointer.current.deltaX = 0;
+    }
+
+    return (
+        <section className="banner" ref={bannerRef}>
+            <div className="banner-inner">
+                <div className="banner-carousel"
+                    onMouseEnter={() => setIsPaused(true)}
+                    onMouseLeave={() => setIsPaused(false)}
+                >
+                    <div
+                        className="slides"
+                        ref={slidesRef}
+                        style={{ transform: `translateX(-${index * 100}%)` }}
+                        onPointerDown={onPointerDown}
+                        onPointerMove={onPointerMove}
+                        onPointerUp={onPointerUp}
+                        onPointerCancel={onPointerUp}
+                        onTouchStart={onPointerDown}
+                        onTouchMove={onPointerMove}
+                        onTouchEnd={onPointerUp}
+                    >
+                        {slides.map((s) => (
+                        <div className="slide" key={s.id}>
+                            <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image" />
+                            <div className={`slide-text ${textVisible && index === s.id - 1 ? 'visible' : ''}`}>
+                                <div className="banner-label">/MICHELIN/</div>
+                                <h1 className="banner-title">
+                                    <span className="titlePart1">{s.title}</span>
+                                </h1>
+                                <p className="banner-sub">{s.subtitle}</p>
+                            </div>
+                        </div>
+                        ))} 
+                    </div>
+
+                    <div className="banner-dots" role="tablist" aria-label="carousel dots">
+                        {slides.map((s, i) => (
+                            <button
+                                key={s.id}
+                                className={"dot-btn " + (i === index ? 'active' : '')}
+                                onClick={() => goTo(i)}
+                                aria-label={`Go to slide ${i+1}`}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}

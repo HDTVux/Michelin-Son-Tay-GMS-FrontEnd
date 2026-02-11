@@ -1,0 +1,359 @@
+.aboutPage {
+  min-height: 100vh;
+  padding: 60px 5%;
+  background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
+  color: #0a0f1c;
+}
+
+.aboutHero {
+  text-align: center;
+  margin-bottom: 80px;
+  animation: fadeIn 0.8s ease-out;
+}
+
+.aboutTitle {
+  font-size: 48px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #005aa9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.aboutSubtitle {
+  font-size: 20px;
+  color: #475569;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.aboutContent {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.aboutSection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+  margin-bottom: 80px;
+}
+
+.aboutText h2 {
+  font-size: 36px;
+  margin-bottom: 24px;
+  color: #0a0f1c;
+}
+
+.aboutText p {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #475569;
+  margin-bottom: 20px;
+}
+
+.aboutImage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.imagePlaceholder {
+  width: 100%;
+  aspect-ratio: 1;
+  background: linear-gradient(135deg, rgba(0, 90, 169, 0.25) 0%, rgba(0, 64, 127, 0.18) 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 120px;
+  border: 2px solid rgba(0, 90, 169, 0.35);
+}
+
+.aboutVisionImage {
+  width: 100%;
+  border-radius: 20px;
+  object-fit: cover;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.35);
+}
+
+.aboutValues {
+  margin-bottom: 80px;
+}
+
+.valuesTitle {
+  text-align: center;
+  font-size: 36px;
+  margin-bottom: 40px;
+  color: #0a0f1c;
+}
+
+.valuesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+}
+
+.facilityGrid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.facilityCard {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 0 0 24px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+}
+
+.facilityCard img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  display: block;
+}
+
+.facilityCard h3 {
+  font-size: 20px;
+  margin: 18px 18px 8px;
+  color: #0a0f1c;
+}
+
+.facilityCard p {
+  font-size: 14px;
+  color: #4b5563;
+  margin: 0 18px;
+  line-height: 1.6;
+}
+
+.valueCard {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.valueCard:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 90, 169, 0.18);
+  border-color: #005aa9;
+  background: #f4f7fb;
+}
+
+.valueIcon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 20px;
+  color: white;
+}
+
+.valueCard h3 {
+  font-size: 22px;
+  margin-bottom: 12px;
+  color: #0a0f1c;
+}
+
+.valueCard p {
+  font-size: 15px;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.aboutStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 30px;
+  margin-bottom: 80px;
+}
+
+.statItem {
+  text-align: center;
+  padding: 40px 20px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.statItem:hover {
+  transform: translateY(-5px);
+  border-color: #005aa9;
+  box-shadow: 0 10px 30px rgba(0, 90, 169, 0.22);
+}
+
+.statNumber {
+  font-size: 48px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #005aa9 0%, #3a8de0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+.statLabel {
+  font-size: 16px;
+  color: #475569;
+}
+
+.aboutCTA {
+  text-align: center;
+  padding: 60px 20px;
+  background: linear-gradient(135deg, rgba(0, 90, 169, 0.12) 0%, rgba(0, 64, 127, 0.08) 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(0, 90, 169, 0.2);
+}
+
+.aboutCTA h2 {
+  font-size: 36px;
+  margin-bottom: 16px;
+  color: #0a0f1c;
+}
+
+.aboutCTA p {
+  font-size: 18px;
+  color: #475569;
+  margin-bottom: 30px;
+}
+
+.ctaButton {
+  display: inline-block;
+  padding: 16px 40px;
+  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 18px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 90, 169, 0.4);
+}
+
+.ctaButton:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 90, 169, 0.6);
+  background: linear-gradient(135deg, #3a8de0 0%, #005aa9 100%);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1024px) {
+  .aboutSection {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .aboutText h2 {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 768px) {
+  .aboutTitle {
+    font-size: 36px;
+  }
+
+  .aboutSubtitle {
+    font-size: 18px;
+  }
+
+  .valuesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .aboutStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .aboutCTA h2 {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .aboutPage {
+    padding: 30px 3%;
+  }
+
+  .aboutHero {
+    margin-bottom: 40px;
+  }
+
+  .aboutTitle {
+    font-size: 28px;
+  }
+
+  .aboutSubtitle {
+    font-size: 16px;
+  }
+
+  .aboutSection {
+    gap: 30px;
+    margin-bottom: 50px;
+  }
+
+  .aboutText h2 {
+    font-size: 24px;
+  }
+
+  .aboutText p {
+    font-size: 14px;
+  }
+
+  .aboutStats {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 16px;
+    padding-bottom: 8px;
+  }
+
+  .statItem {
+    min-width: 220px;
+  }
+
+  .statNumber {
+    font-size: 36px;
+  }
+
+  .statLabel {
+    font-size: 14px;
+  }
+
+  .aboutCTA {
+    padding: 40px 15px;
+  }
+
+  .aboutCTA h2 {
+    font-size: 24px;
+  }
+
+  .aboutCTA p {
+    font-size: 16px;
+  }
+
+  .ctaButton {
+    padding: 12px 28px;
+    font-size: 15px;
+  }
+}

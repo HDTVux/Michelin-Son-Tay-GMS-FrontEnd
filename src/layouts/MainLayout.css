@@ -1,0 +1,8 @@
+.layoutRoot { 
+    min-height: 100vh; display: flex; flex-direction: column; 
+    background: #ffffff; 
+}
+.layoutMain { 
+    flex: 1;
+    padding: 0;                    /* Bỏ padding để không có viền xám */
+}

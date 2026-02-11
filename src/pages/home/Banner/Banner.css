@@ -1,0 +1,366 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap');
+
+/* Banner styles matching provided design */
+.banner {
+    background: #ffffff;
+    color: #0a0f1c;
+    padding: 0;
+    overflow: hidden;
+    width: 100vw;                    /* Full-bleed banner */
+    margin-left: 50%;               /* Pull to viewport edges regardless of parent padding */
+    transform: translateX(-50%);
+    position: relative;
+    max-width: none;
+}
+
+.banner-inner {
+    width: 100%;
+    max-width: none;
+    margin: 0 auto;
+    text-align: center;
+    padding: 0;
+    position: relative;
+    z-index: 10;
+}
+
+.banner-title{
+	font-family: 'Baloo 2', 'Segoe UI', Tahoma, Arial, sans-serif;
+	font-size: 56px;
+	margin: 0 0 20px;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+	line-height: 1.2;
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: baseline;
+	z-index: 15;
+}
+
+.banner-title .titlePart1 {
+	color: #ffffff;
+	text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 90, 169, 0.4);
+	font-weight: 900;
+	-webkit-text-stroke: 1px rgba(0, 0, 0, 0.1);
+}
+
+.banner-title .titlePart2 {
+	color: #ffffff;
+	text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 90, 169, 0.6);
+	font-weight: 900;
+	-webkit-text-stroke: 1px rgba(0, 90, 169, 0.2);
+}
+
+.banner-sub{
+    color: #ffffff;
+	margin: 0;
+	max-width: 700px;
+	font-size: 20px;
+	line-height: 1.6;
+	position: relative;
+	text-shadow: 0 3px 15px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+	z-index: 15;
+	font-weight: 700;
+	opacity: 0;
+	transform: translateX(50px);
+	transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
+	letter-spacing: 1px;
+}
+
+.slide-text.visible .banner-sub {
+	opacity: 1;
+	transform: translateX(0);
+}
+
+.banner-carousel {
+    width: 100vw;
+    margin: 0 auto;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    display: block;
+    background: transparent;      /* Nền trong suốt */
+    left: 0;                      /* Đảm bảo không bị lệch */
+    right: 0;                     /* Đảm bảo không bị lệch */
+}
+
+.slides {
+    display: flex;
+    width: 100%; 
+    transition: transform 600ms cubic-bezier(.22, .9, .18, 1);
+    will-change: transform;
+    margin: 0;                     /* Đảm bảo không có margin gây lệch */
+    padding: 0;                    /* Đảm bảo không có padding gây lệch */
+}
+
+.slide {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 600px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent; /* Nền trong suốt để ảnh phủ kín */
+    overflow: hidden;
+    position: relative;
+    margin: 0;                     /* Đảm bảo không có margin gây lệch */
+    padding: 0;                    /* Đảm bảo không có padding gây lệch */
+}
+
+.slide-text {
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    transform: translateY(-50%) translateX(100px);
+    z-index: 15;
+    opacity: 0;
+    transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
+    max-width: 500px;
+}
+
+.slide-text.visible {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
+.banner-label {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: #ffffff;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 90, 169, 0.5);
+}
+
+.slide-text.visible .banner-label {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.slide-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;             /* Ảnh phủ kín toàn bộ không gian, không để khoảng trống */
+    object-position: center 30%;   /* Căn giữa ngang và 30% từ trên để hiển thị cả avatar và chữ */
+    min-height: 600px;
+    display: block;               /* Đảm bảo ảnh hiển thị đúng */
+}
+
+
+.slide-overlay .diag{position:absolute; inset:0;}
+.slide-overlay .diag::before{
+	content: '';
+	position: absolute;
+	left: -10%;
+	right: -10%;
+	height: 2px;
+    background: #d7deed;
+	top: 50%;
+}
+
+.slide-overlay .diag-1::before{ transform: rotate(10deg); }
+.slide-overlay .diag-2::before{ transform: rotate(-10deg); }
+
+.banner-dots{
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	bottom: 20px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 20;                   /* Dots hiển thị trên ảnh và chữ */
+}
+.dot-btn{
+	width: 10px;
+	height: 10px;
+    background: rgba(255, 255, 255, 0.6);
+    opacity: 0.75;
+	border-radius: 50%;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+}
+.dot-btn.active{
+	width: 28px;
+	height: 10px;
+	border-radius: 999px;
+    opacity: 1;
+    background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+}
+
+@media (max-width: 768px) {
+    .banner {
+        padding: 0;
+    }
+    .banner-inner {
+        padding: 0;
+    }
+    
+    .slide {
+        height: 450px;
+        min-height: 450px;
+    }
+    
+    .slide-image {
+        height: 100%;
+        min-height: 450px;
+        object-fit: cover;
+        object-position: center center;
+    }
+    
+    .slide-text {
+        top: 50%;
+        left: 5%;
+        right: 5%;
+        max-width: 90%;
+        transform: translateY(-50%) translateX(0);
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(8px);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .slide-text.visible {
+        transform: translateY(-50%) translateX(0);
+        opacity: 1;
+    }
+    
+    .banner-label {
+        font-size: 11px;
+        letter-spacing: 2px;
+        margin-bottom: 12px;
+    }
+    
+    .banner-title {
+        font-size: 24px;
+        margin-bottom: 12px;
+        line-height: 1.3;
+        gap: 4px;
+    }
+    
+    .banner-title .titlePart1 {
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 1px 6px rgba(0, 0, 0, 0.4);
+        -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.2);
+    }
+    
+    .banner-title .titlePart2 {
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 90, 169, 0.5);
+        -webkit-text-stroke: 0.5px rgba(0, 90, 169, 0.2);
+    }
+    
+    .banner-sub {
+        font-size: 13px;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+    
+    .banner-dots {
+        bottom: 16px;
+    }
+    
+    .dot-btn {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .dot-btn.active {
+        width: 24px;
+        height: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .banner {
+        padding: 0;
+    }
+    .banner-inner {
+        padding: 0;
+    }
+    
+    .slide {
+        height: 400px;
+        min-height: 400px;
+    }
+    
+    .slide-image {
+        height: 100%;
+        min-height: 400px;
+        object-fit: cover;
+        object-position: center center;
+    }
+    
+    .slide-text {
+        top: 50%;
+        left: 4%;
+        right: 4%;
+        max-width: 92%;
+        transform: translateY(-50%) translateX(0);
+        padding: 18px 16px;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(10px);
+        border-radius: 10px;
+    }
+    
+    .slide-text.visible {
+        transform: translateY(-50%) translateX(0);
+        opacity: 1;
+    }
+    
+    .banner-label {
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        margin-bottom: 10px;
+    }
+    
+    .banner-title {
+        font-size: 20px;
+        margin-bottom: 10px;
+        line-height: 1.25;
+        gap: 0;
+    }
+    
+    .banner-title .titlePart1 {
+        margin-right: 4px;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+        -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.2);
+    }
+    
+    .banner-title .titlePart2 {
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6), 0 0 18px rgba(0, 90, 169, 0.5);
+        -webkit-text-stroke: 0.5px rgba(0, 90, 169, 0.2);
+    }
+    
+    .banner-sub {
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+    
+    .banner-dots {
+        bottom: 12px;
+        gap: 8px;
+    }
+    
+    .dot-btn {
+        width: 6px;
+        height: 6px;
+    }
+    
+    .dot-btn.active {
+        width: 20px;
+        height: 6px;
+    }
+}
+

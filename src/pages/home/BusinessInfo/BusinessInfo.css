@@ -1,0 +1,419 @@
+.businessSection {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 32px;
+	padding: 40px 24px;
+	background-image: url('../../../assets/anh_nen3.jpg');
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-attachment: fixed;
+	position: relative;
+	overflow: hidden;
+	max-width: 1400px;
+	margin: 0 auto;
+}
+
+.businessSection::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.4);
+	z-index: 0;
+}
+
+.businessSection::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 4px;
+	background: linear-gradient(90deg, #64748b, #94a3b8, #64748b);
+	background-size: 200% 100%;
+	animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+	0% {
+		background-position: 0% center;
+	}
+	100% {
+		background-position: 200% center;
+	}
+}
+
+.infoCard,
+.mapCard {
+	background: #ffffff;
+	border-radius: 20px;
+	padding: 28px 26px;
+	box-shadow: 0 20px 60px rgba(100, 116, 139, 0.18), 0 0 0 1px rgba(100, 116, 139, 0.08) inset;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	border: 2px solid rgba(100, 116, 139, 0.12);
+	transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+	position: relative;
+	z-index: 1;
+}
+
+.infoCard:hover,
+.mapCard:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 28px 80px rgba(100, 116, 139, 0.22), 0 0 0 1px rgba(100, 116, 139, 0.15) inset;
+	border-color: rgba(100, 116, 139, 0.2);
+}
+
+.infoCard h2 {
+	margin: 0 0 12px;
+	font-size: 28px;
+	color: #2b2b2b;
+}
+
+.contactMainTitle {
+	margin: 0 0 20px;
+	font-size: 28px;
+	font-weight: 800;
+	color: #1f2937;
+}
+
+.contactCardGrid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+	margin-bottom: 24px;
+}
+
+.contactItemCard {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 16px 18px;
+	border-radius: 16px;
+	background: #f9fafb;
+	border: 1px solid #e5e7eb;
+}
+
+.contactIconCircle {
+	width: 44px;
+	height: 44px;
+	border-radius: 999px;
+	background: #005aa9;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 22px;
+	color: #ffffff;
+}
+
+.contactItemTitle {
+	font-weight: 700;
+	font-size: 15px;
+	color: #111827;
+	margin-bottom: 4px;
+}
+
+.contactItemText {
+	font-size: 14px;
+	color: #4b5563;
+	word-break: break-word;
+	line-height: 1.5;
+	overflow-wrap: break-word;
+	hyphens: auto;
+}
+
+.contactBookingLink {
+	display: inline-flex;
+	align-items: center;
+	padding: 6px 12px;
+	border-radius: 999px;
+	background: #005aa9;
+	color: #ffffff;
+	font-weight: 600;
+	font-size: 13px;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.textRow {
+	margin: 0 0 10px;
+	color: #2f2f2f;
+	font-size: 16px;
+}
+
+.label {
+	font-weight: 600;
+	margin-right: 6px;
+}
+
+.value {
+	color: #2f2f2f;
+}
+
+.strong {
+	font-weight: 700;
+}
+
+.hotlineRow {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 2px 0 12px;
+	color: #2f2f2f;
+	font-size: 16px;
+}
+
+
+.infoCard .hoursCard {
+	background: #f4f6f8;
+	border-radius: 12px;
+	padding: 16px 18px;
+	margin: 12px 0 22px;
+	border: 1px solid #e8eaee;
+	width: 100%;
+}
+
+.infoCard .hoursTitle {
+	font-weight: 700;
+	font-size: 16px;
+	margin-bottom: 14px;
+	color: #2f2f2f;
+}
+
+.infoCard .hoursRow {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	color: #2f2f2f;
+	font-size: 15px;
+}
+
+.divider {
+	height: 1px;
+	background: #e5e7eb;
+	margin: 12px 0;
+}
+
+.hoursTime {
+	font-weight: 700;
+}
+
+.contactTitle {
+	font-weight: 700;
+	font-size: 18px;
+	margin-bottom: 16px;
+	color: #1f2937;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.contactTitle::before {
+	content: '📞';
+	font-size: 20px;
+}
+
+.contactActions {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+.contactCircle {
+	width: 70px;
+	height: 70px;
+	border: 2px solid #e5e7eb;
+	border-radius: 16px;
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+	color: #1f2937;
+	text-decoration: none;
+	font-weight: 700;
+	font-size: 13px;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+	position: relative;
+	overflow: hidden;
+}
+
+.contactCircle::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background: linear-gradient(90deg, #005aa9, #3a8de0);
+	transform: scaleX(0);
+	transition: transform 0.3s ease;
+}
+
+.contactCircle:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 12px 32px rgba(0, 90, 169, 0.2);
+	border-color: #005aa9;
+	background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+}
+
+.contactCircle:hover::before {
+	transform: scaleX(1);
+}
+
+.contactCircle:nth-child(1) {
+	color: #0068ff;
+}
+
+.contactCircle:nth-child(1):hover {
+	border-color: #0068ff;
+	background: linear-gradient(135deg, #ffffff 0%, #e6f2ff 100%);
+}
+
+.contactCircle:nth-child(2) {
+	color: #059669;
+}
+
+.contactCircle:nth-child(2):hover {
+	border-color: #059669;
+	background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
+}
+
+.contactCircle:nth-child(3) {
+	color: #dc2626;
+}
+
+.contactCircle:nth-child(3):hover {
+	border-color: #dc2626;
+	background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+}
+
+.mapCard {
+	padding: 28px 20px 20px;
+}
+
+.mapFrame {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 4 / 3;
+	border-radius: 12px;
+	overflow: hidden;
+	border: 1px solid #e8eaee;
+	background: linear-gradient(135deg, #f5f6f8 0%, #ffffff 100%);
+	cursor: pointer;
+}
+
+.mapFrame iframe {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
+
+.mapOverlay {
+	position: absolute;
+	bottom: 12px;
+	right: 12px;
+	background: rgba(0, 0, 0, 0.65);
+	color: #ffffff;
+	padding: 8px 12px;
+	border-radius: 10px;
+	font-weight: 600;
+	font-size: 14px;
+	pointer-events: none;
+}
+
+.mapButton {
+	margin-top: 18px;
+	width: 100%;
+	padding: 16px;
+	background: #2f2f2f;
+	color: #ffffff;
+	font-size: 16px;
+	font-weight: 700;
+	border: 1px solid #2f2f2f;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: transform 120ms ease, box-shadow 160ms ease;
+}
+
+.mapButton:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+@media (max-width: 960px) {
+	.businessSection {
+		grid-template-columns: 1fr;
+	}
+
+	.mapCard {
+		order: 2;
+	}
+}
+
+@media (max-width: 640px) {
+	.businessSection {
+		padding: 28px 14px;
+	}
+
+	.infoCard h2 {
+		font-size: 24px;
+	}
+
+	.hoursRow,
+	.textRow,
+	.hotlineRow {
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+
+	.contactCardGrid {
+		grid-template-columns: 1fr;
+	}
+
+	.contactItemCard {
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		padding: 20px 16px;
+		gap: 12px;
+	}
+
+	.contactItemText {
+		font-size: 13px;
+		line-height: 1.6;
+		word-break: break-word;
+		overflow-wrap: break-word;
+		width: 100%;
+		padding: 0;
+	}
+
+	.contactItemBody {
+		width: 100%;
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+	}
+
+	.contactItemTitle {
+		text-align: center;
+		width: 100%;
+	}
+
+	.contactItemText {
+		text-align: center;
+		width: 100%;
+	}
+}

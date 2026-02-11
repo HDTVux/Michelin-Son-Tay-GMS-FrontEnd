@@ -1,0 +1,1266 @@
+.homePage {
+    min-height: calc(100vh - 72px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 36px;
+    color: #0a0f1c;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #ffffff 100%);
+}
+
+/* ===== Intro Video Section ===== */
+.introVideoSection {
+    position: relative;
+    padding: 80px 5%;
+    background-image: url('../../assets/anh_nen3.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    overflow: hidden;
+}
+
+.introVideoSection::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 0;
+}
+
+.introVideoContainer {
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.introVideoRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: stretch;
+}
+
+.introTextCol {
+    background: rgba(51, 51, 51, 0.85);
+    padding: 50px 40px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transform: translateY(50px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100%;
+}
+
+.introTextCol.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.introWelcome {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #ffffff;
+    text-transform: uppercase;
+    margin: 0 0 16px 0;
+    line-height: 1.2;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
+}
+
+.introTextCol.visible .introWelcome {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.introTitle {
+    font-size: 72px;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0 0 40px 0;
+    line-height: 1.2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
+}
+
+.introTextCol.visible .introTitle {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.introTitle .titlePart1 {
+    color: #ffffff;
+}
+
+.introTitle .titlePart2 {
+    color: #005aa9;
+    text-shadow: 0 0 30px rgba(0, 90, 169, 0.8);
+}
+
+.introTextList {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.introTextItemWrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.introTextCol.visible .introTextItemWrapper {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(1) {
+    transition-delay: 0.6s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(2) {
+    transition-delay: 0.7s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(3) {
+    transition-delay: 0.8s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(4) {
+    transition-delay: 0.9s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(5) {
+    transition-delay: 1.0s;
+}
+
+.introTextIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #005aa9;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 90, 169, 0.4);
+}
+
+.introTextItem {
+    font-size: 22px;
+    color: #ffffff;
+    line-height: 1.6;
+    margin: 0;
+    font-weight: 400;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    flex: 1;
+}
+
+.introVideoMedia {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+}
+
+.introVideoMedia video {
+    width: 100%;
+    height: 100%;
+    min-height: 600px;
+    object-fit: cover;
+    display: block;
+    border-radius: 20px;
+}
+
+.introVideoOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    pointer-events: none;
+}
+
+/* wrapper mới cho phần trên của Home */
+.homeTop{
+    width: 100%;
+    max-width: 1600px;
+    padding: 0 2%;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 18px;
+}
+
+/* ===== Main wrapper ===== */
+.homeContainer {
+    flex: 1;
+    max-width: 580px;
+    z-index: 2;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== Animations ===== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.fadeIn {
+    animation: fadeIn 0.8s ease-out forwards;
+}
+
+.fadeInUp {
+    opacity: 0;
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.slideIn {
+    animation: slideIn 1s ease-out forwards;
+}
+
+/* ===== Title ===== */
+.homeTitle {
+    font-size: 50px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 6px;
+    color: #0a0f1c;
+    letter-spacing: -0.02em;
+    text-shadow: none;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.homeTitle span {
+    color: #005aa9;
+    display: block;
+    margin-top: 10px;
+    font-size: 50px;
+    font-weight: 1000;
+    letter-spacing: 0.5 em;
+    background: linear-gradient(135deg, #005aa9 0%, #3a8de0 50%, #005aa9 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    background-size: 200% auto;
+    animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 0% center;
+    }
+    100% {
+        background-position: 200% center;
+    }
+}
+
+/* ===== Content ===== */
+.homeContent {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 14px;
+    max-width: 1200px;
+    width: 100%;
+}
+
+.homeContent.belowVideo{
+    margin: 8px auto 0;
+}
+
+.videoRow{
+    display: grid;
+    grid-template-columns: 0.95fr 1.35fr; /* ưu tiên rộng hơn cho video */
+    gap: 26px;
+    align-items: stretch;
+    background: linear-gradient(145deg, rgba(0,90,169,0.12), rgba(0,90,169,0.04));
+    border: 2px solid rgba(0, 90, 169, 0.15);
+    border-radius: 28px;
+    padding: 34px 38px;
+    box-shadow: 0 32px 80px rgba(0, 90, 169, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+    width: 100%;                  /* fill container width */
+    max-width: 1500px;
+    margin: 0 auto;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.videoRow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #005aa9, #3a8de0, #005aa9);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+}
+
+.videoRow:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 40px 100px rgba(0, 90, 169, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+    border-color: rgba(0, 90, 169, 0.25);
+}
+
+.videoInfoCol{
+    display: flex;
+    align-items: stretch;
+}
+
+.videoInfoGrid{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    width: 100%;
+}
+
+.serviceItem {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    background: #ffffff;          /* Xóa nền xám: dùng nền trắng sạch */
+    border: 1px solid rgba(2, 6, 23, 0.05);
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: 0 12px 26px rgba(2, 6, 23, 0.08);
+    backdrop-filter: blur(4px);
+    flex: 1 1 auto;
+}
+
+.serviceItem:hover{
+    transform: translateY(-2px);
+    border-color: rgba(0, 90, 169, 0.22);
+    box-shadow: 0 14px 32px rgba(0, 90, 169, 0.14);
+}
+
+
+.serviceItem:hover .serviceIcon {
+    transform: scale(1.05);
+    background: rgba(0, 90, 169, 0.18);
+}
+
+.serviceText { flex: 1; min-width: 0; }
+
+.serviceIconCircle{
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #9fd8ff, #005aa9);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
+    box-shadow: 0 6px 14px rgba(0, 90, 169, 0.28);
+}
+
+.serviceTextTitle{
+    font-size: 18px;
+    font-weight: 800;
+    color: #0a0f1c;
+    line-height: 1.25;
+    margin: 0 0 4px;
+}
+
+.serviceTextSub{
+    font-size: 14px;
+    font-weight: 600;
+    color: #4b5563;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ===== Action Buttons ===== */
+.homeActions {
+    display: flex;
+    gap: 14px;
+    margin-top: auto;
+    padding-top: 18px;
+    flex-wrap: wrap;
+}
+
+.btnPrimary, .btnSecondary {
+    padding: 16px 40px;
+    border-radius: 14px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-block;
+    border: 2px solid transparent;
+    letter-spacing: 0.02em;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    text-transform: none;
+}
+
+.btnPrimary.iconOnly,
+.btnSecondary.iconOnly{
+    width: 96px;
+    height: 56px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+}
+
+.btnIcon{
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btnIcon svg{
+    width: 26px;
+    height: 26px;
+    fill: currentColor;
+    display: block;
+}
+
+.btnPrimary {
+    background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+    color: white;
+    box-shadow: 0 4px 20px rgba(0, 90, 169, 0.35);
+    font-weight: 700;
+}
+
+.btnPrimary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(0, 90, 169, 0.45);
+    background: linear-gradient(135deg, #3a8de0 0%, #005aa9 100%);
+}
+
+.btnSecondary {
+    background: #ffffff;
+    color: #005aa9;
+    border-color: rgba(0, 90, 169, 0.35);
+    backdrop-filter: blur(10px);
+}
+
+/* ===== Process section ===== */
+.processSection{
+    background-image: url('../../assets/anh_nen2.jpg');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    padding: 44px 0 60px;
+    margin-top: -12px;
+    margin-bottom: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.processSection::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.2);
+    z-index: 0;
+}
+
+.processSection::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+}
+
+.processInner{
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2%;
+    position: relative;
+    z-index: 1;
+}
+
+.processHeader{
+    text-align: left;
+    margin-bottom: 50px;
+    padding-left: 0;
+    opacity: 0;
+    transform: translateX(100px);
+    transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.processHeader.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.processHeader .servicesLabel {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #ffffff;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 90, 169, 0.5);
+}
+
+.processHeader.visible .servicesLabel {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.processTitle{
+    margin: 0 0 20px;
+    font-size: 56px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.processTitle .titlePart1 {
+    color: #ffffff;
+}
+
+.processTitle .titlePart2 {
+    color: #ffffff;
+    text-shadow: 0 0 30px rgba(0, 90, 169, 0.8), 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+.processSub{
+    margin: 0;
+    max-width: 700px;
+    font-size: 18px;
+    color: #ffffff;
+    line-height: 1.6;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.processHeader.visible .processSub {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Desktop layout: tiêu đề bên trái, hình/process bên phải, bố cục cân đối */
+@media (min-width: 1024px) {
+    .processInner{
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        align-items: center;
+        column-gap: 56px;
+        justify-content: center;
+    }
+
+    .processHeader{
+        margin-bottom: 0;
+        max-width: 460px;
+    }
+
+    .processDiagram{
+        margin: 0;
+    }
+}
+
+.processDiagram{
+    position: relative;
+    max-width: 1180px;
+    margin: 32px auto 0;
+    padding: 48px 32px 48px;
+    min-height: 780px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 32px;
+    box-shadow: 0 24px 80px rgba(59, 130, 246, 0.2);
+    backdrop-filter: blur(10px);
+    margin-bottom: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.processDiagram:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 32px 100px rgba(59, 130, 246, 0.25);
+}
+
+.processImageWrapper{
+    position: relative;
+    width: 620px;
+    height: 620px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.processImageCenter{
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    border-radius: 0;
+    box-shadow: none;
+    position: relative;
+    z-index: 2;
+    background: transparent;
+}
+
+.processStepBubble{
+    position: absolute;
+    max-width: 260px;
+    min-width: 220px;
+    background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+    border-radius: 18px;
+    padding: 16px 18px;
+    box-shadow: 0 16px 40px rgba(59, 130, 246, 0.25);
+    border: 2px solid rgba(59, 130, 246, 0.2);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    z-index: 10;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.processStepBubble:hover{
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 24px 60px rgba(59, 130, 246, 0.35);
+    border-color: rgba(59, 130, 246, 0.4);
+    background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+}
+
+/* Mũi tên kết nối từ trung tâm ra từng bubble */
+.processStepBubble::before{
+    content: '';
+    position: absolute;
+    width: 80px;
+    height: 3px;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.5) 0%, rgba(59, 130, 246, 0.15) 100%);
+    z-index: -1;
+    transform-origin: left center;
+}
+
+/* Vị trí và góc độ cho từng bước theo vòng tròn (chiều kim đồng hồ) */
+/* Step 1: Top-right (12h-1h) */
+.step-1{ 
+    top: 4%;
+    right: -2%;
+    transform: translate(0, 0);
+}
+.step-1::before{
+    top: 50%;
+    left: -120px;
+    transform: rotate(-30deg);
+    width: 120px;
+}
+
+/* Step 2: Right (2h-3h) */
+.step-2{ 
+    top: 50%;
+    right: -8%;
+    transform: translate(0, -50%);
+}
+.step-2::before{
+    top: 50%;
+    left: -120px;
+    transform: rotate(0deg);
+    width: 120px;
+}
+
+/* Step 3: Bottom-right (4h-5h) */
+.step-3{ 
+    bottom: 12%;
+    right: -2%;
+    transform: translate(0, 0);
+}
+.step-3::before{
+    top: 50%;
+    left: -120px;
+    transform: rotate(30deg);
+    width: 120px;
+}
+
+/* Step 4: Bottom (6h) */
+.step-4{ 
+    bottom: -2%;
+    left: 50%;
+    transform: translate(-50%, 0);
+}
+.step-4::before{
+    top: -120px;
+    left: 50%;
+    width: 3px;
+    height: 120px;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.5) 0%, rgba(59, 130, 246, 0.15) 100%);
+}
+
+/* Step 5: Bottom-left (7h-8h) */
+.step-5{ 
+    bottom: 12%;
+    left: -2%;
+    transform: translate(0, 0);
+}
+.step-5::before{
+    top: 50%;
+    right: -120px;
+    transform: rotate(-30deg);
+    width: 120px;
+}
+
+/* Step 6: Left (9h-10h) */
+.step-6{ 
+    top: 50%;
+    left: -8%;
+    transform: translate(0, -50%);
+}
+.step-6::before{
+    top: 50%;
+    right: -120px;
+    transform: rotate(0deg);
+    width: 120px;
+}
+
+/* Step 7: Top-left (11h) */
+.step-7{ 
+    top: 4%;
+    left: -2%;
+    transform: translate(0, 0);
+}
+.step-7::before{
+    top: 50%;
+    right: -120px;
+    transform: rotate(30deg);
+    width: 120px;
+}
+
+.processNo{
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: #fff;
+    font-weight: 900;
+    font-size: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+    flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.processText{
+    flex: 1;
+    min-width: 0;
+}
+
+.processStepTitle{
+    font-weight: 800;
+    font-size: 15px;
+    color: #0a0f1c;
+    line-height: 1.3;
+    margin: 0 0 6px;
+}
+
+.processStepDesc{
+    color: #475569;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.btnSecondary:hover {
+    background: rgba(0, 90, 169, 0.14);
+    border-color: rgba(0, 90, 169, 0.35);
+    color: #0a0f1c;
+    transform: translateY(-2px);
+}
+
+/* ===== Video card ===== */
+.videoMedia{
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.videoOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 28px;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.videoMedia video {
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 480px;
+    object-fit: cover;
+    border-radius: 28px;
+    box-shadow: 
+        0 30px 60px rgba(0, 0, 0, 0.6),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    background: #000;
+    position: relative;
+    transition: transform 0.3s ease;
+}
+
+.videoMedia:hover video {
+    transform: scale(1.02);
+}
+
+.videoTextCard{
+    flex: 1;
+    background: #ffffff;
+    border: 1px solid rgba(2, 6, 23, 0.06);
+    border-radius: 18px;
+    padding: 18px 18px;
+    box-shadow: 0 10px 28px rgba(2, 6, 23, 0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+}
+
+.videoText{
+    margin: 0;
+    color: #334155;
+    font-size: 20px;
+    line-height: 1.65;
+    font-weight: 500;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+    .homePage {
+        flex-direction: column;
+        text-align: left;
+        padding: 40px 5%;
+        gap: 40px;
+    }
+
+    .homeTop{
+        max-width: 100%;
+    }
+
+    .homeTitle {
+        font-size: 44px;
+        text-align: center;
+    }
+
+    .homeTitle span {
+        font-size: 40px;
+    }
+
+    .serviceIcon {
+        width: 48px;
+        height: 48px;
+        font-size: 28px;
+    }
+
+    .serviceText {
+        font-size: 16px;
+    }
+
+    .videoRow{
+        grid-template-columns: 1fr; /* xuống 1 cột */
+        width: 100%;
+        margin-left: 0;
+        transform: none;
+        padding: 20px;
+    }
+
+    .videoMedia video {
+        max-width: 100%;
+        min-height: 360px;
+    }
+
+    .homeActions {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btnPrimary, .btnSecondary {
+        flex: 1;
+        min-width: 150px;
+    }
+
+    .introVideoSection {
+        padding: 60px 4%;
+    }
+
+    .introVideoRow {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .introTextCol {
+        padding: 40px 30px;
+    }
+
+    .introWelcome {
+        font-size: 14px;
+    }
+
+    .introTitle {
+        font-size: 40px;
+    }
+
+    .introTextItem {
+        font-size: 18px;
+    }
+
+    .introTextIcon {
+        width: 28px;
+        height: 28px;
+        font-size: 16px;
+    }
+
+    .introVideoMedia video {
+        min-height: 500px;
+        max-height: 70vh;
+    }
+}
+
+@media (max-width: 768px) {
+    .homePage {
+        padding: 30px 4%;
+        gap: 30px;
+    }
+
+    .homeTitle {
+        font-size: 32px;
+        margin-bottom: 24px;
+    }
+
+    .homeTitle span {
+        font-size: 28px;
+    }
+
+    .homeContent {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .serviceItem {
+        padding: 14px;
+        gap: 12px;
+        flex-direction: row;
+        min-width: 0;
+    }
+
+    .serviceIcon {
+        width: 44px;
+        height: 44px;
+        font-size: 24px;
+    }
+
+    .serviceText {
+        font-size: 15px;
+        line-height: 1.5;
+    }
+
+    .homeActions {
+        flex-direction: column;
+        gap: 12px;
+        margin-top: auto;
+    }
+
+    .btnPrimary, .btnSecondary {
+        width: 100%;
+        font-size: 15px;
+    }
+
+    .introVideoSection {
+        padding: 40px 3%;
+    }
+
+    .introTextCol {
+        padding: 30px 24px;
+    }
+
+    .introWelcome {
+        font-size: 14px;
+    }
+
+    .introTitle {
+        font-size: 32px;
+        margin-bottom: 24px;
+    }
+
+    .introTextItem {
+        font-size: 16px;
+    }
+
+    .introTextIcon {
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
+    }
+
+    .introVideoMedia video {
+        min-height: 400px;
+        max-height: 60vh;
+    }
+
+    .btnPrimary.iconOnly,
+    .btnSecondary.iconOnly{
+        width: 100%;
+        height: 56px;
+    }
+
+    .videoMedia video {
+        border-radius: 16px;
+    }
+
+    .videoOverlay{
+        border-radius: 16px;
+    }
+
+    .processSection{
+        padding: 44px 0 50px;
+        margin-bottom: 0;
+    }
+    .processTitle{
+        font-size: 30px;
+    }
+    .processDiagram{
+        min-height: auto;
+        padding: 40px 20px;
+        border-radius: 24px;
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+    }
+    .processImageWrapper{
+        display: none;
+    }
+    .processStepBubble{
+        position: static !important;
+        max-width: 100%;
+        min-width: auto;
+        width: 100%;
+        margin: 0 0 16px 0;
+        padding: 16px;
+        transform: none !important;
+        order: 0;
+    }
+    .processStepBubble::before{
+        display: none;
+    }
+    
+    /* Sắp xếp thứ tự các bước cho tablet */
+    .step-1 { order: 1; }
+    .step-2 { order: 2; }
+    .step-3 { order: 3; }
+    .step-4 { order: 4; }
+    .step-5 { order: 5; }
+    .step-6 { order: 6; }
+    .step-7 { order: 7; }
+    .processNo{
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+    .processStepTitle{
+        font-size: 14px;
+    }
+    .processStepDesc{
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .homePage {
+        padding: 20px 3%;
+    }
+
+    .homeTitle {
+        font-size: 28px;
+    }
+
+    .homeTitle span {
+        font-size: 24px;
+    }
+
+    .homeContent {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .serviceItem {
+        padding: 12px;
+        min-width: 0;
+    }
+
+    .serviceIcon {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+
+    .serviceText {
+        font-size: 14px;
+    }
+
+    .processSection{
+        padding: 36px 0 40px;
+        margin-bottom: 0;
+    }
+    .processTitle{
+        font-size: 24px;
+        margin-bottom: 8px;
+    }
+    .processSub{
+        font-size: 13px;
+        padding: 0 10px;
+    }
+    .processDiagram{
+        padding: 20px 15px;
+        min-height: auto;
+        border-radius: 20px;
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+    }
+    .processImageWrapper{
+        display: none;
+    }
+    .processStepBubble{
+        position: static !important;
+        max-width: 100%;
+        min-width: auto;
+        width: 100%;
+        margin: 0 0 16px 0;
+        padding: 16px;
+        transform: none !important;
+        order: 0;
+    }
+    .processStepBubble::before{
+        display: none;
+    }
+    
+    /* Sắp xếp thứ tự các bước */
+    .step-1 { order: 1; }
+    .step-2 { order: 2; }
+    .step-3 { order: 3; }
+    .step-4 { order: 4; }
+    .step-5 { order: 5; }
+    .step-6 { order: 6; }
+    .step-7 { order: 7; }
+    .processNo{
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+    .processStepTitle{
+        font-size: 15px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+    .processStepDesc{
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .processNo{
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+        margin-right: 12px;
+    }
+}
