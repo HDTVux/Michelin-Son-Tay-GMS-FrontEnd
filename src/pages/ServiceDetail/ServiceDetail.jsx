@@ -1,4 +1,4 @@
-import './ServiceDetail.css';
+import './ServiceDetail.module.css';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { fetchHomeServiceDetail } from '../../services/homeService';

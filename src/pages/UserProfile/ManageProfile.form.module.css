@@ -1,11 +1,12 @@
 :global {
 /* Section Styles */
 .avatarSection {
-  background: white;
+  background: var(--ui-surface);
   border-radius: 16px;
   padding: 32px 40px 32px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--ui-shadow);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 /* Form Styles */
@@ -31,17 +32,17 @@
 
 .formInput {
   padding: 12px 16px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--ui-border-strong);
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.3s ease;
-  background: white;
+  background: var(--ui-surface);
 }
 
 .formInput:focus {
   outline: none;
-  border-color: #005aa9;
-  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.1);
+  border-color: var(--ui-primary);
+  box-shadow: var(--ui-focus-ring);
 }
 
 .formInput select {

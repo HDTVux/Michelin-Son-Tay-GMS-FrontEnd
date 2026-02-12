@@ -9,6 +9,35 @@ import facilityImg4 from '../../assets/z7501188266556_2e19562ee0b89224a3f3ec42d4
 
 const About = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [blogData, setBlogData] = useState({
+    title: '',
+    content: '',
+    mainImage: null,
+    additionalImages: []
+  });
+  const [testimonials] = useState([
+    {
+      id: 1,
+      name: 'Nguyễn Văn A',
+      rating: 5,
+      comment: 'Dịch vụ rất chuyên nghiệp, nhân viên nhiệt tình. Xe của tôi được chăm sóc kỹ lưỡng và giá cả hợp lý.',
+      date: '15/10/2023'
+    },
+    {
+      id: 2,
+      name: 'Trần Thị B',
+      rating: 5,
+      comment: 'Lần đầu đến đây và rất hài lòng. Quy trình rõ ràng, minh bạch. Sẽ quay lại lần sau.',
+      date: '20/10/2023'
+    },
+    {
+      id: 3,
+      name: 'Lê Văn C',
+      rating: 4,
+      comment: 'Thay lốp nhanh chóng, chất lượng tốt. Không gian chờ đợi sạch sẽ, thoải mái.',
+      date: '25/10/2023'
+    }
+  ]);
 
   useEffect(() => {
     checkAuthStatus();
@@ -41,6 +70,32 @@ const About = () => {
   const checkAuthStatus = () => {
     const token = localStorage.getItem('customerToken');
     setIsAuthenticated(!!token);
+  };
+
+  const handleMainImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setBlogData(prev => ({ ...prev, mainImage: file }));
+    }
+  };
+
+  const handleAdditionalImagesChange = (e) => {
+    const files = Array.from(e.target.files);
+    setBlogData(prev => ({ ...prev, additionalImages: [...prev.additionalImages, ...files] }));
+  };
+
+  const removeAdditionalImage = (index) => {
+    setBlogData(prev => ({
+      ...prev,
+      additionalImages: prev.additionalImages.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleBlogSubmit = (e) => {
+    e.preventDefault();
+    // TODO: Xử lý submit blog
+    console.log('Blog data:', blogData);
+    alert('Blog đã được lưu thành công!');
   };
   return (
     <section className="aboutPage">
@@ -112,6 +167,110 @@ const About = () => {
           <div className="statItem">
             <div className="statNumber">100%</div>
             <div className="statLabel">Sản phẩm chính hãng</div>
+          </div>
+        </div>
+
+        {/* Blog Section */}
+        <div className="blogSection">
+          <h2 className="blogSectionTitle">Blog</h2>
+          <form className="blogForm" onSubmit={handleBlogSubmit}>
+            <div className="blogFormGroup">
+              <label htmlFor="blogTitle">Tiêu đề blog</label>
+              <input
+                type="text"
+                id="blogTitle"
+                value={blogData.title}
+                onChange={(e) => setBlogData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Nhập tiêu đề blog..."
+                required
+              />
+            </div>
+
+            <div className="blogFormGroup">
+              <label htmlFor="blogContent">Nội dung</label>
+              <textarea
+                id="blogContent"
+                value={blogData.content}
+                onChange={(e) => setBlogData(prev => ({ ...prev, content: e.target.value }))}
+                placeholder="Nhập nội dung blog..."
+                rows="6"
+                required
+              />
+            </div>
+
+            <div className="blogFormGroup">
+              <label htmlFor="mainImage">Ảnh chính *</label>
+              <div className="imageUploadWrapper">
+                <input
+                  type="file"
+                  id="mainImage"
+                  accept="image/*"
+                  onChange={handleMainImageChange}
+                  required
+                />
+                {blogData.mainImage && (
+                  <div className="imagePreview">
+                    <img src={URL.createObjectURL(blogData.mainImage)} alt="Preview" />
+                    <span>{blogData.mainImage.name}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="blogFormGroup">
+              <label htmlFor="additionalImages">Ảnh phụ (có thể thêm nhiều)</label>
+              <div className="imageUploadWrapper">
+                <input
+                  type="file"
+                  id="additionalImages"
+                  accept="image/*"
+                  multiple
+                  onChange={handleAdditionalImagesChange}
+                />
+                {blogData.additionalImages.length > 0 && (
+                  <div className="additionalImagesPreview">
+                    {blogData.additionalImages.map((file, index) => (
+                      <div key={index} className="additionalImageItem">
+                        <img src={URL.createObjectURL(file)} alt={`Preview ${index + 1}`} />
+                        <button
+                          type="button"
+                          onClick={() => removeAdditionalImage(index)}
+                          className="removeImageBtn"
+                        >
+                          ×
+                        </button>
+                        <span>{file.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button type="submit" className="blogSubmitBtn">Đăng blog</button>
+          </form>
+        </div>
+
+        {/* Testimonials Section */}
+        <div className="testimonialsSection">
+          <h2 className="testimonialsTitle">Khách hàng nói gì về chúng tôi</h2>
+          <div className="testimonialsGrid">
+            {testimonials.map((testimonial) => (
+              <div key={testimonial.id} className="testimonialCard">
+                <div className="testimonialHeader">
+                  <div className="testimonialName">{testimonial.name}</div>
+                  <div className="testimonialRating">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className={i < testimonial.rating ? 'star filled' : 'star'}>
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <p className="testimonialComment">{testimonial.comment}</p>
+                <div className="testimonialDate">{testimonial.date}</div>
+              </div>
+            ))}
           </div>
         </div>
 

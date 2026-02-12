@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import './styles/utilities.css';
 
 :root {
   --primary: #005aa9;
@@ -10,6 +11,28 @@
   --text-primary: #0a0f1c;
   --text-secondary: #334155;
   --border-soft: rgba(0, 0, 0, 0.08);
+
+  /* ===== Unified UI structure tokens (aligned with Booking/Step pattern) ===== */
+  --ui-bg: var(--dark);
+  --ui-surface: #ffffff;
+  --ui-surface-2: #f9fafb;
+  --ui-text: var(--text-primary);
+  --ui-muted: #475569;
+  --ui-border: #e5e7eb;
+  --ui-border-strong: #cbd5e1;
+  --ui-radius: 12px;
+  --ui-radius-sm: 10px;
+  --ui-radius-lg: 16px;
+  --ui-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  --ui-shadow-2: 0 12px 30px rgba(15, 23, 42, 0.12);
+  --ui-primary: var(--primary);
+  --ui-primary-hover: var(--primary-strong);
+  --ui-focus-ring: 0 0 0 3px rgba(0, 90, 169, 0.12);
+
+  /* Scrollbar accents (light purple per request) */
+  --ui-scroll-track: #f1f1f1;
+  --ui-scroll-thumb: #c084fc;
+  --ui-scroll-thumb-hover: #a78bfa;
 }
 
 * {

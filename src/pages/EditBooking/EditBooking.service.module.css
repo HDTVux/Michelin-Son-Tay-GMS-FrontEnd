@@ -1,62 +1,19 @@
-/* Service Step - Giống StepService */
-.editBookingPage .service-step { 
-  background: #fff; 
-  padding: 18px; 
-}
-
-.editBookingPage .service-top {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.editBookingPage .tabs { 
-  display: flex; 
-  gap: 8px; 
-}
-
-.editBookingPage .tab {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #f8fafc;
-  font-weight: 700;
-  cursor: pointer;
-  border: none;
-}
-
-.editBookingPage .tab.active {
-  background: #1d4ed8;
-  color: #fff;
-  border-color: #1d4ed8;
-}
-
+:global {
+/* Service Selection - Giống StepService */
 .editBookingPage .search-filter {
   display: flex;
-  gap: 10px;
-  flex: 1;
-  min-width: 320px;
-  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
-.editBookingPage .search-box {
+.editBookingPage .search-filter input {
   flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  min-width: 200px;
   padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
   background: #fff;
-}
-
-.editBookingPage .search-box input {
-  flex: 1;
-  border: none;
-  outline: none;
-  font-size: 14px;
 }
 
 .editBookingPage .search-filter select {
@@ -217,8 +174,5 @@
   .nav-btn { 
     display: none; 
   }
-
-  .slider-track { 
-    gap: 10px; 
-  }
+}
 }

@@ -1,3 +1,4 @@
+:global {
 /* Action Buttons */
 .actionButtons {
   display: flex;
@@ -72,4 +73,5 @@
   .btnCancelBooking {
     width: 100%;
   }
+}
 }

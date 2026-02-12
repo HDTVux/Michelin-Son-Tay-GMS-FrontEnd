@@ -7,15 +7,16 @@
 }
 
 .bookingCard {
-  background: white;
+  background: var(--ui-surface);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--ui-shadow);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
 }
 
 .bookingCard:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--ui-shadow-2);
   transform: translateY(-2px);
 }
 
@@ -25,7 +26,7 @@
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .bookingCode {
@@ -114,7 +115,7 @@
 
 .btnViewDetail {
   padding: 10px 20px;
-  background: #005aa9;
+  background: var(--ui-primary);
   color: white;
   text-decoration: none;
   border-radius: 8px;
@@ -125,7 +126,7 @@
 }
 
 .btnViewDetail:hover {
-  background: #004080;
+  background: var(--ui-primary-hover);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
 }

@@ -1,3 +1,4 @@
+:global {
 /* Header */
 .detailHeader {
   display: flex;
@@ -42,4 +43,5 @@
   .pageTitle {
     font-size: 24px;
   }
+}
 }

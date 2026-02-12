@@ -5,7 +5,7 @@
   gap: 12px;
   margin-bottom: 16px;
   flex-wrap: wrap;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid var(--ui-border);
   padding-bottom: 0;
 }
 
@@ -23,13 +23,13 @@
 }
 
 .filterTab:hover {
-  color: #005aa9;
+  color: var(--ui-primary);
   background: rgba(0, 90, 169, 0.05);
 }
 
 .filterTab.active {
-  color: #005aa9;
-  border-bottom-color: #005aa9;
+  color: var(--ui-primary);
+  border-bottom-color: var(--ui-primary);
   font-weight: 600;
 }
 
@@ -49,7 +49,7 @@
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid var(--ui-border);
   font-size: 14px;
   background-color: #ffffff;
   color: #111827;
@@ -62,9 +62,9 @@
 
 .bookingSearch input:focus {
   outline: none;
-  border-color: #005aa9;
+  border-color: var(--ui-primary);
   background-color: #ffffff;
-  box-shadow: 0 0 0 4px rgba(0, 90, 169, 0.1);
+  box-shadow: var(--ui-focus-ring);
 }
 
 .bookingSort {
@@ -75,7 +75,7 @@
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid var(--ui-border);
   font-size: 14px;
   background-color: #ffffff;
   color: #111827;
@@ -85,8 +85,8 @@
 
 .bookingSort select:focus {
   outline: none;
-  border-color: #005aa9;
-  box-shadow: 0 0 0 4px rgba(0, 90, 169, 0.1);
+  border-color: var(--ui-primary);
+  box-shadow: var(--ui-focus-ring);
 }
 
 /* Responsive */

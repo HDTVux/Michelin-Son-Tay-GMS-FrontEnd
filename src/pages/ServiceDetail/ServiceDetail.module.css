@@ -1,3 +1,4 @@
+:global {
 .serviceDetail {
   max-width: 1100px;
   margin: 0 auto;
@@ -21,7 +22,7 @@
 }
 
 .serviceDetail-breadcrumbs a {
-  color: #2563eb;
+  color: var(--ui-primary, #2563eb);
   text-decoration: none;
 }
 
@@ -52,7 +53,7 @@
 
 .serviceDetail-hero {
   width: 100%;
-  border-radius: 12px;
+  border-radius: var(--ui-radius, 12px);
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   margin-bottom: 28px;
@@ -92,9 +93,9 @@
 .serviceDetail-mediaItem {
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--ui-border, #e5e7eb);
   background: #fff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--ui-shadow, 0 4px 12px rgba(0, 0, 0, 0.04));
 }
 
 .serviceDetail-mediaItem img {
@@ -118,4 +119,5 @@
   .serviceDetail-title {
     font-size: 24px;
   }
+}
 }

@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import './EditBooking.css';
-import './EditBooking.header.css';
-import './EditBooking.service.css';
-import './EditBooking.schedule.css';
-import './EditBooking.actions.css';
-import './EditBooking.modal.css';
+import './EditBooking.module.css';
+import './EditBooking.header.module.css';
+import './EditBooking.service.module.css';
+import './EditBooking.schedule.module.css';
+import './EditBooking.actions.module.css';
+import './EditBooking.modal.module.css';
 
 const EditBooking = () => {
   useScrollToTop();

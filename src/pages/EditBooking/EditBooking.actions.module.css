@@ -1,10 +1,11 @@
+:global {
 /* Edit Sections */
 .editSection {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--ui-radius, 12px);
   padding: 24px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--ui-shadow-card, 0 2px 8px rgba(0, 0, 0, 0.08));
 }
 
 .sectionTitle {
@@ -35,8 +36,8 @@
 
 .noteInput:focus {
   outline: none;
-  border-color: #005aa9;
-  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.1);
+  border-color: var(--ui-primary, #005aa9);
+  box-shadow: var(--ui-focus-ring, 0 0 0 3px rgba(0, 90, 169, 0.1));
 }
 
 /* Action Buttons */
@@ -91,4 +92,5 @@
   .btnSaveChanges {
     width: 100%;
   }
+}
 }

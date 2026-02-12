@@ -12,7 +12,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #005aa9;
+  background: var(--ui-primary);
   color: white;
   text-decoration: none;
   border-radius: 8px;
@@ -21,7 +21,7 @@
 }
 
 .backButton:hover {
-  background: #004080;
+  background: var(--ui-primary-hover);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
 }

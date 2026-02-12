@@ -728,53 +728,53 @@
 /* Step 1: Top-right (12h-1h) */
 .step-1{ 
     top: 4%;
-    right: -2%;
+    right: -8%;
     transform: translate(0, 0);
 }
 .step-1::before{
     top: 50%;
-    left: -120px;
+    left: -140px;
     transform: rotate(-30deg);
-    width: 120px;
+    width: 140px;
 }
 
 /* Step 2: Right (2h-3h) */
 .step-2{ 
     top: 50%;
-    right: -8%;
+    right: -12%;
     transform: translate(0, -50%);
 }
 .step-2::before{
     top: 50%;
-    left: -120px;
+    left: -140px;
     transform: rotate(0deg);
-    width: 120px;
+    width: 140px;
 }
 
 /* Step 3: Bottom-right (4h-5h) */
 .step-3{ 
     bottom: 12%;
-    right: -2%;
+    right: -8%;
     transform: translate(0, 0);
 }
 .step-3::before{
     top: 50%;
-    left: -120px;
+    left: -140px;
     transform: rotate(30deg);
-    width: 120px;
+    width: 140px;
 }
 
 /* Step 4: Bottom (6h) */
 .step-4{ 
-    bottom: -2%;
+    bottom: -8%;
     left: 50%;
     transform: translate(-50%, 0);
 }
 .step-4::before{
-    top: -120px;
+    top: -140px;
     left: 50%;
     width: 3px;
-    height: 120px;
+    height: 140px;
     transform: translateX(-50%);
     background: linear-gradient(180deg, rgba(59, 130, 246, 0.5) 0%, rgba(59, 130, 246, 0.15) 100%);
 }
@@ -782,40 +782,40 @@
 /* Step 5: Bottom-left (7h-8h) */
 .step-5{ 
     bottom: 12%;
-    left: -2%;
+    left: -8%;
     transform: translate(0, 0);
 }
 .step-5::before{
     top: 50%;
-    right: -120px;
+    right: -140px;
     transform: rotate(-30deg);
-    width: 120px;
+    width: 140px;
 }
 
 /* Step 6: Left (9h-10h) */
 .step-6{ 
     top: 50%;
-    left: -8%;
+    left: -12%;
     transform: translate(0, -50%);
 }
 .step-6::before{
     top: 50%;
-    right: -120px;
+    right: -140px;
     transform: rotate(0deg);
-    width: 120px;
+    width: 140px;
 }
 
 /* Step 7: Top-left (11h) */
 .step-7{ 
     top: 4%;
-    left: -2%;
+    left: -8%;
     transform: translate(0, 0);
 }
 .step-7::before{
     top: 50%;
-    right: -120px;
+    right: -140px;
     transform: rotate(30deg);
-    width: 120px;
+    width: 140px;
 }
 
 .processNo{

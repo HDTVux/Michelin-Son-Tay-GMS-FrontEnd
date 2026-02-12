@@ -120,14 +120,14 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 
 .loginFormSection a { 
-  color: #005aa9; 
+  color: var(--ui-primary); 
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s ease;
 }
 
 .loginFormSection a:hover {
-  color: #3a8de0;
+  color: var(--primary-soft);
 }
 
 .inputGroup { 
@@ -149,7 +149,7 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   padding: 16px 18px;
   height: 54px;
   background-color: #ffffff;
-  border: 2px solid rgba(0, 0, 0, 0.08);
+  border: 2px solid var(--border-soft);
   border-radius: 12px;
   color: #0a0f1c;
   outline: none;
@@ -166,8 +166,8 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 
 .loginFormSection .inputGroup input:focus { 
-  border-color: #005aa9;
-  box-shadow: 0 0 0 4px rgba(0, 90, 169, 0.14);
+  border-color: var(--ui-primary);
+  box-shadow: var(--ui-focus-ring);
   background-color: #f4f7fb;
 }
 
@@ -247,7 +247,7 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 
 .togglePassword:hover {
-  color: #005aa9;
+  color: var(--ui-primary);
 }
 
 .forgotPassword {
