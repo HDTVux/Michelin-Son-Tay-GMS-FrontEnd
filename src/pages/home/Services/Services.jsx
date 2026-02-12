@@ -111,6 +111,15 @@ const Services = () => {
   const comboTrackRef = useRef(null);
   const comboPointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
+  // Scroll reveal cho 3 phần: dịch vụ, quy trình, combo
+  const servicesHeroRef = useRef(null);
+  const processHeaderRef = useRef(null);
+  const combosHeroRef = useRef(null);
+
+  const [servicesIntroVisible, setServicesIntroVisible] = useState(false);
+  const [processIntroVisible, setProcessIntroVisible] = useState(false);
+  const [combosIntroVisible, setCombosIntroVisible] = useState(false);
+
   useEffect(() => {
     const calc = () => {
       const w = window.innerWidth;
@@ -217,14 +226,58 @@ const Services = () => {
     setTimeout(() => setIsComboPaused(false), 300);
   };
 
+  // IntersectionObserver cho tiêu đề các phần
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+
+          if (entry.target === servicesHeroRef.current) {
+            setServicesIntroVisible(true);
+          }
+          if (entry.target === processHeaderRef.current) {
+            setProcessIntroVisible(true);
+          }
+          if (entry.target === combosHeroRef.current) {
+            setCombosIntroVisible(true);
+          }
+        });
+      },
+      { threshold: 0.25 }
+    );
+
+    const servicesEl = servicesHeroRef.current;
+    const processEl = processHeaderRef.current;
+    const combosEl = combosHeroRef.current;
+
+    if (servicesEl) observer.observe(servicesEl);
+    if (processEl) observer.observe(processEl);
+    if (combosEl) observer.observe(combosEl);
+
+    return () => {
+      if (servicesEl) observer.unobserve(servicesEl);
+      if (processEl) observer.unobserve(processEl);
+      if (combosEl) observer.unobserve(combosEl);
+      observer.disconnect();
+    };
+  }, []);
+
   return (
     <>
       {/* Danh sách dịch vụ tiện ích nổi bật */}
       <section className="servicesPage">
-        <div className="servicesHero">
-          <h1 className="servicesTitle">Danh sách dịch vụ tiện ích nổi bật</h1>
+        <div
+          ref={servicesHeroRef}
+          className={`servicesHero ${servicesIntroVisible ? 'visible' : ''}`}
+        >
+          <div className="servicesLabel">DỊCH VỤ NỔI BẬT</div>
+          <h1 className="servicesTitle">
+            <span className="titlePart1">Dịch vụ</span>
+            <span className="titlePart2">tiện ích chính hãng Michelin Sơn Tây</span>
+          </h1>
           <p className="servicesSubtitle">
-            Các dịch vụ chuyên nghiệp cho xe của bạn
+            Các dịch vụ chuyên nghiệp, chuẩn quy trình – giúp chiếc xe của bạn luôn an toàn và bền bỉ trên mọi hành trình.
           </p>
         </div>
 
@@ -314,9 +367,18 @@ const Services = () => {
       {/* Quy trình dịch vụ */}
       <section className="processSection">
         <div className="processInner">
-          <div className="processHeader">
-            <h2 className="processTitle">Quy trình dịch vụ</h2>
-            <p className="processSub">7 bước rõ ràng, minh bạch – giúp bạn yên tâm trong suốt quá trình</p>
+          <div
+            ref={processHeaderRef}
+            className={`processHeader ${processIntroVisible ? 'visible' : ''}`}
+          >
+            <div className="servicesLabel">QUY TRÌNH DỊCH VỤ</div>
+            <h2 className="processTitle">
+              <span className="titlePart1">Quy trình</span>
+              <span className="titlePart2">chăm sóc & bảo dưỡng xe chuẩn Michelin</span>
+            </h2>
+            <p className="processSub">
+              7 bước rõ ràng, minh bạch – từ tiếp nhận đến bàn giao, mang lại cho bạn trải nghiệm an tâm và chuyên nghiệp.
+            </p>
           </div>
 
           <div className="processDiagram">
@@ -378,10 +440,17 @@ const Services = () => {
 
       {/* Gói dịch vụ được tin dùng */}
       <section className="combosPage">
-        <div className="servicesHero">
-          <h1 className="servicesTitle">Gói dịch vụ được tin dùng</h1>
+        <div
+          ref={combosHeroRef}
+          className={`servicesHero ${combosIntroVisible ? 'visible' : ''}`}
+        >
+          <div className="servicesLabel">GÓI COMBO ƯU ĐÃI</div>
+          <h1 className="servicesTitle">
+            <span className="titlePart1">Combo</span>
+            <span className="titlePart2">dịch vụ được khách hàng tin dùng</span>
+          </h1>
           <p className="servicesSubtitle">
-            Giá cả minh bạch, dịch vụ chất lượng
+            Giá cả minh bạch, tối ưu chi phí – phù hợp cho từng nhu cầu sử dụng và bảo dưỡng xe của bạn.
           </p>
         </div>
 

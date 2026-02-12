@@ -1,3 +1,4 @@
+:global {
 /* Section Styles */
 .avatarSection {
   background: white;
@@ -59,4 +60,5 @@
   .avatarSection {
     padding: 24px;
   }
+}
 }

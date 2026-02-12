@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Mascot from '../../../assets/Mascot.jpg';
-import './ForgotPassword.css';
+import './ForgotPassword.module.css';
 
 export default function ForgotPassword() {
   const [step, setStep] = useState(1); // 1: identifier, 2: otp, 3: reset

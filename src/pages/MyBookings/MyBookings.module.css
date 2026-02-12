@@ -1,19 +1,21 @@
+:global {
 /* Main Page Styles */
-.manageProfilePage {
+.myBookingsPage {
   min-height: 100vh;
   padding: 40px 5%;
   background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
   color: #0a0f1c;
 }
 
-.manageProfileContainer {
-  max-width: 1000px;
+.bookingsContainer {
+  max-width: 1200px;
   margin: 0 auto;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .manageProfilePage {
+  .myBookingsPage {
     padding: 20px 4%;
   }
+}
 }

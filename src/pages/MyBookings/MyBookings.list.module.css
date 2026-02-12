@@ -1,3 +1,4 @@
+:global {
 /* Booking List */
 .bookingList {
   display: flex;
@@ -156,4 +157,5 @@
     width: 100%;
     text-align: center;
   }
+}
 }

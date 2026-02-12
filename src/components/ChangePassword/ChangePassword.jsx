@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import './ChangePassword.css';
+import './ChangePassword.module.css';
 
 const ChangePassword = ({ 
   onCancel, 

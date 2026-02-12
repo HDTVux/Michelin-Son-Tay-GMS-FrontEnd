@@ -1,3 +1,4 @@
+:global {
 /* Footer Buttons */
 .formFooter {
   display: flex;
@@ -48,4 +49,5 @@
   .btnSave {
     width: 100%;
   }
+}
 }

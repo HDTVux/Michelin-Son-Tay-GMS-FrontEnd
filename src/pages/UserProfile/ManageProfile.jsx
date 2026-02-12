@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import './ManageProfile.css';
-import './ManageProfile.header.css';
-import './ManageProfile.avatar.css';
-import './ManageProfile.form.css';
-import './ManageProfile.footer.css';
+import './ManageProfile.module.css';
+import './ManageProfile.header.module.css';
+import './ManageProfile.avatar.module.css';
+import './ManageProfile.form.module.css';
+import './ManageProfile.footer.module.css';
 
 const ManageProfile = () => {
   useScrollToTop();
