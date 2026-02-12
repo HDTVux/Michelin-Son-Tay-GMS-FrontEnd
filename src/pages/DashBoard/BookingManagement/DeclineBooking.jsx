@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import './DeclineBooking.css';
+import styles from './DeclineBooking.module.css';
 
 const defaultReasons = [
 	'Khách hủy lịch',
@@ -22,15 +22,15 @@ export default function DeclineBooking({ open, onClose, onConfirm, reasons }) {
 	};
 
 	const modal = (
-		<div className="decline__backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-			<div className="decline__modal" role="dialog" aria-modal="true" aria-labelledby="declineTitle">
-				<h3 id="declineTitle" className="decline__title">Từ chối yêu cầu đặt lịch</h3>
-				<p className="decline__warning">Hành động này không thể hoàn tác</p>
+		<div className={styles.decline__backdrop} onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+			<div className={styles.decline__modal} role="dialog" aria-modal="true" aria-labelledby="declineTitle">
+				<h3 id="declineTitle" className={styles.decline__title}>Từ chối yêu cầu đặt lịch</h3>
+				<p className={styles.decline__warning}>Hành động này không thể hoàn tác</p>
 
-				<label className="decline__label" htmlFor="declineReason">Lý do từ chối</label>
+				<label className={styles.decline__label} htmlFor="declineReason">Lý do từ chối</label>
 				<select
 					id="declineReason"
-					className="decline__select"
+					className={styles.decline__select}
 					value={selectedReason}
 					onChange={(e) => setSelectedReason(e.target.value)}
 				>
@@ -41,18 +41,18 @@ export default function DeclineBooking({ open, onClose, onConfirm, reasons }) {
 				</select>
 
 				<textarea
-					className="decline__textarea"
+					className={styles.decline__textarea}
 					placeholder="Nhập lý do chi tiết..."
 					value={detail}
 					maxLength={maxLen}
 					onChange={(e) => setDetail(e.target.value)}
 				/>
 
-				<div className="decline__footer">
-					<span className="decline__counter">{detail.length}/{maxLen}</span>
-					<div className="decline__actions">
-						<button type="button" className="btn ghost" onClick={() => onClose?.()}>Hủy</button>
-						<button type="button" className="btn danger" disabled={!selectedReason} onClick={handleConfirm}>
+				<div className={styles.decline__footer}>
+					<span className={styles.decline__counter}>{detail.length}/{maxLen}</span>
+					<div className={styles.decline__actions}>
+						<button type="button" className={`${styles.btn} ${styles.ghost}`} onClick={() => onClose?.()}>Hủy</button>
+						<button type="button" className={`${styles.btn} ${styles.danger}`} disabled={!selectedReason} onClick={handleConfirm}>
 							Xác nhận từ chối
 						</button>
 					</div>

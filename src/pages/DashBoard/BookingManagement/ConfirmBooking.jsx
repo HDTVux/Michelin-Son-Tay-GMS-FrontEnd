@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import './ConfirmBooking.css';
+import styles from './ConfirmBooking.module.css';
 
 const fallbackRequest = {
 	code: 'Mã yêu cầu',
@@ -18,23 +18,23 @@ export default function ConfirmBooking({ open, onClose, onConfirm, request }) {
 	const data = { ...fallbackRequest, ...(request || {}) };
 
 	const modal = (
-		<div className="confirmBooking__backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-			<div className="confirmBooking__modal" role="dialog" aria-modal="true" aria-labelledby="confirmBookingTitle">
-				<h3 id="confirmBookingTitle" className="confirmBooking__title">Xác nhận duyệt yêu cầu</h3>
-				<p className="confirmBooking__subtitle">Bạn có chắc muốn duyệt yêu cầu này và tạo booking chính thức?</p>
+		<div className={styles.confirmBooking__backdrop} onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+			<div className={styles.confirmBooking__modal} role="dialog" aria-modal="true" aria-labelledby="confirmBookingTitle">
+				<h3 id="confirmBookingTitle" className={styles.confirmBooking__title}>Xác nhận duyệt yêu cầu</h3>
+				<p className={styles.confirmBooking__subtitle}>Bạn có chắc muốn duyệt yêu cầu này và tạo booking chính thức?</p>
 
-				<div className="confirmBooking__card">
+				<div className={styles.confirmBooking__card}>
 					<Row label="Mã yêu cầu:" value={data.code} href={data.codeHref} />
 					<Row label="Tên khách:" value={data.customerName} href={data.customerHref} />
 					<Row label="Thời gian booking:" value={data.bookingTime} href={data.timeHref} />
 					<Row label="Dịch vụ:" value={data.service} href={data.serviceHref} />
 				</div>
 
-				<div className="confirmBooking__alert">Booking sẽ được tạo và thêm vào lịch làm việc</div>
+				<div className={styles.confirmBooking__alert}>Booking sẽ được tạo và thêm vào lịch làm việc</div>
 
-				<div className="confirmBooking__actions">
-					<button type="button" className="btn ghost" onClick={() => onClose?.()}>Hủy</button>
-					<button type="button" className="btn primary" onClick={() => onConfirm?.(data)}>Xác nhận duyệt</button>
+				<div className={styles.confirmBooking__actions}>
+					<button type="button" className={`${styles.btn} ${styles.ghost}`} onClick={() => onClose?.()}>Hủy</button>
+					<button type="button" className={`${styles.btn} ${styles.primary}`} onClick={() => onConfirm?.(data)}>Xác nhận duyệt</button>
 				</div>
 			</div>
 		</div>
@@ -45,10 +45,10 @@ export default function ConfirmBooking({ open, onClose, onConfirm, request }) {
 }
 
 function Row({ label, value, href }) {
-	const content = href ? <a className="confirmBooking__link" href={href}>{value}</a> : value;
+	const content = href ? <a className={styles.confirmBooking__link} href={href}>{value}</a> : value;
 	return (
-		<p className="confirmBooking__row">
-			<span className="confirmBooking__label">{label}</span> {content}
+		<p className={styles.confirmBooking__row}>
+			<span className={styles.confirmBooking__label}>{label}</span> {content}
 		</p>
 	);
 }

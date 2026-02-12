@@ -105,6 +105,13 @@
   display: block;
 }
 
+.serviceDetail-mediaItem video {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+}
+
 .serviceDetail-mediaCaption {
   padding: 8px 10px;
   font-size: 13px;

@@ -1,7 +1,0 @@
-:global {
-  /* Toàn bộ style Home cũ được giữ ở đây, tạm thời chỉ cần homePage để tránh lỗi */
-  .homePage {
-    min-height: calc(100vh - 72px);
-  }
-}
-
