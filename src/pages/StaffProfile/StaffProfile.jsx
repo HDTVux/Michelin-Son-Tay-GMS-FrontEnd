@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import './StaffProfile.css';
-import './StaffProfile.header.css';
+import styles from './StaffProfile.module.css';
 
 const StaffProfile = () => {
   useScrollToTop();
@@ -57,110 +56,112 @@ const StaffProfile = () => {
   ];
 
   return (
-    <div className="staffProfilePage">
-      <div className="profileContainer">
-        {/* Header với nút quay lại Dashboard */}
-        <div className="profileHeader">
-          <h1 className="profileTitle">Thông tin nhân viên</h1>
-          <Link to="/dashboard" className="backButton">
-            ← Quay lại Dashboard
-          </Link>
-        </div>
-
-        {/* Khu vực thông tin cơ bản nhân viên */}
-        <section className="staffBasicInfoSection">
-          <div className="infoCard">
-            <div className="avatarContainer">
-              {staffInfo.avatar ? (
-                <img src={staffInfo.avatar} alt="Avatar" className="avatarImage" />
-              ) : (
-                <div className="avatarPlaceholder">
-                  <span className="avatarIcon">👤</span>
-                </div>
-              )}
-            </div>
-            <div className="infoDetails">
-              <div className="infoHeader">
-                <h2 className="staffName">{staffInfo.staffName}</h2>
-                <span className="staffCode">Mã: {staffInfo.staffCode}</span>
-              </div>
-              <div className="infoGrid">
-                <div className="infoRow">
-                  <span className="infoLabel">Giới tính:</span>
-                  <span className="infoValue">{staffInfo.gender}</span>
-                </div>
-                <div className="infoRow">
-                  <span className="infoLabel">Email nội bộ:</span>
-                  <span className="infoValue">{staffInfo.email}</span>
-                </div>
-                <div className="infoRow">
-                  <span className="infoLabel">Số điện thoại:</span>
-                  <span className="infoValue">{staffInfo.phoneNumber}</span>
-                </div>
-                <div className="infoRow">
-                  <span className="infoLabel">Chức danh / Vai trò:</span>
-                  <span className="infoValue">{staffInfo.staffRole}</span>
-                </div>
-                <div className="infoRow">
-                  <span className="infoLabel">Trạng thái làm việc:</span>
-                  <span className={`infoValue status ${staffInfo.staffStatus === 'Đang làm việc' ? 'active' : 'inactive'}`}>
-                    {staffInfo.staffStatus}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Khu vực thông tin công việc và thống kê */}
-        <section className="staffWorkSummarySection">
-          <h2 className="sectionTitle">Thống kê cá nhân theo lịch sử làm việc</h2>
-          <div className="statsGrid">
-            <div className="statCard white">
-              <div className="statIcon">🎫</div>
-              <div className="statLabel">Tổng số ticket đã tham gia</div>
-              <div className="statValue blue">{workStats.totalTickets}</div>
-            </div>
-            <div className="statCard white">
-              <div className="statIcon">🔧</div>
-              <div className="statLabel">Tổng số dịch vụ đã thực hiện</div>
-              <div className="statValue blue">{workStats.totalServices}</div>
-            </div>
-            <div className="statCard blue">
-              <div className="statIcon">⏱️</div>
-              <div className="statLabel">Tổng giờ làm việc tích lũy</div>
-              <div className="statValue white">
-                {workStats.totalWorkingHours.toLocaleString('vi-VN')} giờ
-              </div>
-            </div>
-            <div className="statCard white">
-              <div className="statIcon">⭐</div>
-              <div className="statLabel">Đánh giá trung bình từ khách hàng</div>
-              <div className="statValue blue">
-                {workStats.averageRating ? `${workStats.averageRating}/5.0` : 'Chưa có đánh giá'}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Khu vực tiện ích nhanh */}
-        <section className="quickActionsSection">
-          <h2 className="sectionTitle">Tiện ích nhanh</h2>
-          <div className="actionsGrid">
-            {quickActions.map((action) => (
-              <Link
-                key={action.id}
-                to={action.link}
-                className="actionCard"
-              >
-                <div className="actionIcon">{action.icon}</div>
-                <h3 className="actionTitle">{action.title}</h3>
-                <p className="actionDescription">{action.description}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
+    <div className={styles.staffProfilePage}>
+      <div className={styles.profileHeader}>
+        <h1 className={styles.profileTitle}>Thông tin nhân viên</h1>
+        <Link to="/dashboard" className={styles.backButton}>
+          ← Quay lại Dashboard
+        </Link>
       </div>
+
+      <section className={styles.staffInfoSection}>
+        <div className={styles.infoCard}>
+          <div className={styles.avatarContainer}>
+            {staffInfo.avatar ? (
+              <img src={staffInfo.avatar} alt="Avatar" className={styles.avatarImage} />
+            ) : (
+              <div className={styles.avatarPlaceholder}>
+                <span>👤</span>
+              </div>
+            )}
+          </div>
+          <div className={styles.infoDetails}>
+            <div className={styles.infoHeader}>
+              <h2 className={styles.staffName}>{staffInfo.staffName}</h2>
+              <span className={styles.staffCode}>Mã: {staffInfo.staffCode}</span>
+            </div>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Họ và Tên:</span>
+                <span className={styles.infoValue}>{staffInfo.staffName}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Mã nhân viên:</span>
+                <span className={styles.infoValue}>{staffInfo.staffCode}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Giới tính:</span>
+                <span className={styles.infoValue}>{staffInfo.gender}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Email nội bộ:</span>
+                <span className={styles.infoValue}>{staffInfo.email}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Số điện thoại:</span>
+                <span className={styles.infoValue}>{staffInfo.phoneNumber}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Chức danh / Vai trò:</span>
+                <span className={styles.infoValue}>{staffInfo.staffRole}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Trạng thái làm việc:</span>
+                <span className={`${styles.infoValue} ${styles.status} ${staffInfo.staffStatus === 'Đang làm việc' ? styles.active : styles.inactive}`}>
+                  {staffInfo.staffStatus}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.statsSection}>
+        <h2 className={styles.sectionTitle}>Thống kê cá nhân theo lịch sử làm việc</h2>
+        <div className={styles.statsGrid}>
+          <div className={styles.statCard}>
+            <span className={styles.statIcon}>🎫</span>
+            <div className={styles.statLabel}>Tổng số ticket đã tham gia</div>
+            <div className={styles.statValue}>{workStats.totalTickets}</div>
+          </div>
+          <div className={styles.statCard}>
+            <span className={styles.statIcon}>🔧</span>
+            <div className={styles.statLabel}>Tổng số dịch vụ đã thực hiện</div>
+            <div className={styles.statValue}>{workStats.totalServices}</div>
+          </div>
+          <div className={`${styles.statCard} ${styles.blue}`}>
+            <span className={styles.statIcon}>⏱️</span>
+            <div className={styles.statLabel}>Tổng giờ làm việc tích lũy</div>
+            <div className={styles.statValue}>
+              {workStats.totalWorkingHours.toLocaleString('vi-VN')} giờ
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <span className={styles.statIcon}>⭐</span>
+            <div className={styles.statLabel}>Đánh giá trung bình từ khách hàng</div>
+            <div className={styles.statValue}>
+              {workStats.averageRating ? `${workStats.averageRating}/5.0` : 'Chưa có đánh giá'}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.actionsSection}>
+        <h2 className={styles.sectionTitle}>Tiện ích nhanh</h2>
+        <div className={styles.actionsGrid}>
+          {quickActions.map((action) => (
+            <Link
+              key={action.id}
+              to={action.link}
+              className={styles.actionCard}
+            >
+              <span className={styles.actionIcon}>{action.icon}</span>
+              <h3 className={styles.actionTitle}>{action.title}</h3>
+              <p className={styles.actionDescription}>{action.description}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 };

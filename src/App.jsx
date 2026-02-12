@@ -16,6 +16,7 @@ import MyBookings from './pages/MyBookings/MyBookings.jsx';
 import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
 import EditBooking from './pages/EditBooking/EditBooking.jsx';
 import StaffProfile from './pages/StaffProfile/StaffProfile.jsx';
+import UpdateStaffProfile from './pages/StaffProfile/UpdateStaffProfile.jsx';
 import StaffChangePassword from './pages/StaffProfile/StaffChangePassword.jsx';
 import StaffManageSSO from './pages/StaffProfile/StaffManageSSO.jsx';
 import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="booking-detail/:id" element={<BookingDetail />} />
           <Route path="edit-booking/:id" element={<EditBooking />} />
           <Route path="staff-profile" element={<StaffProfile />} />
+          <Route path="update-staff-profile" element={<UpdateStaffProfile />} />
           <Route path="staff-change-password" element={<StaffChangePassword />} />
           <Route path="staff-manage-sso" element={<StaffManageSSO />} />
         </Route>

@@ -1,0 +1,19 @@
+:global {
+.updateStaffProfilePage {
+  min-height: 100vh;
+  padding: 40px 5%;
+  background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
+  color: #0a0f1c;
+}
+
+.updateStaffProfileContainer {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .updateStaffProfilePage {
+    padding: 20px 4%;
+  }
+}
+}

@@ -1,0 +1,51 @@
+:global {
+.formFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--ui-border);
+}
+
+.btnCancel {
+  padding: 12px 24px;
+  background: #e2e8f0;
+  color: #475569;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btnCancel:hover {
+  background: #cbd5e1;
+}
+
+.btnSave {
+  padding: 12px 24px;
+  background: var(--ui-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btnSave:hover {
+  background: var(--ui-primary-hover);
+}
+
+@media (max-width: 768px) {
+  .formFooter {
+    flex-direction: column-reverse;
+  }
+
+  .btnCancel,
+  .btnSave {
+    width: 100%;
+  }
+}
+}

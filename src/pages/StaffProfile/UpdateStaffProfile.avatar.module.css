@@ -1,0 +1,79 @@
+:global {
+.avatarUploadArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.avatarPreview {
+  flex-shrink: 0;
+}
+
+.avatarPreviewPlaceholder {
+  width: 140px;
+  height: 140px;
+  border-radius: 999px;
+  background: #eef2f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #cbd5e1;
+}
+
+.avatarPreviewIcon {
+  font-size: 48px;
+  color: #94a3b8;
+}
+
+.avatarPreviewImage {
+  width: 140px;
+  height: 140px;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.btnUpload {
+  padding: 10px 32px;
+  background: #005aa9;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btnUpload:hover {
+  background: #004080;
+}
+
+.btnDeleteInline {
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.btnDeleteInline:hover {
+  color: #475569;
+}
+
+.avatarHint {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 24px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .avatarUploadArea {
+    flex-direction: column;
+  }
+}
+}

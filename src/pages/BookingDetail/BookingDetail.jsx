@@ -13,8 +13,7 @@ const BookingDetail = () => {
   const navigate = useNavigate();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  // Dữ liệu mẫu - sau này sẽ lấy từ API dựa vào id
-  // Dữ liệu này phải khớp với dữ liệu trong MyBookings.jsx
+  
   const allBookings = useMemo(() => [
     {
       id: 'LH001',

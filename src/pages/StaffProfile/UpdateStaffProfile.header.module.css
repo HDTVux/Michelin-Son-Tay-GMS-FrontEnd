@@ -1,0 +1,47 @@
+:global {
+.updateStaffProfileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.updateStaffProfileTitle {
+  font-size: 32px;
+  font-weight: 700;
+  color: #0a0f1c;
+  margin: 0;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--ui-primary);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.backButton:hover {
+  background: var(--ui-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
+}
+
+@media (max-width: 768px) {
+  .updateStaffProfileHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .updateStaffProfileTitle {
+    font-size: 24px;
+  }
+}
+}

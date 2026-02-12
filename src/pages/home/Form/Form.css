@@ -12,17 +12,6 @@
   min-height: 600px;
 }
 
-.bookingWrapper::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 0;
-}
-
 .bookingWrapper::before {
   content: '';
   position: absolute;
@@ -33,6 +22,33 @@
   background: linear-gradient(90deg, #10b981, #34d399, #10b981);
   background-size: 200% 100%;
   animation: shimmer 3s linear infinite;
+  z-index: 1;
+}
+
+.bookingWrapper .logoOverlay {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  width: 120px;
+  height: 120px;
+  background-image: url('../../../assets/Logo3.jpg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.3;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.bookingWrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 0;
 }
 
 @keyframes shimmer {
@@ -143,6 +159,21 @@
 .formTitle .titlePart1 {
   color: #ffffff;
   margin-right: 8px;
+}
+
+.formTitle .titlePart1.animated-text {
+  animation: textPulse 2s ease-in-out infinite;
+}
+
+@keyframes textPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
 }
 
 .formTitle .titlePart2 {
