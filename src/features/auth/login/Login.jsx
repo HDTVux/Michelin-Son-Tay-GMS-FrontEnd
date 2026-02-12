@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import './Login.module.css';
+import styles from './Login.module.css';
 import Mascot from '../../../assets/Mascot.jpg';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginStaff, getStaffGoogleOAuthUrl } from '../../../services/authService';
@@ -94,83 +94,83 @@ export default function Login() {
   };
 
   return (
-    <div className="loginContainer">
-      <div className="loginCard">
+    <div className={styles.loginContainer}>
+      <div className={styles.loginCard}>
         {/* 2. Truyền ảnh vào style inline */}
         <div 
-          className="loginImageSection" 
+          className={styles.loginImageSection} 
           style={{ 
             backgroundImage: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(${Mascot})` 
           }}
         >
-          <div className="logo">Michellin Sơn Tây</div>
-          <div className="imageText">
+          <div className={styles.logo}>Michellin Sơn Tây</div>
+          <div className={styles.imageText}>
             <h2>On the road <br /> and beyond!</h2>
-            <div className="pagination-dots">
-                <span className="dot"></span>
-                <span className="dot"></span>
-                <span className="dot active"></span>
+            <div className={styles['pagination-dots']}>
+                <span className={styles.dot}></span>
+                <span className={styles.dot}></span>
+                <span className={`${styles.dot} ${styles.active}`}></span>
             </div>
           </div>
         </div>
 
-        <div className="loginFormSection">
-          <div className="formHeader">
+        <div className={styles.loginFormSection}>
+          <div className={styles.formHeader}>
             <h2>Chào mừng trở lại</h2>
-            <p className="formSubtitle">Welcome Back</p>
+            <p className={styles.formSubtitle}>Welcome Back</p>
           </div>
 
           <form onSubmit={handleSubmit}>
-            {errors.api && <div className="errorBanner">{errors.api}</div>}
-            {serverMessage && <div className="successBanner">{serverMessage}</div>}
+            {errors.api && <div className={styles.errorBanner}>{errors.api}</div>}
+            {serverMessage && <div className={styles.successBanner}>{serverMessage}</div>}
 
-            <div className="inputGroup">
-              <label className="inputLabel">Số điện thoại hoặc email</label>
+            <div className={styles.inputGroup}>
+              <label className={styles.inputLabel}>Số điện thoại hoặc email</label>
               <input
                 type="text"
                 name="phone"
                 placeholder="Nhập số điện thoại hoặc email"
                 value={formData.phone}
                 onChange={handleChange}
-                className={errors.phone ? 'error' : ''}
+                className={errors.phone ? styles.error : ''}
               />
-              {errors.phone && <span className="errorMessage">{errors.phone}</span>}
+              {errors.phone && <span className={styles.errorMessage}>{errors.phone}</span>}
             </div>
-            <div className="inputGroup">
-              <label className="inputLabel">Nhập mật khẩu</label>
-              <div className="passwordWrapper">
+            <div className={styles.inputGroup}>
+              <label className={styles.inputLabel}>Nhập mật khẩu</label>
+              <div className={styles.passwordWrapper}>
                 <input
                   type={showPin ? 'text' : 'password'}
                   name="password"
                   placeholder="Nhập mật khẩu"
                   value={formData.password}
                   onChange={handleChange}
-                  className={errors.password ? 'error' : ''}
+                  className={errors.password ? styles.error : ''}
                 />
                 <button
                   type="button"
-                  className="togglePassword"
+                  className={styles.togglePassword}
                   onClick={() => setShowPin(!showPin)}
                   aria-label="Toggle PIN visibility"
                 >
                   {showPin ? '👁️' : '👁️‍🗨️'}
                 </button>
               </div>
-              {errors.password && <span className="errorMessage">{errors.password}</span>}
+              {errors.password && <span className={styles.errorMessage}>{errors.password}</span>}
             </div>
-            <p className="forgotPassword">
+            <p className={styles.forgotPassword}>
               Quên mật khẩu?
-              <Link to="/forgot-password" className="link-style"> Quên</Link>
+              <Link to="/forgot-password" className={styles['link-style']}> Quên</Link>
             </p>
 
             <button 
               type="submit" 
-              className={`btnLogin ${isLoading ? 'loading' : ''}`}
+              className={`${styles.btnLogin} ${isLoading ? styles.loading : ''}`}
               disabled={isLoading}
             >
               {isLoading ? (
                 <>
-                  <span className="spinner"></span>
+                  <span className={styles.spinner}></span>
                   Đang đăng nhập...
                 </>
               ) : (
@@ -179,13 +179,13 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="divider"><span>Hoặc đăng nhập bằng</span></div>
+          <div className={styles.divider}><span>Hoặc đăng nhập bằng</span></div>
 
-          <div className="socialButtons">
-            <button type="button" className="socialBtn" onClick={handleGoogleLogin}>
+          <div className={styles.socialButtons}>
+            <button type="button" className={styles.socialBtn} onClick={handleGoogleLogin}>
               Google
             </button>
-            <button type="button" className="socialBtn">
+            <button type="button" className={styles.socialBtn}>
               Zalo
             </button>
           </div>

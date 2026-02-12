@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Mascot from '../../../assets/Mascot.jpg';
-import './ForgotPassword.module.css';
+import styles from './ForgotPassword.module.css';
 
 export default function ForgotPassword() {
   const [step, setStep] = useState(1); // 1: identifier, 2: otp, 3: reset
@@ -93,60 +93,60 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="fpContainer">
-      <div className="fpCard">
+    <div className={styles.fpContainer}>
+      <div className={styles.fpCard}>
         <div
-          className="fpImageSection"
+          className={styles.fpImageSection}
           style={{
             backgroundImage: `url(${Mascot})`
           }}
         >
-          <div className="fpLogo">Michelin Sơn Tây</div>
-          <div className="fpImageText">
+          <div className={styles.fpLogo}>Michelin Sơn Tây</div>
+          <div className={styles.fpImageText}>
             <h2>On the road <br /> and beyond!</h2>
-            <div className="pagination-dots">
-              <span className="dot"></span>
-              <span className="dot"></span>
-              <span className="dot active"></span>
+            <div className={styles['pagination-dots']}>
+              <span className={styles.dot}></span>
+              <span className={styles.dot}></span>
+              <span className={`${styles.dot} ${styles.active}`}></span>
             </div>
           </div>
         </div>
 
-        <div className="fpFormSection">
-          <div className="fpFormHeader">
+        <div className={styles.fpFormSection}>
+          <div className={styles.fpFormHeader}>
             <h2>Quên mật khẩu nhân viên</h2>
-            <p className="fpFormSubtitle">Vui lòng nhập thông tin tài khoản để khôi phục mật khẩu</p>
+            <p className={styles.fpFormSubtitle}>Vui lòng nhập thông tin tài khoản để khôi phục mật khẩu</p>
           </div>
 
           {step === 1 && (
             <form onSubmit={handleIdentifierSubmit}>
-              <div className="fpInputGroup">
-                <label className="fpInputLabel">Email / Số điện thoại</label>
+              <div className={styles.fpInputGroup}>
+                <label className={styles.fpInputLabel}>Email / Số điện thoại</label>
                 <input
                   type="text"
                   name="identifier"
                   placeholder="Nhập Email / Số điện thoại"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  className={error ? 'fpError' : ''}
+                  className={error ? styles.fpError : ''}
                 />
-                {error && <span className="fpErrorMessage">{error}</span>}
+                {error && <span className={styles.fpErrorMessage}>{error}</span>}
               </div>
 
-              <button type="submit" className={`fpPrimaryBtn ${isLoading ? 'loading' : ''}`} disabled={isLoading}>
+              <button type="submit" className={`${styles.fpPrimaryBtn} ${isLoading ? styles.loading : ''}`} disabled={isLoading}>
                 {isLoading ? 'Đang gửi...' : 'Tiếp tục'}
               </button>
 
-              <div className="forgotNav">
-                <Link to="/login" className="inlineLink" onClick={resetAll}>Quay lại đăng nhập</Link>
+              <div className={styles.forgotNav}>
+                <Link to="/login" className={styles.inlineLink} onClick={resetAll}>Quay lại đăng nhập</Link>
               </div>
             </form>
           )}
 
           {step === 2 && (
             <form onSubmit={handleOtpSubmit}>
-              <div className="fpInputGroup">
-                <label className="fpInputLabel">Mã OTP</label>
+              <div className={styles.fpInputGroup}>
+                <label className={styles.fpInputLabel}>Mã OTP</label>
                 <input
                   type="text"
                   name="otp"
@@ -155,44 +155,44 @@ export default function ForgotPassword() {
                   onChange={(e) => setOtp(e.target.value)}
                   inputMode="numeric"
                   maxLength={6}
-                  className={error ? 'fpError' : ''}
+                  className={error ? styles.fpError : ''}
                 />
-                {error && <span className="fpErrorMessage">{error}</span>}
+                {error && <span className={styles.fpErrorMessage}>{error}</span>}
               </div>
 
-              <button type="submit" className={`fpPrimaryBtn ${isLoading ? 'loading' : ''}`} disabled={isLoading}>
+              <button type="submit" className={`${styles.fpPrimaryBtn} ${isLoading ? styles.loading : ''}`} disabled={isLoading}>
                 {isLoading ? 'Đang xác thực...' : 'Xác thực'}
               </button>
 
-              <div className="otpActions">
-                <button type="button" className="inlineLink" onClick={handleResend} disabled={countdown > 0}>
+              <div className={styles.otpActions}>
+                <button type="button" className={styles.inlineLink} onClick={handleResend} disabled={countdown > 0}>
                   Gửi lại OTP
                 </button>
-                <span className="countdown">({countdown}s)</span>
+                <span className={styles.countdown}>({countdown}s)</span>
               </div>
 
-              <div className="forgotNav">
-                <Link to="/login" className="inlineLink" onClick={resetAll}>Quay lại đăng nhập</Link>
+              <div className={styles.forgotNav}>
+                <Link to="/login" className={styles.inlineLink} onClick={resetAll}>Quay lại đăng nhập</Link>
               </div>
             </form>
           )}
 
           {step === 3 && (
             <form onSubmit={handleResetSubmit}>
-              <div className="fpInputGroup">
-                <label className="fpInputLabel">Mật khẩu mới</label>
-                <div className="fpPasswordWrapper">
+              <div className={styles.fpInputGroup}>
+                <label className={styles.fpInputLabel}>Mật khẩu mới</label>
+                <div className={styles.fpPasswordWrapper}>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     name="password"
                     placeholder="Nhập mật khẩu mới"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={error ? 'fpError' : ''}
+                    className={error ? styles.fpError : ''}
                   />
                   <button
                     type="button"
-                    className="fpTogglePassword"
+                    className={styles.fpTogglePassword}
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label="Toggle password visibility"
                   >
@@ -201,20 +201,20 @@ export default function ForgotPassword() {
                 </div>
               </div>
 
-              <div className="fpInputGroup">
-                <label className="fpInputLabel">Xác nhận mật khẩu</label>
-                <div className="fpPasswordWrapper">
+              <div className={styles.fpInputGroup}>
+                <label className={styles.fpInputLabel}>Xác nhận mật khẩu</label>
+                <div className={styles.fpPasswordWrapper}>
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     name="confirmPassword"
                     placeholder="Xác nhận mật khẩu"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={error ? 'fpError' : ''}
+                    className={error ? styles.fpError : ''}
                   />
                   <button
                     type="button"
-                    className="fpTogglePassword"
+                    className={styles.fpTogglePassword}
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     aria-label="Toggle confirm password visibility"
                   >
@@ -223,18 +223,18 @@ export default function ForgotPassword() {
                 </div>
               </div>
 
-              {error && <span className="fpErrorMessage">{error}</span>}
+              {error && <span className={styles.fpErrorMessage}>{error}</span>}
 
-              <button type="submit" className={`fpPrimaryBtn ${isLoading ? 'loading' : ''}`} disabled={isLoading}>
+              <button type="submit" className={`${styles.fpPrimaryBtn} ${isLoading ? styles.loading : ''}`} disabled={isLoading}>
                 {isLoading ? 'Đang xác nhận...' : 'Xác nhận đổi mật khẩu'}
               </button>
 
-              <button type="button" className="fpSecondaryBtn" onClick={resetAll}>
+              <button type="button" className={styles.fpSecondaryBtn} onClick={resetAll}>
                 Hủy
               </button>
 
-              <div className="forgotNav">
-                <Link to="/login" className="inlineLink" onClick={resetAll}>Quay lại đăng nhập</Link>
+              <div className={styles.forgotNav}>
+                <Link to="/login" className={styles.inlineLink} onClick={resetAll}>Quay lại đăng nhập</Link>
               </div>
             </form>
           )}

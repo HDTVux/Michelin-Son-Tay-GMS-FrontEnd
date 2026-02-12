@@ -1,4 +1,3 @@
-:global {
 /* Ensure the page background fills the entire viewport and remove default body margins */
 html, body, #root {
   height: 100%;
@@ -480,5 +479,4 @@ body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .loginFormSection .socialBtn:hover {
   filter: brightness(1.05);
   transform: translateY(-1px);
-}
 }

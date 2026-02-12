@@ -1,13 +1,15 @@
 import React from 'react';
+import defaultStyles from './CustomerLoginModal.module.css';
 
-export default function OTPGrid({ state, ariaPrefix, error, className }) {
+export default function OTPGrid({ state, ariaPrefix, error, styles: propStyles }) {
+  const s = propStyles || defaultStyles;
   return (
-    <div className={className || 'clOtpGrid'}>
+    <div className={s.clOtpGrid}>
       {state.digits.map((digit, index) => (
         <input
           key={`${ariaPrefix}-${index}`}
           ref={(el) => { state.refs.current[index] = el; }}
-          className={error ? 'input error' : 'input'}
+          className={error ? `${s.otpInput} ${s.otpInputError}` : s.otpInput}
           inputMode="numeric"
           maxLength={1}
           value={digit}

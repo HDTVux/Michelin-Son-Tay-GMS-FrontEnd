@@ -45,7 +45,7 @@
 .primaryBtn{ background:linear-gradient(135deg, #F7DC03 100%, #a1942e 100%); color:black; padding:12px; border-radius:8px; border:0; cursor:pointer; box-shadow:0 6px 18px rgba(175,135,0,0.35); }
 .secondaryBtn{ background:#6098fa; color:#0a0f1c; padding:10px; border-radius:8px; border:1px solid #d0d5dd; cursor:pointer; }
 .clOtpGrid{ display:grid; grid-template-columns:repeat(6, minmax(44px, 1fr)); gap:8px; }
-.clOtpGrid .input{ text-align:center; font-size:17px; padding:12px 0; letter-spacing:0.06em; }
-.clOtpGrid .input.error{ border-color:#e25; }
+.otpInput{ text-align:center; font-size:17px; padding:12px 0; letter-spacing:0.06em; border:1px solid #d0d5dd; background:#f3f4f6; color:#0a0f1c; border-radius:8px; font-size:14px; }
+.otpInputError{ border-color:#e25; }
 .otpActions{ display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
 .linkBtn{ background:transparent; border:0; color:#3a8de0; cursor:pointer; font-size:13px; }
