@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
+<<<<<<< HEAD
 import './ManageProfile.css';
 import './ManageProfile.header.css';
 import './ManageProfile.linkedAccounts.css';
 import './ManageProfile.footer.css';
+=======
+import './ManageProfile.module.css';
+import './ManageProfile.header.module.css';
+import './ManageProfile.linkedAccounts.module.css';
+import './ManageProfile.footer.module.css';
+>>>>>>> master
 
 const LinkedAccounts = () => {
   useScrollToTop();

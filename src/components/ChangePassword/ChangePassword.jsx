@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+<<<<<<< HEAD
 import './ChangePassword.css';
+=======
+import './ChangePassword.module.css';
+>>>>>>> master
 
 const ChangePassword = ({ 
   onCancel, 

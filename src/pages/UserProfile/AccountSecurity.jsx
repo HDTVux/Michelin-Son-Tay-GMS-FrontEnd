@@ -2,8 +2,13 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import ChangePassword from '../../components/ChangePassword/ChangePassword';
+<<<<<<< HEAD
 import './ManageProfile.css';
 import './ManageProfile.header.css';
+=======
+import './ManageProfile.module.css';
+import './ManageProfile.header.module.css';
+>>>>>>> master
 
 const AccountSecurity = () => {
   useScrollToTop();

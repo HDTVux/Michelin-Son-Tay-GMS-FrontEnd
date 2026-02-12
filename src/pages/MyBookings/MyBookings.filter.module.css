@@ -1,0 +1,118 @@
+:global {
+/* Filter Tabs */
+.bookingStatusFilter {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0;
+}
+
+.filterTab {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: -2px;
+}
+
+.filterTab:hover {
+  color: #005aa9;
+  background: rgba(0, 90, 169, 0.05);
+}
+
+.filterTab.active {
+  color: #005aa9;
+  border-bottom-color: #005aa9;
+  font-weight: 600;
+}
+
+.bookingSearchSort {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.bookingSearch {
+  flex: 1 1 220px;
+}
+
+.bookingSearch input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #111827;
+  transition: all 0.2s ease;
+}
+
+.bookingSearch input::placeholder {
+  color: #9ca3af;
+}
+
+.bookingSearch input:focus {
+  outline: none;
+  border-color: #005aa9;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(0, 90, 169, 0.1);
+}
+
+.bookingSort {
+  flex: 0 0 180px;
+}
+
+.bookingSort select {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #111827;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.bookingSort select:focus {
+  outline: none;
+  border-color: #005aa9;
+  box-shadow: 0 0 0 4px rgba(0, 90, 169, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bookingStatusFilter {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .bookingStatusFilter::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filterTab {
+    white-space: nowrap;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .bookingSearchSort {
+    flex-direction: column;
+  }
+
+  .bookingSort {
+    flex: 1 1 auto;
+  }
+}
+}
