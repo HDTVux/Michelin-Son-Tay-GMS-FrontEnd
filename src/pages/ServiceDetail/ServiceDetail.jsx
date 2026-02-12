@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import './ServiceDetail.module.css';
-=======
 import styles from './ServiceDetail.module.css';
->>>>>>> 338a54a151884301537ab058afdfa08fefd03cd3
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { fetchHomeServiceDetail } from '../../services/homeService';
@@ -67,28 +63,28 @@ const ServiceDetail = () => {
 
   return (
     <div className={styles.serviceDetail}>
-      <div className={styles['serviceDetail-header']}>
-        <div className={styles['serviceDetail-breadcrumbs']}>
+      <div className={styles.serviceDetailHeader}>
+        <div className={styles.serviceDetailBreadcrumbs}>
           <Link to="/services">Dịch vụ</Link>
           <span>/</span>
           <span>{service?.title || 'Chi tiết dịch vụ'}</span>
         </div>
-        <h1 className={styles['serviceDetail-title']}>{service?.title || 'Chi tiết dịch vụ'}</h1>
+        <h1 className={styles.serviceDetailTitle}>{service?.title || 'Chi tiết dịch vụ'}</h1>
         
         {/* Render có điều kiện: Chỉ hiện giá nếu service được cấu hình cho phép hiển thị */}
         {service?.showPrice && (
-          <div className={styles['serviceDetail-price']}>
+          <div className={styles.serviceDetailPrice}>
             Giá: {service?.displayPrice || 'Liên hệ'}
           </div>
         )}
       </div>
 
       {/* Trạng thái Loading: Tăng trải nghiệm người dùng khi chờ API */}
-      {loading && <div className={styles['serviceDetail-status']}>Đang tải thông tin dịch vụ...</div>}
+      {loading && <div className={styles.serviceDetailStatus}>Đang tải thông tin dịch vụ...</div>}
       
       {/* Hiển thị lỗi: Thông báo rõ ràng cho người dùng nếu API thất bại */}
       {!loading && error && (
-        <div className={`${styles['serviceDetail-status']} ${styles.error}`}>
+        <div className={`${styles.serviceDetailStatus} ${styles.error}`}>
           {error}
         </div>
       )}
@@ -96,26 +92,26 @@ const ServiceDetail = () => {
       {/* Nội dung chính: Chỉ hiển thị khi đã tải xong và không có lỗi */}
       {!loading && !error && (
         <>
-          <div className={styles['serviceDetail-hero']}>
+          <div className={styles.serviceDetailHero}>
             <img src={heroImage} alt={service?.title || 'Dịch vụ'} />
           </div>
 
-          <div className={styles['serviceDetail-content']}>
-            <div className={styles['serviceDetail-section']}>
+          <div className={styles.serviceDetailContent}>
+            <div className={styles.serviceDetailSection}>
               <h2>Giới thiệu</h2>
               <p>{service?.shortDescription || 'Hiện chưa có mô tả ngắn.'}</p>
             </div>
 
-            <div className={styles['serviceDetail-section']}>
+            <div className={styles.serviceDetailSection}>
               <h2>Chi tiết dịch vụ</h2>
               <p>{service?.fullDescription || 'Hiện chưa có mô tả chi tiết cho dịch vụ này.'}</p>
             </div>
 
             {/* Thư viện hình ảnh/video: Duyệt danh sách media nếu có */}
             {mediaList.length > 0 && (
-              <div className={styles['serviceDetail-section']}>
+              <div className={styles.serviceDetailSection}>
                 <h2>Thư viện hình ảnh</h2>
-                <div className={styles['serviceDetail-mediaGrid']}>
+                <div className={styles.serviceDetailMediaGrid}>
                   {mediaList.map((item) => {
                     const url = item.mediaUrl || '';
                     
@@ -126,7 +122,7 @@ const ServiceDetail = () => {
                     const isVideo = item.mediaType === 'video' || /\.(mp4|webm|ogg)$/i.test(url);
                     
                     return (
-                      <div key={item.serviceMediaId || url} className={styles['serviceDetail-mediaItem']}>
+                      <div key={item.serviceMediaId || url} className={styles.serviceDetailMediaItem}>
                         {isVideo ? (
                           /* Video tự động chạy chế độ tắt tiếng để làm "hình nền động" trong Grid */
                           <video src={url} autoPlay muted loop playsInline preload="metadata">
@@ -138,7 +134,7 @@ const ServiceDetail = () => {
                         
                         {/* Hiển thị chú thích ảnh nếu có để tối ưu SEO và thông tin */}
                         {item.mediaDescription && (
-                          <div className={styles['serviceDetail-mediaCaption']}>
+                          <div className={styles.serviceDetailMediaCaption}>
                             {item.mediaDescription}
                           </div>
                         )}
