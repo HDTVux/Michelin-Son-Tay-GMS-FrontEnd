@@ -1,9 +1,5 @@
 import React, { useEffect, useState } from 'react';
-<<<<<<< HEAD
-import './Login.css';
-=======
 import './Login.module.css';
->>>>>>> master
 import Mascot from '../../../assets/Mascot.jpg';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginStaff, getStaffGoogleOAuthUrl } from '../../../services/authService';

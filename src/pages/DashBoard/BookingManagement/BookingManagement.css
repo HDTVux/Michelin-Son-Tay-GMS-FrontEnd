@@ -392,11 +392,7 @@
 	overflow-y: auto;
 	padding-right: 8px;
 	scrollbar-width: thin;
-<<<<<<< HEAD
-	scrollbar-color: #9333ea #f1f1f1;
-=======
 	scrollbar-color: #108a4a #f1f1f1;
->>>>>>> master
 }
 
 .slot-list::-webkit-scrollbar {
@@ -409,21 +405,13 @@
 }
 
 .slot-list::-webkit-scrollbar-thumb {
-<<<<<<< HEAD
-	background-color: #9333ea;
-=======
 	background-color: #108a4a;
->>>>>>> master
 	border-radius: 10px;
 	border: 2px solid #f1f1f1;
 }
 
 .slot-list::-webkit-scrollbar-thumb:hover {
-<<<<<<< HEAD
-	background-color: #7e22ce;
-=======
 	background-color: #0d6e3a;
->>>>>>> master
 }
 
 .slot-item {

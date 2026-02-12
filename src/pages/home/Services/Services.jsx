@@ -111,8 +111,6 @@ const Services = () => {
   const comboTrackRef = useRef(null);
   const comboPointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
-<<<<<<< HEAD
-=======
   // Scroll reveal cho 3 phần: dịch vụ, quy trình, combo
   const servicesHeroRef = useRef(null);
   const processHeaderRef = useRef(null);
@@ -121,8 +119,6 @@ const Services = () => {
   const [servicesIntroVisible, setServicesIntroVisible] = useState(false);
   const [processIntroVisible, setProcessIntroVisible] = useState(false);
   const [combosIntroVisible, setCombosIntroVisible] = useState(false);
-
->>>>>>> master
   useEffect(() => {
     const calc = () => {
       const w = window.innerWidth;
@@ -229,8 +225,6 @@ const Services = () => {
     setTimeout(() => setIsComboPaused(false), 300);
   };
 
-<<<<<<< HEAD
-=======
   // IntersectionObserver cho tiêu đề các phần
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -267,18 +261,10 @@ const Services = () => {
       observer.disconnect();
     };
   }, []);
-
->>>>>>> master
   return (
     <>
       {/* Danh sách dịch vụ tiện ích nổi bật */}
       <section className="servicesPage">
-<<<<<<< HEAD
-        <div className="servicesHero">
-          <h1 className="servicesTitle">Danh sách dịch vụ tiện ích nổi bật</h1>
-          <p className="servicesSubtitle">
-            Các dịch vụ chuyên nghiệp cho xe của bạn
-=======
         <div
           ref={servicesHeroRef}
           className={`servicesHero ${servicesIntroVisible ? 'visible' : ''}`}
@@ -290,7 +276,6 @@ const Services = () => {
           </h1>
           <p className="servicesSubtitle">
             Các dịch vụ chuyên nghiệp, chuẩn quy trình – giúp chiếc xe của bạn luôn an toàn và bền bỉ trên mọi hành trình.
->>>>>>> master
           </p>
         </div>
 
@@ -380,11 +365,6 @@ const Services = () => {
       {/* Quy trình dịch vụ */}
       <section className="processSection">
         <div className="processInner">
-<<<<<<< HEAD
-          <div className="processHeader">
-            <h2 className="processTitle">Quy trình dịch vụ</h2>
-            <p className="processSub">7 bước rõ ràng, minh bạch – giúp bạn yên tâm trong suốt quá trình</p>
-=======
           <div
             ref={processHeaderRef}
             className={`processHeader ${processIntroVisible ? 'visible' : ''}`}
@@ -397,7 +377,6 @@ const Services = () => {
             <p className="processSub">
               7 bước rõ ràng, minh bạch – từ tiếp nhận đến bàn giao, mang lại cho bạn trải nghiệm an tâm và chuyên nghiệp.
             </p>
->>>>>>> master
           </div>
 
           <div className="processDiagram">
@@ -459,12 +438,6 @@ const Services = () => {
 
       {/* Gói dịch vụ được tin dùng */}
       <section className="combosPage">
-<<<<<<< HEAD
-        <div className="servicesHero">
-          <h1 className="servicesTitle">Gói dịch vụ được tin dùng</h1>
-          <p className="servicesSubtitle">
-            Giá cả minh bạch, dịch vụ chất lượng
-=======
         <div
           ref={combosHeroRef}
           className={`servicesHero ${combosIntroVisible ? 'visible' : ''}`}
@@ -476,7 +449,6 @@ const Services = () => {
           </h1>
           <p className="servicesSubtitle">
             Giá cả minh bạch, tối ưu chi phí – phù hợp cho từng nhu cầu sử dụng và bảo dưỡng xe của bạn.
->>>>>>> master
           </p>
         </div>
 
