@@ -1,12 +1,6 @@
-<<<<<<< Updated upstream
-import { useState } from 'react';
-import './BookingManagement.css';
-import Dayslot from './Dayslot.jsx';
-=======
 import { useNavigate } from 'react-router-dom';
 import styles from './BookingManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
->>>>>>> Stashed changes
 
 const pendingBookings = [
     {
@@ -38,51 +32,9 @@ const pendingBookings = [
     },
 ];
 
-<<<<<<< Updated upstream
-const sampleSlotData = {
-    '07:30': { customers: ['Nguyễn A'], current: 1, capacity: 3 },
-    '08:00': { customers: ['Phạm B', 'Lạc C'], current: 2, capacity: 3 },
-    '08:30': { customers: ['Đông D', 'Vệ E', 'Hoàng F'], current: 3, capacity: 3 },
-    '09:00': { customers: ['Nguyễn A', 'Phạm B', 'Lê C', 'Định D'], current: 4, capacity: 3 },
-};
-
-const fixedSlots = buildSlots();
-
-const approvedBookingsBySlot = {
-    '08:30': [
-        {
-            id: 'DB-20240720-001',
-            name: 'Phạm D',
-            phone: '0901234567',
-            service: 'Thay lốp',
-            note: 'Không có ghi chú',
-            status: 'Đã duyệt',
-        },
-        {
-            id: 'DB-20240720-002',
-            name: 'Vũ E',
-            phone: '0901234568',
-            service: 'Sửa phanh',
-            note: 'Kiểm tra kỹ',
-            status: 'Đã duyệt',
-        },
-    ],
-};
-
-export default function BookingManagement() {
-    const [selectedSlot, setSelectedSlot] = useState(null);
-
-    const handleSlotOpen = (slot) => {
-        const approved = approvedBookingsBySlot[slot.time] || [];
-        setSelectedSlot({ ...slot, approved });
-    };
-
-    const handleSlotClose = () => setSelectedSlot(null);
-=======
 export default function BookingManagement() {
     useScrollToTop(); // Tự động scroll lên đầu trang khi vào
     const navigate = useNavigate();
->>>>>>> Stashed changes
 
     return (
         <div className="booking-page">
@@ -97,20 +49,13 @@ export default function BookingManagement() {
                         actionLabel={`${pendingBookings.length} yêu cầu`}
                     />
                 </div>
-
             </div>
-
-
         </div>
     );
 }
 
-<<<<<<< Updated upstream
-function PendingPanel({ title, icon, tone, data, actionLabel }) {
-=======
 function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail }) {
     const toneClass = styles['booking-card--' + tone];
->>>>>>> Stashed changes
     return (
         <section className={`booking-card booking-card--${tone}`}>
             <div className="booking-card__header">
@@ -179,16 +124,12 @@ function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail }) {
                                 </td>
                                 <td>{item.time}</td>
                                 <td>
-<<<<<<< Updated upstream
-                                    <button className="primary-button">Xem chi tiết</button>
-=======
                                     <button
                                         className={styles['primary-button']}
                                         onClick={() => onViewDetail?.(item.id)}
                                     >
                                         Xem chi tiết
                                     </button>
->>>>>>> Stashed changes
                                 </td>
                             </tr>
                         ))}
@@ -213,55 +154,7 @@ function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail }) {
         </section>
     );
 }
-<<<<<<< Updated upstream
 
-function SchedulePanel({ dateLabel, slots, onOpenSlot }) {
-    return (
-        <section className="schedule-card">
-            <div className="schedule-card__header">
-                <div className="schedule-card__title">
-                    <DotIcon />
-                    <span>{dateLabel}</span>
-                </div>
-                <div className="schedule-card__date">
-                    <label htmlFor="scheduleDate">Chọn ngày:</label>
-                    <input id="scheduleDate" type="date" />
-                </div>
-            </div>
-
-            <div className="slot-list">
-                {slots.map((slot) => (
-                    <button
-                        type="button"
-                        key={slot.time}
-                        className={`slot-item slot-item--${slot.state}`}
-                        onClick={() => onOpenSlot(slot)}
-                    >
-                        <div className="slot-item__time">{slot.time}</div>
-                        <div className="slot-item__customers">
-                            {slot.customers.length === 0 && <span className="slot-item__empty">Trống</span>}
-                            {slot.customers.map((c) => (
-                                <span key={c} className="slot-badge">{c}</span>
-                            ))}
-                        </div>
-                        <div className="slot-item__actions">
-                            <span className={`slot-item__quota slot-item__quota--${slot.state}`}>{slot.quota}</span>
-                            <span className={`slot-item__stateIcon slot-item__stateIcon--${slot.state}`} aria-hidden>
-                                {slot.state === 'ok' && <CheckIconSmall />}
-                                {slot.state === 'full' && <CloseIcon />}
-                                {slot.state === 'over' && <WarnIcon />}
-                            </span>
-                        </div>
-                    </button>
-                ))}
-            </div>
-        </section>
-    );
-}
-
-
-=======
->>>>>>> Stashed changes
 function HourglassIcon() {
     return (
         <svg viewBox="0 0 24 24" className="icon" aria-hidden>
@@ -270,17 +163,6 @@ function HourglassIcon() {
     );
 }
 
-<<<<<<< Updated upstream
-function CheckIcon() {
-    return (
-        <svg viewBox="0 0 24 24" className="icon" aria-hidden>
-            <path d="M5 12.5 10 17l9-10" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-    );
-}
-
-=======
->>>>>>> Stashed changes
 function SearchIcon() {
     return (
         <svg viewBox="0 0 24 24" className="icon" aria-hidden>
@@ -289,61 +171,3 @@ function SearchIcon() {
         </svg>
     );
 }
-<<<<<<< Updated upstream
-
-function DotIcon() {
-    return (
-        <svg viewBox="0 0 24 24" className="icon" aria-hidden>
-            <circle cx="12" cy="12" r="6" fill="currentColor" />
-        </svg>
-    );
-}
-
-function CheckIconSmall() {
-    return (
-        <svg viewBox="0 0 24 24" className="icon" aria-hidden>
-            <path d="M6 12.5 10.5 17 18 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-function CloseIcon() {
-    return (
-        <svg viewBox="0 0 24 24" className="icon" aria-hidden>
-            <path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-function WarnIcon() {
-    return (
-        <svg viewBox="0 0 24 24" className="icon" aria-hidden>
-            <path d="M12 3 3 20h18z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            <path d="M12 9.5v4.5M12 17v.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-function buildSlots() {
-    const slots = [];
-    for (let hour = 6; hour <= 18; hour++) {
-        ['00', '30'].forEach((minute) => {
-            if (hour === 18 && minute === '30') return;
-            const time = `${String(hour).padStart(2, '0')}:${minute}`;
-            const data = sampleSlotData[time] || { customers: [], current: 0, capacity: 3 };
-            const { current, capacity } = data;
-            let state = 'ok';
-            if (current === capacity) state = 'full';
-            if (current > capacity) state = 'over';
-            slots.push({
-                time,
-                customers: data.customers,
-                quota: `${current}/${capacity}`,
-                state,
-            });
-        });
-    }
-    return slots;
-}
-=======
->>>>>>> Stashed changes
