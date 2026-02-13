@@ -19,7 +19,8 @@ import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
 import StaffLayout from './layouts/StaffLayout.jsx';
 import ToastBox from './components/Toast/ToastBox.jsx';
 import BookingManagement from './pages/DashBoard/BookingManagement/BookingManagement.jsx';
-import ModalsDemo from './pages/DashBoard/BookingManagement/ModalsDemo.jsx';
+import BookingRequestDetail from './pages/DashBoard/BookingManagement/BookingRequestDetail.jsx';
+import BookingRequestEdit from './pages/DashBoard/BookingManagement/BookingRequestEdit.jsx';
 export default function App() {
   return (
     <BrowserRouter>
@@ -44,7 +45,9 @@ export default function App() {
         {/* Nhóm trang dashboard nhân viên dùng SideBar */}
         <Route element={<StaffLayout />}>
           <Route path="booking-management" element={<BookingManagement />} />
-          <Route path="booking-management/modals-demo" element={<ModalsDemo />} />
+          <Route path="booking-management/:id" element={<BookingRequestDetail />} />
+          <Route path="booking-management/:id/edit" element={<BookingRequestEdit />} />
+
         </Route>
         <Route path="login" element={<Login />} />
         <Route path="forgot-password" element={<ForgotPassword />} />

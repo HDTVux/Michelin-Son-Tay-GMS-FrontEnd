@@ -1,52 +1,44 @@
+<<<<<<< Updated upstream
 import { useState } from 'react';
 import './BookingManagement.css';
 import Dayslot from './Dayslot.jsx';
+=======
+import { useNavigate } from 'react-router-dom';
+import styles from './BookingManagement.module.css';
+import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+>>>>>>> Stashed changes
 
 const pendingBookings = [
     {
-        id: 'DB-202310 26-001',
+        id: 'DB-202310-26-001',
         name: 'Nguyễn Văn A',
+        phone: '0912345678',
         service: 'Làm lốp',
         status: 'Chờ xác nhận',
         statusTone: 'warning',
+        time: '2024-10-26 09:30',
     },
     {
-        id: 'DB-202310 26-002',
+        id: 'DB-202310-26-002',
         name: 'Trần Thị B',
-        service: 'vá xăm',
+        phone: '0912345679',
+        service: 'Vá xăm',
         status: 'Đã liên hệ',
         statusTone: 'info',
+        time: '2024-10-26 10:00',
     },
     {
-        id: 'DB-202310 26-002',
-        name: 'Trần Thị V',
-        service: 'vá xăm',
-        status: 'Đã liên hệ',
-        statusTone: 'info',
-    },
-    {
-        id: 'DB-202310 26-002',
-        name: 'Trần Thị V',
-        service: 'vá xăm',
-        status: 'Đã liên hệ',
-        statusTone: 'info',
-    },
-    {
-        id: 'DB-202310 26-002',
-        name: 'Trần Thị V',
-        service: 'vá xăm',
-        status: 'Đã liên hệ',
-        statusTone: 'info',
-    },
-    {
-        id: 'DB-202310 26-003',
+        id: 'DB-202310-26-003',
         name: 'Lê Văn C',
-        service: 'vá lốp',
+        phone: '0912345681',
+        service: 'Thay lốp',
         status: 'Hủy lịch',
         statusTone: 'danger',
+        time: '2024-10-26 11:00',
     },
 ];
 
+<<<<<<< Updated upstream
 const sampleSlotData = {
     '07:30': { customers: ['Nguyễn A'], current: 1, capacity: 3 },
     '08:00': { customers: ['Phạm B', 'Lạc C'], current: 2, capacity: 3 },
@@ -86,6 +78,11 @@ export default function BookingManagement() {
     };
 
     const handleSlotClose = () => setSelectedSlot(null);
+=======
+export default function BookingManagement() {
+    useScrollToTop(); // Tự động scroll lên đầu trang khi vào
+    const navigate = useNavigate();
+>>>>>>> Stashed changes
 
     return (
         <div className="booking-page">
@@ -96,21 +93,24 @@ export default function BookingManagement() {
                         icon={<HourglassIcon />}
                         tone="warning"
                         data={pendingBookings}
-                        actionLabel="X yêu cầu"
+                        onViewDetail={(id) => navigate(`/booking-management/${id}`)}
+                        actionLabel={`${pendingBookings.length} yêu cầu`}
                     />
                 </div>
 
-                <SchedulePanel dateLabel="Lịch thời gian & Slot hôm nay" slots={fixedSlots} onOpenSlot={handleSlotOpen} />
             </div>
 
-            {selectedSlot && (
-                <Dayslot slot={selectedSlot} onClose={handleSlotClose} />
-            )}
+
         </div>
     );
 }
 
+<<<<<<< Updated upstream
 function PendingPanel({ title, icon, tone, data, actionLabel }) {
+=======
+function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail }) {
+    const toneClass = styles['booking-card--' + tone];
+>>>>>>> Stashed changes
     return (
         <section className={`booking-card booking-card--${tone}`}>
             <div className="booking-card__header">
@@ -158,8 +158,10 @@ function PendingPanel({ title, icon, tone, data, actionLabel }) {
                         <tr>
                             <th>MÃ YÊU CẦU</th>
                             <th>TÊN KHÁCH HÀNG</th>
+                            <th>SỐ ĐIỆN THOẠI</th>
                             <th>DỊCH VỤ</th>
                             <th>TRẠNG THÁI</th>
+                            <th>THỜI GIAN GỬI YÊU CẦU</th>
                             <th>THAO TÁC</th>
                         </tr>
                     </thead>
@@ -168,14 +170,25 @@ function PendingPanel({ title, icon, tone, data, actionLabel }) {
                             <tr key={item.id}>
                                 <td className="link-cell">{item.id}</td>
                                 <td>{item.name}</td>
+                                <td>{item.phone}</td>
                                 <td>{item.service}</td>
                                 <td>
                                     <span className={`status-badge status-badge--${item.statusTone || 'success'}`}>
                                         {item.status}
                                     </span>
                                 </td>
+                                <td>{item.time}</td>
                                 <td>
+<<<<<<< Updated upstream
                                     <button className="primary-button">Xem chi tiết</button>
+=======
+                                    <button
+                                        className={styles['primary-button']}
+                                        onClick={() => onViewDetail?.(item.id)}
+                                    >
+                                        Xem chi tiết
+                                    </button>
+>>>>>>> Stashed changes
                                 </td>
                             </tr>
                         ))}
@@ -200,6 +213,7 @@ function PendingPanel({ title, icon, tone, data, actionLabel }) {
         </section>
     );
 }
+<<<<<<< Updated upstream
 
 function SchedulePanel({ dateLabel, slots, onOpenSlot }) {
     return (
@@ -246,6 +260,8 @@ function SchedulePanel({ dateLabel, slots, onOpenSlot }) {
 }
 
 
+=======
+>>>>>>> Stashed changes
 function HourglassIcon() {
     return (
         <svg viewBox="0 0 24 24" className="icon" aria-hidden>
@@ -254,6 +270,7 @@ function HourglassIcon() {
     );
 }
 
+<<<<<<< Updated upstream
 function CheckIcon() {
     return (
         <svg viewBox="0 0 24 24" className="icon" aria-hidden>
@@ -262,6 +279,8 @@ function CheckIcon() {
     );
 }
 
+=======
+>>>>>>> Stashed changes
 function SearchIcon() {
     return (
         <svg viewBox="0 0 24 24" className="icon" aria-hidden>
@@ -270,6 +289,7 @@ function SearchIcon() {
         </svg>
     );
 }
+<<<<<<< Updated upstream
 
 function DotIcon() {
     return (
@@ -325,3 +345,5 @@ function buildSlots() {
     }
     return slots;
 }
+=======
+>>>>>>> Stashed changes

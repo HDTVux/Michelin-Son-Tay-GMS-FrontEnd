@@ -1,0 +1,226 @@
+/* --- Root / Page Container --- */
+.page {
+  min-height: 100vh;
+  padding: 24px;
+  background: #f7f9fc;
+  color: #0f172a;
+}
+
+/* --- Header Section --- */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.headerTitle {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.headerActions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 10px;
+}
+
+/* --- Buttons --- */
+.backButton {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryBtn {
+  background: #1d72f3;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondaryBtn {
+  background: white;
+  color: #0f172a;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* --- Layout Grid --- */
+.layout {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* --- Card Component --- */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* --- Typography & Labels --- */
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.requestId {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.value {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* --- Status Pills --- */
+.statusPill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.statusPill--warning {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fcd34d;
+}
+
+.statusPill--info {
+  background: #e0f2fe;
+  color: #0ea5e9;
+  border-color: #bae6fd;
+}
+
+.statusPill--danger {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fecdd3;
+}
+
+/* --- Info Sections --- */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.infoBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+/* --- Interactive Elements --- */
+.link {
+  color: #0b63e5;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.callButton {
+  background: #1d72f3;
+  color: white;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* --- Forms --- */
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formField input, 
+.formField textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+/* --- Responsive Helpers --- */
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+}
