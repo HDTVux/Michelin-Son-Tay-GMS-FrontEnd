@@ -16,7 +16,7 @@ const BookingDetail = () => {
   
   const allBookings = useMemo(() => [
     {
-      id: 'LH001',
+      id: 'DB-202310 26-001',
       date: '23/10/2023',
       time: '10:00',
       status: 'confirmed',
