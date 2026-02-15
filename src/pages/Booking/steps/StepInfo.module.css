@@ -39,6 +39,16 @@
   resize: vertical;
 }
 
+.error {
+  margin: 0 0 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  font-weight: 600;
+}
+
 @media (max-width: 640px) {
   .info-card { max-width: 100%; }
   .inline-input { grid-template-columns: 1fr; }

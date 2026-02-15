@@ -1,45 +1,13 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styles from './StepSchedule.module.css';
 import bookingStyles from '../Booking.module.css';
-
-const SLOT_GROUPS = [
-  {
-    label: 'Sáng',
-    items: [
-    { time: '06:00', available: true },
-      { time: '07:00', available: true },
-      { time: '08:00', available: true },
-      { time: '09:00', available: true },
-      { time: '10:00', available: true },
-      { time: '11:00', available: false },
-      { time: '12:00', available: true }
-    ]
-  },
-  {
-    label: 'Chiều',
-    items: [
-      { time: '13:00', available: true },
-      { time: '14:00', available: false },
-      { time: '15:00', available: true },
-      { time: '16:00', available: true },
-      { time: '17:00', available: true }
-    ]
-  },
-  {
-    label: 'Tối',
-    items: [
-      { time: '18:00', available: true },
-      { time: '19:00', available: true },
-      { time: '20:00', available: false },
-      { time: '21:00', available: true },
-      { time: '22:00', available: true },
-      { time: '23:00', available: true },
-      { time: '24:00', available: true }
-    ]
-  }
-];
+import { fetchAvailableSlots } from '../../../services/bookingService.js';
 
 const DATE_RANGE_DAYS = 10;
+const START_HOUR = 7;
+const END_HOUR = 19;
+const SLOT_INTERVAL_MINUTES = 30;
+const DURATION_MINUTES = 60;
 
 const buildDateOptions = () => {
   const today = new Date();
@@ -54,68 +22,145 @@ const buildDateOptions = () => {
   return options;
 };
 
-export default function StepSchedule({ value, onChange, onBack, onNext }) {
-  const canNext = value.date && value.time;
-  const dateOptions = buildDateOptions();
+const buildTimeSlots = () => {
+  const slots = [];
+  for (let hour = START_HOUR; hour <= END_HOUR; hour += 1) {
+    for (let minute = 0; minute < 60; minute += SLOT_INTERVAL_MINUTES) {
+      const hh = hour.toString().padStart(2, '0');
+      const mm = minute.toString().padStart(2, '0');
+      slots.push(`${hh}:${mm}:00`);
+    }
+  }
+  return slots;
+};
 
-  const handleDate = (e) => onChange({ date: e.target.value });
-  const handleTime = (time, available) => {
-    if (!available) return;
-    onChange({ time });
+const getPeriod = (timeStr) => {
+  const [hh] = timeStr.split(':');
+  const h = Number(hh);
+  if (h < 12) return 'Sáng';
+  if (h < 18) return 'Chiều';
+  return 'Tối';
+};
+
+export default function StepSchedule({ value, onChange, onBack, onNext, token, isAuthed }) {
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const canNext = value.date && value.time;
+  const dateOptions = useMemo(buildDateOptions, []);
+  const timeSlots = useMemo(buildTimeSlots, []);
+
+  const displaySlots = useMemo(() => {
+    if (isAuthed && availableSlots.length > 0) return availableSlots;
+    return timeSlots.map((t) => ({ startTime: t, isAvailable: true, remainingCapacity: null, period: getPeriod(t) }));
+  }, [isAuthed, availableSlots, timeSlots]);
+
+  const handleDate = (e) => {
+    const date = e.target.value;
+    onChange({ date, time: '' });
   };
+
+  const handleTime = (time) => onChange({ time });
+
+  // Fetch availability only for logged-in users
+  useEffect(() => {
+    let active = true;
+    if (!isAuthed || !token || !value.date) {
+      setAvailableSlots([]);
+      setError('');
+      setLoading(false);
+      return () => { active = false; };
+    }
+
+    setLoading(true);
+    setError('');
+
+    fetchAvailableSlots(value.date, token, DURATION_MINUTES)
+      .then((res) => {
+        if (!active) return;
+        const list = Array.isArray(res?.data?.slots) ? res.data.slots : [];
+        setAvailableSlots(list);
+        if (value.time && list.length > 0) {
+          const match = list.find((s) => s.startTime === value.time);
+          if (match && (!match.isAvailable || match.remainingCapacity <= 0)) {
+            onChange({ time: '' });
+          }
+        }
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(err?.message || 'Không thể tải khung giờ.');
+        setAvailableSlots([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [value.date, token, isAuthed, onChange, value.time]);
 
   return (
     <>
-    <h3 className={bookingStyles['section-title']}>Chọn ngày & giờ</h3>
-    <div className={styles['schedule-step']}>
-      <div className={styles.field}>
-        <label className={styles['slot-title']}>Chọn ngày đặt lịch</label>
-        <div className={styles['date-input']}>
-          <span className={styles['date-icon']}>📅</span>
-          <select value={value.date} onChange={handleDate}>
-            <option value="">Chọn ngày</option>
-            {dateOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+      <h3 className={bookingStyles['section-title']}>Chọn ngày & giờ</h3>
+      <div className={styles['schedule-step']}>
+        <div className={styles.field}>
+          <label className={styles['slot-title']}>Chọn ngày đặt lịch</label>
+          <div className={styles['date-input']}>
+            <span className={styles['date-icon']}>📅</span>
+            <select value={value.date} onChange={handleDate}>
+              <option value="">Chọn ngày</option>
+              {dateOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className={styles['slot-section']}>
+          <div className={styles['slot-title']}>Chọn khung giờ</div>
+          <div className={styles['slot-sub']}>
+            {isAuthed ? 'Các khung đã đầy sẽ bị khóa, chỉ hiển thị trạng thái cho khách đã đăng nhập.' : 'Bạn chưa đăng nhập, có thể chọn bất kỳ khung giờ nào.'}
+          </div>
+
+          {isAuthed && loading && <div className={styles['service-status']}>Đang tải khung giờ...</div>}
+          {isAuthed && !loading && error && <div className={`${styles['service-status']} ${styles.error}`}>{error}</div>}
+
+          <div className={styles['slot-grid']}>
+            {displaySlots.map((slot) => {
+              const time = slot.startTime;
+              const isDisabled = isAuthed && value.date && (!slot.isAvailable || slot.remainingCapacity <= 0);
+              const active = value.time === time;
+              return (
+                <button
+                  key={time}
+                  type="button"
+                  className={[styles['slot-btn'], active ? styles.active : '', isDisabled ? styles.disabled : ''].filter(Boolean).join(' ')}
+                  onClick={() => !isDisabled && value.date && handleTime(time)}
+                  disabled={isDisabled || !value.date}
+                >
+                  <div className={styles['slot-time']}>{time}</div>
+                  <div className={styles['slot-sub']}>
+                    {slot.period || getPeriod(time)}
+                    {isAuthed && value.date && (
+                      isDisabled ? ' · Hết chỗ' : (Number.isFinite(slot.remainingCapacity) ? ` · Còn ${slot.remainingCapacity}` : '')
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className={bookingStyles['booking-actions']}>
+          <button className={bookingStyles.btn} onClick={onBack}>Quay lại</button>
+          <button className={`${bookingStyles.btn} ${bookingStyles.primary}`} onClick={onNext} disabled={!canNext}>
+            Tiếp tục
+          </button>
         </div>
       </div>
-
-      <div className={styles['slot-section']}>
-        <div className={styles['slot-title']}>Chọn khung giờ</div>
-        <div className={styles['slot-sub']}>Khung giờ phục vụ từ 06h đến 24h. Chọn theo buổi Sáng / Chiều / Tối.</div>
-
-        {SLOT_GROUPS.map((group) => (
-          <div key={group.label} className={styles['slot-group']}>
-            <div className={styles['slot-group-label']}>{group.label}</div>
-            <div className={styles['slot-grid']}>
-              {group.items.map((item) => {
-                const active = value.time === item.time;
-                return (
-                  <button
-                    key={item.time}
-                    type="button"
-                    className={[styles['slot-btn'], active ? styles.active : '', !item.available ? styles.disabled : ''].filter(Boolean).join(' ')}
-                    onClick={() => handleTime(item.time, item.available)}
-                    disabled={!item.available}
-                  >
-                    <div className={styles['slot-time']}>{item.time}</div>
-                    <div className={styles['slot-status']}>{item.available ? 'Còn trống' : 'Đã đầy'}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className={bookingStyles['booking-actions']}>
-        <button className={bookingStyles.btn} onClick={onBack}>Quay lại</button>
-        <button className={`${bookingStyles.btn} ${bookingStyles.primary}`} onClick={onNext} disabled={!canNext}>
-          Tiếp tục
-        </button>
-      </div>
-    </div>
     </>
   );
 }
