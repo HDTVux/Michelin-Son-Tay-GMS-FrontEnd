@@ -117,6 +117,8 @@ const Home = () => {
         }
     ];
 
+
+
     return (
         <>
         <Banner/>
@@ -151,6 +153,7 @@ const Home = () => {
         </section>
 
         {!isAuthenticated && <Form/>}
+        
         <Service/>
         <Partners/>
         <BussinessInfor/>

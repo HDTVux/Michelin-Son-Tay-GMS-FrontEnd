@@ -9,7 +9,7 @@ export default function Banner(){
         { 
             id: 1, 
             img: combo7, 
-            title: 'HIỆU SUẤT BỀN BỈ, AN TOÀN TỐI ĐA', 
+            title: 'Hiệu suất bền bỉ, an toàn tối đa', 
             subtitle: 'MICHELIN' 
         },
         { 
