@@ -9,19 +9,29 @@ const formatDate = (value) => {
   return new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
 }
 
-export default function StepDone({ schedule, info, services, selectedIds, onReschedule, onCancel, onHome }) {
+export default function StepDone({ schedule, info, bookingData, services, selectedIds, onReschedule, onCancel, onHome }) {
+  const serviceIds = useMemo(() => {
+    const ids = Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0
+      ? bookingData.serviceIds
+      : selectedIds
+    return ids.map((id) => String(id)).filter(Boolean)
+  }, [bookingData?.serviceIds, selectedIds])
+
   const selectedServices = useMemo(
-    () => services.filter((s) => selectedIds.includes(s.id)),
-    [services, selectedIds]
+    () => services.filter((s) => serviceIds.includes(String(s.id))),
+    [services, serviceIds]
   )
 
-  // Tạo mã lịch hẹn từ ngày và timestamp
-  const bookingCode = useMemo(() => {
-    const date = schedule.date ? new Date(schedule.date) : new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `DB-${dateStr}-${random}`;
-  }, [schedule.date]);
+  // Dùng mã trả về từ backend (customer: bookingId, guest: requestId/code)
+  const bookingCode = bookingData?.bookingId
+    ? `${bookingData.bookingId}`
+    : bookingData?.requestId
+      ? `${bookingData.requestId}`
+      : bookingData?.code || ''
+
+  const confirmedDate = bookingData?.scheduledDate || schedule.date
+  const confirmedTime = bookingData?.scheduledTime || schedule.time
+  const confirmedNote = bookingData?.description || info.note
 
   return (
     <div className={styles['done-card']}>
@@ -55,11 +65,13 @@ export default function StepDone({ schedule, info, services, selectedIds, onResc
       <div className={styles['done-section']}>
         <div className={styles['row-icon']}>📅</div>
         <div className={styles['row-content']}>
-          <div className={styles['row-title']}>{formatDate(schedule.date)}</div>
-          <div className={styles['row-desc']}>Khung giờ: {schedule.time || '--:--'} (Buổi Sáng)</div>
+          <div className={styles['row-title']}>{formatDate(confirmedDate)}</div>
+          <div className={styles['row-desc']}>Khung giờ: {confirmedTime}</div>
         </div>
       </div>
 
+    { serviceIds.length > 0 &&(
+      <>
       <hr className={styles['done-sep']} />
 
       <div className={styles['done-section']}>
@@ -73,8 +85,24 @@ export default function StepDone({ schedule, info, services, selectedIds, onResc
           </ul>
         </div>
       </div>
+      </>
+      )}
 
       <hr className={styles['done-sep']} />
+
+      {confirmedNote && (
+        <>
+          <div className={styles['done-section']}>
+            <div className={styles['row-icon']}>📝</div>
+            <div className={styles['row-content']}>
+              <div className={styles['row-title']}>Ghi chú thêm:</div>
+              <div className={styles['row-desc']}>{confirmedNote}</div>
+            </div>
+          </div>
+
+          <hr className={styles['done-sep']} />
+        </>
+      )}
 
       <div className={styles['done-section']}>
         <div className={styles['row-icon']}>📍</div>

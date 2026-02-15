@@ -6,6 +6,7 @@ import StepSchedule from './steps/StepSchedule.jsx';
 import StepInfo from './steps/StepInfo.jsx';
 import StepDone from './steps/StepDone.jsx';
 import { fetchHomeServices } from '../../services/homeService.js';
+import { createCustomerBooking, createGuestBooking } from '../../services/bookingService.js';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 
 const STEPS = [
@@ -33,12 +34,55 @@ export default function Booking() {
  const [schedule, setSchedule] = useState({ date: '', time: '' });
  // State cho thông tin cá nhân
  const [info, setInfo] = useState({ name: '', phone: prefilledPhone, note: '' });
+ // Token để biết khách đã đăng nhập hay chưa
+ const [customerToken, setCustomerToken] = useState(() => localStorage.getItem('customerToken') || '');
+ // Trạng thái gửi booking
+ const [submitting, setSubmitting] = useState(false);
+ const [submitError, setSubmitError] = useState('');
+ const [bookingData, setBookingData] = useState(null);
+
+ const decodeTokenProfile = (token) => {
+  try {
+   const payload = token.split('.')[1];
+   const json = JSON.parse(atob(payload));
+   return {
+	name: json?.fullName || json?.name || '',
+	phone: json?.sub || '',
+   };
+  } catch (e) {
+   return { name: '', phone: '' };
+  }
+ };
 
  useEffect(() => {
 	if (prefilledPhone) {
 	 setInfo((prev) => ({ ...prev, phone: prefilledPhone }));
   }
  }, [prefilledPhone]);
+
+ // Prefill tên + phone từ token đăng nhập (backend đã chứa)
+ useEffect(() => {
+  if (customerToken) {
+   const profile = decodeTokenProfile(customerToken);
+   setInfo((prev) => ({
+	...prev,
+	name: prev.name || profile.name,
+	phone: prev.phone || profile.phone,
+
+   }));
+  }
+ }, [customerToken]);
+
+	// Lắng nghe thay đổi token giữa các tab
+	useEffect(() => {
+		const handleStorage = (e) => {
+			if (!e.key || e.key === 'customerToken') {
+				setCustomerToken(localStorage.getItem('customerToken') || '');
+			}
+		};
+		window.addEventListener('storage', handleStorage);
+		return () => window.removeEventListener('storage', handleStorage);
+	}, []);
 
 	// Lấy dịch vụ từ API Home (ngắn gọn cho booking)
 	useEffect(() => {
@@ -91,10 +135,48 @@ export default function Booking() {
 	};
 
 	 const goBackFromInfo = () => setStepIndex(1);
-	 const goSubmitInfo = () => {
-	  if (!info.name || !info.phone) return;
-	  setStepIndex(3);
-	 };
+const goSubmitInfo = async () => {
+  // 1. Validation cơ bản tại Front-end
+  if (!info.name || !info.phone || submitting) return;
+  setSubmitError('');
+  setSubmitting(true);
+
+  // 2. Chuẩn bị danh sách ID dịch vụ
+  const serviceIds = selectedIds
+    .map((id) => Number(id))
+    .filter((n) => Number.isFinite(n));
+
+
+	const basePayload = {
+		appointmentDate: schedule.date,
+		appointmentTime: schedule.time,
+		userNote: info.note || '',
+		selectedServiceIds: serviceIds,
+	};
+
+  try {
+		console.log('[booking] submitting to path:', customerToken ? 'customer' : 'guest');
+    
+		const res = customerToken
+			? await createCustomerBooking(basePayload, customerToken)
+			: await createGuestBooking({
+					...basePayload,
+					fullName: info.name.trim(),
+					phone: info.phone.trim(),
+				});
+
+    console.log('[booking] success:', res);
+    setBookingData(res?.data || null);
+    setStepIndex(3);
+  } catch (err) {
+    console.error('[booking] error detail:', err.response?.data);
+    // Ưu tiên hiển thị lỗi từ server trả về (ví dụ: "Ngày hẹn không được là quá khứ")
+    const errorMsg = err.response?.data?.message || err?.message || 'Không thể tạo lịch hẹn.';
+    setSubmitError(errorMsg);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
 	 const goReschedule = () => setStepIndex(1);
 	 const goCancel = () => {
@@ -155,6 +237,8 @@ export default function Booking() {
 					onChange={(patch) => setSchedule((prev) => ({ ...prev, ...patch }))}
 					onBack={goBackFromSchedule}
 					onNext={goNextFromSchedule}
+					token={customerToken}
+					isAuthed={!!customerToken}
 				/>
 			)}
 
@@ -164,6 +248,9 @@ export default function Booking() {
 			  onChange={(patch) => setInfo((prev) => ({ ...prev, ...patch }))}
 			  onBack={goBackFromInfo}
 			  onSubmit={goSubmitInfo}
+			  isAuthed={customerToken}
+			  loading={submitting}
+			  error={submitError}
 			 />
 			)}
 
@@ -171,6 +258,7 @@ export default function Booking() {
 			 <StepDone
 			  schedule={schedule}
 			  info={info}
+			  bookingData={bookingData}
 					services={services}
 			  selectedIds={selectedIds}
 			  onReschedule={goReschedule}

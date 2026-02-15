@@ -28,29 +28,56 @@
 
 .slot-sub { color: #475569; font-size: 14px; }
 
+.slider-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.slider {
+  accent-color: #2563eb;
+  width: 100%;
+}
+
+.slider-label {
+  min-width: 70px;
+  text-align: right;
+  font-weight: 800;
+  color: #0f172a;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
 .slot-group { display: flex; flex-direction: column; gap: 10px; }
 
 .slot-group-label { font-weight: 800; color: #1f2937; }
 
 .slot-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .slot-btn {
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 12px 10px;
+  padding: 10px 8px;
   background: #fff;
   cursor: pointer;
   display: grid;
-  gap: 6px;
+  gap: 4px;
   text-align: center;
   transition: all 0.2s ease;
 }
 
 .slot-btn .slot-time { font-weight: 800; color: #0f172a; }
+
 
 .slot-btn .slot-status { font-weight: 700; color: #16a34a; font-size: 13px; }
 
@@ -63,6 +90,21 @@
 .slot-btn.disabled .slot-time { color: #9ca3af; }
 
 .slot-btn:not(.disabled):hover { box-shadow: 0 6px 14px rgba(0,0,0,0.06); transform: translateY(-1px); }
+
+.service-status {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+}
+
+.service-status.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
 
 @media (max-width: 768px) {
   .slot-grid { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }

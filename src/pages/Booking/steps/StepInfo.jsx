@@ -2,11 +2,12 @@ import React from 'react'
 import styles from './StepInfo.module.css'
 import bookingStyles from '../Booking.module.css'
 
-export default function StepInfo({ value, onChange, onBack, onSubmit }) {
+export default function StepInfo({ value, onChange, onBack, onSubmit, loading = false, error = '', isAuthed = false }) {
   const handleChange = (key) => (e) => onChange({ [key]: e.target.value })
   const canSubmit =
     value.name.trim() &&
-    value.phone.trim()
+    value.phone.trim() &&
+    !loading
 
   return (
     <>
@@ -21,6 +22,8 @@ export default function StepInfo({ value, onChange, onBack, onSubmit }) {
             placeholder="Nhập họ và tên của bạn"
             value={value.name}
             onChange={handleChange('name')}
+            disabled={isAuthed}
+            readOnly={isAuthed}
           />
         </div>
 
@@ -32,11 +35,14 @@ export default function StepInfo({ value, onChange, onBack, onSubmit }) {
               placeholder="Nhập số điện thoại"
               value={value.phone}
               onChange={handleChange('phone')}
+              disabled={isAuthed}
+              readOnly={isAuthed}
             />
-            <button type="button" className={bookingStyles['link-btn']}>Thay đổi</button>
           </div>
         </div>
       </div>
+
+      {error && <div className={styles.error}>{error}</div>}
 
       <div className={styles['section-block']}>
         <div className={styles['section-title-row']}>
@@ -56,8 +62,13 @@ export default function StepInfo({ value, onChange, onBack, onSubmit }) {
 
       <div className={bookingStyles['booking-actions']}>
         <button className={bookingStyles.btn} onClick={onBack}>Quay lại</button>
-        <button className={`${bookingStyles.btn} ${bookingStyles.primary}`} onClick={onSubmit} disabled={!canSubmit}>
-          Hoàn tất
+        <button
+          className={`${bookingStyles.btn} ${bookingStyles.primary}`}
+          onClick={onSubmit}
+          disabled={!canSubmit}
+          aria-busy={loading}
+        >
+          {loading ? 'Đang xử lý...' : 'Hoàn tất'}
         </button>
       </div>
     </>

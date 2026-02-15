@@ -61,9 +61,8 @@
 }
 
 .danger {
-  background: #ef4444;
-  color: #fff;
-  border-color: #ef4444;
+  color: black;
+  background-color: red;
 }
 
 @media (max-width: 640px) {
