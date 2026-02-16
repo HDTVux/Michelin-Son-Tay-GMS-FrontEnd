@@ -1,6 +1,14 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap');
 
+* {
+    font-family: 'Baloo 2', 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
+body {
+    font-family: 'Baloo 2', 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
 /* Banner styles matching provided design */
 .banner {
     background: #ffffff;
@@ -147,10 +155,10 @@
 .slide-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;             /* Ảnh phủ kín toàn bộ không gian, không để khoảng trống */
-    object-position: center 30%;   /* Căn giữa ngang và 30% từ trên để hiển thị cả avatar và chữ */
+    object-fit: cover;
+    object-position: center center;
     min-height: 600px;
-    display: block;               /* Đảm bảo ảnh hiển thị đúng */
+    display: block;
 }
 
 
