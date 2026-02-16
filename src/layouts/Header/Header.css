@@ -1,7 +1,7 @@
 .mainHeader {
   background: #094F9D;
   backdrop-filter: blur(8px);
-  padding: 16px 5%;
+  padding: 8px 5%;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   position: sticky;
   top: 0;
@@ -20,7 +20,7 @@
   background: #094F9D;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
-  padding: 10px 5%;
+  padding: 6px 5%;
 }
 
 .headerContainer {
@@ -47,7 +47,7 @@
 /* Logo image styling */
 .headerLogo img,
 .headerLogo #Logo {
-  height: 88px;
+  height: 60px;
   width: auto;
   display: block;
   object-fit: contain;

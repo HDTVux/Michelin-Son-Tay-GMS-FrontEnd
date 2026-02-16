@@ -70,14 +70,14 @@
 }
 
 .introWelcome {
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 2px;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 4px;
     color: #64748b;
     text-transform: uppercase;
-    margin: 0 0 16px 0;
+    margin: 0 0 20px 0;
     line-height: 1.2;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
     opacity: 0;
     transform: translateX(-30px);
     transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
@@ -89,19 +89,20 @@
 }
 
 .introTitle {
-    font-size: 48px;
-    font-weight: 800;
+    font-size: 52px;
+    font-weight: 700;
     color: #0a0f1c;
     margin: 0 0 40px 0;
-    line-height: 1.2;
+    line-height: 1.1;
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 16px;
     align-items: baseline;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
     opacity: 0;
     transform: translateX(-30px);
     transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
+    letter-spacing: 1px;
 }
 
 .introTextCol.visible .introTitle {
@@ -111,11 +112,15 @@
 
 .introTitle .titlePart1 {
     color: #0a0f1c;
+    font-weight: 700;
 }
 
 .introTitle .titlePart2 {
     color: #005aa9;
-    text-shadow: none;
+    font-weight: 700;
+    text-shadow: 0 0 20px rgba(0, 90, 169, 0.6), 
+                 0 0 40px rgba(0, 90, 169, 0.4),
+                 0 0 60px rgba(0, 90, 169, 0.2);
 }
 
 .introTextList {
@@ -174,13 +179,14 @@
 }
 
 .introTextItem {
-    font-size: 16px;
+    font-size: 18px;
     color: #334155;
     line-height: 1.6;
     margin: 0;
-    font-weight: 500;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 400;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
     flex: 1;
+    letter-spacing: 0.3px;
 }
 
 .introVideoMedia {
@@ -461,7 +467,7 @@
     display: inline-block;
     border: 2px solid transparent;
     letter-spacing: 0.02em;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
     text-transform: none;
 }
 
@@ -592,24 +598,27 @@
 
 .processTitle{
     margin: 0 auto 20px;
-    font-size: 56px;
-    font-weight: 900;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
+    font-size: 64px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    line-height: 1.1;
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 12px;
     align-items: baseline;
     justify-content: center;
     text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .processTitle .titlePart1 {
     color: #ffffff;
+    font-weight: 700;
 }
 
 .processTitle .titlePart2 {
     color: #ffffff;
+    font-weight: 700;
     text-shadow: 0 0 30px rgba(0, 90, 169, 0.8), 0 4px 20px rgba(0, 0, 0, 0.6);
 }
 
@@ -721,55 +730,40 @@
     border-color: rgba(59, 130, 246, 0.3);
 }
 
-.processStepBubble::after{
-    content: '↓';
-    position: absolute;
-    bottom: -30px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 24px;
-    color: #3b82f6;
-    font-weight: 800;
-}
-
-.step-4::after {
-    display: none;
-}
-
 .step-1 {
-    grid-column: 3;
+    grid-column: 1;
     grid-row: 1;
 }
 
 .step-2 {
-    grid-column: 3;
+    grid-column: 1;
     grid-row: 2;
 }
 
 .step-3 {
-    grid-column: 3;
+    grid-column: 1;
     grid-row: 3;
 }
 
 .step-4 {
-    grid-column: 1 / span 3;
-    grid-row: 4;
+    grid-column: 2;
+    grid-row: 3;
     max-width: 500px;
     margin: 0 auto;
 }
 
 .step-5 {
-    grid-column: 1;
+    grid-column: 3;
     grid-row: 1;
 }
 
 .step-6 {
-    grid-column: 1;
+    grid-column: 3;
     grid-row: 2;
 }
 
 .step-7 {
-    grid-column: 1;
+    grid-column: 3;
     grid-row: 3;
 }
 
@@ -951,7 +945,7 @@
     }
 
     .introTitle {
-        font-size: 32px;
+        font-size: 52px;
     }
 
     .introTextItem {
@@ -1032,7 +1026,7 @@
     }
 
     .introTitle {
-        font-size: 28px;
+        font-size: 44px;
         margin-bottom: 24px;
     }
 
@@ -1070,7 +1064,7 @@
         margin-bottom: 0;
     }
     .processTitle{
-        font-size: 30px;
+        font-size: 36px;
     }
     .processDiagram{
         min-height: auto;
@@ -1158,7 +1152,7 @@
         margin-bottom: 0;
     }
     .processTitle{
-        font-size: 24px;
+        font-size: 28px;
         margin-bottom: 8px;
     }
     .processSub{
