@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import styles from './StepDone.module.css'
 import bookingStyles from '../Booking.module.css'
+import { formatTimeHHmm } from '../../../components/timeUtils.js';
 
 const formatDate = (value) => {
   if (!value) return ''
@@ -66,7 +67,7 @@ export default function StepDone({ schedule, info, bookingData, services, select
         <div className={styles['row-icon']}>📅</div>
         <div className={styles['row-content']}>
           <div className={styles['row-title']}>{formatDate(confirmedDate)}</div>
-          <div className={styles['row-desc']}>Khung giờ: {confirmedTime}</div>
+          <div className={styles['row-desc']}>Khung giờ: {formatTimeHHmm(confirmedTime)}</div>
         </div>
       </div>
 

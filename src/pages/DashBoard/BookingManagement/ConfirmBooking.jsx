@@ -27,7 +27,7 @@ export default function ConfirmBooking({ open, onClose, onConfirm, request }) {
 					<Row label="Mã yêu cầu:" value={data.code} href={data.codeHref} />
 					<Row label="Tên khách:" value={data.customerName} href={data.customerHref} />
 					<Row label="Thời gian booking:" value={data.bookingTime} href={data.timeHref} />
-					<Row label="Dịch vụ:" value={data.service} href={data.serviceHref} />
+					{data.service && <Row label="Dịch vụ:" value={data.service} />}
 				</div>
 
 				<div className={styles.confirmBooking__alert}>Booking sẽ được tạo và thêm vào lịch làm việc</div>
