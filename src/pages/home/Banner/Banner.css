@@ -297,13 +297,13 @@ body {
     }
     
     .slide {
-        height: 400px;
-        min-height: 400px;
+        height: 300px;
+        min-height: 300px;
     }
     
     .slide-image {
         height: 100%;
-        min-height: 400px;
+        min-height: 300px;
         object-fit: cover;
         object-position: center center;
     }
@@ -332,10 +332,12 @@ body {
     }
     
     .banner-title {
-        font-size: 20px;
+        font-size: 18px;
         margin-bottom: 10px;
         line-height: 1.25;
-        gap: 0;
+        gap: 4px;
+        flex-wrap: nowrap;
+        white-space: nowrap;
     }
     
     .banner-title .titlePart1 {

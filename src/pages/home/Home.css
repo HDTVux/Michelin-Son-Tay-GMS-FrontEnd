@@ -1026,8 +1026,9 @@
     }
 
     .introTitle {
-        font-size: 44px;
+        font-size: 32px;
         margin-bottom: 24px;
+        gap: 8px;
     }
 
     .introTextItem {
