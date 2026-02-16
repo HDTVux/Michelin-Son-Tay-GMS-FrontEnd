@@ -292,6 +292,21 @@
 	font-weight: 700;
 }
 
+.error-banner {
+	background: #ffe7e7;
+	border: 1px solid #ffb8b8;
+	color: #c22727;
+	padding: 10px 12px;
+	border-radius: 8px;
+	font-weight: 600;
+}
+
+.empty-row {
+	text-align: center;
+	padding: 18px 10px;
+	color: #555;
+}
+
 /* Tones */
 .filter-card--warning .filter-card__title,
 .booking-card--warning .booking-card__title {

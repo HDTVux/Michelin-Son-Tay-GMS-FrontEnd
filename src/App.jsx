@@ -45,17 +45,17 @@ export default function App() {
           <Route path="my-bookings" element={<MyBookings />} />
           <Route path="booking-detail/:id" element={<BookingDetail />} />
           <Route path="edit-booking/:id" element={<EditBooking />} />
-          <Route path="staff-profile" element={<StaffProfile />} />
-          <Route path="update-staff-profile" element={<UpdateStaffProfile />} />
-          <Route path="staff-change-password" element={<StaffChangePassword />} />
-          <Route path="staff-manage-sso" element={<StaffManageSSO />} />
+
         </Route>
         {/* Nhóm trang dashboard nhân viên dùng SideBar */}
         <Route element={<StaffLayout />}>
           <Route path="booking-management" element={<BookingManagement />} />
           <Route path="booking-management/:id" element={<BookingRequestDetail />} />
           <Route path="booking-management/:id/edit" element={<BookingRequestEdit />} />
-
+          <Route path="staff-profile" element={<StaffProfile />} />
+          <Route path="update-staff-profile" element={<UpdateStaffProfile />} />
+          <Route path="staff-change-password" element={<StaffChangePassword />} />
+          <Route path="staff-manage-sso" element={<StaffManageSSO />} />
         </Route>
         <Route path="login" element={<Login />} />
         <Route path="forgot-password" element={<ForgotPassword />} />

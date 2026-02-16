@@ -26,6 +26,27 @@
   font-weight: 800;
 }
 
+.errorBanner {
+  background: #fee2e2;
+  border: 1px solid #fecdd3;
+  color: #b91c1c;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.loadingBox,
+.emptyBox {
+  background: #fff;
+  border: 1px dashed #d1d5db;
+  padding: 14px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  color: #374151;
+  font-weight: 600;
+}
+
 .layout {
   display: grid;
   grid-template-columns: 1.2fr 0.9fr;
@@ -76,6 +97,7 @@
 .statusPill--warning { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
 .statusPill--info { background: #e0f2fe; color: #0ea5e9; border-color: #bae6fd; }
 .statusPill--danger { background: #fee2e2; color: #b91c1c; border-color: #fecdd3; }
+.statusPill--success { background: #dcfce7; color: #15803d; border-color: #a7f3d0; }
 
 .section {
   background: #f9fafb;
