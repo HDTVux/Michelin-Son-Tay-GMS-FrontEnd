@@ -1,0 +1,273 @@
+/* Main Container */
+.manageProfilePage {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 32px 5%;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.manageProfileContainer {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Header */
+.manageProfileHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.manageProfileTitle {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0a0f1c;
+  margin: 0;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #ffffff;
+  color: #005aa9;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  border: 2px solid #005aa9;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 90, 169, 0.1);
+}
+
+.backButton:hover {
+  background: #005aa9;
+  color: #ffffff;
+  transform: translateX(-4px);
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.2);
+}
+
+/* Linked Accounts Section */
+.linkedAccountsSection {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0a0f1c;
+  margin: 0 0 24px 0;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.linkedAccountsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.linkedAccountItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.linkedAccountItem:hover {
+  border-color: #005aa9;
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.1);
+}
+
+.accountInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.accountIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.accountIcon.google {
+  background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+}
+
+.accountIcon.zalo {
+  background: linear-gradient(135deg, #0068ff 0%, #0084ff 100%);
+  font-size: 28px;
+}
+
+.accountDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.accountName {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0a0f1c;
+}
+
+.accountStatus {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Buttons */
+.btnLink,
+.btnUnlink {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid;
+  font-family: 'Montserrat', sans-serif;
+  white-space: nowrap;
+}
+
+.btnLink {
+  background: #005aa9;
+  color: #ffffff;
+  border-color: #005aa9;
+}
+
+.btnLink:hover {
+  background: #00407f;
+  border-color: #00407f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
+}
+
+.btnUnlink {
+  background: #ffffff;
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.btnUnlink:hover {
+  background: #dc2626;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+/* Footer */
+.formFooter {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.btnCancel {
+  padding: 12px 32px;
+  background: #ffffff;
+  color: #64748b;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.btnCancel:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .manageProfilePage {
+    padding: 20px 4%;
+  }
+
+  .linkedAccountsSection {
+    padding: 24px;
+  }
+
+  .manageProfileHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .manageProfileTitle {
+    font-size: 24px;
+  }
+
+  .linkedAccountItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .btnLink,
+  .btnUnlink {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .manageProfilePage {
+    padding: 16px 3%;
+  }
+
+  .linkedAccountsSection {
+    padding: 20px;
+  }
+
+  .manageProfileTitle {
+    font-size: 20px;
+  }
+
+  .backButton {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .accountIcon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .accountIcon.zalo {
+    font-size: 24px;
+  }
+
+  .accountName {
+    font-size: 15px;
+  }
+
+  .accountStatus {
+    font-size: 12px;
+  }
+}

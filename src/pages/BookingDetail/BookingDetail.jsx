@@ -1,11 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import './BookingDetail.module.css';
-import './BookingDetail.header.module.css';
-import './BookingDetail.sections.module.css';
-import './BookingDetail.actions.module.css';
-import './BookingDetail.modal.module.css';
+import './BookingDetail.css';
 
 const BookingDetail = () => {
   useScrollToTop();

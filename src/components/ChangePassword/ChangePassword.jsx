@@ -1,13 +1,13 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import styles from './ChangePassword.module.css';
+import './ChangePassword.css';
 
 const ChangePassword = ({ 
   onCancel, 
   onSubmit, 
   backLink, 
-  backLinkText = 'Quay láº¡i',
-  title = 'Äá»•i máº­t kháº©u',
+  backLinkText = 'Quay lại',
+  title = 'Đổi mật khẩu',
   isLoading = false,
   showHeader = false
 }) => {
@@ -82,7 +82,7 @@ const ChangePassword = ({
     switch (fieldName) {
       case 'currentPassword':
         if (!value) {
-          newErrors.currentPassword = 'Vui lÃ²ng nháº­p máº­t kháº©u hiá»‡n táº¡i.';
+          newErrors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại.';
         } else {
           newErrors.currentPassword = '';
         }
@@ -90,11 +90,11 @@ const ChangePassword = ({
 
       case 'newPassword':
         if (!value) {
-          newErrors.newPassword = 'Vui lÃ²ng nháº­p máº­t kháº©u má»›i.';
+          newErrors.newPassword = 'Vui lòng nhập mật khẩu mới.';
         } else if (value === formData.currentPassword) {
-          newErrors.newPassword = 'Máº­t kháº©u má»›i khÃ´ng Ä‘Æ°á»£c trÃ¹ng vá»›i máº­t kháº©u hiá»‡n táº¡i.';
+          newErrors.newPassword = 'Mật khẩu mới không được trùng với mật khẩu hiện tại.';
         } else if (!Object.values(requirements).every(req => req)) {
-          newErrors.newPassword = 'Máº­t kháº©u má»›i khÃ´ng Ä‘Ã¡p á»©ng cÃ¡c yÃªu cáº§u.';
+          newErrors.newPassword = 'Mật khẩu mới không đáp ứng các yêu cầu.';
         } else {
           newErrors.newPassword = '';
         }
@@ -102,9 +102,9 @@ const ChangePassword = ({
 
       case 'confirmPassword':
         if (!value) {
-          newErrors.confirmPassword = 'Vui lÃ²ng xÃ¡c nháº­n máº­t kháº©u má»›i.';
+          newErrors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới.';
         } else if (value !== formData.newPassword) {
-          newErrors.confirmPassword = 'Máº­t kháº©u xÃ¡c nháº­n khÃ´ng khá»›p.';
+          newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp.';
         } else {
           newErrors.confirmPassword = '';
         }
@@ -132,26 +132,26 @@ const ChangePassword = ({
     let hasError = false;
 
     if (!formData.currentPassword) {
-      finalErrors.currentPassword = 'Vui lÃ²ng nháº­p máº­t kháº©u hiá»‡n táº¡i.';
+      finalErrors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại.';
       hasError = true;
     }
 
     if (!formData.newPassword) {
-      finalErrors.newPassword = 'Vui lÃ²ng nháº­p máº­t kháº©u má»›i.';
+      finalErrors.newPassword = 'Vui lòng nhập mật khẩu mới.';
       hasError = true;
     } else if (formData.newPassword === formData.currentPassword) {
-      finalErrors.newPassword = 'Máº­t kháº©u má»›i khÃ´ng Ä‘Æ°á»£c trÃ¹ng vá»›i máº­t kháº©u hiá»‡n táº¡i.';
+      finalErrors.newPassword = 'Mật khẩu mới không được trùng với mật khẩu hiện tại.';
       hasError = true;
     } else if (!Object.values(requirements).every(req => req)) {
-      finalErrors.newPassword = 'Máº­t kháº©u má»›i khÃ´ng Ä‘Ã¡p á»©ng cÃ¡c yÃªu cáº§u.';
+      finalErrors.newPassword = 'Mật khẩu mới không đáp ứng các yêu cầu.';
       hasError = true;
     }
 
     if (!formData.confirmPassword) {
-      finalErrors.confirmPassword = 'Vui lÃ²ng xÃ¡c nháº­n máº­t kháº©u má»›i.';
+      finalErrors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới.';
       hasError = true;
     } else if (formData.confirmPassword !== formData.newPassword) {
-      finalErrors.confirmPassword = 'Máº­t kháº©u xÃ¡c nháº­n khÃ´ng khá»›p.';
+      finalErrors.confirmPassword = 'Mật khẩu xác nhận không khớp.';
       hasError = true;
     }
 
@@ -165,27 +165,25 @@ const ChangePassword = ({
     }
   };
 
-  const allRequirementsMet = Object.values(passwordRequirements).every(req => req);
-
   return (
-    <div className={styles.page}>
-      <div className={styles.container}>
+    <div className="page">
+      <div className="container">
         {showHeader && (
-          <div className={styles.header}>
-            <h1 className={styles.title}>{title}</h1>
+          <div className="header">
+            <h1 className="title">{title}</h1>
             {backLink && (
-              <Link to={backLink} className={styles.backButton}>
-                â† {backLinkText}
+              <Link to={backLink} className="backButton">
+                ← {backLinkText}
               </Link>
             )}
           </div>
         )}
-        <form onSubmit={handleSubmit} className={styles.form}>
-          {!showHeader && <h2 className={styles.formTitle}>{title}</h2>}
+        <form onSubmit={handleSubmit} className="form">
+          {!showHeader && <h2 className="formTitle">{title}</h2>}
 
-          <div className={styles.formGroup}>
-            <label htmlFor='currentPassword' className={styles.label}>
-              Máº­t kháº©u hiá»‡n táº¡i
+          <div className="formGroup">
+            <label htmlFor='currentPassword' className="label">
+              Mật khẩu hiện tại
             </label>
             <input
               type='password'
@@ -194,17 +192,17 @@ const ChangePassword = ({
               value={formData.currentPassword}
               onChange={handleInputChange}
               onBlur={() => handleBlur('currentPassword')}
-              className={styles.input}
-              placeholder='Nháº­p máº­t kháº©u hiá»‡n táº¡i'
+              className="input"
+              placeholder='Nhập mật khẩu hiện tại'
             />
             {errors.currentPassword && (
-              <span className={styles.errorMessage}>{errors.currentPassword}</span>
+              <span className="errorMessage">{errors.currentPassword}</span>
             )}
           </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor='newPassword' className={styles.label}>
-              Máº­t kháº©u má»›i
+          <div className="formGroup">
+            <label htmlFor='newPassword' className="label">
+              Mật khẩu mới
             </label>
             <input
               type='password'
@@ -213,55 +211,55 @@ const ChangePassword = ({
               value={formData.newPassword}
               onChange={handleInputChange}
               onBlur={() => handleBlur('newPassword')}
-              className={styles.input}
-              placeholder='Nháº­p máº­t kháº©u má»›i'
+              className="input"
+              placeholder='Nhập mật khẩu mới'
             />
             {errors.newPassword && (
-              <span className={styles.errorMessage}>{errors.newPassword}</span>
+              <span className="errorMessage">{errors.newPassword}</span>
             )}
 
             {formData.newPassword && (
-              <div className={styles.passwordRequirements}>
-                <p className={styles.requirementsTitle}>YÃªu cáº§u máº­t kháº©u:</p>
-                <ul className={styles.requirementsList}>
-                  <li className={passwordRequirements.minLength ? styles.met : styles.unmet}>
-                    <span className={styles.requirementIcon}>
-                      {passwordRequirements.minLength ? 'âœ“' : 'â—‹'}
+              <div className="passwordRequirements">
+                <p className="requirementsTitle">Yêu cầu mật khẩu:</p>
+                <ul className="requirementsList">
+                  <li className={passwordRequirements.minLength ? "met" : "unmet"}>
+                    <span className="requirementIcon">
+                      {passwordRequirements.minLength ? '✓' : '○'}
                     </span>
-                    Ãt nháº¥t 8 kÃ½ tá»±
+                    Ít nhất 8 ký tự
                   </li>
-                  <li className={passwordRequirements.hasUpperCase ? styles.met : styles.unmet}>
-                    <span className={styles.requirementIcon}>
-                      {passwordRequirements.hasUpperCase ? 'âœ“' : 'â—‹'}
+                  <li className={passwordRequirements.hasUpperCase ? "met" : "unmet"}>
+                    <span className="requirementIcon">
+                      {passwordRequirements.hasUpperCase ? '✓' : '○'}
                     </span>
-                    CÃ³ chá»¯ cÃ¡i in hoa
+                    Có chữ cái in hoa
                   </li>
-                  <li className={passwordRequirements.hasLowerCase ? styles.met : styles.unmet}>
-                    <span className={styles.requirementIcon}>
-                      {passwordRequirements.hasLowerCase ? 'âœ“' : 'â—‹'}
+                  <li className={passwordRequirements.hasLowerCase ? "met" : "unmet"}>
+                    <span className="requirementIcon">
+                      {passwordRequirements.hasLowerCase ? '✓' : '○'}
                     </span>
-                    CÃ³ chá»¯ cÃ¡i in thÆ°á»ng
+                    Có chữ cái in thường
                   </li>
-                  <li className={passwordRequirements.hasNumber ? styles.met : styles.unmet}>
-                    <span className={styles.requirementIcon}>
-                      {passwordRequirements.hasNumber ? 'âœ“' : 'â—‹'}
+                  <li className={passwordRequirements.hasNumber ? "met" : "unmet"}>
+                    <span className="requirementIcon">
+                      {passwordRequirements.hasNumber ? '✓' : '○'}
                     </span>
-                    CÃ³ chá»¯ sá»‘
+                    Có chữ số
                   </li>
-                  <li className={passwordRequirements.hasSpecialChar ? styles.met : styles.unmet}>
-                    <span className={styles.requirementIcon}>
-                      {passwordRequirements.hasSpecialChar ? 'âœ“' : 'â—‹'}
+                  <li className={passwordRequirements.hasSpecialChar ? "met" : "unmet"}>
+                    <span className="requirementIcon">
+                      {passwordRequirements.hasSpecialChar ? '✓' : '○'}
                     </span>
-                    CÃ³ kÃ½ tá»± Ä‘áº·c biá»‡t
+                    Có ký tự đặc biệt
                   </li>
                 </ul>
               </div>
             )}
           </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor='confirmPassword' className={styles.label}>
-              XÃ¡c nháº­n máº­t kháº©u má»›i
+          <div className="formGroup">
+            <label htmlFor='confirmPassword' className="label">
+              Xác nhận mật khẩu mới
             </label>
             <input
               type='password'
@@ -270,32 +268,32 @@ const ChangePassword = ({
               value={formData.confirmPassword}
               onChange={handleInputChange}
               onBlur={() => handleBlur('confirmPassword')}
-              className={styles.input}
-              placeholder='Nháº­p láº¡i máº­t kháº©u má»›i'
+              className="input"
+              placeholder='Nhập lại mật khẩu mới'
             />
             {errors.confirmPassword && (
-              <span className={styles.errorMessage}>{errors.confirmPassword}</span>
+              <span className="errorMessage">{errors.confirmPassword}</span>
             )}
             {!errors.confirmPassword && formData.confirmPassword && formData.confirmPassword === formData.newPassword && (
-              <span className={styles.successMessage}>âœ“ Máº­t kháº©u xÃ¡c nháº­n khá»›p</span>
+              <span className="successMessage">✓ Mật khẩu xác nhận khớp</span>
             )}
           </div>
 
-          <div className={styles.footer}>
+          <div className="footer">
             <button
               type='button'
               onClick={onCancel}
-              className={styles.btnCancel}
+              className="btnCancel"
               disabled={isLoading}
             >
-              Há»§y
+              Hủy
             </button>
             <button
               type='submit'
-              className={styles.btnSubmit}
+              className="btnSubmit"
               disabled={isLoading}
             >
-              {isLoading ? 'Äang xá»­ lÃ½...' : 'XÃ¡c nháº­n Ä‘á»•i máº­t kháº©u'}
+              {isLoading ? 'Đang xử lý...' : 'Xác nhận đổi mật khẩu'}
             </button>
           </div>
         </form>

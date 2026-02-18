@@ -1,0 +1,357 @@
+/* Main Container */
+.bookingDetailPage {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 32px 5%;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.detailContainer {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* Header */
+.detailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #ffffff;
+  color: #005aa9;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  border: 2px solid #005aa9;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 90, 169, 0.1);
+}
+
+.backButton:hover {
+  background: #005aa9;
+  color: #ffffff;
+  transform: translateX(-4px);
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.2);
+}
+
+.pageTitle {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0a0f1c;
+  margin: 0;
+}
+
+.bookingStatus {
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-pending {
+  background: rgba(251, 191, 36, 0.15);
+  color: #f59e0b;
+  border: 2px solid #fbbf24;
+}
+
+.status-confirmed {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  border: 2px solid #10b981;
+}
+
+.status-cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  border: 2px solid #ef4444;
+}
+
+/* Content Sections */
+.detailContent {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.detailSection {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0a0f1c;
+  margin: 0 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.infoLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.infoValue {
+  font-size: 15px;
+  color: #0a0f1c;
+  font-weight: 500;
+}
+
+/* Services List */
+.servicesList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.serviceItem {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.serviceName {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0a0f1c;
+  margin-bottom: 8px;
+}
+
+.serviceDescription {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+/* Note Section */
+.noteContent {
+  padding: 16px;
+  background: #fef3c7;
+  border-radius: 12px;
+  border: 2px solid #fbbf24;
+  font-size: 14px;
+  color: #92400e;
+  line-height: 1.6;
+}
+
+/* Actions */
+.detailActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.btnEdit,
+.btnCancel {
+  flex: 1;
+  min-width: 150px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btnEdit {
+  background: #005aa9;
+  color: #ffffff;
+  border-color: #005aa9;
+}
+
+.btnEdit:hover {
+  background: #00407f;
+  border-color: #00407f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
+}
+
+.btnCancel {
+  background: #ffffff;
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.btnCancel:hover {
+  background: #dc2626;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.btnCancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.modalContent {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modalTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0a0f1c;
+  margin: 0 0 16px 0;
+}
+
+.modalText {
+  font-size: 15px;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+}
+
+.btnModalConfirm,
+.btnModalCancel {
+  flex: 1;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid;
+}
+
+.btnModalConfirm {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+.btnModalConfirm:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.btnModalCancel {
+  background: #ffffff;
+  color: #64748b;
+  border-color: #e5e7eb;
+}
+
+.btnModalCancel:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bookingDetailPage {
+    padding: 20px 4%;
+  }
+
+  .detailHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pageTitle {
+    font-size: 24px;
+  }
+
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .detailActions {
+    flex-direction: column;
+  }
+
+  .btnEdit,
+  .btnCancel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .bookingDetailPage {
+    padding: 16px 3%;
+  }
+
+  .detailSection {
+    padding: 20px;
+  }
+
+  .pageTitle {
+    font-size: 20px;
+  }
+
+  .backButton {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .modalContent {
+    padding: 24px;
+  }
+}
