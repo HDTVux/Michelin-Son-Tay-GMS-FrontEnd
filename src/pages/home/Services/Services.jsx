@@ -7,7 +7,7 @@ import combo1 from '../../../assets/z7498307797407_a65c60e07a1b8983cdf5350f98b6c
 import combo2 from '../../../assets/z7498310198837_146b124ec8cd2391c04e27a0dde397ff.jpg';
 import combo3 from '../../../assets/z7498315906940_a22d5305d93086e7d629fd4795a6e222.jpg';
 import combo4 from '../../../assets/phanh_an_tam.jpg';
-import processImg from '../../../assets/{CCEDBCC3-2144-40E6-B397-8E9D2FA15587}.png';
+import processImg from '../../../assets/Quy trình 7 bước (1).png';
 
 const Services = () => {
   const [services, setServices] = useState([]);
@@ -437,7 +437,7 @@ const Services = () => {
       </section>
 
       {/* Gói dịch vụ được tin dùng */}
-      <section className="combosPage">
+      {/* <section className="combosPage">
         <div
           ref={combosHeroRef}
           className={`servicesHero ${combosIntroVisible ? 'visible' : ''}`}
@@ -514,7 +514,7 @@ const Services = () => {
             &gt;
           </button>
         </div>
-      </section>
+      </section> */}
     </>
   );
 };

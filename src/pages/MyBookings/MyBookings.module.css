@@ -1,10 +1,8 @@
-:global {
-/* Main Page Styles */
 .myBookingsPage {
   min-height: 100vh;
-  padding: 40px 5%;
-  background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
-  color: #0a0f1c;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 32px 5%;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .bookingsContainer {
@@ -12,10 +10,14 @@
   margin: 0 auto;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .myBookingsPage {
     padding: 20px 4%;
   }
 }
+
+@media (max-width: 480px) {
+  .myBookingsPage {
+    padding: 16px 3%;
+  }
 }

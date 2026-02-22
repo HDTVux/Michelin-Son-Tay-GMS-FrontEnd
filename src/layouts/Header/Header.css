@@ -1,7 +1,7 @@
 .mainHeader {
   background: #094F9D;
   backdrop-filter: blur(8px);
-  padding: 16px 5%;
+  padding: 8px 5%;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   position: sticky;
   top: 0;
@@ -20,7 +20,7 @@
   background: #094F9D;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
-  padding: 10px 5%;
+  padding: 6px 5%;
 }
 
 .headerContainer {
@@ -47,7 +47,7 @@
 /* Logo image styling */
 .headerLogo img,
 .headerLogo #Logo {
-  height: 88px;
+  height: 60px;
   width: auto;
   display: block;
   object-fit: contain;
@@ -324,17 +324,17 @@
   transition: all 0.3s ease;
 }
 
-
+/* Không chuyển thành dấu X khi mở menu */
 .mobileMenuToggle.active span:nth-child(1) {
-  transform: rotate(45deg) translate(8px, 8px);
+  transform: none;
 }
 
 .mobileMenuToggle.active span:nth-child(2) {
-  opacity: 0;
+  opacity: 1;
 }
 
 .mobileMenuToggle.active span:nth-child(3) {
-  transform: rotate(-45deg) translate(7px, -7px);
+  transform: none;
 }
 
 /* Responsive: Mobile Menu */
@@ -365,16 +365,18 @@
     top: 70px;
     left: 0;
     right: 0;
-    background: rgba(10, 15, 28, 0.98);
-    backdrop-filter: blur(10px);
+    background: linear-gradient(180deg, rgba(10, 15, 28, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
+    backdrop-filter: blur(12px);
     flex-direction: column;
-    padding: 20px 5%;
+    padding: 24px 5%;
     transform: translateY(-100%);
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s ease;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border-bottom: 2px solid rgba(0, 90, 169, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
   }
 
   .headerNav.open {
@@ -384,9 +386,24 @@
   }
 
   .headerNav a {
-    padding: 12px 16px;
-    margin: 4px 0;
+    padding: 14px 20px;
+    margin: 6px 0;
     text-align: left;
+    font-size: 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .headerNav a:hover {
+    background: rgba(0, 90, 169, 0.2);
+    border-color: rgba(0, 90, 169, 0.4);
+    transform: translateX(4px);
+  }
+  
+  .headerNav a.active {
+    background: rgba(0, 90, 169, 0.3);
+    border-color: rgba(0, 90, 169, 0.5);
   }
 
   .headerAuth {

@@ -1,30 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
 import './Banner.css';
-import combo7 from '../../../assets/anh_combo7.jpg'
-import combo8 from '../../../assets/anh_combo8.jpg'
-import combo9 from '../../../assets/anh_com9.jpg'
+import bannerTet1 from '../../../assets/Banner Tet 2.png'
+import bannerTet2 from '../../../assets/Banner Tet 1.png'
+import banner1 from '../../../assets/1.jpg'
 
 export default function Banner(){
     const slides = [
         { 
             id: 1, 
-            img: combo7, 
+            img: bannerTet1, 
             title: 'Hiệu suất bền bỉ, an toàn tối đa', 
             subtitle: 'MICHELIN' 
         },
         { 
             id: 2, 
-            img: combo8, 
+            img: bannerTet2, 
             title: 'CHINH PHỤC MỌI ĐỊA HÌNH', 
             subtitle: 'MICHELIN' 
         },
         { 
             id: 3, 
-            img: combo9, 
+            img: banner1, 
             title: 'ÊM ÁI VÀ AN TOÀN TRÊN MỌI CUNG ĐƯỜNG ƯỚT', 
             subtitle: 'MICHELIN' 
         }
-    ];
+    ];//
+    
 
     const [index, setIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
@@ -96,13 +97,6 @@ export default function Banner(){
                         {slides.map((s) => (
                         <div className="slide" key={s.id}>
                             <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image" />
-                            <div className={`slide-text ${textVisible && index === s.id - 1 ? 'visible' : ''}`}>
-                                <div className="banner-label">/MICHELIN/</div>
-                                <h1 className="banner-title">
-                                    <span className="titlePart1">{s.title}</span>
-                                </h1>
-                                <p className="banner-sub">{s.subtitle}</p>
-                            </div>
                         </div>
                         ))} 
                     </div>

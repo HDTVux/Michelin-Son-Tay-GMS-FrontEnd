@@ -81,26 +81,30 @@
 }
 
 .servicesTitle {
-  font-size: 56px;
-  font-weight: 800;
+  font-size: 64px;
+  font-weight: 700;
   margin-bottom: 20px;
-  line-height: 1.2;
+  line-height: 1.1;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
   align-items: baseline;
+  letter-spacing: 1px;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .titlePart1 {
   color: #0a0f1c;
+  font-weight: 700;
 }
 
 .titlePart2 {
   color: #005aa9;
+  font-weight: 700;
 }
 
 .servicesSubtitle {
-  font-size: 18px;
+  font-size: 20px;
   color: #64748b;
   max-width: 700px;
   margin: 0;
@@ -109,6 +113,8 @@
   opacity: 0;
   transform: translateX(50px);
   transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0.3px;
 }
 
 .servicesHero.visible .servicesSubtitle {
@@ -415,7 +421,7 @@
   }
 
   .servicesTitle {
-    font-size: 40px;
+    font-size: 44px;
   }
 
   .servicesLabel {
@@ -423,7 +429,7 @@
   }
 
   .servicesSubtitle {
-    font-size: 16px;
+    font-size: 17px;
   }
 
   .servicesSlider {
@@ -503,7 +509,7 @@
   }
 
   .servicesTitle {
-    font-size: 28px;
+    font-size: 32px;
     margin-bottom: 12px;
   }
 
