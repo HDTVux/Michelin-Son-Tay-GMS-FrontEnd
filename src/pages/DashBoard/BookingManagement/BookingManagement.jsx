@@ -166,7 +166,7 @@ function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLo
                                             {item.status || 'PENDING'}
                                         </span>
                                     </td>
-                                    <td>{combineDateTime(item.scheduledDate, item.scheduledTime, item.createdAt)}</td>
+                                    <td>{combineDateTime(item.createdAt)? new Date(item.createdAt+ "Z").toLocaleString('vi-VN') : '-'}</td>
                                     <td>
                                         <button
                                             className={styles['primary-button']}
