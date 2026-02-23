@@ -5,8 +5,9 @@ import StepService from './steps/StepService.jsx';
 import StepSchedule from './steps/StepSchedule.jsx';
 import StepInfo from './steps/StepInfo.jsx';
 import StepDone from './steps/StepDone.jsx';
+import { toast } from 'react-toastify';
 import { fetchHomeServices } from '../../services/homeService.js';
-import { createCustomerBooking, createGuestBooking } from '../../services/bookingService.js';
+import { cancelCustomerBooking, createCustomerBooking, createGuestBooking, modifyCustomerBooking } from '../../services/bookingService.js';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 
 const STEPS = [
@@ -40,6 +41,7 @@ export default function Booking() {
  const [submitting, setSubmitting] = useState(false);
  const [submitError, setSubmitError] = useState('');
  const [bookingData, setBookingData] = useState(null);
+ const [modifyBookingId, setModifyBookingId] = useState(null);
 
  const decodeTokenProfile = (token) => {
   try {
@@ -119,6 +121,23 @@ export default function Booking() {
 	// Mỗi khi đổi bước, cuộn về đầu trang đặt lịch để không bị nhảy xuống cuối
 	 // Kéo lên đầu trang mỗi khi đổi bước (dùng window scroll thay vì query class CSS module)
 	 useScrollToTop([stepIndex], 'smooth');
+	// Đồng bộ UI theo dữ liệu backend trả về sau khi tạo/đổi lịch
+	useEffect(() => {
+		if (!bookingData) return;
+		if (bookingData?.scheduledDate || bookingData?.scheduledTime) {
+			setSchedule((prev) => ({
+				...prev,
+				date: bookingData?.scheduledDate || prev.date,
+				time: bookingData?.scheduledTime || prev.time,
+			}));
+		}
+		if (typeof bookingData?.description === 'string') {
+			setInfo((prev) => ({ ...prev, note: bookingData.description }));
+		}
+		if (Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0) {
+			setSelectedIds(bookingData.serviceIds.map(String).filter(Boolean));
+		}
+	}, [bookingData]);
 
 	const toggle = (id) => {
 		setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -143,7 +162,7 @@ const goSubmitInfo = async () => {
 
   // 2. Chuẩn bị danh sách ID dịch vụ
   const serviceIds = selectedIds
-    .map((id) => Number(id))
+	.map(Number)
     .filter((n) => Number.isFinite(n));
 
 
@@ -154,34 +173,79 @@ const goSubmitInfo = async () => {
 		selectedServiceIds: serviceIds,
 	};
 
+	const isModify = !!customerToken && modifyBookingId != null && `${modifyBookingId}` !== '';
+
   try {
-		console.log('[booking] submitting to path:', customerToken ? 'customer' : 'guest');
-    
-		const res = customerToken
-			? await createCustomerBooking(basePayload, customerToken)
-			: await createGuestBooking({
-					...basePayload,
-					fullName: info.name.trim(),
-					phone: info.phone.trim(),
-				});
+		let submitPath = 'guest/create';
+		if (isModify) submitPath = 'customer/modify';
+		else if (customerToken) submitPath = 'customer/create';
+		console.log('[booking] submitting to path:', submitPath);
+
+		let res;
+		if (isModify) {
+			res = await modifyCustomerBooking(
+				modifyBookingId,
+				{
+					newAppointmentDate: schedule.date,
+					newAppointmentTime: schedule.time,
+					newUserNote: info.note || '',
+					newServiceIds: serviceIds,
+				},
+				customerToken
+			);
+		} else if (customerToken) {
+			res = await createCustomerBooking(basePayload, customerToken);
+		} else {
+			res = await createGuestBooking({
+				...basePayload,
+				fullName: info.name.trim(),
+				phone: info.phone.trim(),
+			});
+		}
 
     console.log('[booking] success:', res);
     setBookingData(res?.data || null);
+		if (res?.data?.bookingId != null) {
+			setModifyBookingId(res.data.bookingId);
+		}
     setStepIndex(3);
   } catch (err) {
-    console.error('[booking] error detail:', err.response?.data);
-    // Ưu tiên hiển thị lỗi từ server trả về (ví dụ: "Ngày hẹn không được là quá khứ")
-    const errorMsg = err.response?.data?.message || err?.message || 'Không thể tạo lịch hẹn.';
+		console.error('[booking] error:', err);
+		const errorMsg = err?.message || (isModify ? 'Không thể đổi lịch hẹn.' : 'Không thể tạo lịch hẹn.');
     setSubmitError(errorMsg);
   } finally {
     setSubmitting(false);
   }
 };
 
-	 const goReschedule = () => setStepIndex(1);
-	 const goCancel = () => {
-		// TODO: Gọi API hủy lịch
-		alert('Đã gửi yêu cầu hủy lịch');
+	 const goReschedule = () => {
+		if (customerToken && bookingData?.bookingId != null) {
+			setModifyBookingId(bookingData.bookingId);
+		} else {
+			setModifyBookingId(null);
+		}
+		setStepIndex(1);
+	};
+	 const goCancel = async () => {
+		if (submitting) return;
+		const bookingId = bookingData?.bookingId;
+		const notify = (message) => toast(message, { containerId: 'app-toast' });
+		setSubmitError('');
+		setSubmitting(true);
+		try {
+			const res = await cancelCustomerBooking(bookingId, customerToken);
+			notify(res?.message || 'Hủy lịch thành công.');
+			if (bookingData) {
+				setBookingData((prev) => ({ ...prev, status: prev?.status || 'CANCELLED' }));
+			}
+		} catch (err) {
+			console.error('[booking] cancel error:', err);
+			const errorMsg = err?.message || 'Không thể hủy lịch hẹn.';
+			setSubmitError(errorMsg);
+			notify(errorMsg);
+		} finally {
+			setSubmitting(false);
+		}
 	 };
 	 const goHome = () => {
 		window.location.href = '/';
@@ -248,7 +312,7 @@ const goSubmitInfo = async () => {
 			  onChange={(patch) => setInfo((prev) => ({ ...prev, ...patch }))}
 			  onBack={goBackFromInfo}
 			  onSubmit={goSubmitInfo}
-			  isAuthed={customerToken}
+			  isAuthed={!!customerToken}
 			  loading={submitting}
 			  error={submitError}
 			 />
@@ -261,6 +325,7 @@ const goSubmitInfo = async () => {
 			  bookingData={bookingData}
 					services={services}
 			  selectedIds={selectedIds}
+			  isAuthed={!!customerToken}
 			  onReschedule={goReschedule}
 			  onCancel={goCancel}
 			  onHome={goHome}

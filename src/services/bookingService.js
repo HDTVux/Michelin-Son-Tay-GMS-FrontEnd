@@ -13,6 +13,19 @@ export const createGuestBooking = (payload) =>
     body: JSON.stringify(payload),
   });
 
+export const modifyCustomerBooking = (bookingId, payload, token) =>
+  request(`/api/booking/customer/${bookingId}/modify`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+
+export const cancelCustomerBooking = (bookingId, token) =>
+  request(`/api/booking/customer/${bookingId}/cancel`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
 export const fetchAvailableSlots = (date, token, durationMinutes = 60) =>
   request(`/api/booking/slots/available?date=${encodeURIComponent(date)}&durationMinutes=${durationMinutes}`, {
     method: 'GET',

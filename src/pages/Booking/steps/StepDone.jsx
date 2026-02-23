@@ -10,7 +10,7 @@ const formatDate = (value) => {
   return new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
 }
 
-export default function StepDone({ schedule, info, bookingData, services, selectedIds, onReschedule, onCancel, onHome }) {
+export default function StepDone({ schedule, info, bookingData, services, selectedIds, isAuthed, onReschedule, onCancel, onHome }) {
   const serviceIds = useMemo(() => {
     const ids = Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0
       ? bookingData.serviceIds
@@ -114,8 +114,12 @@ export default function StepDone({ schedule, info, bookingData, services, select
       </div>
 
       <div className={styles['done-actions']}>
-        <button className={bookingStyles.btn} onClick={onReschedule}>Đổi lịch</button>
-        <button className={`${bookingStyles.btn} ${styles.danger}`} onClick={onCancel}>Hủy lịch</button>
+        {isAuthed && (
+          <>
+            <button className={bookingStyles.btn} onClick={onReschedule}>Đổi lịch</button>
+            <button className={`${bookingStyles.btn} ${styles.danger}`} onClick={onCancel}>Hủy lịch</button>
+          </>
+        )}
         <button className={`${bookingStyles.btn} ${bookingStyles.primary}`} onClick={onHome}>Về trang chủ</button>
       </div>
     </div>
