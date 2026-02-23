@@ -104,7 +104,10 @@ const ServiceDetail = () => {
 
             <div className={styles.serviceDetailSection}>
               <h2>Chi tiết dịch vụ</h2>
-              <p>{service?.fullDescription || 'Hiện chưa có mô tả chi tiết cho dịch vụ này.'}</p>
+              <div style={{whiteSpace: "pre-line"}}
+              className={styles.serviceContent}
+              dangerouslySetInnerHTML={{ __html: service?.fullDescription || 'Hiện chưa có mô tả chi tiết cho dịch vụ này.' }}
+            />
             </div>
 
             {/* Thư viện hình ảnh/video: Duyệt danh sách media nếu có */}

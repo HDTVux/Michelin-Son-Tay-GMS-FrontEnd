@@ -10,12 +10,17 @@ async function request(path, options = {}) {
   const { method = 'GET', headers = {}, body } = options;
   let response;
 
+	// Lấy token từ localStorage và tự động đính kèm nếu có
+	const authToken = localStorage.getItem('authToken');
+	const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+
   try {
     // 1. Thực hiện gọi API bằng Fetch API
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: {
         'Content-Type': 'application/json', // Mặc định gửi/nhận dữ liệu dạng JSON
+        ...authHeaders,                     // Đính kèm token nếu có
         ...headers,                         // Gộp các headers bổ sung (như Authorization token)
       },
       body, // Dữ liệu gửi đi (phải được stringify trước nếu là object)
@@ -37,6 +42,10 @@ async function request(path, options = {}) {
   // 3. Kiểm tra mã trạng thái HTTP (Status Code)
   // Nếu status không nằm trong khoảng 200-299
   if (!response.ok) {
+		// Token hết hạn hoặc không hợp lệ: xóa token
+		if (response.status === 401 || response.status === 403) {
+			localStorage.removeItem('authToken');
+		}
     // Lấy thông báo lỗi từ dữ liệu trả về hoặc dùng thông báo mặc định
     const message = typeof data === 'string' ? data : data?.message || 'Request failed';
     const error = new Error(message);

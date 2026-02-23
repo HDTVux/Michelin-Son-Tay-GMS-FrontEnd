@@ -68,9 +68,10 @@
 }
 
 .sidebar__greeting {
-  margin: 0;
-  font-size: 14px;
-  color: #8a8a8a;
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: blue;
 }
 
 .sidebar__name {

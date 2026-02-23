@@ -1,21 +1,28 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './SideBar.css';
 
 const navItems = [
-	{ label: 'Home', icon: <IconHome /> },
-	{ label: 'Profil', icon: <IconUser /> },
-	{ label: 'History', icon: <IconHistory /> },
+	{ label: 'Màn hình chính', icon: <IconHome /> },
+	{ label: 'Tài khoản của tôi', icon: <IconUser /> },
+	{ label: 'Lịch sử', icon: <IconHistory /> },
 	{ label: 'Author', icon: <IconEdit /> },
-	{ label: 'Notifications', icon: <IconBell /> },
-	{ label: 'Help', icon: <IconHelp /> },
-	{ label: 'Setting', icon: <IconSettings /> },
+	{ label: 'Thông báo', icon: <IconBell /> },
+	{ label: 'Trợ giúp', icon: <IconHelp /> },
+	{ label: 'Cài đặt', icon: <IconSettings /> },
 ];
 
 const SideBar = () => {
 	const [isOpen, setIsOpen] = useState(false);
+	const navigate = useNavigate();
 
 	const toggleMenu = () => setIsOpen((prev) => !prev);
 	const handleNavClick = () => setIsOpen(false);
+	const handleLogout = () => {
+		localStorage.removeItem('authToken');
+		setIsOpen(false);
+		navigate('/login', { replace: true });
+	};
 
 	return (
 		<aside className="sidebar">
@@ -49,7 +56,7 @@ const SideBar = () => {
 				))}
 			</nav>
 
-			<button className="sidebar__logout" type="button">
+			<button className="sidebar__logout" type="button" onClick={handleLogout}>
 				<IconLogout />
 				<span>Logout</span>
 			</button>
