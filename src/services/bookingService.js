@@ -32,6 +32,12 @@ export const fetchAvailableSlots = (date, token, durationMinutes = 60) =>
     headers: { Authorization: `Bearer ${token}` },
   });
 
+export const fetchAllSlots = (token) =>
+  request('/api/booking/slots/all', {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
 // Lấy danh sách yêu cầu booking chưa duyệt cho màn quản lý
 export const fetchPendingBookingRequests = (token) => {
   if (!token) {

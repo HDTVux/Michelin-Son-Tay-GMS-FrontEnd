@@ -1,14 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styles from './StepSchedule.module.css';
 import bookingStyles from '../Booking.module.css';
-import { fetchAvailableSlots } from '../../../services/bookingService.js';
+import { fetchAllSlots, fetchAvailableSlots } from '../../../services/bookingService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 
 // --- CẤU HÌNH HẰNG SỐ ---
 const DATE_RANGE_DAYS = 10;       // Cho phép đặt lịch trong vòng 10 ngày tới
-const START_HOUR = 7;             // Giờ bắt đầu làm việc (7h sáng)
-const END_HOUR = 19;              // Giờ kết thúc (19h tối)
-const SLOT_INTERVAL_MINUTES = 30; // Khoảng cách giữa các khung giờ (30 phút)
 const DURATION_MINUTES = 60;      // Thời lượng dự kiến của một dịch vụ (60 phút)
 
 /**
@@ -35,21 +32,6 @@ const buildDateOptions = () => {
 };
 
 /**
- * Hàm tạo danh sách tất cả khung giờ trong một ngày
- */
-const buildTimeSlots = () => {
-  const slots = [];
-  for (let hour = START_HOUR; hour <= END_HOUR; hour += 1) {
-    for (let minute = 0; minute < 60; minute += SLOT_INTERVAL_MINUTES) {
-      const hh = hour.toString().padStart(2, '0');
-      const mm = minute.toString().padStart(2, '0');
-      slots.push(`${hh}:${mm}:00`); // Định dạng HH:mm:ss
-    }
-  }
-  return slots;
-};
-
-/**
  * Hàm phân loại khung giờ theo buổi trong ngày
  */
 const getPeriod = (timeStr) => {
@@ -60,7 +42,24 @@ const getPeriod = (timeStr) => {
   return 'Tối';
 };
 
+const normalizePeriodLabel = (raw) => {
+  if (!raw) return '';
+  const v = String(raw).trim().toLowerCase();
+  if (v === 'morning' || v === 'am' || v === 'sang' || v === 'sáng') return 'Sáng';
+  if (v === 'afternoon' || v === 'pm' || v === 'chieu' || v === 'chiều') return 'Chiều';
+  if (v === 'evening' || v === 'night' || v === 'toi' || v === 'tối') return 'Tối';
+  return raw;
+};
+
+const timeKey = (t) => formatTimeHHmm(t || '');
+
+const defer = (fn) => Promise.resolve().then(fn);
+
 export default function StepSchedule({ value, onChange, onBack, onNext, token, isAuthed }) {
+  const [baseSlots, setBaseSlots] = useState([]); // Danh sách khung giờ lấy từ API /slots/all
+  const [baseLoading, setBaseLoading] = useState(false);
+  const [baseError, setBaseError] = useState('');
+
   const [availableSlots, setAvailableSlots] = useState([]); // Lưu khung giờ lấy từ API
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -69,22 +68,50 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
   const canNext = value.date && value.time;
 
   // Ghi nhớ danh sách ngày và khung giờ để không phải tính toán lại mỗi lần render
-  const dateOptions = useMemo(buildDateOptions, []);
-  const timeSlots = useMemo(buildTimeSlots, []);
+  const dateOptions = useMemo(() => buildDateOptions(), []);
+
+  /**
+   * SIDE EFFECT: Lấy danh sách khung giờ nền từ backend 
+   */
+  useEffect(() => {
+    let active = true;
+    defer(() => {
+      if (!active) return;
+      setBaseLoading(true);
+      setBaseError('');
+    });
+
+    fetchAllSlots(isAuthed ? token : undefined)
+      .then((res) => {
+        if (!active) return;
+        const list = Array.isArray(res?.data) ? res.data : [];
+        const filtered = list.filter((s) => s && (s.isActive ?? true));
+        filtered.sort((a, b) => timeKey(a?.startTime).localeCompare(timeKey(b?.startTime)));
+        setBaseSlots(filtered);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setBaseError(err?.message || 'Không thể tải khung giờ.');
+        setBaseSlots([]);
+      })
+      .finally(() => {
+        if (active) setBaseLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [isAuthed, token]);
 
   /**
    * 1. Nếu đã đăng nhập: Dùng dữ liệu từ API (có trạng thái trống/đầy).
    * 2. Nếu chưa đăng nhập: Hiển thị tất cả khung giờ như mặc định (không check trống).
    */
   const displaySlots = useMemo(() => {
-    if (isAuthed && availableSlots.length > 0) return availableSlots;
-    return timeSlots.map((t) => ({ 
-      startTime: t, 
-      isAvailable: true, 
-      remainingCapacity: null, 
-      period: getPeriod(t) 
-    }));
-  }, [isAuthed, availableSlots, timeSlots]);
+    if (isAuthed && value.date) {
+      if (loading) return baseSlots;
+      return availableSlots;
+    }
+    return baseSlots;
+  }, [isAuthed, value.date, loading, availableSlots, baseSlots]);
 
   // Xử lý khi người dùng chọn ngày
   const handleDate = (e) => {
@@ -103,14 +130,20 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
     let active = true; // Biến cờ để tránh cập nhật state khi component đã unmount
 
     if (!isAuthed || !token || !value.date) {
-      setAvailableSlots([]);
-      setError('');
-      setLoading(false);
+      defer(() => {
+        if (!active) return;
+        setAvailableSlots([]);
+        setError('');
+        setLoading(false);
+      });
       return () => { active = false; };
     }
 
-    setLoading(true);
-    setError('');
+    defer(() => {
+      if (!active) return;
+      setLoading(true);
+      setError('');
+    });
 
     fetchAvailableSlots(value.date, token, DURATION_MINUTES)
       .then((res) => {
@@ -120,7 +153,8 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
 
         // Kiểm tra nếu giờ đang chọn hiện tại đột ngột bị đầy (do người khác đặt hoặc API cập nhật)
         if (value.time && list.length > 0) {
-          const match = list.find((s) => s.startTime === value.time);
+          const pickedKey = timeKey(value.time);
+          const match = list.find((s) => timeKey(s.startTime) === pickedKey);
           const matchRemaining = Number(match?.remainingCapacity);
           const matchIsFull = Number.isFinite(matchRemaining) && matchRemaining <= 0;
 		  if (match && (!match.isAvailable || matchIsFull)) {
@@ -145,10 +179,10 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
       <h3 className={bookingStyles['section-title']}>Chọn ngày & giờ</h3>
       <div className={styles['schedule-step']}>
         <div className={styles.field}>
-          <label className={styles['slot-title']}>Chọn ngày đặt lịch</label>
+          <label className={styles['slot-title']} htmlFor="booking-date">Chọn ngày đặt lịch</label>
           <div className={styles['date-input']}>
             <span className={styles['date-icon']}>📅</span>
-            <select value={value.date} onChange={handleDate}>
+            <select id="booking-date" value={value.date} onChange={handleDate}>
               <option value="">Chọn ngày</option>
               {dateOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -166,7 +200,9 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
           </div>
 
           {/* Trạng thái Loading và Error */}
-          {isAuthed && loading && <div className={styles['service-status']}>Đang tải khung giờ...</div>}
+          {baseLoading && <div className={styles['service-status']}>Đang tải khung giờ...</div>}
+          {!baseLoading && baseError && <div className={`${styles['service-status']} ${styles.error}`}>{baseError}</div>}
+          {isAuthed && loading && <div className={styles['service-status']}>Đang tải trạng thái chỗ trống...</div>}
           {isAuthed && !loading && error && <div className={`${styles['service-status']} ${styles.error}`}>{error}</div>}
 
           {/* Grid hiển thị các Button khung giờ */}
@@ -180,11 +216,17 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
               
               // Điều kiện vô hiệu hóa nút: Đã đăng nhập + Đã chọn ngày + (Hết chỗ hoặc không khả dụng)
 			  const isDisabled = isAuthed && value.date && (!slot.isAvailable || isFull);
-              const active = value.time === rawTime;
+              const active = timeKey(value.time) === timeKey(rawTime);
+
+			  let capacityText = '';
+			  if (isAuthed && value.date) {
+				if (isDisabled) capacityText = ' · Hết chỗ';
+				else if (hasRemaining) capacityText = ` · Còn ${remaining}`;
+			  }
 
               return (
                 <button
-                  key={rawTime}
+                  key={slot.slotId ?? timeKey(rawTime) ?? rawTime}
                   type="button"
                   // Render class động: active (xanh), disabled (mờ/khóa)
                   className={[
@@ -198,11 +240,9 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
                 >
                   <div className={styles['slot-time']}>{displayTime}</div>
                   <div className={styles['slot-sub']}>
-                    {slot.period || getPeriod(rawTime)}
+                    {normalizePeriodLabel(slot.period) || getPeriod(rawTime)}
                     {/* Hiển thị số chỗ còn lại nếu là khách đã đăng nhập */}
-                    {isAuthed && value.date && (
-					  isDisabled ? ' · Hết chỗ' : (hasRemaining ? ` · Còn ${remaining}` : '')
-                    )}
+					{capacityText}
                   </div>
                 </button>
               );
