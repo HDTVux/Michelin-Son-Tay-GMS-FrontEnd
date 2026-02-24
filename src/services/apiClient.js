@@ -1,11 +1,16 @@
 // Lấy URL cơ sở từ biến môi trường (Environment Variable)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
+import { cleanupExpiredTokens } from './tokenUtils.js';
+
 /**
  * @param {string} path - Đường dẫn API (ví dụ: /api/bookings)
  * @param {object} options - Cấu hình thêm: method, headers, body
  */
 async function request(path, options = {}) {
+  // Dọn token hết hạn trước khi gửi request (JWT exp)
+  cleanupExpiredTokens();
+
   // Giải nén các thuộc tính từ options, mặc định method là GET
   const { method = 'GET', headers = {}, body } = options;
   let response;
@@ -44,7 +49,7 @@ async function request(path, options = {}) {
   if (!response.ok) {
 		// Token hết hạn hoặc không hợp lệ: xóa token
 		if (response.status === 401 || response.status === 403) {
-			localStorage.removeItem('authToken');
+      ['authToken', 'customerToken', 'staffToken', 'adminToken'].forEach((key) => localStorage.removeItem(key));
 		}
     // Lấy thông báo lỗi từ dữ liệu trả về hoặc dùng thông báo mặc định
     const message = typeof data === 'string' ? data : data?.message || 'Request failed';

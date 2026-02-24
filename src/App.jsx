@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
@@ -25,7 +26,12 @@ import ToastBox from './components/Toast/ToastBox.jsx';
 import BookingManagement from './pages/DashBoard/BookingManagement/BookingManagement.jsx';
 import BookingRequestDetail from './pages/DashBoard/BookingManagement/BookingRequestDetail.jsx';
 import BookingRequestEdit from './pages/DashBoard/BookingManagement/BookingRequestEdit.jsx';
+import { cleanupExpiredTokens } from './services/tokenUtils.js';
 export default function App() {
+  useEffect(() => {
+    cleanupExpiredTokens();
+  }, []);
+
   return (
     <BrowserRouter>
       <ToastBox />

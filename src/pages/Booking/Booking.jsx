@@ -8,6 +8,7 @@ import StepDone from './steps/StepDone.jsx';
 import { toast } from 'react-toastify';
 import { fetchHomeServices } from '../../services/homeService.js';
 import { cancelCustomerBooking, createCustomerBooking, createGuestBooking, modifyCustomerBooking } from '../../services/bookingService.js';
+import { getValidToken } from '../../services/tokenUtils.js';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 
 const STEPS = [
@@ -36,7 +37,7 @@ export default function Booking() {
  // State cho thông tin cá nhân
  const [info, setInfo] = useState({ name: '', phone: prefilledPhone, note: '' });
  // Token để biết khách đã đăng nhập hay chưa
- const [customerToken, setCustomerToken] = useState(() => localStorage.getItem('customerToken') || '');
+ const [customerToken, setCustomerToken] = useState(() => getValidToken('customerToken'));
  // Trạng thái gửi booking
  const [submitting, setSubmitting] = useState(false);
  const [submitError, setSubmitError] = useState('');
@@ -79,7 +80,7 @@ export default function Booking() {
 	useEffect(() => {
 		const handleStorage = (e) => {
 			if (!e.key || e.key === 'customerToken') {
-				setCustomerToken(localStorage.getItem('customerToken') || '');
+				setCustomerToken(getValidToken('customerToken'));
 			}
 		};
 		window.addEventListener('storage', handleStorage);
