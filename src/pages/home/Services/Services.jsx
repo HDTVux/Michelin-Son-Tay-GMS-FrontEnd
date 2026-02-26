@@ -14,6 +14,16 @@ const Services = () => {
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');
 
+  // Debug log
+  useEffect(() => {
+    console.log('[Services] State updated:', { 
+      servicesCount: services.length, 
+      servicesLoading, 
+      servicesError,
+      services 
+    });
+  }, [services, servicesLoading, servicesError]);
+
   // Gói dịch vụ được tin dùng
   const combos = [
     {
@@ -73,7 +83,9 @@ const Services = () => {
     fetchHomeServices()
       .then((res) => {
         if (!active) return;
+        console.log('[Services] API response:', res);
         const list = Array.isArray(res?.data) ? res.data : [];
+        console.log('[Services] Services list:', list);
         const mapped = list.map((item) => ({
           id: item.serviceId,
           title: item.title || 'Dịch vụ',
@@ -81,10 +93,12 @@ const Services = () => {
           image: item.mediaThumbnail || '',
           price: item.showPrice ? item.displayPrice || 'Liên hệ' : 'Liên hệ',
         }));
+        console.log('[Services] Mapped services:', mapped);
         setServices(mapped);
       })
       .catch((err) => {
         if (!active) return;
+        console.error('[Services] Error loading services:', err);
         setServicesError(err?.message || 'Không thể tải danh sách dịch vụ.');
       })
       .finally(() => {
@@ -107,6 +121,7 @@ const Services = () => {
   const [comboIndex, setComboIndex] = useState(0);
   const [comboVisible, setComboVisible] = useState(3);
   const [isComboPaused, setIsComboPaused] = useState(false);
+  const comboTrackRef = useRef(null);
   const comboPointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
   // Scroll reveal cho 3 phần: dịch vụ, quy trình, combo
@@ -116,6 +131,7 @@ const Services = () => {
 
   const [servicesIntroVisible, setServicesIntroVisible] = useState(false);
   const [processIntroVisible, setProcessIntroVisible] = useState(false);
+  const [combosIntroVisible, setCombosIntroVisible] = useState(false);
   useEffect(() => {
     const calc = () => {
       const w = window.innerWidth;
@@ -151,6 +167,7 @@ const Services = () => {
   const serviceNext = () => setServiceIndex(i => Math.min(serviceMaxIndex, i + 1));
 
   const comboMaxIndex = Math.max(0, combos.length - comboVisible);
+  const comboOffset = (comboIndex * 100) / comboVisible;
   const comboPrev = () => setComboIndex(i => Math.max(0, i - 1));
   const comboNext = () => setComboIndex(i => Math.min(comboMaxIndex, i + 1));
 
@@ -265,6 +282,7 @@ const Services = () => {
         <div
           ref={servicesHeroRef}
           className={`servicesHero ${servicesIntroVisible ? 'visible' : ''}`}
+          style={{ opacity: 1, transform: 'translateX(0)' }}
         >
           <div className="servicesLabel">DỊCH VỤ NỔI BẬT</div>
           <h1 className="servicesTitle">
@@ -291,13 +309,19 @@ const Services = () => {
           </button>
           <div className="sliderViewport">
             {servicesLoading && (
-              <div className="serviceStatus">Đang tải dịch vụ...</div>
+              <div className="serviceStatus" style={{ padding: '40px', textAlign: 'center', fontSize: '18px' }}>
+                Đang tải dịch vụ...
+              </div>
             )}
             {!servicesLoading && servicesError && (
-              <div className="serviceStatus error">{servicesError}</div>
+              <div className="serviceStatus error" style={{ padding: '40px', textAlign: 'center', fontSize: '18px', color: 'red' }}>
+                {servicesError}
+              </div>
             )}
             {!servicesLoading && !servicesError && services.length === 0 && (
-              <div className="serviceStatus">Chưa có dịch vụ để hiển thị.</div>
+              <div className="serviceStatus" style={{ padding: '40px', textAlign: 'center', fontSize: '18px' }}>
+                Chưa có dịch vụ để hiển thị.
+              </div>
             )}
             {services.length > 0 && (
               <div
