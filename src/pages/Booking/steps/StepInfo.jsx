@@ -3,7 +3,17 @@ import styles from './StepInfo.module.css'
 import bookingStyles from '../Booking.module.css'
 
 export default function StepInfo({ value, onChange, onBack, onSubmit, loading = false, error = '', isAuthed = false }) {
-  const handleChange = (key) => (e) => onChange({ [key]: e.target.value })
+  const handleChange = (key) => (e) => {
+    let nextValue = e.target.value
+
+    if (key === 'note') {
+      nextValue = String(nextValue)
+        .replaceAll(/[<>{}]/g, '')
+        .slice(0, 500)
+    }
+
+    onChange({ [key]: nextValue })
+  }
   const canSubmit =
     value.name.trim() &&
     value.phone.trim() &&
@@ -16,25 +26,29 @@ export default function StepInfo({ value, onChange, onBack, onSubmit, loading = 
 
       <div className={styles['info-card']}>
         <div className={styles.field}>
-          <label>Họ và tên</label>
+          <label htmlFor="booking-fullname">Họ và tên</label>
           <input
+            id="booking-fullname"
             type="text"
             placeholder="Nhập họ và tên của bạn"
             value={value.name}
             onChange={handleChange('name')}
+            required
             disabled={isAuthed}
             readOnly={isAuthed}
           />
         </div>
 
         <div className={styles.field}>
-          <label>Số điện thoại</label>
+          <label htmlFor="booking-phone">Số điện thoại</label>
           <div className={styles['inline-input']}>
             <input
+              id="booking-phone"
               type="tel"
               placeholder="Nhập số điện thoại"
               value={value.phone}
               onChange={handleChange('phone')}
+              required
               disabled={isAuthed}
               readOnly={isAuthed}
             />
@@ -51,11 +65,14 @@ export default function StepInfo({ value, onChange, onBack, onSubmit, loading = 
           </h4>
         </div>
         <div className={styles.field}>
+          <label htmlFor="booking-note" className={styles.srOnly}>Ghi chú</label>
           <textarea
+            id="booking-note"
             rows="6"
             placeholder="VD: Kiểm tra thêm tiếng kêu ở bánh trước, cần lấy xe trước 17h, ..."
             value={value.note}
             onChange={handleChange('note')}
+            maxLength={500}
           />
         </div>
       </div>

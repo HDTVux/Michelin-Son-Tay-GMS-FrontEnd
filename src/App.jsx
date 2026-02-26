@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
 import Home from './pages/home/Home.jsx';
@@ -23,10 +23,11 @@ import StaffManageSSO from './pages/StaffProfile/StaffManageSSO.jsx';
 import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
 import StaffLayout from './layouts/StaffLayout.jsx';
 import ToastBox from './components/Toast/ToastBox.jsx';
-import BookingManagement from './pages/DashBoard/BookingManagement/BookingManagement.jsx';
-import BookingRequestDetail from './pages/DashBoard/BookingManagement/BookingRequestDetail.jsx';
-import BookingRequestEdit from './pages/DashBoard/BookingManagement/BookingRequestEdit.jsx';
+import BookingManagement from './pages/DashBoard/BookingRequestManagement/BookingManagement.jsx';
+import BookingRequestDetail from './pages/DashBoard/BookingRequestManagement/BookingRequestDetail.jsx';
+import BookingRequestEdit from './pages/DashBoard/BookingRequestManagement/BookingRequestEdit.jsx';
 import { cleanupExpiredTokens } from './services/tokenUtils.js';
+import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 export default function App() {
   useEffect(() => {
     cleanupExpiredTokens();
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="update-staff-profile" element={<UpdateStaffProfile />} />
           <Route path="staff-change-password" element={<StaffChangePassword />} />
           <Route path="staff-manage-sso" element={<StaffManageSSO />} />
+          <Route path="check-in" element={<CheckIn />} />
         </Route>
         <Route path="login" element={<Login />} />
         <Route path="forgot-password" element={<ForgotPassword />} />

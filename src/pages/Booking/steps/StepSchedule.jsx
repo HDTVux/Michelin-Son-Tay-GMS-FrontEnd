@@ -31,17 +31,6 @@ const buildDateOptions = () => {
   return options;
 };
 
-/**
- * Hàm phân loại khung giờ theo buổi trong ngày
- */
-const getPeriod = (timeStr) => {
-  const [hh] = timeStr.split(':');
-  const h = Number(hh);
-  if (h < 12) return 'Sáng';
-  if (h < 18) return 'Chiều';
-  return 'Tối';
-};
-
 const normalizePeriodLabel = (raw) => {
   if (!raw) return '';
   const v = String(raw).trim().toLowerCase();
@@ -54,6 +43,36 @@ const normalizePeriodLabel = (raw) => {
 const timeKey = (t) => formatTimeHHmm(t || '');
 
 const defer = (fn) => Promise.resolve().then(fn);
+
+const toLocalDateTime = (dateYYYYMMDD, timeRaw) => {
+  if (!dateYYYYMMDD || !timeRaw) return null;
+  const [yStr, mStr, dStr] = String(dateYYYYMMDD).split('-');
+  const y = Number(yStr);
+  const m = Number(mStr);
+  const d = Number(dStr);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+
+  const parts = String(timeRaw).split(':');
+  const hh = Number(parts[0]);
+  const mm = Number(parts[1] ?? 0);
+  const ss = Number(parts[2] ?? 0);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm) || !Number.isFinite(ss)) return null;
+
+  return new Date(y, m - 1, d, hh, mm, ss, 0);
+};
+
+const isPastSlot = (dateYYYYMMDD, timeRaw) => {
+  const slotStart = toLocalDateTime(dateYYYYMMDD, timeRaw);
+  if (!slotStart) return false;
+  return slotStart.getTime() <= Date.now();
+};
+
+const isTooSoonSlot = (dateYYYYMMDD, timeRaw, leadMinutes) => {
+  const slotStart = toLocalDateTime(dateYYYYMMDD, timeRaw);
+  if (!slotStart) return false;
+  const leadMs = Number(leadMinutes) * 60 * 1000;
+  return slotStart.getTime() < (Date.now() + leadMs);
+};
 
 export default function StepSchedule({ value, onChange, onBack, onNext, token, isAuthed }) {
   const [baseSlots, setBaseSlots] = useState([]); // Danh sách khung giờ lấy từ API /slots/all
@@ -103,14 +122,26 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
 
   /**
    * 1. Nếu đã đăng nhập: Dùng dữ liệu từ API (có trạng thái trống/đầy).
-   * 2. Nếu chưa đăng nhập: Hiển thị tất cả khung giờ như mặc định (không check trống).
+   * 2. Nếu chưa đăng nhập: Không hiển thị số lượng/còn chỗ, nhưng sẽ ẩn các slot đã qua.
    */
   const displaySlots = useMemo(() => {
+    let source = baseSlots;
     if (isAuthed && value.date) {
-      if (loading) return baseSlots;
-      return availableSlots;
+      source = loading ? baseSlots : availableSlots;
     }
-    return baseSlots;
+
+    if (!value.date) return source;
+
+    const todayKey = formatLocalDateYYYYMMDD(new Date());
+    const isToday = value.date === todayKey;
+
+    if (!isAuthed) {
+      if (!isToday) return source;
+      return source.filter((s) => !isTooSoonSlot(value.date, s?.startTime, 120));
+    }
+
+    // Khách đã login: vẫn ẩn các slot đã qua
+    return source.filter((s) => !isPastSlot(value.date, s?.startTime));
   }, [isAuthed, value.date, loading, availableSlots, baseSlots]);
 
   // Xử lý khi người dùng chọn ngày
@@ -196,7 +227,7 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
           <div className={styles['slot-sub']}>
             {isAuthed 
               ? 'Các khung đã đầy sẽ bị khóa, chỉ hiển thị trạng thái cho khách đã đăng nhập.' 
-              : 'Bạn chưa đăng nhập, có thể chọn bất kỳ khung giờ nào.'}
+              : 'Bạn chưa đăng nhập, nếu đặt lịch trong ngày hôm nay thì cần đặt trước tối thiểu 2 tiếng.'}
           </div>
 
           {/* Trạng thái Loading và Error */}
@@ -240,7 +271,7 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
                 >
                   <div className={styles['slot-time']}>{displayTime}</div>
                   <div className={styles['slot-sub']}>
-                    {normalizePeriodLabel(slot.period) || getPeriod(rawTime)}
+                    {normalizePeriodLabel(slot.period)}
                     {/* Hiển thị số chỗ còn lại nếu là khách đã đăng nhập */}
 					{capacityText}
                   </div>

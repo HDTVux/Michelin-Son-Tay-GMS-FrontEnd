@@ -52,7 +52,7 @@ export default function Booking() {
 	name: json?.fullName || json?.name || '',
 	phone: json?.sub || '',
    };
-  } catch (e) {
+  } catch {
    return { name: '', phone: '' };
   }
  };
@@ -83,8 +83,8 @@ export default function Booking() {
 				setCustomerToken(getValidToken('customerToken'));
 			}
 		};
-		window.addEventListener('storage', handleStorage);
-		return () => window.removeEventListener('storage', handleStorage);
+		globalThis.addEventListener('storage', handleStorage);
+		return () => globalThis.removeEventListener('storage', handleStorage);
 	}, []);
 
 	// Lấy dịch vụ từ API Home (ngắn gọn cho booking)
@@ -133,7 +133,10 @@ export default function Booking() {
 			}));
 		}
 		if (typeof bookingData?.description === 'string') {
-			setInfo((prev) => ({ ...prev, note: bookingData.description }));
+			const sanitized = bookingData.description
+				.replaceAll(/[<>{}]/g, '')
+				.slice(0, 500);
+			setInfo((prev) => ({ ...prev, note: sanitized }));
 		}
 		if (Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0) {
 			setSelectedIds(bookingData.serviceIds.map(String).filter(Boolean));
@@ -161,6 +164,22 @@ const goSubmitInfo = async () => {
   setSubmitError('');
   setSubmitting(true);
 
+	const rawNote = String(info.note || '');
+	const hasForbiddenChars = /[<>{}]/.test(rawNote);
+	const trimmedNote = rawNote.trim();
+
+	if (hasForbiddenChars) {
+		setSubmitError('Ghi chú không được chứa ký tự <, >, {, }.');
+		setSubmitting(false);
+		return;
+	}
+
+	if (trimmedNote.length > 500) {
+		setSubmitError('Ghi chú tối đa 500 ký tự.');
+		setSubmitting(false);
+		return;
+	}
+
   // 2. Chuẩn bị danh sách ID dịch vụ
   const serviceIds = selectedIds
 	.map(Number)
@@ -170,7 +189,7 @@ const goSubmitInfo = async () => {
 	const basePayload = {
 		appointmentDate: schedule.date,
 		appointmentTime: schedule.time,
-		userNote: info.note || '',
+		userNote: trimmedNote,
 		selectedServiceIds: serviceIds,
 	};
 
@@ -189,7 +208,7 @@ const goSubmitInfo = async () => {
 				{
 					newAppointmentDate: schedule.date,
 					newAppointmentTime: schedule.time,
-					newUserNote: info.note || '',
+					newUserNote: trimmedNote,
 					newServiceIds: serviceIds,
 				},
 				customerToken
@@ -249,7 +268,7 @@ const goSubmitInfo = async () => {
 		}
 	 };
 	 const goHome = () => {
-		window.location.href = '/';
+		globalThis.location.href = '/';
 	 };
 
 	 return (
