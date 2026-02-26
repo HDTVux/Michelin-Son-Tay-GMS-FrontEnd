@@ -127,6 +127,7 @@ const Header = () => {
             to="/services" 
             className={isActive('/services') ? 'active' : ''}
             onClick={closeMenu}
+            preventScrollReset={true}
           >
             Dịch vụ
           </Link>

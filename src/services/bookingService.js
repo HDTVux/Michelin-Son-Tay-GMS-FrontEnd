@@ -64,3 +64,17 @@ export const confirmBookingRequest = (bookingId, token) =>
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+
+// Lấy danh sách booking của customer đã đăng nhập
+export const fetchMyBookings = (token) =>
+  request('/api/booking/customer/my-bookings', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+// Lấy chi tiết một booking theo ID hoặc code
+export const fetchBookingDetail = (identifier, token) =>
+  request(`/api/booking/customer/${identifier}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
