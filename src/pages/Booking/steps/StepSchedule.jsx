@@ -124,25 +124,30 @@ export default function StepSchedule({ value, onChange, onBack, onNext, token, i
    * 1. Nếu đã đăng nhập: Dùng dữ liệu từ API (có trạng thái trống/đầy).
    * 2. Nếu chưa đăng nhập: Không hiển thị số lượng/còn chỗ, nhưng sẽ ẩn các slot đã qua.
    */
-  const displaySlots = useMemo(() => {
-    let source = baseSlots;
-    if (isAuthed && value.date) {
-      source = loading ? baseSlots : availableSlots;
+const displaySlots = useMemo(() => {
+  let slots = [...baseSlots];
+
+  // Nếu đã login và có ngày, ưu tiên dùng dữ liệu từ availableSlots (có capacity)
+  if (isAuthed && value.date && !loading) {
+    slots = availableSlots;
+  }
+
+  if (!value.date) return slots;
+
+  const todayKey = formatLocalDateYYYYMMDD(new Date());
+
+  return slots.filter((s) => {
+    // 1. Luôn ẩn các slot đã qua giờ thực tế (Past slots)
+    if (isPastSlot(value.date, s?.startTime)) return false;
+
+    // 2. Nếu chưa login và là ngày hôm nay: Áp dụng quy tắc "Đặt trước 2 tiếng"
+    if (!isAuthed && value.date === todayKey) {
+      return !isTooSoonSlot(value.date, s?.startTime, 120);
     }
 
-    if (!value.date) return source;
-
-    const todayKey = formatLocalDateYYYYMMDD(new Date());
-    const isToday = value.date === todayKey;
-
-    if (!isAuthed) {
-      if (!isToday) return source;
-      return source.filter((s) => !isTooSoonSlot(value.date, s?.startTime, 120));
-    }
-
-    // Khách đã login: vẫn ẩn các slot đã qua
-    return source.filter((s) => !isPastSlot(value.date, s?.startTime));
-  }, [isAuthed, value.date, loading, availableSlots, baseSlots]);
+    return true;
+  });
+}, [isAuthed, value.date, loading, availableSlots, baseSlots]);
 
   // Xử lý khi người dùng chọn ngày
   const handleDate = (e) => {

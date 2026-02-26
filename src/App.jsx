@@ -23,7 +23,9 @@ import StaffManageSSO from './pages/StaffProfile/StaffManageSSO.jsx';
 import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
 import StaffLayout from './layouts/StaffLayout.jsx';
 import ToastBox from './components/Toast/ToastBox.jsx';
-import BookingManagement from './pages/DashBoard/BookingRequestManagement/BookingManagement.jsx';
+import BookingManagement from './pages/DashBoard/BookingRequestManagement/BookingRequestManagement.jsx';
+import ConfirmedBookingManagement from './pages/DashBoard/BookingManagement/ConfirmedBookingManagement.jsx';
+import ConfirmedBookingDetail from './pages/DashBoard/BookingManagement/ConfirmedBookingDetail.jsx';
 import BookingRequestDetail from './pages/DashBoard/BookingRequestManagement/BookingRequestDetail.jsx';
 import BookingRequestEdit from './pages/DashBoard/BookingRequestManagement/BookingRequestEdit.jsx';
 import { cleanupExpiredTokens } from './services/tokenUtils.js';
@@ -56,9 +58,11 @@ export default function App() {
         </Route>
         {/* Nhóm trang dashboard nhân viên dùng SideBar */}
         <Route element={<StaffLayout />}>
-          <Route path="booking-management" element={<BookingManagement />} />
-          <Route path="booking-management/:id" element={<BookingRequestDetail />} />
-          <Route path="booking-management/:id/edit" element={<BookingRequestEdit />} />
+          <Route path="booking-request-management" element={<BookingManagement />} />
+          <Route path="booking-management" element={<ConfirmedBookingManagement />} />
+          <Route path="booking-management/:id" element={<ConfirmedBookingDetail />} />
+          <Route path="booking-request-management/:id" element={<BookingRequestDetail />} />
+          <Route path="booking-request-management/:id/edit" element={<BookingRequestEdit />} />
           <Route path="staff-profile" element={<StaffProfile />} />
           <Route path="update-staff-profile" element={<UpdateStaffProfile />} />
           <Route path="staff-change-password" element={<StaffChangePassword />} />

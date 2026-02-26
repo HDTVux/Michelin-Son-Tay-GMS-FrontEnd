@@ -30,7 +30,7 @@ async function request(path, options = {}) {
       },
       body, // Dữ liệu gửi đi (phải được stringify trước nếu là object)
     });
-  } catch (err) {
+  } catch{
     // Lỗi này xảy ra khi có vấn đề về mạng hoặc máy chủ không phản hồi (Network Error)
     throw new Error('Không thể kết nối tới máy chủ');
   }

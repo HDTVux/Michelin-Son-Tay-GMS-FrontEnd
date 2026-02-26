@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import MarkSpam from './MarkSpam.jsx';
 import { confirmBookingRequest, fetchBookingRequestDetail } from '../../../services/bookingService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
+import { getBookingStatusTextVi } from '../../../components/statusUtils.js';
 
 /**
  * Hiển thị một dòng thông tin gồm nhãn (label) và giá trị (value).
@@ -155,7 +156,7 @@ export default function BookingRequestDetail() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <button className={styles.backButton} onClick={() => navigate('/booking-management')}>
+        <button className={styles.backButton} onClick={() => navigate('/booking-request-management')}>
           ← Quay lại
         </button>
         <div className={styles.headerTitle}>Chi tiết yêu cầu</div>
@@ -177,7 +178,7 @@ export default function BookingRequestDetail() {
                 <div className={styles.requestId}>{booking.id || '-'}</div>
               </div>
               <span className={`${styles.statusPill} ${styles['statusPill--' + booking.statusTone]}`}>
-                {booking.status}
+                {getBookingStatusTextVi(booking.status)}
               </span>
             </div>
 
@@ -221,7 +222,7 @@ export default function BookingRequestDetail() {
 
             <div className={styles.actionsRow}>
               <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => setOpenDecline(true)}>Hủy lịch</button>
-              <Link className={`${styles.actionBtn} ${styles.purple}`} to={`/booking-management/${booking.id}/edit`}>Chỉnh sửa</Link>
+              <Link className={`${styles.actionBtn} ${styles.purple}`} to={`/booking-request-management/${booking.id}/edit`}>Chỉnh sửa</Link>
               <button className={`${styles.actionBtn} ${styles.warning}`} onClick={() => setOpenSpam(true)}>Đánh dấu spam</button>
               <button className={`${styles.actionBtn} ${styles.info}`} onClick={() => setOpenContact(true)}>Đánh dấu đã liên hệ</button>
               <button className={`${styles.actionBtn} ${styles.success}`} onClick={() => setOpenConfirm(true)}>Duyệt yêu cầu</button>
