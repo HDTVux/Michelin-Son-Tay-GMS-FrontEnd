@@ -17,11 +17,11 @@ export default function ForgotPassword() {
 
   useEffect(() => {
     if (step !== 2) return undefined;
-    setCountdown(60);
+    const resetT = setTimeout(() => setCountdown(60), 0);
     const timer = setInterval(() => {
       setCountdown((value) => (value > 0 ? value - 1 : 0));
     }, 1000);
-    return () => clearInterval(timer);
+    return () => { clearTimeout(resetT); clearInterval(timer); };
   }, [step]);
 
   const resetAll = () => {

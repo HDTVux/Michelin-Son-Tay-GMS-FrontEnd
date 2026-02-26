@@ -1,5 +1,4 @@
 import './Partners.css';
-import castrol from '../../../assets/totalenergies.png';
 import totalenergies from '../../../assets/totalenergies.png';
 import tech from '../../../assets/tech.png';
 import bendix from '../../../assets/bendix.png';

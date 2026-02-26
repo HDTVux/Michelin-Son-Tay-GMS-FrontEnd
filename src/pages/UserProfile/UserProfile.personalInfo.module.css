@@ -1,9 +1,8 @@
-/* Personal Information Section */
-.personalInfoSection {
+.personal-info-section {
   margin-bottom: 40px;
 }
 
-.infoCard {
+.info-card {
   background: white;
   border-radius: 16px;
   padding: 30px;
@@ -13,11 +12,11 @@
   align-items: flex-start;
 }
 
-.avatarContainer {
+.avatar-container {
   flex-shrink: 0;
 }
 
-.avatarPlaceholder {
+.avatar-placeholder {
   width: 120px;
   height: 120px;
   border-radius: 12px;
@@ -28,23 +27,23 @@
   border: 2px dashed #cbd5e1;
 }
 
-.avatarIcon {
+.avatar-icon {
   font-size: 48px;
   opacity: 0.5;
 }
 
-.avatarImage {
+.avatar-image {
   width: 120px;
   height: 120px;
   border-radius: 12px;
   object-fit: cover;
 }
 
-.infoDetails {
+.info-details {
   flex: 1;
 }
 
-.infoHeader {
+.info-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -53,14 +52,14 @@
   gap: 12px;
 }
 
-.userName {
+.user-name {
   font-size: 28px;
   font-weight: 700;
   color: #0a0f1c;
   margin: 0;
 }
 
-.editButton {
+.edit-button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -74,44 +73,43 @@
   transition: all 0.3s ease;
 }
 
-.editButton:hover {
+.edit-button:hover {
   background: #004080;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
 }
 
-.infoRow {
+.info-row {
   display: flex;
   gap: 12px;
   margin-bottom: 12px;
   align-items: center;
 }
 
-.infoLabel {
+.info-label {
   font-weight: 600;
   color: #475569;
   min-width: 120px;
 }
 
-.infoValue {
+.info-value {
   color: #0a0f1c;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
-  .infoCard {
+  .info-card {
     flex-direction: column;
     align-items: center;
     text-align: center;
   }
 
-  .infoRow {
+  .info-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
   }
 
-  .infoLabel {
+  .info-label {
     min-width: auto;
   }
 }

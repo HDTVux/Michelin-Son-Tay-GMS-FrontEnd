@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import './LinkedAccounts.css';
+import styles from './LinkedAccounts.module.css';
 
 const LinkedAccounts = () => {
   useScrollToTop();
@@ -25,24 +25,24 @@ const LinkedAccounts = () => {
   };
 
   return (
-    <div className="manageProfilePage">
-      <div className="manageProfileContainer">
-        <div className="manageProfileHeader">
-          <h1 className="manageProfileTitle">Liên kết tài khoản</h1>
-          <Link to="/user-profile" className="backButton">
+    <div className={styles['manage-profile-page']}>
+      <div className={styles['manage-profile-container']}>
+        <div className={styles['manage-profile-header']}>
+          <h1 className={styles['manage-profile-title']}>Liên kết tài khoản</h1>
+          <Link to="/user-profile" className={styles['back-button']}>
             ← Về Thông tin cá nhân
           </Link>
         </div>
 
-        <section className="linkedAccountsSection">
-          <h2 className="sectionTitle">Kết nối với mạng xã hội</h2>
-          <div className="linkedAccountsList">
-            <div className="linkedAccountItem">
-              <div className="accountInfo">
-                <div className="accountIcon google">G</div>
-                <div className="accountDetails">
-                  <span className="accountName">Google</span>
-                  <span className="accountStatus">
+        <section className={styles['linked-accounts-section']}>
+          <h2 className={styles['section-title']}>Kết nối với mạng xã hội</h2>
+          <div className={styles['linked-accounts-list']}>
+            <div className={styles['linked-account-item']}>
+              <div className={styles['account-info']}>
+                <div className={`${styles['account-icon']} ${styles['google']}`}>G</div>
+                <div className={styles['account-details']}>
+                  <span className={styles['account-name']}>Google</span>
+                  <span className={styles['account-status']}>
                     {linkedAccounts.google ? '(Đã liên kết)' : '(Chưa liên kết)'}
                   </span>
                 </div>
@@ -50,7 +50,7 @@ const LinkedAccounts = () => {
               {linkedAccounts.google ? (
                 <button
                   type="button"
-                  className="btnUnlink"
+                  className={styles['btn-unlink']}
                   onClick={() => handleUnlinkAccount('google')}
                 >
                   Hủy liên kết
@@ -58,7 +58,7 @@ const LinkedAccounts = () => {
               ) : (
                 <button
                   type="button"
-                  className="btnLink"
+                  className={styles['btn-link']}
                   onClick={() => handleLinkAccount('google')}
                 >
                   Liên kết
@@ -66,12 +66,12 @@ const LinkedAccounts = () => {
               )}
             </div>
 
-            <div className="linkedAccountItem">
-              <div className="accountInfo">
-                <div className="accountIcon zalo">💬</div>
-                <div className="accountDetails">
-                  <span className="accountName">Zalo</span>
-                  <span className="accountStatus">
+            <div className={styles['linked-account-item']}>
+              <div className={styles['account-info']}>
+                <div className={`${styles['account-icon']} ${styles['zalo']}`}>💬</div>
+                <div className={styles['account-details']}>
+                  <span className={styles['account-name']}>Zalo</span>
+                  <span className={styles['account-status']}>
                     {linkedAccounts.zalo ? '(Đã liên kết)' : '(Chưa liên kết)'}
                   </span>
                 </div>
@@ -79,7 +79,7 @@ const LinkedAccounts = () => {
               {linkedAccounts.zalo ? (
                 <button
                   type="button"
-                  className="btnUnlink"
+                  className={styles['btn-unlink']}
                   onClick={() => handleUnlinkAccount('zalo')}
                 >
                   Hủy liên kết
@@ -87,7 +87,7 @@ const LinkedAccounts = () => {
               ) : (
                 <button
                   type="button"
-                  className="btnLink"
+                  className={styles['btn-link']}
                   onClick={() => handleLinkAccount('zalo')}
                 >
                   Liên kết
@@ -97,8 +97,8 @@ const LinkedAccounts = () => {
           </div>
         </section>
 
-        <div className="formFooter">
-          <button type="button" className="btnCancel" onClick={handleCancel}>
+        <div className={styles['form-footer']}>
+          <button type="button" className={styles['btn-cancel']} onClick={handleCancel}>
             Quay lại
           </button>
         </div>

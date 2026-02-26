@@ -131,7 +131,7 @@ export default function BookingRequestEdit() {
    * 2. Logic .map: Kiểm tra nếu khung giờ nào trùng với giờ đang chọn trong `form.desiredTime`, 
    * nó sẽ chuyển trạng thái sang 'selected' để hiển thị màu sắc khác biệt trên giao diện lịch.
    */
-  const slotDataWithPicked = useMemo(() => {
+  const _slotDataWithPicked = useMemo(() => {
     // Xây dựng tất cả các khung giờ với sức chứa mặc định là 3 xe/giờ
     const built = buildAllSlots({ 
       slotData: booking.slotData || {}, 

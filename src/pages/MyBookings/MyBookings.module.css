@@ -1,23 +1,23 @@
-.myBookingsPage {
+.my-bookings-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   padding: 32px 5%;
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.bookingsContainer {
+.bookings-container {
   max-width: 1200px;
   margin: 0 auto;
 }
 
 @media (max-width: 768px) {
-  .myBookingsPage {
+  .my-bookings-page {
     padding: 20px 4%;
   }
 }
 
 @media (max-width: 480px) {
-  .myBookingsPage {
+  .my-bookings-page {
     padding: 16px 3%;
   }
 }

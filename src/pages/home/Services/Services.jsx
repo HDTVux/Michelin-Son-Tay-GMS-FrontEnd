@@ -14,6 +14,16 @@ const Services = () => {
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');
 
+  // Debug log
+  useEffect(() => {
+    console.log('[Services] State updated:', { 
+      servicesCount: services.length, 
+      servicesLoading, 
+      servicesError,
+      services 
+    });
+  }, [services, servicesLoading, servicesError]);
+
   // Gói dịch vụ được tin dùng
   const combos = [
     {
@@ -68,13 +78,14 @@ const Services = () => {
 
   useEffect(() => {
     let active = true;
-    setServicesLoading(true);
-    setServicesError('');
+    setTimeout(() => { if (active) { setServicesLoading(true); setServicesError(''); }}, 0);
 
     fetchHomeServices()
       .then((res) => {
         if (!active) return;
+        console.log('[Services] API response:', res);
         const list = Array.isArray(res?.data) ? res.data : [];
+        console.log('[Services] Services list:', list);
         const mapped = list.map((item) => ({
           id: item.serviceId,
           title: item.title || 'Dịch vụ',
@@ -82,10 +93,12 @@ const Services = () => {
           image: item.mediaThumbnail || '',
           price: item.showPrice ? item.displayPrice || 'Liên hệ' : 'Liên hệ',
         }));
+        console.log('[Services] Mapped services:', mapped);
         setServices(mapped);
       })
       .catch((err) => {
         if (!active) return;
+        console.error('[Services] Error loading services:', err);
         setServicesError(err?.message || 'Không thể tải danh sách dịch vụ.');
       })
       .finally(() => {
@@ -144,7 +157,8 @@ const Services = () => {
   }, []);
 
   useEffect(() => {
-    setServiceIndex(0);
+    const t = setTimeout(() => setServiceIndex(0), 0);
+    return () => clearTimeout(t);
   }, [serviceVisible, services.length]);
 
   const serviceMaxIndex = Math.max(0, services.length - serviceVisible);
@@ -268,6 +282,7 @@ const Services = () => {
         <div
           ref={servicesHeroRef}
           className={`servicesHero ${servicesIntroVisible ? 'visible' : ''}`}
+          style={{ opacity: 1, transform: 'translateX(0)' }}
         >
           <div className="servicesLabel">DỊCH VỤ NỔI BẬT</div>
           <h1 className="servicesTitle">
@@ -294,13 +309,19 @@ const Services = () => {
           </button>
           <div className="sliderViewport">
             {servicesLoading && (
-              <div className="serviceStatus">Đang tải dịch vụ...</div>
+              <div className="serviceStatus" style={{ padding: '40px', textAlign: 'center', fontSize: '18px' }}>
+                Đang tải dịch vụ...
+              </div>
             )}
             {!servicesLoading && servicesError && (
-              <div className="serviceStatus error">{servicesError}</div>
+              <div className="serviceStatus error" style={{ padding: '40px', textAlign: 'center', fontSize: '18px', color: 'red' }}>
+                {servicesError}
+              </div>
             )}
             {!servicesLoading && !servicesError && services.length === 0 && (
-              <div className="serviceStatus">Chưa có dịch vụ để hiển thị.</div>
+              <div className="serviceStatus" style={{ padding: '40px', textAlign: 'center', fontSize: '18px' }}>
+                Chưa có dịch vụ để hiển thị.
+              </div>
             )}
             {services.length > 0 && (
               <div

@@ -1,6 +1,4 @@
-:global {
-/* Header */
-.manageProfileHeader {
+.manage-profile-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -9,19 +7,19 @@
   gap: 20px;
 }
 
-.manageProfileTitle {
+.manage-profile-title {
   font-size: 32px;
   font-weight: 700;
   color: #0a0f1c;
   margin: 0;
 }
 
-.backButton {
+.back-button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: var(--ui-primary);
+  background: #005aa9;
   color: white;
   text-decoration: none;
   border-radius: 8px;
@@ -29,21 +27,19 @@
   transition: all 0.3s ease;
 }
 
-.backButton:hover {
-  background: var(--ui-primary-hover);
+.back-button:hover {
+  background: #004080;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
 }
 
-/* Responsive */
 @media (max-width: 768px) {
-  .manageProfileHeader {
+  .manage-profile-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .manageProfileTitle {
+  .manage-profile-title {
     font-size: 24px;
   }
-}
 }
