@@ -1,73 +1,71 @@
-/* Stats Section */
-.statsSection {
+.stats-section {
   margin-bottom: 40px;
 }
 
-.sectionTitle {
+.section-title {
   font-size: 24px;
   font-weight: 700;
   color: #0a0f1c;
   margin-bottom: 24px;
 }
 
-.statsGrid {
+.stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 24px;
 }
 
-.statCard {
+.stat-card {
   border-radius: 16px;
   padding: 30px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.statCard.white {
+.stat-card.white {
   background: white;
 }
 
-.statCard.blue {
+.stat-card.blue {
   background: #005aa9;
   color: white;
 }
 
-.statCard:hover {
+.stat-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-.statIcon {
+.stat-icon {
   font-size: 40px;
   margin-bottom: 16px;
 }
 
-.statLabel {
+.stat-label {
   font-size: 14px;
   color: #64748b;
   margin-bottom: 12px;
 }
 
-.statCard.blue .statLabel {
+.stat-card.blue .stat-label {
   color: rgba(255, 255, 255, 0.8);
 }
 
-.statValue {
+.stat-value {
   font-size: 36px;
   font-weight: 700;
 }
 
-.statValue.blue {
+.stat-value.blue {
   color: #005aa9;
 }
 
-.statValue.white {
+.stat-value.white {
   color: white;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
-  .statsGrid {
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -17,7 +17,7 @@ const UpdateStaffProfile = () => {
     staffStatus: 'Đang làm việc'
   });
 
-  const [errors, setErrors] = useState({});
+  const [_errors, _setErrors] = useState({});
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

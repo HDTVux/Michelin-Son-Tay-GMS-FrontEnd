@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import './About.css';
 import visionImage from '../../assets/anh_tam_nhin.jpg';
-import visionImage1 from '../../assets/anh_tam_nhin1.jpg';
-import logo3 from '../../assets/Logo3.jpg';
 import facilityImg1 from '../../assets/z7501188211493_472143d80204db754b377a67838c33f5.jpg';
 import facilityImg2 from '../../assets/z7501188266461_80cd9d87424adaf8b0a78bd40b3545a1.jpg';
 import facilityImg3 from '../../assets/z7501188266555_1d32eab995cb25311ddb7d0ce6a4172c.jpg';
@@ -20,7 +18,6 @@ const About = () => {
   const [statsVisible, setStatsVisible] = useState(false);
   const [blogVisible, setBlogVisible] = useState(false);
   const [testimonialsVisible, setTestimonialsVisible] = useState(false);
-  const heroRef = useRef(null);
   const whyChooseRef = useRef(null);
   const visionRef = useRef(null);
   const commitmentRef = useRef(null);
@@ -83,6 +80,16 @@ const About = () => {
       date: '25/10/2023'
     }
   ]);
+
+
+
+  const checkAuthStatus = () => {
+    const customerToken = localStorage.getItem('customerToken');
+    const staffToken = localStorage.getItem('staffToken');
+    const adminToken = localStorage.getItem('adminToken');
+    setIsAuthenticated(!!customerToken);
+    setIsStaff(!!(staffToken || adminToken));
+  };
 
   useEffect(() => {
     checkAuthStatus();
@@ -169,13 +176,6 @@ const About = () => {
     };
   }, []);
 
-  const checkAuthStatus = () => {
-    const customerToken = localStorage.getItem('customerToken');
-    const staffToken = localStorage.getItem('staffToken');
-    const adminToken = localStorage.getItem('adminToken');
-    setIsAuthenticated(!!customerToken);
-    setIsStaff(!!(staffToken || adminToken));
-  };
 
   const handleMainImageChange = (e) => {
     const file = e.target.files[0];

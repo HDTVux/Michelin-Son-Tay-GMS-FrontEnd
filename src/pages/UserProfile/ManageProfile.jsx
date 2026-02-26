@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import './ManageProfile.module.css';
-import './ManageProfile.header.module.css';
-import './ManageProfile.avatar.module.css';
-import './ManageProfile.form.module.css';
-import './ManageProfile.footer.module.css';
+import styles from './ManageProfile.module.css';
+import headerStyles from './ManageProfile.header.module.css';
+import avatarStyles from './ManageProfile.avatar.module.css';
+import formStyles from './ManageProfile.form.module.css';
+import footerStyles from './ManageProfile.footer.module.css';
 
 const ManageProfile = () => {
   useScrollToTop();
@@ -62,32 +62,32 @@ const ManageProfile = () => {
   };
 
   return (
-    <div className="manageProfilePage">
-      <div className="manageProfileContainer">
+    <div className={styles['manage-profile-page']}>
+      <div className={styles['manage-profile-container']}>
         {/* Header */}
-        <div className="manageProfileHeader">
-          <h1 className="manageProfileTitle">Cập nhật thông tin cá nhân</h1>
-          <Link to="/user-profile" className="backButton">
+        <div className={headerStyles['manage-profile-header']}>
+          <h1 className={headerStyles['manage-profile-title']}>Cập nhật thông tin cá nhân</h1>
+          <Link to="/user-profile" className={headerStyles['back-button']}>
             ← Quay lại trang Thông tin cá nhân
           </Link>
         </div>
 
         <form onSubmit={handleSave}>
           {/* Ảnh đại diện + thông tin cá nhân */}
-          <section className="avatarSection">
-            <div className="avatarUploadArea">
-              <div className="avatarPreview">
+          <section className={formStyles['avatar-section']}>
+            <div className={avatarStyles['avatar-upload-area']}>
+              <div className={avatarStyles['avatar-preview']}>
                 {avatar ? (
-                  <img src={avatar} alt="Avatar" className="avatarPreviewImage" />
+                  <img src={avatar} alt="Avatar" className={avatarStyles['avatar-preview-image']} />
                 ) : (
-                  <div className="avatarPreviewPlaceholder">
-                    <span className="avatarPreviewIcon">✕</span>
+                  <div className={avatarStyles['avatar-preview-placeholder']}>
+                    <span className={avatarStyles['avatar-preview-icon']}>✕</span>
                   </div>
                 )}
               </div>
               <button
                 type="button"
-                className="btnUpload"
+                className={avatarStyles['btn-upload']}
                 onClick={() => fileInputRef.current?.click()}
               >
                 Thay avatar
@@ -102,58 +102,58 @@ const ManageProfile = () => {
               {avatar && (
                 <button
                   type="button"
-                  className="btnDeleteInline"
+                  className={avatarStyles['btn-delete-inline']}
                   onClick={handleDeleteAvatar}
                 >
                   Xóa ảnh hiện tại
                 </button>
               )}
             </div>
-            <p className="avatarHint">
+            <p className={avatarStyles['avatar-hint']}>
               Chấp nhận định dạng: JPG, PNG. Dung lượng tối đa: 2MB. Ảnh sẽ được tự động cắt vuông (1:1).
             </p>
 
-            <div className="profileForm">
-              <div className="formGroup">
-                <label className="formLabel">Họ và tên</label>
+            <div className={formStyles['profile-form']}>
+              <div className={formStyles['form-group']}>
+                <label className={formStyles['form-label']}>Họ và tên</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="formInput"
+                  className={formStyles['form-input']}
                   placeholder="Họ tên người dùng"
                 />
               </div>
-              <div className="formGroup">
-                <label className="formLabel">Email</label>
+              <div className={formStyles['form-group']}>
+                <label className={formStyles['form-label']}>Email</label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="formInput"
+                  className={formStyles['form-input']}
                   placeholder="user@example.com"
                 />
               </div>
-              <div className="formGroup">
-                <label className="formLabel">Số điện thoại</label>
+              <div className={formStyles['form-group']}>
+                <label className={formStyles['form-label']}>Số điện thoại</label>
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="formInput"
+                  className={formStyles['form-input']}
                   placeholder="0901234567"
                 />
               </div>
-              <div className="formGroup">
-                <label className="formLabel">Giới tính</label>
+              <div className={formStyles['form-group']}>
+                <label className={formStyles['form-label']}>Giới tính</label>
                 <select
                   name="gender"
                   value={formData.gender}
                   onChange={handleInputChange}
-                  className="formInput"
+                  className={formStyles['form-input']}
                 >
                   <option value="Nam">Nam</option>
                   <option value="Nữ">Nữ</option>
@@ -164,11 +164,11 @@ const ManageProfile = () => {
           </section>
 
           {/* Footer Buttons */}
-          <div className="formFooter">
-            <button type="button" className="btnCancel" onClick={handleCancel}>
+          <div className={footerStyles['form-footer']}>
+            <button type="button" className={footerStyles['btn-cancel']} onClick={handleCancel}>
               Hủy thay đổi
             </button>
-            <button type="submit" className="btnSave">
+            <button type="submit" className={footerStyles['btn-save']}>
               Lưu thay đổi
             </button>
           </div>

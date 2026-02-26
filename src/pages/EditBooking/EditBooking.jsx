@@ -1,13 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import { fetchBookingDetail, modifyCustomerBooking, fetchHomeServices, fetchAvailableSlots } from '../../services/bookingService.js';
-import './EditBooking.module.css';
-import './EditBooking.header.module.css';
-import './EditBooking.service.module.css';
-import './EditBooking.schedule.module.css';
-import './EditBooking.actions.module.css';
-import './EditBooking.modal.module.css';
+import { fetchBookingDetail, modifyCustomerBooking, fetchAvailableSlots } from '../../services/bookingService.js';
+import { fetchHomeServices } from '../../services/homeService.js';
+import './EditBooking.css';
 
 const EditBooking = () => {
   useScrollToTop();

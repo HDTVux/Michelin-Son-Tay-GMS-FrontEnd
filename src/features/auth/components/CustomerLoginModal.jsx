@@ -26,8 +26,7 @@ function CustomerLoginInner({ onClose }){
     handlePinSetupSubmit,
     handleClose,
     setError,
-    setStep,
-    backToOtpStep,
+    setStep
   } = useCustomerLoginFlow({ onClose, onNotify: notify });
 
   return (

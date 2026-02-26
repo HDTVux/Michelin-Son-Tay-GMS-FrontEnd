@@ -1,21 +1,20 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import './UserProfile.css';
-import './UserProfile.header.css';
-import './UserProfile.personalInfo.css';
-import './UserProfile.stats.css';
-import './UserProfile.quickActions.css';
+import styles from './UserProfile.module.css';
+import headerStyles from './UserProfile.header.module.css';
+import infoStyles from './UserProfile.personalInfo.module.css';
+import statsStyles from './UserProfile.stats.module.css';
+import actionsStyles from './UserProfile.quickActions.module.css';
 
 const UserProfile = () => {
   useScrollToTop();
-  // Dữ liệu mẫu - sau này sẽ lấy từ API hoặc context
   const [userInfo] = useState({
     name: 'Nguyễn Văn A',
     phone: '0901234567',
     email: 'user@example.com',
     gender: 'Nam',
-    avatar: null // null hoặc URL ảnh
+    avatar: null
   });
 
   const [stats] = useState({
@@ -24,128 +23,75 @@ const UserProfile = () => {
   });
 
   const quickActions = [
-    {
-      id: 0,
-      icon: '📅',
-      title: 'Lịch hẹn của tôi',
-      description: 'Xem và quản lý các lịch hẹn đã đặt',
-      link: '/my-bookings'
-    },
-    {
-      id: 1,
-      icon: '📋',
-      title: 'Xem lịch sử dịch vụ',
-      description: 'Xem danh sách các dịch vụ đã sử dụng',
-      link: '/service-history'
-    },
-    {
-      id: 2,
-      icon: '🛡️',
-      title: 'Tra cứu bảo hành',
-      description: 'Tra cứu thông tin bảo hành theo xe / dịch vụ',
-      link: '/warranty'
-    },
-    {
-      id: 3,
-      icon: '🎁',
-      title: 'Ưu đãi dành riêng cho tôi',
-      description: 'Xem các ưu đãi cá nhân hóa của bạn',
-      link: '/promotions'
-    },
-    {
-      id: 4,
-      icon: '🔗',
-      title: 'Liên kết tài khoản',
-      description: 'Liên kết tài khoản Zalo, Google',
-      link: '/linked-accounts'
-    },
-    {
-      id: 5,
-      icon: '🔒',
-      title: 'Đổi mật khẩu',
-      description: 'Thay đổi mật khẩu tài khoản',
-      link: '/account-security'
-    }
+    { id: 0, icon: '📅', title: 'Lịch hẹn của tôi', description: 'Xem và quản lý các lịch hẹn đã đặt', link: '/my-bookings' },
+    { id: 1, icon: '📋', title: 'Xem lịch sử dịch vụ', description: 'Xem danh sách các dịch vụ đã sử dụng', link: '/service-history' },
+    { id: 2, icon: '🛡️', title: 'Tra cứu bảo hành', description: 'Tra cứu thông tin bảo hành theo xe / dịch vụ', link: '/warranty' },
+    { id: 3, icon: '🎁', title: 'Ưu đãi dành riêng cho tôi', description: 'Xem các ưu đãi cá nhân hóa của bạn', link: '/promotions' },
+    { id: 4, icon: '🔗', title: 'Liên kết tài khoản', description: 'Liên kết tài khoản Zalo, Google', link: '/linked-accounts' },
+    { id: 5, icon: '🔒', title: 'Đổi mật khẩu', description: 'Thay đổi mật khẩu tài khoản', link: '/account-security' }
   ];
 
   return (
-    <div className="userProfilePage">
-      <div className="profileContainer">
-        {/* Header với nút quay lại */}
-        <div className="profileHeader">
-          <h1 className="profileTitle">Thông tin cá nhân</h1>
-          <Link to="/" className="backButton">
-            ← Quay lại trang chủ
-          </Link>
+    <div className={styles['user-profile-page']}>
+      <div className={styles['profile-container']}>
+        <div className={headerStyles['header']}>
+          <h1 className={headerStyles['title']}>Thông tin cá nhân</h1>
+          <Link to="/" className={headerStyles['back-button']}>← Quay lại trang chủ</Link>
         </div>
-
-        {/* Thông tin cá nhân */}
-        <section className="personalInfoSection">
-          <div className="infoCard">
-            <div className="avatarContainer">
+        <section className={infoStyles['personal-info-section']}>
+          <div className={infoStyles['info-card']}>
+            <div className={infoStyles['avatar-container']}>
               {userInfo.avatar ? (
-                <img src={userInfo.avatar} alt="Avatar" className="avatarImage" />
+                <img src={userInfo.avatar} alt="Avatar" className={infoStyles['avatar-image']} />
               ) : (
-                <div className="avatarPlaceholder">
-                  <span className="avatarIcon">👤</span>
+                <div className={infoStyles['avatar-placeholder']}>
+                  <span className={infoStyles['avatar-icon']}>👤</span>
                 </div>
               )}
             </div>
-            <div className="infoDetails">
-              <div className="infoHeader">
-                <h2 className="userName">{userInfo.name}</h2>
-                <Link to="/manage-profile" className="editButton">
-                  ✏️ Chỉnh sửa
-                </Link>
+            <div className={infoStyles['info-details']}>
+              <div className={infoStyles['info-header']}>
+                <h2 className={infoStyles['user-name']}>{userInfo.name}</h2>
+                <Link to="/manage-profile" className={infoStyles['edit-button']}>✏️ Chỉnh sửa</Link>
               </div>
-              <div className="infoRow">
-                <span className="infoLabel">Số điện thoại:</span>
-                <span className="infoValue">{userInfo.phone}</span>
+              <div className={infoStyles['info-row']}>
+                <span className={infoStyles['info-label']}>Số điện thoại:</span>
+                <span className={infoStyles['info-value']}>{userInfo.phone}</span>
               </div>
-              <div className="infoRow">
-                <span className="infoLabel">Email:</span>
-                <span className="infoValue">{userInfo.email}</span>
+              <div className={infoStyles['info-row']}>
+                <span className={infoStyles['info-label']}>Email:</span>
+                <span className={infoStyles['info-value']}>{userInfo.email}</span>
               </div>
-              <div className="infoRow">
-                <span className="infoLabel">Giới tính:</span>
-                <span className="infoValue">{userInfo.gender}</span>
+              <div className={infoStyles['info-row']}>
+                <span className={infoStyles['info-label']}>Giới tính:</span>
+                <span className={infoStyles['info-value']}>{userInfo.gender}</span>
               </div>
             </div>
           </div>
         </section>
-
-        {/* Thống kê sử dụng dịch vụ */}
-        <section className="statsSection">
-          <h2 className="sectionTitle">Thống kê sử dụng dịch vụ</h2>
-          <div className="statsGrid">
-            <div className="statCard white">
-              <div className="statIcon">📊</div>
-              <div className="statLabel">Tổng số lần sử dụng dịch vụ</div>
-              <div className="statValue blue">{stats.totalServices}</div>
+        <section className={statsStyles['stats-section']}>
+          <h2 className={statsStyles['section-title']}>Thống kê sử dụng dịch vụ</h2>
+          <div className={statsStyles['stats-grid']}>
+            <div className={`${statsStyles['stat-card']} ${statsStyles['white']}`}>
+              <div className={statsStyles['stat-icon']}>📊</div>
+              <div className={statsStyles['stat-label']}>Tổng số lần sử dụng dịch vụ</div>
+              <div className={`${statsStyles['stat-value']} ${statsStyles['blue']}`}>{stats.totalServices}</div>
             </div>
-            <div className="statCard blue">
-              <div className="statIcon">💰</div>
-              <div className="statLabel">Tổng tiền tích lũy</div>
-              <div className="statValue white">
-                {stats.totalAmount.toLocaleString('vi-VN')} ₫
-              </div>
+            <div className={`${statsStyles['stat-card']} ${statsStyles['blue']}`}>
+              <div className={statsStyles['stat-icon']}>💰</div>
+              <div className={statsStyles['stat-label']}>Tổng tiền tích lũy</div>
+              <div className={`${statsStyles['stat-value']} ${statsStyles['white']}`}>{stats.totalAmount.toLocaleString('vi-VN')} ₫</div>
             </div>
           </div>
         </section>
-
-        {/* Thao tác nhanh */}
-        <section className="quickActionsSection">
-          <h2 className="sectionTitle">Thao tác nhanh</h2>
-          <div className="actionsGrid">
+        <section className={actionsStyles['quick-actions-section']}>
+          <h2 className={statsStyles['section-title']}>Thao tác nhanh</h2>
+          <div className={actionsStyles['actions-grid']}>
             {quickActions.map((action) => (
-              <Link
-                key={action.id}
-                to={action.link}
-                className="actionCard"
-              >
-                <div className="actionIcon">{action.icon}</div>
-                <h3 className="actionTitle">{action.title}</h3>
-                <p className="actionDescription">{action.description}</p>
+              <Link key={action.id} to={action.link} className={actionsStyles['action-card']}>
+                <div className={actionsStyles['action-icon']}>{action.icon}</div>
+                <h3 className={actionsStyles['action-title']}>{action.title}</h3>
+                <p className={actionsStyles['action-description']}>{action.description}</p>
               </Link>
             ))}
           </div>

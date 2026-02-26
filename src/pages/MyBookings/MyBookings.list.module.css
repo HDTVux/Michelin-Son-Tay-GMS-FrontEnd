@@ -1,10 +1,10 @@
-.bookingList {
+.booking-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.emptyState {
+.empty-state {
   text-align: center;
   padding: 60px 20px;
   background: #ffffff;
@@ -12,13 +12,13 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.emptyState p {
+.empty-state p {
   font-size: 16px;
   color: #64748b;
   margin: 0;
 }
 
-.bookingCard {
+.booking-card {
   background: #ffffff;
   border-radius: 16px;
   padding: 24px;
@@ -27,12 +27,12 @@
   transition: all 0.3s ease;
 }
 
-.bookingCard:hover {
+.booking-card:hover {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
 }
 
-.bookingCardHeader {
+.booking-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -41,13 +41,13 @@
   border-bottom: 2px solid #f1f5f9;
 }
 
-.bookingCode {
+.booking-code {
   font-size: 16px;
   font-weight: 700;
   color: #0a0f1c;
 }
 
-.bookingStatus {
+.booking-status {
   padding: 6px 16px;
   border-radius: 20px;
   font-size: 13px;
@@ -74,26 +74,26 @@
   border: 2px solid #ef4444;
 }
 
-.bookingCardBody {
+.booking-card-body {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 24px;
   align-items: start;
 }
 
-.bookingInfoLeft {
+.booking-info-left {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.bookingInfoRow {
+.booking-info-row {
   display: flex;
   gap: 8px;
   align-items: flex-start;
 }
 
-.infoLabel {
+.info-label {
   font-weight: 700;
   color: #64748b;
   font-size: 14px;
@@ -101,37 +101,37 @@
   flex-shrink: 0;
 }
 
-.infoValue {
+.info-value {
   color: #0a0f1c;
   font-size: 14px;
   line-height: 1.6;
 }
 
-.bookingInfoRight {
+.booking-info-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 16px;
 }
 
-.bookingDateTime {
+.booking-date-time {
   text-align: right;
 }
 
-.bookingDate {
+.booking-date {
   font-size: 18px;
   font-weight: 700;
   color: #0a0f1c;
   margin-bottom: 4px;
 }
 
-.bookingTime {
+.booking-time {
   font-size: 14px;
   color: #64748b;
   font-weight: 600;
 }
 
-.btnViewDetail {
+.btn-view-detail {
   padding: 10px 20px;
   background: #005aa9;
   color: #ffffff;
@@ -142,9 +142,10 @@
   transition: all 0.3s ease;
   border: 2px solid #005aa9;
   white-space: nowrap;
+  display: inline-block;
 }
 
-.btnViewDetail:hover {
+.btn-view-detail:hover {
   background: #00407f;
   border-color: #00407f;
   transform: translateY(-2px);
@@ -152,76 +153,76 @@
 }
 
 @media (max-width: 768px) {
-  .bookingCard {
+  .booking-card {
     padding: 20px;
   }
 
-  .bookingCardBody {
+  .booking-card-body {
     grid-template-columns: 1fr;
     gap: 20px;
   }
 
-  .bookingInfoRight {
+  .booking-info-right {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
     width: 100%;
   }
 
-  .bookingDateTime {
+  .booking-date-time {
     text-align: left;
   }
 }
 
 @media (max-width: 480px) {
-  .bookingCard {
+  .booking-card {
     padding: 16px;
   }
 
-  .bookingCardHeader {
+  .booking-card-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
 
-  .bookingCode {
+  .booking-code {
     font-size: 14px;
   }
 
-  .bookingStatus {
+  .booking-status {
     padding: 5px 12px;
     font-size: 12px;
   }
 
-  .infoLabel {
+  .info-label {
     min-width: 70px;
     font-size: 13px;
   }
 
-  .infoValue {
+  .info-value {
     font-size: 13px;
   }
 
-  .bookingDate {
+  .booking-date {
     font-size: 16px;
   }
 
-  .bookingTime {
+  .booking-time {
     font-size: 13px;
   }
 
-  .btnViewDetail {
+  .btn-view-detail {
     padding: 8px 16px;
     font-size: 13px;
   }
 
-  .bookingInfoRight {
+  .booking-info-right {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
 
-  .btnViewDetail {
+  .btn-view-detail {
     width: 100%;
     text-align: center;
   }

@@ -48,9 +48,10 @@ const ChangePassword = ({
   };
 
   useEffect(() => {
-    if (formData.newPassword) {
-      setPasswordRequirements(validatePassword(formData.newPassword));
-    } else {
+    const t = setTimeout(() => {
+      if (formData.newPassword) {
+        setPasswordRequirements(validatePassword(formData.newPassword));
+      } else {
       setPasswordRequirements({
         minLength: false,
         hasUpperCase: false,
@@ -58,7 +59,9 @@ const ChangePassword = ({
         hasNumber: false,
         hasSpecialChar: false
       });
-    }
+      }
+    }, 0);
+    return () => clearTimeout(t);
   }, [formData.newPassword]);
 
   const handleInputChange = (e) => {

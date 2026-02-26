@@ -1,15 +1,13 @@
-:global {
-/* Footer Buttons */
-.formFooter {
+.form-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid var(--ui-border);
+  border-top: 1px solid #e2e8f0;
 }
 
-.btnCancel {
+.btn-cancel {
   padding: 12px 24px;
   background: #e2e8f0;
   color: #475569;
@@ -20,13 +18,13 @@
   transition: all 0.3s ease;
 }
 
-.btnCancel:hover {
+.btn-cancel:hover {
   background: #cbd5e1;
 }
 
-.btnSave {
+.btn-save {
   padding: 12px 24px;
-  background: var(--ui-primary);
+  background: #005aa9;
   color: white;
   border: none;
   border-radius: 8px;
@@ -35,19 +33,17 @@
   transition: all 0.3s ease;
 }
 
-.btnSave:hover {
-  background: var(--ui-primary-hover);
+.btn-save:hover {
+  background: #004080;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
-  .formFooter {
+  .form-footer {
     flex-direction: column-reverse;
   }
 
-  .btnCancel,
-  .btnSave {
+  .btn-cancel,
+  .btn-save {
     width: 100%;
   }
-}
 }

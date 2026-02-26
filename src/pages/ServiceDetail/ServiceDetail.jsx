@@ -20,8 +20,7 @@ const ServiceDetail = () => {
   useEffect(() => {
     // Kiểm tra nếu không có serviceId thì báo lỗi ngay
     if (!serviceId) {
-      setError('Không tìm thấy dịch vụ.');
-      setLoading(false);
+      setTimeout(() => { setError('Không tìm thấy dịch vụ.'); setLoading(false); }, 0);
       return undefined;
     }
 

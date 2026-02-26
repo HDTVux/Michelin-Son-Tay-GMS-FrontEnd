@@ -52,7 +52,7 @@ export default function Booking() {
 	name: json?.fullName || json?.name || '',
 	phone: json?.sub || '',
    };
-  } catch (e) {
+  }catch (_e) {
    return { name: '', phone: '' };
   }
  };

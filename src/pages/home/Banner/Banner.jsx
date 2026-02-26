@@ -29,7 +29,6 @@ export default function Banner(){
 
     const [index, setIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
-    const [textVisible, setTextVisible] = useState(true);
     const slidesRef = useRef(null);
     const bannerRef = useRef(null);
     const pointer = useRef({ startX: 0, deltaX: 0, dragging: false });
@@ -46,13 +45,6 @@ export default function Banner(){
         }, 4000);
         return () => clearInterval(id);
     }, [isPaused, slides.length]);
-
-    // Reset text animation when index changes
-    useEffect(() => {
-        setTextVisible(false);
-        const timer = setTimeout(() => setTextVisible(true), 100);
-        return () => clearTimeout(timer);
-    }, [index]);
 
     function goTo(i){ setIndex(i); }
 

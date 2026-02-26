@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import { fetchMyBookings } from '../../services/bookingService.js';
-import './MyBookings.css';
+import styles from './MyBookings.module.css';
+import headerStyles from './MyBookings.header.module.css';
+import filterStyles from './MyBookings.filter.module.css';
+import listStyles from './MyBookings.list.module.css';
 
 const MyBookings = () => {
   useScrollToTop();
@@ -164,19 +167,19 @@ const MyBookings = () => {
   };
 
   return (
-    <div className="myBookingsPage">
-      <div className="bookingsContainer">
+    <div className={styles['my-bookings-page']}>
+      <div className={styles['bookings-container']}>
         {/* Header */}
-        <div className="bookingsHeader">
-          <Link to="/user-profile" className="backButton">
+        <div className={headerStyles['bookings-header']}>
+          <Link to="/user-profile" className={headerStyles['back-button']}>
             ← Quay lại
           </Link>
-          <h1 className="pageTitle">Lịch hẹn của tôi</h1>
+          <h1 className={headerStyles['page-title']}>Lịch hẹn của tôi</h1>
         </div>
 
         {/* Error Banner */}
         {error && (
-          <div className="errorBanner" style={{ 
+          <div style={{ 
             padding: '12px 16px', 
             marginBottom: '16px', 
             backgroundColor: '#fee', 
@@ -190,7 +193,7 @@ const MyBookings = () => {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="loadingState" style={{ 
+          <div style={{ 
             textAlign: 'center', 
             padding: '40px', 
             color: '#666' 
@@ -203,11 +206,11 @@ const MyBookings = () => {
         {!isLoading && (
           <>
             {/* Filter Tabs */}
-            <div className="bookingStatusFilter">
+            <div className={filterStyles['booking-status-filter']}>
               {statusFilters.map((filter) => (
                 <button
                   key={filter.value}
-                  className={`filterTab ${selectedStatus === filter.value ? 'active' : ''}`}
+                  className={`${filterStyles['filter-tab']} ${selectedStatus === filter.value ? filterStyles['active'] : ''}`}
                   onClick={() => setSelectedStatus(filter.value)}
                 >
                   {filter.label}
@@ -216,8 +219,8 @@ const MyBookings = () => {
             </div>
 
             {/* Search & Sort */}
-            <div className="bookingSearchSort">
-              <div className="bookingSearch">
+            <div className={filterStyles['booking-search-sort']}>
+              <div className={filterStyles['booking-search']}>
                 <input
                   type="text"
                   placeholder="Tìm theo mã lịch, dịch vụ..."
@@ -225,7 +228,7 @@ const MyBookings = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div className="bookingSort">
+              <div className={filterStyles['booking-sort']}>
                 <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                   <option value="date-desc">Mới nhất</option>
                   <option value="date-asc">Cũ nhất</option>
@@ -235,45 +238,45 @@ const MyBookings = () => {
             </div>
 
             {/* Booking List */}
-            <div className="bookingList">
+            <div className={listStyles['booking-list']}>
               {filteredBookings.length === 0 ? (
-                <div className="emptyState">
+                <div className={listStyles['empty-state']}>
                   <p>{searchTerm || selectedStatus !== 'all' ? 'Không tìm thấy lịch hẹn nào' : 'Bạn chưa có lịch hẹn nào'}</p>
                 </div>
               ) : (
                 filteredBookings.map((booking) => (
-                  <div key={booking.id} className="bookingCard">
-                    <div className="bookingCardHeader">
-                      <div className="bookingCode">Mã lịch: {booking.id}</div>
-                      <div className={`bookingStatus ${getStatusClass(booking.status)}`}>
+                  <div key={booking.id} className={listStyles['booking-card']}>
+                    <div className={listStyles['booking-card-header']}>
+                      <div className={listStyles['booking-code']}>Mã lịch: {booking.id}</div>
+                      <div className={`${listStyles['booking-status']} ${listStyles[getStatusClass(booking.status)]}`}>
                         {booking.statusText}
                       </div>
                     </div>
                     
-                    <div className="bookingCardBody">
-                      <div className="bookingInfoLeft">
-                        <div className="bookingInfoRow">
-                          <span className="infoLabel">Dịch vụ:</span>
-                          <span className="infoValue">
+                    <div className={listStyles['booking-card-body']}>
+                      <div className={listStyles['booking-info-left']}>
+                        <div className={listStyles['booking-info-row']}>
+                          <span className={listStyles['info-label']}>Dịch vụ:</span>
+                          <span className={listStyles['info-value']}>
                             {booking.services.length > 0 ? booking.services.join(', ') : 'Chưa có dịch vụ'}
                           </span>
                         </div>
                         {booking.description && (
-                          <div className="bookingInfoRow">
-                            <span className="infoLabel">Ghi chú:</span>
-                            <span className="infoValue">{booking.description}</span>
+                          <div className={listStyles['booking-info-row']}>
+                            <span className={listStyles['info-label']}>Ghi chú:</span>
+                            <span className={listStyles['info-value']}>{booking.description}</span>
                           </div>
                         )}
                       </div>
                       
-                      <div className="bookingInfoRight">
-                        <div className="bookingDateTime">
-                          <div className="bookingDate">{booking.date || 'Chưa có ngày'}</div>
-                          <div className="bookingTime">{booking.time || 'Chưa có giờ'}</div>
+                      <div className={listStyles['booking-info-right']}>
+                        <div className={listStyles['booking-date-time']}>
+                          <div className={listStyles['booking-date']}>{booking.date || 'Chưa có ngày'}</div>
+                          <div className={listStyles['booking-time']}>{booking.time || 'Chưa có giờ'}</div>
                         </div>
                         <Link 
                           to={`/booking-detail/${booking.bookingId || booking.id}`}
-                          className="btnViewDetail"
+                          className={listStyles['btn-view-detail']}
                         >
                           Xem chi tiết
                         </Link>

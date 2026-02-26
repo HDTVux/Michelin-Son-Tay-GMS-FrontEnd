@@ -51,12 +51,14 @@ const Header = () => {
 
   // Refresh auth state on mount and when login modal closes
   useEffect(() => {
-    refreshAuth();
+    const t = setTimeout(() => refreshAuth(), 0);
+    return () => clearTimeout(t);
   }, [refreshAuth]);
 
   useEffect(() => {
     if (!showCustomerLogin) {
-      refreshAuth();
+      const t = setTimeout(() => refreshAuth(), 0);
+      return () => clearTimeout(t);
     }
   }, [showCustomerLogin, refreshAuth]);
 

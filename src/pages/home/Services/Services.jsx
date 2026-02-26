@@ -68,8 +68,7 @@ const Services = () => {
 
   useEffect(() => {
     let active = true;
-    setServicesLoading(true);
-    setServicesError('');
+    setTimeout(() => { if (active) { setServicesLoading(true); setServicesError(''); }}, 0);
 
     fetchHomeServices()
       .then((res) => {
@@ -108,7 +107,6 @@ const Services = () => {
   const [comboIndex, setComboIndex] = useState(0);
   const [comboVisible, setComboVisible] = useState(3);
   const [isComboPaused, setIsComboPaused] = useState(false);
-  const comboTrackRef = useRef(null);
   const comboPointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
   // Scroll reveal cho 3 phần: dịch vụ, quy trình, combo
@@ -118,7 +116,6 @@ const Services = () => {
 
   const [servicesIntroVisible, setServicesIntroVisible] = useState(false);
   const [processIntroVisible, setProcessIntroVisible] = useState(false);
-  const [combosIntroVisible, setCombosIntroVisible] = useState(false);
   useEffect(() => {
     const calc = () => {
       const w = window.innerWidth;
@@ -144,7 +141,8 @@ const Services = () => {
   }, []);
 
   useEffect(() => {
-    setServiceIndex(0);
+    const t = setTimeout(() => setServiceIndex(0), 0);
+    return () => clearTimeout(t);
   }, [serviceVisible, services.length]);
 
   const serviceMaxIndex = Math.max(0, services.length - serviceVisible);
@@ -153,7 +151,6 @@ const Services = () => {
   const serviceNext = () => setServiceIndex(i => Math.min(serviceMaxIndex, i + 1));
 
   const comboMaxIndex = Math.max(0, combos.length - comboVisible);
-  const comboOffset = (comboIndex * 100) / comboVisible;
   const comboPrev = () => setComboIndex(i => Math.max(0, i - 1));
   const comboNext = () => setComboIndex(i => Math.min(comboMaxIndex, i + 1));
 
