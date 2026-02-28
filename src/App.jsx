@@ -33,6 +33,7 @@ import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 import DailySchedule from './pages/DashBoard/DailySchedule/DailySchedule.jsx';
 import EditCustomerProfile from './pages/DashBoard/CustomerProfile/EditCustomerProfile.jsx';
 import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.jsx';
+import CreateServiceTicket from './pages/DashBoard/ServiceTicketManagement/CreateServiceTicket.jsx';
 export default function App() {
   useEffect(() => {
     cleanupExpiredTokens();
@@ -74,6 +75,7 @@ export default function App() {
           <Route path="daily-schedule" element={<DailySchedule />} />
           <Route path="customer-profile/:customerId" element={<EditCustomerProfile />} />
           <Route path="staff-attendance" element={<StaffAttendance />} />
+          <Route path="create-service-ticket" element={<CreateServiceTicket />} />
         </Route>
         <Route path="login" element={<Login />} />
         <Route path="forgot-password" element={<ForgotPassword />} />
