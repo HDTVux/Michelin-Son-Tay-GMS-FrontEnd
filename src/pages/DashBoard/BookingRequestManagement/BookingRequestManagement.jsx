@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from './BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchPendingBookingRequests } from '../../../services/bookingService.js';
-import { combineDateTime, formatTimeHHmm } from '../../../components/timeUtils.js';
+import { combineDateTime, formatDateTimeVi, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi } from '../../../components/statusUtils.js';
 
 export default function BookingManagement() {
@@ -169,7 +169,7 @@ function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLo
                                             {getBookingStatusTextVi(item?.status)}
                                         </span>
                                     </td>
-                                    <td>{combineDateTime(item.createdAt)? new Date(item.createdAt+ "Z").toLocaleString('vi-VN') : '-'}</td>
+                                    <td>{formatDateTimeVi(item?.createdAt, '-') }</td>
                                     <td>{combineDateTime(item?.scheduledDate, formatTimeHHmm(item?.scheduledTime)) || '-'}</td>
 
                                     <td>

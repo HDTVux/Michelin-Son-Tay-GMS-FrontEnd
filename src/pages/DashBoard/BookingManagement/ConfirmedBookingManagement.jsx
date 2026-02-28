@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from '../BookingRequestManagement/BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchManagedBookings } from '../../../services/bookingService.js';
-import { combineDateTime, formatTimeHHmm } from '../../../components/timeUtils.js';
+import { combineDateTime, formatDateTimeVi, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi } from '../../../components/statusUtils.js';
 
 export default function ConfirmedBookingManagement() {
@@ -64,6 +64,9 @@ export default function ConfirmedBookingManagement() {
             onViewDetail={(id) => {
               if (id != null) navigate(`/booking-management/${id}`);
             }}
+            onCheckIn={(payload) => {
+              navigate('/check-in', { state: payload });
+            }}
             actionLabel={`${bookings.length} booking`}
           />
         </div>
@@ -72,7 +75,7 @@ export default function ConfirmedBookingManagement() {
   );
 }
 
-function BookingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLoading, error }) {
+function BookingPanel({ title, icon, tone, data, actionLabel, onViewDetail, onCheckIn, isLoading, error }) {
   const toneClass = styles['booking-card--' + tone];
 
   const statusToneMap = useMemo(
@@ -140,11 +143,11 @@ function BookingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLo
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan="7" className={styles['empty-row']}>Đang tải dữ liệu...</td></tr>
+              <tr><td colSpan="8" className={styles['empty-row']}>Đang tải dữ liệu...</td></tr>
             )}
 
             {!isLoading && data.length === 0 && (
-              <tr><td colSpan="7" className={styles['empty-row']}>Không có booking nào.</td></tr>
+              <tr><td colSpan="8" className={styles['empty-row']}>Không có booking nào.</td></tr>
             )}
 
             {!isLoading && data.map((item, idx) => {
@@ -155,6 +158,10 @@ function BookingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLo
               const customerName = item?.customer?.fullName || item?.fullName || item?.name || '-';
               const customerPhone = item?.customer?.phone || item?.phone || '-';
               const service = item?.serviceCategory || item?.service || '-';
+
+              const appointmentAt = (item?.scheduledDate && item?.scheduledTime)
+                ? `${String(item.scheduledDate).trim()}T${String(item.scheduledTime).trim()}`
+                : (item?.appointmentAt || null);
 
               const rowKey = bookingId ?? `${item?.createdAt || 'row'}-${idx}`;
 
@@ -169,16 +176,33 @@ function BookingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLo
                       {getBookingStatusTextVi(rawStatus, '-')}
                     </span>
                   </td>
-                  <td>{combineDateTime(item.createdAt)? new Date(item.createdAt+ "Z").toLocaleString('vi-VN') : '-'}</td>
+                  <td>{formatDateTimeVi(item?.createdAt, '-') }</td>
                   <td>{combineDateTime(item?.scheduledDate, formatTimeHHmm(item?.scheduledTime)) || '-'}</td>
                   
                   <td>
-                    <button
-                      className={styles['primary-button']}
-                      onClick={() => onViewDetail?.(bookingId)}
-                    >
-                      Xem chi tiết
-                    </button>
+                    <div className={styles.pagination}>
+                      <button
+                        className={styles['primary-button']}
+                        onClick={() => onViewDetail?.(bookingId)}
+                      >
+                        Xem chi tiết
+                      </button>
+                      <button
+                        className={`${styles['primary-button']} ${styles['is-ghost']}`}
+                        onClick={() => onCheckIn?.({
+                          bookingId,
+                          booking: {
+                            bookingId,
+                            customerName,
+                            customerPhone,
+                            serviceName: service,
+                            appointmentAt,
+                          },
+                        })}
+                      >
+                        Check-in
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

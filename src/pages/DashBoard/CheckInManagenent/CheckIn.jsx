@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import styles from './CheckIn.module.css';
 
@@ -13,11 +13,12 @@ function formatViDateTime(value) {
 export default function CheckIn() {
     useScrollToTop();
     const navigate = useNavigate();
+    const location = useLocation();
 // Giới hạn số lượng ảnh chụp tình trạng xe 
     const MAX_VEHICLE_IMAGES = 6;
 
     const [licensePlate, setLicensePlate] = useState('');
-    const [booking, setBooking] = useState(null);   // Thông tin đặt chỗ tìm được từ hệ thống
+    const [booking, setBooking] = useState(() => location?.state?.booking ?? null);   // Thông tin đặt chỗ tìm được từ hệ thống
     const [odometerKm, setOdometerKm] = useState('');
     const [lastOdometerKm, setLastOdometerKm] = useState(null);
     const [damageNote, setDamageNote] = useState('');
