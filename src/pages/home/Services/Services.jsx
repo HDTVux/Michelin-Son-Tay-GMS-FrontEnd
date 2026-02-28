@@ -3,10 +3,6 @@ import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchHomeServices } from '../../../services/homeService';
 import serviceFallback from '../../../assets/lop and mam.jpg';
-import combo1 from '../../../assets/z7498307797407_a65c60e07a1b8983cdf5350f98b6cc1d.jpg';
-import combo2 from '../../../assets/z7498310198837_146b124ec8cd2391c04e27a0dde397ff.jpg';
-import combo3 from '../../../assets/z7498315906940_a22d5305d93086e7d629fd4795a6e222.jpg';
-import combo4 from '../../../assets/phanh_an_tam.jpg';
 import processImg from '../../../assets/Quy trình 7 bước (1).png';
 
 const Services = () => {
@@ -24,7 +20,8 @@ const Services = () => {
     });
   }, [services, servicesLoading, servicesError]);
 
-  // Gói dịch vụ được tin dùng
+  // Gói dịch vụ được tin dùng (commented out - not used currently)
+  /*
   const combos = [
     {
       title: 'Combo "Trước chuyến đi"',
@@ -75,6 +72,7 @@ const Services = () => {
       price: 'Liên hệ'
     }
   ];
+  */
 
   useEffect(() => {
     let active = true;
@@ -117,39 +115,26 @@ const Services = () => {
   const serviceTrackRef = useRef(null);
   const servicePointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
-  // State cho combo slider
-  const [comboIndex, setComboIndex] = useState(0);
-  const [comboVisible, setComboVisible] = useState(3);
-  const [isComboPaused, setIsComboPaused] = useState(false);
-  const comboTrackRef = useRef(null);
-  const comboPointer = useRef({ startX: 0, deltaX: 0, dragging: false });
-
   // Scroll reveal cho 3 phần: dịch vụ, quy trình, combo
   const servicesHeroRef = useRef(null);
   const processHeaderRef = useRef(null);
-  const combosHeroRef = useRef(null);
 
   const [servicesIntroVisible, setServicesIntroVisible] = useState(false);
   const [processIntroVisible, setProcessIntroVisible] = useState(false);
-  const [combosIntroVisible, setCombosIntroVisible] = useState(false);
+  
   useEffect(() => {
     const calc = () => {
       const w = window.innerWidth;
       if (w <= 480) {
         setServiceVisible(1);
-        setComboVisible(1);
       } else if (w <= 768) {
         setServiceVisible(2);
-        setComboVisible(2);
       } else if (w <= 1024) {
         setServiceVisible(3);
-        setComboVisible(2);
       } else {
         setServiceVisible(4);
-        setComboVisible(3);
       }
       setServiceIndex(0);
-      setComboIndex(0);
     };
     calc();
     window.addEventListener('resize', calc);
@@ -166,11 +151,6 @@ const Services = () => {
   const servicePrev = () => setServiceIndex(i => Math.max(0, i - 1));
   const serviceNext = () => setServiceIndex(i => Math.min(serviceMaxIndex, i + 1));
 
-  const comboMaxIndex = Math.max(0, combos.length - comboVisible);
-  const comboOffset = (comboIndex * 100) / comboVisible;
-  const comboPrev = () => setComboIndex(i => Math.max(0, i - 1));
-  const comboNext = () => setComboIndex(i => Math.min(comboMaxIndex, i + 1));
-
   // Tự động chuyển slide dịch vụ
   useEffect(() => {
     if (serviceMaxIndex === 0 || isServicePaused) return;
@@ -179,15 +159,6 @@ const Services = () => {
     }, 4000);
     return () => clearInterval(id);
   }, [serviceMaxIndex, isServicePaused]);
-
-  // Tự động chuyển slide combo
-  useEffect(() => {
-    if (comboMaxIndex === 0 || isComboPaused) return;
-    const id = setInterval(() => {
-      setComboIndex((current) => (current >= comboMaxIndex ? 0 : current + 1));
-    }, 4000);
-    return () => clearInterval(id);
-  }, [comboMaxIndex, isComboPaused]);
 
   // Handlers cho dịch vụ slider
   const handleServicePointerDown = (event) => {
@@ -214,31 +185,6 @@ const Services = () => {
     setTimeout(() => setIsServicePaused(false), 300);
   };
 
-  // Handlers cho combo slider
-  const handleComboPointerDown = (event) => {
-    setIsComboPaused(true);
-    comboPointer.current.dragging = true;
-    comboPointer.current.startX = event.clientX ?? event.touches?.[0]?.clientX;
-  };
-
-  const handleComboPointerMove = (event) => {
-    if (!comboPointer.current.dragging) return;
-    const x = event.clientX ?? event.touches?.[0]?.clientX;
-    comboPointer.current.deltaX = x - comboPointer.current.startX;
-  };
-
-  const handleComboPointerUp = () => {
-    if (!comboPointer.current.dragging) return;
-    comboPointer.current.dragging = false;
-    const dx = comboPointer.current.deltaX;
-    if (Math.abs(dx) > 50) {
-      if (dx < 0) comboNext();
-      else comboPrev();
-    }
-    comboPointer.current.deltaX = 0;
-    setTimeout(() => setIsComboPaused(false), 300);
-  };
-
   // IntersectionObserver cho tiêu đề các phần
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -252,9 +198,6 @@ const Services = () => {
           if (entry.target === processHeaderRef.current) {
             setProcessIntroVisible(true);
           }
-          if (entry.target === combosHeroRef.current) {
-            setCombosIntroVisible(true);
-          }
         });
       },
       { threshold: 0.25 }
@@ -262,16 +205,13 @@ const Services = () => {
 
     const servicesEl = servicesHeroRef.current;
     const processEl = processHeaderRef.current;
-    const combosEl = combosHeroRef.current;
 
     if (servicesEl) observer.observe(servicesEl);
     if (processEl) observer.observe(processEl);
-    if (combosEl) observer.observe(combosEl);
 
     return () => {
       if (servicesEl) observer.unobserve(servicesEl);
       if (processEl) observer.unobserve(processEl);
-      if (combosEl) observer.unobserve(combosEl);
       observer.disconnect();
     };
   }, []);

@@ -17,5 +17,6 @@ export const useScrollToTop = (deps = [], behavior = 'auto') => {
 
     // Hàm dọn dẹp (cleanup) để hủy frame nếu component bị unmount trước khi chạy
     return () => cancelAnimationFrame(rafId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...depArray, behavior]); // Chạy lại nếu deps hoặc kiểu behavior thay đổi
 };

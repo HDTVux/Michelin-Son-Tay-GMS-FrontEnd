@@ -19,7 +19,7 @@ const Home = () => {
     };
 
     useEffect(() => {
-        checkAuthStatus();
+        const t = setTimeout(() => checkAuthStatus(), 0);
         
         const handleStorageChange = (e) => {
             if (e.key === 'customerToken' || !e.key) {
@@ -40,6 +40,7 @@ const Home = () => {
         window.addEventListener('authChange', handleAuthChange);
         
         return () => {
+            clearTimeout(t);
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('focus', handleFocus);
             window.removeEventListener('authChange', handleAuthChange);

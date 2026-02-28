@@ -31,8 +31,7 @@ const ServiceDetail = () => {
      * Biến 'active' giúp đảm bảo chỉ cập nhật state nếu component vẫn đang hiển thị.
      */
     let active = true;
-    setLoading(true);
-    setError('');
+    setTimeout(() => { if (active) { setLoading(true); setError(''); } }, 0);
 
     // Gọi hàm API từ service layer
     fetchHomeServiceDetail(serviceId)

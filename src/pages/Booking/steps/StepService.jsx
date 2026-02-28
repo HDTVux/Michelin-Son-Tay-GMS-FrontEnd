@@ -40,7 +40,8 @@ export default function StepService({ services, selectedIds, onToggle, search, o
 
   // Nếu số lượng item thay đổi, đảm bảo index không vượt quá maxIndex
   useEffect(() => {
-    setIndex((prev) => Math.min(prev, maxIndex));
+    const t = setTimeout(() => setIndex((prev) => Math.min(prev, maxIndex)), 0);
+    return () => clearTimeout(t);
   }, [maxIndex, filtered.length]);
 
   // Offset trượt theo % chiều ngang

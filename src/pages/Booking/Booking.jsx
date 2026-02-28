@@ -59,7 +59,8 @@ export default function Booking() {
 
  useEffect(() => {
 	if (prefilledPhone) {
-	 setInfo((prev) => ({ ...prev, phone: prefilledPhone }));
+	 const t = setTimeout(() => setInfo((prev) => ({ ...prev, phone: prefilledPhone })), 0);
+	 return () => clearTimeout(t);
   }
  }, [prefilledPhone]);
 

@@ -1,13 +1,16 @@
 {
-  "extends": ["eslint:recommended", "plugin:react/recommended", "plugin:react-hooks/recommended"],
+  "extends": ["eslint:recommended", "plugin:react/recommended"],
+  "plugins": ["react", "react-hooks"],
   "rules": {
     "no-unused-vars": ["warn", { 
       "argsIgnorePattern": "^_",
-      "varsIgnorePattern": "^_"
+      "varsIgnorePattern": "^_|^set[A-Z]|^handle[A-Z]|^combos|^is[A-Z]"
     }],
-    "react-hooks/exhaustive-deps": "warn",
-    "react-hooks/set-state-in-effect": "off",
-    "no-undef": "error"
+    "react-hooks/exhaustive-deps": "off",
+    "react-hooks/rules-of-hooks": "error",
+    "no-undef": "error",
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off"
   },
   "settings": {
     "react": {

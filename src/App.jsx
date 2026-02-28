@@ -28,6 +28,9 @@ import BookingRequestDetail from './pages/DashBoard/BookingRequestManagement/Boo
 import BookingRequestEdit from './pages/DashBoard/BookingRequestManagement/BookingRequestEdit.jsx';
 import { cleanupExpiredTokens } from './services/tokenUtils.js';
 import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
+import DailySchedule from './pages/DashBoard/DailySchedule/DailySchedule.jsx';
+import EditCustomerProfile from './pages/DashBoard/CustomerProfile/EditCustomerProfile.jsx';
+import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.jsx';
 export default function App() {
   useEffect(() => {
     cleanupExpiredTokens();
@@ -64,6 +67,9 @@ export default function App() {
           <Route path="staff-change-password" element={<StaffChangePassword />} />
           <Route path="staff-manage-sso" element={<StaffManageSSO />} />
           <Route path="check-in" element={<CheckIn />} />
+          <Route path="daily-schedule" element={<DailySchedule />} />
+          <Route path="customer-profile/:customerId" element={<EditCustomerProfile />} />
+          <Route path="staff-attendance" element={<StaffAttendance />} />
         </Route>
         <Route path="login" element={<Login />} />
         <Route path="forgot-password" element={<ForgotPassword />} />

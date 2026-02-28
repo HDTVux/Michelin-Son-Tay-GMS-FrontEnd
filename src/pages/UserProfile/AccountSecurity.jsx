@@ -10,16 +10,9 @@ const AccountSecurity = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (formData) => {
+  const handleSubmit = async () => {
     setIsLoading(true);
     try {
-      // TODO: Gọi API đổi mật khẩu cho khách hàng
-      // const response = await changeCustomerPassword({
-      //   currentPassword: formData.currentPassword,
-      //   newPassword: formData.newPassword
-      // });
-      
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       alert('Đổi mật khẩu thành công!');

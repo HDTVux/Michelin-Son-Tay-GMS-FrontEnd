@@ -10,12 +10,12 @@ import facilityImg4 from '../../assets/z7501188266556_2e19562ee0b89224a3f3ec42d4
 const About = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
-  const [heroVisible, setHeroVisible] = useState(false);
+  const [heroVisible, setHeroVisible] = useState(false); // eslint-disable-line no-unused-vars
   const [whyChooseVisible, setWhyChooseVisible] = useState(false);
   const [visionVisible, setVisionVisible] = useState(false);
   const [commitmentVisible, setCommitmentVisible] = useState(false);
   const [facilitiesVisible, setFacilitiesVisible] = useState(false);
-  const [statsVisible, setStatsVisible] = useState(false);
+  const [statsVisible, setStatsVisible] = useState(false); // eslint-disable-line no-unused-vars
   const [blogVisible, setBlogVisible] = useState(false);
   const [testimonialsVisible, setTestimonialsVisible] = useState(false);
   const whyChooseRef = useRef(null);
@@ -92,8 +92,10 @@ const About = () => {
   };
 
   useEffect(() => {
-    checkAuthStatus();
-    setHeroVisible(true);
+    const t = setTimeout(() => {
+      checkAuthStatus();
+      setHeroVisible(true);
+    }, 0);
     
     const handleStorageChange = (e) => {
       if (e.key === 'customerToken' || e.key === 'staffToken' || e.key === 'adminToken' || !e.key) {
@@ -114,6 +116,7 @@ const About = () => {
     window.addEventListener('authChange', handleAuthChange);
     
     return () => {
+      clearTimeout(t);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('authChange', handleAuthChange);

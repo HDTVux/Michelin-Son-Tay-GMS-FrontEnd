@@ -1,34 +1,35 @@
 import { useState, useEffect, useRef } from 'react';
 import './Banner.css';
-import bannerTet1 from '../../../assets/Banner Tet 2.png'
-import bannerTet2 from '../../../assets/Banner Tet 1.png'
-import banner1 from '../../../assets/1.jpg'
+import combo7 from '../../../assets/anh_combo7.jpg'
+import combo8 from '../../../assets/anh_combo8.jpg'
+import combo9 from '../../../assets/anh_com9.jpg'
 
 export default function Banner(){
     const slides = [
         { 
             id: 1, 
-            img: bannerTet1, 
-            title: 'Hiệu suất bền bỉ, an toàn tối đa', 
+            img: combo7, 
+            title: 'HIỆU SUẤT BỀN BỈ, AN TOÀN TỐI ĐA', 
             subtitle: 'MICHELIN' 
         },
         { 
             id: 2, 
-            img: bannerTet2, 
+            img: combo8, 
             title: 'CHINH PHỤC MỌI ĐỊA HÌNH', 
             subtitle: 'MICHELIN' 
         },
         { 
             id: 3, 
-            img: banner1, 
+            img: combo9, 
             title: 'ÊM ÁI VÀ AN TOÀN TRÊN MỌI CUNG ĐƯỜNG ƯỚT', 
             subtitle: 'MICHELIN' 
         }
-    ];//
-    
+    ];
 
     const [index, setIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
+    const [textVisible, setTextVisible] = useState(true);
+    const [zoomScale, setZoomScale] = useState(1);
     const slidesRef = useRef(null);
     const bannerRef = useRef(null);
     const pointer = useRef({ startX: 0, deltaX: 0, dragging: false });
@@ -45,6 +46,42 @@ export default function Banner(){
         }, 4000);
         return () => clearInterval(id);
     }, [isPaused, slides.length]);
+
+    // Reset text animation when index changes
+    useEffect(() => {
+        const t1 = setTimeout(() => setTextVisible(false), 0);
+        const t2 = setTimeout(() => setTextVisible(true), 100);
+        return () => { clearTimeout(t1); clearTimeout(t2); };
+    }, [index]);
+
+    // Detect zoom level và counter để giữ nguyên kích thước
+    useEffect(() => {
+        const detectZoom = () => {
+            // Tạo element test để đo zoom level
+            const testDiv = document.createElement('div');
+            testDiv.style.cssText = 'position:absolute;top:0;left:0;width:100px;height:100px;visibility:hidden;pointer-events:none;';
+            document.body.appendChild(testDiv);
+            const rect = testDiv.getBoundingClientRect();
+            const zoomLevel = rect.width / 100;
+            document.body.removeChild(testDiv);
+            
+            // Counter zoom: scale ngược lại để giữ nguyên kích thước
+            if (zoomLevel > 0 && zoomLevel !== 1) {
+                setZoomScale(1 / zoomLevel);
+            } else {
+                setZoomScale(1);
+            }
+        };
+
+        detectZoom();
+        window.addEventListener('resize', detectZoom);
+        window.addEventListener('orientationchange', detectZoom);
+        
+        return () => {
+            window.removeEventListener('resize', detectZoom);
+            window.removeEventListener('orientationchange', detectZoom);
+        };
+    }, []);
 
     function goTo(i){ setIndex(i); }
 
@@ -68,7 +105,15 @@ export default function Banner(){
     }
 
     return (
-        <section className="banner" ref={bannerRef}>
+        <section 
+            className="banner" 
+            ref={bannerRef}
+            style={{
+                transform: `translateX(-50%) scale(${zoomScale})`,
+                transformOrigin: 'top center',
+                width: zoomScale !== 1 ? `${100 / zoomScale}vw` : '100vw'
+            }}
+        >
             <div className="banner-inner">
                 <div className="banner-carousel"
                     onMouseEnter={() => setIsPaused(true)}
@@ -88,7 +133,14 @@ export default function Banner(){
                     >
                         {slides.map((s) => (
                         <div className="slide" key={s.id}>
-                            <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image" />
+                            <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image fixed-zoom" />
+                            <div className={`slide-text ${textVisible && index === s.id - 1 ? 'visible' : ''}`}>
+                                <div className="banner-label">/MICHELIN/</div>
+                                <h1 className="banner-title">
+                                    <span className="titlePart1">{s.title}</span>
+                                </h1>
+                                <p className="banner-sub">{s.subtitle}</p>
+                            </div>
                         </div>
                         ))} 
                     </div>
