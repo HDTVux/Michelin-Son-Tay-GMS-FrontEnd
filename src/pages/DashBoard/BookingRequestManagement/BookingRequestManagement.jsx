@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styles from './BookingManagement.module.css';
+import styles from './BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchPendingBookingRequests } from '../../../services/bookingService.js';
-import { combineDateTime } from '../../../components/timeUtils.js';
+import { combineDateTime, formatTimeHHmm } from '../../../components/timeUtils.js';
+import { getBookingStatusTextVi } from '../../../components/statusUtils.js';
 
 export default function BookingManagement() {
     // Tự động cuộn trang lên đầu khi component này được mount
@@ -69,7 +70,7 @@ export default function BookingManagement() {
                         isLoading={isLoading}
                         error={error}
                         // Hàm xử lý khi bấm xem chi tiết: Chuyển hướng tới trang chi tiết ID
-                        onViewDetail={(id) => navigate(`/booking-management/${id}`)}
+                        onViewDetail={(id) => navigate(`/booking-request-management/${id}`)}
                         actionLabel={`${pendingBookings.length} yêu cầu`}
                     />
                 </div>
@@ -87,6 +88,7 @@ function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLo
     const statusToneMap = useMemo(() => ({
         PENDING: 'warning',
         CONTACTED: 'info',
+        DEFAULT: 'info',
     }), []);
 
     return (
@@ -137,6 +139,7 @@ function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLo
                             <th>DỊCH VỤ</th>
                             <th>TRẠNG THÁI</th>
                             <th>THỜI GIAN GỬI YÊU CẦU</th>
+                            <th>THỜI GIAN HẸN</th>
                             <th>THAO TÁC</th>
                         </tr>
                     </thead>
@@ -163,10 +166,12 @@ function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLo
                                     <td>{item.serviceCategory || item.service || '-'}</td>
                                     <td>
                                         <span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>
-                                            {item.status || 'PENDING'}
+                                            {getBookingStatusTextVi(item?.status)}
                                         </span>
                                     </td>
                                     <td>{combineDateTime(item.createdAt)? new Date(item.createdAt+ "Z").toLocaleString('vi-VN') : '-'}</td>
+                                    <td>{combineDateTime(item?.scheduledDate, formatTimeHHmm(item?.scheduledTime)) || '-'}</td>
+
                                     <td>
                                         <button
                                             className={styles['primary-button']}

@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import styles from './Dayslot.module.css';
+import { getBookingStatusTextVi } from '../../../components/statusUtils.js';
 
 export default function Dayslot({ slot, onClose }) {
   if (!slot) return null;
@@ -38,7 +39,7 @@ export default function Dayslot({ slot, onClose }) {
               <article key={item.id} className={styles['dayslot-card']}>
                 <div className={styles['dayslot-cardHeader']}>
                   <a className={styles['dayslot-code']} href="#">Mã yêu cầu: {item.id}</a>
-                  <span className={styles['dayslot-pill']}>{item.status}</span>
+                  <span className={styles['dayslot-pill']}>{getBookingStatusTextVi(item.status, '-')}</span>
                 </div>
 
                 <div className={styles['dayslot-grid']}>

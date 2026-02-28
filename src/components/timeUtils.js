@@ -11,6 +11,6 @@ export const formatTimeHHmm = (raw = '') => {
 export const combineDateTime = (dateStr, timeStr, fallback = '-') => {
   const time = formatTimeHHmm(timeStr);
   if (!dateStr && !time) return fallback;
-  if (dateStr && time) return `${dateStr} ${time}`;
+  if (dateStr && time) return `${time} ${dateStr} `;
   return dateStr || time || fallback;
 };

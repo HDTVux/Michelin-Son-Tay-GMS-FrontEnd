@@ -122,7 +122,7 @@ export default function BookingRequestEdit() {
     console.log('Đang lưu thay đổi cho mã:', { id: booking.id, ...form });
     
     // Quay lại trang chi tiết yêu cầu sau khi sửa xong
-    navigate(`/booking-management/${booking.id}`);
+    navigate(`/booking-request-management/${booking.id}`);
   };
 
   /**
@@ -220,7 +220,7 @@ export default function BookingRequestEdit() {
               />
             </div>
         <div className={styles.headerActions}>
-          <button className={styles.secondaryBtn} onClick={() => navigate(`/booking-management/${booking.id}`)}>Hủy</button>
+          <button className={styles.secondaryBtn} onClick={() => navigate(`/booking-request-management/${booking.id}`)}>Hủy</button>
           <button className={styles.primaryBtn} onClick={handleSave}>Lưu thay đổi</button>
         </div>
           </section>
