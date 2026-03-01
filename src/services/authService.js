@@ -56,3 +56,10 @@ export async function setupCustomerPin({ phone, pin, confirmPin }) {
     body: payload,
   });
 }
+
+// Đăng xuất customer
+export async function logoutCustomer() {
+  return request('/api/auth/customer/logout', {
+    method: 'POST',
+  });
+}
