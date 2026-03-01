@@ -92,8 +92,7 @@ export default function CreateServiceTicket() {
 												onChange={() => handleToggleService(opt.id)}
 											/>
 											<span>{opt.label}</span>
-										</label>
-										<button type="button" className={styles.estimateLink}>Giá ước tính</button>
+										</label>								
 									</div>
 								))}
 							</div>

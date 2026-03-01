@@ -2,13 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import styles from './CheckIn.module.css';
-
-function formatViDateTime(value) {
-    if (!value) return '-';
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '-';
-    return date.toLocaleString('vi-VN');
-}
+import { formatDateTimeViNoSeconds } from '../../../components/timeUtils.js';
 
 export default function CheckIn() {
     useScrollToTop();
@@ -27,7 +21,7 @@ export default function CheckIn() {
     const vehicleImagesRef = useRef([]);// Dùng ref để cleanup URL khi unmount hoặc khi ảnh bị xóa, tránh rò rỉ bộ nhớ do URL.createObjectURL tạo ra.
     const [vehicleImages, setVehicleImages] = useState([]); // [{ file, url }]
 
-    const appointmentTimeDisplay = booking?.appointmentAt ? formatViDateTime(booking.appointmentAt) : '-';
+    const appointmentTimeDisplay = booking?.appointmentAt ? formatDateTimeViNoSeconds(booking.appointmentAt) : '-';
 
     // Chuyển đổi giá trị Odometer nhập vào thành số nguyên, loại bỏ ký tự không phải số. Nếu không hợp lệ, trả về null.
     const odometerNumber = useMemo(() => {

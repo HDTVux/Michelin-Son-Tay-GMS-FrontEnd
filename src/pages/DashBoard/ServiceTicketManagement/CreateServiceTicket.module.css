@@ -18,6 +18,8 @@
 
 .header {
 	margin-bottom: 12px;
+	justify-content: center;
+	text-align: center;
 }
 
 .card {
