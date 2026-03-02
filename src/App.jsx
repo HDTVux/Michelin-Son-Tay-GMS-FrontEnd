@@ -29,7 +29,12 @@ import { cleanupExpiredTokens } from './services/tokenUtils.js';
 import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 import DailySchedule from './pages/DashBoard/DailySchedule/DailySchedule.jsx';
 import EditCustomerProfile from './pages/DashBoard/CustomerProfile/EditCustomerProfile.jsx';
+import CustomerList from './pages/DashBoard/CustomerProfile/CustomerList.jsx';
 import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.jsx';
+import CustomerRegister from './pages/Register/CustomerRegister.jsx';
+import StaffRegister from './pages/Register/StaffRegister.jsx';
+import CustomerDashboard from './pages/Dashboard/CustomerDashboard.jsx';
+import StaffDashboard from './pages/Dashboard/StaffDashboard.jsx';
 export default function App() {
   useEffect(() => {
     cleanupExpiredTokens();
@@ -51,10 +56,13 @@ export default function App() {
           <Route path="my-bookings" element={<MyBookings />} />
           <Route path="booking-detail/:id" element={<BookingDetail />} />
           <Route path="edit-booking/:id" element={<EditBooking />} />
+          <Route path="customer-dashboard" element={<CustomerDashboard />} />
+          <Route path="customer-register" element={<CustomerRegister />} />
 
         </Route>
         {/* Nhóm trang dashboard nhân viên dùng SideBar */}
         <Route element={<StaffLayout />}>
+          <Route path="staff-dashboard" element={<StaffDashboard />} />
           <Route path="booking-request-management" element={<BookingManagement />} />
           <Route path="booking-management" element={<ConfirmedBookingManagement />} />
           <Route path="booking-management/:id" element={<ConfirmedBookingDetail />} />
@@ -66,8 +74,10 @@ export default function App() {
           <Route path="staff-manage-sso" element={<StaffManageSSO />} />
           <Route path="check-in" element={<CheckIn />} />
           <Route path="daily-schedule" element={<DailySchedule />} />
-          <Route path="customer-profile/:customerId" element={<EditCustomerProfile />} />
+          <Route path="customer-profile" element={<CustomerList />} />
+          <Route path="customer-profile/edit/:customerId" element={<EditCustomerProfile />} />
           <Route path="staff-attendance" element={<StaffAttendance />} />
+          <Route path="staff-register" element={<StaffRegister />} />
         </Route>
         <Route path="login" element={<Login />} />
         <Route path="forgot-password" element={<ForgotPassword />} />

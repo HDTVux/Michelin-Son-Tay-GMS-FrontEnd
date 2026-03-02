@@ -356,71 +356,71 @@ const UserProfile = () => {
           <div style={{ padding: '40px', textAlign: 'center' }}>Đang tải thông tin...</div>
         ) : (
           <>
-            <section className={infoStyles['personal-info-section']}>
-              <div className={infoStyles['info-card']}>
-                <div className={infoStyles['avatar-container']}>
+        <section className={infoStyles['personal-info-section']}>
+          <div className={infoStyles['info-card']}>
+            <div className={infoStyles['avatar-container']}>
                   {customerProfile.avatar ? (
                     <img src={customerProfile.avatar} alt="Avatar" className={infoStyles['avatar-image']} />
-                  ) : (
-                    <div className={infoStyles['avatar-placeholder']}>
-                      <span className={infoStyles['avatar-icon']}>👤</span>
-                    </div>
-                  )}
+              ) : (
+                <div className={infoStyles['avatar-placeholder']}>
+                  <span className={infoStyles['avatar-icon']}>👤</span>
                 </div>
-                <div className={infoStyles['info-details']}>
-                  <div className={infoStyles['info-header']}>
+              )}
+            </div>
+            <div className={infoStyles['info-details']}>
+              <div className={infoStyles['info-header']}>
                     <h2 className={infoStyles['user-name']}>{customerProfile.fullName || 'Chưa cập nhật'}</h2>
                   </div>
                   <div className={infoStyles['info-row']}>
                     <span className={infoStyles['info-label']}>Họ và tên:</span>
                     <span className={infoStyles['info-value']}>{customerProfile.fullName || 'Chưa cập nhật'}</span>
-                  </div>
-                  <div className={infoStyles['info-row']}>
-                    <span className={infoStyles['info-label']}>Số điện thoại:</span>
+              </div>
+              <div className={infoStyles['info-row']}>
+                <span className={infoStyles['info-label']}>Số điện thoại:</span>
                     <span className={infoStyles['info-value']}>{customerProfile.phone || 'Chưa cập nhật'}</span>
-                  </div>
-                  <div className={infoStyles['info-row']}>
-                    <span className={infoStyles['info-label']}>Email:</span>
+              </div>
+              <div className={infoStyles['info-row']}>
+                <span className={infoStyles['info-label']}>Email:</span>
                     <span className={infoStyles['info-value']}>{customerProfile.email || 'Chưa cập nhật'}</span>
                   </div>
                   <div className={infoStyles['info-row']}>
                     <span className={infoStyles['info-label']}>Ngày sinh:</span>
                     <span className={infoStyles['info-value']}>{formatDate(customerProfile.dob) || 'Chưa cập nhật'}</span>
-                  </div>
-                  <div className={infoStyles['info-row']}>
-                    <span className={infoStyles['info-label']}>Giới tính:</span>
+              </div>
+              <div className={infoStyles['info-row']}>
+                <span className={infoStyles['info-label']}>Giới tính:</span>
                     <span className={infoStyles['info-value']}>{getGenderLabel(customerProfile.gender)}</span>
-                  </div>
-                </div>
               </div>
-            </section>
+            </div>
+          </div>
+        </section>
 
-            <section className={statsStyles['stats-section']}>
-              <h2 className={statsStyles['section-title']}>Thống kê sử dụng dịch vụ</h2>
-              <div className={statsStyles['stats-grid']}>
-                <div className={`${statsStyles['stat-card']} ${statsStyles['white']}`}>
-                  <div className={statsStyles['stat-icon']}>📊</div>
-                  <div className={statsStyles['stat-label']}>Tổng số lần sử dụng dịch vụ</div>
-                  <div className={`${statsStyles['stat-value']} ${statsStyles['blue']}`}>{stats.totalServices}</div>
-                </div>
-                <div className={`${statsStyles['stat-card']} ${statsStyles['blue']}`}>
-                  <div className={statsStyles['stat-icon']}>💰</div>
-                  <div className={statsStyles['stat-label']}>Tổng tiền tích lũy</div>
-                  <div className={`${statsStyles['stat-value']} ${statsStyles['white']}`}>{stats.totalAmount.toLocaleString('vi-VN')} ₫</div>
-                </div>
-              </div>
-            </section>
+        <section className={statsStyles['stats-section']}>
+          <h2 className={statsStyles['section-title']}>Thống kê sử dụng dịch vụ</h2>
+          <div className={statsStyles['stats-grid']}>
+            <div className={`${statsStyles['stat-card']} ${statsStyles['white']}`}>
+              <div className={statsStyles['stat-icon']}>📊</div>
+              <div className={statsStyles['stat-label']}>Tổng số lần sử dụng dịch vụ</div>
+              <div className={`${statsStyles['stat-value']} ${statsStyles['blue']}`}>{stats.totalServices}</div>
+            </div>
+            <div className={`${statsStyles['stat-card']} ${statsStyles['blue']}`}>
+              <div className={statsStyles['stat-icon']}>💰</div>
+              <div className={statsStyles['stat-label']}>Tổng tiền tích lũy</div>
+              <div className={`${statsStyles['stat-value']} ${statsStyles['white']}`}>{stats.totalAmount.toLocaleString('vi-VN')} ₫</div>
+            </div>
+          </div>
+        </section>
 
-            <section className={actionsStyles['quick-actions-section']}>
+        <section className={actionsStyles['quick-actions-section']}>
               <h2 className={statsStyles['section-title']}>Tiện ích nhanh</h2>
-              <div className={actionsStyles['actions-grid']}>
-                {quickActions.map((action) => (
+          <div className={actionsStyles['actions-grid']}>
+            {quickActions.map((action) => (
                   action.link ? (
-                    <Link key={action.id} to={action.link} className={actionsStyles['action-card']}>
-                      <div className={actionsStyles['action-icon']}>{action.icon}</div>
-                      <h3 className={actionsStyles['action-title']}>{action.title}</h3>
-                      <p className={actionsStyles['action-description']}>{action.description}</p>
-                    </Link>
+              <Link key={action.id} to={action.link} className={actionsStyles['action-card']}>
+                <div className={actionsStyles['action-icon']}>{action.icon}</div>
+                <h3 className={actionsStyles['action-title']}>{action.title}</h3>
+                <p className={actionsStyles['action-description']}>{action.description}</p>
+              </Link>
                   ) : (
                     <div
                       key={action.id}
@@ -433,9 +433,9 @@ const UserProfile = () => {
                       <p className={actionsStyles['action-description']}>{action.description}</p>
                     </div>
                   )
-                ))}
-              </div>
-            </section>
+            ))}
+          </div>
+        </section>
           </>
         )}
       </div>
@@ -806,7 +806,7 @@ const UserProfile = () => {
                 Đóng
               </button>
             </div>
-          </div>
+      </div>
         </div>
       )}
     </div>

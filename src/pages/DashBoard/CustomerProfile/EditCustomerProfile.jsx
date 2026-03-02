@@ -12,16 +12,8 @@ const EditCustomerProfile = () => {
     fullName: '',
     email: '',
     phone: '',
-    alternatePhone: '',
-    gender: 'male',
+    gender: 'MALE',
     dateOfBirth: '',
-    address: '',
-    city: '',
-    district: '',
-    ward: '',
-    status: 'active',
-    customerType: 'regular',
-    notes: '',
     loyaltyPoints: 0,
     totalBookings: 0,
     registeredDate: '',
@@ -34,21 +26,16 @@ const EditCustomerProfile = () => {
   // Load customer data
   useEffect(() => {
     // TODO: Fetch customer data from API
+    // const token = localStorage.getItem('staffToken');
+    // const response = await fetchCustomerProfile(customerId, token);
+    
     // Mock data for now
     setFormData({
       fullName: 'Nguyễn Văn A',
       email: 'user@example.com',
       phone: '0912345678',
-      alternatePhone: '',
-      gender: 'male',
+      gender: 'MALE',
       dateOfBirth: '1990-01-15',
-      address: '123 Đường ABC',
-      city: 'Hà Nội',
-      district: 'Sơn Tây',
-      ward: 'Phường 1',
-      status: 'active',
-      customerType: 'vip',
-      notes: 'Khách hàng thân thiết, ưu tiên phục vụ',
       loyaltyPoints: 1250,
       totalBookings: 15,
       registeredDate: '2024-01-01',
@@ -97,10 +84,6 @@ const EditCustomerProfile = () => {
       newErrors.phone = 'Số điện thoại không hợp lệ';
     }
 
-    if (formData.alternatePhone && !/^[0-9]{10}$/.test(formData.alternatePhone.replace(/\s/g, ''))) {
-      newErrors.alternatePhone = 'Số điện thoại không hợp lệ';
-    }
-
     if (!formData.dateOfBirth) {
       newErrors.dateOfBirth = 'Vui lòng chọn ngày sinh';
     }
@@ -124,7 +107,7 @@ const EditCustomerProfile = () => {
       
       setShowSuccess(true);
       setTimeout(() => {
-        navigate(`/customer-profile/${customerId}`);
+        navigate('/customer-profile');
       }, 1500);
     } catch (error) {
       console.error('Error updating customer:', error);
@@ -135,12 +118,7 @@ const EditCustomerProfile = () => {
   };
 
   const handleCancel = () => {
-    navigate(`/customer-profile/${customerId}`);
-  };
-
-  const handleUpdatePhone = () => {
-    // TODO: Implement phone update with verification
-    alert('Tính năng cập nhật số điện thoại với xác thực OTP');
+    navigate('/customer-profile');
   };
 
   return (
@@ -183,18 +161,17 @@ const EditCustomerProfile = () => {
 
                 <div className={styles.formGroup}>
                   <label className={styles.label}>
-                    Giới tính <span className={styles.required}>*</span>
+                    Số điện thoại <span className={styles.required}>*</span>
                   </label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
                     onChange={handleChange}
-                    className={styles.select}
-                  >
-                    <option value="male">Nam</option>
-                    <option value="female">Nữ</option>
-                    <option value="other">Khác</option>
-                  </select>
+                    className={`${styles.input} ${errors.phone ? styles.inputError : ''}`}
+                    placeholder="0912345678"
+                  />
+                  {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                 </div>
 
                 <div className={styles.formGroup}>
@@ -217,6 +194,22 @@ const EditCustomerProfile = () => {
 
                 <div className={styles.formGroup}>
                   <label className={styles.label}>
+                    Giới tính <span className={styles.required}>*</span>
+                  </label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleChange}
+                    className={styles.select}
+                  >
+                    <option value="MALE">Nam</option>
+                    <option value="FEMALE">Nữ</option>
+                    <option value="OTHER">Khác</option>
+                  </select>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
                     Ngày sinh <span className={styles.required}>*</span>
                   </label>
                   <input
@@ -229,157 +222,6 @@ const EditCustomerProfile = () => {
                   />
                   {errors.dateOfBirth && <span className={styles.errorText}>{errors.dateOfBirth}</span>}
                 </div>
-              </div>
-            </div>
-
-            {/* Thông tin liên hệ */}
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h2 className={styles.cardTitle}>Thông tin liên hệ</h2>
-              </div>
-
-              <div className={styles.formGrid}>
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    Số điện thoại <span className={styles.required}>*</span>
-                  </label>
-                  <div className={styles.phoneGroup}>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className={`${styles.input} ${errors.phone ? styles.inputError : ''}`}
-                      placeholder="0912345678"
-                    />
-                    <button
-                      type="button"
-                      className={styles.updatePhoneBtn}
-                      onClick={handleUpdatePhone}
-                    >
-                      Cập nhật thành công
-                    </button>
-                  </div>
-                  {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
-                  <span className={styles.helperText}>Số điện thoại không hợp lệ</span>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Số điện thoại phụ</label>
-                  <input
-                    type="tel"
-                    name="alternatePhone"
-                    value={formData.alternatePhone}
-                    onChange={handleChange}
-                    className={`${styles.input} ${errors.alternatePhone ? styles.inputError : ''}`}
-                    placeholder="Số điện thoại dự phòng"
-                  />
-                  {errors.alternatePhone && <span className={styles.errorText}>{errors.alternatePhone}</span>}
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Địa chỉ</label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    className={styles.input}
-                    placeholder="Số nhà, tên đường"
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Thành phố/Tỉnh</label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                    className={styles.input}
-                    placeholder="Hà Nội"
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Quận/Huyện</label>
-                  <input
-                    type="text"
-                    name="district"
-                    value={formData.district}
-                    onChange={handleChange}
-                    className={styles.input}
-                    placeholder="Sơn Tây"
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Phường/Xã</label>
-                  <input
-                    type="text"
-                    name="ward"
-                    value={formData.ward}
-                    onChange={handleChange}
-                    className={styles.input}
-                    placeholder="Phường 1"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Trạng thái tài khoản */}
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h2 className={styles.cardTitle}>Trạng thái tài khoản</h2>
-              </div>
-
-              <div className={styles.formGrid}>
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Trạng thái</label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    className={styles.select}
-                  >
-                    <option value="active">Active - Hoạt động</option>
-                    <option value="inactive">Inactive - Tạm ngưng</option>
-                    <option value="blocked">Blocked - Đã khóa</option>
-                  </select>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Loại khách hàng</label>
-                  <select
-                    name="customerType"
-                    value={formData.customerType}
-                    onChange={handleChange}
-                    className={styles.select}
-                  >
-                    <option value="regular">Regular - Thường</option>
-                    <option value="vip">VIP - Thân thiết</option>
-                    <option value="premium">Premium - Cao cấp</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Ghi chú nội bộ */}
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h2 className={styles.cardTitle}>Ghi chú nội bộ</h2>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Ghi chú</label>
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleChange}
-                  className={styles.textarea}
-                  rows={4}
-                  placeholder="Ghi chú về khách hàng..."
-                />
               </div>
             </div>
 
