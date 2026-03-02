@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchPendingBookingRequests } from '../../../services/bookingService.js';
 import { combineDateTime, formatDateTimeVi, formatTimeHHmm } from '../../../components/timeUtils.js';
-import { getBookingStatusTextVi } from '../../../components/statusUtils.js';
+import { getBookingStatusTextVi, getBookingStatusTone } from '../../../components/statusUtils.js';
 
 export default function BookingManagement() {
     // Tự động cuộn trang lên đầu khi component này được mount
@@ -84,13 +84,6 @@ function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLo
     // Tạo class CSS động dựa trên "tone" (ví dụ: booking-card--warning)
     const toneClass = styles['booking-card--' + tone];
 
-    // Dùng useMemo để tránh tạo lại object này mỗi khi component render lại
-    const statusToneMap = useMemo(() => ({
-        PENDING: 'warning',
-        CONTACTED: 'info',
-        DEFAULT: 'info',
-    }), []);
-
     return (
         <section className={`${styles['booking-card']} ${toneClass}`}>
             {/* --- HEADER CỦA CARD --- */}
@@ -156,8 +149,8 @@ function PendingPanel({ title, icon, tone, data, actionLabel, onViewDetail, isLo
                         
                         {/* 3. Render danh sách yêu cầu */}
                         {!isLoading && data.map((item) => {
-                            // Lấy màu sắc badge dựa trên trạng thái của item
-                            const tone = statusToneMap[item?.status] || statusToneMap.DEFAULT;
+                            // Lấy màu sắc badge dựa trên trạng thái của item (qua statusUtils)
+                            const tone = getBookingStatusTone(item?.status, 'info');
                             return (
                                 <tr key={item.requestId || item.id}>
                                     <td className={styles['link-cell']}>{item.requestId || item.id || '-'}</td>

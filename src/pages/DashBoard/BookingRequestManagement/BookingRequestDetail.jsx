@@ -1,29 +1,34 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import styles from './BookingRequestDetail.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import SchedulePanel from './SchedulePanel.jsx';
 import ConfirmContact from './ConfirmContact.jsx';
 import ConfirmBooking from './ConfirmBooking.jsx';
 import DeclineBooking from './DeclineBooking.jsx';
-import { Link } from 'react-router-dom';
 import MarkSpam from './MarkSpam.jsx';
-import { confirmBookingRequest, fetchBookingRequestDetail } from '../../../services/bookingService.js';
+import { toast } from 'react-toastify';
+import { cancelBookingRequest, confirmBookingRequest, contactedBookingRequest, fetchBookingRequestDetail, spamBookingRequest } from '../../../services/bookingService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
-import { getBookingStatusTextVi } from '../../../components/statusUtils.js';
+import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
 
 /**
  * Hiển thị một dòng thông tin gồm nhãn (label) và giá trị (value).
  * Tái sử dụng code, giúp giao diện đồng nhất và dễ quản lý link (tel, mail).
  */
 function InfoRow({ label, value, link, type, extraAction, full }) {
-  const rendered = link ? (
-    <a className={styles.link} href={type === 'tel' ? `tel:${value}` : type === 'mailto' ? `mailto:${value}` : '#'}>
-      {value}
-    </a>
-  ) : (
-    <span className={styles.value}>{value}</span>
-  );
+  const safeValue = value == null ? '' : String(value);
+  const href = (() => {
+    if (!link) return '';
+    if (type === 'tel' && safeValue) return `tel:${safeValue}`;
+    if (type === 'mailto' && safeValue) return `mailto:${safeValue}`;
+    return '';
+  })();
+
+  let rendered;
+  if (href) rendered = <a className={styles.link} href={href}>{safeValue}</a>;
+  else if (link) rendered = <span className={styles.link}>{safeValue}</span>;
+  else rendered = <span className={styles.value}>{safeValue}</span>;
 
   return (
     <div className={`${styles.infoBox} ${full ? styles.full : ''}`}>
@@ -43,7 +48,8 @@ function mapBooking(apiData) {
     ? apiData.services.map((s) => s?.itemName || s?.itemType).filter(Boolean)
     : [];
 
-  const status = apiData.status || 'PENDING';
+  const rawStatus = apiData.status || 'PENDING';
+  const status = normalizeStatusCode(rawStatus) || 'PENDING';
   const statusTone = mapStatusTone(status);
 
   return {
@@ -68,8 +74,8 @@ function mapStatusTone(status) {
   const upper = (status || '').toUpperCase();
   if (upper === 'PENDING') return 'warning';
   if (upper === 'CONTACTED') return 'info';
-  if (upper === 'APPROVED' ||  upper === 'CONFIRMED') return 'success';
-  if (upper === 'CANCELLED' || upper === 'REJECTED') return 'danger';
+  if (upper === 'APPROVED' || upper === 'CONFIRM' || upper === 'CONFIRMED') return 'success';
+  if (upper === 'CANCEL' || upper === 'CANCELLED' || upper === 'CANCELED' || upper === 'SPAM') return 'danger';
   return 'info';
 }
 export default function BookingRequestDetail() {
@@ -81,8 +87,31 @@ export default function BookingRequestDetail() {
 
   const [booking, setBooking] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [_isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const notify = (message) => toast(message, { containerId: 'app-toast' });
+
+  const statusUpper = useMemo(() => String(booking?.status || '').toUpperCase(), [booking?.status]);
+
+  const isSpam = useMemo(() => statusUpper === 'SPAM', [statusUpper]);
+
+  const isCancelled = useMemo(() => {
+    return ['CANCEL', 'CANCELLED', 'CANCELED'].includes(statusUpper);
+  }, [statusUpper]);
+
+  const isConfirmed = useMemo(() => {
+    return ['CONFIRM', 'CONFIRMED', 'APPROVED'].includes(statusUpper);
+  }, [statusUpper]);
+
+  const isContacted = useMemo(() => {
+    return statusUpper === 'CONTACTED';
+  }, [statusUpper]);
+
+  const canConfirm = useMemo(() => {
+    // Khi đã confirm/approved thì không hiển thị nút duyệt nữa
+    return !['CONFIRM', 'CONFIRMED', 'APPROVED'].includes(statusUpper);
+  }, [statusUpper]);
 
   //Tách biệt các hành động để tránh nhầm lẫn và yêu cầu xác nhận trước khi thay đổi dữ liệu quan trọng.
   const [openContact, setOpenContact] = useState(false); // Modal đánh dấu đã liên hệ
@@ -130,6 +159,94 @@ export default function BookingRequestDetail() {
     } catch (err) {
       const msg = err?.message || 'Duyệt yêu cầu thất bại.';
       setError(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelRequest = async ({ reason, detail }) => {
+    if (!booking?.id) return;
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      setError('Vui lòng đăng nhập để hủy yêu cầu.');
+      return;
+    }
+
+    const payload = {
+      reason: String(reason || '').trim(),
+      note: String(detail || '').trim(),
+    };
+
+    if (!payload.reason) return;
+
+    try {
+      setIsSubmitting(true);
+      setError('');
+      const res = await cancelBookingRequest(booking.id, payload, token);
+      notify(res?.message || res?.data?.message || 'Hủy yêu cầu thành công.');
+      setOpenDecline(false);
+      await loadDetail(token, booking.id);
+    } catch (err) {
+      setError(err?.message || 'Hủy yêu cầu thất bại.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSpamRequest = async ({ reason, detail }) => {
+    if (!booking?.id || isSubmitting) return;
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setError('Vui lòng đăng nhập để đánh dấu spam.');
+      return;
+    }
+
+    const payload = {
+      reason: String(reason || '').trim(),
+      note: String(detail || '').trim(),
+    };
+
+    if (!payload.reason) return;
+
+    try {
+      setIsSubmitting(true);
+      setError('');
+      const res = await spamBookingRequest(booking.id, payload, token);
+      notify(res?.message || res?.data?.message || 'Đã đánh dấu spam.');
+      setOpenSpam(false);
+      await loadDetail(token, booking.id);
+    } catch (err) {
+      setError(err?.message || 'Đánh dấu spam thất bại.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleContactedRequest = async (note) => {
+    if (!booking?.id || isSubmitting) return;
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setError('Vui lòng đăng nhập để đánh dấu đã liên hệ.');
+      return;
+    }
+
+    const payload = {
+      reason: 'Đã liên hệ',
+      note: String(note || '').trim(),
+    };
+
+    try {
+      setIsSubmitting(true);
+      setError('');
+      const res = await contactedBookingRequest(booking.id, payload, token);
+      notify(res?.message || res?.data?.message || 'Đã đánh dấu đã liên hệ.');
+      setOpenContact(false);
+      await loadDetail(token, booking.id);
+    } catch (err) {
+      setError(err?.message || 'Đánh dấu đã liên hệ thất bại.');
     } finally {
       setIsSubmitting(false);
     }
@@ -194,7 +311,7 @@ export default function BookingRequestDetail() {
                   type="tel"
                   extraAction={booking.phone ? <a className={styles.callButton} href={`tel:${booking.phone}`}>Gọi ngay</a> : null}
                 />
-                <InfoRow label="Loại khách hàng" value={booking.customerType || '-'} />
+                             
                 <InfoRow label="Email" value={booking.email || '-'} link type="mailto" />
                 <InfoRow label="Lịch sử" value={booking.history || '-'} link />
                 <InfoRow label="Dịch vụ đã chọn" value={booking.servicesDisplay} full />
@@ -221,11 +338,70 @@ export default function BookingRequestDetail() {
             </section>
 
             <div className={styles.actionsRow}>
-              <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => setOpenDecline(true)}>Hủy lịch</button>
-              <Link className={`${styles.actionBtn} ${styles.purple}`} to={`/booking-request-management/${booking.id}/edit`}>Chỉnh sửa</Link>
-              <button className={`${styles.actionBtn} ${styles.warning}`} onClick={() => setOpenSpam(true)}>Đánh dấu spam</button>
-              <button className={`${styles.actionBtn} ${styles.info}`} onClick={() => setOpenContact(true)}>Đánh dấu đã liên hệ</button>
-              <button className={`${styles.actionBtn} ${styles.success}`} onClick={() => setOpenConfirm(true)}>Duyệt yêu cầu</button>
+              {/* Quy tắc hiển thị nút theo trạng thái:
+                  - PENDING: hiện tất cả
+                  - CONFIRM/APPROVED: chỉ hiện Hủy lịch + Đánh dấu spam
+                  - CANCEL: chỉ hiện Đánh dấu spam
+                  - SPAM: không hiện nút nào */}
+              {!isSpam && isCancelled && (
+                <button className={`${styles.actionBtn} ${styles.warning}`} onClick={() => setOpenSpam(true)}>
+                  Đánh dấu spam
+                </button>
+              )}
+
+              {!isSpam && !isCancelled && isConfirmed && (
+                <>
+                  <button
+                    className={`${styles.actionBtn} ${styles.danger}`}
+                    onClick={() => setOpenDecline(true)}
+                    disabled={isSubmitting}
+                  >
+                    Hủy lịch
+                  </button>
+                  <button className={`${styles.actionBtn} ${styles.warning}`} onClick={() => setOpenSpam(true)}>
+                    Đánh dấu spam
+                  </button>
+                </>
+              )}
+
+              {!isSpam && !isCancelled && !isConfirmed && (
+                <>
+                  <button
+                    className={`${styles.actionBtn} ${styles.danger}`}
+                    onClick={() => setOpenDecline(true)}
+                    disabled={isSubmitting}
+                  >
+                    Hủy lịch
+                  </button>
+                  {canConfirm && (
+                    <Link
+                      className={`${styles.actionBtn} ${styles.purple}`}
+                      to={`/booking-request-management/${booking.id}/edit`}
+                    >
+                      Chỉnh sửa
+                    </Link>
+                  )}
+                  <button className={`${styles.actionBtn} ${styles.warning}`} onClick={() => setOpenSpam(true)}>
+                    Đánh dấu spam
+                  </button>
+                  <button
+                    className={`${styles.actionBtn} ${styles.info}`}
+                    onClick={() => setOpenContact(true)}
+                    disabled={isSubmitting || isContacted}
+                  >
+                    {isContacted ? 'Đã liên hệ' : 'Đánh dấu đã liên hệ'}
+                  </button>
+                  {canConfirm && (
+                    <button
+                      className={`${styles.actionBtn} ${styles.success}`}
+                      onClick={() => setOpenConfirm(true)}
+                      disabled={isSubmitting}
+                    >
+                      Duyệt yêu cầu
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
 
@@ -240,12 +416,10 @@ export default function BookingRequestDetail() {
       
 
       <ConfirmContact
+        key={`${booking?.id || 'req'}:${openContact ? 'open' : 'closed'}`}
         open={openContact}
         onClose={() => setOpenContact(false)}
-        onConfirm={(note) => {
-          console.log('Đã lưu ghi chú liên hệ:', note);
-          setOpenContact(false);
-        }}
+        onConfirm={handleContactedRequest}
       />
 
       {booking && (
@@ -265,20 +439,14 @@ export default function BookingRequestDetail() {
       <DeclineBooking
         open={openDecline}
         onClose={() => setOpenDecline(false)}
-        onConfirm={(data) => {
-          console.log('Lý do hủy:', data);
-          setOpenDecline(false);
-        }}
+        onConfirm={handleCancelRequest}
       />
 
 
       <MarkSpam
         open={openSpam}
         onClose={() => setOpenSpam(false)}
-        onConfirm={(data) => {
-          console.log('Đã đánh dấu spam:', data);
-          setOpenSpam(false);
-        }}
+        onConfirm={handleSpamRequest}
       />
     </div>
   );

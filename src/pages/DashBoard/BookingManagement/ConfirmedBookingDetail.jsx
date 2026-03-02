@@ -5,7 +5,7 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import SchedulePanel from '../BookingRequestManagement/SchedulePanel.jsx';
 import { fetchManagedBookingDetail } from '../../../services/bookingService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
-import { getBookingStatusTextVi } from '../../../components/statusUtils.js';
+import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
 
 function InfoRow({ label, value, link, type, extraAction, full }) {
   const rendered = link ? (
@@ -35,7 +35,7 @@ function mapStatusTone(status) {
   if (upper === 'APPROVED' || upper === 'CONFIRMED' || upper === 'CONFIRM') return 'success';
   if (upper === 'IN_PROGRESS' || upper === 'PROCESSING') return 'info';
   if (upper === 'COMPLETED' || upper === 'DONE') return 'success';
-  if (upper === 'CANCELLED' || upper === 'CANCELED' || upper === 'REJECTED' || upper === 'DECLINED') return 'danger';
+  if (upper === 'CANCEL' || upper === 'CANCELLED' || upper === 'CANCELED') return 'danger';
   return 'info';
 }
 
@@ -45,7 +45,8 @@ function mapBooking(apiData) {
   const items = Array.isArray(apiData.items) ? apiData.items : [];
   const services = items.map((s) => s?.itemName || s?.itemType).filter(Boolean);
 
-  const status = apiData.status || 'NEW';
+  const rawStatus = apiData.status || 'NEW';
+  const status = normalizeStatusCode(rawStatus) || 'NEW';
   const statusTone = mapStatusTone(status);
 
   return {
@@ -161,8 +162,7 @@ export default function ConfirmedBookingDetail() {
                       </a>
                     ) : null
                   }
-                />
-                <InfoRow label="Loại khách hàng" value={booking.customerType || '-'} />
+                />               
                 <InfoRow label="Lịch sử" value={booking.history || '-'} link />
                 <InfoRow label="Dịch vụ đã chọn" value={booking.servicesDisplay} full />
               </div>
