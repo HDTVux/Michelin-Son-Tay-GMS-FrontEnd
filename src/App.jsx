@@ -10,9 +10,6 @@ import About from './pages/About/About.jsx';
 import ForgotPassword from './features/auth/forgot-password/ForgotPassword.jsx';
 import Booking from './pages/Booking/Booking.jsx';
 import UserProfile from './pages/UserProfile/UserProfile.jsx';
-import ManageProfile from './pages/UserProfile/ManageProfile.jsx';
-import AccountSecurity from './pages/UserProfile/AccountSecurity.jsx';
-import LinkedAccounts from './pages/UserProfile/LinkedAccounts.jsx';
 import MyBookings from './pages/MyBookings/MyBookings.jsx';
 import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
 import EditBooking from './pages/EditBooking/EditBooking.jsx';
@@ -51,9 +48,6 @@ export default function App() {
           <Route path="customer-login" element={<CustomerLogin />} />
           <Route path="booking" element={<Booking />} />
           <Route path="user-profile" element={<UserProfile />} />
-          <Route path="manage-profile" element={<ManageProfile />} />
-          <Route path="account-security" element={<AccountSecurity />} />
-          <Route path="linked-accounts" element={<LinkedAccounts />} />
           <Route path="my-bookings" element={<MyBookings />} />
           <Route path="booking-detail/:id" element={<BookingDetail />} />
           <Route path="edit-booking/:id" element={<EditBooking />} />

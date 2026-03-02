@@ -36,9 +36,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #005aa9 0%, #0084ff 100%);
+  background: white;
   border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.2);
+  border: 2px solid #e5e7eb;
 }
 
 .action-title {
