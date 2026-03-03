@@ -75,7 +75,7 @@ function mapStatusTone(status) {
   if (upper === 'PENDING') return 'warning';
   if (upper === 'CONTACTED') return 'info';
   if (upper === 'APPROVED' || upper === 'CONFIRM' || upper === 'CONFIRMED') return 'success';
-  if (upper === 'CANCEL' || upper === 'CANCELLED' || upper === 'CANCELED' || upper === 'SPAM') return 'danger';
+  if (upper === 'REJECTED' || upper === 'CANCEL' || upper === 'CANCELLED' || upper === 'CANCELED' || upper === 'SPAM') return 'danger';
   return 'info';
 }
 export default function BookingRequestDetail() {
@@ -97,7 +97,9 @@ export default function BookingRequestDetail() {
   const isSpam = useMemo(() => statusUpper === 'SPAM', [statusUpper]);
 
   const isCancelled = useMemo(() => {
-    return ['CANCEL', 'CANCELLED', 'CANCELED'].includes(statusUpper);
+    // Backend mới dùng REJECTED cho BookingRequestStatus.
+    // Giữ CANCEL* để tương thích ngược nếu API cũ còn trả.
+    return ['REJECTED', 'CANCEL', 'CANCELLED', 'CANCELED'].includes(statusUpper);
   }, [statusUpper]);
 
   const isConfirmed = useMemo(() => {
@@ -341,7 +343,7 @@ export default function BookingRequestDetail() {
               {/* Quy tắc hiển thị nút theo trạng thái:
                   - PENDING: hiện tất cả
                   - CONFIRM/APPROVED: chỉ hiện Hủy lịch + Đánh dấu spam
-                  - CANCEL: chỉ hiện Đánh dấu spam
+                  - REJECTED: chỉ hiện Đánh dấu spam
                   - SPAM: không hiện nút nào */}
               {!isSpam && isCancelled && (
                 <button className={`${styles.actionBtn} ${styles.warning}`} onClick={() => setOpenSpam(true)}>

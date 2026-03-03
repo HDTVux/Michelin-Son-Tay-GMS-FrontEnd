@@ -39,7 +39,7 @@ export default function BussinessInfor() {
 						<div className="contactIconCircle">✉</div>
 						<div className="contactItemBody">
 							<div className="contactItemTitle">Email</div>
-							<div className="contactItemText">info@michelin.com</div>
+							<div className="contactItemText">minhanhauto.sontay@gmail.com</div>
 						</div>
 					</div>
 

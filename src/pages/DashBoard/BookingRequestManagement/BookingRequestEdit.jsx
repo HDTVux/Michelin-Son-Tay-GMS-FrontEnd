@@ -18,7 +18,7 @@ function mapStatusTone(status) {
   if (upper === 'PENDING') return 'warning';
   if (upper === 'CONTACTED') return 'info';
   if (upper === 'APPROVED' || upper === 'CONFIRM' || upper === 'CONFIRMED') return 'success';
-  if (upper === 'CANCEL' || upper === 'CANCELLED' || upper === 'CANCELED' || upper === 'SPAM') return 'danger';
+  if (upper === 'REJECTED' || upper === 'CANCEL' || upper === 'CANCELLED' || upper === 'CANCELED' || upper === 'SPAM') return 'danger';
   return 'info';
 }
 

@@ -5,6 +5,7 @@ const STATUS_TEXT_VI = {
   CONFIRM: 'Đã xác nhận',
   CONFIRMED: 'Đã xác nhận',
   APPROVED: 'Đã xác nhận',
+  REJECTED: 'Từ chối',
   CANCEL: 'Đã hủy',
   CANCELLED: 'Đã hủy',
   CANCELED: 'Đã hủy',
@@ -23,8 +24,8 @@ function normalizeStatus(status) {
 }
 
 function normalizeStatusCodeUpper(upper) {
-  // Backward-compatible aliases treated as canceled
-  if (upper === 'REJECT' || upper === 'REJECTED' || upper === 'DECLINED') return 'CANCELLED';
+  // Backward-compatible aliases treated as rejected
+  if (upper === 'REJECT' || upper === 'DECLINED') return 'REJECTED';
   if (upper === 'CANCEL') return 'CANCELLED';
   return upper;
 }
@@ -81,6 +82,7 @@ export function getStatusTone(status, fallback = 'info') {
 
   // Cancel variants
   if (
+    upper === 'REJECTED' ||
     upper === 'CANCELLED' ||
     upper === 'CANCELED' ||
     upper === 'SPAM'
