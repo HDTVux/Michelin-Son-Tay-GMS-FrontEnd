@@ -32,6 +32,56 @@
   transition: transform 0.2s ease;
 }
 
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerHotline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.headerHotline:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: translateY(-1px);
+}
+
+.headerHotline:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.headerHotlineIcon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.headerHotlineLabel {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+.headerHotlineText {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
 .headerLogo {
   display: flex;
   align-items: center;
@@ -360,6 +410,15 @@
     display: flex;
   }
 
+  .headerHotline {
+    padding: 8px 10px;
+  }
+
+  .headerHotlineLabel,
+  .headerHotlineText {
+    display: none;
+  }
+
   .headerNav {
     position: fixed;
     top: 70px;
@@ -471,6 +530,10 @@
 
   .headerLogo {
     font-size: 18px;
+  }
+
+  .headerHotline {
+    padding: 7px 9px;
   }
 
   .headerNav {

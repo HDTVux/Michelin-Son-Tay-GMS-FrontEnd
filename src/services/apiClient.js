@@ -38,7 +38,7 @@ async function request(path, options = {}) {
   // 2. Kiểm tra kiểu nội dung trả về từ Server (JSON hay Text)
   const contentType = response.headers.get('content-type');
   let data;
-  if (contentType && contentType.includes('application/json')) {
+  if (contentType?.includes('application/json')) {
     data = await response.json(); // Giải mã JSON
   } else {
     data = await response.text(); // Đọc dạng chuỗi thuần túy
@@ -50,6 +50,7 @@ async function request(path, options = {}) {
 		// Token hết hạn hoặc không hợp lệ: xóa token
 		if (response.status === 401 || response.status === 403) {
       ['authToken', 'customerToken', 'staffToken', 'adminToken'].forEach((key) => localStorage.removeItem(key));
+      ['staffRoles', 'staffProfile'].forEach((key) => localStorage.removeItem(key));
 		}
     // Lấy thông báo lỗi từ dữ liệu trả về hoặc dùng thông báo mặc định
     const message = typeof data === 'string' ? data : data?.message || 'Request failed';
