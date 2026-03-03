@@ -44,15 +44,31 @@ export const fetchAllSlots = (token) =>
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 
-// Lấy danh sách yêu cầu booking chưa duyệt cho màn quản lý
-export const fetchPendingBookingRequests = (token) => {
+// Lấy danh sách booking request cho màn quản lý (có phân trang / tìm kiếm / lọc)
+// Params backend: page, size, date (yyyy-mm-dd), isGuest (boolean), status, search
+export const fetchBookingRequests = (params, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để xem danh sách yêu cầu.');
     error.status = 401;
     return Promise.reject(error);
   }
 
-  return request('/api/booking/manage/booking-request', {
+  const searchParams = new URLSearchParams();
+
+  const page = Number.isFinite(params?.page) ? params.page : 0;
+  const size = Number.isFinite(params?.size) ? params.size : 10;
+  searchParams.set('page', String(page));
+  searchParams.set('size', String(size));
+
+  if (params?.date) searchParams.set('date', params.date);
+  if (typeof params?.isGuest === 'boolean') searchParams.set('isGuest', String(params.isGuest));
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.search) searchParams.set('search', params.search);
+
+  const qs = searchParams.toString();
+  const path = qs ? `/api/booking/manage/booking-request?${qs}` : '/api/booking/manage/booking-request';
+
+  return request(path, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -103,15 +119,32 @@ export const contactedBookingRequest = (requestId, payload, token) =>
     body: JSON.stringify(payload),
   });
 
-// Lấy danh sách booking đã được quản lý/đã confirm cho màn quản lý
-export const fetchManagedBookings = (token) => {
+
+// Lấy danh sách booking đã được quản lý (có phân trang / tìm kiếm / lọc)
+// Params backend: page, size, date (yyyy-mm-dd), isGuest (boolean), status, search
+export const fetchManagedBookingsPaged = (params, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để xem danh sách booking.');
     error.status = 401;
     return Promise.reject(error);
   }
 
-  return request('/api/booking/manage/booking', {
+  const searchParams = new URLSearchParams();
+
+  const page = Number.isFinite(params?.page) ? params.page : 0;
+  const size = Number.isFinite(params?.size) ? params.size : 10;
+  searchParams.set('page', String(page));
+  searchParams.set('size', String(size));
+
+  if (params?.date) searchParams.set('date', params.date);
+  if (typeof params?.isGuest === 'boolean') searchParams.set('isGuest', String(params.isGuest));
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.search) searchParams.set('search', params.search);
+
+  const qs = searchParams.toString();
+  const path = qs ? `/api/booking/manage/booking?${qs}` : '/api/booking/manage/booking';
+
+  return request(path, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });

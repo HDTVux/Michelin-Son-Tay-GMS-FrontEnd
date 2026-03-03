@@ -26,8 +26,12 @@ export default function Login() {
   const validatePhoneOrEmail = (value) => {
     if (!value) return 'Số điện thoại hoặc email là bắt buộc';
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailRegex.test(value)) return '';
-    if (value.replace(/\D/g, '').length < 6) return 'Số điện thoại không hợp lệ';
+    if (emailRegex.test(value)) {
+			return '';
+		}
+		if (value.replaceAll(/\D/g, '').length < 6) {
+			return 'Số điện thoại không hợp lệ';
+		}
     return '';
   };
 
@@ -83,6 +87,22 @@ export default function Login() {
       } else {
         localStorage.removeItem('staffRoles');
       }
+
+			// Lưu thông tin nhân viên đăng nhập để hiển thị (Sidebar, header, ...)
+			// API mẫu:
+			// data.data = { staffId, fullName, avatarUrl, message, role: [], token }
+			const staffProfile = {
+				staffId: data?.data?.staffId ?? null,
+				fullName: typeof data?.data?.fullName === 'string' ? data.data.fullName : '',
+				avatarUrl: typeof data?.data?.avatarUrl === 'string' ? data.data.avatarUrl : '',
+				role: Array.isArray(data?.data?.role) ? data.data.role : [],
+			};
+			if (staffProfile.staffId != null || staffProfile.fullName || staffProfile.avatarUrl) {
+				localStorage.setItem('staffProfile', JSON.stringify(staffProfile));
+			} else {
+				localStorage.removeItem('staffProfile');
+			}
+
       setServerMessage(data?.data?.message || data?.message || 'Đăng nhập thành công');
       navigate('/booking-management', { replace: true });
     } catch (error) {
@@ -94,8 +114,8 @@ export default function Login() {
 
   const handleGoogleLogin = () => {
     // Lưu ý: backend cần hỗ trợ redirect_uri. Ở đây ưu tiên quay về trang quản lý booking.
-    const redirectUrl = `${getStaffGoogleOAuthUrl()}?redirect_uri=${encodeURIComponent(window.location.origin + '/booking-management')}`;
-    window.location.href = redirectUrl;
+		const redirectUrl = `${getStaffGoogleOAuthUrl()}?redirect_uri=${encodeURIComponent(globalThis.location.origin + '/booking-management')}`;
+		globalThis.location.href = redirectUrl;
   };
 
   return (
@@ -130,9 +150,10 @@ export default function Login() {
             {serverMessage && <div className={styles.successBanner}>{serverMessage}</div>}
 
             <div className={styles.inputGroup}>
-              <label className={styles.inputLabel}>Số điện thoại hoặc email</label>
+              <label className={styles.inputLabel} htmlFor="phone">Số điện thoại hoặc email</label>
               <input
                 type="text"
+                id="phone"
                 name="phone"
                 placeholder="Nhập số điện thoại hoặc email"
                 value={formData.phone}
@@ -142,10 +163,11 @@ export default function Login() {
               {errors.phone && <span className={styles.errorMessage}>{errors.phone}</span>}
             </div>
             <div className={styles.inputGroup}>
-              <label className={styles.inputLabel}>Nhập mật khẩu</label>
+              <label className={styles.inputLabel} htmlFor="password">Nhập mật khẩu</label>
               <div className={styles.passwordWrapper}>
                 <input
                   type={showPin ? 'text' : 'password'}
+                  id="password"
                   name="password"
                   placeholder="Nhập mật khẩu"
                   value={formData.password}
@@ -176,7 +198,7 @@ export default function Login() {
               {isLoading ? (
                 <>
                   <span className={styles.spinner}></span>
-                  Đang đăng nhập...
+						{' '}Đang đăng nhập...
                 </>
               ) : (
                 'Đăng nhập'

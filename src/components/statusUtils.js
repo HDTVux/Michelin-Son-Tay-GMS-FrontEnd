@@ -16,6 +16,11 @@ const STATUS_TEXT_VI = {
   PROCESSING: 'Đang xử lý',
   COMPLETED: 'Hoàn tất',
   DONE: 'Hoàn tất',
+
+  // Managed booking statuses
+  NEW: 'Mới',
+  DRAFT: 'Nháp',
+  NOT_ARRIVED: 'Chưa đến',
 };
 
 function normalizeStatus(status) {
@@ -79,6 +84,8 @@ export function getStatusTone(status, fallback = 'info') {
   if (upper === 'PENDING') return 'warning';
   if (upper === 'CONTACTED') return 'info';
   if (upper === 'CONFIRM' || upper === 'CONFIRMED' || upper === 'APPROVED') return 'success';
+  if (upper === 'DONE' || upper === 'COMPLETED') return 'success';
+  if (upper === 'NEW' || upper === 'DRAFT' || upper === 'IN_PROGRESS' || upper === 'PROCESSING') return 'info';
 
   // Cancel variants
   if (
@@ -87,6 +94,8 @@ export function getStatusTone(status, fallback = 'info') {
     upper === 'CANCELED' ||
     upper === 'SPAM'
   ) return 'danger';
+
+  if (upper === 'NOT_ARRIVED') return 'warning';
 
   return fallback;
 }

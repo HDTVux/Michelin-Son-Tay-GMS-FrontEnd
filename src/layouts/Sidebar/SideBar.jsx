@@ -23,6 +23,23 @@ const readStaffRolesFromStorage = () => {
 	}
 };
 
+const readStaffProfileFromStorage = () => {
+	try {
+		const raw = localStorage.getItem('staffProfile');
+		if (!raw) return null;
+		const parsed = JSON.parse(raw);
+		if (!parsed || typeof parsed !== 'object') return null;
+		return {
+			staffId: parsed.staffId ?? null,
+			fullName: typeof parsed.fullName === 'string' ? parsed.fullName : '',
+			avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : '',
+			role: Array.isArray(parsed.role) ? parsed.role : [],
+		};
+	} catch {
+		return null;
+	}
+};
+
 const NAV_GROUPS = [
 	{
 		id: 'general',
@@ -63,6 +80,9 @@ const SideBar = () => {
 	const location = useLocation();
 
 	const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
+	const staffProfile = useMemo(() => readStaffProfileFromStorage(), []);
+	const staffFullName = staffProfile?.fullName || 'Nhân viên';
+	const staffAvatarUrl = staffProfile?.avatarUrl || '';
 
 	const visibleGroups = useMemo(() => {
 		const hasAnyRole = (allowedRoles) => {
@@ -88,6 +108,7 @@ const SideBar = () => {
 	const handleLogout = () => {
 		localStorage.removeItem('authToken');
 		localStorage.removeItem('staffRoles');
+		localStorage.removeItem('staffProfile');
 		setIsOpen(false);
 		navigate('/login', { replace: true });
 	};
@@ -96,11 +117,15 @@ const SideBar = () => {
 		<aside className="sidebar">
 			<div className="sidebar__profile">
 				<div className="sidebar__avatar">
-					<img src="https://i.pravatar.cc/80?img=64" alt="User avatar" />
+					{staffAvatarUrl ? (
+						<img src={staffAvatarUrl} alt={staffFullName} />
+					) : (
+						<img src="https://i.pravatar.cc/80?img=64" alt={staffFullName} />
+					)}
 				</div>
 				<div>
 					<p className="sidebar__greeting">Hello,</p>
-					<p className="sidebar__name">Adiwarda Bestari</p>
+					<p className="sidebar__name">{staffFullName}</p>
 				</div>
 			</div>
 
