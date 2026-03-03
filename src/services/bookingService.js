@@ -71,6 +71,38 @@ export const confirmBookingRequest = (bookingId, token) =>
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 
+// Cập nhật/chỉnh sửa một yêu cầu booking (màn quản lý)
+export const updateBookingRequest = (requestId, payload, token) =>
+  request(`/api/booking/manage/booking-request/${requestId}/update`, {
+    method: 'PUT',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+
+// Hủy yêu cầu booking (màn quản lý)
+export const cancelBookingRequest = (requestId, payload, token) =>
+  request(`/api/booking/manage/booking-request/${requestId}/cancel`, {
+    method: 'PUT',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+
+// Đánh dấu spam yêu cầu booking (màn quản lý)
+export const spamBookingRequest = (requestId, payload, token) =>
+  request(`/api/booking/manage/booking-request/${requestId}/spam`, {
+    method: 'PUT',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+
+// Đánh dấu đã liên hệ khách hàng (màn quản lý)
+export const contactedBookingRequest = (requestId, payload, token) =>
+  request(`/api/booking/manage/booking-request/${requestId}/contacted`, {
+    method: 'PUT',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+
 // Lấy danh sách booking đã được quản lý/đã confirm cho màn quản lý
 export const fetchManagedBookings = (token) => {
   if (!token) {

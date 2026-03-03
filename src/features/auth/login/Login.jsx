@@ -78,6 +78,11 @@ export default function Login() {
       if (data?.data?.token) {
         localStorage.setItem('authToken', data.data.token);
       }
+      if (Array.isArray(data?.data?.role)) {
+        localStorage.setItem('staffRoles', JSON.stringify(data.data.role));
+      } else {
+        localStorage.removeItem('staffRoles');
+      }
       setServerMessage(data?.data?.message || data?.message || 'Đăng nhập thành công');
       navigate('/booking-management', { replace: true });
     } catch (error) {

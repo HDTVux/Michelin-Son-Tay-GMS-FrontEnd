@@ -9,7 +9,7 @@ export default function SchedulePanel({
   slotData,         // Dữ liệu khách hàng đã đặt từ Server
   startHour = 7,    // Giờ mở cửa garage
   endHour = 20,     // Giờ đóng cửa garage
-  defaultCapacity = 3, // Sức chứa xe tối đa mỗi slot
+  defaultCapacity = 6, // Sức chứa xe tối đa mỗi slot
   title = 'Lịch ngày',
   subtitlePrefix = 'Khung giờ khách chọn:',
 }) {

@@ -4,7 +4,7 @@ import styles from '../BookingRequestManagement/BookingRequestManagement.module.
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchManagedBookings } from '../../../services/bookingService.js';
 import { combineDateTime, formatDateTimeVi, formatTimeHHmm } from '../../../components/timeUtils.js';
-import { getBookingStatusTextVi } from '../../../components/statusUtils.js';
+import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
 
 export default function ConfirmedBookingManagement() {
   useScrollToTop();
@@ -82,12 +82,11 @@ function BookingPanel({ title, icon, tone, data, actionLabel, onViewDetail, onCh
     () => ({
       NEW: 'info',
       CONFIRMED: 'success',
-      CONFIRM: 'success',
-      APPROVED: 'success',
       IN_PROGRESS: 'info',
       COMPLETED: 'success',
+      CANCEL: 'danger',
+      CANCELED: 'danger',
       CANCELLED: 'danger',
-      REJECTED: 'danger',
       DEFAULT: 'info',
     }),
     []
@@ -152,7 +151,8 @@ function BookingPanel({ title, icon, tone, data, actionLabel, onViewDetail, onCh
 
             {!isLoading && data.map((item, idx) => {
               const rawStatus = item?.status;
-              const tone = statusToneMap[String(rawStatus || '').toUpperCase()] || statusToneMap.DEFAULT;
+              const statusKey = String(normalizeStatusCode(rawStatus) || '').toUpperCase();
+              const tone = statusToneMap[statusKey] || statusToneMap.DEFAULT;
               const bookingId = item?.bookingId ?? item?.id;
 
               const customerName = item?.customer?.fullName || item?.fullName || item?.name || '-';
@@ -187,6 +187,7 @@ function BookingPanel({ title, icon, tone, data, actionLabel, onViewDetail, onCh
                       >
                         Xem chi tiết
                       </button>
+                      {rawStatus === 'CONFIRMED' && (
                       <button
                         className={`${styles['primary-button']} ${styles['is-ghost']}`}
                         onClick={() => onCheckIn?.({
@@ -202,6 +203,7 @@ function BookingPanel({ title, icon, tone, data, actionLabel, onViewDetail, onCh
                       >
                         Check-in
                       </button>
+            )}
                     </div>
                   </td>
                 </tr>
