@@ -151,8 +151,15 @@ export default function BookingManagement() {
                             setPage(0);
                         }}
                         onResetFilters={handleResetFilters}
-                        // Hàm xử lý khi bấm xem chi tiết: Chuyển hướng tới trang chi tiết ID
-                        onViewDetail={(id) => navigate(`/booking-request-management/${id}`)}
+                        // Hàm xử lý khi bấm xem chi tiết: Chuyển hướng tới trang chi tiết theo requestCode
+                        onViewDetail={(requestCode) => {
+                            const code = requestCode == null ? '' : String(requestCode).trim();
+                            if (!code) {
+                                setError('Yêu cầu này chưa có requestCode nên không thể xem chi tiết.');
+                                return;
+                            }
+                            navigate(`/booking-request-management/${code}`);
+                        }}
                         actionLabel={`${totalElements} yêu cầu`}
                     />
                 </div>
@@ -256,7 +263,7 @@ function PendingPanel({
                 <table className={styles['booking-table']}>
                     <thead>
                         <tr>
-                            <th>MÃ YÊU CẦU</th>
+                            <th>STT</th>
                             <th>TÊN KHÁCH HÀNG</th>
                             <th>SỐ ĐIỆN THOẠI</th>
                             <th>DỊCH VỤ</th>
@@ -281,6 +288,7 @@ function PendingPanel({
                         {!isLoading && data.map((item) => {
                             // Lấy màu sắc badge dựa trên trạng thái của item (qua statusUtils)
                             const tone = getBookingStatusTone(item?.status, 'info');
+                            const requestCode = item?.requestCode;
                             return (
                                 <tr key={item.requestId || item.id}>
                                     <td className={styles['link-cell']}>{item.requestId || item.id || '-'}</td>
@@ -298,7 +306,8 @@ function PendingPanel({
                                     <td>
                                         <button
                                             className={styles['primary-button']}
-                                            onClick={() => onViewDetail?.(item.requestId || item.id)}
+                                            disabled={!requestCode}
+                                            onClick={() => onViewDetail?.(requestCode)}
                                         >
                                             Xem chi tiết
                                         </button>
