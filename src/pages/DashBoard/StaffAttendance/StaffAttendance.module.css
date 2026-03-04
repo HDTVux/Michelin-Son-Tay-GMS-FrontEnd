@@ -691,3 +691,46 @@
     font-size: 16px;
   }
 }
+
+/* Session status in calendar */
+.sessionStatus {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.sessionLabel {
+  font-weight: 600;
+  font-size: 10px;
+  color: #2d3748;
+  min-width: 32px;
+}
+
+/* Status badge colors for different states */
+.statusPresent {
+  background: #c6f6d5 !important;
+  color: #22543d !important;
+}
+
+.statusLate {
+  background: #fef5e7 !important;
+  color: #78350f !important;
+}
+
+.statusAbsent {
+  background: #fed7d7 !important;
+  color: #742a2a !important;
+}
+
+.statusOff {
+  background: #e0e7ff !important;
+  color: #3730a3 !important;
+}
+
+.statusNotYet {
+  background: #e2e8f0 !important;
+  color: #4a5568 !important;
+}
