@@ -144,8 +144,13 @@ export default function ConfirmedBookingManagement() {
               setPage(0);
             }}
             onResetFilters={handleResetFilters}
-            onViewDetail={(id) => {
-              if (id != null) navigate(`/booking-management/${id}`);
+            onViewDetail={(bookingCode, state) => {
+              const code = bookingCode == null ? '' : String(bookingCode).trim();
+              if (!code) {
+                setError('Booking này chưa có mã bookingCode nên không thể xem chi tiết.');
+                return;
+              }
+              navigate(`/booking-management/${code}`, { state });
             }}
             onCheckIn={(payload) => {
               navigate('/check-in', { state: payload });
@@ -247,7 +252,7 @@ function BookingPanel({
         <table className={styles['booking-table']}>
           <thead>
             <tr>
-              <th>MÃ BOOKING</th>
+              <th>STT</th>
               <th>TÊN KHÁCH HÀNG</th>
               <th>SỐ ĐIỆN THOẠI</th>
               <th>DỊCH VỤ</th>
@@ -271,6 +276,7 @@ function BookingPanel({
               const statusKey = String(normalizeStatusCode(rawStatus) || '').toUpperCase();
               const tone = getBookingStatusTone(statusKey, 'info');
               const bookingId = item?.bookingId ?? item?.id;
+              const bookingCode = item?.bookingCode;
 
               const customerName = item?.customer?.fullName || item?.fullName || item?.name || '-';
               const customerPhone = item?.customer?.phone || item?.phone || '-';
@@ -300,7 +306,13 @@ function BookingPanel({
                     <div className={styles.pagination}>
                       <button
                         className={styles['primary-button']}
-                        onClick={() => onViewDetail?.(bookingId)}
+                        disabled={!bookingCode}
+                        onClick={() =>
+                          onViewDetail?.(bookingCode, {
+                            customerName,
+                            customerPhone,
+                          })
+                        }
                       >
                         Xem chi tiết
                       </button>

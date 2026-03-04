@@ -412,11 +412,17 @@
 
   .headerHotline {
     padding: 8px 10px;
+    white-space: normal;
+    flex-wrap: wrap;
   }
 
-  .headerHotlineLabel,
-  .headerHotlineText {
+  .headerHotlineLabel {
     display: none;
+  }
+
+  .headerHotlineText {
+    display: inline;
+    white-space: normal;
   }
 
   .headerNav {

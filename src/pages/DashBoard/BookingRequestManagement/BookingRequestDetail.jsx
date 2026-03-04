@@ -8,14 +8,16 @@ import ConfirmBooking from './ConfirmBooking.jsx';
 import DeclineBooking from './DeclineBooking.jsx';
 import MarkSpam from './MarkSpam.jsx';
 import { toast } from 'react-toastify';
-import { cancelBookingRequest, confirmBookingRequest, contactedBookingRequest, fetchBookingRequestDetail, spamBookingRequest } from '../../../services/bookingService.js';
+import {
+  cancelBookingRequest,
+  confirmBookingRequest,
+  contactedBookingRequest,
+  fetchBookingRequestDetail,
+  spamBookingRequest,
+} from '../../../services/bookingService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
 
-/**
- * Hiển thị một dòng thông tin gồm nhãn (label) và giá trị (value).
- * Tái sử dụng code, giúp giao diện đồng nhất và dễ quản lý link (tel, mail).
- */
 function InfoRow({ label, value, link, type, extraAction, full }) {
   const safeValue = value == null ? '' : String(value);
   const href = (() => {
@@ -35,10 +37,19 @@ function InfoRow({ label, value, link, type, extraAction, full }) {
       <div className={styles.label}>{label}</div>
       <div className={styles.infoRow}>
         {rendered}
-        {extraAction} {/* Hiển thị thêm các nút như "Gọi ngay" nếu cần */}
+        {extraAction}
       </div>
     </div>
   );
+}
+
+function mapStatusTone(status) {
+  const upper = (status || '').toUpperCase();
+  if (upper === 'PENDING') return 'warning';
+  if (upper === 'CONTACTED') return 'info';
+  if (upper === 'APPROVED' || upper === 'CONFIRM' || upper === 'CONFIRMED') return 'success';
+  if (upper === 'REJECTED' || upper === 'CANCEL' || upper === 'CANCELLED' || upper === 'CANCELED' || upper === 'SPAM') return 'danger';
+  return 'info';
 }
 
 function mapBooking(apiData) {
@@ -54,6 +65,7 @@ function mapBooking(apiData) {
 
   return {
     id: apiData.requestId?.toString() || '',
+    code: apiData.requestCode?.toString() || '',
     name: apiData.fullName || apiData.customer?.fullName || '',
     phone: apiData.phone || apiData.customer?.phone || '',
     email: apiData.customer?.email || '',
@@ -65,25 +77,17 @@ function mapBooking(apiData) {
     statusTone,
     desiredDate: apiData.scheduledDate || '',
     desiredTime: formatTimeHHmm(apiData.scheduledTime),
-    note: apiData.description || apiData.rejectionReason || '',
-    slotData: {}, // Chưa có dữ liệu slot từ API, giữ trống để tránh lỗi
+    note: apiData.note || apiData.description || apiData.rejectionReason || '',
+    slotData: {},
   };
 }
 
-function mapStatusTone(status) {
-  const upper = (status || '').toUpperCase();
-  if (upper === 'PENDING') return 'warning';
-  if (upper === 'CONTACTED') return 'info';
-  if (upper === 'APPROVED' || upper === 'CONFIRM' || upper === 'CONFIRMED') return 'success';
-  if (upper === 'REJECTED' || upper === 'CANCEL' || upper === 'CANCELLED' || upper === 'CANCELED' || upper === 'SPAM') return 'danger';
-  return 'info';
-}
 export default function BookingRequestDetail() {
-  //Đảm bảo khi vào trang luôn hiển thị từ đầu trang
   useScrollToTop();
 
   const navigate = useNavigate();
-  const { id } = useParams(); // Lấy id yêu cầu từ URL để truy vấn dữ liệu
+  const params = useParams();
+  const requestCode = params?.requestCode ?? params?.id;
 
   const [booking, setBooking] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,8 +101,6 @@ export default function BookingRequestDetail() {
   const isSpam = useMemo(() => statusUpper === 'SPAM', [statusUpper]);
 
   const isCancelled = useMemo(() => {
-    // Backend mới dùng REJECTED cho BookingRequestStatus.
-    // Giữ CANCEL* để tương thích ngược nếu API cũ còn trả.
     return ['REJECTED', 'CANCEL', 'CANCELLED', 'CANCELED'].includes(statusUpper);
   }, [statusUpper]);
 
@@ -111,22 +113,21 @@ export default function BookingRequestDetail() {
   }, [statusUpper]);
 
   const canConfirm = useMemo(() => {
-    // Khi đã confirm/approved thì không hiển thị nút duyệt nữa
     return !['CONFIRM', 'CONFIRMED', 'APPROVED'].includes(statusUpper);
   }, [statusUpper]);
 
-  //Tách biệt các hành động để tránh nhầm lẫn và yêu cầu xác nhận trước khi thay đổi dữ liệu quan trọng.
-  const [openContact, setOpenContact] = useState(false); // Modal đánh dấu đã liên hệ
-  const [openConfirm, setOpenConfirm] = useState(false); // Modal duyệt yêu cầu
-  const [openDecline, setOpenDecline] = useState(false); // Modal hủy lịch
-  const [openSpam, setOpenSpam] = useState(false);       // Modal đánh dấu spam
+  const [openContact, setOpenContact] = useState(false);
+  const [openConfirm, setOpenConfirm] = useState(false);
+  const [openDecline, setOpenDecline] = useState(false);
+  const [openSpam, setOpenSpam] = useState(false);
 
-  const loadDetail = async (token, requestId) => {
+  const loadDetail = async (token, code) => {
     try {
       setIsLoading(true);
-      const response = await fetchBookingRequestDetail(requestId, token);
-      const mapped = mapBooking(response?.data);
-      setBooking(mapped);
+      const response = await fetchBookingRequestDetail(code, token);
+      const payload = response?.data?.data ?? response?.data;
+      const mapped = mapBooking(payload);
+      setBooking(mapped ? { ...mapped, code: mapped.code || String(code || '') } : null);
       setError('');
     } catch (err) {
       const msg = err?.message || 'Không thể tải chi tiết yêu cầu.';
@@ -155,12 +156,11 @@ export default function BookingRequestDetail() {
 
     try {
       setIsSubmitting(true);
-      await confirmBookingRequest(booking.id, token);
-      await loadDetail(token, booking.id);
+      await confirmBookingRequest(requestCode, token);
+      await loadDetail(token, requestCode);
       setOpenConfirm(false);
     } catch (err) {
-      const msg = err?.message || 'Duyệt yêu cầu thất bại.';
-      setError(msg);
+      setError(err?.message || 'Duyệt yêu cầu thất bại.');
     } finally {
       setIsSubmitting(false);
     }
@@ -185,10 +185,10 @@ export default function BookingRequestDetail() {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await cancelBookingRequest(booking.id, payload, token);
+      const res = await cancelBookingRequest(requestCode, payload, token);
       notify(res?.message || res?.data?.message || 'Hủy yêu cầu thành công.');
       setOpenDecline(false);
-      await loadDetail(token, booking.id);
+      await loadDetail(token, requestCode);
     } catch (err) {
       setError(err?.message || 'Hủy yêu cầu thất bại.');
     } finally {
@@ -215,10 +215,10 @@ export default function BookingRequestDetail() {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await spamBookingRequest(booking.id, payload, token);
+      const res = await spamBookingRequest(requestCode, payload, token);
       notify(res?.message || res?.data?.message || 'Đã đánh dấu spam.');
       setOpenSpam(false);
-      await loadDetail(token, booking.id);
+      await loadDetail(token, requestCode);
     } catch (err) {
       setError(err?.message || 'Đánh dấu spam thất bại.');
     } finally {
@@ -243,10 +243,10 @@ export default function BookingRequestDetail() {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await contactedBookingRequest(booking.id, payload, token);
+      const res = await contactedBookingRequest(requestCode, payload, token);
       notify(res?.message || res?.data?.message || 'Đã đánh dấu đã liên hệ.');
       setOpenContact(false);
-      await loadDetail(token, booking.id);
+      await loadDetail(token, requestCode);
     } catch (err) {
       setError(err?.message || 'Đánh dấu đã liên hệ thất bại.');
     } finally {
@@ -257,8 +257,8 @@ export default function BookingRequestDetail() {
   useEffect(() => {
     const token = localStorage.getItem('authToken');
 
-    if (!id) {
-      setError('Không tìm thấy mã yêu cầu.');
+    if (!requestCode) {
+      setError('Không tìm thấy mã yêu cầu (requestCode).');
       setIsLoading(false);
       return;
     }
@@ -269,8 +269,8 @@ export default function BookingRequestDetail() {
       return;
     }
 
-    loadDetail(token, id);
-  }, [id]);
+    loadDetail(token, requestCode);
+  }, [requestCode]);
 
   return (
     <div className={styles.page}>
@@ -294,14 +294,13 @@ export default function BookingRequestDetail() {
             <div className={styles.cardHeader}>
               <div>
                 <div className={styles.label}>Mã yêu cầu</div>
-                <div className={styles.requestId}>{booking.id || '-'}</div>
+                <div className={styles.requestId}>{booking.code || '-'}</div>
               </div>
               <span className={`${styles.statusPill} ${styles['statusPill--' + booking.statusTone]}`}>
                 {getBookingStatusTextVi(booking.status)}
               </span>
             </div>
 
-            {/* SECTION: Thông tin khách hàng */}
             <section className={styles.section}>
               <h3 className={styles.sectionTitle}>Thông tin khách hàng</h3>
               <div className={styles.infoGrid}>
@@ -313,7 +312,7 @@ export default function BookingRequestDetail() {
                   type="tel"
                   extraAction={booking.phone ? <a className={styles.callButton} href={`tel:${booking.phone}`}>Gọi ngay</a> : null}
                 />
-                             
+
                 <InfoRow label="Email" value={booking.email || '-'} link type="mailto" />
                 <InfoRow label="Lịch sử" value={booking.history || '-'} link />
                 <InfoRow label="Dịch vụ đã chọn" value={booking.servicesDisplay} full />
@@ -340,11 +339,6 @@ export default function BookingRequestDetail() {
             </section>
 
             <div className={styles.actionsRow}>
-              {/* Quy tắc hiển thị nút theo trạng thái:
-                  - PENDING: hiện tất cả
-                  - CONFIRM/APPROVED: chỉ hiện Hủy lịch + Đánh dấu spam
-                  - REJECTED: chỉ hiện Đánh dấu spam
-                  - SPAM: không hiện nút nào */}
               {!isSpam && isCancelled && (
                 <button className={`${styles.actionBtn} ${styles.warning}`} onClick={() => setOpenSpam(true)}>
                   Đánh dấu spam
@@ -378,7 +372,7 @@ export default function BookingRequestDetail() {
                   {canConfirm && (
                     <Link
                       className={`${styles.actionBtn} ${styles.purple}`}
-                      to={`/booking-request-management/${booking.id}/edit`}
+                      to={`/booking-request-management/${encodeURIComponent(String(requestCode))}/edit`}
                     >
                       Chỉnh sửa
                     </Link>
@@ -415,8 +409,6 @@ export default function BookingRequestDetail() {
         </div>
       )}
 
-      
-
       <ConfirmContact
         key={`${booking?.id || 'req'}:${openContact ? 'open' : 'closed'}`}
         open={openContact}
@@ -429,7 +421,7 @@ export default function BookingRequestDetail() {
           open={openConfirm}
           onClose={() => setOpenConfirm(false)}
           request={{
-            code: booking.id,
+            code: booking.code,
             customerName: booking.name,
             bookingTime: `${booking.desiredDate || ''} ${booking.desiredTime || ''}`.trim(),
             service: (booking.services || []).join(', '),
@@ -443,7 +435,6 @@ export default function BookingRequestDetail() {
         onClose={() => setOpenDecline(false)}
         onConfirm={handleCancelRequest}
       />
-
 
       <MarkSpam
         open={openSpam}
