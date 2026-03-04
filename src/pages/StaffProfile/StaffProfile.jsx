@@ -1,6 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
+import { fetchStaffProfile, updateStaffProfile, uploadStaffAvatar } from '../../services/staffService.js';
+import { getValidToken } from '../../services/tokenUtils.js';
+import { toast } from 'react-toastify';
 import styles from './StaffProfile.module.css';
 
 const StaffProfile = () => {
@@ -9,17 +12,46 @@ const StaffProfile = () => {
   const fileInputRef = useRef(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  
+  const [loading, setLoading] = useState(true);
  
   const [staffInfo, setStaffInfo] = useState({
-    staffId: 1,
+    staffId: null,
     avatar: null,
-    fullName: 'Nguyễn Văn B',
-    gender: 'Nam',
-    dob: '1990-01-15',
-    phone: '0901234567',
-    position: 'Kỹ thuật viên'
+    fullName: '',
+    gender: 'MALE',
+    dob: '',
+    phone: '',
+    position: ''
   });
+
+  // Fetch staff profile on mount
+  useEffect(() => {
+    const loadStaffProfile = async () => {
+      try {
+        const token = await getValidToken('authToken');
+        if (token) {
+          const response = await fetchStaffProfile(token);
+          if (response && response.data) {
+            setStaffInfo({
+              staffId: response.data.staffId || null,
+              avatar: response.data.avatar || null,
+              fullName: response.data.fullName || '',
+              gender: response.data.gender || 'MALE',
+              dob: response.data.dob || '',
+              phone: response.data.phone || '',
+              position: response.data.position || response.data.role || ''
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching staff profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStaffProfile();
+  }, []);
 
   const [workStats] = useState({
     totalTickets: 156,
@@ -138,17 +170,48 @@ const StaffProfile = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleUpdateSubmit = (e) => {
+  const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     
     if (validateUpdateForm()) {
-      console.log('Cập nhật thông tin:', updateFormData);
-      console.log('Avatar file:', avatarFile);
-      
-      // TODO: Call API to update profile
-      setStaffInfo({ ...updateFormData });
-      alert('Cập nhật thông tin thành công!');
+      try {
+        const token = await getValidToken('authToken');
+
+        // Update profile data
+        const payload = {
+          fullName: updateFormData.fullName,
+          gender: updateFormData.gender,
+          dob: updateFormData.dob,
+          phone: updateFormData.phone
+        };
+
+        await updateStaffProfile(payload, token);
+
+        // Upload avatar if changed
+        if (avatarFile) {
+          await uploadStaffAvatar(avatarFile, token);
+        }
+
+        // Refresh staff info
+        const response = await fetchStaffProfile(token);
+        if (response && response.data) {
+          setStaffInfo({
+            staffId: response.data.staffId || null,
+            avatar: response.data.avatar || null,
+            fullName: response.data.fullName || '',
+            gender: response.data.gender || 'MALE',
+            dob: response.data.dob || '',
+            phone: response.data.phone || '',
+            position: response.data.position || response.data.role || ''
+          });
+        }
+
+        toast.success('Cập nhật thông tin thành công!');
       setShowUpdateModal(false);
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        toast.error(error.message || 'Cập nhật thông tin thất bại');
+      }
     }
   };
 
@@ -224,6 +287,26 @@ const StaffProfile = () => {
     return date.toLocaleDateString('vi-VN');
   };
 
+  const getGenderLabel = (gender) => {
+    switch (gender) {
+      case 'MALE': return 'Nam';
+      case 'FEMALE': return 'Nữ';
+      case 'OTHER': return 'Khác';
+      default: return gender;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.staffProfilePage}>
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner}></div>
+          <p>Đang tải thông tin...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.staffProfilePage}>
       <div className={styles.profileHeader}>
@@ -256,7 +339,7 @@ const StaffProfile = () => {
               </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Giới tính:</span>
-                <span className={styles.infoValue}>{staffInfo.gender}</span>
+                <span className={styles.infoValue}>{getGenderLabel(staffInfo.gender)}</span>
               </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Ngày sinh:</span>
