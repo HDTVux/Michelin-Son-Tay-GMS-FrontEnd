@@ -11,39 +11,28 @@ const EditCustomerProfile = () => {
 
   const [formData, setFormData] = useState({
     fullName: '',
-    email: '',
     phone: '',
-    gender: 'male',
-    dateOfBirth: '',
-    address: '',
-    city: '',
-    district: '',
-    ward: '',
-    status: 'active',
-    loyaltyPoints: 0,
-    totalBookings: 0,
-    registeredDate: '',
-    lastVisit: ''
+    email: '',
+    gender: 'MALE',
+    dob: '',
+    avatar: '',
+    createdAt: '',
+    firstBookingAt: ''
   });
 
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
+    // Mock data - sẽ thay bằng API call
     const mockData = {
       fullName: 'Nguyễn Văn A',
-      email: 'user@example.com',
       phone: '0912345678',
-      gender: 'male',
-      dateOfBirth: '1990-01-15',
-      address: '123 Đường ABC',
-      city: 'Hà Nội',
-      district: 'Sơn Tây',
-      ward: 'Phường 1',
-      status: 'active',
-      loyaltyPoints: 1250,
-      totalBookings: 15,
-      registeredDate: '2024-01-01',
-      lastVisit: '2024-02-20'
+      email: 'user@example.com',
+      gender: 'MALE',
+      dob: '1990-01-15',
+      avatar: '',
+      createdAt: '2024-01-01',
+      firstBookingAt: '2024-02-20'
     };
     setFormData(mockData);
   }, [customerId]);
@@ -66,24 +55,23 @@ const EditCustomerProfile = () => {
   const validateForm = () => {
     const newErrors = {};
 
+    // Họ tên - BẮT BUỘC
     if (!formData.fullName.trim()) {
       newErrors.fullName = 'Vui lòng nhập họ và tên';
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Vui lòng nhập email';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email không hợp lệ';
-    }
-
+    // Số điện thoại - BẮT BUỘC
     if (!formData.phone.trim()) {
       newErrors.phone = 'Vui lòng nhập số điện thoại';
     } else if (!/^[0-9]{10}$/.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Số điện thoại không hợp lệ';
+      newErrors.phone = 'Số điện thoại không hợp lệ (10 số)';
     }
 
-    if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = 'Vui lòng chọn ngày sinh';
+    // Email - KHÔNG BẮT BUỘC nhưng nếu có thì phải đúng format
+    if (formData.email && formData.email.trim()) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = 'Email không hợp lệ';
+      }
     }
 
     setErrors(newErrors);
@@ -151,6 +139,7 @@ const EditCustomerProfile = () => {
           <form onSubmit={handleSubmit}>
             <div className={styles.card}>
               <div className={styles.formGrid}>
+                {/* Họ và tên - BẮT BUỘC */}
                 <div className={styles.formGroup}>
                   <label className={styles.label}>
                     Họ và tên <span className={styles.required}>*</span>
@@ -167,38 +156,7 @@ const EditCustomerProfile = () => {
                   {errors.fullName && <span className={styles.errorText}>{errors.fullName}</span>}
                 </div>
 
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    Giới tính <span className={styles.required}>*</span>
-                  </label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={`${styles.select} ${!isEditing ? styles.inputDisabled : ''}`}
-                  >
-                    <option value="male">Nam</option>
-                    <option value="female">Nữ</option>
-                    <option value="other">Khác</option>
-                  </select>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    Ngày sinh <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="dateOfBirth"
-                    value={formData.dateOfBirth}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={`${styles.input} ${errors.dateOfBirth ? styles.inputError : ''} ${!isEditing ? styles.inputDisabled : ''}`}
-                  />
-                  {errors.dateOfBirth && <span className={styles.errorText}>{errors.dateOfBirth}</span>}
-                </div>
-
+                {/* Số điện thoại - BẮT BUỘC */}
                 <div className={styles.formGroup}>
                   <label className={styles.label}>
                     Số điện thoại <span className={styles.required}>*</span>
@@ -226,10 +184,9 @@ const EditCustomerProfile = () => {
                   {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
                 </div>
 
+                {/* Email - KHÔNG BẮT BUỘC */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    Email <span className={styles.required}>*</span>
-                  </label>
+                  <label className={styles.label}>Email</label>
                   <input
                     type="email"
                     name="email"
@@ -242,32 +199,33 @@ const EditCustomerProfile = () => {
                   {errors.email && <span className={styles.errorText}>{errors.email}</span>}
                 </div>
 
+                {/* Giới tính - KHÔNG BẮT BUỘC */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Địa chỉ</label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={`${styles.input} ${!isEditing ? styles.inputDisabled : ''}`}
-                    placeholder="Số nhà, tên đường"
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Trạng thái tài khoản</label>
+                  <label className={styles.label}>Giới tính</label>
                   <select
-                    name="status"
-                    value={formData.status}
+                    name="gender"
+                    value={formData.gender}
                     onChange={handleChange}
                     disabled={!isEditing}
                     className={`${styles.select} ${!isEditing ? styles.inputDisabled : ''}`}
                   >
-                    <option value="active">Hoạt động</option>
-                    <option value="inactive">Tạm ngưng</option>
-                    <option value="blocked">Bị khóa</option>
+                    <option value="MALE">Nam</option>
+                    <option value="FEMALE">Nữ</option>
+                    <option value="OTHER">Khác</option>
                   </select>
+                </div>
+
+                {/* Ngày sinh - KHÔNG BẮT BUỘC */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Ngày sinh</label>
+                  <input
+                    type="date"
+                    name="dob"
+                    value={formData.dob}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                    className={`${styles.input} ${!isEditing ? styles.inputDisabled : ''}`}
+                  />
                 </div>
               </div>
             </div>
@@ -310,38 +268,24 @@ const EditCustomerProfile = () => {
           <div className={styles.sidebar}>
             <div className={styles.sidebarCard}>
               <div className={styles.sidebarHeader}>
-                <h3 className={styles.sidebarTitle}>Thống kê khách hàng</h3>
+                <h3 className={styles.sidebarTitle}>Thông tin bổ sung</h3>
               </div>
               <div className={styles.statsGrid}>
                 <div className={styles.statItem}>
-                  <div className={styles.statIcon}>🎯</div>
+                  <div className={styles.statIcon}>➕</div>
                   <div className={styles.statContent}>
-                    <div className={styles.statLabel}>Điểm tích lũy</div>
-                    <div className={styles.statValue}>{formData.loyaltyPoints}</div>
+                    <div className={styles.statLabel}>Ngày tạo tài khoản</div>
+                    <div className={styles.statValue}>
+                      {formData.createdAt ? new Date(formData.createdAt).toLocaleDateString('vi-VN') : '-'}
+                    </div>
                   </div>
                 </div>
                 <div className={styles.statItem}>
                   <div className={styles.statIcon}>📅</div>
                   <div className={styles.statContent}>
-                    <div className={styles.statLabel}>Tổng số booking</div>
-                    <div className={styles.statValue}>{formData.totalBookings}</div>
-                  </div>
-                </div>
-                <div className={styles.statItem}>
-                  <div className={styles.statIcon}>➕</div>
-                  <div className={styles.statContent}>
-                    <div className={styles.statLabel}>Ngày tạo</div>
+                    <div className={styles.statLabel}>Lần đặt lịch đầu tiên</div>
                     <div className={styles.statValue}>
-                      {formData.registeredDate ? new Date(formData.registeredDate).toLocaleDateString('vi-VN') : '-'}
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.statItem}>
-                  <div className={styles.statIcon}>✏️</div>
-                  <div className={styles.statContent}>
-                    <div className={styles.statLabel}>Lần cập nhật cuối</div>
-                    <div className={styles.statValue}>
-                      {formData.lastVisit ? new Date(formData.lastVisit).toLocaleDateString('vi-VN') : '-'}
+                      {formData.firstBookingAt ? new Date(formData.firstBookingAt).toLocaleDateString('vi-VN') : 'Chưa có'}
                     </div>
                   </div>
                 </div>

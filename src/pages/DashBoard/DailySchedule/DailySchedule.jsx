@@ -1,45 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './DailySchedule.module.css';
 
 const DailySchedule = () => {
-  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterService, setFilterService] = useState('all');
+  const [viewMode, setViewMode] = useState('calendar');
+  const [loading, setLoading] = useState(false);
 
-  // Tạo danh sách 7 ngày trong tuần
-  const getWeekDays = (startDate) => {
-    const days = [];
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    
-    for (let i = 0; i < 7; i++) {
-      const day = new Date(start);
-      day.setDate(start.getDate() + i);
-      days.push(day);
-    }
-    return days;
-  };
-
-  const weekDays = getWeekDays(currentWeekStart);
-
-  // Khung giờ từ 07:00 đến 20:00 (30 phút/slot)
-  const timeSlots = [];
-  for (let hour = 7; hour <= 20; hour++) {
-    timeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
-    if (hour < 20) {
-      timeSlots.push(`${hour.toString().padStart(2, '0')}:30`);
-    }
-  }
-
-  // Dữ liệu mẫu lịch hẹn
-  const appointments = [
+  // Mock data - lịch hẹn mẫu
+  const mockAppointments = [
     {
       id: 1,
       customerName: 'Nguyễn Văn A',
       phone: '0912-345-678',
       service: 'Thay lốp xe',
-      date: new Date(2023, 9, 23),
+      date: '2024-03-02',
       startTime: '07:00',
       endTime: '08:00',
       status: 'confirmed',
@@ -50,7 +26,7 @@ const DailySchedule = () => {
       customerName: 'Trần Thị B',
       phone: '0987-654-321',
       service: 'Bảo dưỡng định kỳ',
-      date: new Date(2023, 9, 23),
+      date: '2024-03-02',
       startTime: '09:00',
       endTime: '10:30',
       status: 'pending',
@@ -61,7 +37,7 @@ const DailySchedule = () => {
       customerName: 'Lê Văn C',
       phone: '0901-234-567',
       service: 'Kiểm tra phanh',
-      date: new Date(2023, 9, 24),
+      date: '2024-03-05',
       startTime: '10:00',
       endTime: '11:00',
       status: 'confirmed',
@@ -72,7 +48,7 @@ const DailySchedule = () => {
       customerName: 'Phạm Thị D',
       phone: '0938-765-432',
       service: 'Thay dầu động cơ',
-      date: new Date(2023, 9, 25),
+      date: '2024-03-08',
       startTime: '14:00',
       endTime: '15:00',
       status: 'completed',
@@ -83,250 +59,252 @@ const DailySchedule = () => {
       customerName: 'Hoàng Văn E',
       phone: '0945-678-901',
       service: 'Cân bằng lốp',
-      date: new Date(2023, 9, 26),
+      date: '2024-03-10',
       startTime: '16:00',
       endTime: '17:00',
       status: 'confirmed',
       note: 'Khách hàng VIP'
-    }
+    },
   ];
 
-  const goToPreviousWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() - 7);
-    setCurrentWeekStart(newDate);
+  const [appointments, setAppointments] = useState(mockAppointments);
+
+  const getStatusInfo = (status) => {
+    switch (status) {
+      case 'confirmed':
+        return { text: 'Đã xác nhận', className: styles.statusConfirmed };
+      case 'pending':
+        return { text: 'Chờ xác nhận', className: styles.statusPending };
+      case 'completed':
+        return { text: 'Hoàn thành', className: styles.statusCompleted };
+      case 'cancelled':
+        return { text: 'Đã hủy', className: styles.statusCancelled };
+      default:
+        return { text: status, className: '' };
+    }
   };
 
-  const goToNextWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() + 7);
-    setCurrentWeekStart(newDate);
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const days = [];
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day));
+    }
+    return days;
   };
 
-  const goToToday = () => {
-    setCurrentWeekStart(new Date());
+  const goToPreviousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
+
+  const goToCurrentMonth = () => {
+    setCurrentMonth(new Date());
   };
 
   const formatDate = (date) => {
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    return `${day}/${month}`;
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
-  const getDayName = (date) => {
-    const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-    return days[date.getDay()];
+  const getAppointmentsForDate = (date) => {
+    if (!date) return [];
+    const dateStr = formatDate(date);
+    return appointments.filter(a => a.date === dateStr);
   };
 
   const isToday = (date) => {
+    if (!date) return false;
     const today = new Date();
     return date.toDateString() === today.toDateString();
   };
 
-  // Lọc appointments theo ngày
-  const getAppointmentsForDay = (date) => {
-    return appointments.filter(apt => 
-      apt.date.toDateString() === date.toDateString()
-    );
+  const isWeekend = (date) => {
+    if (!date) return false;
+    const day = date.getDay();
+    return day === 0 || day === 6;
   };
 
-  // Tính vị trí và chiều cao của appointment trong lịch
-  const getAppointmentStyle = (startTime, endTime) => {
-    const [startHour, startMin] = startTime.split(':').map(Number);
-    const [endHour, endMin] = endTime.split(':').map(Number);
-    
-    const startMinutes = (startHour - 7) * 60 + startMin;
-    const endMinutes = (endHour - 7) * 60 + endMin;
-    const duration = endMinutes - startMinutes;
-    
-    const slotHeight = 60; // px per 30 min
-    const top = (startMinutes / 30) * slotHeight;
-    const height = (duration / 30) * slotHeight - 4;
-    
-    return { top: `${top}px`, height: `${height}px` };
-  };
+  // Statistics
+  const totalAppointments = appointments.length;
+  const confirmedCount = appointments.filter(a => a.status === 'confirmed').length;
+  const pendingCount = appointments.filter(a => a.status === 'pending').length;
+  const completedCount = appointments.filter(a => a.status === 'completed').length;
+  const cancelledCount = appointments.filter(a => a.status === 'cancelled').length;
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'confirmed': return styles.statusConfirmed;
-      case 'pending': return styles.statusPending;
-      case 'completed': return styles.statusCompleted;
-      case 'cancelled': return styles.statusCancelled;
-      default: return '';
-    }
-  };
+  const days = getDaysInMonth(currentMonth);
+  const monthName = currentMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'confirmed': return 'Đã xác nhận';
-      case 'pending': return 'Chờ xác nhận';
-      case 'completed': return 'Hoàn thành';
-      case 'cancelled': return 'Đã hủy';
-      default: return '';
-    }
-  };
+  const filteredAppointments = filterStatus === 'all' 
+    ? appointments 
+    : appointments.filter(a => a.status === filterStatus);
 
   return (
     <div className={styles.container}>
-      {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <h1 className={styles.title}>Lịch làm việc của tuần</h1>
-          <p className={styles.subtitle}>Quản lý và theo dõi lịch hẹn hàng ngày</p>
+          <div className={styles.staffAvatar}>📅</div>
+          <div className={styles.staffInfo}>
+            <h1 className={styles.title}>Lịch làm việc của tôi</h1>
+            <p className={styles.subtitle}>Quản lý và theo dõi lịch hẹn</p>
+          </div>
+        </div>
+        <div className={styles.headerRight}>
+          <button className={styles.exportButton}>Xuất báo cáo</button>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className={styles.toolbar}>
-        <div className={styles.toolbarLeft}>
-          <div className={styles.weekNavigation}>
-            <button className={styles.navButton} onClick={goToPreviousWeek}>
-              ← Tuần trước
-            </button>
-            <button className={styles.todayButton} onClick={goToToday}>
-              Hôm nay
-            </button>
-            <button className={styles.navButton} onClick={goToNextWeek}>
-              Tuần sau →
-            </button>
+      <div className={styles.statsGrid}>
+        <div className={`${styles.statCard} ${styles.statPrimary}`}>
+          <div className={styles.statIcon}>📋</div>
+          <div className={styles.statContent}>
+            <div className={styles.statValue}>{totalAppointments}</div>
+            <div className={styles.statLabel}>Tổng lịch hẹn</div>
           </div>
         </div>
-
-        <div className={styles.toolbarRight}>
-          <div className={styles.searchBox}>
-            <span className={styles.searchIcon}>🔍</span>
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên, SĐT..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={styles.searchInput}
-            />
+        <div className={`${styles.statCard} ${styles.statSuccess}`}>
+          <div className={styles.statIcon}>✓</div>
+          <div className={styles.statContent}>
+            <div className={styles.statValue}>{confirmedCount}</div>
+            <div className={styles.statLabel}>Đã xác nhận</div>
           </div>
+        </div>
+        <div className={`${styles.statCard} ${styles.statWarning}`}>
+          <div className={styles.statIcon}>⏳</div>
+          <div className={styles.statContent}>
+            <div className={styles.statValue}>{pendingCount}</div>
+            <div className={styles.statLabel}>Chờ xác nhận</div>
+          </div>
+        </div>
+        <div className={`${styles.statCard} ${styles.statInfo}`}>
+          <div className={styles.statIcon}>✔</div>
+          <div className={styles.statContent}>
+            <div className={styles.statValue}>{completedCount}</div>
+            <div className={styles.statLabel}>Hoàn thành</div>
+          </div>
+        </div>
+        <div className={`${styles.statCard} ${styles.statDanger}`}>
+          <div className={styles.statIcon}>✗</div>
+          <div className={styles.statContent}>
+            <div className={styles.statValue}>{cancelledCount}</div>
+            <div className={styles.statLabel}>Đã hủy</div>
+          </div>
+        </div>
+      </div>
 
-          <select 
-            className={styles.filterSelect}
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="pending">Chờ xác nhận</option>
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarLeft}>
+          <div className={styles.viewToggle}>
+            <button className={`${styles.viewButton} ${viewMode === 'calendar' ? styles.active : ''}`} onClick={() => setViewMode('calendar')}>📅 Lịch</button>
+            <button className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`} onClick={() => setViewMode('list')}>📋 Danh sách</button>
+          </div>
+          <div className={styles.monthNavigation}>
+            <button className={styles.navButton} onClick={goToPreviousMonth}>◀ Tháng trước</button>
+            <button className={styles.currentButton} onClick={goToCurrentMonth}>{monthName}</button>
+            <button className={styles.navButton} onClick={goToNextMonth}>Tháng sau ▶</button>
+          </div>
+        </div>
+        <div className={styles.toolbarRight}>
+          <select className={styles.filterSelect} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            <option value="all">Tất cả</option>
             <option value="confirmed">Đã xác nhận</option>
+            <option value="pending">Chờ xác nhận</option>
             <option value="completed">Hoàn thành</option>
             <option value="cancelled">Đã hủy</option>
           </select>
-
-          <select 
-            className={styles.filterSelect}
-            value={filterService}
-            onChange={(e) => setFilterService(e.target.value)}
-          >
-            <option value="all">Tất cả dịch vụ</option>
-            <option value="tire">Thay lốp xe</option>
-            <option value="maintenance">Bảo dưỡng</option>
-            <option value="brake">Kiểm tra phanh</option>
-            <option value="oil">Thay dầu</option>
-          </select>
         </div>
       </div>
 
-      {/* Legend */}
-      <div className={styles.legend}>
-        <div className={styles.legendItem}>
-          <span className={`${styles.legendDot} ${styles.statusPending}`}></span>
-          <span>Chờ xác nhận</span>
+      {viewMode === 'calendar' && (
+        <div className={styles.calendarCard}>
+          <div className={styles.calendar}>
+            <div className={styles.weekDays}>
+              {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((day, index) => (<div key={index} className={styles.weekDay}>{day}</div>))}
+            </div>
+            <div className={styles.daysGrid}>
+              {days.map((day, index) => {
+                const dayAppointments = getAppointmentsForDate(day);
+                const isCurrentDay = isToday(day);
+                const isWeekendDay = isWeekend(day);
+                return (
+                  <div key={index} className={`${styles.dayCell} ${!day ? styles.emptyCell : ''} ${isCurrentDay ? styles.today : ''} ${isWeekendDay ? styles.weekend : ''}`}>
+                    {day && (
+                      <>
+                        <div className={styles.dayNumber}>{day.getDate()}</div>
+                        {dayAppointments.length > 0 && (
+                          <div className={styles.dayContent}>
+                            {dayAppointments.slice(0, 3).map((apt) => (
+                              <div key={apt.id} className={`${styles.appointmentBadge} ${getStatusInfo(apt.status).className}`}>
+                                <div className={styles.aptTime}>{apt.startTime}</div>
+                                <div className={styles.aptCustomer}>{apt.customerName}</div>
+                              </div>
+                            ))}
+                            {dayAppointments.length > 3 && (
+                              <div className={styles.moreCount}>+{dayAppointments.length - 3} lịch hẹn</div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
-        <div className={styles.legendItem}>
-          <span className={`${styles.legendDot} ${styles.statusConfirmed}`}></span>
-          <span>Đã xác nhận</span>
-        </div>
-        <div className={styles.legendItem}>
-          <span className={`${styles.legendDot} ${styles.statusCompleted}`}></span>
-          <span>Hoàn thành</span>
-        </div>
-        <div className={styles.legendItem}>
-          <span className={`${styles.legendDot} ${styles.statusCancelled}`}></span>
-          <span>Đã hủy</span>
-        </div>
-      </div>
+      )}
 
-      {/* Calendar Grid */}
-      <div className={styles.calendarWrapper}>
-        <div className={styles.calendar}>
-          {/* Time column */}
-          <div className={styles.timeColumn}>
-            <div className={styles.timeHeader}></div>
-            {timeSlots.map((time) => (
-              <div key={time} className={styles.timeSlot}>
-                {time}
+      {viewMode === 'list' && (
+        <div className={styles.listCard}>
+          <div className={styles.listHeader}>
+            <div className={styles.listHeaderCell}>Ngày</div>
+            <div className={styles.listHeaderCell}>Giờ</div>
+            <div className={styles.listHeaderCell}>Khách hàng</div>
+            <div className={styles.listHeaderCell}>Số điện thoại</div>
+            <div className={styles.listHeaderCell}>Dịch vụ</div>
+            <div className={styles.listHeaderCell}>Trạng thái</div>
+          </div>
+          <div className={styles.listBody}>
+            {filteredAppointments.map((record) => (
+              <div key={record.id} className={styles.listRow}>
+                <div className={styles.listCell}><strong>{new Date(record.date).toLocaleDateString('vi-VN')}</strong></div>
+                <div className={styles.listCell}>{record.startTime} - {record.endTime}</div>
+                <div className={styles.listCell}>{record.customerName}</div>
+                <div className={styles.listCell}>{record.phone}</div>
+                <div className={styles.listCell}>{record.service}</div>
+                <div className={styles.listCell}>
+                  <span className={`${styles.statusBadge} ${getStatusInfo(record.status).className}`}>
+                    {getStatusInfo(record.status).text}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
-
-          {/* Day columns */}
-          {weekDays.map((day, dayIndex) => (
-            <div key={dayIndex} className={styles.dayColumn}>
-              <div className={`${styles.dayHeader} ${isToday(day) ? styles.todayHeader : ''}`}>
-                <div className={styles.dayName}>{getDayName(day)}</div>
-                <div className={styles.dayDate}>{formatDate(day)}</div>
-              </div>
-              
-              <div className={styles.dayContent}>
-                {timeSlots.map((time, timeIndex) => (
-                  <div 
-                    key={timeIndex} 
-                    className={`${styles.timeCell} ${isToday(day) ? styles.todayCell : ''}`}
-                  ></div>
-                ))}
-                
-                {/* Appointments */}
-                <div className={styles.appointmentsLayer}>
-                  {getAppointmentsForDay(day).map((apt) => (
-                    <div
-                      key={apt.id}
-                      className={`${styles.appointment} ${getStatusColor(apt.status)}`}
-                      style={getAppointmentStyle(apt.startTime, apt.endTime)}
-                    >
-                      <div className={styles.appointmentTime}>
-                        {apt.startTime} - {apt.endTime}
-                      </div>
-                      <div className={styles.appointmentCustomer}>
-                        {apt.customerName}
-                      </div>
-                      <div className={styles.appointmentPhone}>
-                        {apt.phone}
-                      </div>
-                      <div className={styles.appointmentService}>
-                        {apt.service}
-                      </div>
-                      {apt.note && (
-                        <div className={styles.appointmentNote}>
-                          📝 {apt.note}
-                        </div>
-                      )}
-                      <div className={styles.appointmentStatus}>
-                        {getStatusText(apt.status)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
-      </div>
+      )}
 
-      {/* Footer Actions */}
-      <div className={styles.footer}>
-        <button className={styles.backButton} onClick={() => window.history.back()}>
-          ← Quay lại
-        </button>
-        <div className={styles.footerInfo}>
-          <span>Tổng số lịch hẹn: <strong>{appointments.length}</strong></span>
-          <span className={styles.separator}>•</span>
-          <span>Đã xác nhận: <strong>{appointments.filter(a => a.status === 'confirmed').length}</strong></span>
-          <span className={styles.separator}>•</span>
-          <span>Chờ xác nhận: <strong>{appointments.filter(a => a.status === 'pending').length}</strong></span>
+      <div className={styles.legend}>
+        <div className={styles.legendTitle}>Chú thích:</div>
+        <div className={styles.legendItems}>
+          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusConfirmed}`}></span><span>Đã xác nhận</span></div>
+          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusPending}`}></span><span>Chờ xác nhận</span></div>
+          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusCompleted}`}></span><span>Hoàn thành</span></div>
+          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusCancelled}`}></span><span>Đã hủy</span></div>
         </div>
       </div>
     </div>

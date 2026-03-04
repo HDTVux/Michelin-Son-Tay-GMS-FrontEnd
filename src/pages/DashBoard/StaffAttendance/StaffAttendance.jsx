@@ -38,15 +38,15 @@ const StaffAttendance = () => {
   const getStatusInfo = (status) => {
     switch (status) {
       case 'PRESENT':
-        return { text: 'Co mat', className: styles.statusPresent };
+        return { text: 'Có mặt', className: styles.statusPresent };
       case 'LATE':
-        return { text: 'Muon', className: styles.statusLate };
+        return { text: 'Muộn', className: styles.statusLate };
       case 'ABSENT':
-        return { text: 'Vang', className: styles.statusAbsent };
+        return { text: 'Vắng', className: styles.statusAbsent };
       case 'OFF':
-        return { text: 'Nghi', className: styles.statusOff };
+        return { text: 'Nghỉ', className: styles.statusOff };
       case 'NOT_YET':
-        return { text: 'Chua diem', className: styles.statusNotYet };
+        return { text: 'Chưa điểm', className: styles.statusNotYet };
       default:
         return { text: status, className: '' };
     }
@@ -55,14 +55,13 @@ const StaffAttendance = () => {
   // Transform API response to display format
   const transformAttendanceData = (data) => {
     return data.map((item, index) => {
-      // Backend returns: attendanceDate, morningStatus, afternoonStatus
-      // Convert to format matching our display needs
+      // Backend returns: attendanceDate (LocalDate), morningStatus, afternoonStatus
       return {
         idstaff_attendance: index + 1,
         staff_id: staffInfo.id || 1,
-        attendance_date: item.attendanceDate, // Backend uses attendanceDate (camelCase)
-        morning_status: item.morningStatus, // Backend uses morningStatus (camelCase)
-        afternoon_status: item.afternoonStatus, // Backend uses afternoonStatus (camelCase)
+        attendance_date: item.attendanceDate, // Format: "2024-03-02"
+        morning_status: item.morningStatus, // Enum: NOT_YET, PRESENT, ABSENT, LATE, OFF
+        afternoon_status: item.afternoonStatus, // Enum: NOT_YET, PRESENT, ABSENT, LATE, OFF
         created_at: `${item.attendanceDate} 08:00:00`,
         updated_at: `${item.attendanceDate} 17:30:00`,
       };
@@ -78,8 +77,12 @@ const StaffAttendance = () => {
         // Try to get staff token from localStorage
         const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
         
+        console.log('=== DEBUG ATTENDANCE API ===');
+        console.log('Token found:', token ? 'YES' : 'NO');
+        console.log('Token value:', token ? token.substring(0, 20) + '...' : 'null');
+        
         if (!token) {
-          console.warn('No token found, using mock data');
+          console.warn('❌ No token found, using mock data');
           setAttendanceData(mockAttendanceData);
           setStaffInfo({
             id: '1',
@@ -92,23 +95,28 @@ const StaffAttendance = () => {
         }
         
         // Get staffId from localStorage or use default
-        const staffId = localStorage.getItem('staffId') || '1';
+        const staffId = localStorage.getItem('staffId') || '2';
         
-        console.log('Fetching attendance for staffId:', staffId);
+        console.log('📞 Calling API with staffId:', staffId);
+        console.log('API URL:', `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/staff/attendance/${staffId}`);
         
         const response = await fetchStaffAttendance(staffId, token);
         
-        console.log('API Response:', response);
+        console.log('✅ API Response received:', response);
+        console.log('Response success:', response?.success);
+        console.log('Response data length:', response?.data?.length);
 
         if (response && response.success && response.data) {
           const attendanceList = Array.isArray(response.data) ? response.data : [];
           
+          console.log('📊 Attendance records:', attendanceList.length);
+          
           if (attendanceList.length > 0) {
             const transformedData = transformAttendanceData(attendanceList);
             setAttendanceData(transformedData);
-            console.log('Loaded attendance data:', transformedData);
+            console.log('✅ Using REAL data from API:', transformedData.length, 'records');
           } else {
-            console.warn('No attendance data found, using mock data');
+            console.warn('⚠️ API returned empty array, using mock data');
             setAttendanceData(mockAttendanceData);
           }
 
@@ -120,7 +128,8 @@ const StaffAttendance = () => {
             avatar: '👤'
           });
         } else {
-          console.warn('Invalid API response, using mock data');
+          console.warn('❌ Invalid API response structure, using mock data');
+          console.log('Response structure:', JSON.stringify(response, null, 2));
           setAttendanceData(mockAttendanceData);
           setStaffInfo({
             id: staffId,
@@ -130,8 +139,10 @@ const StaffAttendance = () => {
           });
         }
       } catch (err) {
-        console.error('Error fetching attendance:', err);
-        console.error('Error details:', err.message);
+        console.error('❌ Error fetching attendance:', err);
+        console.error('Error name:', err.name);
+        console.error('Error message:', err.message);
+        console.error('Error stack:', err.stack);
         
         // Use mock data when API fails
         setAttendanceData(mockAttendanceData);
@@ -143,6 +154,7 @@ const StaffAttendance = () => {
         });
       } finally {
         setLoading(false);
+        console.log('=== END DEBUG ===');
       }
     };
 
@@ -241,7 +253,7 @@ const StaffAttendance = () => {
       <div className={styles.container}>
         <div className={styles.loadingContainer}>
           <div className={styles.spinner}></div>
-          <p>Dang tai du lieu...</p>
+          <p>Đang tải dữ liệu...</p>
         </div>
       </div>
     );
@@ -253,14 +265,14 @@ const StaffAttendance = () => {
         <div className={styles.headerLeft}>
           <div className={styles.staffAvatar}>{staffInfo.avatar}</div>
           <div className={styles.staffInfo}>
-            <h1 className={styles.title}>Diem danh cua toi</h1>
+            <h1 className={styles.title}>Điểm danh của tôi</h1>
             <p className={styles.subtitle}>
-              {staffInfo.name || 'Nhan vien'} - {staffInfo.position} - ID: {staffInfo.id}
+              {staffInfo.name || 'Nhân viên'} - {staffInfo.position} - ID: {staffInfo.id}
             </p>
           </div>
         </div>
         <div className={styles.headerRight}>
-          <button className={styles.exportButton}>Xuat bao cao</button>
+          <button className={styles.exportButton}>Xuất báo cáo</button>
         </div>
       </div>
 
@@ -269,35 +281,35 @@ const StaffAttendance = () => {
           <div className={styles.statIcon}>📅</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{totalDays}</div>
-            <div className={styles.statLabel}>Tong ngay</div>
+            <div className={styles.statLabel}>Tổng ngày</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statSuccess}`}>
           <div className={styles.statIcon}>✓</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{presentDays}</div>
-            <div className={styles.statLabel}>Co mat</div>
+            <div className={styles.statLabel}>Có mặt</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statWarning}`}>
           <div className={styles.statIcon}>!</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{lateDays}</div>
-            <div className={styles.statLabel}>Muon</div>
+            <div className={styles.statLabel}>Muộn</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statDanger}`}>
           <div className={styles.statIcon}>✗</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{absentDays}</div>
-            <div className={styles.statLabel}>Vang mat</div>
+            <div className={styles.statLabel}>Vắng mặt</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statInfo}`}>
           <div className={styles.statIcon}>○</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{offDays}</div>
-            <div className={styles.statLabel}>Nghi</div>
+            <div className={styles.statLabel}>Nghỉ</div>
           </div>
         </div>
       </div>
@@ -305,23 +317,23 @@ const StaffAttendance = () => {
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
           <div className={styles.viewToggle}>
-            <button className={`${styles.viewButton} ${viewMode === 'calendar' ? styles.active : ''}`} onClick={() => setViewMode('calendar')}>📅 Lich</button>
-            <button className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`} onClick={() => setViewMode('list')}>📋 Danh sach</button>
+            <button className={`${styles.viewButton} ${viewMode === 'calendar' ? styles.active : ''}`} onClick={() => setViewMode('calendar')}>📅 Lịch</button>
+            <button className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`} onClick={() => setViewMode('list')}>📋 Danh sách</button>
           </div>
           <div className={styles.monthNavigation}>
-            <button className={styles.navButton} onClick={goToPreviousMonth}>◀ Thang truoc</button>
+            <button className={styles.navButton} onClick={goToPreviousMonth}>◀ Tháng trước</button>
             <button className={styles.currentButton} onClick={goToCurrentMonth}>{monthName}</button>
-            <button className={styles.navButton} onClick={goToNextMonth}>Thang sau ▶</button>
+            <button className={styles.navButton} onClick={goToNextMonth}>Tháng sau ▶</button>
           </div>
         </div>
         <div className={styles.toolbarRight}>
           <select className={styles.filterSelect} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="all">Tat ca</option>
-            <option value="PRESENT">Co mat</option>
-            <option value="LATE">Muon</option>
-            <option value="ABSENT">Vang mat</option>
-            <option value="OFF">Nghi</option>
-            <option value="NOT_YET">Chua diem</option>
+            <option value="all">Tất cả</option>
+            <option value="PRESENT">Có mặt</option>
+            <option value="LATE">Muộn</option>
+            <option value="ABSENT">Vắng mặt</option>
+            <option value="OFF">Nghỉ</option>
+            
           </select>
         </div>
       </div>
@@ -338,18 +350,24 @@ const StaffAttendance = () => {
                 const isCurrentDay = isToday(day);
                 const isWeekendDay = isWeekend(day);
                 return (
-                  <div key={index} className={`${styles.dayCell} ${!day ? styles.emptyCell : ''} ${isCurrentDay ? styles.today : ''} ${isWeekendDay ? styles.weekend : ''} ${attendance ? getDayStatusClass(attendance) : ''}`}>
+                  <div key={index} className={`${styles.dayCell} ${!day ? styles.emptyCell : ''} ${isCurrentDay ? styles.today : ''} ${isWeekendDay ? styles.weekend : ''}`}>
                     {day && (
                       <>
                         <div className={styles.dayNumber}>{day.getDate()}</div>
                         {attendance && (
                           <div className={styles.dayContent}>
-                            <div className={styles.dayStatus}>
-                              <span className={styles.statusBadge}>{getStatusInfo(attendance.morning_status).text}</span>
+                            <div className={styles.sessionStatus}>
+                              <span className={styles.sessionLabel}>Sáng:</span>
+                              <span className={`${styles.statusBadge} ${getStatusInfo(attendance.morning_status).className}`}>
+                                {getStatusInfo(attendance.morning_status).text}
+                              </span>
                             </div>
-                            <div className={styles.dayStatus}>
-                              <span className={styles.statusBadge}>{getStatusInfo(attendance.afternoon_status).text}</span>
-                              </div>
+                            <div className={styles.sessionStatus}>
+                              <span className={styles.sessionLabel}>Chiều:</span>
+                              <span className={`${styles.statusBadge} ${getStatusInfo(attendance.afternoon_status).className}`}>
+                                {getStatusInfo(attendance.afternoon_status).text}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </>
@@ -365,23 +383,23 @@ const StaffAttendance = () => {
       {viewMode === 'list' && (
         <div className={styles.listCard}>
           <div className={styles.listHeader}>
-            <div className={styles.listHeaderCell}>Ngay</div>
-            <div className={styles.listHeaderCell}>Gio vao (sang)</div>
-            <div className={styles.listHeaderCell}>Gio ra (chieu)</div>
-            <div className={styles.listHeaderCell}>Trang thai sang</div>
-            <div className={styles.listHeaderCell}>Trang thai chieu</div>
+            <div className={styles.listHeaderCell}>Ngày</div>
+            <div className={styles.listHeaderCell}>Buổi sáng</div>
+            <div className={styles.listHeaderCell}>Buổi chiều</div>
           </div>
           <div className={styles.listBody}>
             {filteredAttendance.map((record, index) => (
-              <div key={index} className={`${styles.listRow} ${getDayStatusClass(record)}`}>
+              <div key={index} className={styles.listRow}>
                 <div className={styles.listCell}><strong>{new Date(record.attendance_date).toLocaleDateString('vi-VN')}</strong></div>
-                <div className={styles.listCell}>{record.created_at ? record.created_at.split(' ')[1]?.substring(0, 5) : '-'}</div>
-                <div className={styles.listCell}>{record.updated_at ? record.updated_at.split(' ')[1]?.substring(0, 5) : '-'}</div>
                 <div className={styles.listCell}>
-                  <span className={styles.statusBadge}>{getStatusInfo(record.morning_status).text}</span>
+                  <span className={`${styles.statusBadge} ${getStatusInfo(record.morning_status).className}`}>
+                    {getStatusInfo(record.morning_status).text}
+                  </span>
                 </div>
                 <div className={styles.listCell}>
-                  <span className={styles.statusBadge}>{getStatusInfo(record.afternoon_status).text}</span>
+                  <span className={`${styles.statusBadge} ${getStatusInfo(record.afternoon_status).className}`}>
+                    {getStatusInfo(record.afternoon_status).text}
+                  </span>
                 </div>
               </div>
             ))}
@@ -390,12 +408,12 @@ const StaffAttendance = () => {
       )}
 
       <div className={styles.legend}>
-        <div className={styles.legendTitle}>Chu thich:</div>
+        <div className={styles.legendTitle}>Chú thích:</div>
         <div className={styles.legendItems}>
-          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusPresent}`}></span><span>Co mat</span></div>
-          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusLate}`}></span><span>Muon</span></div>
-          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusAbsent}`}></span><span>Vang mat</span></div>
-          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusOff}`}></span><span>Nghi</span></div>
+          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusPresent}`}></span><span>Có mặt</span></div>
+          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusLate}`}></span><span>Muộn</span></div>
+          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusAbsent}`}></span><span>Vắng mặt</span></div>
+          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusOff}`}></span><span>Nghỉ</span></div>
         </div>
       </div>
     </div>
