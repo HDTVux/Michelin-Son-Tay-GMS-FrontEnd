@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import styles from '../BookingRequestManagement/BookingRequestDetail.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import SchedulePanel from '../BookingRequestManagement/SchedulePanel.jsx';
@@ -8,13 +8,18 @@ import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
 
 function InfoRow({ label, value, link, type, extraAction, full }) {
-  const rendered = link ? (
-    <a className={styles.link} href={type === 'tel' ? `tel:${value}` : type === 'mailto' ? `mailto:${value}` : '#'}>
-      {value}
-    </a>
-  ) : (
-    <span className={styles.value}>{value}</span>
-  );
+  const safeValue = value == null ? '' : String(value);
+  const href = (() => {
+    if (!link) return '';
+    if (type === 'tel' && safeValue) return `tel:${safeValue}`;
+    if (type === 'mailto' && safeValue) return `mailto:${safeValue}`;
+    return '';
+  })();
+
+  let rendered;
+  if (href) rendered = <a className={styles.link} href={href}>{safeValue}</a>;
+  else if (link) rendered = <span className={styles.link}>{safeValue}</span>;
+  else rendered = <span className={styles.value}>{safeValue}</span>;
 
   return (
     <div className={`${styles.infoBox} ${full ? styles.full : ''}`}>
@@ -42,6 +47,11 @@ function mapStatusTone(status) {
 function mapBooking(apiData) {
   if (!apiData) return null;
 
+  const customer = apiData.customer || apiData.customerInfo || apiData.customerProfile || {};
+  const customerName = customer?.fullName || apiData.fullName || apiData.customerName || apiData.name || '';
+  const customerPhone = customer?.phone || apiData.phone || apiData.customerPhone || '';
+  const firstBookingAt = customer?.firstBookingAt || apiData.firstBookingAt || apiData.customerFirstBookingAt;
+
   const items = Array.isArray(apiData.items) ? apiData.items : [];
   const services = items.map((s) => s?.itemName || s?.itemType).filter(Boolean);
 
@@ -50,11 +60,11 @@ function mapBooking(apiData) {
   const statusTone = mapStatusTone(status);
 
   return {
-    id: apiData.bookingId?.toString() || '',
-    name: apiData.customer?.fullName || '',
-    phone: apiData.customer?.phone || '',
+    bookingId: apiData.bookingId?.toString() || '',
+    name: customerName,
+    phone: customerPhone,
     customerType: apiData.isGuest ? 'Khách vãng lai' : 'Khách có tài khoản',
-    history: apiData.customer?.firstBookingAt ? 'Đã có lịch sử' : 'Chưa có lịch sử',
+    history: firstBookingAt ? 'Đã có lịch sử' : 'Chưa có lịch sử',
     services,
     servicesDisplay: services.length ? services.join(', ') : apiData.serviceCategory || 'Không có dịch vụ',
     status,
@@ -70,39 +80,21 @@ export default function ConfirmedBookingDetail() {
   useScrollToTop();
 
   const navigate = useNavigate();
-  const { id } = useParams();
+  const location = useLocation();
+  const params = useParams();
+  const bookingCode = params?.bookingCode ?? params?.id;
+
+  const fallbackCustomerName = location?.state?.customerName;
+  const fallbackCustomerPhone = location?.state?.customerPhone;
 
   const [booking, setBooking] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadDetail = async (token, bookingId) => {
-    try {
-      setIsLoading(true);
-      const response = await fetchManagedBookingDetail(bookingId, token);
-      const mapped = mapBooking(response?.data);
-      setBooking(mapped);
-      setError('');
-    } catch (err) {
-      const msg = err?.message || 'Không thể tải chi tiết booking.';
-      const isUnauthorized = err?.status === 401 || err?.status === 403 || msg.toLowerCase().includes('token');
-
-      if (isUnauthorized) {
-        localStorage.removeItem('authToken');
-        setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-      } else {
-        setError(msg);
-      }
-      setBooking(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
     const token = localStorage.getItem('authToken');
 
-    if (!id) {
+    if (!bookingCode) {
       setError('Không tìm thấy mã booking.');
       setIsLoading(false);
       return;
@@ -114,8 +106,41 @@ export default function ConfirmedBookingDetail() {
       return;
     }
 
-    loadDetail(token, id);
-  }, [id]);
+    const loadDetail = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetchManagedBookingDetail(bookingCode, token);
+        const payload = response?.data?.data ?? response?.data;
+        const mapped = mapBooking(payload);
+        setBooking(
+          mapped
+            ? {
+                ...mapped,
+                id: String(bookingCode || ''),
+                name: mapped.name || fallbackCustomerName || '',
+                phone: mapped.phone || fallbackCustomerPhone || '',
+              }
+            : null,
+        );
+        setError('');
+      } catch (err) {
+        const msg = err?.message || 'Không thể tải chi tiết booking.';
+        const isUnauthorized = err?.status === 401 || err?.status === 403 || msg.toLowerCase().includes('token');
+
+        if (isUnauthorized) {
+          localStorage.removeItem('authToken');
+          setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        } else {
+          setError(msg);
+        }
+        setBooking(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDetail();
+  }, [bookingCode, fallbackCustomerName, fallbackCustomerPhone]);
 
   return (
     <div className={styles.page}>

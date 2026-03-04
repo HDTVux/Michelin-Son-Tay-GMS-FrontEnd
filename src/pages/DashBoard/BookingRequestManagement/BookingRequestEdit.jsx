@@ -35,6 +35,7 @@ function mapBooking(apiData) {
 
   return {
     id: apiData.requestId?.toString() || '',
+    code: apiData.requestCode || apiData.request_code || '',
     name: apiData.fullName || apiData.customer?.fullName || '',
     phone: apiData.phone || apiData.customer?.phone || '',
     email: apiData.customer?.email || '',
@@ -138,7 +139,8 @@ export default function BookingRequestEdit() {
   useScrollToTop();
   
   const navigate = useNavigate();
-  const { id } = useParams(); 
+  const params = useParams();
+  const requestCodeParam = params?.requestCode ?? params?.id;
 
   const notify = (message) => toast(message, { containerId: 'app-toast' });
 
@@ -189,6 +191,10 @@ export default function BookingRequestEdit() {
    */
   const handleSave = async () => {
     if (!booking?.id || isSaving) return;
+    if (!requestCodeParam) {
+      setError('Không tìm thấy mã yêu cầu (requestCode) để cập nhật.');
+      return;
+    }
 
     if (!form.desiredDate || !form.desiredTime) {
       setError('Vui lòng chọn ngày và khung giờ.');
@@ -241,9 +247,9 @@ export default function BookingRequestEdit() {
     try {
       setIsSaving(true);
       setError('');
-      const res = await updateBookingRequest(booking.id, payload, token);
+      const res = await updateBookingRequest(requestCodeParam, payload, token);
       notify(res?.message || 'Cập nhật yêu cầu thành công.');
-      navigate(`/booking-request-management/${booking.id}`);
+      navigate(`/booking-request-management/${encodeURIComponent(String(requestCodeParam || ''))}`);
     } catch (err) {
       setError(err?.message || 'Không thể cập nhật yêu cầu.');
     } finally {
@@ -251,7 +257,7 @@ export default function BookingRequestEdit() {
     }
   };
 
-  const bookingId = useMemo(() => String(id || '').trim(), [id]);
+  const requestCode = useMemo(() => String(requestCodeParam || '').trim(), [requestCodeParam]);
 
   const dateOptions = useMemo(() => buildDateOptions(), []);
   const allowedDateSet = useMemo(() => new Set(dateOptions.map((o) => o.value)), [dateOptions]);
@@ -295,10 +301,16 @@ export default function BookingRequestEdit() {
   // Khi đã chọn ngày: gọi API lấy trạng thái còn chỗ (không áp rule "đặt trước 2 tiếng")
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-
-    if (!token || !form.desiredDate) {
+    if (!form.desiredDate) {
       setAvailableSlots([]);
       setSlotsError('');
+      setSlotsLoading(false);
+      return;
+    }
+
+    if (!token) {
+      setAvailableSlots([]);
+      setSlotsError('Vui lòng đăng nhập để xem trạng thái chỗ trống.');
       setSlotsLoading(false);
       return;
     }
@@ -366,8 +378,8 @@ export default function BookingRequestEdit() {
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    if (!bookingId) {
-      setError('Không tìm thấy mã yêu cầu.');
+    if (!requestCode) {
+      setError('Không tìm thấy mã yêu cầu (requestCode).');
       setIsLoading(false);
       return;
     }
@@ -381,10 +393,11 @@ export default function BookingRequestEdit() {
     setIsLoading(true);
     setError('');
 
-    fetchBookingRequestDetail(bookingId, token)
+    fetchBookingRequestDetail(requestCode, token)
       .then((response) => {
         if (!active) return;
-        const mapped = mapBooking(response?.data);
+        const payload = response?.data?.data ?? response?.data;
+        const mapped = mapBooking(payload);
         setBooking(mapped);
         setForm({
           desiredDate: mapped?.desiredDate || '',
@@ -413,7 +426,7 @@ export default function BookingRequestEdit() {
     return () => {
       active = false;
     };
-  }, [bookingId]);
+  }, [requestCode]);
 
   return (
     <div className={styles.page}>
@@ -435,7 +448,7 @@ export default function BookingRequestEdit() {
           <div className={styles.cardHeader}>
             <div>
               <div className={styles.label}>Mã yêu cầu</div>
-              <div className={styles.requestId}>{booking.id}</div>
+              <div className={styles.requestId}>{booking.code || requestCodeParam || ''}</div>
             </div>
             <span className={`${styles.statusPill} ${styles['statusPill--' + booking.statusTone]}`}>
               {getBookingStatusTextVi(booking.status)}
@@ -573,7 +586,7 @@ export default function BookingRequestEdit() {
               />
             </div>
         <div className={styles.headerActions}>
-          <button className={styles.secondaryBtn} onClick={() => navigate(`/booking-request-management/${booking.id}`)}>Hủy</button>
+          <button className={styles.secondaryBtn} onClick={() => navigate(`/booking-request-management/${encodeURIComponent(String(requestCodeParam || ''))}`)}>Hủy</button>
           <button
             className={styles.primaryBtn}
             onClick={handleSave}
