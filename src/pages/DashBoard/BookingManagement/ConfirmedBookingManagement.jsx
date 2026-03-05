@@ -320,9 +320,11 @@ function BookingPanel({
                       <button
                         className={`${styles['primary-button']} ${styles['is-ghost']}`}
                         onClick={() => onCheckIn?.({
+                          bookingCode,
                           bookingId,
                           booking: {
                             bookingId,
+                            bookingCode,
                             customerName,
                             customerPhone,
                             serviceName: service,

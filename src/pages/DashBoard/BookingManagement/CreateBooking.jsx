@@ -4,7 +4,7 @@ import bookingStyles from '../../Booking/Booking.module.css';
 import scheduleStyles from '../BookingRequestManagement/BookingRequestEdit.module.css';
 import styles from './CreateBooking.module.css';
 import StepService from '../../Booking/steps/StepService.jsx';
-import StepInfo from '../../Booking/steps/StepInfo.jsx';
+import infoStyles from '../../Booking/steps/StepInfo.module.css';
 import { fetchHomeServices } from '../../../services/homeService.js';
 import { staffCreateBooking, fetchAllSlots, fetchAvailableSlotStaff } from '../../../services/bookingService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
@@ -475,14 +475,62 @@ export default function CreateBooking() {
 
 			<div style={{ height: 16 }} />
 
-			<StepInfo
-				value={info}
-				onChange={(patch) => setInfo((prev) => ({ ...prev, ...patch }))}
-				isAuthed={false}
-				loading={submitting}
-				error={submitError}
-				showActions={false}
-			/>
+			<h3 className={bookingStyles['section-title']}>Thông tin khách hàng</h3>
+			<p className={infoStyles['info-note']}>Vui lòng nhập thông tin để tiếp tục.</p>
+
+			<div className={infoStyles['info-card']}>
+				<div className={infoStyles.field}>
+					<label htmlFor="create-booking-fullname">Họ và tên</label>
+					<input
+						id="create-booking-fullname"
+						type="text"
+						placeholder="Nhập họ và tên của khách"
+						value={info.name}
+						onChange={(e) => setInfo((prev) => ({ ...prev, name: e.target.value }))}
+						required
+					/>
+				</div>
+
+				<div className={infoStyles.field}>
+					<label htmlFor="create-booking-phone">Số điện thoại</label>
+					<div className={infoStyles['inline-input']}>
+						<input
+							id="create-booking-phone"
+							type="tel"
+							placeholder="Nhập số điện thoại"
+							value={info.phone}
+							onChange={(e) => setInfo((prev) => ({ ...prev, phone: e.target.value }))}
+							required
+						/>
+					</div>
+				</div>
+			</div>
+
+			{submitError && <div className={infoStyles.error}>{submitError}</div>}
+
+			<div className={infoStyles['section-block']}>
+				<div className={infoStyles['section-title-row']}>
+					<h4 className={bookingStyles['section-title']}>
+						Yêu cầu đặc biệt (không bắt buộc)
+					</h4>
+				</div>
+				<div className={infoStyles.field}>
+					<label htmlFor="create-booking-note" className={infoStyles.srOnly}>Ghi chú</label>
+					<textarea
+						id="create-booking-note"
+						rows="6"
+						placeholder="VD: Kiểm tra thêm tiếng kêu ở bánh trước, cần lấy xe trước 17h, ..."
+						value={info.note}
+						onChange={(e) => {
+							const sanitized = String(e.target.value)
+								.replaceAll(/[<>{}]/g, '')
+								.slice(0, 500);
+							setInfo((prev) => ({ ...prev, note: sanitized }));
+						}}
+						maxLength={500}
+					/>
+				</div>
+			</div>
 			{submitSuccess && (
 				<div className={styles.successRow}>
 					<div className={`${scheduleStyles.serviceStatus} ${styles.successMessage}`}>{submitSuccess}</div>

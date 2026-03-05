@@ -26,8 +26,8 @@ export default function StepDone({ schedule, info, bookingData, services, select
   // Dùng mã trả về từ backend (customer: bookingId, guest: requestId/code)
   const bookingCode = bookingData?.bookingCode
     ? `${bookingData.bookingCode}`
-    : bookingData?.requestId
-      ? `${bookingData.requestId}`
+    : bookingData?.requestCode
+      ? `${bookingData.requestCode}`
       : bookingData?.code || ''
 
   const confirmedDate = bookingData?.scheduledDate || schedule.date
