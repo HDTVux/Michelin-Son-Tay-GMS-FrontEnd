@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { toast } from 'react-toastify';
@@ -14,7 +14,6 @@ const CustomerManager = () => {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
 
@@ -29,18 +28,13 @@ const CustomerManager = () => {
     phone: '',
     email: '',
     gender: 'MALE',
-    dateOfBirth: '',
-    address: '',
-    city: '',
-    district: '',
-    ward: '',
-    customerType: 'REGULAR'
+    dateOfBirth: ''
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   // Mock data
-  const mockCustomers = [
+  const mockCustomers = useMemo(() => [
     { id: 1, fullName: 'Nguyen Van A', phone: '0912345678', email: 'nguyenvana@email.com', gender: 'MALE', dateOfBirth: '1990-01-15', status: 'ACTIVE', customerType: 'VIP', createdAt: '2024-01-01', totalBookings: 15 },
     { id: 2, fullName: 'Tran Thi B', phone: '0923456789', email: 'tranthib@email.com', gender: 'FEMALE', dateOfBirth: '1992-03-20', status: 'ACTIVE', customerType: 'REGULAR', createdAt: '2024-01-05', totalBookings: 8 },
     { id: 3, fullName: 'Le Van C', phone: '0934567890', email: 'levanc@email.com', gender: 'MALE', dateOfBirth: '1985-07-10', status: 'ACTIVE', customerType: 'PREMIUM', createdAt: '2024-01-10', totalBookings: 25 },
@@ -53,12 +47,13 @@ const CustomerManager = () => {
     { id: 10, fullName: 'Phan Van K', phone: '0901234567', email: 'phanvank@email.com', gender: 'MALE', dateOfBirth: '1989-06-15', status: 'ACTIVE', customerType: 'REGULAR', createdAt: '2024-02-15', totalBookings: 9 },
     { id: 11, fullName: 'Nguyen Van L', phone: '0912345670', email: 'nguyenvanl@email.com', gender: 'MALE', dateOfBirth: '1992-10-05', status: 'ACTIVE', customerType: 'VIP', createdAt: '2024-02-20', totalBookings: 14 },
     { id: 12, fullName: 'Tran Thi M', phone: '0923456780', email: 'tranm@email.com', gender: 'FEMALE', dateOfBirth: '1996-02-28', status: 'ACTIVE', customerType: 'REGULAR', createdAt: '2024-02-25', totalBookings: 5 },
-  ];
+  ], []);
 
   const loadCustomers = useCallback(async () => {
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       let filteredData = [...mockCustomers];
 
@@ -73,10 +68,6 @@ const CustomerManager = () => {
 
       if (statusFilter !== 'all') {
         filteredData = filteredData.filter(c => c.status === statusFilter);
-      }
-
-      if (typeFilter !== 'all') {
-        filteredData = filteredData.filter(c => c.customerType === typeFilter);
       }
 
       filteredData.sort((a, b) => {
@@ -108,11 +99,11 @@ const CustomerManager = () => {
       setCustomers(paginatedData);
     } catch (error) {
       console.error('Error loading customers:', error);
-      toast.error('Khong tai du lieu khach hang');
+      toast.error('Không tải được dữ liệu khách hàng');
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, typeFilter, sortBy, sortOrder, currentPage]);
+  }, [searchTerm, statusFilter, sortBy, sortOrder, currentPage, mockCustomers]);
 
   useEffect(() => {
     loadCustomers();
@@ -139,23 +130,17 @@ const CustomerManager = () => {
     const newErrors = {};
 
     if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Vui long nhap ho ten';
+      newErrors.fullName = 'Vui lòng nhập họ tên';
     }
 
     if (!formData.phone.trim()) {
-      newErrors.phone = 'Vui long nhap so dien thoai';
+      newErrors.phone = 'Vui lòng nhập số điện thoại';
     } else if (!/^[0-9]{10}$/.test(formData.phone)) {
-      newErrors.phone = 'So dien thoai khong hop le';
+      newErrors.phone = 'Số điện thoại không hợp lệ';
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Vui long nhap email';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email khong hop le';
-    }
-
-    if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = 'Vui long chon ngay sinh';
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Email không hợp lệ';
     }
 
     setErrors(newErrors);
@@ -174,24 +159,19 @@ const CustomerManager = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      toast.success('Them khach hang thanh cong!');
+      toast.success('Thêm khách hàng thành công!');
       setShowModal(false);
       setFormData({
         fullName: '',
         phone: '',
         email: '',
         gender: 'MALE',
-        dateOfBirth: '',
-        address: '',
-        city: '',
-        district: '',
-        ward: '',
-        customerType: 'REGULAR'
+        dateOfBirth: ''
       });
       loadCustomers();
     } catch (error) {
       console.error('Error adding customer:', error);
-      toast.error('Them khach hang that bai');
+      toast.error('Thêm khách hàng thất bại');
     } finally {
       setSubmitting(false);
     }
@@ -207,9 +187,72 @@ const CustomerManager = () => {
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'ACTIVE': return 'Hoat dong';
-      case 'INACTIVE': return 'Khong hoat dong';
+      case 'ACTIVE': return 'Hoạt động';
+      case 'INACTIVE': return 'Không hoạt động';
       default: return status;
+    }
+  };
+
+  const handleLockAccount = async (customerId) => {
+    if (window.confirm('Bạn có chắc chắn muốn khóa tài khoản này?')) {
+      try {
+        // Update UI immediately
+        setCustomers(prevCustomers => 
+          prevCustomers.map(customer => 
+            customer.id === customerId 
+              ? { ...customer, status: 'INACTIVE' }
+              : customer
+          )
+        );
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        toast.success('Khóa tài khoản thành công!');
+      } catch (error) {
+        console.error('Error locking account:', error);
+        toast.error('Khóa tài khoản thất bại');
+        loadCustomers(); // Reload on error
+      }
+    }
+  };
+
+  const handleUnlockAccount = async (customerId) => {
+    if (window.confirm('Bạn có chắc chắn muốn mở khóa tài khoản này?')) {
+      try {
+        // Update UI immediately
+        setCustomers(prevCustomers => 
+          prevCustomers.map(customer => 
+            customer.id === customerId 
+              ? { ...customer, status: 'ACTIVE' }
+              : customer
+          )
+        );
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        toast.success('Mở khóa tài khoản thành công!');
+      } catch (error) {
+        console.error('Error unlocking account:', error);
+        toast.error('Mở khóa tài khoản thất bại');
+        loadCustomers(); // Reload on error
+      }
+    }
+  };
+
+  const handleDeleteAccount = async (customerId) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa tài khoản này? Hành động này không thể hoàn tác!')) {
+      try {
+        // Remove from UI immediately
+        setCustomers(prevCustomers => 
+          prevCustomers.filter(customer => customer.id !== customerId)
+        );
+        setTotalItems(prev => prev - 1);
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        toast.success('Xóa tài khoản thành công!');
+      } catch (error) {
+        console.error('Error deleting account:', error);
+        toast.error('Xóa tài khoản thất bại');
+        loadCustomers(); // Reload on error
+      }
     }
   };
 
@@ -227,9 +270,9 @@ const CustomerManager = () => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Quan ly khach hang</h1>
+        <h1 className={styles.title}>Quản lý khách hàng</h1>
         <button className={styles.addButton} onClick={() => setShowModal(true)}>
-          <span>+</span> Them khach hang moi
+          <span>+</span> Thêm khách hàng mới
         </button>
       </div>
 
@@ -238,7 +281,7 @@ const CustomerManager = () => {
           <span>🔍</span>
           <input
             type="text"
-            placeholder="Tim kiem..."
+            placeholder="Tìm kiếm..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -250,20 +293,9 @@ const CustomerManager = () => {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="all">Tat ca trang thai</option>
-            <option value="ACTIVE">Hoat dong</option>
-            <option value="INACTIVE">Khong hoat dong</option>
-          </select>
-
-          <select
-            className={styles.filterSelect}
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-          >
-            <option value="all">Tat ca loai</option>
-            <option value="VIP">VIP</option>
-            <option value="PREMIUM">Premium</option>
-            <option value="REGULAR">Thuong</option>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="ACTIVE">Hoạt động</option>
+            <option value="INACTIVE">Không hoạt động</option>
           </select>
 
           <select
@@ -275,12 +307,12 @@ const CustomerManager = () => {
               setSortOrder(order);
             }}
           >
-            <option value="createdAt-desc">Moi nhat</option>
-            <option value="createdAt-asc">Cu nhat</option>
-            <option value="fullName-asc">Ten A-Z</option>
-            <option value="fullName-desc">Ten Z-A</option>
-            <option value="totalBookings-desc">Nhieu booking</option>
-            <option value="totalBookings-asc">It booking</option>
+            <option value="createdAt-desc">Mới nhất</option>
+            <option value="createdAt-asc">Cũ nhất</option>
+            <option value="fullName-asc">Tên A-Z</option>
+            <option value="fullName-desc">Tên Z-A</option>
+            <option value="totalBookings-desc">Nhiều booking</option>
+            <option value="totalBookings-asc">Ít booking</option>
           </select>
         </div>
       </div>
@@ -288,12 +320,12 @@ const CustomerManager = () => {
       {loading ? (
         <div className={styles.loadingContainer}>
           <div className={styles.spinner}></div>
-          <p>Dang tai du lieu...</p>
+          <p>Đang tải dữ liệu...</p>
         </div>
       ) : customers.length === 0 ? (
         <div className={styles.emptyState}>
           <div className={styles.emptyIcon}>📭</div>
-          <p>Khong co khach hang nao</p>
+          <p>Không có khách hàng nào</p>
         </div>
       ) : (
         <>
@@ -302,16 +334,16 @@ const CustomerManager = () => {
               <thead>
                 <tr>
                   <th className={styles.sortable} onClick={() => handleSort('fullName')}>
-                    Khach hang {renderSortIcon('fullName')}
+                    Khách hàng {renderSortIcon('fullName')}
                   </th>
-                  <th>So dien thoai</th>
+                  <th>Số điện thoại</th>
                   <th className={styles.sortable} onClick={() => handleSort('status')}>
-                    Trang thai {renderSortIcon('status')}
+                    Trạng thái {renderSortIcon('status')}
                   </th>
                   <th className={styles.sortable} onClick={() => handleSort('totalBookings')}>
                     Booking {renderSortIcon('totalBookings')}
                   </th>
-                  <th>Hanh dong</th>
+                  <th>Hành động</th>
                 </tr>
               </thead>
               <tbody>
@@ -337,14 +369,40 @@ const CustomerManager = () => {
                         <button
                           className={`${styles.actionBtn} ${styles.viewBtn}`}
                           onClick={() => navigate(`/customer-profile/${customer.id}`)}
+                          title="Xem chi tiết"
                         >
-                          Xem
+                          👁️
                         </button>
                         <button
                           className={`${styles.actionBtn} ${styles.editBtn}`}
                           onClick={() => navigate(`/customer-profile/${customer.id}`)}
+                          title="Chỉnh sửa"
                         >
-                          Sua
+                          ✏️
+                        </button>
+                        {customer.status === 'ACTIVE' ? (
+                          <button
+                            className={`${styles.actionBtn} ${styles.lockBtn}`}
+                            onClick={() => handleLockAccount(customer.id)}
+                            title="Khóa tài khoản"
+                          >
+                            🔒
+                          </button>
+                        ) : (
+                          <button
+                            className={`${styles.actionBtn} ${styles.unlockBtn}`}
+                            onClick={() => handleUnlockAccount(customer.id)}
+                            title="Mở khóa tài khoản"
+                          >
+                            🔓
+                          </button>
+                        )}
+                        <button
+                          className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                          onClick={() => handleDeleteAccount(customer.id)}
+                          title="Xóa tài khoản"
+                        >
+                          🗑️
                         </button>
                       </div>
                     </td>
@@ -356,7 +414,7 @@ const CustomerManager = () => {
 
           <div className={styles.pagination}>
             <div className={styles.paginationInfo}>
-              Hien thi {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} cua {totalItems} khach hang
+              Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} của {totalItems} khách hàng
             </div>
             <div className={styles.paginationButtons}>
               <button
@@ -364,7 +422,7 @@ const CustomerManager = () => {
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(prev => prev - 1)}
               >
-                Truoc
+                Trước
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button
@@ -391,7 +449,7 @@ const CustomerManager = () => {
         <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
           <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Them khach hang moi</h2>
+              <h2 className={styles.modalTitle}>Thêm khách hàng mới</h2>
               <button className={styles.modalClose} onClick={() => setShowModal(false)}>X</button>
             </div>
 
@@ -399,7 +457,7 @@ const CustomerManager = () => {
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>
-                    Ho ten <span className={styles.required}>*</span>
+                    Họ tên <span className={styles.required}>*</span>
                   </label>
                   <input
                     type="text"
@@ -407,14 +465,14 @@ const CustomerManager = () => {
                     value={formData.fullName}
                     onChange={handleInputChange}
                     className={`${styles.input} ${errors.fullName ? styles.inputError : ''}`}
-                    placeholder="Nhap ho ten"
+                    placeholder="Nhập họ tên"
                   />
                   {errors.fullName && <span className={styles.errorText}>{errors.fullName}</span>}
                 </div>
 
                 <div className={styles.formGroup}>
                   <label className={styles.label}>
-                    So dien thoai <span className={styles.required}>*</span>
+                    Số điện thoại <span className={styles.required}>*</span>
                   </label>
                   <input
                     type="tel"
@@ -428,9 +486,7 @@ const CustomerManager = () => {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    Email <span className={styles.required}>*</span>
-                  </label>
+                  <label className={styles.label}>Email</label>
                   <input
                     type="email"
                     name="email"
@@ -443,7 +499,7 @@ const CustomerManager = () => {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Gioi tinh</label>
+                  <label className={styles.label}>Giới tính</label>
                   <select
                     name="gender"
                     value={formData.gender}
@@ -451,90 +507,30 @@ const CustomerManager = () => {
                     className={styles.select}
                   >
                     <option value="MALE">Nam</option>
-                    <option value="FEMALE">Nu</option>
-                    <option value="OTHER">Khac</option>
+                    <option value="FEMALE">Nữ</option>
+                    <option value="OTHER">Khác</option>
                   </select>
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    Ngay sinh <span className={styles.required}>*</span>
-                  </label>
+                  <label className={styles.label}>Ngày sinh</label>
                   <input
                     type="date"
                     name="dateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={handleInputChange}
-                    className={`${styles.input} ${errors.dateOfBirth ? styles.inputError : ''}`}
-                  />
-                  {errors.dateOfBirth && <span className={styles.errorText}>{errors.dateOfBirth}</span>}
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Loai khach hang</label>
-                  <select
-                    name="customerType"
-                    value={formData.customerType}
-                    onChange={handleInputChange}
-                    className={styles.select}
-                  >
-                    <option value="REGULAR">Thuong</option>
-                    <option value="VIP">VIP</option>
-                    <option value="PREMIUM">Premium</option>
-                  </select>
-                </div>
-
-                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-                  <label className={styles.label}>Dia chi</label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
                     className={styles.input}
-                    placeholder="So nha, ten duong"
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Thanh pho</label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    className={styles.input}
-                    placeholder="Ha Noi"
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Quan/Huyen</label>
-                  <input
-                    type="text"
-                    name="district"
-                    value={formData.district}
-                    onChange={handleInputChange}
-                    className={styles.input}
-                    placeholder="Son Tay"
                   />
                 </div>
               </div>
 
               <div className={styles.modalFooter}>
                 <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={() => setShowModal(false)}
-                >
-                  Huy
-                </button>
-                <button
                   type="submit"
                   className={styles.submitButton}
                   disabled={submitting}
                 >
-                  {submitting ? 'Dang luu...' : 'Luu'}
+                  {submitting ? 'Đang lưu...' : 'Lưu'}
                 </button>
               </div>
             </form>

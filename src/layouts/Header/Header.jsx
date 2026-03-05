@@ -27,6 +27,10 @@ const Header = () => {
     }
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  };
+
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
@@ -104,24 +108,24 @@ const Header = () => {
         </Link>
 
         <nav className={`headerNav ${isMenuOpen ? 'open' : ''}`}>
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className={isActive('/') ? 'active' : ''}
-            onClick={closeMenu}
+            onClick={() => { closeMenu(); scrollToTop(); }}
           >
             Trang chủ
           </Link>
-          <Link 
-            to="/about" 
+          <Link
+            to="/about"
             className={isActive('/about') ? 'active' : ''}
-            onClick={closeMenu}
+            onClick={() => { closeMenu(); scrollToTop(); }}
           >
             Giới thiệu
           </Link>
-          <Link 
-            to="/services" 
+          <Link
+            to="/services"
             className={isActive('/services') ? 'active' : ''}
-            onClick={closeMenu}
+            onClick={() => { closeMenu(); scrollToTop(); }}
             preventScrollReset={true}
           >
             Dịch vụ

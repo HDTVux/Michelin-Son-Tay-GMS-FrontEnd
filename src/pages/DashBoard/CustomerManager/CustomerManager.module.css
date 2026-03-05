@@ -1,8 +1,9 @@
 .container {
   padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 100vh;
 }
 
@@ -259,6 +260,39 @@
 
 .editBtn:hover {
   background: #fde68a;
+}
+
+.lockBtn {
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 16px;
+  padding: 8px 12px;
+}
+
+.lockBtn:hover {
+  background: #fecaca;
+}
+
+.unlockBtn {
+  background: #dcfce7;
+  color: #166534;
+  font-size: 16px;
+  padding: 8px 12px;
+}
+
+.unlockBtn:hover {
+  background: #bbf7d0;
+}
+
+.deleteBtn {
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 16px;
+  padding: 8px 12px;
+}
+
+.deleteBtn:hover {
+  background: #fee2e2;
 }
 
 .pagination {

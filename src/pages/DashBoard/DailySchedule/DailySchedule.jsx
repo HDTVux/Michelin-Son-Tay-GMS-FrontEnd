@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import styles from './DailySchedule.module.css';
 
 const DailySchedule = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [viewMode, setViewMode] = useState('calendar');
-  const [loading, setLoading] = useState(false);
 
   // Mock data - lịch hẹn mẫu
   const mockAppointments = [
@@ -67,7 +65,7 @@ const DailySchedule = () => {
     },
   ];
 
-  const [appointments, setAppointments] = useState(mockAppointments);
+  const appointments = mockAppointments;
 
   const getStatusInfo = (status) => {
     switch (status) {
@@ -150,8 +148,8 @@ const DailySchedule = () => {
   const days = getDaysInMonth(currentMonth);
   const monthName = currentMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
 
-  const filteredAppointments = filterStatus === 'all' 
-    ? appointments 
+  const filteredAppointments = filterStatus === 'all'
+    ? appointments
     : appointments.filter(a => a.status === filterStatus);
 
   return (

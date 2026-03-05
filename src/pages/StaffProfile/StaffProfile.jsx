@@ -311,9 +311,6 @@ const StaffProfile = () => {
     <div className={styles.staffProfilePage}>
       <div className={styles.profileHeader}>
         <h1 className={styles.profileTitle}>Thông tin nhân viên</h1>
-        <Link to="/dashboard" className={styles.backButton}>
-          ← Quay lại Dashboard
-        </Link>
       </div>
 
       <section className={styles.staffInfoSection}>

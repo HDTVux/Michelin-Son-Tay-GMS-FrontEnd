@@ -32,6 +32,8 @@ import EditCustomerProfile from './pages/DashBoard/CustomerProfile/EditCustomerP
 import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.jsx';
 import CreateServiceTicket from './pages/DashBoard/ServiceTicketManagement/CreateServiceTicket.jsx';
 import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
+import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
+import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 
 export default function App() {
   useEffect(() => {
@@ -54,10 +56,12 @@ export default function App() {
           <Route path="my-bookings" element={<MyBookings />} />
           <Route path="booking-detail/:id" element={<BookingDetail />} />
           <Route path="edit-booking/:id" element={<EditBooking />} />
+          <Route path="customer-dashboard" element={<CustomerDashboard />} />
         </Route>
 
         {/* Nhóm trang dashboard nhân viên dùng SideBar */}
         <Route element={<StaffLayout />}>
+          <Route path="dashboard" element={<StaffDashboard />} />
           <Route path="booking-request-management" element={<BookingManagement />} />
           <Route path="booking-management" element={<ConfirmedBookingManagement />} />
           <Route path="booking-management/:id" element={<ConfirmedBookingDetail />} />

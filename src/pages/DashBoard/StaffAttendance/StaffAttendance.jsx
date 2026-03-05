@@ -2,25 +2,6 @@ import { useState, useEffect } from 'react';
 import styles from './StaffAttendance.module.css';
 import { fetchStaffAttendance } from '../../../services/staffService.js';
 
-// Mock data when API is not available - matching DB structure exactly
-const mockAttendanceData = [
-  { idstaff_attendance: 1, staff_id: 1, attendance_date: '2024-03-01', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-01 08:00:00', updated_at: '2024-03-01 17:30:00' },
-  { idstaff_attendance: 2, staff_id: 1, attendance_date: '2024-03-02', morning_status: 'LATE', afternoon_status: 'PRESENT', created_at: '2024-03-02 08:15:00', updated_at: '2024-03-02 17:30:00' },
-  { idstaff_attendance: 3, staff_id: 1, attendance_date: '2024-03-03', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-03 08:00:00', updated_at: '2024-03-03 17:30:00' },
-  { idstaff_attendance: 4, staff_id: 1, attendance_date: '2024-03-04', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-04 08:00:00', updated_at: '2024-03-04 17:30:00' },
-  { idstaff_attendance: 5, staff_id: 1, attendance_date: '2024-03-05', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-05 08:00:00', updated_at: '2024-03-05 17:30:00' },
-  { idstaff_attendance: 6, staff_id: 1, attendance_date: '2024-03-06', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-06 08:00:00', updated_at: '2024-03-06 17:30:00' },
-  { idstaff_attendance: 7, staff_id: 1, attendance_date: '2024-03-07', morning_status: 'OFF', afternoon_status: 'OFF', created_at: '2024-03-07 00:00:00', updated_at: '2024-03-07 00:00:00' },
-  { idstaff_attendance: 8, staff_id: 1, attendance_date: '2024-03-08', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-08 08:00:00', updated_at: '2024-03-08 17:30:00' },
-  { idstaff_attendance: 9, staff_id: 1, attendance_date: '2024-03-09', morning_status: 'LATE', afternoon_status: 'PRESENT', created_at: '2024-03-09 08:10:00', updated_at: '2024-03-09 17:30:00' },
-  { idstaff_attendance: 10, staff_id: 1, attendance_date: '2024-03-10', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-10 08:00:00', updated_at: '2024-03-10 17:30:00' },
-  { idstaff_attendance: 11, staff_id: 1, attendance_date: '2024-03-11', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-11 08:00:00', updated_at: '2024-03-11 17:30:00' },
-  { idstaff_attendance: 12, staff_id: 1, attendance_date: '2024-03-12', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-12 08:00:00', updated_at: '2024-03-12 17:30:00' },
-  { idstaff_attendance: 13, staff_id: 1, attendance_date: '2024-03-13', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-13 08:00:00', updated_at: '2024-03-13 17:30:00' },
-  { idstaff_attendance: 14, staff_id: 1, attendance_date: '2024-03-14', morning_status: 'ABSENT', afternoon_status: 'ABSENT', created_at: '2024-03-14 00:00:00', updated_at: '2024-03-14 00:00:00' },
-  { idstaff_attendance: 15, staff_id: 1, attendance_date: '2024-03-15', morning_status: 'PRESENT', afternoon_status: 'PRESENT', created_at: '2024-03-15 08:00:00', updated_at: '2024-03-15 17:30:00' },
-];
-
 const StaffAttendance = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filterStatus, setFilterStatus] = useState('all');
@@ -79,32 +60,28 @@ const StaffAttendance = () => {
         
         console.log('=== DEBUG ATTENDANCE API ===');
         console.log('Token found:', token ? 'YES' : 'NO');
-        console.log('Token value:', token ? token.substring(0, 20) + '...' : 'null');
         
         if (!token) {
-          console.warn('❌ No token found, using mock data');
-          setAttendanceData(mockAttendanceData);
+          console.warn('❌ No token found - Please login first');
+          setAttendanceData([]);
           setStaffInfo({
             id: '1',
-            name: 'Nguyen Van A',
-            position: 'Nhan vien',
+            name: 'Nhân viên',
+            position: 'Nhân viên',
             avatar: '👤'
           });
           setLoading(false);
           return;
         }
         
-        // Get staffId from localStorage or use default
+        // Get staffId from localStorage
         const staffId = localStorage.getItem('staffId') || '2';
         
         console.log('📞 Calling API with staffId:', staffId);
-        console.log('API URL:', `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/staff/attendance/${staffId}`);
         
         const response = await fetchStaffAttendance(staffId, token);
         
         console.log('✅ API Response received:', response);
-        console.log('Response success:', response?.success);
-        console.log('Response data length:', response?.data?.length);
 
         if (response && response.success && response.data) {
           const attendanceList = Array.isArray(response.data) ? response.data : [];
@@ -116,42 +93,25 @@ const StaffAttendance = () => {
             setAttendanceData(transformedData);
             console.log('✅ Using REAL data from API:', transformedData.length, 'records');
           } else {
-            console.warn('⚠️ API returned empty array, using mock data');
-            setAttendanceData(mockAttendanceData);
+            console.warn('⚠️ API returned empty array - No attendance records');
+            setAttendanceData([]);
           }
 
           // Set staff info if available
           setStaffInfo({
             id: staffId,
-            name: localStorage.getItem('staffName') || 'Nhan vien',
-            position: localStorage.getItem('staffPosition') || 'Nhan vien',
+            name: localStorage.getItem('staffName') || 'Nhân viên',
+            position: localStorage.getItem('staffPosition') || 'Nhân viên',
             avatar: '👤'
           });
         } else {
-          console.warn('❌ Invalid API response structure, using mock data');
-          console.log('Response structure:', JSON.stringify(response, null, 2));
-          setAttendanceData(mockAttendanceData);
-          setStaffInfo({
-            id: staffId,
-            name: 'Nguyen Van A',
-            position: 'Nhan vien',
-            avatar: '👤'
-          });
+          console.warn('❌ Invalid API response structure');
+          setAttendanceData([]);
         }
       } catch (err) {
         console.error('❌ Error fetching attendance:', err);
-        console.error('Error name:', err.name);
         console.error('Error message:', err.message);
-        console.error('Error stack:', err.stack);
-        
-        // Use mock data when API fails
-        setAttendanceData(mockAttendanceData);
-        setStaffInfo({
-          id: '1',
-          name: 'Nguyen Van A',
-          position: 'Nhan vien',
-          avatar: '👤'
-        });
+        setAttendanceData([]);
       } finally {
         setLoading(false);
         console.log('=== END DEBUG ===');
@@ -333,7 +293,7 @@ const StaffAttendance = () => {
             <option value="LATE">Muộn</option>
             <option value="ABSENT">Vắng mặt</option>
             <option value="OFF">Nghỉ</option>
-            
+            <option value="NOT_YET">Chưa điểm</option>
           </select>
         </div>
       </div>
@@ -384,25 +344,31 @@ const StaffAttendance = () => {
         <div className={styles.listCard}>
           <div className={styles.listHeader}>
             <div className={styles.listHeaderCell}>Ngày</div>
-            <div className={styles.listHeaderCell}>Buổi sáng</div>
-            <div className={styles.listHeaderCell}>Buổi chiều</div>
+            <div className={styles.listHeaderCell}>Trạng thái sáng</div>
+            <div className={styles.listHeaderCell}>Trạng thái chiều</div>
           </div>
           <div className={styles.listBody}>
-            {filteredAttendance.map((record, index) => (
-              <div key={index} className={styles.listRow}>
-                <div className={styles.listCell}><strong>{new Date(record.attendance_date).toLocaleDateString('vi-VN')}</strong></div>
-                <div className={styles.listCell}>
-                  <span className={`${styles.statusBadge} ${getStatusInfo(record.morning_status).className}`}>
-                    {getStatusInfo(record.morning_status).text}
-                  </span>
+            {filteredAttendance.length > 0 ? (
+              filteredAttendance.map((record, index) => (
+                <div key={index} className={styles.listRow}>
+                  <div className={styles.listCell}><strong>{new Date(record.attendance_date).toLocaleDateString('vi-VN')}</strong></div>
+                  <div className={styles.listCell}>
+                    <span className={`${styles.statusBadge} ${getStatusInfo(record.morning_status).className}`}>
+                      {getStatusInfo(record.morning_status).text}
+                    </span>
+                  </div>
+                  <div className={styles.listCell}>
+                    <span className={`${styles.statusBadge} ${getStatusInfo(record.afternoon_status).className}`}>
+                      {getStatusInfo(record.afternoon_status).text}
+                    </span>
+                  </div>
                 </div>
-                <div className={styles.listCell}>
-                  <span className={`${styles.statusBadge} ${getStatusInfo(record.afternoon_status).className}`}>
-                    {getStatusInfo(record.afternoon_status).text}
-                  </span>
-                </div>
+              ))
+            ) : (
+              <div className={styles.emptyState}>
+                <p>Chưa có dữ liệu điểm danh</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}
