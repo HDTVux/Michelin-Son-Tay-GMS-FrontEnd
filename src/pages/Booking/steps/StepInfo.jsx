@@ -1,8 +1,19 @@
 import React from 'react'
+import PropTypes from 'prop-types'
 import styles from './StepInfo.module.css'
 import bookingStyles from '../Booking.module.css'
 
-export default function StepInfo({ value, onChange, onBack, onSubmit, loading = false, error = '', isAuthed = false }) {
+export default function StepInfo({
+  value,
+  onChange,
+  onBack,
+  onSubmit,
+  loading = false,
+  error = '',
+  isAuthed = false,
+  showActions = true,
+  submitLabel = 'Hoàn tất',
+}) {
   const handleChange = (key) => (e) => {
     let nextValue = e.target.value
 
@@ -77,17 +88,35 @@ export default function StepInfo({ value, onChange, onBack, onSubmit, loading = 
         </div>
       </div>
 
-      <div className={bookingStyles['booking-actions']}>
-        <button className={bookingStyles.btn} onClick={onBack}>Quay lại</button>
-        <button
-          className={`${bookingStyles.btn} ${bookingStyles.primary}`}
-          onClick={onSubmit}
-          disabled={!canSubmit}
-          aria-busy={loading}
-        >
-          {loading ? 'Đang xử lý...' : 'Hoàn tất'}
-        </button>
-      </div>
+      {showActions && (
+        <div className={bookingStyles['booking-actions']}>
+          <button className={bookingStyles.btn} onClick={onBack}>Quay lại</button>
+          <button
+            className={`${bookingStyles.btn} ${bookingStyles.primary}`}
+            onClick={onSubmit}
+            disabled={!canSubmit}
+            aria-busy={loading}
+          >
+            {loading ? 'Đang xử lý...' : submitLabel}
+          </button>
+        </div>
+      )}
     </>
   )
+}
+
+StepInfo.propTypes = {
+  value: PropTypes.shape({
+    name: PropTypes.string,
+    phone: PropTypes.string,
+    note: PropTypes.string,
+  }).isRequired,
+  onChange: PropTypes.func.isRequired,
+  onBack: PropTypes.func,
+  onSubmit: PropTypes.func,
+  loading: PropTypes.bool,
+  error: PropTypes.string,
+  isAuthed: PropTypes.bool,
+  showActions: PropTypes.bool,
+  submitLabel: PropTypes.string,
 }

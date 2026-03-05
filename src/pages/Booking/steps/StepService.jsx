@@ -1,9 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import PropTypes from 'prop-types'
 import styles from './StepService.module.css'
 import bookingStyles from '../Booking.module.css'
 
 // Chọn dịch vụ với slider + tìm kiếm + lọc
-export default function StepService({ services, selectedIds, onToggle, search, onSearch, filter, onFilter, onNext, loading = false, error = '' }) {
+export default function StepService({
+  services,
+  selectedIds,
+  onToggle,
+  search,
+  onSearch,
+  filter,
+  onFilter,
+  onNext,
+  onBack,
+  showActions = true,
+  nextLabel = 'Tiếp tục',
+  backLabel = 'Quay lại',
+  loading = false,
+  error = '',
+}) {
   const [visible, setVisible] = useState(3); // số thẻ hiển thị cùng lúc
   const [index, setIndex] = useState(0); // vị trí slide hiện tại
 
@@ -155,13 +171,52 @@ export default function StepService({ services, selectedIds, onToggle, search, o
         </div>
       </div>
 
-        <div className={bookingStyles['booking-actions']}>
-          <button className={bookingStyles.btn}>Quay lại</button>
-          <button className={`${bookingStyles.btn} ${bookingStyles.primary}`} onClick={onNext}>
-            Tiếp tục
-          </button>
-        </div>
+        {showActions && (
+          <div className={bookingStyles['booking-actions']}>
+            <button
+              type="button"
+              className={bookingStyles.btn}
+              onClick={() => onBack?.()}
+              disabled={!onBack}
+            >
+              {backLabel}
+            </button>
+            <button
+              type="button"
+              className={`${bookingStyles.btn} ${bookingStyles.primary}`}
+              onClick={() => onNext?.()}
+              disabled={!onNext}
+            >
+              {nextLabel}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
+}
+
+StepService.propTypes = {
+  services: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      name: PropTypes.string,
+      desc: PropTypes.string,
+      category: PropTypes.string,
+      thumbnail: PropTypes.string,
+    })
+  ),
+  selectedIds: PropTypes.arrayOf(PropTypes.string),
+  onToggle: PropTypes.func,
+  search: PropTypes.string,
+  onSearch: PropTypes.func,
+  filter: PropTypes.string,
+  onFilter: PropTypes.func,
+  onNext: PropTypes.func,
+  onBack: PropTypes.func,
+  showActions: PropTypes.bool,
+  nextLabel: PropTypes.string,
+  backLabel: PropTypes.string,
+  loading: PropTypes.bool,
+  error: PropTypes.string,
 }
