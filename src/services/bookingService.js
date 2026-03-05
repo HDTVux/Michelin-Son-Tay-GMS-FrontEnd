@@ -176,3 +176,8 @@ export const fetchBookingDetail = (identifier, token) =>
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
+  export const staffCreateBooking = (payload) =>
+  request('/api/booking/staff/create-direct', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });

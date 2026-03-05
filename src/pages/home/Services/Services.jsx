@@ -86,6 +86,7 @@ const Services = () => {
         console.log('[Services] Services list:', list);
         const mapped = list.map((item) => ({
           id: item.serviceId,
+		  catalogItemId: item.catalogItemId,
           title: item.title || 'Dịch vụ',
           description: item.shortDescription || '',
           image: item.mediaThumbnail || '',
@@ -299,7 +300,7 @@ const Services = () => {
                           </Link>
                           <Link
                             to="/booking"
-                            state={service.id ? { serviceId: service.id } : undefined}
+                            state={service.catalogItemId != null ? { catalogItemId: service.catalogItemId } : undefined}
                             className="btnBookNow"
                           >
                             Đặt lịch

@@ -6,7 +6,7 @@ import styles from './CreateBooking.module.css';
 import StepService from '../../Booking/steps/StepService.jsx';
 import StepInfo from '../../Booking/steps/StepInfo.jsx';
 import { fetchHomeServices } from '../../../services/homeService.js';
-import { createGuestBooking, fetchAllSlots, fetchAvailableSlotStaff } from '../../../services/bookingService.js';
+import { staffCreateBooking, fetchAllSlots, fetchAvailableSlotStaff } from '../../../services/bookingService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { toast } from 'react-toastify';
@@ -120,13 +120,20 @@ export default function CreateBooking() {
 			.then((res) => {
 				if (!active) return;
 				const list = Array.isArray(res?.data) ? res.data : [];
-				const mapped = list.map((item) => ({
-					id: String(item.serviceId),
-					name: item.title || 'Dịch vụ',
-					desc: item.shortDescription || 'Hiện chưa có mô tả ngắn.',
-					category: 'all',
-					thumbnail: item.mediaThumbnail || '',
-				}));
+				const mapped = list
+					.map((item) => {
+						const catalogItemId = Number(item?.catalogItemId);
+						if (!Number.isFinite(catalogItemId) || catalogItemId < 0) return null;
+						return {
+							id: String(catalogItemId),
+							serviceId: Number(item?.serviceId),
+							name: item.title || 'Dịch vụ',
+							desc: item.shortDescription || 'Hiện chưa có mô tả ngắn.',
+							category: 'all',
+							thumbnail: item.mediaThumbnail || '',
+						};
+					})
+					.filter(Boolean);
 				setServices(mapped);
 			})
 			.catch((err) => {
@@ -182,16 +189,16 @@ export default function CreateBooking() {
 			return;
 		}
 
-		const serviceIds = selectedIds
+		const catalogItemIds = selectedIds
 			.map(Number)
-			.filter((n) => Number.isFinite(n));
+			.filter((n) => Number.isFinite(n) && n >= 0);
 
 		try {
-			const res = await createGuestBooking({
+			const res = await staffCreateBooking({
 				appointmentDate: schedule.date,
 				appointmentTime: normalizeBackendTime(schedule.time),
 				userNote: trimmed,
-				selectedServiceIds: serviceIds,
+				selectedServiceIds: catalogItemIds,
 				fullName: info.name.trim(),
 				phone: info.phone.trim(),
 			});
