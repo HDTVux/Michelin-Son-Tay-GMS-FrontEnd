@@ -83,6 +83,41 @@
   gap: 12px;
 }
 
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.photoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.photoLabel {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* Smaller preview for per-category photos */
+.photoItem .imageSlot {
+  width: 180px;
+  max-width: 100%;
+  aspect-ratio: 4 / 3;
+}
+
+.photoItem .removeBtn {
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+}
+
+.photoActions {
+  display: inline-flex;
+  gap: 8px;
+}
+
 .imageSlot {
   aspect-ratio: 1 / 1;
   border: 1px solid var(--ui-border, #e5e7eb);
@@ -149,6 +184,14 @@
   .imagesGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .photoGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .photoItem .imageSlot {
+    width: 160px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -162,6 +205,14 @@
 
   .imagesGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .photoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .photoItem .imageSlot {
+    width: 100%;
   }
 
   .actions {
