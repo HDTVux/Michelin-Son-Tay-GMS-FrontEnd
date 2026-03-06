@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
 import Home from './pages/home/Home.jsx';
 import Login from './features/auth/login/Login.jsx';
@@ -39,14 +38,6 @@ import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.j
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 
-// Import Dashboard pages
-import AdminDashboard from './pages/DashBoard/AdminDashboard/AdminDashboard.jsx';
-import ManagerDashboard from './pages/DashBoard/ManagerDashboard/ManagerDashboard.jsx';
-import AdvisorDashboard from './pages/DashBoard/AdvisorDashboard/AdvisorDashboard.jsx';
-import ReceptionistDashboard from './pages/DashBoard/ReceptionistDashboard/ReceptionistDashboard.jsx';
-import TechnicianDashboard from './pages/DashBoard/TechnicianDashboard/TechnicianDashboard.jsx';
-import AccountantDashboard from './pages/DashBoard/AccountantDashboard/AccountantDashboard.jsx';
-
 // Import Technician pages
 import MyTasks from './pages/Technician/MyTasks/MyTasks.jsx';
 import ServiceTicket from './pages/Technician/ServiceTicket/ServiceTicket.jsx';
@@ -78,14 +69,6 @@ export default function App() {
         {/* Nhóm trang dashboard nhân viên dùng SideBar */}
         <Route element={<StaffLayout />}>
           <Route path="dashboard" element={<StaffDashboard />} />
-          
-          {/* Role-based Dashboards */}
-          <Route path="admin-dashboard" element={<AdminDashboard />} />
-          <Route path="manager-dashboard" element={<ManagerDashboard />} />
-          <Route path="advisor-dashboard" element={<AdvisorDashboard />} />
-          <Route path="receptionist-dashboard" element={<ReceptionistDashboard />} />
-          <Route path="technician-dashboard" element={<TechnicianDashboard />} />
-          <Route path="accountant-dashboard" element={<AccountantDashboard />} />
           
           <Route path="booking-request-management" element={<BookingManagement />} />
           <Route path="booking-management" element={<ConfirmedBookingManagement />} />
