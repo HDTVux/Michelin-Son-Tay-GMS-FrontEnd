@@ -1,149 +1,166 @@
 import { useState } from 'react';
-import StatCard from '../../../components/Dashboard/StatCard';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import styles from './AdvisorDashboard.module.css';
 
 const AdvisorDashboard = () => {
-  const [stats] = useState({
-    todayCustomers: 8,
-    bookings: 12,
-    consultations: 15,
-    target: 75
-  });
+  const [dateRange, setDateRange] = useState('week');
+  
+  const kpis = {
+    totalCustomers: 45,
+    consultations: 28,
+    conversionRate: 75,
+    avgRevenue: 2500000,
+    customerGrowth: 12.5,
+    consultationGrowth: 8.3,
+    conversionChange: 5.2,
+    revenueGrowth: 15.8
+  };
 
-  const [customers] = useState([
-    { id: 1, name: 'Nguyễn Văn A', phone: '0912345678', status: 'Cần liên hệ', priority: 'high', time: '09:00' },
-    { id: 2, name: 'Trần Thị B', phone: '0923456789', status: 'Đã liên hệ', priority: 'medium', time: '10:30' },
-    { id: 3, name: 'Lê Văn C', phone: '0934567890', status: 'Cần liên hệ', priority: 'high', time: '14:00' }
-  ]);
+  const weeklyConsultations = [
+    { day: 'T2', consultations: 6, converted: 4 },
+    { day: 'T3', consultations: 8, converted: 6 },
+    { day: 'T4', consultations: 5, converted: 4 },
+    { day: 'T5', consultations: 7, converted: 5 },
+    { day: 'T6', consultations: 9, converted: 7 },
+    { day: 'T7', consultations: 4, converted: 3 },
+    { day: 'CN', consultations: 2, converted: 1 }
+  ];
 
-  const [appointments] = useState([
-    { id: 1, customer: 'Phạm Thị D', service: 'Tư vấn bảo dưỡng', time: '09:00', status: 'confirmed' },
-    { id: 2, customer: 'Hoàng Văn E', service: 'Tư vấn sửa chữa', time: '11:00', status: 'pending' },
-    { id: 3, customer: 'Võ Thị F', service: 'Tư vấn dịch vụ', time: '15:00', status: 'confirmed' }
-  ]);
+  const serviceRecommendations = [
+    { name: 'Bảo dưỡng', value: 35, color: '#3b82f6' },
+    { name: 'Sửa chữa', value: 25, color: '#ef4444' },
+    { name: 'Thay thế', value: 20, color: '#f59e0b' },
+    { name: 'Kiểm tra', value: 20, color: '#10b981' }
+  ];
+
+  const customerContacts = [
+    { id: 1, name: 'Nguyễn Văn A', phone: '0901234567', vehicle: '29A-12345', lastContact: '2 giờ trước', status: 'hot', note: 'Quan tâm bảo dưỡng định kỳ' },
+    { id: 2, name: 'Trần Thị B', phone: '0912345678', vehicle: '30B-67890', lastContact: '1 ngày trước', status: 'warm', note: 'Cần tư vấn sửa phanh' },
+    { id: 3, name: 'Lê Văn C', phone: '0923456789', vehicle: '31C-11111', lastContact: '3 ngày trước', status: 'cold', note: 'Hỏi giá thay nhớt' }
+  ];
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+  };
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Dashboard Cố vấn</h1>
-          <p className={styles.subtitle}>Quản lý tư vấn khách hàng</p>
+          <h1 className={styles.title}>💼 Dashboard Tư vấn viên</h1>
+          <p className={styles.subtitle}>Quản lý khách hàng và tư vấn dịch vụ</p>
         </div>
-        <button className={styles.btnPrimary}>📝 Ghi chú mới</button>
+        <div className={styles.filters}>
+          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className={styles.filterSelect}>
+            <option value="today">Hôm nay</option>
+            <option value="week">Tuần này</option>
+            <option value="month">Tháng này</option>
+          </select>
+          <button className={styles.newContactBtn}>➕ Liên hệ mới</button>
+        </div>
       </div>
 
-      <div className={styles.statsGrid}>
-        <StatCard
-          title="Khách hàng hôm nay"
-          value={stats.todayCustomers}
-          icon="👥"
-          color="purple"
-        />
-        <StatCard
-          title="Booking của tôi"
-          value={stats.bookings}
-          icon="📅"
-          color="blue"
-        />
-        <StatCard
-          title="Lượt tư vấn"
-          value={stats.consultations}
-          icon="💬"
-          color="green"
-          trend="up"
-          trendValue="+3"
-        />
-        <StatCard
-          title="Hoàn thành mục tiêu"
-          value={`${stats.target}%`}
-          icon="🎯"
-          color="orange"
-          trend="up"
-          trendValue="+5%"
-        />
-      </div>
-
-      <div className={styles.contentGrid}>
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>📞 Khách hàng cần liên hệ</h2>
-            <span className={styles.badge}>{customers.filter(c => c.status === 'Cần liên hệ').length}</span>
+      <div className={styles.kpiGrid}>
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>👥</span>
+            <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.customerGrowth}%</span>
           </div>
-          <div className={styles.customerList}>
-            {customers.map(customer => (
-              <div key={customer.id} className={`${styles.customerItem} ${styles[customer.priority]}`}>
-                <div className={styles.customerInfo}>
-                  <div className={styles.avatar}>{customer.name.charAt(0)}</div>
-                  <div>
-                    <h3 className={styles.customerName}>{customer.name}</h3>
-                    <p className={styles.customerPhone}>{customer.phone}</p>
+          <div className={styles.kpiValue}>{kpis.totalCustomers}</div>
+          <div className={styles.kpiLabel}>Tổng khách hàng</div>
+        </div>
+
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>💬</span>
+            <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.consultationGrowth}%</span>
+          </div>
+          <div className={styles.kpiValue}>{kpis.consultations}</div>
+          <div className={styles.kpiLabel}>Tư vấn tuần này</div>
+        </div>
+
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>🎯</span>
+            <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.conversionChange}%</span>
+          </div>
+          <div className={styles.kpiValue}>{kpis.conversionRate}%</div>
+          <div className={styles.kpiLabel}>Tỷ lệ chuyển đổi</div>
+        </div>
+
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>💰</span>
+            <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.revenueGrowth}%</span>
+          </div>
+          <div className={styles.kpiValue}>{formatCurrency(kpis.avgRevenue)}</div>
+          <div className={styles.kpiLabel}>Doanh thu TB/KH</div>
+        </div>
+      </div>
+
+      <div className={styles.chartsRow}>
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>📈 Tư vấn & Chuyển đổi</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={weeklyConsultations}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="day" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="consultations" fill="#7c3aed" name="Tư vấn" />
+              <Bar dataKey="converted" fill="#10b981" name="Chuyển đổi" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>🔧 Dịch vụ được đề xuất</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie data={serviceRecommendations} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
+                {serviceRecommendations.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className={styles.contactSection}>
+        <h2 className={styles.sectionTitle}>📞 Danh sách liên hệ</h2>
+        <div className={styles.contactList}>
+          {customerContacts.map(contact => (
+            <div key={contact.id} className={`${styles.contactCard} ${styles[contact.status]}`}>
+              <div className={styles.contactHeader}>
+                <div className={styles.contactInfo}>
+                  <div className={styles.contactName}>{contact.name}</div>
+                  <div className={styles.contactDetails}>
+                    <span>📞 {contact.phone}</span>
+                    <span>🚗 {contact.vehicle}</span>
                   </div>
                 </div>
-                <div className={styles.customerMeta}>
-                  <span className={styles.time}>{customer.time}</span>
-                  <span className={`${styles.status} ${styles[customer.status === 'Cần liên hệ' ? 'pending' : 'contacted']}`}>
-                    {customer.status}
-                  </span>
-                </div>
-                <div className={styles.actions}>
-                  <button className={styles.callBtn}>📞</button>
-                  <button className={styles.noteBtn}>📝</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.card}>
-          <h2 className={styles.cardTitle}>📅 Lịch hẹn hôm nay</h2>
-          <div className={styles.appointmentList}>
-            {appointments.map(apt => (
-              <div key={apt.id} className={styles.appointmentItem}>
-                <div className={styles.timeSlot}>{apt.time}</div>
-                <div className={styles.appointmentInfo}>
-                  <h3 className={styles.appointmentCustomer}>{apt.customer}</h3>
-                  <p className={styles.appointmentService}>{apt.service}</p>
-                </div>
-                <span className={`${styles.appointmentStatus} ${styles[apt.status]}`}>
-                  {apt.status === 'confirmed' ? '✓ Đã xác nhận' : '⏳ Chờ xác nhận'}
+                <span className={`${styles.statusBadge} ${styles[contact.status]}`}>
+                  {contact.status === 'hot' && '🔥 Hot'}
+                  {contact.status === 'warm' && '🌤️ Warm'}
+                  {contact.status === 'cold' && '❄️ Cold'}
                 </span>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.statsCard}>
-        <h2 className={styles.cardTitle}>📊 Thống kê tư vấn tháng này</h2>
-        <div className={styles.monthStats}>
-          <div className={styles.statItem}>
-            <span className={styles.statIcon}>👥</span>
-            <div>
-              <div className={styles.statValue}>45</div>
-              <div className={styles.statLabel}>Khách hàng</div>
+              <div className={styles.contactNote}>
+                <strong>Ghi chú:</strong> {contact.note}
+              </div>
+              <div className={styles.contactFooter}>
+                <span className={styles.lastContact}>Liên hệ: {contact.lastContact}</span>
+                <div className={styles.contactActions}>
+                  <button className={styles.callBtn}>📞 Gọi</button>
+                  <button className={styles.consultBtn}>💬 Tư vấn</button>
+                  <button className={styles.bookBtn}>📅 Đặt lịch</button>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className={styles.statItem}>
-            <span className={styles.statIcon}>✅</span>
-            <div>
-              <div className={styles.statValue}>38</div>
-              <div className={styles.statLabel}>Thành công</div>
-            </div>
-          </div>
-          <div className={styles.statItem}>
-            <span className={styles.statIcon}>💰</span>
-            <div>
-              <div className={styles.statValue}>25M</div>
-              <div className={styles.statLabel}>Doanh thu</div>
-            </div>
-          </div>
-          <div className={styles.statItem}>
-            <span className={styles.statIcon}>⭐</span>
-            <div>
-              <div className={styles.statValue}>4.8</div>
-              <div className={styles.statLabel}>Đánh giá</div>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

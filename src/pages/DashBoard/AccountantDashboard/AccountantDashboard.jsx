@@ -1,99 +1,163 @@
 import { useState } from 'react';
-import StatCard from '../../../components/Dashboard/StatCard';
+import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import styles from './AccountantDashboard.module.css';
 
 const AccountantDashboard = () => {
-  const [stats] = useState({
-    todayRevenue: '15,500,000',
-    monthRevenue: '125,000,000',
-    pending: '8,500,000',
-    profit: '45,000,000'
-  });
+  const [dateRange, setDateRange] = useState('month');
+  
+  const kpis = {
+    totalRevenue: 450000000,
+    totalExpenses: 180000000,
+    netProfit: 270000000,
+    pendingInvoices: 25,
+    revenueGrowth: 18.5,
+    expenseChange: -5.2,
+    profitGrowth: 25.3,
+    invoiceChange: -3
+  };
 
-  const [invoices] = useState([
-    { id: 1, code: 'INV-001', customer: 'Nguyễn Văn A', amount: '2,500,000', status: 'pending', date: '06/03/2024' },
-    { id: 2, code: 'INV-002', customer: 'Trần Thị B', amount: '3,200,000', status: 'paid', date: '06/03/2024' },
-    { id: 3, code: 'INV-003', customer: 'Lê Văn C', amount: '1,800,000', status: 'pending', date: '06/03/2024' }
-  ]);
+  const monthlyFinance = [
+    { month: 'T1', revenue: 380000000, expenses: 150000000, profit: 230000000 },
+    { month: 'T2', revenue: 420000000, expenses: 170000000, profit: 250000000 },
+    { month: 'T3', revenue: 450000000, expenses: 180000000, profit: 270000000 }
+  ];
 
-  const [debts] = useState([
-    { id: 1, customer: 'Phạm Thị D', amount: '5,000,000', dueDate: '10/03/2024', overdue: false },
-    { id: 2, customer: 'Hoàng Văn E', amount: '3,500,000', dueDate: '05/03/2024', overdue: true }
-  ]);
+  const revenueByService = [
+    { service: 'Bảo dưỡng', revenue: 180000000 },
+    { service: 'Sửa chữa', revenue: 150000000 },
+    { service: 'Thay thế', revenue: 80000000 },
+    { service: 'Kiểm tra', revenue: 40000000 }
+  ];
+
+  const pendingPayments = [
+    { id: 1, invoice: 'INV-2024-001', customer: 'Nguyễn Văn A', amount: 5000000, dueDate: '15/03/2024', status: 'overdue' },
+    { id: 2, invoice: 'INV-2024-002', customer: 'Trần Thị B', amount: 3500000, dueDate: '20/03/2024', status: 'pending' },
+    { id: 3, invoice: 'INV-2024-003', customer: 'Lê Văn C', amount: 7200000, dueDate: '25/03/2024', status: 'pending' }
+  ];
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+  };
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Dashboard Kế toán</h1>
-          <p className={styles.subtitle}>Quản lý tài chính</p>
+          <h1 className={styles.title}>💰 Dashboard Kế toán</h1>
+          <p className={styles.subtitle}>Quản lý tài chính và báo cáo</p>
         </div>
-        <button className={styles.btnPrimary}>📊 Xuất báo cáo</button>
-      </div>
-
-      <div className={styles.statsGrid}>
-        <StatCard title="Doanh thu hôm nay" value={`${stats.todayRevenue}đ`} icon="💰" color="cyan" trend="up" trendValue="+8%" />
-        <StatCard title="Doanh thu tháng" value={`${stats.monthRevenue}đ`} icon="📈" color="blue" trend="up" trendValue="+12%" />
-        <StatCard title="Chờ thanh toán" value={`${stats.pending}đ`} icon="⏳" color="orange" />
-        <StatCard title="Lợi nhuận" value={`${stats.profit}đ`} icon="💎" color="green" trend="up" trendValue="+15%" />
-      </div>
-
-      <div className={styles.chartCard}>
-        <h2 className={styles.cardTitle}>💰 Doanh thu hôm nay: 15,500,000đ</h2>
-        <div className={styles.revenueChart}>
-          <div className={styles.chartBar}>
-            <div className={styles.chartSegment} style={{ width: '60%', background: '#0891b2' }}>
-              <span>Dịch vụ: 9.3M</span>
-            </div>
-            <div className={styles.chartSegment} style={{ width: '30%', background: '#06b6d4' }}>
-              <span>Phụ tùng: 4.6M</span>
-            </div>
-            <div className={styles.chartSegment} style={{ width: '10%', background: '#22d3ee' }}>
-              <span>Khác: 1.6M</span>
-            </div>
-          </div>
+        <div className={styles.filters}>
+          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className={styles.filterSelect}>
+            <option value="week">Tuần này</option>
+            <option value="month">Tháng này</option>
+            <option value="quarter">Quý này</option>
+            <option value="year">Năm nay</option>
+          </select>
+          <button className={styles.exportBtn}>📊 Xuất báo cáo</button>
         </div>
       </div>
 
-      <div className={styles.contentGrid}>
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>🧾 Hóa đơn chờ thanh toán</h2>
-            <span className={styles.badge}>{invoices.filter(i => i.status === 'pending').length}</span>
+      <div className={styles.kpiGrid}>
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>💵</span>
+            <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.revenueGrowth}%</span>
           </div>
-          <div className={styles.invoiceList}>
-            {invoices.map(invoice => (
-              <div key={invoice.id} className={styles.invoiceItem}>
+          <div className={styles.kpiValue}>{formatCurrency(kpis.totalRevenue)}</div>
+          <div className={styles.kpiLabel}>Tổng doanh thu</div>
+        </div>
+
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>💸</span>
+            <span className={`${styles.kpiTrend} ${styles.down}`}>↓ {Math.abs(kpis.expenseChange)}%</span>
+          </div>
+          <div className={styles.kpiValue}>{formatCurrency(kpis.totalExpenses)}</div>
+          <div className={styles.kpiLabel}>Tổng chi phí</div>
+        </div>
+
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>📈</span>
+            <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.profitGrowth}%</span>
+          </div>
+          <div className={styles.kpiValue}>{formatCurrency(kpis.netProfit)}</div>
+          <div className={styles.kpiLabel}>Lợi nhuận ròng</div>
+        </div>
+
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>📄</span>
+            <span className={`${styles.kpiTrend} ${styles.down}`}>↓ {Math.abs(kpis.invoiceChange)}</span>
+          </div>
+          <div className={styles.kpiValue}>{kpis.pendingInvoices}</div>
+          <div className={styles.kpiLabel}>Hóa đơn chờ thanh toán</div>
+        </div>
+      </div>
+
+      <div className={styles.chartsRow}>
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>📊 Tài chính theo tháng</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={monthlyFinance}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip formatter={(value) => formatCurrency(value)} />
+              <Legend />
+              <Area type="monotone" dataKey="revenue" stackId="1" stroke="#0891b2" fill="#0891b2" name="Doanh thu" />
+              <Area type="monotone" dataKey="expenses" stackId="2" stroke="#ef4444" fill="#ef4444" name="Chi phí" />
+              <Area type="monotone" dataKey="profit" stackId="3" stroke="#10b981" fill="#10b981" name="Lợi nhuận" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>💰 Doanh thu theo dịch vụ</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={revenueByService} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis dataKey="service" type="category" />
+              <Tooltip formatter={(value) => formatCurrency(value)} />
+              <Bar dataKey="revenue" fill="#0891b2" name="Doanh thu" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className={styles.invoiceSection}>
+        <h2 className={styles.sectionTitle}>📄 Hóa đơn chờ thanh toán</h2>
+        <div className={styles.invoiceList}>
+          {pendingPayments.map(payment => (
+            <div key={payment.id} className={`${styles.invoiceCard} ${styles[payment.status]}`}>
+              <div className={styles.invoiceHeader}>
                 <div className={styles.invoiceInfo}>
-                  <h3 className={styles.invoiceCode}>{invoice.code}</h3>
-                  <p className={styles.invoiceCustomer}>{invoice.customer}</p>
-                  <span className={styles.invoiceDate}>📅 {invoice.date}</span>
+                  <div className={styles.invoiceNumber}>{payment.invoice}</div>
+                  <div className={styles.customerName}>{payment.customer}</div>
                 </div>
-                <div className={styles.invoiceAmount}>{invoice.amount}đ</div>
-                <span className={`${styles.invoiceStatus} ${styles[invoice.status]}`}>
-                  {invoice.status === 'paid' ? '✓ Đã thanh toán' : '⏳ Chờ thanh toán'}
+                <span className={`${styles.statusBadge} ${styles[payment.status]}`}>
+                  {payment.status === 'overdue' && '⚠️ Quá hạn'}
+                  {payment.status === 'pending' && '⏳ Chờ thanh toán'}
                 </span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.card}>
-          <h2 className={styles.cardTitle}>💳 Công nợ cần thu</h2>
-          <div className={styles.debtList}>
-            {debts.map(debt => (
-              <div key={debt.id} className={`${styles.debtItem} ${debt.overdue ? styles.overdue : ''}`}>
-                <div className={styles.debtInfo}>
-                  <h3 className={styles.debtCustomer}>{debt.customer}</h3>
-                  <p className={styles.debtAmount}>{debt.amount}đ</p>
-                  <span className={`${styles.dueDate} ${debt.overdue ? styles.overdue : ''}`}>
-                    {debt.overdue ? '⚠️ Quá hạn' : '📅'} {debt.dueDate}
-                  </span>
+              <div className={styles.invoiceDetails}>
+                <div className={styles.invoiceAmount}>
+                  <span className={styles.amountLabel}>Số tiền:</span>
+                  <span className={styles.amountValue}>{formatCurrency(payment.amount)}</span>
                 </div>
-                <button className={styles.contactBtn}>📞 Liên hệ</button>
+                <div className={styles.invoiceDue}>
+                  <span className={styles.dueLabel}>Hạn thanh toán:</span>
+                  <span className={styles.dueValue}>{payment.dueDate}</span>
+                </div>
               </div>
-            ))}
-          </div>
+              <div className={styles.invoiceActions}>
+                <button className={styles.viewBtn}>👁️ Xem</button>
+                <button className={styles.remindBtn}>📧 Nhắc nhở</button>
+                <button className={styles.confirmBtn}>✓ Xác nhận thanh toán</button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

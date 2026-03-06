@@ -1,147 +1,189 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import StatCard from '../../../components/Dashboard/StatCard';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import styles from './AdminDashboard.module.css';
 
 const AdminDashboard = () => {
-  const navigate = useNavigate();
-  const [stats] = useState({
-    revenue: '125,500,000',
-    bookings: 156,
-    customers: 1234,
-    staff: 45
-  });
+  const [dateRange, setDateRange] = useState('week');
+  
+  // KPIs
+  const kpis = {
+    totalRevenue: 125000000,
+    totalBookings: 156,
+    totalCustomers: 89,
+    avgRating: 4.8,
+    revenueGrowth: 12.5,
+    bookingGrowth: 8.3,
+    customerGrowth: 15.2,
+    ratingChange: 0.2
+  };
 
-  const [recentActivities] = useState([
-    { id: 1, type: 'booking', message: 'Booking mới từ Nguyễn Văn A', time: '5 phút trước', icon: '📅' },
-    { id: 2, type: 'staff', message: 'Nhân viên Trần Thị B đã check-in', time: '10 phút trước', icon: '👤' },
-    { id: 3, type: 'payment', message: 'Thanh toán 2,500,000đ hoàn tất', time: '15 phút trước', icon: '💰' },
-    { id: 4, type: 'customer', message: 'Khách hàng mới đăng ký', time: '20 phút trước', icon: '✨' }
-  ]);
+  // Revenue trend data
+  const revenueData = [
+    { name: 'T2', revenue: 15000000, bookings: 18 },
+    { name: 'T3', revenue: 18000000, bookings: 22 },
+    { name: 'T4', revenue: 22000000, bookings: 25 },
+    { name: 'T5', revenue: 19000000, bookings: 20 },
+    { name: 'T6', revenue: 25000000, bookings: 28 },
+    { name: 'T7', revenue: 26000000, bookings: 30 },
+    { name: 'CN', revenue: 20000000, bookings: 23 }
+  ];
 
-  const [alerts] = useState([
-    { id: 1, type: 'warning', message: 'Có 5 booking chờ xác nhận', action: 'Xem ngay' },
-    { id: 2, type: 'info', message: 'Báo cáo tháng đã sẵn sàng', action: 'Tải xuống' },
-    { id: 3, type: 'error', message: '2 nhân viên chưa chấm công', action: 'Kiểm tra' }
-  ]);
+  // Service distribution
+  const serviceData = [
+    { name: 'Bảo dưỡng', value: 45, color: '#3b82f6' },
+    { name: 'Sửa chữa', value: 30, color: '#ef4444' },
+    { name: 'Thay thế', value: 15, color: '#f59e0b' },
+    { name: 'Kiểm tra', value: 10, color: '#10b981' }
+  ];
+
+  // Staff performance
+  const staffData = [
+    { name: 'Kỹ thuật viên', completed: 85, pending: 15 },
+    { name: 'Tư vấn viên', completed: 92, pending: 8 },
+    { name: 'Lễ tân', completed: 98, pending: 2 },
+    { name: 'Kế toán', completed: 88, pending: 12 }
+  ];
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+  };
 
   return (
     <div className={styles.container}>
+      {/* Header */}
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Dashboard Quản trị viên</h1>
-          <p className={styles.subtitle}>Tổng quan hệ thống</p>
+          <h1 className={styles.title}>🎯 Dashboard Quản trị</h1>
+          <p className={styles.subtitle}>Tổng quan hệ thống và hiệu suất kinh doanh</p>
         </div>
-        <button className={styles.exportBtn}>
-          📊 Xuất báo cáo
-        </button>
+        <div className={styles.filters}>
+          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className={styles.filterSelect}>
+            <option value="today">Hôm nay</option>
+            <option value="week">Tuần này</option>
+            <option value="month">Tháng này</option>
+            <option value="year">Năm nay</option>
+          </select>
+          <button className={styles.exportBtn}>📊 Xuất báo cáo</button>
+        </div>
       </div>
 
-      <div className={styles.statsGrid}>
-        <StatCard
-          title="Doanh thu tháng này"
-          value={`${stats.revenue}đ`}
-          icon="💰"
-          color="red"
-          trend="up"
-          trendValue="+12%"
-        />
-        <StatCard
-          title="Tổng booking"
-          value={stats.bookings}
-          icon="📅"
-          color="blue"
-          trend="up"
-          trendValue="+8%"
-        />
-        <StatCard
-          title="Khách hàng"
-          value={stats.customers}
-          icon="👥"
-          color="purple"
-          trend="up"
-          trendValue="+15%"
-        />
-        <StatCard
-          title="Nhân viên"
-          value={stats.staff}
-          icon="👤"
-          color="green"
-        />
+      {/* KPI Cards */}
+      <div className={styles.kpiGrid}>
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>💰</span>
+            <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.revenueGrowth}%</span>
+          </div>
+          <div className={styles.kpiValue}>{formatCurrency(kpis.totalRevenue)}</div>
+          <div className={styles.kpiLabel}>Doanh thu</div>
+        </div>
+
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>📅</span>
+            <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.bookingGrowth}%</span>
+          </div>
+          <div className={styles.kpiValue}>{kpis.totalBookings}</div>
+          <div className={styles.kpiLabel}>Tổng booking</div>
+        </div>
+
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>👥</span>
+            <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.customerGrowth}%</span>
+          </div>
+          <div className={styles.kpiValue}>{kpis.totalCustomers}</div>
+          <div className={styles.kpiLabel}>Khách hàng</div>
+        </div>
+
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <span className={styles.kpiIcon}>⭐</span>
+            <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.ratingChange}</span>
+          </div>
+          <div className={styles.kpiValue}>{kpis.avgRating}</div>
+          <div className={styles.kpiLabel}>Đánh giá TB</div>
+        </div>
       </div>
 
-      <div className={styles.contentGrid}>
+      {/* Charts Row 1 */}
+      <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>📈 Doanh thu theo tháng</h2>
-            <select className={styles.select}>
-              <option>2024</option>
-              <option>2023</option>
-            </select>
-          </div>
-          <div className={styles.chartPlaceholder}>
-            <div className={styles.barChart}>
-              {[65, 45, 80, 55, 90, 70, 85, 60, 75, 95, 88, 92].map((height, i) => (
-                <div key={i} className={styles.bar}>
-                  <div className={styles.barFill} style={{ height: `${height}%` }}>
-                    <span className={styles.barValue}>{height}M</span>
-                  </div>
-                  <span className={styles.barLabel}>T{i + 1}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <h3 className={styles.chartTitle}>📈 Xu hướng doanh thu & Booking</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={revenueData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis yAxisId="left" />
+              <YAxis yAxisId="right" orientation="right" />
+              <Tooltip formatter={(value, name) => [name === 'revenue' ? formatCurrency(value) : value, name === 'revenue' ? 'Doanh thu' : 'Booking']} />
+              <Legend />
+              <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#dc2626" strokeWidth={2} name="Doanh thu" />
+              <Line yAxisId="right" type="monotone" dataKey="bookings" stroke="#2563eb" strokeWidth={2} name="Booking" />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
-        <div className={styles.sidePanel}>
-          <div className={styles.card}>
-            <h2 className={styles.cardTitle}>🔔 Hoạt động gần đây</h2>
-            <div className={styles.activityList}>
-              {recentActivities.map(activity => (
-                <div key={activity.id} className={styles.activityItem}>
-                  <span className={styles.activityIcon}>{activity.icon}</span>
-                  <div className={styles.activityContent}>
-                    <p className={styles.activityMessage}>{activity.message}</p>
-                    <span className={styles.activityTime}>{activity.time}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.card}>
-            <h2 className={styles.cardTitle}>⚠️ Cảnh báo hệ thống</h2>
-            <div className={styles.alertList}>
-              {alerts.map(alert => (
-                <div key={alert.id} className={`${styles.alertItem} ${styles[alert.type]}`}>
-                  <p className={styles.alertMessage}>{alert.message}</p>
-                  <button className={styles.alertAction}>{alert.action}</button>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>🔧 Phân bố dịch vụ</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie data={serviceData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
+                {serviceData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      <div className={styles.quickActions}>
-        <h2 className={styles.sectionTitle}>⚡ Thao tác nhanh</h2>
-        <div className={styles.actionGrid}>
-          <button className={styles.actionCard} onClick={() => navigate('/customer-manager')}>
-            <span className={styles.actionIcon}>👥</span>
-            <span className={styles.actionLabel}>Quản lý khách hàng</span>
-          </button>
-          <button className={styles.actionCard} onClick={() => navigate('/staff-management')}>
-            <span className={styles.actionIcon}>👤</span>
-            <span className={styles.actionLabel}>Quản lý nhân viên</span>
-          </button>
-          <button className={styles.actionCard} onClick={() => navigate('/booking-management')}>
-            <span className={styles.actionIcon}>📅</span>
-            <span className={styles.actionLabel}>Quản lý booking</span>
-          </button>
-          <button className={styles.actionCard}>
-            <span className={styles.actionIcon}>⚙️</span>
-            <span className={styles.actionLabel}>Cấu hình hệ thống</span>
-          </button>
+      {/* Charts Row 2 */}
+      <div className={styles.chartsRow}>
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>👨‍💼 Hiệu suất nhân viên</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={staffData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="completed" fill="#10b981" name="Hoàn thành" />
+              <Bar dataKey="pending" fill="#f59e0b" name="Đang xử lý" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>🚨 Cảnh báo & Thông báo</h3>
+          <div className={styles.alertList}>
+            <div className={`${styles.alertItem} ${styles.warning}`}>
+              <span className={styles.alertIcon}>⚠️</span>
+              <div className={styles.alertContent}>
+                <div className={styles.alertTitle}>Phụ tùng sắp hết</div>
+                <div className={styles.alertText}>Dầu nhớt Mobil 1 còn 5 lít</div>
+              </div>
+              <span className={styles.alertTime}>10 phút trước</span>
+            </div>
+            <div className={`${styles.alertItem} ${styles.info}`}>
+              <span className={styles.alertIcon}>ℹ️</span>
+              <div className={styles.alertContent}>
+                <div className={styles.alertTitle}>Booking mới</div>
+                <div className={styles.alertText}>3 booking chờ xác nhận</div>
+              </div>
+              <span className={styles.alertTime}>30 phút trước</span>
+            </div>
+            <div className={`${styles.alertItem} ${styles.success}`}>
+              <span className={styles.alertIcon}>✅</span>
+              <div className={styles.alertContent}>
+                <div className={styles.alertTitle}>Hoàn thành xuất sắc</div>
+                <div className={styles.alertText}>Kỹ thuật viên A hoàn thành 10 công việc</div>
+              </div>
+              <span className={styles.alertTime}>1 giờ trước</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
