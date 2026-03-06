@@ -6,7 +6,7 @@ import SchedulePanel from './SchedulePanel.jsx';
 import { toast } from 'react-toastify';
 import {
   fetchAllSlots,
-  fetchAvailableSlots,
+  fetchAvailableSlotStaff,
   fetchBookingRequestDetail,
   updateBookingRequest,
 } from '../../../services/bookingService.js';
@@ -319,7 +319,7 @@ export default function BookingRequestEdit() {
     setSlotsLoading(true);
     setSlotsError('');
 
-    fetchAvailableSlots(form.desiredDate, token, DURATION_MINUTES)
+    fetchAvailableSlotStaff(form.desiredDate, token, DURATION_MINUTES)
       .then((res) => {
         if (!active) return;
         const list = Array.isArray(res?.data?.slots) ? res.data.slots : [];

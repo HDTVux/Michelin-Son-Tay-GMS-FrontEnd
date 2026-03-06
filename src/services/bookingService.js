@@ -44,6 +44,12 @@ export const fetchAllSlots = (token) =>
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 
+export const fetchAvailableSlotStaff = (date, token, durationMinutes = 60) =>
+  request(`/api/booking/slots/available-for-staff?date=${encodeURIComponent(date)}&durationMinutes=${durationMinutes}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
 // Lấy danh sách booking request cho màn quản lý (có phân trang / tìm kiếm / lọc)
 // Params backend: page, size, date (yyyy-mm-dd), isGuest (boolean), status, search
 export const fetchBookingRequests = (params, token) => {
@@ -169,4 +175,9 @@ export const fetchBookingDetail = (identifier, token) =>
   request(`/api/booking/customer/${identifier}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
+  });
+  export const staffCreateBooking = (payload) =>
+  request('/api/booking/staff/create-direct', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
