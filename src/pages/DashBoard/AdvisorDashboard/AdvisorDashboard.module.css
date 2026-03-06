@@ -1,0 +1,336 @@
+.container {
+  padding: 24px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
+}
+
+.btnPrimary {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.btnPrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.badge {
+  background: #7c3aed;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.customerList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customerItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border-left: 4px solid;
+  transition: all 0.2s;
+}
+
+.customerItem.high {
+  border-left-color: #dc2626;
+}
+
+.customerItem.medium {
+  border-left-color: #f59e0b;
+}
+
+.customerItem:hover {
+  background: #f1f5f9;
+}
+
+.customerInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.customerName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.customerPhone {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.customerMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 0 16px;
+}
+
+.time {
+  font-size: 14px;
+  font-weight: 600;
+  color: #7c3aed;
+}
+
+.status {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status.contacted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.callBtn, .noteBtn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.callBtn {
+  background: #dcfce7;
+}
+
+.callBtn:hover {
+  background: #bbf7d0;
+}
+
+.noteBtn {
+  background: #dbeafe;
+}
+
+.noteBtn:hover {
+  background: #bfdbfe;
+}
+
+.appointmentList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.appointmentItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.appointmentItem:hover {
+  background: #f1f5f9;
+}
+
+.timeSlot {
+  font-size: 16px;
+  font-weight: 700;
+  color: #7c3aed;
+  min-width: 60px;
+}
+
+.appointmentInfo {
+  flex: 1;
+}
+
+.appointmentCustomer {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.appointmentService {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.appointmentStatus {
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.appointmentStatus.confirmed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.appointmentStatus.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.statsCard {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.monthStats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 12px;
+}
+
+.statIcon {
+  font-size: 32px;
+}
+
+.statValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: #7c3aed;
+  margin-bottom: 4px;
+}
+
+.statLabel {
+  font-size: 13px;
+  color: #64748b;
+}
+
+@media (max-width: 1200px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .monthStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .monthStats {
+    grid-template-columns: 1fr;
+  }
+}

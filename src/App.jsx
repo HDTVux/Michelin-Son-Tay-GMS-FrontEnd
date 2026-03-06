@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
 import Home from './pages/home/Home.jsx';
 import Login from './features/auth/login/Login.jsx';
@@ -37,6 +36,27 @@ import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.j
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 
+// Import Work History pages
+import TechnicianWorkHistory from './pages/WorkHistory/TechnicianWorkHistory/TechnicianWorkHistory.jsx';
+import AdminWorkHistory from './pages/WorkHistory/AdminWorkHistory/AdminWorkHistory.jsx';
+import ManagerWorkHistory from './pages/WorkHistory/ManagerWorkHistory/ManagerWorkHistory.jsx';
+import AdvisorWorkHistory from './pages/WorkHistory/AdvisorWorkHistory/AdvisorWorkHistory.jsx';
+import ReceptionistWorkHistory from './pages/WorkHistory/ReceptionistWorkHistory/ReceptionistWorkHistory.jsx';
+import AccountantWorkHistory from './pages/WorkHistory/AccountantWorkHistory/AccountantWorkHistory.jsx';
+
+// Import Dashboard pages
+import AdminDashboard from './pages/DashBoard/AdminDashboard/AdminDashboard.jsx';
+import ManagerDashboard from './pages/DashBoard/ManagerDashboard/ManagerDashboard.jsx';
+import AdvisorDashboard from './pages/DashBoard/AdvisorDashboard/AdvisorDashboard.jsx';
+import ReceptionistDashboard from './pages/DashBoard/ReceptionistDashboard/ReceptionistDashboard.jsx';
+import TechnicianDashboard from './pages/DashBoard/TechnicianDashboard/TechnicianDashboard.jsx';
+import AccountantDashboard from './pages/DashBoard/AccountantDashboard/AccountantDashboard.jsx';
+
+// Import Technician pages
+import MyTasks from './pages/Technician/MyTasks/MyTasks.jsx';
+import ServiceTicket from './pages/Technician/ServiceTicket/ServiceTicket.jsx';
+import UpdateProgress from './pages/Technician/UpdateProgress/UpdateProgress.jsx';
+
 export default function App() {
   useEffect(() => {
     cleanupExpiredTokens();
@@ -64,6 +84,23 @@ export default function App() {
         {/* Nhóm trang dashboard nhân viên dùng SideBar */}
         <Route element={<StaffLayout />}>
           <Route path="dashboard" element={<StaffDashboard />} />
+          
+          {/* Role-based Dashboards */}
+          <Route path="admin-dashboard" element={<AdminDashboard />} />
+          <Route path="manager-dashboard" element={<ManagerDashboard />} />
+          <Route path="advisor-dashboard" element={<AdvisorDashboard />} />
+          <Route path="receptionist-dashboard" element={<ReceptionistDashboard />} />
+          <Route path="technician-dashboard" element={<TechnicianDashboard />} />
+          <Route path="accountant-dashboard" element={<AccountantDashboard />} />
+          
+          {/* Work History pages */}
+          <Route path="work-history/admin" element={<AdminWorkHistory />} />
+          <Route path="work-history/manager" element={<ManagerWorkHistory />} />
+          <Route path="work-history/advisor" element={<AdvisorWorkHistory />} />
+          <Route path="work-history/receptionist" element={<ReceptionistWorkHistory />} />
+          <Route path="work-history/technician" element={<TechnicianWorkHistory />} />
+          <Route path="work-history/accountant" element={<AccountantWorkHistory />} />
+          
           <Route path="booking-request-management" element={<BookingManagement />} />
           <Route path="booking-management" element={<ConfirmedBookingManagement />} />
           <Route path="booking-management/:id" element={<ConfirmedBookingDetail />} />
@@ -81,6 +118,11 @@ export default function App() {
           <Route path="service-ticket" element={<ServiceTicketDetail />} />
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />
+          
+          {/* Technician pages */}
+          <Route path="technician/my-tasks" element={<MyTasks />} />
+          <Route path="technician/service-ticket/:id" element={<ServiceTicket />} />
+          <Route path="technician/update-progress/:id" element={<UpdateProgress />} />
         </Route>
 
         <Route path="login" element={<Login />} />
