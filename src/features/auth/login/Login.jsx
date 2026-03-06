@@ -104,7 +104,7 @@ export default function Login() {
 			}
 
       setServerMessage(data?.data?.message || data?.message || 'Đăng nhập thành công');
-      navigate('/booking-management', { replace: true });
+      navigate('/booking-request-management', { replace: true });
     } catch (error) {
       setErrors({ api: error.message || 'Không thể kết nối máy chủ. Vui lòng thử lại.' });
     } finally {
@@ -114,7 +114,7 @@ export default function Login() {
 
   const handleGoogleLogin = () => {
     // Lưu ý: backend cần hỗ trợ redirect_uri. Ở đây ưu tiên quay về trang quản lý booking.
-		const redirectUrl = `${getStaffGoogleOAuthUrl()}?redirect_uri=${encodeURIComponent(globalThis.location.origin + '/booking-management')}`;
+		const redirectUrl = `${getStaffGoogleOAuthUrl()}?redirect_uri=${encodeURIComponent(globalThis.location.origin + '/booking-request-management')}`;
 		globalThis.location.href = redirectUrl;
   };
 
