@@ -39,14 +39,6 @@ import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.j
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 
-// Import Work History pages
-import TechnicianWorkHistory from './pages/WorkHistory/TechnicianWorkHistory/TechnicianWorkHistory.jsx';
-import AdminWorkHistory from './pages/WorkHistory/AdminWorkHistory/AdminWorkHistory.jsx';
-import ManagerWorkHistory from './pages/WorkHistory/ManagerWorkHistory/ManagerWorkHistory.jsx';
-import AdvisorWorkHistory from './pages/WorkHistory/AdvisorWorkHistory/AdvisorWorkHistory.jsx';
-import ReceptionistWorkHistory from './pages/WorkHistory/ReceptionistWorkHistory/ReceptionistWorkHistory.jsx';
-import AccountantWorkHistory from './pages/WorkHistory/AccountantWorkHistory/AccountantWorkHistory.jsx';
-
 // Import Dashboard pages
 import AdminDashboard from './pages/DashBoard/AdminDashboard/AdminDashboard.jsx';
 import ManagerDashboard from './pages/DashBoard/ManagerDashboard/ManagerDashboard.jsx';
@@ -94,14 +86,6 @@ export default function App() {
           <Route path="receptionist-dashboard" element={<ReceptionistDashboard />} />
           <Route path="technician-dashboard" element={<TechnicianDashboard />} />
           <Route path="accountant-dashboard" element={<AccountantDashboard />} />
-          
-          {/* Work History pages */}
-          <Route path="work-history/admin" element={<AdminWorkHistory />} />
-          <Route path="work-history/manager" element={<ManagerWorkHistory />} />
-          <Route path="work-history/advisor" element={<AdvisorWorkHistory />} />
-          <Route path="work-history/receptionist" element={<ReceptionistWorkHistory />} />
-          <Route path="work-history/technician" element={<TechnicianWorkHistory />} />
-          <Route path="work-history/accountant" element={<AccountantWorkHistory />} />
           
           <Route path="booking-request-management" element={<BookingManagement />} />
           <Route path="booking-management" element={<ConfirmedBookingManagement />} />
