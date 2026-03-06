@@ -21,9 +21,9 @@ function toTitleCaseFromCode(value) {
 	if (!/^[A-Z0-9_-]+$/.test(raw)) return raw;
 
 	return raw
-		.replace(/[-_]+/g, ' ')
+		.replaceAll(/[-_]+/g, ' ')
 		.toLowerCase()
-		.replace(/\b\w/g, (m) => m.toUpperCase());
+		.replaceAll(/\b\w/g, (m) => m.toUpperCase());
 }
 
 function formatCurrencyVnd(value) {
@@ -46,6 +46,20 @@ function resolveActiveStepIndex(statusLike) {
 	return 2;
 }
 
+function normalizeOdometerKm(value) {
+	if (value == null) return null;
+	const n = typeof value === 'number' ? value : Number(String(value).replaceAll(/\D/g, ''));
+	return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function pickFirstDefined(obj, keys) {
+	for (const key of keys) {
+		const v = obj?.[key];
+		if (v != null && String(v).trim() !== '') return v;
+	}
+	return null;
+}
+
 function normalizeTicket(input, codeFallback) {
 	const ticketCode =
 		String(input?.ticketCode || input?.code || input?.id || codeFallback || '12345').trim() || '12345';
@@ -54,9 +68,42 @@ function normalizeTicket(input, codeFallback) {
 		String(input?.statusLabel || input?.statusText || input?.status || 'Diagnosis Queue').trim() ||
 		'Diagnosis Queue';
 
+	const receivedAt = pickFirstDefined(input, [
+		'receivedAt',
+		'checkInAt',
+		'checkinAt',
+		'checkInDateTime',
+		'checkinDateTime',
+		'receptionDate',
+		'arrivedAt',
+		'arrivalTime',
+	]);
+
+	const handoverAt = pickFirstDefined(input, [
+		'handoverAt',
+		'handOverAt',
+		'deliveryAt',
+		'deliveredAt',
+		'completedAt',
+		'finishedAt',
+		'closedAt',
+		'releaseAt',
+	]);
+
+	const odometerKm = normalizeOdometerKm(
+		input?.odometerReading ??
+			input?.odometerKm ??
+			input?.mileage ??
+			input?.vehicle?.odometerReading ??
+			input?.vehicle?.odometerKm ??
+			input?.vehicle?.mileage,
+	);
+
 	return {
 		ticketCode,
 		statusLabel: toTitleCaseFromCode(statusLabel),
+		receivedAt,
+		handoverAt,
 		customer: {
 			name: input?.customerName || input?.customer?.name || 'Nguyễn Văn A',
 			phone: input?.customerPhone || input?.phone || input?.customer?.phone || '0901234567',
@@ -65,8 +112,9 @@ function normalizeTicket(input, codeFallback) {
 		vehicle: {
 			licensePlate: input?.licensePlate || input?.vehicle?.licensePlate || '51F-123.45',
 			model: input?.vehicleModel || input?.vehicle?.model || 'Toyota Camry 2020',
+			odometerKm,
 		},
-		createdAt: input?.createdAt || input?.createdDate || input?.createdTime || null,
+		
 		createdBy: input?.createdBy || input?.creatorName || input?.staffName || 'Lễ tân B',
 		requestNote:
 			input?.requestNote ||
@@ -112,7 +160,11 @@ export default function ServiceTicketDetail() {
 	const ticket = useMemo(() => normalizeTicket(ticketFromState, params?.id), [ticketFromState, params?.id]);
 	const activeStepIndex = resolveActiveStepIndex(ticket?.timelineStatus || ticket?.statusLabel);
 
-	const createdAtDisplay = ticket?.createdAt ? formatDateTimeViNoSeconds(ticket.createdAt, '-') : '-';
+	const receivedAtDisplay = ticket?.receivedAt ? formatDateTimeViNoSeconds(ticket.receivedAt, '-') : '-';
+	const handoverAtDisplay = ticket?.handoverAt ? formatDateTimeViNoSeconds(ticket.handoverAt, '-') : '-';
+	const odometerKm = ticket?.vehicle?.odometerKm;
+	const odometerDisplay =
+		odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
 
 	const handleBack = () => navigate(-1);
 	const handlePrint = () => {
@@ -153,6 +205,7 @@ export default function ServiceTicketDetail() {
 								title="Thông tin xe"
 								rows={[
 									{ label: 'Biển số xe:', value: ticket.vehicle.licensePlate || '-' },
+									{ label: 'Số km:', value: odometerDisplay },
 									{ label: 'Model:', value: ticket.vehicle.model || '-' },
 								]}
 							/>
@@ -162,8 +215,12 @@ export default function ServiceTicketDetail() {
 							<h2 className={styles.blockTitle}>Thông tin ticket</h2>
 							<div className={styles.kvList}>
 								<div className={styles.kvRow}>
-									<span className={styles.kvLabel}>Ngày tạo:</span>
-									<span className={styles.kvValue}>{createdAtDisplay}</span>
+									<span className={styles.kvLabel}>Ngày tiếp nhận:</span>
+									<span className={styles.kvValue}>{receivedAtDisplay}</span>
+								</div>
+								<div className={styles.kvRow}>
+									<span className={styles.kvLabel}>Ngày bàn giao:</span>
+									<span className={styles.kvValue}>{handoverAtDisplay}</span>
 								</div>
 								<div className={styles.kvRow}>
 									<span className={styles.kvLabel}>Người tạo:</span>

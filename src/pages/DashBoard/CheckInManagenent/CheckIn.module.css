@@ -61,6 +61,20 @@
   align-items: end;
 }
 
+.vehicleActions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: end;
+  justify-content: flex-end;
+}
+
+.vehicleFormGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
 .hint {
   margin-top: 8px;
   font-size: 12px;
@@ -200,6 +214,10 @@
   }
 
   .stepRow {
+    grid-template-columns: 1fr;
+  }
+
+  .vehicleFormGrid {
     grid-template-columns: 1fr;
   }
 
