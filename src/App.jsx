@@ -10,9 +10,6 @@ import About from './pages/About/About.jsx';
 import ForgotPassword from './features/auth/forgot-password/ForgotPassword.jsx';
 import Booking from './pages/Booking/Booking.jsx';
 import UserProfile from './pages/UserProfile/UserProfile.jsx';
-import ManageProfile from './pages/UserProfile/ManageProfile.jsx';
-import AccountSecurity from './pages/UserProfile/AccountSecurity.jsx';
-import LinkedAccounts from './pages/UserProfile/LinkedAccounts.jsx';
 import MyBookings from './pages/MyBookings/MyBookings.jsx';
 import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
 import EditBooking from './pages/EditBooking/EditBooking.jsx';
@@ -36,6 +33,10 @@ import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.j
 import CreateServiceTicket from './pages/DashBoard/ServiceTicketManagement/CreateServiceTicket.jsx';
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
 import ServiceTicketDetail from './pages/DashBoard/ServiceTicketManagement/ServiceTicketDetail.jsx';
+import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
+import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
+import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
+
 export default function App() {
   useEffect(() => {
     cleanupExpiredTokens();
@@ -54,16 +55,15 @@ export default function App() {
           <Route path="customer-login" element={<CustomerLogin />} />
           <Route path="booking" element={<Booking />} />
           <Route path="user-profile" element={<UserProfile />} />
-          <Route path="manage-profile" element={<ManageProfile />} />
-          <Route path="account-security" element={<AccountSecurity />} />
-          <Route path="linked-accounts" element={<LinkedAccounts />} />
           <Route path="my-bookings" element={<MyBookings />} />
           <Route path="booking-detail/:id" element={<BookingDetail />} />
           <Route path="edit-booking/:id" element={<EditBooking />} />
-
+          <Route path="customer-dashboard" element={<CustomerDashboard />} />
         </Route>
+
         {/* Nhóm trang dashboard nhân viên dùng SideBar */}
         <Route element={<StaffLayout />}>
+          <Route path="dashboard" element={<StaffDashboard />} />
           <Route path="booking-request-management" element={<BookingManagement />} />
           <Route path="booking-management" element={<ConfirmedBookingManagement />} />
           <Route path="booking-management/:id" element={<ConfirmedBookingDetail />} />
@@ -80,7 +80,9 @@ export default function App() {
           <Route path="create-service-ticket" element={<CreateServiceTicket />} />
           <Route path="service-ticket" element={<ServiceTicketDetail />} />
           <Route path="create-booking" element={<CreatBooking />} />
+          <Route path="customer-manager" element={<CustomerManager />} />
         </Route>
+
         <Route path="login" element={<Login />} />
         <Route path="forgot-password" element={<ForgotPassword />} />
       </Routes>
