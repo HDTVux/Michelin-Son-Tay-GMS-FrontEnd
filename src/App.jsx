@@ -38,10 +38,6 @@ import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.j
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 
-// Import Technician pages
-import MyTasks from './pages/Technician/MyTasks/MyTasks.jsx';
-import ServiceTicket from './pages/Technician/ServiceTicket/ServiceTicket.jsx';
-import UpdateProgress from './pages/Technician/UpdateProgress/UpdateProgress.jsx';
 export default function App() {
   useEffect(() => {
     cleanupExpiredTokens();
@@ -89,11 +85,6 @@ export default function App() {
           <Route path="service-ticket" element={<ServiceTicketDetail />} />
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />
-          
-          {/* Technician pages */}
-          <Route path="technician/my-tasks" element={<MyTasks />} />
-          <Route path="technician/service-ticket/:id" element={<ServiceTicket />} />
-          <Route path="technician/update-progress/:id" element={<UpdateProgress />} />
         </Route>
 
         <Route path="login" element={<Login />} />
