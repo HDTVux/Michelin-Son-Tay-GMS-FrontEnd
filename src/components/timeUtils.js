@@ -27,15 +27,13 @@ export const parseBackendDateTime = (value) => {
   if (!raw) return null;
 
   // ISO-like: let JS handle, it respects timezone offsets/Z
-  if (/\dT\d/.test(raw) || /Z$/.test(raw) || /[+-]\d{2}:?\d{2}$/.test(raw)) {
+  if (/\dT\d/.test(raw) || raw.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(raw)) {
     const isoDate = new Date(raw);
     return Number.isNaN(isoDate.getTime()) ? null : isoDate;
   }
 
   // DB-like: YYYY-MM-DD HH:mm:ss (no timezone) => treat as local time
-  const m = raw.match(
-    /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/
-  );
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(raw);
   if (m) {
     const year = Number(m[1]);
     const monthIndex = Number(m[2]) - 1;
@@ -60,5 +58,25 @@ export const formatDateTimeVi = (value, fallback = '-') => {
     return d.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
   } catch {
     return d.toLocaleString('vi-VN');
+  }
+};
+
+// Format date-time in vi-VN without seconds (HH:mm + date)
+export const formatDateTimeViNoSeconds = (value, fallback = '-') => {
+  const d = parseBackendDateTime(value);
+  if (!d) return fallback;
+
+  const options = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  };
+
+  try {
+    return d.toLocaleString('vi-VN', { ...options, timeZone: 'Asia/Ho_Chi_Minh' });
+  } catch {
+    return d.toLocaleString('vi-VN', options);
   }
 };

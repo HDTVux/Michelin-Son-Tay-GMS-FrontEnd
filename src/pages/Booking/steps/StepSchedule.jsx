@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import PropTypes from 'prop-types';
 import styles from './StepSchedule.module.css';
 import bookingStyles from '../Booking.module.css';
 import { fetchAllSlots, fetchAvailableSlots } from '../../../services/bookingService.js';
@@ -74,7 +75,16 @@ const isTooSoonSlot = (dateYYYYMMDD, timeRaw, leadMinutes) => {
   return slotStart.getTime() < (Date.now() + leadMs);
 };
 
-export default function StepSchedule({ value, onChange, onBack, onNext, token, isAuthed }) {
+export default function StepSchedule({
+  value,
+  onChange,
+  onBack,
+  onNext,
+  token,
+  isAuthed,
+  showActions = true,
+  unauthedHint,
+}) {
   const [baseSlots, setBaseSlots] = useState([]); // Danh sách khung giờ lấy từ API /slots/all
   const [baseLoading, setBaseLoading] = useState(false);
   const [baseError, setBaseError] = useState('');
@@ -232,7 +242,7 @@ const displaySlots = useMemo(() => {
           <div className={styles['slot-sub']}>
             {isAuthed 
               ? 'Các khung đã đầy sẽ bị khóa, chỉ hiển thị trạng thái cho khách đã đăng nhập.' 
-              : 'Bạn chưa đăng nhập, nếu đặt lịch trong ngày hôm nay thì cần đặt trước tối thiểu 2 tiếng.'}
+              : (unauthedHint || 'Bạn chưa đăng nhập, nếu đặt lịch trong ngày hôm nay thì cần đặt trước tối thiểu 2 tiếng.')}
           </div>
 
           {/* Trạng thái Loading và Error */}
@@ -287,17 +297,33 @@ const displaySlots = useMemo(() => {
         </div>
 
         {/* --- NÚT ĐIỀU HƯỚNG --- */}
-        <div className={bookingStyles['booking-actions']}>
-          <button className={bookingStyles.btn} onClick={onBack}>Quay lại</button>
-          <button 
-            className={`${bookingStyles.btn} ${bookingStyles.primary}`} 
-            onClick={onNext} 
-            disabled={!canNext} // Chỉ cho tiếp tục khi đã chọn cả ngày và giờ
-          >
-            Tiếp tục
-          </button>
-        </div>
+        {showActions && (
+          <div className={bookingStyles['booking-actions']}>
+            <button className={bookingStyles.btn} onClick={onBack}>Quay lại</button>
+            <button 
+              className={`${bookingStyles.btn} ${bookingStyles.primary}`} 
+              onClick={onNext} 
+              disabled={!canNext} // Chỉ cho tiếp tục khi đã chọn cả ngày và giờ
+            >
+              Tiếp tục
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
 }
+
+StepSchedule.propTypes = {
+  value: PropTypes.shape({
+    date: PropTypes.string,
+    time: PropTypes.string,
+  }).isRequired,
+  onChange: PropTypes.func.isRequired,
+  onBack: PropTypes.func,
+  onNext: PropTypes.func,
+  token: PropTypes.string,
+  isAuthed: PropTypes.bool,
+  showActions: PropTypes.bool,
+  unauthedHint: PropTypes.string,
+};

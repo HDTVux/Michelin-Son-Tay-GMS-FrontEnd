@@ -86,6 +86,27 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
+/* --- Feedback banners --- */
+.errorBanner {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fee2e2;
+  border: 1px solid #fecdd3;
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.loadingBox {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  color: #0f172a;
+  font-weight: 700;
+}
+
 /* --- Typography & Labels --- */
 .label {
   font-size: 13px;
@@ -207,6 +228,122 @@
   border: 1px solid #d1d5db;
   border-radius: 10px;
   padding: 10px 12px;
+  font-size: 14px;
+}
+
+.dateInput {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.dateInput select {
+  border: none;
+  outline: none;
+  font-size: 14px;
+  width: 100%;
+  background: transparent;
+}
+
+.dateIcon {
+  font-size: 16px;
+}
+
+.helperText {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* --- Slot grid (similar to guest booking schedule) --- */
+.slotSection {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.slotTitle {
+  font-weight: 800;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.slotSub {
+  color: #475569;
+  font-size: 14px;
+}
+
+.serviceStatus {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+}
+
+.serviceStatusError {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.slotGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.slotBtn {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 8px;
+  background: #fff;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.slotBtn:hover {
+  box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+}
+
+.slotBtn:disabled {
+  cursor: not-allowed;
+}
+
+.slotBtnActive {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.slotBtnDisabled {
+  color: #9ca3af;
+}
+
+.slotBtnDisabled .slotTime,
+.slotBtnDisabled .slotMeta {
+  color: #9ca3af;
+}
+
+.slotTime {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.slotMeta {
+  color: #475569;
   font-size: 14px;
 }
 

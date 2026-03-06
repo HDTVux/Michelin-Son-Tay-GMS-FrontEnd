@@ -39,7 +39,7 @@ export default function BussinessInfor() {
 						<div className="contactIconCircle">✉</div>
 						<div className="contactItemBody">
 							<div className="contactItemTitle">Email</div>
-							<div className="contactItemText">info@michelin.com</div>
+							<div className="contactItemText">minhanhauto.sontay@gmail.com</div>
 						</div>
 					</div>
 
@@ -62,13 +62,13 @@ export default function BussinessInfor() {
 				<div>
 					<div className="contactTitle">Kênh liên hệ</div>
 					<div className="contactActions">
-						<a className="contactCircle" href="https://zalo.me" target="_blank" rel="noreferrer">
+						<a className="contactCircle" href="https://zalo.me/3178553865233362097" target="_blank" rel="noreferrer">
 							Zalo
 						</a>
-						<a className="contactCircle" href="tel:0987654321">
+						<a className="contactCircle" href="tel:0987545680">
 							Gọi
 						</a>
-						<a className="contactCircle" href="mailto:info@michelin.com">
+						<a className="contactCircle" href="mailto:minhanhauto.sontay@gmail.com">
 							Email
 						</a>
 					</div>

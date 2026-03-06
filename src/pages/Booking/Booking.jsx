@@ -21,7 +21,8 @@ const STEPS = [
 export default function Booking() {
  const location = useLocation();
  const prefilledPhone = location.state?.phone || '';
- const preselectedServiceId = location.state?.serviceId ? String(location.state.serviceId) : null;
+ const preselectedCatalogItemId = location.state?.catalogItemId != null ? String(location.state.catalogItemId) : null;
+ const legacyServiceId = location.state?.serviceId != null ? Number(location.state.serviceId) : null;
  // State bước hiện tại
  const [stepIndex, setStepIndex] = useState(0);
  // Dịch vụ (lấy từ API Home)
@@ -29,7 +30,7 @@ export default function Booking() {
  const [servicesLoading, setServicesLoading] = useState(false);
  const [servicesError, setServicesError] = useState('');
  // State lọc/chọn dịch vụ
- const [selectedIds, setSelectedIds] = useState(() => (preselectedServiceId ? [preselectedServiceId] : []));
+ const [selectedIds, setSelectedIds] = useState(() => (preselectedCatalogItemId ? [preselectedCatalogItemId] : []));
  const [search, setSearch] = useState('');
  const [filter, setFilter] = useState('all');
  // State cho lịch hẹn
@@ -98,14 +99,28 @@ export default function Booking() {
 			.then((res) => {
 				if (!active) return;
 				const list = Array.isArray(res?.data) ? res.data : [];
-				const mapped = list.map((item) => ({
-					id: String(item.serviceId),
+				const mapped = list
+					.map((item) => {
+						const catalogItemId = Number(item?.catalogItemId);
+						if (!Number.isFinite(catalogItemId) || catalogItemId < 0) return null;
+						return {
+							id: String(catalogItemId),
+							serviceId: Number(item?.serviceId),
 					name: item.title || 'Dịch vụ',
 					desc: item.shortDescription || 'Hiện chưa có mô tả ngắn.',
 					category: 'all',
 					thumbnail: item.mediaThumbnail || '',
-				}));
+						};
+					})
+					.filter(Boolean);
 				setServices(mapped);
+
+				// Backward-compat: nếu trang khác còn truyền state.serviceId (cũ),
+				// thì tự map sang catalogItemId từ list /home/ sau khi load.
+				if (!preselectedCatalogItemId && Number.isFinite(legacyServiceId) && legacyServiceId != null) {
+					const found = mapped.find((s) => Number(s.serviceId) === legacyServiceId);
+					if (found?.id) setSelectedIds([String(found.id)]);
+				}
 			})
 			.catch((err) => {
 				if (!active) return;
@@ -118,7 +133,7 @@ export default function Booking() {
 		return () => {
 			active = false;
 		};
-	}, []);
+	}, [legacyServiceId, preselectedCatalogItemId]);
 
 	// Mỗi khi đổi bước, cuộn về đầu trang đặt lịch để không bị nhảy xuống cuối
 	 // Kéo lên đầu trang mỗi khi đổi bước (dùng window scroll thay vì query class CSS module)
@@ -140,9 +155,12 @@ export default function Booking() {
 			setInfo((prev) => ({ ...prev, note: sanitized }));
 		}
 		if (Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0) {
-			setSelectedIds(bookingData.serviceIds.map(String).filter(Boolean));
+			const ids = bookingData.serviceIds.map(String).filter(Boolean);
+			const serviceIdSet = new Set((Array.isArray(services) ? services : []).map((s) => String(s.id)));
+			const allMatch = ids.length > 0 && ids.every((id) => serviceIdSet.has(id));
+			if (allMatch) setSelectedIds(ids);
 		}
-	}, [bookingData]);
+	}, [bookingData, services]);
 
 	const toggle = (id) => {
 		setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -181,17 +199,23 @@ const goSubmitInfo = async () => {
 		return;
 	}
 
-  // 2. Chuẩn bị danh sách ID dịch vụ
-  const serviceIds = selectedIds
+  // 2. Chuẩn bị danh sách catalogItemId (backend tạo/đổi booking dùng catalogItemId)
+  const catalogItemIds = selectedIds
 	.map(Number)
-    .filter((n) => Number.isFinite(n));
+    .filter((n) => Number.isFinite(n) && n >= 0);
+
+	if (catalogItemIds.length === 0) {
+		setSubmitError('Vui lòng chọn ít nhất 1 dịch vụ.');
+		setSubmitting(false);
+		return;
+	}
 
 
 	const basePayload = {
 		appointmentDate: schedule.date,
 		appointmentTime: schedule.time,
 		userNote: trimmedNote,
-		selectedServiceIds: serviceIds,
+		selectedServiceIds: catalogItemIds,
 	};
 
 	const isModify = !!customerToken && modifyBookingId != null && `${modifyBookingId}` !== '';
@@ -210,7 +234,7 @@ const goSubmitInfo = async () => {
 					newAppointmentDate: schedule.date,
 					newAppointmentTime: schedule.time,
 					newUserNote: trimmedNote,
-					newServiceIds: serviceIds,
+					newServiceIds: catalogItemIds,
 				},
 				customerToken
 			);

@@ -7,9 +7,14 @@
 /* Header */
 .header {
   display: flex;
-  align-items: center;
-  gap: 20px;
+  flex-direction: column;
+  gap: 16px;
   margin-bottom: 24px;
+}
+
+.headerTop {
+  display: flex;
+  align-items: center;
 }
 
 .backButton {
@@ -31,15 +36,11 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.headerContent {
-  flex: 1;
-}
-
 .title {
   font-size: 28px;
   font-weight: 700;
   color: #1a202c;
-  margin: 0 0 4px 0;
+  margin: 0;
 }
 
 .customerId {
@@ -261,6 +262,34 @@
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+/* Actions Center */
+.actionsCenter {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.editButton {
+  padding: 14px 48px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.editButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
 /* Sidebar */

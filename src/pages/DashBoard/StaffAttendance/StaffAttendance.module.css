@@ -1,6 +1,9 @@
 .container {
   padding: 24px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 100vh;
 }
 
@@ -293,8 +296,8 @@
 }
 
 .dayCell {
-  aspect-ratio: 1;
-  padding: 12px;
+  min-height: 120px;
+  padding: 8px;
   border: 2px solid #e2e8f0;
   border-radius: 12px;
   cursor: pointer;
@@ -303,6 +306,8 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .dayCell:hover:not(.emptyCell) {
@@ -338,7 +343,9 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 11px;
+  font-size: 14px;
+  width: 100%;
+  text-align: center;
 }
 
 .dayStatus {
@@ -690,4 +697,59 @@
   .dayStatus {
     font-size: 16px;
   }
+}
+
+/* Session status in calendar */
+.sessionStatus {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.sessionLabel {
+  font-weight: 600;
+  font-size: 10px;
+  color: #2d3748;
+  min-width: 32px;
+}
+
+/* Status badge colors for different states */
+.statusBadge {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 60px;
+}
+
+.statusPresent {
+  background: #c6f6d5 !important;
+  color: #22543d !important;
+}
+
+.statusLate {
+  background: #fef5e7 !important;
+  color: #78350f !important;
+}
+
+.statusAbsent {
+  background: #fed7d7 !important;
+  color: #742a2a !important;
+}
+
+.statusOff {
+  background: #e0e7ff !important;
+  color: #3730a3 !important;
+}
+
+.statusNotYet {
+  background: #e2e8f0 !important;
+  color: #4a5568 !important;
 }

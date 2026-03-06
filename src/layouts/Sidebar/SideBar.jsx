@@ -1,25 +1,115 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './SideBar.css';
 
-const navItems = [
-	{ label: 'Màn hình chính', icon: <IconHome /> },
-	{ label: 'Tài khoản của tôi', icon: <IconUser /> },
-	{ label: 'Lịch sử', icon: <IconHistory /> },
-	{ label: 'Author', icon: <IconEdit /> },
-	{ label: 'Thông báo', icon: <IconBell /> },
-	{ label: 'Trợ giúp', icon: <IconHelp /> },
-	{ label: 'Cài đặt', icon: <IconSettings /> },
+const STAFF_ROLE = {
+	MANAGER: 'MANAGER',
+	ADVISOR: 'ADVISOR',
+	RECEPTIONIST: 'RECEPTIONIST',
+};
+
+const readStaffRolesFromStorage = () => {
+	try {
+		const raw = localStorage.getItem('staffRoles');
+		if (!raw) return [];
+		const parsed = JSON.parse(raw);
+		if (!Array.isArray(parsed)) return [];
+		return parsed
+			.filter((r) => typeof r === 'string')
+			.map((r) => r.trim().toUpperCase())
+			.filter(Boolean);
+	} catch {
+		return [];
+	}
+};
+
+const readStaffProfileFromStorage = () => {
+	try {
+		const raw = localStorage.getItem('staffProfile');
+		if (!raw) return null;
+		const parsed = JSON.parse(raw);
+		if (!parsed || typeof parsed !== 'object') return null;
+		return {
+			staffId: parsed.staffId ?? null,
+			fullName: typeof parsed.fullName === 'string' ? parsed.fullName : '',
+			avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : '',
+			role: Array.isArray(parsed.role) ? parsed.role : [],
+		};
+	} catch {
+		return null;
+	}
+};
+
+const NAV_GROUPS = [
+	{
+		id: 'general',
+		label: 'Màn hình chung',
+		defaultOpen: true,
+		items: [
+			{id: 'dashboard',label: 'Dashboard',path: '/dashboard',icon: <IconHome />,roles: 'ALL',},
+		],
+	},
+	{
+		id: 'features',
+		label: 'Chức năng',
+		defaultOpen: true,
+		items: [
+			{ id: 'booking-management', label: 'Quản lý lịch hẹn', path: '/booking-management', icon: <IconHome />, roles: [STAFF_ROLE.RECEPTIONIST], },
+			{ id: 'booking-request-management', label: 'Yêu cầu đặt lịch', path: '/booking-request-management', icon: <IconHistory />, roles: [STAFF_ROLE.RECEPTIONIST], },
+			{id: 'create-booking',label: 'Tạo lịch hẹn',path: '/create-booking',icon: <IconCheckIn />,roles: [STAFF_ROLE.RECEPTIONIST],},
+			{id: 'staff-attendance',label: 'Chấm công',path: '/staff-attendance',icon: <IconClock />,roles: [STAFF_ROLE.RECEPTIONIST],},
+			{ id: 'customer-manager', label: 'Quản lý khách hàng', path: '/customer-manager', icon: <IconUser />, roles: 'ALL' },
+		],
+	},
+	{
+		id: 'personal',
+		label: 'Cá nhân',
+		defaultOpen: true,
+		items: [
+			{ id: 'staff-profile', label: 'Hồ sơ nhân viên', path: '/staff-profile', icon: <IconUser />, roles: 'ALL' },
+			{ id: 'daily-schedule', label: 'Lịch làm việc', path: '/daily-schedule', icon: <IconCalendar />, roles: 'ALL' },
+		],
+	},
 ];
 
 const SideBar = () => {
 	const [isOpen, setIsOpen] = useState(false);
+	const [openGroups, setOpenGroups] = useState(() =>
+		Object.fromEntries(NAV_GROUPS.map((g) => [g.id, Boolean(g.defaultOpen)])),
+	);
 	const navigate = useNavigate();
+	const location = useLocation();
+
+	const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
+	const staffProfile = useMemo(() => readStaffProfileFromStorage(), []);
+	const staffFullName = staffProfile?.fullName || 'Nhân viên';
+	const staffAvatarUrl = staffProfile?.avatarUrl || '';
+
+	const visibleGroups = useMemo(() => {
+		const hasAnyRole = (allowedRoles) => {
+			if (allowedRoles === 'ALL') return true;
+			if (!Array.isArray(allowedRoles) || allowedRoles.length === 0) return false;
+			return allowedRoles.some((r) => staffRoles.includes(String(r).toUpperCase()));
+		};
+
+		return NAV_GROUPS.map((group) => {
+			const items = group.items.filter((item) => hasAnyRole(item.roles));
+			return { ...group, items };
+		}).filter((group) => group.items.length > 0);
+	}, [staffRoles]);
 
 	const toggleMenu = () => setIsOpen((prev) => !prev);
-	const handleNavClick = () => setIsOpen(false);
+	const handleNavClick = (path) => {
+		setIsOpen(false);
+		if (path) navigate(path);
+	};
+	const toggleGroup = (groupId) => {
+		setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+	};
 	const handleLogout = () => {
 		localStorage.removeItem('authToken');
+		localStorage.removeItem('staffRoles');
+		localStorage.removeItem('staffProfile');
 		setIsOpen(false);
 		navigate('/login', { replace: true });
 	};
@@ -28,11 +118,15 @@ const SideBar = () => {
 		<aside className="sidebar">
 			<div className="sidebar__profile">
 				<div className="sidebar__avatar">
-					<img src="https://i.pravatar.cc/80?img=64" alt="User avatar" />
+					{staffAvatarUrl ? (
+						<img src={staffAvatarUrl} alt={staffFullName} />
+					) : (
+						<img src="https://i.pravatar.cc/80?img=64" alt={staffFullName} />
+					)}
 				</div>
 				<div>
 					<p className="sidebar__greeting">Hello,</p>
-					<p className="sidebar__name">Adiwarda Bestari</p>
+					<p className="sidebar__name">{staffFullName}</p>
 				</div>
 			</div>
 
@@ -48,12 +142,41 @@ const SideBar = () => {
 			</button>
 
 			<nav className={`sidebar__nav ${isOpen ? 'is-open' : ''}`}>
-				{navItems.map((item) => (
-					<button className="navItem" key={item.label} type="button" onClick={handleNavClick}>
-						<span className="navItem__icon">{item.icon}</span>
-						<span className="navItem__label">{item.label}</span>
-					</button>
-				))}
+				{visibleGroups.map((group) => {
+					const isGroupOpen = Boolean(openGroups[group.id]);
+					return (
+						<div className="navGroup" key={group.id}>
+							<button
+								className="navGroup__header"
+								type="button"
+								onClick={() => toggleGroup(group.id)}
+								aria-expanded={isGroupOpen}
+							>
+								<span className="navGroup__headerLabel">{group.label}</span>
+								<span className={`navGroup__chevron ${isGroupOpen ? 'is-open' : ''}`} aria-hidden="true">
+									<IconChevron />
+								</span>
+							</button>
+
+							<div className={`navGroup__items ${isGroupOpen ? 'is-open' : ''}`}>
+								{group.items.map((item) => {
+									const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
+									return (
+										<button
+											className={`navItem navItem--child ${isActive ? 'is-active' : ''}`}
+											key={item.id}
+											type="button"
+											onClick={() => handleNavClick(item.path)}
+										>
+											<span className="navItem__icon">{item.icon}</span>
+											<span className="navItem__label">{item.label}</span>
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					);
+				})}
 			</nav>
 
 			<button className="sidebar__logout" type="button" onClick={handleLogout}>
@@ -143,6 +266,42 @@ function IconClose() {
 	return (
 		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
 			<path d="M7 7l10 10M17 7 7 17" />
+		</svg>
+	);
+}
+
+function IconChevron() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M8.5 10.5 12 14l3.5-3.5" />
+		</svg>
+	);
+}
+
+function IconCalendar() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M7 3v2M17 3v2" />
+			<path d="M4.5 8.5h15" />
+			<path d="M6 5h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+		</svg>
+	);
+}
+
+function IconClock() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M12 7v5l3 2" />
+			<path d="M21 12a9 9 0 1 1-9-9 9 9 0 0 1 9 9z" />
+		</svg>
+	);
+}
+
+function IconCheckIn() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M20 7 10.5 16.5 6 12" />
+			<path d="M4 4h16v16H4z" />
 		</svg>
 	);
 }

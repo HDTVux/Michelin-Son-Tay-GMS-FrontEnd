@@ -1,7 +1,7 @@
 .staffLayout {
   display: flex;
   min-height: 100vh;
-  background: #0a63c8;
+  background: white;
 }
 
 .staffLayout__content {
@@ -9,7 +9,7 @@
   padding: 0;
   min-height: 100vh;
   overflow: auto;
-  background: #0a63c8;
+  background: white;
 }
 
 @media (max-width: 768px) {
