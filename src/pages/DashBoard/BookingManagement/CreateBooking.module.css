@@ -1,0 +1,41 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+	/* Đồng bộ nền trắng với dashboard */
+	background: var(--ui-surface);
+	color: var(--ui-text);
+}
+
+.title {
+	text-align: center;
+	margin: 0 0 12px;
+}
+
+.successRow {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.successMessage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.successBtn {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .successRow {
+    flex-direction: column;
+  }
+
+  .successBtn {
+    width: 100%;
+  }
+}

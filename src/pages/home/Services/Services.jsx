@@ -1,45 +1,27 @@
 import './Services.css';
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import lopMam from '../../../assets/lop and mam.jpg';
-import baoDuong from '../../../assets/baoduongnhanh.jpg';
-import veSinh from '../../../assets/ve_sinh_xe.jpg';
-import ruaXe from '../../../assets/cham_soc_xe.jpg';
-import combo1 from '../../../assets/z7498307797407_a65c60e07a1b8983cdf5350f98b6cc1d.jpg';
-import combo2 from '../../../assets/z7498310198837_146b124ec8cd2391c04e27a0dde397ff.jpg';
-import combo3 from '../../../assets/z7498315906940_a22d5305d93086e7d629fd4795a6e222.jpg';
-import combo4 from '../../../assets/phanh_an_tam.jpg';
+import { fetchHomeServices } from '../../../services/homeService';
+import serviceFallback from '../../../assets/lop and mam.jpg';
+import processImg from '../../../assets/Quy trình 7 bước (1).png';
 
 const Services = () => {
-  // Danh sách dịch vụ tiện ích nổi bật
-  const services = [
-    {
-      title: 'DỊCH VỤ LỐP & MÂM',
-      description: 'Dịch vụ thay lốp và mâm xe chuyên nghiệp, đảm bảo chất lượng và an toàn.',
-      image: lopMam,
-      price: 'Liên hệ'
-    },
-    {
-      title: 'BẢO DƯỠNG',
-      description: 'Bảo dưỡng định kỳ cho xe của bạn, giúp xe luôn hoạt động tốt nhất.',
-      image: baoDuong,
-      price: 'Liên hệ'
-    },
-    {
-      title: 'VỆ SINH VÀ KIỂM TRA',
-      description: 'Dịch vụ vệ sinh và kiểm tra toàn diện cho xe của bạn.',
-      image: veSinh,
-      price: 'Liên hệ'
-    },
-    {
-      title: 'RỬA XE',
-      description: 'Dịch vụ rửa xe chuyên nghiệp, giúp xe luôn sáng bóng như mới.',
-      image: ruaXe,
-      price: 'Liên hệ'
-    }
-  ];
+  const [services, setServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [servicesError, setServicesError] = useState('');
 
-  // Gói dịch vụ được tin dùng
+  // Debug log
+  useEffect(() => {
+    console.log('[Services] State updated:', { 
+      servicesCount: services.length, 
+      servicesLoading, 
+      servicesError,
+      services 
+    });
+  }, [services, servicesLoading, servicesError]);
+
+  // Gói dịch vụ được tin dùng (commented out - not used currently)
+  /*
   const combos = [
     {
       title: 'Combo "Trước chuyến đi"',
@@ -90,6 +72,42 @@ const Services = () => {
       price: 'Liên hệ'
     }
   ];
+  */
+
+  useEffect(() => {
+    let active = true;
+    setTimeout(() => { if (active) { setServicesLoading(true); setServicesError(''); }}, 0);
+
+    fetchHomeServices()
+      .then((res) => {
+        if (!active) return;
+        console.log('[Services] API response:', res);
+        const list = Array.isArray(res?.data) ? res.data : [];
+        console.log('[Services] Services list:', list);
+        const mapped = list.map((item) => ({
+          id: item.serviceId,
+		  catalogItemId: item.catalogItemId,
+          title: item.title || 'Dịch vụ',
+          description: item.shortDescription || '',
+          image: item.mediaThumbnail || '',
+          price: item.showPrice ? item.displayPrice || 'Liên hệ' : 'Liên hệ',
+        }));
+        console.log('[Services] Mapped services:', mapped);
+        setServices(mapped);
+      })
+      .catch((err) => {
+        if (!active) return;
+        console.error('[Services] Error loading services:', err);
+        setServicesError(err?.message || 'Không thể tải danh sách dịch vụ.');
+      })
+      .finally(() => {
+        if (active) setServicesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // State cho dịch vụ slider
   const [serviceIndex, setServiceIndex] = useState(0);
@@ -98,46 +116,41 @@ const Services = () => {
   const serviceTrackRef = useRef(null);
   const servicePointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
-  // State cho combo slider
-  const [comboIndex, setComboIndex] = useState(0);
-  const [comboVisible, setComboVisible] = useState(3);
-  const [isComboPaused, setIsComboPaused] = useState(false);
-  const comboTrackRef = useRef(null);
-  const comboPointer = useRef({ startX: 0, deltaX: 0, dragging: false });
+  // Scroll reveal cho 3 phần: dịch vụ, quy trình, combo
+  const servicesHeroRef = useRef(null);
+  const processHeaderRef = useRef(null);
 
+  const [servicesIntroVisible, setServicesIntroVisible] = useState(false);
+  const [processIntroVisible, setProcessIntroVisible] = useState(false);
+  
   useEffect(() => {
     const calc = () => {
       const w = window.innerWidth;
       if (w <= 480) {
         setServiceVisible(1);
-        setComboVisible(1);
       } else if (w <= 768) {
         setServiceVisible(2);
-        setComboVisible(2);
       } else if (w <= 1024) {
         setServiceVisible(3);
-        setComboVisible(2);
       } else {
         setServiceVisible(4);
-        setComboVisible(3);
       }
       setServiceIndex(0);
-      setComboIndex(0);
     };
     calc();
     window.addEventListener('resize', calc);
     return () => window.removeEventListener('resize', calc);
   }, []);
 
+  useEffect(() => {
+    const t = setTimeout(() => setServiceIndex(0), 0);
+    return () => clearTimeout(t);
+  }, [serviceVisible, services.length]);
+
   const serviceMaxIndex = Math.max(0, services.length - serviceVisible);
   const serviceOffset = (serviceIndex * 100) / serviceVisible;
   const servicePrev = () => setServiceIndex(i => Math.max(0, i - 1));
   const serviceNext = () => setServiceIndex(i => Math.min(serviceMaxIndex, i + 1));
-
-  const comboMaxIndex = Math.max(0, combos.length - comboVisible);
-  const comboOffset = (comboIndex * 100) / comboVisible;
-  const comboPrev = () => setComboIndex(i => Math.max(0, i - 1));
-  const comboNext = () => setComboIndex(i => Math.min(comboMaxIndex, i + 1));
 
   // Tự động chuyển slide dịch vụ
   useEffect(() => {
@@ -147,15 +160,6 @@ const Services = () => {
     }, 4000);
     return () => clearInterval(id);
   }, [serviceMaxIndex, isServicePaused]);
-
-  // Tự động chuyển slide combo
-  useEffect(() => {
-    if (comboMaxIndex === 0 || isComboPaused) return;
-    const id = setInterval(() => {
-      setComboIndex((current) => (current >= comboMaxIndex ? 0 : current + 1));
-    }, 4000);
-    return () => clearInterval(id);
-  }, [comboMaxIndex, isComboPaused]);
 
   // Handlers cho dịch vụ slider
   const handleServicePointerDown = (event) => {
@@ -182,39 +186,52 @@ const Services = () => {
     setTimeout(() => setIsServicePaused(false), 300);
   };
 
-  // Handlers cho combo slider
-  const handleComboPointerDown = (event) => {
-    setIsComboPaused(true);
-    comboPointer.current.dragging = true;
-    comboPointer.current.startX = event.clientX ?? event.touches?.[0]?.clientX;
-  };
+  // IntersectionObserver cho tiêu đề các phần
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
 
-  const handleComboPointerMove = (event) => {
-    if (!comboPointer.current.dragging) return;
-    const x = event.clientX ?? event.touches?.[0]?.clientX;
-    comboPointer.current.deltaX = x - comboPointer.current.startX;
-  };
+          if (entry.target === servicesHeroRef.current) {
+            setServicesIntroVisible(true);
+          }
+          if (entry.target === processHeaderRef.current) {
+            setProcessIntroVisible(true);
+          }
+        });
+      },
+      { threshold: 0.25 }
+    );
 
-  const handleComboPointerUp = () => {
-    if (!comboPointer.current.dragging) return;
-    comboPointer.current.dragging = false;
-    const dx = comboPointer.current.deltaX;
-    if (Math.abs(dx) > 50) {
-      if (dx < 0) comboNext();
-      else comboPrev();
-    }
-    comboPointer.current.deltaX = 0;
-    setTimeout(() => setIsComboPaused(false), 300);
-  };
+    const servicesEl = servicesHeroRef.current;
+    const processEl = processHeaderRef.current;
 
+    if (servicesEl) observer.observe(servicesEl);
+    if (processEl) observer.observe(processEl);
+
+    return () => {
+      if (servicesEl) observer.unobserve(servicesEl);
+      if (processEl) observer.unobserve(processEl);
+      observer.disconnect();
+    };
+  }, []);
   return (
     <>
       {/* Danh sách dịch vụ tiện ích nổi bật */}
       <section className="servicesPage">
-        <div className="servicesHero">
-          <h1 className="servicesTitle">Danh sách dịch vụ tiện ích nổi bật</h1>
+        <div
+          ref={servicesHeroRef}
+          className={`servicesHero ${servicesIntroVisible ? 'visible' : ''}`}
+          style={{ opacity: 1, transform: 'translateX(0)' }}
+        >
+          <div className="servicesLabel">DỊCH VỤ NỔI BẬT</div>
+          <h1 className="servicesTitle">
+            <span className="titlePart1">Dịch vụ</span>
+            <span className="titlePart2">tiện ích chính hãng Michelin Sơn Tây</span>
+          </h1>
           <p className="servicesSubtitle">
-            Các dịch vụ chuyên nghiệp cho xe của bạn
+            Các dịch vụ chuyên nghiệp, chuẩn quy trình – giúp chiếc xe của bạn luôn an toàn và bền bỉ trên mọi hành trình.
           </p>
         </div>
 
@@ -232,41 +249,69 @@ const Services = () => {
             &lt;
           </button>
           <div className="sliderViewport">
-            <div
-              className="sliderTrack"
-              ref={serviceTrackRef}
-              style={{ 
-                transform: `translateX(-${serviceOffset}%)`,
-                display: 'flex',
-                transition: 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)'
-              }}
-              onPointerDown={handleServicePointerDown}
-              onPointerMove={handleServicePointerMove}
-              onPointerUp={handleServicePointerUp}
-              onPointerCancel={handleServicePointerUp}
-              onTouchStart={handleServicePointerDown}
-              onTouchMove={handleServicePointerMove}
-              onTouchEnd={handleServicePointerUp}
-            >
-              {services.map((service, idx) => (
-                <div key={idx} className="serviceSlide">
-                  <div className="serviceCard">
-                    <div className="serviceCard-imageTop">
-                      <img src={service.image} alt={service.title} className="serviceCard-image" />
-                    </div>
-                    <div className="serviceCard-content">
-                      <h3 className="serviceTitle">{service.title}</h3>
-                      <p className="serviceDescription">{service.description}</p>
-                      <div className="servicePrice">Giá: {service.price}</div>
-                      <div className="serviceActions">
-                        <Link to="/services" className="btnViewDetail">Xem chi tiết</Link>
-                        <Link to="/booking" className="btnBookNow">Đặt lịch</Link>
+            {servicesLoading && (
+              <div className="serviceStatus" style={{ padding: '40px', textAlign: 'center', fontSize: '18px' }}>
+                Đang tải dịch vụ...
+              </div>
+            )}
+            {!servicesLoading && servicesError && (
+              <div className="serviceStatus error" style={{ padding: '40px', textAlign: 'center', fontSize: '18px', color: 'red' }}>
+                {servicesError}
+              </div>
+            )}
+            {!servicesLoading && !servicesError && services.length === 0 && (
+              <div className="serviceStatus" style={{ padding: '40px', textAlign: 'center', fontSize: '18px' }}>
+                Chưa có dịch vụ để hiển thị.
+              </div>
+            )}
+            {services.length > 0 && (
+              <div
+                className="sliderTrack"
+                ref={serviceTrackRef}
+                style={{ 
+                  transform: `translateX(-${serviceOffset}%)`,
+                  display: 'flex',
+                  transition: 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)'
+                }}
+                onPointerDown={handleServicePointerDown}
+                onPointerMove={handleServicePointerMove}
+                onPointerUp={handleServicePointerUp}
+                onPointerCancel={handleServicePointerUp}
+                onTouchStart={handleServicePointerDown}
+                onTouchMove={handleServicePointerMove}
+                onTouchEnd={handleServicePointerUp}
+              >
+                {services.map((service, idx) => (
+                  <div key={service.id || idx} className="serviceSlide">
+                    <div className="serviceCard">
+                      <div className="serviceCard-imageTop">
+                        <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
+                      </div>
+                      <div className="serviceCard-content">
+                        <h3 className="serviceTitle">{service.title}</h3>
+                        <p className="serviceDescription">{service.description || 'Hiện chưa có mô tả cho dịch vụ này.'}</p>
+                        <div className="servicePrice">Giá: {service.price || 'Liên hệ'}</div>
+                        <div className="serviceActions">
+                          <Link
+                            to={service.id ? `/services/${service.id}` : '/services'}
+                            className="btnViewDetail"
+                          >
+                            Xem chi tiết
+                          </Link>
+                          <Link
+                            to="/booking"
+                            state={service.catalogItemId != null ? { catalogItemId: service.catalogItemId } : undefined}
+                            className="btnBookNow"
+                          >
+                            Đặt lịch
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
           <button 
             className="sliderArrow right" 
@@ -279,12 +324,93 @@ const Services = () => {
         </div>
       </section>
 
+      {/* Quy trình dịch vụ */}
+      <section className="processSection">
+        <div className="processInner">
+          <div
+            ref={processHeaderRef}
+            className={`processHeader ${processIntroVisible ? 'visible' : ''}`}
+          >
+            <div className="servicesLabel">QUY TRÌNH DỊCH VỤ</div>
+            <h2 className="processTitle">
+              <span className="titlePart1">Quy trình</span>
+              <span className="titlePart2">chăm sóc & bảo dưỡng xe chuẩn Michelin</span>
+            </h2>
+            <p className="processSub">
+              7 bước rõ ràng, minh bạch – từ tiếp nhận đến bàn giao, mang lại cho bạn trải nghiệm an tâm và chuyên nghiệp.
+            </p>
+          </div>
+
+          <div className="processDiagram">
+            <div className="processImageWrapper">
+              <img className="processImageCenter" src={processImg} alt="Quy trình dịch vụ Michelin Sơn Tây" />
+            </div>
+
+            {[
+              {
+                no: 1,
+                title: 'Tiếp nhận yêu cầu khách hàng',
+                desc: 'Ghi nhận thông tin, nhu cầu và mong muốn của khách trước khi thao tác trên xe.'
+              },
+              {
+                no: 2,
+                title: 'Đưa xe vào khoang dịch vụ',
+                desc: 'Hướng dẫn đưa xe vào đúng vị trí, đảm bảo an toàn cho người và phương tiện.'
+              },
+              {
+                no: 3,
+                title: 'Kiểm tra an toàn xe',
+                desc: 'Kiểm tra sơ bộ các hạng mục an toàn chính trước khi tiến hành công việc.'
+              },
+              {
+                no: 4,
+                title: 'Thực hiện dịch vụ',
+                desc: 'Thực hiện bảo dưỡng, sửa chữa theo quy trình và tiêu chuẩn kỹ thuật.'
+              },
+              {
+                no: 5,
+                title: 'Kiểm tra chất lượng',
+                desc: 'Rà soát lại kết quả công việc, đảm bảo xe hoạt động ổn định sau dịch vụ.'
+              },
+              {
+                no: 6,
+                title: 'Chuẩn bị bàn giao xe',
+                desc: 'Vệ sinh, sắp xếp và hoàn thiện các thủ tục cần thiết trước khi giao xe.'
+              },
+              {
+                no: 7,
+                title: 'Bàn giao xe',
+                desc: 'Giải thích hạng mục đã thực hiện, bàn giao xe và hướng dẫn sử dụng an toàn.'
+              }
+            ].map((s) => (
+              <div
+                key={s.no}
+                className={`processStepBubble step-${s.no}`}
+              >
+                <div className="processNo">{s.no}</div>
+                <div className="processText">
+                  <div className="processStepTitle">{s.title}</div>
+                  <div className="processStepDesc">{s.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Gói dịch vụ được tin dùng */}
-      <section className="combosPage">
-        <div className="servicesHero">
-          <h1 className="servicesTitle">Gói dịch vụ được tin dùng</h1>
+      {/* <section className="combosPage">
+        <div
+          ref={combosHeroRef}
+          className={`servicesHero ${combosIntroVisible ? 'visible' : ''}`}
+        >
+          <div className="servicesLabel">GÓI COMBO ƯU ĐÃI</div>
+          <h1 className="servicesTitle">
+            <span className="titlePart1">Combo</span>
+            <span className="titlePart2">dịch vụ được khách hàng tin dùng</span>
+          </h1>
           <p className="servicesSubtitle">
-            Giá cả minh bạch, dịch vụ chất lượng
+            Giá cả minh bạch, tối ưu chi phí – phù hợp cho từng nhu cầu sử dụng và bảo dưỡng xe của bạn.
           </p>
         </div>
 
@@ -350,7 +476,7 @@ const Services = () => {
             &gt;
           </button>
         </div>
-      </section>
+      </section> */}
     </>
   );
 };

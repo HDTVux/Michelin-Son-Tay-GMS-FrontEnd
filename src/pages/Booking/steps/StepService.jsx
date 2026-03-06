@@ -1,8 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import './StepService.css'
+import PropTypes from 'prop-types'
+import styles from './StepService.module.css'
+import bookingStyles from '../Booking.module.css'
 
 // Chọn dịch vụ với slider + tìm kiếm + lọc
-export default function StepService({ services, selectedIds, onToggle, search, onSearch, filter, onFilter, onNext }) {
+export default function StepService({
+  services,
+  selectedIds,
+  onToggle,
+  search,
+  onSearch,
+  filter,
+  onFilter,
+  onNext,
+  onBack,
+  showActions = true,
+  nextLabel = 'Tiếp tục',
+  backLabel = 'Quay lại',
+  loading = false,
+  error = '',
+}) {
   const [visible, setVisible] = useState(3); // số thẻ hiển thị cùng lúc
   const [index, setIndex] = useState(0); // vị trí slide hiện tại
 
@@ -24,10 +41,12 @@ export default function StepService({ services, selectedIds, onToggle, search, o
 
   // Lọc theo từ khóa và category
   const filtered = useMemo(() => {
-    const cleaned = search.toLowerCase();
-    return services.filter((item) => {
-      const matchSearch = item.name.toLowerCase().includes(cleaned);
-      const matchFilter = filter === 'all' || item.category === filter;
+    const cleaned = (search || '').toLowerCase();
+    const list = Array.isArray(services) ? services : [];
+    return list.filter((item) => {
+      const name = (item.name || '').toLowerCase();
+      const matchSearch = name.includes(cleaned);
+      const matchFilter = filter === 'all' || !filter || (item.category || 'all') === filter;
       return matchSearch && matchFilter;
     });
   }, [services, search, filter]);
@@ -37,7 +56,8 @@ export default function StepService({ services, selectedIds, onToggle, search, o
 
   // Nếu số lượng item thay đổi, đảm bảo index không vượt quá maxIndex
   useEffect(() => {
-    setIndex((prev) => Math.min(prev, maxIndex));
+    const t = setTimeout(() => setIndex((prev) => Math.min(prev, maxIndex)), 0);
+    return () => clearTimeout(t);
   }, [maxIndex, filtered.length]);
 
   // Offset trượt theo % chiều ngang
@@ -47,15 +67,15 @@ export default function StepService({ services, selectedIds, onToggle, search, o
 
   return (
     <>
-      <h3 className="section-title">Chọn dịch vụ</h3>
-      <div className="service-step">
-      <div className="service-top">
-        <div className="tabs">
-          <button className="tab active">Dịch vụ</button>
-          <button className="tab">Gói combo</button>
+      <h3 className={bookingStyles['section-title']}>Chọn dịch vụ</h3>
+      <div className={styles['service-step']}>
+      <div className={styles['service-top']}>
+        <div className={styles.tabs}>
+          <button className={`${styles.tab} ${styles.active}`}>Dịch vụ</button>
+          <button className={styles.tab}>Gói combo</button>
         </div>
-        <div className="search-filter">
-          <div className="search-box">
+        <div className={styles['search-filter']}>
+          <div className={styles['search-box']}>
             <span className="icon">🔍</span>
             <input
               type="text"
@@ -69,69 +89,80 @@ export default function StepService({ services, selectedIds, onToggle, search, o
             <option value="tires">Lốp & lốp</option>
             <option value="engine">Bảo dưỡng nhanh</option>
             <option value="check">Chăm sóc & OTOT</option>
+            <option value="general">Khác</option>
           </select>
         </div>
-        <p className="slider-hint">Kéo vuốt ngang để xem thêm dịch vụ.</p>
+        <p className={styles['slider-hint']}>Kéo vuốt ngang để xem thêm dịch vụ.</p>
       </div>
 
-      <div className="carousel-shell">
-        {!isMobileSlider && (
-          <button className="nav-btn" aria-label="Prev" onClick={prev} disabled={index === 0}>
-            ⟨
-          </button>
-        )}
-        <div
-          className="slider-viewport"
-          style={isMobileSlider ? { overflowX: 'auto' } : {}}
-        >
+      {loading && <div className={styles['service-status']}>Đang tải danh sách dịch vụ...</div>}
+      {!loading && error && <div className={`${styles['service-status']} ${styles.error}`}>{error}</div>}
+      {!loading && !error && filtered.length === 0 && (
+        <div className={styles['service-status']}>Chưa có dịch vụ phù hợp.</div>
+      )}
+
+      {!loading && !error && filtered.length > 0 && (
+        <div className={styles['carousel-shell']}>
+          {!isMobileSlider && (
+            <button className={styles['nav-btn']} aria-label="Prev" onClick={prev} disabled={index === 0}>
+              ⟨
+            </button>
+          )}
           <div
-            className="slider-track"
-            style={isMobileSlider ? {} : { transform: `translateX(-${offset}%)` }}
+            className={styles['slider-viewport']}
+            style={isMobileSlider ? { overflowX: 'auto' } : {}}
           >
-            {filtered.map((item) => {
-              const active = selectedIds.includes(item.id);
-              return (
-                <div
-                  key={item.id}
-                  className="service-slide"
-                  style={
-                    isMobileSlider
-                      ? { flex: '0 0 100%' }
-                      : { flex: `0 0 calc((100% - 12px * ${visible - 1}) / ${visible})` }
-                  }
-                >
-                  <div className="service-card">
-                    <div className="thumb" />
-                    <button className={`check ${active ? 'checked' : ''}`} onClick={() => onToggle(item.id)}>
-                      {active ? '✓' : ''}
-                    </button>
-                    <div className="pill">{item.tag}</div>
-                    <div className="name">{item.name}</div>
-                    <div className="desc">{item.desc}</div>
+            <div
+              className={styles['slider-track']}
+              style={isMobileSlider ? {} : { transform: `translateX(-${offset}%)` }}
+            >
+              {filtered.map((item) => {
+                const active = selectedIds.includes(item.id);
+                const thumbStyle = item.thumbnail
+                  ? { backgroundImage: `url(${item.thumbnail})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                  : undefined;
+                return (
+                  <div
+                    key={item.id}
+                    className={styles['service-slide']}
+                    style={
+                      isMobileSlider
+                        ? { flex: '0 0 100%' }
+                        : { flex: `0 0 calc((100% - 12px * ${visible - 1}) / ${visible})` }
+                    }
+                  >
+                    <div className={styles['service-card']}>
+                      <div className={styles.thumb} style={thumbStyle} />
+                      <button className={[styles.check, active ? styles.checked : ''].filter(Boolean).join(' ')} onClick={() => onToggle(item.id)}>
+                        {active ? '✓' : ''}
+                      </button>
+                      <div className={styles.name}>{item.name}</div>
+                      <div className={styles.desc}>{item.desc}</div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
+          {!isMobileSlider && (
+            <button className={styles['nav-btn']} aria-label="Next" onClick={next} disabled={index >= maxIndex}>
+              ⟩
+            </button>
+          )}
         </div>
-        {!isMobileSlider && (
-          <button className="nav-btn" aria-label="Next" onClick={next} disabled={index >= maxIndex}>
-            ⟩
-          </button>
-        )}
-      </div>
+      )}
 
-      <div className="selected-box">
-        <div className="selected-title">Dịch vụ đã chọn ({selectedIds.length} mục)</div>
-        <div className="chip-row">
+      <div className={styles['selected-box']}>
+        <div className={styles['selected-title']}>Dịch vụ đã chọn ({selectedIds.length} mục)</div>
+        <div className={styles['chip-row']}>
           {selectedIds.map((id) => {
             const item = services.find((s) => s.id === id);
             if (!item) return null;
             return (
-              <span key={id} className="chip">
+              <span key={id} className={styles.chip}>
                 <span className="chip-icon">🔧</span>
                 {item.name}
-                <button className="chip-remove" onClick={() => onToggle(id)} aria-label="Remove">
+                <button className={styles['chip-remove']} onClick={() => onToggle(id)} aria-label="Remove">
                   ×
                 </button>
               </span>
@@ -140,13 +171,52 @@ export default function StepService({ services, selectedIds, onToggle, search, o
         </div>
       </div>
 
-        <div className="booking-actions">
-          <button className="btn">Quay lại</button>
-          <button className="btn primary" onClick={onNext}>
-            Tiếp tục
-          </button>
-        </div>
+        {showActions && (
+          <div className={bookingStyles['booking-actions']}>
+            <button
+              type="button"
+              className={bookingStyles.btn}
+              onClick={() => onBack?.()}
+              disabled={!onBack}
+            >
+              {backLabel}
+            </button>
+            <button
+              type="button"
+              className={`${bookingStyles.btn} ${bookingStyles.primary}`}
+              onClick={() => onNext?.()}
+              disabled={!onNext}
+            >
+              {nextLabel}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
+}
+
+StepService.propTypes = {
+  services: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      name: PropTypes.string,
+      desc: PropTypes.string,
+      category: PropTypes.string,
+      thumbnail: PropTypes.string,
+    })
+  ),
+  selectedIds: PropTypes.arrayOf(PropTypes.string),
+  onToggle: PropTypes.func,
+  search: PropTypes.string,
+  onSearch: PropTypes.func,
+  filter: PropTypes.string,
+  onFilter: PropTypes.func,
+  onNext: PropTypes.func,
+  onBack: PropTypes.func,
+  showActions: PropTypes.bool,
+  nextLabel: PropTypes.string,
+  backLabel: PropTypes.string,
+  loading: PropTypes.bool,
+  error: PropTypes.string,
 }

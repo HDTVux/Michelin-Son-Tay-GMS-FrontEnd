@@ -1,0 +1,178 @@
+/* Utility Classes - Dùng chung cho toàn dự án */
+/* Dựa trên cấu trúc Booking/Step */
+
+/* ===== Card Pattern ===== */
+.ui-card {
+  background: var(--ui-bg-card, #ffffff);
+  border: 1px solid var(--ui-border, #e5e7eb);
+  border-radius: var(--ui-radius, 12px);
+  padding: var(--ui-padding-card, 18px);
+  box-shadow: var(--ui-shadow-card, 0 2px 8px rgba(0, 0, 0, 0.08));
+}
+
+.ui-card--elevated {
+  box-shadow: var(--ui-shadow-elevated, 0 4px 16px rgba(0, 0, 0, 0.12));
+}
+
+/* ===== Field Pattern ===== */
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ui-field label {
+  font-weight: 700;
+  color: var(--ui-text-primary, #1f2937);
+  font-size: 14px;
+}
+
+.ui-field input,
+.ui-field textarea,
+.ui-field select {
+  width: 100%;
+  border: 1px solid var(--ui-border, #e5e7eb);
+  border-radius: var(--ui-radius-sm, 10px);
+  padding: 12px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.ui-field input:focus,
+.ui-field textarea:focus,
+.ui-field select:focus {
+  border-color: var(--ui-primary, #1d4ed8);
+  box-shadow: var(--ui-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.12));
+}
+
+.ui-field textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* ===== Button Pattern ===== */
+.ui-btn {
+  padding: 12px 18px;
+  border-radius: var(--ui-radius-sm, 10px);
+  border: 1px solid var(--ui-border, #e5e7eb);
+  background: var(--ui-bg-secondary, #f3f4f6);
+  color: var(--ui-text-primary, #1f2937);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ui-btn:hover:not(:disabled) {
+  background: var(--ui-bg-hover, #e5e7eb);
+  transform: translateY(-1px);
+}
+
+.ui-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ui-btn--primary {
+  background: var(--ui-primary, #1d4ed8);
+  color: #fff;
+  border-color: var(--ui-primary, #1d4ed8);
+}
+
+.ui-btn--primary:hover:not(:disabled) {
+  background: var(--ui-primary-hover, #1e40af);
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
+}
+
+.ui-btn--ghost {
+  background: transparent;
+  border-color: var(--ui-border, #e5e7eb);
+  color: var(--ui-text-secondary, #6b7280);
+}
+
+.ui-btn--ghost:hover:not(:disabled) {
+  background: var(--ui-bg-hover, #f3f4f6);
+  color: var(--ui-text-primary, #1f2937);
+}
+
+/* ===== Actions Footer Pattern ===== */
+.ui-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ui-border, #e5e7eb);
+}
+
+.ui-actions--end {
+  justify-content: flex-end;
+}
+
+.ui-actions--center {
+  justify-content: center;
+}
+
+/* ===== Section Title Pattern ===== */
+.ui-section-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 12px;
+  color: var(--ui-text-primary, #1f2937);
+}
+
+.ui-section-subtitle {
+  font-size: 14px;
+  color: var(--ui-text-secondary, #4b5563);
+  margin: 0 0 16px;
+}
+
+/* ===== Scroll Wrapper Pattern ===== */
+.ui-scroll-wrapper {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid var(--ui-border-light, #f0f0f0);
+  border-radius: var(--ui-radius-sm, 10px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-scroll-thumb, #c084fc) var(--ui-scroll-track, #f1f1f1);
+}
+
+.ui-scroll-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ui-scroll-wrapper::-webkit-scrollbar-track {
+  background: var(--ui-scroll-track, #f1f1f1);
+  border-radius: 10px;
+}
+
+.ui-scroll-wrapper::-webkit-scrollbar-thumb {
+  background-color: var(--ui-scroll-thumb, #c084fc);
+  border-radius: 10px;
+  border: 2px solid var(--ui-scroll-track, #f1f1f1);
+}
+
+.ui-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ui-scroll-thumb-hover, #a78bfa);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .ui-actions {
+    flex-direction: column-reverse;
+  }
+
+  .ui-btn {
+    width: 100%;
+  }
+}

@@ -1,0 +1,23 @@
+.staffLayout {
+  display: flex;
+  min-height: 100vh;
+  background: white;
+}
+
+.staffLayout__content {
+  flex: 1;
+  padding: 0;
+  min-height: 100vh;
+  overflow: auto;
+  background: white;
+}
+
+@media (max-width: 768px) {
+  .staffLayout {
+    flex-direction: column;
+  }
+
+  .staffLayout__content {
+    width: 100%;
+  }
+}

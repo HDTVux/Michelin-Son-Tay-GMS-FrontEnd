@@ -1,0 +1,98 @@
+.booking-status-filter {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  padding: 12px 24px;
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.filter-tab:hover {
+  border-color: #005aa9;
+  color: #005aa9;
+  background: rgba(0, 90, 169, 0.05);
+}
+
+.filter-tab.active {
+  background: #005aa9;
+  color: #ffffff;
+  border-color: #005aa9;
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
+}
+
+.booking-search-sort {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.booking-search input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.booking-search input:focus {
+  outline: none;
+  border-color: #005aa9;
+  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.1);
+}
+
+.booking-sort select {
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0a0f1c;
+  background: #ffffff;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  min-width: 150px;
+  transition: all 0.3s ease;
+}
+
+.booking-sort select:focus {
+  outline: none;
+  border-color: #005aa9;
+  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.1);
+}
+
+@media (max-width: 768px) {
+  .booking-search-sort {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-sort select {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-tab {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .booking-search input,
+  .booking-sort select {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}

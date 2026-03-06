@@ -1,69 +1,113 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
+import { fetchBookingDetail, modifyCustomerBooking, fetchAvailableSlots } from '../../services/bookingService.js';
+import { fetchHomeServices } from '../../services/homeService.js';
 import './EditBooking.css';
-import './EditBooking.header.css';
-import './EditBooking.service.css';
-import './EditBooking.schedule.css';
-import './EditBooking.actions.css';
-import './EditBooking.modal.css';
 
 const EditBooking = () => {
+  useScrollToTop();
   const { id } = useParams();
   const navigate = useNavigate();
   const [showSuccess, setShowSuccess] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const [visible, setVisible] = useState(3); // số thẻ hiển thị cùng lúc
-  const [index, setIndex] = useState(0); // vị trí slide hiện tại
-
-  // Dữ liệu mẫu - sau này sẽ lấy từ API
-  const [allServices] = useState([
-    {
-      id: 'sv1',
-      name: 'Thay dầu động cơ',
-      desc: 'Kiểm tra và thay thế dầu định kỳ',
-      tag: 'Bảo dưỡng nhanh',
-      category: 'engine'
-    },
-    {
-      id: 'sv2',
-      name: 'Kiểm tra phanh',
-      desc: 'Kiểm tra hệ thống phanh nếu cần',
-      tag: 'Chăm sóc & OTOT',
-      category: 'check'
-    },
-    {
-      id: 'sv3',
-      name: 'Dịch vụ rửa xe',
-      desc: 'Rửa xe chuyên nghiệp',
-      tag: 'Chăm sóc & OTOT',
-      category: 'care'
-    },
-    {
-      id: 'sv4',
-      name: 'Thay lốp xe',
-      desc: 'Thay lốp, cân mâm cao su mới và vệ sinh chi tiết cụng.',
-      tag: 'Lốp & lốp',
-      category: 'tires'
-    },
-    {
-      id: 'sv5',
-      name: 'Kiểm tra an toàn 12 điểm',
-      desc: 'Kiểm tra tổng quát lốp, phanh, điện, dầu, gầm, nước mát...',
-      tag: 'Chăm sóc & OTOT',
-      category: 'check'
-    }
-  ]);
+  const [visible, setVisible] = useState(3);
+  const [index, setIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [allServices, setAllServices] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
 
   const [formData, setFormData] = useState({
-    selectedServices: ['sv1', 'sv2'],
-    date: '2023-10-23',
-    time: '10:00',
-    note: 'Kiểm tra kỹ phanh trước khi đi xa'
+    selectedServices: [],
+    date: '',
+    time: '',
+    note: ''
   });
 
-  const [canEditTime] = useState(true); // Chỉ true nếu lịch chưa được lễ tân xác nhận
+  const [canEditTime] = useState(true);
 
+  // Load booking detail, services, and slots
+  useEffect(() => {
+    const loadData = async () => {
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        setError('Vui lòng đăng nhập để chỉnh sửa lịch hẹn.');
+        setIsLoading(false);
+        return;
+      }
+
+      if (!id) {
+        setError('Không tìm thấy mã lịch hẹn.');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        
+        // Load booking detail and services in parallel
+        const [bookingResponse, servicesResponse] = await Promise.all([
+          fetchBookingDetail(id, token),
+          fetchHomeServices()
+        ]);
+
+        // Map booking data
+        const bookingData = bookingResponse?.data;
+        if (bookingData) {
+          setFormData({
+            selectedServices: bookingData.serviceIds?.map(id => id.toString()) || [],
+            date: bookingData.scheduledDate || '',
+            time: bookingData.scheduledTime || '',
+            note: bookingData.description || ''
+          });
+        }
+
+        // Map services data
+        const services = (servicesResponse?.data || []).map(service => ({
+          id: service.itemId?.toString() || service.id?.toString(),
+          name: service.itemName || service.name || '',
+          desc: service.description || '',
+          tag: service.itemType || 'Dịch vụ',
+          category: 'all'
+        }));
+        setAllServices(services);
+
+        setError('');
+      } catch (err) {
+        const msg = err?.message || 'Không thể tải dữ liệu.';
+        setError(msg);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id]);
+
+  // Load available slots when date changes
+  useEffect(() => {
+    if (!formData.date) return;
+
+    const loadSlots = async () => {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      try {
+        const response = await fetchAvailableSlots(formData.date, token, 60);
+        const slots = response?.data?.slots || [];
+        setAvailableSlots(slots);
+      } catch (err) {
+        console.error('Failed to load slots:', err);
+        setAvailableSlots([]);
+      }
+    };
+
+    loadSlots();
+  }, [formData.date]);
   // Tính số cột hiển thị theo màn hình
   useEffect(() => {
     const handle = () => {
@@ -101,41 +145,39 @@ const EditBooking = () => {
   const prev = () => setIndex((i) => Math.max(0, i - 1));
   const next = () => setIndex((i) => Math.min(maxIndex, i + 1));
 
-  const SLOT_GROUPS = [
-    {
-      label: 'Sáng',
-      items: [
-        { time: '07:00', available: true },
-        { time: '08:00', available: true },
-        { time: '09:00', available: true },
-        { time: '10:00', available: true },
-        { time: '11:00', available: false },
-        { time: '12:00', available: true }
-      ]
-    },
-    {
-      label: 'Chiều',
-      items: [
-        { time: '13:00', available: true },
-        { time: '14:00', available: false },
-        { time: '15:00', available: true },
-        { time: '16:00', available: true },
-        { time: '17:00', available: true }
-      ]
-    },
-    {
-      label: 'Tối',
-      items: [
-        { time: '18:00', available: true },
-        { time: '19:00', available: true },
-        { time: '20:00', available: false },
-        { time: '21:00', available: true },
-        { time: '22:00', available: true },
-        { time: '23:00', available: true },
-        { time: '24:00', available: true }
-      ]
+  // Generate slot groups from available slots
+  const SLOT_GROUPS = useMemo(() => {
+    if (availableSlots.length === 0) {
+      return [
+        { label: 'Sáng', items: [] },
+        { label: 'Chiều', items: [] },
+        { label: 'Tối', items: [] }
+      ];
     }
-  ];
+
+    const morning = [];
+    const afternoon = [];
+    const evening = [];
+
+    availableSlots.forEach(slot => {
+      const time = slot.startTime || slot.time;
+      const hour = parseInt(time.split(':')[0]);
+      const slotItem = {
+        time: time,
+        available: slot.isAvailable !== false
+      };
+
+      if (hour < 12) morning.push(slotItem);
+      else if (hour < 18) afternoon.push(slotItem);
+      else evening.push(slotItem);
+    });
+
+    return [
+      { label: 'Sáng', items: morning },
+      { label: 'Chiều', items: afternoon },
+      { label: 'Tối', items: evening }
+    ];
+  }, [availableSlots]);
 
   const handleServiceToggle = (serviceId) => {
     setFormData(prev => ({
@@ -151,7 +193,7 @@ const EditBooking = () => {
     setFormData(prev => ({ ...prev, time }));
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     
     // Validate
@@ -165,8 +207,30 @@ const EditBooking = () => {
       return;
     }
 
-    // TODO: Gọi API lưu thay đổi
-    setShowSuccess(true);
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      alert('Vui lòng đăng nhập để lưu thay đổi');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      
+      // Prepare payload for backend
+      const payload = {
+        serviceIds: formData.selectedServices.map(id => parseInt(id)),
+        scheduledDate: formData.date,
+        scheduledTime: formData.time,
+        description: formData.note
+      };
+
+      await modifyCustomerBooking(id, payload, token);
+      setShowSuccess(true);
+    } catch (err) {
+      alert(err?.message || 'Không thể lưu thay đổi. Vui lòng thử lại.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -188,7 +252,34 @@ const EditBooking = () => {
           <h1 className="pageTitle">Sửa lịch hẹn</h1>
         </div>
 
-        <form onSubmit={handleSave}>
+        {/* Error Banner */}
+        {error && (
+          <div className="errorBanner" style={{ 
+            padding: '12px 16px', 
+            marginBottom: '16px', 
+            backgroundColor: '#fee', 
+            color: '#c33', 
+            borderRadius: '8px',
+            border: '1px solid #fcc'
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="loadingState" style={{ 
+            textAlign: 'center', 
+            padding: '40px', 
+            color: '#666' 
+          }}>
+            Đang tải dữ liệu...
+          </div>
+        )}
+
+        {/* Form - Only show when not loading */}
+        {!isLoading && (
+          <form onSubmit={handleSave}>
           {/* Chọn lại dịch vụ */}
           <section className="editSection">
             <h3 className="section-title">Chọn lại dịch vụ</h3>
@@ -356,23 +447,26 @@ const EditBooking = () => {
             />
           </section>
 
-          {/* Action Buttons */}
-          <div className="actionButtons">
-            <button
-              type="button"
-              className="btnCancelEdit"
-              onClick={handleCancel}
-            >
-              Hủy chỉnh sửa
-            </button>
-            <button
-              type="submit"
-              className="btnSaveChanges"
-            >
-              Lưu thay đổi
-            </button>
-          </div>
-        </form>
+            {/* Action Buttons */}
+            <div className="actionButtons">
+              <button
+                type="button"
+                className="btnCancelEdit"
+                onClick={handleCancel}
+                disabled={isSaving}
+              >
+                Hủy chỉnh sửa
+              </button>
+              <button
+                type="submit"
+                className="btnSaveChanges"
+                disabled={isSaving}
+              >
+                {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </button>
+            </div>
+          </form>
+        )}
 
         {/* Success Modal */}
         {showSuccess && (

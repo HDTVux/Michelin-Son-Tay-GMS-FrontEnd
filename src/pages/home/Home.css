@@ -7,33 +7,224 @@
     color: #0a0f1c;
     position: relative;
     overflow: hidden;
-    background: #ffffff;          /* Bỏ nền xám, đổi thành trắng */
-}
-
-.homeBookingIntro {
-    padding: 32px 5% 12px;
-    text-align: center;
-    background: #ffffff;
-}
-
-.homeBookingTitle {
-    margin: 0 0 8px;
-    font-size: 28px;
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #ffffff 100%);
     font-weight: 800;
-    color: #0a0f1c;
 }
 
-.homeBookingSub {
-    margin: 0;
+/* ===== Intro Video Section ===== */
+.introVideoSection {
+    position: relative;
+    padding: 80px 5%;
+    background-image: url('../../assets/anh_nen3.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    overflow: hidden;
+    font-weight: 800;
+}
+
+.introVideoSection::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 0;
+}
+
+.introVideoContainer {
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.introVideoRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: stretch;
+}
+
+.introTextCol {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 50px 40px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transform: translateY(50px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.introTextCol.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.introWelcome {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    color: #64748b;
+    text-transform: uppercase;
+    margin: 0 0 20px 0;
+    line-height: 1.2;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
+}
+
+.introTextCol.visible .introWelcome {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.introTitle {
+    font-size: 52px;
+    font-weight: 700;
+    color: #0a0f1c;
+    margin: 0 0 40px 0;
+    line-height: 1.1;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 16px;
+    align-items: baseline;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
+    letter-spacing: 1px;
+}
+
+.introTextCol.visible .introTitle {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.introTitle .titlePart1 {
+    color: #0a0f1c;
+    font-weight: 700;
+}
+
+.introTitle .titlePart2 {
+    color: #005aa9;
+    font-weight: 700;
+    text-shadow: 0 0 20px rgba(0, 90, 169, 0.6), 
+                 0 0 40px rgba(0, 90, 169, 0.4),
+                 0 0 60px rgba(0, 90, 169, 0.2);
+}
+
+.introTextList {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.introTextItemWrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.introTextCol.visible .introTextItemWrapper {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(1) {
+    transition-delay: 0.6s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(2) {
+    transition-delay: 0.7s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(3) {
+    transition-delay: 0.8s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(4) {
+    transition-delay: 0.9s;
+}
+
+.introTextCol.visible .introTextItemWrapper:nth-child(5) {
+    transition-delay: 1.0s;
+}
+
+.introTextIcon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: #005aa9;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 16px;
-    color: #4b5563;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 90, 169, 0.4);
+}
+
+.introTextItem {
+    font-size: 18px;
+    color: #334155;
+    line-height: 1.6;
+    margin: 0;
+    font-weight: 400;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    flex: 1;
+    letter-spacing: 0.3px;
+}
+
+.introVideoMedia {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+}
+
+.introVideoMedia video {
+    width: 100%;
+    height: 100%;
+    min-height: 600px;
+    object-fit: cover;
+    display: block;
+    border-radius: 20px;
+}
+
+.introVideoOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    pointer-events: none;
 }
 
 /* wrapper mới cho phần trên của Home */
 .homeTop{
     width: 100%;
-    max-width: 1200px;
-    padding: 0 5%;
+    max-width: 1600px;
+    padding: 0 2%;
     display: grid;
     grid-template-rows: auto auto;
     gap: 18px;
@@ -98,7 +289,7 @@
 
 /* ===== Title ===== */
 .homeTitle {
-    font-size: 54px;
+    font-size: 50px;
     font-weight: 800;
     line-height: 1.2;
     margin-bottom: 6px;
@@ -112,9 +303,9 @@
     color: #005aa9;
     display: block;
     margin-top: 10px;
-    font-size: 46px;
-    font-weight: 900;
-    letter-spacing: -0.03em;
+    font-size: 50px;
+    font-weight: 1000;
+    letter-spacing: 0.5 em;
     background: linear-gradient(135deg, #005aa9 0%, #3a8de0 50%, #005aa9 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -134,11 +325,11 @@
 
 /* ===== Content ===== */
 .homeContent {
-    display: flex;
-    flex-wrap: nowrap;              /* Desktop: luôn 1 hàng */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
     gap: 14px;
     max-width: 1200px;
-    overflow-x: visible;
+    width: 100%;
 }
 
 .homeContent.belowVideo{
@@ -147,14 +338,50 @@
 
 .videoRow{
     display: grid;
-    grid-template-columns: 1fr 1.25fr; /* trái chữ - phải video */
-    gap: 18px;
+    grid-template-columns: 0.95fr 1.35fr; /* ưu tiên rộng hơn cho video */
+    gap: 26px;
     align-items: stretch;
-    background: linear-gradient(145deg, rgba(0,90,169,0.08), rgba(0,90,169,0.02));
-    border: 1px solid rgba(0, 90, 169, 0.08);
-    border-radius: 24px;
-    padding: 18px;
-    box-shadow: 0 28px 60px rgba(2,6,23,0.08);
+    background: linear-gradient(145deg, rgba(0,90,169,0.12), rgba(0,90,169,0.04));
+    border: 2px solid rgba(0, 90, 169, 0.15);
+    border-radius: 28px;
+    padding: 34px 38px;
+    box-shadow: 0 32px 80px rgba(0, 90, 169, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+    width: 100%;                  /* fill container width */
+    max-width: 1500px;
+    margin: 0 auto;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.videoRow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #005aa9, #3a8de0, #005aa9);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+}
+
+.videoRow:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 40px 100px rgba(0, 90, 169, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+    border-color: rgba(0, 90, 169, 0.25);
+}
+
+.videoInfoCol{
+    display: flex;
+    align-items: stretch;
+}
+
+.videoInfoGrid{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    width: 100%;
 }
 
 .serviceItem {
@@ -169,7 +396,7 @@
     padding: 14px 16px;
     box-shadow: 0 12px 26px rgba(2, 6, 23, 0.08);
     backdrop-filter: blur(4px);
-    flex: 1 1 0;
+    flex: 1 1 auto;
 }
 
 .serviceItem:hover{
@@ -240,7 +467,7 @@
     display: inline-block;
     border: 2px solid transparent;
     letter-spacing: 0.02em;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
     text-transform: none;
 }
 
@@ -292,127 +519,292 @@
 
 /* ===== Process section ===== */
 .processSection{
-    background: #ffffff;
-    padding: 56px 0 20px;
+    background-image: url('../../assets/anh_nen2.jpg');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    padding: 44px 0 60px;
+    margin-top: -12px;
+    margin-bottom: 0;
+    position: relative;
+    overflow: hidden;
+    font-weight: 800;
+}
+
+.processSection::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.2);
+    z-index: 0;
+}
+
+.processSection::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+    z-index: 1;
 }
 
 .processInner{
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 0 5%;
+    padding: 0 2%;
+    position: relative;
+    z-index: 1;
 }
 
 .processHeader{
     text-align: center;
-    margin-bottom: 18px;
+    margin-bottom: 50px;
+    padding-left: 0;
+    opacity: 0;
+    transform: translateY(50px);
+    transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.processHeader.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.processHeader .servicesLabel {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #ffffff;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 90, 169, 0.5);
+}
+
+.processHeader.visible .servicesLabel {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .processTitle{
-    margin: 0 0 10px;
-    font-size: 38px;
-    font-weight: 900;
-    color: #005aa9;
-    letter-spacing: -0.02em;
+    margin: 0 auto 20px;
+    font-size: 64px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    line-height: 1.1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: baseline;
+    justify-content: center;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.processTitle .titlePart1 {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.processTitle .titlePart2 {
+    color: #ffffff;
+    font-weight: 700;
+    text-shadow: 0 0 30px rgba(0, 90, 169, 0.8), 0 4px 20px rgba(0, 0, 0, 0.6);
 }
 
 .processSub{
     margin: 0 auto;
-    max-width: 760px;
-    color: #475569;
-    font-weight: 600;
+    max-width: 700px;
+    font-size: 18px;
+    color: #ffffff;
     line-height: 1.6;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.processHeader.visible .processSub {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Desktop layout: tiêu đề bên trái, hình/process bên phải, bố cục cân đối */
+@media (min-width: 1024px) {
+    .processInner{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        column-gap: 56px;
+        justify-content: center;
+    }
+
+    .processHeader{
+        margin-bottom: 40px;
+        max-width: 100%;
+        text-align: center;
+    }
+
+    .processDiagram{
+        margin: 0;
+    }
 }
 
 .processDiagram{
     position: relative;
-    max-width: 1120px;
-    margin: 26px auto 0;
-    padding: 8px 0 40px;
+    max-width: 1400px;
+    margin: 32px auto 0;
+    padding: 60px 40px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 40px;
+    align-items: start;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    margin-bottom: 0;
+    transition: none;
+    border: none;
+}
+
+.processDiagram:hover {
+    transform: none;
+    box-shadow: none;
 }
 
 .processImageWrapper{
-    max-width: 640px;               /* Thu nhỏ thêm ảnh để text hẳn ra ngoài */
-    margin: 0 auto;
+    position: relative;
+    width: 500px;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    flex-shrink: 0;
+    grid-column: 2;
+    grid-row: 1 / span 3;
 }
 
 .processImageCenter{
     width: 100%;
     height: auto;
+    object-fit: contain;
     display: block;
-    border-radius: 20px;
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+    border-radius: 0;
+    box-shadow: none;
+    position: relative;
+    z-index: 2;
+    background: transparent;
 }
 
 .processStepBubble{
-    position: absolute;
-    max-width: 260px;
-    background: #ffffff;
+    position: relative;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border-radius: 16px;
-    padding: 10px 12px;
-    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+    padding: 18px 16px;
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.15);
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: flex-start;
-    z-index: 2;
+    z-index: 10;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 20px;
 }
 
-/* Mũi tên (đường kẻ) từ trung tâm ra từng bubble – không đè lên chữ */
-.processStepBubble::before{
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 40px;
-    height: 2px;
-    background: rgba(15,23,42,0.28);
-    transform-origin: left center;
-    z-index: -1;
+.processStepBubble:hover{
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(59, 130, 246, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
 }
 
-.step-1::before{ transform: rotate(180deg); }
-.step-2::before{ transform: rotate(200deg); }
-.step-3::before{ transform: rotate(230deg); }
-.step-4::before{ transform: rotate(270deg); }
-.step-5::before{ transform: rotate(-50deg); }
-.step-6::before{ transform: rotate(-20deg); }
-.step-7::before{ transform: rotate(0deg); }
+.step-1 {
+    grid-column: 1;
+    grid-row: 1;
 }
+
+.step-2 {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.step-3 {
+    grid-column: 1;
+    grid-row: 3;
+}
+
+.step-4 {
+    grid-column: 2;
+    grid-row: 3;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.step-5 {
+    grid-column: 3;
+    grid-row: 1;
+}
+
+.step-6 {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+.step-7 {
+    grid-column: 3;
+    grid-row: 3;
+}
+
+
 
 .processNo{
-    width: 34px;
-    height: 34px;
-    border-radius: 999px;
-    background: linear-gradient(135deg, #005aa9 0%, #3a8de0 100%);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: #fff;
-    font-weight: 900;
+    font-weight: 800;
+    font-size: 16px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 18px rgba(0, 90, 169, 0.28);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.processText{
+    flex: 1;
+    min-width: 0;
 }
 
 .processStepTitle{
-    font-weight: 900;
-    color: #0a0f1c;
-    line-height: 1.2;
-    margin: 0 0 4px;
+    font-weight: 700;
+    font-size: 14px;
+    color: #0f172a;
+    line-height: 1.4;
+    margin: 0 0 6px;
 }
 
 .processStepDesc{
-    color: #475569;
-    font-weight: 600;
-    line-height: 1.45;
+    color: #64748b;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0;
 }
-
-/* Vị trí 7 bubble xung quanh ảnh quy trình (màn hình lớn) */
-.step-1{ top: 2%; left: -10%; }
-.step-2{ top: 24%; left: -12%; }
-.step-3{ top: 46%; left: -12%; }
-.step-4{ bottom: 2%; left: -10%; }
-.step-5{ top: 24%; right: -12%; }
-.step-6{ top: 46%; right: -12%; }
-.step-7{ bottom: 2%; right: -10%; }
 
 .btnSecondary:hover {
     background: rgba(0, 90, 169, 0.14);
@@ -443,7 +835,8 @@
 .videoMedia video {
     width: 100%;
     max-width: 100%;
-    aspect-ratio: 16 / 10;
+    aspect-ratio: 16 / 9;
+    min-height: 480px;
     object-fit: cover;
     border-radius: 28px;
     box-shadow: 
@@ -474,9 +867,9 @@
 .videoText{
     margin: 0;
     color: #334155;
-    font-size: 14px;
-    line-height: 1.55;
-    font-weight: 600;
+    font-size: 20px;
+    line-height: 1.65;
+    font-weight: 500;
 }
 
 /* ===== Responsive ===== */
@@ -493,12 +886,12 @@
     }
 
     .homeTitle {
-        font-size: 40px;
+        font-size: 44px;
         text-align: center;
     }
 
     .homeTitle span {
-        font-size: 36px;
+        font-size: 40px;
     }
 
     .serviceIcon {
@@ -513,10 +906,15 @@
 
     .videoRow{
         grid-template-columns: 1fr; /* xuống 1 cột */
+        width: 100%;
+        margin-left: 0;
+        transform: none;
+        padding: 20px;
     }
 
     .videoMedia video {
         max-width: 100%;
+        min-height: 360px;
     }
 
     .homeActions {
@@ -527,6 +925,42 @@
     .btnPrimary, .btnSecondary {
         flex: 1;
         min-width: 150px;
+    }
+
+    .introVideoSection {
+        padding: 60px 4%;
+    }
+
+    .introVideoRow {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .introTextCol {
+        padding: 40px 30px;
+    }
+
+    .introWelcome {
+        font-size: 14px;
+    }
+
+    .introTitle {
+        font-size: 52px;
+    }
+
+    .introTextItem {
+        font-size: 16px;
+    }
+
+    .introTextIcon {
+        width: 28px;
+        height: 28px;
+        font-size: 16px;
+    }
+
+    .introVideoMedia video {
+        min-height: 500px;
+        max-height: 70vh;
     }
 }
 
@@ -546,17 +980,15 @@
     }
 
     .homeContent {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 6px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
     }
 
     .serviceItem {
         padding: 14px;
         gap: 12px;
         flex-direction: row;
-        flex: 0 0 70%;            /* Mỗi card chiếm ~70% màn hình, kéo ngang để xem thêm */
-        min-width: 260px;
+        min-width: 0;
     }
 
     .serviceIcon {
@@ -581,6 +1013,39 @@
         font-size: 15px;
     }
 
+    .introVideoSection {
+        padding: 40px 3%;
+    }
+
+    .introTextCol {
+        padding: 30px 24px;
+    }
+
+    .introWelcome {
+        font-size: 14px;
+    }
+
+    .introTitle {
+        font-size: 32px;
+        margin-bottom: 24px;
+        gap: 8px;
+    }
+
+    .introTextItem {
+        font-size: 15px;
+    }
+
+    .introTextIcon {
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
+    }
+
+    .introVideoMedia video {
+        min-height: 400px;
+        max-height: 60vh;
+    }
+
     .btnPrimary.iconOnly,
     .btnSecondary.iconOnly{
         width: 100%;
@@ -596,24 +1061,57 @@
     }
 
     .processSection{
-        padding: 44px 0 12px;
+        padding: 44px 0 50px;
+        margin-bottom: 0;
     }
     .processTitle{
-        font-size: 30px;
+        font-size: 36px;
     }
     .processDiagram{
-        position: static;
-        max-width: 100%;
-        padding-top: 10px;
-        padding-bottom: 20px;
+        min-height: auto;
+        padding: 40px 20px;
+        border-radius: 24px;
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
     }
     .processImageWrapper{
-        max-width: 100%;
+        display: none;
     }
     .processStepBubble{
-        position: static;
+        position: static !important;
         max-width: 100%;
-        margin-top: 10px;
+        min-width: auto;
+        width: 100%;
+        margin: 0 0 16px 0;
+        padding: 16px;
+        transform: none !important;
+        order: 0;
+    }
+    .processStepBubble::before{
+        display: none;
+    }
+    
+    /* Sắp xếp thứ tự các bước cho tablet */
+    .step-1 { order: 1; }
+    .step-2 { order: 2; }
+    .step-3 { order: 3; }
+    .step-4 { order: 4; }
+    .step-5 { order: 5; }
+    .step-6 { order: 6; }
+    .step-7 { order: 7; }
+    .processNo{
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+    .processStepTitle{
+        font-size: 14px;
+    }
+    .processStepDesc{
+        font-size: 12px;
     }
 }
 
@@ -631,15 +1129,13 @@
     }
 
     .homeContent {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 6px;
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
 
     .serviceItem {
         padding: 12px;
-        flex: 0 0 78%;            /* Card rộng hơn trên mobile nhỏ */
-        min-width: 240px;
+        min-width: 0;
     }
 
     .serviceIcon {
@@ -650,5 +1146,73 @@
 
     .serviceText {
         font-size: 14px;
+    }
+
+    .processSection{
+        padding: 36px 0 40px;
+        margin-bottom: 0;
+    }
+    .processTitle{
+        font-size: 28px;
+        margin-bottom: 8px;
+    }
+    .processSub{
+        font-size: 13px;
+        padding: 0 10px;
+    }
+    .processDiagram{
+        padding: 20px 15px;
+        min-height: auto;
+        border-radius: 20px;
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+    }
+    .processImageWrapper{
+        display: none;
+    }
+    .processStepBubble{
+        position: static !important;
+        max-width: 100%;
+        min-width: auto;
+        width: 100%;
+        margin: 0 0 16px 0;
+        padding: 16px;
+        transform: none !important;
+        order: 0;
+    }
+    .processStepBubble::before{
+        display: none;
+    }
+    
+    /* Sắp xếp thứ tự các bước */
+    .step-1 { order: 1; }
+    .step-2 { order: 2; }
+    .step-3 { order: 3; }
+    .step-4 { order: 4; }
+    .step-5 { order: 5; }
+    .step-6 { order: 6; }
+    .step-7 { order: 7; }
+    .processNo{
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+    .processStepTitle{
+        font-size: 15px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+    .processStepDesc{
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .processNo{
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+        margin-right: 12px;
     }
 }

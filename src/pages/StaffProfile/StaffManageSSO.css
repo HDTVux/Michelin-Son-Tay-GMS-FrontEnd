@@ -1,0 +1,213 @@
+.staffSsoPage {
+  min-height: 100vh;
+  padding: 40px 5%;
+  background: linear-gradient(180deg, #f9fbff 0%, #eef2f8 100%);
+  color: #0a0f1c;
+}
+
+.staffSsoContainer {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.staffSsoHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.staffSsoTitle {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.staffSsoBackButton {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background-color: #f3f4f6;
+  color: #111827;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.staffSsoBackButton:hover {
+  background-color: #e5e7eb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.staffSsoActionsBar {
+  margin-bottom: 16px;
+}
+
+.staffSsoPrimaryButton {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  background-color: #005aa9;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.staffSsoPrimaryButton:hover {
+  background-color: #004080;
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.35);
+  transform: translateY(-1px);
+}
+
+.staffSsoSection {
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.staffSsoTableHeader,
+.staffSsoRow {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 1.5fr 1.2fr;
+  column-gap: 16px;
+  align-items: center;
+}
+
+.staffSsoTableHeader {
+  padding: 14px 20px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.staffSsoTableBody {
+  display: flex;
+  flex-direction: column;
+}
+
+.staffSsoRow {
+  padding: 14px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.staffSsoRow:last-child {
+  border-bottom: none;
+}
+
+.ssoProviderInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ssoProviderIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ssoProviderIcon.google {
+  background: #4285f4;
+}
+
+.ssoProviderIcon.zalo {
+  background: #0068ff;
+}
+
+.ssoProviderIcon.facebook {
+  background: #1877f2;
+}
+
+.ssoProviderName {
+  font-weight: 600;
+  color: #111827;
+}
+
+.ssoStatus {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ssoStatus.linked {
+  color: #16a34a;
+}
+
+.ssoStatus.unlinked {
+  color: #6b7280;
+}
+
+.col-time {
+  font-size: 14px;
+  color: #374151;
+}
+
+.btnLinkSso,
+.btnUnlinkSso {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btnLinkSso {
+  background-color: #005aa9;
+  color: #fff;
+}
+
+.btnLinkSso:hover {
+  background-color: #004080;
+  box-shadow: 0 3px 10px rgba(0, 90, 169, 0.35);
+  transform: translateY(-1px);
+}
+
+.btnUnlinkSso {
+  background-color: #ef4444;
+  color: #fff;
+}
+
+.btnUnlinkSso:hover {
+  background-color: #dc2626;
+  box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .staffSsoPage {
+    padding: 20px 4%;
+  }
+
+  .staffSsoTableHeader {
+    display: none;
+  }
+
+  .staffSsoRow {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .col-status,
+  .col-time,
+  .col-action {
+    font-size: 13px;
+  }
+}
+

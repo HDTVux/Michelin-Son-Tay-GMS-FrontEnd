@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import './Login.css';
+import React, { useEffect, useState } from 'react';
+import styles from './Login.module.css';
 import Mascot from '../../../assets/Mascot.jpg';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { loginStaff, getStaffGoogleOAuthUrl } from '../../../services/authService';
 
 export default function Login() {
@@ -13,12 +13,25 @@ export default function Login() {
   const [serverMessage, setServerMessage] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  // Nếu đã có token (login trước đó hoặc sau khi Google callback) thì vào BookingManagement
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      navigate('/booking-management', { replace: true });
+    }
+  }, [navigate]);
 
   const validatePhoneOrEmail = (value) => {
     if (!value) return 'Số điện thoại hoặc email là bắt buộc';
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailRegex.test(value)) return '';
-    if (value.replace(/\D/g, '').length < 6) return 'Số điện thoại không hợp lệ';
+    if (emailRegex.test(value)) {
+			return '';
+		}
+		if (value.replaceAll(/\D/g, '').length < 6) {
+			return 'Số điện thoại không hợp lệ';
+		}
     return '';
   };
 
@@ -69,8 +82,29 @@ export default function Login() {
       if (data?.data?.token) {
         localStorage.setItem('authToken', data.data.token);
       }
+      if (Array.isArray(data?.data?.role)) {
+        localStorage.setItem('staffRoles', JSON.stringify(data.data.role));
+      } else {
+        localStorage.removeItem('staffRoles');
+      }
+
+			// Lưu thông tin nhân viên đăng nhập để hiển thị (Sidebar, header, ...)
+			// API mẫu:
+			// data.data = { staffId, fullName, avatarUrl, message, role: [], token }
+			const staffProfile = {
+				staffId: data?.data?.staffId ?? null,
+				fullName: typeof data?.data?.fullName === 'string' ? data.data.fullName : '',
+				avatarUrl: typeof data?.data?.avatarUrl === 'string' ? data.data.avatarUrl : '',
+				role: Array.isArray(data?.data?.role) ? data.data.role : [],
+			};
+			if (staffProfile.staffId != null || staffProfile.fullName || staffProfile.avatarUrl) {
+				localStorage.setItem('staffProfile', JSON.stringify(staffProfile));
+			} else {
+				localStorage.removeItem('staffProfile');
+			}
 
       setServerMessage(data?.data?.message || data?.message || 'Đăng nhập thành công');
+      navigate('/booking-request-management', { replace: true });
     } catch (error) {
       setErrors({ api: error.message || 'Không thể kết nối máy chủ. Vui lòng thử lại.' });
     } finally {
@@ -79,88 +113,92 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = getStaffGoogleOAuthUrl();
+    // Lưu ý: backend cần hỗ trợ redirect_uri. Ở đây ưu tiên quay về trang quản lý booking.
+		const redirectUrl = `${getStaffGoogleOAuthUrl()}?redirect_uri=${encodeURIComponent(globalThis.location.origin + '/booking-request-management')}`;
+		globalThis.location.href = redirectUrl;
   };
 
   return (
-    <div className="loginContainer">
-      <div className="loginCard">
+    <div className={styles.loginContainer}>
+      <div className={styles.loginCard}>
         {/* 2. Truyền ảnh vào style inline */}
         <div 
-          className="loginImageSection" 
+          className={styles.loginImageSection} 
           style={{ 
             backgroundImage: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(${Mascot})` 
           }}
         >
-          <div className="logo">Michellin Sơn Tây</div>
-          <div className="imageText">
+          <div className={styles.logo}>Michellin Sơn Tây</div>
+          <div className={styles.imageText}>
             <h2>On the road <br /> and beyond!</h2>
-            <div className="pagination-dots">
-                <span className="dot"></span>
-                <span className="dot"></span>
-                <span className="dot active"></span>
+            <div className={styles['pagination-dots']}>
+                <span className={styles.dot}></span>
+                <span className={styles.dot}></span>
+                <span className={`${styles.dot} ${styles.active}`}></span>
             </div>
           </div>
         </div>
 
-        <div className="loginFormSection">
-          <div className="formHeader">
+        <div className={styles.loginFormSection}>
+          <div className={styles.formHeader}>
             <h2>Chào mừng trở lại</h2>
-            <p className="formSubtitle">Welcome Back</p>
+            <p className={styles.formSubtitle}>Welcome Back</p>
           </div>
 
           <form onSubmit={handleSubmit}>
-            {errors.api && <div className="errorBanner">{errors.api}</div>}
-            {serverMessage && <div className="successBanner">{serverMessage}</div>}
+            {errors.api && <div className={styles.errorBanner}>{errors.api}</div>}
+            {serverMessage && <div className={styles.successBanner}>{serverMessage}</div>}
 
-            <div className="inputGroup">
-              <label className="inputLabel">Số điện thoại hoặc email</label>
+            <div className={styles.inputGroup}>
+              <label className={styles.inputLabel} htmlFor="phone">Số điện thoại hoặc email</label>
               <input
                 type="text"
+                id="phone"
                 name="phone"
                 placeholder="Nhập số điện thoại hoặc email"
                 value={formData.phone}
                 onChange={handleChange}
-                className={errors.phone ? 'error' : ''}
+                className={errors.phone ? styles.error : ''}
               />
-              {errors.phone && <span className="errorMessage">{errors.phone}</span>}
+              {errors.phone && <span className={styles.errorMessage}>{errors.phone}</span>}
             </div>
-            <div className="inputGroup">
-              <label className="inputLabel">Nhập mật khẩu</label>
-              <div className="passwordWrapper">
+            <div className={styles.inputGroup}>
+              <label className={styles.inputLabel} htmlFor="password">Nhập mật khẩu</label>
+              <div className={styles.passwordWrapper}>
                 <input
                   type={showPin ? 'text' : 'password'}
+                  id="password"
                   name="password"
                   placeholder="Nhập mật khẩu"
                   value={formData.password}
                   onChange={handleChange}
-                  className={errors.password ? 'error' : ''}
+                  className={errors.password ? styles.error : ''}
                 />
                 <button
                   type="button"
-                  className="togglePassword"
+                  className={styles.togglePassword}
                   onClick={() => setShowPin(!showPin)}
                   aria-label="Toggle PIN visibility"
                 >
                   {showPin ? '👁️' : '👁️‍🗨️'}
                 </button>
               </div>
-              {errors.password && <span className="errorMessage">{errors.password}</span>}
+              {errors.password && <span className={styles.errorMessage}>{errors.password}</span>}
             </div>
-            <p className="forgotPassword">
+            <p className={styles.forgotPassword}>
               Quên mật khẩu?
-              <Link to="/forgot-password" className="link-style"> Quên</Link>
+              <Link to="/forgot-password" className={styles['link-style']}> Quên</Link>
             </p>
 
             <button 
               type="submit" 
-              className={`btnLogin ${isLoading ? 'loading' : ''}`}
+              className={`${styles.btnLogin} ${isLoading ? styles.loading : ''}`}
               disabled={isLoading}
             >
               {isLoading ? (
                 <>
-                  <span className="spinner"></span>
-                  Đang đăng nhập...
+                  <span className={styles.spinner}></span>
+						{' '}Đang đăng nhập...
                 </>
               ) : (
                 'Đăng nhập'
@@ -168,13 +206,13 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="divider"><span>Hoặc đăng nhập bằng</span></div>
+          <div className={styles.divider}><span>Hoặc đăng nhập bằng</span></div>
 
-          <div className="socialButtons">
-            <button type="button" className="socialBtn" onClick={handleGoogleLogin}>
+          <div className={styles.socialButtons}>
+            <button type="button" className={styles.socialBtn} onClick={handleGoogleLogin}>
               Google
             </button>
-            <button type="button" className="socialBtn">
+            <button type="button" className={styles.socialBtn}>
               Zalo
             </button>
           </div>

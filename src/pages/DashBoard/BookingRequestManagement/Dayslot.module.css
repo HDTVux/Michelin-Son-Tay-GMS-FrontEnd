@@ -1,0 +1,218 @@
+/* Overlay */
+.dayslot-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 999;
+}
+
+.dayslot-modal {
+  width: min(720px, 96vw);
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dayslot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.dayslot-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.dayslot-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dayslot-badge {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+
+.dayslot-badge--count {
+  background: #e7f7ef;
+  border-color: #c9ead8;
+  color: #0f8346;
+}
+
+.dayslot-badge--status {
+  background: #e9f4ff;
+  border-color: #c6dafd;
+  color: #0a63c8;
+}
+
+.dayslot-badge--danger {
+  background: #ffe9e9;
+  border-color: #ffc8c8;
+  color: #c22727;
+}
+
+.dayslot-close {
+  border: none;
+  background: #f4f6f8;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.dayslot-body {
+  padding: 16px 18px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dayslot-alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff4f4;
+  border: 1px solid #f5c6c6;
+  color: #a41f1f;
+  font-weight: 600;
+}
+
+.dayslot-listTitle {
+  margin: 0;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.dayslot-card {
+  border: 1px solid #e5e8ee;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+}
+
+.dayslot-cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dayslot-code {
+  color: #0a63c8;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.dayslot-pill {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid #c9ead8;
+  background: #e7f7ef;
+  color: #0f8346;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.dayslot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+}
+
+.dayslot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.dayslot-fieldLabel {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.dayslot-fieldValue {
+  font-weight: 700;
+  color: #1f2a37;
+}
+
+.dayslot-fieldValue--muted {
+  color: #9ca3af;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.dayslot-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dayslot-btn {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dayslot-btn--primary {
+  background: #0a63c8;
+  color: #ffffff;
+  border-color: #0a63c8;
+}
+
+.dayslot-btn--ghost {
+  background: #e8f6ef;
+  color: #0f8346;
+  border-color: #c9ead8;
+}
+
+.dayslot-btn--danger {
+  background: #ffe9e9;
+  color: #c22727;
+  border-color: #ffc8c8;
+}
+
+@media (max-width: 640px) {
+  .dayslot-modal {
+    width: 100%;
+  }
+
+  .dayslot-title {
+    font-size: 16px;
+  }
+
+  .dayslot-grid {
+    grid-template-columns: 1fr;
+  }
+}
