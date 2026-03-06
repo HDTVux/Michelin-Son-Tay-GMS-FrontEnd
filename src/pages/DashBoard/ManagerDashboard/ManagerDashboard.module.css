@@ -1,0 +1,364 @@
+.container {
+  padding: 24px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn {
+  padding: 12px 20px;
+  background: white;
+  color: #1e293b;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.btnPrimary {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btnPrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.scheduleCard {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 32px;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 20px 0;
+}
+
+.weekGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+}
+
+.dayCard {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.dayCard:hover {
+  border-color: #2563eb;
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.dayHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.dayName {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.dayDate {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.dayStats {
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+}
+
+.dayStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.statIcon {
+  font-size: 16px;
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.viewAllBtn {
+  padding: 8px 16px;
+  background: #f1f5f9;
+  color: #2563eb;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.viewAllBtn:hover {
+  background: #e2e8f0;
+}
+
+.bookingList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bookingItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border-left: 4px solid #f59e0b;
+  transition: all 0.2s;
+}
+
+.bookingItem:hover {
+  background: #f1f5f9;
+}
+
+.bookingInfo {
+  flex: 1;
+}
+
+.customerName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.serviceName {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.bookingTime {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2563eb;
+  margin: 0 16px;
+}
+
+.bookingActions {
+  display: flex;
+  gap: 8px;
+}
+
+.approveBtn {
+  padding: 8px 16px;
+  background: #dcfce7;
+  color: #16a34a;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.approveBtn:hover {
+  background: #bbf7d0;
+}
+
+.rejectBtn {
+  padding: 8px 16px;
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rejectBtn:hover {
+  background: #fecaca;
+}
+
+.performanceList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.performanceItem {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.performanceItem:hover {
+  background: #f1f5f9;
+}
+
+.staffInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.staffName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.staffRole {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.performanceStats {
+  display: flex;
+  gap: 24px;
+}
+
+.performanceStat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.statNumber {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+@media (max-width: 1200px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .weekGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .weekGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

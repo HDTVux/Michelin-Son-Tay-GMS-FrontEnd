@@ -1,0 +1,44 @@
+.container { padding: 24px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; width: 100%; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+.title { font-size: 32px; font-weight: 700; color: #1e293b; margin: 0 0 4px 0; }
+.subtitle { font-size: 16px; color: #64748b; margin: 0; }
+.btnPrimary { padding: 12px 24px; background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3); }
+.btnPrimary:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(234, 88, 12, 0.4); }
+.statsGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 32px; }
+.mainCard { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); margin-bottom: 32px; }
+.cardTitle { font-size: 18px; font-weight: 600; color: #1e293b; margin: 0 0 20px 0; }
+.taskList { display: flex; flex-direction: column; gap: 16px; }
+.taskItem { padding: 20px; background: #f8fafc; border-radius: 12px; border-left: 4px solid; transition: all 0.2s; }
+.taskItem.inProgress { border-left-color: #ea580c; }
+.taskItem.waiting { border-left-color: #3b82f6; }
+.taskItem:hover { background: #f1f5f9; }
+.taskHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.vehicleInfo { display: flex; flex-direction: column; gap: 4px; }
+.vehicleNumber { font-size: 16px; font-weight: 700; color: #ea580c; }
+.customerName { font-size: 13px; color: #64748b; }
+.statusBadge { padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.statusBadge.inProgress { background: #ffedd5; color: #9a3412; }
+.statusBadge.waiting { background: #dbeafe; color: #1e40af; }
+.taskService { font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 12px; }
+.taskProgress { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.progressBar { flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+.progressFill { height: 100%; background: linear-gradient(90deg, #ea580c 0%, #c2410c 100%); transition: width 0.3s; }
+.progressText { font-size: 14px; font-weight: 600; color: #ea580c; min-width: 40px; }
+.taskFooter { display: flex; justify-content: space-between; align-items: center; }
+.startTime { font-size: 13px; color: #64748b; }
+.taskActions { display: flex; gap: 8px; }
+.updateBtn, .completeBtn, .startBtn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.updateBtn { background: #dbeafe; color: #2563eb; }
+.updateBtn:hover { background: #bfdbfe; }
+.completeBtn { background: #dcfce7; color: #16a34a; }
+.completeBtn:hover { background: #bbf7d0; }
+.startBtn { background: #ffedd5; color: #ea580c; }
+.startBtn:hover { background: #fed7aa; }
+.statsCard { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
+.weekStats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 20px; }
+.statBox { padding: 24px; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px; text-align: center; }
+.statIcon { font-size: 32px; display: block; margin-bottom: 12px; }
+.statValue { font-size: 28px; font-weight: 700; color: #ea580c; margin-bottom: 4px; }
+.statLabel { font-size: 13px; color: #64748b; }
+@media (max-width: 1200px) { .statsGrid, .weekStats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .statsGrid, .weekStats { grid-template-columns: 1fr; } }

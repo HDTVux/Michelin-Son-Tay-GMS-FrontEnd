@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import { fetchStaffProfile, updateStaffProfile, uploadStaffAvatar } from '../../services/staffService.js';
+import { fetchStaffProfile } from '../../services/staffService.js';
 import { getValidToken } from '../../services/tokenUtils.js';
 import { toast } from 'react-toastify';
 import styles from './StaffProfile.module.css';
@@ -31,20 +31,34 @@ const StaffProfile = () => {
         const token = await getValidToken('authToken');
         if (token) {
           const response = await fetchStaffProfile(token);
-          if (response && response.data) {
-            setStaffInfo({
-              staffId: response.data.staffId || null,
-              avatar: response.data.avatar || null,
-              fullName: response.data.fullName || '',
-              gender: response.data.gender || 'MALE',
-              dob: response.data.dob || '',
-              phone: response.data.phone || '',
-              position: response.data.position || response.data.role || ''
-            });
-          }
+          
+          // Backend hiện tại chỉ trả về string, chưa có API đầy đủ
+          // Sử dụng mock data tạm thời
+          console.log('Backend response:', response);
+          
+          // Mock data cho demo
+          setStaffInfo({
+            staffId: 1,
+            avatar: null,
+            fullName: 'Nguyễn Văn A',
+            gender: 'MALE',
+            dob: '1990-01-15',
+            phone: '0912345678',
+            position: 'Kỹ thuật viên'
+          });
         }
       } catch (error) {
         console.error('Error fetching staff profile:', error);
+        // Vẫn hiển thị mock data nếu có lỗi
+        setStaffInfo({
+          staffId: 1,
+          avatar: null,
+          fullName: 'Nhân viên Demo',
+          gender: 'MALE',
+          dob: '1990-01-01',
+          phone: '0900000000',
+          position: 'Nhân viên'
+        });
       } finally {
         setLoading(false);
       }
@@ -62,7 +76,6 @@ const StaffProfile = () => {
 
   // Update Profile Modal State
   const [avatarPreview, setAvatarPreview] = useState(null);
-  const [avatarFile, setAvatarFile] = useState(null);
   const [updateFormData, setUpdateFormData] = useState({ ...staffInfo });
   const [updateErrors, setUpdateErrors] = useState({});
 
@@ -124,7 +137,6 @@ const StaffProfile = () => {
         return;
       }
       
-      setAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result);
@@ -135,7 +147,6 @@ const StaffProfile = () => {
 
   const handleRemoveAvatar = () => {
     setAvatarPreview(null);
-    setAvatarFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -175,39 +186,30 @@ const StaffProfile = () => {
     
     if (validateUpdateForm()) {
       try {
-        const token = await getValidToken('authToken');
+        await getValidToken('authToken');
 
-        // Update profile data
-        const payload = {
+        // Backend chưa có API update, tạm thời chỉ update local state
+        console.log('Update payload:', updateFormData);
+        
+        // Cập nhật local state
+        setStaffInfo({
+          ...staffInfo,
           fullName: updateFormData.fullName,
           gender: updateFormData.gender,
           dob: updateFormData.dob,
           phone: updateFormData.phone
-        };
+        });
 
-        await updateStaffProfile(payload, token);
-
-        // Upload avatar if changed
-        if (avatarFile) {
-          await uploadStaffAvatar(avatarFile, token);
+        // Nếu có avatar mới
+        if (avatarPreview && avatarPreview !== staffInfo.avatar) {
+          setStaffInfo(prev => ({
+            ...prev,
+            avatar: avatarPreview
+          }));
         }
 
-        // Refresh staff info
-        const response = await fetchStaffProfile(token);
-        if (response && response.data) {
-          setStaffInfo({
-            staffId: response.data.staffId || null,
-            avatar: response.data.avatar || null,
-            fullName: response.data.fullName || '',
-            gender: response.data.gender || 'MALE',
-            dob: response.data.dob || '',
-            phone: response.data.phone || '',
-            position: response.data.position || response.data.role || ''
-          });
-        }
-
-        toast.success('Cập nhật thông tin thành công!');
-      setShowUpdateModal(false);
+        toast.success('Cập nhật thông tin thành công! (Chỉ lưu local, backend chưa có API)');
+        setShowUpdateModal(false);
       } catch (error) {
         console.error('Error updating profile:', error);
         toast.error(error.message || 'Cập nhật thông tin thất bại');
