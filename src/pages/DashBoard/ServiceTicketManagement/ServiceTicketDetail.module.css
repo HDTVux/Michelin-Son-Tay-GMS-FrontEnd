@@ -59,6 +59,16 @@
 	white-space: nowrap;
 }
 
+.errorBanner {
+	border: 1px solid var(--ui-border-strong);
+	border-radius: var(--ui-radius);
+	background: var(--ui-surface-2);
+	padding: 12px 14px;
+	font-weight: 800;
+	color: var(--ui-text);
+	margin-bottom: 12px;
+}
+
 .editBtn {
 	flex: 0 0 auto;
 }

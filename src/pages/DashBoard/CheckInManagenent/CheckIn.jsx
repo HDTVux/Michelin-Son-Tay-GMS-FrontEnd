@@ -11,6 +11,9 @@ import {
 } from '../../../services/checkInService.js';
 import { toast } from 'react-toastify';
 
+/** Chuẩn hóa thông tin từng xe từ dữ liệu thô của API.
+ * Đảm bảo các trường thông tin quan trọng như ID, biển số luôn có giá trị mặc định.
+ */
 const mapVehicleItem = (item) => {
     if (!item) return null;
     return {
@@ -24,6 +27,9 @@ const mapVehicleItem = (item) => {
     };
 };
 
+/** Trích xuất danh sách xe từ phản hồi của API.
+ * Xử lý các trường hợp dữ liệu lồng nhau phức tạp (data.data hoặc data).
+ */
 const normalizeVehiclesPayload = (raw) => {
     const payload = raw?.data?.data ?? raw?.data ?? raw;
     const list = Array.isArray(payload?.vehicles) ? payload.vehicles : Array.isArray(payload) ? payload : [];
@@ -31,35 +37,41 @@ const normalizeVehiclesPayload = (raw) => {
 };
 
 export default function CheckIn() {
-    useScrollToTop();
+    useScrollToTop(); // Hook tự động cuộn lên đầu trang khi component mount
     const navigate = useNavigate();
     const location = useLocation();
 
+    // Lấy mã booking từ state của router
     const [bookingCode] = useState(() => {
         const code = location?.state?.bookingCode ?? location?.state?.booking?.bookingCode ?? '';
         return String(code || '');
     });
 
+    // Quản lý trạng thái danh sách xe và xe đang được chọn
     const [vehicles, setVehicles] = useState([]);
     const [isVehiclesLoading, setIsVehiclesLoading] = useState(false);
     const [selectedVehicleId, setSelectedVehicleId] = useState('');
 
+    // Quản lý trạng thái khi nhân viên chọn "Thêm xe mới" thay vì chọn xe có sẵn
     const [isAddingNewVehicle, setIsAddingNewVehicle] = useState(false);
-    const previousVehicleIdRef = useRef('');
+    const previousVehicleIdRef = useRef(''); // Lưu lại ID xe cũ để khôi phục nếu hủy thêm mới
 
+    // Các state lưu thông tin chi tiết của xe (dùng khi thêm mới hoặc hiển thị xe đã chọn)
     const [licensePlate, setLicensePlate] = useState('');
     const [vehicleMake, setVehicleMake] = useState('');
     const [vehicleModel, setVehicleModel] = useState('');
     const [vehicleYear, setVehicleYear] = useState('');
 
-    const [booking, setBooking] = useState(() => location?.state?.booking ?? null);   // Thông tin đặt chỗ tìm được từ hệ thống
+    // State lưu trữ thông tin booking sau khi lookup từ hệ thống
+    const [booking, setBooking] = useState(() => location?.state?.booking ?? null);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isCreatingVehicle, setIsCreatingVehicle] = useState(false);
-    const [odometerKm, setOdometerKm] = useState('');
-    const [lastOdometerKm, setLastOdometerKm] = useState(null);
-    const [damageNote, setDamageNote] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false); // Trạng thái khi đang tạo phiếu dịch vụ
+    const [isCreatingVehicle, setIsCreatingVehicle] = useState(false); // Trạng thái khi đang tạo xe mới
+    const [odometerKm, setOdometerKm] = useState(''); // Số km hiện tại nhân viên nhập
+    const [lastOdometerKm, setLastOdometerKm] = useState(null); // Số km lần trước (từ hệ thống)
+    const [damageNote, setDamageNote] = useState(''); // Ghi chú hư hỏng bên ngoài
 
+    // State quản lý 7 loại ảnh chụp tình trạng xe (Lưu cả File, Blob URL để preview và DataUrl để gửi đi)
     const [photos, setPhotos] = useState(() => ({
         licensePlatePhoto: { file: null, url: '', dataUrl: '' },
         photoFront: { file: null, url: '', dataUrl: '' },
@@ -70,6 +82,7 @@ export default function CheckIn() {
         photoDamage: { file: null, url: '', dataUrl: '' },
     }));
 
+    // Ghi chú chi tiết cho từng bức ảnh chụp các góc độ xe
     const [photoDescriptions, setPhotoDescriptions] = useState(() => ({
         photoFrontDescription: '',
         photoRearDescription: '',
@@ -79,10 +92,12 @@ export default function CheckIn() {
         photoDamageDescription: '',
     }));
 
+    // Ref dùng để theo dõi state photos mới nhất trong hàm cleanup (tránh rò rỉ bộ nhớ)
     const photosRef = useRef(photos);
 
     const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
+    // Hiển thị thời gian hẹn và danh sách tên dịch vụ từ thông tin booking
     const scheduledTimeDisplay = booking?.scheduledTime ? (formatTimeHHmm(booking.scheduledTime) || '-') : '-';
 
     const servicesDisplay = useMemo(() => {
@@ -91,7 +106,7 @@ export default function CheckIn() {
         return names.length ? names.join(', ') : '-';
     }, [booking?.services]);
 
-    // Chuyển đổi giá trị Odometer nhập vào thành số nguyên, loại bỏ ký tự không phải số. Nếu không hợp lệ, trả về null.
+    // Xử lý logic số Odometer: Chuyển đổi chuỗi nhập liệu thành số nguyên an toàn
     const odometerNumber = useMemo(() => {
         const normalized = String(odometerKm || '').replaceAll(/\D/g, '');
         if (!normalized) return null;
@@ -99,19 +114,19 @@ export default function CheckIn() {
         return Number.isFinite(n) ? n : null;
     }, [odometerKm]);
 
-    // So sánh số Odometer mới nhập với lần trước nếu có để cảnh báo nếu số mới thấp hơn số cũ, tránh trường hợp nhập sai.
+    // Kiểm tra xem số km mới có thấp hơn số km cũ không để đưa ra cảnh báo cho nhân viên
     const isOdometerLower = useMemo(() => {
         if (odometerNumber == null) return false;
         if (lastOdometerKm == null) return false;
         return odometerNumber < lastOdometerKm;
     }, [odometerNumber, lastOdometerKm]);
 
-    // Đồng bộ ref để phục vụ việc giải phóng bộ nhớ
+    // Đồng bộ ref mỗi khi state photos thay đổi
     useEffect(() => {
         photosRef.current = photos;
     }, [photos]);
 
-    // Cleanup: Giải phóng các Blob URL khi component bị hủy để tránh rò rỉ bộ nhớ
+    // Cleanup: Giải phóng các Blob URL (Object URL) khi đóng component để tránh treo bộ nhớ trình duyệt
     useEffect(() => {
         return () => {
             const current = photosRef.current || {};
@@ -121,6 +136,7 @@ export default function CheckIn() {
         };
     }, []);
 
+    // Đọc file ảnh dưới dạng Data URL (Base64) để phục vụ việc gửi dữ liệu hoặc hiển thị
     const readFileAsDataUrl = (file) => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -130,15 +146,17 @@ export default function CheckIn() {
         });
     };
 
+    // Kích hoạt cửa sổ chọn file bằng cách click vào input ẩn
     const handlePickPhoto = (key) => {
         const input = document.getElementById(`checkin-${key}`);
         input?.click?.();
     };
 
+    // Xử lý khi người dùng chọn xong ảnh: Tạo preview URL và đọc Base64
     const handlePhotoChange = async (key, file) => {
         if (!file?.type?.startsWith('image/')) return;
 
-        const url = URL.createObjectURL(file);
+        const url = URL.createObjectURL(file); // Tạo URL tạm thời để hiển thị img src
         let dataUrl = '';
         try {
             dataUrl = await readFileAsDataUrl(file);
@@ -148,7 +166,7 @@ export default function CheckIn() {
 
         setPhotos((prev) => {
             const prevUrl = prev?.[key]?.url;
-            if (prevUrl) URL.revokeObjectURL(prevUrl);
+            if (prevUrl) URL.revokeObjectURL(prevUrl); // Xóa URL cũ để tối ưu bộ nhớ
             return {
                 ...prev,
                 [key]: { file, url, dataUrl },
@@ -156,6 +174,7 @@ export default function CheckIn() {
         });
     };
 
+    // Xóa ảnh đã chọn và giải phóng tài nguyên liên quan
     const handleRemovePhoto = (key) => {
         setPhotos((prev) => {
             const prevUrl = prev?.[key]?.url;
@@ -167,6 +186,7 @@ export default function CheckIn() {
         });
     };
 
+    // Chuẩn hóa dữ liệu booking lấy từ API Lookup
     const mapLookupPayload = (payload) => {
         if (!payload) return null;
         const customer = payload.customer || payload.customerInfo || payload.customerProfile || {};
@@ -193,6 +213,7 @@ export default function CheckIn() {
         };
     };
 
+    // Hàm gọi API để lấy thông tin chi tiết về booking dựa trên mã code
     const handleLookupBooking = async () => {
         const code = String(bookingCode || '').trim();
         if (!code) return;
@@ -212,19 +233,21 @@ export default function CheckIn() {
         }
     };
 
+    // Tự động tìm kiếm booking khi trang vừa được load
     useEffect(() => {
         const code = String(bookingCode || '').trim();
         if (!code) return;
         handleLookupBooking();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Xác định thông tin xe đang được chọn trong danh sách để hiển thị chi tiết
     const selectedVehicle = useMemo(() => {
         const id = String(selectedVehicleId || '').trim();
         if (!id) return null;
         return vehicles.find((v) => String(v?.vehicleId) === id) ?? null;
     }, [selectedVehicleId, vehicles]);
 
+    // Khi đổi xe trong danh sách, cập nhật các field thông tin tương ứng
     useEffect(() => {
         if (isAddingNewVehicle) return;
         if (!selectedVehicle) return;
@@ -237,6 +260,7 @@ export default function CheckIn() {
         setLastOdometerKm(lastKm == null ? null : Number(lastKm) || null);
     }, [isAddingNewVehicle, selectedVehicle]);
 
+    // Tự động tải danh sách xe của khách hàng ngay sau khi tìm thấy thông tin booking
     useEffect(() => {
         const customerId = booking?.customerId ?? null;
         if (!customerId) {
@@ -272,7 +296,7 @@ export default function CheckIn() {
                     return;
                 }
 
-                // Default to first vehicle
+                // Mặc định chọn xe đầu tiên trong danh sách nếu có
                 setIsAddingNewVehicle(false);
                 setSelectedVehicleId(String(list[0].vehicleId));
             } catch (err) {
@@ -288,10 +312,11 @@ export default function CheckIn() {
 
         run();
         return () => {
-            cancelled = true;
+            cancelled = true; // Chặn cập nhật state nếu component đã unmount
         };
     }, [booking?.customerId, notify]);
 
+    // Chuyển sang giao diện thêm xe mới
     const startAddNewVehicle = () => {
         previousVehicleIdRef.current = String(selectedVehicleId || '');
         setIsAddingNewVehicle(true);
@@ -303,6 +328,7 @@ export default function CheckIn() {
         setVehicleYear('');
     };
 
+    // Quay lại danh sách xe hiện có
     const stopAddNewVehicle = () => {
         setIsAddingNewVehicle(false);
         const restored = previousVehicleIdRef.current;
@@ -311,6 +337,7 @@ export default function CheckIn() {
         setSelectedVehicleId(nextId);
     };
 
+    // Xử lý gọi API tạo xe mới cho khách hàng
     const handleCreateVehicle = async () => {
         if (isCreatingVehicle || isSubmitting) return;
 
@@ -355,6 +382,7 @@ export default function CheckIn() {
                 return;
             }
 
+            // Thêm xe vừa tạo vào danh sách hiển thị và tự động chọn nó
             setVehicles((prev) => {
                 const list = Array.isArray(prev) ? prev : [];
                 const withoutDup = list.filter((v) => Number(v?.vehicleId) !== newVehicleId);
@@ -372,6 +400,9 @@ export default function CheckIn() {
         }
     };
 
+    /** * Hàm render giao diện cho từng ô chọn ảnh.
+     * Tái sử dụng cho cả 7 góc chụp để giữ code gọn gàng.
+     */
     const renderPhotoPicker = ({
         keyName,
         label,
@@ -406,7 +437,7 @@ export default function CheckIn() {
                     onChange={(e) => {
                         const file = e.target.files?.[0] ?? null;
                         handlePhotoChange(keyName, file);
-                        e.target.value = '';
+                        e.target.value = ''; // Reset để có thể chọn lại cùng 1 file
                     }}
                     style={{ display: 'none' }}
                 />
@@ -439,6 +470,9 @@ export default function CheckIn() {
 
     const handleCancel = () => navigate(-1);
 
+    /** * Xử lý xác nhận cuối cùng: Tổng hợp dữ liệu và gửi API tạo phiếu dịch vụ.
+     * Sử dụng định dạng Multipart để gửi kèm các file ảnh thực tế.
+     */
     const handleConfirm = async () => {
         if (isSubmitting) return;
 
@@ -450,7 +484,6 @@ export default function CheckIn() {
 
         const bookingIdRaw = booking?.bookingId ?? null;
         const customerIdRaw = booking?.customerId ?? null;
-
         const bookingId = Number(bookingIdRaw) || 0;
         const customerId = Number(customerIdRaw) || 0;
 
@@ -470,6 +503,7 @@ export default function CheckIn() {
             return;
         }
 
+        // Lấy thông tin nhân viên thực hiện từ session/localStorage
         const staffProfileRaw = localStorage.getItem('staffProfile');
         let staffId = 0;
         try {
@@ -479,6 +513,7 @@ export default function CheckIn() {
             staffId = 0;
         }
 
+        // Chuẩn bị payload chứa thông tin chữ
         const payload = {
             bookingId,
             customerId,
@@ -509,6 +544,7 @@ export default function CheckIn() {
             setIsSubmitting(true);
             const token = localStorage.getItem('authToken');
 
+            // Tổng hợp các file ảnh thực tế để gửi Multipart
             const photoFiles = {
                 licensePlatePhoto: photos?.licensePlatePhoto?.file ?? null,
                 photoFront: photos?.photoFront?.file ?? null,
@@ -532,6 +568,7 @@ export default function CheckIn() {
 
     return (
         <div className={styles.page}>
+            {/* Phần Header: Hiển thị thông tin khách hàng và dịch vụ từ Booking */}
             <div className={styles.header}>
                 <h1 className={styles.title}>Tiếp nhận xe và tạo phiếu dịch vụ</h1>
                 <div className={styles.infoList}>
@@ -555,6 +592,7 @@ export default function CheckIn() {
             </div>
 
             <div className={styles.card}>
+                {/* Step 1: Lựa chọn xe của khách hoặc đăng ký xe mới cho khách */}
                 <section className={styles.step}>
                     <h2 className={styles.stepTitle}>Step 1: Chọn xe</h2>
                     <div className={styles.stepRow}>
@@ -635,6 +673,7 @@ export default function CheckIn() {
                         <div className={styles.warningBox}>Khách hàng chưa có xe. Vui lòng thêm xe mới để tiếp nhận.</div>
                     )}
 
+                    {/* Form nhập thông tin chi tiết xe mới */}
                     {isAddingNewVehicle && (
                         <div className={styles.vehicleFormGrid}>
                             <div className="ui-field" style={{ marginBottom: 0 }}>
@@ -690,6 +729,7 @@ export default function CheckIn() {
                     </div>
                 </section>
 
+                {/* Step 2: Nhập số Km hiện tại và kiểm tra tính hợp lệ so với lần trước */}
                 <section className={styles.step}>
                     <h2 className={styles.stepTitle}>Step 2: Ghi số Odometer</h2>
                     <div className="ui-field" style={{ marginBottom: 0 }}>
@@ -711,6 +751,7 @@ export default function CheckIn() {
                     )}
                 </section>
 
+                {/* Step 3: Chụp ảnh hiện trạng xe để làm bằng chứng lúc tiếp nhận */}
                 <section className={styles.step}>
                     <h2 className={styles.stepTitle}>Step 3: Chụp ảnh tình trạng xe</h2>
                     <div className={styles.photoGrid}>
@@ -769,6 +810,7 @@ export default function CheckIn() {
                     </div>
                 </section>
 
+                {/* Footer: Các nút điều hướng Hủy/Xác nhận */}
                 <div className={styles.actions}>
                     <button type="button" className="ui-btn ui-btn--ghost" onClick={handleCancel}>
                         Hủy

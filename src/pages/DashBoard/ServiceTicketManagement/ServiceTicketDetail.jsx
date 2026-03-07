@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import { formatDateTimeViNoSeconds } from '../../../components/timeUtils.js';
+import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
+import { fetchServiceTicketDetail } from '../../../services/serviceTicketService.js';
 import styles from './ServiceTicketDetail.module.css';
 
 const TIMELINE_STEPS = [
@@ -61,12 +62,10 @@ function pickFirstDefined(obj, keys) {
 }
 
 function normalizeTicket(input, codeFallback) {
-	const ticketCode =
-		String(input?.ticketCode || input?.code || input?.id || codeFallback || '12345').trim() || '12345';
+	const ticketCode = String(input?.ticketCode || codeFallback || '').trim();
 
-	const statusLabel =
-		String(input?.statusLabel || input?.statusText || input?.status || 'Diagnosis Queue').trim() ||
-		'Diagnosis Queue';
+	const statusCode = String(input?.ticketStatus || input?.status || '').trim();
+	const statusLabel = String(input?.statusLabel || input?.statusText || statusCode).trim() || '-';
 
 	const receivedAt = pickFirstDefined(input, [
 		'receivedAt',
@@ -92,45 +91,48 @@ function normalizeTicket(input, codeFallback) {
 
 	const odometerKm = normalizeOdometerKm(
 		input?.odometerReading ??
+			input?.vehicle?.lastOdometerReading ??
+			input?.vehicle?.odometerReading ??
 			input?.odometerKm ??
 			input?.mileage ??
-			input?.vehicle?.odometerReading ??
 			input?.vehicle?.odometerKm ??
 			input?.vehicle?.mileage,
 	);
 
 	return {
 		ticketCode,
+		statusCode,
 		statusLabel: toTitleCaseFromCode(statusLabel),
 		receivedAt,
 		handoverAt,
 		customer: {
-			name: input?.customerName || input?.customer?.name || 'Nguyễn Văn A',
-			phone: input?.customerPhone || input?.phone || input?.customer?.phone || '0901234567',
-			email: input?.customerEmail || input?.email || input?.customer?.email || 'anva@example.com',
+			name: input?.customer?.fullName || input?.customerName || input?.customer?.name || '',
+			phone: input?.customer?.phone || input?.customerPhone || input?.phone || '',
+			email: input?.customer?.email || input?.customerEmail || input?.email || '',
 		},
 		vehicle: {
-			licensePlate: input?.licensePlate || input?.vehicle?.licensePlate || '51F-123.45',
-			model: input?.vehicleModel || input?.vehicle?.model || 'Toyota Camry 2020',
+			licensePlate: input?.vehicle?.licensePlate || input?.licensePlate || '',
+			model: input?.vehicle?.model || input?.vehicleModel || '',
+			make: input?.vehicle?.make || input?.vehicleMake || '',
+			year: input?.vehicle?.year ?? null,
 			odometerKm,
 		},
-		
-		createdBy: input?.createdBy || input?.creatorName || input?.staffName || 'Lễ tân B',
+		booking: {
+			bookingCode: input?.booking?.bookingCode || input?.bookingCode || '',
+			scheduledDate: input?.booking?.scheduledDate || input?.scheduledDate || '',
+			scheduledTime: input?.booking?.scheduledTime || input?.scheduledTime || '',
+		},
+		createdBy: input?.createdByName || input?.createdBy || input?.creatorName || input?.staffName || '',
 		requestNote:
 			input?.requestNote ||
 			input?.customerRequest ||
+			input?.checkInNotes ||
 			input?.note ||
-			'Kiểm tra động cơ có tiếng ồn lạ khi tăng tốc.',
+			'',
 		services:
-			Array.isArray(input?.services) && input.services.length
-				? input.services
-				: [
-					{ name: 'Kiểm tra tổng quát', priceVnd: 500_000 },
-					{ name: 'Thay dầu động cơ', priceVnd: 800_000 },
-					{ name: 'Kiểm tra hệ thống phanh', priceVnd: 300_000 },
-				],
+			Array.isArray(input?.services) ? input.services : [],
 		externalDependency: Boolean(input?.externalDependency || input?.isExternalDependency),
-		timelineStatus: input?.timelineStatus || input?.status || statusLabel,
+		timelineStatus: input?.timelineStatus || statusCode || statusLabel,
 	};
 }
 
@@ -155,9 +157,58 @@ export default function ServiceTicketDetail() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const params = useParams();
+	const [ticketRaw, setTicketRaw] = useState(null);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState('');
 
-	const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? location?.state ?? null;
-	const ticket = useMemo(() => normalizeTicket(ticketFromState, params?.id), [ticketFromState, params?.id]);
+	const ticketCodeParam = String(params?.ticketCode || '').trim();
+	const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
+
+	useEffect(() => {
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			setError('Vui lòng đăng nhập để xem chi tiết phiếu dịch vụ.');
+			setIsLoading(false);
+			return;
+		}
+
+		if (!ticketCodeParam) {
+			setError('Thiếu ticketCode để xem chi tiết.');
+			setIsLoading(false);
+			return;
+		}
+
+		let ignore = false;
+		const load = async () => {
+			try {
+				setIsLoading(true);
+				setError('');
+				const res = await fetchServiceTicketDetail(ticketCodeParam, token);
+				if (ignore) return;
+				setTicketRaw(res?.data ?? null);
+			} catch (err) {
+				if (ignore) return;
+				const msg = err?.message || 'Không thể tải chi tiết phiếu dịch vụ.';
+				const isUnauthorized = err?.status === 401 || err?.status === 403;
+				if (isUnauthorized) {
+					localStorage.removeItem('authToken');
+					setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+				} else {
+					setError(msg);
+				}
+				// fallback: if we have state ticket, keep showing it
+				setTicketRaw((prev) => prev ?? ticketFromState ?? null);
+			} finally {
+				if (!ignore) setIsLoading(false);
+			}
+		};
+		load();
+		return () => {
+			ignore = true;
+		};
+	}, [ticketCodeParam, ticketFromState]);
+
+	const ticket = useMemo(() => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam), [ticketRaw, ticketFromState, ticketCodeParam]);
 	const activeStepIndex = resolveActiveStepIndex(ticket?.timelineStatus || ticket?.statusLabel);
 
 	const receivedAtDisplay = ticket?.receivedAt ? formatDateTimeViNoSeconds(ticket.receivedAt, '-') : '-';
@@ -182,8 +233,8 @@ export default function ServiceTicketDetail() {
 					<header className={styles.header}>
 						<div className={styles.headerLeft}>
 							<div className={styles.titleRow}>
-								<h1 className={styles.title}>Phiếu dịch vụ #{ticket.ticketCode}</h1>
-								<span className={styles.statusPill}>{ticket.statusLabel}</span>
+								<h1 className={styles.title}>Phiếu dịch vụ #{ticket.ticketCode || ticketCodeParam || '-'}</h1>
+								<span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
 							</div>
 						</div>
 						<button type="button" className={`ui-btn ui-btn--ghost ${styles.editBtn}`} onClick={handleEdit}>
@@ -191,22 +242,24 @@ export default function ServiceTicketDetail() {
 						</button>
 					</header>
 
+					{error && <div className={styles.errorBanner}>{error}</div>}
+
 					<div className={`ui-card ${styles.card}`}>
 						<div className={styles.infoGrid}>
 							<InfoBlock
 								title="Thông tin khách hàng"
 								rows={[
-									{ label: 'Họ tên:', value: ticket.customer.name || '-' },
-									{ label: 'SĐT:', value: ticket.customer.phone || '-' },
-									{ label: 'Email:', value: ticket.customer.email || '-' },
+									{ label: 'Họ tên:', value: ticket.customer?.name || '-' },
+									{ label: 'SĐT:', value: ticket.customer?.phone || '-' },
+									{ label: 'Email:', value: ticket.customer?.email || '-' },
 								]}
 							/>
 							<InfoBlock
 								title="Thông tin xe"
 								rows={[
-									{ label: 'Biển số xe:', value: ticket.vehicle.licensePlate || '-' },
+									{ label: 'Biển số xe:', value: ticket.vehicle?.licensePlate || '-' },
 									{ label: 'Số km:', value: odometerDisplay },
-									{ label: 'Model:', value: ticket.vehicle.model || '-' },
+									{ label: 'Model:', value: ticket.vehicle?.model || '-' },
 								]}
 							/>
 						</div>
@@ -223,6 +276,14 @@ export default function ServiceTicketDetail() {
 									<span className={styles.kvValue}>{handoverAtDisplay}</span>
 								</div>
 								<div className={styles.kvRow}>
+									<span className={styles.kvLabel}>Lịch hẹn:</span>
+									<span className={styles.kvValue}>
+										{ticket?.booking?.scheduledDate
+											? `${ticket.booking.scheduledDate} ${formatTimeHHmm(ticket.booking.scheduledTime) || ''}`.trim()
+											: '-'}
+									</span>
+								</div>
+								<div className={styles.kvRow}>
 									<span className={styles.kvLabel}>Người tạo:</span>
 									<span className={styles.kvValue}>{ticket.createdBy || '-'}</span>
 								</div>
@@ -231,18 +292,26 @@ export default function ServiceTicketDetail() {
 
 						<section className={styles.block}>
 							<h2 className={styles.blockTitle}>Yêu cầu khách hàng</h2>
-							<div className={styles.noteBox}>{ticket.requestNote || '-'}</div>
+							<div className={styles.noteBox}>{ticket.requestNote || (isLoading ? 'Đang tải...' : '-')}</div>
 						</section>
 
 						<section className={styles.block}>
 							<h2 className={styles.blockTitle}>Dịch vụ đã chọn</h2>
 							<div className={styles.servicesList}>
-								{ticket.services.map((s, idx) => (
+								{(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
+									const price = s?.priceVnd ?? s?.price;
+									return (
 									<div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
-										<span className={styles.serviceName}>{s?.label || s?.name || '-'}</span>
-										<span className={styles.servicePrice}>{formatCurrencyVnd(s?.priceVnd ?? s?.price)}</span>
+										<span className={styles.serviceName}>{s?.serviceName || s?.label || s?.name || '-'}</span>
+										<span className={styles.servicePrice}>
+											{price == null ? '-' : formatCurrencyVnd(price)}
+										</span>
 									</div>
-								))}
+								);
+								})}
+								{!isLoading && (!Array.isArray(ticket.services) || ticket.services.length === 0) && (
+									<div className={styles.noteBox}>-</div>
+								)}
 							</div>
 
 							{ticket.externalDependency && (
