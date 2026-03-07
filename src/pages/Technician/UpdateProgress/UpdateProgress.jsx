@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { uploadImage } from '../../../services/imageService.js';
 import styles from './UpdateProgress.module.css';
 
 const UpdateProgress = () => {
@@ -47,15 +49,64 @@ const UpdateProgress = () => {
     );
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
-    const newImages = files.map(file => ({
-      id: Date.now() + Math.random(),
-      name: file.name,
-      url: URL.createObjectURL(file),
-      file: file
-    }));
-    setUploadedImages(prev => [...prev, ...newImages]);
+    
+    if (files.length === 0) return;
+
+    // Show loading toast
+    const uploadingToast = toast.info('Đang upload ảnh...', { autoClose: false });
+
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      
+      // Upload each file to Cloudinary
+      const uploadPromises = files.map(async (file) => {
+        try {
+          const response = await uploadImage(file, token);
+          
+          if (response?.success && response?.data?.imageUrl) {
+            return {
+              id: Date.now() + Math.random(),
+              name: file.name,
+              url: response.data.imageUrl,
+              publicId: response.data.publicId,
+              file: file
+            };
+          }
+          return null;
+        } catch (error) {
+          console.error(`Error uploading ${file.name}:`, error);
+          toast.error(`Không thể upload ${file.name}`);
+          return null;
+        }
+      });
+
+      const uploadedResults = await Promise.all(uploadPromises);
+      const successfulUploads = uploadedResults.filter(result => result !== null);
+
+      if (successfulUploads.length > 0) {
+        setUploadedImages(prev => [...prev, ...successfulUploads]);
+        toast.update(uploadingToast, {
+          render: `Upload thành công ${successfulUploads.length} ảnh!`,
+          type: 'success',
+          autoClose: 3000
+        });
+      } else {
+        toast.update(uploadingToast, {
+          render: 'Không có ảnh nào được upload thành công',
+          type: 'error',
+          autoClose: 3000
+        });
+      }
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      toast.update(uploadingToast, {
+        render: 'Lỗi khi upload ảnh',
+        type: 'error',
+        autoClose: 3000
+      });
+    }
   };
 
   const handleRemoveImage = (imageId) => {

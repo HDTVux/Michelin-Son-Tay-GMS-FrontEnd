@@ -181,3 +181,33 @@ export const fetchBookingDetail = (identifier, token) =>
     method: 'POST',
     body: JSON.stringify(payload),
   });
+
+/**
+ * Lookup customer by phone number (Staff/Receptionist)
+ * Backend: GET /api/booking/staff/customer-lookup?phone={phone}
+ * 
+ * Use case: Khi receptionist nhập số điện thoại, tự động điền tên nếu customer đã tồn tại
+ * 
+ * @param {string} phone - Số điện thoại cần tra cứu
+ * @param {string} token - JWT token (optional)
+ * @returns {Promise} Response chứa thông tin customer (nếu có)
+ * 
+ * Response format:
+ * {
+ *   success: true,
+ *   data: {
+ *     customerId: number | null,
+ *     phone: string,
+ *     fullName: string | null,
+ *     email: string | null,
+ *     exists: boolean
+ *   }
+ * }
+ */
+export const lookupCustomerByPhone = (phone, token) => {
+  const phoneNumber = String(phone || '').trim();
+  return request(`/api/booking/staff/customer-lookup?phone=${encodeURIComponent(phoneNumber)}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { toast } from 'react-toastify';
+import { fetchAllCustomers, createCustomer } from '../../../services/adminService.js';
 import styles from './CustomerManager.module.css';
 
 const CustomerManager = () => {
@@ -13,9 +14,6 @@ const CustomerManager = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState('desc');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -25,98 +23,52 @@ const CustomerManager = () => {
   // Form state
   const [formData, setFormData] = useState({
     fullName: '',
-    phone: '',
     email: '',
-    gender: 'MALE',
-    dateOfBirth: ''
+    phone: '',
+    gender: '',
+    password: '',
+    sendNotification: false
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  // Mock data
-  const mockCustomers = useMemo(() => [
-    { id: 1, fullName: 'Nguyen Van A', phone: '0912345678', email: 'nguyenvana@email.com', gender: 'MALE', dateOfBirth: '1990-01-15', status: 'ACTIVE', customerType: 'VIP', createdAt: '2024-01-01', totalBookings: 15 },
-    { id: 2, fullName: 'Tran Thi B', phone: '0923456789', email: 'tranthib@email.com', gender: 'FEMALE', dateOfBirth: '1992-03-20', status: 'ACTIVE', customerType: 'REGULAR', createdAt: '2024-01-05', totalBookings: 8 },
-    { id: 3, fullName: 'Le Van C', phone: '0934567890', email: 'levanc@email.com', gender: 'MALE', dateOfBirth: '1985-07-10', status: 'ACTIVE', customerType: 'PREMIUM', createdAt: '2024-01-10', totalBookings: 25 },
-    { id: 4, fullName: 'Pham Thi D', phone: '0945678901', email: 'phamthid@email.com', gender: 'FEMALE', dateOfBirth: '1995-11-25', status: 'INACTIVE', customerType: 'REGULAR', createdAt: '2024-01-15', totalBookings: 3 },
-    { id: 5, fullName: 'Hoang Van E', phone: '0956789012', email: 'hoangvane@email.com', gender: 'MALE', dateOfBirth: '1988-09-08', status: 'ACTIVE', customerType: 'VIP', createdAt: '2024-01-20', totalBookings: 18 },
-    { id: 6, fullName: 'Nguyen Thi F', phone: '0967890123', email: 'nguyenthif@email.com', gender: 'FEMALE', dateOfBirth: '1993-05-12', status: 'ACTIVE', customerType: 'REGULAR', createdAt: '2024-01-25', totalBookings: 6 },
-    { id: 7, fullName: 'Vo Van G', phone: '0978901234', email: 'vovang@email.com', gender: 'MALE', dateOfBirth: '1991-12-30', status: 'ACTIVE', customerType: 'VIP', createdAt: '2024-02-01', totalBookings: 12 },
-    { id: 8, fullName: 'Tran Van H', phone: '0989012345', email: 'tranvanh@email.com', gender: 'MALE', dateOfBirth: '1987-08-18', status: 'INACTIVE', customerType: 'REGULAR', createdAt: '2024-02-05', totalBookings: 2 },
-    { id: 9, fullName: 'Le Thi I', phone: '0990123456', email: 'lethii@email.com', gender: 'FEMALE', dateOfBirth: '1994-04-22', status: 'ACTIVE', customerType: 'PREMIUM', createdAt: '2024-02-10', totalBookings: 20 },
-    { id: 10, fullName: 'Phan Van K', phone: '0901234567', email: 'phanvank@email.com', gender: 'MALE', dateOfBirth: '1989-06-15', status: 'ACTIVE', customerType: 'REGULAR', createdAt: '2024-02-15', totalBookings: 9 },
-    { id: 11, fullName: 'Nguyen Van L', phone: '0912345670', email: 'nguyenvanl@email.com', gender: 'MALE', dateOfBirth: '1992-10-05', status: 'ACTIVE', customerType: 'VIP', createdAt: '2024-02-20', totalBookings: 14 },
-    { id: 12, fullName: 'Tran Thi M', phone: '0923456780', email: 'tranm@email.com', gender: 'FEMALE', dateOfBirth: '1996-02-28', status: 'ACTIVE', customerType: 'REGULAR', createdAt: '2024-02-25', totalBookings: 5 },
-  ], []);
-
+  // Load customers from API
   const loadCustomers = useCallback(async () => {
     try {
       setLoading(true);
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      let filteredData = [...mockCustomers];
-
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
-        filteredData = filteredData.filter(c =>
-          c.fullName.toLowerCase().includes(search) ||
-          c.phone.includes(search) ||
-          c.email.toLowerCase().includes(search)
-        );
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      
+      if (!token) {
+        toast.error('Vui lòng đăng nhập để xem danh sách khách hàng');
+        return;
       }
 
-      if (statusFilter !== 'all') {
-        filteredData = filteredData.filter(c => c.status === statusFilter);
+      const params = {
+        page: currentPage - 1, // Backend uses 0-based index
+        size: itemsPerPage,
+        search: searchTerm || undefined,
+      };
+
+      const response = await fetchAllCustomers(params, token);
+      
+      if (response?.success && response?.data) {
+        const { content, totalElements } = response.data;
+        setCustomers(content || []);
+        setTotalItems(totalElements || 0);
       }
-
-      filteredData.sort((a, b) => {
-        let aVal = a[sortBy];
-        let bVal = b[sortBy];
-
-        if (sortBy === 'createdAt') {
-          aVal = new Date(aVal).getTime();
-          bVal = new Date(bVal).getTime();
-        }
-
-        if (typeof aVal === 'string') {
-          aVal = aVal.toLowerCase();
-          bVal = bVal.toLowerCase();
-        }
-
-        if (sortOrder === 'asc') {
-          return aVal > bVal ? 1 : -1;
-        } else {
-          return aVal < bVal ? 1 : -1;
-        }
-      });
-
-      setTotalItems(filteredData.length);
-
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage);
-
-      setCustomers(paginatedData);
     } catch (error) {
       console.error('Error loading customers:', error);
-      toast.error('Không tải được dữ liệu khách hàng');
+      toast.error(error.message || 'Không tải được dữ liệu khách hàng');
+      setCustomers([]);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, sortBy, sortOrder, currentPage, mockCustomers]);
+  }, [searchTerm, currentPage]);
 
   useEffect(() => {
     loadCustomers();
   }, [loadCustomers]);
-
-  const handleSort = (column) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(column);
-      setSortOrder('asc');
-    }
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -133,14 +85,26 @@ const CustomerManager = () => {
       newErrors.fullName = 'Vui lòng nhập họ tên';
     }
 
+    if (!formData.email.trim()) {
+      newErrors.email = 'Vui lòng nhập email';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Email không hợp lệ';
+    }
+
     if (!formData.phone.trim()) {
       newErrors.phone = 'Vui lòng nhập số điện thoại';
     } else if (!/^[0-9]{10}$/.test(formData.phone)) {
       newErrors.phone = 'Số điện thoại không hợp lệ';
     }
 
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email không hợp lệ';
+    if (!formData.gender) {
+      newErrors.gender = 'Vui lòng chọn giới tính';
+    }
+
+    if (!formData.password.trim()) {
+      newErrors.password = 'Vui lòng nhập mật khẩu';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
     }
 
     setErrors(newErrors);
@@ -157,21 +121,43 @@ const CustomerManager = () => {
     setSubmitting(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      
+      if (!token) {
+        toast.error('Vui lòng đăng nhập để thêm khách hàng');
+        return;
+      }
 
-      toast.success('Thêm khách hàng thành công!');
-      setShowModal(false);
-      setFormData({
-        fullName: '',
-        phone: '',
-        email: '',
-        gender: 'MALE',
-        dateOfBirth: ''
-      });
-      loadCustomers();
+      const payload = {
+        phone: formData.phone,
+        fullName: formData.fullName,
+        email: formData.email,
+        // Backend có thể cần thêm các trường này nếu hỗ trợ
+        // gender: formData.gender,
+        // username: formData.username,
+        // password: formData.password,
+        // sendNotification: formData.sendNotification
+      };
+
+      const response = await createCustomer(payload, token);
+
+      if (response?.success) {
+        toast.success('Thêm khách hàng thành công!');
+        setShowModal(false);
+        setFormData({
+          fullName: '',
+          email: '',
+          phone: '',
+          gender: '',
+          password: '',
+          sendNotification: false
+        });
+        setCurrentPage(1);
+        loadCustomers();
+      }
     } catch (error) {
       console.error('Error adding customer:', error);
-      toast.error('Thêm khách hàng thất bại');
+      toast.error(error.message || 'Thêm khách hàng thất bại');
     } finally {
       setSubmitting(false);
     }
@@ -262,11 +248,6 @@ const CustomerManager = () => {
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-  const renderSortIcon = (column) => {
-    if (sortBy !== column) return <span className={styles.sortIcon}>↕</span>;
-    return <span className={styles.sortIcon}>{sortOrder === 'asc' ? '↑' : '↓'}</span>;
-  };
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -288,32 +269,13 @@ const CustomerManager = () => {
         </div>
 
         <div className={styles.filters}>
-          <select
-            className={styles.filterSelect}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+          <button 
+            className={styles.refreshButton}
+            onClick={() => loadCustomers()}
+            title="Làm mới"
           >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="ACTIVE">Hoạt động</option>
-            <option value="INACTIVE">Không hoạt động</option>
-          </select>
-
-          <select
-            className={styles.sortSelect}
-            value={`${sortBy}-${sortOrder}`}
-            onChange={(e) => {
-              const [by, order] = e.target.value.split('-');
-              setSortBy(by);
-              setSortOrder(order);
-            }}
-          >
-            <option value="createdAt-desc">Mới nhất</option>
-            <option value="createdAt-asc">Cũ nhất</option>
-            <option value="fullName-asc">Tên A-Z</option>
-            <option value="fullName-desc">Tên Z-A</option>
-            <option value="totalBookings-desc">Nhiều booking</option>
-            <option value="totalBookings-asc">Ít booking</option>
-          </select>
+            🔄 Làm mới
+          </button>
         </div>
       </div>
 
@@ -333,22 +295,16 @@ const CustomerManager = () => {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th className={styles.sortable} onClick={() => handleSort('fullName')}>
-                    Khách hàng {renderSortIcon('fullName')}
-                  </th>
+                  <th>Khách hàng</th>
                   <th>Số điện thoại</th>
-                  <th className={styles.sortable} onClick={() => handleSort('status')}>
-                    Trạng thái {renderSortIcon('status')}
-                  </th>
-                  <th className={styles.sortable} onClick={() => handleSort('totalBookings')}>
-                    Booking {renderSortIcon('totalBookings')}
-                  </th>
+                  <th>Trạng thái</th>
+                  <th>Booking</th>
                   <th>Hành động</th>
                 </tr>
               </thead>
               <tbody>
                 {customers.map(customer => (
-                  <tr key={customer.id}>
+                  <tr key={customer.customerId || customer.id}>
                     <td>
                       <div className={styles.customerInfo}>
                         <div className={styles.avatar}>{getInitials(customer.fullName)}</div>
@@ -359,31 +315,31 @@ const CustomerManager = () => {
                     </td>
                     <td>{customer.phone}</td>
                     <td>
-                      <span className={`${styles.statusBadge} ${getStatusBadgeClass(customer.status)}`}>
-                        {getStatusText(customer.status)}
+                      <span className={`${styles.statusBadge} ${getStatusBadgeClass(customer.status || 'ACTIVE')}`}>
+                        {getStatusText(customer.status || 'ACTIVE')}
                       </span>
                     </td>
-                    <td>{customer.totalBookings}</td>
+                    <td>{customer.totalBookings || 0}</td>
                     <td>
                       <div className={styles.actionButtons}>
                         <button
                           className={`${styles.actionBtn} ${styles.viewBtn}`}
-                          onClick={() => navigate(`/customer-profile/${customer.id}`)}
+                          onClick={() => navigate(`/customer-profile/${customer.customerId || customer.id}`)}
                           title="Xem chi tiết"
                         >
                           👁️
                         </button>
                         <button
                           className={`${styles.actionBtn} ${styles.editBtn}`}
-                          onClick={() => navigate(`/customer-profile/${customer.id}`)}
+                          onClick={() => navigate(`/customer-profile/${customer.customerId || customer.id}`)}
                           title="Chỉnh sửa"
                         >
                           ✏️
                         </button>
-                        {customer.status === 'ACTIVE' ? (
+                        {(customer.status || 'ACTIVE') === 'ACTIVE' ? (
                           <button
                             className={`${styles.actionBtn} ${styles.lockBtn}`}
-                            onClick={() => handleLockAccount(customer.id)}
+                            onClick={() => handleLockAccount(customer.customerId || customer.id)}
                             title="Khóa tài khoản"
                           >
                             🔒
@@ -391,7 +347,7 @@ const CustomerManager = () => {
                         ) : (
                           <button
                             className={`${styles.actionBtn} ${styles.unlockBtn}`}
-                            onClick={() => handleUnlockAccount(customer.id)}
+                            onClick={() => handleUnlockAccount(customer.customerId || customer.id)}
                             title="Mở khóa tài khoản"
                           >
                             🔓
@@ -399,7 +355,7 @@ const CustomerManager = () => {
                         )}
                         <button
                           className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                          onClick={() => handleDeleteAccount(customer.id)}
+                          onClick={() => handleDeleteAccount(customer.customerId || customer.id)}
                           title="Xóa tài khoản"
                         >
                           🗑️
@@ -472,7 +428,22 @@ const CustomerManager = () => {
 
                 <div className={styles.formGroup}>
                   <label className={styles.label}>
-                    Số điện thoại <span className={styles.required}>*</span>
+                    Email <span className={styles.required}>*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
+                    placeholder="email@example.com"
+                  />
+                  {errors.email && <span className={styles.errorText}>{errors.email}</span>}
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    SĐT <span className={styles.required}>*</span>
                   </label>
                   <input
                     type="tel"
@@ -486,51 +457,81 @@ const CustomerManager = () => {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
-                    placeholder="email@example.com"
-                  />
-                  {errors.email && <span className={styles.errorText}>{errors.email}</span>}
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Giới tính</label>
+                  <label className={styles.label}>
+                    Giới tính <span className={styles.required}>*</span>
+                  </label>
                   <select
                     name="gender"
                     value={formData.gender}
                     onChange={handleInputChange}
-                    className={styles.select}
+                    className={`${styles.select} ${errors.gender ? styles.inputError : ''}`}
                   >
+                    <option value="">Chọn giới tính</option>
                     <option value="MALE">Nam</option>
                     <option value="FEMALE">Nữ</option>
                     <option value="OTHER">Khác</option>
                   </select>
+                  {errors.gender && <span className={styles.errorText}>{errors.gender}</span>}
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Ngày sinh</label>
-                  <input
-                    type="date"
-                    name="dateOfBirth"
-                    value={formData.dateOfBirth}
-                    onChange={handleInputChange}
-                    className={styles.input}
-                  />
+                  <label className={styles.label}>
+                    Mật khẩu tạm <span className={styles.required}>*</span>
+                  </label>
+                  <div className={styles.passwordGroup}>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className={`${styles.input} ${errors.password ? styles.inputError : ''}`}
+                      placeholder="Nhập mật khẩu"
+                    />
+                    <button
+                      type="button"
+                      className={styles.generateBtn}
+                      onClick={() => {
+                        const randomPassword = Math.random().toString(36).slice(-8);
+                        setFormData(prev => ({ ...prev, password: randomPassword }));
+                        if (errors.password) {
+                          setErrors(prev => ({ ...prev, password: '' }));
+                        }
+                      }}
+                    >
+                      Tạo ngẫu nhiên
+                    </button>
+                  </div>
+                  {errors.password && <span className={styles.errorText}>{errors.password}</span>}
                 </div>
               </div>
 
+              <div className={styles.formGroup}>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    name="sendNotification"
+                    checked={formData.sendNotification}
+                    onChange={(e) => setFormData(prev => ({ ...prev, sendNotification: e.target.checked }))}
+                    className={styles.checkbox}
+                  />
+                  <span>Gửi email thông báo</span>
+                </label>
+              </div>
+
               <div className={styles.modalFooter}>
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={() => setShowModal(false)}
+                >
+                  Hủy
+                </button>
                 <button
                   type="submit"
                   className={styles.submitButton}
                   disabled={submitting}
                 >
-                  {submitting ? 'Đang lưu...' : 'Lưu'}
+                  {submitting ? 'Đang tạo...' : 'Tạo tài khoản'}
                 </button>
               </div>
             </form>
