@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import styles from './StaffAttendance.module.css';
 import { fetchStaffAttendance } from '../../../services/staffService.js';
 
@@ -34,7 +34,7 @@ const StaffAttendance = () => {
   };
 
   // Transform API response to display format
-  const transformAttendanceData = (data) => {
+  const transformAttendanceData = useCallback((data) => {
     return data.map((item, index) => {
       // Backend returns: attendanceDate (LocalDate), morningStatus, afternoonStatus
       return {
@@ -47,7 +47,7 @@ const StaffAttendance = () => {
         updated_at: `${item.attendanceDate} 17:30:00`,
       };
     });
-  };
+  }, [staffInfo.id]);
 
   // Fetch attendance data on mount
   useEffect(() => {
@@ -119,7 +119,7 @@ const StaffAttendance = () => {
     };
 
     loadAttendance();
-  }, []);
+  }, [transformAttendanceData]);
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -175,23 +175,6 @@ const StaffAttendance = () => {
     if (!date) return false;
     const day = date.getDay();
     return day === 0 || day === 6;
-  };
-
-  const getDayStatusClass = (attendance) => {
-    if (!attendance) return '';
-    if (attendance.morning_status === 'ABSENT' || attendance.afternoon_status === 'ABSENT') {
-      return styles.statusAbsent;
-    }
-    if (attendance.morning_status === 'LATE' || attendance.afternoon_status === 'LATE') {
-      return styles.statusLate;
-    }
-    if (attendance.morning_status === 'OFF' || attendance.afternoon_status === 'OFF') {
-      return styles.statusOff;
-    }
-    if (attendance.morning_status === 'PRESENT' || attendance.afternoon_status === 'PRESENT') {
-      return styles.statusPresent;
-    }
-    return styles.statusNotYet;
   };
 
   // Statistics based on DB fields
