@@ -214,7 +214,7 @@ export default function CheckIn() {
     };
 
     // Hàm gọi API để lấy thông tin chi tiết về booking dựa trên mã code
-    const handleLookupBooking = async () => {
+    const handleLookupBooking = useCallback(async () => {
         const code = String(bookingCode || '').trim();
         if (!code) return;
 
@@ -231,14 +231,14 @@ export default function CheckIn() {
         } finally {
             setIsLookupLoading(false);
         }
-    };
+    }, [bookingCode, notify]);
 
     // Tự động tìm kiếm booking khi trang vừa được load
     useEffect(() => {
         const code = String(bookingCode || '').trim();
         if (!code) return;
         handleLookupBooking();
-    }, []);
+    }, [bookingCode, handleLookupBooking]);
 
     // Xác định thông tin xe đang được chọn trong danh sách để hiển thị chi tiết
     const selectedVehicle = useMemo(() => {
