@@ -34,7 +34,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 18px;
 }
 
@@ -47,7 +47,7 @@
 .dayslot-badge {
   padding: 6px 10px;
   border-radius: 10px;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
   border: 1px solid transparent;
 }
@@ -104,7 +104,7 @@
 
 .dayslot-listTitle {
   margin: 0;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 16px;
 }
 
@@ -128,7 +128,7 @@
 
 .dayslot-code {
   color: #0a63c8;
-  font-weight: 800;
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -138,7 +138,7 @@
   border: 1px solid #c9ead8;
   background: #e7f7ef;
   color: #0f8346;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
 }
 
@@ -161,7 +161,7 @@
 }
 
 .dayslot-fieldValue {
-  font-weight: 700;
+  font-weight: 400;
   color: #1f2a37;
 }
 
@@ -181,7 +181,7 @@
   padding: 10px 14px;
   border-radius: 10px;
   border: 1px solid transparent;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
 }
 

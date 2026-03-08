@@ -13,7 +13,7 @@
 
 .title {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 400;
   margin: 0 0 10px;
 }
 
@@ -28,12 +28,12 @@
 }
 
 .infoLabel {
-  font-weight: 700;
+  font-weight: 400;
   margin-right: 8px;
 }
 
 .infoValue {
-  font-weight: 700;
+  font-weight: 400;
   text-decoration: underline;
 }
 
@@ -50,7 +50,7 @@
 
 .stepTitle {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 400;
   margin: 0 0 12px;
 }
 
@@ -111,7 +111,7 @@
 
 .photoLabel {
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 /* Smaller preview for per-category photos */
@@ -169,7 +169,7 @@
   color: var(--ui-text, #0a0f1c);
   font-size: 18px;
   line-height: 1;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
   display: inline-flex;
   align-items: center;

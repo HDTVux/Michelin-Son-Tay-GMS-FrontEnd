@@ -14,6 +14,9 @@ const CustomerManager = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sortField, setSortField] = useState('fullName');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,6 +50,9 @@ const CustomerManager = () => {
         page: currentPage - 1, // Backend uses 0-based index
         size: itemsPerPage,
         search: searchTerm || undefined,
+        status: statusFilter !== 'ALL' ? statusFilter : undefined,
+        sortBy: sortField,
+        sortDirection: sortDirection.toUpperCase(),
       };
 
       const response = await fetchAllCustomers(params, token);
@@ -64,7 +70,7 @@ const CustomerManager = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, currentPage]);
+  }, [searchTerm, currentPage, statusFilter, sortField, sortDirection]);
 
   useEffect(() => {
     loadCustomers();
@@ -228,7 +234,7 @@ const CustomerManager = () => {
       try {
         // Remove from UI immediately
         setCustomers(prevCustomers => 
-          prevCustomers.filter(customer => customer.id !== customerId)
+          prevCustomers.filter(customer => (customer.customerId || customer.id) !== customerId)
         );
         setTotalItems(prev => prev - 1);
         
@@ -240,10 +246,6 @@ const CustomerManager = () => {
         loadCustomers(); // Reload on error
       }
     }
-  };
-
-  const getInitials = (name) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -264,11 +266,45 @@ const CustomerManager = () => {
             type="text"
             placeholder="Tìm kiếm..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
 
         <div className={styles.filters}>
+          <select 
+            className={styles.filterSelect}
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="ACTIVE">Hoạt động</option>
+            <option value="INACTIVE">Không hoạt động</option>
+          </select>
+
+          <select 
+            className={styles.sortSelect}
+            value={`${sortField}-${sortDirection}`}
+            onChange={(e) => {
+              const [field, direction] = e.target.value.split('-');
+              setSortField(field);
+              setSortDirection(direction);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="fullName-asc">Tên A-Z</option>
+            <option value="fullName-desc">Tên Z-A</option>
+            <option value="createdAt-desc">Mới nhất</option>
+            <option value="createdAt-asc">Cũ nhất</option>
+            <option value="totalBookings-desc">Booking nhiều nhất</option>
+            <option value="totalBookings-asc">Booking ít nhất</option>
+          </select>
+
           <button 
             className={styles.refreshButton}
             onClick={() => loadCustomers()}
@@ -295,6 +331,7 @@ const CustomerManager = () => {
             <table className={styles.table}>
               <thead>
                 <tr>
+                  <th>STT</th>
                   <th>Khách hàng</th>
                   <th>Số điện thoại</th>
                   <th>Trạng thái</th>
@@ -303,15 +340,11 @@ const CustomerManager = () => {
                 </tr>
               </thead>
               <tbody>
-                {customers.map(customer => (
+                {customers.map((customer, index) => (
                   <tr key={customer.customerId || customer.id}>
+                    <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
                     <td>
-                      <div className={styles.customerInfo}>
-                        <div className={styles.avatar}>{getInitials(customer.fullName)}</div>
-                        <div className={styles.customerDetails}>
-                          <span className={styles.customerName}>{customer.fullName}</span>
-                        </div>
-                      </div>
+                      <span className={styles.customerName}>{customer.fullName}</span>
                     </td>
                     <td>{customer.phone}</td>
                     <td>
@@ -327,14 +360,14 @@ const CustomerManager = () => {
                           onClick={() => navigate(`/customer-profile/${customer.customerId || customer.id}`)}
                           title="Xem chi tiết"
                         >
-                          👁️
+                          Xem
                         </button>
                         <button
                           className={`${styles.actionBtn} ${styles.editBtn}`}
                           onClick={() => navigate(`/customer-profile/${customer.customerId || customer.id}`)}
                           title="Chỉnh sửa"
                         >
-                          ✏️
+                          Sửa
                         </button>
                         {(customer.status || 'ACTIVE') === 'ACTIVE' ? (
                           <button
@@ -342,7 +375,7 @@ const CustomerManager = () => {
                             onClick={() => handleLockAccount(customer.customerId || customer.id)}
                             title="Khóa tài khoản"
                           >
-                            🔒
+                            Khóa
                           </button>
                         ) : (
                           <button
@@ -350,7 +383,7 @@ const CustomerManager = () => {
                             onClick={() => handleUnlockAccount(customer.customerId || customer.id)}
                             title="Mở khóa tài khoản"
                           >
-                            🔓
+                            Mở khóa
                           </button>
                         )}
                         <button
@@ -358,7 +391,7 @@ const CustomerManager = () => {
                           onClick={() => handleDeleteAccount(customer.customerId || customer.id)}
                           title="Xóa tài khoản"
                         >
-                          🗑️
+                          Xóa
                         </button>
                       </div>
                     </td>

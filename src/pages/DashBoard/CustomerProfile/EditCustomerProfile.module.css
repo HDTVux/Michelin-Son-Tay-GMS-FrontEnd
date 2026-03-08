@@ -38,7 +38,7 @@
 
 .title {
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a202c;
   margin: 0;
 }
@@ -87,7 +87,7 @@
 
 .cardTitle {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 400;
   color: #2d3748;
   margin: 0;
 }
@@ -316,7 +316,7 @@
 
 .sidebarTitle {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   color: #2d3748;
   margin: 0;
 }
@@ -368,7 +368,7 @@
 
 .statValue {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
   color: #2d3748;
 }
 
@@ -436,7 +436,7 @@
 
 .editTitle {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   color: #744210;
   text-align: left;
 }
@@ -509,7 +509,7 @@
 
 .successTitle {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 400;
   color: #2d3748;
   margin: 0 0 12px 0;
 }

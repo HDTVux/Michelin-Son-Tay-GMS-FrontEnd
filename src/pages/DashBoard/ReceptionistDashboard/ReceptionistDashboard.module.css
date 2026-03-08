@@ -20,7 +20,7 @@
 
 .title {
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   margin: 0 0 8px 0;
 }
@@ -113,7 +113,7 @@
 
 .kpiValue {
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   margin-bottom: 4px;
 }
@@ -140,7 +140,7 @@
 
 .chartTitle {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   margin: 0 0 20px 0;
 }
@@ -154,7 +154,7 @@
 
 .sectionTitle {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   margin: 0 0 20px 0;
 }
@@ -196,7 +196,7 @@
 
 .scheduleTime {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   min-width: 80px;
 }

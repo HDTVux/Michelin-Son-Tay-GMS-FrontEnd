@@ -44,7 +44,7 @@
 
 .title {
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 400;
   color: #2d3748;
   margin: 0;
 }
@@ -139,7 +139,7 @@
 
 .statValue {
   font-size: 32px;
-  font-weight: 700;
+  font-weight: 400;
   color: #2d3748;
   line-height: 1;
   margin-bottom: 4px;
@@ -282,7 +282,7 @@
 
 .weekDay {
   text-align: center;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 14px;
   color: #4a5568;
   padding: 12px 0;
@@ -336,7 +336,7 @@
 
 .dayNumber {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   color: #2d3748;
   margin-bottom: 8px;
 }
@@ -358,7 +358,7 @@
 }
 
 .aptTime {
-  font-weight: 700;
+  font-weight: 400;
   font-size: 10px;
 }
 
@@ -396,7 +396,7 @@
   padding: 16px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 14px;
 }
 
@@ -478,7 +478,7 @@
 }
 
 .legendTitle {
-  font-weight: 700;
+  font-weight: 400;
   color: #2d3748;
   font-size: 14px;
 }

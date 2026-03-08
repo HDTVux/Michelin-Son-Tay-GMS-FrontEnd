@@ -20,7 +20,7 @@
 
 .title {
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   margin: 0 0 8px 0;
 }
@@ -107,7 +107,7 @@
 
 .statValue {
   font-size: 32px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   line-height: 1;
   margin-bottom: 4px;
@@ -230,7 +230,7 @@
 
 .licensePlate {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
@@ -505,7 +505,7 @@
 
 .modalTitle {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   margin: 0;
 }
@@ -542,7 +542,7 @@
 
 .detailSectionTitle {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   margin: 0 0 16px 0;
   padding-bottom: 8px;

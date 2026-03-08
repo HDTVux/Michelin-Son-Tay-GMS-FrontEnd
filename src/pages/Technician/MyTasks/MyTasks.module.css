@@ -24,7 +24,7 @@
 
 .title {
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   margin: 0 0 8px 0;
 }
@@ -113,7 +113,7 @@
 
 .statValue {
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   margin-bottom: 4px;
 }
@@ -220,7 +220,7 @@
 
 .taskTitle {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
   margin: 0;
 }
