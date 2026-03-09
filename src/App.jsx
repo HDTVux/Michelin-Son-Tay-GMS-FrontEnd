@@ -120,7 +120,10 @@ export default function App() {
           <Route path="staff-attendance" element={<StaffAttendance />} />
           <Route path="technician-tasks" element={<TechnicianTasks />} />
           <Route path="assign-advisor" element={<AssignAdvisor />} />
+<<<<<<< HEAD
           <Route path="service-ticket/:ticketCode" element={<ServiceTicketDetail />} />
+=======
+>>>>>>> 6a2900b25b5216315cac46d01f5bf06ca684da7d
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="ticket-assignment" element={<TicketAssignment />} />

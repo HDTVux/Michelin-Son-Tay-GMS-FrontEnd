@@ -145,7 +145,7 @@ export default function ServiceTicketManagement() {
 								setError('Phiếu này chưa có ticketCode nên không thể xem chi tiết.');
 								return;
 							}
-							navigate(`/service-ticket/${encodeURIComponent(code)}`, { state: { ticket } });
+							navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
 						}}
 						actionLabel={`${totalElements} phiếu`}
 					/>

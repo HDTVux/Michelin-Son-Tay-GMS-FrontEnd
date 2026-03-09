@@ -51,7 +51,6 @@ export const fetchServiceTicketDetail = (ticketCode, token) => {
 };
 
 // Chỉnh sửa phiếu dịch vụ theo ticketCode
-// Body: { customerRequest: string, serviceIds: number[] }
 export const updateServiceTicket = (ticketCode, payload, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để chỉnh sửa phiếu dịch vụ.');
