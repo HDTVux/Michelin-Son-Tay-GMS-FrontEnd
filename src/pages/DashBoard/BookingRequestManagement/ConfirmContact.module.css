@@ -22,7 +22,7 @@
 .confirmContact__header h3 {
   margin: 0 0 6px;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1f1f1f;
 }
 
@@ -79,7 +79,7 @@
   padding: 10px 16px;
   border-radius: 8px;
   border: 1px solid transparent;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   font-size: 14px;
 }

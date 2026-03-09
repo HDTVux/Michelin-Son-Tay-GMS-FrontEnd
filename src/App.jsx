@@ -29,6 +29,9 @@ import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 import DailySchedule from './pages/DashBoard/DailySchedule/DailySchedule.jsx';
 import EditCustomerProfile from './pages/DashBoard/CustomerProfile/EditCustomerProfile.jsx';
 import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.jsx';
+import TechnicianTasks from './pages/DashBoard/TechnicianTasks/TechnicianTasks.jsx';
+import AssignAdvisor from './pages/DashBoard/AssignAdvisor/AssignAdvisor.jsx';
+import CreateServiceTicket from './pages/DashBoard/ServiceTicketManagement/CreateServiceTicket.jsx';
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
 import ServiceTicketDetail from './pages/DashBoard/ServiceTicketManagement/ServiceTicketDetail.jsx';
 import ServiceTicketManagement from './pages/DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
@@ -116,6 +119,9 @@ export default function App() {
           <Route path="daily-schedule" element={<DailySchedule />} />
           <Route path="customer-profile/:customerId" element={<EditCustomerProfile />} />
           <Route path="staff-attendance" element={<StaffAttendance />} />
+          <Route path="technician-tasks" element={<TechnicianTasks />} />
+          <Route path="assign-advisor" element={<AssignAdvisor />} />
+          <Route path="create-service-ticket" element={<CreateServiceTicket />} />
           <Route path="service-ticket/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />

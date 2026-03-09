@@ -23,7 +23,7 @@
 
 .headerTitle {
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .errorBanner {
@@ -33,7 +33,7 @@
   padding: 12px;
   border-radius: 10px;
   margin-bottom: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .loadingBox,
@@ -82,14 +82,14 @@
 
 .requestId {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 400;
   color: #0f172a;
 }
 
 .statusPill {
   padding: 8px 12px;
   border-radius: 999px;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
   border: 1px solid transparent;
 }
@@ -112,7 +112,7 @@
 .sectionTitle {
   margin: 0;
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 400;
   color: #0f172a;
 }
 
@@ -140,13 +140,13 @@
 }
 
 .value {
-  font-weight: 700;
+  font-weight: 400;
   color: #0f172a;
 }
 
 .link {
   color: #0b63e5;
-  font-weight: 700;
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -157,7 +157,7 @@
   color: white;
   border-radius: 10px;
   padding: 8px 10px;
-  font-weight: 700;
+  font-weight: 400;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -185,7 +185,7 @@
   color: #0ea5e9;
   padding: 8px 12px;
   border-radius: 999px;
-  font-weight: 800;
+  font-weight: 400;
   width: fit-content;
 }
 
@@ -210,7 +210,7 @@
   border: none;
   border-radius: 10px;
   padding: 12px 14px;
-  font-weight: 800;
+  font-weight: 400;
   color: white;
   cursor: pointer;
   min-width: 120px;
@@ -250,12 +250,12 @@
   border: 1px solid #d1d5db;
   border-radius: 8px;
   padding: 8px 10px;
-  font-weight: 700;
+  font-weight: 400;
   color: #0f172a;
   background: #ffffff;
 }
 
-.scheduleTitle { font-weight: 800; margin: 0; }
+.scheduleTitle { font-weight: 400; margin: 0; }
 
 .scheduleSub { margin: 0; color: #6b7280; font-size: 13px; }
 
@@ -278,7 +278,7 @@
   background: #f8fafc;
 }
 
-.slotTime { font-weight: 800; }
+.slotTime { font-weight: 400; }
 
 .slotCustomers { display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -287,7 +287,7 @@
   color: #0ea5e9;
   border-radius: 999px;
   padding: 6px 10px;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
 }
 
@@ -295,14 +295,14 @@
 
 .slotMeta { display: flex; align-items: center; gap: 8px; }
 
-.slotQuota { font-weight: 800; }
+.slotQuota { font-weight: 400; }
 
 .slotTag {
   background: #16a34a;
   color: white;
   border-radius: 999px;
   padding: 6px 10px;
-  font-weight: 800;
+  font-weight: 400;
   font-size: 12px;
 }
 

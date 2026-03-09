@@ -54,7 +54,7 @@
 	background: var(--ui-surface-2);
 	border: 1px solid var(--ui-border);
 	color: var(--ui-muted);
-	font-weight: 800;
+	font-weight: 400;
 	font-size: 13px;
 	white-space: nowrap;
 }
@@ -113,13 +113,13 @@
 
 .kvLabel {
 	font-size: 14px;
-	font-weight: 800;
+	font-weight: 400;
 	color: var(--ui-muted);
 }
 
 .kvValue {
 	font-size: 14px;
-	font-weight: 800;
+	font-weight: 400;
 	color: var(--ui-text);
 	line-height: 1.5;
 }
@@ -168,7 +168,7 @@
 
 .serviceName {
 	font-size: 14px;
-	font-weight: 800;
+	font-weight: 400;
 	color: var(--ui-text);
 }
 
@@ -192,7 +192,7 @@
 	background: transparent;
 	color: var(--ui-text);
 	font-size: 13px;
-	font-weight: 800;
+	font-weight: 400;
 }
 
 .timeline {
@@ -209,7 +209,7 @@
 	align-items: center;
 	gap: 10px;
 	color: var(--ui-muted);
-	font-weight: 800;
+	font-weight: 400;
 	font-size: 14px;
 }
 

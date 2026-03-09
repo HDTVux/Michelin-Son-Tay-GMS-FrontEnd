@@ -3,11 +3,11 @@ import SideBar from './Sidebar/SideBar.jsx';
 import './StaffLayout.css';
 
 const StaffLayout = () => {
-  const token = localStorage.getItem('authToken');
+  // const token = localStorage.getItem('authToken');
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
+  // if (!token) {
+  //   return <Navigate to="/login" replace />;
+  // }
 
   return (
     <div className="staffLayout">
