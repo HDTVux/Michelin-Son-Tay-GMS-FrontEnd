@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
-import { fetchServiceTicketDetail, updateServiceTicket } from '../../../services/serviceTicketService.js';
 import { toast } from 'react-toastify';
-import { fetchHomeServices } from '../../../services/homeService.js';
+import AdvisorItemsTable from './AdvisorItemsTable.jsx';
+import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHooks.js';
 import styles from './ServiceTicketDetail.module.css';
 
 const TIMELINE_STEPS = [
@@ -15,6 +15,26 @@ const TIMELINE_STEPS = [
 	{ key: 'inProgress', label: 'In Progress' },
 	{ key: 'completed', label: 'Completed' },
 ];
+
+const STAFF_ROLE = {
+	ADVISOR: 'ADVISOR',
+	RECEPTIONIST: 'RECEPTIONIST',
+};
+
+function readStaffRolesFromStorage() {
+	try {
+		const raw = localStorage.getItem('staffRoles');
+		if (!raw) return [];
+		const parsed = JSON.parse(raw);
+		if (!Array.isArray(parsed)) return [];
+		return parsed
+			.filter((r) => typeof r === 'string')
+			.map((r) => r.trim().toUpperCase())
+			.filter(Boolean);
+	} catch {
+		return [];
+	}
+}
 
 function toTitleCaseFromCode(value) {
 	const raw = String(value || '').trim();
@@ -29,12 +49,6 @@ function toTitleCaseFromCode(value) {
 		.replaceAll(/\b\w/g, (m) => m.toUpperCase());
 }
 
-function formatCurrencyVnd(value) {
-	const n = typeof value === 'number' ? value : Number(value);
-	if (!Number.isFinite(n)) return '-';
-	return `${new Intl.NumberFormat('vi-VN').format(n)} VND`;
-}
-
 function resolveActiveStepIndex(statusLike) {
 	const raw = String(statusLike || '').trim();
 	if (!raw) return 2;
@@ -47,6 +61,12 @@ function resolveActiveStepIndex(statusLike) {
 	if (upper.includes('CHECK_IN') || upper.includes('CHECKIN') || upper.includes('ARRIVED')) return 0;
 
 	return 2;
+}
+
+function formatCurrencyVnd(value) {
+	const n = typeof value === 'number' ? value : Number(value);
+	if (!Number.isFinite(n)) return '-';
+	return `${new Intl.NumberFormat('vi-VN').format(n)} VND`;
 }
 
 function normalizeOdometerKm(value) {
@@ -139,13 +159,6 @@ function normalizeTicket(input, codeFallback) {
 	};
 }
 
-function extractServiceIdsFromTicket(ticketLike) {
-	const list = Array.isArray(ticketLike?.services) ? ticketLike.services : [];
-	return list
-		.map((s) => s?.serviceId ?? s?.id)
-		.map(Number)
-		.filter((n) => Number.isFinite(n) && n > 0);
-}
 
 function InfoBlock({ title, rows }) {
 	return (
@@ -163,74 +176,82 @@ function InfoBlock({ title, rows }) {
 	);
 }
 
+function TimelineBlock({ activeStepIndex }) {
+	return (
+		<section className={styles.block}>
+			<h2 className={styles.blockTitle}>Timeline</h2>
+			<ol className={styles.timeline}>
+				{TIMELINE_STEPS.map((step, idx) => {
+					const isCompleted = idx < activeStepIndex;
+					const isActive = idx === activeStepIndex;
+					return (
+						<li
+							key={step.key}
+							className={`${styles.timelineItem} ${isCompleted ? styles.isCompleted : ''} ${
+								isActive ? styles.isActive : ''
+							}`}
+						>
+							<span className={styles.dot} aria-hidden="true" />
+							<span className={styles.timelineLabel}>{step.label}</span>
+						</li>
+					);
+				})}
+			</ol>
+		</section>
+	);
+}
+
+function RoleBasedSections({ showTimeline, activeStepIndex, showAdvisorTable }) {
+	if (!showTimeline && !showAdvisorTable) return null;
+	return (
+		<>
+			{showTimeline ? <TimelineBlock activeStepIndex={activeStepIndex} /> : null}
+			{showAdvisorTable ? <AdvisorItemsTable /> : null}
+		</>
+	);
+}
+
 export default function ServiceTicketDetail() {
 	useScrollToTop();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const params = useParams();
-	const [ticketRaw, setTicketRaw] = useState(null);
-	const [isLoading, setIsLoading] = useState(true);
-	const [isEditing, setIsEditing] = useState(false);
-	const [isSaving, setIsSaving] = useState(false);
-	const [error, setError] = useState('');
-	const [services, setServices] = useState([]);
-	const [servicesLoading, setServicesLoading] = useState(false);
-	const [servicesError, setServicesError] = useState('');
-	const [selectedServiceIds, setSelectedServiceIds] = useState([]);
-	const [editForm, setEditForm] = useState({
-		customerRequest: '',
-	});
+	const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
+	const hasReceptionistRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
+	const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
 
 	const ticketCodeParam = String(params?.ticketCode || '').trim();
 	const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
 
-	useEffect(() => {
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setError('Vui lòng đăng nhập để xem chi tiết phiếu dịch vụ.');
-			setIsLoading(false);
-			return;
-		}
-
-		if (!ticketCodeParam) {
-			setError('Thiếu ticketCode để xem chi tiết.');
-			setIsLoading(false);
-			return;
-		}
-
-		let ignore = false;
-		const load = async () => {
-			try {
-				setIsLoading(true);
-				setError('');
-				const res = await fetchServiceTicketDetail(ticketCodeParam, token);
-				if (ignore) return;
-				setTicketRaw(res?.data ?? null);
-			} catch (err) {
-				if (ignore) return;
-				const msg = err?.message || 'Không thể tải chi tiết phiếu dịch vụ.';
-				const isUnauthorized = err?.status === 401 || err?.status === 403;
-				if (isUnauthorized) {
-					localStorage.removeItem('authToken');
-					setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-				} else {
-					setError(msg);
-				}
-				// fallback: if we have state ticket, keep showing it
-				setTicketRaw((prev) => prev ?? ticketFromState ?? null);
-			} finally {
-				if (!ignore) setIsLoading(false);
-			}
-		};
-		load();
-		return () => {
-			ignore = true;
-		};
-	}, [ticketCodeParam, ticketFromState]);
-
-	const ticket = useMemo(() => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam), [ticketRaw, ticketFromState, ticketCodeParam]);
+	const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
+		ticketCodeParam,
+		ticketFromState,
+	);
+	const notify = (message) => toast(message, { containerId: 'app-toast' });
+	const ticket = useMemo(
+		() => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam),
+		[ticketRaw, ticketFromState, ticketCodeParam],
+	);
 	const activeStepIndex = resolveActiveStepIndex(ticket?.timelineStatus || ticket?.statusLabel);
 	const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable);
+
+	const {
+		isEditing,
+		isSaving,
+		editForm,
+		setEditForm,
+		toggleEdit,
+		cancelEdit,
+		saveEdit,
+	} = useServiceTicketEditing({
+		ticketCodeParam,
+		isImmutable,
+		ticketRaw,
+		ticket,
+		setTicketRaw,
+		setError,
+		notify,
+	});
 
 	const receivedAtDisplay = ticket?.receivedAt ? formatDateTimeViNoSeconds(ticket.receivedAt, '-') : '-';
 	const handoverAtDisplay = ticket?.handoverAt ? formatDateTimeViNoSeconds(ticket.handoverAt, '-') : '-';
@@ -242,118 +263,6 @@ export default function ServiceTicketDetail() {
 	const handlePrint = () => {
 		if (typeof globalThis?.print === 'function') globalThis.print();
 	};
-	const handleEdit = () => {
-		if (isSaving) return;
-		if (isImmutable) {
-			setError('Phiếu dịch vụ này không thể chỉnh sửa.');
-			return;
-		}
-
-		setError('');
-		setIsEditing((prev) => {
-			const next = !prev;
-			if (next) {
-				const request = String(ticketRaw?.customerRequest ?? ticket?.requestNote ?? '').trim();
-				const ids = extractServiceIdsFromTicket(ticketRaw ?? ticket).map(String);
-				setEditForm({
-					customerRequest: request,
-				});
-				setSelectedServiceIds(ids);
-			}
-			return next;
-		});
-	};
-
-	const notify = (message) => toast(message, { containerId: 'app-toast' });
-
-	const handleSaveEdit = async () => {
-		if (isSaving) return;
-		if (!ticketCodeParam) {
-			setError('Thiếu ticketCode để cập nhật.');
-			return;
-		}
-		if (isImmutable) {
-			setError('Phiếu dịch vụ này không thể chỉnh sửa.');
-			return;
-		}
-
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setError('Vui lòng đăng nhập để lưu thay đổi.');
-			return;
-		}
-
-		const customerRequest = String(editForm.customerRequest || '').trim();
-		const serviceIds = (Array.isArray(selectedServiceIds) ? selectedServiceIds : [])
-			.map(Number)
-			.filter((n) => Number.isFinite(n) && n > 0);
-		if (!serviceIds.length) {
-			setError('Vui lòng chọn ít nhất 1 dịch vụ.');
-			return;
-		}
-
-		try {
-			setIsSaving(true);
-			setError('');
-			const res = await updateServiceTicket(
-				ticketCodeParam,
-				{
-					customerRequest,
-					serviceIds,
-				},
-				token,
-			);
-
-			setTicketRaw(res?.data ?? null);
-			setIsEditing(false);
-			notify(res?.message || 'Cập nhật phiếu dịch vụ thành công.');
-		} catch (err) {
-			setError(err?.message || 'Không thể cập nhật phiếu dịch vụ.');
-		} finally {
-			setIsSaving(false);
-		}
-	};
-
-	const toggleService = (id) => {
-		setSelectedServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-	};
-
-	useEffect(() => {
-		if (!isEditing) return;
-
-		let active = true;
-		setServicesLoading(true);
-		setServicesError('');
-
-		fetchHomeServices()
-			.then((res) => {
-				if (!active) return;
-				const list = Array.isArray(res?.data) ? res.data : [];
-				const mapped = list
-					.map((item) => {
-						const serviceId = Number(item?.serviceId);
-						if (!Number.isFinite(serviceId) || serviceId <= 0) return null;
-						return {
-							id: String(serviceId),
-							name: String(item?.title || item?.serviceName || item?.name || `Dịch vụ #${serviceId}`),
-						};
-					})
-					.filter(Boolean);
-				setServices(mapped);
-			})
-			.catch((err) => {
-				if (!active) return;
-				setServices([]);
-				setServicesError(err?.message || 'Không thể tải danh sách dịch vụ.');
-			})
-			.finally(() => {
-				if (active) setServicesLoading(false);
-			});
-
-		return () => {
-			active = false;
-		};
-	}, [isEditing]);
 
 	return (
 		<div className={styles.page}>
@@ -369,7 +278,7 @@ export default function ServiceTicketDetail() {
 						<button
 							type="button"
 							className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
-							onClick={handleEdit}
+							onClick={toggleEdit}
 							disabled={isLoading || isSaving}
 						>
 							{isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
@@ -427,15 +336,25 @@ export default function ServiceTicketDetail() {
 						<section className={styles.block}>
 							<h2 className={styles.blockTitle}>Yêu cầu khách hàng</h2>
 							{isEditing ? (
-								<div className="ui-field" style={{ marginBottom: 0 }}>
-									<label htmlFor="service-ticket-customer-request">Nội dung yêu cầu</label>
-									<textarea
-										id="service-ticket-customer-request"
-										value={editForm.customerRequest}
-										onChange={(e) => setEditForm((prev) => ({ ...prev, customerRequest: e.target.value }))}
-										disabled={isSaving}
-									/>
-								</div>
+								<>
+									<div className="ui-field" style={{ marginBottom: 0 }}>
+										<label htmlFor="service-ticket-customer-request">Nội dung yêu cầu</label>
+										<textarea
+											id="service-ticket-customer-request"
+											value={editForm.customerRequest}
+											onChange={(e) => setEditForm((prev) => ({ ...prev, customerRequest: e.target.value }))}
+											disabled={isSaving}
+										/>
+									</div>
+									<div className="ui-actions ui-actions--end">
+										<button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
+											Hủy
+										</button>
+										<button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
+											{isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+										</button>
+									</div>
+								</>
 							) : (
 								<div className={styles.noteBox}>{ticket.requestNote || (isLoading ? 'Đang tải...' : '-')}</div>
 							)}
@@ -443,97 +362,32 @@ export default function ServiceTicketDetail() {
 
 						<section className={styles.block}>
 							<h2 className={styles.blockTitle}>Dịch vụ đã chọn</h2>
-							{isEditing ? (
-								<div className={styles.servicesPicker}>
-									{servicesLoading && <div className={styles.noteBox}>Đang tải danh sách dịch vụ...</div>}
-									{!servicesLoading && servicesError && <div className={styles.noteBox}>{servicesError}</div>}
-									{!servicesLoading && !servicesError && services.length === 0 && (
-										<div className={styles.noteBox}>Không có dịch vụ để chọn.</div>
-									)}
-
-									{!servicesLoading && !servicesError && services.length > 0 && (
-										<div className={styles.servicesList}>
-											{services.map((s) => (
-												<label key={s.id} className={styles.servicePickRow}>
-													<input
-														type="checkbox"
-														checked={selectedServiceIds.includes(s.id)}
-														onChange={() => toggleService(s.id)}
-														disabled={isSaving}
-													/>
-													<span className={styles.servicePickName}>{s.name}</span>
-											</label>
-											))}
+							<div className={styles.servicesList}>
+								{(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
+									const price = s?.priceVnd ?? s?.price;
+									return (
+										<div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
+											<span className={styles.serviceName}>{s?.serviceName || s?.label || s?.name || '-'}</span>
+											<span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
 										</div>
-									)}
-								</div>
-							) : (
-								<div className={styles.servicesList}>
-									{(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
-										const price = s?.priceVnd ?? s?.price;
-										return (
-											<div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
-												<span className={styles.serviceName}>{s?.serviceName || s?.label || s?.name || '-'}</span>
-												<span className={styles.servicePrice}>
-													{price == null ? '-' : formatCurrencyVnd(price)}
-												</span>
-											</div>
-										);
-									})}
-									{!isLoading && (!Array.isArray(ticket.services) || ticket.services.length === 0) && (
-										<div className={styles.noteBox}>-</div>
-									)}
-								</div>
-							)}
+									);
+								})}
+								{(!Array.isArray(ticket.services) || ticket.services.length === 0) && <div className={styles.noteBox}>-</div>}
+							</div>
 
 							{ticket.externalDependency && (
 								<div className={styles.tagsRow}>
 									<span className={styles.tag}>External Dependency</span>
 								</div>
 							)}
-
-							{isEditing && (
-								<div className="ui-actions ui-actions--end">
-									<button
-										type="button"
-										className="ui-btn ui-btn--ghost"
-										onClick={() => setIsEditing(false)}
-										disabled={isSaving}
-									>
-										Hủy
-									</button>
-									<button
-										type="button"
-										className="ui-btn ui-btn--primary"
-										onClick={handleSaveEdit}
-										disabled={isSaving}
-									>
-										{isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
-									</button>
-								</div>
-							)}
 						</section>
 
-						<section className={styles.block}>
-							<h2 className={styles.blockTitle}>Timeline</h2>
-							<ol className={styles.timeline}>
-								{TIMELINE_STEPS.map((step, idx) => {
-									const isCompleted = idx < activeStepIndex;
-									const isActive = idx === activeStepIndex;
-									return (
-										<li
-											key={step.key}
-											className={`${styles.timelineItem} ${isCompleted ? styles.isCompleted : ''} ${
-												isActive ? styles.isActive : ''
-											}`}
-										>
-											<span className={styles.dot} aria-hidden="true" />
-											<span className={styles.timelineLabel}>{step.label}</span>
-										</li>
-									);
-								})}
-							</ol>
-						</section>
+						<RoleBasedSections
+							showTimeline={hasReceptionistRole}
+							activeStepIndex={activeStepIndex}
+							showAdvisorTable={hasAdvisorRole}
+							services={ticket?.services}
+						/>
 
 						<div className="ui-actions">
 							<button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
@@ -558,5 +412,15 @@ InfoBlock.propTypes = {
 			value: PropTypes.node,
 		}),
 	).isRequired,
+};
+
+TimelineBlock.propTypes = {
+	activeStepIndex: PropTypes.number.isRequired,
+};
+
+RoleBasedSections.propTypes = {
+	showTimeline: PropTypes.bool.isRequired,
+	activeStepIndex: PropTypes.number.isRequired,
+	showAdvisorTable: PropTypes.bool.isRequired,
 };
 
