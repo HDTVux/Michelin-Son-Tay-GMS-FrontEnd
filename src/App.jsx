@@ -32,6 +32,8 @@ import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.j
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
 import ServiceTicketDetail from './pages/DashBoard/ServiceTicketManagement/ServiceTicketDetail.jsx';
 import ServiceTicketManagement from './pages/DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
+import TicketAssignment from './pages/DashBoard/ServiceTicketManagement/TicketAssignment.jsx';
+import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.jsx';
 import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
@@ -117,6 +119,8 @@ export default function App() {
           <Route path="service-ticket/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
+          <Route path="ticket-assignment" element={<TicketAssignment />} />
+          <Route path="queue-management" element={<QueueManagement />} />
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />
           

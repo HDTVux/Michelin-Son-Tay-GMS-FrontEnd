@@ -49,3 +49,26 @@ export const fetchServiceTicketDetail = (ticketCode, token) => {
     headers: { Authorization: `Bearer ${token}` },
   });
 };
+
+// Chỉnh sửa phiếu dịch vụ theo ticketCode
+// Body: { customerRequest: string, serviceIds: number[] }
+export const updateServiceTicket = (ticketCode, payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để chỉnh sửa phiếu dịch vụ.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const code = encodeURIComponent(String(ticketCode ?? '').trim());
+  if (!code) {
+    const error = new Error('Thiếu ticketCode.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/manage/tickets/${code}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload ?? {}),
+  });
+};

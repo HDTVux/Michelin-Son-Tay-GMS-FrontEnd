@@ -140,6 +140,25 @@
 	gap: 12px;
 }
 
+.servicesPicker {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.servicePickRow {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 14px;
+	font-weight: 800;
+	color: var(--ui-text);
+}
+
+.servicePickName {
+	line-height: 1.4;
+}
+
 .serviceRow {
 	display: flex;
 	align-items: baseline;
