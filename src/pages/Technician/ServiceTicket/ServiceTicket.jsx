@@ -64,8 +64,34 @@ const ServiceTicket = () => {
           rearLeft: { mm: '', pressure: '' },
           rearRight: { mm: '', pressure: '' }
         });
-        setSafetyChecks(data.safetyChecks || safetyChecks);
-        setServiceItems(data.serviceItems || serviceItems);
+        setSafetyChecks(data.safetyChecks || [
+          { id: 1, name: 'Lốp', good: false, warning: false, replace: false, note: '' },
+          { id: 2, name: 'Gạt mưa', good: false, warning: false, replace: false, note: '' },
+          { id: 3, name: 'Nước rửa kính', good: false, warning: false, replace: false, note: '' },
+          { id: 4, name: 'Má phanh', good: false, warning: false, replace: false, note: '' },
+          { id: 5, name: 'Đĩa phanh', good: false, warning: false, replace: false, note: '' },
+          { id: 6, name: 'Dầu phanh', good: false, warning: false, replace: false, note: '' },
+          { id: 7, name: 'Dầu động cơ', good: false, warning: false, replace: false, note: '' },
+          { id: 8, name: 'Lọc dầu động cơ', good: false, warning: false, replace: false, note: '' },
+          { id: 9, name: 'Nước làm mát', good: false, warning: false, replace: false, note: '' },
+          { id: 10, name: 'Ắc quy', good: false, warning: false, replace: false, note: '' },
+          { id: 11, name: 'Lọc gió động cơ', good: false, warning: false, replace: false, note: '' },
+          { id: 12, name: 'Lọc gió điều hòa', good: false, warning: false, replace: false, note: '' },
+          { id: 13, name: 'Thước lái', good: false, warning: false, replace: false, note: '' }
+        ]);
+        setServiceItems(data.serviceItems || [
+          { id: 1, name: 'Lốp', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
+          { id: 2, name: 'Van', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
+          { id: 3, name: 'Cân bằng động', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
+          { id: 4, name: 'Cân chỉnh thước lái', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
+          { id: 5, name: 'Phanh', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
+          { id: 6, name: 'Gạt mưa', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
+          { id: 7, name: 'Nước rửa kính', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
+          { id: 8, name: 'Dầu động cơ', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
+          { id: 9, name: 'Lọc dầu động cơ', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
+          { id: 10, name: 'Lọc gió động cơ', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
+          { id: 11, name: 'Lọc gió điều hòa', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false }
+        ]);
         setNotes(data.notes || '');
       } catch (error) {
         console.error('Error loading saved data:', error);

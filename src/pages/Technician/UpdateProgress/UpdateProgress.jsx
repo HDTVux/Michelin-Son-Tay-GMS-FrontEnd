@@ -19,7 +19,7 @@ const UpdateProgress = () => {
   });
   const [safetyChecks, setSafetyChecks] = useState([]);
   const [serviceItems, setServiceItems] = useState([]);
-  const [notes, setNotes] = useState('');
+  // const [notes, setNotes] = useState(''); // Not used in UpdateProgress
   
   // Update Progress specific data
   const [technicianNotes, setTechnicianNotes] = useState('');
@@ -36,10 +36,15 @@ const UpdateProgress = () => {
       try {
         const data = JSON.parse(savedData);
         setRecommendedTireSize(data.recommendedTireSize || '');
-        setTireData(data.tireData || tireData);
+        setTireData(data.tireData || {
+          frontLeft: { mm: '', pressure: '' },
+          frontRight: { mm: '', pressure: '' },
+          rearLeft: { mm: '', pressure: '' },
+          rearRight: { mm: '', pressure: '' }
+        });
         setSafetyChecks(data.safetyChecks || []);
         setServiceItems(data.serviceItems || []);
-        setNotes(data.notes || '');
+        // setNotes(data.notes || ''); // Not used
       } catch (error) {
         console.error('Error loading ticket data:', error);
         toast.error('Không thể tải dữ liệu phiếu dịch vụ');
