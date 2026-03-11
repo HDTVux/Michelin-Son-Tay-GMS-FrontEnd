@@ -275,7 +275,7 @@ function TicketPanel({
 
 							return (
 								<tr key={item?.serviceTicketId ?? item?.ticketCode ?? idx}>
-									<td className={styles['link-cell']}>{item?.ticketCode || item?.serviceTicketId || '-'}</td>
+									<td className={styles['link-cell']}>{item?.serviceTicketId || item?.ticketCode ||  '-'}</td>
 									<td>{item?.customerName || '-'}</td>
 									<td>{item?.customerPhone || '-'}</td>
 									<td>{item?.serviceCategory || '-'}</td>

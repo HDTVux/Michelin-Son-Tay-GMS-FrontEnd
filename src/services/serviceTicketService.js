@@ -71,3 +71,103 @@ export const updateServiceTicket = (ticketCode, payload, token) => {
     body: JSON.stringify(payload ?? {}),
   });
 };
+
+// Lấy thông tin ước tính cho phiếu dịch vụ theo serviceTicketId
+// Endpoint: GET /api/service-ticket/estimate/{serviceTicketId}
+export const fetchServiceTicketEstimate = (serviceTicketId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem ước tính.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idRaw = String(serviceTicketId ?? '').trim();
+  if (!idRaw) {
+    const error = new Error('Thiếu serviceTicketId.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const idEncoded = encodeURIComponent(idRaw);
+  return request(`/api/service-ticket/estimate/${idEncoded}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Tạo mới bảng báo giá cho phiếu dịch vụ
+// Endpoint: POST /api/service-ticket/estimate/
+// Payload: { serviceTicketId, estimateType, items: [{ workCategoryId, newCategoryName, itemId, itemName, quantity, unitPrice }] }
+export const createServiceTicketEstimate = (payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để tạo báo giá.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const serviceTicketId = payload?.serviceTicketId;
+  const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu serviceTicketId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  if (items.length === 0) {
+    const error = new Error('Báo giá cần có ít nhất 1 dòng items.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request('/api/service-ticket/estimate/', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      ...payload,
+      serviceTicketId: idNum,
+    }),
+  });
+};
+
+// Cập nhật bảng báo giá theo estimateId (thêm/sửa/xóa items bằng cách gửi lại toàn bộ danh sách)
+// Endpoint: PUT /api/service-ticket/estimate/{estimateId}
+// Payload: { serviceTicketId, estimateType, items: [{ workCategoryId, newCategoryName, itemId, itemName, quantity, unitPrice }] }
+export const updateServiceTicketEstimate = (estimateId, payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật báo giá.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const serviceTicketId = payload?.serviceTicketId;
+  const ticketNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
+  if (!Number.isFinite(ticketNum) || ticketNum <= 0) {
+    const error = new Error('Thiếu serviceTicketId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  if (items.length === 0) {
+    const error = new Error('Báo giá cần có ít nhất 1 dòng.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      ...payload,
+      serviceTicketId: ticketNum,
+    }),
+  });
+};

@@ -8,14 +8,6 @@ import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHooks.js';
 import styles from './ServiceTicketDetail.module.css';
 
-const TIMELINE_STEPS = [
-	{ key: 'checkin', label: 'Check-in' },
-	{ key: 'created', label: 'Ticket Created' },
-	{ key: 'diagnosis', label: 'Diagnosis' },
-	{ key: 'inProgress', label: 'In Progress' },
-	{ key: 'completed', label: 'Completed' },
-];
-
 const STAFF_ROLE = {
 	ADVISOR: 'ADVISOR',
 	RECEPTIONIST: 'RECEPTIONIST',
@@ -49,19 +41,6 @@ function toTitleCaseFromCode(value) {
 		.replaceAll(/\b\w/g, (m) => m.toUpperCase());
 }
 
-function resolveActiveStepIndex(statusLike) {
-	const raw = String(statusLike || '').trim();
-	if (!raw) return 2;
-	const upper = raw.toUpperCase();
-
-	if (upper.includes('COMPLETED') || upper.includes('DONE')) return 4;
-	if (upper.includes('IN_PROGRESS') || upper.includes('PROCESSING') || upper.includes('PROGRESS')) return 3;
-	if (upper.includes('DIAGNOSIS') || upper.includes('QUEUE')) return 2;
-	if (upper.includes('CREATED') || upper.includes('NEW')) return 1;
-	if (upper.includes('CHECK_IN') || upper.includes('CHECKIN') || upper.includes('ARRIVED')) return 0;
-
-	return 2;
-}
 
 function formatCurrencyVnd(value) {
 	const n = typeof value === 'number' ? value : Number(value);
@@ -83,8 +62,52 @@ function pickFirstDefined(obj, keys) {
 	return null;
 }
 
+function buildTimelineEvents(input, receivedAt, handoverAt) {
+	const createdAt = pickFirstDefined(input, [
+		'createdAt',
+		'createAt',
+		'createdDate',
+		'createdDateTime',
+		'ticketCreatedAt',
+		'ticketCreatedDate',
+		'createdTime',
+	]);
+
+	const diagnosisAt = pickFirstDefined(input, [
+		'diagnosisAt',
+		'diagnosticAt',
+		'inspectedAt',
+		'checkedAt',
+		'checkAt',
+	]);
+
+	const inProgressAt = pickFirstDefined(input, [
+		'inProgressAt',
+		'processingAt',
+		'startedAt',
+		'startAt',
+		'workStartAt',
+	]);
+
+	const events = [
+		{ key: 'checkin', label: 'Check-in', at: receivedAt },
+		{ key: 'created', label: 'Ticket Created', at: createdAt },
+		{ key: 'diagnosis', label: 'Diagnosis', at: diagnosisAt },
+		{ key: 'inProgress', label: 'In Progress', at: inProgressAt },
+		{ key: 'completed', label: 'Completed', at: handoverAt },
+	];
+
+	return events.filter((e) => e.at != null && String(e.at).trim() !== '');
+}
+
 function normalizeTicket(input, codeFallback) {
 	const ticketCode = String(input?.ticketCode || codeFallback || '').trim();
+	const serviceTicketId =
+		input?.serviceTicketId ??
+		input?.serviceTicketID ??
+		input?.id ??
+		input?.ticketId ??
+		null;
 
 	const statusCode = String(input?.ticketStatus || input?.status || '').trim();
 	const statusLabel = String(input?.statusLabel || input?.statusText || statusCode).trim() || '-';
@@ -121,13 +144,17 @@ function normalizeTicket(input, codeFallback) {
 			input?.vehicle?.mileage,
 	);
 
+	const timelineEvents = buildTimelineEvents(input, receivedAt, handoverAt);
+
 	return {
+		serviceTicketId,
 		immutable: Boolean(input?.immutable),
 		ticketCode,
 		statusCode,
 		statusLabel: toTitleCaseFromCode(statusLabel),
 		receivedAt,
 		handoverAt,
+		timelineEvents,
 		customer: {
 			name: input?.customer?.fullName || input?.customerName || input?.customer?.name || '',
 			phone: input?.customer?.phone || input?.customerPhone || input?.phone || '',
@@ -176,37 +203,37 @@ function InfoBlock({ title, rows }) {
 	);
 }
 
-function TimelineBlock({ activeStepIndex }) {
+function TimelineBlock({ events }) {
 	return (
 		<section className={styles.block}>
 			<h2 className={styles.blockTitle}>Timeline</h2>
 			<ol className={styles.timeline}>
-				{TIMELINE_STEPS.map((step, idx) => {
-					const isCompleted = idx < activeStepIndex;
-					const isActive = idx === activeStepIndex;
-					return (
-						<li
-							key={step.key}
-							className={`${styles.timelineItem} ${isCompleted ? styles.isCompleted : ''} ${
-								isActive ? styles.isActive : ''
-							}`}
-						>
-							<span className={styles.dot} aria-hidden="true" />
-							<span className={styles.timelineLabel}>{step.label}</span>
-						</li>
-					);
-				})}
+				{(Array.isArray(events) ? events : []).map((step) => (
+					<li key={step.key} className={styles.timelineItem}>
+						<span className={styles.dot} aria-hidden="true" />
+						<span className={styles.timelineLabel}>{step.label}</span>
+						<span className={styles.timelineTime}>
+							{formatDateTimeViNoSeconds(step.at, '-')}
+						</span>
+					</li>
+				))}
+				{(!Array.isArray(events) || events.length === 0) && (
+					<li className={styles.timelineItem}>
+						<span className={styles.dot} aria-hidden="true" />
+						<span className={styles.timelineLabel}>-</span>
+					</li>
+				)}
 			</ol>
 		</section>
 	);
 }
 
-function RoleBasedSections({ showTimeline, activeStepIndex, showAdvisorTable }) {
+function RoleBasedSections({ showTimeline, timelineEvents, showAdvisorTable, serviceTicketId }) {
 	if (!showTimeline && !showAdvisorTable) return null;
 	return (
 		<>
-			{showTimeline ? <TimelineBlock activeStepIndex={activeStepIndex} /> : null}
-			{showAdvisorTable ? <AdvisorItemsTable /> : null}
+			{showTimeline ? <TimelineBlock events={timelineEvents} /> : null}
+			{showAdvisorTable ? <AdvisorItemsTable serviceTicketId={serviceTicketId} /> : null}
 		</>
 	);
 }
@@ -232,7 +259,6 @@ export default function ServiceTicketDetail() {
 		() => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam),
 		[ticketRaw, ticketFromState, ticketCodeParam],
 	);
-	const activeStepIndex = resolveActiveStepIndex(ticket?.timelineStatus || ticket?.statusLabel);
 	const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable);
 
 	const {
@@ -384,9 +410,9 @@ export default function ServiceTicketDetail() {
 
 						<RoleBasedSections
 							showTimeline={hasReceptionistRole}
-							activeStepIndex={activeStepIndex}
+							timelineEvents={ticket?.timelineEvents}
 							showAdvisorTable={hasAdvisorRole}
-							services={ticket?.services}
+							serviceTicketId={ticket?.serviceTicketId}
 						/>
 
 						<div className="ui-actions">
@@ -415,12 +441,19 @@ InfoBlock.propTypes = {
 };
 
 TimelineBlock.propTypes = {
-	activeStepIndex: PropTypes.number.isRequired,
+	events: PropTypes.arrayOf(
+		PropTypes.shape({
+			key: PropTypes.string.isRequired,
+			label: PropTypes.string.isRequired,
+			at: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
+		}),
+	),
 };
 
 RoleBasedSections.propTypes = {
 	showTimeline: PropTypes.bool.isRequired,
-	activeStepIndex: PropTypes.number.isRequired,
+	timelineEvents: PropTypes.array,
 	showAdvisorTable: PropTypes.bool.isRequired,
+	serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
 };
 
