@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
+import { normalizeStatusCode } from '../../../components/statusUtils.js';
 import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHooks.js';
@@ -39,6 +40,56 @@ function toTitleCaseFromCode(value) {
 		.replaceAll(/[-_]+/g, ' ')
 		.toLowerCase()
 		.replaceAll(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function toStatusCodeUpper(input) {
+	const normalized = normalizeStatusCode(input);
+	if (!normalized) return '';
+	return /^[A-Z0-9_]+$/.test(normalized) ? normalized.toUpperCase() : normalized;
+}
+
+function isCancelledStatus(statusUpper) {
+	return statusUpper === 'CANCELLED' || statusUpper === 'CANCELED';
+}
+
+function buildTimelineStepsByStatus(ticket) {
+	const statusUpper = toStatusCodeUpper(ticket?.statusCode || ticket?.timelineStatus);
+	if (!statusUpper) return { mode: 'events', steps: null, hide: false };
+	if (isCancelledStatus(statusUpper)) return { mode: 'status', steps: [], hide: true };
+
+	const order = {
+		DRAFT: 0,
+		CREATED: 1,
+		IN_PROGRESS: 2,
+		PROCESSING: 2,
+		COMPLETED: 3,
+		DONE: 3,
+	};
+
+	const activeIndex = order[statusUpper];
+	if (activeIndex == null) return { mode: 'events', steps: null, hide: false };
+
+	const events = Array.isArray(ticket?.timelineEvents) ? ticket.timelineEvents : [];
+	const createdAt = events.find((e) => e.key === 'created')?.at ?? null;
+	const inProgressAt = events.find((e) => e.key === 'inProgress')?.at ?? null;
+	const completedAt = ticket?.handoverAt ?? events.find((e) => e.key === 'completed')?.at ?? null;
+
+	const isFinal = activeIndex >= 3;
+	const stateForIndex = (idx) => {
+		if (isFinal) return 'done';
+		if (idx < activeIndex) return 'done';
+		if (idx === activeIndex) return 'active';
+		return 'todo';
+	};
+
+	const steps = [
+		{ key: 'DRAFT', label: 'Nháp', at: statusUpper === 'DRAFT' ? createdAt : null, state: stateForIndex(0) },
+		{ key: 'CREATED', label: 'Đã tạo', at: activeIndex >= 1 ? createdAt : null, state: stateForIndex(1) },
+		{ key: 'IN_PROGRESS', label: 'Đang thực hiện', at: activeIndex >= 2 ? inProgressAt : null, state: stateForIndex(2) },
+		{ key: 'COMPLETED', label: 'Hoàn tất', at: activeIndex >= 3 ? completedAt : null, state: stateForIndex(3) },
+	];
+
+	return { mode: 'status', steps, hide: false };
 }
 
 
@@ -203,21 +254,31 @@ function InfoBlock({ title, rows }) {
 	);
 }
 
-function TimelineBlock({ events }) {
+function TimelineBlock({ steps }) {
 	return (
 		<section className={styles.block}>
 			<h2 className={styles.blockTitle}>Timeline</h2>
 			<ol className={styles.timeline}>
-				{(Array.isArray(events) ? events : []).map((step) => (
-					<li key={step.key} className={styles.timelineItem}>
-						<span className={styles.dot} aria-hidden="true" />
-						<span className={styles.timelineLabel}>{step.label}</span>
-						<span className={styles.timelineTime}>
-							{formatDateTimeViNoSeconds(step.at, '-')}
-						</span>
-					</li>
-				))}
-				{(!Array.isArray(events) || events.length === 0) && (
+				{(Array.isArray(steps) ? steps : []).map((step) => {
+					const itemClassName = [
+						styles.timelineItem,
+						step.state === 'done' ? styles.isCompleted : '',
+						step.state === 'active' ? styles.isActive : '',
+					]
+						.filter(Boolean)
+						.join(' ');
+
+					return (
+						<li key={step.key} className={itemClassName}>
+							<span className={styles.dot} aria-hidden="true" />
+							<span className={styles.timelineLabel}>{step.label}</span>
+							<span className={styles.timelineTime}>
+								{step.at ? formatDateTimeViNoSeconds(step.at, '') : ''}
+							</span>
+						</li>
+					);
+				})}
+				{(!Array.isArray(steps) || steps.length === 0) && (
 					<li className={styles.timelineItem}>
 						<span className={styles.dot} aria-hidden="true" />
 						<span className={styles.timelineLabel}>-</span>
@@ -228,11 +289,11 @@ function TimelineBlock({ events }) {
 	);
 }
 
-function RoleBasedSections({ showTimeline, timelineEvents, showAdvisorTable, serviceTicketId }) {
+function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serviceTicketId }) {
 	if (!showTimeline && !showAdvisorTable) return null;
 	return (
 		<>
-			{showTimeline ? <TimelineBlock events={timelineEvents} /> : null}
+			{showTimeline ? <TimelineBlock steps={timelineSteps} /> : null}
 			{showAdvisorTable ? <AdvisorItemsTable serviceTicketId={serviceTicketId} /> : null}
 		</>
 	);
@@ -259,6 +320,14 @@ export default function ServiceTicketDetail() {
 		() => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam),
 		[ticketRaw, ticketFromState, ticketCodeParam],
 	);
+	const timelineModel = useMemo(() => buildTimelineStepsByStatus(ticket), [ticket]);
+	const statusUpper = useMemo(() => toStatusCodeUpper(ticket?.statusCode || ticket?.timelineStatus), [ticket]);
+	const showTimeline = hasReceptionistRole && !isCancelledStatus(statusUpper) && !timelineModel.hide;
+	const timelineSteps = useMemo(() => {
+		if (timelineModel.mode === 'status' && Array.isArray(timelineModel.steps)) return timelineModel.steps;
+		const rawEvents = Array.isArray(ticket?.timelineEvents) ? ticket.timelineEvents : [];
+		return rawEvents.map((e) => ({ ...e, state: 'done' }));
+	}, [timelineModel, ticket]);
 	const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable);
 
 	const {
@@ -409,8 +478,8 @@ export default function ServiceTicketDetail() {
 						</section>
 
 						<RoleBasedSections
-							showTimeline={hasReceptionistRole}
-							timelineEvents={ticket?.timelineEvents}
+							showTimeline={showTimeline}
+							timelineSteps={timelineSteps}
 							showAdvisorTable={hasAdvisorRole}
 							serviceTicketId={ticket?.serviceTicketId}
 						/>
@@ -441,18 +510,19 @@ InfoBlock.propTypes = {
 };
 
 TimelineBlock.propTypes = {
-	events: PropTypes.arrayOf(
+	steps: PropTypes.arrayOf(
 		PropTypes.shape({
 			key: PropTypes.string.isRequired,
 			label: PropTypes.string.isRequired,
 			at: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
+			state: PropTypes.oneOf(['done', 'active', 'todo']),
 		}),
 	),
 };
 
 RoleBasedSections.propTypes = {
 	showTimeline: PropTypes.bool.isRequired,
-	timelineEvents: PropTypes.array,
+	timelineSteps: PropTypes.array,
 	showAdvisorTable: PropTypes.bool.isRequired,
 	serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
 };
