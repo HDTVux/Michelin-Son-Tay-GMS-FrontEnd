@@ -1,0 +1,260 @@
+.page {
+	padding: 16px;
+	color: var(--ui-text, #0a0f1c);
+}
+
+.header {
+	margin-bottom: 12px;
+}
+
+.title {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 900;
+}
+
+.subtitle {
+	margin-top: 6px;
+	color: var(--ui-muted, #475569);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.layout {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 14px;
+	margin-top: 12px;
+}
+
+@media (min-width: 980px) {
+	.layout {
+		grid-template-columns: 1fr 1fr;
+		align-items: start;
+	}
+}
+
+.col {
+	border: 1px solid var(--ui-border, #e5e7eb);
+	border-radius: var(--ui-radius, 12px);
+	background: var(--ui-surface, #fff);
+	padding: 12px;
+}
+
+.filtersRow {
+	display: grid;
+	grid-template-columns: 180px 1fr;
+	gap: 12px;
+	align-items: center;
+	margin-bottom: 12px;
+}
+
+@media (max-width: 720px) {
+	.filtersRow {
+		grid-template-columns: 1fr;
+	}
+}
+
+.input,
+.select {
+	width: 100%;
+	border: 1px solid var(--ui-border, #e5e7eb);
+	border-radius: var(--ui-radius-sm, 10px);
+	padding: 10px 12px;
+	font-size: 14px;
+	background: var(--ui-surface, #fff);
+	font-family: inherit;
+}
+
+.input:focus,
+.select:focus {
+	border-color: var(--ui-primary, #005aa9);
+	box-shadow: var(--ui-focus-ring, 0 0 0 3px rgba(0, 90, 169, 0.12));
+	outline: none;
+}
+
+.rightFiltersRow {
+	display: grid;
+	grid-template-columns: 220px auto;
+	gap: 12px;
+	align-items: center;
+	margin-bottom: 12px;
+}
+
+@media (max-width: 720px) {
+	.rightFiltersRow {
+		grid-template-columns: 1fr;
+	}
+}
+
+.toggle {
+	display: inline-flex;
+	gap: 10px;
+	align-items: center;
+	justify-content: flex-start;
+	font-weight: 700;
+	color: var(--ui-muted, #475569);
+}
+
+.toggle input {
+	width: 44px;
+	height: 24px;
+}
+
+.list {
+	display: grid;
+	gap: 12px;
+}
+
+.card {
+	border: 1px solid var(--ui-border, #e5e7eb);
+	border-radius: 12px;
+	background: var(--ui-surface, #fff);
+	padding: 12px;
+}
+
+.card--dragging {
+	opacity: 0.7;
+}
+
+.card--dropActive {
+	border-color: var(--ui-primary, #005aa9);
+	box-shadow: var(--ui-focus-ring, 0 0 0 3px rgba(0, 90, 169, 0.12));
+}
+
+.cardTop {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 8px;
+}
+
+.cardTitle {
+	font-weight: 900;
+}
+
+.pill {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-weight: 800;
+	font-size: 12px;
+	border: 1px solid var(--ui-border, #e5e7eb);
+	background: var(--ui-surface-2, #f9fafb);
+	color: var(--ui-muted, #475569);
+	white-space: nowrap;
+}
+
+.pill--success {
+	background: #dcfce7;
+	color: #15803d;
+	border-color: #a7f3d0;
+}
+
+.pill--warning {
+	background: #fef3c7;
+	color: #b45309;
+	border-color: #fcd34d;
+}
+
+.pill--danger {
+	background: #fee2e2;
+	color: #b91c1c;
+	border-color: #fecdd3;
+}
+
+.ticketMeta {
+	display: grid;
+	gap: 4px;
+	color: var(--ui-muted, #475569);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.ticketLine {
+	color: var(--ui-text, #0a0f1c);
+	font-weight: 700;
+}
+
+.advisorRow {
+	display: grid;
+	grid-template-columns: 56px 1fr auto;
+	gap: 12px;
+	align-items: center;
+}
+
+.avatar {
+	width: 56px;
+	height: 56px;
+	border-radius: 999px;
+	background: rgba(0, 0, 0, 0.08);
+}
+
+.advisorName {
+	font-weight: 900;
+}
+
+.advisorMeta {
+	margin-top: 6px;
+	display: grid;
+	gap: 2px;
+	font-size: 13px;
+	color: var(--ui-muted, #475569);
+	font-weight: 600;
+}
+
+.footerBar {
+	position: sticky;
+	bottom: 0;
+	margin-top: 14px;
+	border-top: 1px solid var(--ui-border, #e5e7eb);
+	background: var(--ui-surface, #fff);
+	padding: 12px;
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	align-items: center;
+}
+
+.footerText {
+	color: var(--ui-muted, #475569);
+	font-weight: 700;
+}
+
+.footerActions {
+	display: flex;
+	gap: 10px;
+}
+
+.btn {
+	border-radius: var(--ui-radius-sm, 10px);
+	padding: 10px 14px;
+	font-weight: 800;
+	border: 1px solid var(--ui-border, #e5e7eb);
+	background: var(--ui-surface, #fff);
+	cursor: pointer;
+	font-family: inherit;
+}
+
+.btnPrimary {
+	background: var(--ui-primary, #005aa9);
+	border-color: var(--ui-primary, #005aa9);
+	color: #fff;
+}
+
+.btn:disabled,
+.btnPrimary:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.empty {
+	padding: 12px;
+	border-radius: 12px;
+	background: var(--ui-surface-2, #f9fafb);
+	color: var(--ui-muted, #475569);
+	font-weight: 700;
+}

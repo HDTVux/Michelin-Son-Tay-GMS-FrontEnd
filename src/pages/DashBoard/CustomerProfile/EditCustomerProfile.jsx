@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import styles from './EditCustomerProfile.module.css';
 
 const EditCustomerProfile = () => {
   const { customerId } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -14,28 +15,72 @@ const EditCustomerProfile = () => {
     phone: '',
     email: '',
     gender: 'MALE',
-    dob: '',
+    dateOfBirth: '',
     avatar: '',
     createdAt: '',
-    firstBookingAt: ''
+    firstBookingAt: '',
+    totalBookings: 0
   });
 
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    // Mock data - sẽ thay bằng API call
-    const mockData = {
-      fullName: 'Nguyễn Văn A',
-      phone: '0912345678',
-      email: 'user@example.com',
-      gender: 'MALE',
-      dob: '1990-01-15',
-      avatar: '',
-      createdAt: '2024-01-01',
-      firstBookingAt: '2024-02-20'
-    };
-    setFormData(mockData);
+    loadCustomerData();
   }, [customerId]);
+
+  const loadCustomerData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      
+      if (!token) {
+        toast.error('Vui lòng đăng nhập');
+        navigate('/customer-manager');
+        return;
+      }
+
+      // TODO: Backend cần implement API GET /api/admin/customer/{customerId}
+      // Tạm thời load từ danh sách và filter theo customerId
+      const { fetchAllCustomers } = await import('../../../services/adminService.js');
+      
+      const response = await fetchAllCustomers({
+        page: 0,
+        size: 100, // Load nhiều để tìm customer
+        search: '' // Không filter
+      }, token);
+
+      if (response?.success && response?.data?.content) {
+        const customer = response.data.content.find(
+          c => c.customerId === parseInt(customerId)
+        );
+
+        if (customer) {
+          setFormData({
+            customerId: customer.customerId,
+            fullName: customer.fullName || '',
+            phone: customer.phone || '',
+            email: customer.email || '',
+            gender: customer.gender || 'MALE',
+            dateOfBirth: customer.dateOfBirth || customer.dob || '',
+            avatar: customer.avatar || '',
+            createdAt: customer.createdAt || '',
+            firstBookingAt: customer.firstBookingAt || '',
+            totalBookings: customer.totalBookings || 0
+          });
+        } else {
+          toast.error('Không tìm thấy khách hàng');
+          navigate('/customer-manager');
+        }
+      } else {
+        toast.error('Không thể tải thông tin khách hàng');
+      }
+    } catch (error) {
+      console.error('Error loading customer:', error);
+      toast.error(error.message || 'Không thể tải thông tin khách hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -88,8 +133,26 @@ const EditCustomerProfile = () => {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      
+      if (!token) {
+        toast.error('Vui lòng đăng nhập');
+        return;
+      }
+
+      // TODO: Backend cần implement API PUT /api/admin/customer/{customerId}
+      // const payload = {
+      //   fullName: formData.fullName,
+      //   phone: formData.phone,
+      //   email: formData.email,
+      //   gender: formData.gender,
+      //   dateOfBirth: formData.dateOfBirth
+      // };
+      // await updateCustomer(customerId, payload, token);
+
       await new Promise(resolve => setTimeout(resolve, 1000));
 
+      toast.success('Cập nhật thông tin khách hàng thành công!');
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
@@ -97,7 +160,7 @@ const EditCustomerProfile = () => {
       }, 1500);
     } catch (error) {
       console.error('Error updating customer:', error);
-      alert('Có lỗi xảy ra khi cập nhật thông tin khách hàng');
+      toast.error(error.message || 'Có lỗi xảy ra khi cập nhật thông tin khách hàng');
     } finally {
       setLoading(false);
     }
@@ -122,17 +185,24 @@ const EditCustomerProfile = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.headerTop}>
-          <button className={styles.backButton} onClick={handleBack}>
-            ← Quay lại
-          </button>
+      {loading ? (
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner}></div>
+          <p>Đang tải thông tin khách hàng...</p>
         </div>
-        <h1 className={styles.title}>
-          {isEditing ? 'Chỉnh sửa thông tin khách hàng' : 'Thông tin khách hàng'}
-        </h1>
-        <p className={styles.customerId}>Customer ID: #{customerId || 'CUS12345'}</p>
-      </div>
+      ) : (
+        <>
+          <div className={styles.header}>
+            <div className={styles.headerTop}>
+              <button className={styles.backButton} onClick={handleBack}>
+                ← Quay lại
+              </button>
+            </div>
+            <h1 className={styles.title}>
+              {isEditing ? 'Chỉnh sửa thông tin khách hàng' : 'Thông tin khách hàng'}
+            </h1>
+            <p className={styles.customerId}>Customer ID: #{customerId}</p>
+          </div>
 
       <div className={styles.content}>
         <div className={styles.mainSection}>
@@ -220,8 +290,8 @@ const EditCustomerProfile = () => {
                   <label className={styles.label}>Ngày sinh</label>
                   <input
                     type="date"
-                    name="dob"
-                    value={formData.dob}
+                    name="dateOfBirth"
+                    value={formData.dateOfBirth}
                     onChange={handleChange}
                     disabled={!isEditing}
                     className={`${styles.input} ${!isEditing ? styles.inputDisabled : ''}`}
@@ -289,11 +359,22 @@ const EditCustomerProfile = () => {
                     </div>
                   </div>
                 </div>
+                <div className={styles.statItem}>
+                  <div className={styles.statIcon}>📊</div>
+                  <div className={styles.statContent}>
+                    <div className={styles.statLabel}>Tổng số booking</div>
+                    <div className={styles.statValue}>
+                      {formData.totalBookings || 0} lần
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
-      </div>
+          </div>
+        </>
+      )}
 
       {showSuccess && (
         <div className={styles.modalOverlay}>

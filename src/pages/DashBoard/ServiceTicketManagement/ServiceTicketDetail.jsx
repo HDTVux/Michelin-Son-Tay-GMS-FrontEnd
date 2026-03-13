@@ -2,16 +2,32 @@ import { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import { formatDateTimeViNoSeconds } from '../../../components/timeUtils.js';
+import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
+import { normalizeStatusCode } from '../../../components/statusUtils.js';
+import { toast } from 'react-toastify';
+import AdvisorItemsTable from './AdvisorItemsTable.jsx';
+import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHooks.js';
 import styles from './ServiceTicketDetail.module.css';
 
-const TIMELINE_STEPS = [
-	{ key: 'checkin', label: 'Check-in' },
-	{ key: 'created', label: 'Ticket Created' },
-	{ key: 'diagnosis', label: 'Diagnosis' },
-	{ key: 'inProgress', label: 'In Progress' },
-	{ key: 'completed', label: 'Completed' },
-];
+const STAFF_ROLE = {
+	ADVISOR: 'ADVISOR',
+	RECEPTIONIST: 'RECEPTIONIST',
+};
+
+function readStaffRolesFromStorage() {
+	try {
+		const raw = localStorage.getItem('staffRoles');
+		if (!raw) return [];
+		const parsed = JSON.parse(raw);
+		if (!Array.isArray(parsed)) return [];
+		return parsed
+			.filter((r) => typeof r === 'string')
+			.map((r) => r.trim().toUpperCase())
+			.filter(Boolean);
+	} catch {
+		return [];
+	}
+}
 
 function toTitleCaseFromCode(value) {
 	const raw = String(value || '').trim();
@@ -26,24 +42,61 @@ function toTitleCaseFromCode(value) {
 		.replaceAll(/\b\w/g, (m) => m.toUpperCase());
 }
 
+function toStatusCodeUpper(input) {
+	const normalized = normalizeStatusCode(input);
+	if (!normalized) return '';
+	return /^[A-Z0-9_]+$/.test(normalized) ? normalized.toUpperCase() : normalized;
+}
+
+function isCancelledStatus(statusUpper) {
+	return statusUpper === 'CANCELLED' || statusUpper === 'CANCELED';
+}
+
+function buildTimelineStepsByStatus(ticket) {
+	const statusUpper = toStatusCodeUpper(ticket?.statusCode || ticket?.timelineStatus);
+	if (!statusUpper) return { mode: 'events', steps: null, hide: false };
+	if (isCancelledStatus(statusUpper)) return { mode: 'status', steps: [], hide: true };
+
+	const order = {
+		DRAFT: 0,
+		CREATED: 1,
+		IN_PROGRESS: 2,
+		PROCESSING: 2,
+		COMPLETED: 3,
+		DONE: 3,
+	};
+
+	const activeIndex = order[statusUpper];
+	if (activeIndex == null) return { mode: 'events', steps: null, hide: false };
+
+	const events = Array.isArray(ticket?.timelineEvents) ? ticket.timelineEvents : [];
+	const createdAt = events.find((e) => e.key === 'created')?.at ?? null;
+	const inProgressAt = events.find((e) => e.key === 'inProgress')?.at ?? null;
+	const completedAt = ticket?.handoverAt ?? events.find((e) => e.key === 'completed')?.at ?? null;
+
+	const isFinal = activeIndex >= 3;
+	const stateForIndex = (idx) => {
+		if (isFinal) return 'done';
+		if (idx < activeIndex) return 'done';
+		if (idx === activeIndex) return 'active';
+		return 'todo';
+	};
+
+	const steps = [
+		{ key: 'DRAFT', label: 'Nháp', at: statusUpper === 'DRAFT' ? createdAt : null, state: stateForIndex(0) },
+		{ key: 'CREATED', label: 'Đã tạo', at: activeIndex >= 1 ? createdAt : null, state: stateForIndex(1) },
+		{ key: 'IN_PROGRESS', label: 'Đang thực hiện', at: activeIndex >= 2 ? inProgressAt : null, state: stateForIndex(2) },
+		{ key: 'COMPLETED', label: 'Hoàn tất', at: activeIndex >= 3 ? completedAt : null, state: stateForIndex(3) },
+	];
+
+	return { mode: 'status', steps, hide: false };
+}
+
+
 function formatCurrencyVnd(value) {
 	const n = typeof value === 'number' ? value : Number(value);
 	if (!Number.isFinite(n)) return '-';
 	return `${new Intl.NumberFormat('vi-VN').format(n)} VND`;
-}
-
-function resolveActiveStepIndex(statusLike) {
-	const raw = String(statusLike || '').trim();
-	if (!raw) return 2;
-	const upper = raw.toUpperCase();
-
-	if (upper.includes('COMPLETED') || upper.includes('DONE')) return 4;
-	if (upper.includes('IN_PROGRESS') || upper.includes('PROCESSING') || upper.includes('PROGRESS')) return 3;
-	if (upper.includes('DIAGNOSIS') || upper.includes('QUEUE')) return 2;
-	if (upper.includes('CREATED') || upper.includes('NEW')) return 1;
-	if (upper.includes('CHECK_IN') || upper.includes('CHECKIN') || upper.includes('ARRIVED')) return 0;
-
-	return 2;
 }
 
 function normalizeOdometerKm(value) {
@@ -60,13 +113,55 @@ function pickFirstDefined(obj, keys) {
 	return null;
 }
 
-function normalizeTicket(input, codeFallback) {
-	const ticketCode =
-		String(input?.ticketCode || input?.code || input?.id || codeFallback || '12345').trim() || '12345';
+function buildTimelineEvents(input, receivedAt, handoverAt) {
+	const createdAt = pickFirstDefined(input, [
+		'createdAt',
+		'createAt',
+		'createdDate',
+		'createdDateTime',
+		'ticketCreatedAt',
+		'ticketCreatedDate',
+		'createdTime',
+	]);
 
-	const statusLabel =
-		String(input?.statusLabel || input?.statusText || input?.status || 'Diagnosis Queue').trim() ||
-		'Diagnosis Queue';
+	const diagnosisAt = pickFirstDefined(input, [
+		'diagnosisAt',
+		'diagnosticAt',
+		'inspectedAt',
+		'checkedAt',
+		'checkAt',
+	]);
+
+	const inProgressAt = pickFirstDefined(input, [
+		'inProgressAt',
+		'processingAt',
+		'startedAt',
+		'startAt',
+		'workStartAt',
+	]);
+
+	const events = [
+		{ key: 'checkin', label: 'Check-in', at: receivedAt },
+		{ key: 'created', label: 'Ticket Created', at: createdAt },
+		{ key: 'diagnosis', label: 'Diagnosis', at: diagnosisAt },
+		{ key: 'inProgress', label: 'In Progress', at: inProgressAt },
+		{ key: 'completed', label: 'Completed', at: handoverAt },
+	];
+
+	return events.filter((e) => e.at != null && String(e.at).trim() !== '');
+}
+
+function normalizeTicket(input, codeFallback) {
+	const ticketCode = String(input?.ticketCode || codeFallback || '').trim();
+	const serviceTicketId =
+		input?.serviceTicketId ??
+		input?.serviceTicketID ??
+		input?.id ??
+		input?.ticketId ??
+		null;
+
+	const statusCode = String(input?.ticketStatus || input?.status || '').trim();
+	const statusLabel = String(input?.statusLabel || input?.statusText || statusCode).trim() || '-';
 
 	const receivedAt = pickFirstDefined(input, [
 		'receivedAt',
@@ -92,47 +187,56 @@ function normalizeTicket(input, codeFallback) {
 
 	const odometerKm = normalizeOdometerKm(
 		input?.odometerReading ??
+			input?.vehicle?.lastOdometerReading ??
+			input?.vehicle?.odometerReading ??
 			input?.odometerKm ??
 			input?.mileage ??
-			input?.vehicle?.odometerReading ??
 			input?.vehicle?.odometerKm ??
 			input?.vehicle?.mileage,
 	);
 
+	const timelineEvents = buildTimelineEvents(input, receivedAt, handoverAt);
+
 	return {
+		serviceTicketId,
+		immutable: Boolean(input?.immutable),
 		ticketCode,
+		statusCode,
 		statusLabel: toTitleCaseFromCode(statusLabel),
 		receivedAt,
 		handoverAt,
+		timelineEvents,
 		customer: {
-			name: input?.customerName || input?.customer?.name || 'Nguyễn Văn A',
-			phone: input?.customerPhone || input?.phone || input?.customer?.phone || '0901234567',
-			email: input?.customerEmail || input?.email || input?.customer?.email || 'anva@example.com',
+			name: input?.customer?.fullName || input?.customerName || input?.customer?.name || '',
+			phone: input?.customer?.phone || input?.customerPhone || input?.phone || '',
+			email: input?.customer?.email || input?.customerEmail || input?.email || '',
 		},
 		vehicle: {
-			licensePlate: input?.licensePlate || input?.vehicle?.licensePlate || '51F-123.45',
-			model: input?.vehicleModel || input?.vehicle?.model || 'Toyota Camry 2020',
+			licensePlate: input?.vehicle?.licensePlate || input?.licensePlate || '',
+			model: input?.vehicle?.model || input?.vehicleModel || '',
+			make: input?.vehicle?.make || input?.vehicleMake || '',
+			year: input?.vehicle?.year ?? null,
 			odometerKm,
 		},
-		
-		createdBy: input?.createdBy || input?.creatorName || input?.staffName || 'Lễ tân B',
+		booking: {
+			bookingCode: input?.booking?.bookingCode || input?.bookingCode || '',
+			scheduledDate: input?.booking?.scheduledDate || input?.scheduledDate || '',
+			scheduledTime: input?.booking?.scheduledTime || input?.scheduledTime || '',
+		},
+		createdBy: input?.createdByName || input?.createdBy || input?.creatorName || input?.staffName || '',
 		requestNote:
 			input?.requestNote ||
 			input?.customerRequest ||
+			input?.checkInNotes ||
 			input?.note ||
-			'Kiểm tra động cơ có tiếng ồn lạ khi tăng tốc.',
+			'',
 		services:
-			Array.isArray(input?.services) && input.services.length
-				? input.services
-				: [
-					{ name: 'Kiểm tra tổng quát', priceVnd: 500_000 },
-					{ name: 'Thay dầu động cơ', priceVnd: 800_000 },
-					{ name: 'Kiểm tra hệ thống phanh', priceVnd: 300_000 },
-				],
+			Array.isArray(input?.services) ? input.services : [],
 		externalDependency: Boolean(input?.externalDependency || input?.isExternalDependency),
-		timelineStatus: input?.timelineStatus || input?.status || statusLabel,
+		timelineStatus: input?.timelineStatus || statusCode || statusLabel,
 	};
 }
+
 
 function InfoBlock({ title, rows }) {
 	return (
@@ -150,15 +254,99 @@ function InfoBlock({ title, rows }) {
 	);
 }
 
+function TimelineBlock({ steps }) {
+	return (
+		<section className={styles.block}>
+			<h2 className={styles.blockTitle}>Timeline</h2>
+			<ol className={styles.timeline}>
+				{(Array.isArray(steps) ? steps : []).map((step) => {
+					const itemClassName = [
+						styles.timelineItem,
+						step.state === 'done' ? styles.isCompleted : '',
+						step.state === 'active' ? styles.isActive : '',
+					]
+						.filter(Boolean)
+						.join(' ');
+
+					return (
+						<li key={step.key} className={itemClassName}>
+							<span className={styles.dot} aria-hidden="true" />
+							<span className={styles.timelineLabel}>{step.label}</span>
+							<span className={styles.timelineTime}>
+								{step.at ? formatDateTimeViNoSeconds(step.at, '') : ''}
+							</span>
+						</li>
+					);
+				})}
+				{(!Array.isArray(steps) || steps.length === 0) && (
+					<li className={styles.timelineItem}>
+						<span className={styles.dot} aria-hidden="true" />
+						<span className={styles.timelineLabel}>-</span>
+					</li>
+				)}
+			</ol>
+		</section>
+	);
+}
+
+function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serviceTicketId }) {
+	if (!showTimeline && !showAdvisorTable) return null;
+	return (
+		<>
+			{showTimeline ? <TimelineBlock steps={timelineSteps} /> : null}
+			{showAdvisorTable ? <AdvisorItemsTable serviceTicketId={serviceTicketId} /> : null}
+		</>
+	);
+}
+
 export default function ServiceTicketDetail() {
 	useScrollToTop();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const params = useParams();
+	const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
+	const hasReceptionistRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
+	const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
 
-	const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? location?.state ?? null;
-	const ticket = useMemo(() => normalizeTicket(ticketFromState, params?.id), [ticketFromState, params?.id]);
-	const activeStepIndex = resolveActiveStepIndex(ticket?.timelineStatus || ticket?.statusLabel);
+	const ticketCodeParam = String(params?.ticketCode || '').trim();
+	const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
+
+	const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
+		ticketCodeParam,
+		ticketFromState,
+	);
+	const notify = (message) => toast(message, { containerId: 'app-toast' });
+	const ticket = useMemo(
+		() => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam),
+		[ticketRaw, ticketFromState, ticketCodeParam],
+	);
+	const timelineModel = useMemo(() => buildTimelineStepsByStatus(ticket), [ticket]);
+	const statusUpper = useMemo(() => toStatusCodeUpper(ticket?.statusCode || ticket?.timelineStatus), [ticket]);
+	const showTimeline = hasReceptionistRole && !isCancelledStatus(statusUpper) && !timelineModel.hide;
+	const timelineSteps = useMemo(() => {
+		if (timelineModel.mode === 'status' && Array.isArray(timelineModel.steps)) return timelineModel.steps;
+		const rawEvents = Array.isArray(ticket?.timelineEvents) ? ticket.timelineEvents : [];
+		return rawEvents.map((e) => ({ ...e, state: 'done' }));
+	}, [timelineModel, ticket]);
+	const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable);
+
+	const {
+		isEditing,
+		isSaving,
+		editForm,
+		setEditForm,
+		toggleEdit,
+		cancelEdit,
+		saveEdit,
+	} = useServiceTicketEditing({
+		ticketCodeParam,
+		isImmutable,
+		ticketRaw,
+		ticket,
+		setTicketRaw,
+		setError,
+		notify,
+	});
 
 	const receivedAtDisplay = ticket?.receivedAt ? formatDateTimeViNoSeconds(ticket.receivedAt, '-') : '-';
 	const handoverAtDisplay = ticket?.handoverAt ? formatDateTimeViNoSeconds(ticket.handoverAt, '-') : '-';
@@ -170,10 +358,6 @@ export default function ServiceTicketDetail() {
 	const handlePrint = () => {
 		if (typeof globalThis?.print === 'function') globalThis.print();
 	};
-	const handleEdit = () => {
-		// Route for edit may be wired later.
-		console.log('EDIT_SERVICE_TICKET', { ticketCode: ticket?.ticketCode });
-	};
 
 	return (
 		<div className={styles.page}>
@@ -182,31 +366,38 @@ export default function ServiceTicketDetail() {
 					<header className={styles.header}>
 						<div className={styles.headerLeft}>
 							<div className={styles.titleRow}>
-								<h1 className={styles.title}>Phiếu dịch vụ #{ticket.ticketCode}</h1>
-								<span className={styles.statusPill}>{ticket.statusLabel}</span>
+								<h1 className={styles.title}>Phiếu dịch vụ #{ticket.ticketCode || ticketCodeParam || '-'}</h1>
+								<span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
 							</div>
 						</div>
-						<button type="button" className={`ui-btn ui-btn--ghost ${styles.editBtn}`} onClick={handleEdit}>
-							Chỉnh sửa
+						<button
+							type="button"
+							className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
+							onClick={toggleEdit}
+							disabled={isLoading || isSaving}
+						>
+							{isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
 						</button>
 					</header>
+
+					{error && <div className={styles.errorBanner}>{error}</div>}
 
 					<div className={`ui-card ${styles.card}`}>
 						<div className={styles.infoGrid}>
 							<InfoBlock
 								title="Thông tin khách hàng"
 								rows={[
-									{ label: 'Họ tên:', value: ticket.customer.name || '-' },
-									{ label: 'SĐT:', value: ticket.customer.phone || '-' },
-									{ label: 'Email:', value: ticket.customer.email || '-' },
+									{ label: 'Họ tên:', value: ticket.customer?.name || '-' },
+									{ label: 'SĐT:', value: ticket.customer?.phone || '-' },
+									{ label: 'Email:', value: ticket.customer?.email || '-' },
 								]}
 							/>
 							<InfoBlock
 								title="Thông tin xe"
 								rows={[
-									{ label: 'Biển số xe:', value: ticket.vehicle.licensePlate || '-' },
+									{ label: 'Biển số xe:', value: ticket.vehicle?.licensePlate || '-' },
 									{ label: 'Số km:', value: odometerDisplay },
-									{ label: 'Model:', value: ticket.vehicle.model || '-' },
+									{ label: 'Model:', value: ticket.vehicle?.model || '-' },
 								]}
 							/>
 						</div>
@@ -223,6 +414,14 @@ export default function ServiceTicketDetail() {
 									<span className={styles.kvValue}>{handoverAtDisplay}</span>
 								</div>
 								<div className={styles.kvRow}>
+									<span className={styles.kvLabel}>Lịch hẹn:</span>
+									<span className={styles.kvValue}>
+										{ticket?.booking?.scheduledDate
+											? `${ticket.booking.scheduledDate} ${formatTimeHHmm(ticket.booking.scheduledTime) || ''}`.trim()
+											: '-'}
+									</span>
+								</div>
+								<div className={styles.kvRow}>
 									<span className={styles.kvLabel}>Người tạo:</span>
 									<span className={styles.kvValue}>{ticket.createdBy || '-'}</span>
 								</div>
@@ -231,18 +430,44 @@ export default function ServiceTicketDetail() {
 
 						<section className={styles.block}>
 							<h2 className={styles.blockTitle}>Yêu cầu khách hàng</h2>
-							<div className={styles.noteBox}>{ticket.requestNote || '-'}</div>
+							{isEditing ? (
+								<>
+									<div className="ui-field" style={{ marginBottom: 0 }}>
+										<label htmlFor="service-ticket-customer-request">Nội dung yêu cầu</label>
+										<textarea
+											id="service-ticket-customer-request"
+											value={editForm.customerRequest}
+											onChange={(e) => setEditForm((prev) => ({ ...prev, customerRequest: e.target.value }))}
+											disabled={isSaving}
+										/>
+									</div>
+									<div className="ui-actions ui-actions--end">
+										<button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
+											Hủy
+										</button>
+										<button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
+											{isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+										</button>
+									</div>
+								</>
+							) : (
+								<div className={styles.noteBox}>{ticket.requestNote || (isLoading ? 'Đang tải...' : '-')}</div>
+							)}
 						</section>
 
 						<section className={styles.block}>
 							<h2 className={styles.blockTitle}>Dịch vụ đã chọn</h2>
 							<div className={styles.servicesList}>
-								{ticket.services.map((s, idx) => (
-									<div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
-										<span className={styles.serviceName}>{s?.label || s?.name || '-'}</span>
-										<span className={styles.servicePrice}>{formatCurrencyVnd(s?.priceVnd ?? s?.price)}</span>
-									</div>
-								))}
+								{(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
+									const price = s?.priceVnd ?? s?.price;
+									return (
+										<div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
+											<span className={styles.serviceName}>{s?.serviceName || s?.label || s?.name || '-'}</span>
+											<span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
+										</div>
+									);
+								})}
+								{(!Array.isArray(ticket.services) || ticket.services.length === 0) && <div className={styles.noteBox}>-</div>}
 							</div>
 
 							{ticket.externalDependency && (
@@ -252,26 +477,12 @@ export default function ServiceTicketDetail() {
 							)}
 						</section>
 
-						<section className={styles.block}>
-							<h2 className={styles.blockTitle}>Timeline</h2>
-							<ol className={styles.timeline}>
-								{TIMELINE_STEPS.map((step, idx) => {
-									const isCompleted = idx < activeStepIndex;
-									const isActive = idx === activeStepIndex;
-									return (
-										<li
-											key={step.key}
-											className={`${styles.timelineItem} ${isCompleted ? styles.isCompleted : ''} ${
-												isActive ? styles.isActive : ''
-											}`}
-										>
-											<span className={styles.dot} aria-hidden="true" />
-											<span className={styles.timelineLabel}>{step.label}</span>
-										</li>
-									);
-								})}
-							</ol>
-						</section>
+						<RoleBasedSections
+							showTimeline={showTimeline}
+							timelineSteps={timelineSteps}
+							showAdvisorTable={hasAdvisorRole}
+							serviceTicketId={ticket?.serviceTicketId}
+						/>
 
 						<div className="ui-actions">
 							<button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
@@ -296,5 +507,23 @@ InfoBlock.propTypes = {
 			value: PropTypes.node,
 		}),
 	).isRequired,
+};
+
+TimelineBlock.propTypes = {
+	steps: PropTypes.arrayOf(
+		PropTypes.shape({
+			key: PropTypes.string.isRequired,
+			label: PropTypes.string.isRequired,
+			at: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
+			state: PropTypes.oneOf(['done', 'active', 'todo']),
+		}),
+	),
+};
+
+RoleBasedSections.propTypes = {
+	showTimeline: PropTypes.bool.isRequired,
+	timelineSteps: PropTypes.array,
+	showAdvisorTable: PropTypes.bool.isRequired,
+	serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
 };
 

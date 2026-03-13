@@ -1,9 +1,9 @@
 .container {
   width: 100%;
-  max-width: 100%;
-  margin: 0;
+  max-width: 1400px;
+  margin: 0 auto;
   padding: 24px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: #f5f5f5;
   min-height: 100vh;
 }
 
@@ -27,275 +27,465 @@
 .backButton:hover {
   background: #f9fafb;
   border-color: #d1d5db;
-  transform: translateX(-4px);
-}
-
-.headerContent {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .title {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 600;
   color: #1a1a1a;
   margin: 0;
-}
-
-.statusButton {
-  padding: 10px 24px;
-  background: #f3f4f6;
-  color: #374151;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.content {
-  display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: 24px;
-}
-
-.leftColumn,
-.rightColumn {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
 }
 
 .card {
   background: white;
   padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
 }
 
-.cardTitle {
-  font-size: 18px;
-  font-weight: 700;
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
   color: #1a1a1a;
   margin: 0 0 16px 0;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f3f4f6;
 }
 
-.infoGrid {
+.tireSizeRow {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 12px;
+  margin-bottom: 8px;
 }
 
-.infoItem {
+.tireSizeInput {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 200px;
+}
+
+.tireSizeInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 8px 0 16px 0;
+}
+
+/* Tire Inspection */
+.tireInspectionHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
+  align-items: flex-start;
+  margin-bottom: 20px;
 }
 
-.infoLabel {
-  font-size: 14px;
+.pressureLabel {
+  text-align: right;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.tireInspection {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  height: 500px;
+  margin: 0 auto;
+  background: #fafafa;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.tirePosition {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.tireLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+}
+
+.tireInputBox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: white;
+  border: 2px solid #3b82f6;
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inputLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  background: #3b82f6;
+  padding: 4px 8px;
+  border-radius: 2px;
+  min-width: 50px;
+  text-align: center;
+}
+
+.tireField {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.tireField:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.tireWheel {
+  width: 50px;
+  height: 50px;
+  background: #1f2937;
+  border-radius: 50%;
+  border: 4px solid #374151;
+  position: relative;
+}
+
+.tireWheel::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: #6b7280;
+  border-radius: 50%;
+}
+
+.carBody {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 320px;
+  background: linear-gradient(180deg, #e5e7eb 0%, #d1d5db 100%);
+  border: 3px solid #3b82f6;
+  border-radius: 60px 60px 30px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.carWindshield {
+  width: 140px;
+  height: 80px;
+  background: linear-gradient(180deg, #bfdbfe 0%, #93c5fd 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 30px 30px 8px 8px;
+  margin-bottom: 10px;
+}
+
+.carLogo {
+  font-size: 32px;
+  margin: 10px 0;
+}
+
+.carDoor {
+  width: 100%;
+  height: 60px;
+  background: #f3f4f6;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.doorHandle {
+  font-size: 18px;
   font-weight: 600;
   color: #6b7280;
 }
 
-.infoValue {
+/* Safety Checklist Table */
+.safetyTable {
+  overflow-x: auto;
+}
+
+.safetyTable table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e5e7eb;
+}
+
+.safetyTable th {
+  background: #f9fafb;
+  padding: 12px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  color: #1a1a1a;
+  border: 1px solid #e5e7eb;
+}
+
+.safetyTable td {
+  padding: 10px 12px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+.safetyTable td.itemName {
+  text-align: left;
+  font-weight: 500;
+}
+
+.safetyTable input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
+.noteInput {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.noteInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* Service Items Table */
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.addButton {
+  padding: 10px 20px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.addButton:hover {
+  background: #059669;
+}
+
+.serviceTable {
+  overflow-x: auto;
+}
+
+.serviceTable table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e5e7eb;
+}
+
+.serviceTable th {
+  background: #3b82f6;
+  color: white;
+  padding: 12px 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13px;
+  border: 1px solid #2563eb;
+}
+
+.serviceTable td {
+  padding: 8px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  font-size: 13px;
+}
+
+.sttCell {
+  font-weight: 600;
+  color: #1268d3;
+  width: 50px;
+}
+
+.serviceTable td.itemName {
+  text-align: left;
+  font-weight: 500;
+  min-width: 120px;
+}
+
+.tableInput {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.tableInputSmall {
+  width: 60px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.tableInput:focus,
+.tableInputSmall:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.totalCell {
+  font-weight: 600;
+  color: #1a1a1a;
+  min-width: 100px;
+}
+
+.serviceTable input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
+.deleteRowButton {
+  padding: 6px 12px;
+  background: #f97316;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.deleteRowButton:hover:not(:disabled) {
+  background: #ea580c;
+}
+
+.deleteRowButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #d1d5db;
+}
+
+.totalRow {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+.totalLabel {
+  text-align: right !important;
+  font-size: 14px;
   color: #1a1a1a;
 }
 
-.requestBox {
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border-left: 4px solid #ea580c;
+.grandTotal {
+  font-size: 16px;
+  font-weight: 700;
+  color: #dc2626;
 }
 
-.requestBox p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #374151;
-}
-
-.servicesList {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.serviceItem {
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 8px;
-  transition: all 0.3s;
-}
-
-.serviceItem:hover {
-  background: #f3f4f6;
-}
-
-.checkboxLabel {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.checkbox {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  accent-color: #ea580c;
-}
-
+/* Notes */
 .notesTextarea {
   width: 100%;
   padding: 12px;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
-  transition: all 0.3s;
 }
 
 .notesTextarea:focus {
   outline: none;
-  border-color: #ea580c;
-  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
+  border-color: #3b82f6;
 }
 
-.progressTracker {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  position: relative;
-}
-
-.progressStep {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  position: relative;
-}
-
-.stepIndicator {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
-  flex-shrink: 0;
-  z-index: 2;
-}
-
-.stepCompleted {
-  background: #10b981;
-  color: white;
-}
-
-.stepCurrent {
-  background: #ea580c;
-  color: white;
-  box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.2);
-}
-
-.stepPending {
-  background: #e5e7eb;
-  color: #9ca3af;
-}
-
-.stepContent {
-  flex: 1;
-  padding: 8px 0;
-}
-
-.stepName {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 4px;
-}
-
-.stepTime {
-  font-size: 13px;
-  color: #6b7280;
-}
-
-.stepConnector {
-  position: absolute;
-  left: 19px;
-  top: 40px;
-  width: 2px;
-  height: 40px;
-  background: #e5e7eb;
-  z-index: 1;
-}
-
-.connectorCompleted {
-  background: #10b981;
-}
-
+/* Action Buttons */
 .actionButtons {
   display: flex;
   gap: 12px;
-  margin-top: 8px;
+  justify-content: flex-end;
+  margin-top: 24px;
 }
 
-.backButtonSecondary {
-  flex: 1;
-  padding: 14px 24px;
+.cancelButton,
+.saveButton,
+.submitButton {
+  padding: 12px 32px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.cancelButton {
   background: white;
   color: #374151;
   border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
 }
 
-.backButtonSecondary:hover {
+.cancelButton:hover {
   background: #f9fafb;
-  border-color: #d1d5db;
 }
 
-.startWorkButton {
-  flex: 2;
-  padding: 14px 24px;
-  background: #ea580c;
+.saveButton {
+  background: #f59e0b;
   color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
 }
 
-.startWorkButton:hover {
-  background: #c2410c;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+.saveButton:hover {
+  background: #d97706;
 }
 
-.loadingContainer,
-.errorContainer {
+.submitButton {
+  background: #10b981;
+  color: white;
+}
+
+.submitButton:hover {
+  background: #059669;
+}
+
+/* Loading */
+.loadingContainer {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -311,7 +501,7 @@
   width: 48px;
   height: 48px;
   border: 4px solid #f3f4f6;
-  border-top-color: #ea580c;
+  border-top-color: #3b82f6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -322,33 +512,28 @@
   }
 }
 
-@media (max-width: 1024px) {
-  .content {
-    grid-template-columns: 1fr;
-  }
-
-  .rightColumn {
-    order: -1;
-  }
-}
-
+/* Responsive */
 @media (max-width: 768px) {
   .container {
     padding: 16px;
   }
 
-  .headerContent {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+  .tireGrid {
+    grid-template-columns: 100px 1fr 100px;
+  }
+
+  .carBody {
+    width: 140px;
+    height: 220px;
   }
 
   .actionButtons {
     flex-direction: column;
   }
 
-  .backButtonSecondary,
-  .startWorkButton {
+  .cancelButton,
+  .saveButton,
+  .submitButton {
     width: 100%;
   }
 }

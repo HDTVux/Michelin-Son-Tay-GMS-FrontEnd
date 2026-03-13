@@ -169,38 +169,33 @@ const DailySchedule = () => {
 
       <div className={styles.statsGrid}>
         <div className={`${styles.statCard} ${styles.statPrimary}`}>
-          <div className={styles.statIcon}>📋</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{totalAppointments}</div>
-            <div className={styles.statLabel}>Tổng lịch hẹn</div>
+            <div className={styles.statLabel}>Tong lich hen</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statSuccess}`}>
-          <div className={styles.statIcon}>✓</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{confirmedCount}</div>
-            <div className={styles.statLabel}>Đã xác nhận</div>
+            <div className={styles.statLabel}>Da xac nhan</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statWarning}`}>
-          <div className={styles.statIcon}>⏳</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{pendingCount}</div>
-            <div className={styles.statLabel}>Chờ xác nhận</div>
+            <div className={styles.statLabel}>Cho xac nhan</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statInfo}`}>
-          <div className={styles.statIcon}>✔</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{completedCount}</div>
-            <div className={styles.statLabel}>Hoàn thành</div>
+            <div className={styles.statLabel}>Hoan thanh</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statDanger}`}>
-          <div className={styles.statIcon}>✗</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{cancelledCount}</div>
-            <div className={styles.statLabel}>Đã hủy</div>
+            <div className={styles.statLabel}>Da huy</div>
           </div>
         </div>
       </div>
@@ -208,8 +203,8 @@ const DailySchedule = () => {
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
           <div className={styles.viewToggle}>
-            <button className={`${styles.viewButton} ${viewMode === 'calendar' ? styles.active : ''}`} onClick={() => setViewMode('calendar')}>📅 Lịch</button>
-            <button className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`} onClick={() => setViewMode('list')}>📋 Danh sách</button>
+            <button className={`${styles.viewButton} ${viewMode === 'calendar' ? styles.active : ''}`} onClick={() => setViewMode('calendar')}>Lich</button>
+            <button className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`} onClick={() => setViewMode('list')}>Danh sach</button>
           </div>
           <div className={styles.monthNavigation}>
             <button className={styles.navButton} onClick={goToPreviousMonth}>◀ Tháng trước</button>

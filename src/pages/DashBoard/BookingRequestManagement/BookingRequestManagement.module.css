@@ -46,7 +46,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	font-weight: 700;
+	font-weight: 400;
 }
 
 .filter-card__title {
@@ -59,7 +59,7 @@
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 10px;
-	font-weight: 700;
+	font-weight: 400;
 	font-size: 14px;
 	color: #1f1f1f;
 	margin-bottom: 6px;
@@ -131,7 +131,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	font-weight: 700;
+	font-weight: 400;
 }
 
 .booking-table__wrapper {
@@ -184,7 +184,7 @@
 }
 
 .booking-table th {
-	font-weight: 700;
+	font-weight: 400;
 }
 
 .booking-table tbody tr:nth-child(odd) {
@@ -237,7 +237,7 @@
 	padding: 10px 14px;
 	border-radius: 6px;
 	cursor: pointer;
-	font-weight: 700;
+	font-weight: 400;
 }
 
 .primary-button.is-ghost {
@@ -258,7 +258,7 @@
 	min-width: 92px;
 	padding: 8px 10px;
 	border-radius: 10px;
-	font-weight: 700;
+	font-weight: 400;
 	font-size: 13px;
 	border: 1px solid transparent;
 }
@@ -289,7 +289,7 @@
 
 .link-cell {
 	color: #1268d3;
-	font-weight: 700;
+	font-weight: 400;
 }
 
 .error-banner {
@@ -347,7 +347,7 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
-	font-weight: 700;
+	font-weight: 400;
 	color: #108a4a;
 }
 
@@ -451,7 +451,7 @@
 }
 
 .slot-item__time {
-	font-weight: 700;
+	font-weight: 400;
 	color: #108a4a;
 }
 
@@ -504,7 +504,7 @@
 }
 
 .slot-item__quota {
-	font-weight: 700;
+	font-weight: 400;
 	color: #108a4a;
 }
 

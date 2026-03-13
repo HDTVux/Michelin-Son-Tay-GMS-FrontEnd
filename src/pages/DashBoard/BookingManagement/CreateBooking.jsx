@@ -96,6 +96,8 @@ export default function CreateBooking() {
 	const [filter, setFilter] = useState('all');
 
 	const [schedule, setSchedule] = useState({ date: '', time: '' });
+	const [scheduleMode, setScheduleMode] = useState('manual'); // 'manual' | 'now'
+	const [showSchedulePicker, setShowSchedulePicker] = useState(false);
 	const [info, setInfo] = useState({ name: '', phone: '', note: '' });
 
 	const [baseSlots, setBaseSlots] = useState([]);
@@ -110,6 +112,50 @@ export default function CreateBooking() {
 	const [submitError, setSubmitError] = useState('');
 	const [submitSuccess, setSubmitSuccess] = useState('');
 	const [createdBookingForCheckIn, setCreatedBookingForCheckIn] = useState(null);
+
+	const pickNextSlotFromBaseSlots = (now) => {
+		const list = Array.isArray(baseSlots) ? baseSlots : [];
+		if (!list.length) return null;
+
+		const today = formatLocalDateYYYYMMDD(now);
+		const nowTs = now.getTime();
+
+		for (const slot of list) {
+			const slotStart = toLocalDateTime(today, slot?.startTime);
+			if (!slotStart) continue;
+			if (slotStart.getTime() > nowTs) {
+				return { date: today, time: formatTimeHHmm(slot?.startTime) };
+			}
+		}
+
+		// Nếu hôm nay đã hết slot thì lấy slot đầu tiên của ngày mai.
+		const tomorrow = new Date(now);
+		tomorrow.setDate(now.getDate() + 1);
+		const tomorrowStr = formatLocalDateYYYYMMDD(tomorrow);
+		const first = list[0];
+		if (!first?.startTime) return null;
+		return { date: tomorrowStr, time: formatTimeHHmm(first.startTime) };
+	};
+
+	const pickNextSlotByRounding30m = (now) => {
+		// Fallback: làm tròn lên theo block 30 phút, có tính cả seconds/millis.
+		const date = formatLocalDateYYYYMMDD(now);
+		const seconds = now.getSeconds();
+		const millis = now.getMilliseconds();
+		let minutes = now.getHours() * 60 + now.getMinutes();
+		if (seconds > 0 || millis > 0) minutes += 1;
+		const rounded = Math.ceil(minutes / 30) * 30;
+
+		if (rounded >= 24 * 60) {
+			const nextDay = new Date(now);
+			nextDay.setDate(now.getDate() + 1);
+			return { date: formatLocalDateYYYYMMDD(nextDay), time: '00:00' };
+		}
+
+		const hh = String(Math.floor(rounded / 60)).padStart(2, '0');
+		const mm = String(rounded % 60).padStart(2, '0');
+		return { date, time: `${hh}:${mm}` };
+	};
 
 	useEffect(() => {
 		let active = true;
@@ -165,6 +211,24 @@ export default function CreateBooking() {
 		);
 	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting]);
 
+	const handleUseNow = () => {
+		const now = new Date();
+		const picked = pickNextSlotFromBaseSlots(now) ?? pickNextSlotByRounding30m(now);
+		const date = picked?.date || formatLocalDateYYYYMMDD(now);
+		const time = picked?.time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+		setScheduleMode('now');
+		setShowSchedulePicker(false);
+		setSchedule({ date, time });
+		setAvailableSlots([]);
+		setSlotsError('');
+		setSlotsLoading(false);
+	};
+
+	const handleShowManualSchedule = () => {
+		setScheduleMode('manual');
+		setShowSchedulePicker(true);
+	};
+
 
 
 	const handleSubmit = async () => {
@@ -204,19 +268,12 @@ export default function CreateBooking() {
 			});
 
 			const data = res?.data;
-			const code = data?.bookingCode ?? data?.requestId ?? data?.code;
-			const msg = code ? `Tạo booking thành công. Mã: ${String(code)}` : 'Tạo booking thành công.';
+			const bookingCodeRaw = data?.bookingCode ?? data?.requestId ?? data?.code;
+			const bookingCode = String(bookingCodeRaw ?? '').trim();
+			const msg = bookingCode ? `Tạo booking thành công. Mã: ${bookingCode}` : 'Tạo booking thành công.';
 
-			const firstServiceId = selectedIds?.[0];
-			const serviceName = firstServiceId
-				? services.find((s) => String(s?.id) === String(firstServiceId))?.name
-				: '';
-			const appointmentAt = toLocalDateTime(schedule.date, schedule.time);
-			setCreatedBookingForCheckIn({
-				customerName: info.name.trim(),
-				serviceName: serviceName || undefined,
-				appointmentAt: appointmentAt || undefined,
-			});
+			// Chỉ truyền ID (bookingCode) sang Check-in để phiếu tự lookup thông tin khách/booking từ backend.
+			setCreatedBookingForCheckIn(bookingCode ? { bookingCode } : null);
 
 			setSubmitSuccess(msg);
 			toast(msg, { containerId: 'app-toast' });
@@ -228,8 +285,9 @@ export default function CreateBooking() {
 	};
 
 	const handleGoToCheckIn = () => {
-		if (createdBookingForCheckIn) {
-			navigate('/check-in', { state: { booking: createdBookingForCheckIn } });
+		const code = String(createdBookingForCheckIn?.bookingCode ?? '').trim();
+		if (code) {
+			navigate('/check-in', { state: { bookingCode: code } });
 			return;
 		}
 		navigate('/check-in');
@@ -275,6 +333,12 @@ export default function CreateBooking() {
 
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
+		if (scheduleMode === 'now') {
+			setAvailableSlots([]);
+			setSlotsError('');
+			setSlotsLoading(false);
+			return;
+		}
 		if (!schedule.date) {
 			setAvailableSlots([]);
 			setSlotsError('');
@@ -311,9 +375,10 @@ export default function CreateBooking() {
 		return () => {
 			active = false;
 		};
-	}, [schedule.date]);
+	}, [schedule.date, scheduleMode]);
 
 	useEffect(() => {
+		if (scheduleMode !== 'manual') return;
 		if (!schedule.date || !schedule.time) return;
 		if (slotsLoading || slotsError) return;
 		if (!Array.isArray(availableSlots) || availableSlots.length === 0) return;
@@ -328,15 +393,17 @@ export default function CreateBooking() {
 		if (!match.isAvailable || isFull) {
 			setSchedule((prev) => ({ ...prev, time: '' }));
 		}
-	}, [availableSlots, schedule.date, schedule.time, slotsError, slotsLoading]);
+	}, [availableSlots, schedule.date, schedule.time, scheduleMode, slotsError, slotsLoading]);
 
 	const displaySlots = useMemo(() => {
+		if (scheduleMode !== 'manual') return baseSlots;
 		if (!schedule.date) return baseSlots;
 		const slots = !slotsLoading && !slotsError ? availableSlots : baseSlots;
 		return slots.filter((s) => !isPastSlot(schedule.date, s?.startTime));
-	}, [availableSlots, baseSlots, schedule.date, slotsError, slotsLoading]);
+	}, [availableSlots, baseSlots, schedule.date, scheduleMode, slotsError, slotsLoading]);
 
 	const handlePickSlot = (rawTime) => {
+		if (scheduleMode !== 'manual') return;
 		if (!schedule.date) return;
 		if (slotsLoading || slotsError) return;
 		const hhmm = formatTimeHHmm(rawTime);
@@ -348,6 +415,8 @@ export default function CreateBooking() {
 		setSearch('');
 		setFilter('all');
 		setSchedule({ date: '', time: '' });
+		setScheduleMode('manual');
+		setShowSchedulePicker(false);
 		setInfo({ name: '', phone: '', note: '' });
 		setAvailableSlots([]);
 		setSlotsError('');
@@ -378,99 +447,128 @@ export default function CreateBooking() {
 
 			<section className={scheduleStyles.section}>
 				<h3 className={scheduleStyles.sectionTitle}>Chọn lịch</h3>
-				<div className={scheduleStyles.formRow}>
-					<div className={scheduleStyles.formField}>
-						<label className={scheduleStyles.label} htmlFor="desiredDate">Ngày mong muốn</label>
-						<div className={scheduleStyles.dateInput}>
-							<span className={scheduleStyles.dateIcon}>📅</span>
-							<select
-								id="desiredDate"
-								value={schedule.date}
-								onChange={(e) => setSchedule((prev) => ({ ...prev, date: e.target.value, time: '' }))}
-							>
-								<option value="">Chọn ngày</option>
+				<div className={bookingStyles['booking-actions']} style={{ padding: 0, marginTop: 8 }}>
+					<button
+						type="button"
+						className={bookingStyles.btn}
+						onClick={handleShowManualSchedule}
+						disabled={submitting}
+					>
+						Chọn lịch
+					</button>
+					<button
+						type="button"
+						className={`${bookingStyles.btn} ${bookingStyles.primary}`}
+						onClick={handleUseNow}
+						disabled={submitting}
+					>
+						Dùng ngày giờ hiện tại
+					</button>
+				</div>
+
+				{scheduleMode === 'now' && schedule.date && schedule.time && (
+					<div className={scheduleStyles.helperText} style={{ marginTop: 8 }}>
+						Đang đặt cho slot: {schedule.date} {schedule.time}
+					</div>
+				)}
+
+				{showSchedulePicker && scheduleMode === 'manual' && (
+					<>
+						<div className={scheduleStyles.formRow}>
+							<div className={scheduleStyles.formField}>
+								<label className={scheduleStyles.label} htmlFor="desiredDate">Ngày mong muốn</label>
+								<div className={scheduleStyles.dateInput}>
+									<span className={scheduleStyles.dateIcon}>📅</span>
+									<select
+										id="desiredDate"
+										value={schedule.date}
+										onChange={(e) => setSchedule((prev) => ({ ...prev, date: e.target.value, time: '' }))}
+									>
+										<option value="">Chọn ngày</option>
+										{isDateOutOfRange && (
+											<option value={schedule.date} disabled>
+												{schedule.date}
+											</option>
+										)}
+										{dateOptions.map((opt) => (
+											<option key={opt.value} value={opt.value}>{opt.label}</option>
+										))}
+									</select>
+								</div>
 								{isDateOutOfRange && (
-									<option value={schedule.date} disabled>
-										{schedule.date}
-									</option>
-								)}
-								{dateOptions.map((opt) => (
-									<option key={opt.value} value={opt.value}>{opt.label}</option>
-								))}
-							</select>
-						</div>
-						{isDateOutOfRange && (
-							<div className={scheduleStyles.helperText}>
-								Chỉ cho phép chọn trong 10 ngày tới.
-							</div>
-						)}
-					</div>
-					<div className={scheduleStyles.formField}>
-						<label className={scheduleStyles.label} htmlFor="desiredTime">Khung giờ</label>
-						<input
-							id="desiredTime"
-							type="time"
-							value={schedule.time}
-							onChange={(e) => setSchedule((prev) => ({ ...prev, time: e.target.value }))}
-							disabled={!schedule.date || slotsLoading || !!slotsError}
-						/>
-					</div>
-				</div>
-
-				<div className={scheduleStyles.slotSection}>
-					<div className={scheduleStyles.slotTitle}>Chọn khung giờ theo danh sách</div>
-					<div className={scheduleStyles.slotSub}>
-						Hiển thị các khung giờ theo ngày đã chọn; các khung đã đầy sẽ bị khóa.
-					</div>
-
-					{baseSlotsLoading && <div className={scheduleStyles.serviceStatus}>Đang tải khung giờ...</div>}
-					{!baseSlotsLoading && baseSlotsError && <div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>{baseSlotsError}</div>}
-
-					{!!schedule.date && slotsLoading && <div className={scheduleStyles.serviceStatus}>Đang tải trạng thái chỗ trống...</div>}
-					{!!schedule.date && !slotsLoading && slotsError && <div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>{slotsError}</div>}
-
-					<div className={scheduleStyles.slotGrid}>
-						{displaySlots.map((slot) => {
-							const rawTime = slot?.startTime;
-							const displayTime = formatTimeHHmm(rawTime);
-
-							const remaining = Number(slot?.remainingCapacity);
-							const hasRemaining = Number.isFinite(remaining);
-							const isFull = hasRemaining && remaining <= 0;
-
-							const hasCapacityInfo = !!schedule.date && !slotsError && !slotsLoading;
-							const isDisabled = hasCapacityInfo ? (!slot?.isAvailable || isFull) : false;
-							const blockPicking = !schedule.date || slotsLoading || !!slotsError;
-							const active = timeKey(schedule.time) === timeKey(rawTime);
-
-							let capacityText = '';
-							if (hasCapacityInfo) {
-								if (isDisabled) capacityText = ' · Hết chỗ';
-								else if (hasRemaining) capacityText = ` · Còn ${remaining}`;
-							}
-
-							return (
-								<button
-									key={slot?.slotId ?? timeKey(rawTime) ?? rawTime}
-									type="button"
-									className={[
-										scheduleStyles.slotBtn,
-										active ? scheduleStyles.slotBtnActive : '',
-										isDisabled ? scheduleStyles.slotBtnDisabled : '',
-									].filter(Boolean).join(' ')}
-									onClick={() => !isDisabled && !blockPicking && handlePickSlot(rawTime)}
-									disabled={blockPicking || isDisabled}
-								>
-									<div className={scheduleStyles.slotTime}>{displayTime}</div>
-									<div className={scheduleStyles.slotMeta}>
-										{normalizePeriodLabel(slot?.period)}
-										{capacityText}
+									<div className={scheduleStyles.helperText}>
+										Chỉ cho phép chọn trong 10 ngày tới.
 									</div>
-								</button>
-							);
-						})}
-					</div>
-				</div>
+								)}
+							</div>
+							<div className={scheduleStyles.formField}>
+								<label className={scheduleStyles.label} htmlFor="desiredTime">Khung giờ</label>
+								<input
+									id="desiredTime"
+									type="time"
+									value={schedule.time}
+									onChange={(e) => setSchedule((prev) => ({ ...prev, time: e.target.value }))}
+									disabled={!schedule.date || slotsLoading || !!slotsError}
+								/>
+							</div>
+						</div>
+
+						<div className={scheduleStyles.slotSection}>
+							<div className={scheduleStyles.slotTitle}>Chọn khung giờ theo danh sách</div>
+							<div className={scheduleStyles.slotSub}>
+								Hiển thị các khung giờ theo ngày đã chọn; các khung đã đầy sẽ bị khóa.
+							</div>
+
+							{baseSlotsLoading && <div className={scheduleStyles.serviceStatus}>Đang tải khung giờ...</div>}
+							{!baseSlotsLoading && baseSlotsError && <div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>{baseSlotsError}</div>}
+
+							{!!schedule.date && slotsLoading && <div className={scheduleStyles.serviceStatus}>Đang tải trạng thái chỗ trống...</div>}
+							{!!schedule.date && !slotsLoading && slotsError && <div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>{slotsError}</div>}
+
+							<div className={scheduleStyles.slotGrid}>
+								{displaySlots.map((slot) => {
+									const rawTime = slot?.startTime;
+									const displayTime = formatTimeHHmm(rawTime);
+
+									const remaining = Number(slot?.remainingCapacity);
+									const hasRemaining = Number.isFinite(remaining);
+									const isFull = hasRemaining && remaining <= 0;
+
+									const hasCapacityInfo = !!schedule.date && !slotsError && !slotsLoading;
+									const isDisabled = hasCapacityInfo ? (!slot?.isAvailable || isFull) : false;
+									const blockPicking = !schedule.date || slotsLoading || !!slotsError;
+									const active = timeKey(schedule.time) === timeKey(rawTime);
+
+									let capacityText = '';
+									if (hasCapacityInfo) {
+										if (isDisabled) capacityText = ' · Hết chỗ';
+										else if (hasRemaining) capacityText = ` · Còn ${remaining}`;
+									}
+
+									return (
+										<button
+											key={slot?.slotId ?? timeKey(rawTime) ?? rawTime}
+											type="button"
+											className={[
+												scheduleStyles.slotBtn,
+												active ? scheduleStyles.slotBtnActive : '',
+												isDisabled ? scheduleStyles.slotBtnDisabled : '',
+											].filter(Boolean).join(' ')}
+											onClick={() => !isDisabled && !blockPicking && handlePickSlot(rawTime)}
+											disabled={blockPicking || isDisabled}
+										>
+											<div className={scheduleStyles.slotTime}>{displayTime}</div>
+											<div className={scheduleStyles.slotMeta}>
+												{normalizePeriodLabel(slot?.period)}
+												{capacityText}
+											</div>
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					</>
+				)}
 			</section>
 
 			<div style={{ height: 16 }} />
@@ -534,13 +632,15 @@ export default function CreateBooking() {
 			{submitSuccess && (
 				<div className={styles.successRow}>
 					<div className={`${scheduleStyles.serviceStatus} ${styles.successMessage}`}>{submitSuccess}</div>
-					<button
-						type="button"
-						className={`${bookingStyles.btn} ${bookingStyles.primary} ${styles.successBtn}`}
-						onClick={handleGoToCheckIn}
-					>
-						Chuyển sang Check-in
-					</button>
+					{createdBookingForCheckIn?.bookingCode && (
+						<button
+							type="button"
+							className={`${bookingStyles.btn} ${bookingStyles.primary} ${styles.successBtn}`}
+							onClick={handleGoToCheckIn}
+						>
+							Chuyển sang Check-in
+						</button>
+					)}
 				</div>
 			)}
 

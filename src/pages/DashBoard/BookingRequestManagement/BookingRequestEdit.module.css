@@ -16,7 +16,7 @@
 
 .headerTitle {
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .headerActions {
@@ -41,7 +41,7 @@
   border: none;
   border-radius: 10px;
   padding: 10px 16px;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -51,7 +51,7 @@
   border: 1px solid #d1d5db;
   border-radius: 10px;
   padding: 10px 16px;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -94,7 +94,7 @@
   background: #fee2e2;
   border: 1px solid #fecdd3;
   color: #b91c1c;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .loadingBox {
@@ -104,7 +104,7 @@
   background: #fff;
   border: 1px solid #e5e7eb;
   color: #0f172a;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 /* --- Typography & Labels --- */
@@ -116,12 +116,12 @@
 
 .requestId {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 400;
   color: #0f172a;
 }
 
 .value {
-  font-weight: 700;
+  font-weight: 400;
   color: #0f172a;
 }
 
@@ -132,7 +132,7 @@
   border: 1px solid transparent;
   
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .statusPill--warning {
@@ -168,7 +168,7 @@
 .sectionTitle {
   margin: 0;
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 400;
   color: #0f172a;
 }
 
@@ -192,7 +192,7 @@
 /* --- Interactive Elements --- */
 .link {
   color: #0b63e5;
-  font-weight: 700;
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -205,7 +205,7 @@
   color: white;
   border-radius: 10px;
   padding: 8px 10px;
-  font-weight: 700;
+  font-weight: 400;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -268,7 +268,7 @@
 }
 
 .slotTitle {
-  font-weight: 800;
+  font-weight: 400;
   font-size: 16px;
   color: #0f172a;
 }
@@ -338,7 +338,7 @@
 }
 
 .slotTime {
-  font-weight: 800;
+  font-weight: 400;
   color: #0f172a;
 }
 

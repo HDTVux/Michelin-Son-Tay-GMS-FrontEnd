@@ -53,7 +53,7 @@ const AdminDashboard = () => {
       {/* Header */}
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>🎯 Dashboard Quản trị</h1>
+          <h1 className={styles.title}>Dashboard Quan tri</h1>
           <p className={styles.subtitle}>Tổng quan hệ thống và hiệu suất kinh doanh</p>
         </div>
         <div className={styles.filters}>
@@ -63,7 +63,7 @@ const AdminDashboard = () => {
             <option value="month">Tháng này</option>
             <option value="year">Năm nay</option>
           </select>
-          <button className={styles.exportBtn}>📊 Xuất báo cáo</button>
+          <button className={styles.exportBtn}>Xuat bao cao</button>
         </div>
       </div>
 
@@ -71,7 +71,6 @@ const AdminDashboard = () => {
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>💰</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.revenueGrowth}%</span>
           </div>
           <div className={styles.kpiValue}>{formatCurrency(kpis.totalRevenue)}</div>
@@ -80,36 +79,33 @@ const AdminDashboard = () => {
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>📅</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.bookingGrowth}%</span>
           </div>
           <div className={styles.kpiValue}>{kpis.totalBookings}</div>
-          <div className={styles.kpiLabel}>Tổng booking</div>
+          <div className={styles.kpiLabel}>Tong booking</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>👥</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.customerGrowth}%</span>
           </div>
           <div className={styles.kpiValue}>{kpis.totalCustomers}</div>
-          <div className={styles.kpiLabel}>Khách hàng</div>
+          <div className={styles.kpiLabel}>Khach hang</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>⭐</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.ratingChange}</span>
           </div>
           <div className={styles.kpiValue}>{kpis.avgRating}</div>
-          <div className={styles.kpiLabel}>Đánh giá TB</div>
+          <div className={styles.kpiLabel}>Danh gia TB</div>
         </div>
       </div>
 
       {/* Charts Row 1 */}
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>📈 Xu hướng doanh thu & Booking</h3>
+          <h3 className={styles.chartTitle}>Xu huong doanh thu & Booking</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={revenueData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -125,7 +121,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>🔧 Phân bố dịch vụ</h3>
+          <h3 className={styles.chartTitle}>Phan bo dich vu</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie data={serviceData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
@@ -142,7 +138,7 @@ const AdminDashboard = () => {
       {/* Charts Row 2 */}
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>👨‍💼 Hiệu suất nhân viên</h3>
+          <h3 className={styles.chartTitle}>Hieu suat nhan vien</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={staffData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -157,31 +153,28 @@ const AdminDashboard = () => {
         </div>
 
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>🚨 Cảnh báo & Thông báo</h3>
+          <h3 className={styles.chartTitle}>Canh bao & Thong bao</h3>
           <div className={styles.alertList}>
             <div className={`${styles.alertItem} ${styles.warning}`}>
-              <span className={styles.alertIcon}>⚠️</span>
               <div className={styles.alertContent}>
-                <div className={styles.alertTitle}>Phụ tùng sắp hết</div>
-                <div className={styles.alertText}>Dầu nhớt Mobil 1 còn 5 lít</div>
+                <div className={styles.alertTitle}>Phu tung sap het</div>
+                <div className={styles.alertText}>Dau not Mobil 1 con 5 lit</div>
               </div>
-              <span className={styles.alertTime}>10 phút trước</span>
+              <span className={styles.alertTime}>10 phut truoc</span>
             </div>
             <div className={`${styles.alertItem} ${styles.info}`}>
-              <span className={styles.alertIcon}>ℹ️</span>
               <div className={styles.alertContent}>
-                <div className={styles.alertTitle}>Booking mới</div>
-                <div className={styles.alertText}>3 booking chờ xác nhận</div>
+                <div className={styles.alertTitle}>Booking moi</div>
+                <div className={styles.alertText}>3 booking cho xac nhan</div>
               </div>
-              <span className={styles.alertTime}>30 phút trước</span>
+              <span className={styles.alertTime}>30 phut truoc</span>
             </div>
             <div className={`${styles.alertItem} ${styles.success}`}>
-              <span className={styles.alertIcon}>✅</span>
               <div className={styles.alertContent}>
-                <div className={styles.alertTitle}>Hoàn thành xuất sắc</div>
-                <div className={styles.alertText}>Kỹ thuật viên A hoàn thành 10 công việc</div>
+                <div className={styles.alertTitle}>Hoan thanh xuat sac</div>
+                <div className={styles.alertText}>Ky thuat vien A hoan thanh 10 cong viec</div>
               </div>
-              <span className={styles.alertTime}>1 giờ trước</span>
+              <span className={styles.alertTime}>1 gio truoc</span>
             </div>
           </div>
         </div>

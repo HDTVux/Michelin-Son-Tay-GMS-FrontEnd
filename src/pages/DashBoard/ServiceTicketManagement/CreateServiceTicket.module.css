@@ -36,7 +36,7 @@
 
 .stepTitle {
 	font-size: 16px;
-	font-weight: 800;
+	font-weight: 400;
 	margin: 0;
 	color: var(--ui-text);
 }
@@ -71,7 +71,7 @@
 	border: none;
 	background: transparent;
 	padding: 0;
-	font-weight: 700;
+	font-weight: 400;
 	font-size: 14px;
 	color: var(--ui-primary);
 	text-decoration: underline;
@@ -89,7 +89,7 @@
 .summaryTitle {
 	margin: 0 0 10px;
 	font-size: 14px;
-	font-weight: 800;
+	font-weight: 400;
 	color: var(--ui-text);
 }
 
@@ -109,12 +109,12 @@
 .summaryLabel {
 	font-size: 13px;
 	color: var(--ui-muted);
-	font-weight: 700;
+	font-weight: 400;
 }
 
 .summaryValue {
 	font-size: 13px;
-	font-weight: 800;
+	font-weight: 400;
 	color: var(--ui-text);
 	text-decoration: underline;
 	text-underline-offset: 2px;

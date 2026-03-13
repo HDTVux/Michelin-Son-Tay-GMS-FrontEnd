@@ -45,7 +45,7 @@ const ReceptionistDashboard = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>📋 Dashboard Lễ tân</h1>
+          <h1 className={styles.title}>Dashboard Le tan</h1>
           <p className={styles.subtitle}>Quản lý tiếp nhận và lịch hẹn</p>
         </div>
         <div className={styles.filters}>
@@ -61,44 +61,40 @@ const ReceptionistDashboard = () => {
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>✅</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.checkInChange}</span>
           </div>
           <div className={styles.kpiValue}>{kpis.checkIns}</div>
-          <div className={styles.kpiLabel}>Đã check-in</div>
+          <div className={styles.kpiLabel}>Da check-in</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>⏳</span>
             <span className={`${styles.kpiTrend} ${styles.down}`}>↓ {Math.abs(kpis.pendingChange)}</span>
           </div>
           <div className={styles.kpiValue}>{kpis.pendingBookings}</div>
-          <div className={styles.kpiLabel}>Chờ xác nhận</div>
+          <div className={styles.kpiLabel}>Cho xac nhan</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>🎯</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.completedChange}</span>
           </div>
           <div className={styles.kpiValue}>{kpis.completedToday}</div>
-          <div className={styles.kpiLabel}>Hoàn thành hôm nay</div>
+          <div className={styles.kpiLabel}>Hoan thanh hom nay</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>⏱️</span>
-            <span className={`${styles.kpiTrend} ${styles.down}`}>↓ {Math.abs(kpis.waitTimeChange)} phút</span>
+            <span className={`${styles.kpiTrend} ${styles.down}`}>↓ {Math.abs(kpis.waitTimeChange)} phut</span>
           </div>
-          <div className={styles.kpiValue}>{kpis.avgWaitTime} phút</div>
-          <div className={styles.kpiLabel}>Thời gian chờ TB</div>
+          <div className={styles.kpiValue}>{kpis.avgWaitTime} phut</div>
+          <div className={styles.kpiLabel}>Thoi gian cho TB</div>
         </div>
       </div>
 
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>📊 Trạng thái booking</h3>
+          <h3 className={styles.chartTitle}>Trang thai booking</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie data={bookingStatus} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
@@ -112,7 +108,7 @@ const ReceptionistDashboard = () => {
         </div>
 
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>📈 Check-in theo giờ</h3>
+          <h3 className={styles.chartTitle}>Check-in theo gio</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={hourlyCheckIns}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -126,7 +122,7 @@ const ReceptionistDashboard = () => {
       </div>
 
       <div className={styles.scheduleSection}>
-        <h2 className={styles.sectionTitle}>📅 Lịch hẹn hôm nay</h2>
+        <h2 className={styles.sectionTitle}>Lich hen hom nay</h2>
         <div className={styles.scheduleList}>
           {todaySchedule.map(item => (
             <div key={item.id} className={`${styles.scheduleCard} ${styles[item.status]}`}>
@@ -135,31 +131,31 @@ const ReceptionistDashboard = () => {
                 <div className={styles.scheduleHeader}>
                   <div>
                     <div className={styles.customerName}>{item.customer}</div>
-                    <div className={styles.vehicleNumber}>🚗 {item.vehicle}</div>
+                    <div className={styles.vehicleNumber}>{item.vehicle}</div>
                   </div>
                   <span className={`${styles.statusBadge} ${styles[item.status]}`}>
-                    {item.status === 'checked-in' && '✅ Đã check-in'}
-                    {item.status === 'confirmed' && '📅 Đã xác nhận'}
-                    {item.status === 'pending' && '⏳ Chờ xác nhận'}
+                    {item.status === 'checked-in' && 'Da check-in'}
+                    {item.status === 'confirmed' && 'Da xac nhan'}
+                    {item.status === 'pending' && 'Cho xac nhan'}
                   </span>
                 </div>
                 <div className={styles.scheduleDetails}>
-                  <span>📞 {item.phone}</span>
-                  <span>🔧 {item.service}</span>
+                  <span>{item.phone}</span>
+                  <span>{item.service}</span>
                 </div>
               </div>
               <div className={styles.scheduleActions}>
                 {item.status === 'pending' && (
                   <>
-                    <button className={styles.confirmBtn}>✓ Xác nhận</button>
-                    <button className={styles.cancelBtn}>✗ Hủy</button>
+                    <button className={styles.confirmBtn}>Xac nhan</button>
+                    <button className={styles.cancelBtn}>Huy</button>
                   </>
                 )}
                 {item.status === 'confirmed' && (
-                  <button className={styles.checkInBtn}>✓ Check-in</button>
+                  <button className={styles.checkInBtn}>Check-in</button>
                 )}
                 {item.status === 'checked-in' && (
-                  <button className={styles.viewBtn}>👁️ Xem chi tiết</button>
+                  <button className={styles.viewBtn}>Xem chi tiet</button>
                 )}
               </div>
             </div>

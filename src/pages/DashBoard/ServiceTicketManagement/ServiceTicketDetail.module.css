@@ -54,9 +54,19 @@
 	background: var(--ui-surface-2);
 	border: 1px solid var(--ui-border);
 	color: var(--ui-muted);
-	font-weight: 800;
+	font-weight: 400;
 	font-size: 13px;
 	white-space: nowrap;
+}
+
+.errorBanner {
+	border: 1px solid var(--ui-border-strong);
+	border-radius: var(--ui-radius);
+	background: var(--ui-surface-2);
+	padding: 12px 14px;
+	font-weight: 800;
+	color: var(--ui-text);
+	margin-bottom: 12px;
 }
 
 .editBtn {
@@ -103,13 +113,13 @@
 
 .kvLabel {
 	font-size: 14px;
-	font-weight: 800;
+	font-weight: 400;
 	color: var(--ui-muted);
 }
 
 .kvValue {
 	font-size: 14px;
-	font-weight: 800;
+	font-weight: 400;
 	color: var(--ui-text);
 	line-height: 1.5;
 }
@@ -130,6 +140,25 @@
 	gap: 12px;
 }
 
+.servicesPicker {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.servicePickRow {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 14px;
+	font-weight: 800;
+	color: var(--ui-text);
+}
+
+.servicePickName {
+	line-height: 1.4;
+}
+
 .serviceRow {
 	display: flex;
 	align-items: baseline;
@@ -139,7 +168,7 @@
 
 .serviceName {
 	font-size: 14px;
-	font-weight: 800;
+	font-weight: 400;
 	color: var(--ui-text);
 }
 
@@ -163,7 +192,7 @@
 	background: transparent;
 	color: var(--ui-text);
 	font-size: 13px;
-	font-weight: 800;
+	font-weight: 400;
 }
 
 .timeline {
@@ -180,7 +209,7 @@
 	align-items: center;
 	gap: 10px;
 	color: var(--ui-muted);
-	font-weight: 800;
+	font-weight: 400;
 	font-size: 14px;
 }
 
@@ -195,6 +224,13 @@
 
 .timelineLabel {
 	min-width: 0;
+}
+
+.timelineTime {
+	margin-left: auto;
+	font-size: 13px;
+	color: var(--ui-muted);
+	white-space: nowrap;
 }
 
 .isCompleted {
@@ -213,6 +249,215 @@
 .isActive .dot {
 	background: var(--ui-text);
 	border-color: var(--ui-text);
+}
+
+.tableWrap {
+	overflow: auto;
+	border: 1px solid var(--ui-border);
+	border-radius: var(--ui-radius);
+	background: var(--ui-surface-2);
+}
+
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	table-layout: fixed;
+	min-width: 920px;
+}
+
+.table th,
+.table td {
+	padding: 10px 12px;
+	border: 1px solid var(--ui-border);
+	font-size: 13px;
+	color: var(--ui-text);
+	vertical-align: middle;
+}
+
+.table input[type='text'],
+.table input[type='number'] {
+	width: 100%;
+	border: 1px solid var(--ui-border);
+	border-radius: var(--ui-radius-sm);
+	padding: 8px 10px;
+	font-size: 13px;
+	background: var(--ui-surface);
+	font-family: inherit;
+	outline: none;
+}
+
+.table input[type='text']:focus,
+.table input[type='number']:focus {
+	border-color: var(--ui-primary);
+	box-shadow: var(--ui-focus-ring);
+}
+
+.table .tableInput {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	border: 0;
+	border-radius: 0;
+	padding: 0;
+	margin: 0;
+	background: transparent;
+	font-size: 13px;
+	font-family: inherit;
+	line-height: 1.4;
+	outline: none;
+}
+
+.table .tableInput:focus {
+	box-shadow: var(--ui-focus-ring);
+}
+
+.table .tableInputNumber {
+	text-align: right;
+}
+
+.table th {
+	position: sticky;
+	top: 0;
+	background: var(--ui-surface-2);
+	font-weight: 900;
+	color: var(--ui-muted);
+	text-align: left;
+	white-space: nowrap;
+}
+
+.table tr:last-child td {
+	border-bottom: 1px solid var(--ui-border);
+}
+
+.table th:nth-child(1),
+.table td:nth-child(1) {
+	width: 60px;
+}
+
+.table th:nth-child(4),
+.table td:nth-child(4) {
+	width: 70px;
+}
+
+.table th:nth-child(5),
+.table td:nth-child(5) {
+	width: 130px;
+}
+
+.table th:nth-child(6),
+.table td:nth-child(6) {
+	width: 140px;
+}
+
+.table th:nth-child(7),
+.table td:nth-child(7) {
+	width: 90px;
+}
+
+.table th:nth-child(8),
+.table td:nth-child(8) {
+	width: 110px;
+}
+
+.tdNumber {
+	text-align: right;
+	white-space: nowrap;
+}
+
+.tdCenter {
+	text-align: center;
+}
+
+.tableEmpty {
+	text-align: center;
+	color: var(--ui-muted);
+}
+
+.tableFooterLabel {
+	font-weight: 900;
+	color: var(--ui-muted);
+	text-align: right;
+}
+
+.advisorStack {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.advisorCard {
+	border: 1px solid var(--ui-border);
+	border-radius: var(--ui-radius);
+	background: var(--ui-surface-2);
+	padding: 16px;
+}
+
+.advisorTitle {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 900;
+	color: var(--ui-text);
+}
+
+.photoStrip {
+	margin-top: 10px;
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.photoPlaceholder {
+	height: 46px;
+	border-radius: 8px;
+	border: 1px solid var(--ui-border-strong);
+	background: transparent;
+}
+
+.recommendList {
+	margin-top: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.recommendItem {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 14px;
+	color: var(--ui-text);
+}
+
+.partRow {
+	margin-top: 10px;
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.partName {
+	font-size: 14px;
+	font-weight: 400;
+	color: var(--ui-text);
+}
+
+.partMeta {
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.partText {
+	font-size: 13px;
+	color: var(--ui-muted);
+	white-space: nowrap;
+}
+
+.fullWidthBtn {
+	margin-top: 12px;
+	width: 100%;
 }
 
 @media (max-width: 860px) {
