@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { uploadImage } from '../../../services/imageService.js';
+import { fetchTechnicianTicketDetail, updateTechnicianNotes } from '../../../services/technicianService';
+import { getSafetyInspectionByTicketCode } from '../../../services/safetyInspectionService';
 import styles from './UpdateProgress.module.css';
 
 const UpdateProgress = () => {
@@ -29,46 +31,90 @@ const UpdateProgress = () => {
   const [uploadedImages, setUploadedImages] = useState([]);
 
   useEffect(() => {
-    // Load data from localStorage (saved from ServiceTicket)
-    const savedData = localStorage.getItem(`ticket_${id}`);
-    
-    if (savedData) {
+    const fetchData = async () => {
       try {
-        const data = JSON.parse(savedData);
-        setRecommendedTireSize(data.recommendedTireSize || '');
-        setTireData(data.tireData || {
-          frontLeft: { mm: '', pressure: '' },
-          frontRight: { mm: '', pressure: '' },
-          rearLeft: { mm: '', pressure: '' },
-          rearRight: { mm: '', pressure: '' }
-        });
-        setSafetyChecks(data.safetyChecks || []);
-        setServiceItems(data.serviceItems || []);
-        // setNotes(data.notes || ''); // Not used
+        const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+        if (!token) {
+          toast.error('Vui lòng đăng nhập');
+          setLoading(false);
+          return;
+        }
+
+        // Fetch ticket detail from API
+        const ticketResponse = await fetchTechnicianTicketDetail(id, token);
+        const ticketData = ticketResponse.data;
+
+        // Fetch safety inspection data
+        try {
+          const inspectionResponse = await getSafetyInspectionByTicketCode(id, token);
+          if (inspectionResponse?.data) {
+            const inspection = inspectionResponse.data;
+            if (inspection.tireData) {
+              setTireData(inspection.tireData);
+            }
+            if (inspection.recommendedTireSize) {
+              setRecommendedTireSize(inspection.recommendedTireSize);
+            }
+            if (inspection.items && inspection.items.length > 0) {
+              const transformedChecks = inspection.items.map((item, index) => ({
+                id: index + 1,
+                name: item.categoryName || item.workCategoryName || '',
+                good: item.condition === 'GOOD',
+                warning: item.condition === 'WARNING',
+                replace: item.condition === 'REPLACE',
+                note: item.note || ''
+              }));
+              setSafetyChecks(transformedChecks);
+            }
+          }
+        } catch (inspectionError) {
+          console.log('No inspection data found');
+          toast.warning('Chưa có dữ liệu kiểm tra an toàn');
+        }
+
+        // Set technician notes from ticket data
+        if (ticketData?.technicianNotes) {
+          setTechnicianNotes(ticketData.technicianNotes);
+        }
+
+        // Map ticket status
+        if (ticketData?.status) {
+          const statusMap = {
+            'DRAFT': 'Check-in',
+            'CREATED': 'Diagnosis',
+            'IN_PROGRESS': 'In Progress',
+            'COMPLETED': 'Completed'
+          };
+          setSelectedStatus(statusMap[ticketData.status] || 'In Progress');
+        }
       } catch (error) {
-        console.error('Error loading ticket data:', error);
-        toast.error('Không thể tải dữ liệu phiếu dịch vụ');
+        console.error('Error fetching ticket data:', error);
+        toast.error('Không thể tải dữ liệu phiếu dịch vụ: ' + (error.message || 'Lỗi không xác định'));
+
+        // Fallback to localStorage
+        const savedData = localStorage.getItem(`ticket_${id}`);
+        if (savedData) {
+          try {
+            const data = JSON.parse(savedData);
+            setRecommendedTireSize(data.recommendedTireSize || '');
+            setTireData(data.tireData || {
+              frontLeft: { mm: '', pressure: '' },
+              frontRight: { mm: '', pressure: '' },
+              rearLeft: { mm: '', pressure: '' },
+              rearRight: { mm: '', pressure: '' }
+            });
+            setSafetyChecks(data.safetyChecks || []);
+            setServiceItems(data.serviceItems || []);
+          } catch (parseError) {
+            console.error('Error parsing saved data:', parseError);
+          }
+        }
+      } finally {
+        setLoading(false);
       }
-    } else {
-      toast.warning('Chưa có dữ liệu kiểm tra ban đầu');
-    }
-    
-    // Load progress data if exists
-    const progressData = localStorage.getItem(`progress_${id}`);
-    if (progressData) {
-      try {
-        const data = JSON.parse(progressData);
-        setTechnicianNotes(data.technicianNotes || '');
-        setAdditionalIssues(data.additionalIssues || '');
-        setNeedAdditionalService(data.needAdditionalService || false);
-        setSelectedStatus(data.selectedStatus || 'In Progress');
-        setUploadedImages(data.uploadedImages || []);
-      } catch (error) {
-        console.error('Error loading progress data:', error);
-      }
-    }
-    
-    setLoading(false);
+    };
+
+    fetchData();
   }, [id]);
 
   const handleImageUpload = async (e) => {
@@ -137,25 +183,68 @@ const UpdateProgress = () => {
     navigate(`/technician/service-ticket/${id}`);
   };
 
-  const handleSave = () => {
-    // Save progress data
-    const progressData = {
-      technicianNotes,
-      additionalIssues,
-      needAdditionalService,
-      selectedStatus,
-      uploadedImages,
-      timestamp: new Date().toISOString()
-    };
-    
-    localStorage.setItem(`progress_${id}`, JSON.stringify(progressData));
-    toast.success('Đã lưu cập nhật thành công!');
+  const handleSave = async () => {
+    try {
+      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+
+      // Update technician notes in backend
+      await updateTechnicianNotes(id, { technicianNotes }, token);
+
+      // Save progress data to localStorage as backup
+      const progressData = {
+        technicianNotes,
+        additionalIssues,
+        needAdditionalService,
+        selectedStatus,
+        uploadedImages,
+        timestamp: new Date().toISOString()
+      };
+
+      localStorage.setItem(`progress_${id}`, JSON.stringify(progressData));
+      toast.success('Đã lưu cập nhật thành công!');
+    } catch (error) {
+      console.error('Error saving progress:', error);
+      toast.error('Lỗi khi lưu: ' + (error.message || 'Lỗi không xác định'));
+
+      // Fallback to localStorage only
+      const progressData = {
+        technicianNotes,
+        additionalIssues,
+        needAdditionalService,
+        selectedStatus,
+        uploadedImages,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem(`progress_${id}`, JSON.stringify(progressData));
+      toast.success('Đã lưu cập nhật thành công (offline)!');
+    }
   };
 
-  const handleComplete = () => {
-    handleSave();
-    toast.success('Đã hoàn thành công việc!');
-    navigate('/technician/my-tasks');
+  const handleComplete = async () => {
+    try {
+      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+
+      // Update technician notes
+      await updateTechnicianNotes(id, { technicianNotes }, token);
+
+      // Save to localStorage
+      const progressData = {
+        technicianNotes,
+        additionalIssues,
+        needAdditionalService,
+        selectedStatus: 'COMPLETED',
+        uploadedImages,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem(`progress_${id}`, JSON.stringify(progressData));
+
+      toast.success('Đã hoàn thành công việc!');
+      navigate('/technician/my-tasks');
+    } catch (error) {
+      console.error('Error completing task:', error);
+      toast.error('Lỗi khi hoàn thành: ' + (error.message || 'Lỗi không xác định'));
+      navigate('/technician/my-tasks');
+    }
   };
 
   const completedSafetyCount = safetyChecks.filter(item => 
@@ -219,9 +308,9 @@ const UpdateProgress = () => {
               <div key={item.id} className={styles.safetyItem}>
                 <span className={styles.safetyName}>{item.name}:</span>
                 <span className={styles.safetyStatus}>
-                  {item.good && '✓ Tốt'}
-                  {item.warning && '⚠ Lưu ý'}
-                  {item.replace && '✕ Thay'}
+                  {item.good && 'Tot'}
+                  {item.warning && 'Luu y'}
+                  {item.replace && 'Thay'}
                   {!item.good && !item.warning && !item.replace && '-'}
                 </span>
                 {item.note && <span className={styles.safetyNote}>({item.note})</span>}
@@ -241,7 +330,7 @@ const UpdateProgress = () => {
                 <div className={styles.serviceHeader}>
                   <span className={styles.serviceNumber}>{index + 1}.</span>
                   <span className={styles.serviceName}>{item.name || 'Chưa đặt tên'}</span>
-                  {item.confirmed && <span className={styles.confirmedBadge}>✓ Đã xác nhận</span>}
+                  {item.confirmed && <span className={styles.confirmedBadge}>Da xac nhan</span>}
                 </div>
                 {item.description && (
                   <div className={styles.serviceDescription}>{item.description}</div>
@@ -306,7 +395,7 @@ const UpdateProgress = () => {
               className={styles.fileInput}
             />
             <label htmlFor="imageUpload" className={styles.uploadLabel}>
-              <div className={styles.uploadIcon}>📷</div>
+              <div className={styles.uploadIcon}></div>
               <div className={styles.uploadText}>Kéo và thả ảnh hoặc click để chọn</div>
               <div className={styles.uploadSubtext}>Hỗ trợ: JPG, PNG, GIF (Max 5MB)</div>
             </label>
@@ -320,7 +409,7 @@ const UpdateProgress = () => {
                     className={styles.removeImageButton}
                     onClick={() => handleRemoveImage(image.id)}
                   >
-                    ✕
+                    X
                   </button>
                   <div className={styles.imageName}>{image.name}</div>
                 </div>

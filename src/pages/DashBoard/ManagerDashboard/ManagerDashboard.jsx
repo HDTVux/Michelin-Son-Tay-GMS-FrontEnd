@@ -43,7 +43,7 @@ const ManagerDashboard = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>📊 Dashboard Quản lý</h1>
+          <h1 className={styles.title}>Dashboard Quan ly</h1>
           <p className={styles.subtitle}>Giám sát vận hành và hiệu suất</p>
         </div>
         <div className={styles.filters}>
@@ -52,51 +52,47 @@ const ManagerDashboard = () => {
             <option value="week">Tuần này</option>
             <option value="month">Tháng này</option>
           </select>
-          <button className={styles.exportBtn}>📊 Xuất báo cáo</button>
+          <button className={styles.exportBtn}>Xuat bao cao</button>
         </div>
       </div>
 
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>👥</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.staffGrowth}%</span>
           </div>
           <div className={styles.kpiValue}>{kpis.totalStaff}</div>
-          <div className={styles.kpiLabel}>Tổng nhân viên</div>
+          <div className={styles.kpiLabel}>Tong nhan vien</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>📅</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.bookingGrowth}%</span>
           </div>
           <div className={styles.kpiValue}>{kpis.activeBookings}</div>
-          <div className={styles.kpiLabel}>Booking đang xử lý</div>
+          <div className={styles.kpiLabel}>Booking dang xu ly</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>✅</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.completionChange}%</span>
           </div>
           <div className={styles.kpiValue}>{kpis.completionRate}%</div>
-          <div className={styles.kpiLabel}>Tỷ lệ hoàn thành</div>
+          <div className={styles.kpiLabel}>Ty le hoan thanh</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>⭐</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.satisfactionChange}</span>
           </div>
           <div className={styles.kpiValue}>{kpis.customerSatisfaction}</div>
-          <div className={styles.kpiLabel}>Hài lòng KH</div>
+          <div className={styles.kpiLabel}>Hai long KH</div>
         </div>
       </div>
 
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>📈 Hiệu suất theo ngày</h3>
+          <h3 className={styles.chartTitle}>Hieu suat theo ngay</h3>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={dailyPerformance}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -111,7 +107,7 @@ const ManagerDashboard = () => {
         </div>
 
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>👨‍💼 Tỷ lệ sử dụng nhân viên</h3>
+          <h3 className={styles.chartTitle}>Ty le su dung nhan vien</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={staffUtilization} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
@@ -128,7 +124,7 @@ const ManagerDashboard = () => {
 
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>⏳ Chờ phê duyệt ({pendingApprovals.length})</h3>
+          <h3 className={styles.chartTitle}>Cho phe duyet ({pendingApprovals.length})</h3>
           <div className={styles.approvalList}>
             {pendingApprovals.map(item => (
               <div key={item.id} className={`${styles.approvalItem} ${styles[item.priority]}`}>
@@ -144,8 +140,8 @@ const ManagerDashboard = () => {
                   {item.date && <div><strong>Ngày:</strong> {item.date}</div>}
                 </div>
                 <div className={styles.approvalActions}>
-                  <button className={styles.approveBtn}>✓ Duyệt</button>
-                  <button className={styles.rejectBtn}>✗ Từ chối</button>
+                  <button className={styles.approveBtn}>Duyet</button>
+                  <button className={styles.rejectBtn}>Tu choi</button>
                 </div>
               </div>
             ))}

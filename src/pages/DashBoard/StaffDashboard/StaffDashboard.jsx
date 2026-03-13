@@ -78,7 +78,6 @@ const StaffDashboard = () => {
           <p className={styles.subtitle}>Tổng quan hệ thống - Cập nhật thời gian thực</p>
         </div>
         <div className={styles.headerDate}>
-          <span className={styles.dateIcon}>📅</span>
           <span>{new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
         </div>
       </div>
@@ -87,11 +86,10 @@ const StaffDashboard = () => {
       <div className={styles.kpiGrid}>
         <div className={`${styles.kpiCard} ${styles.kpiPrimary}`}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>📅</span>
             <span className={styles.kpiTrend}>+12%</span>
           </div>
           <div className={styles.kpiValue}>{kpis.todayBookings}</div>
-          <div className={styles.kpiLabel}>Lịch hẹn hôm nay</div>
+          <div className={styles.kpiLabel}>Lich hen hom nay</div>
           <div className={styles.kpiProgress}>
             <div className={styles.kpiProgressBar} style={{ width: '75%' }}></div>
           </div>
@@ -99,21 +97,19 @@ const StaffDashboard = () => {
 
         <div className={`${styles.kpiCard} ${styles.kpiWarning}`}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>⏳</span>
             <span className={styles.kpiTrend}>+3</span>
           </div>
           <div className={styles.kpiValue}>{kpis.pendingBookings}</div>
-          <div className={styles.kpiLabel}>Chờ xác nhận</div>
-          <div className={styles.kpiSubtext}>Cần xử lý ngay</div>
+          <div className={styles.kpiLabel}>Cho xac nhan</div>
+          <div className={styles.kpiSubtext}>Can xu ly ngay</div>
         </div>
 
         <div className={`${styles.kpiCard} ${styles.kpiSuccess}`}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>✓</span>
             <span className={styles.kpiTrend}>+8%</span>
           </div>
           <div className={styles.kpiValue}>{kpis.completedBookings}</div>
-          <div className={styles.kpiLabel}>Hoàn thành tháng</div>
+          <div className={styles.kpiLabel}>Hoan thanh thang</div>
           <div className={styles.kpiProgress}>
             <div className={styles.kpiProgressBar} style={{ width: '85%' }}></div>
           </div>
@@ -121,21 +117,19 @@ const StaffDashboard = () => {
 
         <div className={`${styles.kpiCard} ${styles.kpiInfo}`}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>👥</span>
             <span className={styles.kpiTrend}>+5</span>
           </div>
           <div className={styles.kpiValue}>{kpis.totalCustomers}</div>
-          <div className={styles.kpiLabel}>Tổng khách hàng</div>
-          <div className={styles.kpiSubtext}>Tháng này</div>
+          <div className={styles.kpiLabel}>Tong khach hang</div>
+          <div className={styles.kpiSubtext}>Thang nay</div>
         </div>
 
         <div className={`${styles.kpiCard} ${styles.kpiPurple}`}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>💰</span>
             <span className={styles.kpiTrend}>+15%</span>
           </div>
           <div className={styles.kpiValue}>{formatCurrency(kpis.revenue)}</div>
-          <div className={styles.kpiLabel}>Doanh thu tháng</div>
+          <div className={styles.kpiLabel}>Doanh thu thang</div>
           <div className={styles.kpiProgress}>
             <div className={styles.kpiProgressBar} style={{ width: '70%' }}></div>
           </div>
@@ -143,10 +137,9 @@ const StaffDashboard = () => {
 
         <div className={`${styles.kpiCard} ${styles.kpiOrange}`}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>⭐</span>
           </div>
           <div className={styles.kpiValue}>{kpis.avgRating}<span className={styles.kpiMax}>/5.0</span></div>
-          <div className={styles.kpiLabel}>Đánh giá trung bình</div>
+          <div className={styles.kpiLabel}>Danh gia trung binh</div>
           <div className={styles.kpiStars}>
             {[1, 2, 3, 4, 5].map((star) => (
               <span key={star} className={star <= Math.floor(kpis.avgRating) ? styles.starFilled : styles.starEmpty}>★</span>
@@ -299,48 +292,42 @@ const StaffDashboard = () => {
 
       {/* Quick Actions */}
       <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Truy cập nhanh</h2>
+        <h2 className={styles.sectionTitle}>Truy cap nhanh</h2>
         <div className={styles.quickActions}>
           <div className={styles.actionCard} onClick={() => navigate('/booking-request-management')}>
-            <div className={styles.actionIcon}>📋</div>
             <div className={styles.actionContent}>
-              <h3>Yêu cầu đặt lịch</h3>
-              <p>Quản lý yêu cầu đặt lịch từ khách hàng</p>
+              <h3>Yeu cau dat lich</h3>
+              <p>Quan ly yeu cau dat lich tu khach hang</p>
             </div>
           </div>
           <div className={styles.actionCard} onClick={() => navigate('/booking-management')}>
-            <div className={styles.actionIcon}>📆</div>
             <div className={styles.actionContent}>
-              <h3>Lịch hẹn</h3>
-              <p>Xem và quản lý lịch hẹn đã xác nhận</p>
+              <h3>Lich hen</h3>
+              <p>Xem va quan ly lich hen da xac nhan</p>
             </div>
           </div>
           <div className={styles.actionCard} onClick={() => navigate('/check-in')}>
-            <div className={styles.actionIcon}>✅</div>
             <div className={styles.actionContent}>
               <h3>Check-in</h3>
-              <p>Check-in khách hàng khi đến</p>
+              <p>Check-in khach hang khi den</p>
             </div>
           </div>
           <div className={styles.actionCard} onClick={() => navigate('/staff-attendance')}>
-            <div className={styles.actionIcon}>🕐</div>
             <div className={styles.actionContent}>
-              <h3>Chấm công</h3>
-              <p>Theo dõi giờ làm việc hàng ngày</p>
+              <h3>Cham cong</h3>
+              <p>Theo doi gio lam viec hang ngay</p>
             </div>
           </div>
           <div className={styles.actionCard} onClick={() => navigate('/customer-manager')}>
-            <div className={styles.actionIcon}>👤</div>
             <div className={styles.actionContent}>
-              <h3>Khách hàng</h3>
-              <p>Quản lý thông tin khách hàng</p>
+              <h3>Khach hang</h3>
+              <p>Quan ly thong tin khach hang</p>
             </div>
           </div>
           <div className={styles.actionCard} onClick={() => navigate('/daily-schedule')}>
-            <div className={styles.actionIcon}>📅</div>
             <div className={styles.actionContent}>
-              <h3>Lịch làm việc</h3>
-              <p>Xem lịch làm việc cá nhân</p>
+              <h3>Lich lam viec</h3>
+              <p>Xem lich lam viec ca nhan</p>
             </div>
           </div>
         </div>

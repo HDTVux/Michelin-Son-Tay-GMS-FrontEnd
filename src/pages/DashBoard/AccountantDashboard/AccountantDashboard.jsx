@@ -43,61 +43,57 @@ const AccountantDashboard = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>💰 Dashboard Kế toán</h1>
-          <p className={styles.subtitle}>Quản lý tài chính và báo cáo</p>
+          <h1 className={styles.title}>Dashboard Ke toan</h1>
+          <p className={styles.subtitle}>Quan ly tai chinh va bao cao</p>
         </div>
         <div className={styles.filters}>
           <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className={styles.filterSelect}>
-            <option value="week">Tuần này</option>
-            <option value="month">Tháng này</option>
-            <option value="quarter">Quý này</option>
-            <option value="year">Năm nay</option>
+            <option value="week">Tuan nay</option>
+            <option value="month">Thang nay</option>
+            <option value="quarter">Quy nay</option>
+            <option value="year">Nam nay</option>
           </select>
-          <button className={styles.exportBtn}>📊 Xuất báo cáo</button>
+          <button className={styles.exportBtn}>Xuat bao cao</button>
         </div>
       </div>
 
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>💵</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.revenueGrowth}%</span>
           </div>
           <div className={styles.kpiValue}>{formatCurrency(kpis.totalRevenue)}</div>
-          <div className={styles.kpiLabel}>Tổng doanh thu</div>
+          <div className={styles.kpiLabel}>Tong doanh thu</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>💸</span>
             <span className={`${styles.kpiTrend} ${styles.down}`}>↓ {Math.abs(kpis.expenseChange)}%</span>
           </div>
           <div className={styles.kpiValue}>{formatCurrency(kpis.totalExpenses)}</div>
-          <div className={styles.kpiLabel}>Tổng chi phí</div>
+          <div className={styles.kpiLabel}>Tong chi phi</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>📈</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.profitGrowth}%</span>
           </div>
           <div className={styles.kpiValue}>{formatCurrency(kpis.netProfit)}</div>
-          <div className={styles.kpiLabel}>Lợi nhuận ròng</div>
+          <div className={styles.kpiLabel}>Loi nhuan rong</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>📄</span>
             <span className={`${styles.kpiTrend} ${styles.down}`}>↓ {Math.abs(kpis.invoiceChange)}</span>
           </div>
           <div className={styles.kpiValue}>{kpis.pendingInvoices}</div>
-          <div className={styles.kpiLabel}>Hóa đơn chờ thanh toán</div>
+          <div className={styles.kpiLabel}>Hoa don cho thanh toan</div>
         </div>
       </div>
 
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>📊 Tài chính theo tháng</h3>
+          <h3 className={styles.chartTitle}>Tai chinh theo thang</h3>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={monthlyFinance}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -106,14 +102,14 @@ const AccountantDashboard = () => {
               <Tooltip formatter={(value) => formatCurrency(value)} />
               <Legend />
               <Area type="monotone" dataKey="revenue" stackId="1" stroke="#0891b2" fill="#0891b2" name="Doanh thu" />
-              <Area type="monotone" dataKey="expenses" stackId="2" stroke="#ef4444" fill="#ef4444" name="Chi phí" />
-              <Area type="monotone" dataKey="profit" stackId="3" stroke="#10b981" fill="#10b981" name="Lợi nhuận" />
+              <Area type="monotone" dataKey="expenses" stackId="2" stroke="#ef4444" fill="#ef4444" name="Chi phi" />
+              <Area type="monotone" dataKey="profit" stackId="3" stroke="#10b981" fill="#10b981" name="Loi nhuan" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>💰 Doanh thu theo dịch vụ</h3>
+          <h3 className={styles.chartTitle}>Doanh thu theo dich vu</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={revenueByService} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
@@ -127,7 +123,7 @@ const AccountantDashboard = () => {
       </div>
 
       <div className={styles.invoiceSection}>
-        <h2 className={styles.sectionTitle}>📄 Hóa đơn chờ thanh toán</h2>
+        <h2 className={styles.sectionTitle}>Hoa don cho thanh toan</h2>
         <div className={styles.invoiceList}>
           {pendingPayments.map(payment => (
             <div key={payment.id} className={`${styles.invoiceCard} ${styles[payment.status]}`}>
@@ -137,24 +133,24 @@ const AccountantDashboard = () => {
                   <div className={styles.customerName}>{payment.customer}</div>
                 </div>
                 <span className={`${styles.statusBadge} ${styles[payment.status]}`}>
-                  {payment.status === 'overdue' && '⚠️ Quá hạn'}
-                  {payment.status === 'pending' && '⏳ Chờ thanh toán'}
+                  {payment.status === 'overdue' && 'Qua han'}
+                  {payment.status === 'pending' && 'Cho thanh toan'}
                 </span>
               </div>
               <div className={styles.invoiceDetails}>
                 <div className={styles.invoiceAmount}>
-                  <span className={styles.amountLabel}>Số tiền:</span>
+                  <span className={styles.amountLabel}>So tien:</span>
                   <span className={styles.amountValue}>{formatCurrency(payment.amount)}</span>
                 </div>
                 <div className={styles.invoiceDue}>
-                  <span className={styles.dueLabel}>Hạn thanh toán:</span>
+                  <span className={styles.dueLabel}>Han thanh toan:</span>
                   <span className={styles.dueValue}>{payment.dueDate}</span>
                 </div>
               </div>
               <div className={styles.invoiceActions}>
-                <button className={styles.viewBtn}>👁️ Xem</button>
-                <button className={styles.remindBtn}>📧 Nhắc nhở</button>
-                <button className={styles.confirmBtn}>✓ Xác nhận thanh toán</button>
+                <button className={styles.viewBtn}>Xem</button>
+                <button className={styles.remindBtn}>Nhac nho</button>
+                <button className={styles.confirmBtn}>Xac nhan thanh toan</button>
               </div>
             </div>
           ))}

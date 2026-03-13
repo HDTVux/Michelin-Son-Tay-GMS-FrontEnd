@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { fetchTechnicianTicketDetail } from '../../../services/technicianService';
+import { getSafetyInspectionByTicketCode, saveSafetyInspectionData, getSafetyInspectionCategories, enableSafetyInspection } from '../../../services/safetyInspectionService';
 import styles from './ServiceTicket.module.css';
 
 const ServiceTicket = () => {
@@ -50,58 +52,100 @@ const ServiceTicket = () => {
   ]);
 
   const [notes, setNotes] = useState('');
+  const [inspectionStatus, setInspectionStatus] = useState('PENDING'); // Track inspection status
+  const [isEditable, setIsEditable] = useState(true); // Control if form is editable
 
+  // Fetch data from API
   useEffect(() => {
-    // Try to load saved data first
-    const savedData = localStorage.getItem(`ticket_${id}`);
-    if (savedData) {
+    const fetchData = async () => {
       try {
-        const data = JSON.parse(savedData);
-        setRecommendedTireSize(data.recommendedTireSize || '');
-        setTireData(data.tireData || {
-          frontLeft: { mm: '', pressure: '' },
-          frontRight: { mm: '', pressure: '' },
-          rearLeft: { mm: '', pressure: '' },
-          rearRight: { mm: '', pressure: '' }
-        });
-        setSafetyChecks(data.safetyChecks || [
-          { id: 1, name: 'Lốp', good: false, warning: false, replace: false, note: '' },
-          { id: 2, name: 'Gạt mưa', good: false, warning: false, replace: false, note: '' },
-          { id: 3, name: 'Nước rửa kính', good: false, warning: false, replace: false, note: '' },
-          { id: 4, name: 'Má phanh', good: false, warning: false, replace: false, note: '' },
-          { id: 5, name: 'Đĩa phanh', good: false, warning: false, replace: false, note: '' },
-          { id: 6, name: 'Dầu phanh', good: false, warning: false, replace: false, note: '' },
-          { id: 7, name: 'Dầu động cơ', good: false, warning: false, replace: false, note: '' },
-          { id: 8, name: 'Lọc dầu động cơ', good: false, warning: false, replace: false, note: '' },
-          { id: 9, name: 'Nước làm mát', good: false, warning: false, replace: false, note: '' },
-          { id: 10, name: 'Ắc quy', good: false, warning: false, replace: false, note: '' },
-          { id: 11, name: 'Lọc gió động cơ', good: false, warning: false, replace: false, note: '' },
-          { id: 12, name: 'Lọc gió điều hòa', good: false, warning: false, replace: false, note: '' },
-          { id: 13, name: 'Thước lái', good: false, warning: false, replace: false, note: '' }
-        ]);
-        setServiceItems(data.serviceItems || [
-          { id: 1, name: 'Lốp', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
-          { id: 2, name: 'Van', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
-          { id: 3, name: 'Cân bằng động', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
-          { id: 4, name: 'Cân chỉnh thước lái', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
-          { id: 5, name: 'Phanh', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
-          { id: 6, name: 'Gạt mưa', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
-          { id: 7, name: 'Nước rửa kính', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
-          { id: 8, name: 'Dầu động cơ', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
-          { id: 9, name: 'Lọc dầu động cơ', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
-          { id: 10, name: 'Lọc gió động cơ', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false },
-          { id: 11, name: 'Lọc gió điều hòa', description: '', quantity: '', unitPrice: '', total: '', stock: false, confirmed: false }
-        ]);
-        setNotes(data.notes || '');
+        const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+        if (!token) {
+          toast.error('Vui lòng đăng nhập');
+          setLoading(false);
+          return;
+        }
+
+        // Fetch ticket detail
+        await fetchTechnicianTicketDetail(id, token);
+
+        // Fetch safety inspection if exists
+        try {
+          const inspectionResponse = await getSafetyInspectionByTicketCode(id, token);
+          if (inspectionResponse?.data) {
+            const inspection = inspectionResponse.data;
+            
+            // Set inspection status and determine if editable
+            const status = inspection.inspectionStatus || 'PENDING';
+            setInspectionStatus(status);
+            // Only allow editing if status is PENDING or not set
+            setIsEditable(status === 'PENDING' || !status);
+            
+            // Transform inspection data to form
+            if (inspection.tireData) {
+              setTireData(inspection.tireData);
+            }
+            if (inspection.recommendedTireSize) {
+              setRecommendedTireSize(inspection.recommendedTireSize);
+            }
+            if (inspection.items && inspection.items.length > 0) {
+              // Transform safety check items
+              const transformedChecks = inspection.items.map((item, index) => ({
+                id: index + 1,
+                name: item.categoryName || item.workCategoryName || '',
+                good: item.condition === 'GOOD',
+                warning: item.condition === 'WARNING',
+                replace: item.condition === 'REPLACE',
+                note: item.note || ''
+              }));
+              setSafetyChecks(transformedChecks);
+            }
+            if (inspection.notes) {
+              setNotes(inspection.notes);
+            }
+          }
+        } catch (inspectionError) {
+          console.log('No existing inspection found, using default template');
+          // If no inspection exists, enable it first and allow editing
+          setIsEditable(true);
+          setInspectionStatus('PENDING');
+          // If no inspection exists, enable it first
+          try {
+            await enableSafetyInspection(id, token);
+            toast.info('Đã kích hoạt kiểm tra an toàn');
+          } catch (enableError) {
+            console.log('Could not enable inspection:', enableError.message);
+          }
+        }
+
+        // Load categories for service items
+        try {
+          const categoriesResponse = await getSafetyInspectionCategories(token);
+          if (categoriesResponse?.data && categoriesResponse.data.length > 0) {
+            const transformedItems = categoriesResponse.data.map((cat, index) => ({
+              id: index + 1,
+              name: cat.categoryName || cat.workCategoryName || '',
+              description: '',
+              quantity: '',
+              unitPrice: '',
+              total: '',
+              stock: false,
+              confirmed: false
+            }));
+            setServiceItems(transformedItems);
+          }
+        } catch (catError) {
+          console.log('Could not load categories:', catError.message);
+        }
       } catch (error) {
-        console.error('Error loading saved data:', error);
+        console.error('Error fetching ticket data:', error);
+        toast.error('Không thể tải dữ liệu phiếu dịch vụ: ' + (error.message || 'Lỗi không xác định'));
+      } finally {
+        setLoading(false);
       }
-    }
-    
-    // Mock loading
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
+    };
+
+    fetchData();
   }, [id]);
 
   const handleTireDataChange = (position, field, value) => {
@@ -167,37 +211,81 @@ const ServiceTicket = () => {
     }
   };
 
-  const handleStartWork = () => {
-    // Save all data to localStorage before navigating
-    const ticketData = {
-      id,
-      recommendedTireSize,
-      tireData,
-      safetyChecks,
-      serviceItems,
-      notes,
-      timestamp: new Date().toISOString()
-    };
-    
-    localStorage.setItem(`ticket_${id}`, JSON.stringify(ticketData));
-    toast.success('Đã lưu dữ liệu kiểm tra!');
-    navigate(`/technician/update-progress/${id}`);
+  const handleStartWork = async () => {
+    try {
+      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+
+      // Save safety inspection data to backend
+      const safetyPayload = {
+        ticketCode: id,
+        recommendedTireSize,
+        tireData,
+        items: safetyChecks.map(check => ({
+          categoryName: check.name,
+          condition: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null,
+          note: check.note
+        })),
+        notes
+      };
+
+      await saveSafetyInspectionData(safetyPayload, token);
+
+      // Also save to localStorage as backup
+      const ticketData = {
+        id,
+        recommendedTireSize,
+        tireData,
+        safetyChecks,
+        serviceItems,
+        notes,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem(`ticket_${id}`, JSON.stringify(ticketData));
+
+      toast.success('Đã lưu dữ liệu kiểm tra!');
+      navigate(`/technician/update-progress/${id}`);
+    } catch (error) {
+      console.error('Error saving inspection data:', error);
+      toast.error('Lỗi khi lưu dữ liệu: ' + (error.message || 'Lỗi không xác định'));
+    }
   };
 
-  const handleSave = () => {
-    // Save data without navigating
-    const ticketData = {
-      id,
-      recommendedTireSize,
-      tireData,
-      safetyChecks,
-      serviceItems,
-      notes,
-      timestamp: new Date().toISOString()
-    };
-    
-    localStorage.setItem(`ticket_${id}`, JSON.stringify(ticketData));
-    toast.success('Đã lưu dữ liệu thành công!');
+  const handleSave = async () => {
+    try {
+      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+
+      // Save safety inspection data to backend
+      const safetyPayload = {
+        ticketCode: id,
+        recommendedTireSize,
+        tireData,
+        items: safetyChecks.map(check => ({
+          categoryName: check.name,
+          condition: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null,
+          note: check.note
+        })),
+        notes
+      };
+
+      await saveSafetyInspectionData(safetyPayload, token);
+
+      // Also save to localStorage as backup
+      const ticketData = {
+        id,
+        recommendedTireSize,
+        tireData,
+        safetyChecks,
+        serviceItems,
+        notes,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem(`ticket_${id}`, JSON.stringify(ticketData));
+
+      toast.success('Đã lưu dữ liệu thành công!');
+    } catch (error) {
+      console.error('Error saving inspection data:', error);
+      toast.error('Lỗi khi lưu dữ liệu: ' + (error.message || 'Lỗi không xác định'));
+    }
   };
 
   const calculateGrandTotal = () => {
@@ -229,6 +317,11 @@ const ServiceTicket = () => {
 
       {/* Tire Inspection Section */}
       <div className={styles.card}>
+        {!isEditable && (
+          <div className={styles.statusBanner}>
+            ⚠️ Phiếu kiểm tra đã hoàn thành (trạng thái: {inspectionStatus}). Không thể chỉnh sửa.
+          </div>
+        )}
         <div className={styles.tireInspectionHeader}>
           <div>
             <div className={styles.tireSizeRow}>
@@ -239,6 +332,7 @@ const ServiceTicket = () => {
                 onChange={(e) => setRecommendedTireSize(e.target.value)}
                 className={styles.tireSizeInput}
                 placeholder="Nhập size lốp..."
+                disabled={!isEditable}
               />
             </div>
             <p className={styles.subtitle}>Lưu ý:</p>
@@ -260,6 +354,7 @@ const ServiceTicket = () => {
                   value={tireData.frontLeft.mm}
                   onChange={(e) => handleTireDataChange('frontLeft', 'mm', e.target.value)}
                   className={styles.tireField}
+                  disabled={!isEditable}
                 />
               </div>
               <div className={styles.inputRow}>
@@ -269,6 +364,7 @@ const ServiceTicket = () => {
                   value={tireData.frontLeft.pressure}
                   onChange={(e) => handleTireDataChange('frontLeft', 'pressure', e.target.value)}
                   className={styles.tireField}
+                  disabled={!isEditable}
                 />
               </div>
             </div>
@@ -285,6 +381,7 @@ const ServiceTicket = () => {
                   value={tireData.frontRight.mm}
                   onChange={(e) => handleTireDataChange('frontRight', 'mm', e.target.value)}
                   className={styles.tireField}
+                  disabled={!isEditable}
                 />
                 <span className={styles.inputLabel}>mm</span>
               </div>
@@ -294,6 +391,7 @@ const ServiceTicket = () => {
                   value={tireData.frontRight.pressure}
                   onChange={(e) => handleTireDataChange('frontRight', 'pressure', e.target.value)}
                   className={styles.tireField}
+                  disabled={!isEditable}
                 />
                 <span className={styles.inputLabel}>kg/cm³</span>
               </div>
@@ -304,7 +402,7 @@ const ServiceTicket = () => {
           {/* Car Body */}
           <div className={styles.carBody}>
             <div className={styles.carWindshield}></div>
-            <div className={styles.carLogo}>🚗</div>
+            <div className={styles.carLogo}></div>
             <div className={styles.carDoor}>
               <div className={styles.doorHandle}>0</div>
             </div>
@@ -324,6 +422,7 @@ const ServiceTicket = () => {
                   value={tireData.rearLeft.mm}
                   onChange={(e) => handleTireDataChange('rearLeft', 'mm', e.target.value)}
                   className={styles.tireField}
+                  disabled={!isEditable}
                 />
               </div>
               <div className={styles.inputRow}>
@@ -333,6 +432,7 @@ const ServiceTicket = () => {
                   value={tireData.rearLeft.pressure}
                   onChange={(e) => handleTireDataChange('rearLeft', 'pressure', e.target.value)}
                   className={styles.tireField}
+                  disabled={!isEditable}
                 />
               </div>
             </div>

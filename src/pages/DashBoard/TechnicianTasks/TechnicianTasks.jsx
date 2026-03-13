@@ -165,7 +165,6 @@ const TechnicianTasks = () => {
       {/* Statistics */}
       <div className={styles.statsGrid}>
         <div className={`${styles.statCard} ${styles.statTotal}`}>
-          <div className={styles.statIcon}>📋</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{stats.total}</div>
             <div className={styles.statLabel}>Tổng công việc</div>
@@ -173,7 +172,6 @@ const TechnicianTasks = () => {
         </div>
 
         <div className={`${styles.statCard} ${styles.statPending}`}>
-          <div className={styles.statIcon}>⏳</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{stats.pending}</div>
             <div className={styles.statLabel}>Chờ bắt đầu</div>
@@ -181,7 +179,6 @@ const TechnicianTasks = () => {
         </div>
 
         <div className={`${styles.statCard} ${styles.statInProgress}`}>
-          <div className={styles.statIcon}>🔧</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{stats.inProgress}</div>
             <div className={styles.statLabel}>Đang thực hiện</div>
@@ -189,7 +186,6 @@ const TechnicianTasks = () => {
         </div>
 
         <div className={`${styles.statCard} ${styles.statCompleted}`}>
-          <div className={styles.statIcon}>✓</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{stats.completed}</div>
             <div className={styles.statLabel}>Hoàn thành</div>
@@ -226,7 +222,6 @@ const TechnicianTasks = () => {
         </div>
 
         <div className={styles.searchBox}>
-          <span className={styles.searchIcon}>🔍</span>
           <input
             type="text"
             placeholder="Tìm kiếm theo biển số, model, khách hàng..."
@@ -337,8 +332,7 @@ const TechnicianTasks = () => {
 
         {filteredTasks.length === 0 && (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>📭</div>
-            <p className={styles.emptyText}>Không có công việc nào</p>
+            <p className={styles.emptyText}>Khong co cong viec nao</p>
           </div>
         )}
       </div>

@@ -47,50 +47,46 @@ const AdvisorDashboard = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>💼 Dashboard Tư vấn viên</h1>
-          <p className={styles.subtitle}>Quản lý khách hàng và tư vấn dịch vụ</p>
+          <h1 className={styles.title}>Dashboard Tu van vien</h1>
+          <p className={styles.subtitle}>Quan ly khach hang va tu van dich vu</p>
         </div>
         <div className={styles.filters}>
           <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className={styles.filterSelect}>
-            <option value="today">Hôm nay</option>
-            <option value="week">Tuần này</option>
-            <option value="month">Tháng này</option>
+            <option value="today">Hom nay</option>
+            <option value="week">Tuan nay</option>
+            <option value="month">Thang nay</option>
           </select>
-          <button className={styles.newContactBtn}>➕ Liên hệ mới</button>
+          <button className={styles.newContactBtn}>+ Lien he moi</button>
         </div>
       </div>
 
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>👥</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.customerGrowth}%</span>
           </div>
           <div className={styles.kpiValue}>{kpis.totalCustomers}</div>
-          <div className={styles.kpiLabel}>Tổng khách hàng</div>
+          <div className={styles.kpiLabel}>Tong khach hang</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>💬</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.consultationGrowth}%</span>
           </div>
           <div className={styles.kpiValue}>{kpis.consultations}</div>
-          <div className={styles.kpiLabel}>Tư vấn tuần này</div>
+          <div className={styles.kpiLabel}>Tu van tuan nay</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>🎯</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.conversionChange}%</span>
           </div>
           <div className={styles.kpiValue}>{kpis.conversionRate}%</div>
-          <div className={styles.kpiLabel}>Tỷ lệ chuyển đổi</div>
+          <div className={styles.kpiLabel}>Ty le chuyen doi</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>💰</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.revenueGrowth}%</span>
           </div>
           <div className={styles.kpiValue}>{formatCurrency(kpis.avgRevenue)}</div>
@@ -100,7 +96,7 @@ const AdvisorDashboard = () => {
 
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>📈 Tư vấn & Chuyển đổi</h3>
+          <h3 className={styles.chartTitle}>Tu van & Chuyen doi</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={weeklyConsultations}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -108,14 +104,14 @@ const AdvisorDashboard = () => {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="consultations" fill="#7c3aed" name="Tư vấn" />
-              <Bar dataKey="converted" fill="#10b981" name="Chuyển đổi" />
+              <Bar dataKey="consultations" fill="#7c3aed" name="Tu van" />
+              <Bar dataKey="converted" fill="#10b981" name="Chuyen doi" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>🔧 Dịch vụ được đề xuất</h3>
+          <h3 className={styles.chartTitle}>Dich vu duoc de xuat</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie data={serviceRecommendations} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
@@ -130,7 +126,7 @@ const AdvisorDashboard = () => {
       </div>
 
       <div className={styles.contactSection}>
-        <h2 className={styles.sectionTitle}>📞 Danh sách liên hệ</h2>
+        <h2 className={styles.sectionTitle}>Danh sach lien he</h2>
         <div className={styles.contactList}>
           {customerContacts.map(contact => (
             <div key={contact.id} className={`${styles.contactCard} ${styles[contact.status]}`}>
@@ -138,25 +134,25 @@ const AdvisorDashboard = () => {
                 <div className={styles.contactInfo}>
                   <div className={styles.contactName}>{contact.name}</div>
                   <div className={styles.contactDetails}>
-                    <span>📞 {contact.phone}</span>
-                    <span>🚗 {contact.vehicle}</span>
+                    <span>{contact.phone}</span>
+                    <span>{contact.vehicle}</span>
                   </div>
                 </div>
                 <span className={`${styles.statusBadge} ${styles[contact.status]}`}>
-                  {contact.status === 'hot' && '🔥 Hot'}
-                  {contact.status === 'warm' && '🌤️ Warm'}
-                  {contact.status === 'cold' && '❄️ Cold'}
+                  {contact.status === 'hot' && 'Hot'}
+                  {contact.status === 'warm' && 'Warm'}
+                  {contact.status === 'cold' && 'Cold'}
                 </span>
               </div>
               <div className={styles.contactNote}>
-                <strong>Ghi chú:</strong> {contact.note}
+                <strong>Ghi chu:</strong> {contact.note}
               </div>
               <div className={styles.contactFooter}>
-                <span className={styles.lastContact}>Liên hệ: {contact.lastContact}</span>
+                <span className={styles.lastContact}>Lien he: {contact.lastContact}</span>
                 <div className={styles.contactActions}>
-                  <button className={styles.callBtn}>📞 Gọi</button>
-                  <button className={styles.consultBtn}>💬 Tư vấn</button>
-                  <button className={styles.bookBtn}>📅 Đặt lịch</button>
+                  <button className={styles.callBtn}>Goi</button>
+                  <button className={styles.consultBtn}>Tu van</button>
+                  <button className={styles.bookBtn}>Dat lich</button>
                 </div>
               </div>
             </div>

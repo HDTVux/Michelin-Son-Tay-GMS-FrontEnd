@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { fetchTechnicianTickets } from '../../../services/technicianService';
 import styles from './MyTasks.module.css';
 
 const MyTasks = () => {
@@ -9,52 +11,58 @@ const MyTasks = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Mock data - replace with API call
+  // Fetch data from API
   useEffect(() => {
-    const mockTasks = [
-      {
-        id: 12345,
-        licensePlate: '51F-123.45',
-        model: 'Toyota Camry',
-        serviceType: 'Bảo dưỡng định kỳ',
-        priority: 'Combo',
-        timeSlot: '09:00 - 10:00',
-        status: 'Đã giao',
-        customerRequest: 'Kiểm tra và sửa chữa hệ thống phanh, thay dầu động cơ',
-        assignedDate: '2024-03-06',
-        dueDate: '2024-03-06'
-      },
-      {
-        id: 67890,
-        licensePlate: '51G-678.90',
-        model: 'Honda Civic',
-        serviceType: 'Sửa chữa phanh',
-        priority: 'Urgent',
-        timeSlot: '10:00 - 11:00',
-        status: 'Đang tiến hành',
-        customerRequest: 'Tiếng kêu lạ khi phanh, cần kiểm tra gấp',
-        assignedDate: '2024-03-06',
-        dueDate: '2024-03-06'
-      },
-      {
-        id: 11223,
-        licensePlate: '51H-112.23',
-        model: 'Mercedes-Benz C-Class',
-        serviceType: 'Thay dầu',
-        priority: 'Critical',
-        timeSlot: '11:00 - 12:00',
-        status: 'Đã giao',
-        customerRequest: 'Thay dầu động cơ và kiểm tra tổng quát',
-        assignedDate: '2024-03-06',
-        dueDate: '2024-03-06'
+    const fetchTickets = async () => {
+      try {
+        const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+        if (!token) {
+          toast.error('Vui lòng đăng nhập để xem công việc');
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetchTechnicianTickets({ page: 0, size: 50 }, token);
+
+        // Transform API response to match component expectations
+        const tickets = response.data?.content || response.data || [];
+        const transformedTasks = tickets.map(ticket => ({
+          id: ticket.ticketCode,
+          licensePlate: ticket.licensePlate || '',
+          model: ticket.vehicleModel || ticket.vehicleName || '',
+          serviceType: ticket.serviceType || ticket.bookingServiceType || '',
+          priority: ticket.priority || 'Normal',
+          timeSlot: ticket.timeSlot || ticket.appointmentTime || '',
+          status: mapStatus(ticket.status),
+          customerRequest: ticket.customerRequest || ticket.notes || '',
+          assignedDate: ticket.receivedDate || ticket.createdDate || '',
+          dueDate: ticket.dueDate || ticket.appointmentDate || ''
+        }));
+
+        setTasks(transformedTasks);
+      } catch (error) {
+        console.error('Error fetching tickets:', error);
+        toast.error('Không thể tải danh sách công việc: ' + (error.message || 'Lỗi không xác định'));
+      } finally {
+        setLoading(false);
       }
-    ];
-    
-    setTimeout(() => {
-      setTasks(mockTasks);
-      setLoading(false);
-    }, 500);
+    };
+
+    fetchTickets();
   }, []);
+
+  // Map backend status to frontend status
+  const mapStatus = (status) => {
+    if (!status) return 'Đã giao';
+    const statusMap = {
+      'DRAFT': 'Đã giao',
+      'CREATED': 'Đã giao',
+      'IN_PROGRESS': 'Đang tiến hành',
+      'COMPLETED': 'Hoàn thành',
+      'CANCELLED': 'Đã hủy'
+    };
+    return statusMap[status.toUpperCase()] || 'Đã giao';
+  };
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -85,10 +93,13 @@ const MyTasks = () => {
   };
 
   const filteredTasks = tasks.filter(task => {
-    const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
-    const matchesSearch = task.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.serviceType.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' ||
+      (filterStatus === 'Đã giao' && (task.status === 'Đã giao' || !task.status)) ||
+      task.status === filterStatus;
+    const matchesSearch = !searchTerm ||
+      (task.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (task.model?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (task.serviceType?.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesStatus && matchesSearch;
   });
 
@@ -118,40 +129,36 @@ const MyTasks = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <h1 className={styles.title}>🔧 Công việc của tôi</h1>
+          <h1 className={styles.title}>Công việc của tôi</h1>
           <p className={styles.subtitle}>Quản lý và theo dõi các phiếu dịch vụ được giao</p>
         </div>
         <div className={styles.headerRight}>
           <button className={styles.refreshButton} onClick={() => window.location.reload()}>
-            🔄 Làm mới
+            Lam moi
           </button>
         </div>
       </div>
 
       <div className={styles.statsGrid}>
         <div className={`${styles.statCard} ${styles.statTotal}`}>
-          <div className={styles.statIcon}>📋</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{stats.total}</div>
             <div className={styles.statLabel}>Tổng công việc</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statAssigned}`}>
-          <div className={styles.statIcon}>📌</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{stats.assigned}</div>
             <div className={styles.statLabel}>Đã giao</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statProgress}`}>
-          <div className={styles.statIcon}>⚙️</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{stats.inProgress}</div>
             <div className={styles.statLabel}>Đang làm</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statCompleted}`}>
-          <div className={styles.statIcon}>✅</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{stats.completed}</div>
             <div className={styles.statLabel}>Hoàn thành</div>
@@ -163,7 +170,7 @@ const MyTasks = () => {
         <div className={styles.searchBox}>
           <input
             type="text"
-            placeholder="🔍 Tìm kiếm theo biển số, model, loại dịch vụ..."
+            placeholder="Tim kiem theo bien so, model, loai dich vu..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={styles.searchInput}
@@ -250,14 +257,14 @@ const MyTasks = () => {
                   className={styles.viewButton}
                   onClick={() => handleViewTask(task.id)}
                 >
-                  👁️ Xem chi tiết
+                  Xem chi tiet
                 </button>
                 {task.status === 'Đã giao' && (
                   <button 
                     className={styles.startButton}
                     onClick={() => navigate(`/technician/service-ticket/${task.id}`)}
                   >
-                    ▶️ Bắt đầu làm việc
+                    Bat dau lam viec
                   </button>
                 )}
                 {task.status === 'Đang tiến hành' && (
@@ -265,7 +272,7 @@ const MyTasks = () => {
                     className={styles.updateButton}
                     onClick={() => navigate(`/technician/update-progress/${task.id}`)}
                   >
-                    📝 Cập nhật tiến độ
+                    Cap nhat tien do
                   </button>
                 )}
               </div>
@@ -273,9 +280,8 @@ const MyTasks = () => {
           ))
         ) : (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>📭</div>
-            <p className={styles.emptyText}>Không tìm thấy công việc nào</p>
-            <p className={styles.emptySubtext}>Thử thay đổi bộ lọc hoặc tìm kiếm khác</p>
+            <p className={styles.emptyText}>Khong tim thay cong viec nao</p>
+            <p className={styles.emptySubtext}>Thu thay doi bo loc hoac tim kiem khac</p>
           </div>
         )}
       </div>

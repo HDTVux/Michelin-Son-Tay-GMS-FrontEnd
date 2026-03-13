@@ -44,60 +44,56 @@ const TechnicianDashboard = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>🔧 Dashboard Kỹ thuật viên</h1>
-          <p className={styles.subtitle}>Quản lý công việc và hiệu suất cá nhân</p>
+          <h1 className={styles.title}>Dashboard Ky thuat vien</h1>
+          <p className={styles.subtitle}>Quan ly cong viec va hieu suat ca nhan</p>
         </div>
         <div className={styles.filters}>
           <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className={styles.filterSelect}>
-            <option value="today">Hôm nay</option>
-            <option value="week">Tuần này</option>
-            <option value="month">Tháng này</option>
+            <option value="today">Hom nay</option>
+            <option value="week">Tuan nay</option>
+            <option value="month">Thang nay</option>
           </select>
-          <button className={styles.clockBtn}>⏰ Chấm công</button>
+          <button className={styles.clockBtn}>Cham cong</button>
         </div>
       </div>
 
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>🔧</span>
             <span className={`${styles.kpiTrend} ${styles.neutral}`}>{kpis.progressChange}</span>
           </div>
           <div className={styles.kpiValue}>{kpis.inProgress}</div>
-          <div className={styles.kpiLabel}>Đang làm</div>
+          <div className={styles.kpiLabel}>Dang lam</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>✅</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.completedChange}</span>
           </div>
           <div className={styles.kpiValue}>{kpis.completed}</div>
-          <div className={styles.kpiLabel}>Hoàn thành hôm nay</div>
+          <div className={styles.kpiLabel}>Hoan thanh hom nay</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>⏳</span>
             <span className={`${styles.kpiTrend} ${styles.down}`}>↓ {Math.abs(kpis.waitingChange)}</span>
           </div>
           <div className={styles.kpiValue}>{kpis.waiting}</div>
-          <div className={styles.kpiLabel}>Chờ xử lý</div>
+          <div className={styles.kpiLabel}>Cho xu ly</div>
         </div>
 
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiIcon}>⭐</span>
             <span className={`${styles.kpiTrend} ${styles.up}`}>↑ {kpis.ratingChange}</span>
           </div>
           <div className={styles.kpiValue}>{kpis.avgRating}</div>
-          <div className={styles.kpiLabel}>Đánh giá TB</div>
+          <div className={styles.kpiLabel}>Danh gia TB</div>
         </div>
       </div>
 
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>📊 Hiệu suất tuần này</h3>
+          <h3 className={styles.chartTitle}>Hieu suat tuan nay</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={weeklyPerformance}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -106,20 +102,20 @@ const TechnicianDashboard = () => {
               <YAxis yAxisId="right" orientation="right" />
               <Tooltip />
               <Legend />
-              <Bar yAxisId="left" dataKey="completed" fill="#ea580c" name="Công việc hoàn thành" />
-              <Bar yAxisId="right" dataKey="hours" fill="#3b82f6" name="Giờ làm việc" />
+              <Bar yAxisId="left" dataKey="completed" fill="#ea580c" name="Cong viec hoan thanh" />
+              <Bar yAxisId="right" dataKey="hours" fill="#3b82f6" name="Gio lam viec" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>🎯 Kỹ năng chuyên môn</h3>
+          <h3 className={styles.chartTitle}>Ky nang chuyen mon</h3>
           <ResponsiveContainer width="100%" height={300}>
             <RadarChart data={skillsData}>
               <PolarGrid />
               <PolarAngleAxis dataKey="skill" />
               <PolarRadiusAxis angle={90} domain={[0, 100]} />
-              <Radar name="Kỹ năng" dataKey="value" stroke="#ea580c" fill="#ea580c" fillOpacity={0.6} />
+              <Radar name="Ky nang" dataKey="value" stroke="#ea580c" fill="#ea580c" fillOpacity={0.6} />
               <Tooltip />
             </RadarChart>
           </ResponsiveContainer>
@@ -127,17 +123,17 @@ const TechnicianDashboard = () => {
       </div>
 
       <div className={styles.taskSection}>
-        <h2 className={styles.sectionTitle}>🔧 Công việc hôm nay</h2>
+        <h2 className={styles.sectionTitle}>Cong viec hom nay</h2>
         <div className={styles.taskList}>
           {tasks.map(task => (
             <div key={task.id} className={`${styles.taskCard} ${styles[task.priority]}`}>
               <div className={styles.taskHeader}>
                 <div className={styles.vehicleInfo}>
-                  <span className={styles.vehicleNumber}>🚗 {task.vehicle}</span>
+                  <span className={styles.vehicleNumber}>{task.vehicle}</span>
                   <span className={styles.customerName}>{task.customer}</span>
                 </div>
                 <span className={`${styles.statusBadge} ${styles[task.status]}`}>
-                  {task.status === 'inProgress' ? '🔧 Đang xử lý' : '⏳ Chờ xử lý'}
+                  {task.status === 'inProgress' ? 'Dang xu ly' : 'Cho xu ly'}
                 </span>
               </div>
               <div className={styles.taskService}>{task.service}</div>
@@ -148,16 +144,16 @@ const TechnicianDashboard = () => {
                 <span className={styles.progressText}>{task.progress}%</span>
               </div>
               <div className={styles.taskFooter}>
-                <span className={styles.startTime}>Bắt đầu: {task.startTime}</span>
+                <span className={styles.startTime}>Bat dau: {task.startTime}</span>
                 <div className={styles.taskActions}>
                   {task.status === 'inProgress' && (
                     <>
-                      <button className={styles.updateBtn}>📝 Cập nhật</button>
-                      <button className={styles.completeBtn}>✓ Hoàn thành</button>
+                      <button className={styles.updateBtn}>Cap nhat</button>
+                      <button className={styles.completeBtn}>Hoan thanh</button>
                     </>
                   )}
                   {task.status === 'waiting' && (
-                    <button className={styles.startBtn}>▶ Bắt đầu</button>
+                    <button className={styles.startBtn}>Bat dau</button>
                   )}
                 </div>
               </div>

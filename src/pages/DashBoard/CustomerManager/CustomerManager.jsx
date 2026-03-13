@@ -261,7 +261,6 @@ const CustomerManager = () => {
 
       <div className={styles.toolbar}>
         <div className={styles.searchBox}>
-          <span>🔍</span>
           <input
             type="text"
             placeholder="Tìm kiếm..."
@@ -310,7 +309,7 @@ const CustomerManager = () => {
             onClick={() => loadCustomers()}
             title="Làm mới"
           >
-            🔄 Làm mới
+            Lam moi
           </button>
         </div>
       </div>
@@ -322,8 +321,7 @@ const CustomerManager = () => {
         </div>
       ) : customers.length === 0 ? (
         <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>📭</div>
-          <p>Không có khách hàng nào</p>
+          <p>Khong co khach hang nao</p>
         </div>
       ) : (
         <>

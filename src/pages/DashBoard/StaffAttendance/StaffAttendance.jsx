@@ -12,7 +12,7 @@ const StaffAttendance = () => {
     id: null,
     name: '',
     position: '',
-    avatar: '👤'
+    avatar: ''
   });
 
   // Get status display info
@@ -68,7 +68,7 @@ const StaffAttendance = () => {
             id: '1',
             name: 'Nhân viên',
             position: 'Nhân viên',
-            avatar: '👤'
+            avatar: ''
           });
           setLoading(false);
           return;
@@ -102,7 +102,7 @@ const StaffAttendance = () => {
             id: staffId,
             name: localStorage.getItem('staffName') || 'Nhân viên',
             position: localStorage.getItem('staffPosition') || 'Nhân viên',
-            avatar: '👤'
+            avatar: ''
           });
         } else {
           console.warn('❌ Invalid API response structure');
@@ -206,7 +206,7 @@ const StaffAttendance = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <div className={styles.staffAvatar}>{staffInfo.avatar}</div>
+          <div className={styles.staffAvatar}></div>
           <div className={styles.staffInfo}>
             <h1 className={styles.title}>Điểm danh của tôi</h1>
             <p className={styles.subtitle}>
@@ -221,10 +221,9 @@ const StaffAttendance = () => {
 
       <div className={styles.statsGrid}>
         <div className={`${styles.statCard} ${styles.statPrimary}`}>
-          <div className={styles.statIcon}>📅</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{totalDays}</div>
-            <div className={styles.statLabel}>Tổng ngày</div>
+            <div className={styles.statLabel}>Tong ngay</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statSuccess}`}>
@@ -260,8 +259,8 @@ const StaffAttendance = () => {
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
           <div className={styles.viewToggle}>
-            <button className={`${styles.viewButton} ${viewMode === 'calendar' ? styles.active : ''}`} onClick={() => setViewMode('calendar')}>📅 Lịch</button>
-            <button className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`} onClick={() => setViewMode('list')}>📋 Danh sách</button>
+            <button className={`${styles.viewButton} ${viewMode === 'calendar' ? styles.active : ''}`} onClick={() => setViewMode('calendar')}>Lich</button>
+            <button className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`} onClick={() => setViewMode('list')}>Danh sach</button>
           </div>
           <div className={styles.monthNavigation}>
             <button className={styles.navButton} onClick={goToPreviousMonth}>◀ Tháng trước</button>
