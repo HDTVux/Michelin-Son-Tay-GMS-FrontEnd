@@ -1,0 +1,75 @@
+.headerActions {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.filterLabels {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	font-weight: 400;
+	font-size: 14px;
+	color: #1f1f1f;
+	margin-bottom: 6px;
+}
+
+.filterControls {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.filterControls select {
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 6px;
+	border: 1px solid #d9d9d9;
+	background: #fff;
+	font-size: 14px;
+}
+
+@media (max-width: 720px) {
+	.filterLabels,
+	.filterControls {
+		grid-template-columns: 1fr;
+	}
+}
+
+.table {
+	min-width: 760px;
+}
+
+.actionGroup {
+	display: inline-flex;
+	gap: 8px;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+}
+
+.actionBtn {
+	border: 1px solid #d9d9d9;
+	background: #ffffff;
+	color: #333;
+	padding: 8px 10px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 13px;
+	line-height: 1;
+}
+
+.actionBtn:hover {
+	background: #f7f7f7;
+}
+
+.actionDanger {
+	background: #ffe7e7;
+	border-color: #ffb8b8;
+	color: #c22727;
+}
+
+.actionDanger:hover {
+	background: #ffd8d8;
+}
