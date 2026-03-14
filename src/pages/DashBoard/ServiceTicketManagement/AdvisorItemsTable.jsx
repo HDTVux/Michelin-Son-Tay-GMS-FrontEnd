@@ -60,6 +60,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 	const [loading, setLoading] = useState(false);
 	const [loadError, setLoadError] = useState('');
 	const [fetched, setFetched] = useState(false);
+	const [recommendation, setRecommendation] = useState('');
 	const [isCreating, setIsCreating] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
@@ -67,6 +68,10 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 	const [draftRows, setDraftRows] = useState(() => Array.from({ length: PLACEHOLDER_ROW_COUNT }).map(() => createEmptyDraftRow()));
 	const [editRows, setEditRows] = useState(() => Array.from({ length: PLACEHOLDER_ROW_COUNT }).map(() => createEmptyDraftRow()));
 	const prevServiceTicketIdRef = useRef(serviceTicketId);
+
+	useEffect(() => {
+		setRecommendation('');
+	}, [serviceTicketId]);
 
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
@@ -613,6 +618,16 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 						</tr>
 					</tfoot>
 				</table>
+			</div>
+
+			<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
+				<label htmlFor="advisor-recommendation">Khuyến nghị</label>
+				<textarea
+					id="advisor-recommendation"
+					placeholder="Nhập khuyến nghị..."
+					value={recommendation}
+					onChange={(e) => setRecommendation(e.target.value)}
+				/>
 			</div>
 		</section>
 	);
