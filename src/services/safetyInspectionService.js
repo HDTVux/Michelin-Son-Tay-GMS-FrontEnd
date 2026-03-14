@@ -147,3 +147,34 @@ export const getSafetyInspectionCategories = (token) => {
     headers: { Authorization: `Bearer ${token}` },
   });
 };
+
+// Lấy danh sách 13 hạng mục kiểm tra an toàn mặc định
+// GET /api/safety-inspections/categories/default
+export const getDefaultSafetyInspectionCategories = (token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để lấy danh mục mặc định.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  return request('/api/safety-inspections/categories/default', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Tạo mới hạng mục kiểm tra an toàn
+// POST /api/safety-inspections/categories
+export const createWorkCategory = (payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để tạo hạng mục mới.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  return request('/api/safety-inspections/categories', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload ?? {}),
+  });
+};

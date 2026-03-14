@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { fetchTechnicianTickets } from '../../../services/technicianService';
+import { fetchTechnicianTickets, fetchTechnicianTicketDetail } from '../../../services/technicianService';
 import styles from './MyTasks.module.css';
 
 const MyTasks = () => {
@@ -10,6 +10,8 @@ const MyTasks = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   // Fetch data from API
   useEffect(() => {
@@ -262,7 +264,7 @@ const MyTasks = () => {
                 {task.status === 'Đã giao' && (
                   <button 
                     className={styles.startButton}
-                    onClick={() => navigate(`/technician/service-ticket/${task.id}`)}
+                    onClick={() => navigate(`/technician/service-ticket/${task.ticketCode || task.id}`)}
                   >
                     Bat dau lam viec
                   </button>
@@ -285,6 +287,110 @@ const MyTasks = () => {
           </div>
         )}
       </div>
+
+      {/* Modal Popup */}
+      {showModal && selectedTask && (
+        <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Chi tiết công việc</h3>
+              <button className={styles.modalClose} onClick={() => setShowModal(false)}>
+                ✕
+              </button>
+            </div>
+            
+            <div className={styles.modalBody}>
+              <div className={styles.modalSection}>
+                <h4 className={styles.sectionTitle}>Thông tin phiếu</h4>
+                <div className={styles.infoGrid}>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>ID Phiếu:</span>
+                    <span className={styles.infoValue}>#{selectedTask.id}</span>
+                  </div>
+                  {selectedTask.ticketCode && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Mã phiếu:</span>
+                      <span className={styles.infoValue}>{selectedTask.ticketCode}</span>
+                    </div>
+                  )}
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Trạng thái:</span>
+                    <span className={`${styles.statusBadge} ${getStatusClass(selectedTask.status)}`}>
+                      {selectedTask.status}
+                    </span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Độ ưu tiên:</span>
+                    <span className={`${styles.priorityBadge} ${getPriorityClass(selectedTask.priority)}`}>
+                      {selectedTask.priority}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.modalSection}>
+                <h4 className={styles.sectionTitle}>Thông tin xe</h4>
+                <div className={styles.infoGrid}>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Biển số:</span>
+                    <span className={styles.infoValue}>{selectedTask.licensePlate}</span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Hãng xe:</span>
+                    <span className={styles.infoValue}>{selectedTask.make}</span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Model:</span>
+                    <span className={styles.infoValue}>{selectedTask.model}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.modalSection}>
+                <h4 className={styles.sectionTitle}>Thông tin dịch vụ</h4>
+                <div className={styles.infoGrid}>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Loại dịch vụ:</span>
+                    <span className={styles.infoValue}>{selectedTask.serviceType}</span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Time slot:</span>
+                    <span className={styles.infoValue}>{selectedTask.timeSlot}</span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Ngày giao:</span>
+                    <span className={styles.infoValue}>{formatDate(selectedTask.assignedDate)}</span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Hạn hoàn thành:</span>
+                    <span className={styles.infoValue}>{formatDate(selectedTask.dueDate)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.modalSection}>
+                <h4 className={styles.sectionTitle}>Yêu cầu khách hàng</h4>
+                <p className={styles.customerRequestFull}>{selectedTask.customerRequest || 'Không có yêu cầu đặc biệt'}</p>
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCancelBtn} onClick={() => setShowModal(false)}>
+                Đóng
+              </button>
+              <button 
+                className={styles.modalActionBtn}
+                onClick={() => {
+                  setShowModal(false);
+                  navigate(`/technician/service-ticket/${selectedTask.ticketCode || selectedTask.id}`);
+                }}
+              >
+                {selectedTask.status === 'Đã giao' ? 'Bắt đầu làm việc' : 'Xem phiếu kiểm tra'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
