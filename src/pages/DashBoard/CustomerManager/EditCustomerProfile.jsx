@@ -1,7 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { fetchAllCustomers, updateCustomer } from '../../../services/adminService.js';
 import styles from './EditCustomerProfile.module.css';
+
+const normalizePhone = (value) => String(value || '').replaceAll(/\s/g, '');
+
+const validateCustomerForm = (data) => {
+  const newErrors = {};
+
+  if (!data.fullName?.trim()) {
+    newErrors.fullName = 'Vui lòng nhập họ và tên';
+  }
+
+  const phoneDigits = normalizePhone(data.phone);
+  if (!phoneDigits.trim()) {
+    newErrors.phone = 'Vui lòng nhập số điện thoại';
+  } else if (!/^\d{10}$/.test(phoneDigits)) {
+    newErrors.phone = 'Số điện thoại không hợp lệ (10 số)';
+  }
+
+  if (!data.email?.trim()) {
+    newErrors.email = 'Vui lòng nhập email';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    newErrors.email = 'Email không hợp lệ';
+  }
+
+  return newErrors;
+};
+
+const mapCustomerToFormData = (customer) => ({
+  customerId: customer.customerId,
+  status: customer.status || 'ACTIVE',
+  fullName: customer.fullName || '',
+  phone: customer.phone || '',
+  email: customer.email || '',
+  gender: customer.gender || 'MALE',
+  dob: customer.dob || customer.dateOfBirth || '',
+  createdAt: customer.createdAt || '',
+  totalBookings: customer.totalBookings || 0,
+});
 
 const EditCustomerProfile = () => {
   const { customerId } = useParams();
@@ -11,24 +49,19 @@ const EditCustomerProfile = () => {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
+    status: 'ACTIVE',
     fullName: '',
     phone: '',
     email: '',
     gender: 'MALE',
-    dateOfBirth: '',
-    avatar: '',
+    dob: '',
     createdAt: '',
-    firstBookingAt: '',
     totalBookings: 0
   });
 
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    loadCustomerData();
-  }, [customerId]);
-
-  const loadCustomerData = async () => {
+  const loadCustomerData = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -39,10 +72,6 @@ const EditCustomerProfile = () => {
         return;
       }
 
-      // TODO: Backend cần implement API GET /api/admin/customer/{customerId}
-      // Tạm thời load từ danh sách và filter theo customerId
-      const { fetchAllCustomers } = await import('../../../services/adminService.js');
-      
       const response = await fetchAllCustomers({
         page: 0,
         size: 100, // Load nhiều để tìm customer
@@ -51,22 +80,11 @@ const EditCustomerProfile = () => {
 
       if (response?.success && response?.data?.content) {
         const customer = response.data.content.find(
-          c => c.customerId === parseInt(customerId)
+          (c) => c.customerId === Number.parseInt(customerId, 10)
         );
 
         if (customer) {
-          setFormData({
-            customerId: customer.customerId,
-            fullName: customer.fullName || '',
-            phone: customer.phone || '',
-            email: customer.email || '',
-            gender: customer.gender || 'MALE',
-            dateOfBirth: customer.dateOfBirth || customer.dob || '',
-            avatar: customer.avatar || '',
-            createdAt: customer.createdAt || '',
-            firstBookingAt: customer.firstBookingAt || '',
-            totalBookings: customer.totalBookings || 0
-          });
+          setFormData(mapCustomerToFormData(customer));
         } else {
           toast.error('Không tìm thấy khách hàng');
           navigate('/customer-manager');
@@ -80,7 +98,11 @@ const EditCustomerProfile = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [customerId, navigate]);
+
+  useEffect(() => {
+    loadCustomerData();
+  }, [loadCustomerData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -98,27 +120,7 @@ const EditCustomerProfile = () => {
   };
 
   const validateForm = () => {
-    const newErrors = {};
-
-    // Họ tên - BẮT BUỘC
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Vui lòng nhập họ và tên';
-    }
-
-    // Số điện thoại - BẮT BUỘC
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Vui lòng nhập số điện thoại';
-    } else if (!/^[0-9]{10}$/.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Số điện thoại không hợp lệ (10 số)';
-    }
-
-    // Email - KHÔNG BẮT BUỘC nhưng nếu có thì phải đúng format
-    if (formData.email && formData.email.trim()) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-        newErrors.email = 'Email không hợp lệ';
-      }
-    }
-
+    const newErrors = validateCustomerForm(formData);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -140,17 +142,32 @@ const EditCustomerProfile = () => {
         return;
       }
 
-      // TODO: Backend cần implement API PUT /api/admin/customer/{customerId}
-      // const payload = {
-      //   fullName: formData.fullName,
-      //   phone: formData.phone,
-      //   email: formData.email,
-      //   gender: formData.gender,
-      //   dateOfBirth: formData.dateOfBirth
-      // };
-      // await updateCustomer(customerId, payload, token);
+      const payload = {
+        status: formData.status || 'ACTIVE',
+        lastLoginAt: null,
+        fullName: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        dob: formData.dob || null,
+        gender: formData.gender,
+        avatar: null,
+        firstBookingAt: null
+      };
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await updateCustomer(customerId, payload, token);
+
+      if (response) {
+        setFormData((prev) => ({
+          ...prev,
+          status: response.status ?? prev.status,
+          fullName: response.fullName ?? prev.fullName,
+          phone: response.phone ?? prev.phone,
+          email: response.email ?? prev.email,
+          dob: response.dob ?? prev.dob,
+          gender: response.gender ?? prev.gender,
+          // keep createdAt/totalBookings from previous list fetch
+        }));
+      }
 
       toast.success('Cập nhật thông tin khách hàng thành công!');
       setShowSuccess(true);
@@ -211,16 +228,17 @@ const EditCustomerProfile = () => {
               <div className={styles.formGrid}>
                 {/* Họ và tên - BẮT BUỘC */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>
+                  <label className={styles.label} htmlFor="ecp_fullName">
                     Họ và tên <span className={styles.required}>*</span>
                   </label>
                   <input
+                    id="ecp_fullName"
                     type="text"
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`${styles.input} ${errors.fullName ? styles.inputError : ''} ${!isEditing ? styles.inputDisabled : ''}`}
+                    className={`${styles.input} ${errors.fullName ? styles.inputError : ''} ${isEditing ? '' : styles.inputDisabled}`}
                     placeholder="Nhập họ và tên"
                   />
                   {errors.fullName && <span className={styles.errorText}>{errors.fullName}</span>}
@@ -228,17 +246,18 @@ const EditCustomerProfile = () => {
 
                 {/* Số điện thoại - BẮT BUỘC */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>
+                  <label className={styles.label} htmlFor="ecp_phone">
                     Số điện thoại <span className={styles.required}>*</span>
                   </label>
                   <div className={styles.phoneGroup}>
                     <input
+                      id="ecp_phone"
                       type="tel"
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
                       disabled={!isEditing}
-                      className={`${styles.input} ${errors.phone ? styles.inputError : ''} ${!isEditing ? styles.inputDisabled : ''}`}
+                      className={`${styles.input} ${errors.phone ? styles.inputError : ''} ${isEditing ? '' : styles.inputDisabled}`}
                       placeholder="0912345678"
                     />
                     {isEditing && (
@@ -256,14 +275,15 @@ const EditCustomerProfile = () => {
 
                 {/* Email - KHÔNG BẮT BUỘC */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Email</label>
+                  <label className={styles.label} htmlFor="ecp_email">Email</label>
                   <input
+                    id="ecp_email"
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`${styles.input} ${errors.email ? styles.inputError : ''} ${!isEditing ? styles.inputDisabled : ''}`}
+                    className={`${styles.input} ${errors.email ? styles.inputError : ''} ${isEditing ? '' : styles.inputDisabled}`}
                     placeholder="user@example.com"
                   />
                   {errors.email && <span className={styles.errorText}>{errors.email}</span>}
@@ -271,13 +291,14 @@ const EditCustomerProfile = () => {
 
                 {/* Giới tính - KHÔNG BẮT BUỘC */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Giới tính</label>
+                  <label className={styles.label} htmlFor="ecp_gender">Giới tính</label>
                   <select
+                    id="ecp_gender"
                     name="gender"
                     value={formData.gender}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`${styles.select} ${!isEditing ? styles.inputDisabled : ''}`}
+                    className={`${styles.select} ${isEditing ? '' : styles.inputDisabled}`}
                   >
                     <option value="MALE">Nam</option>
                     <option value="FEMALE">Nữ</option>
@@ -285,16 +306,33 @@ const EditCustomerProfile = () => {
                   </select>
                 </div>
 
-                {/* Ngày sinh - KHÔNG BẮT BUỘC */}
+                {/* Trạng thái */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Ngày sinh</label>
-                  <input
-                    type="date"
-                    name="dateOfBirth"
-                    value={formData.dateOfBirth}
+                  <label className={styles.label} htmlFor="ecp_status">Trạng thái</label>
+                  <select
+                    id="ecp_status"
+                    name="status"
+                    value={formData.status}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`${styles.input} ${!isEditing ? styles.inputDisabled : ''}`}
+                    className={`${styles.select} ${isEditing ? '' : styles.inputDisabled}`}
+                  >
+                    <option value="ACTIVE">Hoạt động</option>
+                    <option value="INACTIVE">Không hoạt động</option>
+                  </select>
+                </div>
+
+                {/* Ngày sinh */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="ecp_dob">Ngày sinh</label>
+                  <input
+                    id="ecp_dob"
+                    type="date"
+                    name="dob"
+                    value={formData.dob}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                    className={`${styles.input} ${isEditing ? '' : styles.inputDisabled}`}
                   />
                 </div>
               </div>
@@ -347,15 +385,6 @@ const EditCustomerProfile = () => {
                     <div className={styles.statLabel}>Ngày tạo tài khoản</div>
                     <div className={styles.statValue}>
                       {formData.createdAt ? new Date(formData.createdAt).toLocaleDateString('vi-VN') : '-'}
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.statItem}>
-                  <div className={styles.statIcon}>📅</div>
-                  <div className={styles.statContent}>
-                    <div className={styles.statLabel}>Lần đặt lịch đầu tiên</div>
-                    <div className={styles.statValue}>
-                      {formData.firstBookingAt ? new Date(formData.firstBookingAt).toLocaleDateString('vi-VN') : 'Chưa có'}
                     </div>
                   </div>
                 </div>

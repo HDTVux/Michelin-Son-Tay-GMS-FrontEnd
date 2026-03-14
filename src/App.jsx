@@ -27,7 +27,7 @@ import BookingRequestEdit from './pages/DashBoard/BookingRequestManagement/Booki
 import { cleanupExpiredTokens } from './services/tokenUtils.js';
 import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 import DailySchedule from './pages/DashBoard/DailySchedule/DailySchedule.jsx';
-import EditCustomerProfile from './pages/DashBoard/CustomerProfile/EditCustomerProfile.jsx';
+import EditCustomerProfile from './pages/DashBoard/CustomerManager/EditCustomerProfile.jsx';
 import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.jsx';
 import TechnicianTasks from './pages/DashBoard/TechnicianTasks/TechnicianTasks.jsx';
 import AssignAdvisor from './pages/DashBoard/AssignAdvisor/AssignAdvisor.jsx';
@@ -39,6 +39,7 @@ import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.j
 import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
+import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.jsx';
 
 // Import Work History pages
 import TechnicianWorkHistory from './pages/WorkHistory/TechnicianWorkHistory/TechnicianWorkHistory.jsx';
@@ -127,6 +128,7 @@ export default function App() {
           <Route path="queue-management" element={<QueueManagement />} />
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />
+          <Route path="staff-manager" element={<StaffManagement />} />
           
           {/* Technician pages */}
           <Route path="technician/my-tasks" element={<MyTasks />} />

@@ -61,7 +61,9 @@ const NAV_GROUPS = [
 			{ id: 'ticket-assignment', label: 'Phân công ticket', path: '/ticket-assignment', icon: <IconEdit />, roles: [STAFF_ROLE.ADVISOR], },
 			{id: 'create-booking',label: 'Tạo lịch hẹn',path: '/create-booking',icon: <IconCheckIn />,roles: [STAFF_ROLE.RECEPTIONIST],},
 			{id: 'staff-attendance',label: 'Chấm công',path: '/staff-attendance',icon: <IconClock />,roles: [STAFF_ROLE.RECEPTIONIST],},
-			{ id: 'customer-manager', label: 'Quản lý khách hàng', path: '/customer-manager', icon: <IconUser />, roles: 'ALL' },
+			{ id: 'customer-manager', label: 'Quản lý khách hàng', path: '/customer-manager', icon: <IconUser />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ADMIN], },
+			{ id: 'staff-manager', label: 'Quản lý nhân viên', path: '/staff-manager', icon: <IconUser />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
+						
 		],
 	},
 	{
