@@ -11,11 +11,13 @@ import { request } from './apiClient';
  * Backend: POST /api/admin/customer/create
  * 
  * @param {object} payload - Thông tin customer
- * @param {string} payload.phone - Số điện thoại (required)
  * @param {string} payload.fullName - Họ tên đầy đủ (required)
- * @param {string} payload.email - Email (optional)
- * @param {string} payload.dateOfBirth - Ngày sinh (yyyy-MM-dd) (optional)
- * @param {string} payload.address - Địa chỉ (optional)
+ * @param {string} payload.phone - Số điện thoại (required)
+ * @param {string} payload.email - Email (required)
+ * @param {string} payload.pin - PIN 6 chữ số (required)
+ * @param {('MALE'|'FEMALE'|'OTHER')} payload.gender - Giới tính (required)
+ * @param {string} payload.dob - Ngày sinh (yyyy-MM-dd) (optional)
+ * @param {string} payload.avatar - Avatar URL/base64 (optional)
  * @param {string} token - JWT token
  * @returns {Promise} Response chứa thông tin customer đã tạo
  * 
@@ -23,13 +25,13 @@ import { request } from './apiClient';
  * {
  *   success: true,
  *   data: {
- *     customerId: number,
- *     phone: string,
  *     fullName: string,
+ *     phone: string,
  *     email: string,
- *     dateOfBirth: string,
- *     address: string,
- *     createdAt: string
+ *     pin: string,
+ *     gender: string,
+ *     dob: string,
+ *     avatar: string
  *   }
  * }
  */
@@ -107,7 +109,7 @@ export const fetchAllCustomers = (params, token) => {
 
 /**
  * Lấy chi tiết một customer theo customerId
- * TODO: Backend cần implement endpoint này
+ * Ghi chú: endpoint có thể chưa được backend implement.
  * 
  * @param {number} customerId - ID của customer
  * @param {string} token - JWT token
@@ -123,16 +125,25 @@ export const fetchCustomerDetail = (customerId, token) => {
 
 /**
  * Cập nhật thông tin customer (Admin)
- * TODO: Backend cần implement endpoint này
+ * Backend: PUT /api/admin/customer/{customerId}/update
  * 
  * @param {number} customerId - ID của customer
  * @param {object} payload - Thông tin cập nhật
+ * @param {('ACTIVE'|'INACTIVE')} payload.status
+ * @param {string|null} payload.lastLoginAt
+ * @param {string} payload.fullName
+ * @param {string} payload.phone
+ * @param {string} payload.email
+ * @param {string} payload.dob - yyyy-MM-dd
+ * @param {('MALE'|'FEMALE'|'OTHER')} payload.gender
+ * @param {string|null} payload.avatar
+ * @param {string|null} payload.firstBookingAt
  * @param {string} token - JWT token
  * @returns {Promise}
  */
 export const updateCustomer = (customerId, payload, token) => {
   const id = Number(customerId) || 0;
-  return request(`/api/admin/customer/${id}`, {
+  return request(`/api/admin/customer/${id}/update`, {
     method: 'PUT',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: JSON.stringify(payload),
@@ -141,7 +152,7 @@ export const updateCustomer = (customerId, payload, token) => {
 
 /**
  * Xóa customer (Admin)
- * TODO: Backend cần implement endpoint này
+ * Ghi chú: endpoint có thể chưa được backend implement.
  * 
  * @param {number} customerId - ID của customer
  * @param {string} token - JWT token

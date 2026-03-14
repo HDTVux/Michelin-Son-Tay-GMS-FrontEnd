@@ -27,7 +27,7 @@ import BookingRequestEdit from './pages/DashBoard/BookingRequestManagement/Booki
 import { cleanupExpiredTokens } from './services/tokenUtils.js';
 import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 import DailySchedule from './pages/DashBoard/DailySchedule/DailySchedule.jsx';
-import EditCustomerProfile from './pages/DashBoard/CustomerProfile/EditCustomerProfile.jsx';
+import EditCustomerProfile from './pages/DashBoard/CustomerManager/EditCustomerProfile.jsx';
 import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.jsx';
 import TechnicianTasks from './pages/DashBoard/TechnicianTasks/TechnicianTasks.jsx';
 import AssignAdvisor from './pages/DashBoard/AssignAdvisor/AssignAdvisor.jsx';
