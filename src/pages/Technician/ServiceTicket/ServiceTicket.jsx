@@ -2,7 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTechnicianTicketDetail } from '../../../services/technicianService';
-import { getSafetyInspectionByTicketCode, saveSafetyInspectionData, getSafetyInspectionCategories, enableSafetyInspection } from '../../../services/safetyInspectionService';
+import { 
+  getSafetyInspectionByTicketCode, 
+  saveSafetyInspectionData, 
+  getSafetyInspectionCategories, 
+  enableSafetyInspection,
+  createWorkCategory,
+  getDefaultSafetyInspectionCategories
+} from '../../../services/safetyInspectionService';
 import styles from './ServiceTicket.module.css';
 
 const ServiceTicket = () => {
