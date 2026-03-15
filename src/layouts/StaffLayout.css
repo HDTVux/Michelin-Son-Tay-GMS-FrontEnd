@@ -12,6 +12,22 @@
   background: white;
 }
 
+@media print {
+  .sidebar {
+    display: none !important;
+  }
+
+  .staffLayout {
+    display: block;
+    min-height: auto;
+  }
+
+  .staffLayout__content {
+    overflow: visible;
+    min-height: auto;
+  }
+}
+
 @media (max-width: 768px) {
   .staffLayout {
     flex-direction: column;

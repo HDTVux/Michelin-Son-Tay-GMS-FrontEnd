@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHooks.js';
 import styles from './ServiceTicketDetail.module.css';
+import Receipt from '../Receipt/Receipt.jsx';
 
 const STAFF_ROLE = {
 	ADVISOR: 'ADVISOR',
@@ -359,10 +360,16 @@ export default function ServiceTicketDetail() {
 		if (typeof globalThis?.print === 'function') globalThis.print();
 	};
 
+	const printTicket = useMemo(
+		() => ({ ...ticket, receivedAtDisplay, handoverAtDisplay }),
+		[ticket, receivedAtDisplay, handoverAtDisplay],
+	);
+
 	return (
 		<div className={styles.page}>
-			<div className={styles.layout}>
-				<main className={styles.main}>
+			<div className={styles.screenOnly}>
+				<div className={styles.layout}>
+					<main className={styles.main}>
 					<header className={styles.header}>
 						<div className={styles.headerLeft}>
 							<div className={styles.titleRow}>
@@ -493,7 +500,12 @@ export default function ServiceTicketDetail() {
 							</button>
 						</div>
 					</div>
-				</main>
+					</main>
+				</div>
+			</div>
+
+			<div className={styles.printOnly}>
+				<Receipt ticket={printTicket} />
 			</div>
 		</div>
 	);
