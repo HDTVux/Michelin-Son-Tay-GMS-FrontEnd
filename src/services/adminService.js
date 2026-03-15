@@ -53,6 +53,10 @@ export const createCustomer = (payload, token) => {
  * @param {string} params.date - Lọc theo ngày (yyyy-MM-dd) (optional)
  * @param {boolean} params.isGuest - Lọc guest/registered (optional)
  * @param {string} params.search - Tìm kiếm theo tên/phone/email (optional)
+ * @param {string} params.status - Lọc theo trạng thái (optional)
+ * @param {string} params.sort - Spring Pageable sort (vd: fullName,asc) (optional)
+ * @param {string} params.sortBy - Backward-compatible sort field (optional)
+ * @param {string} params.sortDirection - Backward-compatible sort direction (ASC|DESC) (optional)
  * @param {string} token - JWT token
  * @returns {Promise} Response chứa paginated customer list
  * 
@@ -97,6 +101,17 @@ export const fetchAllCustomers = (params, token) => {
   if (params?.date) searchParams.set('date', params.date);
   if (typeof params?.isGuest === 'boolean') searchParams.set('isGuest', String(params.isGuest));
   if (params?.search) searchParams.set('search', params.search);
+
+  if (params?.status) searchParams.set('status', params.status);
+
+  // Sorting: prefer Spring Pageable-style `sort=field,dir`
+  if (params?.sort) {
+    searchParams.set('sort', params.sort);
+  } else if (params?.sortBy) {
+    const dirRaw = params?.sortDirection || 'ASC';
+    const dir = String(dirRaw).toLowerCase() === 'desc' ? 'desc' : 'asc';
+    searchParams.set('sort', `${params.sortBy},${dir}`);
+  }
 
   const qs = searchParams.toString();
   const path = qs ? `/api/admin/customer/getAllCustomer?${qs}` : '/api/admin/customer/getAllCustomer';

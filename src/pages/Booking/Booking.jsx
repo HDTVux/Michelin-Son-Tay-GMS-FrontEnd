@@ -23,7 +23,7 @@ export default function Booking() {
  const prefilledPhone = location.state?.phone || '';
  const preselectedCatalogItemId = location.state?.catalogItemId != null ? String(location.state.catalogItemId) : null;
  const legacyServiceId = location.state?.serviceId != null ? Number(location.state.serviceId) : null;
- // State bước hiện tại
+ // State bước hiện tại: 0: chọn dịch vụ, 1: chọn lịch, 2: nhập thông tin, 3: hoàn tất
  const [stepIndex, setStepIndex] = useState(0);
  // Dịch vụ (lấy từ API Home)
  const [services, setServices] = useState([]);
@@ -59,13 +59,16 @@ export default function Booking() {
  };
 
  useEffect(() => {
+	// Chỉ thực hiện nếu có giá trị prefilledPhone
 	if (prefilledPhone) {
+		// setTimeout 0: Đẩy việc cập nhật state xuống cuối
 	 const t = setTimeout(() => setInfo((prev) => ({ ...prev, phone: prefilledPhone })), 0);
+	//Hủy timeout nếu prefilledPhone thay đổi nhanh liên tục hoặc component unmount trước khi timeout thực thi, tránh cập nhật state không cần thiết.
 	 return () => clearTimeout(t);
   }
  }, [prefilledPhone]);
 
- // Prefill tên + phone từ token đăng nhập (backend đã chứa)
+ // Prefill tên + phone từ token đăng nhập 
  useEffect(() => {
   if (customerToken) {
    const profile = decodeTokenProfile(customerToken);
@@ -89,14 +92,16 @@ export default function Booking() {
 		return () => globalThis.removeEventListener('storage', handleStorage);
 	}, []);
 
-	// Lấy dịch vụ từ API Home (ngắn gọn cho booking)
+	// Lấy dịch vụ từ API Home
 	useEffect(() => {
+		//Cờ "active" để chống Race Condition
 		let active = true;
 		setServicesLoading(true);
 		setServicesError('');
 
 		fetchHomeServices()
 			.then((res) => {
+				// Nếu effect này đã bị "cleanup" (active = false), dừng ngay không cập nhật state
 				if (!active) return;
 				const list = Array.isArray(res?.data) ? res.data : [];
 				const mapped = list
@@ -106,16 +111,16 @@ export default function Booking() {
 						return {
 							id: String(catalogItemId),
 							serviceId: Number(item?.serviceId),
-					name: item.title || 'Dịch vụ',
-					desc: item.shortDescription || 'Hiện chưa có mô tả ngắn.',
-					category: 'all',
-					thumbnail: item.mediaThumbnail || '',
+							name: item.title || 'Dịch vụ',
+							desc: item.shortDescription || 'Hiện chưa có mô tả ngắn.',
+							category: 'all',
+							thumbnail: item.mediaThumbnail || '',
 						};
 					})
-					.filter(Boolean);
+					.filter(Boolean);// Loại bỏ các giá trị null vừa tạo ra ở trên
 				setServices(mapped);
 
-				// Backward-compat: nếu trang khác còn truyền state.serviceId (cũ),
+				// Backward-compat: nếu trang khác còn truyền state.serviceId ,
 				// thì tự map sang catalogItemId từ list /home/ sau khi load.
 				if (!preselectedCatalogItemId && Number.isFinite(legacyServiceId) && legacyServiceId != null) {
 					const found = mapped.find((s) => Number(s.serviceId) === legacyServiceId);
@@ -127,6 +132,7 @@ export default function Booking() {
 				setServicesError(err?.message || 'Không thể tải danh sách dịch vụ.');
 			})
 			.finally(() => {
+				//Tắt trạng thái Loading bất kể thành công hay thất bại, nhưng chỉ khi effect này vẫn "active"
 				if (active) setServicesLoading(false);
 			});
 
@@ -138,12 +144,15 @@ export default function Booking() {
 	// Mỗi khi đổi bước, cuộn về đầu trang đặt lịch để không bị nhảy xuống cuối
 	 // Kéo lên đầu trang mỗi khi đổi bước (dùng window scroll thay vì query class CSS module)
 	 useScrollToTop([stepIndex], 'smooth');
+
 	// Đồng bộ UI theo dữ liệu backend trả về sau khi tạo/đổi lịch
 	useEffect(() => {
+		//Nếu không có dữ liệu bookingData, thoát ngay để tránh lỗi.
 		if (!bookingData) return;
 		if (bookingData?.scheduledDate || bookingData?.scheduledTime) {
 			setSchedule((prev) => ({
 				...prev,
+				// Nếu có ngày/giờ mới thì lấy, nếu không thì giữ nguyên giá trị hiện tại (prev)
 				date: bookingData?.scheduledDate || prev.date,
 				time: bookingData?.scheduledTime || prev.time,
 			}));
@@ -155,8 +164,11 @@ export default function Booking() {
 			setInfo((prev) => ({ ...prev, note: sanitized }));
 		}
 		if (Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0) {
+			// Chuyển toàn bộ ID sang dạng String và loại bỏ các giá trị rác
 			const ids = bookingData.serviceIds.map(String).filter(Boolean);
+			// Tạo một Set chứa các ID hợp lệ đang có sẵn trong danh sách services
 			const serviceIdSet = new Set((Array.isArray(services) ? services : []).map((s) => String(s.id)));
+			// Kiểm tra tất cả ID từ bookingData có tồn tại trong serviceIdSet hay không
 			const allMatch = ids.length > 0 && ids.every((id) => serviceIdSet.has(id));
 			if (allMatch) setSelectedIds(ids);
 		}
@@ -204,11 +216,6 @@ const goSubmitInfo = async () => {
 	.map(Number)
     .filter((n) => Number.isFinite(n) && n >= 0);
 
-	if (catalogItemIds.length === 0) {
-		setSubmitError('Vui lòng chọn ít nhất 1 dịch vụ.');
-		setSubmitting(false);
-		return;
-	}
 
 
 	const basePayload = {
@@ -221,8 +228,12 @@ const goSubmitInfo = async () => {
 	const isModify = !!customerToken && modifyBookingId != null && `${modifyBookingId}` !== '';
 
   try {
-		let submitPath = 'guest/create';
+	// 1. Xác định "Đích đến" của API dựa trên trạng thái hiện tại: Khách vãng lai tạo booking, khách đã đăng nhập tạo booking, hay khách đã đăng nhập đổi lịch.
+	// Mặc định là khách vãng lai tạo lịch mới	
+	let submitPath = 'guest/create';
+	//nếu có token và modifyBookingId thì là khách đã đăng nhập đổi lịch.
 		if (isModify) submitPath = 'customer/modify';
+	//nếu có token thì là khách đã đăng nhập tạo lịch mới
 		else if (customerToken) submitPath = 'customer/create';
 		console.log('[booking] submitting to path:', submitPath);
 

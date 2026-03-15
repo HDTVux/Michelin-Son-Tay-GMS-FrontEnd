@@ -67,7 +67,7 @@ const UpdateProgress = () => {
               setSafetyChecks(transformedChecks);
             }
           }
-        } catch (inspectionError) {
+        } catch {
           console.log('No inspection data found');
           toast.warning('Chưa có dữ liệu kiểm tra an toàn');
         }

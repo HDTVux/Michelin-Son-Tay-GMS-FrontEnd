@@ -111,7 +111,7 @@ const ServiceTicket = () => {
               setNotes(inspection.notes);
             }
           }
-        } catch (inspectionError) {
+        } catch {
           console.log('No existing inspection found, using default template');
           // If no inspection exists, enable it first and allow editing
           setIsEditable(true);
