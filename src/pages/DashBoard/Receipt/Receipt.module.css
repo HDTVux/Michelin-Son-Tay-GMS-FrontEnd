@@ -1,0 +1,376 @@
+/* =========================================
+   THIẾT LẬP CHUNG VÀ IN ẤN (PRINT)
+========================================= */
+.sheet {
+    --line: #111;
+    --soft: #999; /* Đổi màu viền nét đứt đậm hơn một chút cho giống bản in */
+    --bar: var(--primary, #20509e); /* Xanh Michelin mặc định nếu thiếu biến */
+    --barText: #fff;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 8mm 8mm 10mm;
+    background: #fff;
+    color: #111;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.15;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+}
+
+@page {
+    size: A4;
+    margin: 0;
+}
+
+@media print {
+    .sheet {
+        margin: 0;
+        width: auto;
+        min-height: auto;
+        padding: 8mm;
+    }
+}
+
+/* =========================================
+   HEADER (Tiêu đề & Logo)
+========================================= */
+.topHeader {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: start;
+    gap: 3mm;
+    margin-bottom: 4mm;
+}
+.topHeaderLeft { height: 1px; }
+.topHeaderCenter { display: flex; justify-content: center; }
+.sheetTitle {
+    color: var(--bar);
+    font-style: italic;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    font-size: 18px;
+    text-transform: uppercase;
+}
+.topHeaderRight { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+.logo { width: 14mm; height: 14mm; object-fit: contain; }
+.brandText {
+    white-space: pre-line;
+    color: var(--bar);
+    font-style: italic;
+    font-weight: 900;
+    font-size: 10px;
+    line-height: 1.05;
+    text-align: left;
+}
+
+/* =========================================
+   1. KHU VỰC THÔNG TIN CHUNG
+========================================= */
+.infoSection {
+    display: grid;
+    grid-template-columns: 105mm 1fr; /* Chia 2 cột, cột trái 10.5cm, cột phải chiếm phần còn lại */
+    gap: 8mm;
+    margin-bottom: 8px;
+}
+.infoColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.infoRow { 
+    display: flex; 
+    align-items: baseline; 
+    gap: 4px; 
+}
+.infoRowSub {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+.safetyCheckRow { 
+    display: flex; 
+    align-items: center; 
+    gap: 16px; 
+    margin-top: 4px; 
+}
+.infoLabel {
+    font-size: 11px;
+    white-space: nowrap;
+}
+.infoDotted {
+    flex-grow: 1; /* Tự động kéo dài đường kẻ lấp đầy khoảng trống */
+    border-bottom: 1px dotted var(--soft);
+    min-height: 4.6mm;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 0 4px;
+    min-width: 25px; /* Đảm bảo đường kẻ luôn có chỗ hiển thị dù bị ép */
+}
+.inlineChecks { display: flex; align-items: center; gap: 16px; font-size: 11px; }
+.checkItem { display: inline-flex; align-items: center; gap: 6px; }
+.checkBoxSmall {
+    width: 3.2mm;
+    height: 3.2mm;
+    border: 1px solid var(--line);
+    display: inline-block;
+}
+
+/* =========================================
+   2. MIDDLE SPLIT (Sơ đồ xe & Bảng An Toàn)
+========================================= */
+.middleSplit {
+    display: grid;
+    grid-template-columns: 100mm 1fr;
+    gap: 10mm;
+    align-items: start;
+    margin-bottom: 8mm;
+    margin-top: 4mm;
+}
+
+/* --- SƠ ĐỒ XE (CỘT TRÁI) --- */
+.diagramWrap {
+    display: grid;
+    grid-template-columns: 28mm 1fr 28mm;
+    gap: 2mm;
+    align-items: center;
+    min-width: 0;
+}
+.diagramLeft { display: flex; flex-direction: column; justify-content: space-between; height: 100%; gap: 6mm;}
+.tireBlockTop, .tireBlockBottom { display: flex; flex-direction: column; }
+.tireHeading {
+    font-weight: 900;
+    font-size: 9px;
+    margin-bottom: 2px;
+    text-align: center;
+    white-space: nowrap;
+}
+.tireCell {
+    display: grid;
+    grid-template-columns: 12mm 1fr;
+    border: 1px solid var(--line);
+    margin-bottom: 1.5mm;
+    min-height: 5.5mm;
+    align-items: center;
+    min-width: 0;
+}
+.tireUnit {
+    font-size: 8px;
+    font-weight: 900;
+    padding: 1mm;
+    border-right: 1px solid var(--line);
+    background: var(--bar);
+    color: var(--barText);
+    text-align: center;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.tireValue { height: 100%; background: #fff; }
+
+.diagramCenter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 4px;
+    min-width: 0;
+}
+.carBox {
+    width: 100%;
+    height: 42mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.carImg {
+    width: auto;
+    height: 40mm;
+    object-fit: contain;
+    display: block;
+    transform: rotate(-90deg);
+}
+.sizeNoteRow {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-top: 4px;
+    width: 100%;
+}
+
+.diagramRight { display: block; min-width: 0; height: 100%; }
+.pressureLayout {
+    display: grid;
+    grid-template-columns: 6mm 1fr;
+    column-gap: 1.2mm;
+    align-items: center;
+    height: 100%;
+}
+.pressureLabel {
+    white-space: pre-line;
+    font-weight: 900;
+    font-size: 8px;
+    text-align: center;
+    line-height: 1.1;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+}
+.pressureBoxes {
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+    justify-content: center;
+}
+.pressureBox { display: flex; flex-direction: column; }
+.pressureRow {
+    display: grid;
+    grid-template-columns: 12mm 1fr;
+    border: 1px solid var(--line);
+    min-height: 5.5mm;
+    border-bottom: none;
+}
+.pressureRow:last-child { border-bottom: 1px solid var(--line); }
+.pressureUnit {
+    background: var(--bar);
+    color: var(--barText);
+    font-weight: 900;
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--line);
+}
+.pressureValue { background: #fff; }
+
+
+/* --- BẢNG KIỂM TRA AN TOÀN (CỘT PHẢI) --- */
+.safetyBox { border: none; }
+.safetyHeader {
+    display: grid;
+    grid-template-columns: 1fr 32mm;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 4px;
+    align-items: end;
+}
+.safetyTitle {
+    color: #111;
+    font-weight: 900;
+    font-size: 10.5px;
+    padding-bottom: 4px;
+}
+.safetyCols {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    color: #c48b00; /* Màu cam/vàng cho LƯU Ý, THAY */
+}
+.safetyCols .safetyCol:first-child { color: #111; /* Màu đen cho TỐT */ }
+.safetyCol {
+    font-weight: 900;
+    font-size: 7.5px;
+    text-align: center;
+    padding-bottom: 2px;
+}
+
+.safetyBody { display: flex; flex-direction: column; }
+.safetyRow {
+    display: grid;
+    grid-template-columns: 1fr 32mm;
+    min-height: 4.8mm;
+    align-items: end;
+}
+.safetyItem {
+    font-size: 10px;
+    border-bottom: 1px dotted var(--soft);
+    margin-right: 6px;
+    padding-bottom: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.safetyChecks {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    padding: 0 1mm;
+    align-items: center;
+}
+.checkbox {
+    width: 3.2mm;
+    height: 3.2mm;
+    border: 1px solid var(--line);
+    margin: 0 auto;
+}
+
+/* =========================================
+   3. BẢNG DỊCH VỤ (SERVICE TABLE)
+========================================= */
+.serviceTableWrap {
+    border: 1px solid var(--line);
+    margin-bottom: 4px;
+}
+.serviceTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+}
+.serviceTable thead th {
+    background: var(--bar);
+    color: var(--barText);
+    font-weight: 900;
+    padding: 1.5mm;
+    border-right: 1px solid rgba(255, 255, 255, 0.25);
+    text-align: center;
+}
+.serviceTable td {
+    border-top: 1px solid var(--line); /* Đổi sang nét liền cho bảng */
+    border-right: 1px solid var(--line);
+    padding: 1.1mm 1.5mm;
+    height: 6mm;
+    vertical-align: middle;
+}
+.serviceTable td:last-child,
+.serviceTable th:last-child {
+    border-right: none;
+}
+.thStt { width: 32px; }
+.thItem { width: 120px; }
+.thDesc { width: auto; }
+.thQty { width: 32px; }
+.thPrice { width: 70px; }
+.thAmount { width: 80px; }
+.thKho { width: 40px; }
+.thConfirm { width: 60px; }
+
+.tdCenter { text-align: center; }
+.tdRight { text-align: right; }
+.totalLabel {
+    font-weight: 900;
+    text-align: center;
+    background: #eef3fb; /* Nền xám nhạt/xanh nhạt cho ô Tổng cộng */
+}
+
+/* =========================================
+   4. FOOTER & CHỮ KÝ
+========================================= */
+.footer { margin-top: 4mm; }
+.recommendation { margin-bottom: 8mm; }
+.footerTitle {
+    font-weight: 900;
+    font-size: 11px;
+    margin-bottom: 4px;
+    font-style: italic;
+}
+.legalText {
+    font-size: 7.5px;
+    color: #333;
+    text-align: justify;
+    line-height: 1.3;
+}
+.signRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10mm;
+    margin-top: 4mm;
+}
+.signCol { text-align: center; }
+.signTitle { font-weight: 900; font-size: 11px; }
+.signHint { font-size: 10px; font-style: italic; margin-top: 2px; }
