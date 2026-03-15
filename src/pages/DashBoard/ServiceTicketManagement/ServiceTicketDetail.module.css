@@ -5,6 +5,36 @@
 	color: var(--ui-text);
 }
 
+.screenOnly {
+	display: block;
+}
+
+.printOnly {
+	display: none;
+}
+
+@media print {
+	.page {
+		padding: 0;
+		min-height: auto;
+		background: #fff;
+		color: #111;
+	}
+
+	.screenOnly {
+		display: none !important;
+	}
+
+	.printOnly {
+		display: block !important;
+	}
+
+	:global(html),
+	:global(body) {
+		background: #fff !important;
+	}
+}
+
 .layout {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
