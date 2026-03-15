@@ -467,12 +467,12 @@
 }
 
 .saveButton {
-  background: #f59e0b;
+  background: #3b82f6;
   color: white;
 }
 
 .saveButton:hover {
-  background: #d97706;
+  background: #2563eb;
 }
 
 .submitButton {
@@ -536,4 +536,274 @@
   .submitButton {
     width: 100%;
   }
+}
+
+/* Tire input styles - smaller to fit better */
+.tireInputWide {
+  width: 60px;
+  padding: 8px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.tireInputWide:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.tireInputWide:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+/* Small blue label box */
+.tireBoxBlueSmall {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
+  height: 32px;
+  background: #3b82f6;
+  border-radius: 4px;
+  padding: 0 8px;
+}
+
+.tireBoxLabelSmall {
+  color: white;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* White input box - smaller and inline */
+.tireInputWhite {
+  width: 80px;
+  padding: 8px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+  background: white;
+}
+
+.tireInputWhite:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.tireInputWhite:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+/* Tire label (l / R) */
+.tireLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+/* Tire box row - horizontal layout like the image */
+.tireBoxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.tireSlash {
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.tireRLabel {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 14px;
+  padding: 0 2px;
+}
+
+.tirePosition {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Add Category Button */
+.addCategoryButton {
+  padding: 10px 20px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.addCategoryButton:hover:not(:disabled) {
+  background: #059669;
+}
+
+.addCategoryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.modalClose {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.modalClose:hover {
+  background: #f3f4f6;
+  color: #1a1a1a;
+}
+
+.modalBody {
+  padding: 24px;
+}
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formLabel {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.formInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.modalFooter {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.modalCancelBtn {
+  padding: 10px 24px;
+  background: white;
+  color: #374151;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modalCancelBtn:hover {
+  background: #f9fafb;
+}
+
+.modalActionBtn {
+  padding: 10px 24px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modalActionBtn:hover {
+  background: #2563eb;
+}
+
+/* Status Banner */
+.statusBanner {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  color: #92400e;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Disabled note input styling */
+.noteInput:disabled {
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+  border-color: #e5e7eb;
 }
