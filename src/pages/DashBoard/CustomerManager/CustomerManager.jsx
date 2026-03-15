@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { toast } from 'react-toastify';
@@ -20,6 +20,8 @@ const CustomerManager = () => {
   const [sortField, setSortField] = useState('fullName');
   const [sortDirection, setSortDirection] = useState('asc');
 
+  const requestSeqRef = useRef(0);
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -27,9 +29,13 @@ const CustomerManager = () => {
 
   // Load customers from API
   const loadCustomers = useCallback(async () => {
+    const requestSeq = ++requestSeqRef.current;
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      const token =
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('adminToken') ||
+        localStorage.getItem('staffToken');
       
       if (!token) {
         toast.error('Vui lòng đăng nhập để xem danh sách khách hàng');
@@ -41,14 +47,26 @@ const CustomerManager = () => {
         size: itemsPerPage,
         search: searchTerm || undefined,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
+        sort: `${sortField},${sortDirection}`,
         sortBy: sortField,
         sortDirection: sortDirection.toUpperCase(),
       };
 
       const response = await fetchAllCustomers(params, token);
+
+      // If a newer request has started, ignore this response
+      if (requestSeq !== requestSeqRef.current) return;
       
       if (response?.success && response?.data) {
         const { content, totalElements } = response.data;
+
+        // If requesting an out-of-range page, Spring may return empty content but still have totalElements.
+        // Auto-step back so pagination remains usable.
+        if ((content?.length || 0) === 0 && (totalElements || 0) > 0 && currentPage > 1) {
+          setCurrentPage((prev) => Math.max(1, prev - 1));
+          return;
+        }
+
         setCustomers(content || []);
         setTotalItems(totalElements || 0);
       }
@@ -58,7 +76,9 @@ const CustomerManager = () => {
       setCustomers([]);
       setTotalItems(0);
     } finally {
-      setLoading(false);
+      if (requestSeq === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [searchTerm, currentPage, statusFilter, sortField, sortDirection]);
 
