@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import styles from './Receipt.module.css';
 import logo from '../../../assets/Logo.png';
-import CarIcon from '../../../assets/car.png';
+import CarIcon from '../../../assets/car.jpg';
 
 const SAFETY_ITEMS = [
 	'Lốp',
@@ -33,9 +33,22 @@ const SERVICE_ROWS = [
 	'Lọc gió điều hòa',
 ];
 
+const PRESSURE_BOX_KEYS = ['pressure-a', 'pressure-b', 'pressure-c'];
+const SERVICE_LINE_KEYS = Array.from({ length: 15 }).map((_, i) => `service-line-${String(i + 1).padStart(2, '0')}`);
+
 function safeText(value) {
 	if (value == null) return '';
 	return String(value);
+}
+
+function toMoneyNumber(value) {
+    const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+    return Number.isFinite(n) ? n : 0;
+}
+
+function formatCurrencyVnd(value) {
+    const n = toMoneyNumber(value);
+    return n ? new Intl.NumberFormat('vi-VN').format(Math.round(n)) : '';
 }
 
 function CarDiagram({ src }) {
@@ -50,14 +63,36 @@ function CheckboxCell() {
 export default function Receipt({ ticket, carDiagramSrc }) {
 	const customer = ticket?.customer || {};
 	const vehicle = ticket?.vehicle || {};
+    const invoice = ticket?.invoice || {};
 
 	const receivedAt = safeText(ticket?.receivedAtDisplay || ticket?.receivedAt || '');
 	const handoverAt = safeText(ticket?.handoverAtDisplay || ticket?.handoverAt || '');
 	const model = safeText(vehicle?.model || '');
 	const licensePlate = safeText(vehicle?.licensePlate || '');
-	const odometer = vehicle?.odometerKm == null ? '' : `${Number(vehicle.odometerKm).toLocaleString('vi-VN')}`;
+    const odometer = vehicle?.odometerKm == null ? '' : `${Number(vehicle.odometerKm).toLocaleString('vi-VN')}`;
 
-return (
+    const invoiceItemsRaw = Array.isArray(invoice?.items) ? invoice.items : [];
+    const invoiceItems = invoiceItemsRaw.map((it, idx) => {
+        const quantity = toMoneyNumber(it?.quantity);
+        const unitPrice = toMoneyNumber(it?.unitPrice);
+        const subTotal = toMoneyNumber(it?.subTotal) || quantity * unitPrice;
+        return {
+            key: String(it?.key ?? it?.estimateItemId ?? it?.itemId ?? idx),
+            categoryName: safeText(it?.categoryName || it?.workCategory?.categoryName || it?.workCategory?.categoryCode || ''),
+            itemName: safeText(it?.itemName || it?.description || ''),
+            quantity,
+            unitPrice,
+            subTotal,
+            confirmed: Boolean(it?.confirmed),
+        };
+    });
+
+    const subtotal = Number.isFinite(Number(invoice?.subtotal)) ? Number(invoice.subtotal) : invoiceItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotal), 0);
+    const discountAmount = toMoneyNumber(invoice?.discountAmount);
+    const vatAmount = toMoneyNumber(invoice?.vatAmount);
+    const total = Number.isFinite(Number(invoice?.total)) ? Number(invoice.total) : Math.max(0, subtotal - discountAmount) + vatAmount;
+
+    return (
     <section className={styles.sheet}>
         <header className={styles.topHeader}>
             <div className={styles.topHeaderLeft} />
@@ -163,8 +198,8 @@ return (
                     <div className={styles.pressureLayout}>
                         <div className={styles.pressureLabel}>Áp suất<br/>khuyến cáo</div>
                         <div className={styles.pressureBoxes}>
-                            {Array.from({ length: 3 }).map((_, idx) => (
-                                <div key={`pressure-${idx}`} className={styles.pressureBox}>
+							{PRESSURE_BOX_KEYS.map((key) => (
+								<div key={key} className={styles.pressureBox}>
                                     <div className={styles.pressureRow}><div className={styles.pressureUnit}>mm</div><div className={styles.pressureValue} /></div>
                                     <div className={styles.pressureRow}><div className={styles.pressureUnit}>kg/cm²</div><div className={styles.pressureValue} /></div>
                                 </div>
@@ -213,19 +248,46 @@ return (
                     </tr>
                 </thead>
                 <tbody>
-                    {Array.from({ length: 15 }).map((_, idx) => {
-                        const label = SERVICE_ROWS[idx] || '';
+                    {SERVICE_LINE_KEYS.map((rowKey, idx) => {
+                        const it = invoiceItems[idx] ?? null;
+                        const label = it?.categoryName ? it.categoryName : (SERVICE_ROWS[idx] || '');
+                        const desc = it?.itemName || '';
+                        const qty = it?.quantity ? String(it.quantity) : '';
+                        const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
+                        const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
+                        const confirmMark = it?.confirmed ? '✓' : '';
                         return (
-                            <tr key={`row-${idx}`}>
+                            <tr key={rowKey}>
                                 <td className={styles.tdCenter}>{String(idx + 1).padStart(2, '0')}</td>
                                 <td>{label}</td>
-                                <td /><td className={styles.tdCenter} /><td className={styles.tdRight} /><td className={styles.tdRight} /><td className={styles.tdCenter} /><td className={styles.tdCenter} />
+                                <td>{desc}</td>
+                                <td className={styles.tdCenter}>{qty}</td>
+                                <td className={styles.tdRight}>{price}</td>
+                                <td className={styles.tdRight}>{amount}</td>
+                                <td className={styles.tdCenter} />
+                                <td className={styles.tdCenter}>{confirmMark}</td>
                             </tr>
                         );
                     })}
                     <tr>
-                        <td colSpan={5} className={styles.totalLabel}>TỔNG CỘNG</td>
-                        <td className={styles.tdRight} /><td colSpan={2} />
+                        <td colSpan={5} className={styles.totalLabel}>GIÁ GỐC</td>
+                        <td className={styles.tdRight}>{formatCurrencyVnd(subtotal)}</td>
+                        <td colSpan={2} />
+                    </tr>
+                    <tr>
+                        <td colSpan={5} className={styles.totalLabel}>GIẢM GIÁ</td>
+                        <td className={styles.tdRight}>{discountAmount ? `- ${formatCurrencyVnd(discountAmount)}` : ''}</td>
+                        <td colSpan={2} />
+                    </tr>
+                    <tr>
+                        <td colSpan={5} className={styles.totalLabel}>THUẾ VAT</td>
+                        <td className={styles.tdRight}>{vatAmount ? formatCurrencyVnd(vatAmount) : ''}</td>
+                        <td colSpan={2} />
+                    </tr>
+                    <tr>
+                        <td colSpan={5} className={styles.totalLabel}>TỔNG TIỀN</td>
+                        <td className={styles.tdRight}>{formatCurrencyVnd(total)}</td>
+                        <td colSpan={2} />
                     </tr>
                 </tbody>
             </table>
@@ -236,8 +298,9 @@ return (
             <div className={styles.recommendation}>
                 <div className={styles.footerTitle}>Khuyến nghị:</div>
                 <div className={styles.legalText}>
-                    <span className={styles.checkBoxSmall} style={{marginRight: '4px'}}/>
-                    Tôi đồng ý rằng bất kỳ dữ liệu cá nhân nào được cung cấp theo mẫu này có thể được thu thập và xử lý bởi Michelin Việt Nam... (Chi tiết theo chính sách bảo mật của Michelin).
+                    <span className={styles.checkBoxSmall} style={{ marginRight: '4px' }} />{' '}
+                    Tôi đồng ý rằng bất kỳ dữ liệu cá nhân nào được cung cấp theo mẫu này có thể được thu thập và xử lý bởi Michelin Việt Nam (Công Ty) và bất kỳ công ty nào thuộc tập đoàn Michelin (có thể nằm ngoài Việt Nam), nhằm mục đích cải thiện chất lượng dịch vụ và tiếp thị. Tôi đồng ý thêm rằng Công Ty có thể liên hệ với tôi (i) để nhận phản hồi về chất lượng dịch vụ cũng như (ii) cung cấp cho tôi về các sản phẩm, dịch vụ và khuyến mại của Michelin. Tôi cũng đồng ý rằng Công Ty chỉ chuyển dữ liệu cá nhân cho các nhà cung cấp dịch vụ và / hoặc chi nhánh của Michelin tại Việt Nam hoặc bên ngoài Việt Nam.
+Công Ty sẽ xử lý dữ liệu cá nhân của bạn theo Chính sách bảo mật của Michelin (https://www.michelin.vn/privacy-policy). Vui lòng liên hệ với công ty theo số hotline + 84 28 3942 1111 nếu bạn muốn giới hạn việc chúng tôi xử lý, truy cập hoặc chỉnh sửa dữ liệu của bạn”
                 </div>
             </div>
             <div className={styles.signRow}>
@@ -271,6 +334,25 @@ Receipt.propTypes = {
 		handoverAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
 		receivedAtDisplay: PropTypes.string,
 		handoverAtDisplay: PropTypes.string,
+        invoice: PropTypes.shape({
+            items: PropTypes.arrayOf(
+                PropTypes.shape({
+                    key: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    categoryName: PropTypes.string,
+                    itemName: PropTypes.string,
+                    quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    unitPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    subTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    confirmed: PropTypes.bool,
+                }),
+            ),
+            subtotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+            discountAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+            vatRate: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+            vatAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+            total: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+            promotionLabel: PropTypes.string,
+        }),
 	}),
 	carDiagramSrc: PropTypes.string,
 };
