@@ -190,7 +190,6 @@
     height: 40mm;
     object-fit: contain;
     display: block;
-    transform: rotate(-90deg);
 }
 .sizeNoteRow {
     display: flex;
