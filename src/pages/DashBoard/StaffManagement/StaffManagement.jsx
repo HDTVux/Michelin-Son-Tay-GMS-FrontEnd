@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import baseStyles from '../BookingRequestManagement/BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import AddStaffAccount from './AddStaffAccount.jsx';
 import styles from './StaffManagement.module.css';
+import { fetchAllStaff } from '../../../services/adminService.js';
 
 const ROLE_OPTIONS = [
 	{ label: 'Admin', value: 'ADMIN' },
@@ -19,93 +20,206 @@ const ROLE_LABELS = ROLE_OPTIONS.reduce((acc, item) => {
 	return acc;
 }, {});
 
-const FAKE_STAFF = [
-	{
-		id: 1,
-		name: 'Nguyễn Văn An',
-		phoneNumber: '0912345678',
-		isActive: true,
-		role: 'ADMIN'
-	},
-	{
-		id: 2,
-		name: 'Trần Thị Bình',
-		phoneNumber: '0987654321',
-		isActive: true,
-		role: 'ADVISOR'
-	},
-	{
-		id: 3,
-		name: 'Phạm Minh Châu',
-		phoneNumber: '0905123123',
-		isActive: false,
-		role: 'RECEPTIONIST'
-	},
-	{
-		id: 4,
-		name: 'Lê Quốc Dũng',
-		phoneNumber: '0933111222',
-		isActive: true,
-		role: 'TECHNICIAN'
-	},
-	{
-		id: 5,
-		name: 'Hoàng Mai Em',
-		phoneNumber: '0977000111',
-		isActive: true,
-		role: 'ACCOUNTANT'
-	}
-];
+// roleId mapping from DB (role.role_id)
+const ROLE_ID_OPTIONS = [
+	{ roleId: 1, roleCode: 'ADMIN' },
+	{ roleId: 2, roleCode: 'MANAGER' },
+	{ roleId: 3, roleCode: 'ADVISOR' },
+	{ roleId: 4, roleCode: 'RECEPTIONIST' },
+	{ roleId: 5, roleCode: 'TECHNICIAN' },
+	{ roleId: 6, roleCode: 'ACCOUNTANT' }
+].map((r) => ({
+	...r,
+	label: ROLE_LABELS[r.roleCode] || r.roleCode
+}));
 
-function normalizeText(value) {
-	return (value ?? '').toString().trim().toLowerCase();
+function getRoleCodeById(roleId) {
+	const id = Number(roleId);
+	if (!Number.isFinite(id)) return '';
+	return ROLE_ID_OPTIONS.find((r) => r.roleId === id)?.roleCode || '';
+}
+
+function normalizeStaffStatus(value) {
+	const raw = value == null ? '' : String(value).trim().toUpperCase();
+	if (raw === 'ACTIVE') return 'ACTIVE';
+	if (raw === 'INACTIVE') return 'INACTIVE';
+	return raw;
+}
+
+function getAuthToken() {
+	return (
+		localStorage.getItem('authToken') ||
+		localStorage.getItem('adminToken') ||
+		localStorage.getItem('staffToken') ||
+		''
+	);
 }
 
 export default function StaffManagement() {
 	useScrollToTop();
 
-	const [staff, setStaff] = useState(FAKE_STAFF);
+	const [staff, setStaff] = useState([]);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState('');
+
+	// Query state (backend paging/filtering)
+	const [page, setPage] = useState(0);
+	const [size, setSize] = useState(10);
+	const [date, setDate] = useState(''); // yyyy-mm-dd
 	const [search, setSearch] = useState('');
 	const [statusFilter, setStatusFilter] = useState(''); // '' | 'ACTIVE' | 'INACTIVE'
-	const [roleFilter, setRoleFilter] = useState(''); // '' | role
+	const [roleIdFilter, setRoleIdFilter] = useState(''); // '' | roleId
+
+	// Server paging metadata
+	const [totalPages, setTotalPages] = useState(1);
+	const [totalElements, setTotalElements] = useState(0);
+
+	// Debounce search to avoid spamming API
+	const [debouncedSearch, setDebouncedSearch] = useState('');
+
 	const [showAddModal, setShowAddModal] = useState(false);
 
-	const filteredStaff = useMemo(() => {
-		const q = normalizeText(search);
-		return staff.filter((s) => {
-			const matchesSearch =
-				!q ||
-				normalizeText(s.name).includes(q) ||
-				normalizeText(s.phoneNumber).includes(q);
-			const matchesStatus =
-				!statusFilter ||
-				(statusFilter === 'ACTIVE' ? s.isActive : !s.isActive);
-			const matchesRole = !roleFilter || s.role === roleFilter;
-			return matchesSearch && matchesStatus && matchesRole;
-		});
-	}, [staff, search, statusFilter, roleFilter]);
+	const requestSeqRef = useRef(0);
+
+	useEffect(() => {
+		const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+		return () => clearTimeout(timer);
+	}, [search]);
+
+	const filters = useMemo(() => {
+		let parsedIsActive;
+		if (statusFilter === 'ACTIVE') parsedIsActive = true;
+		else if (statusFilter === 'INACTIVE') parsedIsActive = false;
+
+		const roleId = Number(roleIdFilter);
+		const roleIds = roleIdFilter !== '' && Number.isFinite(roleId) && roleId > 0 ? [roleId] : undefined;
+
+		return {
+			page,
+			size,
+			date: date || undefined,
+			isActive: parsedIsActive,
+			search: debouncedSearch || undefined,
+			roleIds
+		};
+	}, [page, size, date, statusFilter, debouncedSearch, roleIdFilter]);
+
+	useEffect(() => {
+		const token = getAuthToken();
+		if (!token) {
+			setError('Vui lòng đăng nhập để xem danh sách nhân viên.');
+			setStaff([]);
+			setTotalPages(1);
+			setTotalElements(0);
+			setIsLoading(false);
+			return;
+		}
+
+		const loadData = async () => {
+			const requestSeq = ++requestSeqRef.current;
+			try {
+				setIsLoading(true);
+				setError('');
+				const response = await fetchAllStaff(filters, token);
+				if (requestSeq !== requestSeqRef.current) return;
+
+				const pageData = response?.data;
+				const list = Array.isArray(pageData?.content) ? pageData.content : [];
+				const apiTotalPages = Number.isFinite(pageData?.totalPages) ? pageData.totalPages : 1;
+				const apiTotalElements =
+					Number.isFinite(pageData?.totalElements) ? pageData.totalElements : list.length;
+
+				setStaff(list);
+				setTotalPages(Math.max(1, apiTotalPages));
+				setTotalElements(Math.max(0, apiTotalElements));
+				if (apiTotalPages > 0 && filters.page > apiTotalPages - 1) {
+					setPage(Math.max(0, apiTotalPages - 1));
+				}
+			} catch (err) {
+				if (requestSeq !== requestSeqRef.current) return;
+				const msg = err?.message || 'Không thể tải danh sách nhân viên.';
+				const isUnauthorized = err?.status === 401 || err?.status === 403;
+				if (isUnauthorized) {
+					localStorage.removeItem('authToken');
+					setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+				} else {
+					setError(msg);
+				}
+				setStaff([]);
+				setTotalPages(1);
+				setTotalElements(0);
+			} finally {
+				if (requestSeq === requestSeqRef.current) setIsLoading(false);
+			}
+		};
+
+		loadData();
+	}, [filters]);
+
+	const safeTotalPages = Number.isFinite(totalPages) ? Math.max(1, totalPages) : 1;
+	const safePage = Number.isFinite(page) ? Math.min(Math.max(0, page), safeTotalPages - 1) : 0;
+
+	const pageButtons = useMemo(() => {
+		const maxButtons = 5;
+		const current = safePage;
+		const last = safeTotalPages - 1;
+		const start = Math.max(0, Math.min(current - 2, last - (maxButtons - 1)));
+		const end = Math.min(last, start + (maxButtons - 1));
+		const items = [];
+		for (let i = start; i <= end; i += 1) items.push(i);
+		return items;
+	}, [safePage, safeTotalPages]);
 
 	const handleResetFilters = () => {
+		setPage(0);
+		setSize(10);
+		setDate('');
 		setSearch('');
 		setStatusFilter('');
-		setRoleFilter('');
+		setRoleIdFilter('');
 	};
 
 	const handleAddStaff = (payload) => {
-		const nextId = staff.reduce((maxId, item) => Math.max(maxId, item.id), 0) + 1;
+		// Hiện tại màn này chỉ yêu cầu GET list. Khi tạo mới, ta refresh về trang 1 để lấy dữ liệu mới nhất.
+		// (Nếu backend có endpoint create staff, có thể nối vào đây.)
+		setPage(0);
+		setSearch('');
+		setStatusFilter('');
+		setRoleIdFilter('');
+		setDate('');
+		setSize(10);
+
+		// Optimistic UI (best-effort) để user thấy ngay, sẽ được đồng bộ lại khi API trả về
+		const tempId = Date.now();
+		const roleIds = Array.isArray(payload?.roleIds)
+			? payload.roleIds.map(Number).filter((v) => Number.isFinite(v) && v > 0)
+			: [];
+		const roleCodes =
+			Array.isArray(payload?.roleCodes) && payload.roleCodes.length > 0
+				? payload.roleCodes.map((c) => String(c).trim().toUpperCase()).filter(Boolean)
+				: roleIds.map(getRoleCodeById).filter(Boolean);
+		const safeRoleCodes = roleCodes.length > 0 ? roleCodes : ['ADMIN'];
 		const newItem = {
-			id: nextId,
-			name: payload?.username?.trim() || 'Nhân viên mới',
-			phoneNumber: payload?.phoneNumber?.trim() || '',
-			isActive: !!payload?.isActive,
-			role: payload?.role || 'ADMIN'
+			staffId: tempId,
+			fullName: payload?.username?.trim() || 'Nhân viên mới',
+			phone: payload?.phoneNumber?.trim() || '',
+			position: '',
+			avatar: '',
+			email: payload?.email?.trim() || '',
+			status: payload?.isActive ? 'ACTIVE' : 'INACTIVE',
+			roles: safeRoleCodes.map((roleCode) => ({
+				roleCode,
+				roleName: ROLE_LABELS[roleCode] || roleCode
+			}))
 		};
-		setStaff((prev) => [newItem, ...prev]);
+		setStaff((prev) => [newItem, ...(prev || [])]);
+		setTotalElements((prev) => Math.max(0, Number(prev) || 0) + 1);
 		setShowAddModal(false);
 	};
 
 	const handleDeleteStaff = (staffId) => {
-		setStaff((prev) => prev.filter((s) => s.id !== staffId));
+		setStaff((prev) => (prev || []).filter((s) => (s.staffId || s.id) !== staffId));
+		setTotalElements((prev) => Math.max(0, (Number(prev) || 0) - 1));
 	};
 
 	return (
@@ -126,26 +240,43 @@ export default function StaffManagement() {
 									Thêm tài khoản
 								</button>
 								<button type="button" className={baseStyles['ghost-button']}>
-									{staff.length} nhân viên
+									{totalElements} nhân viên
 								</button>
 							</div>
 						</div>
 
 						<div className={baseStyles['pending-filters']}>
 							<div className={styles.filterLabels}>
+								<div>Ngày</div>
 								<div>Trạng thái</div>
 								<div>Role</div>
 							</div>
 							<div className={styles.filterControls}>
-								<select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+								<input type="date" value={date} onChange={(e) => {
+									setDate(e.target.value);
+									setPage(0);
+								}} />
+								<select
+									value={statusFilter}
+									onChange={(e) => {
+										setStatusFilter(e.target.value);
+										setPage(0);
+									}}
+								>
 									<option value="">Tất cả</option>
 									<option value="ACTIVE">Đang hoạt động</option>
 									<option value="INACTIVE">Ngưng hoạt động</option>
 								</select>
-								<select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+								<select
+									value={roleIdFilter}
+									onChange={(e) => {
+										setRoleIdFilter(e.target.value);
+										setPage(0);
+									}}
+								>
 									<option value="">Tất cả</option>
-									{ROLE_OPTIONS.map((r) => (
-										<option key={r.value} value={r.value}>
+									{ROLE_ID_OPTIONS.map((r) => (
+										<option key={r.roleId} value={String(r.roleId)}>
 											{r.label}
 										</option>
 									))}
@@ -156,7 +287,10 @@ export default function StaffManagement() {
 									<input
 										placeholder="Tìm kiếm theo tên/SĐT..."
 										value={search}
-										onChange={(e) => setSearch(e.target.value)}
+										onChange={(e) => {
+											setSearch(e.target.value);
+											setPage(0);
+									}}
 									/>
 									<SearchIcon />
 								</div>
@@ -165,6 +299,8 @@ export default function StaffManagement() {
 								</button>
 							</div>
 						</div>
+
+						{error && <div className={baseStyles['error-banner']}>{error}</div>}
 
 						<div className={baseStyles['booking-table__wrapper']}>
 							<table className={`${baseStyles['booking-table']} ${styles.table}`}>
@@ -179,24 +315,88 @@ export default function StaffManagement() {
 									</tr>
 								</thead>
 								<tbody>
-									{filteredStaff.length === 0 ? (
+									{isLoading && (
+										<tr>
+											<td className={baseStyles['empty-row']} colSpan={6}>
+											Đang tải dữ liệu...
+										</td>
+										</tr>
+									)}
+
+									{!isLoading && (staff?.length || 0) === 0 && (
 										<tr>
 											<td className={baseStyles['empty-row']} colSpan={6}>
 											Không có tài khoản nào phù hợp.
 										</td>
 									</tr>
-									) : (
-										filteredStaff.map((item, idx) => (
+									)}
+
+									{!isLoading && (staff?.length || 0) > 0 &&
+										staff.map((item, idx) => (
 											<StaffTableRow
-												key={item.id}
-												index={idx + 1}
+												key={item.staffId || item.id || idx}
+												index={safePage * size + idx + 1}
 												item={item}
 												onDelete={handleDeleteStaff}
 											/>
-										))
-									)}
+										))}
 								</tbody>
 							</table>
+						</div>
+
+						<div className={baseStyles['booking-card__footer']}>
+							<div className={baseStyles['page-size']}>
+								<span>Hiển thị:</span>
+								<select
+									value={String(size)}
+									onChange={(e) => {
+										setSize(Number(e.target.value));
+										setPage(0);
+									}}
+								>
+									<option value="10">10</option>
+									<option value="20">20</option>
+									<option value="50">50</option>
+								</select>
+							</div>
+							<div className={baseStyles.pagination}>
+								<button
+									type="button"
+									className={baseStyles['primary-button']}
+									disabled={safePage <= 0 || isLoading}
+									onClick={() => setPage(safePage - 1)}
+								>
+									Trước
+								</button>
+
+								{pageButtons.map((p) => {
+									const isActive = p === safePage;
+									return (
+										<button
+											type="button"
+											key={p}
+											className={
+												isActive
+													? baseStyles['ghost-button']
+													: `${baseStyles['primary-button']} ${baseStyles['is-ghost']}`
+											}
+											disabled={isActive || isLoading}
+											onClick={() => setPage(p)}
+										>
+											{p + 1}
+										</button>
+									);
+								})}
+
+								<button
+									type="button"
+									className={baseStyles['primary-button']}
+									disabled={safePage >= safeTotalPages - 1 || isLoading}
+									onClick={() => setPage(safePage + 1)}
+								>
+									Sau
+								</button>
+							</div>
 						</div>
 					</section>
 				</div>
@@ -206,7 +406,7 @@ export default function StaffManagement() {
 				open={showAddModal}
 				onClose={() => setShowAddModal(false)}
 				onSubmit={handleAddStaff}
-				roleOptions={ROLE_OPTIONS}
+				roleOptions={ROLE_ID_OPTIONS}
 			/>
 		</div>
 	);
@@ -257,18 +457,30 @@ SearchIcon.propTypes = {
 };
 
 function StaffTableRow({ item, index, onDelete }) {
-	const statusTone = item.isActive ? 'success' : 'danger';
+	const status = normalizeStaffStatus(item?.status);
+	const isActive = typeof item?.isActive === 'boolean' ? item.isActive : status === 'ACTIVE';
+	const statusTone = isActive ? 'success' : 'danger';
+	const roleText =
+		Array.isArray(item?.roles) && item.roles.length > 0
+			? item.roles
+					.map((r) => {
+						const code = r?.roleCode ? String(r.roleCode).trim().toUpperCase() : '';
+						return ROLE_LABELS[code] || r?.roleName || code || '';
+					})
+					.filter(Boolean)
+					.join(', ')
+				: item?.position || '-';
 	return (
 		<tr>
 			<td>{index}</td>
-			<td className={baseStyles['link-cell']}>{item.name}</td>
-			<td>{item.phoneNumber}</td>
+			<td className={baseStyles['link-cell']}>{item.fullName || item.name || '-'}</td>
+			<td>{item.phone || item.phoneNumber || '-'}</td>
 			<td>
 				<span className={`${baseStyles['status-badge']} ${baseStyles['status-badge--' + statusTone]}`}>
-					{item.isActive ? 'Active' : 'Inactive'}
+					{isActive ? 'Active' : 'Inactive'}
 				</span>
 			</td>
-			<td>{ROLE_LABELS[item.role] || item.role}</td>
+			<td>{roleText}</td>
 			<td>
 				<div className={styles.actionGroup}>
 					<button type="button" className={styles.actionBtn} onClick={() => {}}>
@@ -280,7 +492,7 @@ function StaffTableRow({ item, index, onDelete }) {
 					<button
 						type="button"
 						className={`${styles.actionBtn} ${styles.actionDanger}`}
-						onClick={() => onDelete(item.id)}
+						onClick={() => onDelete(item.staffId || item.id)}
 					>
 						Xóa
 					</button>
@@ -292,11 +504,22 @@ function StaffTableRow({ item, index, onDelete }) {
 
 StaffTableRow.propTypes = {
 	item: PropTypes.shape({
-		id: PropTypes.number.isRequired,
-		name: PropTypes.string.isRequired,
-		phoneNumber: PropTypes.string.isRequired,
-		isActive: PropTypes.bool.isRequired,
-		role: PropTypes.string.isRequired
+		staffId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+		id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+		fullName: PropTypes.string,
+		name: PropTypes.string,
+		phone: PropTypes.string,
+		phoneNumber: PropTypes.string,
+		position: PropTypes.string,
+		status: PropTypes.string,
+		isActive: PropTypes.bool,
+		roles: PropTypes.arrayOf(
+			PropTypes.shape({
+				roleId: PropTypes.number,
+				roleCode: PropTypes.string,
+				roleName: PropTypes.string
+			})
+		)
 	}).isRequired,
 	index: PropTypes.number.isRequired,
 	onDelete: PropTypes.func.isRequired

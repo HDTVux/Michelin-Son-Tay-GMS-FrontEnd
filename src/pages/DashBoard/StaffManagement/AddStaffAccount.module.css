@@ -99,6 +99,64 @@
   gap: 10px;
 }
 
+.fieldStack {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: start;
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .fieldStack {
+    grid-template-columns: 1fr;
+  }
+}
+
+.roleList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+
+@media (max-width: 720px) {
+  .roleList {
+    grid-template-columns: 1fr;
+  }
+}
+
+.roleItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid var(--ui-border-strong);
+  background: var(--ui-surface);
+  cursor: pointer;
+}
+
+.roleItem:hover {
+  border-color: var(--ui-primary);
+}
+
+.roleCheckbox {
+  width: 18px;
+  height: 18px;
+}
+
+.roleText {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ui-text);
+}
+
+.inlineError {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ui-primary);
+}
+
 @media (max-width: 720px) {
   .fieldInline {
     grid-template-columns: 1fr;
