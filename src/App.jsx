@@ -41,6 +41,7 @@ import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.j
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.jsx';
+import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
 
 // Import Work History pages
 import TechnicianWorkHistory from './pages/WorkHistory/TechnicianWorkHistory/TechnicianWorkHistory.jsx';
@@ -126,6 +127,7 @@ export default function App() {
           <Route path="service-ticket/:ticketCode/receipt-confirm" element={<ReceiptConfirm />} />
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
+          <Route path="service-management" element={<ServiceManagement />} />
           <Route path="ticket-assignment" element={<TicketAssignment />} />
           <Route path="queue-management" element={<QueueManagement />} />
           <Route path="create-booking" element={<CreatBooking />} />
