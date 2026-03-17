@@ -156,7 +156,6 @@ const DailySchedule = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <div className={styles.staffAvatar}>📅</div>
           <div className={styles.staffInfo}>
             <h1 className={styles.title}>Lịch làm việc của tôi</h1>
             <p className={styles.subtitle}>Quản lý và theo dõi lịch hẹn</p>

@@ -15,8 +15,8 @@
   padding: 10px 20px;
   background: white;
   color: #374151;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -26,7 +26,6 @@
 
 .backButton:hover {
   background: #f9fafb;
-  border-color: #d1d5db;
 }
 
 .title {
@@ -291,7 +290,7 @@
 }
 
 .addButton {
-  padding: 10px 20px;
+  padding: 8px 16px;
   background: #10b981;
   color: white;
   border: none;
@@ -383,7 +382,7 @@
 
 .deleteRowButton {
   padding: 6px 12px;
-  background: #f97316;
+  background: #ef4444;
   color: white;
   border: none;
   border-radius: 4px;
@@ -394,13 +393,13 @@
 }
 
 .deleteRowButton:hover:not(:disabled) {
-  background: #ea580c;
+  background: #dc2626;
 }
 
 .deleteRowButton:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  background: #d1d5db;
+  background: #9ca3af;
 }
 
 .totalRow {
@@ -459,7 +458,7 @@
 .cancelButton {
   background: white;
   color: #374151;
-  border: 2px solid #e5e7eb;
+  border: 1px solid #d1d5db;
 }
 
 .cancelButton:hover {
@@ -493,7 +492,7 @@
   min-height: 400px;
   gap: 16px;
   background: white;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 40px;
 }
 
@@ -637,7 +636,7 @@
 
 /* Add Category Button */
 .addCategoryButton {
-  padding: 10px 20px;
+  padding: 8px 16px;
   background: #10b981;
   color: white;
   border: none;
@@ -673,7 +672,7 @@
 
 .modalContent {
   background: white;
-  border-radius: 12px;
+  border-radius: 8px;
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
@@ -685,7 +684,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 16px 20px;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -699,12 +698,12 @@
 .modalClose {
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: 20px;
   color: #6b7280;
   cursor: pointer;
   padding: 0;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -718,7 +717,7 @@
 }
 
 .modalBody {
-  padding: 24px;
+  padding: 20px;
 }
 
 .formGroup {
@@ -745,22 +744,21 @@
 .formInput:focus {
   outline: none;
   border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .modalFooter {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
-  padding: 16px 24px;
+  padding: 16px 20px;
   border-top: 1px solid #e5e7eb;
 }
 
 .modalCancelBtn {
-  padding: 10px 24px;
+  padding: 10px 20px;
   background: white;
   color: #374151;
-  border: 2px solid #e5e7eb;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
@@ -773,7 +771,7 @@
 }
 
 .modalActionBtn {
-  padding: 10px 24px;
+  padding: 10px 20px;
   background: #3b82f6;
   color: white;
   border: none;

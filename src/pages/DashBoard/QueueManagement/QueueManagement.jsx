@@ -161,11 +161,11 @@ export default function QueueManagement() {
 
 									{item.speedHint ? <div className={styles.hint}>{item.speedHint}</div> : null}
 
-									<div className={styles.cardActions}>
-										<button type="button" className={styles.assignBtn} onClick={() => handleAssign(item.id)}>
+									<div className={styles.actionButtons}>
+										<button type="button" className={styles.assignButton} onClick={() => handleAssign(item.id)}>
 											Assign to Bay
 										</button>
-										<button type="button" className={styles.cancelBtn} onClick={() => handleCancel(item.id)}>
+										<button type="button" className={styles.cancelButton} onClick={() => handleCancel(item.id)}>
 											Hủy
 										</button>
 									</div>

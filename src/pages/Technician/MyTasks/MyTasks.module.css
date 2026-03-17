@@ -259,6 +259,28 @@
   gap: 16px;
 }
 
+.twoColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.column {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.columnTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
 .taskCard {
   background: white;
   border-radius: 12px;
