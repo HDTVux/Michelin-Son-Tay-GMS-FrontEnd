@@ -6,6 +6,7 @@ import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/t
 import { normalizeStatusCode } from '../../../components/statusUtils.js';
 import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
+import TechnicianServiceTicket from '../../Technician/ServiceTicket/ServiceTicket.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHooks.js';
 import styles from './ServiceTicketDetail.module.css';
 
@@ -289,15 +290,28 @@ function TimelineBlock({ steps }) {
 	);
 }
 
-function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serviceTicketId }) {
+function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serviceTicketId, ticketCode }) {
 	if (!showTimeline && !showAdvisorTable) return null;
 	return (
 		<>
 			{showTimeline ? <TimelineBlock steps={timelineSteps} /> : null}
-			{showAdvisorTable ? <AdvisorItemsTable serviceTicketId={serviceTicketId} /> : null}
+			{showAdvisorTable ? (
+				<>
+					<TechnicianServiceTicket ticketCode={ticketCode} embedded />
+					<AdvisorItemsTable serviceTicketId={serviceTicketId} />
+				</>
+			) : null}
 		</>
 	);
 }
+
+RoleBasedSections.propTypes = {
+	showTimeline: PropTypes.bool,
+	timelineSteps: PropTypes.array,
+	showAdvisorTable: PropTypes.bool,
+	serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+	ticketCode: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+};
 
 export default function ServiceTicketDetail() {
 	useScrollToTop();
@@ -391,7 +405,8 @@ export default function ServiceTicketDetail() {
 					{error && <div className={styles.errorBanner}>{error}</div>}
 
 					<div className={`ui-card ${styles.card}`}>
-						<div className={styles.infoGrid}>
+						{/* Hàng ngang trên đầu - 4 cột thông tin */}
+						<div className={styles.topInfoGrid}>
 							<InfoBlock
 								title="Thông tin khách hàng"
 								rows={[
@@ -408,32 +423,52 @@ export default function ServiceTicketDetail() {
 									{ label: 'Model:', value: ticket.vehicle?.model || '-' },
 								]}
 							/>
+							<InfoBlock
+								title="Thông tin ticket"
+								rows={[
+									{ label: 'Ngày tiếp nhận:', value: receivedAtDisplay },
+									{ label: 'Người tạo:', value: ticket.createdBy || '-' },
+								]}
+							/>
+							<section className={styles.block}>
+								<h2 className={styles.blockTitle}>Lịch hẹn</h2>
+								<div className={styles.kvList}>
+									<div className={styles.kvRow}>
+										<span className={styles.kvLabel}>Ngày & Giờ hẹn:</span>
+										<span className={styles.kvValue}>
+											{ticket?.booking?.scheduledDate
+												? `${ticket.booking.scheduledDate} ${formatTimeHHmm(ticket.booking.scheduledTime) || ''}`.trim()
+												: '-'}
+										</span>
+									</div>
+									<div className={styles.kvRow}>
+										<span className={styles.kvLabel}>Ngày bàn giao:</span>
+										<span className={styles.kvValue}>{handoverAtDisplay}</span>
+									</div>
+								</div>
+							</section>
 						</div>
 
 						<section className={styles.block}>
-							<h2 className={styles.blockTitle}>Thông tin ticket</h2>
-							<div className={styles.kvList}>
-								<div className={styles.kvRow}>
-									<span className={styles.kvLabel}>Ngày tiếp nhận:</span>
-									<span className={styles.kvValue}>{receivedAtDisplay}</span>
-								</div>
-								<div className={styles.kvRow}>
-									<span className={styles.kvLabel}>Ngày bàn giao:</span>
-									<span className={styles.kvValue}>{handoverAtDisplay}</span>
-								</div>
-								<div className={styles.kvRow}>
-									<span className={styles.kvLabel}>Lịch hẹn:</span>
-									<span className={styles.kvValue}>
-										{ticket?.booking?.scheduledDate
-											? `${ticket.booking.scheduledDate} ${formatTimeHHmm(ticket.booking.scheduledTime) || ''}`.trim()
-											: '-'}
-									</span>
-								</div>
-								<div className={styles.kvRow}>
-									<span className={styles.kvLabel}>Người tạo:</span>
-									<span className={styles.kvValue}>{ticket.createdBy || '-'}</span>
-								</div>
+							<h2 className={styles.blockTitle}>Dịch vụ đã chọn</h2>
+							<div className={styles.servicesList}>
+								{(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
+									const price = s?.priceVnd ?? s?.price;
+									return (
+										<div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
+											<span className={styles.serviceName}>{s?.serviceName || s?.label || s?.name || '-'}</span>
+											<span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
+										</div>
+									);
+								})}
+								{(!Array.isArray(ticket.services) || ticket.services.length === 0) && <div className={styles.noteBox}>-</div>}
 							</div>
+
+							{ticket.externalDependency && (
+								<div className={styles.tagsRow}>
+									<span className={styles.tag}>External Dependency</span>
+								</div>
+							)}
 						</section>
 
 						<section className={styles.block}>
@@ -463,34 +498,12 @@ export default function ServiceTicketDetail() {
 							)}
 						</section>
 
-						<section className={styles.block}>
-							<h2 className={styles.blockTitle}>Dịch vụ đã chọn</h2>
-							<div className={styles.servicesList}>
-								{(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
-									const price = s?.priceVnd ?? s?.price;
-									return (
-										<div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
-											<span className={styles.serviceName}>{s?.serviceName || s?.label || s?.name || '-'}</span>
-											<span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
-										</div>
-									);
-								})}
-								{(!Array.isArray(ticket.services) || ticket.services.length === 0) && <div className={styles.noteBox}>-</div>}
-							</div>
-
-							{ticket.externalDependency && (
-								<div className={styles.tagsRow}>
-									<span className={styles.tag}>External Dependency</span>
-								</div>
-							)}
-						</section>
-
-						<RoleBasedSections
-							showTimeline={showTimeline}
-							timelineSteps={timelineSteps}
-							showAdvisorTable={hasAdvisorRole}
-							serviceTicketId={ticket?.serviceTicketId}
-						/>
+						{hasAdvisorRole && (
+							<>
+								<TechnicianServiceTicket ticketCode={ticket.ticketCode || ticketCodeParam} embedded />
+								<AdvisorItemsTable serviceTicketId={ticket?.serviceTicketId} />
+							</>
+						)}
 
 						<div className="ui-actions">
 							<button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>

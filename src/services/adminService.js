@@ -212,6 +212,7 @@ export const fetchAllStaff = (params, token) => {
   if (params?.date) searchParams.set('date', params.date);
   if (typeof params?.isActive === 'boolean') searchParams.set('isActive', String(params.isActive));
   if (params?.search) searchParams.set('search', params.search);
+  if (params?.status) searchParams.set('status', params.status);
 
   if (Array.isArray(params?.roleIds)) {
     params.roleIds
@@ -238,6 +239,24 @@ export const fetchAllStaffRoles = (token) => {
   return request('/api/admin/staff/all-roles', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+/**
+ * Tạo staff mới (Admin)
+ * Backend: POST /api/admin/staff/create
+ */
+export const createStaff = (payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để tạo tài khoản nhân viên.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  return request('/api/admin/staff/create', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
   });
 };
 

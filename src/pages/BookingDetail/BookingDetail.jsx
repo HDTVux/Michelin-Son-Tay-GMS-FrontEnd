@@ -116,9 +116,9 @@ const BookingDetail = () => {
     { key: 'completed', label: 'Hoàn thành' },
   ];
 
-  // Get current step index based on RAW backend status (not mapped)
+  // Get current step index based on RAW backend status
   const getCurrentStep = () => {
-    const rawStatus = booking?.status; // This is the raw backend status
+    const rawStatus = booking?.rawStatus || booking?.status;
     const stepMap = {
       'PENDING': 0,
       'CONFIRMED': 1,
@@ -126,15 +126,20 @@ const BookingDetail = () => {
       'DONE': 3,
       'COMPLETED': 3,
       'CANCELLED': -1,
+      'pending': 0,
+      'confirmed': 1,
+      'processing': 2,
+      'completed': 3,
     };
-    return stepMap[rawStatus?.toUpperCase()] ?? 0;
+    return stepMap[rawStatus?.toUpperCase()] ?? stepMap[rawStatus] ?? 0;
   };
 
   const currentStep = getCurrentStep();
 
   // Chỉ cho phép sửa nếu lịch chưa hoàn tất và chưa bị hủy
-  const isCompleted = booking?.status === 'completed' || booking?.status === 'DONE';
-  const isCancelled = booking?.status === 'cancelled';
+  const statusToCheck = booking?.rawStatus || booking?.status;
+  const isCompleted = statusToCheck === 'COMPLETED' || statusToCheck === 'DONE' || statusToCheck === 'completed';
+  const isCancelled = statusToCheck === 'CANCELLED' || statusToCheck === 'CANCELED' || statusToCheck === 'cancelled';
   const canEdit = booking && !isCompleted && !isCancelled;
 
   const handleCancel = () => {

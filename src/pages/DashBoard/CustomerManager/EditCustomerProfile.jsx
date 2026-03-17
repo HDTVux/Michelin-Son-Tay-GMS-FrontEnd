@@ -6,6 +6,11 @@ import styles from './EditCustomerProfile.module.css';
 
 const normalizePhone = (value) => String(value || '').replaceAll(/\s/g, '');
 
+const normalizeCustomerStatus = (value) => {
+  if (value == null || String(value).trim() === '') return 'NOT_ACTIVATED';
+  return String(value).trim().toUpperCase();
+};
+
 const validateCustomerForm = (data) => {
   const newErrors = {};
 
@@ -31,7 +36,7 @@ const validateCustomerForm = (data) => {
 
 const mapCustomerToFormData = (customer) => ({
   customerId: customer.customerId,
-  status: customer.status || 'ACTIVE',
+	status: normalizeCustomerStatus(customer.status),
   fullName: customer.fullName || '',
   phone: customer.phone || '',
   email: customer.email || '',
@@ -67,6 +72,8 @@ const EditCustomerProfile = () => {
 
   const [errors, setErrors] = useState({});
 
+	const canEdit = formData.status !== 'NOT_ACTIVATED';
+
   const loadCustomerData = useCallback(async () => {
     try {
       setLoading(true);
@@ -98,6 +105,10 @@ const EditCustomerProfile = () => {
   useEffect(() => {
     loadCustomerData();
   }, [loadCustomerData]);
+
+	useEffect(() => {
+		if (!canEdit && isEditing) setIsEditing(false);
+	}, [canEdit, isEditing]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -138,7 +149,7 @@ const EditCustomerProfile = () => {
       }
 
       const payload = {
-        status: formData.status || 'ACTIVE',
+  		status: formData.status === 'NOT_ACTIVATED' ? null : (formData.status || 'ACTIVE'),
         lastLoginAt: null,
         fullName: formData.fullName,
         phone: formData.phone,
@@ -155,7 +166,7 @@ const EditCustomerProfile = () => {
 		if (updated) {
         setFormData((prev) => ({
           ...prev,
-			status: updated.status ?? prev.status,
+      status: normalizeCustomerStatus(updated.status ?? prev.status),
 			fullName: updated.fullName ?? prev.fullName,
 			phone: updated.phone ?? prev.phone,
 			email: updated.email ?? prev.email,
@@ -186,7 +197,8 @@ const EditCustomerProfile = () => {
   };
 
   const handleEdit = () => {
-    setIsEditing(true);
+		if (!canEdit) return;
+		setIsEditing(true);
   };
 
   const handleBack = () => {
@@ -314,6 +326,7 @@ const EditCustomerProfile = () => {
                     disabled={!isEditing}
                     className={`${styles.select} ${isEditing ? '' : styles.inputDisabled}`}
                   >
+					<option value="NOT_ACTIVATED">Chưa kích hoạt</option>
                     <option value="ACTIVE">Hoạt động</option>
                     <option value="INACTIVE">Không hoạt động</option>
                   </select>
@@ -357,13 +370,15 @@ const EditCustomerProfile = () => {
 
             {!isEditing && (
               <div className={styles.actionsCenter}>
-                <button
-                  type="button"
-                  className={styles.editButton}
-                  onClick={handleEdit}
-                >
-                  Chỉnh sửa
-                </button>
+					{canEdit && (
+						<button
+							type="button"
+							className={styles.editButton}
+							onClick={handleEdit}
+						>
+							Chỉnh sửa
+						</button>
+					)}
               </div>
             )}
           </form>
