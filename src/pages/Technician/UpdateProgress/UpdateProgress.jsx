@@ -180,7 +180,7 @@ const UpdateProgress = () => {
   };
 
   const handleCancel = () => {
-    navigate(`/technician/service-ticket/${id}`);
+    navigate(`/technician/safetyinspection-ticket/${id}`);
   };
 
   const handleSave = async () => {

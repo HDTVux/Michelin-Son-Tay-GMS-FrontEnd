@@ -279,7 +279,7 @@ const MyBookings = () => {
                           <div className={listStyles['booking-time']}>{booking.time || 'Chưa có giờ'}</div>
                         </div>
                         <Link 
-                          to={`/booking-detail/${booking.bookingId || booking.id}`}
+                          to={`/booking-detail/${booking.id}`}
                           className={listStyles['btn-view-detail']}
                         >
                           Xem chi tiết

@@ -3,7 +3,7 @@
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
-  background: #f5f5f5;
+  background: transparent;
   min-height: 100vh;
 }
 
@@ -31,15 +31,16 @@
 .title {
   font-size: 24px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #6b7280;
   margin: 0;
+  text-align: center;
 }
 
 .card {
   background: white;
   padding: 24px;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
   margin-bottom: 20px;
 }
 
@@ -438,9 +439,32 @@
 /* Action Buttons */
 .actionButtons {
   display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 24px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 2px solid #e5e7eb;
+}
+
+.closeButton,
+.completeButton {
+  padding: 14px 40px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #1E90FF;
+  color: white;
+  box-shadow: 0 2px 8px rgba(30, 144, 255, 0.3);
+}
+
+.closeButton:hover,
+.completeButton:hover {
+  background: #1873CC;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(30, 144, 255, 0.4);
 }
 
 .cancelButton,

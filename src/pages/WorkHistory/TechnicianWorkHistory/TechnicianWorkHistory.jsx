@@ -151,7 +151,7 @@ const TechnicianWorkHistory = () => {
                   <td>
                     <button
                       className={styles.viewBtn}
-                      onClick={() => navigate(`/technician/service-ticket/${item.ticketCode}`)}
+                      onClick={() => navigate(`/technician/safetyinspection-ticket/${item.ticketCode}`)}
                     >
                       Xem chi tiết
                     </button>

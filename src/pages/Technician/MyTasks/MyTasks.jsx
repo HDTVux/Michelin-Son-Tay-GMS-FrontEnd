@@ -424,7 +424,7 @@ const MyTasks = () => {
                 className={styles.modalActionBtn}
                 onClick={() => {
                   setShowModal(false);
-                  navigate(`/technician/service-ticket/${selectedTask.ticketCode || selectedTask.id}`);
+                  navigate(`/technician/safetyinspection-ticket/${selectedTask.ticketCode || selectedTask.id}`);
                 }}
               >
                 {!selectedTask.hasSafetyInspection ? 'Bắt đầu làm việc' : 'Xem phiếu kiểm tra'}
@@ -538,7 +538,7 @@ const TaskCard = ({ task, onView, onNavigate, getPriorityClass, formatDate, mapI
         <>
           <button
             className={styles.primaryButton}
-            onClick={() => onNavigate(`/technician/service-ticket/${task.ticketCode || task.id}`)}
+            onClick={() => onNavigate(`/technician/safetyinspection-ticket/${task.ticketCode || task.id}`)}
           >
             Xem phiếu kiểm tra
           </button>
@@ -553,7 +553,7 @@ const TaskCard = ({ task, onView, onNavigate, getPriorityClass, formatDate, mapI
         <>
           <button
             className={styles.primaryButton}
-            onClick={() => onNavigate(`/technician/service-ticket/${task.ticketCode || task.id}`)}
+            onClick={() => onNavigate(`/technician/safetyinspection-ticket/${task.ticketCode || task.id}`)}
           >
             Bắt đầu làm việc
           </button>

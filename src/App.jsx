@@ -136,7 +136,7 @@ export default function App() {
           
           {/* Technician pages */}
           <Route path="technician/my-tasks" element={<MyTasks />} />
-          <Route path="technician/service-ticket/:id" element={<ServiceTicket />} />
+          <Route path="technician/safetyinspection-ticket/:id" element={<ServiceTicket />} />
           <Route path="technician/update-progress/:id" element={<UpdateProgress />} />
         </Route>
 

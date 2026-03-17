@@ -431,32 +431,13 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        {!embedded && (
-          <button onClick={() => navigate('/technician/my-tasks')} className={styles.backButton}>
-            ← Quay lại
-          </button>
-        )}
         <div>
-          <h1 className={styles.title}>Phiếu kiểm tra kỹ thuật và dịch vụ</h1>
-          {(serviceTicketId || inspectionId) && (
-            <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '8px' }}>
-              {serviceTicketId && <span>Service Ticket ID: {serviceTicketId}</span>}
-              {serviceTicketId && inspectionId && <span> | </span>}
-              {inspectionId && <span>Inspection ID: {inspectionId}</span>}
-            </div>
-          )}
+          <h1 className={styles.title}>Phiếu kiểm tra xe</h1>
         </div>
       </div>
 
       {/* Tire Inspection Section */}
       <div className={styles.card}>
-        {!isEditable && (
-          <div className={styles.statusBanner}>
-            {inspectionStatus === 'COMPLETED'
-              ? `⚠️ Phiếu kiểm tra đã hoàn thành. Không thể chỉnh sửa.`
-              : `⚠️ Phiếu kiểm tra đang ở trạng thái: ${inspectionStatus}`}
-          </div>
-        )}
         <div className={styles.tireInspectionHeader}>
           <div>
             <div className={styles.tireSizeRow}>
@@ -793,7 +774,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
                 <th>TỐT</th>
                 <th>LƯU Ý</th>
                 <th>THAY</th>
-                <th>GHI CHÚ (Advisor)</th>
+                <th>GHI CHÚ</th>
               </tr>
             </thead>
             <tbody>
@@ -877,82 +858,14 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
         <>
           {/* Action Buttons */}
           <div className={styles.actionButtons}>
-            {isEditable && (
-              <>
-                <button className={styles.cancelButton} onClick={handleSkip}>
-                  Bỏ qua
-                </button>
-                <button
-                  className={styles.cancelButton}
-                  onClick={async () => {
-                    try {
-                      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-                      // Save as PENDING (draft mode)
-                      const tiresPayload = Object.entries(tireData).map(([position, data]) => {
-                        const positionMap = {
-                          'frontLeft': 'FRONT_LEFT',
-                          'frontRight': 'FRONT_RIGHT',
-                          'rearLeft': 'REAR_LEFT',
-                          'rearRight': 'REAR_RIGHT',
-                          'spare': 'SPARE'
-                        };
-                        let tireSpecification = '';
-                        if (data.size1 && data.size2 && data.size3) {
-                          tireSpecification = `${data.size1}/${data.size2}R${data.size3}`;
-                        }
-                        return {
-                          tirePosition: positionMap[position],
-                          treadDepth: data.mm ? parseFloat(data.mm) : null,
-                          pressure: data.pressure ? parseFloat(data.pressure) : null,
-                          pressureUnit: 'PSI',
-                          tireSpecification: tireSpecification || null,
-                          recommendedTireSize: recommendedTireSize || null,
-                          recommendedPressure: data.recommendedPressure ? parseFloat(data.recommendedPressure) : null,
-                          recommendedPressureUnit: 'PSI'
-                        };
-                      }).filter(tire => tire.treadDepth || tire.pressure || tire.tireSpecification);
-
-                      const itemsPayload = safetyChecks
-                        .filter(check => check.good || check.warning || check.replace)
-                        .map(check => ({
-                          workCategoryId: check.workCategoryId,
-                          itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null
-                        }));
-
-                      const parsedServiceTicketId = Number(resolvedTicketCode);
-                      const finalServiceTicketId =
-                        serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
-                      if (!finalServiceTicketId) {
-                        throw new Error('Thiếu serviceTicketId để lưu nháp.');
-                      }
-                      const safetyPayload = {
-                        serviceTicketId: finalServiceTicketId,
-                        technicianNotes: notes || null,
-                        tires: tiresPayload,
-                        items: itemsPayload,
-                        inspectionStatus: 'PENDING' // Save as draft, not completed
-                      };
-
-                      await saveSafetyInspectionData(safetyPayload, token);
-                      toast.success('Đã lưu nháp!');
-                    } catch (error) {
-                      console.error('Error saving draft:', error);
-                      toast.error('Lỗi khi lưu nháp: ' + (error.message || 'Lỗi không xác định'));
-                    }
-                  }}
-                >
-                  Lưu nháp
-                </button>
-              </>
-            )}
-            {inspectionStatus !== 'COMPLETED' && isEditable && (
-              <button className={styles.saveButton} onClick={handleSave}>
-                Lưu & Hoàn thành
-              </button>
-            )}
-            <button className={styles.cancelButton} onClick={() => navigate('/technician/my-tasks')}>
+            <button className={styles.closeButton} onClick={() => navigate('/technician/my-tasks')}>
               Đóng
             </button>
+            {inspectionStatus !== 'COMPLETED' && isEditable && (
+              <button className={styles.completeButton} onClick={handleSave}>
+                Hoàn thành
+              </button>
+            )}
           </div>
         </>
       )}
