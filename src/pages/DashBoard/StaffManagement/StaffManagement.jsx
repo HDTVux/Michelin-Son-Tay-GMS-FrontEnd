@@ -1,43 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import baseStyles from '../BookingRequestManagement/BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import AddStaffAccount from './AddStaffAccount.jsx';
 import styles from './StaffManagement.module.css';
-import { fetchAllStaff } from '../../../services/adminService.js';
-
-const ROLE_OPTIONS = [
-	{ label: 'Admin', value: 'ADMIN' },
-	{ label: 'Manager', value: 'MANAGER' },
-	{ label: 'Advisor', value: 'ADVISOR' },
-	{ label: 'Receptionist', value: 'RECEPTIONIST' },
-	{ label: 'Accountant', value: 'ACCOUNTANT' },
-	{ label: 'Technician', value: 'TECHNICIAN' }
-];
-
-const ROLE_LABELS = ROLE_OPTIONS.reduce((acc, item) => {
-	acc[item.value] = item.label;
-	return acc;
-}, {});
-
-// roleId mapping from DB (role.role_id)
-const ROLE_ID_OPTIONS = [
-	{ roleId: 1, roleCode: 'ADMIN' },
-	{ roleId: 2, roleCode: 'MANAGER' },
-	{ roleId: 3, roleCode: 'ADVISOR' },
-	{ roleId: 4, roleCode: 'RECEPTIONIST' },
-	{ roleId: 5, roleCode: 'TECHNICIAN' },
-	{ roleId: 6, roleCode: 'ACCOUNTANT' }
-].map((r) => ({
-	...r,
-	label: ROLE_LABELS[r.roleCode] || r.roleCode
-}));
-
-function getRoleCodeById(roleId) {
-	const id = Number(roleId);
-	if (!Number.isFinite(id)) return '';
-	return ROLE_ID_OPTIONS.find((r) => r.roleId === id)?.roleCode || '';
-}
+import { fetchAllStaff, fetchAllStaffRoles } from '../../../services/adminService.js';
 
 function normalizeStaffStatus(value) {
 	const raw = value == null ? '' : String(value).trim().toUpperCase();
@@ -57,8 +25,10 @@ function getAuthToken() {
 
 export default function StaffManagement() {
 	useScrollToTop();
+	const navigate = useNavigate();
 
 	const [staff, setStaff] = useState([]);
+	const [allRoles, setAllRoles] = useState([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState('');
 
@@ -80,11 +50,69 @@ export default function StaffManagement() {
 	const [showAddModal, setShowAddModal] = useState(false);
 
 	const requestSeqRef = useRef(0);
+	const rolesRequestSeqRef = useRef(0);
+
+	const roleOptions = useMemo(() => {
+		const raw = Array.isArray(allRoles) ? allRoles : [];
+		return raw
+			.map((r) => {
+				const roleId = Number(r?.roleId);
+				const roleCode = r?.roleCode ? String(r.roleCode).trim().toUpperCase() : '';
+				const roleName = r?.roleName ? String(r.roleName).trim() : '';
+				return {
+					roleId: Number.isFinite(roleId) ? roleId : undefined,
+					roleCode,
+					label: roleName || roleCode || (Number.isFinite(roleId) ? `Role ${roleId}` : 'Role')
+				};
+			})
+			.filter((r) => Number.isFinite(r.roleId) && r.roleId > 0)
+			.sort((a, b) => (a.roleId || 0) - (b.roleId || 0));
+	}, [allRoles]);
+
+	const roleCodeById = useMemo(() => {
+		const map = new Map();
+		roleOptions.forEach((r) => {
+			if (Number.isFinite(r.roleId) && r.roleId > 0) map.set(r.roleId, r.roleCode);
+		});
+		return map;
+	}, [roleOptions]);
+
+	const roleLabelByCode = useMemo(() => {
+		const map = new Map();
+		roleOptions.forEach((r) => {
+			const code = r?.roleCode ? String(r.roleCode).trim().toUpperCase() : '';
+			if (code) map.set(code, r?.label || code);
+		});
+		return map;
+	}, [roleOptions]);
 
 	useEffect(() => {
 		const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
 		return () => clearTimeout(timer);
 	}, [search]);
+
+	useEffect(() => {
+		const token = getAuthToken();
+		if (!token) {
+			setAllRoles([]);
+			return;
+		}
+
+		const loadRoles = async () => {
+			const requestSeq = ++rolesRequestSeqRef.current;
+			try {
+				const response = await fetchAllStaffRoles(token);
+				if (requestSeq !== rolesRequestSeqRef.current) return;
+				const list = Array.isArray(response?.data) ? response.data : [];
+				setAllRoles(list);
+			} catch {
+				if (requestSeq !== rolesRequestSeqRef.current) return;
+				setAllRoles([]);
+			}
+		};
+
+		loadRoles();
+	}, []);
 
 	const filters = useMemo(() => {
 		let parsedIsActive;
@@ -197,7 +225,7 @@ export default function StaffManagement() {
 		const roleCodes =
 			Array.isArray(payload?.roleCodes) && payload.roleCodes.length > 0
 				? payload.roleCodes.map((c) => String(c).trim().toUpperCase()).filter(Boolean)
-				: roleIds.map(getRoleCodeById).filter(Boolean);
+				: roleIds.map((id) => roleCodeById.get(id)).filter(Boolean);
 		const safeRoleCodes = roleCodes.length > 0 ? roleCodes : ['ADMIN'];
 		const newItem = {
 			staffId: tempId,
@@ -207,10 +235,13 @@ export default function StaffManagement() {
 			avatar: '',
 			email: payload?.email?.trim() || '',
 			status: payload?.isActive ? 'ACTIVE' : 'INACTIVE',
-			roles: safeRoleCodes.map((roleCode) => ({
-				roleCode,
-				roleName: ROLE_LABELS[roleCode] || roleCode
-			}))
+			roles: safeRoleCodes.map((roleCodeRaw) => {
+				const roleCode = roleCodeRaw ? String(roleCodeRaw).trim().toUpperCase() : '';
+				return {
+					roleCode,
+					roleName: roleLabelByCode.get(roleCode) || roleCode
+				};
+			})
 		};
 		setStaff((prev) => [newItem, ...(prev || [])]);
 		setTotalElements((prev) => Math.max(0, Number(prev) || 0) + 1);
@@ -220,6 +251,11 @@ export default function StaffManagement() {
 	const handleDeleteStaff = (staffId) => {
 		setStaff((prev) => (prev || []).filter((s) => (s.staffId || s.id) !== staffId));
 		setTotalElements((prev) => Math.max(0, (Number(prev) || 0) - 1));
+	};
+
+	const handleViewStaff = (staffId) => {
+		if (staffId == null || staffId === '') return;
+		navigate(`/staff-manager/${staffId}`);
 	};
 
 	return (
@@ -249,7 +285,7 @@ export default function StaffManagement() {
 							<div className={styles.filterLabels}>
 								<div>Ngày</div>
 								<div>Trạng thái</div>
-								<div>Role</div>
+								<div>Vai trò</div>
 							</div>
 							<div className={styles.filterControls}>
 								<input type="date" value={date} onChange={(e) => {
@@ -275,7 +311,7 @@ export default function StaffManagement() {
 									}}
 								>
 									<option value="">Tất cả</option>
-									{ROLE_ID_OPTIONS.map((r) => (
+									{roleOptions.map((r) => (
 										<option key={r.roleId} value={String(r.roleId)}>
 											{r.label}
 										</option>
@@ -290,7 +326,7 @@ export default function StaffManagement() {
 										onChange={(e) => {
 											setSearch(e.target.value);
 											setPage(0);
-									}}
+										}}
 									/>
 									<SearchIcon />
 								</div>
@@ -310,7 +346,7 @@ export default function StaffManagement() {
 										<th>TÊN</th>
 										<th>SỐ ĐIỆN THOẠI</th>
 										<th>TRẠNG THÁI</th>
-										<th>ROLE</th>
+										<th>Vai trò</th>
 										<th>HÀNH ĐỘNG</th>
 									</tr>
 								</thead>
@@ -337,6 +373,7 @@ export default function StaffManagement() {
 												key={item.staffId || item.id || idx}
 												index={safePage * size + idx + 1}
 												item={item}
+												onView={handleViewStaff}
 												onDelete={handleDeleteStaff}
 											/>
 										))}
@@ -406,7 +443,7 @@ export default function StaffManagement() {
 				open={showAddModal}
 				onClose={() => setShowAddModal(false)}
 				onSubmit={handleAddStaff}
-				roleOptions={ROLE_ID_OPTIONS}
+				roleOptions={roleOptions}
 			/>
 		</div>
 	);
@@ -456,7 +493,7 @@ SearchIcon.propTypes = {
 	className: PropTypes.string
 };
 
-function StaffTableRow({ item, index, onDelete }) {
+function StaffTableRow({ item, index, onView, onDelete }) {
 	const status = normalizeStaffStatus(item?.status);
 	const isActive = typeof item?.isActive === 'boolean' ? item.isActive : status === 'ACTIVE';
 	const statusTone = isActive ? 'success' : 'danger';
@@ -464,8 +501,9 @@ function StaffTableRow({ item, index, onDelete }) {
 		Array.isArray(item?.roles) && item.roles.length > 0
 			? item.roles
 					.map((r) => {
+						const name = r?.roleName ? String(r.roleName).trim() : '';
 						const code = r?.roleCode ? String(r.roleCode).trim().toUpperCase() : '';
-						return ROLE_LABELS[code] || r?.roleName || code || '';
+						return name || code || '';
 					})
 					.filter(Boolean)
 					.join(', ')
@@ -483,11 +521,12 @@ function StaffTableRow({ item, index, onDelete }) {
 			<td>{roleText}</td>
 			<td>
 				<div className={styles.actionGroup}>
-					<button type="button" className={styles.actionBtn} onClick={() => {}}>
+					<button
+						type="button"
+						className={styles.actionBtn}
+						onClick={() => onView?.(item.staffId || item.id)}
+					>
 						Xem
-					</button>
-					<button type="button" className={styles.actionBtn} onClick={() => {}}>
-						Sửa
 					</button>
 					<button
 						type="button"
@@ -522,5 +561,6 @@ StaffTableRow.propTypes = {
 		)
 	}).isRequired,
 	index: PropTypes.number.isRequired,
+	onView: PropTypes.func,
 	onDelete: PropTypes.func.isRequired
 };

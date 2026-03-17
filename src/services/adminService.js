@@ -228,3 +228,43 @@ export const fetchAllStaff = (params, token) => {
     headers: { Authorization: `Bearer ${token}` },
   });
 };
+
+/**
+ * Lấy danh sách tất cả roles của staff (Admin)
+ * Backend: GET /api/admin/staff/all-roles
+ */
+export const fetchAllStaffRoles = (token) => {
+
+  return request('/api/admin/staff/all-roles', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+/**
+ * Lấy chi tiết thông tin của nhân viên
+ * Backend: GET /api/admin/staff/{staffId}
+ *
+ * @param {number|string} staffId
+ * @param {string} token - JWT token
+ * @returns {Promise}
+ */
+export const fetchStaffDetail = (staffId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem chi tiết nhân viên.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const id = Number(staffId);
+  if (!Number.isFinite(id) || id <= 0) {
+    const error = new Error('Staff ID không hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/admin/staff/${id}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};

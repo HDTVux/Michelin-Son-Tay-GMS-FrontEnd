@@ -41,6 +41,7 @@ import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.j
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.jsx';
+import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.jsx';
 import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
 
 // Import Work History pages
@@ -133,6 +134,7 @@ export default function App() {
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />
           <Route path="staff-manager" element={<StaffManagement />} />
+          <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
           
           {/* Technician pages */}
           <Route path="technician/my-tasks" element={<MyTasks />} />

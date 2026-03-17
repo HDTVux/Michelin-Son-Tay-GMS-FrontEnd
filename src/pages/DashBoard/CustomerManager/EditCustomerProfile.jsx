@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { fetchAllCustomers, updateCustomer } from '../../../services/adminService.js';
+import { fetchCustomerDetail, updateCustomer } from '../../../services/adminService.js';
 import styles from './EditCustomerProfile.module.css';
 
 const normalizePhone = (value) => String(value || '').replaceAll(/\s/g, '');
@@ -38,8 +38,14 @@ const mapCustomerToFormData = (customer) => ({
   gender: customer.gender || 'MALE',
   dob: customer.dob || customer.dateOfBirth || '',
   createdAt: customer.createdAt || '',
-  totalBookings: customer.totalBookings || 0,
+  totalBookings: customer.totalBookings ?? null,
 });
+
+const getAuthToken = () =>
+	localStorage.getItem('authToken') ||
+	localStorage.getItem('adminToken') ||
+	localStorage.getItem('staffToken') ||
+	'';
 
 const EditCustomerProfile = () => {
   const { customerId } = useParams();
@@ -56,7 +62,7 @@ const EditCustomerProfile = () => {
     gender: 'MALE',
     dob: '',
     createdAt: '',
-    totalBookings: 0
+    totalBookings: null
   });
 
   const [errors, setErrors] = useState({});
@@ -64,34 +70,23 @@ const EditCustomerProfile = () => {
   const loadCustomerData = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      const token = getAuthToken();
       
       if (!token) {
-        toast.error('Vui lòng đăng nhập');
+        toast.error('Vui lòng đăng nhập để xem thông tin khách hàng');
         navigate('/customer-manager');
         return;
       }
 
-      const response = await fetchAllCustomers({
-        page: 0,
-        size: 100, // Load nhiều để tìm customer
-        search: '' // Không filter
-      }, token);
+		const response = await fetchCustomerDetail(customerId, token);
+		const customer = response?.data;
 
-      if (response?.success && response?.data?.content) {
-        const customer = response.data.content.find(
-          (c) => c.customerId === Number.parseInt(customerId, 10)
-        );
-
-        if (customer) {
-          setFormData(mapCustomerToFormData(customer));
-        } else {
-          toast.error('Không tìm thấy khách hàng');
-          navigate('/customer-manager');
-        }
-      } else {
-        toast.error('Không thể tải thông tin khách hàng');
-      }
+		if (customer) {
+			setFormData(mapCustomerToFormData(customer));
+		} else {
+			toast.error('Không tìm thấy khách hàng');
+			navigate('/customer-manager');
+		}
     } catch (error) {
       console.error('Error loading customer:', error);
       toast.error(error.message || 'Không thể tải thông tin khách hàng');
@@ -135,10 +130,10 @@ const EditCustomerProfile = () => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      const token = getAuthToken();
       
       if (!token) {
-        toast.error('Vui lòng đăng nhập');
+        toast.error('Vui lòng đăng nhập để cập nhật thông tin khách hàng');
         return;
       }
 
@@ -154,18 +149,20 @@ const EditCustomerProfile = () => {
         firstBookingAt: null
       };
 
-      const response = await updateCustomer(customerId, payload, token);
+		const response = await updateCustomer(customerId, payload, token);
+		const updated = response?.data ?? response;
 
-      if (response) {
+		if (updated) {
         setFormData((prev) => ({
           ...prev,
-          status: response.status ?? prev.status,
-          fullName: response.fullName ?? prev.fullName,
-          phone: response.phone ?? prev.phone,
-          email: response.email ?? prev.email,
-          dob: response.dob ?? prev.dob,
-          gender: response.gender ?? prev.gender,
-          // keep createdAt/totalBookings from previous list fetch
+			status: updated.status ?? prev.status,
+			fullName: updated.fullName ?? prev.fullName,
+			phone: updated.phone ?? prev.phone,
+			email: updated.email ?? prev.email,
+			dob: updated.dob ?? prev.dob,
+			gender: updated.gender ?? prev.gender,
+			createdAt: updated.createdAt ?? prev.createdAt,
+			totalBookings: updated.totalBookings ?? prev.totalBookings,
         }));
       }
 
@@ -393,7 +390,7 @@ const EditCustomerProfile = () => {
                   <div className={styles.statContent}>
                     <div className={styles.statLabel}>Tổng số booking</div>
                     <div className={styles.statValue}>
-                      {formData.totalBookings || 0} lần
+						  {typeof formData.totalBookings === 'number' ? `${formData.totalBookings} lần` : '-'}
                     </div>
                   </div>
                 </div>
