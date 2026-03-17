@@ -7,7 +7,7 @@
 
 .filterLabels {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 10px;
 	font-weight: 400;
 	font-size: 14px;
@@ -17,11 +17,20 @@
 
 .filterControls {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 10px;
 }
 
 .filterControls select {
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 6px;
+	border: 1px solid #d9d9d9;
+	background: #fff;
+	font-size: 14px;
+}
+
+.filterControls input {
 	width: 100%;
 	padding: 10px 12px;
 	border-radius: 6px;

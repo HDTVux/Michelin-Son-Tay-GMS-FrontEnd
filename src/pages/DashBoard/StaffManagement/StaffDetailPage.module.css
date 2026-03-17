@@ -1,0 +1,147 @@
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--ui-border);
+	margin-bottom: 14px;
+}
+
+.headerLeft {
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.title {
+	font-size: 18px;
+	font-weight: 800;
+	color: var(--ui-text);
+}
+
+.loading {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--ui-muted);
+	padding: 8px 0 14px;
+}
+
+.content {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.profileRow {
+	display: grid;
+	grid-template-columns: 96px 1fr;
+	gap: 14px;
+	align-items: center;
+}
+
+@media (max-width: 720px) {
+	.profileRow {
+		grid-template-columns: 1fr;
+	}
+}
+
+.avatar {
+	width: 96px;
+	height: 96px;
+	border-radius: 999px;
+	border: 1px solid var(--ui-border);
+	object-fit: cover;
+}
+
+.avatarFallback {
+	width: 96px;
+	height: 96px;
+	border-radius: 999px;
+	border: 1px solid var(--ui-border);
+	background: var(--ui-surface);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 22px;
+	font-weight: 900;
+	color: var(--ui-text);
+}
+
+.profileMeta {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.name {
+	font-size: 18px;
+	font-weight: 900;
+	color: var(--ui-text);
+}
+
+.subline {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--ui-muted);
+}
+
+.statusRow {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px 18px;
+}
+
+@media (max-width: 720px) {
+	.grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 10px 12px;
+	border: 1px solid var(--ui-border);
+	border-radius: 12px;
+	background: var(--ui-surface);
+}
+
+.label {
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--ui-muted);
+}
+
+.value {
+	font-size: 14px;
+	font-weight: 700;
+	color: var(--ui-text);
+	word-break: break-word;
+}
+
+.roleList {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.roleChip {
+	display: inline-flex;
+	align-items: center;
+	padding: 6px 10px;
+	border-radius: 999px;
+	border: 1px solid var(--ui-border);
+	background: var(--ui-surface);
+	color: var(--ui-text);
+	font-size: 13px;
+	font-weight: 700;
+}

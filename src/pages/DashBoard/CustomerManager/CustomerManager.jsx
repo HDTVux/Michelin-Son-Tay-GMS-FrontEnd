@@ -110,49 +110,6 @@ const CustomerManager = () => {
     }
   };
 
-  const handleLockAccount = async (customerId) => {
-    if (globalThis.confirm('Bạn có chắc chắn muốn khóa tài khoản này?')) {
-      try {
-        // Update UI immediately
-        setCustomers(prevCustomers => 
-          prevCustomers.map(customer => 
-            customer.id === customerId 
-              ? { ...customer, status: 'INACTIVE' }
-              : customer
-          )
-        );
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-        toast.success('Khóa tài khoản thành công!');
-      } catch (error) {
-        console.error('Error locking account:', error);
-        toast.error('Khóa tài khoản thất bại');
-        loadCustomers(); // Reload on error
-      }
-    }
-  };
-
-  const handleUnlockAccount = async (customerId) => {
-    if (globalThis.confirm('Bạn có chắc chắn muốn mở khóa tài khoản này?')) {
-      try {
-        // Update UI immediately
-        setCustomers(prevCustomers => 
-          prevCustomers.map(customer => 
-            customer.id === customerId 
-              ? { ...customer, status: 'ACTIVE' }
-              : customer
-          )
-        );
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-        toast.success('Mở khóa tài khoản thành công!');
-      } catch (error) {
-        console.error('Error unlocking account:', error);
-        toast.error('Mở khóa tài khoản thất bại');
-        loadCustomers(); // Reload on error
-      }
-    }
-  };
 
   const handleDeleteAccount = async (customerId) => {
     if (globalThis.confirm('Bạn có chắc chắn muốn xóa tài khoản này? Hành động này không thể hoàn tác!')) {
@@ -235,23 +192,6 @@ const CustomerManager = () => {
                       >
                         Xem
                       </button>
-                      {(customer.status || 'ACTIVE') === 'ACTIVE' ? (
-                        <button
-                          className={`${styles.actionBtn} ${styles.lockBtn}`}
-                          onClick={() => handleLockAccount(customer.customerId || customer.id)}
-                          title="Khóa tài khoản"
-                        >
-                          Khóa
-                        </button>
-                      ) : (
-                        <button
-                          className={`${styles.actionBtn} ${styles.unlockBtn}`}
-                          onClick={() => handleUnlockAccount(customer.customerId || customer.id)}
-                          title="Mở khóa tài khoản"
-                        >
-                          Mở khóa
-                        </button>
-                      )}
                       <button
                         className={`${styles.actionBtn} ${styles.deleteBtn}`}
                         onClick={() => handleDeleteAccount(customer.customerId || customer.id)}

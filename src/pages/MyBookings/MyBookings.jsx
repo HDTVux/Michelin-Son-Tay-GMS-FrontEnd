@@ -19,7 +19,8 @@ const MyBookings = () => {
   // Load bookings from API
   useEffect(() => {
     const loadBookings = async () => {
-      const token = localStorage.getItem('authToken');
+      // Lấy token từ localStorage - ưu tiên customerToken cho khách hàng
+      let token = localStorage.getItem('customerToken') || localStorage.getItem('authToken');
       
       if (!token) {
         setError('Vui lòng đăng nhập để xem lịch hẹn.');
@@ -39,7 +40,7 @@ const MyBookings = () => {
           time: booking.scheduledTime || '',
           status: mapStatus(booking.status),
           statusText: getStatusText(booking.status),
-          services: booking.serviceIds?.map(id => `Dịch vụ #${id}`) || [],
+          services: booking.services?.map(s => s.itemName) || [],
           description: booking.description || '',
           customerName: booking.customerName || '',
           phone: booking.phone || '',
@@ -75,8 +76,9 @@ const MyBookings = () => {
       'PENDING': 'pending',
       'CONFIRMED': 'confirmed',
       'CANCELLED': 'cancelled',
-      'COMPLETED': 'confirmed',
-      'IN_PROGRESS': 'confirmed',
+      'COMPLETED': 'completed',
+      'IN_PROGRESS': 'processing',
+      'DONE': 'completed',  // Thêm DONE mapping
     };
     return statusMap[backendStatus?.toUpperCase()] || 'pending';
   };
@@ -89,6 +91,7 @@ const MyBookings = () => {
       'CANCELLED': 'Đã hủy',
       'COMPLETED': 'Hoàn thành',
       'IN_PROGRESS': 'Đang thực hiện',
+      'DONE': 'Hoàn thành',  // Thêm DONE
     };
     return textMap[backendStatus?.toUpperCase()] || 'Đang chờ';
   };
@@ -97,6 +100,7 @@ const MyBookings = () => {
     { value: 'all', label: 'Tất cả' },
     { value: 'pending', label: 'Đang chờ' },
     { value: 'confirmed', label: 'Xác nhận' },
+    { value: 'completed', label: 'Hoàn thành' },
     { value: 'cancelled', label: 'Đã hủy' }
   ];
 

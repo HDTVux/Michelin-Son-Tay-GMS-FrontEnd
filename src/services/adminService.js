@@ -180,3 +180,91 @@ export const deleteCustomer = (customerId, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+/**
+ * Lấy danh sách tất cả nhân viên (staff) với phân trang và filters
+ * Backend: GET /api/admin/staff/all-staff
+ *
+ * @param {object} params - Query parameters
+ * @param {number} params.page - Số trang (default: 0)
+ * @param {number} params.size - Số items per page (default: 10)
+ * @param {string} params.date - Lọc theo ngày (yyyy-MM-dd) (optional)
+ * @param {boolean} params.isActive - Lọc theo trạng thái hoạt động (optional)
+ * @param {string} params.search - Tìm kiếm theo tên/phone/email (optional)
+ * @param {number[]} params.roleIds - Lọc theo roleIds (optional)
+ * @param {string} token - JWT token
+ * @returns {Promise}
+ */
+export const fetchAllStaff = (params, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem danh sách nhân viên.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const searchParams = new URLSearchParams();
+
+  const page = Number.isFinite(params?.page) ? params.page : 0;
+  const size = Number.isFinite(params?.size) ? params.size : 10;
+  searchParams.set('page', String(page));
+  searchParams.set('size', String(size));
+
+  if (params?.date) searchParams.set('date', params.date);
+  if (typeof params?.isActive === 'boolean') searchParams.set('isActive', String(params.isActive));
+  if (params?.search) searchParams.set('search', params.search);
+
+  if (Array.isArray(params?.roleIds)) {
+    params.roleIds
+      .map(Number)
+      .filter((v) => Number.isFinite(v) && v > 0)
+      .forEach((roleId) => searchParams.append('roleIds', String(roleId)));
+  }
+
+  const qs = searchParams.toString();
+  const path = qs ? `/api/admin/staff/all-staff?${qs}` : '/api/admin/staff/all-staff';
+
+  return request(path, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+/**
+ * Lấy danh sách tất cả roles của staff (Admin)
+ * Backend: GET /api/admin/staff/all-roles
+ */
+export const fetchAllStaffRoles = (token) => {
+
+  return request('/api/admin/staff/all-roles', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+/**
+ * Lấy chi tiết thông tin của nhân viên
+ * Backend: GET /api/admin/staff/{staffId}
+ *
+ * @param {number|string} staffId
+ * @param {string} token - JWT token
+ * @returns {Promise}
+ */
+export const fetchStaffDetail = (staffId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem chi tiết nhân viên.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const id = Number(staffId);
+  if (!Number.isFinite(id) || id <= 0) {
+    const error = new Error('Staff ID không hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/admin/staff/${id}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};

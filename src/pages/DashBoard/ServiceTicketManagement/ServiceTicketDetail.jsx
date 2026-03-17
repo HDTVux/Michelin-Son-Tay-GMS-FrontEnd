@@ -8,7 +8,6 @@ import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHooks.js';
 import styles from './ServiceTicketDetail.module.css';
-import Receipt from '../Receipt/Receipt.jsx';
 
 const STAFF_ROLE = {
 	ADVISOR: 'ADVISOR',
@@ -356,14 +355,16 @@ export default function ServiceTicketDetail() {
 		odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
 
 	const handleBack = () => navigate(-1);
-	const handlePrint = () => {
-		if (typeof globalThis?.print === 'function') globalThis.print();
+	const handleCreateReceipt = () => {
+		const code = ticket.ticketCode || ticketCodeParam;
+		if (!code) {
+			notify('Thiếu mã phiếu dịch vụ để tạo hoá đơn.');
+			return;
+		}
+		navigate(`/service-ticket/${encodeURIComponent(String(code || '').trim())}/receipt-confirm`, {
+			state: { ticket: ticketRaw ?? ticketFromState ?? null },
+		});
 	};
-
-	const printTicket = useMemo(
-		() => ({ ...ticket, receivedAtDisplay, handoverAtDisplay }),
-		[ticket, receivedAtDisplay, handoverAtDisplay],
-	);
 
 	return (
 		<div className={styles.page}>
@@ -495,17 +496,13 @@ export default function ServiceTicketDetail() {
 							<button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
 								Quay lại
 							</button>
-							<button type="button" className="ui-btn ui-btn--primary" onClick={handlePrint}>
-								In phiếu
+							<button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt}>
+								Tạo hoá đơn
 							</button>
 						</div>
 					</div>
 					</main>
 				</div>
-			</div>
-
-			<div className={styles.printOnly}>
-				<Receipt ticket={printTicket} />
 			</div>
 		</div>
 	);

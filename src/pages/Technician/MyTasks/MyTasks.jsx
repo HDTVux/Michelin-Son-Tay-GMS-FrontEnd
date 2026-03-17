@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTechnicianTickets, fetchTechnicianTicketDetail } from '../../../services/technicianService';
+import { getSafetyInspectionByTicketCode } from '../../../services/safetyInspectionService';
 import styles from './MyTasks.module.css';
 
 const MyTasks = () => {
@@ -28,25 +29,44 @@ const MyTasks = () => {
 
         // Transform API response to match component expectations
         const tickets = response.data?.content || response.data || [];
-        const transformedTasks = tickets.map(ticket => ({
-          id: ticket.serviceTicketId,
-          ticketCode: ticket.ticketCode,
-          // List API returns flat structure
-          licensePlate: ticket.licensePlate || '',
-          make: ticket.vehicleMake || '',
-          model: ticket.vehicleModel || '',
-          serviceType: ticket.serviceCategory || '',
-          priority: ticket.priority || 'Normal',
-          timeSlot: ticket.scheduledTime || '',
-          status: mapStatus(ticket.ticketStatus),
-          customerRequest: ticket.customerRequest || '',
-          customerName: ticket.customerName || '',
-          customerPhone: ticket.customerPhone || '',
-          assignedDate: ticket.receivedAt || ticket.createdAt || '',
-          dueDate: ticket.scheduledDate || '',
-          technicianNotes: ticket.technicianNotes,
-          // Services will be loaded from detail API
-          services: []
+
+        // Check safety inspection status for each ticket
+        const transformedTasks = await Promise.all(tickets.map(async ticket => {
+          let hasSafetyInspection = false;
+          let inspectionStatus = null;
+          try {
+            const inspectionRes = await getSafetyInspectionByTicketCode(ticket.ticketCode, token);
+            if (inspectionRes?.data) {
+              hasSafetyInspection = true;
+              inspectionStatus = inspectionRes.data.inspectionStatus || null;
+            }
+          } catch (error) {
+            // No safety inspection yet or error - ignore and set to false
+            console.log(`No safety inspection for ticket ${ticket.ticketCode}:`, error.message);
+          }
+
+          return {
+            id: ticket.serviceTicketId,
+            ticketCode: ticket.ticketCode,
+            // List API returns flat structure
+            licensePlate: ticket.licensePlate || '',
+            make: ticket.vehicleMake || '',
+            model: ticket.vehicleModel || '',
+            serviceType: ticket.serviceCategory || '',
+            priority: ticket.priority || 'Normal',
+            timeSlot: ticket.scheduledTime || '',
+            status: ticket.ticketStatus ? ticket.ticketStatus.toUpperCase() : 'DRAFT', // Hiển thị đúng status từ backend
+            customerRequest: ticket.customerRequest || '',
+            customerName: ticket.customerName || '',
+            customerPhone: ticket.customerPhone || '',
+            assignedDate: ticket.receivedAt || ticket.createdAt || '',
+            dueDate: ticket.scheduledDate || '',
+            technicianNotes: ticket.technicianNotes,
+            hasSafetyInspection,
+            inspectionStatus, // Trạng thái phiếu kiểm tra an toàn
+            // Services will be loaded from detail API
+            services: []
+          };
         }));
 
         setTasks(transformedTasks);
@@ -59,24 +79,36 @@ const MyTasks = () => {
     };
 
     fetchTickets();
-    
+
     // Auto refresh every 30 seconds
     const interval = setInterval(fetchTickets, 30000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
-  // Map backend status to frontend status
-  const mapStatus = (status) => {
-    if (!status) return 'Đã giao';
+  // Map inspection status to Vietnamese display
+  const mapInspectionStatus = (status) => {
+    if (!status) return '';
     const statusMap = {
-      'DRAFT': 'Đã giao',
-      'CREATED': 'Đã giao',
-      'IN_PROGRESS': 'Đang tiến hành',
-      'COMPLETED': 'Hoàn thành',
-      'CANCELLED': 'Đã hủy'
+      'PENDING': 'Chờ kiểm tra',
+      'COMPLETED': 'Đã kiểm tra',
+      'SKIPPED': 'Đã bỏ qua'
     };
-    return statusMap[status.toUpperCase()] || 'Đã giao';
+    return statusMap[status.toUpperCase()] || status;
+  };
+
+  // Get CSS class for inspection status
+  const getInspectionStatusClass = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'PENDING':
+        return styles.statusInProgress;
+      case 'COMPLETED':
+        return styles.statusCompleted;
+      case 'SKIPPED':
+        return styles.statusPaused;
+      default:
+        return '';
+    }
   };
 
   const formatDate = (dateString) => {
@@ -97,21 +129,6 @@ const MyTasks = () => {
     }
   };
 
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'Đã giao':
-        return styles.statusAssigned;
-      case 'Đang tiến hành':
-        return styles.statusInProgress;
-      case 'Hoàn thành':
-        return styles.statusCompleted;
-      case 'Tạm dừng':
-        return styles.statusPaused;
-      default:
-        return '';
-    }
-  };
-
   const getPriorityClass = (priority) => {
     switch (priority) {
       case 'Critical':
@@ -127,8 +144,8 @@ const MyTasks = () => {
 
   const filteredTasks = tasks.filter(task => {
     const matchesStatus = filterStatus === 'all' ||
-      (filterStatus === 'Đã giao' && (task.status === 'Đã giao' || !task.status)) ||
-      task.status === filterStatus;
+      (filterStatus === 'no_inspection' && !task.hasSafetyInspection) ||
+      (filterStatus === task.inspectionStatus);
     const matchesSearch = !searchTerm ||
       (task.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (task.model?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -193,9 +210,9 @@ const MyTasks = () => {
 
   const stats = {
     total: tasks.length,
-    assigned: tasks.filter(t => t.status === 'Đã giao').length,
-    inProgress: tasks.filter(t => t.status === 'Đang tiến hành').length,
-    completed: tasks.filter(t => t.status === 'Hoàn thành').length
+    assigned: tasks.filter(t => !t.hasSafetyInspection).length,
+    inProgress: tasks.filter(t => t.hasSafetyInspection && t.inspectionStatus === 'PENDING').length,
+    completed: tasks.filter(t => t.hasSafetyInspection && t.inspectionStatus === 'COMPLETED').length
   };
 
   if (loading) {
@@ -257,106 +274,53 @@ const MyTasks = () => {
         </div>
         <div className={styles.filterBox}>
           <label>Lọc theo trạng thái:</label>
-          <select 
-            value={filterStatus} 
+          <select
+            value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className={styles.filterSelect}
           >
             <option value="all">Tất cả</option>
-            <option value="Đã giao">Đã giao</option>
-            <option value="Đang tiến hành">Đang tiến hành</option>
-            <option value="Hoàn thành">Hoàn thành</option>
-            <option value="Tạm dừng">Tạm dừng</option>
+            <option value="no_inspection">Chưa kiểm tra</option>
+            <option value="PENDING">Chờ kiểm tra</option>
+            <option value="COMPLETED">Đã kiểm tra</option>
+            <option value="SKIPPED">Đã bỏ qua</option>
           </select>
         </div>
       </div>
 
-      <div className={styles.tasksList}>
-        {filteredTasks.length > 0 ? (
-          filteredTasks.map((task) => (
-            <div key={task.id} className={styles.taskCard}>
-              <div className={styles.taskHeader}>
-                <div className={styles.taskHeaderLeft}>
-                  <h3 className={styles.taskTitle}>Phiếu #{task.id}</h3>
-                  <span className={`${styles.priorityBadge} ${getPriorityClass(task.priority)}`}>
-                    {task.priority}
-                  </span>
-                </div>
-                <div className={styles.taskHeaderRight}>
-                  <span className={`${styles.statusBadge} ${getStatusClass(task.status)}`}>
-                    {task.status}
-                  </span>
-                </div>
+      {/* Two columns layout */}
+      <div className={styles.twoColumns}>
+        {/* Column 1: Có kiểm tra an toàn */}
+        <div className={styles.column}>
+          <h3 className={styles.columnTitle}>Có kiểm tra an toàn</h3>
+          <div className={styles.tasksList}>
+            {filteredTasks.filter(t => t.hasSafetyInspection).length > 0 ? (
+              filteredTasks.filter(t => t.hasSafetyInspection).map((task) => (
+                <TaskCard key={task.id} task={task} onView={handleViewTask} onNavigate={navigate} getPriorityClass={getPriorityClass} formatDate={formatDate} mapInspectionStatus={mapInspectionStatus} getInspectionStatusClass={getInspectionStatusClass} />
+              ))
+            ) : (
+              <div className={styles.emptyState}>
+                <p className={styles.emptyText}>Không có phiếu</p>
               </div>
-
-              <div className={styles.taskBody}>
-                <div className={styles.taskRow}>
-                  <div className={styles.taskField}>
-                    <span className={styles.fieldLabel}>Biển số:</span>
-                    <span className={styles.fieldValue}>{task.licensePlate}</span>
-                  </div>
-                  <div className={styles.taskField}>
-                    <span className={styles.fieldLabel}>Model:</span>
-                    <span className={styles.fieldValue}>{task.model}</span>
-                  </div>
-                </div>
-
-                {task.customerName && (
-                  <div className={styles.taskRow}>
-                    <div className={styles.taskField}>
-                      <span className={styles.fieldLabel}>Khách hàng:</span>
-                      <span className={styles.fieldValue}>{task.customerName}</span>
-                    </div>
-                    {task.customerPhone && (
-                      <div className={styles.taskField}>
-                        <span className={styles.fieldLabel}>SĐT:</span>
-                        <span className={styles.fieldValue}>{task.customerPhone}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className={styles.taskRow}>
-                  <div className={styles.taskField}>
-                    <span className={styles.fieldLabel}>Time slot:</span>
-                    <span className={styles.fieldValue}>{task.timeSlot}</span>
-                  </div>
-                  <div className={styles.taskField}>
-                    <span className={styles.fieldLabel}>Ngày hẹn:</span>
-                    <span className={styles.fieldValue}>{formatDate(task.dueDate)}</span>
-                  </div>
-                </div>
-
-                <div className={styles.taskRow}>
-                  <div className={styles.taskField} style={{ width: '100%' }}>
-                    <span className={styles.fieldLabel}>Yêu cầu khách hàng:</span>
-                    <p className={styles.customerRequest}>{task.customerRequest}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.taskFooter}>
-                <button 
-                  className={styles.primaryButton}
-                  onClick={() => navigate(`/technician/service-ticket/${task.ticketCode || task.id}`)}
-                >
-                  {task.status === 'Đã giao' ? 'Bắt đầu làm việc' : 'Xem phiếu kiểm tra'}
-                </button>
-                <button 
-                  className={styles.secondaryButton}
-                  onClick={() => handleViewTask(task)}
-                >
-                  Chi tiết
-                </button>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className={styles.emptyState}>
-            <p className={styles.emptyText}>Không tìm thấy công việc nào</p>
-            <p className={styles.emptySubtext}>Thử thay đổi bộ lọc hoặc tìm kiếm khác</p>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Column 2: Không kiểm tra an toàn */}
+        <div className={styles.column}>
+          <h3 className={styles.columnTitle}>Không kiểm tra an toàn</h3>
+          <div className={styles.tasksList}>
+            {filteredTasks.filter(t => !t.hasSafetyInspection).length > 0 ? (
+              filteredTasks.filter(t => !t.hasSafetyInspection).map((task) => (
+                <TaskCard key={task.id} task={task} onView={handleViewTask} onNavigate={navigate} getPriorityClass={getPriorityClass} formatDate={formatDate} mapInspectionStatus={mapInspectionStatus} getInspectionStatusClass={getInspectionStatusClass} />
+              ))
+            ) : (
+              <div className={styles.emptyState}>
+                <p className={styles.emptyText}>Không có phiếu</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Modal Popup */}
@@ -369,7 +333,7 @@ const MyTasks = () => {
                 ✕
               </button>
             </div>
-            
+
             <div className={styles.modalBody}>
               <div className={styles.modalSection}>
                 <h4 className={styles.sectionTitle}>Thông tin phiếu</h4>
@@ -379,9 +343,9 @@ const MyTasks = () => {
                     <span className={styles.infoValue}>#{selectedTask.id}</span>
                   </div>
                   <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Trạng thái:</span>
-                    <span className={`${styles.statusBadge} ${getStatusClass(selectedTask.status)}`}>
-                      {selectedTask.status}
+                    <span className={styles.infoLabel}>Trạng thái kiểm tra:</span>
+                    <span className={`${styles.statusBadge} ${getInspectionStatusClass(selectedTask.inspectionStatus)}`}>
+                      {mapInspectionStatus(selectedTask.inspectionStatus) || 'Chưa kiểm tra'}
                     </span>
                   </div>
                   <div className={styles.infoItem}>
@@ -450,54 +414,6 @@ const MyTasks = () => {
               )}
 
               <div className={styles.modalSection}>
-                <h4 className={styles.sectionTitle}>Thông tin dịch vụ</h4>
-                <div className={styles.infoGrid}>
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Loại dịch vụ:</span>
-                    <span className={styles.infoValue}>{selectedTask.serviceType || 'N/A'}</span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Time slot:</span>
-                    <span className={styles.infoValue}>{selectedTask.timeSlot || 'N/A'}</span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Ngày giao:</span>
-                    <span className={styles.infoValue}>{formatDate(selectedTask.assignedDate)}</span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Hạn hoàn thành:</span>
-                    <span className={styles.infoValue}>{formatDate(selectedTask.dueDate)}</span>
-                  </div>
-                </div>
-                
-                {selectedTask.services && selectedTask.services.length > 0 && (
-                  <div style={{ marginTop: '16px' }}>
-                    <span className={styles.infoLabel} style={{ display: 'block', marginBottom: '8px' }}>
-                      Danh sách dịch vụ:
-                    </span>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {selectedTask.services.map((service, index) => (
-                        <span 
-                          key={index}
-                          style={{
-                            padding: '6px 12px',
-                            background: '#eff6ff',
-                            color: '#1e40af',
-                            borderRadius: '6px',
-                            fontSize: '13px',
-                            fontWeight: '500',
-                            border: '1px solid #bfdbfe'
-                          }}
-                        >
-                          {service.serviceName}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.modalSection}>
                 <h4 className={styles.sectionTitle}>Yêu cầu khách hàng</h4>
                 <p className={styles.customerRequestFull}>{selectedTask.customerRequest || 'Không có yêu cầu đặc biệt'}</p>
               </div>
@@ -511,7 +427,7 @@ const MyTasks = () => {
                   navigate(`/technician/service-ticket/${selectedTask.ticketCode || selectedTask.id}`);
                 }}
               >
-                {selectedTask.status === 'Đã giao' ? 'Bắt đầu làm việc' : 'Xem phiếu kiểm tra'}
+                {!selectedTask.hasSafetyInspection ? 'Bắt đầu làm việc' : 'Xem phiếu kiểm tra'}
               </button>
             </div>
           </div>
@@ -520,5 +436,137 @@ const MyTasks = () => {
     </div>
   );
 };
+
+// TaskCard component
+const TaskCard = ({ task, onView, onNavigate, getPriorityClass, formatDate, mapInspectionStatus, getInspectionStatusClass }) => (
+  <div className={styles.taskCard}>
+    <div className={styles.taskHeader}>
+      <div className={styles.taskHeaderLeft}>
+        <h3 className={styles.taskTitle}>Phiếu #{task.id}</h3>
+        <span className={`${styles.priorityBadge} ${getPriorityClass(task.priority)}`}>
+          {task.priority}
+        </span>
+      </div>
+      <div className={styles.taskHeaderRight}>
+        {task.hasSafetyInspection && task.inspectionStatus ? (
+          <span className={`${styles.statusBadge} ${getInspectionStatusClass(task.inspectionStatus)}`}>
+            {mapInspectionStatus(task.inspectionStatus)}
+          </span>
+        ) : (
+          <span className={`${styles.statusBadge}`} style={{ backgroundColor: '#6c757d' }}>
+            Chưa kiểm tra
+          </span>
+        )}
+      </div>
+    </div>
+
+    <div className={styles.taskBody}>
+      <div className={styles.taskRow}>
+        <div className={styles.taskField}>
+          <span className={styles.fieldLabel}>Biển số:</span>
+          <span className={styles.fieldValue}>{task.licensePlate}</span>
+        </div>
+        <div className={styles.taskField}>
+          <span className={styles.fieldLabel}>Loại xe:</span>
+          <span className={styles.fieldValue}>{task.model}</span>
+        </div>
+      </div>
+
+      {task.customerName && (
+        <div className={styles.taskRow}>
+          <div className={styles.taskField}>
+            <span className={styles.fieldLabel}>Khách hàng:</span>
+            <span className={styles.fieldValue}>{task.customerName}</span>
+          </div>
+          {task.customerPhone && (
+            <div className={styles.taskField}>
+              <span className={styles.fieldLabel}>SĐT:</span>
+              <span className={styles.fieldValue}>{task.customerPhone}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className={styles.taskRow}>
+        <div className={styles.taskField}>
+          <span className={styles.fieldLabel}>Ngày nhận xe:</span>
+          <span className={styles.fieldValue}>{formatDate(task.dueDate)}</span>
+        </div>
+        <div className={styles.taskField}>
+          <span className={styles.fieldLabel}>Giờ nhận xe:</span>
+          <span className={styles.fieldValue}>{task.timeSlot}</span>
+        </div>
+      </div>
+      <div className={styles.taskRow}>
+        <div className={styles.taskField}>
+          <span className={styles.fieldLabel}>Ngày giao xe:</span>
+          <span className={styles.fieldValue}>{formatDate(task.dueDate)}</span>
+        </div>
+        <div className={styles.taskField}>
+          <span className={styles.fieldLabel}>Giờ giao xe:</span>
+          <span className={styles.fieldValue}>{task.timeSlot}</span>
+        </div>
+      </div>
+
+      <div className={styles.taskRow}>
+        <div className={styles.taskField} style={{ width: '100%' }}>
+          <span className={styles.fieldLabel}>Yêu cầu khách hàng:</span>
+          <p className={styles.customerRequest}>{task.customerRequest}</p>
+        </div>
+      </div>
+
+      {/* Checkbox hiển thị có kiểm tra an toàn hay không */}
+      <div className={styles.taskRow}>
+        <div className={styles.taskField} style={{ width: '100%' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'default' }}>
+            <input
+              type="checkbox"
+              checked={task.hasSafetyInspection || false}
+              readOnly
+              style={{ width: '16px', height: '16px' }}
+            />
+            <span style={{ fontSize: '13px', color: task.hasSafetyInspection ? '#28a745' : '#666' }}>
+              {task.hasSafetyInspection ? 'Có kiểm tra an toàn' : 'Không kiểm tra an toàn'}
+            </span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div className={styles.taskFooter}>
+      {task.hasSafetyInspection ? (
+        <>
+          <button
+            className={styles.primaryButton}
+            onClick={() => onNavigate(`/technician/service-ticket/${task.ticketCode || task.id}`)}
+          >
+            Xem phiếu kiểm tra
+          </button>
+          <button
+            className={styles.secondaryButton}
+            onClick={() => onView(task)}
+          >
+            Chi tiết
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            className={styles.primaryButton}
+            onClick={() => onNavigate(`/technician/service-ticket/${task.ticketCode || task.id}`)}
+          >
+            Bắt đầu làm việc
+          </button>
+          <button
+            className={styles.secondaryButton}
+            onClick={() => onView(task)}
+          >
+            Chi tiết
+          </button>
+        </>
+      )}
+    </div>
+  </div>
+);
 
 export default MyTasks;

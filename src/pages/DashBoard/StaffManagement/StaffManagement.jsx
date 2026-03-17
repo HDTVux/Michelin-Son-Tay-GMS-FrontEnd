@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import baseStyles from '../BookingRequestManagement/BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import AddStaffAccount from './AddStaffAccount.jsx';
 import styles from './StaffManagement.module.css';
@@ -63,12 +63,33 @@ function normalizeText(value) {
 
 export default function StaffManagement() {
 	useScrollToTop();
+	const navigate = useNavigate();
 
-	const [staff, setStaff] = useState(FAKE_STAFF);
+	const [staff, setStaff] = useState([]);
+	const [allRoles, setAllRoles] = useState([]);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState('');
+
+	// Query state (backend paging/filtering)
+	const [page, setPage] = useState(0);
+	const [size, setSize] = useState(10);
+	const [date, setDate] = useState(''); // yyyy-mm-dd
 	const [search, setSearch] = useState('');
 	const [statusFilter, setStatusFilter] = useState(''); // '' | 'ACTIVE' | 'INACTIVE'
-	const [roleFilter, setRoleFilter] = useState(''); // '' | role
+	const [roleIdFilter, setRoleIdFilter] = useState(''); // '' | roleId
+
+	// Server paging metadata
+	const [totalPages, setTotalPages] = useState(1);
+	const [totalElements, setTotalElements] = useState(0);
+
+	// Debounce search to avoid spamming API
+	const [debouncedSearch, setDebouncedSearch] = useState('');
+
 	const [showAddModal, setShowAddModal] = useState(false);
+	
+	// Pagination
+	const [currentPage, setCurrentPage] = useState(1);
+	const itemsPerPage = 10;
 
 	const filteredStaff = useMemo(() => {
 		const q = normalizeText(search);
@@ -86,26 +107,64 @@ export default function StaffManagement() {
 	}, [staff, search, statusFilter, roleFilter]);
 
 	const handleResetFilters = () => {
+		setPage(0);
+		setSize(10);
+		setDate('');
 		setSearch('');
 		setStatusFilter('');
 		setRoleFilter('');
 	};
 
 	const handleAddStaff = (payload) => {
-		const nextId = staff.reduce((maxId, item) => Math.max(maxId, item.id), 0) + 1;
+		// Hiện tại màn này chỉ yêu cầu GET list. Khi tạo mới, ta refresh về trang 1 để lấy dữ liệu mới nhất.
+		// (Nếu backend có endpoint create staff, có thể nối vào đây.)
+		setPage(0);
+		setSearch('');
+		setStatusFilter('');
+		setRoleIdFilter('');
+		setDate('');
+		setSize(10);
+
+		// Optimistic UI (best-effort) để user thấy ngay, sẽ được đồng bộ lại khi API trả về
+		const tempId = Date.now();
+		const roleIds = Array.isArray(payload?.roleIds)
+			? payload.roleIds.map(Number).filter((v) => Number.isFinite(v) && v > 0)
+			: [];
+		const roleCodes =
+			Array.isArray(payload?.roleCodes) && payload.roleCodes.length > 0
+				? payload.roleCodes.map((c) => String(c).trim().toUpperCase()).filter(Boolean)
+				: roleIds.map((id) => roleCodeById.get(id)).filter(Boolean);
+		const safeRoleCodes = roleCodes.length > 0 ? roleCodes : ['ADMIN'];
 		const newItem = {
-			id: nextId,
-			name: payload?.username?.trim() || 'Nhân viên mới',
-			phoneNumber: payload?.phoneNumber?.trim() || '',
-			isActive: !!payload?.isActive,
-			role: payload?.role || 'ADMIN'
+			staffId: tempId,
+			fullName: payload?.username?.trim() || 'Nhân viên mới',
+			phone: payload?.phoneNumber?.trim() || '',
+			position: '',
+			avatar: '',
+			email: payload?.email?.trim() || '',
+			status: payload?.isActive ? 'ACTIVE' : 'INACTIVE',
+			roles: safeRoleCodes.map((roleCodeRaw) => {
+				const roleCode = roleCodeRaw ? String(roleCodeRaw).trim().toUpperCase() : '';
+				return {
+					roleCode,
+					roleName: roleLabelByCode.get(roleCode) || roleCode
+				};
+			})
 		};
-		setStaff((prev) => [newItem, ...prev]);
+		setStaff((prev) => [newItem, ...(prev || [])]);
+		setTotalElements((prev) => Math.max(0, Number(prev) || 0) + 1);
 		setShowAddModal(false);
+		setCurrentPage(1);
 	};
 
 	const handleDeleteStaff = (staffId) => {
-		setStaff((prev) => prev.filter((s) => s.id !== staffId));
+		setStaff((prev) => (prev || []).filter((s) => (s.staffId || s.id) !== staffId));
+		setTotalElements((prev) => Math.max(0, (Number(prev) || 0) - 1));
+	};
+
+	const handleViewStaff = (staffId) => {
+		if (staffId == null || staffId === '') return;
+		navigate(`/staff-manager/${staffId}`);
 	};
 
 	return (
@@ -206,7 +265,7 @@ export default function StaffManagement() {
 				open={showAddModal}
 				onClose={() => setShowAddModal(false)}
 				onSubmit={handleAddStaff}
-				roleOptions={ROLE_OPTIONS}
+				roleOptions={roleOptions}
 			/>
 		</div>
 	);
@@ -218,7 +277,7 @@ function UserIcon(props) {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
-			className={baseStyles.icon}
+			style={{ width: '24px', height: '24px' }}
 			aria-hidden="true"
 			{...props}
 		>
@@ -236,7 +295,7 @@ function SearchIcon(props) {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
-			className={baseStyles.icon}
+			style={{ width: '20px', height: '20px' }}
 			aria-hidden="true"
 			{...props}
 		>
@@ -292,12 +351,24 @@ function StaffTableRow({ item, index, onDelete }) {
 
 StaffTableRow.propTypes = {
 	item: PropTypes.shape({
-		id: PropTypes.number.isRequired,
-		name: PropTypes.string.isRequired,
-		phoneNumber: PropTypes.string.isRequired,
-		isActive: PropTypes.bool.isRequired,
-		role: PropTypes.string.isRequired
+		staffId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+		id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+		fullName: PropTypes.string,
+		name: PropTypes.string,
+		phone: PropTypes.string,
+		phoneNumber: PropTypes.string,
+		position: PropTypes.string,
+		status: PropTypes.string,
+		isActive: PropTypes.bool,
+		roles: PropTypes.arrayOf(
+			PropTypes.shape({
+				roleId: PropTypes.number,
+				roleCode: PropTypes.string,
+				roleName: PropTypes.string
+			})
+		)
 	}).isRequired,
 	index: PropTypes.number.isRequired,
+	onView: PropTypes.func,
 	onDelete: PropTypes.func.isRequired
 };

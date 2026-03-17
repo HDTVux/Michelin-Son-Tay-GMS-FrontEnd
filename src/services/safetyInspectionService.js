@@ -178,3 +178,38 @@ export const createWorkCategory = (payload, token) => {
     body: JSON.stringify(payload ?? {}),
   });
 };
+
+// Cập nhật advisor notes cho một hạng mục
+// PATCH /api/safety-inspections/{inspectionId}/advisor-notes
+export const updateAdvisorNote = (inspectionId, itemId, advisorNote, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật ghi chú.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const id = Number(inspectionId);
+  if (!Number.isFinite(id) || id <= 0) {
+    const error = new Error('Thiếu inspectionId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const itemIdNum = Number(itemId);
+  if (!Number.isFinite(itemIdNum) || itemIdNum <= 0) {
+    const error = new Error('Thiếu itemId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const payload = {
+    itemId: itemIdNum,
+    advisorNote: advisorNote || ''
+  };
+
+  return request(`/api/safety-inspections/${id}/advisor-notes`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+};

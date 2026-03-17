@@ -6,11 +6,13 @@ import {
   getSafetyInspectionByTicketCode,
   saveSafetyInspectionData,
   getDefaultSafetyInspectionCategories,
+  getSafetyInspectionCategories,
   skipSafetyInspection,
-  createWorkCategory
+  createWorkCategory,
+  enableSafetyInspection
 } from '../../../services/safetyInspectionService';
 import styles from './ServiceTicket.module.css';
-import carImage from '../../../assets/o_to4.jpg';
+import carImage from '../../../assets/oto_4.jpg';
 
 const ServiceTicket = () => {
   const { id } = useParams();
@@ -36,6 +38,8 @@ const ServiceTicket = () => {
   const [safetyChecks, setSafetyChecks] = useState([]);
 
   const [notes, setNotes] = useState('');
+  const [skipModalOpen, setSkipModalOpen] = useState(false);
+  const [skipReason, setSkipReason] = useState('');
   const [inspectionStatus, setInspectionStatus] = useState('PENDING'); // Track inspection status
   const [isEditable, setIsEditable] = useState(true); // Control if form is editable
   const [serviceTicketId, setServiceTicketId] = useState(null); // Store serviceTicketId for API calls
@@ -58,10 +62,11 @@ const ServiceTicket = () => {
           setServiceTicketId(ticketResponse.data.serviceTicketId);
         }
 
-        // Load default safety inspection categories FIRST
+        // Load ALL safety inspection categories from DB (including custom added ones)
         let defaultChecks = [];
         try {
-          const categoriesResponse = await getDefaultSafetyInspectionCategories(token);
+          // Use getSafetyInspectionCategories to get ALL categories from DB
+          const categoriesResponse = await getSafetyInspectionCategories(token);
           if (categoriesResponse?.data && categoriesResponse.data.length > 0) {
             defaultChecks = categoriesResponse.data.map((cat) => ({
               id: cat.id,
@@ -76,7 +81,26 @@ const ServiceTicket = () => {
             setSafetyChecks(defaultChecks);
           }
         } catch (catError) {
-          console.log('Could not load default categories:', catError.message);
+          console.log('Could not load categories, falling back to default:', catError.message);
+          // Fallback to default categories if API fails
+          try {
+            const defaultCategoriesResponse = await getDefaultSafetyInspectionCategories(token);
+            if (defaultCategoriesResponse?.data && defaultCategoriesResponse.data.length > 0) {
+              defaultChecks = defaultCategoriesResponse.data.map((cat) => ({
+                id: cat.id,
+                workCategoryId: cat.id,
+                name: cat.categoryName || '',
+                good: false,
+                warning: false,
+                replace: false,
+                note: '',
+                displayOrder: cat.displayOrder || 0
+              }));
+              setSafetyChecks(defaultChecks);
+            }
+          } catch (fallbackError) {
+            console.log('Could not load default categories:', fallbackError.message);
+          }
         }
 
         // Fetch safety inspection if exists
@@ -98,7 +122,7 @@ const ServiceTicket = () => {
             // Set inspection status and determine if editable
             const status = inspection.inspectionStatus || 'PENDING';
             setInspectionStatus(status);
-            setIsEditable(status === 'PENDING' || !status);
+            setIsEditable(status === 'PENDING' || status === 'SKIPPED' || !status);
             
             // Transform inspection data to form - tires
             if (inspection.tires && inspection.tires.length > 0) {
@@ -185,6 +209,7 @@ const ServiceTicket = () => {
     };
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, defaultTireData]);
 
   const handleTireDataChange = (position, field, value) => {
@@ -274,13 +299,15 @@ const ServiceTicket = () => {
   };
 
   const handleSkip = async () => {
-    const reason = prompt('Nhập lý do bỏ qua kiểm tra an toàn:');
-    if (reason === null) return; // User cancelled
+    setSkipModalOpen(true);
+  };
 
+  const confirmSkip = async () => {
     try {
       const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-      await skipSafetyInspection(id, reason || 'Bỏ qua kiểm tra an toàn', token);
+      await skipSafetyInspection(id, skipReason || 'Bỏ qua kiểm tra an toàn', token);
       toast.success('Đã bỏ qua kiểm tra an toàn!');
+      setSkipModalOpen(false);
       navigate('/technician/my-tasks');
     } catch (error) {
       console.error('Error skipping inspection:', error);
@@ -292,6 +319,21 @@ const ServiceTicket = () => {
     try {
       const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
 
+      // Step 1: If no inspection exists, enable it first (creates PENDING record)
+      if (!inspectionId) {
+        console.log('🔄 Enabling safety inspection first...');
+        try {
+          const enableResponse = await enableSafetyInspection(id, token);
+          console.log('✅ Enable response:', enableResponse);
+          if (enableResponse?.data?.inspectionId) {
+            setInspectionId(enableResponse.data.inspectionId);
+          }
+        } catch (enableError) {
+          console.error('Error enabling inspection:', enableError);
+          // Continue anyway - maybe inspection was created by another request
+        }
+      }
+
       // Transform tire data to API format
       const tiresPayload = Object.entries(tireData).map(([position, data]) => {
         const positionMap = {
@@ -301,13 +343,13 @@ const ServiceTicket = () => {
           'rearRight': 'REAR_RIGHT',
           'spare': 'SPARE'
         };
-        
+
         // Combine size1/size2/size3 into tireSpecification format: "205/55R16"
         let tireSpecification = '';
         if (data.size1 && data.size2 && data.size3) {
           tireSpecification = `${data.size1}/${data.size2}R${data.size3}`;
         }
-        
+
         const payload = {
           tirePosition: positionMap[position],
           treadDepth: data.mm ? parseFloat(data.mm) : null,
@@ -318,12 +360,12 @@ const ServiceTicket = () => {
           recommendedPressure: data.recommendedPressure ? parseFloat(data.recommendedPressure) : null,
           recommendedPressureUnit: 'PSI'
         };
-        
+
         console.log(`🔧 Tire ${position}:`, payload);
         return payload;
       }).filter(tire => tire.treadDepth || tire.pressure || tire.tireSpecification);
 
-      // Transform safety checks to API format
+      // Transform safety checks to API format - include ALL items with their status
       const itemsPayload = safetyChecks
         .filter(check => check.good || check.warning || check.replace)
         .map(check => ({
@@ -331,18 +373,29 @@ const ServiceTicket = () => {
           itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null
         }));
 
-      // Save safety inspection data to backend
+      // Save safety inspection data to backend with COMPLETED status
+      const finalServiceTicketId = serviceTicketId || parseInt(id);
+      console.log('💾 serviceTicketId being sent:', finalServiceTicketId);
+      console.log('💾 serviceTicketId state:', serviceTicketId);
+      console.log('💾 id param:', id);
+
       const safetyPayload = {
-        serviceTicketId: serviceTicketId || parseInt(id),
+        serviceTicketId: finalServiceTicketId,
         technicianNotes: notes || null,
         tires: tiresPayload,
-        items: itemsPayload
+        items: itemsPayload,
+        // Set status to COMPLETED when saving (submitting)
+        inspectionStatus: 'COMPLETED'
       };
 
       console.log('💾 Saving payload:', safetyPayload);
       await saveSafetyInspectionData(safetyPayload, token);
 
-      toast.success('Đã lưu dữ liệu thành công!');
+      // Update local state
+      setInspectionStatus('COMPLETED');
+      setIsEditable(false);
+
+      toast.success('Đã lưu và hoàn thành kiểm tra an toàn!');
     } catch (error) {
       console.error('Error saving inspection data:', error);
       toast.error('Lỗi khi lưu dữ liệu: ' + (error.message || 'Lỗi không xác định'));
@@ -382,7 +435,9 @@ const ServiceTicket = () => {
       <div className={styles.card}>
         {!isEditable && (
           <div className={styles.statusBanner}>
-            ⚠️ Phiếu kiểm tra đã hoàn thành (trạng thái: {inspectionStatus}). Không thể chỉnh sửa.
+            {inspectionStatus === 'COMPLETED'
+              ? `⚠️ Phiếu kiểm tra đã hoàn thành. Không thể chỉnh sửa.`
+              : `⚠️ Phiếu kiểm tra đang ở trạng thái: ${inspectionStatus}`}
           </div>
         )}
         <div className={styles.tireInspectionHeader}>
@@ -466,21 +521,6 @@ const ServiceTicket = () => {
                 </div>
               </div>
               
-              {/* Recommended Pressure for Front Left */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '110px', justifyContent: 'center' }}>
-                <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textAlign: 'center' }}>
-                  Áp suất<br/>khuyến cáo
-                </label>
-                <input
-                  type="text"
-                  value={tireData.frontLeft.recommendedPressure}
-                  onChange={(e) => handleTireDataChange('frontLeft', 'recommendedPressure', e.target.value)}
-                  className={styles.tireInputWhite}
-                  placeholder=""
-                  disabled={!isEditable}
-                  style={{ width: '80px', height: '36px', fontSize: '14px' }}
-                />
-              </div>
             </div>
 
             {/* Rear Left Tire */}
@@ -541,22 +581,6 @@ const ServiceTicket = () => {
                   />
                 </div>
               </div>
-              
-              {/* Recommended Pressure for Rear Left */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '110px', justifyContent: 'center' }}>
-                <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textAlign: 'center' }}>
-                  Áp suất<br/>khuyến cáo
-                </label>
-                <input
-                  type="text"
-                  value={tireData.rearLeft.recommendedPressure}
-                  onChange={(e) => handleTireDataChange('rearLeft', 'recommendedPressure', e.target.value)}
-                  className={styles.tireInputWhite}
-                  placeholder=""
-                  disabled={!isEditable}
-                  style={{ width: '80px', height: '36px', fontSize: '14px' }}
-                />
-              </div>
             </div>
           </div>
 
@@ -592,34 +616,6 @@ const ServiceTicket = () => {
             {/* Front Right Tire */}
             <div className={styles.tirePosition}>
               <div className={styles.tireBoxRow}>
-                <input
-                  type="text"
-                  value={tireData.frontRight.size1}
-                  onChange={(e) => handleTireDataChange('frontRight', 'size1', e.target.value)}
-                  className={styles.tireInputWide}
-                  placeholder=""
-                  disabled={!isEditable}
-                />
-                <span className={styles.tireSlash}>/</span>
-                <input
-                  type="text"
-                  value={tireData.frontRight.size2}
-                  onChange={(e) => handleTireDataChange('frontRight', 'size2', e.target.value)}
-                  className={styles.tireInputWide}
-                  placeholder=""
-                  disabled={!isEditable}
-                />
-                <span className={styles.tireRLabel}>R</span>
-                <input
-                  type="text"
-                  value={tireData.frontRight.size3}
-                  onChange={(e) => handleTireDataChange('frontRight', 'size3', e.target.value)}
-                  className={styles.tireInputWide}
-                  placeholder=""
-                  disabled={!isEditable}
-                />
-              </div>
-              <div className={styles.tireBoxRow}>
                 <div className={styles.tireBoxBlueSmall}>
                   <span className={styles.tireBoxLabelSmall}>mm</span>
                 </div>
@@ -650,34 +646,6 @@ const ServiceTicket = () => {
             {/* Rear Right Tire */}
             <div className={styles.tirePosition}>
               <div className={styles.tireBoxRow}>
-                <input
-                  type="text"
-                  value={tireData.rearRight.size1}
-                  onChange={(e) => handleTireDataChange('rearRight', 'size1', e.target.value)}
-                  className={styles.tireInputWide}
-                  placeholder=""
-                  disabled={!isEditable}
-                />
-                <span className={styles.tireSlash}>/</span>
-                <input
-                  type="text"
-                  value={tireData.rearRight.size2}
-                  onChange={(e) => handleTireDataChange('rearRight', 'size2', e.target.value)}
-                  className={styles.tireInputWide}
-                  placeholder=""
-                  disabled={!isEditable}
-                />
-                <span className={styles.tireRLabel}>R</span>
-                <input
-                  type="text"
-                  value={tireData.rearRight.size3}
-                  onChange={(e) => handleTireDataChange('rearRight', 'size3', e.target.value)}
-                  className={styles.tireInputWide}
-                  placeholder=""
-                  disabled={!isEditable}
-                />
-              </div>
-              <div className={styles.tireBoxRow}>
                 <div className={styles.tireBoxBlueSmall}>
                   <span className={styles.tireBoxLabelSmall}>mm</span>
                 </div>
@@ -707,34 +675,6 @@ const ServiceTicket = () => {
 
             {/* Spare Tire - third tire on right side */}
             <div className={styles.tirePosition}>
-              <div className={styles.tireBoxRow}>
-                <input
-                  type="text"
-                  value={tireData.spare.size1}
-                  onChange={(e) => handleTireDataChange('spare', 'size1', e.target.value)}
-                  className={styles.tireInputWide}
-                  placeholder=""
-                  disabled={!isEditable}
-                />
-                <span className={styles.tireSlash}>/</span>
-                <input
-                  type="text"
-                  value={tireData.spare.size2}
-                  onChange={(e) => handleTireDataChange('spare', 'size2', e.target.value)}
-                  className={styles.tireInputWide}
-                  placeholder=""
-                  disabled={!isEditable}
-                />
-                <span className={styles.tireRLabel}>R</span>
-                <input
-                  type="text"
-                  value={tireData.spare.size3}
-                  onChange={(e) => handleTireDataChange('spare', 'size3', e.target.value)}
-                  className={styles.tireInputWide}
-                  placeholder=""
-                  disabled={!isEditable}
-                />
-              </div>
               <div className={styles.tireBoxRow}>
                 <div className={styles.tireBoxBlueSmall}>
                   <span className={styles.tireBoxLabelSmall}>mm</span>
@@ -840,27 +780,49 @@ const ServiceTicket = () => {
               </tr>
             </thead>
             <tbody>
-              {safetyChecks.map((item) => (
+              {safetyChecks
+                .sort((a, b) => {
+                  const aHasNote = a.note && a.note.trim() !== '';
+                  const bHasNote = b.note && b.note.trim() !== '';
+                  // Khi SKIPPED: ưu tiên hiển thị item có note của advisor lên đầu
+                  if (inspectionStatus === 'SKIPPED') {
+                    if (aHasNote && !bHasNote) return -1;
+                    if (!aHasNote && bHasNote) return 1;
+                  }
+                  return 0;
+                })
+                .map((item) => (
                 <tr key={item.id}>
-                  <td className={styles.itemName}>{item.name}</td>
+                  <td className={styles.itemName}>
+                    {item.name}
+                  </td>
                   <td>
                     <input
                       type="checkbox"
-                      checked={item.good}
+                      checked={inspectionStatus === 'SKIPPED'
+                        ? (item.note && item.note.trim() !== '')
+                        : item.good}
+                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !(item.note && item.note.trim() !== ''))}
                       onChange={() => handleSafetyCheck(item.id, 'good')}
                     />
                   </td>
                   <td>
                     <input
                       type="checkbox"
-                      checked={item.warning}
+                      checked={inspectionStatus === 'SKIPPED'
+                        ? (item.note && item.note.trim() !== '')
+                        : item.warning}
+                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !(item.note && item.note.trim() !== ''))}
                       onChange={() => handleSafetyCheck(item.id, 'warning')}
                     />
                   </td>
                   <td>
                     <input
                       type="checkbox"
-                      checked={item.replace}
+                      checked={inspectionStatus === 'SKIPPED'
+                        ? (item.note && item.note.trim() !== '')
+                        : item.replace}
+                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !(item.note && item.note.trim() !== ''))}
                       onChange={() => handleSafetyCheck(item.id, 'replace')}
                     />
                   </td>
@@ -883,7 +845,7 @@ const ServiceTicket = () => {
 
       {/* Notes Section - Technician Notes */}
       <div className={styles.card}>
-        <h2 className={styles.sectionTitle}>Note của kỹ thuật viên:</h2>
+        <h2 className={styles.sectionTitle}>Lưu ý:</h2>
         <textarea
           className={styles.notesTextarea}
           value={notes}
@@ -896,14 +858,76 @@ const ServiceTicket = () => {
 
       {/* Action Buttons */}
       <div className={styles.actionButtons}>
-        <button className={styles.cancelButton} onClick={handleSkip}>
-          Bỏ qua
-        </button>
-        <button className={styles.saveButton} onClick={handleSave}>
-          Lưu
-        </button>
+        {isEditable && (
+          <>
+            <button className={styles.cancelButton} onClick={handleSkip}>
+              Bỏ qua
+            </button>
+            <button
+              className={styles.cancelButton}
+              onClick={async () => {
+                try {
+                  const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+                  // Save as PENDING (draft mode)
+                  const tiresPayload = Object.entries(tireData).map(([position, data]) => {
+                    const positionMap = {
+                      'frontLeft': 'FRONT_LEFT',
+                      'frontRight': 'FRONT_RIGHT',
+                      'rearLeft': 'REAR_LEFT',
+                      'rearRight': 'REAR_RIGHT',
+                      'spare': 'SPARE'
+                    };
+                    let tireSpecification = '';
+                    if (data.size1 && data.size2 && data.size3) {
+                      tireSpecification = `${data.size1}/${data.size2}R${data.size3}`;
+                    }
+                    return {
+                      tirePosition: positionMap[position],
+                      treadDepth: data.mm ? parseFloat(data.mm) : null,
+                      pressure: data.pressure ? parseFloat(data.pressure) : null,
+                      pressureUnit: 'PSI',
+                      tireSpecification: tireSpecification || null,
+                      recommendedTireSize: recommendedTireSize || null,
+                      recommendedPressure: data.recommendedPressure ? parseFloat(data.recommendedPressure) : null,
+                      recommendedPressureUnit: 'PSI'
+                    };
+                  }).filter(tire => tire.treadDepth || tire.pressure || tire.tireSpecification);
+
+                  const itemsPayload = safetyChecks
+                    .filter(check => check.good || check.warning || check.replace)
+                    .map(check => ({
+                      workCategoryId: check.workCategoryId,
+                      itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null
+                    }));
+
+                  const finalServiceTicketId = serviceTicketId || parseInt(id);
+                  const safetyPayload = {
+                    serviceTicketId: finalServiceTicketId,
+                    technicianNotes: notes || null,
+                    tires: tiresPayload,
+                    items: itemsPayload,
+                    inspectionStatus: 'PENDING' // Save as draft, not completed
+                  };
+
+                  await saveSafetyInspectionData(safetyPayload, token);
+                  toast.success('Đã lưu nháp!');
+                } catch (error) {
+                  console.error('Error saving draft:', error);
+                  toast.error('Lỗi khi lưu nháp: ' + (error.message || 'Lỗi không xác định'));
+                }
+              }}
+            >
+              Lưu nháp
+            </button>
+          </>
+        )}
+        {inspectionStatus !== 'COMPLETED' && isEditable && (
+          <button className={styles.saveButton} onClick={handleSave}>
+            Lưu & Hoàn thành
+          </button>
+        )}
         <button className={styles.cancelButton} onClick={() => navigate('/technician/my-tasks')}>
-          Hủy
+          Đóng
         </button>
       </div>
 
@@ -974,6 +998,52 @@ const ServiceTicket = () => {
                 onClick={handleAddCategory}
               >
                 Thêm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Skip Confirmation Modal */}
+      {skipModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setSkipModalOpen(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Xác nhận bỏ qua kiểm tra an toàn</h3>
+              <button className={styles.modalClose} onClick={() => setSkipModalOpen(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <p style={{ marginBottom: '16px', color: '#374151' }}>
+                Bạn có chắc chắn muốn bỏ qua kiểm tra an toàn cho phiếu dịch vụ này không?
+              </p>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Lý do bỏ qua:</label>
+                <textarea
+                  value={skipReason}
+                  onChange={(e) => setSkipReason(e.target.value)}
+                  className={styles.formInput}
+                  rows={3}
+                  placeholder="Nhập lý do bỏ qua kiểm tra..."
+                />
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button
+                className={styles.modalCancelBtn}
+                onClick={() => setSkipModalOpen(false)}
+              >
+                Hủy
+              </button>
+              <button
+                className={styles.modalActionBtn}
+                onClick={confirmSkip}
+                style={{ background: '#dc2626' }}
+              >
+                Xác nhận bỏ qua
               </button>
             </div>
           </div>

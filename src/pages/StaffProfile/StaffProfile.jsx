@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import { fetchStaffProfile } from '../../services/staffService.js';
+import { fetchStaffStatistics } from '../../services/staffStatisticsService.js';
 import { getValidToken } from '../../services/tokenUtils.js';
 import { toast } from 'react-toastify';
 import styles from './StaffProfile.module.css';
@@ -31,20 +32,18 @@ const StaffProfile = () => {
         const token = await getValidToken('authToken');
         if (token) {
           const response = await fetchStaffProfile(token);
-          
-          // Backend hiện tại chỉ trả về string, chưa có API đầy đủ
-          // Sử dụng mock data tạm thời
           console.log('Backend response:', response);
-          
-          // Mock data cho demo
+
+          const data = response.data || response;
+          // Sử dụng dữ liệu từ API
           setStaffInfo({
-            staffId: 1,
-            avatar: null,
-            fullName: 'Nguyễn Văn A',
-            gender: 'MALE',
-            dob: '1990-01-15',
-            phone: '0912345678',
-            position: 'Kỹ thuật viên'
+            staffId: data.staffId || data.id || null,
+            avatar: data.avatar || data.avatarUrl || null,
+            fullName: data.fullName || data.name || '',
+            gender: data.gender || 'MALE',
+            dob: data.dob || data.dateOfBirth || '',
+            phone: data.phone || data.phoneNumber || '',
+            position: data.position || data.role || data.chucDanh || ''
           });
         }
       } catch (error) {
@@ -67,12 +66,40 @@ const StaffProfile = () => {
     loadStaffProfile();
   }, []);
 
-  const [workStats] = useState({
-    totalTickets: 156,
-    totalServices: 342,
-    totalWorkingHours: 2840,
-    averageRating: 4.8
+  const [workStats, setWorkStats] = useState({
+    totalTickets: 0,
+    totalServices: 0,
+    totalWorkingHours: 0,
+    averageRating: 0
   });
+
+  // Fetch work statistics
+  useEffect(() => {
+    const loadStatistics = async () => {
+      try {
+        const token = await getValidToken('authToken');
+        if (token) {
+          const now = new Date();
+          const month = now.getMonth() + 1;
+          const year = now.getFullYear();
+
+          const response = await fetchStaffStatistics(month, year, token);
+          const stats = response.data || {};
+
+          setWorkStats({
+            totalTickets: stats.completedServices || 0,
+            totalServices: stats.completedServices || 0,
+            totalWorkingHours: stats.totalHours || 0,
+            averageRating: 0 // Backend chưa có API đánh giá
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching statistics:', error);
+      }
+    };
+
+    loadStatistics();
+  }, []);
 
   // Update Profile Modal State
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -108,9 +135,9 @@ const StaffProfile = () => {
     {
       id: 1,
       icon: '📋',
-      title: 'Lịch sử thực hiện dịch vụ',
-      description: 'Xem chi tiết các dịch vụ bạn đã thực hiện',
-      link: '/staff-service-history'
+      title: 'Lịch sử công việc',
+      description: 'Xem chi tiết các công việc bạn đã thực hiện',
+      link: '/work-history/technician'
     },
     {
       id: 2,
@@ -124,7 +151,7 @@ const StaffProfile = () => {
       icon: '📊',
       title: 'Xem công việc được giao',
       description: 'Quản lý và theo dõi các công việc được giao',
-      link: '/technician-tasks'
+      link: '/technician/my-tasks'
     }
   ];
 

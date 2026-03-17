@@ -1,41 +1,76 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './TechnicianWorkHistory.module.css';
+import { fetchTechnicianWorkHistory } from '../../../services/workHistoryService';
 
 const TechnicianWorkHistory = () => {
+  const navigate = useNavigate();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [serviceFilter, setServiceFilter] = useState('all');
+  const [workHistory, setWorkHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [totalPages, setTotalPages] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
 
-  const [workHistory] = useState([
-    { id: 1, date: '2024-01-15', ticketCode: '51F-123.45', service: 'Thay nhớt', notes: 'Kiểm tra lốp xe', vehicle: '29A-12345', customer: 'Nguyễn Văn A', duration: '45 phút' },
-    { id: 2, date: '2024-01-10', ticketCode: '50C-187.65', service: 'Sửa phanh', notes: 'Thay má phanh trước', vehicle: '30B-67890', customer: 'Trần Thị B', duration: '2 giờ' },
-    { id: 3, date: '2024-01-08', ticketCode: '49A-256.32', service: 'Bảo dưỡng định kỳ', notes: 'Kiểm tra toàn bộ hệ thống', vehicle: '31C-11111', customer: 'Lê Văn C', duration: '1.5 giờ' },
-    { id: 4, date: '2024-01-05', ticketCode: '48B-145.78', service: 'Thay lốp xe', notes: 'Thay 4 lốp mới', vehicle: '32D-22222', customer: 'Phạm Thị D', duration: '1 giờ' },
-    { id: 5, date: '2024-01-03', ticketCode: '47C-198.45', service: 'Kiểm tra điện', notes: 'Sửa hệ thống đèn', vehicle: '33E-33333', customer: 'Hoàng Văn E', duration: '30 phút' },
-    { id: 6, date: '2024-01-02', ticketCode: '46D-234.56', service: 'Thay nhớt', notes: 'Bảo dưỡng nhẹ', vehicle: '34F-44444', customer: 'Võ Thị F', duration: '40 phút' }
-  ]);
+  const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+
+  const fetchWorkHistory = async (page = 0) => {
+    if (!startDate || !endDate) {
+      alert('Vui lòng chọn ngày bắt đầu và ngày kết thúc');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetchTechnicianWorkHistory(
+        { startDate, endDate, licensePlate: searchTerm, page, size: 20 },
+        token
+      );
+
+      console.log('API Response:', response);
+      const data = response.data?.content || response.data?.data?.content || response.data || [];
+      setWorkHistory(data);
+
+      // Calculate total pages from response
+      const total = response.data?.totalPages || 1;
+      setTotalPages(total);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Error fetching work history:', error);
+      console.log('Error response:', error.response?.data);
+      alert('Lỗi khi tải dữ liệu: ' + (error.response?.data?.message || error.message));
+      setWorkHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = () => {
-    console.log('Searching with:', { startDate, endDate, searchTerm, serviceFilter });
+    fetchWorkHistory(0);
   };
 
   const handleReset = () => {
     setStartDate('');
     setEndDate('');
     setSearchTerm('');
-    setServiceFilter('all');
+    setWorkHistory([]);
+    setTotalPages(0);
+    setCurrentPage(0);
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 0 && newPage < totalPages) {
+      fetchWorkHistory(newPage);
+    }
   };
 
   const filteredHistory = workHistory.filter(item => {
-    const matchSearch = searchTerm === '' || 
-      item.ticketCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.notes.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchService = serviceFilter === 'all' || item.service.includes(serviceFilter);
-    
-    return matchSearch && matchService;
+    const matchSearch = searchTerm === '' ||
+      (item.licensePlate && item.licensePlate.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (item.ticketCode && item.ticketCode.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    return matchSearch;
   });
 
   return (
@@ -74,24 +109,11 @@ const TechnicianWorkHistory = () => {
             placeholder="Tìm theo biển số"
             className={styles.searchInput}
           />
-          
-          <select 
-            value={serviceFilter} 
-            onChange={(e) => setServiceFilter(e.target.value)}
-            className={styles.serviceSelect}
-          >
-            <option value="all">Tất cả loại dịch vụ</option>
-            <option value="Thay nhớt">Thay nhớt</option>
-            <option value="Sửa phanh">Sửa phanh</option>
-            <option value="Bảo dưỡng">Bảo dưỡng</option>
-            <option value="Kiểm tra">Kiểm tra</option>
-            <option value="Thay lốp">Thay lốp</option>
-          </select>
 
-          <button onClick={handleSearch} className={styles.searchBtn}>
-            Search/View
+          <button onClick={handleSearch} className={styles.searchBtn} disabled={loading}>
+            {loading ? 'Đang tìm...' : 'Tìm kiếm'}
           </button>
-          
+
           <button onClick={handleReset} className={styles.resetBtn}>
             Reset
           </button>
@@ -105,30 +127,41 @@ const TechnicianWorkHistory = () => {
             <tr>
               <th>Ngày</th>
               <th>Biển số</th>
+              <th>Mã phiếu</th>
               <th>Loại dịch vụ</th>
-              <th>Notes</th>
-              <th>Thời gian</th>
+              <th>Ghi chú</th>
               <th>Hành động</th>
             </tr>
           </thead>
           <tbody>
-            {filteredHistory.length > 0 ? (
-              filteredHistory.map(item => (
-                <tr key={item.id}>
-                  <td>{item.date}</td>
-                  <td className={styles.ticketCode}>{item.ticketCode}</td>
-                  <td>{item.service}</td>
-                  <td>{item.notes}</td>
-                  <td>{item.duration}</td>
+            {loading ? (
+              <tr>
+                <td colSpan="6" className={styles.noData}>
+                  Đang tải dữ liệu...
+                </td>
+              </tr>
+            ) : filteredHistory.length > 0 ? (
+              filteredHistory.map((item, index) => (
+                <tr key={item.serviceTicketId || index}>
+                  <td>{item.completedDate || '-'}</td>
+                  <td>{item.licensePlate || '-'}</td>
+                  <td className={styles.ticketCode}>{item.ticketCode || '-'}</td>
+                  <td>{item.serviceType || '-'}</td>
+                  <td>{item.technicianNotes || item.customerRequest || '-'}</td>
                   <td>
-                    <button className={styles.viewBtn}>👁️ Xem</button>
+                    <button
+                      className={styles.viewBtn}
+                      onClick={() => navigate(`/technician/service-ticket/${item.ticketCode}`)}
+                    >
+                      Xem chi tiết
+                    </button>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
                 <td colSpan="6" className={styles.noData}>
-                  Không tìm thấy dữ liệu
+                  {startDate && endDate ? 'Không tìm thấy dữ liệu' : 'Vui lòng chọn ngày để tìm kiếm'}
                 </td>
               </tr>
             )}
@@ -137,18 +170,38 @@ const TechnicianWorkHistory = () => {
       </div>
 
       {/* Pagination */}
-      <div className={styles.pagination}>
-        <span className={styles.pageInfo}>
-          Hiển thị {filteredHistory.length} kết quả
-        </span>
-        <div className={styles.pageButtons}>
-          <button className={styles.pageBtn} disabled>‹ Trước</button>
-          <button className={`${styles.pageBtn} ${styles.active}`}>1</button>
-          <button className={styles.pageBtn}>2</button>
-          <button className={styles.pageBtn}>3</button>
-          <button className={styles.pageBtn}>Sau ›</button>
+      {totalPages > 1 && (
+        <div className={styles.pagination}>
+          <span className={styles.pageInfo}>
+            Trang {currentPage + 1} / {totalPages}
+          </span>
+          <div className={styles.pageButtons}>
+            <button
+              className={styles.pageBtn}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 0}
+            >
+              ‹ Trước
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                className={`${styles.pageBtn} ${currentPage === i ? styles.active : ''}`}
+                onClick={() => handlePageChange(i)}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              className={styles.pageBtn}
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages - 1}
+            >
+              Sau ›
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

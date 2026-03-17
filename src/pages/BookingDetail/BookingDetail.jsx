@@ -17,7 +17,7 @@ const BookingDetail = () => {
   // Load booking detail from API
   useEffect(() => {
     const loadBookingDetail = async () => {
-      const token = localStorage.getItem('authToken');
+      let token = localStorage.getItem('customerToken') || localStorage.getItem('authToken');
       
       if (!token) {
         setError('Vui lòng đăng nhập để xem chi tiết lịch hẹn.');
@@ -90,6 +90,7 @@ const BookingDetail = () => {
       'CANCELLED': 'cancelled',
       'COMPLETED': 'completed',
       'IN_PROGRESS': 'processing',
+      'DONE': 'completed',  // DONE = Hoàn thành
     };
     return statusMap[backendStatus?.toUpperCase()] || 'pending';
   };
@@ -102,12 +103,37 @@ const BookingDetail = () => {
       'CANCELLED': 'Đã hủy',
       'COMPLETED': 'Hoàn tất',
       'IN_PROGRESS': 'Đang xử lý',
+      'DONE': 'Hoàn thành',  // DONE = Hoàn thành
     };
     return textMap[backendStatus?.toUpperCase()] || 'Đang chờ';
   };
 
+  // Timeline steps configuration - 4 bước
+  const timelineSteps = [
+    { key: 'scheduled', label: 'Đã đặt lịch' },
+    { key: 'confirmed', label: 'Đã xác nhận' },
+    { key: 'processing', label: 'Đang thực hiện' },
+    { key: 'completed', label: 'Hoàn thành' },
+  ];
+
+  // Get current step index based on RAW backend status (not mapped)
+  const getCurrentStep = () => {
+    const rawStatus = booking?.status; // This is the raw backend status
+    const stepMap = {
+      'PENDING': 0,
+      'CONFIRMED': 1,
+      'IN_PROGRESS': 2,
+      'DONE': 3,
+      'COMPLETED': 3,
+      'CANCELLED': -1,
+    };
+    return stepMap[rawStatus?.toUpperCase()] ?? 0;
+  };
+
+  const currentStep = getCurrentStep();
+
   // Chỉ cho phép sửa nếu lịch chưa hoàn tất và chưa bị hủy
-  const isCompleted = booking?.status === 'completed';
+  const isCompleted = booking?.status === 'completed' || booking?.status === 'DONE';
   const isCancelled = booking?.status === 'cancelled';
   const canEdit = booking && !isCompleted && !isCancelled;
 
@@ -116,7 +142,7 @@ const BookingDetail = () => {
   };
 
   const confirmCancel = async () => {
-    const token = localStorage.getItem('authToken');
+    let token = localStorage.getItem('customerToken') || localStorage.getItem('authToken');
     
     if (!token || !booking?.bookingId) {
       alert('Không thể hủy lịch. Vui lòng thử lại.');
@@ -153,10 +179,90 @@ const BookingDetail = () => {
         {/* Header */}
         <div className="detailHeader">
           <Link to="/my-bookings" className="backButton">
-            ← Quay lại
+            ← Quay lại danh sách
           </Link>
-          <h1 className="pageTitle">Chi tiết lịch hẹn</h1>
+          <h1 className="pageTitle">Chi tiết lịch hẹn #{booking?.id}</h1>
         </div>
+
+        {/* Timeline - Tiến trình phiếu (Style MyTasks) */}
+        {!isLoading && booking && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            padding: '20px',
+            marginBottom: '24px',
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px'
+            }}>
+              {timelineSteps.map((step, index) => {
+                const isCompleted = index < currentStep;
+                const isCurrent = index === currentStep;
+                const isLast = index === timelineSteps.length - 1;
+
+                return (
+                  <div key={step.key} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    {/* Step Circle with Label */}
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      minWidth: '80px'
+                    }}>
+                      {/* Circle */}
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        backgroundColor: isCompleted || isCurrent ? '#1a1a1a' : '#e5e7eb',
+                        color: isCompleted || isCurrent ? '#fff' : '#6b7280',
+                        transition: 'all 0.3s ease'
+                      }}>
+                        {isCompleted ? '✓' : index + 1}
+                      </div>
+                      {/* Label */}
+                      <span style={{
+                        marginTop: '8px',
+                        fontSize: '11px',
+                        fontWeight: isCurrent ? '600' : '400',
+                        color: isCompleted || isCurrent ? '#1a1a1a' : '#9ca3af',
+                        textAlign: 'center',
+                        maxWidth: '80px'
+                      }}>
+                        {step.label}
+                      </span>
+                    </div>
+
+                    {/* Connector Line */}
+                    {!isLast && (
+                      <div style={{
+                        width: '60px',
+                        height: '2px',
+                        backgroundColor: isCompleted ? '#1a1a1a' : '#e5e7eb',
+                        marginTop: '-20px',
+                        transition: 'all 0.3s ease'
+                      }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Error Banner */}
         {error && (
@@ -195,8 +301,12 @@ const BookingDetail = () => {
                   <span className="infoValue">{booking.id}</span>
                 </div>
                 <div className="infoItem">
-                  <span className="infoLabel">Ngày & giờ:</span>
-                  <span className="infoValue">{booking.date} {booking.time}</span>
+                  <span className="infoLabel">Ngày:</span>
+                  <span className="infoValue">{booking.date}</span>
+                </div>
+                <div className="infoItem">
+                  <span className="infoLabel">Giờ:</span>
+                  <span className="infoValue">{booking.time}</span>
                 </div>
                 <div className="infoItem">
                   <span className="infoLabel">Trạng thái:</span>
@@ -237,20 +347,48 @@ const BookingDetail = () => {
               </section>
             )}
 
-            {/* Action Buttons */}
-            <div className="actionButtons">
+            {/* Action Buttons - Style MyTasks */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center',
+              marginTop: '24px',
+              paddingTop: '24px',
+              borderTop: '1px solid #e5e7eb'
+            }}>
               {canEdit ? (
                 <>
                   <Link
                     to={`/edit-booking/${booking.bookingId || booking.id}`}
-                    className="btnEditBooking"
+                    style={{
+                      padding: '12px 32px',
+                      backgroundColor: '#0066FF',
+                      color: '#fff',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      display: 'inline-block',
+                      transition: 'all 0.2s'
+                    }}
                   >
                     Sửa lịch
                   </Link>
                   <button
-                    className="btnCancelBooking"
                     onClick={handleCancel}
                     disabled={isCancelling}
+                    style={{
+                      padding: '12px 32px',
+                      backgroundColor: '#0066FF',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      cursor: isCancelling ? 'not-allowed' : 'pointer',
+                      opacity: isCancelling ? 0.6 : 1,
+                      transition: 'all 0.2s'
+                    }}
                   >
                     {isCancelling ? 'Đang hủy...' : 'Hủy lịch'}
                   </button>
@@ -258,7 +396,15 @@ const BookingDetail = () => {
               ) : (
                 <Link
                   to="/booking"
-                  className="btnNewBooking"
+                  style={{
+                    padding: '12px 32px',
+                    backgroundColor: '#0066FF',
+                    color: '#fff',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    fontSize: '14px'
+                  }}
                 >
                   Đặt lịch mới
                 </Link>

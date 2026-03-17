@@ -206,7 +206,6 @@ const StaffAttendance = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <div className={styles.staffAvatar}></div>
           <div className={styles.staffInfo}>
             <h1 className={styles.title}>Điểm danh của tôi</h1>
             <p className={styles.subtitle}>
@@ -227,28 +226,24 @@ const StaffAttendance = () => {
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statSuccess}`}>
-          <div className={styles.statIcon}>✓</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{presentDays}</div>
             <div className={styles.statLabel}>Có mặt</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statWarning}`}>
-          <div className={styles.statIcon}>!</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{lateDays}</div>
             <div className={styles.statLabel}>Muộn</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statDanger}`}>
-          <div className={styles.statIcon}>✗</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{absentDays}</div>
             <div className={styles.statLabel}>Vắng mặt</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statInfo}`}>
-          <div className={styles.statIcon}>○</div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>{offDays}</div>
             <div className={styles.statLabel}>Nghỉ</div>

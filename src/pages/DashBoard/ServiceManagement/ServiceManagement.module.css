@@ -1,0 +1,231 @@
+/* Layout (copied from BookingRequestManagement for consistent design) */
+.service-page {
+	display: block;
+	color: var(--ui-text-primary, #1f2937);
+	background-color: var(--ui-bg, #ffffff);
+	min-height: 100vh;
+	padding: 24px;
+}
+
+.service-layout {
+	display: block;
+	max-width: 100%;
+	width: 100%;
+}
+
+.service-left {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	width: 100%;
+}
+
+.pending-filters {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 12px;
+	border: 1px solid var(--ui-line, #e4e4e4);
+	border-radius: 10px;
+	background: var(--ui-bg-secondary, #fafafa);
+}
+
+.filter-card__actions {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+}
+
+.pending-filters .filter-card__actions {
+	justify-content: space-between;
+}
+
+.search-box {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	border: 1px solid var(--ui-line, #d9d9d9);
+	border-radius: 6px;
+	background: var(--ui-bg-card, #ffffff);
+}
+
+.search-box input {
+	border: none;
+	padding: 0;
+	outline: none;
+	flex: 1;
+}
+
+.filter-card__hint {
+	margin: 0;
+	font-size: 12px;
+	color: var(--ui-text-secondary, #6b7280);
+}
+
+/* Cards */
+.service-card {
+	background: var(--ui-bg-card, #ffffff);
+	border: 1px solid var(--ui-line, #e4e4e4);
+	border-radius: 12px;
+	padding: 16px;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.service-card__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-weight: 400;
+}
+
+.service-card__title {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.service-table__wrapper {
+	width: 100%;
+	max-height: 420px;
+	overflow: auto;
+	border: 1px solid var(--ui-line, #f0f0f0);
+	border-radius: 10px;
+	scrollbar-width: thin;
+	scrollbar-color: #9333ea #f1f1f1;
+}
+
+.service-table__wrapper::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+.service-table__wrapper::-webkit-scrollbar-track {
+	background: #f1f1f1;
+	border-radius: 10px;
+}
+
+.service-table__wrapper::-webkit-scrollbar-thumb {
+	background-color: #9333ea;
+	border-radius: 10px;
+	border: 2px solid #f1f1f1;
+}
+
+.service-table__wrapper::-webkit-scrollbar-thumb:hover {
+	background-color: #7e22ce;
+}
+
+.service-table {
+	width: 100%;
+	border-collapse: collapse;
+	min-width: 820px;
+}
+
+.service-table th,
+.service-table td {
+	padding: 12px 10px;
+	text-align: center;
+	font-size: 14px;
+}
+
+.service-table th {
+	font-weight: 400;
+}
+
+.service-table tbody tr:nth-child(odd) {
+	background: var(--ui-bg-secondary, #fafafa);
+}
+
+.service-table tbody tr:hover {
+	background: var(--ui-bg-hover, #f5f8ff);
+}
+
+.service-card__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.page-size {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.page-size select {
+	padding: 8px 10px;
+	border-radius: 6px;
+	border: 1px solid var(--ui-line, #d9d9d9);
+	background: var(--ui-bg-card, #ffffff);
+}
+
+.pagination {
+	display: inline-flex;
+	gap: 8px;
+}
+
+.ghost-button {
+	border: 1px solid var(--ui-line, #d9d9d9);
+	background: var(--ui-bg-secondary, #f3f4f6);
+	color: var(--ui-text-primary, #1f2937);
+	padding: 10px 14px;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.primary-button {
+	border: 1px solid var(--ui-primary, #1d4ed8);
+	background: var(--ui-primary, #1d4ed8);
+	color: #ffffff;
+	padding: 10px 14px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: 400;
+}
+
+.primary-button.is-ghost {
+	background: var(--ui-bg-card, #ffffff);
+	color: var(--ui-primary, #1d4ed8);
+	border-color: var(--ui-primary, #1d4ed8);
+}
+
+.primary-button:disabled,
+.ghost-button:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.error-banner {
+	background: #ffe7e7;
+	border: 1px solid #ffb8b8;
+	color: #c22727;
+	padding: 10px 12px;
+	border-radius: 8px;
+	font-weight: 600;
+}
+
+.empty-row {
+	text-align: center;
+	padding: 18px 10px;
+	color: var(--ui-text-secondary, #4b5563);
+}
+
+.icon {
+	width: 18px;
+	height: 18px;
+}
+
+.link-cell {
+	color: #1268d3;
+	font-weight: 400;
+}
+
+.td-right {
+	text-align: right;
+	white-space: nowrap;
+}
