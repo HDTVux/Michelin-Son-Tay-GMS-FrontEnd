@@ -34,7 +34,6 @@ import AssignAdvisor from './pages/DashBoard/AssignAdvisor/AssignAdvisor.jsx';
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
 import ServiceTicketDetail from './pages/DashBoard/ServiceTicketManagement/ServiceTicketDetail.jsx';
 import ServiceTicketManagement from './pages/DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
-import TicketAssignment from './pages/DashBoard/ServiceTicketManagement/TicketAssignment.jsx';
 import ReceiptConfirm from './pages/DashBoard/Receipt/ReceiptConfirm.jsx';
 import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.jsx';
 import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
@@ -129,7 +128,6 @@ export default function App() {
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="service-management" element={<ServiceManagement />} />
-          <Route path="ticket-assignment" element={<TicketAssignment />} />
           <Route path="queue-management" element={<QueueManagement />} />
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />

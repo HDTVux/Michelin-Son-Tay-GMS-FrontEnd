@@ -6,6 +6,7 @@ import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/t
 import { normalizeStatusCode } from '../../../components/statusUtils.js';
 import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
+import TechnicianServiceTicket from '../../Technician/ServiceTicket/ServiceTicket.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHooks.js';
 import styles from './ServiceTicketDetail.module.css';
 
@@ -289,15 +290,28 @@ function TimelineBlock({ steps }) {
 	);
 }
 
-function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serviceTicketId }) {
+function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serviceTicketId, ticketCode }) {
 	if (!showTimeline && !showAdvisorTable) return null;
 	return (
 		<>
 			{showTimeline ? <TimelineBlock steps={timelineSteps} /> : null}
-			{showAdvisorTable ? <AdvisorItemsTable serviceTicketId={serviceTicketId} /> : null}
+			{showAdvisorTable ? (
+				<>
+					<TechnicianServiceTicket ticketCode={ticketCode} embedded />
+					<AdvisorItemsTable serviceTicketId={serviceTicketId} />
+				</>
+			) : null}
 		</>
 	);
 }
+
+RoleBasedSections.propTypes = {
+	showTimeline: PropTypes.bool,
+	timelineSteps: PropTypes.array,
+	showAdvisorTable: PropTypes.bool,
+	serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+	ticketCode: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+};
 
 export default function ServiceTicketDetail() {
 	useScrollToTop();
@@ -490,6 +504,7 @@ export default function ServiceTicketDetail() {
 							timelineSteps={timelineSteps}
 							showAdvisorTable={hasAdvisorRole}
 							serviceTicketId={ticket?.serviceTicketId}
+							ticketCode={ticket.ticketCode || ticketCodeParam}
 						/>
 
 						<div className="ui-actions">
