@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import AddStaffAccount from './AddStaffAccount.jsx';
-import styles from './StaffManagement.modern.module.css';
+import styles from './StaffManagement.module.css';
 
 const ROLE_OPTIONS = [
 	{ label: 'Admin', value: 'ADMIN' },
@@ -62,11 +63,28 @@ function normalizeText(value) {
 
 export default function StaffManagement() {
 	useScrollToTop();
+	const navigate = useNavigate();
 
-	const [staff, setStaff] = useState(FAKE_STAFF);
+	const [staff, setStaff] = useState([]);
+	const [allRoles, setAllRoles] = useState([]);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState('');
+
+	// Query state (backend paging/filtering)
+	const [page, setPage] = useState(0);
+	const [size, setSize] = useState(10);
+	const [date, setDate] = useState(''); // yyyy-mm-dd
 	const [search, setSearch] = useState('');
 	const [statusFilter, setStatusFilter] = useState(''); // '' | 'ACTIVE' | 'INACTIVE'
-	const [roleFilter, setRoleFilter] = useState(''); // '' | role
+	const [roleIdFilter, setRoleIdFilter] = useState(''); // '' | roleId
+
+	// Server paging metadata
+	const [totalPages, setTotalPages] = useState(1);
+	const [totalElements, setTotalElements] = useState(0);
+
+	// Debounce search to avoid spamming API
+	const [debouncedSearch, setDebouncedSearch] = useState('');
+
 	const [showAddModal, setShowAddModal] = useState(false);
 	
 	// Pagination
@@ -87,198 +105,167 @@ export default function StaffManagement() {
 			return matchesSearch && matchesStatus && matchesRole;
 		});
 	}, [staff, search, statusFilter, roleFilter]);
-	
-	// Paginated data
-	const totalItems = filteredStaff.length;
-	const totalPages = Math.ceil(totalItems / itemsPerPage);
-	const paginatedStaff = useMemo(() => {
-		const startIndex = (currentPage - 1) * itemsPerPage;
-		const endIndex = startIndex + itemsPerPage;
-		return filteredStaff.slice(startIndex, endIndex);
-	}, [filteredStaff, currentPage]);
-	
-	// Reset to page 1 when filters change
-	const handleSearchChange = (value) => {
-		setSearch(value);
-		setCurrentPage(1);
-	};
-	
-	const handleStatusFilterChange = (value) => {
-		setStatusFilter(value);
-		setCurrentPage(1);
-	};
-	
-	const handleRoleFilterChange = (value) => {
-		setRoleFilter(value);
-		setCurrentPage(1);
-	};
 
 	const handleResetFilters = () => {
+		setPage(0);
+		setSize(10);
+		setDate('');
 		setSearch('');
 		setStatusFilter('');
 		setRoleFilter('');
-		setCurrentPage(1);
 	};
 
 	const handleAddStaff = (payload) => {
-		const nextId = staff.reduce((maxId, item) => Math.max(maxId, item.id), 0) + 1;
+		// Hiện tại màn này chỉ yêu cầu GET list. Khi tạo mới, ta refresh về trang 1 để lấy dữ liệu mới nhất.
+		// (Nếu backend có endpoint create staff, có thể nối vào đây.)
+		setPage(0);
+		setSearch('');
+		setStatusFilter('');
+		setRoleIdFilter('');
+		setDate('');
+		setSize(10);
+
+		// Optimistic UI (best-effort) để user thấy ngay, sẽ được đồng bộ lại khi API trả về
+		const tempId = Date.now();
+		const roleIds = Array.isArray(payload?.roleIds)
+			? payload.roleIds.map(Number).filter((v) => Number.isFinite(v) && v > 0)
+			: [];
+		const roleCodes =
+			Array.isArray(payload?.roleCodes) && payload.roleCodes.length > 0
+				? payload.roleCodes.map((c) => String(c).trim().toUpperCase()).filter(Boolean)
+				: roleIds.map((id) => roleCodeById.get(id)).filter(Boolean);
+		const safeRoleCodes = roleCodes.length > 0 ? roleCodes : ['ADMIN'];
 		const newItem = {
-			id: nextId,
-			name: payload?.username?.trim() || 'Nhân viên mới',
-			phoneNumber: payload?.phoneNumber?.trim() || '',
-			isActive: !!payload?.isActive,
-			role: payload?.role || 'ADMIN'
+			staffId: tempId,
+			fullName: payload?.username?.trim() || 'Nhân viên mới',
+			phone: payload?.phoneNumber?.trim() || '',
+			position: '',
+			avatar: '',
+			email: payload?.email?.trim() || '',
+			status: payload?.isActive ? 'ACTIVE' : 'INACTIVE',
+			roles: safeRoleCodes.map((roleCodeRaw) => {
+				const roleCode = roleCodeRaw ? String(roleCodeRaw).trim().toUpperCase() : '';
+				return {
+					roleCode,
+					roleName: roleLabelByCode.get(roleCode) || roleCode
+				};
+			})
 		};
-		setStaff((prev) => [newItem, ...prev]);
+		setStaff((prev) => [newItem, ...(prev || [])]);
+		setTotalElements((prev) => Math.max(0, Number(prev) || 0) + 1);
 		setShowAddModal(false);
 		setCurrentPage(1);
 	};
 
 	const handleDeleteStaff = (staffId) => {
-		setStaff((prev) => prev.filter((s) => s.id !== staffId));
+		setStaff((prev) => (prev || []).filter((s) => (s.staffId || s.id) !== staffId));
+		setTotalElements((prev) => Math.max(0, (Number(prev) || 0) - 1));
+	};
+
+	const handleViewStaff = (staffId) => {
+		if (staffId == null || staffId === '') return;
+		navigate(`/staff-manager/${staffId}`);
 	};
 
 	return (
-		<div className={styles.container}>
-			<div className={styles.header}>
-				<h1 className={styles.title}>
-					Quản lý nhân viên
-				</h1>
-				<div className={styles.headerActions}>
-					<button
-						type="button"
-						className={styles.addButton}
-						onClick={() => setShowAddModal(true)}
-					>
-						Thêm tài khoản
-					</button>
-					<span className={styles.countBadge}>
-						{staff.length} nhân viên
-					</span>
-				</div>
-			</div>
-
-			<div className={styles.toolbar}>
-				<div className={styles.searchBox}>
-					<input
-						className={styles.searchInput}
-						placeholder="Tìm kiếm theo tên/SĐT..."
-						value={search}
-						onChange={(e) => handleSearchChange(e.target.value)}
-					/>
-				</div>
-
-				<div className={styles.filterBox}>
-					<label>Trạng thái:</label>
-					<select 
-						className={styles.filterSelect}
-						value={statusFilter} 
-						onChange={(e) => handleStatusFilterChange(e.target.value)}
-					>
-						<option value="">Tất cả</option>
-						<option value="ACTIVE">Đang hoạt động</option>
-						<option value="INACTIVE">Ngưng hoạt động</option>
-					</select>
-				</div>
-
-				<div className={styles.filterBox}>
-					<label>Role:</label>
-					<select 
-						className={styles.filterSelect}
-						value={roleFilter} 
-						onChange={(e) => handleRoleFilterChange(e.target.value)}
-					>
-						<option value="">Tất cả</option>
-						{ROLE_OPTIONS.map((r) => (
-							<option key={r.value} value={r.value}>
-								{r.label}
-							</option>
-						))}
-					</select>
-				</div>
-
-				<button 
-					type="button" 
-					className={styles.resetButton} 
-					onClick={handleResetFilters}
-				>
-					Xóa bộ lọc
-				</button>
-			</div>
-
-			{filteredStaff.length === 0 ? (
-				<div className={styles.emptyState}>
-					<div className={styles.emptyIcon}>👥</div>
-					<p className={styles.emptyText}>Không có nhân viên nào</p>
-					<p className={styles.emptySubtext}>Không tìm thấy nhân viên phù hợp với bộ lọc</p>
-				</div>
-			) : (
-				<>
-					<div className={styles.tableCard}>
-						<table className={styles.table}>
-							<thead>
-								<tr>
-									<th>STT</th>
-									<th>Tên</th>
-									<th>Số điện thoại</th>
-									<th>Trạng thái</th>
-									<th>Role</th>
-									<th>Hành động</th>
-								</tr>
-							</thead>
-							<tbody>
-								{paginatedStaff.map((item, idx) => (
-									<StaffTableRow
-										key={item.id}
-										index={(currentPage - 1) * itemsPerPage + idx + 1}
-										item={item}
-										onDelete={handleDeleteStaff}
-									/>
-								))}
-							</tbody>
-						</table>
-					</div>
-					
-					{totalPages > 1 && (
-						<div className={styles.pagination}>
-							<div className={styles.paginationInfo}>
-								Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} của {totalItems} nhân viên
+		<div className={baseStyles['booking-page']}>
+			<div className={baseStyles['booking-layout']}>
+				<div className={baseStyles['booking-left']}>
+					<section className={baseStyles['booking-card']}>
+						<div className={baseStyles['booking-card__header']}>
+							<div className={baseStyles['booking-card__title']}>
+								<UserIcon /> Quản lý tài khoản nhân viên
 							</div>
-							<div className={styles.paginationButtons}>
+							<div className={styles.headerActions}>
 								<button
-									className={styles.pageBtn}
-									disabled={currentPage === 1}
-									onClick={() => setCurrentPage((prev) => prev - 1)}
+									type="button"
+									className={baseStyles['primary-button']}
+									onClick={() => setShowAddModal(true)}
 								>
-									‹ Trước
+									Thêm tài khoản
 								</button>
-								{Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-									<button
-										key={page}
-										className={`${styles.pageBtn} ${currentPage === page ? styles.active : ''}`}
-										onClick={() => setCurrentPage(page)}
-									>
-										{page}
-									</button>
-								))}
-								<button
-									className={styles.pageBtn}
-									disabled={currentPage === totalPages}
-									onClick={() => setCurrentPage((prev) => prev + 1)}
-								>
-									Sau ›
+								<button type="button" className={baseStyles['ghost-button']}>
+									{staff.length} nhân viên
 								</button>
 							</div>
 						</div>
-					)}
-				</>
-			)}
+
+						<div className={baseStyles['pending-filters']}>
+							<div className={styles.filterLabels}>
+								<div>Trạng thái</div>
+								<div>Role</div>
+							</div>
+							<div className={styles.filterControls}>
+								<select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+									<option value="">Tất cả</option>
+									<option value="ACTIVE">Đang hoạt động</option>
+									<option value="INACTIVE">Ngưng hoạt động</option>
+								</select>
+								<select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+									<option value="">Tất cả</option>
+									{ROLE_OPTIONS.map((r) => (
+										<option key={r.value} value={r.value}>
+											{r.label}
+										</option>
+									))}
+								</select>
+							</div>
+							<div className={baseStyles['filter-card__actions']}>
+								<div className={baseStyles['search-box']}>
+									<input
+										placeholder="Tìm kiếm theo tên/SĐT..."
+										value={search}
+										onChange={(e) => setSearch(e.target.value)}
+									/>
+									<SearchIcon />
+								</div>
+								<button type="button" className={baseStyles['ghost-button']} onClick={handleResetFilters}>
+									Xóa bộ lọc
+								</button>
+							</div>
+						</div>
+
+						<div className={baseStyles['booking-table__wrapper']}>
+							<table className={`${baseStyles['booking-table']} ${styles.table}`}>
+								<thead>
+									<tr>
+										<th>STT</th>
+										<th>TÊN</th>
+										<th>SỐ ĐIỆN THOẠI</th>
+										<th>TRẠNG THÁI</th>
+										<th>ROLE</th>
+										<th>HÀNH ĐỘNG</th>
+									</tr>
+								</thead>
+								<tbody>
+									{filteredStaff.length === 0 ? (
+										<tr>
+											<td className={baseStyles['empty-row']} colSpan={6}>
+											Không có tài khoản nào phù hợp.
+										</td>
+									</tr>
+									) : (
+										filteredStaff.map((item, idx) => (
+											<StaffTableRow
+												key={item.id}
+												index={idx + 1}
+												item={item}
+												onDelete={handleDeleteStaff}
+											/>
+										))
+									)}
+								</tbody>
+							</table>
+						</div>
+					</section>
+				</div>
+			</div>
 
 			<AddStaffAccount
 				open={showAddModal}
 				onClose={() => setShowAddModal(false)}
 				onSubmit={handleAddStaff}
-				roleOptions={ROLE_OPTIONS}
+				roleOptions={roleOptions}
 			/>
 		</div>
 	);
@@ -329,32 +316,29 @@ SearchIcon.propTypes = {
 };
 
 function StaffTableRow({ item, index, onDelete }) {
+	const statusTone = item.isActive ? 'success' : 'danger';
 	return (
 		<tr>
 			<td>{index}</td>
-			<td>{item.name}</td>
+			<td className={baseStyles['link-cell']}>{item.name}</td>
 			<td>{item.phoneNumber}</td>
 			<td>
-				<span className={`${styles.statusBadge} ${item.isActive ? styles.statusActive : styles.statusInactive}`}>
-					{item.isActive ? 'Hoạt động' : 'Ngưng hoạt động'}
+				<span className={`${baseStyles['status-badge']} ${baseStyles['status-badge--' + statusTone]}`}>
+					{item.isActive ? 'Active' : 'Inactive'}
 				</span>
 			</td>
-			<td>
-				<span className={styles.roleBadge}>
-					{ROLE_LABELS[item.role] || item.role}
-				</span>
-			</td>
+			<td>{ROLE_LABELS[item.role] || item.role}</td>
 			<td>
 				<div className={styles.actionGroup}>
-					<button type="button" className={`${styles.actionBtn} ${styles.viewBtn}`} onClick={() => {}}>
+					<button type="button" className={styles.actionBtn} onClick={() => {}}>
 						Xem
 					</button>
-					<button type="button" className={`${styles.actionBtn} ${styles.editBtn}`} onClick={() => {}}>
+					<button type="button" className={styles.actionBtn} onClick={() => {}}>
 						Sửa
 					</button>
 					<button
 						type="button"
-						className={`${styles.actionBtn} ${styles.deleteBtn}`}
+						className={`${styles.actionBtn} ${styles.actionDanger}`}
 						onClick={() => onDelete(item.id)}
 					>
 						Xóa
@@ -367,12 +351,24 @@ function StaffTableRow({ item, index, onDelete }) {
 
 StaffTableRow.propTypes = {
 	item: PropTypes.shape({
-		id: PropTypes.number.isRequired,
-		name: PropTypes.string.isRequired,
-		phoneNumber: PropTypes.string.isRequired,
-		isActive: PropTypes.bool.isRequired,
-		role: PropTypes.string.isRequired
+		staffId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+		id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+		fullName: PropTypes.string,
+		name: PropTypes.string,
+		phone: PropTypes.string,
+		phoneNumber: PropTypes.string,
+		position: PropTypes.string,
+		status: PropTypes.string,
+		isActive: PropTypes.bool,
+		roles: PropTypes.arrayOf(
+			PropTypes.shape({
+				roleId: PropTypes.number,
+				roleCode: PropTypes.string,
+				roleName: PropTypes.string
+			})
+		)
 	}).isRequired,
 	index: PropTypes.number.isRequired,
+	onView: PropTypes.func,
 	onDelete: PropTypes.func.isRequired
 };

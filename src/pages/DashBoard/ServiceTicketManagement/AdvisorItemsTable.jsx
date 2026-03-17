@@ -134,6 +134,9 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 			const unitPrice = it?.unitPrice ?? '';
 			const subTotal = it?.subTotal ?? '';
 			const categoryName = it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
+			const confirmed = Boolean(
+				it?.confirmed ?? it?.isConfirmed ?? it?.approved ?? it?.isApproved ?? it?.customerConfirmed ?? it?.isCustomerConfirmed,
+			);
 			return {
 				key: String(it?.estimateItemId ?? it?.itemId ?? it?.itemName ?? `item-${idx}`),
 				categoryName,
@@ -141,6 +144,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 				quantity,
 				unitPrice,
 				subTotal,
+				confirmed,
 			};
 		});
 	}, [estimate]);
@@ -602,7 +606,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 									<td className={styles.tdNumber}>{formatCurrencyVnd(row.subTotal)}</td>
 								<td />
 								<td className={styles.tdCenter}>
-									<input type="checkbox" disabled />
+									<input type="checkbox" checked={Boolean(row.confirmed)} readOnly disabled />
 								</td>
 							</tr>
 							);

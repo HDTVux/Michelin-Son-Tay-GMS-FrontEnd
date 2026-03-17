@@ -35,11 +35,14 @@ import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx'
 import ServiceTicketDetail from './pages/DashBoard/ServiceTicketManagement/ServiceTicketDetail.jsx';
 import ServiceTicketManagement from './pages/DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
 import TicketAssignment from './pages/DashBoard/ServiceTicketManagement/TicketAssignment.jsx';
+import ReceiptConfirm from './pages/DashBoard/Receipt/ReceiptConfirm.jsx';
 import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.jsx';
 import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.jsx';
+import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.jsx';
+import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
 
 // Import Work History pages
 import TechnicianWorkHistory from './pages/WorkHistory/TechnicianWorkHistory/TechnicianWorkHistory.jsx';
@@ -122,13 +125,16 @@ export default function App() {
           <Route path="technician-tasks" element={<TechnicianTasks />} />
           <Route path="assign-advisor" element={<AssignAdvisor />} />
           <Route path="service-ticket/:ticketCode" element={<ServiceTicketDetail />} />
+          <Route path="service-ticket/:ticketCode/receipt-confirm" element={<ReceiptConfirm />} />
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
+          <Route path="service-management" element={<ServiceManagement />} />
           <Route path="ticket-assignment" element={<TicketAssignment />} />
           <Route path="queue-management" element={<QueueManagement />} />
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />
           <Route path="staff-manager" element={<StaffManagement />} />
+          <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
           
           {/* Technician pages */}
           <Route path="technician/my-tasks" element={<MyTasks />} />
