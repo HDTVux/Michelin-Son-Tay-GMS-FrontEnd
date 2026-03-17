@@ -133,7 +133,7 @@ export default function StaffDetailPage() {
 											<span
 												className={`${baseStyles['status-badge']} ${baseStyles['status-badge--' + statusTone]}`}
 											>
-												{isActive ? 'Active' : 'Inactive'}
+												{isActive ? 'Đang hoạt động' : 'Ngưng hoạt động'}
 											</span>
 										</div>
 									</div>

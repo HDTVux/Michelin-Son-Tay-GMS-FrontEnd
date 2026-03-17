@@ -5,6 +5,16 @@ import styles from './AddStaffAccount.module.css';
 
 const DEFAULT_ROLE_OPTIONS = [{ label: 'Admin', roleId: 1, roleCode: 'ADMIN' }];
 
+function normalizeRoleIds(value) {
+	return Array.isArray(value) ? value.map(Number).filter((v) => Number.isFinite(v) && v > 0) : [];
+}
+
+function updateRoleIds(roleIdsValue, roleId, checked) {
+	const current = normalizeRoleIds(roleIdsValue);
+	if (checked) return current.includes(roleId) ? current : [...current, roleId];
+	return current.filter((id) => id !== roleId);
+}
+
 function normalizeRoleOptions(roleOptions) {
 	const raw = Array.isArray(roleOptions) ? roleOptions : [];
 	const source = raw[0] ? raw : DEFAULT_ROLE_OPTIONS;
@@ -48,13 +58,10 @@ function AddStaffAccountInner({ onClose, onSubmit, roleOptions }) {
 
 	const toggleRoleId = (roleId) => (e) => {
 		const checked = !!e?.target?.checked;
-		setForm((prev) => {
-			const current = Array.isArray(prev.roleIds) ? prev.roleIds : [];
-			if (checked) {
-				return { ...prev, roleIds: current.includes(roleId) ? current : [...current, roleId] };
-			}
-			return { ...prev, roleIds: current.filter((id) => id !== roleId) };
-		});
+		setForm((prev) => ({
+			...prev,
+			roleIds: updateRoleIds(prev.roleIds, roleId, checked)
+		}));
 		setRoleError('');
 	};
 
@@ -73,7 +80,19 @@ function AddStaffAccountInner({ onClose, onSubmit, roleOptions }) {
 			.map((id) => roles.find((r) => r.roleId === id)?.roleCode)
 			.filter(Boolean);
 
-		if (onSubmit) onSubmit({ ...form, roleIds, roleCodes });
+		const selectedRoles = roleIds
+			.map((id) => {
+				const role = roles.find((r) => r.roleId === id);
+				if (!role) return null;
+				return {
+					roleId: id,
+					roleCode: role.roleCode,
+					roleName: role.label
+				};
+			})
+			.filter(Boolean);
+
+		if (onSubmit) onSubmit({ ...form, roleIds, roleCodes, roles: selectedRoles });
 	};
 
 	return (
@@ -167,7 +186,8 @@ function AddStaffAccountInner({ onClose, onSubmit, roleOptions }) {
 
 					<div className={styles.fieldStack}>
 						<div className={styles.label}>Roles<span className={styles.required}>*</span>:</div>
-						<div className={styles.roleList} role="group" aria-label="Chọn roles">
+						<fieldset className={styles.roleList} aria-label="Chọn roles">
+							<legend className={styles.srOnly}>Chọn roles</legend>
 							{roles.map((r) => {
 								const checked = Array.isArray(form.roleIds) && form.roleIds.includes(r.roleId);
 								const inputId = `staff-role-${r.roleId}`;
@@ -184,7 +204,7 @@ function AddStaffAccountInner({ onClose, onSubmit, roleOptions }) {
 									</label>
 								);
 							})}
-						</div>
+						</fieldset>
 						{roleError && <div className={styles.inlineError}>{roleError}</div>}
 					</div>
 				</section>

@@ -2,14 +2,32 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { toast } from 'react-toastify';
-import { fetchAllCustomers } from '../../../services/adminService.js';
+import { fetchAllCustomers, updateCustomer } from '../../../services/adminService.js';
 import styles from './CustomerManager.module.css';
 
 import CreateCustomerModal from './CreateCustomerModal.jsx';
 
+const normalizeCustomerStatus = (value) => {
+  if (value == null || String(value).trim() === '') return null;
+  return String(value).trim().toUpperCase();
+};
+
+const resolveCustomerStatus = (customer) =>
+  customer?.status ??
+  customer?.authStatus ??
+  customer?.customerAuthStatus ??
+  customer?.accountStatus ??
+  customer?.userStatus ??
+  customer?.customerAuth?.status;
+
 const CustomerManager = () => {
   useScrollToTop();
   const navigate = useNavigate();
+
+  const getAuthToken = () =>
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('adminToken') ||
+    localStorage.getItem('staffToken');
 
   // State
   const [customers, setCustomers] = useState([]);
@@ -17,8 +35,6 @@ const CustomerManager = () => {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [sortField, setSortField] = useState('fullName');
-  const [sortDirection, setSortDirection] = useState('asc');
 
   const requestSeqRef = useRef(0);
 
@@ -32,10 +48,7 @@ const CustomerManager = () => {
     const requestSeq = ++requestSeqRef.current;
     try {
       setLoading(true);
-      const token =
-        localStorage.getItem('authToken') ||
-        localStorage.getItem('adminToken') ||
-        localStorage.getItem('staffToken');
+      const token = getAuthToken();
       
       if (!token) {
         toast.error('Vui lòng đăng nhập để xem danh sách khách hàng');
@@ -47,9 +60,6 @@ const CustomerManager = () => {
         size: itemsPerPage,
         search: searchTerm || undefined,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
-        sort: `${sortField},${sortDirection}`,
-        sortBy: sortField,
-        sortDirection: sortDirection.toUpperCase(),
       };
 
       const response = await fetchAllCustomers(params, token);
@@ -80,7 +90,7 @@ const CustomerManager = () => {
         setLoading(false);
       }
     }
-  }, [searchTerm, currentPage, statusFilter, sortField, sortDirection]);
+  }, [searchTerm, currentPage, statusFilter]);
 
   useEffect(() => {
     loadCustomers();
@@ -96,37 +106,90 @@ const CustomerManager = () => {
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
-      case 'ACTIVE': return styles.statusActive;
-      case 'INACTIVE': return styles.statusInactive;
-      default: return '';
+      case 'ACTIVE':
+        return styles.statusActive;
+      case 'INACTIVE':
+        return styles.statusInactive;
+      case 'LOCKED':
+        return styles.statusInactive;
+      case 'DELETED':
+        return styles.statusInactive;
+      case null:
+        return styles.statusVip;
+      default:
+        return '';
     }
   };
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'ACTIVE': return 'Hoạt động';
-      case 'INACTIVE': return 'Không hoạt động';
-      default: return status;
+      case 'ACTIVE':
+        return 'Hoạt động';
+      case 'INACTIVE':
+        return 'Không hoạt động';
+      case 'LOCKED':
+        return 'Đã khóa';
+      case 'DELETED':
+        return 'Đã xóa';
+      case null:
+        return 'Chưa kích hoạt';
+      default:
+        return status;
     }
   };
 
+  const updateCustomerStatus = async (customerId, nextStatus) => {
+    const token = getAuthToken();
+    if (!token) {
+      toast.error('Vui lòng đăng nhập để thực hiện thao tác');
+      return;
+    }
+
+    if (customerId == null || customerId === '') {
+      toast.error('Không tìm thấy ID khách hàng');
+      return;
+    }
+
+    await updateCustomer(customerId, { status: nextStatus }, token);
+  };
+
+  const handleLockAccount = async (customerId) => {
+    if (!globalThis.confirm('Bạn có chắc chắn muốn khóa tài khoản này?')) return;
+    try {
+      setCustomers((prevCustomers) =>
+        (prevCustomers || []).map((customer) => {
+          const id = customer?.customerId ?? customer?.id;
+          if (id !== customerId) return customer;
+          return { ...customer, status: 'LOCKED' };
+        })
+      );
+      await updateCustomerStatus(customerId, 'LOCKED');
+      toast.success('Khóa tài khoản thành công!');
+      loadCustomers();
+    } catch (error) {
+      console.error('Error locking account:', error);
+      toast.error(error.message || 'Khóa tài khoản thất bại');
+      loadCustomers();
+    }
+  };
 
   const handleDeleteAccount = async (customerId) => {
-    if (globalThis.confirm('Bạn có chắc chắn muốn xóa tài khoản này? Hành động này không thể hoàn tác!')) {
-      try {
-        // Remove from UI immediately
-        setCustomers(prevCustomers => 
-          prevCustomers.filter(customer => (customer.customerId || customer.id) !== customerId)
-        );
-        setTotalItems(prev => prev - 1);
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-        toast.success('Xóa tài khoản thành công!');
-      } catch (error) {
-        console.error('Error deleting account:', error);
-        toast.error('Xóa tài khoản thất bại');
-        loadCustomers(); // Reload on error
-      }
+    if (!globalThis.confirm('Bạn có chắc chắn muốn xóa tài khoản này? Hành động này không thể hoàn tác!')) return;
+    try {
+      setCustomers((prevCustomers) =>
+        (prevCustomers || []).map((customer) => {
+          const id = customer?.customerId ?? customer?.id;
+          if (id !== customerId) return customer;
+          return { ...customer, status: 'DELETED' };
+        })
+      );
+      await updateCustomerStatus(customerId, 'DELETED');
+      toast.success('Xóa tài khoản thành công!');
+      loadCustomers();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error(error.message || 'Xóa tài khoản thất bại');
+      loadCustomers();
     }
   };
 
@@ -178,9 +241,14 @@ const CustomerManager = () => {
                   </td>
                   <td>{customer.phone}</td>
                   <td>
-                    <span className={`${styles.statusBadge} ${getStatusBadgeClass(customer.status || 'ACTIVE')}`}>
-                      {getStatusText(customer.status || 'ACTIVE')}
-                    </span>
+      {(() => {
+        const status = normalizeCustomerStatus(resolveCustomerStatus(customer));
+        return (
+          <span className={`${styles.statusBadge} ${getStatusBadgeClass(status)}`}>
+            {getStatusText(status)}
+          </span>
+        );
+      })()}
                   </td>
                   <td>{customer.totalBookings || 0}</td>
                   <td>
@@ -191,6 +259,13 @@ const CustomerManager = () => {
                         title="Xem chi tiết"
                       >
                         Xem
+                      </button>
+                      <button
+                        className={`${styles.actionBtn} ${styles.lockBtn}`}
+                        onClick={() => handleLockAccount(customer.customerId || customer.id)}
+                        title="Khóa tài khoản"
+                      >
+                        Khóa
                       </button>
                       <button
                         className={`${styles.actionBtn} ${styles.deleteBtn}`}
@@ -277,30 +352,13 @@ const CustomerManager = () => {
             <option value="INACTIVE">Không hoạt động</option>
           </select>
 
-          <select 
-            className={styles.sortSelect}
-            value={`${sortField}-${sortDirection}`}
-            onChange={(e) => {
-              const [field, direction] = e.target.value.split('-');
-              setSortField(field);
-              setSortDirection(direction);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="fullName-asc">Tên A-Z</option>
-            <option value="fullName-desc">Tên Z-A</option>
-            <option value="createdAt-desc">Mới nhất</option>
-            <option value="createdAt-asc">Cũ nhất</option>
-            <option value="totalBookings-desc">Booking nhiều nhất</option>
-            <option value="totalBookings-asc">Booking ít nhất</option>
-          </select>
 
           <button 
             className={styles.refreshButton}
             onClick={() => loadCustomers()}
             title="Làm mới"
           >
-            Lam moi
+            Làm mới
           </button>
         </div>
       </div>
