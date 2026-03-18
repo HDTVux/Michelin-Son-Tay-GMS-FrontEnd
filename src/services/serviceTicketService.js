@@ -172,6 +172,83 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
   });
 };
 
+
+// Lấy danh sách nhân viên available để assign vào ticket
+// Endpoint: GET /api/service-ticket/assignment/{ticketId}/available-staff?role={role}
+export const fetchAvailableStaff = (ticketId, role, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem danh sách nhân viên.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+
+  const idNum = typeof ticketId === 'number' ? ticketId : Number(ticketId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu ticketId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  return request(`/api/service-ticket/assignment/${idNum}/available-staff?role=${encodeURIComponent(role)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Giao ticket cho nhân viên (KTV chính hoặc KTV phụ)
+// Endpoint: POST /api/service-ticket/assignment/{ticketId}/assign
+// Payload: { staffId, roleInTicket, isPrimary, note }
+export const assignStaff = (ticketId, payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để giao việc.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof ticketId === 'number' ? ticketId : Number(ticketId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu ticketId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/assignment/${idNum}/assign`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+};
+
+// Cập nhật thông tin assign (đổi nhân viên)
+// Endpoint: PUT /api/service-ticket/assignment/{ticketId}/assign/{assignmentId}
+export const updateAssignment = (ticketId, assignmentId, payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật assignment.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const ticketNum = typeof ticketId === 'number' ? ticketId : Number(ticketId);
+  const assignmentNum = typeof assignmentId === 'number' ? assignmentId : Number(assignmentId);
+
+  if (!Number.isFinite(ticketNum) || ticketNum <= 0) {
+    const error = new Error('Thiếu ticketId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  if (!Number.isFinite(assignmentNum) || assignmentNum <= 0) {
+    const error = new Error('Thiếu assignmentId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/assignment/${ticketNum}/assign/${assignmentNum}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+};
 // Lấy danh sách loại thuế (tax rules)
 // Endpoint: GET /api/service-ticket/tax-rule/all
 export const fetchTaxRulesAll = (token) => {

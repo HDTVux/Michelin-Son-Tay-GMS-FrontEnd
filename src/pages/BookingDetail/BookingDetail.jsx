@@ -49,7 +49,11 @@ const BookingDetail = () => {
           time: bookingData.scheduledTime || '',
           status: mapStatus(bookingData.status),
           statusText: getStatusText(bookingData.status),
-          services: bookingData.serviceIds?.map(id => ({
+          services: bookingData.services?.map(svc => ({
+            id: svc.itemId?.toString() || svc.id?.toString() || '',
+            name: svc.itemName || svc.name || 'Dịch vụ',
+            description: svc.description || ''
+          })) || bookingData.serviceIds?.map(id => ({
             id: id.toString(),
             name: `Dịch vụ #${id}`,
             description: 'Chi tiết dịch vụ'
@@ -59,6 +63,10 @@ const BookingDetail = () => {
           phone: bookingData.phone || '',
           isGuest: bookingData.isGuest || false,
           rawStatus: bookingData.status,
+          // Progress steps từ API
+          progressSteps: bookingData.progressSteps || null,
+          technicianNotes: bookingData.technicianNotes || '',
+          ticketStatus: bookingData.ticketStatus || null,
         };
 
         setBooking(mappedBooking);
@@ -108,16 +116,34 @@ const BookingDetail = () => {
     return textMap[backendStatus?.toUpperCase()] || 'Đang chờ';
   };
 
-  // Timeline steps configuration - 4 bước
-  const timelineSteps = [
+  // Timeline steps - ưu tiên dùng API nếu có, không thì dùng mặc định
+  const timelineSteps = booking?.progressSteps?.map((step, index) => ({
+    key: step.label?.toLowerCase().replace(/\s+/g, '_') || `step_${index}`,
+    label: step.label,
+    status: step.status // COMPLETED, ACTIVE, PENDING
+  })) || [
     { key: 'scheduled', label: 'Đã đặt lịch' },
     { key: 'confirmed', label: 'Đã xác nhận' },
     { key: 'processing', label: 'Đang thực hiện' },
     { key: 'completed', label: 'Hoàn thành' },
   ];
 
-  // Get current step index based on RAW backend status
+  // Get current step index - ưu tiên dùng progressSteps từ API
   const getCurrentStep = () => {
+    // Nếu có progressSteps từ API, tìm step đang ACTIVE
+    if (booking?.progressSteps && booking.progressSteps.length > 0) {
+      const activeIndex = booking.progressSteps.findIndex(step => step.status === 'ACTIVE');
+      if (activeIndex >= 0) return activeIndex;
+      // Nếu không có ACTIVE, tìm step cuối cùng COMPLETED
+      const completedIndex = booking.progressSteps.findIndex(step => step.status === 'PENDING');
+      if (completedIndex >= 0) return completedIndex - 1;
+      // Tất cả đã hoàn thành
+      if (booking.progressSteps.every(step => step.status === 'COMPLETED')) {
+        return booking.progressSteps.length - 1;
+      }
+    }
+
+    // Fallback: dùng rawStatus
     const rawStatus = booking?.rawStatus || booking?.status;
     const stepMap = {
       'PENDING': 0,
@@ -206,8 +232,10 @@ const BookingDetail = () => {
               gap: '8px'
             }}>
               {timelineSteps.map((step, index) => {
-                const isCompleted = index < currentStep;
-                const isCurrent = index === currentStep;
+                // Ưu tiên dùng status từ API
+                const stepStatus = step.status?.toUpperCase();
+                const isCompleted = stepStatus === 'COMPLETED' || index < currentStep;
+                const isCurrent = stepStatus === 'ACTIVE' || index === currentStep;
                 const isLast = index === timelineSteps.length - 1;
 
                 return (
@@ -348,6 +376,35 @@ const BookingDetail = () => {
                 <h2 className="sectionTitle">Yêu cầu thêm</h2>
                 <div className="noteContent">
                   <p>{booking.note}</p>
+                </div>
+              </section>
+            )}
+
+            {/* Ghi chú từ KTV - từ API */}
+            {booking.technicianNotes && (
+              <section className="detailSection">
+                <h2 className="sectionTitle">Ghi chú từ Kỹ thuật viên</h2>
+                <div className="noteContent" style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }}>
+                  <p>{booking.technicianNotes}</p>
+                </div>
+              </section>
+            )}
+
+            {/* Trạng thái phiếu dịch vụ */}
+            {booking.ticketStatus && (
+              <section className="detailSection">
+                <h2 className="sectionTitle">Trạng thái phiếu dịch vụ</h2>
+                <div style={{
+                  display: 'inline-block',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: booking.ticketStatus === 'COMPLETED' ? '#dcfce7' : '#fef3c7',
+                  color: booking.ticketStatus === 'COMPLETED' ? '#166534' : '#92400e',
+                  fontWeight: '500'
+                }}>
+                  {booking.ticketStatus === 'COMPLETED' ? '✓ Đã hoàn thành' :
+                   booking.ticketStatus === 'IN_PROGRESS' ? 'Đang xử lý' :
+                   booking.ticketStatus === 'PENDING' ? 'Chờ xử lý' : booking.ticketStatus}
                 </div>
               </section>
             )}
