@@ -6,6 +6,7 @@ import { fetchTechnicianTicketDetail } from '../../../services/technicianService
 import {
   getSafetyInspectionByTicketCode,
   saveSafetyInspectionData,
+  updateSafetyInspectionData,
   getDefaultSafetyInspectionCategories,
   getSafetyInspectionCategories,
   skipSafetyInspection,
@@ -344,36 +345,61 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
         }
       }
 
-      // Transform tire data to API format
-      const tiresPayload = Object.entries(tireData).map(([position, data]) => {
-        const positionMap = {
-          'frontLeft': 'FRONT_LEFT',
-          'frontRight': 'FRONT_RIGHT',
-          'rearLeft': 'REAR_LEFT',
-          'rearRight': 'REAR_RIGHT',
-          'spare': 'SPARE'
+      // Transform tire data to API format - Backend expects TireInputRequest object
+      // Format: { frontTireSpecification, rearTireSpecification, recommendedTireSize,
+      //           frontLeft: {treadDepth, pressure, pressureUnit}, ... }
+      const tiresPayload = (() => {
+        const getActualData = (data) => {
+          if (!data || (!data.mm && !data.pressure && !data.size1)) return null;
+          return {
+            treadDepth: data.mm ? parseFloat(data.mm) : null,
+            pressure: data.pressure ? parseFloat(data.pressure) : null,
+            pressureUnit: 'PSI'
+          };
         };
 
-        // Combine size1/size2/size3 into tireSpecification format: "205/55R16"
-        let tireSpecification = '';
-        if (data.size1 && data.size2 && data.size3) {
-          tireSpecification = `${data.size1}/${data.size2}R${data.size3}`;
-        }
+        // Build front/rear tire specifications
+        const frontSpec = (tireData.frontLeft?.size1 && tireData.frontLeft?.size2 && tireData.frontLeft?.size3)
+          ? `${tireData.frontLeft.size1}/${tireData.frontLeft.size2}R${tireData.frontLeft.size3}`
+          : (tireData.frontRight?.size1 && tireData.frontRight?.size2 && tireData.frontRight?.size3)
+            ? `${tireData.frontRight.size1}/${tireData.frontRight.size2}R${tireData.frontRight.size3}`
+            : null;
 
-        const payload = {
-          tirePosition: positionMap[position],
-          treadDepth: data.mm ? parseFloat(data.mm) : null,
-          pressure: data.pressure ? parseFloat(data.pressure) : null,
-          pressureUnit: 'PSI',
-          tireSpecification: tireSpecification || null,
+        const rearSpec = (tireData.rearLeft?.size1 && tireData.rearLeft?.size2 && tireData.rearLeft?.size3)
+          ? `${tireData.rearLeft.size1}/${tireData.rearLeft.size2}R${tireData.rearLeft.size3}`
+          : (tireData.rearRight?.size1 && tireData.rearRight?.size2 && tireData.rearRight?.size3)
+            ? `${tireData.rearRight.size1}/${tireData.rearRight.size2}R${tireData.rearRight.size3}`
+            : null;
+
+        // Get recommended pressures
+        const frontRecommendedPressure = tireData.frontLeft?.recommendedPressure
+          ? parseFloat(tireData.frontLeft.recommendedPressure)
+          : (tireData.frontRight?.recommendedPressure ? parseFloat(tireData.frontRight.recommendedPressure) : null);
+
+        const rearRecommendedPressure = tireData.rearLeft?.recommendedPressure
+          ? parseFloat(tireData.rearLeft.recommendedPressure)
+          : (tireData.rearRight?.recommendedPressure ? parseFloat(tireData.rearRight.recommendedPressure) : null);
+
+        const spareRecommendedPressure = tireData.spare?.recommendedPressure
+          ? parseFloat(tireData.spare.recommendedPressure)
+          : null;
+
+        return {
+          frontTireSpecification: frontSpec,
+          rearTireSpecification: rearSpec,
           recommendedTireSize: recommendedTireSize || null,
-          recommendedPressure: data.recommendedPressure ? parseFloat(data.recommendedPressure) : null,
-          recommendedPressureUnit: 'PSI'
+          frontLeft: getActualData(tireData.frontLeft),
+          frontRight: getActualData(tireData.frontRight),
+          rearLeft: getActualData(tireData.rearLeft),
+          rearRight: getActualData(tireData.rearRight),
+          spare: getActualData(tireData.spare),
+          frontRecommendedPressure: frontRecommendedPressure,
+          rearRecommendedPressure: rearRecommendedPressure,
+          spareRecommendedPressure: spareRecommendedPressure
         };
+      })();
 
-        console.log(`🔧 Tire ${position}:`, payload);
-        return payload;
-      }).filter(tire => tire.treadDepth || tire.pressure || tire.tireSpecification);
+      console.log('🔧 Tires payload (TireInputRequest format):', tiresPayload);
 
       // Transform safety checks to API format - include ALL items with their status
       const itemsPayload = safetyChecks
@@ -404,13 +430,20 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
       };
 
       console.log('💾 Saving payload:', safetyPayload);
-      await saveSafetyInspectionData(safetyPayload, token);
 
-      // Update local state
-      setInspectionStatus('COMPLETED');
-      setIsEditable(false);
-
-      toast.success('Đã lưu và hoàn thành kiểm tra an toàn!');
+      // If already COMPLETED and clicking "Hoàn thành" (editable), use update API
+      // Otherwise, use save API to create new
+      if (inspectionStatus === 'COMPLETED' && inspectionId && isEditable) {
+        await updateSafetyInspectionData(inspectionId, safetyPayload, token);
+        toast.success('Đã cập nhật phiếu kiểm tra an toàn!');
+        // After update, lock editing again
+        setIsEditable(false);
+      } else {
+        await saveSafetyInspectionData(safetyPayload, token);
+        setInspectionStatus('COMPLETED');
+        setIsEditable(false);
+        toast.success('Đã lưu và hoàn thành kiểm tra an toàn!');
+      }
     } catch (error) {
       console.error('Error saving inspection data:', error);
       toast.error('Lỗi khi lưu dữ liệu: ' + (error.message || 'Lỗi không xác định'));
@@ -453,7 +486,8 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
             </div>
           </div>
         </div>
-        
+
+        {/* Original Layout with Car Image */}
         <div style={{ position: 'relative', height: '550px', marginTop: '20px' }}>
           {/* LEFT SIDE - 2 tires: Front Left + Rear Left */}
           <div style={{ position: 'absolute', left: '20px', top: '80px', display: 'flex', flexDirection: 'column', gap: '100px' }}>
@@ -518,7 +552,6 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
                   />
                 </div>
               </div>
-              
             </div>
 
             {/* Rear Left Tire */}
@@ -582,16 +615,16 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
             </div>
           </div>
 
-          {/* CAR BODY - Center - Replace with image */}
+          {/* CAR BODY - Center - with image */}
           <div style={{ position: 'absolute', left: '50%', top: '45%', transform: 'translate(-50%, -50%)' }}>
-            <img 
-              src={carImage} 
-              alt="Car" 
-              style={{ 
-                width: '280px', 
+            <img
+              src={carImage}
+              alt="Car"
+              style={{
+                width: '280px',
                 height: 'auto',
                 objectFit: 'contain'
-              }} 
+              }}
             />
           </div>
 
@@ -671,7 +704,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
               </div>
             </div>
 
-            {/* Spare Tire - third tire on right side */}
+            {/* Spare Tire */}
             <div className={styles.tirePosition}>
               <div className={styles.tireBoxRow}>
                 <div className={styles.tireBoxBlueSmall}>
@@ -759,12 +792,14 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
       <div className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h2 className={styles.sectionTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</h2>
-          <button 
-            className={styles.addCategoryButton}
-            onClick={() => setShowAddCategoryModal(true)}
-          >
-            + Thêm hạng mục mới
-          </button>
+          {isEditable && (
+            <button
+              className={styles.addCategoryButton}
+              onClick={() => setShowAddCategoryModal(true)}
+            >
+              + Thêm hạng mục mới
+            </button>
+          )}
         </div>
         <div className={styles.safetyTable}>
           <table>
@@ -861,7 +896,11 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
             <button className={styles.closeButton} onClick={() => navigate('/technician/my-tasks')}>
               Đóng
             </button>
-            {inspectionStatus !== 'COMPLETED' && isEditable && (
+            {inspectionStatus === 'COMPLETED' && !isEditable ? (
+              <button className={styles.completeButton} onClick={() => setIsEditable(true)}>
+                Chỉnh sửa
+              </button>
+            ) : (
               <button className={styles.completeButton} onClick={handleSave}>
                 Hoàn thành
               </button>
