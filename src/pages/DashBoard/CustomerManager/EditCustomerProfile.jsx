@@ -223,6 +223,18 @@ const EditCustomerProfile = () => {
               <button className={styles.backButton} onClick={handleBack}>
                 ← Quay lại
               </button>
+
+				{!isEditing && canEdit && (
+					<div className={styles.headerActions}>
+						<button
+							type="button"
+							className={styles.editButton}
+							onClick={handleEdit}
+						>
+							Chỉnh sửa
+						</button>
+					</div>
+				)}
             </div>
             <h1 className={styles.title}>
               {isEditing ? 'Chỉnh sửa thông tin khách hàng' : 'Thông tin khách hàng'}
@@ -326,9 +338,11 @@ const EditCustomerProfile = () => {
                     disabled={!isEditing}
                     className={`${styles.select} ${isEditing ? '' : styles.inputDisabled}`}
                   >
-					<option value="NOT_ACTIVATED">Chưa kích hoạt</option>
+					          <option value="NOT_ACTIVATED">Chưa kích hoạt</option>
                     <option value="ACTIVE">Hoạt động</option>
                     <option value="INACTIVE">Không hoạt động</option>
+					          <option value="LOCKED">Đã khóa</option>
+					          <option value="DELETED">Đã xóa</option>
                   </select>
                 </div>
 
@@ -368,19 +382,6 @@ const EditCustomerProfile = () => {
               </div>
             )}
 
-            {!isEditing && (
-              <div className={styles.actionsCenter}>
-					{canEdit && (
-						<button
-							type="button"
-							className={styles.editButton}
-							onClick={handleEdit}
-						>
-							Chỉnh sửa
-						</button>
-					)}
-              </div>
-            )}
           </form>
         </div>
 
