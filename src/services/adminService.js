@@ -141,20 +141,6 @@ export const fetchCustomerDetail = (customerId, token) => {
 /**
  * Cập nhật thông tin customer (Admin)
  * Backend: PUT /api/admin/customer/{customerId}/update
- * 
- * @param {number} customerId - ID của customer
- * @param {object} payload - Thông tin cập nhật
- * @param {('ACTIVE'|'INACTIVE')} payload.status
- * @param {string|null} payload.lastLoginAt
- * @param {string} payload.fullName
- * @param {string} payload.phone
- * @param {string} payload.email
- * @param {string} payload.dob - yyyy-MM-dd
- * @param {('MALE'|'FEMALE'|'OTHER')} payload.gender
- * @param {string|null} payload.avatar
- * @param {string|null} payload.firstBookingAt
- * @param {string} token - JWT token
- * @returns {Promise}
  */
 export const updateCustomer = (customerId, payload, token) => {
   const id = Number(customerId) || 0;
@@ -162,6 +148,46 @@ export const updateCustomer = (customerId, payload, token) => {
     method: 'PUT',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: JSON.stringify(payload),
+  });
+};
+
+/**
+ * Khóa tài khoản customer (Admin)
+ * Backend: PUT /api/admin/customer/{customerId}/locked
+ *
+ * @param {number} customerId - ID của customer
+ * @param {string} token - JWT token
+ * @returns {Promise}
+ */
+export const lockCustomerAccount = (customerId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để thực hiện thao tác.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const id = Number(customerId) || 0;
+  return request(`/api/admin/customer/${id}/locked`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+/**
+ * Xóa (soft-delete) tài khoản customer (Admin)
+ * Backend: PUT /api/admin/customer/{customerId}/delete
+ */
+export const deleteCustomerAccount = (customerId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để thực hiện thao tác.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const id = Number(customerId) || 0;
+  return request(`/api/admin/customer/${id}/delete`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
   });
 };
 
@@ -284,6 +310,83 @@ export const fetchStaffDetail = (staffId, token) => {
 
   return request(`/api/admin/staff/${id}`, {
     method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+/**
+ * Cập nhật thông tin nhân viên (Admin)
+ * Backend: PUT /api/admin/staff/{staffId}/update
+ */
+export const updateStaff = (staffId, payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật nhân viên.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const id = Number(staffId);
+  if (!Number.isFinite(id) || id <= 0) {
+    const error = new Error('Staff ID không hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/admin/staff/${id}/update`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+};
+
+/**
+ * Khóa tài khoản nhân viên (Admin)
+ * Backend: PUT /api/admin/staff/{staffId}/lock
+ */
+export const lockStaffAccount = (staffId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để thực hiện thao tác.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const id = Number(staffId);
+  if (!Number.isFinite(id) || id <= 0) {
+    const error = new Error('Staff ID không hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/admin/staff/${id}/lock`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+/**
+ * Xóa (soft-delete) tài khoản nhân viên (Admin)
+ * Backend: PUT /api/admin/staff/{staffId}/delete
+ *
+ * @param {number|string} staffId
+ * @param {string} token - JWT token
+ * @returns {Promise}
+ */
+export const deleteStaffAccount = (staffId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để thực hiện thao tác.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const id = Number(staffId);
+  if (!Number.isFinite(id) || id <= 0) {
+    const error = new Error('Staff ID không hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/admin/staff/${id}/delete`, {
+    method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
   });
 };

@@ -1,23 +1,45 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
+import { toast } from 'react-toastify';
 import baseStyles from '../BookingRequestManagement/BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import AddStaffAccount from './AddStaffAccount.jsx';
 import styles from './StaffManagement.module.css';
-import { createStaff, fetchAllStaff, fetchAllStaffRoles } from '../../../services/adminService.js';
+import {
+	createStaff,
+	deleteStaffAccount,
+	fetchAllStaff,
+	fetchAllStaffRoles,
+	lockStaffAccount
+} from '../../../services/adminService.js';
 
 function normalizeStaffStatus(value) {
 	const raw = value == null ? '' : String(value).trim().toUpperCase();
 	if (raw === 'ACTIVE') return 'ACTIVE';
 	if (raw === 'INACTIVE') return 'INACTIVE';
+	if (raw === 'LOCKED') return 'LOCKED';
+	if (raw === 'DELETED') return 'DELETED';
 	return raw;
+}
+
+function resolveStaffStatus(staff) {
+	return (
+		staff?.status ??
+		staff?.authStatus ??
+		staff?.staffAuthStatus ??
+		staff?.accountStatus ??
+		staff?.userStatus ??
+		staff?.staffAuth?.status
+	);
 }
 
 function getStaffStatusMeta({ status, isActive }) {
 	const normalizedStatus = normalizeStaffStatus(status);
 	if (normalizedStatus === 'ACTIVE') return { tone: 'success', label: 'Đang hoạt động' };
 	if (normalizedStatus === 'INACTIVE') return { tone: 'danger', label: 'Ngưng hoạt động' };
+	if (normalizedStatus === 'LOCKED') return { tone: 'info', label: 'Đã khóa' };
+	if (normalizedStatus === 'DELETED') return { tone: 'info', label: 'Đã xóa' };
 	if (normalizedStatus) return { tone: 'info', label: normalizedStatus };
 
 	// Backward-compatible fallback if backend returns boolean only
@@ -133,8 +155,8 @@ export default function StaffManagement() {
 		};
 	}, [page, size, date, statusFilter, debouncedSearch, roleIdFilter]);
 
-	useEffect(() => {
-		const token = getAuthToken();
+	const reloadStaffList = useCallback(async (tokenOverride) => {
+		const token = tokenOverride || getAuthToken();
 		if (!token) {
 			setError('Vui lòng đăng nhập để xem danh sách nhân viên.');
 			setStaff([]);
@@ -144,46 +166,47 @@ export default function StaffManagement() {
 			return;
 		}
 
-		const loadData = async () => {
-			const requestSeq = ++requestSeqRef.current;
-			try {
-				setIsLoading(true);
-				setError('');
-				const response = await fetchAllStaff(filters, token);
-				if (requestSeq !== requestSeqRef.current) return;
+		const requestSeq = ++requestSeqRef.current;
+		try {
+			setIsLoading(true);
+			setError('');
+			const response = await fetchAllStaff(filters, token);
+			if (requestSeq !== requestSeqRef.current) return;
 
-				const pageData = response?.data;
-				const list = Array.isArray(pageData?.content) ? pageData.content : [];
-				const apiTotalPages = Number.isFinite(pageData?.totalPages) ? pageData.totalPages : 1;
-				const apiTotalElements =
-					Number.isFinite(pageData?.totalElements) ? pageData.totalElements : list.length;
+			const pageData = response?.data;
+			const list = Array.isArray(pageData?.content) ? pageData.content : [];
+			const visibleList = list.filter((s) => normalizeStaffStatus(resolveStaffStatus(s)) !== 'DELETED');
+			const apiTotalPages = Number.isFinite(pageData?.totalPages) ? pageData.totalPages : 1;
+			const apiTotalElements =
+				Number.isFinite(pageData?.totalElements) ? pageData.totalElements : visibleList.length;
 
-				setStaff(list);
-				setTotalPages(Math.max(1, apiTotalPages));
-				setTotalElements(Math.max(0, apiTotalElements));
-				if (apiTotalPages > 0 && filters.page > apiTotalPages - 1) {
-					setPage(Math.max(0, apiTotalPages - 1));
-				}
-			} catch (err) {
-				if (requestSeq !== requestSeqRef.current) return;
-				const msg = err?.message || 'Không thể tải danh sách nhân viên.';
-				const isUnauthorized = err?.status === 401 || err?.status === 403;
-				if (isUnauthorized) {
-					localStorage.removeItem('authToken');
-					setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-				} else {
-					setError(msg);
-				}
-				setStaff([]);
-				setTotalPages(1);
-				setTotalElements(0);
-			} finally {
-				if (requestSeq === requestSeqRef.current) setIsLoading(false);
+			setStaff(visibleList);
+			setTotalPages(Math.max(1, apiTotalPages));
+			setTotalElements(Math.max(0, apiTotalElements));
+			if (apiTotalPages > 0 && filters.page > apiTotalPages - 1) {
+				setPage(Math.max(0, apiTotalPages - 1));
 			}
-		};
-
-		loadData();
+		} catch (err) {
+			if (requestSeq !== requestSeqRef.current) return;
+			const msg = err?.message || 'Không thể tải danh sách nhân viên.';
+			const isUnauthorized = err?.status === 401 || err?.status === 403;
+			if (isUnauthorized) {
+				localStorage.removeItem('authToken');
+				setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+			} else {
+				setError(msg);
+			}
+			setStaff([]);
+			setTotalPages(1);
+			setTotalElements(0);
+		} finally {
+			if (requestSeq === requestSeqRef.current) setIsLoading(false);
+		}
 	}, [filters]);
+
+	useEffect(() => {
+		reloadStaffList();
+	}, [reloadStaffList]);
 
 	const safeTotalPages = Number.isFinite(totalPages) ? Math.max(1, totalPages) : 1;
 	const safePage = Number.isFinite(page) ? Math.min(Math.max(0, page), safeTotalPages - 1) : 0;
@@ -275,9 +298,45 @@ export default function StaffManagement() {
 		}
 	};
 
-	const handleDeleteStaff = (staffId) => {
-		setStaff((prev) => (prev || []).filter((s) => (s.staffId || s.id) !== staffId));
-		setTotalElements((prev) => Math.max(0, (Number(prev) || 0) - 1));
+	const handleLockStaff = async (staffId) => {
+		if (staffId == null || staffId === '') return;
+		if (!globalThis.confirm('Bạn có chắc chắn muốn khóa tài khoản nhân viên này?')) return;
+		const token = getAuthToken();
+		if (!token) {
+			setError('Vui lòng đăng nhập để thực hiện thao tác.');
+			return;
+		}
+
+		try {
+			await lockStaffAccount(staffId, token);
+			toast.success('Khóa tài khoản nhân viên thành công!');
+			await reloadStaffList(token);
+		} catch (err) {
+			toast.error(err?.message || 'Khóa tài khoản nhân viên thất bại');
+			await reloadStaffList(token);
+		}
+	};
+
+	const handleDeleteStaff = async (staffId) => {
+		if (staffId == null || staffId === '') return;
+		if (!globalThis.confirm('Bạn có chắc chắn muốn xóa tài khoản nhân viên này?')) return;
+		const token = getAuthToken();
+		if (!token) {
+			setError('Vui lòng đăng nhập để thực hiện thao tác.');
+			return;
+		}
+
+		try {
+			await deleteStaffAccount(staffId, token);
+			// Soft-deleted staff should not be displayed.
+			setStaff((prev) => (prev || []).filter((s) => (s.staffId || s.id) !== staffId));
+			setTotalElements((prev) => Math.max(0, (Number(prev) || 0) - 1));
+			toast.success('Xóa tài khoản nhân viên thành công!');
+			await reloadStaffList(token);
+		} catch (err) {
+			toast.error(err?.message || 'Xóa tài khoản nhân viên thất bại');
+			await reloadStaffList(token);
+		}
 	};
 
 	const handleViewStaff = (staffId) => {
@@ -329,6 +388,7 @@ export default function StaffManagement() {
 									<option value="">Tất cả</option>
 									<option value="ACTIVE">Đang hoạt động</option>
 									<option value="INACTIVE">Ngưng hoạt động</option>
+									<option value="LOCKED">Đã khóa</option>								
 								</select>
 								<select
 									value={roleIdFilter}
@@ -401,6 +461,7 @@ export default function StaffManagement() {
 												index={safePage * size + idx + 1}
 												item={item}
 												onView={handleViewStaff}
+												onLock={handleLockStaff}
 												onDelete={handleDeleteStaff}
 											/>
 										))}
@@ -520,10 +581,11 @@ SearchIcon.propTypes = {
 	className: PropTypes.string
 };
 
-function StaffTableRow({ item, index, onView, onDelete }) {
-	const resolvedStatus =
-		item?.status
+function StaffTableRow({ item, index, onView, onLock, onDelete }) {
+	const resolvedStatus = resolveStaffStatus(item);
+	const normalizedStatus = normalizeStaffStatus(resolvedStatus);
 	const statusMeta = getStaffStatusMeta({ status: resolvedStatus, isActive: item?.isActive });
+	const canManage = Boolean(normalizedStatus) && normalizedStatus !== 'DELETED';
 	const roleText =
 		Array.isArray(item?.roles) && item.roles.length > 0
 			? item.roles
@@ -555,6 +617,16 @@ function StaffTableRow({ item, index, onView, onDelete }) {
 					>
 						Xem
 					</button>
+					{canManage && normalizedStatus !== 'LOCKED' && (
+						<button
+							type="button"
+							className={styles.actionBtn}
+							onClick={() => onLock?.(item.staffId || item.id)}
+						>
+							Khóa
+						</button>
+					)}
+					{canManage && (
 					<button
 						type="button"
 						className={`${styles.actionBtn} ${styles.actionDanger}`}
@@ -562,6 +634,7 @@ function StaffTableRow({ item, index, onView, onDelete }) {
 					>
 						Xóa
 					</button>
+					)}
 				</div>
 			</td>
 		</tr>
@@ -596,5 +669,6 @@ StaffTableRow.propTypes = {
 	}).isRequired,
 	index: PropTypes.number.isRequired,
 	onView: PropTypes.func,
+	onLock: PropTypes.func,
 	onDelete: PropTypes.func.isRequired
 };
