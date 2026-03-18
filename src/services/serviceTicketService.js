@@ -171,3 +171,18 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
     }),
   });
 };
+
+// Lấy danh sách loại thuế (tax rules)
+// Endpoint: GET /api/service-ticket/tax-rule/all
+export const fetchTaxRulesAll = (token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem danh sách loại thuế.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  return request('/api/service-ticket/tax-rule/all', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};

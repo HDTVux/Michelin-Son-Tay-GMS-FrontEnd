@@ -57,7 +57,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
   background: white;
   padding: 20px 24px;
   border-radius: 12px;
@@ -397,6 +396,12 @@
   vertical-align: middle;
 }
 
+.table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .table th {
   background: #f9fafb;
   color: #1a1a1a;
@@ -473,11 +478,16 @@
 
 .table th:nth-child(7),
 .table td:nth-child(7) {
-  width: 90px;
+  width: 160px;
 }
 
 .table th:nth-child(8),
 .table td:nth-child(8) {
+  width: 90px;
+}
+
+.table th:nth-child(9),
+.table td:nth-child(9) {
   width: 110px;
 }
 

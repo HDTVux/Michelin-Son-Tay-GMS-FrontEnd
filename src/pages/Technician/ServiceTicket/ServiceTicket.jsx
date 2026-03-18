@@ -306,9 +306,6 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
     }
   };
 
-  const handleSkip = async () => {
-    setSkipModalOpen(true);
-  };
 
   const confirmSkip = async () => {
     try {
