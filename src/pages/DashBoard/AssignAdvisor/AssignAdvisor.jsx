@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import { fetchAvailableStaff, assignStaff } from '../../../services/serviceTicketService';
 import styles from './AssignAdvisor.module.css';
 
 const AssignAdvisor = () => {
@@ -10,10 +12,59 @@ const AssignAdvisor = () => {
   const [showAssistantModal, setShowAssistantModal] = useState(false);
   const [selectedAssistants, setSelectedAssistants] = useState([]);
 
-  // Mock data - Tickets
-  const tickets = [
+  // Data từ API
+  const [tickets, setTickets] = useState([]);
+  const [advisors, setAdvisors] = useState([]);
+  const [isLoadingTickets, setIsLoadingTickets] = useState(false);
+  const [isLoadingAdvisors, setIsLoadingAdvisors] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // Load danh sách advisors từ API
+  useEffect(() => {
+    const loadAdvisors = async () => {
+      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      if (!token) {
+        toast.error('Vui lòng đăng nhập');
+        return;
+      }
+
+      setIsLoadingAdvisors(true);
+      try {
+        // Gọi API lấy available staff với role TECHNICIAN hoặc ADVISOR
+        const response = await fetchAvailableStaff(0, 'TECHNICIAN', token);
+        const staffList = response?.data || [];
+
+        // Map data từ API
+        const mappedAdvisors = staffList.map(staff => ({
+          id: staff.staffId?.toString() || '',
+          staffId: staff.staffId,
+          name: staff.fullName || 'Chưa có tên',
+          phone: staff.phone || '',
+          avatar: staff.avatar || null,
+          role: staff.roles?.[0]?.roleName || 'KTV',
+          roleCode: staff.roles?.[0]?.roleCode || 'TECHNICIAN',
+          availability: 'Sẵn sàng',
+          currentTickets: 0
+        }));
+
+        setAdvisors(mappedAdvisors);
+      } catch (error) {
+        console.error('Error loading advisors:', error);
+        toast.error('Không thể tải danh sách KTV');
+      } finally {
+        setIsLoadingAdvisors(false);
+      }
+    };
+
+    loadAdvisors();
+  }, []);
+
+  // Mock tickets - vì chưa có API lấy danh sách ticket để assign
+  // Trong thực tế sẽ gọi API từ ServiceTicketManagement
+  const mockTickets = [
     {
       id: 'TI12345',
+      ticketId: 1,
       licensePlate: '30A-12345',
       service: 'Bảo dưỡng',
       serviceDetail: 'Thay dầu',
@@ -22,6 +73,7 @@ const AssignAdvisor = () => {
     },
     {
       id: 'TI12346',
+      ticketId: 2,
       licensePlate: '50B-67890',
       service: 'Sửa chữa phanh',
       serviceDetail: 'Sửa chữa phanh',
@@ -30,6 +82,7 @@ const AssignAdvisor = () => {
     },
     {
       id: 'TI12347',
+      ticketId: 3,
       licensePlate: '29C-11223',
       service: 'Thay dầu',
       serviceDetail: 'Thay dầu',
@@ -38,33 +91,9 @@ const AssignAdvisor = () => {
     }
   ];
 
-  // Mock data - Advisors
-  const advisors = [
-    {
-      id: 'ADV001',
-      name: 'Nguyễn Văn A',
-      role: 'Technical Advisor',
-      availability: 'Có lịch: 07:30 - 12:00',
-      currentTickets: 3,
-      avatar: null
-    },
-    {
-      id: 'ADV002',
-      name: 'Trần Thị B',
-      role: 'Service Advisor',
-      availability: 'Có lịch: 10:00 - 17:30',
-      currentTickets: 1,
-      avatar: null
-    },
-    {
-      id: 'ADV003',
-      name: 'Lê Văn C',
-      role: 'Technical Advisor',
-      availability: 'Có lịch: 07:30 - 12:00',
-      currentTickets: 5,
-      avatar: null
-    }
-  ];
+  useEffect(() => {
+    setTickets(mockTickets);
+  }, []);
 
   const filteredTickets = tickets.filter(ticket => {
     const matchService = filterService === 'all' || ticket.service.toLowerCase().includes(filterService.toLowerCase());
@@ -80,8 +109,11 @@ const AssignAdvisor = () => {
     return true;
   });
 
-  const handleTicketSelect = (ticketId) => {
-    setSelectedTickets([ticketId]); // Chỉ chọn 1 ticket
+  const handleTicketSelect = (ticket) => {
+    // Lưu cả id và ticketId
+    setSelectedTickets([ticket]);
+    setSelectedMainAdvisor(null);
+    setSelectedAssistants([]);
   };
 
   const handleAdvisorSelect = (advisorId) => {
@@ -90,46 +122,80 @@ const AssignAdvisor = () => {
 
   const handleAssign = () => {
     if (selectedTickets.length === 0) {
-      alert('Vui lòng chọn ticket!');
+      toast.error('Vui lòng chọn ticket!');
       return;
     }
     if (!selectedMainAdvisor) {
-      alert('Vui lòng chọn KTV chính!');
+      toast.error('Vui lòng chọn KTV chính!');
       return;
     }
-    
+
     // Show modal to add assistant advisors
     setShowAssistantModal(true);
   };
 
-  const handleConfirmAssignment = () => {
-    console.log('Assigning:', {
-      tickets: selectedTickets,
-      mainAdvisor: selectedMainAdvisor,
-      assistants: selectedAssistants
-    });
-    
-    // TODO: Call API to assign
-    alert('Phân công thành công!');
-    
-    // Reset
-    setSelectedTickets([]);
-    setSelectedMainAdvisor(null);
-    setSelectedAssistants([]);
-    setShowAssistantModal(false);
+  const handleConfirmAssignment = async () => {
+    const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+    if (!token) {
+      toast.error('Vui lòng đăng nhập');
+      return;
+    }
+
+    const ticket = selectedTickets[0];
+    if (!ticket?.ticketId) {
+      toast.error('Không tìm thấy thông tin ticket');
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      // Gọi API assign KTV chính
+      const mainAdvisor = advisors.find(a => a.id === selectedMainAdvisor);
+      await assignStaff(ticket.ticketId, {
+        staffId: mainAdvisor?.staffId,
+        roleInTicket: mainAdvisor?.roleCode || 'TECHNICIAN',
+        isPrimary: true,
+        note: ''
+      }, token);
+
+      // Nếu có KTV phụ thì gọi API assign thêm
+      if (selectedAssistants.length > 0) {
+        for (const assistantId of selectedAssistants) {
+          const assistant = advisors.find(a => a.id === assistantId);
+          await assignStaff(ticket.ticketId, {
+            staffId: assistant?.staffId,
+            roleInTicket: assistant?.roleCode || 'TECHNICIAN',
+            isPrimary: false,
+            note: ''
+          }, token);
+        }
+      }
+
+      toast.success('Phân công thành công!');
+
+      // Reset
+      setSelectedTickets([]);
+      setSelectedMainAdvisor(null);
+      setSelectedAssistants([]);
+      setShowAssistantModal(false);
+    } catch (error) {
+      console.error('Error assigning:', error);
+      toast.error('Lỗi khi phân công: ' + (error.message || 'Không xác định'));
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
   const handleSkipAssistant = () => {
-    console.log('Skip assistant, assigning only main advisor');
     handleConfirmAssignment();
   };
 
   const toggleAssistant = (advisorId) => {
     if (advisorId === selectedMainAdvisor) {
-      alert('Không thể chọn KTV chính làm KTV phụ!');
+      toast.warning('Không thể chọn KTV chính làm KTV phụ!');
       return;
     }
-    
+
     setSelectedAssistants(prev => {
       if (prev.includes(advisorId)) {
         return prev.filter(id => id !== advisorId);
@@ -148,11 +214,11 @@ const AssignAdvisor = () => {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <h1 className={styles.title}>Phân công Advisor</h1>
-          <p className={styles.subtitle}>Chọn ticket và advisor để phân công</p>
+          <h1 className={styles.title}>Phân công KTV</h1>
+          <p className={styles.subtitle}>Chọn ticket và KTV để phân công</p>
         </div>
         <div className={styles.roleIndicator}>
-          Assign Advisor (Receptionist/Manager)
+          Phân công KTV (Receptionist/Manager)
         </div>
       </div>
 
@@ -164,7 +230,7 @@ const AssignAdvisor = () => {
           </div>
 
           <div className={styles.filters}>
-            <select 
+            <select
               className={styles.filterSelect}
               value={filterService}
               onChange={(e) => setFilterService(e.target.value)}
@@ -186,17 +252,17 @@ const AssignAdvisor = () => {
 
           <div className={styles.ticketList}>
             {filteredTickets.map((ticket) => (
-              <div 
+              <div
                 key={ticket.id}
-                className={`${styles.ticketCard} ${selectedTickets.includes(ticket.id) ? styles.selected : ''}`}
-                onClick={() => handleTicketSelect(ticket.id)}
+                className={`${styles.ticketCard} ${selectedTickets.some(t => t.id === ticket.id) ? styles.selected : ''}`}
+                onClick={() => handleTicketSelect(ticket)}
               >
                 <div className={styles.ticketHeader}>
                   <div className={styles.checkbox}>
-                    <input 
+                    <input
                       type="radio"
-                      checked={selectedTickets.includes(ticket.id)}
-                      onChange={() => handleTicketSelect(ticket.id)}
+                      checked={selectedTickets.some(t => t.id === ticket.id)}
+                      onChange={() => handleTicketSelect(ticket)}
                       onClick={(e) => e.stopPropagation()}
                     />
                   </div>
@@ -224,7 +290,7 @@ const AssignAdvisor = () => {
           </div>
 
           <div className={styles.filters}>
-            <select 
+            <select
               className={styles.filterSelect}
               value={filterAvailability}
               onChange={(e) => setFilterAvailability(e.target.value)}
@@ -233,63 +299,65 @@ const AssignAdvisor = () => {
               <option value="available">Rảnh</option>
               <option value="busy">Bận</option>
             </select>
-            <div className={styles.toggleSwitch}>
-              <input type="checkbox" id="toggle" />
-              <label htmlFor="toggle"></label>
-            </div>
           </div>
 
-          <div className={styles.advisorList}>
-            {filteredAdvisors.map((advisor) => (
-              <div 
-                key={advisor.id}
-                className={`${styles.advisorCard} ${selectedMainAdvisor === advisor.id ? styles.selected : ''}`}
-                onClick={() => handleAdvisorSelect(advisor.id)}
-              >
-                <div className={styles.advisorLeft}>
-                  <div className={styles.radioButton}>
-                    <input 
-                      type="radio"
-                      checked={selectedMainAdvisor === advisor.id}
-                      onChange={() => handleAdvisorSelect(advisor.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+          {isLoadingAdvisors ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+              Đang tải danh sách KTV...
+            </div>
+          ) : (
+            <div className={styles.advisorList}>
+              {filteredAdvisors.map((advisor) => (
+                <div
+                  key={advisor.id}
+                  className={`${styles.advisorCard} ${selectedMainAdvisor === advisor.id ? styles.selected : ''}`}
+                  onClick={() => handleAdvisorSelect(advisor.id)}
+                >
+                  <div className={styles.advisorLeft}>
+                    <div className={styles.radioButton}>
+                      <input
+                        type="radio"
+                        checked={selectedMainAdvisor === advisor.id}
+                        onChange={() => handleAdvisorSelect(advisor.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className={styles.advisorAvatar}>
+                      {advisor.avatar ? (
+                        <img src={advisor.avatar} alt={advisor.name} />
+                      ) : (
+                        <div className={styles.avatarPlaceholder}>
+                          {advisor.name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                    <div className={styles.advisorInfo}>
+                      <div className={styles.advisorName}>{advisor.name}</div>
+                      <div className={styles.advisorRole}>{advisor.role}</div>
+                      <div className={styles.advisorAvailability}>{advisor.availability}</div>
+                      <div className={styles.advisorTickets}>{advisor.currentTickets} tickets</div>
+                    </div>
                   </div>
-                  <div className={styles.advisorAvatar}>
-                    {advisor.avatar ? (
-                      <img src={advisor.avatar} alt={advisor.name} />
-                    ) : (
-                      <div className={styles.avatarPlaceholder}>
-                        {advisor.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <div className={styles.advisorInfo}>
-                    <div className={styles.advisorName}>{advisor.name}</div>
-                    <div className={styles.advisorRole}>{advisor.role}</div>
-                    <div className={styles.advisorAvailability}>{advisor.availability}</div>
-                    <div className={styles.advisorTickets}>{advisor.currentTickets} tickets</div>
+                  <div className={styles.advisorRight}>
+                    <span className={styles.statusBadge}>
+                      {advisor.currentTickets < 5 ? 'Rảnh' : 'Bận'}
+                    </span>
                   </div>
                 </div>
-                <div className={styles.advisorRight}>
-                  <span className={styles.statusBadge}>
-                    {advisor.currentTickets < 5 ? 'Rảnh' : 'Bận'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Footer */}
       <div className={styles.footer}>
         <div className={styles.summary}>
-          Đã chọn: {selectedTickets.length} tickets, {selectedMainAdvisor ? '1' : '0'} advisor
+          Đã chọn: {selectedTickets.length} ticket, {selectedMainAdvisor ? '1' : '0'} KTV
         </div>
         <div className={styles.actions}>
           <button className={styles.btnCancel}>Hủy</button>
-          <button 
+          <button
             className={styles.btnAssign}
             onClick={handleAssign}
             disabled={selectedTickets.length === 0 || !selectedMainAdvisor}
@@ -301,13 +369,14 @@ const AssignAdvisor = () => {
 
       {/* Assistant Modal */}
       {showAssistantModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAssistantModal(false)}>
+        <div className={styles.modalOverlay} onClick={() => !isAssigning && setShowAssistantModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>Thêm KTV phụ</h3>
-              <button 
+              <button
                 className={styles.modalClose}
-                onClick={() => setShowAssistantModal(false)}
+                onClick={() => !isAssigning && setShowAssistantModal(false)}
+                disabled={isAssigning}
               >
                 ✕
               </button>
@@ -322,13 +391,13 @@ const AssignAdvisor = () => {
                 {advisors
                   .filter(adv => adv.id !== selectedMainAdvisor)
                   .map((advisor) => (
-                    <div 
+                    <div
                       key={advisor.id}
                       className={`${styles.assistantCard} ${selectedAssistants.includes(advisor.id) ? styles.selected : ''}`}
                       onClick={() => toggleAssistant(advisor.id)}
                     >
                       <div className={styles.checkbox}>
-                        <input 
+                        <input
                           type="checkbox"
                           checked={selectedAssistants.includes(advisor.id)}
                           onChange={() => toggleAssistant(advisor.id)}
@@ -351,17 +420,19 @@ const AssignAdvisor = () => {
             </div>
 
             <div className={styles.modalFooter}>
-              <button 
+              <button
                 className={styles.btnSkip}
                 onClick={handleSkipAssistant}
+                disabled={isAssigning}
               >
                 Bỏ qua
               </button>
-              <button 
+              <button
                 className={styles.btnConfirm}
                 onClick={handleConfirmAssignment}
+                disabled={isAssigning}
               >
-                Xác nhận ({selectedAssistants.length} KTV phụ)
+                {isAssigning ? 'Đang phân công...' : `Xác nhận (${selectedAssistants.length} KTV phụ)`}
               </button>
             </div>
           </div>

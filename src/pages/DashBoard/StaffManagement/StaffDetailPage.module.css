@@ -15,6 +15,19 @@
 	flex-wrap: wrap;
 }
 
+.headerRight {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.headerActions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
 .title {
 	font-size: 18px;
 	font-weight: 800;
@@ -128,6 +141,35 @@
 	word-break: break-word;
 }
 
+.input {
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid var(--ui-border);
+	background: var(--ui-surface);
+	color: var(--ui-text);
+	font-weight: 700;
+	font-size: 14px;
+}
+
+.select {
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid var(--ui-border);
+	background: var(--ui-surface);
+	color: var(--ui-text);
+	font-weight: 700;
+	font-size: 14px;
+}
+
+.hint {
+	margin-top: 6px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--ui-muted);
+}
+
 .roleList {
 	display: flex;
 	flex-wrap: wrap;
@@ -144,4 +186,24 @@
 	color: var(--ui-text);
 	font-size: 13px;
 	font-weight: 700;
+}
+
+.checkboxList {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 8px;
+}
+
+.checkboxItem {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 14px;
+	font-weight: 700;
+	color: var(--ui-text);
+}
+
+.checkboxItem input {
+	width: 16px;
+	height: 16px;
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { toast } from 'react-toastify';
-import { fetchAllCustomers, updateCustomer } from '../../../services/adminService.js';
+import { deleteCustomerAccount, fetchAllCustomers, lockCustomerAccount } from '../../../services/adminService.js';
 import styles from './CustomerManager.module.css';
 
 import CreateCustomerModal from './CreateCustomerModal.jsx';
@@ -70,14 +70,20 @@ const CustomerManager = () => {
       if (response?.success && response?.data) {
         const { content, totalElements } = response.data;
 
+        // Hide soft-deleted customers from UI.
+        const visibleContent = (content || []).filter((customer) => {
+          const status = normalizeCustomerStatus(resolveCustomerStatus(customer));
+          return status !== 'DELETED';
+        });
+
         // If requesting an out-of-range page, Spring may return empty content but still have totalElements.
         // Auto-step back so pagination remains usable.
-        if ((content?.length || 0) === 0 && (totalElements || 0) > 0 && currentPage > 1) {
+        if ((visibleContent?.length || 0) === 0 && (totalElements || 0) > 0 && currentPage > 1) {
           setCurrentPage((prev) => Math.max(1, prev - 1));
           return;
         }
 
-        setCustomers(content || []);
+        setCustomers(visibleContent);
         setTotalItems(totalElements || 0);
       }
     } catch (error) {
@@ -138,32 +144,28 @@ const CustomerManager = () => {
     }
   };
 
-  const updateCustomerStatus = async (customerId, nextStatus) => {
-    const token = getAuthToken();
-    if (!token) {
-      toast.error('Vui lòng đăng nhập để thực hiện thao tác');
-      return;
-    }
-
-    if (customerId == null || customerId === '') {
-      toast.error('Không tìm thấy ID khách hàng');
-      return;
-    }
-
-    await updateCustomer(customerId, { status: nextStatus }, token);
-  };
-
   const handleLockAccount = async (customerId) => {
     if (!globalThis.confirm('Bạn có chắc chắn muốn khóa tài khoản này?')) return;
     try {
-      setCustomers((prevCustomers) =>
-        (prevCustomers || []).map((customer) => {
-          const id = customer?.customerId ?? customer?.id;
-          if (id !== customerId) return customer;
-          return { ...customer, status: 'LOCKED' };
-        })
-      );
-      await updateCustomerStatus(customerId, 'LOCKED');
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Vui lòng đăng nhập để thực hiện thao tác');
+        return;
+      }
+
+      const response = await lockCustomerAccount(customerId, token);
+
+      if (response?.success && response?.data) {
+        const updated = response.data;
+        setCustomers((prevCustomers) =>
+          (prevCustomers || []).map((customer) => {
+            const id = customer?.customerId ?? customer?.id;
+            if (id !== customerId) return customer;
+            return { ...customer, ...updated };
+          })
+        );
+      }
+
       toast.success('Khóa tài khoản thành công!');
       loadCustomers();
     } catch (error) {
@@ -176,14 +178,26 @@ const CustomerManager = () => {
   const handleDeleteAccount = async (customerId) => {
     if (!globalThis.confirm('Bạn có chắc chắn muốn xóa tài khoản này? Hành động này không thể hoàn tác!')) return;
     try {
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Vui lòng đăng nhập để thực hiện thao tác');
+        return;
+      }
+
+      const response = await deleteCustomerAccount(customerId, token);
+
+      // Remove from UI immediately (soft-delete should not be displayed).
       setCustomers((prevCustomers) =>
-        (prevCustomers || []).map((customer) => {
+        (prevCustomers || []).filter((customer) => {
           const id = customer?.customerId ?? customer?.id;
-          if (id !== customerId) return customer;
-          return { ...customer, status: 'DELETED' };
+          return id !== customerId;
         })
       );
-      await updateCustomerStatus(customerId, 'DELETED');
+
+      if (response?.success && response?.data) {
+        // Nothing else needed; list will be refreshed below.
+      }
+
       toast.success('Xóa tài khoản thành công!');
       loadCustomers();
     } catch (error) {
@@ -233,7 +247,16 @@ const CustomerManager = () => {
               </tr>
             </thead>
             <tbody>
-              {customers.map((customer, index) => (
+              {customers
+                .filter((customer) => {
+                  const status = normalizeCustomerStatus(resolveCustomerStatus(customer));
+                  return status !== 'DELETED';
+                })
+                .map((customer, index) => {
+                  const status = normalizeCustomerStatus(resolveCustomerStatus(customer));
+                  const canManage = status !== null && status !== 'DELETED';
+
+                  return (
                 <tr key={customer.customerId || customer.id}>
                   <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
                   <td>
@@ -241,14 +264,9 @@ const CustomerManager = () => {
                   </td>
                   <td>{customer.phone}</td>
                   <td>
-      {(() => {
-        const status = normalizeCustomerStatus(resolveCustomerStatus(customer));
-        return (
-          <span className={`${styles.statusBadge} ${getStatusBadgeClass(status)}`}>
-            {getStatusText(status)}
-          </span>
-        );
-      })()}
+                    <span className={`${styles.statusBadge} ${getStatusBadgeClass(status)}`}>
+                      {getStatusText(status)}
+                    </span>
                   </td>
                   <td>{customer.totalBookings || 0}</td>
                   <td>
@@ -260,24 +278,31 @@ const CustomerManager = () => {
                       >
                         Xem
                       </button>
-                      <button
-                        className={`${styles.actionBtn} ${styles.lockBtn}`}
-                        onClick={() => handleLockAccount(customer.customerId || customer.id)}
-                        title="Khóa tài khoản"
-                      >
-                        Khóa
-                      </button>
-                      <button
-                        className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                        onClick={() => handleDeleteAccount(customer.customerId || customer.id)}
-                        title="Xóa tài khoản"
-                      >
-                        Xóa
-                      </button>
+                      {canManage && (
+                        <>
+                          {status !== 'LOCKED' && (
+                            <button
+                              className={`${styles.actionBtn} ${styles.lockBtn}`}
+                              onClick={() => handleLockAccount(customer.customerId || customer.id)}
+                              title="Khóa tài khoản"
+                            >
+                              Khóa
+                            </button>
+                          )}
+                          <button
+                            className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                            onClick={() => handleDeleteAccount(customer.customerId || customer.id)}
+                            title="Xóa tài khoản"
+                          >
+                            Xóa
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
-              ))}
+                  );
+                })}
             </tbody>
           </table>
         </div>
@@ -350,6 +375,7 @@ const CustomerManager = () => {
             <option value="ALL">Tất cả trạng thái</option>
             <option value="ACTIVE">Hoạt động</option>
             <option value="INACTIVE">Không hoạt động</option>
+            <option value="LOCKED">Đã khóa</option>
           </select>
 
 
