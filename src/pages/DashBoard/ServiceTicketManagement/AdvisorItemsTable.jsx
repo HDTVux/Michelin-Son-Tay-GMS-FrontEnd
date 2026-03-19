@@ -395,8 +395,8 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 		const itemsPayload = currentItems.map((it, idx) => {
 			const workCategoryId = it?.workCategoryId ?? it?.workCategory?.workCategoryId ?? it?.workCategory?.id ?? null;
 			const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
-			const newCategoryName = String(it?.newCategoryName || it?.workCategory?.categoryName || it?.workCategory?.categoryCode || '').trim();
-			const itemName = String(it?.itemName || '').trim();
+			const newCategoryName = String(it?.newCategoryName || it?.workCategory?.categoryName || it?.workCategory?.categoryCode || '',).trim() || null;
+			const itemName = String(it?.itemName ?? '').trim() || null;
 			const quantity = toNumberOrZero(it?.quantity);
 			const unitPrice = toNumberOrZero(it?.unitPrice);
 			const taxRuleId = it?.taxRuleId ?? null;
@@ -470,9 +470,11 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 		}
 
 		const normalized = draftRows
+			.filter((r) => !isDraftRowEmpty(r))
 			.map((r) => {
-				const newCategoryName = String(r.newCategoryName || '').trim();
-				const itemName = String(r.itemName || '').trim();
+
+				const newCategoryName = String(r.newCategoryName ?? '').trim() || null;
+				const itemName = String(r.itemName ?? '').trim() || null;
 				const quantity = toNumberOrZero(r.quantity);
 				const unitPrice = toNumberOrZero(r.unitPrice);
 				const taxRuleId = toIdOrNull(r?.taxRuleId);
@@ -487,7 +489,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 					isChecked: Boolean(r?.confirmed),
 				};
 			})
-			.filter((it) => it.newCategoryName && it.itemName && it.quantity > 0);
+			.filter((it) => it.newCategoryName && it.quantity > 0);
 
 		if (normalized.some((it) => !it.taxRuleId)) {
 			setSaveError('Vui lòng chọn loại thuế cho tất cả hạng mục.');
@@ -497,7 +499,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 		const items = normalized;
 
 		if (items.length === 0) {
-			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, diễn giải, số lượng).');
+			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
 			return;
 		}
 
@@ -544,9 +546,11 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 		}
 
 		const normalized = editRows
+			.filter((r) => !isDraftRowEmpty(r))
 			.map((r) => {
-				const newCategoryName = String(r.newCategoryName || '').trim();
-				const itemName = String(r.itemName || '').trim();
+
+				const newCategoryName = String(r.newCategoryName ?? '').trim() || null;
+				const itemName = String(r.itemName ?? '').trim() || null;
 				const quantity = toNumberOrZero(r.quantity);
 				const unitPrice = toNumberOrZero(r.unitPrice);
 				const taxRuleId = toIdOrNull(r?.taxRuleId);
@@ -561,7 +565,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 					isChecked: Boolean(r?.confirmed),
 				};
 			})
-			.filter((it) => it.newCategoryName && it.itemName && it.quantity > 0);
+			.filter((it) => it.newCategoryName && it.quantity > 0);
 
 		if (normalized.some((it) => !it.taxRuleId)) {
 			setSaveError('Vui lòng chọn loại thuế cho tất cả hạng mục.');
@@ -571,7 +575,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 		const items = normalized;
 
 		if (items.length === 0) {
-			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, diễn giải, số lượng).');
+			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
 			return;
 		}
 
