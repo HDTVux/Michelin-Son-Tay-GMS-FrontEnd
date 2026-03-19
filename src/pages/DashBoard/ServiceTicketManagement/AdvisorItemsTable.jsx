@@ -67,6 +67,13 @@ function toNumberOrZero(value) {
 	return Number.isFinite(n) ? n : 0;
 }
 
+function pickMoneyDisplayValue(withVatValue, baseValue) {
+	const withVatNum = toNumberOrZero(withVatValue);
+	if (withVatNum > 0) return withVatNum;
+	const baseNum = toNumberOrZero(baseValue);
+	return baseNum > 0 ? baseNum : '';
+}
+
 function toIdOrNull(value) {
 	if (value == null) return null;
 	const n = typeof value === 'number' ? value : Number(String(value).trim());
@@ -231,10 +238,18 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 			const quantity = it?.quantity ?? '';
 			const unitPrice = it?.unitPrice ?? '';
 			const subTotal = it?.subTotal ?? '';
+			const unitPriceWithVat = it?.unitPriceWithVat ?? it?.unitPriceWithVAT ?? '';
+			const subTotalWithVat = it?.subTotalWithVat ?? it?.subTotalWithVAT ?? '';
 			const categoryName = it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
 			const confirmed = getItemCheckedFlag(it);
 			const estimateItemId = it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null;
-			const workCategoryId = it?.workCategoryId ?? it?.workCategory?.workCategoryId ?? it?.workCategory?.id ?? null;
+			const workCategoryId =
+				it?.workCategoryId ??
+				it?.workCateId ??
+				it?.workCategory?.workCategoryId ??
+				it?.workCategory?.workCateId ??
+				it?.workCategory?.id ??
+				null;
 			const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
 			return {
 				key: String(it?.estimateItemId ?? it?.itemId ?? it?.itemName ?? `item-${idx}`),
@@ -247,6 +262,8 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 				quantity,
 				unitPrice,
 				subTotal,
+				unitPriceDisplay: pickMoneyDisplayValue(unitPriceWithVat, unitPrice),
+				subTotalDisplay: pickMoneyDisplayValue(subTotalWithVat, subTotal),
 				taxRuleId: it?.taxRuleId ?? '',
 				confirmed,
 				isRemoved: Boolean(it?.isRemoved),
@@ -304,13 +321,8 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 	const total = useMemo(() => {
 		const raw = estimate?.totalPrice;
 		const n = typeof raw === 'number' ? raw : Number(raw);
-		if (Number.isFinite(n)) return n;
-		// fallback: sum subtotals if totalPrice missing
-		return rows.reduce((acc, r) => {
-			const v = typeof r.subTotal === 'number' ? r.subTotal : Number(r.subTotal);
-			return acc + (Number.isFinite(v) ? v : 0);
-		}, 0);
-	}, [estimate, rows]);
+		return Number.isFinite(n) ? n : 0;
+	}, [estimate]);
 
 	const estimateCostText = useMemo(() => {
 		if (isCreating) return formatCurrencyVnd(draftTotal) || '-';
@@ -325,8 +337,10 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 	}, [fetched, loading, loadError, estimate, isCreating, isEditing]);
 
 	const statusLine = useMemo(() => {
-		return saveError || loadError || taxRulesError || 'Chưa bao gồm VAT';
-	}, [saveError, loadError, taxRulesError]);
+		if (saveError || loadError || taxRulesError) return saveError || loadError || taxRulesError;
+		if (isCreating || isEditing) return 'Chưa bao gồm VAT';
+		return 'Đã bao gồm VAT';
+	}, [saveError, loadError, taxRulesError, isCreating, isEditing]);
 
 	const footerTotalText = useMemo(() => {
 		if (isCreating) return formatCurrencyVnd(draftTotal);
@@ -369,7 +383,13 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 			.filter((it) => !it?.isRemoved)
 			.map((it) => ({
 				estimateItemId: it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null,
-				workCategoryId: it?.workCategoryId ?? it?.workCategory?.workCategoryId ?? it?.workCategory?.id ?? null,
+				workCategoryId:
+					it?.workCategoryId ??
+					it?.workCateId ??
+					it?.workCategory?.workCategoryId ??
+					it?.workCategory?.workCateId ??
+					it?.workCategory?.id ??
+					null,
 				itemId: it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null,
 				newCategoryName: String(it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '').trim(),
 				itemName: String(it?.itemName || '').trim(),
@@ -414,7 +434,13 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 		if (!currentItems.length) return;
 
 		const itemsPayload = currentItems.map((it, idx) => {
-			const workCategoryId = it?.workCategoryId ?? it?.workCategory?.workCategoryId ?? it?.workCategory?.id ?? null;
+			const workCategoryId =
+				it?.workCategoryId ??
+				it?.workCateId ??
+				it?.workCategory?.workCategoryId ??
+				it?.workCategory?.workCateId ??
+				it?.workCategory?.id ??
+				null;
 			const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
 			const newCategoryName = String(it?.newCategoryName || it?.workCategory?.categoryName || it?.workCategory?.categoryCode || '',).trim() || null;
 			const itemName = String(it?.itemName ?? '').trim() || null;
@@ -888,10 +914,12 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 												disabled={isSaving}
 											/>
 										) : (
-											formatCurrencyVnd(row.unitPrice)
+											formatCurrencyVnd(row.unitPriceDisplay ?? row.unitPrice)
 										)}
 									</td>
-									<td className={styles.tdNumber}>{formatCurrencyVnd(row.subTotal)}</td>
+									<td className={styles.tdNumber}>
+										{showInputs ? formatCurrencyVnd(row.subTotal) : formatCurrencyVnd(row.subTotalDisplay ?? row.subTotal)}
+									</td>
 									<td>
 										{showInputs ? (
 											<select

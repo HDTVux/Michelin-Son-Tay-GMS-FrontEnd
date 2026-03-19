@@ -275,7 +275,7 @@ export default function ReceiptConfirm() {
 		};
 	}, [ticket, receivedAtDisplay, handoverAtDisplay, payItems, subtotal, discountAmount, vatAmount, total, appliedPromo]);
 
-	const confirmAndPrint = async () => {
+	const handlePrint = () => {
 		if (ticketLoading || estimateLoading) return;
 		if (payItems.length === 0) {
 			notify('Chưa có hạng mục nào được advisor xác nhận để thanh toán.');
@@ -287,6 +287,23 @@ export default function ReceiptConfirm() {
 			requestAnimationFrame(() => {
 				if (typeof globalThis?.print === 'function') globalThis.print();
 			});
+		});
+	};
+
+	const handleConfirm = () => {
+		if (ticketLoading || estimateLoading) return;
+		if (payItems.length === 0) {
+			notify('Chưa có hạng mục nào được advisor xác nhận để thanh toán.');
+			return;
+		}
+
+		const code = ticket.ticketCode || ticketCodeParam;
+		navigate(`/service-ticket/${encodeURIComponent(String(code || '').trim())}/receipt-payment-method`, {
+			state: {
+				ticket: ticketRaw ?? ticketFromState ?? null,
+				printTicket,
+				total,
+			},
 		});
 	};
 
@@ -410,11 +427,19 @@ export default function ReceiptConfirm() {
 						</button>
 						<button
 							type="button"
-							className="ui-btn ui-btn--primary"
-							onClick={confirmAndPrint}
+							className="ui-btn ui-btn--ghost"
+							onClick={handlePrint}
 							disabled={ticketLoading || estimateLoading || !!ticketError}
 						>
-							Xác nhận
+							In hóa đơn
+						</button>
+						<button
+							type="button"
+							className="ui-btn ui-btn--primary"
+							onClick={handleConfirm}
+							disabled={ticketLoading || estimateLoading || !!ticketError}
+						>
+							Phương thức thanh toán
 						</button>
 					</div>
 				</div>
