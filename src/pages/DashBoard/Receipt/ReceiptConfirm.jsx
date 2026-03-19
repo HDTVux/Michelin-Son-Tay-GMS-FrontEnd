@@ -192,6 +192,7 @@ export default function ReceiptConfirm() {
 	const estimateItems = useMemo(() => {
 		const items = Array.isArray(estimate?.items) ? estimate.items : [];
 		return items
+			.filter((it) => !it?.isRemoved)
 			.map((it, idx) => {
 				const quantity = toMoneyNumber(it?.quantity);
 				const unitPrice = toMoneyNumber(it?.unitPrice);
@@ -347,10 +348,7 @@ export default function ReceiptConfirm() {
 
 					<section className={styles.section}>
 						<h2 className={styles.sectionTitle}>Áp dụng khuyến mãi</h2>
-						<div className={styles.promoTotalBar}>
-							<span>Tổng tiền hiện tại:</span>
-							<span className={styles.promoTotalValue}>{formatCurrencyVnd(total)}</span>
-						</div>
+						<div className={styles.promoTotalBar}></div>
 
 						<div className={styles.promoRow}>
 							<div className={styles.promoField}>
@@ -363,16 +361,9 @@ export default function ReceiptConfirm() {
 										onChange={(e) => setPromoCode(e.target.value)}
 										placeholder="Mã khuyến mãi"
 									/>
-									<button type="button" className="ui-btn ui-btn--ghost" disabled>
-										Quét QR
-									</button>
 								</div>
 							</div>
 						</div>
-
-						<button type="button" className={`ui-btn ui-btn--primary ${styles.applyBtn}`} onClick={applyPromotion}>
-							Áp dụng
-						</button>
 
 						<div className={styles.promoRow}>
 							<label htmlFor="promo-combo">Hoặc chọn combo:</label>
@@ -386,6 +377,12 @@ export default function ReceiptConfirm() {
 								<option value="COMBO_THANG">Gói combo tháng</option>
 							</select>
 						</div>
+
+						<button type="button" className={`ui-btn ui-btn--primary ${styles.applyBtn}`} onClick={applyPromotion}>
+							Áp dụng
+						</button>
+
+
 
 						{appliedPromo?.label ? <div className={styles.promoChip}>{appliedPromo.label}</div> : null}
 
