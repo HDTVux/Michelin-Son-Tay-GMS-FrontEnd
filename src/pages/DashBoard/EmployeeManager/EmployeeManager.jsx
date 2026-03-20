@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchAllStaff, fetchAllStaffRoles } from '../../../services/adminService.js';
@@ -28,19 +27,6 @@ const resolveStaffStatus = (staff) =>
   staff?.userStatus ??
   staff?.staffAuth?.status;
 
-const getInitials = (name) => {
-  if (!name) return 'NV';
-  const parts = String(name).trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] || '';
-  const last = parts.length > 1 ? parts.at(-1)?.[0] : parts[0]?.[1] || '';
-  return (first + last).toUpperCase() || 'NV';
-};
-
-const getPerfLevel = (score) => {
-  if (score >= 75) return 'high';
-  if (score >= 40) return 'medium';
-  return 'low';
-};
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
@@ -67,10 +53,10 @@ const EmployeeManager = () => {
   // ── Derived summary stats ─────────────────────────────────────────────────
   const stats = useMemo(() => {
     const total = employees.length;
-    const active   = employees.filter((e) => normalizeStatus(resolveStaffStatus(e)) === 'ACTIVE').length;
-    const inactive = employees.filter((e) => normalizeStatus(resolveStaffStatus(e)) === 'INACTIVE').length;
-    const locked   = employees.filter((e) => normalizeStatus(resolveStaffStatus(e)) === 'LOCKED').length;
-    return { total, active, inactive, locked };
+    const active     = employees.filter((e) => normalizeStatus(resolveStaffStatus(e)) === 'ACTIVE').length;
+    const totalTickets  = employees.reduce((s, e) => s + (e.totalTickets || 0), 0);
+    const totalServices = employees.reduce((s, e) => s + (e.totalServices || 0), 0);
+    return { total, active, totalTickets, totalServices };
   }, [employees]);
 
   // ── Load roles ────────────────────────────────────────────────────────────
@@ -221,12 +207,12 @@ const EmployeeManager = () => {
           <div className={styles.statLabel}>Đang hoạt động</div>
         </div>
         <div className={`${styles.statCard} ${styles.statInactive}`}>
-          <div className={styles.statValue}>{stats.inactive}</div>
-          <div className={styles.statLabel}>Ngưng hoạt động</div>
+          <div className={styles.statValue}>{stats.totalTickets}</div>
+          <div className={styles.statLabel}>Tổng Ticket</div>
         </div>
         <div className={`${styles.statCard} ${styles.statLocked}`}>
-          <div className={styles.statValue}>{stats.locked}</div>
-          <div className={styles.statLabel}>Đã khóa</div>
+          <div className={styles.statValue}>{stats.totalServices}</div>
+          <div className={styles.statLabel}>Tổng Dịch Vụ</div>
         </div>
         <div className={`${styles.statCard} ${styles.statRating}`}>
           <div className={styles.statValue}>4.7</div>
@@ -269,110 +255,110 @@ const EmployeeManager = () => {
         </div>
       </div>
 
-      {/* Employee list */}
-      {displayedEmployees.length === 0 ? (
-        <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>👤</div>
-          <div className={styles.emptyTitle}>Không có nhân viên nào</div>
-          <div className={styles.emptyMessage}>Thử thay đổi bộ lọc hoặc thêm nhân viên mới</div>
+      {/* Employee Table */}
+      <div className={styles.tableCard}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>NHÂN VIÊN</th>
+              <th>VAI TRÒ</th>
+              <th>TRẠNG THÁI</th>
+              <th>TỔNG TICKET</th>
+              <th>TỔNG DỊCH VỤ</th>
+              <th>TỔNG GIỜ LÀM</th>
+              <th>ĐÁNH GIÁ</th>
+              <th>HÀNH ĐỘNG</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayedEmployees.length === 0 ? (
+              <tr>
+                <td colSpan={9} className={styles.emptyRow}>
+                  Không có nhân viên nào phù hợp.
+                </td>
+              </tr>
+            ) : (
+              displayedEmployees.map((emp, idx) => {
+                const status = normalizeStatus(resolveStaffStatus(emp));
+                const statusMeta = getStatusMeta(status);
+                const roleLabel = getRoleLabel(emp);
+                return (
+                  <tr key={emp.staffId || emp.id || idx}>
+                    <td>{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+                    <td>
+                      <div className={styles.employeeCell}>
+                        <img
+                          src={emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.fullName || 'NV')}&background=1E90FF&color=fff`}
+                          alt={emp.fullName || 'Avatar'}
+                          className={styles.avatar}
+                        />
+                        <div className={styles.employeeMeta}>
+                          <div className={styles.employeeName}>{emp.fullName || emp.name || '-'}</div>
+                          <div className={styles.employeeSub}>{emp.phone || '-'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={styles.roleBadge}>{roleLabel}</span>
+                    </td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${statusMeta.cls}`}>
+                        {statusMeta.label}
+                      </span>
+                    </td>
+                    <td>{emp.totalTickets || 0}</td>
+                    <td>{emp.totalServices || 0}</td>
+                    <td>{emp.totalHours ? `${emp.totalHours} giờ` : '0 giờ'}</td>
+                    <td>{emp.avgRating ? `${emp.avgRating} ★` : 'Chưa có'}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className={styles.actionBtn}
+                        onClick={() => navigate(`/employee-manager/${emp.staffId || emp.id}`)}
+                      >
+                        Xem chi tiết
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      <div className={styles.pagination}>
+        <div className={styles.paginationInfo}>
+          Hiển thị {(currentPage - 1) * itemsPerPage + 1} – {Math.min(currentPage * itemsPerPage, totalItems)} trong {totalItems} nhân viên
         </div>
-      ) : (
-        <div>
-          <div className={styles.employeeList}>
-            {displayedEmployees.map((emp, idx) => {
-              const status = normalizeStatus(resolveStaffStatus(emp));
-              const statusMeta = getStatusMeta(status);
-              const roleLabel = getRoleLabel(emp);
-              // Mock perf/rating — replace with real API data when available
-              const perfScore = emp._perf ?? Math.round(55 + Math.random() * 45);
-              const ratingVal = emp._rating ?? parseFloat((4 + Math.random()).toFixed(1));
-              const perfLevel = getPerfLevel(perfScore);
-
-              return (
-                <div key={emp.staffId || emp.id || idx} className={styles.employeeCard}>
-                  {/* Info */}
-                  <div className={styles.employeeInfo}>
-                    <div className={styles.avatar}>
-                      {emp.avatar ? (
-                        <img src={emp.avatar} alt={emp.fullName} />
-                      ) : (
-                        getInitials(emp.fullName)
-                      )}
-                    </div>
-                          <div className={styles.employeeMeta}>
-                      <div className={styles.employeeName}>{emp.fullName || emp.name || '-'}</div>
-                      <div className={styles.employeeSub}>{emp.phone || '-'}</div>
-                    </div>
-                  </div>
-
-                  {/* Role */}
-                  <div className={styles.infoCell}>
-                    <div className={styles.infoLabel}>Vai trò</div>
-                    <span className={styles.roleBadge}>{roleLabel}</span>
-                  </div>
-
-                  {/* Hiệu suất */}
-                  <div className={styles.infoCell}>
-                    <div className={styles.infoLabel}>Hiệu suất</div>
-                    <div className={styles.perfBarWrap}>
-                      <div className={`${styles.perfBarFill} ${styles[perfLevel]}`} style={{ width: `${perfScore}%` }} />
-                    </div>
-                    <div className={styles.perfText}>{perfScore}%</div>
-                  </div>
-
-                  {/* Trạng thái */}
-                  <div className={styles.infoCell}>
-                    <div className={styles.infoLabel}>Trạng thái</div>
-                    <span className={`${styles.statusBadge} ${statusMeta.cls}`}>
-                      {statusMeta.label}
-                    </span>
-                  </div>
-
-                  {/* Action */}
-                  <button
-                    className={styles.viewDetailBtn}
-                    onClick={() => navigate(`/employee-manager/${emp.staffId || emp.id}`)}
-                  >
-                    Xem chi tiết
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Pagination */}
-          <div className={styles.pagination}>
-            <div className={styles.paginationInfo}>
-              Hiển thị {(currentPage - 1) * itemsPerPage + 1} – {Math.min(currentPage * itemsPerPage, totalItems)} trong {totalItems} nhân viên
-            </div>
-            <div className={styles.paginationButtons}>
-              <button
-                className={styles.pageBtn}
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => p - 1)}
-              >
-                Trước
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  className={`${styles.pageBtn} ${currentPage === p ? styles.active : ''}`}
-                  onClick={() => setCurrentPage(p)}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                className={styles.pageBtn}
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
-              >
-                Sau
-              </button>
-            </div>
-          </div>
+        <div className={styles.paginationButtons}>
+          <button
+            className={styles.pageBtn}
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => p - 1)}
+          >
+            Trước
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              className={`${styles.pageBtn} ${currentPage === p ? styles.active : ''}`}
+              onClick={() => setCurrentPage(p)}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            className={styles.pageBtn}
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => p + 1)}
+          >
+            Sau
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Create Modal */}
       <CreateEmployeeModal

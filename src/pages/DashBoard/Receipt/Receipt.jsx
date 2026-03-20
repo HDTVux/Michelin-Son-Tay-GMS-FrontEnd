@@ -280,11 +280,6 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         <td colSpan={2} />
                     </tr>
                     <tr>
-                        <td colSpan={5} className={styles.totalLabel}>THUẾ VAT</td>
-                        <td className={styles.tdRight}>{vatAmount ? formatCurrencyVnd(vatAmount) : ''}</td>
-                        <td colSpan={2} />
-                    </tr>
-                    <tr>
                         <td colSpan={5} className={styles.totalLabel}>TỔNG TIỀN</td>
                         <td className={styles.tdRight}>{formatCurrencyVnd(total)}</td>
                         <td colSpan={2} />

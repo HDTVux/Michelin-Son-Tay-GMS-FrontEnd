@@ -5,9 +5,8 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchServiceTicketDetail, fetchServiceTicketEstimate } from '../../../services/serviceTicketService.js';
 import { formatDateTimeViNoSeconds } from '../../../components/timeUtils.js';
 import Receipt from './Receipt.jsx';
+import { ReceiptPaymentMethodModal } from './ReceiptPaymentMethod.jsx';
 import styles from './ReceiptConfirm.module.css';
-
-const DEFAULT_VAT_RATE = 0.1;
 
 const PROMOTIONS = {
 	VIP: { label: 'Khách hàng thân thiết: Giảm giá', discountRate: 0.05 },
@@ -20,8 +19,16 @@ function toMoneyNumber(value) {
 }
 
 function formatCurrencyVnd(value) {
-	const n = toMoneyNumber(value);
-	return `${new Intl.NumberFormat('vi-VN').format(Math.round(n))} VND`;
+	const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+	if (!Number.isFinite(n) || n === 0) return '';
+	return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
+}
+
+function pickMoneyDisplayValue(withVatValue, baseValue) {
+	const withVatNum = toMoneyNumber(withVatValue);
+	if (withVatNum > 0) return withVatNum;
+	const baseNum = toMoneyNumber(baseValue);
+	return Math.max(0, baseNum);
 }
 
 function pickLatestEstimate(list) {
@@ -124,6 +131,7 @@ export default function ReceiptConfirm() {
 	const [selectedCombo, setSelectedCombo] = useState('');
 	const [appliedPromoKey, setAppliedPromoKey] = useState('');
 	const [promoError, setPromoError] = useState('');
+	const [paymentOpen, setPaymentOpen] = useState(false);
 
 	const notify = (message) => toast(message, { containerId: 'app-toast' });
 
@@ -196,7 +204,11 @@ export default function ReceiptConfirm() {
 			.map((it, idx) => {
 				const quantity = toMoneyNumber(it?.quantity);
 				const unitPrice = toMoneyNumber(it?.unitPrice);
-				const subTotal = toMoneyNumber(it?.subTotal) || quantity * unitPrice;
+				const subTotal = toMoneyNumber(it?.subTotal);
+				const unitPriceWithVat = it?.unitPriceWithVat ?? it?.unitPriceWithVAT ?? 0;
+				const subTotalWithVat = it?.subTotalWithVat ?? it?.subTotalWithVAT ?? 0;
+				const unitPriceDisplay = pickMoneyDisplayValue(unitPriceWithVat, unitPrice);
+				const subTotalDisplay = pickMoneyDisplayValue(subTotalWithVat, subTotal);
 				const categoryName = it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
 				return {
 					key: String(it?.estimateItemId ?? it?.itemId ?? `${idx}`),
@@ -205,10 +217,12 @@ export default function ReceiptConfirm() {
 					quantity,
 					unitPrice,
 					subTotal,
+					unitPriceDisplay,
+					subTotalDisplay,
 					confirmed: getItemConfirmedFlag(it),
 				};
 			})
-			.filter((r) => r.itemName || r.categoryName || r.quantity > 0 || r.unitPrice > 0 || r.subTotal > 0);
+			.filter((r) => r.itemName || r.categoryName || r.quantity > 0 || r.unitPrice > 0 || r.subTotal > 0 || r.subTotalDisplay > 0);
 	}, [estimate]);
 
 	const payItems = useMemo(() => {
@@ -216,7 +230,7 @@ export default function ReceiptConfirm() {
 		return estimateItems.filter((it) => it.confirmed);
 	}, [estimateItems]);
 
-	const subtotal = useMemo(() => payItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotal), 0), [payItems]);
+	const subtotal = useMemo(() => payItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotalDisplay ?? it.subTotal), 0), [payItems]);
 
 	const appliedPromo = useMemo(() => {
 		const key = String(appliedPromoKey || '').trim().toUpperCase();
@@ -229,9 +243,7 @@ export default function ReceiptConfirm() {
 		return Math.min(subtotal, Math.max(0, raw));
 	}, [appliedPromo, subtotal]);
 
-	const taxableAmount = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
-	const vatAmount = useMemo(() => taxableAmount * DEFAULT_VAT_RATE, [taxableAmount]);
-	const total = useMemo(() => taxableAmount + vatAmount, [taxableAmount, vatAmount]);
+	const total = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
 
 	const receivedAtDisplay = ticket?.receivedAt ? formatDateTimeViNoSeconds(ticket.receivedAt, '-') : '-';
 	const handoverAtDisplay = ticket?.handoverAt ? formatDateTimeViNoSeconds(ticket.handoverAt, '-') : '-';
@@ -259,21 +271,26 @@ export default function ReceiptConfirm() {
 	const handleBack = () => navigate(-1);
 
 	const printTicket = useMemo(() => {
+		const invoiceItems = payItems.map((it) => ({
+			...it,
+			unitPrice: toMoneyNumber(it.unitPriceDisplay ?? it.unitPrice),
+			subTotal: toMoneyNumber(it.subTotalDisplay ?? it.subTotal),
+		}));
 		return {
 			...ticket,
 			receivedAtDisplay,
 			handoverAtDisplay,
 			invoice: {
-				items: payItems,
+				items: invoiceItems,
 				subtotal,
 				discountAmount,
-				vatRate: DEFAULT_VAT_RATE,
-				vatAmount,
+				vatRate: '',
+				vatAmount: 0,
 				total,
 				promotionLabel: appliedPromo?.label || '',
 			},
 		};
-	}, [ticket, receivedAtDisplay, handoverAtDisplay, payItems, subtotal, discountAmount, vatAmount, total, appliedPromo]);
+	}, [ticket, receivedAtDisplay, handoverAtDisplay, payItems, subtotal, discountAmount, total, appliedPromo]);
 
 	const handlePrint = () => {
 		if (ticketLoading || estimateLoading) return;
@@ -296,15 +313,7 @@ export default function ReceiptConfirm() {
 			notify('Chưa có hạng mục nào được advisor xác nhận để thanh toán.');
 			return;
 		}
-
-		const code = ticket.ticketCode || ticketCodeParam;
-		navigate(`/service-ticket/${encodeURIComponent(String(code || '').trim())}/receipt-payment-method`, {
-			state: {
-				ticket: ticketRaw ?? ticketFromState ?? null,
-				printTicket,
-				total,
-			},
-		});
+		setPaymentOpen(true);
 	};
 
 	return (
@@ -347,8 +356,8 @@ export default function ReceiptConfirm() {
 											<td className={styles.tdText}>{it.categoryName}</td>
 											<td className={styles.tdText}>{it.itemName}</td>
 											<td className={styles.tdQty}>{it.quantity ? String(it.quantity) : ''}</td>
-											<td className={styles.tdNumber}>{it.unitPrice ? formatCurrencyVnd(it.unitPrice) : ''}</td>
-											<td className={styles.tdNumber}>{it.subTotal ? formatCurrencyVnd(it.subTotal) : ''}</td>
+											<td className={styles.tdNumber}>{formatCurrencyVnd(it.unitPriceDisplay ?? it.unitPrice)}</td>
+											<td className={styles.tdNumber}>{formatCurrencyVnd(it.subTotalDisplay ?? it.subTotal)}</td>
 										</tr>
 									))}
 									{payItems.length === 0 ? (
@@ -413,7 +422,7 @@ export default function ReceiptConfirm() {
 								<span>{discountAmount ? `- ${formatCurrencyVnd(discountAmount)}` : '-'}</span>
 							</div>
 							<div className={styles.summaryRow}>
-								<span>Tổng + VAT:</span>
+								<span>Tổng (đã gồm VAT):</span>
 								<span>{formatCurrencyVnd(total)}</span>
 							</div>
 						</div>
@@ -439,10 +448,18 @@ export default function ReceiptConfirm() {
 							onClick={handleConfirm}
 							disabled={ticketLoading || estimateLoading || !!ticketError}
 						>
-							Phương thức thanh toán
+							Thanh toán
 						</button>
 					</div>
 				</div>
+
+				<ReceiptPaymentMethodModal
+					open={paymentOpen}
+					onClose={() => setPaymentOpen(false)}
+					ticketCode={ticket.ticketCode || ticketCodeParam}
+					total={total}
+					printTicket={printTicket}
+				/>
 			</div>
 
 			<div className={styles.printOnly}>

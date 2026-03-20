@@ -137,12 +137,20 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
-/* Top Info Grid - 4 cột ngang */
+/* Top Info Grid - 2 cột, mỗi cột 2 hàng */
 .topInfoGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 16px;
+  align-items: start;
+}
+
+/* Mỗi cột chứa 2 block xếp dọc */
+.topInfoCol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 /* Secondary Grid - 3 cột ngang */
@@ -682,66 +690,22 @@
 }
 
 /* Responsive */
-@media (max-width: 860px) {
-  .infoGrid {
+@media (max-width: 1024px) {
+  .topInfoGrid {
     grid-template-columns: 1fr;
   }
 
-  .kvRow {
-    grid-template-columns: 100px minmax(0, 1fr);
-  }
-
-  .actionButtons {
-    flex-direction: column;
-  }
-
-  .backButton,
-  .printButton {
-    width: 100%;
-  }
-}
-
-@media (max-width: 520px) {
-  .page {
-    padding: 16px;
-  }
-
-  .title {
-    font-size: 20px;
-  }
-
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-}
-
-/* Responsive */
-@media (max-width: 1024px) {
-  .topInfoGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  
   .secondaryGrid {
     grid-template-columns: 1fr;
   }
-  
+
   .mainLayout {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 860px) {
-  .topInfoGrid {
-    grid-template-columns: 1fr;
-  }
-
   .infoGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .secondaryGrid {
     grid-template-columns: 1fr;
   }
 

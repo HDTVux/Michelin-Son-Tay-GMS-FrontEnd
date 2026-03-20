@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { fetchServiceTicketsPaged, fetchAvailableStaff, assignStaff } from '../../../services/serviceTicketService';
+import { fetchServiceTicketsPaged, fetchAvailableStaff, assignStaff, fetchTechniciansWithWorkload } from '../../../services/serviceTicketService';
 import styles from './AssignAdvisor.module.css';
 
 const AssignAdvisor = () => {
@@ -43,7 +43,7 @@ const AssignAdvisor = () => {
     fetchTickets();
   }, []);
 
-  // Fetch available advisors when a ticket is selected
+  // Fetch available advisors + all technicians with workload when a ticket is selected
   useEffect(() => {
     if (!selectedTicket) {
       setAdvisors([]);
@@ -59,16 +59,37 @@ const AssignAdvisor = () => {
       setSelectedMainAdvisor(null);
       setSelectedAssistants([]);
       try {
-        const response = await fetchAvailableStaff(selectedTicket.serviceTicketId, 'TECHNICIAN', token);
-        const staffList = response?.data || [];
-        // Chuẩn hóa roleCode: lấy roleCode hợp lệ, fallback về TECHNICIAN
-        const normalized = staffList.map(staff => {
-          const techRole = staff.roles?.find(r => r.roleCode === 'TECHNICIAN');
-          return {
-            ...staff,
-            normalizedRoleCode: techRole?.roleCode || 'TECHNICIAN'
+        // 1) Gọi song song: available staff + tất cả KTV có workload
+        const [availResp, techResp] = await Promise.all([
+          fetchAvailableStaff(selectedTicket.serviceTicketId, 'TECHNICIAN', token),
+          fetchTechniciansWithWorkload(token).catch(() => ({ data: [] })),
+        ]);
+
+        const staffList = availResp?.data || [];
+        const allTechs  = Array.isArray(techResp?.data) ? techResp.data : [];
+
+        // Map workload vào danh sách available
+        const workloadMap = {};
+        allTechs.forEach((t) => {
+          workloadMap[t.staffId] = {
+            currentTicketCount: t.currentTicketCount ?? 0,
+            isBusy: t.isBusy ?? t.currentTicketCount > 0,
           };
         });
+
+        const normalized = staffList.map(staff => {
+          const techRole  = staff.roles?.find(r => r.roleCode === 'TECHNICIAN');
+          const workload  = workloadMap[staff.staffId] || {};
+          return {
+            ...staff,
+            normalizedRoleCode:   techRole?.roleCode || 'TECHNICIAN',
+            currentTicketCount:   workload.currentTicketCount ?? 0,
+            isBusy:                workload.isBusy ?? false,
+          };
+        });
+
+        // KTV bận xếp xuống dưới
+        normalized.sort((a, b) => Number(a.isBusy) - Number(b.isBusy));
         setAdvisors(normalized);
       } catch (error) {
         console.error('Error loading advisors:', error);
@@ -113,16 +134,30 @@ const AssignAdvisor = () => {
   const handleTicketClick = (ticket) => {
     setSelectedTicket(ticket);
     setShowAdvisorModal(true);
+    toast.info(`Đang mở phân công phiếu ${ticket.ticketCode}`, { toastId: `open-${ticket.ticketCode}` });
   };
 
   const handleSelectMain = (staffId) => {
+    const advisor = advisors.find(a => a.staffId === staffId);
     setSelectedMainAdvisor(staffId);
+    toast.success(`Đã chọn KTV chính: ${advisor?.fullName}`, { toastId: `main-${staffId}` });
   };
 
   const toggleAssistant = (staffId) => {
-    if (staffId === selectedMainAdvisor) return;
+    if (staffId === selectedMainAdvisor) {
+      toast.warn('Không thể chọn KTV chính làm KTV phụ!', { toastId: 'warn-assist' });
+      return;
+    }
+    const advisor = advisors.find(a => a.staffId === staffId);
+    const isAdding = !selectedAssistants.includes(staffId);
     setSelectedAssistants(prev =>
       prev.includes(staffId) ? prev.filter(id => id !== staffId) : [...prev, staffId]
+    );
+    toast.success(
+      isAdding
+        ? `Đã thêm KTV phụ: ${advisor?.fullName}`
+        : `Đã bỏ chọn KTV phụ: ${advisor?.fullName}`,
+      { toastId: `assist-${staffId}` }
     );
   };
 
@@ -155,7 +190,23 @@ const AssignAdvisor = () => {
         }
       }
 
-      toast.success('Phân công thành công!');
+      const assistantNames = selectedAssistants
+        .map(id => advisors.find(a => a.staffId === id)?.fullName)
+        .filter(Boolean)
+        .join(', ');
+
+      if (selectedAssistants.length > 0) {
+        toast.success(
+          `Phân công thành công! KTV chính: ${mainAdvisor.fullName}, KTV phụ: ${assistantNames}`,
+          { toastId: 'assign-success' }
+        );
+      } else {
+        toast.success(
+          `Phân công thành công cho KTV: ${mainAdvisor.fullName}`,
+          { toastId: 'assign-success' }
+        );
+      }
+
       setShowAdvisorModal(false);
       setSelectedTicket(null);
 
@@ -167,7 +218,25 @@ const AssignAdvisor = () => {
       setLoading(false);
     } catch (error) {
       console.error('Error assigning:', error);
-      toast.error('Lỗi khi phân công: ' + (error.message || 'Không xác định'));
+      const backendMsg = error?.response?.data?.message
+        || error?.response?.data
+        || error?.message
+        || 'Không xác định';
+
+      if (
+        backendMsg.includes('already') ||
+        backendMsg.includes('đã') ||
+        backendMsg.includes('primary') ||
+        (backendMsg.includes('KTV') && backendMsg.includes('chính'))
+      ) {
+        toast.error('Ticket đã có kĩ thuật viên chính!', { toastId: 'assign-error' });
+      } else if (backendMsg.includes('staff') && backendMsg.includes('not found')) {
+        toast.error('Nhân viên không tồn tại trong hệ thống!', { toastId: 'assign-error' });
+      } else if (backendMsg.includes('unavailable') || backendMsg.includes('không khả dụng')) {
+        toast.error('Nhân viên không còn khả dụng cho phiếu này!', { toastId: 'assign-error' });
+      } else {
+        toast.error(`Lỗi khi phân công: ${backendMsg}`, { toastId: 'assign-error' });
+      }
     } finally {
       setIsAssigning(false);
     }
@@ -327,7 +396,11 @@ const AssignAdvisor = () => {
                     {advisors.map((advisor) => (
                       <div
                         key={advisor.staffId}
-                        className={`${styles.advisorCard} ${selectedMainAdvisor === advisor.staffId ? styles.advisorSelected : ''}`}
+                        className={`
+                          ${styles.advisorCard}
+                          ${selectedMainAdvisor === advisor.staffId ? styles.advisorSelected : ''}
+                          ${advisor.isBusy ? styles.advisorBusy : ''}
+                        `}
                         onClick={() => handleSelectMain(advisor.staffId)}
                       >
                         <div className={styles.advisorAvatar}>
@@ -346,6 +419,22 @@ const AssignAdvisor = () => {
                             {advisor.roles?.map((r, i) => (
                               <span key={i} className={styles.roleTag}>{r.roleName}</span>
                             ))}
+                          </div>
+                          {/* Workload badge */}
+                          <div className={styles.workloadBadge}>
+                            {advisor.isBusy ? (
+                              <>
+                                <span className={styles.busyDot} />
+                                <span className={styles.busyLabel}>
+                                  Đang làm {advisor.currentTicketCount} ticket
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className={styles.freeDot} />
+                                <span className={styles.freeLabel}>Rảnh</span>
+                              </>
+                            )}
                           </div>
                         </div>
                         {selectedMainAdvisor === advisor.staffId && (
@@ -367,7 +456,12 @@ const AssignAdvisor = () => {
                       .map((advisor) => (
                         <div
                           key={advisor.staffId}
-                          className={`${styles.advisorCard} ${styles.advisorAssistant} ${selectedAssistants.includes(advisor.staffId) ? styles.advisorAssistantSelected : ''}`}
+                          className={`
+                            ${styles.advisorCard}
+                            ${styles.advisorAssistant}
+                            ${selectedAssistants.includes(advisor.staffId) ? styles.advisorAssistantSelected : ''}
+                            ${advisor.isBusy ? styles.advisorBusy : ''}
+                          `}
                           onClick={() => toggleAssistant(advisor.staffId)}
                         >
                           <div className={styles.advisorAvatar}>
@@ -386,6 +480,22 @@ const AssignAdvisor = () => {
                               {advisor.roles?.map((r, i) => (
                                 <span key={i} className={styles.roleTag}>{r.roleName}</span>
                               ))}
+                            </div>
+                            {/* Workload badge */}
+                            <div className={styles.workloadBadge}>
+                              {advisor.isBusy ? (
+                                <>
+                                  <span className={styles.busyDot} />
+                                  <span className={styles.busyLabel}>
+                                    Đang làm {advisor.currentTicketCount} ticket
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className={styles.freeDot} />
+                                  <span className={styles.freeLabel}>Rảnh</span>
+                                </>
+                              )}
                             </div>
                           </div>
                           {selectedAssistants.includes(advisor.staffId) && (
