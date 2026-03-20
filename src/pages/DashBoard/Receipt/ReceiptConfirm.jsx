@@ -192,6 +192,7 @@ export default function ReceiptConfirm() {
 	const estimateItems = useMemo(() => {
 		const items = Array.isArray(estimate?.items) ? estimate.items : [];
 		return items
+			.filter((it) => !it?.isRemoved)
 			.map((it, idx) => {
 				const quantity = toMoneyNumber(it?.quantity);
 				const unitPrice = toMoneyNumber(it?.unitPrice);
@@ -274,7 +275,7 @@ export default function ReceiptConfirm() {
 		};
 	}, [ticket, receivedAtDisplay, handoverAtDisplay, payItems, subtotal, discountAmount, vatAmount, total, appliedPromo]);
 
-	const confirmAndPrint = async () => {
+	const handlePrint = () => {
 		if (ticketLoading || estimateLoading) return;
 		if (payItems.length === 0) {
 			notify('Chưa có hạng mục nào được advisor xác nhận để thanh toán.');
@@ -286,6 +287,23 @@ export default function ReceiptConfirm() {
 			requestAnimationFrame(() => {
 				if (typeof globalThis?.print === 'function') globalThis.print();
 			});
+		});
+	};
+
+	const handleConfirm = () => {
+		if (ticketLoading || estimateLoading) return;
+		if (payItems.length === 0) {
+			notify('Chưa có hạng mục nào được advisor xác nhận để thanh toán.');
+			return;
+		}
+
+		const code = ticket.ticketCode || ticketCodeParam;
+		navigate(`/service-ticket/${encodeURIComponent(String(code || '').trim())}/receipt-payment-method`, {
+			state: {
+				ticket: ticketRaw ?? ticketFromState ?? null,
+				printTicket,
+				total,
+			},
 		});
 	};
 
@@ -347,10 +365,7 @@ export default function ReceiptConfirm() {
 
 					<section className={styles.section}>
 						<h2 className={styles.sectionTitle}>Áp dụng khuyến mãi</h2>
-						<div className={styles.promoTotalBar}>
-							<span>Tổng tiền hiện tại:</span>
-							<span className={styles.promoTotalValue}>{formatCurrencyVnd(total)}</span>
-						</div>
+						<div className={styles.promoTotalBar}></div>
 
 						<div className={styles.promoRow}>
 							<div className={styles.promoField}>
@@ -363,16 +378,9 @@ export default function ReceiptConfirm() {
 										onChange={(e) => setPromoCode(e.target.value)}
 										placeholder="Mã khuyến mãi"
 									/>
-									<button type="button" className="ui-btn ui-btn--ghost" disabled>
-										Quét QR
-									</button>
 								</div>
 							</div>
 						</div>
-
-						<button type="button" className={`ui-btn ui-btn--primary ${styles.applyBtn}`} onClick={applyPromotion}>
-							Áp dụng
-						</button>
 
 						<div className={styles.promoRow}>
 							<label htmlFor="promo-combo">Hoặc chọn combo:</label>
@@ -386,6 +394,12 @@ export default function ReceiptConfirm() {
 								<option value="COMBO_THANG">Gói combo tháng</option>
 							</select>
 						</div>
+
+						<button type="button" className={`ui-btn ui-btn--primary ${styles.applyBtn}`} onClick={applyPromotion}>
+							Áp dụng
+						</button>
+
+
 
 						{appliedPromo?.label ? <div className={styles.promoChip}>{appliedPromo.label}</div> : null}
 
@@ -413,11 +427,19 @@ export default function ReceiptConfirm() {
 						</button>
 						<button
 							type="button"
-							className="ui-btn ui-btn--primary"
-							onClick={confirmAndPrint}
+							className="ui-btn ui-btn--ghost"
+							onClick={handlePrint}
 							disabled={ticketLoading || estimateLoading || !!ticketError}
 						>
-							Xác nhận
+							In hóa đơn
+						</button>
+						<button
+							type="button"
+							className="ui-btn ui-btn--primary"
+							onClick={handleConfirm}
+							disabled={ticketLoading || estimateLoading || !!ticketError}
+						>
+							Phương thức thanh toán
 						</button>
 					</div>
 				</div>
