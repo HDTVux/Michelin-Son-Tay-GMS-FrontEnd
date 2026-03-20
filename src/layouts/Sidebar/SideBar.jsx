@@ -7,6 +7,7 @@ const STAFF_ROLE = {
 	ADVISOR: 'ADVISOR',
 	RECEPTIONIST: 'RECEPTIONIST',
 	TECHNICIAN: 'TECHNICIAN',
+	ADMIN: 'ADMIN',
 };
 
 const readStaffRolesFromStorage = () => {
@@ -63,7 +64,9 @@ const NAV_GROUPS = [
 			{id: 'staff-attendance',label: 'Chấm công',path: '/staff-attendance',icon: <IconClock />,roles: [STAFF_ROLE.RECEPTIONIST],},
 			{ id: 'customer-manager', label: 'Quản lý khách hàng', path: '/customer-manager', icon: <IconUser />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ADMIN], },
 			{ id: 'staff-manager', label: 'Quản lý nhân viên', path: '/staff-manager', icon: <IconUser />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
-			{ id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER], },			
+			{ id: 'employee-manager', label: 'Quản lý hồ sơ nhân viên', path: '/employee-manager', icon: <IconUser />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
+			{ id: 'shift-management', label: 'Quản lý ca làm việc', path: '/shift-management', icon: <IconCalendar />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
+			{ id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER], },
 		],
 	},
 	{
@@ -75,6 +78,7 @@ const NAV_GROUPS = [
 			{ id: 'daily-schedule', label: 'Lịch làm việc', path: '/daily-schedule', icon: <IconCalendar />, roles: 'ALL' },
 			{ id: 'my-tasks', label: 'Công việc của tôi', path: '/technician/my-tasks', icon: <IconTask />, roles: [STAFF_ROLE.TECHNICIAN] },
 			{ id: 'work-history-technician', label: 'Lịch sử công việc', path: '/work-history/technician', icon: <IconHistory />, roles: [STAFF_ROLE.TECHNICIAN] },
+			{ id: 'advisor-inspection', label: 'Phiếu kiểm tra', path: '/advisor/inspection/list', icon: <IconTask />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.MANAGER] },
 		],
 	},
 ];
