@@ -336,12 +336,6 @@ export default function ServiceTicketDetail() {
 	);
 	const timelineModel = useMemo(() => buildTimelineStepsByStatus(ticket), [ticket]);
 	const statusUpper = useMemo(() => toStatusCodeUpper(ticket?.statusCode || ticket?.timelineStatus), [ticket]);
-	const showTimeline = hasReceptionistRole && !isCancelledStatus(statusUpper) && !timelineModel.hide;
-	const timelineSteps = useMemo(() => {
-		if (timelineModel.mode === 'status' && Array.isArray(timelineModel.steps)) return timelineModel.steps;
-		const rawEvents = Array.isArray(ticket?.timelineEvents) ? ticket.timelineEvents : [];
-		return rawEvents.map((e) => ({ ...e, state: 'done' }));
-	}, [timelineModel, ticket]);
 	const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable);
 
 	const {

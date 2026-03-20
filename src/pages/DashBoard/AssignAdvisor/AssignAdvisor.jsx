@@ -1,170 +1,154 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { fetchAvailableStaff, assignStaff } from '../../../services/serviceTicketService';
+import { fetchServiceTicketsPaged, fetchAvailableStaff, assignStaff } from '../../../services/serviceTicketService';
 import styles from './AssignAdvisor.module.css';
 
 const AssignAdvisor = () => {
+  const [filterStatus, setFilterStatus] = useState('all');
   const [filterService, setFilterService] = useState('all');
-  const [searchTicket, setSearchTicket] = useState('');
-  const [filterAvailability, setFilterAvailability] = useState('all');
-  const [selectedTickets, setSelectedTickets] = useState([]);
-  const [selectedMainAdvisor, setSelectedMainAdvisor] = useState(null);
-  const [showAssistantModal, setShowAssistantModal] = useState(false);
-  const [selectedAssistants, setSelectedAssistants] = useState([]);
-
-  // Data từ API
+  const [searchTerm, setSearchTerm] = useState('');
   const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [advisors, setAdvisors] = useState([]);
-  const [isLoadingTickets, setIsLoadingTickets] = useState(false);
-  const [isLoadingAdvisors, setIsLoadingAdvisors] = useState(false);
+  const [loadingAdvisors, setLoadingAdvisors] = useState(false);
+  const [selectedMainAdvisor, setSelectedMainAdvisor] = useState(null);
+  const [selectedAssistants, setSelectedAssistants] = useState([]);
+  const [showAdvisorModal, setShowAdvisorModal] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
 
-  // Load danh sách advisors từ API
+  // Fetch tickets from API
   useEffect(() => {
-    const loadAdvisors = async () => {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-      if (!token) {
-        toast.error('Vui lòng đăng nhập');
-        return;
-      }
-
-      setIsLoadingAdvisors(true);
+    const fetchTickets = async () => {
       try {
-        // Gọi API lấy available staff với role TECHNICIAN hoặc ADVISOR
-        const response = await fetchAvailableStaff(0, 'TECHNICIAN', token);
+        const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+        if (!token) {
+          toast.error('Vui lòng đăng nhập');
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetchServiceTicketsPaged({ status: 'CREATED', size: 100 }, token);
+        const list = response?.data?.content || response?.data || [];
+        setTickets(list);
+      } catch (error) {
+        console.error('Error fetching tickets:', error);
+        toast.error('Không thể tải danh sách ticket');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTickets();
+  }, []);
+
+  // Fetch available advisors when a ticket is selected
+  useEffect(() => {
+    if (!selectedTicket) {
+      setAdvisors([]);
+      return;
+    }
+
+    const fetchAdvisors = async () => {
+      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      if (!token) return;
+
+      setLoadingAdvisors(true);
+      setAdvisors([]);
+      setSelectedMainAdvisor(null);
+      setSelectedAssistants([]);
+      try {
+        const response = await fetchAvailableStaff(selectedTicket.serviceTicketId, 'TECHNICIAN', token);
         const staffList = response?.data || [];
-
-        // Map data từ API
-        const mappedAdvisors = staffList.map(staff => ({
-          id: staff.staffId?.toString() || '',
-          staffId: staff.staffId,
-          name: staff.fullName || 'Chưa có tên',
-          phone: staff.phone || '',
-          avatar: staff.avatar || null,
-          role: staff.roles?.[0]?.roleName || 'KTV',
-          roleCode: staff.roles?.[0]?.roleCode || 'TECHNICIAN',
-          availability: 'Sẵn sàng',
-          currentTickets: 0
-        }));
-
-        setAdvisors(mappedAdvisors);
+        // Chuẩn hóa roleCode: lấy roleCode hợp lệ, fallback về TECHNICIAN
+        const normalized = staffList.map(staff => {
+          const techRole = staff.roles?.find(r => r.roleCode === 'TECHNICIAN');
+          return {
+            ...staff,
+            normalizedRoleCode: techRole?.roleCode || 'TECHNICIAN'
+          };
+        });
+        setAdvisors(normalized);
       } catch (error) {
         console.error('Error loading advisors:', error);
         toast.error('Không thể tải danh sách KTV');
       } finally {
-        setIsLoadingAdvisors(false);
+        setLoadingAdvisors(false);
       }
     };
 
-    loadAdvisors();
-  }, []);
+    fetchAdvisors();
+  }, [selectedTicket]);
 
-  // Mock tickets - vì chưa có API lấy danh sách ticket để assign
-  // Trong thực tế sẽ gọi API từ ServiceTicketManagement
-  const mockTickets = [
-    {
-      id: 'TI12345',
-      ticketId: 1,
-      licensePlate: '30A-12345',
-      service: 'Bảo dưỡng',
-      serviceDetail: 'Thay dầu',
-      timeSlot: '09:00 - 22/02/2026',
-      status: 'pending'
-    },
-    {
-      id: 'TI12346',
-      ticketId: 2,
-      licensePlate: '50B-67890',
-      service: 'Sửa chữa phanh',
-      serviceDetail: 'Sửa chữa phanh',
-      timeSlot: '10:00 - 22/02/2026',
-      status: 'assigned'
-    },
-    {
-      id: 'TI12347',
-      ticketId: 3,
-      licensePlate: '29C-11223',
-      service: 'Thay dầu',
-      serviceDetail: 'Thay dầu',
-      timeSlot: '11:00 - 25/02/2026',
-      status: 'pending'
-    }
-  ];
+  // Stats
+  const stats = {
+    total: tickets.length,
+    assigned: tickets.filter(t => t.ticketStatus !== 'CREATED').length,
+    pending: tickets.filter(t => t.ticketStatus === 'CREATED').length,
+  };
 
-  useEffect(() => {
-    setTickets(mockTickets);
-  }, []);
-
+  // Filter tickets
   const filteredTickets = tickets.filter(ticket => {
-    const matchService = filterService === 'all' || ticket.service.toLowerCase().includes(filterService.toLowerCase());
-    const matchSearch = ticket.licensePlate.toLowerCase().includes(searchTicket.toLowerCase()) ||
-                       ticket.id.toLowerCase().includes(searchTicket.toLowerCase());
-    return matchService && matchSearch;
+    const matchStatus = filterStatus === 'all' || ticket.ticketStatus === filterStatus;
+    const matchService = filterService === 'all' || (ticket.serviceCategory || '').toLowerCase().includes(filterService.toLowerCase());
+    const matchSearch = !searchTerm ||
+      (ticket.ticketCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (ticket.licensePlate || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (ticket.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return matchStatus && matchService && matchSearch;
   });
 
-  const filteredAdvisors = advisors.filter(advisor => {
-    if (filterAvailability === 'all') return true;
-    if (filterAvailability === 'available') return advisor.currentTickets < 5;
-    if (filterAvailability === 'busy') return advisor.currentTickets >= 5;
-    return true;
-  });
-
-  const handleTicketSelect = (ticket) => {
-    // Lưu cả id và ticketId
-    setSelectedTickets([ticket]);
-    setSelectedMainAdvisor(null);
-    setSelectedAssistants([]);
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    } catch {
+      return '—';
+    }
   };
 
-  const handleAdvisorSelect = (advisorId) => {
-    setSelectedMainAdvisor(advisorId);
+  const handleTicketClick = (ticket) => {
+    setSelectedTicket(ticket);
+    setShowAdvisorModal(true);
   };
 
-  const handleAssign = () => {
-    if (selectedTickets.length === 0) {
-      toast.error('Vui lòng chọn ticket!');
-      return;
-    }
-    if (!selectedMainAdvisor) {
-      toast.error('Vui lòng chọn KTV chính!');
-      return;
-    }
+  const handleSelectMain = (staffId) => {
+    setSelectedMainAdvisor(staffId);
+  };
 
-    // Show modal to add assistant advisors
-    setShowAssistantModal(true);
+  const toggleAssistant = (staffId) => {
+    if (staffId === selectedMainAdvisor) return;
+    setSelectedAssistants(prev =>
+      prev.includes(staffId) ? prev.filter(id => id !== staffId) : [...prev, staffId]
+    );
   };
 
   const handleConfirmAssignment = async () => {
+    if (!selectedMainAdvisor) {
+      toast.error('Vui lòng chọn KTV chính');
+      return;
+    }
+
     const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-    if (!token) {
-      toast.error('Vui lòng đăng nhập');
-      return;
-    }
-
-    const ticket = selectedTickets[0];
-    if (!ticket?.ticketId) {
-      toast.error('Không tìm thấy thông tin ticket');
-      return;
-    }
-
     setIsAssigning(true);
     try {
-      // Gọi API assign KTV chính
-      const mainAdvisor = advisors.find(a => a.id === selectedMainAdvisor);
-      await assignStaff(ticket.ticketId, {
-        staffId: mainAdvisor?.staffId,
-        roleInTicket: mainAdvisor?.roleCode || 'TECHNICIAN',
+      const mainAdvisor = advisors.find(a => a.staffId === selectedMainAdvisor);
+      await assignStaff(selectedTicket.serviceTicketId, {
+        staffId: selectedMainAdvisor,
+        roleInTicket: mainAdvisor?.normalizedRoleCode || 'TECHNICIAN',
         isPrimary: true,
         note: ''
       }, token);
 
-      // Nếu có KTV phụ thì gọi API assign thêm
       if (selectedAssistants.length > 0) {
-        for (const assistantId of selectedAssistants) {
-          const assistant = advisors.find(a => a.id === assistantId);
-          await assignStaff(ticket.ticketId, {
-            staffId: assistant?.staffId,
-            roleInTicket: assistant?.roleCode || 'TECHNICIAN',
+        for (const asId of selectedAssistants) {
+          const assistant = advisors.find(a => a.staffId === asId);
+          await assignStaff(selectedTicket.serviceTicketId, {
+            staffId: asId,
+            roleInTicket: assistant?.normalizedRoleCode || 'TECHNICIAN',
             isPrimary: false,
             note: ''
           }, token);
@@ -172,12 +156,15 @@ const AssignAdvisor = () => {
       }
 
       toast.success('Phân công thành công!');
+      setShowAdvisorModal(false);
+      setSelectedTicket(null);
 
-      // Reset
-      setSelectedTickets([]);
-      setSelectedMainAdvisor(null);
-      setSelectedAssistants([]);
-      setShowAssistantModal(false);
+      // Refresh ticket list
+      setLoading(true);
+      const response = await fetchServiceTicketsPaged({ status: 'CREATED', size: 100 }, token);
+      const list = response?.data?.content || response?.data || [];
+      setTickets(list);
+      setLoading(false);
     } catch (error) {
       console.error('Error assigning:', error);
       toast.error('Lỗi khi phân công: ' + (error.message || 'Không xác định'));
@@ -186,28 +173,16 @@ const AssignAdvisor = () => {
     }
   };
 
-  const handleSkipAssistant = () => {
-    handleConfirmAssignment();
-  };
-
-  const toggleAssistant = (advisorId) => {
-    if (advisorId === selectedMainAdvisor) {
-      toast.warning('Không thể chọn KTV chính làm KTV phụ!');
-      return;
-    }
-
-    setSelectedAssistants(prev => {
-      if (prev.includes(advisorId)) {
-        return prev.filter(id => id !== advisorId);
-      } else {
-        return [...prev, advisorId];
-      }
-    });
-  };
-
-  const getStatusText = (status) => {
-    return status === 'pending' ? 'Chưa phân công' : 'Đã phân công';
-  };
+  if (loading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner}></div>
+          <p>Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
@@ -215,167 +190,99 @@ const AssignAdvisor = () => {
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           <h1 className={styles.title}>Phân công KTV</h1>
-          <p className={styles.subtitle}>Chọn ticket và KTV để phân công</p>
-        </div>
-        <div className={styles.roleIndicator}>
-          Phân công KTV (Receptionist/Manager)
+          <p className={styles.subtitle}>Quản lý và phân công kỹ thuật viên cho phiếu dịch vụ</p>
         </div>
       </div>
 
-      <div className={styles.content}>
-        {/* Left Panel - Tickets */}
-        <div className={styles.leftPanel}>
-          <div className={styles.panelHeader}>
-            <h3 className={styles.panelTitle}>Danh sách Ticket</h3>
-          </div>
-
-          <div className={styles.filters}>
-            <select
-              className={styles.filterSelect}
-              value={filterService}
-              onChange={(e) => setFilterService(e.target.value)}
-            >
-              <option value="all">Lọc theo dịch vụ</option>
-              <option value="bảo dưỡng">Bảo dưỡng</option>
-              <option value="sửa chữa">Sửa chữa</option>
-              <option value="thay dầu">Thay dầu</option>
-            </select>
-
-            <input
-              type="text"
-              placeholder="Tìm theo biển số, mã ticket..."
-              value={searchTicket}
-              onChange={(e) => setSearchTicket(e.target.value)}
-              className={styles.searchInput}
-            />
-          </div>
-
-          <div className={styles.ticketList}>
-            {filteredTickets.map((ticket) => (
-              <div
-                key={ticket.id}
-                className={`${styles.ticketCard} ${selectedTickets.some(t => t.id === ticket.id) ? styles.selected : ''}`}
-                onClick={() => handleTicketSelect(ticket)}
-              >
-                <div className={styles.ticketHeader}>
-                  <div className={styles.checkbox}>
-                    <input
-                      type="radio"
-                      checked={selectedTickets.some(t => t.id === ticket.id)}
-                      onChange={() => handleTicketSelect(ticket)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                  <div className={styles.ticketInfo}>
-                    <div className={styles.ticketId}>Ticket #{ticket.id}</div>
-                    <div className={styles.licensePlate}>Biển số: {ticket.licensePlate}</div>
-                  </div>
-                  <div className={styles.ticketStatus}>
-                    {getStatusText(ticket.status)}
-                  </div>
-                </div>
-                <div className={styles.ticketBody}>
-                  <div className={styles.ticketDetail}>Dịch vụ: {ticket.serviceDetail}</div>
-                  <div className={styles.ticketTime}>Thời gian: {ticket.timeSlot}</div>
-                </div>
-              </div>
-            ))}
+      {/* Stats Grid */}
+      <div className={styles.statsGrid}>
+        <div className={`${styles.statCard} ${styles.statTotal}`}>
+          <div className={styles.statContent}>
+            <div className={styles.statValue}>{stats.total}</div>
+            <div className={styles.statLabel}>Tổng phiếu</div>
           </div>
         </div>
-
-        {/* Right Panel - Advisors */}
-        <div className={styles.rightPanel}>
-          <div className={styles.panelHeader}>
-            <h3 className={styles.panelTitle}>Danh sách KTV</h3>
+        <div className={`${styles.statCard} ${styles.statAssigned}`}>
+          <div className={styles.statContent}>
+            <div className={styles.statValue}>{stats.pending}</div>
+            <div className={styles.statLabel}>Chưa phân công</div>
           </div>
-
-          <div className={styles.filters}>
-            <select
-              className={styles.filterSelect}
-              value={filterAvailability}
-              onChange={(e) => setFilterAvailability(e.target.value)}
-            >
-              <option value="all">Lọc theo có làm việc</option>
-              <option value="available">Rảnh</option>
-              <option value="busy">Bận</option>
-            </select>
+        </div>
+        <div className={`${styles.statCard} ${styles.statProgress}`}>
+          <div className={styles.statContent}>
+            <div className={styles.statValue}>{stats.assigned}</div>
+            <div className={styles.statLabel}>Đã phân công</div>
           </div>
-
-          {isLoadingAdvisors ? (
-            <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-              Đang tải danh sách KTV...
-            </div>
-          ) : (
-            <div className={styles.advisorList}>
-              {filteredAdvisors.map((advisor) => (
-                <div
-                  key={advisor.id}
-                  className={`${styles.advisorCard} ${selectedMainAdvisor === advisor.id ? styles.selected : ''}`}
-                  onClick={() => handleAdvisorSelect(advisor.id)}
-                >
-                  <div className={styles.advisorLeft}>
-                    <div className={styles.radioButton}>
-                      <input
-                        type="radio"
-                        checked={selectedMainAdvisor === advisor.id}
-                        onChange={() => handleAdvisorSelect(advisor.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    <div className={styles.advisorAvatar}>
-                      {advisor.avatar ? (
-                        <img src={advisor.avatar} alt={advisor.name} />
-                      ) : (
-                        <div className={styles.avatarPlaceholder}>
-                          {advisor.name.charAt(0)}
-                        </div>
-                      )}
-                    </div>
-                    <div className={styles.advisorInfo}>
-                      <div className={styles.advisorName}>{advisor.name}</div>
-                      <div className={styles.advisorRole}>{advisor.role}</div>
-                      <div className={styles.advisorAvailability}>{advisor.availability}</div>
-                      <div className={styles.advisorTickets}>{advisor.currentTickets} tickets</div>
-                    </div>
-                  </div>
-                  <div className={styles.advisorRight}>
-                    <span className={styles.statusBadge}>
-                      {advisor.currentTickets < 5 ? 'Rảnh' : 'Bận'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className={styles.footer}>
-        <div className={styles.summary}>
-          Đã chọn: {selectedTickets.length} ticket, {selectedMainAdvisor ? '1' : '0'} KTV
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.searchBox}>
+          <input
+            type="text"
+            placeholder="Tìm kiếm theo mã phiếu, biển số, khách hàng..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={styles.searchInput}
+          />
         </div>
-        <div className={styles.actions}>
-          <button className={styles.btnCancel}>Hủy</button>
-          <button
-            className={styles.btnAssign}
-            onClick={handleAssign}
-            disabled={selectedTickets.length === 0 || !selectedMainAdvisor}
+        <div className={styles.filterBox}>
+          <label>Lọc trạng thái:</label>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className={styles.filterSelect}
           >
-            Phân công
-          </button>
+            <option value="all">Tất cả</option>
+            <option value="CREATED">Chưa phân công</option>
+            <option value="IN_PROGRESS">Đang thực hiện</option>
+            <option value="COMPLETED">Hoàn thành</option>
+          </select>
+        </div>
+        <div className={styles.filterBox}>
+          <label>Lọc dịch vụ:</label>
+          <select
+            value={filterService}
+            onChange={(e) => setFilterService(e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="all">Tất cả dịch vụ</option>
+            <option value="bảo dưỡng">Bảo dưỡng</option>
+            <option value="sửa chữa">Sửa chữa</option>
+            <option value="thay dầu">Thay dầu</option>
+          </select>
         </div>
       </div>
 
-      {/* Assistant Modal */}
-      {showAssistantModal && (
-        <div className={styles.modalOverlay} onClick={() => !isAssigning && setShowAssistantModal(false)}>
+      {/* Ticket List */}
+      <div className={styles.tasksList}>
+        {filteredTickets.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p className={styles.emptyText}>Không có phiếu nào</p>
+            <p className={styles.emptySubtext}>Không có phiếu dịch vụ nào phù hợp với bộ lọc</p>
+          </div>
+        ) : (
+          filteredTickets.map((ticket) => (
+            <TicketCard
+              key={ticket.ticketCode}
+              ticket={ticket}
+              onAssign={() => handleTicketClick(ticket)}
+              formatDate={formatDate}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Advisor Selection Modal */}
+      {showAdvisorModal && selectedTicket && (
+        <div className={styles.modalOverlay} onClick={() => !isAssigning && setShowAdvisorModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>Thêm KTV phụ</h3>
+              <h3 className={styles.modalTitle}>Phân công KTV — {selectedTicket.ticketCode}</h3>
               <button
                 className={styles.modalClose}
-                onClick={() => !isAssigning && setShowAssistantModal(false)}
+                onClick={() => !isAssigning && setShowAdvisorModal(false)}
                 disabled={isAssigning}
               >
                 ✕
@@ -383,61 +290,220 @@ const AssignAdvisor = () => {
             </div>
 
             <div className={styles.modalBody}>
-              <p className={styles.modalDescription}>
-                Bạn có muốn thêm KTV phụ để hỗ trợ không? (Có thể bỏ qua)
-              </p>
-
-              <div className={styles.assistantList}>
-                {advisors
-                  .filter(adv => adv.id !== selectedMainAdvisor)
-                  .map((advisor) => (
-                    <div
-                      key={advisor.id}
-                      className={`${styles.assistantCard} ${selectedAssistants.includes(advisor.id) ? styles.selected : ''}`}
-                      onClick={() => toggleAssistant(advisor.id)}
-                    >
-                      <div className={styles.checkbox}>
-                        <input
-                          type="checkbox"
-                          checked={selectedAssistants.includes(advisor.id)}
-                          onChange={() => toggleAssistant(advisor.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                      <div className={styles.advisorAvatar}>
-                        <div className={styles.avatarPlaceholder}>
-                          {advisor.name.charAt(0)}
-                        </div>
-                      </div>
-                      <div className={styles.assistantInfo}>
-                        <div className={styles.assistantName}>{advisor.name}</div>
-                        <div className={styles.assistantRole}>{advisor.role}</div>
-                        <div className={styles.assistantTickets}>{advisor.currentTickets} tickets</div>
-                      </div>
-                    </div>
-                  ))}
+              {/* Ticket info summary */}
+              <div className={styles.ticketSummary}>
+                <div className={styles.ticketSummaryItem}>
+                  <span className={styles.fieldLabel}>Biển số</span>
+                  <span className={styles.fieldValue}>{selectedTicket.licensePlate}</span>
+                </div>
+                <div className={styles.ticketSummaryItem}>
+                  <span className={styles.fieldLabel}>Khách hàng</span>
+                  <span className={styles.fieldValue}>{selectedTicket.customerName || '—'}</span>
+                </div>
+                <div className={styles.ticketSummaryItem}>
+                  <span className={styles.fieldLabel}>Dịch vụ</span>
+                  <span className={styles.fieldValue}>{selectedTicket.serviceCategory || '—'}</span>
+                </div>
+                <div className={styles.ticketSummaryItem}>
+                  <span className={styles.fieldLabel}>Ngày hẹn</span>
+                  <span className={styles.fieldValue}>
+                    {selectedTicket.scheduledDate ? formatDate(selectedTicket.scheduledDate) : '—'}
+                  </span>
+                </div>
               </div>
+
+              {/* Advisor list */}
+              <div className={styles.modalSection}>
+                <h4 className={styles.sectionTitle}>Chọn KTV chính</h4>
+                {loadingAdvisors ? (
+                  <div className={styles.loadingAdvisors}>
+                    <div className={styles.spinnerSmall}></div>
+                    <span>Đang tải danh sách KTV...</span>
+                  </div>
+                ) : advisors.length === 0 ? (
+                  <div className={styles.noAdvisors}>Không có KTV khả dụng cho phiếu này</div>
+                ) : (
+                  <div className={styles.advisorGrid}>
+                    {advisors.map((advisor) => (
+                      <div
+                        key={advisor.staffId}
+                        className={`${styles.advisorCard} ${selectedMainAdvisor === advisor.staffId ? styles.advisorSelected : ''}`}
+                        onClick={() => handleSelectMain(advisor.staffId)}
+                      >
+                        <div className={styles.advisorAvatar}>
+                          {advisor.avatar ? (
+                            <img src={advisor.avatar} alt={advisor.fullName} />
+                          ) : (
+                            <div className={styles.avatarPlaceholder}>
+                              {advisor.fullName?.charAt(0) || '?'}
+                            </div>
+                          )}
+                        </div>
+                        <div className={styles.advisorInfo}>
+                          <div className={styles.advisorName}>{advisor.fullName}</div>
+                          <div className={styles.advisorPhone}>{advisor.phone || '—'}</div>
+                          <div className={styles.advisorRoles}>
+                            {advisor.roles?.map((r, i) => (
+                              <span key={i} className={styles.roleTag}>{r.roleName}</span>
+                            ))}
+                          </div>
+                        </div>
+                        {selectedMainAdvisor === advisor.staffId && (
+                          <div className={styles.checkmark}>✓</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Assistant advisors */}
+              {selectedMainAdvisor && advisors.length > 1 && (
+                <div className={styles.modalSection}>
+                  <h4 className={styles.sectionTitle}>Thêm KTV phụ (tùy chọn)</h4>
+                  <div className={styles.advisorGrid}>
+                    {advisors
+                      .filter(a => a.staffId !== selectedMainAdvisor)
+                      .map((advisor) => (
+                        <div
+                          key={advisor.staffId}
+                          className={`${styles.advisorCard} ${styles.advisorAssistant} ${selectedAssistants.includes(advisor.staffId) ? styles.advisorAssistantSelected : ''}`}
+                          onClick={() => toggleAssistant(advisor.staffId)}
+                        >
+                          <div className={styles.advisorAvatar}>
+                            {advisor.avatar ? (
+                              <img src={advisor.avatar} alt={advisor.fullName} />
+                            ) : (
+                              <div className={styles.avatarPlaceholder}>
+                                {advisor.fullName?.charAt(0) || '?'}
+                              </div>
+                            )}
+                          </div>
+                          <div className={styles.advisorInfo}>
+                            <div className={styles.advisorName}>{advisor.fullName}</div>
+                            <div className={styles.advisorPhone}>{advisor.phone || '—'}</div>
+                            <div className={styles.advisorRoles}>
+                              {advisor.roles?.map((r, i) => (
+                                <span key={i} className={styles.roleTag}>{r.roleName}</span>
+                              ))}
+                            </div>
+                          </div>
+                          {selectedAssistants.includes(advisor.staffId) && (
+                            <div className={styles.checkmark}>✓</div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className={styles.modalFooter}>
               <button
-                className={styles.btnSkip}
-                onClick={handleSkipAssistant}
+                className={styles.modalCancelBtn}
+                onClick={() => setShowAdvisorModal(false)}
                 disabled={isAssigning}
               >
-                Bỏ qua
+                Hủy
               </button>
               <button
-                className={styles.btnConfirm}
+                className={styles.modalActionBtn}
                 onClick={handleConfirmAssignment}
-                disabled={isAssigning}
+                disabled={!selectedMainAdvisor || isAssigning}
               >
-                {isAssigning ? 'Đang phân công...' : `Xác nhận (${selectedAssistants.length} KTV phụ)`}
+                {isAssigning ? 'Đang phân công...' : 'Xác nhận phân công'}
               </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Ticket Card Component
+const TicketCard = ({ ticket, onAssign, formatDate }) => {
+  const isPending = ticket.ticketStatus === 'CREATED';
+
+  return (
+    <div className={styles.taskCard}>
+      <div className={styles.taskHeader}>
+        <div className={styles.taskHeaderLeft}>
+          <h3 className={styles.taskTitle}>{ticket.ticketCode}</h3>
+          <span className={`${styles.priorityBadge} ${isPending ? styles.priorityPending : styles.priorityDone}`}>
+            {isPending ? 'Chưa phân công' : ticket.ticketStatus}
+          </span>
+        </div>
+        <div className={styles.taskHeaderRight}>
+          <span className={styles.serviceTag}>{ticket.serviceCategory || '—'}</span>
+        </div>
+      </div>
+
+      <div className={styles.taskBody}>
+        <div className={styles.taskRow}>
+          <div className={styles.taskField}>
+            <span className={styles.fieldLabel}>Biển số</span>
+            <span className={styles.fieldValue}>{ticket.licensePlate || '—'}</span>
+          </div>
+          <div className={styles.taskField}>
+            <span className={styles.fieldLabel}>Hãng / Model</span>
+            <span className={styles.fieldValue}>
+              {[ticket.vehicleMake, ticket.vehicleModel].filter(Boolean).join(' ') || '—'}
+            </span>
+          </div>
+        </div>
+
+        {ticket.customerName && (
+          <div className={styles.taskRow}>
+            <div className={styles.taskField}>
+              <span className={styles.fieldLabel}>Khách hàng</span>
+              <span className={styles.fieldValue}>{ticket.customerName}</span>
+            </div>
+            {ticket.customerPhone && (
+              <div className={styles.taskField}>
+                <span className={styles.fieldLabel}>SĐT</span>
+                <span className={styles.fieldValue}>{ticket.customerPhone}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className={styles.taskRow}>
+          <div className={styles.taskField}>
+            <span className={styles.fieldLabel}>Ngày nhận xe</span>
+            <span className={styles.fieldValue}>{formatDate(ticket.receivedAt)}</span>
+          </div>
+          <div className={styles.taskField}>
+            <span className={styles.fieldLabel}>Ngày hẹn</span>
+            <span className={styles.fieldValue}>
+              {ticket.scheduledDate ? formatDate(ticket.scheduledDate) : '—'}
+            </span>
+          </div>
+        </div>
+
+        {ticket.customerRequest && (
+          <div className={styles.taskRow}>
+            <div className={styles.taskField} style={{ width: '100%' }}>
+              <span className={styles.fieldLabel}>Yêu cầu khách hàng</span>
+              <p className={styles.customerRequest}>{ticket.customerRequest}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className={styles.taskFooter}>
+        {isPending ? (
+          <>
+            <button className={styles.primaryButton} onClick={onAssign}>
+              Phân công KTV
+            </button>
+          </>
+        ) : (
+          <button className={styles.secondaryButton} onClick={onAssign}>
+            Xem phân công
+          </button>
+        )}
+      </div>
     </div>
   );
 };
