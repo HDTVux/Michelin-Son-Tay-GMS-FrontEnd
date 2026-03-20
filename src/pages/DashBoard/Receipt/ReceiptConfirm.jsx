@@ -93,7 +93,8 @@ function normalizeTicketForReceipt(input, ticketCodeFallback) {
 
 function getItemConfirmedFlag(it) {
 	return Boolean(
-		it?.confirmed ??
+		it?.isChecked ??
+			it?.confirmed ??
 			it?.isConfirmed ??
 			it?.approved ??
 			it?.isApproved ??
@@ -119,7 +120,6 @@ export default function ReceiptConfirm() {
 	const [estimateLoading, setEstimateLoading] = useState(false);
 	const [estimateError, setEstimateError] = useState('');
 
-	const [selectedKeys, setSelectedKeys] = useState(() => new Set());
 	const [promoCode, setPromoCode] = useState('');
 	const [selectedCombo, setSelectedCombo] = useState('');
 	const [appliedPromoKey, setAppliedPromoKey] = useState('');
@@ -192,6 +192,7 @@ export default function ReceiptConfirm() {
 	const estimateItems = useMemo(() => {
 		const items = Array.isArray(estimate?.items) ? estimate.items : [];
 		return items
+			.filter((it) => !it?.isRemoved)
 			.map((it, idx) => {
 				const quantity = toMoneyNumber(it?.quantity);
 				const unitPrice = toMoneyNumber(it?.unitPrice);
@@ -210,22 +211,12 @@ export default function ReceiptConfirm() {
 			.filter((r) => r.itemName || r.categoryName || r.quantity > 0 || r.unitPrice > 0 || r.subTotal > 0);
 	}, [estimate]);
 
-	useEffect(() => {
-		if (!estimateItems.length) return;
-		setSelectedKeys((prev) => {
-			if (prev.size > 0) return prev;
-			const confirmed = estimateItems.filter((it) => it.confirmed).map((it) => it.key);
-			const initial = confirmed.length ? confirmed : estimateItems.map((it) => it.key);
-			return new Set(initial);
-		});
+	const payItems = useMemo(() => {
+		if (!estimateItems.length) return [];
+		return estimateItems.filter((it) => it.confirmed);
 	}, [estimateItems]);
 
-	const selectedItems = useMemo(() => {
-		if (!estimateItems.length) return [];
-		return estimateItems.filter((it) => selectedKeys.has(it.key));
-	}, [estimateItems, selectedKeys]);
-
-	const subtotal = useMemo(() => selectedItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotal), 0), [selectedItems]);
+	const subtotal = useMemo(() => payItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotal), 0), [payItems]);
 
 	const appliedPromo = useMemo(() => {
 		const key = String(appliedPromoKey || '').trim().toUpperCase();
@@ -244,15 +235,6 @@ export default function ReceiptConfirm() {
 
 	const receivedAtDisplay = ticket?.receivedAt ? formatDateTimeViNoSeconds(ticket.receivedAt, '-') : '-';
 	const handoverAtDisplay = ticket?.handoverAt ? formatDateTimeViNoSeconds(ticket.handoverAt, '-') : '-';
-
-	const toggleItem = (key) => {
-		setSelectedKeys((prev) => {
-			const next = new Set(prev);
-			if (next.has(key)) next.delete(key);
-			else next.add(key);
-			return next;
-		});
-	};
 
 	const applyPromotion = () => {
 		setPromoError('');
@@ -282,7 +264,7 @@ export default function ReceiptConfirm() {
 			receivedAtDisplay,
 			handoverAtDisplay,
 			invoice: {
-				items: selectedItems,
+				items: payItems,
 				subtotal,
 				discountAmount,
 				vatRate: DEFAULT_VAT_RATE,
@@ -291,12 +273,12 @@ export default function ReceiptConfirm() {
 				promotionLabel: appliedPromo?.label || '',
 			},
 		};
-	}, [ticket, receivedAtDisplay, handoverAtDisplay, selectedItems, subtotal, discountAmount, vatAmount, total, appliedPromo]);
+	}, [ticket, receivedAtDisplay, handoverAtDisplay, payItems, subtotal, discountAmount, vatAmount, total, appliedPromo]);
 
-	const confirmAndPrint = async () => {
+	const handlePrint = () => {
 		if (ticketLoading || estimateLoading) return;
-		if (selectedItems.length === 0) {
-			notify('Vui lòng chọn ít nhất 1 hạng mục thanh toán.');
+		if (payItems.length === 0) {
+			notify('Chưa có hạng mục nào được advisor xác nhận để thanh toán.');
 			return;
 		}
 
@@ -305,6 +287,23 @@ export default function ReceiptConfirm() {
 			requestAnimationFrame(() => {
 				if (typeof globalThis?.print === 'function') globalThis.print();
 			});
+		});
+	};
+
+	const handleConfirm = () => {
+		if (ticketLoading || estimateLoading) return;
+		if (payItems.length === 0) {
+			notify('Chưa có hạng mục nào được advisor xác nhận để thanh toán.');
+			return;
+		}
+
+		const code = ticket.ticketCode || ticketCodeParam;
+		navigate(`/service-ticket/${encodeURIComponent(String(code || '').trim())}/receipt-payment-method`, {
+			state: {
+				ticket: ticketRaw ?? ticketFromState ?? null,
+				printTicket,
+				total,
+			},
 		});
 	};
 
@@ -323,11 +322,10 @@ export default function ReceiptConfirm() {
 
 				<div className={`ui-card ${styles.card}`}>
 					<section className={styles.section}>
-						<h2 className={styles.sectionTitle}>Xác nhận hạng mục thanh toán</h2>
+						<h2 className={styles.sectionTitle}>Hạng mục thanh toán</h2>
 						<div className={styles.tableWrap}>
 							<table className={styles.table}>
 								<colgroup>
-									<col style={{ width: 44 }} />
 									<col style={{ width: 180 }} />
 									<col />
 									<col style={{ width: 70 }} />
@@ -336,7 +334,6 @@ export default function ReceiptConfirm() {
 								</colgroup>
 								<thead>
 									<tr>
-										<th className={styles.thCheck} />
 										<th>Hạng mục</th>
 										<th>Diễn giải</th>
 										<th className={styles.thQty}>SL</th>
@@ -345,16 +342,8 @@ export default function ReceiptConfirm() {
 									</tr>
 								</thead>
 								<tbody>
-									{estimateItems.map((it) => (
+									{payItems.map((it) => (
 										<tr key={it.key}>
-											<td className={styles.tdCheck}>
-												<input
-													type="checkbox"
-													checked={selectedKeys.has(it.key)}
-													onChange={() => toggleItem(it.key)}
-													disabled={ticketLoading || estimateLoading}
-												/>
-											</td>
 											<td className={styles.tdText}>{it.categoryName}</td>
 											<td className={styles.tdText}>{it.itemName}</td>
 											<td className={styles.tdQty}>{it.quantity ? String(it.quantity) : ''}</td>
@@ -362,10 +351,10 @@ export default function ReceiptConfirm() {
 											<td className={styles.tdNumber}>{it.subTotal ? formatCurrencyVnd(it.subTotal) : ''}</td>
 										</tr>
 									))}
-									{estimateItems.length === 0 ? (
+									{payItems.length === 0 ? (
 										<tr>
-											<td colSpan={6} className={styles.tdEmpty}>
-												{estimateLoading ? 'Đang tải...' : 'Chưa có báo giá/hạng mục.'}
+											<td colSpan={5} className={styles.tdEmpty}>
+												{estimateLoading ? 'Đang tải...' : 'Chưa có hạng mục nào được xác nhận.'}
 											</td>
 										</tr>
 									) : null}
@@ -376,10 +365,7 @@ export default function ReceiptConfirm() {
 
 					<section className={styles.section}>
 						<h2 className={styles.sectionTitle}>Áp dụng khuyến mãi</h2>
-						<div className={styles.promoTotalBar}>
-							<span>Tổng tiền hiện tại:</span>
-							<span className={styles.promoTotalValue}>{formatCurrencyVnd(total)}</span>
-						</div>
+						<div className={styles.promoTotalBar}></div>
 
 						<div className={styles.promoRow}>
 							<div className={styles.promoField}>
@@ -392,16 +378,9 @@ export default function ReceiptConfirm() {
 										onChange={(e) => setPromoCode(e.target.value)}
 										placeholder="Mã khuyến mãi"
 									/>
-									<button type="button" className="ui-btn ui-btn--ghost" disabled>
-										Quét QR
-									</button>
 								</div>
 							</div>
 						</div>
-
-						<button type="button" className={`ui-btn ui-btn--primary ${styles.applyBtn}`} onClick={applyPromotion}>
-							Áp dụng
-						</button>
 
 						<div className={styles.promoRow}>
 							<label htmlFor="promo-combo">Hoặc chọn combo:</label>
@@ -415,6 +394,12 @@ export default function ReceiptConfirm() {
 								<option value="COMBO_THANG">Gói combo tháng</option>
 							</select>
 						</div>
+
+						<button type="button" className={`ui-btn ui-btn--primary ${styles.applyBtn}`} onClick={applyPromotion}>
+							Áp dụng
+						</button>
+
+
 
 						{appliedPromo?.label ? <div className={styles.promoChip}>{appliedPromo.label}</div> : null}
 
@@ -442,11 +427,19 @@ export default function ReceiptConfirm() {
 						</button>
 						<button
 							type="button"
-							className="ui-btn ui-btn--primary"
-							onClick={confirmAndPrint}
+							className="ui-btn ui-btn--ghost"
+							onClick={handlePrint}
 							disabled={ticketLoading || estimateLoading || !!ticketError}
 						>
-							Xác nhận
+							In hóa đơn
+						</button>
+						<button
+							type="button"
+							className="ui-btn ui-btn--primary"
+							onClick={handleConfirm}
+							disabled={ticketLoading || estimateLoading || !!ticketError}
+						>
+							Phương thức thanh toán
 						</button>
 					</div>
 				</div>

@@ -48,6 +48,20 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
   const [serviceTicketId, setServiceTicketId] = useState(null); // Store serviceTicketId for API calls
   const [inspectionId, setInspectionId] = useState(null); // Store inspectionId for updates
 
+  // Refresh data when tab becomes visible again
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setRefreshKey(prev => prev + 1);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   // Fetch data from API
   useEffect(() => {
     const fetchData = async () => {
@@ -219,7 +233,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
 
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedTicketCode, defaultTireData, embedded]);
+  }, [resolvedTicketCode, defaultTireData, embedded, refreshKey]);
 
   const handleTireDataChange = (position, field, value) => {
     setTireData(prev => ({
@@ -307,9 +321,6 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
     }
   };
 
-  const handleSkip = async () => {
-    setSkipModalOpen(true);
-  };
 
   const confirmSkip = async () => {
     try {
@@ -809,7 +820,6 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
                 <th>TỐT</th>
                 <th>LƯU Ý</th>
                 <th>THAY</th>
-                <th>GHI CHÚ</th>
               </tr>
             </thead>
             <tbody>
@@ -827,7 +837,29 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
                 .map((item) => (
                 <tr key={item.id}>
                   <td className={styles.itemName}>
-                    {item.name}
+                    <div>{item.name}</div>
+                    {item.note && item.note.trim() !== '' ? (
+                      <div style={{
+                        marginTop: '4px',
+                        padding: '6px 8px',
+                        backgroundColor: '#fef3c7',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        color: '#92400e',
+                        fontStyle: 'italic'
+                      }}>
+                        📝 Ghi chú cố vấn: {item.note}
+                      </div>
+                    ) : (
+                      <div style={{
+                        marginTop: '4px',
+                        fontSize: '12px',
+                        color: '#9ca3af',
+                        fontStyle: 'italic'
+                      }}>
+                        (Chưa có ghi chú từ cố vấn viên)
+                      </div>
+                    )}
                   </td>
                   <td>
                     <input
@@ -857,16 +889,6 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
                         : item.replace}
                       disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !(item.note && item.note.trim() !== ''))}
                       onChange={() => handleSafetyCheck(item.id, 'replace')}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={item.note}
-                      className={styles.noteInput}
-                      placeholder="Chỉ advisor được sửa..."
-                      disabled={true}
-                      title="Chỉ advisor (cố vấn) mới có thể cập nhật ghi chú này"
                     />
                   </td>
                 </tr>

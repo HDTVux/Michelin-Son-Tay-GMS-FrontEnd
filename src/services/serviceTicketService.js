@@ -172,6 +172,31 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
   });
 };
 
+// Cập nhật 1 dòng item trong bảng báo giá theo estimateItemId (bao gồm xóa mềm)
+// Endpoint: PUT /api/service-ticket/estimate/{estimateItemId}/item
+// Payload: { workCategoryId, newCategoryName, itemId, itemName, quantity, unitPrice, taxRuleId, isChecked, isRemoved }
+export const updateServiceTicketEstimateItem = (estimateItemId, payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật hạng mục báo giá.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof estimateItemId === 'number' ? estimateItemId : Number(estimateItemId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu estimateItemId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/item`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload ?? {}),
+  });
+};
+
+
 // Lấy danh sách nhân viên available để assign vào ticket
 // Endpoint: GET /api/service-ticket/assignment/{ticketId}/available-staff?role={role}
 export const fetchAvailableStaff = (ticketId, role, token) => {
@@ -181,13 +206,13 @@ export const fetchAvailableStaff = (ticketId, role, token) => {
     return Promise.reject(error);
   }
 
+
   const idNum = typeof ticketId === 'number' ? ticketId : Number(ticketId);
   if (!Number.isFinite(idNum) || idNum <= 0) {
     const error = new Error('Thiếu ticketId hợp lệ.');
     error.status = 400;
     return Promise.reject(error);
   }
-
   return request(`/api/service-ticket/assignment/${idNum}/available-staff?role=${encodeURIComponent(role)}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
@@ -246,5 +271,19 @@ export const updateAssignment = (ticketId, assignmentId, payload, token) => {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload),
+  });
+};
+// Lấy danh sách loại thuế (tax rules)
+// Endpoint: GET /api/service-ticket/tax-rule/all
+export const fetchTaxRulesAll = (token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem danh sách loại thuế.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  return request('/api/service-ticket/tax-rule/all', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
   });
 };

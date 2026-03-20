@@ -35,13 +35,17 @@ import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx'
 import ServiceTicketDetail from './pages/DashBoard/ServiceTicketManagement/ServiceTicketDetail.jsx';
 import ServiceTicketManagement from './pages/DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
 import ReceiptConfirm from './pages/DashBoard/Receipt/ReceiptConfirm.jsx';
+import ReceiptPaymentMethod from './pages/DashBoard/Receipt/ReceiptPaymentMethod.jsx';
 import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.jsx';
 import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.jsx';
 import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.jsx';
+import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.jsx';
+import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
+import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 
 // Import Work History pages
 import TechnicianWorkHistory from './pages/WorkHistory/TechnicianWorkHistory/TechnicianWorkHistory.jsx';
@@ -63,6 +67,10 @@ import AccountantDashboard from './pages/DashBoard/AccountantDashboard/Accountan
 import MyTasks from './pages/Technician/MyTasks/MyTasks.jsx';
 import ServiceTicket from './pages/Technician/ServiceTicket/ServiceTicket.jsx';
 import UpdateProgress from './pages/Technician/UpdateProgress/UpdateProgress.jsx';
+
+// Import Advisor Inspection page
+import AdvisorInspection from './pages/DashBoard/AdvisorInspection/AdvisorInspection.jsx';
+import AdvisorInspectionList from './pages/DashBoard/AdvisorInspection/AdvisorInspectionList.jsx';
 
 export default function App() {
   useEffect(() => {
@@ -125,19 +133,27 @@ export default function App() {
           <Route path="assign-advisor" element={<AssignAdvisor />} />
           <Route path="service-ticket/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket/:ticketCode/receipt-confirm" element={<ReceiptConfirm />} />
+          <Route path="service-ticket/:ticketCode/receipt-payment-method" element={<ReceiptPaymentMethod />} />
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="service-management" element={<ServiceManagement />} />
+          <Route path="shift-management" element={<ShiftManagement />} />
           <Route path="queue-management" element={<QueueManagement />} />
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />
           <Route path="staff-manager" element={<StaffManagement />} />
+          <Route path="employee-manager" element={<EmployeeManager />} />
+          <Route path="employee-manager/:staffId" element={<EmployeeProfilePage />} />
           <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
           
           {/* Technician pages */}
           <Route path="technician/my-tasks" element={<MyTasks />} />
           <Route path="technician/safetyinspection-ticket/:id" element={<ServiceTicket />} />
           <Route path="technician/update-progress/:id" element={<UpdateProgress />} />
+
+          {/* Advisor pages */}
+          <Route path="advisor/inspection/list" element={<AdvisorInspectionList />} />
+          <Route path="advisor/inspection/:ticketCode" element={<AdvisorInspection />} />
         </Route>
 
         <Route path="login" element={<Login />} />
