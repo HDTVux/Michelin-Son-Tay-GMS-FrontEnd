@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
-import { normalizeStatusCode } from '../../../components/statusUtils.js';
 import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import TechnicianServiceTicket from '../../Technician/ServiceTicket/ServiceTicket.jsx';
@@ -41,56 +40,6 @@ function toTitleCaseFromCode(value) {
 		.replaceAll(/[-_]+/g, ' ')
 		.toLowerCase()
 		.replaceAll(/\b\w/g, (m) => m.toUpperCase());
-}
-
-function toStatusCodeUpper(input) {
-	const normalized = normalizeStatusCode(input);
-	if (!normalized) return '';
-	return /^[A-Z0-9_]+$/.test(normalized) ? normalized.toUpperCase() : normalized;
-}
-
-function isCancelledStatus(statusUpper) {
-	return statusUpper === 'CANCELLED' || statusUpper === 'CANCELED';
-}
-
-function buildTimelineStepsByStatus(ticket) {
-	const statusUpper = toStatusCodeUpper(ticket?.statusCode || ticket?.timelineStatus);
-	if (!statusUpper) return { mode: 'events', steps: null, hide: false };
-	if (isCancelledStatus(statusUpper)) return { mode: 'status', steps: [], hide: true };
-
-	const order = {
-		DRAFT: 0,
-		CREATED: 1,
-		IN_PROGRESS: 2,
-		PROCESSING: 2,
-		COMPLETED: 3,
-		DONE: 3,
-	};
-
-	const activeIndex = order[statusUpper];
-	if (activeIndex == null) return { mode: 'events', steps: null, hide: false };
-
-	const events = Array.isArray(ticket?.timelineEvents) ? ticket.timelineEvents : [];
-	const createdAt = events.find((e) => e.key === 'created')?.at ?? null;
-	const inProgressAt = events.find((e) => e.key === 'inProgress')?.at ?? null;
-	const completedAt = ticket?.handoverAt ?? events.find((e) => e.key === 'completed')?.at ?? null;
-
-	const isFinal = activeIndex >= 3;
-	const stateForIndex = (idx) => {
-		if (isFinal) return 'done';
-		if (idx < activeIndex) return 'done';
-		if (idx === activeIndex) return 'active';
-		return 'todo';
-	};
-
-	const steps = [
-		{ key: 'DRAFT', label: 'Nháp', at: statusUpper === 'DRAFT' ? createdAt : null, state: stateForIndex(0) },
-		{ key: 'CREATED', label: 'Đã tạo', at: activeIndex >= 1 ? createdAt : null, state: stateForIndex(1) },
-		{ key: 'IN_PROGRESS', label: 'Đang thực hiện', at: activeIndex >= 2 ? inProgressAt : null, state: stateForIndex(2) },
-		{ key: 'COMPLETED', label: 'Hoàn tất', at: activeIndex >= 3 ? completedAt : null, state: stateForIndex(3) },
-	];
-
-	return { mode: 'status', steps, hide: false };
 }
 
 
@@ -319,7 +268,6 @@ export default function ServiceTicketDetail() {
 	const location = useLocation();
 	const params = useParams();
 	const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
-	const hasReceptionistRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
 	const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
 
 	const ticketCodeParam = String(params?.ticketCode || '').trim();
@@ -334,8 +282,6 @@ export default function ServiceTicketDetail() {
 		() => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam),
 		[ticketRaw, ticketFromState, ticketCodeParam],
 	);
-	const timelineModel = useMemo(() => buildTimelineStepsByStatus(ticket), [ticket]);
-	const statusUpper = useMemo(() => toStatusCodeUpper(ticket?.statusCode || ticket?.timelineStatus), [ticket]);
 	const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable);
 
 	const {
@@ -399,48 +345,54 @@ export default function ServiceTicketDetail() {
 					{error && <div className={styles.errorBanner}>{error}</div>}
 
 					<div className={`ui-card ${styles.card}`}>
-						{/* Hàng ngang trên đầu - 4 cột thông tin */}
+						{/* Hàng ngang trên đầu - 2 cột, mỗi cột 2 hàng */}
 						<div className={styles.topInfoGrid}>
-							<InfoBlock
-								title="Thông tin khách hàng"
-								rows={[
-									{ label: 'Họ tên:', value: ticket.customer?.name || '-' },
-									{ label: 'SĐT:', value: ticket.customer?.phone || '-' },
-									{ label: 'Email:', value: ticket.customer?.email || '-' },
-								]}
-							/>
-							<InfoBlock
-								title="Thông tin xe"
-								rows={[
-									{ label: 'Biển số xe:', value: ticket.vehicle?.licensePlate || '-' },
-									{ label: 'Số km:', value: odometerDisplay },
-									{ label: 'Model:', value: ticket.vehicle?.model || '-' },
-								]}
-							/>
-							<InfoBlock
-								title="Thông tin ticket"
-								rows={[
-									{ label: 'Ngày tiếp nhận:', value: receivedAtDisplay },
-									{ label: 'Người tạo:', value: ticket.createdBy || '-' },
-								]}
-							/>
-							<section className={styles.block}>
-								<h2 className={styles.blockTitle}>Lịch hẹn</h2>
-								<div className={styles.kvList}>
-									<div className={styles.kvRow}>
-										<span className={styles.kvLabel}>Ngày & Giờ hẹn:</span>
-										<span className={styles.kvValue}>
-											{ticket?.booking?.scheduledDate
-												? `${ticket.booking.scheduledDate} ${formatTimeHHmm(ticket.booking.scheduledTime) || ''}`.trim()
-												: '-'}
-										</span>
+							{/* Cột 1 */}
+							<div className={styles.topInfoCol}>
+								<InfoBlock
+									title="Thông tin khách hàng"
+									rows={[
+										{ label: 'Họ tên:', value: ticket.customer?.name || '-' },
+										{ label: 'SĐT:', value: ticket.customer?.phone || '-' },
+										{ label: 'Email:', value: ticket.customer?.email || '-' },
+									]}
+								/>
+								<InfoBlock
+									title="Thông tin xe"
+									rows={[
+										{ label: 'Biển số xe:', value: ticket.vehicle?.licensePlate || '-' },
+										{ label: 'Số km:', value: odometerDisplay },
+										{ label: 'Model:', value: ticket.vehicle?.model || '-' },
+									]}
+								/>
+							</div>
+							{/* Cột 2 */}
+							<div className={styles.topInfoCol}>
+								<InfoBlock
+									title="Thông tin ticket"
+									rows={[
+										{ label: 'Ngày tiếp nhận:', value: receivedAtDisplay },
+										{ label: 'Người tạo:', value: ticket.createdBy || '-' },
+									]}
+								/>
+								<section className={styles.block}>
+									<h2 className={styles.blockTitle}>Lịch hẹn</h2>
+									<div className={styles.kvList}>
+										<div className={styles.kvRow}>
+											<span className={styles.kvLabel}>Ngày & Giờ hẹn:</span>
+											<span className={styles.kvValue}>
+												{ticket?.booking?.scheduledDate
+													? `${ticket.booking.scheduledDate} ${formatTimeHHmm(ticket.booking.scheduledTime) || ''}`.trim()
+													: '-'}
+											</span>
+										</div>
+										<div className={styles.kvRow}>
+											<span className={styles.kvLabel}>Ngày bàn giao:</span>
+											<span className={styles.kvValue}>{handoverAtDisplay}</span>
+										</div>
 									</div>
-									<div className={styles.kvRow}>
-										<span className={styles.kvLabel}>Ngày bàn giao:</span>
-										<span className={styles.kvValue}>{handoverAtDisplay}</span>
-									</div>
-								</div>
-							</section>
+								</section>
+							</div>
 						</div>
 
 						<section className={styles.block}>

@@ -17,7 +17,7 @@ export default function ToastBox(){
       className="appToastContainer"
       toastClassName="appToast"
       bodyClassName="appToastBody"
-      style={{ top: 0, left: '50%', transform: 'translateX(-50%)', padding: 0, margin: 0, pointerEvents: 'none' }}
+      style={{ top: 0, left: '50%', transform: 'translateX(-50%)', padding: 0, margin: 0, pointerEvents: 'none', zIndex: 9999 }}
     />,
     document.body
   );

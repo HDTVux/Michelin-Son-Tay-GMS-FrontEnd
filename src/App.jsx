@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
 import Home from './pages/home/Home.jsx';
 import Login from './features/auth/login/Login.jsx';
@@ -80,6 +81,16 @@ export default function App() {
   return (
     <BrowserRouter>
       <ToastBox />
+      <ToastContainer
+        position="top-center"
+        autoClose={4000}
+        hideProgressBar
+        newestOnTop
+        closeOnClick
+        draggable={false}
+        pauseOnHover={false}
+        style={{ top: 80, zIndex: 9999 }}
+      />
       <Routes>
         {/* Nhóm các trang có Header & Footer */}
         <Route element={<MainLayout />}>

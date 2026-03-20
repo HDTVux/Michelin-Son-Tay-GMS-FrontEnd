@@ -273,6 +273,21 @@ export const updateAssignment = (ticketId, assignmentId, payload, token) => {
     body: JSON.stringify(payload),
   });
 };
+// Lấy danh sách tất cả KTV (dù đang bận hay rảnh) kèm số ticket đang làm
+// Endpoint: GET /api/staff/technicians?withWorkload=true
+// Backend trả về: [{ staffId, fullName, phone, avatar, roles, currentTicketCount, isBusy }]
+export const fetchTechniciansWithWorkload = (token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+  return request('/api/staff/technicians', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Lấy danh sách loại thuế (tax rules)
 // Endpoint: GET /api/service-ticket/tax-rule/all
 export const fetchTaxRulesAll = (token) => {

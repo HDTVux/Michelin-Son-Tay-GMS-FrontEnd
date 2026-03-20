@@ -426,21 +426,22 @@ export default function StaffManagement() {
 						{error && <div className={baseStyles['error-banner']}>{error}</div>}
 
 						<div className={baseStyles['booking-table__wrapper']}>
-							<table className={`${baseStyles['booking-table']} ${styles.table}`}>
+							<table className={styles.table}>
 								<thead>
 									<tr>
 										<th>STT</th>
-										<th>TÊN</th>
+										<th>NHÂN VIÊN</th>
+										<th>EMAIL</th>
 										<th>SỐ ĐIỆN THOẠI</th>
 										<th>TRẠNG THÁI</th>
-										<th>Vai trò</th>
+										<th>VAI TRÒ</th>
 										<th>HÀNH ĐỘNG</th>
 									</tr>
 								</thead>
 								<tbody>
 									{isLoading && (
 										<tr>
-											<td className={baseStyles['empty-row']} colSpan={6}>
+											<td className={baseStyles['empty-row']} colSpan={7}>
 											Đang tải dữ liệu...
 										</td>
 										</tr>
@@ -448,7 +449,7 @@ export default function StaffManagement() {
 
 									{!isLoading && (staff?.length || 0) === 0 && (
 										<tr>
-											<td className={baseStyles['empty-row']} colSpan={6}>
+											<td className={baseStyles['empty-row']} colSpan={7}>
 											Không có tài khoản nào phù hợp.
 										</td>
 									</tr>
@@ -600,7 +601,17 @@ function StaffTableRow({ item, index, onView, onLock, onDelete }) {
 	return (
 		<tr>
 			<td>{index}</td>
-			<td className={baseStyles['link-cell']}>{item.fullName || item.name || '-'}</td>
+			<td>
+				<div className={styles.staffCell}>
+					<img
+						src={item.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'N')}&background=1E90FF&color=fff`}
+						alt={item.fullName || item.name || 'Avatar'}
+						className={styles.staffAvatar}
+					/>
+					<span className={baseStyles['link-cell']}>{item.fullName || item.name || '-'}</span>
+				</div>
+			</td>
+			<td>{item.email || '-'}</td>
 			<td>{item.phone || item.phoneNumber || '-'}</td>
 			<td>
 				<span className={`${baseStyles['status-badge']} ${baseStyles['status-badge--' + statusMeta.tone]}`}>
@@ -612,7 +623,7 @@ function StaffTableRow({ item, index, onView, onLock, onDelete }) {
 				<div className={styles.actionGroup}>
 					<button
 						type="button"
-						className={styles.actionBtn}
+						className={`${styles.actionBtn} ${styles.viewBtn}`}
 						onClick={() => onView?.(item.staffId || item.id)}
 					>
 						Xem
@@ -620,7 +631,7 @@ function StaffTableRow({ item, index, onView, onLock, onDelete }) {
 					{canManage && normalizedStatus !== 'LOCKED' && (
 						<button
 							type="button"
-							className={styles.actionBtn}
+							className={`${styles.actionBtn} ${styles.lockBtn}`}
 							onClick={() => onLock?.(item.staffId || item.id)}
 						>
 							Khóa
@@ -629,7 +640,7 @@ function StaffTableRow({ item, index, onView, onLock, onDelete }) {
 					{canManage && (
 					<button
 						type="button"
-						className={`${styles.actionBtn} ${styles.actionDanger}`}
+						className={`${styles.actionBtn} ${styles.deleteBtn}`}
 						onClick={() => onDelete(item.staffId || item.id)}
 					>
 						Xóa

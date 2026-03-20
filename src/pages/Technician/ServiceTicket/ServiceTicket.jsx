@@ -84,13 +84,12 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
           setServiceTicketId(ticketResponse.data.serviceTicketId);
         }
 
-        // Load ALL safety inspection categories from DB (including custom added ones)
+        // Load 13 default safety inspection categories first
         let defaultChecks = [];
         try {
-          // Use getSafetyInspectionCategories to get ALL categories from DB
-          const categoriesResponse = await getSafetyInspectionCategories(token);
-          if (categoriesResponse?.data && categoriesResponse.data.length > 0) {
-            defaultChecks = categoriesResponse.data.map((cat) => ({
+          const defaultCategoriesResponse = await getDefaultSafetyInspectionCategories(token);
+          if (defaultCategoriesResponse?.data && defaultCategoriesResponse.data.length > 0) {
+            defaultChecks = defaultCategoriesResponse.data.map((cat) => ({
               id: cat.id,
               workCategoryId: cat.id,
               name: cat.categoryName || '',
@@ -103,12 +102,12 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
             setSafetyChecks(defaultChecks);
           }
         } catch (catError) {
-          console.log('Could not load categories, falling back to default:', catError.message);
-          // Fallback to default categories if API fails
+          console.log('Could not load default categories, falling back to DB categories:', catError.message);
+          // Fallback to ALL categories from DB if default API fails
           try {
-            const defaultCategoriesResponse = await getDefaultSafetyInspectionCategories(token);
-            if (defaultCategoriesResponse?.data && defaultCategoriesResponse.data.length > 0) {
-              defaultChecks = defaultCategoriesResponse.data.map((cat) => ({
+            const categoriesResponse = await getSafetyInspectionCategories(token);
+            if (categoriesResponse?.data && categoriesResponse.data.length > 0) {
+              defaultChecks = categoriesResponse.data.map((cat) => ({
                 id: cat.id,
                 workCategoryId: cat.id,
                 name: cat.categoryName || '',
@@ -121,7 +120,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
               setSafetyChecks(defaultChecks);
             }
           } catch (fallbackError) {
-            console.log('Could not load default categories:', fallbackError.message);
+            console.log('Could not load DB categories:', fallbackError.message);
           }
         }
 
@@ -283,7 +282,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
       console.log('✅ Category created response:', response);
       
       if (response?.data) {
-        // Add new category to the checklist
+        // Add new category to the checklist — mark as custom so it appears in the custom table
         const newCheck = {
           id: response.data.id,
           workCategoryId: response.data.id,
@@ -292,7 +291,8 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
           warning: false,
           replace: false,
           note: '',
-          displayOrder: response.data.displayOrder
+          displayOrder: response.data.displayOrder,
+          isCustom: true  // ← flag để phân biệt hạng mục tùy chỉnh
         };
         setSafetyChecks(prev => [...prev, newCheck]);
         toast.success('Đã thêm hạng mục mới thành công');
@@ -799,7 +799,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
         </div>
       </div>
 
-      {/* Safety Checklist */}
+      {/* Safety Checklist — Default 13 items */}
       <div className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h2 className={styles.sectionTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</h2>
@@ -816,18 +816,19 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
           <table>
             <thead>
               <tr>
-                <th>HẠNG MỤC KIỂM TRA AN TOÀN</th>
+                <th>HẠNG MỤC KIỂM TRA</th>
                 <th>TỐT</th>
                 <th>LƯU Ý</th>
                 <th>THAY</th>
+                <th>GHI CHÚ</th>
               </tr>
             </thead>
             <tbody>
               {safetyChecks
+                .filter(item => !item.isCustom)
                 .sort((a, b) => {
                   const aHasNote = a.note && a.note.trim() !== '';
                   const bHasNote = b.note && b.note.trim() !== '';
-                  // Khi SKIPPED: ưu tiên hiển thị item có note của advisor lên đầu
                   if (inspectionStatus === 'SKIPPED') {
                     if (aHasNote && !bHasNote) return -1;
                     if (!aHasNote && bHasNote) return 1;
@@ -836,31 +837,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
                 })
                 .map((item) => (
                 <tr key={item.id}>
-                  <td className={styles.itemName}>
-                    <div>{item.name}</div>
-                    {item.note && item.note.trim() !== '' ? (
-                      <div style={{
-                        marginTop: '4px',
-                        padding: '6px 8px',
-                        backgroundColor: '#fef3c7',
-                        borderRadius: '4px',
-                        fontSize: '13px',
-                        color: '#92400e',
-                        fontStyle: 'italic'
-                      }}>
-                        📝 Ghi chú cố vấn: {item.note}
-                      </div>
-                    ) : (
-                      <div style={{
-                        marginTop: '4px',
-                        fontSize: '12px',
-                        color: '#9ca3af',
-                        fontStyle: 'italic'
-                      }}>
-                        (Chưa có ghi chú từ cố vấn viên)
-                      </div>
-                    )}
-                  </td>
+                  <td className={styles.itemName}>{item.name}</td>
                   <td>
                     <input
                       type="checkbox"
@@ -891,12 +868,90 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
                       onChange={() => handleSafetyCheck(item.id, 'replace')}
                     />
                   </td>
+                  <td className={styles.noteCell}>
+                    {item.note && item.note.trim() !== '' ? (
+                      <span style={{ color: '#92400e', fontStyle: 'italic', fontSize: '13px' }}>
+                        {item.note}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '13px' }}>
+                        —
+                      </span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Custom Categories Table — only shows if there are custom items */}
+      {safetyChecks.some(item => item.isCustom) && (
+        <div className={styles.card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h2 className={styles.sectionTitle}>HẠNG MỤC TÙY CHỈNH</h2>
+          </div>
+          <div className={styles.safetyTable}>
+            <table>
+              <thead>
+                <tr>
+                  <th>HẠNG MỤC TÙY CHỈNH</th>
+                  <th>TỐT</th>
+                  <th>LƯU Ý</th>
+                  <th>THAY</th>
+                  <th>GHI CHÚ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {safetyChecks
+                  .filter(item => item.isCustom)
+                  .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+                  .map((item) => (
+                  <tr key={item.id}>
+                    <td className={styles.itemName}>{item.name}</td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={item.good}
+                        disabled={!isEditable}
+                        onChange={() => handleSafetyCheck(item.id, 'good')}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={item.warning}
+                        disabled={!isEditable}
+                        onChange={() => handleSafetyCheck(item.id, 'warning')}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={item.replace}
+                        disabled={!isEditable}
+                        onChange={() => handleSafetyCheck(item.id, 'replace')}
+                      />
+                    </td>
+                    <td className={styles.noteCell}>
+                      {item.note && item.note.trim() !== '' ? (
+                        <span style={{ color: '#92400e', fontStyle: 'italic', fontSize: '13px' }}>
+                          {item.note}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '13px' }}>
+                          —
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Notes Section - Technician Notes */}
       <div className={styles.card}>
