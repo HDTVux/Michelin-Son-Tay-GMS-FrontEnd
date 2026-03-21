@@ -15,8 +15,36 @@
 	font-weight: 800;
 }
 
-.card {
+.sections {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.sectionCard {
 	padding: 18px;
+}
+
+.sectionHeader {
+	padding-bottom: 12px;
+	margin-bottom: 14px;
+	border-bottom: 1px solid var(--ui-border);
+}
+
+.sectionTitle {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 900;
+	color: var(--ui-text);
+}
+
+.subSectionTitle {
+	font-weight: 900;
+	font-size: 13px;
+	color: var(--ui-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+	margin: 0 0 10px;
 }
 
 .filterRow {
@@ -25,7 +53,6 @@
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
-	margin-bottom: 14px;
 }
 
 .filterControls {
@@ -68,7 +95,6 @@
 	border: 1px solid var(--ui-border);
 	border-radius: var(--ui-radius);
 	overflow: hidden;
-	margin-bottom: 16px;
 }
 
 .tableTopMeta {
@@ -216,7 +242,11 @@
 	border-radius: var(--ui-radius);
 	color: var(--ui-muted);
 	font-weight: 800;
-	margin-bottom: 16px;
+}
+
+.templateFull {
+	width: 100%;
+	margin-bottom: 12px;
 }
 
 .formGrid {
@@ -268,6 +298,7 @@
 	border-radius: var(--ui-radius);
 	background: #fff;
 	overflow: hidden;
+	margin-top: 14px;
 }
 
 .previewTitle {

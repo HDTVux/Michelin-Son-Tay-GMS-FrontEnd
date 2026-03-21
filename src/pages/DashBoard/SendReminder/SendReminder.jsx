@@ -305,119 +305,137 @@ export default function SendReminder() {
         <h1 className={styles.title}>Gửi nhắc bảo dưỡng</h1>
       </header>
 
-      <section className={`ui-card ${styles.card}`}>
-        <div className={styles.filterRow}>
-          <div className={styles.filterControls}>
-            <select className={styles.filterSelect} value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} aria-label="Lọc khách hàng theo thời gian">
-              <option value="1m">Lọc khách hàng theo thời gian: 1 tháng</option>
-              <option value="3m">Lọc khách hàng theo thời gian: 3 tháng</option>
-              <option value="6m">Lọc khách hàng theo thời gian: 6 tháng</option>
-              <option value="9m">Lọc khách hàng theo thời gian: 9 tháng</option>
-              <option value="12m">Lọc khách hàng theo thời gian: 12 tháng</option>
-            </select>
-
-            <select className={styles.filterSelect} value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} aria-label="Lọc theo dịch vụ đã làm">
-              <option value="all">Dịch vụ đã làm: Tất cả</option>
-              {services
-                .filter((s) => s !== 'all')
-                .map((s) => (
-                  <option key={s} value={s}>
-                    Dịch vụ đã làm: {s}
-                  </option>
-                ))}
-            </select>
+      <div className={styles.sections}>
+        <section className={`ui-card ${styles.sectionCard}`}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Bộ lọc khách hàng</h2>
           </div>
 
-          <div className={styles.filterMeta}>
-            <button type="button" className="ui-btn" onClick={applyFilters}>
-              Lọc
-            </button>
-            <div className={styles.eligibleText}>{eligibleCount} khách hàng đủ điều kiện</div>
-          </div>
-        </div>
+          <div className={styles.filterRow}>
+            <div className={styles.filterControls}>
+              <select
+                className={styles.filterSelect}
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value)}
+                aria-label="Lọc khách hàng theo thời gian"
+              >
+                <option value="1m">Lọc khách hàng theo thời gian: 1 tháng</option>
+                <option value="3m">Lọc khách hàng theo thời gian: 3 tháng</option>
+                <option value="6m">Lọc khách hàng theo thời gian: 6 tháng</option>
+                <option value="9m">Lọc khách hàng theo thời gian: 9 tháng</option>
+                <option value="12m">Lọc khách hàng theo thời gian: 12 tháng</option>
+              </select>
 
-        {eligibleCount > 0 ? (
-          <div className={styles.tableCard}>
-            <div className={styles.tableTopMeta}>
-              <div className={styles.excludedText}>
-                Đã loại bỏ <b>{autoExcludedCount}</b> khách hàng để tránh Spam
-              </div>
-              <div className={styles.selectedText}>
-                Đang chọn: <b>{selectedCount}</b>
-              </div>
+              <select
+                className={styles.filterSelect}
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
+                aria-label="Lọc theo dịch vụ đã làm"
+              >
+                <option value="all">Dịch vụ đã làm: Tất cả</option>
+                {services
+                  .filter((s) => s !== 'all')
+                  .map((s) => (
+                    <option key={s} value={s}>
+                      Dịch vụ đã làm: {s}
+                    </option>
+                  ))}
+              </select>
             </div>
 
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th className={styles.thCheck}>Chọn</th>
-                    <th className={styles.thName}>Khách hàng</th>
-                    <th>Biển số</th>
-                    <th>Số điện thoại</th>
-                    <th>Ngày bảo dưỡng cuối</th>
-                    <th>Dịch vụ gần nhất</th>
-                    <th>Trạng thái nhắc</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((c) => {
-                    const risk = getSpamRiskLevel(c.lastRemindedAt);
-                    const checked = selectedIds.has(c.id);
-                    return (
-                      <tr key={c.id} className={risk === 'none' ? '' : styles.rowSpamRisk}>
-                      <td className={styles.tdCheck}>
-                        <input type="checkbox" checked={checked} onChange={() => handleToggle(c.id)} aria-label={`Chọn ${c.name}`} />
-                      </td>
-                      <td className={styles.tdName}>
-                        <div className={styles.nameCell}>
-                          <div className={styles.nameMain}>{c.name}</div>
-                        </div>
-                      </td>
-                      <td className={styles.tdMono}>{c.licensePlate}</td>
-                      <td className={styles.tdMono}>{c.phone}</td>
-                      <td>{formatDate(c.lastMaintenanceAt)}</td>
-                      <td>{c.lastService || '-'}</td>
-                      <td>
-                        <div className={styles.statusCell}>
-                          <span className={styles.statusText}>{getReminderStatusText(c.lastRemindedAt)}</span>
-                          {risk === 'none' ? null : (
-                            <span className={`${styles.badge} ${risk === 'danger' ? styles.badgeDanger : styles.badgeWarning}`}>
-                              Rủi ro Spam 
-                            </span>
-                          )}
-                        </div>
-                      </td>
+            <div className={styles.filterMeta}>
+              <button type="button" className="ui-btn" onClick={applyFilters}>
+                Lọc
+              </button>
+              <div className={styles.eligibleText}>{eligibleCount} khách hàng đủ điều kiện</div>
+            </div>
+          </div>
+        </section>
+
+        <section className={`ui-card ${styles.sectionCard}`}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Danh sách khách hàng</h2>
+          </div>
+
+          {eligibleCount > 0 ? (
+            <div className={styles.tableCard}>
+              <div className={styles.tableTopMeta}>
+                <div className={styles.excludedText}>
+                  Đã loại bỏ <b>{autoExcludedCount}</b> khách hàng để tránh Spam
+                </div>
+                <div className={styles.selectedText}>
+                  Đang chọn: <b>{selectedCount}</b>
+                </div>
+              </div>
+
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th className={styles.thCheck}>Chọn</th>
+                      <th className={styles.thName}>Khách hàng</th>
+                      <th>Biển số</th>
+                      <th>Số điện thoại</th>
+                      <th>Ngày bảo dưỡng cuối</th>
+                      <th>Dịch vụ gần nhất</th>
+                      <th>Trạng thái nhắc</th>
                     </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          <div className={styles.emptyState}>Không tìm thấy KH</div>
-        )}
-
-        <div className={styles.formGrid}>
-          <div className={styles.left}>
-            <div className={styles.section}>
-              <div className={styles.radioGroup}>
-                <label className={styles.radioItem}>
-                  <input type="radio" name="channel" value="auto" checked={channel === 'auto'} onChange={(e) => setChannel(e.target.value)} />
-                  <span>Zalo (Mặc định)</span>
-                </label>
-                <label className={styles.radioItem}>
-                  <input type="radio" name="channel" value="email" checked={channel === 'email'} onChange={(e) => setChannel(e.target.value)} />
-                  <span>Email</span>
-                </label>
-                <label className={styles.radioItem}>
-                  <input type="radio" name="channel" value="sms" checked={channel === 'sms'} onChange={(e) => setChannel(e.target.value)} />
-                  <span>SMS</span>
-                </label>
+                  </thead>
+                  <tbody>
+                    {filtered.map((c) => {
+                      const risk = getSpamRiskLevel(c.lastRemindedAt);
+                      const checked = selectedIds.has(c.id);
+                      return (
+                        <tr key={c.id} className={risk === 'none' ? '' : styles.rowSpamRisk}>
+                          <td className={styles.tdCheck}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => handleToggle(c.id)}
+                              aria-label={`Chọn ${c.name}`}
+                            />
+                          </td>
+                          <td className={styles.tdName}>
+                            <div className={styles.nameCell}>
+                              <div className={styles.nameMain}>{c.name}</div>
+                            </div>
+                          </td>
+                          <td className={styles.tdMono}>{c.licensePlate}</td>
+                          <td className={styles.tdMono}>{c.phone}</td>
+                          <td>{formatDate(c.lastMaintenanceAt)}</td>
+                          <td>{c.lastService || '-'}</td>
+                          <td>
+                            <div className={styles.statusCell}>
+                              <span className={styles.statusText}>{getReminderStatusText(c.lastRemindedAt)}</span>
+                              {risk === 'none' ? null : (
+                                <span
+                                  className={`${styles.badge} ${
+                                    risk === 'danger' ? styles.badgeDanger : styles.badgeWarning
+                                  }`}
+                                >
+                                  Rủi ro Spam
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
+          ) : (
+            <div className={styles.emptyState}>Không tìm thấy KH</div>
+          )}
+        </section>
 
+        <section className={`ui-card ${styles.sectionCard}`}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Nội dung nhắc</h2>
+          </div>
+
+          <div className={styles.templateFull}>
             <div className="ui-field">
               <label htmlFor="send-reminder-template">Chọn mẫu tin nhắn</label>
               <select id="send-reminder-template" value={template} onChange={(e) => setTemplate(e.target.value)}>
@@ -425,70 +443,132 @@ export default function SendReminder() {
                 <option value="maintenance">Bảo dưỡng định kỳ</option>
               </select>
             </div>
+          </div>
 
-            <div className={styles.preview}>
-              <div className={styles.previewTitle}>
-                Xem trước nội dung với  <span className={styles.previewHint}>Tên KH, Biển số</span>
+          <div className={styles.formGrid}>
+            <div className={styles.left}>
+              <div className={styles.subSectionTitle}>Kênh gửi</div>
+              <div className={styles.section}>
+                <div className={styles.radioGroup}>
+                  <label className={styles.radioItem}>
+                    <input
+                      type="radio"
+                      name="channel"
+                      value="auto"
+                      checked={channel === 'auto'}
+                      onChange={(e) => setChannel(e.target.value)}
+                    />
+                    <span>Zalo (Mặc định)</span>
+                  </label>
+                  <label className={styles.radioItem}>
+                    <input
+                      type="radio"
+                      name="channel"
+                      value="email"
+                      checked={channel === 'email'}
+                      onChange={(e) => setChannel(e.target.value)}
+                    />
+                    <span>Email</span>
+                  </label>
+                  <label className={styles.radioItem}>
+                    <input
+                      type="radio"
+                      name="channel"
+                      value="sms"
+                      checked={channel === 'sms'}
+                      onChange={(e) => setChannel(e.target.value)}
+                    />
+                    <span>SMS</span>
+                  </label>
+                </div>
               </div>
-              <div className={styles.previewBox}>{templatePreview}</div>
+
+              <div className={styles.subSectionTitle}>Gửi thử</div>
+              <div className={styles.testRow}>
+                <button type="button" className="ui-btn" disabled={!testPhone.trim()} onClick={handleSendTest}>
+                  Gửi thử
+                </button>
+                <input
+                  type="text"
+                  className={styles.testInput}
+                  placeholder="Số điện thoại"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className={styles.right}>
+              <div className={styles.subSectionTitle}>Thời điểm gửi</div>
+              <div className={styles.section}>
+                <div className={styles.radioGroup}>
+                  <label className={styles.radioItem}>
+                    <input
+                      type="radio"
+                      name="sendMode"
+                      value="now"
+                      checked={sendMode === 'now'}
+                      onChange={(e) => setSendMode(e.target.value)}
+                    />
+                    <span>Gửi ngay</span>
+                  </label>
+                  <label className={styles.radioItemInline}>
+                    <input
+                      type="radio"
+                      name="sendMode"
+                      value="schedule"
+                      checked={sendMode === 'schedule'}
+                      onChange={(e) => setSendMode(e.target.value)}
+                    />
+                    <span>Lên lịch</span>
+                    <input
+                      type="date"
+                      className={styles.dateInput}
+                      disabled={sendMode !== 'schedule'}
+                      value={scheduleDate}
+                      onChange={(e) => setScheduleDate(e.target.value)}
+                      aria-label="Chọn ngày lên lịch"
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className={styles.right}>
-            <div className={styles.section}>
-              <div className={styles.radioGroup}>
-                <label className={styles.radioItem}>
-                  <input type="radio" name="sendMode" value="now" checked={sendMode === 'now'} onChange={(e) => setSendMode(e.target.value)} />
-                  <span>Gửi ngay</span>
-                </label>
-                <label className={styles.radioItemInline}>
-                  <input type="radio" name="sendMode" value="schedule" checked={sendMode === 'schedule'} onChange={(e) => setSendMode(e.target.value)} />
-                  <span>Lên lịch</span>
-                  <input
-                    type="date"
-                    className={styles.dateInput}
-                    disabled={sendMode !== 'schedule'}
-                    value={scheduleDate}
-                    onChange={(e) => setScheduleDate(e.target.value)}
-                    aria-label="Chọn ngày lên lịch"
-                  />
-                </label>
-              </div>
+          <div className={styles.preview}>
+            <div className={styles.previewTitle}>
+              Xem trước nội dung với <span className={styles.previewHint}>Tên KH, Biển số</span>
             </div>
-
-            <div className={styles.testRow}>
-              <button type="button" className="ui-btn" disabled={!testPhone.trim()} onClick={handleSendTest}>
-                Gửi thử
-              </button>
-              <input
-                type="text"
-                className={styles.testInput}
-                placeholder="Số điện thoại"
-                value={testPhone}
-                onChange={(e) => setTestPhone(e.target.value)}
-              />
-            </div>
+            <div className={styles.previewBox}>{templatePreview}</div>
           </div>
-        </div>
+        </section>
 
-        <div className="ui-actions ui-actions--end">
-          <button
-            type="button"
-            className="ui-btn ui-btn--ghost"
-            onClick={() => {
-              setTimeFilter('6m');
-              setServiceFilter('all');
-              setFiltered(allCustomers);
-              setSelectedIds(buildInitialSelection(allCustomers));
-            }}
-          >
-            Hủy
-          </button>
-          <button type="button" className="ui-btn ui-btn--primary" onClick={handleSendBulk} disabled={selectedIds.size === 0}>
-            Gửi hàng loạt
-          </button>
-        </div>
-      </section>
+        
+
+          <div className="ui-actions ui-actions--end">
+            <button
+              type="button"
+              className="ui-btn ui-btn--ghost"
+              onClick={() => {
+                setTimeFilter('6m');
+                setServiceFilter('all');
+                setFiltered(allCustomers);
+                setSelectedIds(buildInitialSelection(allCustomers));
+              }}
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              className="ui-btn ui-btn--primary"
+              onClick={handleSendBulk}
+              disabled={selectedIds.size === 0}
+            >
+              Gửi hàng loạt
+            </button>
+          </div>
+
+      </div>
 
       <ResultModal
         open={openResult}
