@@ -67,6 +67,7 @@ const NAV_GROUPS = [
 			{ id: 'employee-manager', label: 'Quản lý hồ sơ nhân viên', path: '/employee-manager', icon: <IconUser />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'shift-management', label: 'Quản lý ca làm việc', path: '/shift-management', icon: <IconCalendar />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER], },
+			{ id: 'send-reminder', label: 'Gửi nhắc nhở', path: '/send-reminder', icon: <IconBell />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER], },
 		],
 	},
 	{

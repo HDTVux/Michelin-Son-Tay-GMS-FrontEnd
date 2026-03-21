@@ -1,0 +1,421 @@
+.page {
+	padding: 24px;
+	min-height: 100vh;
+	background: var(--ui-bg);
+	color: var(--ui-text);
+}
+
+.header {
+	margin-bottom: 14px;
+}
+
+.title {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 800;
+}
+
+.card {
+	padding: 18px;
+}
+
+.filterRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 14px;
+}
+
+.filterControls {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(260px, 1fr));
+	gap: 10px;
+	flex: 1;
+	min-width: 280px;
+}
+
+.filterSelect {
+	width: 100%;
+	border: 1px solid var(--ui-border);
+	border-radius: var(--ui-radius-sm);
+	padding: 12px;
+	font-size: 14px;
+	background: #fff;
+	outline: none;
+}
+
+.filterSelect:focus {
+	border-color: var(--ui-primary);
+	box-shadow: var(--ui-focus-ring);
+}
+
+.filterMeta {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.eligibleText {
+	font-weight: 800;
+	color: var(--ui-text);
+	white-space: nowrap;
+}
+
+.tableCard {
+	background: #fff;
+	border: 1px solid var(--ui-border);
+	border-radius: var(--ui-radius);
+	overflow: hidden;
+	margin-bottom: 16px;
+}
+
+.tableTopMeta {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 14px;
+	border-bottom: 1px solid var(--ui-border);
+	background: var(--ui-surface-2);
+}
+
+.excludedText {
+	font-size: 13px;
+	color: var(--ui-muted);
+}
+
+.selectedText {
+	font-size: 13px;
+	color: var(--ui-text);
+	font-weight: 800;
+}
+
+.tableWrap {
+	overflow: auto;
+}
+
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	min-width: 980px;
+	font-size: 14px;
+}
+
+.table th {
+	text-align: center;
+	padding: 12px 10px;
+	background: #fff;
+	font-weight: 800;
+	font-size: 12px;
+	color: var(--ui-muted);
+	border-bottom: 2px solid var(--ui-border);
+	white-space: nowrap;
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+}
+
+.table td {
+	padding: 12px 10px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+	vertical-align: middle;
+	text-align: center;
+	color: var(--ui-text);
+}
+
+.table tbody tr:nth-child(odd) {
+	background: #fafafa;
+}
+
+.table tbody tr:hover {
+	background: #f5f8ff;
+}
+
+.thCheck {
+	width: 70px;
+}
+
+.thName {
+	text-align: left;
+}
+
+.tdCheck {
+	width: 70px;
+}
+
+.tdName {
+	text-align: left;
+}
+
+.tdMono {
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.nameCell {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.nameMain {
+	font-weight: 800;
+}
+
+.nameSub {
+	font-size: 12px;
+	color: var(--ui-muted);
+}
+
+.statusCell {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	justify-content: center;
+	flex-wrap: wrap;
+}
+
+.statusText {
+	font-weight: 700;
+	color: var(--ui-text);
+}
+
+.badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 800;
+	border: 1px solid transparent;
+	white-space: nowrap;
+}
+
+/* Colors already used across the dashboard styles */
+.badgeWarning {
+	background: #fef3c7;
+	border-color: #fde68a;
+	color: #92400e;
+}
+
+.badgeDanger {
+	background: #fee2e2;
+	border-color: #fecaca;
+	color: #991b1b;
+}
+
+.rowSpamRisk {
+	background: #fff7ed;
+}
+
+.emptyState {
+	padding: 16px;
+	border: 1px dashed var(--ui-border);
+	border-radius: var(--ui-radius);
+	color: var(--ui-muted);
+	font-weight: 800;
+	margin-bottom: 16px;
+}
+
+.formGrid {
+	display: grid;
+	grid-template-columns: 1.4fr 1fr;
+	gap: 16px;
+	align-items: start;
+}
+
+.left,
+.right {
+	min-width: 0;
+}
+
+.section {
+	margin-bottom: 12px;
+}
+
+.radioGroup {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.radioItem,
+.radioItemInline {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	font-weight: 700;
+	color: var(--ui-text);
+}
+
+.radioItemInline {
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.dateInput {
+	border: 1px solid var(--ui-border);
+	border-radius: var(--ui-radius-sm);
+	padding: 10px 12px;
+	font-size: 14px;
+	background: #fff;
+}
+
+.preview {
+	border: 1px solid var(--ui-border);
+	border-radius: var(--ui-radius);
+	background: #fff;
+	overflow: hidden;
+}
+
+.previewTitle {
+	padding: 12px 14px;
+	font-weight: 800;
+	background: var(--ui-surface-2);
+	border-bottom: 1px solid var(--ui-border);
+}
+
+.previewHint {
+	font-weight: 800;
+	color: var(--ui-muted);
+}
+
+.previewBox {
+	padding: 14px;
+	color: var(--ui-text);
+	line-height: 1.5;
+	min-height: 88px;
+}
+
+.testRow {
+	display: grid;
+	grid-template-columns: 160px 1fr;
+	gap: 12px;
+	align-items: center;
+}
+
+.testInput {
+	width: 100%;
+	border: 1px solid var(--ui-border);
+	border-radius: var(--ui-radius-sm);
+	padding: 12px;
+	font-size: 14px;
+	outline: none;
+	background: #fff;
+}
+
+.testInput:focus {
+	border-color: var(--ui-primary);
+	box-shadow: var(--ui-focus-ring);
+}
+
+/* Modal */
+.modalOverlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	z-index: 1000;
+}
+
+.modalBackdrop {
+	position: absolute;
+	inset: 0;
+	border: 0;
+	background: rgba(0, 0, 0, 0.45);
+}
+
+.modalContent {
+	position: relative;
+	width: min(640px, calc(100vw - 40px));
+	max-height: calc(100vh - 40px);
+	overflow: auto;
+	background: #fff;
+	border: 1px solid var(--ui-border);
+	border-radius: var(--ui-radius-lg);
+	box-shadow: var(--ui-shadow-2);
+	padding: 16px;
+	margin: 0;
+}
+
+.modalHeader {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.modalTitle {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 900;
+}
+
+.modalClose {
+	width: 36px;
+	height: 36px;
+	border-radius: 999px;
+	border: 1px solid var(--ui-border);
+	background: var(--ui-surface-2);
+	cursor: pointer;
+	font-size: 20px;
+	line-height: 1;
+}
+
+.modalBody {
+	padding: 6px 0 10px;
+}
+
+.resultGrid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.resultItem {
+	border: 1px solid var(--ui-border);
+	border-radius: var(--ui-radius);
+	padding: 12px;
+	background: var(--ui-surface-2);
+}
+
+.resultLabel {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+	color: var(--ui-muted);
+	font-weight: 800;
+}
+
+.resultValue {
+	font-size: 24px;
+	font-weight: 900;
+	margin-top: 6px;
+}
+
+.resultMeta {
+	margin-top: 6px;
+	color: var(--ui-muted);
+	font-weight: 800;
+	font-size: 12px;
+}
+
+@media (max-width: 980px) {
+	.filterControls {
+		grid-template-columns: 1fr;
+	}
+	.formGrid {
+		grid-template-columns: 1fr;
+	}
+	.testRow {
+		grid-template-columns: 1fr;
+	}
+	.resultGrid {
+		grid-template-columns: 1fr;
+	}
+}
