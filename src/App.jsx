@@ -37,6 +37,7 @@ import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.j
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
+import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
 
 //Customer pages
 import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
@@ -168,6 +169,7 @@ export default function App() {
           <Route path="employee-manager/:staffId" element={<EmployeeProfilePage />} />
           <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
           <Route path="send-reminder" element={<SendReminder />} />
+          <Route path="system-log-management" element={<SystemLogManagement />} />
           
           {/* Technician pages */}
           <Route path="technician/my-tasks" element={<MyTasks />} />
