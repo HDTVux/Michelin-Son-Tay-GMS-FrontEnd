@@ -18,23 +18,16 @@ const AdvisorInspectionList = () => {
   // Fetch tickets
   useEffect(() => {
     const fetchTickets = async () => {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-      if (!token) {
-        toast.error('Vui lòng đăng nhập');
-        navigate('/login');
-        return;
-      }
-
       setLoading(true);
       try {
         const params = {
           page: currentPage - 1,
           size: itemsPerPage,
           search: searchTerm || undefined,
-          status: statusFilter !== 'ALL' ? statusFilter : undefined
+          status: statusFilter !== 'ALL' ? statusFilter : undefined,
         };
-
-        const response = await fetchServiceTicketsPaged(params, token);
+        // apiClient.js tự lấy authToken từ localStorage
+        const response = await fetchServiceTicketsPaged(params);
         if (response?.data) {
           setTickets(response.data.content || response.data || []);
           setTotalItems(response.data.totalElements || response.data.totalItems || 0);
@@ -48,7 +41,7 @@ const AdvisorInspectionList = () => {
     };
 
     fetchTickets();
-  }, [currentPage, searchTerm, statusFilter, navigate]);
+  }, [currentPage, searchTerm, statusFilter]);
 
   // Handle view inspection
   const handleViewInspection = (ticketCode) => {

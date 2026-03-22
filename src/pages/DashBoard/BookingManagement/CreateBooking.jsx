@@ -6,81 +6,13 @@ import styles from './CreateBooking.module.css';
 import StepService from '../../Booking/steps/StepService.jsx';
 import infoStyles from '../../Booking/steps/StepInfo.module.css';
 import { fetchHomeServices } from '../../../services/homeService.js';
-import { staffCreateBooking, fetchAllSlots, fetchAvailableSlotStaff } from '../../../services/bookingService.js';
-import { formatTimeHHmm } from '../../../components/timeUtils.js';
+import { fetchAllSlots, fetchAvailableSlotStaff } from '../../../services/bookingService.js';
+import { buildDateOptions, formatTimeHHmm, isPastSlot } from '../../../components/timeUtils.js';
+import { normalizePeriodLabel, timeKey, useCreateBookingHandlers } from './useCreateBookingHandlers.js';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import { toast } from 'react-toastify';
 
 const DURATION_MINUTES = 60;
 const DATE_RANGE_DAYS = 10;
-
-function normalizeBackendTime(value) {
-	const raw = String(value || '').trim();
-	if (!raw) return '';
-	if (/^\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
-	return raw;
-}
-
-const formatLocalDateYYYYMMDD = (date) => {
-	const y = date.getFullYear();
-	const m = String(date.getMonth() + 1).padStart(2, '0');
-	const d = String(date.getDate()).padStart(2, '0');
-	return `${y}-${m}-${d}`;
-};
-
-const buildDateOptions = () => {
-	const today = new Date();
-	const options = [];
-	for (let i = 0; i < DATE_RANGE_DAYS; i++) {
-		const d = new Date(today);
-		d.setDate(today.getDate() + i);
-		const value = formatLocalDateYYYYMMDD(d);
-		const label = d.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
-		options.push({ value, label });
-	}
-	return options;
-};
-
-const normalizePeriodLabel = (raw) => {
-	if (!raw) return '';
-	const v = String(raw).trim().toLowerCase();
-	if (v === 'morning' || v === 'am' || v === 'sang' || v === 'sáng') return 'Sáng';
-	if (v === 'afternoon' || v === 'pm' || v === 'chieu' || v === 'chiều') return 'Chiều';
-	if (v === 'evening' || v === 'night' || v === 'toi' || v === 'tối') return 'Tối';
-	return raw;
-};
-
-const timeKey = (t) => formatTimeHHmm(t || '');
-
-const toLocalDateTime = (dateYYYYMMDD, timeRaw) => {
-	if (!dateYYYYMMDD || !timeRaw) return null;
-	const [yStr, mStr, dStr] = String(dateYYYYMMDD).split('-');
-	const y = Number(yStr);
-	const m = Number(mStr);
-	const d = Number(dStr);
-	if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
-
-	const parts = String(timeRaw).split(':');
-	const hh = Number(parts[0]);
-	const mm = Number(parts[1] ?? 0);
-	const ss = Number(parts[2] ?? 0);
-	if (!Number.isFinite(hh) || !Number.isFinite(mm) || !Number.isFinite(ss)) return null;
-
-	return new Date(y, m - 1, d, hh, mm, ss, 0);
-};
-
-const isPastSlot = (dateYYYYMMDD, timeRaw) => {
-	const slotStart = toLocalDateTime(dateYYYYMMDD, timeRaw);
-	if (!slotStart) return false;
-	return slotStart.getTime() <= Date.now();
-};
-
-const sanitizeNote = (value) => {
-	const raw = String(value ?? '');
-	const hasForbiddenChars = /[<>{}]/.test(raw);
-	const trimmed = raw.trim();
-	return { raw, trimmed, hasForbiddenChars };
-};
 
 
 export default function CreateBooking() {
@@ -113,54 +45,13 @@ export default function CreateBooking() {
 	const [submitSuccess, setSubmitSuccess] = useState('');
 	const [createdBookingForCheckIn, setCreatedBookingForCheckIn] = useState(null);
 
-	const pickNextSlotFromBaseSlots = (now) => {
-		const list = Array.isArray(baseSlots) ? baseSlots : [];
-		if (!list.length) return null;
-
-		const today = formatLocalDateYYYYMMDD(now);
-		const nowTs = now.getTime();
-
-		for (const slot of list) {
-			const slotStart = toLocalDateTime(today, slot?.startTime);
-			if (!slotStart) continue;
-			if (slotStart.getTime() > nowTs) {
-				return { date: today, time: formatTimeHHmm(slot?.startTime) };
-			}
-		}
-
-		// Nếu hôm nay đã hết slot thì lấy slot đầu tiên của ngày mai.
-		const tomorrow = new Date(now);
-		tomorrow.setDate(now.getDate() + 1);
-		const tomorrowStr = formatLocalDateYYYYMMDD(tomorrow);
-		const first = list[0];
-		if (!first?.startTime) return null;
-		return { date: tomorrowStr, time: formatTimeHHmm(first.startTime) };
-	};
-
-	const pickNextSlotByRounding30m = (now) => {
-		// Fallback: làm tròn lên theo block 30 phút, có tính cả seconds/millis.
-		const date = formatLocalDateYYYYMMDD(now);
-		const seconds = now.getSeconds();
-		const millis = now.getMilliseconds();
-		let minutes = now.getHours() * 60 + now.getMinutes();
-		if (seconds > 0 || millis > 0) minutes += 1;
-		const rounded = Math.ceil(minutes / 30) * 30;
-
-		if (rounded >= 24 * 60) {
-			const nextDay = new Date(now);
-			nextDay.setDate(now.getDate() + 1);
-			return { date: formatLocalDateYYYYMMDD(nextDay), time: '00:00' };
-		}
-
-		const hh = String(Math.floor(rounded / 60)).padStart(2, '0');
-		const mm = String(rounded % 60).padStart(2, '0');
-		return { date, time: `${hh}:${mm}` };
-	};
-
 	useEffect(() => {
 		let active = true;
-		setServicesLoading(true);
-		setServicesError('');
+		Promise.resolve().then(() => {
+			if (!active) return;
+			setServicesLoading(true);
+			setServicesError('');
+		});
 
 		fetchHomeServices()
 			.then((res) => {
@@ -196,10 +87,6 @@ export default function CreateBooking() {
 		};
 	}, []);
 
-	const toggle = (id) => {
-		setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-	};
-
 	const canSubmit = useMemo(() => {
 		return (
 			info.name.trim() &&
@@ -211,103 +98,55 @@ export default function CreateBooking() {
 		);
 	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting]);
 
-	const handleUseNow = () => {
-		const now = new Date();
-		const picked = pickNextSlotFromBaseSlots(now) ?? pickNextSlotByRounding30m(now);
-		const date = picked?.date || formatLocalDateYYYYMMDD(now);
-		const time = picked?.time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-		setScheduleMode('now');
-		setShowSchedulePicker(false);
-		setSchedule({ date, time });
-		setAvailableSlots([]);
-		setSlotsError('');
-		setSlotsLoading(false);
-	};
+	const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset } =
+		useCreateBookingHandlers({
+			baseSlots,
+			selectedIds,
+			schedule,
+			scheduleMode,
+			info,
+			canSubmit,
+			slotsLoading,
+			slotsError,
+			createdBookingForCheckIn,
+			navigate,
 
-	const handleShowManualSchedule = () => {
-		setScheduleMode('manual');
-		setShowSchedulePicker(true);
-	};
+			setSelectedIds,
+			setSearch,
+			setFilter,
+			setSchedule,
+			setScheduleMode,
+			setShowSchedulePicker,
+			setInfo,
+			setAvailableSlots,
+			setSlotsLoading,
+			setSlotsError,
+			setSubmitting,
+			setSubmitError,
+			setSubmitSuccess,
+			setCreatedBookingForCheckIn,
+		});
 
-
-
-	const handleSubmit = async () => {
-		if (!canSubmit) return;
-
-		setSubmitError('');
-		setSubmitSuccess('');
-		setCreatedBookingForCheckIn(null);
-		setSubmitting(true);
-
-		const { trimmed, hasForbiddenChars } = sanitizeNote(info.note);
-
-		if (hasForbiddenChars) {
-			setSubmitError('Ghi chú không được chứa ký tự <, >, {, }.');
-			setSubmitting(false);
-			return;
-		}
-
-		if (trimmed.length > 500) {
-			setSubmitError('Ghi chú tối đa 500 ký tự.');
-			setSubmitting(false);
-			return;
-		}
-
-		const catalogItemIds = selectedIds
-			.map(Number)
-			.filter((n) => Number.isFinite(n) && n >= 0);
-
-		try {
-			const res = await staffCreateBooking({
-				appointmentDate: schedule.date,
-				appointmentTime: normalizeBackendTime(schedule.time),
-				userNote: trimmed,
-				selectedServiceIds: catalogItemIds,
-				fullName: info.name.trim(),
-				phone: info.phone.trim(),
-			});
-
-			const data = res?.data;
-			const bookingCodeRaw = data?.bookingCode ?? data?.requestId ?? data?.code;
-			const bookingCode = String(bookingCodeRaw ?? '').trim();
-			const msg = bookingCode ? `Tạo booking thành công. Mã: ${bookingCode}` : 'Tạo booking thành công.';
-
-			// Chỉ truyền ID (bookingCode) sang Check-in để phiếu tự lookup thông tin khách/booking từ backend.
-			setCreatedBookingForCheckIn(bookingCode ? { bookingCode } : null);
-
-			setSubmitSuccess(msg);
-			toast(msg, { containerId: 'app-toast' });
-		} catch (err) {
-			setSubmitError(err?.message || 'Không thể tạo lịch hẹn.');
-		} finally {
-			setSubmitting(false);
-		}
-	};
-
-	const handleGoToCheckIn = () => {
-		const code = String(createdBookingForCheckIn?.bookingCode ?? '').trim();
-		if (code) {
-			navigate('/check-in', { state: { bookingCode: code } });
-			return;
-		}
-		navigate('/check-in');
-	};
-
-	const dateOptions = useMemo(() => buildDateOptions(), []);
+	const dateOptions = useMemo(() => buildDateOptions(DATE_RANGE_DAYS), []);
 	const allowedDateSet = useMemo(() => new Set(dateOptions.map((o) => o.value)), [dateOptions]);
 	const isDateOutOfRange = !!schedule.date && !allowedDateSet.has(schedule.date);
 
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
 		if (!token) {
-			setBaseSlots([]);
-			setBaseSlotsError('Vui lòng đăng nhập để xem khung giờ.');
+			Promise.resolve().then(() => {
+				setBaseSlots([]);
+				setBaseSlotsError('Vui lòng đăng nhập để xem khung giờ.');
+			});
 			return;
 		}
 
 		let active = true;
-		setBaseSlotsLoading(true);
-		setBaseSlotsError('');
+		Promise.resolve().then(() => {
+			if (!active) return;
+			setBaseSlotsLoading(true);
+			setBaseSlotsError('');
+		});
 
 		fetchAllSlots(token)
 			.then((res) => {
@@ -334,28 +173,37 @@ export default function CreateBooking() {
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
 		if (scheduleMode === 'now') {
-			setAvailableSlots([]);
-			setSlotsError('');
-			setSlotsLoading(false);
+			Promise.resolve().then(() => {
+				setAvailableSlots([]);
+				setSlotsError('');
+				setSlotsLoading(false);
+			});
 			return;
 		}
 		if (!schedule.date) {
-			setAvailableSlots([]);
-			setSlotsError('');
-			setSlotsLoading(false);
+			Promise.resolve().then(() => {
+				setAvailableSlots([]);
+				setSlotsError('');
+				setSlotsLoading(false);
+			});
 			return;
 		}
 
 		if (!token) {
-			setAvailableSlots([]);
-			setSlotsError('Vui lòng đăng nhập để xem trạng thái chỗ trống.');
-			setSlotsLoading(false);
+			Promise.resolve().then(() => {
+				setAvailableSlots([]);
+				setSlotsError('Vui lòng đăng nhập để xem trạng thái chỗ trống.');
+				setSlotsLoading(false);
+			});
 			return;
 		}
 
 		let active = true;
-		setSlotsLoading(true);
-		setSlotsError('');
+		Promise.resolve().then(() => {
+			if (!active) return;
+			setSlotsLoading(true);
+			setSlotsError('');
+		});
 
 		fetchAvailableSlotStaff(schedule.date, token, DURATION_MINUTES)
 			.then((res) => {
@@ -391,7 +239,9 @@ export default function CreateBooking() {
 		const hasRemaining = Number.isFinite(remaining);
 		const isFull = hasRemaining && remaining <= 0;
 		if (!match.isAvailable || isFull) {
-			setSchedule((prev) => ({ ...prev, time: '' }));
+			Promise.resolve().then(() => {
+				setSchedule((prev) => ({ ...prev, time: '' }));
+			});
 		}
 	}, [availableSlots, schedule.date, schedule.time, scheduleMode, slotsError, slotsLoading]);
 
@@ -401,31 +251,6 @@ export default function CreateBooking() {
 		const slots = !slotsLoading && !slotsError ? availableSlots : baseSlots;
 		return slots.filter((s) => !isPastSlot(schedule.date, s?.startTime));
 	}, [availableSlots, baseSlots, schedule.date, scheduleMode, slotsError, slotsLoading]);
-
-	const handlePickSlot = (rawTime) => {
-		if (scheduleMode !== 'manual') return;
-		if (!schedule.date) return;
-		if (slotsLoading || slotsError) return;
-		const hhmm = formatTimeHHmm(rawTime);
-		setSchedule((prev) => ({ ...prev, time: hhmm }));
-	};
-
-	const handleReset = () => {
-		setSelectedIds([]);
-		setSearch('');
-		setFilter('all');
-		setSchedule({ date: '', time: '' });
-		setScheduleMode('manual');
-		setShowSchedulePicker(false);
-		setInfo({ name: '', phone: '', note: '' });
-		setAvailableSlots([]);
-		setSlotsError('');
-		setSlotsLoading(false);
-		setSubmitting(false);
-		setSubmitError('');
-		setSubmitSuccess('');
-		setCreatedBookingForCheckIn(null);
-	};
 
 	return (
 		<div className={`${bookingStyles['booking-page']} ${styles.page}`}>

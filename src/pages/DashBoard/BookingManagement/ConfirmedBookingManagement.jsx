@@ -245,7 +245,7 @@ function BookingPanel({
           </div>
           <button className={styles['ghost-button']} onClick={onResetFilters}>Xóa bộ lọc</button>
         </div>
-        <p className={styles['filter-card__hint']}>(tìm kiếm theo cả tên, mã, dịch vụ)</p>
+        <p className={styles['filter-card__hint']}>(tìm kiếm theo cả tên, mã)</p>
       </div>
 
       <div className={styles['booking-table__wrapper']}>
@@ -253,9 +253,9 @@ function BookingPanel({
           <thead>
             <tr>
               <th>STT</th>
+              <th>Mã đặt lịch</th>
               <th>TÊN KHÁCH HÀNG</th>
               <th>SỐ ĐIỆN THOẠI</th>
-              <th>DỊCH VỤ</th>
               <th>TRẠNG THÁI</th>
                <th>THỜI GIAN GỬI YÊU CẦU</th>
               <th>THỜI GIAN HẸN</th>
@@ -280,7 +280,6 @@ function BookingPanel({
 
               const customerName = item?.customer?.fullName || item?.fullName || item?.name || '-';
               const customerPhone = item?.customer?.phone || item?.phone || '-';
-              const service = item?.serviceCategory || item?.service || '-';
 
               const appointmentAt = (item?.scheduledDate && item?.scheduledTime)
                 ? `${String(item.scheduledDate).trim()}T${String(item.scheduledTime).trim()}`
@@ -291,9 +290,9 @@ function BookingPanel({
               return (
                 <tr key={rowKey}>
                   <td className={styles['link-cell']}>{bookingId ?? '-'}</td>
+                  <td>{bookingCode ?? '-'}</td>
                   <td>{customerName}</td>
                   <td>{customerPhone}</td>
-                  <td>{service}</td>
                   <td>
                     <span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>
                       {getBookingStatusTextVi(rawStatus, '-')}
@@ -327,7 +326,6 @@ function BookingPanel({
                             bookingCode,
                             customerName,
                             customerPhone,
-                            serviceName: service,
                             appointmentAt,
                           },
                         })}

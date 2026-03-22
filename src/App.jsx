@@ -2,51 +2,64 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
+
+//Home page and common pages
 import Home from './pages/home/Home.jsx';
-import Login from './features/auth/login/Login.jsx';
-import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
 import Services from './pages/home/Services/Services.jsx';
 import About from './pages/About/About.jsx';
-import ForgotPassword from './features/auth/forgot-password/ForgotPassword.jsx';
 import Booking from './pages/Booking/Booking.jsx';
-import UserProfile from './pages/UserProfile/UserProfile.jsx';
-import MyBookings from './pages/MyBookings/MyBookings.jsx';
-import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
-import EditBooking from './pages/EditBooking/EditBooking.jsx';
+import ToastBox from './components/Toast/ToastBox.jsx';
+import { cleanupExpiredTokens } from './services/tokenUtils.js';
+
+//Staff pages
+import Login from './features/auth/login/Login.jsx';
+import ForgotPassword from './features/auth/forgot-password/ForgotPassword.jsx';
 import StaffProfile from './pages/StaffProfile/StaffProfile.jsx';
 import UpdateStaffProfile from './pages/StaffProfile/UpdateStaffProfile.jsx';
 import StaffChangePassword from './pages/StaffProfile/StaffChangePassword.jsx';
 import StaffManageSSO from './pages/StaffProfile/StaffManageSSO.jsx';
-import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
 import StaffLayout from './layouts/StaffLayout.jsx';
-import ToastBox from './components/Toast/ToastBox.jsx';
-import BookingManagement from './pages/DashBoard/BookingRequestManagement/BookingRequestManagement.jsx';
-import ConfirmedBookingManagement from './pages/DashBoard/BookingManagement/ConfirmedBookingManagement.jsx';
-import ConfirmedBookingDetail from './pages/DashBoard/BookingManagement/ConfirmedBookingDetail.jsx';
-import BookingRequestDetail from './pages/DashBoard/BookingRequestManagement/BookingRequestDetail.jsx';
-import BookingRequestEdit from './pages/DashBoard/BookingRequestManagement/BookingRequestEdit.jsx';
-import { cleanupExpiredTokens } from './services/tokenUtils.js';
-import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 import DailySchedule from './pages/DashBoard/DailySchedule/DailySchedule.jsx';
-import EditCustomerProfile from './pages/DashBoard/CustomerManager/EditCustomerProfile.jsx';
+import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.jsx';
+
+//Admin/Manager/Advisor pages
+import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
+import EditCustomerProfile from './pages/DashBoard/CustomerManager/EditCustomerProfile.jsx';
 import TechnicianTasks from './pages/DashBoard/TechnicianTasks/TechnicianTasks.jsx';
 import AssignAdvisor from './pages/DashBoard/AssignAdvisor/AssignAdvisor.jsx';
-import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
 import ServiceTicketDetail from './pages/DashBoard/ServiceTicketManagement/ServiceTicketDetail.jsx';
 import ServiceTicketManagement from './pages/DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
-import ReceiptConfirm from './pages/DashBoard/Receipt/ReceiptConfirm.jsx';
-import ReceiptPaymentMethod from './pages/DashBoard/Receipt/ReceiptPaymentMethod.jsx';
-import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.jsx';
 import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
-import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
-import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.jsx';
 import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.jsx';
 import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.jsx';
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
+import ManageWorkShifts from './pages/DashBoard/ManageWorkShifts/ManageWorkShifts.jsx';
+import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
+
+//Customer pages
+import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
+import UserProfile from './pages/UserProfile/UserProfile.jsx';
+import MyBookings from './pages/MyBookings/MyBookings.jsx';
+import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
+import EditBooking from './pages/EditBooking/EditBooking.jsx';
+import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
+
+//Receptionist pages
+import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
+import SendReminder from './pages/DashBoard/SendReminder/SendReminder.jsx';
+import ReceiptConfirm from './pages/DashBoard/Receipt/ReceiptConfirm.jsx';
+import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.jsx';
+import ConfirmedBookingDetail from './pages/DashBoard/BookingManagement/ConfirmedBookingDetail.jsx';
+import BookingRequestDetail from './pages/DashBoard/BookingRequestManagement/BookingRequestDetail.jsx';
+import BookingManagement from './pages/DashBoard/BookingRequestManagement/BookingRequestManagement.jsx';
+import ConfirmedBookingManagement from './pages/DashBoard/BookingManagement/ConfirmedBookingManagement.jsx';
+import BookingRequestEdit from './pages/DashBoard/BookingRequestManagement/BookingRequestEdit.jsx';
+import ReceiptPaymentMethod from './pages/DashBoard/Receipt/ReceiptPaymentMethod.jsx';
+import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 
 // Import Work History pages
 import TechnicianWorkHistory from './pages/WorkHistory/TechnicianWorkHistory/TechnicianWorkHistory.jsx';
@@ -148,7 +161,8 @@ export default function App() {
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="service-management" element={<ServiceManagement />} />
-          <Route path="shift-management" element={<ShiftManagement />} />
+          <Route path="manage-staff-attendance" element={<ShiftManagement />} />
+          <Route path="manage-work-shifts" element={<ManageWorkShifts />} />
           <Route path="queue-management" element={<QueueManagement />} />
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />
@@ -156,6 +170,8 @@ export default function App() {
           <Route path="employee-manager" element={<EmployeeManager />} />
           <Route path="employee-manager/:staffId" element={<EmployeeProfilePage />} />
           <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
+          <Route path="send-reminder" element={<SendReminder />} />
+          <Route path="system-log-management" element={<SystemLogManagement />} />
           
           {/* Technician pages */}
           <Route path="technician/my-tasks" element={<MyTasks />} />
