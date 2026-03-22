@@ -277,8 +277,8 @@ const ShiftManagement = () => {
       {/* Header */}
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Quản lý ca làm việc</h1>
-          <p className={styles.subtitle}>Phân công và điểm danh nhân viên theo ca</p>
+          <h1 className={styles.title}>Quản lý điểm danh</h1>
+          <p className={styles.subtitle}>Quản lý điểm danh nhân viên</p>
         </div>
       </div>
 

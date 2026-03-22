@@ -145,20 +145,12 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 	}, [serviceTicketId]);
 
 	useEffect(() => {
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setTaxRules([]);
-			setTaxRulesError('');
-			setTaxRulesLoading(false);
-			return;
-		}
-
 		let ignore = false;
 		const run = async () => {
 			try {
 				setTaxRulesLoading(true);
 				setTaxRulesError('');
-				const res = await fetchTaxRulesAll(token);
+				const res = await fetchTaxRulesAll();
 				if (ignore) return;
 				setTaxRules(Array.isArray(res?.data) ? res.data : []);
 			} catch (err) {
@@ -176,8 +168,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 	}, []);
 
 	useEffect(() => {
-		const token = localStorage.getItem('authToken');
-		if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') {
+		if (!serviceTicketId) {
 			setEstimate(null);
 			setFetched(false);
 			setIsCreating(false);
@@ -191,7 +182,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 				setLoading(true);
 				setLoadError('');
 				setFetched(false);
-				const res = await fetchServiceTicketEstimate(serviceTicketId, token);
+				const res = await fetchServiceTicketEstimate(serviceTicketId);
 				if (ignore) return;
 				const picked = pickLatestEstimate(res?.data);
 				setEstimate(picked);
@@ -410,11 +401,6 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 
 	const toggleChecked = async (sourceIndex, nextChecked) => {
 		if (!canToggleChecked) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setSaveError('Vui lòng đăng nhập để cập nhật xác nhận.');
-			return;
-		}
 
 		const estimateId = estimate?.estimateId ?? estimate?.id;
 		const estimateIdNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
@@ -472,7 +458,6 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 					estimateType: estimate?.estimateType || 'INITIAL',
 					items: itemsPayload,
 				},
-				token,
 			);
 			setEstimate((prev) => res?.data ?? prev);
 		} catch (err) {
@@ -506,11 +491,6 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 
 	const saveEstimate = async () => {
 		if (isSaving) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setSaveError('Vui lòng đăng nhập để tạo báo giá.');
-			return;
-		}
 
 		const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
 		if (!Number.isFinite(idNum) || idNum <= 0) {
@@ -556,11 +536,10 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 		try {
 			setIsSaving(true);
 			setSaveError('');
-			const res = await createServiceTicketEstimate(
-				{
-					serviceTicketId: idNum,
-					estimateType: 'INITIAL',
-					items,
+			const res = await createServiceTicketEstimate({
+				serviceTicketId: idNum,
+				estimateType: 'INITIAL',
+				items,
 				},
 				token,
 			);
@@ -575,11 +554,6 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 
 	const saveEdit = async () => {
 		if (isSaving) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setSaveError('Vui lòng đăng nhập để cập nhật báo giá.');
-			return;
-		}
 
 		const estimateId = estimate?.estimateId ?? estimate?.id;
 		const estimateIdNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
@@ -640,7 +614,6 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 					estimateType: estimate?.estimateType || 'INITIAL',
 					items,
 				},
-				token,
 			);
 			setEstimate(res?.data ?? null);
 			setIsEditing(false);
@@ -653,11 +626,6 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 
 	const softDeleteEditRow = async (rowIndex) => {
 		if (!isEditing || isSaving) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setSaveError('Vui lòng đăng nhập để xóa hạng mục.');
-			return;
-		}
 
 		const row = editComputed[rowIndex];
 		const estimateItemId = toIdOrNull(row?.estimateItemId);
@@ -682,7 +650,6 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 					isChecked: Boolean(row?.confirmed),
 					isRemoved: true,
 				},
-				token,
 			);
 
 			setEditRows((prev) => {

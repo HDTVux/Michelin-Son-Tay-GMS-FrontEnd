@@ -45,19 +45,10 @@ export default function ServiceTicketManagement() {
 	}, [page, size, date, status, debouncedSearch]);
 
 	useEffect(() => {
-		const token = localStorage.getItem('authToken');
-
-		if (!token) {
-			setError('Vui lòng đăng nhập để xem danh sách phiếu dịch vụ.');
-			setTickets([]);
-			setIsLoading(false);
-			return;
-		}
-
 		const loadData = async () => {
 			try {
 				setIsLoading(true);
-				const response = await fetchServiceTicketsPaged(filters, token);
+				const response = await fetchServiceTicketsPaged(filters);
 
 				const pageData = response?.data;
 				const list = Array.isArray(pageData?.content) ? pageData.content : [];

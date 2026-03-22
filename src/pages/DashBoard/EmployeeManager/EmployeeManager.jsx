@@ -2,17 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import { fetchAllStaff, fetchAllStaffRoles } from '../../../services/adminService.js';
+import { fetchAllStaff } from '../../../services/adminService.js';
 import styles from './EmployeeManager.module.css';
 import CreateEmployeeModal from './CreateEmployeeModal.jsx';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
-
-const getAuthToken = () =>
-  localStorage.getItem('authToken') ||
-  localStorage.getItem('adminToken') ||
-  localStorage.getItem('staffToken') ||
-  '';
 
 const normalizeStatus = (value) => {
   if (value == null || String(value).trim() === '') return null;
@@ -21,6 +15,7 @@ const normalizeStatus = (value) => {
 
 const resolveStaffStatus = (staff) =>
   staff?.status ??
+  staff?.employmentStatus ??
   staff?.authStatus ??
   staff?.staffAuthStatus ??
   staff?.accountStatus ??
@@ -36,99 +31,57 @@ const EmployeeManager = () => {
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [employees, setEmployees]        = useState([]);
-  const [allRoles, setAllRoles]          = useState([]);
-  const [loading, setLoading]            = useState(true);
+  const [loading, setLoading]           = useState(true);
   const [showModal, setShowModal]        = useState(false);
   const [searchTerm, setSearchTerm]      = useState('');
-  const [statusFilter, setStatusFilter]  = useState('ALL');
-  const [roleFilter, setRoleFilter]      = useState('');
+  const [statusFilter, setStatusFilter]  = useState('');
 
-  // Pagination
+  // Pagination (client-side vì backend không hỗ trợ)
   const [currentPage, setCurrentPage]   = useState(1);
   const itemsPerPage = 10;
-  const [totalItems, setTotalItems]     = useState(0);
+
+  // Reset page khi search/filter thay đổi
+  const handleSearchChange = (val) => {
+    setSearchTerm(val);
+    setCurrentPage(1);
+  };
+  const handleStatusChange = (val) => {
+    setStatusFilter(val);
+    setCurrentPage(1);
+  };
 
   const requestSeqRef = useRef(0);
 
   // ── Derived summary stats ─────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const total = employees.length;
-    const active     = employees.filter((e) => normalizeStatus(resolveStaffStatus(e)) === 'ACTIVE').length;
-    const totalTickets  = employees.reduce((s, e) => s + (e.totalTickets || 0), 0);
-    const totalServices = employees.reduce((s, e) => s + (e.totalServices || 0), 0);
-    return { total, active, totalTickets, totalServices };
+    const total    = employees.length;
+    const active   = employees.filter((e) => normalizeStatus(resolveStaffStatus(e)) === 'ACTIVE').length;
+    const inactive = employees.filter((e) => normalizeStatus(resolveStaffStatus(e)) === 'INACTIVE').length;
+    const locked   = employees.filter((e) => normalizeStatus(resolveStaffStatus(e)) === 'LOCKED').length;
+    return { total, active, inactive, locked };
   }, [employees]);
-
-  // ── Load roles ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const loadRoles = async () => {
-      try {
-        const token = getAuthToken();
-        if (!token) return;
-        const response = await fetchAllStaffRoles(token);
-        const list = Array.isArray(response?.data) ? response.data : [];
-        const normalized = list
-          .map((r) => {
-            const id = Number(r?.roleId);
-            return {
-              roleId: Number.isFinite(id) ? id : undefined,
-              roleCode: r?.roleCode ? String(r.roleCode).trim().toUpperCase() : '',
-              label: r?.roleName ? String(r.roleName).trim() : (r?.roleCode || '')
-            };
-          })
-          .filter((r) => Number.isFinite(r.roleId) && r.roleId > 0);
-        setAllRoles(normalized);
-      } catch {
-        setAllRoles([]);
-      }
-    };
-    loadRoles();
-  }, []);
 
   // ── Load employees ────────────────────────────────────────────────────────
   const loadEmployees = useCallback(async () => {
     const seq = ++requestSeqRef.current;
     try {
       setLoading(true);
-      const token = getAuthToken();
-      if (!token) {
-        toast.error('Vui lòng đăng nhập để xem danh sách nhân viên');
-        return;
-      }
-
-      const params = {
-        page: currentPage - 1,
-        size: itemsPerPage,
-        search: searchTerm || undefined,
-        status: statusFilter === 'ALL' ? undefined : statusFilter,
-      };
-
-      const response = await fetchAllStaff(params, token);
+      // Backend: GET /api/manager/employees → { success, data: [EmployeeResponse] }
+      // EmployeeResponse: staffId, fullName, phone, email, position, gender, dob, avatar, employmentStatus, hireDate
+      const response = await fetchAllStaff({});
       if (seq !== requestSeqRef.current) return;
 
-      if (response?.success && response?.data) {
-        const { content, totalElements } = response.data;
-        const visible = (content || []).filter(
-          (e) => normalizeStatus(resolveStaffStatus(e)) !== 'DELETED'
-        );
-
-        if (visible.length === 0 && (totalElements || 0) > 0 && currentPage > 1) {
-          setCurrentPage((p) => Math.max(1, p - 1));
-          return;
-        }
-
-        setEmployees(visible);
-        setTotalItems(totalElements || 0);
-      }
+      // unwrap: ApiResponse<List> → response.data = array
+      const staffList = Array.isArray(response?.data) ? response.data : [];
+      setEmployees(staffList);
     } catch (err) {
       console.error('Error loading employees:', err);
       toast.error(err?.message || 'Không tải được dữ liệu nhân viên');
       setEmployees([]);
-      setTotalItems(0);
     } finally {
       if (seq === requestSeqRef.current) setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter]);
+  }, []);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -137,41 +90,40 @@ const EmployeeManager = () => {
     return () => clearInterval(interval);
   }, [loadEmployees]);
 
+  // ── Filter (client-side) ──────────────────────────────────────────────────
+  const displayedEmployees = useMemo(() => {
+    const term = (searchTerm || '').toLowerCase();
+
+    return employees.filter((e) => {
+      if (statusFilter && normalizeStatus(resolveStaffStatus(e)) !== statusFilter) return false;
+      if (term) {
+        const matchName  = (e.fullName || '').toLowerCase().includes(term);
+        const matchPhone = (e.phone    || '').toLowerCase().includes(term);
+        const matchEmail = (e.email    || '').toLowerCase().includes(term);
+        if (!matchName && !matchPhone && !matchEmail) return false;
+      }
+      return true;
+    });
+  }, [employees, searchTerm, statusFilter]);
+
+  // Slice đúng trang
+  const paginatedEmployees = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return displayedEmployees.slice(start, start + itemsPerPage);
+  }, [displayedEmployees, currentPage]);
+
   const handleCreated = () => {
     if (currentPage === 1) { loadEmployees(); return; }
     setCurrentPage(1);
   };
 
-  // ── Role display helper ──────────────────────────────────────────────────
-  const getRoleLabel = (emp) => {
-    const roles = emp?.roles;
-    if (Array.isArray(roles) && roles.length > 0) {
-      return roles
-        .map((r) => r?.roleName?.trim() || r?.roleCode || '')
-        .filter(Boolean)
-        .join(', ');
-    }
-    return emp?.position || '-';
-  };
-
-  // ── Filter ────────────────────────────────────────────────────────────────
-  const displayedEmployees = useMemo(() => {
-    let list = employees;
-    if (roleFilter) {
-      list = list.filter((e) =>
-        (e?.roles || []).some((r) => String(r?.roleId) === String(roleFilter))
-      );
-    }
-    return list;
-  }, [employees, roleFilter]);
-
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const totalPages = Math.ceil(displayedEmployees.length / itemsPerPage) || 1;
 
   // ── Status label helper ──────────────────────────────────────────────────
   const getStatusMeta = (status) => {
     switch (status) {
       case 'ACTIVE':   return { cls: styles.statusActive,   label: 'Hoạt động' };
-      case 'INACTIVE':  return { cls: styles.statusInactive, label: 'Ngưng hoạt động' };
+      case 'INACTIVE': return { cls: styles.statusInactive, label: 'Ngưng hoạt động' };
       case 'LOCKED':   return { cls: styles.statusLocked,   label: 'Đã khóa' };
       default:         return { cls: styles.statusInactive, label: status || '-' };
     }
@@ -199,7 +151,7 @@ const EmployeeManager = () => {
       {/* Stats row */}
       <div className={styles.statsGrid}>
         <div className={`${styles.statCard} ${styles.statTotal}`}>
-          <div className={styles.statValue}>{totalItems}</div>
+          <div className={styles.statValue}>{stats.total}</div>
           <div className={styles.statLabel}>Tổng nhân viên</div>
         </div>
         <div className={`${styles.statCard} ${styles.statActive}`}>
@@ -207,16 +159,12 @@ const EmployeeManager = () => {
           <div className={styles.statLabel}>Đang hoạt động</div>
         </div>
         <div className={`${styles.statCard} ${styles.statInactive}`}>
-          <div className={styles.statValue}>{stats.totalTickets}</div>
-          <div className={styles.statLabel}>Tổng Ticket</div>
+          <div className={styles.statValue}>{stats.inactive}</div>
+          <div className={styles.statLabel}>Ngưng hoạt động</div>
         </div>
         <div className={`${styles.statCard} ${styles.statLocked}`}>
-          <div className={styles.statValue}>{stats.totalServices}</div>
-          <div className={styles.statLabel}>Tổng Dịch Vụ</div>
-        </div>
-        <div className={`${styles.statCard} ${styles.statRating}`}>
-          <div className={styles.statValue}>4.7</div>
-          <div className={styles.statLabel}>Điểm TB</div>
+          <div className={styles.statValue}>{stats.locked}</div>
+          <div className={styles.statLabel}>Đã khóa</div>
         </div>
       </div>
 
@@ -228,29 +176,20 @@ const EmployeeManager = () => {
             className={styles.searchInput}
             placeholder="Tìm kiếm theo tên, SĐT..."
             value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <select
             className={styles.filterSelect}
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            onChange={(e) => handleStatusChange(e.target.value)}
           >
-            <option value="ALL">Tất cả trạng thái</option>
+            <option value="">Tất cả trạng thái</option>
+            <option value="">Tất cả trạng thái</option>
             <option value="ACTIVE">Hoạt động</option>
             <option value="INACTIVE">Ngưng hoạt động</option>
             <option value="LOCKED">Đã khóa</option>
-          </select>
-          <select
-            className={styles.filterSelect}
-            value={roleFilter}
-            onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
-          >
-            <option value="">Tất cả vai trò</option>
-            {allRoles.map((r) => (
-              <option key={r.roleId} value={String(r.roleId)}>{r.label}</option>
-            ))}
           </select>
         </div>
       </div>
@@ -262,27 +201,23 @@ const EmployeeManager = () => {
             <tr>
               <th>STT</th>
               <th>NHÂN VIÊN</th>
-              <th>VAI TRÒ</th>
+              <th>EMAIL</th>
+              <th>CHỨC DANH</th>
               <th>TRẠNG THÁI</th>
-              <th>TỔNG TICKET</th>
-              <th>TỔNG DỊCH VỤ</th>
-              <th>TỔNG GIỜ LÀM</th>
-              <th>ĐÁNH GIÁ</th>
               <th>HÀNH ĐỘNG</th>
             </tr>
           </thead>
           <tbody>
-            {displayedEmployees.length === 0 ? (
+            {paginatedEmployees.length === 0 ? (
               <tr>
-                <td colSpan={9} className={styles.emptyRow}>
+                <td colSpan={6} className={styles.emptyRow}>
                   Không có nhân viên nào phù hợp.
                 </td>
               </tr>
             ) : (
-              displayedEmployees.map((emp, idx) => {
+              paginatedEmployees.map((emp, idx) => {
                 const status = normalizeStatus(resolveStaffStatus(emp));
                 const statusMeta = getStatusMeta(status);
-                const roleLabel = getRoleLabel(emp);
                 return (
                   <tr key={emp.staffId || emp.id || idx}>
                     <td>{(currentPage - 1) * itemsPerPage + idx + 1}</td>
@@ -299,18 +234,13 @@ const EmployeeManager = () => {
                         </div>
                       </div>
                     </td>
-                    <td>
-                      <span className={styles.roleBadge}>{roleLabel}</span>
-                    </td>
+                    <td>{emp.email || '-'}</td>
+                    <td>{emp.position || '-'}</td>
                     <td>
                       <span className={`${styles.statusBadge} ${statusMeta.cls}`}>
                         {statusMeta.label}
                       </span>
                     </td>
-                    <td>{emp.totalTickets || 0}</td>
-                    <td>{emp.totalServices || 0}</td>
-                    <td>{emp.totalHours ? `${emp.totalHours} giờ` : '0 giờ'}</td>
-                    <td>{emp.avgRating ? `${emp.avgRating} ★` : 'Chưa có'}</td>
                     <td>
                       <button
                         type="button"
@@ -331,7 +261,7 @@ const EmployeeManager = () => {
       {/* Pagination */}
       <div className={styles.pagination}>
         <div className={styles.paginationInfo}>
-          Hiển thị {(currentPage - 1) * itemsPerPage + 1} – {Math.min(currentPage * itemsPerPage, totalItems)} trong {totalItems} nhân viên
+          Hiển thị {Math.min((currentPage - 1) * itemsPerPage + 1, displayedEmployees.length)} – {Math.min(currentPage * itemsPerPage, displayedEmployees.length)} trong {displayedEmployees.length} nhân viên
         </div>
         <div className={styles.paginationButtons}>
           <button

@@ -261,9 +261,10 @@ const BookingDetail = () => {
                         justifyContent: 'center',
                         fontSize: '14px',
                         fontWeight: 'bold',
-                        backgroundColor: isCompleted || isCurrent ? '#1a1a1a' : '#e5e7eb',
+                        backgroundColor: isCompleted || isCurrent ? '#1E90FF' : '#e5e7eb',
                         color: isCompleted || isCurrent ? '#fff' : '#6b7280',
-                        transition: 'all 0.3s ease'
+                        transition: 'all 0.3s ease',
+                        boxShadow: isCompleted || isCurrent ? '0 2px 8px rgba(30, 144, 255, 0.3)' : 'none'
                       }}>
                         {isCompleted ? '✓' : index + 1}
                       </div>
@@ -272,7 +273,7 @@ const BookingDetail = () => {
                         marginTop: '8px',
                         fontSize: '11px',
                         fontWeight: isCurrent ? '600' : '400',
-                        color: isCompleted || isCurrent ? '#1a1a1a' : '#9ca3af',
+                        color: isCompleted || isCurrent ? '#1E90FF' : '#9ca3af',
                         textAlign: 'center',
                         maxWidth: '80px'
                       }}>
@@ -285,7 +286,7 @@ const BookingDetail = () => {
                       <div style={{
                         width: '60px',
                         height: '2px',
-                        backgroundColor: isCompleted ? '#1a1a1a' : '#e5e7eb',
+                        backgroundColor: isCompleted ? '#1E90FF' : '#e5e7eb',
                         marginTop: '-20px',
                         transition: 'all 0.3s ease'
                       }} />
@@ -384,8 +385,14 @@ const BookingDetail = () => {
             {booking.technicianNotes && (
               <section className="detailSection">
                 <h2 className="sectionTitle">Ghi chú từ Kỹ thuật viên</h2>
-                <div className="noteContent" style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }}>
-                  <p>{booking.technicianNotes}</p>
+                <div className="noteContent" style={{ 
+                  backgroundColor: '#f9fafb', 
+                  border: '1px solid #e5e7eb',
+                  borderLeft: '4px solid #1E90FF',
+                  padding: '16px',
+                  borderRadius: '8px'
+                }}>
+                  <p style={{ margin: 0, color: '#374151', lineHeight: '1.6' }}>{booking.technicianNotes}</p>
                 </div>
               </section>
             )}
@@ -398,13 +405,15 @@ const BookingDetail = () => {
                   display: 'inline-block',
                   padding: '8px 16px',
                   borderRadius: '8px',
-                  backgroundColor: booking.ticketStatus === 'COMPLETED' ? '#dcfce7' : '#fef3c7',
-                  color: booking.ticketStatus === 'COMPLETED' ? '#166534' : '#92400e',
-                  fontWeight: '500'
+                  backgroundColor: booking.ticketStatus === 'COMPLETED' ? '#d1fae5' : 
+                                   booking.ticketStatus === 'IN_PROGRESS' ? '#dbeafe' : '#fef3c7',
+                  color: booking.ticketStatus === 'COMPLETED' ? '#059669' : 
+                         booking.ticketStatus === 'IN_PROGRESS' ? '#2563eb' : '#d97706',
+                  fontWeight: '600'
                 }}>
                   {booking.ticketStatus === 'COMPLETED' ? '✓ Đã hoàn thành' :
-                   booking.ticketStatus === 'IN_PROGRESS' ? 'Đang xử lý' :
-                   booking.ticketStatus === 'PENDING' ? 'Chờ xử lý' : booking.ticketStatus}
+                   booking.ticketStatus === 'IN_PROGRESS' ? '🔧 Đang xử lý' :
+                   booking.ticketStatus === 'PENDING' ? '⏳ Chờ xử lý' : booking.ticketStatus}
                 </div>
               </section>
             )}
@@ -416,7 +425,7 @@ const BookingDetail = () => {
               justifyContent: 'center',
               marginTop: '24px',
               paddingTop: '24px',
-              borderTop: '1px solid #e5e7eb'
+              borderTop: '2px solid #f3f4f6'
             }}>
               {canEdit ? (
                 <>
@@ -424,14 +433,25 @@ const BookingDetail = () => {
                     to={`/edit-booking/${booking.bookingId || booking.id}`}
                     style={{
                       padding: '12px 32px',
-                      backgroundColor: '#0066FF',
+                      backgroundColor: '#1E90FF',
                       color: '#fff',
-                      borderRadius: '8px',
+                      borderRadius: '10px',
                       textDecoration: 'none',
                       fontWeight: '600',
-                      fontSize: '14px',
+                      fontSize: '15px',
                       display: 'inline-block',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.3s',
+                      boxShadow: '0 2px 8px rgba(30, 144, 255, 0.3)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1873CC';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 16px rgba(30, 144, 255, 0.4)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1E90FF';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(30, 144, 255, 0.3)';
                     }}
                   >
                     Sửa lịch
@@ -441,15 +461,30 @@ const BookingDetail = () => {
                     disabled={isCancelling}
                     style={{
                       padding: '12px 32px',
-                      backgroundColor: '#0066FF',
+                      backgroundColor: '#ef4444',
                       color: '#fff',
                       border: 'none',
-                      borderRadius: '8px',
+                      borderRadius: '10px',
                       fontWeight: '600',
-                      fontSize: '14px',
+                      fontSize: '15px',
                       cursor: isCancelling ? 'not-allowed' : 'pointer',
                       opacity: isCancelling ? 0.6 : 1,
-                      transition: 'all 0.2s'
+                      transition: 'all 0.3s',
+                      boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
+                    }}
+                    onMouseOver={(e) => {
+                      if (!isCancelling) {
+                        e.currentTarget.style.backgroundColor = '#dc2626';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 16px rgba(239, 68, 68, 0.4)';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (!isCancelling) {
+                        e.currentTarget.style.backgroundColor = '#ef4444';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
+                      }
                     }}
                   >
                     {isCancelling ? 'Đang hủy...' : 'Hủy lịch'}
@@ -460,12 +495,25 @@ const BookingDetail = () => {
                   to="/booking"
                   style={{
                     padding: '12px 32px',
-                    backgroundColor: '#0066FF',
+                    backgroundColor: '#1E90FF',
                     color: '#fff',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     textDecoration: 'none',
                     fontWeight: '600',
-                    fontSize: '14px'
+                    fontSize: '15px',
+                    display: 'inline-block',
+                    transition: 'all 0.3s',
+                    boxShadow: '0 2px 8px rgba(30, 144, 255, 0.3)'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#1873CC';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(30, 144, 255, 0.4)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = '#1E90FF';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(30, 144, 255, 0.3)';
                   }}
                 >
                   Đặt lịch mới

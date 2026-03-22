@@ -47,6 +47,7 @@ import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.j
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
+import ManageWorkShifts from './pages/DashBoard/ManageWorkShifts/ManageWorkShifts.jsx';
 
 // Import Work History pages
 import TechnicianWorkHistory from './pages/WorkHistory/TechnicianWorkHistory/TechnicianWorkHistory.jsx';
@@ -148,7 +149,8 @@ export default function App() {
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="service-management" element={<ServiceManagement />} />
-          <Route path="shift-management" element={<ShiftManagement />} />
+          <Route path="manage-staff-attendance" element={<ShiftManagement />} />
+          <Route path="manage-work-shifts" element={<ManageWorkShifts />} />
           <Route path="queue-management" element={<QueueManagement />} />
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />

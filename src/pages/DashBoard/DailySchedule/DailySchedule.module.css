@@ -438,7 +438,7 @@
 
 .listHeader {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr 1.2fr 1.5fr 1fr;
+  grid-template-columns: 1.2fr 0.8fr 1fr 1fr 1fr 1fr;
   gap: 16px;
   padding: 16px 20px;
   background: #1E90FF;
@@ -459,7 +459,7 @@
 
 .listRow {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr 1.2fr 1.5fr 1fr;
+  grid-template-columns: 1.2fr 0.8fr 1fr 1fr 1fr 1fr;
   gap: 16px;
   padding: 16px 20px;
   border-bottom: 1px solid #e2e8f0;
@@ -567,6 +567,74 @@
   border-top-color: #667eea;
   border-radius: 50%;
   animation: spin 1s linear infinite;
+}
+
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 10;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #4a5568;
+}
+
+.loadingRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: #718096;
+  font-size: 14px;
+}
+
+.loadingRow .spinner {
+  width: 24px;
+  height: 24px;
+  border-width: 3px;
+}
+
+.emptyRow {
+  text-align: center;
+  padding: 40px;
+  color: #a0aec0;
+  font-size: 14px;
+}
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  background: #fed7d7;
+  color: #742a2a;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.errorBanner button {
+  background: #e53e3e;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.errorBanner button:hover {
+  background: #c53030;
 }
 
 @keyframes spin {
