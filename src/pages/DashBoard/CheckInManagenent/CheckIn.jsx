@@ -3,38 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import styles from './CheckIn.module.css';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
-import {
-    completeAllCheckInMultipart,
-    createCheckInVehicle,
-    fetchCheckInCustomerVehicles,
-    lookupCheckInByBookingCode,
-} from '../../../services/checkInService.js';
+import { fetchCheckInCustomerVehicles } from '../../../services/checkInService.js';
 import { toast } from 'react-toastify';
-
-/** Chuẩn hóa thông tin từng xe từ dữ liệu thô của API.
- * Đảm bảo các trường thông tin quan trọng như ID, biển số luôn có giá trị mặc định.
- */
-const mapVehicleItem = (item) => {
-    if (!item) return null;
-    return {
-        vehicleId: item.vehicleId ?? item.id ?? 0,
-        licensePlate: item.licensePlate ?? '',
-        make: item.make ?? '',
-        model: item.model ?? '',
-        year: item.year ?? 0,
-        lastOdometerReading: item.lastOdometerReading ?? null,
-        lastServiceDate: item.lastServiceDate ?? null,
-    };
-};
-
-/** Trích xuất danh sách xe từ phản hồi của API.
- * Xử lý các trường hợp dữ liệu lồng nhau phức tạp (data.data hoặc data).
- */
-const normalizeVehiclesPayload = (raw) => {
-    const payload = raw?.data?.data ?? raw?.data ?? raw;
-    const list = Array.isArray(payload?.vehicles) ? payload.vehicles : Array.isArray(payload) ? payload : [];
-    return list.map(mapVehicleItem).filter(Boolean);
-};
+import { normalizeVehiclesPayload, useCheckInHandlers } from './useCheckInHandlers.js';
 
 export default function CheckIn() {
     useScrollToTop(); // Hook tự động cuộn lên đầu trang khi component mount
@@ -136,102 +107,58 @@ export default function CheckIn() {
         };
     }, []);
 
-    // Đọc file ảnh dưới dạng Data URL (Base64) để phục vụ việc gửi dữ liệu hoặc hiển thị
-    const readFileAsDataUrl = (file) => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-            reader.onerror = () => reject(new Error('Không thể đọc file ảnh'));
-            reader.readAsDataURL(file);
-        });
-    };
+    // Xác định thông tin xe đang được chọn trong danh sách để hiển thị chi tiết
+    const selectedVehicle = useMemo(() => {
+        const id = String(selectedVehicleId || '').trim();
+        if (!id) return null;
+        return vehicles.find((v) => String(v?.vehicleId) === id) ?? null;
+    }, [selectedVehicleId, vehicles]);
 
-    // Kích hoạt cửa sổ chọn file bằng cách click vào input ẩn
-    const handlePickPhoto = (key) => {
-        const input = document.getElementById(`checkin-${key}`);
-        input?.click?.();
-    };
+    const {
+		handlePickPhoto,
+		handlePhotoChange,
+		handleRemovePhoto,
+		handleLookupBooking,
+		startAddNewVehicle,
+		stopAddNewVehicle,
+		handleCreateVehicle,
+		handleCancel,
+		handleConfirm,
+	} = useCheckInHandlers({
+		bookingCode,
+		booking,
+		vehicles,
+		selectedVehicle,
+		selectedVehicleId,
+		isAddingNewVehicle,
+		isCreatingVehicle,
+		isSubmitting,
+		licensePlate,
+		vehicleMake,
+		vehicleModel,
+		vehicleYear,
+		photos,
+		photoDescriptions,
+		odometerNumber,
+		damageNote,
+		previousVehicleIdRef,
+		notify,
+		navigate,
 
-    // Xử lý khi người dùng chọn xong ảnh: Tạo preview URL và đọc Base64
-    const handlePhotoChange = async (key, file) => {
-        if (!file?.type?.startsWith('image/')) return;
-
-        const url = URL.createObjectURL(file); // Tạo URL tạm thời để hiển thị img src
-        let dataUrl = '';
-        try {
-            dataUrl = await readFileAsDataUrl(file);
-        } catch {
-            dataUrl = '';
-        }
-
-        setPhotos((prev) => {
-            const prevUrl = prev?.[key]?.url;
-            if (prevUrl) URL.revokeObjectURL(prevUrl); // Xóa URL cũ để tối ưu bộ nhớ
-            return {
-                ...prev,
-                [key]: { file, url, dataUrl },
-            };
-        });
-    };
-
-    // Xóa ảnh đã chọn và giải phóng tài nguyên liên quan
-    const handleRemovePhoto = (key) => {
-        setPhotos((prev) => {
-            const prevUrl = prev?.[key]?.url;
-            if (prevUrl) URL.revokeObjectURL(prevUrl);
-            return {
-                ...prev,
-                [key]: { file: null, url: '', dataUrl: '' },
-            };
-        });
-    };
-
-    // Chuẩn hóa dữ liệu booking lấy từ API Lookup
-    const mapLookupPayload = (payload) => {
-        if (!payload) return null;
-        const customer = payload.customer || payload.customerInfo || payload.customerProfile || {};
-        const customerId =
-            payload.customerId ??
-            customer?.customerId ??
-            customer?.id ??
-            payload.customer?.id ??
-            null;
-
-        const bookingId = payload.bookingId ?? payload.id ?? payload.booking?.bookingId ?? payload.booking?.id ?? null;
-        const bookingCodeVal = payload.bookingCode ?? payload.booking?.bookingCode ?? payload.code ?? '';
-
-        return {
-            bookingId,
-            bookingCode: bookingCodeVal ?? '',
-            scheduledDate: payload.scheduledDate ?? '',
-            scheduledTime: payload.scheduledTime ?? '',
-            customerId,
-            customerName: payload.customerName ?? customer?.fullName ?? payload.fullName ?? '',
-            customerPhone: payload.customerPhone ?? customer?.phone ?? payload.phone ?? '',
-            customerEmail: payload.customerEmail ?? customer?.email ?? payload.email ?? null,
-            services: Array.isArray(payload.services) ? payload.services : [],
-        };
-    };
-
-    // Hàm gọi API để lấy thông tin chi tiết về booking dựa trên mã code
-    const handleLookupBooking = useCallback(async () => {
-        const code = String(bookingCode || '').trim();
-        if (!code) return;
-
-        try {
-            setIsLookupLoading(true);
-            const token = localStorage.getItem('authToken');
-            const response = await lookupCheckInByBookingCode(code, token);
-            const payload = response?.data?.data ?? response?.data ?? response;
-            setBooking(mapLookupPayload(payload));
-        } catch (err) {
-            notify(err?.message || 'Không thể tải thông tin booking.');
-            setBooking(null);
-            setLastOdometerKm(null);
-        } finally {
-            setIsLookupLoading(false);
-        }
-    }, [bookingCode, notify]);
+		setBooking,
+		setLastOdometerKm,
+		setIsLookupLoading,
+		setVehicles,
+		setIsAddingNewVehicle,
+		setSelectedVehicleId,
+		setLicensePlate,
+		setVehicleMake,
+		setVehicleModel,
+		setVehicleYear,
+		setIsCreatingVehicle,
+		setIsSubmitting,
+		setPhotos,
+	});
 
     // Tự động tìm kiếm booking khi trang vừa được load
     useEffect(() => {
@@ -239,13 +166,6 @@ export default function CheckIn() {
         if (!code) return;
         handleLookupBooking();
     }, [bookingCode, handleLookupBooking]);
-
-    // Xác định thông tin xe đang được chọn trong danh sách để hiển thị chi tiết
-    const selectedVehicle = useMemo(() => {
-        const id = String(selectedVehicleId || '').trim();
-        if (!id) return null;
-        return vehicles.find((v) => String(v?.vehicleId) === id) ?? null;
-    }, [selectedVehicleId, vehicles]);
 
     // Khi đổi xe trong danh sách, cập nhật các field thông tin tương ứng
     useEffect(() => {
@@ -316,89 +236,6 @@ export default function CheckIn() {
         };
     }, [booking?.customerId, notify]);
 
-    // Chuyển sang giao diện thêm xe mới
-    const startAddNewVehicle = () => {
-        previousVehicleIdRef.current = String(selectedVehicleId || '');
-        setIsAddingNewVehicle(true);
-        setSelectedVehicleId('');
-        setLastOdometerKm(null);
-        setLicensePlate('');
-        setVehicleMake('');
-        setVehicleModel('');
-        setVehicleYear('');
-    };
-
-    // Quay lại danh sách xe hiện có
-    const stopAddNewVehicle = () => {
-        setIsAddingNewVehicle(false);
-        const restored = previousVehicleIdRef.current;
-        const restoredExists = restored && vehicles.some((v) => String(v?.vehicleId) === String(restored));
-        const nextId = restoredExists ? restored : vehicles?.[0]?.vehicleId ? String(vehicles[0].vehicleId) : '';
-        setSelectedVehicleId(nextId);
-    };
-
-    // Xử lý gọi API tạo xe mới cho khách hàng
-    const handleCreateVehicle = async () => {
-        if (isCreatingVehicle || isSubmitting) return;
-
-        const customerIdRaw = booking?.customerId ?? null;
-        const customerId = Number(customerIdRaw) || 0;
-        if (!customerId) {
-            notify('Thiếu thông tin khách hàng. Vui lòng tải lại trang.');
-            return;
-        }
-
-        const licensePlateValue = String(licensePlate || '').trim();
-        if (!licensePlateValue) {
-            notify('Vui lòng nhập biển số cho xe mới.');
-            return;
-        }
-
-        const yearValue = Number(String(vehicleYear || '').replaceAll(/\D/g, '')) || 0;
-        if (yearValue && yearValue < 1900) {
-            notify('Năm sản xuất không hợp lệ.');
-            return;
-        }
-
-        const createPayload = {
-            customerId,
-            licensePlate: licensePlateValue,
-            make: String(vehicleMake || '').trim(),
-            model: String(vehicleModel || '').trim(),
-            ...(yearValue ? { year: yearValue } : {}),
-        };
-
-        try {
-            setIsCreatingVehicle(true);
-            const token = localStorage.getItem('authToken');
-            const response = await createCheckInVehicle(createPayload, token);
-            const result = response?.data?.data ?? response?.data ?? response;
-            const data = result?.data ?? result;
-
-            const newVehicle = mapVehicleItem(data);
-            const newVehicleId = Number(newVehicle?.vehicleId) || 0;
-            if (!newVehicleId) {
-                notify('Tạo xe thất bại, không nhận được vehicleId.');
-                return;
-            }
-
-            // Thêm xe vừa tạo vào danh sách hiển thị và tự động chọn nó
-            setVehicles((prev) => {
-                const list = Array.isArray(prev) ? prev : [];
-                const withoutDup = list.filter((v) => Number(v?.vehicleId) !== newVehicleId);
-                return [newVehicle, ...withoutDup];
-            });
-
-            setIsAddingNewVehicle(false);
-            setSelectedVehicleId(String(newVehicleId));
-            setLastOdometerKm(newVehicle?.lastOdometerReading == null ? null : Number(newVehicle.lastOdometerReading) || null);
-            notify('Đã thêm xe mới.');
-        } catch (err) {
-            notify(err?.message || 'Không thể tạo xe mới.');
-        } finally {
-            setIsCreatingVehicle(false);
-        }
-    };
 
     /** * Hàm render giao diện cho từng ô chọn ảnh.
      * Tái sử dụng cho cả 7 góc chụp để giữ code gọn gàng.
@@ -466,104 +303,6 @@ export default function CheckIn() {
                 )}
             </div>
         );
-    };
-
-    const handleCancel = () => navigate(-1);
-
-    /** * Xử lý xác nhận cuối cùng: Tổng hợp dữ liệu và gửi API tạo phiếu dịch vụ.
-     * Sử dụng định dạng Multipart để gửi kèm các file ảnh thực tế.
-     */
-    const handleConfirm = async () => {
-        if (isSubmitting) return;
-
-        const code = String(bookingCode || '').trim();
-        if (!code) {
-            notify('Thiếu bookingCode, vui lòng quay lại danh sách booking.');
-            return;
-        }
-
-        const bookingIdRaw = booking?.bookingId ?? null;
-        const customerIdRaw = booking?.customerId ?? null;
-        const bookingId = Number(bookingIdRaw) || 0;
-        const customerId = Number(customerIdRaw) || 0;
-
-        if (!bookingId || !customerId) {
-            notify('Thiếu thông tin booking/khách hàng (ID không hợp lệ). Vui lòng tải lại trang.');
-            return;
-        }
-
-        if (isAddingNewVehicle) {
-            notify('Vui lòng xác nhận thêm xe mới trước khi tiếp nhận.');
-            return;
-        }
-
-        const existingVehicleId = Number(selectedVehicle?.vehicleId) || 0;
-        if (!existingVehicleId) {
-            notify('Vui lòng chọn xe của khách hàng.');
-            return;
-        }
-
-        // Lấy thông tin nhân viên thực hiện từ session/localStorage
-        const staffProfileRaw = localStorage.getItem('staffProfile');
-        let staffId = 0;
-        try {
-            const staffProfile = staffProfileRaw ? JSON.parse(staffProfileRaw) : null;
-            staffId = Number(staffProfile?.staffId) || 0;
-        } catch {
-            staffId = 0;
-        }
-
-        // Chuẩn bị payload chứa thông tin chữ
-        const payload = {
-            bookingId,
-            customerId,
-            vehicleId: existingVehicleId,
-            licensePlate: String(selectedVehicle?.licensePlate || '').trim(),
-            make: String(selectedVehicle?.make || '').trim(),
-            model: String(selectedVehicle?.model || '').trim(),
-            year: Number(selectedVehicle?.year) || 0,
-            licensePlatePhoto: photos?.licensePlatePhoto?.dataUrl || '',
-            photoFront: photos?.photoFront?.dataUrl || '',
-            photoFrontDescription: String(photoDescriptions?.photoFrontDescription || '').trim(),
-            photoRear: photos?.photoRear?.dataUrl || '',
-            photoRearDescription: String(photoDescriptions?.photoRearDescription || '').trim(),
-            photoLeftSide: photos?.photoLeftSide?.dataUrl || '',
-            photoLeftSideDescription: String(photoDescriptions?.photoLeftSideDescription || '').trim(),
-            photoRightSide: photos?.photoRightSide?.dataUrl || '',
-            photoRightSideDescription: String(photoDescriptions?.photoRightSideDescription || '').trim(),
-            photoInterior: photos?.photoInterior?.dataUrl || '',
-            photoInteriorDescription: String(photoDescriptions?.photoInteriorDescription || '').trim(),
-            photoDamage: photos?.photoDamage?.dataUrl || '',
-            photoDamageDescription: String(photoDescriptions?.photoDamageDescription || '').trim(),
-            odometerReading: Number(odometerNumber) || 0,
-            checkInNotes: String(damageNote || '').trim(),
-            staffId: Number(staffId) || 0,
-        };
-
-        try {
-            setIsSubmitting(true);
-            const token = localStorage.getItem('authToken');
-
-            // Tổng hợp các file ảnh thực tế để gửi Multipart
-            const photoFiles = {
-                licensePlatePhoto: photos?.licensePlatePhoto?.file ?? null,
-                photoFront: photos?.photoFront?.file ?? null,
-                photoRear: photos?.photoRear?.file ?? null,
-                photoLeftSide: photos?.photoLeftSide?.file ?? null,
-                photoRightSide: photos?.photoRightSide?.file ?? null,
-                photoInterior: photos?.photoInterior?.file ?? null,
-                photoDamage: photos?.photoDamage?.file ?? null,
-            };
-
-            const response = await completeAllCheckInMultipart(payload, photoFiles, token);
-            const data = response?.data?.data ?? response?.data ?? response;
-            const ticketCode = data?.ticketCode || '';
-            notify(ticketCode ? `Tạo phiếu thành công: ${ticketCode}` : 'Tạo phiếu thành công');
-        } catch (err) {
-            notify(err?.message || 'Tạo phiếu thất bại, vui lòng thử lại.');
-        } finally {
-            setIsSubmitting(false);
-        }
     };
 
     return (
