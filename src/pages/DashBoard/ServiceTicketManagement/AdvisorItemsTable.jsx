@@ -1,17 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 import {
-	createServiceTicketEstimate,
-	fetchServiceTicketEstimate,
-	fetchTaxRulesAll,
-	updateServiceTicketEstimate,
-	updateServiceTicketEstimateItem,
-} from '../../../services/serviceTicketService.js';
+	formatCurrencyVnd,
+	isDraftRowEmpty,
+	toIdOrNull,
+	useAdvisorItemsTableHandlers,
+} from './useAdvisorItemsTableHandlers.js';
 
 const PHOTO_SLOTS = 4;
-
-const PLACEHOLDER_ROW_COUNT = 15;
 
 const CATEGORY_SUGGESTIONS = [
 	{ label: 'Lốp' },
@@ -27,689 +23,35 @@ const CATEGORY_SUGGESTIONS = [
 	{ label: 'Lọc gió điều hòa' },
 ];
 
-function formatCurrencyVnd(value) {
-	const n = typeof value === 'number' ? value : Number(value);
-	if (!Number.isFinite(n)) return '';
-	return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
-}
-
-function pickLatestEstimate(list) {
-	const arr = Array.isArray(list) ? list : [];
-	if (arr.length === 0) return null;
-	return [...arr].sort((a, b) => {
-		const va = Number(a?.version);
-		const vb = Number(b?.version);
-		const versionCmp = (Number.isFinite(vb) ? vb : -1) - (Number.isFinite(va) ? va : -1);
-		if (versionCmp !== 0) return versionCmp;
-		const ta = Date.parse(a?.createdAt || a?.approvedAt || 0);
-		const tb = Date.parse(b?.createdAt || b?.approvedAt || 0);
-		return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
-	})[0];
-}
-
-function createEmptyDraftRow() {
-	return {
-		estimateItemId: null,
-		workCategoryId: null,
-		itemId: null,
-		newCategoryName: '',
-		itemName: '',
-		quantity: '',
-		unitPrice: '',
-		taxRuleId: '',
-		confirmed: false,
-		isRemoved: false,
-	};
-}
-
-function toNumberOrZero(value) {
-	const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
-	return Number.isFinite(n) ? n : 0;
-}
-
-function pickMoneyDisplayValue(withVatValue, baseValue) {
-	const withVatNum = toNumberOrZero(withVatValue);
-	if (withVatNum > 0) return withVatNum;
-	const baseNum = toNumberOrZero(baseValue);
-	return baseNum > 0 ? baseNum : '';
-}
-
-function toIdOrNull(value) {
-	if (value == null) return null;
-	const n = typeof value === 'number' ? value : Number(String(value).trim());
-	return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function isDraftRowEmpty(row) {
-	const newCategoryName = String(row?.newCategoryName || '').trim();
-	const itemName = String(row?.itemName || '').trim();
-	const quantity = String(row?.quantity ?? '').trim();
-	const unitPrice = String(row?.unitPrice ?? '').trim();
-	const taxRuleId = String(row?.taxRuleId ?? '').trim();
-	const confirmed = Boolean(row?.confirmed);
-	return !newCategoryName && !itemName && !quantity && !unitPrice && !taxRuleId && !confirmed;
-}
-
-function normalizeDraftRows(rows, maxRows) {
-	const max = Number.isFinite(maxRows) && maxRows > 0 ? maxRows : 15;
-	let next = Array.isArray(rows) ? rows.slice(0, max) : [];
-	if (next.length === 0) return [createEmptyDraftRow()];
-
-	// Collapse to a single empty row if everything is empty.
-	if (next.every((r) => isDraftRowEmpty(r))) return [createEmptyDraftRow()];
-
-	// Keep at most one empty row at the end.
-	while (next.length > 1 && isDraftRowEmpty(next.at(-1)) && isDraftRowEmpty(next.at(-2))) {
-		next = next.slice(0, -1);
-	}
-
-	// Ensure there is exactly one trailing empty row (if there's room).
-	if (!isDraftRowEmpty(next.at(-1)) && next.length < max) {
-		next = [...next, createEmptyDraftRow()];
-	}
-
-	return next;
-}
-
-function getItemCheckedFlag(it) {
-	return Boolean(
-		it?.isChecked ??
-			it?.confirmed ??
-			it?.isConfirmed ??
-			it?.approved ??
-			it?.isApproved ??
-			it?.customerConfirmed ??
-			it?.isCustomerConfirmed,
-	);
-}
-
 export default function AdvisorItemsTable({ serviceTicketId }) {
-	const [estimate, setEstimate] = useState(null);
-	const [loading, setLoading] = useState(false);
-	const [loadError, setLoadError] = useState('');
-	const [fetched, setFetched] = useState(false);
-	const [taxRules, setTaxRules] = useState([]);
-	const [taxRulesLoading, setTaxRulesLoading] = useState(false);
-	const [taxRulesError, setTaxRulesError] = useState('');
-	const [recommendation, setRecommendation] = useState('');
-	const [isCreating, setIsCreating] = useState(false);
-	const [isEditing, setIsEditing] = useState(false);
-	const [isSaving, setIsSaving] = useState(false);
-	const [saveError, setSaveError] = useState('');
-	const [draftRows, setDraftRows] = useState(() => [createEmptyDraftRow()]);
-	const [editRows, setEditRows] = useState(() => [createEmptyDraftRow()]);
-	const prevServiceTicketIdRef = useRef(serviceTicketId);
-
-	useEffect(() => {
-		setRecommendation('');
-	}, [serviceTicketId]);
-
-	useEffect(() => {
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setTaxRules([]);
-			setTaxRulesError('');
-			setTaxRulesLoading(false);
-			return;
-		}
-
-		let ignore = false;
-		const run = async () => {
-			try {
-				setTaxRulesLoading(true);
-				setTaxRulesError('');
-				const res = await fetchTaxRulesAll(token);
-				if (ignore) return;
-				setTaxRules(Array.isArray(res?.data) ? res.data : []);
-			} catch (err) {
-				if (ignore) return;
-				setTaxRules([]);
-				setTaxRulesError(err?.message || 'Không thể tải danh sách loại thuế.');
-			} finally {
-				if (!ignore) setTaxRulesLoading(false);
-			}
-		};
-		run();
-		return () => {
-			ignore = true;
-		};
-	}, []);
-
-	useEffect(() => {
-		const token = localStorage.getItem('authToken');
-		if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') {
-			setEstimate(null);
-			setFetched(false);
-			setIsCreating(false);
-			setIsEditing(false);
-			return;
-		}
-
-		let ignore = false;
-		const run = async () => {
-			try {
-				setLoading(true);
-				setLoadError('');
-				setFetched(false);
-				const res = await fetchServiceTicketEstimate(serviceTicketId, token);
-				if (ignore) return;
-				const picked = pickLatestEstimate(res?.data);
-				setEstimate(picked);
-				setFetched(true);
-			} catch (err) {
-				if (ignore) return;
-				setEstimate(null);
-				setLoadError(err?.message || 'Không thể tải ước tính.');
-				setFetched(true);
-			} finally {
-				if (!ignore) setLoading(false);
-			}
-		};
-
-		run();
-		return () => {
-			ignore = true;
-		};
-	}, [serviceTicketId]);
-
-	useEffect(() => {
-		if (!isCreating) return;
-		// When switching tickets while creating, reset draft.
-		setDraftRows([createEmptyDraftRow()]);
-		setSaveError('');
-	}, [serviceTicketId, isCreating]);
-
-	useEffect(() => {
-		const prev = prevServiceTicketIdRef.current;
-		prevServiceTicketIdRef.current = serviceTicketId;
-		if (!isEditing) return;
-		if (prev === serviceTicketId) return;
-		// When switching tickets while editing, reset edit draft.
-		setEditRows([createEmptyDraftRow()]);
-		setSaveError('');
-	}, [serviceTicketId, isEditing]);
-
-	const rows = useMemo(() => {
-		const items = Array.isArray(estimate?.items) ? estimate.items : [];
-		return items
-			.map((it, idx) => ({ it, idx }))
-			.filter(({ it }) => !it?.isRemoved)
-			.map(({ it, idx }) => {
-			const quantity = it?.quantity ?? '';
-			const unitPrice = it?.unitPrice ?? '';
-			const subTotal = it?.subTotal ?? '';
-			const unitPriceWithVat = it?.unitPriceWithVat ?? it?.unitPriceWithVAT ?? '';
-			const subTotalWithVat = it?.subTotalWithVat ?? it?.subTotalWithVAT ?? '';
-			const categoryName = it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
-			const confirmed = getItemCheckedFlag(it);
-			const estimateItemId = it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null;
-			const workCategoryId =
-				it?.workCategoryId ??
-				it?.workCateId ??
-				it?.workCategory?.workCategoryId ??
-				it?.workCategory?.workCateId ??
-				it?.workCategory?.id ??
-				null;
-			const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
-			return {
-				key: String(it?.estimateItemId ?? it?.itemId ?? it?.itemName ?? `item-${idx}`),
-				sourceIndex: idx,
-				estimateItemId,
-				workCategoryId,
-				itemId,
-				categoryName,
-				itemName: it?.itemName || '',
-				quantity,
-				unitPrice,
-				subTotal,
-				unitPriceDisplay: pickMoneyDisplayValue(unitPriceWithVat, unitPrice),
-				subTotalDisplay: pickMoneyDisplayValue(subTotalWithVat, subTotal),
-				taxRuleId: it?.taxRuleId ?? '',
-				confirmed,
-				isRemoved: Boolean(it?.isRemoved),
-			};
-		});
-	}, [estimate]);
-
-	const taxRuleById = useMemo(() => {
-		const map = new Map();
-		for (const rule of Array.isArray(taxRules) ? taxRules : []) {
-			const id = toIdOrNull(rule?.taxRuleId);
-			if (id) map.set(id, rule);
-		}
-		return map;
-	}, [taxRules]);
-
-	const canEdit = useMemo(() => {
-		return fetched && !loading && !loadError && !!estimate && !isCreating && !isEditing;
-	}, [fetched, loading, loadError, estimate, isCreating, isEditing]);
-
-	const draftComputed = useMemo(() => {
-		return draftRows.map((r, idx) => {
-			const quantity = toNumberOrZero(r.quantity);
-			const unitPrice = toNumberOrZero(r.unitPrice);
-			const subTotal = quantity * unitPrice;
-			return {
-				key: `draft-${idx + 1}`,
-				...r,
-				subTotal,
-			};
-		});
-	}, [draftRows]);
-
-	const editComputed = useMemo(() => {
-		return editRows.map((r, idx) => {
-			const quantity = toNumberOrZero(r.quantity);
-			const unitPrice = toNumberOrZero(r.unitPrice);
-			const subTotal = quantity * unitPrice;
-			return {
-				key: `edit-${idx + 1}`,
-				...r,
-				subTotal,
-			};
-		});
-	}, [editRows]);
-
-	const draftTotal = useMemo(() => {
-		return draftComputed.reduce((acc, r) => acc + toNumberOrZero(r.subTotal), 0);
-	}, [draftComputed]);
-
-	const editTotal = useMemo(() => {
-		return editComputed.reduce((acc, r) => acc + toNumberOrZero(r.subTotal), 0);
-	}, [editComputed]);
-
-	const total = useMemo(() => {
-		const raw = estimate?.totalPrice;
-		const n = typeof raw === 'number' ? raw : Number(raw);
-		return Number.isFinite(n) ? n : 0;
-	}, [estimate]);
-
-	const estimateCostText = useMemo(() => {
-		if (isCreating) return formatCurrencyVnd(draftTotal) || '-';
-		if (isEditing) return formatCurrencyVnd(editTotal) || '-';
-		if (loading) return 'Đang tải...';
-		if (!estimate) return '-';
-		return formatCurrencyVnd(total) || '-';
-	}, [isCreating, draftTotal, isEditing, editTotal, loading, estimate, total]);
-
-	const showAddEstimate = useMemo(() => {
-		return fetched && !loading && !loadError && !estimate && !isCreating && !isEditing;
-	}, [fetched, loading, loadError, estimate, isCreating, isEditing]);
-
-	const statusLine = useMemo(() => {
-		if (saveError || loadError || taxRulesError) return saveError || loadError || taxRulesError;
-		if (isCreating || isEditing) return 'Chưa bao gồm VAT';
-		return 'Đã bao gồm VAT';
-	}, [saveError, loadError, taxRulesError, isCreating, isEditing]);
-
-	const footerTotalText = useMemo(() => {
-		if (isCreating) return formatCurrencyVnd(draftTotal);
-		if (isEditing) return formatCurrencyVnd(editTotal);
-		if (!estimate) return '';
-		return formatCurrencyVnd(total);
-	}, [isCreating, draftTotal, isEditing, editTotal, estimate, total]);
-
-	const tableRows = useMemo(() => {
-		if (isCreating) return draftComputed;
-		if (isEditing) return editComputed;
-		return rows;
-	}, [isCreating, isEditing, draftComputed, editComputed, rows]);
-
-	const showInputs = useMemo(() => {
-		return isCreating || isEditing;
-	}, [isCreating, isEditing]);
-
-	const onChange = useMemo(() => {
-		return isCreating ? handleDraftChange : handleEditChange;
-	}, [isCreating]);
-
-	const startCreate = () => {
-		if (isEditing) return;
-		setIsCreating(true);
-		setSaveError('');
-		setDraftRows([createEmptyDraftRow()]);
-	};
-
-	const cancelCreate = () => {
-		if (isSaving) return;
-		setIsCreating(false);
-		setSaveError('');
-	};
-
-	const startEdit = () => {
-		if (!estimate || isCreating || isSaving) return;
-		const items = Array.isArray(estimate?.items) ? estimate.items : [];
-		const mapped = items
-			.filter((it) => !it?.isRemoved)
-			.map((it) => ({
-				estimateItemId: it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null,
-				workCategoryId:
-					it?.workCategoryId ??
-					it?.workCateId ??
-					it?.workCategory?.workCategoryId ??
-					it?.workCategory?.workCateId ??
-					it?.workCategory?.id ??
-					null,
-				itemId: it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null,
-				newCategoryName: String(it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '').trim(),
-				itemName: String(it?.itemName || '').trim(),
-				quantity: it?.quantity ?? '',
-				unitPrice: it?.unitPrice ?? '',
-				taxRuleId: it?.taxRuleId ?? '',
-				confirmed: getItemCheckedFlag(it),
-				isRemoved: Boolean(it?.isRemoved),
-			}));
-		setEditRows(normalizeDraftRows(mapped, PLACEHOLDER_ROW_COUNT));
-		setIsEditing(true);
-		setSaveError('');
-	};
-
-	const canToggleChecked = useMemo(() => {
-		return fetched && !loading && !loadError && !!estimate && !isCreating && !isEditing && !isSaving;
-	}, [fetched, loading, loadError, estimate, isCreating, isEditing, isSaving]);
-
-	const toggleChecked = async (sourceIndex, nextChecked) => {
-		if (!canToggleChecked) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setSaveError('Vui lòng đăng nhập để cập nhật xác nhận.');
-			return;
-		}
-
-		const estimateId = estimate?.estimateId ?? estimate?.id;
-		const estimateIdNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
-		if (!Number.isFinite(estimateIdNum) || estimateIdNum <= 0) {
-			setSaveError('Thiếu estimateId hợp lệ.');
-			return;
-		}
-
-		const serviceTicketIdRaw = estimate?.serviceTicketId ?? serviceTicketId;
-		const serviceTicketIdNum = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(serviceTicketIdRaw);
-		if (!Number.isFinite(serviceTicketIdNum) || serviceTicketIdNum <= 0) {
-			setSaveError('Thiếu serviceTicketId hợp lệ.');
-			return;
-		}
-
-		const currentItems = Array.isArray(estimate?.items) ? estimate.items : [];
-		if (!currentItems.length) return;
-
-		const itemsPayload = currentItems.map((it, idx) => {
-			const workCategoryId =
-				it?.workCategoryId ??
-				it?.workCateId ??
-				it?.workCategory?.workCategoryId ??
-				it?.workCategory?.workCateId ??
-				it?.workCategory?.id ??
-				null;
-			const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
-			const newCategoryName = String(it?.newCategoryName || it?.workCategory?.categoryName || it?.workCategory?.categoryCode || '',).trim() || null;
-			const itemName = String(it?.itemName ?? '').trim() || null;
-			const quantity = toNumberOrZero(it?.quantity);
-			const unitPrice = toNumberOrZero(it?.unitPrice);
-			const taxRuleId = it?.taxRuleId ?? null;
-			const isChecked = idx === sourceIndex ? Boolean(nextChecked) : getItemCheckedFlag(it);
-			const isRemoved = Boolean(it?.isRemoved);
-			return {
-				workCategoryId: workCategoryId ?? null,
-				newCategoryName,
-				itemId: itemId ?? null,
-				itemName,
-				quantity,
-				unitPrice,
-				taxRuleId,
-				isChecked,
-				isRemoved,
-			};
-		});
-
-		try {
-			setIsSaving(true);
-			setSaveError('');
-			const res = await updateServiceTicketEstimate(
-				estimateIdNum,
-				{
-					serviceTicketId: serviceTicketIdNum,
-					estimateType: estimate?.estimateType || 'INITIAL',
-					items: itemsPayload,
-				},
-				token,
-			);
-			setEstimate((prev) => res?.data ?? prev);
-		} catch (err) {
-			setSaveError(err?.message || 'Không thể cập nhật xác nhận.');
-		} finally {
-			setIsSaving(false);
-		}
-	};
-
-	const cancelEdit = () => {
-		if (isSaving) return;
-		setIsEditing(false);
-		setSaveError('');
-	};
-
-	function handleDraftChange(index, field, value) {
-		setDraftRows((prev) => {
-			const base = Array.isArray(prev) ? prev : [];
-			const next = base.map((r, idx) => (idx === index ? { ...r, [field]: value } : r));
-			return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
-		});
-	}
-
-	function handleEditChange(index, field, value) {
-		setEditRows((prev) => {
-			const base = Array.isArray(prev) ? prev : [];
-			const next = base.map((r, idx) => (idx === index ? { ...r, [field]: value } : r));
-			return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
-		});
-	}
-
-	const saveEstimate = async () => {
-		if (isSaving) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setSaveError('Vui lòng đăng nhập để tạo báo giá.');
-			return;
-		}
-
-		const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
-		if (!Number.isFinite(idNum) || idNum <= 0) {
-			setSaveError('Thiếu serviceTicketId hợp lệ.');
-			return;
-		}
-
-		const normalized = draftRows
-			.filter((r) => !isDraftRowEmpty(r))
-			.map((r) => {
-
-				const newCategoryName = String(r.newCategoryName ?? '').trim() || null;
-				const itemName = String(r.itemName ?? '').trim() || null;
-				const quantity = toNumberOrZero(r.quantity);
-				const unitPrice = toNumberOrZero(r.unitPrice);
-				const taxRuleId = toIdOrNull(r?.taxRuleId);
-				return {
-					workCategoryId: null,
-					newCategoryName,
-					itemId: null,
-					itemName,
-					quantity,
-					unitPrice,
-					taxRuleId,
-					isChecked: Boolean(r?.confirmed),
-					isRemoved: false,
-				};
-			})
-			.filter((it) => it.newCategoryName && it.quantity > 0);
-
-		if (normalized.some((it) => !it.taxRuleId)) {
-			setSaveError('Vui lòng chọn loại thuế cho tất cả hạng mục.');
-			return;
-		}
-
-		const items = normalized;
-
-		if (items.length === 0) {
-			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
-			return;
-		}
-
-		try {
-			setIsSaving(true);
-			setSaveError('');
-			const res = await createServiceTicketEstimate(
-				{
-					serviceTicketId: idNum,
-					estimateType: 'INITIAL',
-					items,
-				},
-				token,
-			);
-			setEstimate(res?.data ?? null);
-			setIsCreating(false);
-		} catch (err) {
-			setSaveError(err?.message || 'Không thể lưu báo giá.');
-		} finally {
-			setIsSaving(false);
-		}
-	};
-
-	const saveEdit = async () => {
-		if (isSaving) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setSaveError('Vui lòng đăng nhập để cập nhật báo giá.');
-			return;
-		}
-
-		const estimateId = estimate?.estimateId ?? estimate?.id;
-		const estimateIdNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
-		if (!Number.isFinite(estimateIdNum) || estimateIdNum <= 0) {
-			setSaveError('Thiếu estimateId hợp lệ.');
-			return;
-		}
-
-		const serviceTicketIdRaw = estimate?.serviceTicketId ?? serviceTicketId;
-		const serviceTicketIdNum = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(serviceTicketIdRaw);
-		if (!Number.isFinite(serviceTicketIdNum) || serviceTicketIdNum <= 0) {
-			setSaveError('Thiếu serviceTicketId hợp lệ.');
-			return;
-		}
-
-		const normalized = editRows
-			.filter((r) => !isDraftRowEmpty(r))
-			.map((r) => {
-
-				const newCategoryName = String(r.newCategoryName ?? '').trim() || null;
-				const itemName = String(r.itemName ?? '').trim() || null;
-				const quantity = toNumberOrZero(r.quantity);
-				const unitPrice = toNumberOrZero(r.unitPrice);
-				const taxRuleId = toIdOrNull(r?.taxRuleId);
-				return {
-					workCategoryId: null,
-					newCategoryName,
-					itemId: null,
-					itemName,
-					quantity,
-					unitPrice,
-					taxRuleId,
-					isChecked: Boolean(r?.confirmed),
-					isRemoved: false,
-				};
-			})
-			.filter((it) => it.newCategoryName && it.quantity > 0);
-
-		if (normalized.some((it) => !it.taxRuleId)) {
-			setSaveError('Vui lòng chọn loại thuế cho tất cả hạng mục.');
-			return;
-		}
-
-		const items = normalized;
-
-		if (items.length === 0) {
-			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
-			return;
-		}
-
-		try {
-			setIsSaving(true);
-			setSaveError('');
-			const res = await updateServiceTicketEstimate(
-				estimateIdNum,
-				{
-					serviceTicketId: serviceTicketIdNum,
-					estimateType: estimate?.estimateType || 'INITIAL',
-					items,
-				},
-				token,
-			);
-			setEstimate(res?.data ?? null);
-			setIsEditing(false);
-		} catch (err) {
-			setSaveError(err?.message || 'Không thể cập nhật báo giá.');
-		} finally {
-			setIsSaving(false);
-		}
-	};
-
-	const softDeleteEditRow = async (rowIndex) => {
-		if (!isEditing || isSaving) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setSaveError('Vui lòng đăng nhập để xóa hạng mục.');
-			return;
-		}
-
-		const row = editComputed[rowIndex];
-		const estimateItemId = toIdOrNull(row?.estimateItemId);
-		if (!estimateItemId) {
-			setSaveError('Không tìm thấy estimateItemId để xóa.');
-			return;
-		}
-
-		try {
-			setIsSaving(true);
-			setSaveError('');
-			await updateServiceTicketEstimateItem(
-				estimateItemId,
-				{
-					workCategoryId: toIdOrNull(row?.workCategoryId),
-					newCategoryName: String(row?.newCategoryName ?? '').trim() || null,
-					itemId: toIdOrNull(row?.itemId),
-					itemName: String(row?.itemName ?? '').trim() || null,
-					quantity: toNumberOrZero(row?.quantity),
-					unitPrice: toNumberOrZero(row?.unitPrice),
-					taxRuleId: toIdOrNull(row?.taxRuleId),
-					isChecked: Boolean(row?.confirmed),
-					isRemoved: true,
-				},
-				token,
-			);
-
-			setEditRows((prev) => {
-				const base = Array.isArray(prev) ? prev : [];
-				const next = base.filter((_, idx) => idx !== rowIndex);
-				return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
-			});
-
-			setEstimate((prev) => {
-				const current = prev && typeof prev === 'object' ? prev : null;
-				const items = Array.isArray(current?.items) ? current.items : [];
-				if (!items.length) return current;
-				return {
-					...current,
-					items: items.map((it) => {
-						const itId = toIdOrNull(it?.estimateItemId ?? it?.estimateItemID ?? it?.id);
-						if (itId === estimateItemId) return { ...it, isRemoved: true };
-						return it;
-					}),
-				};
-			});
-		} catch (err) {
-			setSaveError(err?.message || 'Không thể xóa hạng mục.');
-		} finally {
-			setIsSaving(false);
-		}
-	};
+	const {
+		taxRules,
+		taxRulesLoading,
+		taxRuleById,
+		recommendation,
+		setRecommendation,
+		isCreating,
+		isEditing,
+		isSaving,
+		estimateCostText,
+		statusLine,
+		footerTotalText,
+		tableRows,
+		showInputs,
+		onChange,
+		showAddEstimate,
+		canEdit,
+		startCreate,
+		cancelCreate,
+		startEdit,
+		cancelEdit,
+		saveEstimate,
+		saveEdit,
+		canToggleChecked,
+		toggleChecked,
+		softDeleteEditRow,
+		inventory,
+	} = useAdvisorItemsTableHandlers(serviceTicketId);
 
 	return (
 		<section className={styles.block}>
@@ -765,9 +107,77 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 							<span className={styles.tag}>In Stock</span>
 						</div>
 					</div>
-					<button type="button" className={`ui-btn ui-btn--ghost ${styles.fullWidthBtn}`}>
-						Kiểm tra tồn kho
+					<button
+						type="button"
+						className={`ui-btn ui-btn--ghost ${styles.fullWidthBtn}`}
+						onClick={inventory.toggleOpen}
+					>
+						{inventory.isOpen ? 'Đóng kiểm tra tồn kho' : 'Kiểm tra tồn kho'}
 					</button>
+
+					{inventory.isOpen ? (
+						<div className={styles.inventoryPanel}>
+							<form className={styles.inventorySearchRow} onSubmit={inventory.onSubmit}>
+								<div className="ui-field" style={{ marginBottom: 0, flex: 1 }}>
+									<input
+										type="text"
+										placeholder="Nhập tên/mã phụ tùng..."
+										value={inventory.query}
+										onChange={inventory.onQueryChange}
+										disabled={inventory.loading}
+									/>
+								</div>
+								<button
+									type="submit"
+									className="ui-btn ui-btn--primary"
+									disabled={inventory.loading}
+								>
+									{inventory.loading ? 'Đang tìm...' : 'Tìm'}
+								</button>
+							</form>
+
+							{inventory.loading ? (
+								<div className={styles.inventoryHint}>Đang tải dữ liệu kho...</div>
+							) : null}
+
+							{inventory.showResults ? (
+								<div className={styles.inventoryResults}>
+									{inventory.results.map((it, idx) => {
+										const itemId = it?.itemId ?? it?.id;
+										const stockQtyRaw = it?.stockQuantity ?? it?.stockQty ?? it?.quantity ?? 0;
+										const stockQtyNum = typeof stockQtyRaw === 'number' ? stockQtyRaw : Number(stockQtyRaw);
+										const inStock = Number.isFinite(stockQtyNum) ? stockQtyNum > 0 : Boolean(stockQtyRaw);
+										return (
+											<div
+												key={String(itemId ?? it?.itemCode ?? it?.itemName ?? `inventory-item-${idx}`)}
+												className={styles.inventoryItem}
+											>
+												<div className={styles.inventoryItemMain}>
+													<div className={styles.inventoryItemName}>{it?.itemName || '-'}</div>
+													<div className={styles.inventoryItemCode}>{it?.itemCode || it?.category || ''}</div>
+												</div>
+												<div className={styles.inventoryItemMeta}>
+													<span className={styles.partText}>Tồn: {Number.isFinite(stockQtyNum) ? stockQtyNum : stockQtyRaw || 0}</span>
+													<span className={styles.partText}>
+														{formatCurrencyVnd(it?.unitPrice)}{it?.unit ? `/${it.unit}` : ''}
+													</span>
+													<span className={styles.tag}>{inStock ? 'In Stock' : 'Out of Stock'}</span>
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							) : null}
+
+							{inventory.error ? <div className={styles.errorBanner}>{inventory.error}</div> : null}
+
+							<div className="ui-actions" style={{ marginTop: 0 }}>
+								<button type="button" className="ui-btn ui-btn--ghost" onClick={inventory.close}>
+									Đóng
+								</button>
+							</div>
+						</div>
+					) : null}
 				</div>
 
 				<div className={styles.advisorCard}>

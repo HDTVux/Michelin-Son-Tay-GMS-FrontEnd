@@ -6,7 +6,7 @@ import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/t
 import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import TechnicianServiceTicket from '../../Technician/ServiceTicket/ServiceTicket.jsx';
-import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHooks.js';
+import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHandlers.js';
 import styles from './ServiceTicketDetail.module.css';
 
 const STAFF_ROLE = {
