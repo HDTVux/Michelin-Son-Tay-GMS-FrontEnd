@@ -7,6 +7,69 @@ export const formatTimeHHmm = (raw = '') => {
   return raw;
 };
 
+// Chuẩn hoá chuỗi giờ khi gửi lên backend.
+// Nếu người dùng nhập HH:mm thì backend thường muốn HH:mm:ss.
+export const normalizeBackendTime = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
+  return raw;
+};
+
+// Format Date (local) -> YYYY-MM-DD
+export const formatLocalDateYYYYMMDD = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+// Build options cho dropdown chọn ngày trong X ngày tới.
+export const buildDateOptions = (rangeDays = 10, locale = 'vi-VN') => {
+  const today = new Date();
+  const options = [];
+
+  const days = Number(rangeDays);
+  const safeDays = Number.isFinite(days) && days > 0 ? Math.floor(days) : 10;
+
+  for (let i = 0; i < safeDays; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const value = formatLocalDateYYYYMMDD(d);
+    const label = d.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: '2-digit' });
+    options.push({ value, label });
+  }
+
+  return options;
+};
+
+// Chuyển date YYYY-MM-DD + time raw (HH:mm | HH:mm:ss) -> Date local
+export const toLocalDateTime = (dateYYYYMMDD, timeRaw) => {
+  if (!dateYYYYMMDD || !timeRaw) return null;
+  const [yStr, mStr, dStr] = String(dateYYYYMMDD).split('-');
+  const y = Number(yStr);
+  const m = Number(mStr);
+  const d = Number(dStr);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+
+  const parts = String(timeRaw).split(':');
+  const hh = Number(parts[0]);
+  const mm = Number(parts[1] ?? 0);
+  const ss = Number(parts[2] ?? 0);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm) || !Number.isFinite(ss)) return null;
+
+  const date = new Date(y, m - 1, d, hh, mm, ss, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+// Check slot có nằm trong quá khứ hay không (so với giờ hiện tại)
+export const isPastSlot = (dateYYYYMMDD, timeRaw) => {
+  const slotStart = toLocalDateTime(dateYYYYMMDD, timeRaw);
+  if (!slotStart) return false;
+  return slotStart.getTime() <= Date.now();
+};
+
 // Ghép ngày + giờ (đã cắt giây) với fallback khi thiếu dữ liệu
 export const combineDateTime = (dateStr, timeStr, fallback = '-') => {
   const time = formatTimeHHmm(timeStr);

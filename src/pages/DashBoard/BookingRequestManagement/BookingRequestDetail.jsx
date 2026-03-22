@@ -345,20 +345,6 @@ export default function BookingRequestDetail() {
                 </button>
               )}
 
-              {!isSpam && !isCancelled && isConfirmed && (
-                <>
-                  <button
-                    className={`${styles.actionBtn} ${styles.danger}`}
-                    onClick={() => setOpenDecline(true)}
-                    disabled={isSubmitting}
-                  >
-                    Hủy lịch
-                  </button>
-                  <button className={`${styles.actionBtn} ${styles.warning}`} onClick={() => setOpenSpam(true)}>
-                    Đánh dấu spam
-                  </button>
-                </>
-              )}
 
               {!isSpam && !isCancelled && !isConfirmed && (
                 <>

@@ -230,7 +230,7 @@ function TicketPanel({
 					</div>
 					<button className={styles['ghost-button']} onClick={onResetFilters}>Xóa bộ lọc</button>
 				</div>
-				<p className={styles['filter-card__hint']}>(tìm kiếm theo cả tên, mã, dịch vụ)</p>
+				<p className={styles['filter-card__hint']}>(tìm kiếm theo cả tên, mã)</p>
 			</div>
 
 			<div className={styles['booking-table__wrapper']}>
@@ -238,9 +238,9 @@ function TicketPanel({
 					<thead>
 						<tr>
 							<th>STT</th>
+							<th>Mã phiếu</th>
 							<th>TÊN KHÁCH HÀNG</th>
 							<th>SỐ ĐIỆN THOẠI</th>
-							<th>DỊCH VỤ</th>
 							<th>TRẠNG THÁI</th>
 							<th>THỜI GIAN TẠO</th>
 							<th>THỜI GIAN HẸN</th>
@@ -267,9 +267,9 @@ function TicketPanel({
 							return (
 								<tr key={item?.serviceTicketId ?? item?.ticketCode ?? idx}>
 									<td className={styles['link-cell']}>{item?.serviceTicketId || item?.ticketCode ||  '-'}</td>
+									<td>{item?.ticketCode || '-'}</td>
 									<td>{item?.customerName || '-'}</td>
 									<td>{item?.customerPhone || '-'}</td>
-									<td>{item?.serviceCategory || '-'}</td>
 									<td>
 										<span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>
 											{displayStatus}

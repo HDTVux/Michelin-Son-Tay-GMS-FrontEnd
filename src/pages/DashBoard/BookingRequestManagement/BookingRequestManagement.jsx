@@ -256,7 +256,7 @@ function PendingPanel({
                     </div>
                     <button className={styles['ghost-button']} onClick={onResetFilters}>Xóa bộ lọc</button>
                 </div>
-                <p className={styles['filter-card__hint']}>(tìm kiếm theo cả tên, mã, dịch vụ)</p>
+                <p className={styles['filter-card__hint']}>(tìm kiếm theo cả tên, mã)</p>
             </div>
 
             <div className={styles['booking-table__wrapper']}>
@@ -264,9 +264,9 @@ function PendingPanel({
                     <thead>
                         <tr>
                             <th>STT</th>
+                            <th>Mã đặt lịch</th>
                             <th>TÊN KHÁCH HÀNG</th>
                             <th>SỐ ĐIỆN THOẠI</th>
-                            <th>DỊCH VỤ</th>
                             <th>TRẠNG THÁI</th>
                             <th>THỜI GIAN GỬI YÊU CẦU</th>
                             <th>THỜI GIAN HẸN</th>
@@ -292,9 +292,9 @@ function PendingPanel({
                             return (
                                 <tr key={item.requestId || item.id}>
                                     <td className={styles['link-cell']}>{item.requestId || item.id || '-'}</td>
+                                    <td>{item.requestCode || '-'}</td>
                                     <td>{item.fullName || item.name || '-'}</td>
                                     <td>{item.phone || '-'}</td>
-                                    <td>{item.serviceCategory || item.service || '-'}</td>
                                     <td>
                                         <span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>
                                             {getBookingStatusTextVi(item?.status)}
