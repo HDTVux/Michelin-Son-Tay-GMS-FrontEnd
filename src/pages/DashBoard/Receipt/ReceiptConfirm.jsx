@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchServiceTicketDetail, fetchServiceTicketEstimate } from '../../../services/serviceTicketService.js';
+import { createPayment } from '../../../services/paymentService.js';
 import { formatDateTimeViNoSeconds } from '../../../components/timeUtils.js';
 import Receipt from './Receipt.jsx';
 import { ReceiptPaymentMethodModal } from './ReceiptPaymentMethod.jsx';
@@ -132,6 +133,7 @@ export default function ReceiptConfirm() {
 	const [appliedPromoKey, setAppliedPromoKey] = useState('');
 	const [promoError, setPromoError] = useState('');
 	const [paymentOpen, setPaymentOpen] = useState(false);
+	const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
 	const notify = (message) => toast(message, { containerId: 'app-toast' });
 
@@ -316,6 +318,57 @@ export default function ReceiptConfirm() {
 		setPaymentOpen(true);
 	};
 
+	const handleConfirmPayment = async ({ method }) => {
+		if (paymentSubmitting) return;
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			notify('Vui lòng đăng nhập để thanh toán.');
+			return;
+		}
+
+		const serviceTicketId = ticket?.serviceTicketId;
+		const serviceTicketIdNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
+		if (!Number.isFinite(serviceTicketIdNum) || serviceTicketIdNum <= 0) {
+			notify('Thiếu serviceTicketId hợp lệ để thanh toán.');
+			return;
+		}
+
+		const paymentMethod = method === 'cash' ? 'CASH' : 'TRANSFER';
+		const estimateIdRaw = estimate?.estimateId ?? estimate?.id;
+		const estimateIdNum = typeof estimateIdRaw === 'number' ? estimateIdRaw : Number(estimateIdRaw);
+		if (!Number.isFinite(estimateIdNum) || estimateIdNum <= 0) {
+			notify('Thiếu estimateId hợp lệ để thanh toán.');
+			return;
+		}
+		const version = estimate?.version ?? 0;
+		const promotionId = 1;
+
+		const payload = {
+			serviceTicketId: serviceTicketIdNum,
+			subTotal: Math.max(0, Math.round(subtotal)),
+			discountAmount: Math.max(0, Math.round(discountAmount)),
+			finalAmount: Math.max(0, Math.round(total)),
+			paymentMethod,
+			paymentStatus: 'PAID',
+			paidAt: new Date().toISOString(),
+			billStatus: 'FINAL',
+			warehouseId: null,
+			version: Number.isFinite(Number(version)) ? Number(version) : 0,
+			estimateId: estimateIdNum,
+			promotionId,
+		};
+
+		try {
+			setPaymentSubmitting(true);
+			await createPayment(payload, token);
+			notify('Thanh toán thành công');
+		} catch (err) {
+			notify(err?.message || 'Thanh toán thất bại.');
+		} finally {
+			setPaymentSubmitting(false);
+		}
+	};
+
 	return (
 		<div className={styles.page}>
 			<div className={styles.screenOnly}>
@@ -459,6 +512,7 @@ export default function ReceiptConfirm() {
 					ticketCode={ticket.ticketCode || ticketCodeParam}
 					total={total}
 					printTicket={printTicket}
+					onConfirmPayment={handleConfirmPayment}
 				/>
 			</div>
 
