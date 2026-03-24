@@ -796,6 +796,75 @@
   transform: none;
 }
 
+/* 2-Column Layout */
+.ticketsContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.ticketColumn {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+}
+
+.columnHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.columnTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.columnCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 12px;
+  background: linear-gradient(135deg, #1E90FF 0%, #1873CC 100%);
+  color: white;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* View Button - Light Blue */
+.viewButton {
+  flex: 1;
+  padding: 12px 24px;
+  background: #87CEEB;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(135, 206, 235, 0.3);
+}
+
+.viewButton:hover {
+  background: #5FB9D8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(135, 206, 235, 0.4);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .container {
@@ -850,4 +919,98 @@
   .modalFooter {
     flex-direction: column;
   }
+
+  .ticketsContainer {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Assignments List Styles */
+.assignmentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.assignmentCard {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.assignmentCard:hover {
+  border-color: #1E90FF;
+  box-shadow: 0 2px 8px rgba(30, 144, 255, 0.1);
+}
+
+.assignmentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.assignmentName {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.primaryBadge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #1E90FF 0%, #4169E1 100%);
+  color: white;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.assignmentStatus {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.statusACTIVE {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.statusINACTIVE {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.assignmentDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assignmentField {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.assignmentField .fieldLabel {
+  color: #6b7280;
+  font-weight: 500;
+  min-width: 120px;
+}
+
+.assignmentField .fieldValue {
+  color: #1a1a1a;
+  flex: 1;
 }

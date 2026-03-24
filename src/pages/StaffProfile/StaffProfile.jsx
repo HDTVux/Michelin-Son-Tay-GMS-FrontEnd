@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import { fetchStaffProfile } from '../../services/staffService.js';
+import { fetchStaffProfile, updateStaffProfile, changePassword } from '../../services/staffService.js';
 import { fetchStaffStatistics } from '../../services/staffStatisticsService.js';
-import { getValidToken } from '../../services/tokenUtils.js';
 import { toast } from 'react-toastify';
 import styles from './StaffProfile.module.css';
 
@@ -29,23 +28,17 @@ const StaffProfile = () => {
   useEffect(() => {
     const loadStaffProfile = async () => {
       try {
-        const token = await getValidToken('authToken');
-        if (token) {
-          const response = await fetchStaffProfile(token);
-          console.log('Backend response:', response);
-
-          const data = response.data || response;
-          // Sử dụng dữ liệu từ API
-          setStaffInfo({
-            staffId: data.staffId || data.id || null,
-            avatar: data.avatar || data.avatarUrl || null,
-            fullName: data.fullName || data.name || '',
-            gender: data.gender || 'MALE',
-            dob: data.dob || data.dateOfBirth || '',
-            phone: data.phone || data.phoneNumber || '',
-            position: data.position || data.role || data.chucDanh || ''
-          });
-        }
+        const response = await fetchStaffProfile();
+        const data = response.data || response;
+        setStaffInfo({
+          staffId: data.staffId || data.id || null,
+          avatar: data.avatar || data.avatarUrl || null,
+          fullName: data.fullName || data.name || '',
+          gender: data.gender || 'MALE',
+          dob: data.dob || data.dateOfBirth || '',
+          phone: data.phone || data.phoneNumber || '',
+          position: data.position || data.role || data.chucDanh || ''
+        });
       } catch (error) {
         console.error('Error fetching staff profile:', error);
         // Vẫn hiển thị mock data nếu có lỗi
@@ -77,22 +70,19 @@ const StaffProfile = () => {
   useEffect(() => {
     const loadStatistics = async () => {
       try {
-        const token = await getValidToken('authToken');
-        if (token) {
-          const now = new Date();
-          const month = now.getMonth() + 1;
-          const year = now.getFullYear();
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
 
-          const response = await fetchStaffStatistics(month, year, token);
-          const stats = response.data || {};
+        const response = await fetchStaffStatistics(month, year);
+        const stats = response.data || {};
 
-          setWorkStats({
-            totalTickets: stats.completedServices || 0,
-            totalServices: stats.completedServices || 0,
-            totalWorkingHours: stats.totalHours || 0,
-            averageRating: 0 // Backend chưa có API đánh giá
-          });
-        }
+        setWorkStats({
+          totalTickets: stats.completedServices || 0,
+          totalServices: stats.completedServices || 0,
+          totalWorkingHours: stats.totalHours || 0,
+          averageRating: 0 // Backend chưa có API đánh giá
+        });
       } catch (error) {
         console.error('Error fetching statistics:', error);
       }
@@ -210,32 +200,30 @@ const StaffProfile = () => {
 
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (validateUpdateForm()) {
       try {
-        await getValidToken('authToken');
-
-        // Backend chưa có API update, tạm thời chỉ update local state
-        console.log('Update payload:', updateFormData);
-        
-        // Cập nhật local state
-        setStaffInfo({
-          ...staffInfo,
+        const payload = {
           fullName: updateFormData.fullName,
           gender: updateFormData.gender,
           dob: updateFormData.dob,
-          phone: updateFormData.phone
-        });
+          phone: updateFormData.phone,
+        };
 
-        // Nếu có avatar mới
-        if (avatarPreview && avatarPreview !== staffInfo.avatar) {
-          setStaffInfo(prev => ({
-            ...prev,
-            avatar: avatarPreview
-          }));
-        }
+        // Gọi API update profile — apiClient tự đính kèm authToken
+        await updateStaffProfile(payload);
 
-        toast.success('Cập nhật thông tin thành công! (Chỉ lưu local, backend chưa có API)');
+        // Cập nhật local state
+        setStaffInfo(prev => ({
+          ...prev,
+          fullName: updateFormData.fullName,
+          gender: updateFormData.gender,
+          dob: updateFormData.dob,
+          phone: updateFormData.phone,
+          avatar: (avatarPreview && avatarPreview !== staffInfo.avatar) ? avatarPreview : prev.avatar,
+        }));
+
+        toast.success('Cập nhật thông tin thành công!');
         setShowUpdateModal(false);
       } catch (error) {
         console.error('Error updating profile:', error);
@@ -283,9 +271,9 @@ const StaffProfile = () => {
     setPasswordErrors(prev => ({ ...prev, [name]: error }));
   };
 
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    
+
     const newErrors = {};
     Object.keys(passwordFormData).forEach(key => {
       const error = validatePasswordField(key, passwordFormData[key]);
@@ -296,13 +284,20 @@ const StaffProfile = () => {
     setPasswordTouched({ currentPassword: true, newPassword: true, confirmPassword: true });
 
     if (Object.keys(newErrors).length === 0) {
-      console.log('Đổi mật khẩu:', passwordFormData);
-      // TODO: Call API to change password
-      alert('Đổi mật khẩu thành công!');
-      setShowPasswordModal(false);
-      setPasswordFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setPasswordTouched({});
-      setPasswordErrors({});
+      try {
+        await changePassword({
+          currentPassword: passwordFormData.currentPassword,
+          newPassword: passwordFormData.newPassword,
+        });
+        toast.success('Đổi mật khẩu thành công!');
+        setShowPasswordModal(false);
+        setPasswordFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setPasswordTouched({});
+        setPasswordErrors({});
+      } catch (err) {
+        console.error('Error changing password:', err);
+        toast.error(err.message || 'Đổi mật khẩu thất bại');
+      }
     }
   };
 
@@ -526,9 +521,9 @@ const StaffProfile = () => {
                     onChange={handleUpdateInputChange}
                     className={styles.select}
                   >
-                    <option value='Nam'>Nam</option>
-                    <option value='Nữ'>Nữ</option>
-                    <option value='Khác'>Khác</option>
+                    <option value='MALE'>Nam</option>
+                    <option value='FEMALE'>Nữ</option>
+                    <option value='OTHER'>Khác</option>
                   </select>
                 </div>
 

@@ -208,64 +208,32 @@ export const deleteCustomer = (customerId, token) => {
 };
 
 /**
- * Lấy danh sách tất cả nhân viên (staff) với phân trang và filters
- * Backend: GET /api/admin/staff/all-staff
+ * Lấy danh sách tất cả nhân viên
+ * Backend: GET /api/manager/employees
+ * Backend trả về: { success, data: [{ staffId, fullName, phone, email, position, avatar, status, dob, roles }] }
+ * (List<EmployeeResponse> - flat array, không phân trang)
  *
- * @param {object} params - Query parameters
- * @param {number} params.page - Số trang (default: 0)
- * @param {number} params.size - Số items per page (default: 10)
- * @param {string} params.date - Lọc theo ngày (yyyy-MM-dd) (optional)
- * @param {boolean} params.isActive - Lọc theo trạng thái hoạt động (optional)
- * @param {string} params.search - Tìm kiếm theo tên/phone/email (optional)
- * @param {number[]} params.roleIds - Lọc theo roleIds (optional)
- * @param {string} token - JWT token
+ * @param {object} params - Query parameters (search)
  * @returns {Promise}
  */
-export const fetchAllStaff = (params, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xem danh sách nhân viên.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+export const fetchAllStaff = (params) => {
+  // apiClient.js tự lấy authToken từ localStorage
   const searchParams = new URLSearchParams();
-
-  const page = Number.isFinite(params?.page) ? params.page : 0;
-  const size = Number.isFinite(params?.size) ? params.size : 10;
-  searchParams.set('page', String(page));
-  searchParams.set('size', String(size));
-
-  if (params?.date) searchParams.set('date', params.date);
-  if (typeof params?.isActive === 'boolean') searchParams.set('isActive', String(params.isActive));
   if (params?.search) searchParams.set('search', params.search);
-  if (params?.status) searchParams.set('status', params.status);
-
-  if (Array.isArray(params?.roleIds)) {
-    params.roleIds
-      .map(Number)
-      .filter((v) => Number.isFinite(v) && v > 0)
-      .forEach((roleId) => searchParams.append('roleIds', String(roleId)));
-  }
 
   const qs = searchParams.toString();
-  const path = qs ? `/api/admin/staff/all-staff?${qs}` : '/api/admin/staff/all-staff';
+  const path = `/api/manager/employees${qs ? `?${qs}` : ''}`;
 
-  return request(path, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  return request(path, { method: 'GET' });
 };
 
 /**
  * Lấy danh sách tất cả roles của staff (Admin)
  * Backend: GET /api/admin/staff/all-roles
  */
-export const fetchAllStaffRoles = (token) => {
-
-  return request('/api/admin/staff/all-roles', {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export const fetchAllStaffRoles = () => {
+  // apiClient.js tự lấy authToken từ localStorage
+  return request('/api/admin/staff/all-roles', { method: 'GET' });
 };
 
 /**
@@ -288,19 +256,14 @@ export const createStaff = (payload, token) => {
 
 /**
  * Lấy chi tiết thông tin của nhân viên
- * Backend: GET /api/admin/staff/{staffId}
+ * Backend: GET /api/manager/employees/{staffId}
+ * Backend trả về: { success, data: { staffId, fullName, phone, email, position, gender, dob, avatar, employmentStatus, hireDate, performance: { totalWorkDays, totalTicketsHandled, ticketsAsAdvisor, ticketsAsTechnician }, recentAttendance: [...] } }
  *
  * @param {number|string} staffId
  * @param {string} token - JWT token
  * @returns {Promise}
  */
-export const fetchStaffDetail = (staffId, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xem chi tiết nhân viên.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+export const fetchStaffDetail = (staffId) => {
   const id = Number(staffId);
   if (!Number.isFinite(id) || id <= 0) {
     const error = new Error('Staff ID không hợp lệ.');
@@ -308,9 +271,9 @@ export const fetchStaffDetail = (staffId, token) => {
     return Promise.reject(error);
   }
 
-  return request(`/api/admin/staff/${id}`, {
+  // apiClient.js tự lấy authToken từ localStorage
+  return request(`/api/manager/employees/${id}`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
   });
 };
 

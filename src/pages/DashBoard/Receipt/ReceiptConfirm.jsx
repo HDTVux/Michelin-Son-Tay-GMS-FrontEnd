@@ -212,11 +212,6 @@ export default function ReceiptConfirm() {
 	const notify = (message) => toast(message, { containerId: 'app-toast' });
 
 	useEffect(() => {
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setTicketError('Vui lòng đăng nhập để tạo hoá đơn.');
-			return;
-		}
 		if (ticketRaw) return;
 		if (!ticketCodeParam) {
 			setTicketError('Thiếu ticketCode để tạo hoá đơn.');
@@ -228,7 +223,7 @@ export default function ReceiptConfirm() {
 			try {
 				setTicketLoading(true);
 				setTicketError('');
-				const res = await fetchServiceTicketDetail(ticketCodeParam, token);
+				const res = await fetchServiceTicketDetail(ticketCodeParam);
 				if (ignore) return;
 				setTicketRaw(res?.data ?? null);
 			} catch (err) {
@@ -247,16 +242,15 @@ export default function ReceiptConfirm() {
 	const ticket = useMemo(() => normalizeTicketForReceipt(ticketRaw ?? {}, ticketCodeParam), [ticketRaw, ticketCodeParam]);
 
 	useEffect(() => {
-		const token = localStorage.getItem('authToken');
 		const serviceTicketId = ticket?.serviceTicketId;
-		if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') return;
+		if (!serviceTicketId) return;
 
 		let ignore = false;
 		const run = async () => {
 			try {
 				setEstimateLoading(true);
 				setEstimateError('');
-				const res = await fetchServiceTicketEstimate(serviceTicketId, token);
+				const res = await fetchServiceTicketEstimate(serviceTicketId);
 				if (ignore) return;
 				setEstimate(pickLatestEstimate(res?.data) ?? null);
 			} catch (err) {
