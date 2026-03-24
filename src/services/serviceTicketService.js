@@ -95,6 +95,28 @@ export const fetchServiceTicketEstimate = (serviceTicketId, token) => {
   });
 };
 
+// Xác nhận bảng báo giá trước khi thanh toán
+// Endpoint: PUT /api/service-ticket/estimate/{estimateId}/approve
+export const approveServiceTicketEstimate = (estimateId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xác nhận báo giá.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/approve`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Tạo mới bảng báo giá cho phiếu dịch vụ
 // Endpoint: POST /api/service-ticket/estimate/
 // Payload: { serviceTicketId, estimateType, items: [{ workCategoryId, newCategoryName, itemId, itemName, quantity, unitPrice }] }
