@@ -1,23 +1,35 @@
 import { request } from './apiClient';
 
-/**
- * Service for Promotion API - PromotionController
- * Backend: POST /api/promotion/admin/create
- * Auth: JWT tự động từ apiClient
- */
+export const fetchAvailablePromotions = (token) =>
+	request('/api/promotion/available', {
+		method: 'GET',
+		headers: token ? { Authorization: `Bearer ${token}` } : {},
+	});
 
-/**
- * Tạo mới khuyến mãi
- * Backend: POST /api/promotion/admin/create
- * @param {object} payload - PromotionCreateDto
- * Fields: promotionId, code, name, type, discountPercent, isActive,
- *         applyTo, buyItemId, buyQuantity, getItemId, getQuantity,
- *         targetType, minOrderValue, startDate, endDate, usageLimit
- */
-export const createPromotion = (payload) => {
-  // apiClient.js tự lấy authToken từ localStorage
-  return request('/api/promotion/admin/create', {
-    method: 'POST',
-    body: JSON.stringify(payload ?? {}),
-  });
+export const fetchPromotionByCode = async (promotionCode, token) => {
+	const raw = String(promotionCode ?? '').trim();
+	if (!raw) {
+		const error = new Error('Vui lòng nhập mã khuyến mãi.');
+		error.status = 400;
+		throw error;
+	}
+
+	const encoded = encodeURIComponent(raw);
+
+	const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+	try {
+		// Common REST style: /api/promotion/{code}
+		return await request(`/api/promotion/?code=${encoded}`, {
+			method: 'GET',
+			headers,
+		});
+	} catch (err) {
+		// Alternative style: /api/promotion?code={code}
+		if (err?.status !== 404) throw err;
+		return request(`/api/promotion?code=${encoded}`, {
+			method: 'GET',
+			headers,
+		});
+	}
 };

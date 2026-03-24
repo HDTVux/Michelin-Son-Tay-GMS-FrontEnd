@@ -1,17 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 import {
-	createServiceTicketEstimate,
-	fetchServiceTicketEstimate,
-	fetchTaxRulesAll,
-	updateServiceTicketEstimate,
-	updateServiceTicketEstimateItem,
-} from '../../../services/serviceTicketService.js';
+	formatCurrencyVnd,
+	isDraftRowEmpty,
+	toIdOrNull,
+	useAdvisorItemsTableHandlers,
+} from './useAdvisorItemsTableHandlers.js';
 
 const PHOTO_SLOTS = 4;
-
-const PLACEHOLDER_ROW_COUNT = 15;
 
 const CATEGORY_SUGGESTIONS = [
 	{ label: 'Lốp' },
@@ -27,103 +23,8 @@ const CATEGORY_SUGGESTIONS = [
 	{ label: 'Lọc gió điều hòa' },
 ];
 
-function formatCurrencyVnd(value) {
-	const n = typeof value === 'number' ? value : Number(value);
-	if (!Number.isFinite(n)) return '';
-	return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
-}
-
-function pickLatestEstimate(list) {
-	const arr = Array.isArray(list) ? list : [];
-	if (arr.length === 0) return null;
-	return [...arr].sort((a, b) => {
-		const va = Number(a?.version);
-		const vb = Number(b?.version);
-		const versionCmp = (Number.isFinite(vb) ? vb : -1) - (Number.isFinite(va) ? va : -1);
-		if (versionCmp !== 0) return versionCmp;
-		const ta = Date.parse(a?.createdAt || a?.approvedAt || 0);
-		const tb = Date.parse(b?.createdAt || b?.approvedAt || 0);
-		return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
-	})[0];
-}
-
-function createEmptyDraftRow() {
-	return {
-		estimateItemId: null,
-		workCategoryId: null,
-		itemId: null,
-		newCategoryName: '',
-		itemName: '',
-		quantity: '',
-		unitPrice: '',
-		taxRuleId: '',
-		confirmed: false,
-		isRemoved: false,
-	};
-}
-
-function toNumberOrZero(value) {
-	const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
-	return Number.isFinite(n) ? n : 0;
-}
-
-function pickMoneyDisplayValue(withVatValue, baseValue) {
-	const withVatNum = toNumberOrZero(withVatValue);
-	if (withVatNum > 0) return withVatNum;
-	const baseNum = toNumberOrZero(baseValue);
-	return baseNum > 0 ? baseNum : '';
-}
-
-function toIdOrNull(value) {
-	if (value == null) return null;
-	const n = typeof value === 'number' ? value : Number(String(value).trim());
-	return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function isDraftRowEmpty(row) {
-	const newCategoryName = String(row?.newCategoryName || '').trim();
-	const itemName = String(row?.itemName || '').trim();
-	const quantity = String(row?.quantity ?? '').trim();
-	const unitPrice = String(row?.unitPrice ?? '').trim();
-	const taxRuleId = String(row?.taxRuleId ?? '').trim();
-	const confirmed = Boolean(row?.confirmed);
-	return !newCategoryName && !itemName && !quantity && !unitPrice && !taxRuleId && !confirmed;
-}
-
-function normalizeDraftRows(rows, maxRows) {
-	const max = Number.isFinite(maxRows) && maxRows > 0 ? maxRows : 15;
-	let next = Array.isArray(rows) ? rows.slice(0, max) : [];
-	if (next.length === 0) return [createEmptyDraftRow()];
-
-	// Collapse to a single empty row if everything is empty.
-	if (next.every((r) => isDraftRowEmpty(r))) return [createEmptyDraftRow()];
-
-	// Keep at most one empty row at the end.
-	while (next.length > 1 && isDraftRowEmpty(next.at(-1)) && isDraftRowEmpty(next.at(-2))) {
-		next = next.slice(0, -1);
-	}
-
-	// Ensure there is exactly one trailing empty row (if there's room).
-	if (!isDraftRowEmpty(next.at(-1)) && next.length < max) {
-		next = [...next, createEmptyDraftRow()];
-	}
-
-	return next;
-}
-
-function getItemCheckedFlag(it) {
-	return Boolean(
-		it?.isChecked ??
-			it?.confirmed ??
-			it?.isConfirmed ??
-			it?.approved ??
-			it?.isApproved ??
-			it?.customerConfirmed ??
-			it?.isCustomerConfirmed,
-	);
-}
-
 export default function AdvisorItemsTable({ serviceTicketId }) {
+<<<<<<< HEAD
 	const [estimate, setEstimate] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [loadError, setLoadError] = useState('');
@@ -675,6 +576,36 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 			setIsSaving(false);
 		}
 	};
+=======
+	const {
+		taxRules,
+		taxRulesLoading,
+		taxRuleById,
+		recommendation,
+		setRecommendation,
+		isCreating,
+		isEditing,
+		isSaving,
+		estimateCostText,
+		statusLine,
+		footerTotalText,
+		tableRows,
+		showInputs,
+		onChange,
+		showAddEstimate,
+		canEdit,
+		startCreate,
+		cancelCreate,
+		startEdit,
+		cancelEdit,
+		saveEstimate,
+		saveEdit,
+		canToggleChecked,
+		toggleChecked,
+		softDeleteEditRow,
+		inventory,
+	} = useAdvisorItemsTableHandlers(serviceTicketId);
+>>>>>>> b1e18f4b4f9e3b01ac510a531a0494198722e303
 
 	return (
 		<section className={styles.block}>
@@ -730,9 +661,77 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 							<span className={styles.tag}>In Stock</span>
 						</div>
 					</div>
-					<button type="button" className={`ui-btn ui-btn--ghost ${styles.fullWidthBtn}`}>
-						Kiểm tra tồn kho
+					<button
+						type="button"
+						className={`ui-btn ui-btn--ghost ${styles.fullWidthBtn}`}
+						onClick={inventory.toggleOpen}
+					>
+						{inventory.isOpen ? 'Đóng kiểm tra tồn kho' : 'Kiểm tra tồn kho'}
 					</button>
+
+					{inventory.isOpen ? (
+						<div className={styles.inventoryPanel}>
+							<form className={styles.inventorySearchRow} onSubmit={inventory.onSubmit}>
+								<div className="ui-field" style={{ marginBottom: 0, flex: 1 }}>
+									<input
+										type="text"
+										placeholder="Nhập tên/mã phụ tùng..."
+										value={inventory.query}
+										onChange={inventory.onQueryChange}
+										disabled={inventory.loading}
+									/>
+								</div>
+								<button
+									type="submit"
+									className="ui-btn ui-btn--primary"
+									disabled={inventory.loading}
+								>
+									{inventory.loading ? 'Đang tìm...' : 'Tìm'}
+								</button>
+							</form>
+
+							{inventory.loading ? (
+								<div className={styles.inventoryHint}>Đang tải dữ liệu kho...</div>
+							) : null}
+
+							{inventory.showResults ? (
+								<div className={styles.inventoryResults}>
+									{inventory.results.map((it, idx) => {
+										const itemId = it?.itemId ?? it?.id;
+										const stockQtyRaw = it?.stockQuantity ?? it?.stockQty ?? it?.quantity ?? 0;
+										const stockQtyNum = typeof stockQtyRaw === 'number' ? stockQtyRaw : Number(stockQtyRaw);
+										const inStock = Number.isFinite(stockQtyNum) ? stockQtyNum > 0 : Boolean(stockQtyRaw);
+										return (
+											<div
+												key={String(itemId ?? it?.itemCode ?? it?.itemName ?? `inventory-item-${idx}`)}
+												className={styles.inventoryItem}
+											>
+												<div className={styles.inventoryItemMain}>
+													<div className={styles.inventoryItemName}>{it?.itemName || '-'}</div>
+													<div className={styles.inventoryItemCode}>{it?.itemCode || it?.category || ''}</div>
+												</div>
+												<div className={styles.inventoryItemMeta}>
+													<span className={styles.partText}>Tồn: {Number.isFinite(stockQtyNum) ? stockQtyNum : stockQtyRaw || 0}</span>
+													<span className={styles.partText}>
+														{formatCurrencyVnd(it?.unitPrice)}{it?.unit ? `/${it.unit}` : ''}
+													</span>
+													<span className={styles.tag}>{inStock ? 'In Stock' : 'Out of Stock'}</span>
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							) : null}
+
+							{inventory.error ? <div className={styles.errorBanner}>{inventory.error}</div> : null}
+
+							<div className="ui-actions" style={{ marginTop: 0 }}>
+								<button type="button" className="ui-btn ui-btn--ghost" onClick={inventory.close}>
+									Đóng
+								</button>
+							</div>
+						</div>
+					) : null}
 				</div>
 
 				<div className={styles.advisorCard}>
