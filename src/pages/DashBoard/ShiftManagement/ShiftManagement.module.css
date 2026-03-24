@@ -12,17 +12,15 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 0;
+  background: transparent;
 }
 
 .title {
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
   color: #1a1a1a;
-  margin: 0 0 4px 0;
+  margin: 0;
 }
 
 .subtitle {
@@ -93,9 +91,7 @@
 .monthNav {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
 }
 
 .navBtn {
@@ -719,6 +715,441 @@
   cursor: not-allowed;
 }
 
+/* ─── Section Card ──────────────────────────────────────────────────────────── */
+.sectionCard {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 24px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.shiftActions {
+  margin-bottom: 16px;
+}
+
+.addBtn {
+  padding: 12px 24px;
+  background: #1E90FF;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(30,144,255,0.3);
+}
+
+.addBtn:hover {
+  background: #1873CC;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(30,144,255,0.4);
+}
+
+/* ─── Table Card ────────────────────────────────────────────────────────────── */
+.tableCard {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table thead tr {
+  background: #1E90FF;
+  border-bottom: 2px solid #1873CC;
+}
+
+.table th {
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.table th:nth-child(2) { text-align: left; }
+
+.table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s;
+}
+
+.table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.tdStt {
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.tdName {
+  font-weight: 600;
+  color: #1f2937;
+  text-align: left;
+}
+
+.tdShiftName {
+  font-weight: 600;
+  color: #1f2937;
+  text-align: left;
+  padding-left: 16px !important;
+}
+
+.tdTime {
+  color: #374151;
+  font-size: 14px;
+}
+
+.tdStatus {
+  text-align: center;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1.5px solid;
+}
+
+.statusActive {
+  background: #d1fae5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.statusInactive {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: #e5e7eb;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.tdActions {
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.actionBtn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.editBtn {
+  color: #1e90ff;
+  background: #eff6ff;
+}
+
+.editBtn:hover {
+  background: #dbeafe;
+}
+
+.deleteBtn {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+.deleteBtn:hover {
+  background: #fee2e2;
+}
+
+/* ─── Loading ─────────────────────────────────────────────────────────────── */
+.loadingWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #1e90ff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Empty State ────────────────────────────────────────────────────────── */
+.emptyWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  gap: 12px;
+  color: #9ca3af;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  opacity: 0.4;
+}
+
+.emptyText {
+  font-size: 15px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+/* ─── Form Modal ──────────────────────────────────────────────────────────── */
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.requiredMark {
+  color: #ef4444;
+}
+
+.formInput {
+  padding: 10px 14px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #374151;
+  background: white;
+  transition: border-color 0.2s;
+  outline: none;
+  width: 100%;
+}
+
+.formInput:focus {
+  border-color: #1e90ff;
+  box-shadow: 0 0 0 2px rgba(30,144,255,0.15);
+}
+
+.formError {
+  font-size: 12px;
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.timeInputs {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.timeSep {
+  font-size: 16px;
+  font-weight: 700;
+  color: #6b7280;
+  text-align: center;
+}
+
+.modalBody {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.submitBtn {
+  padding: 10px 32px;
+  border: none;
+  border-radius: 10px;
+  background: #1E90FF;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(30,144,255,0.3);
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: #1873CC;
+  transform: translateY(-1px);
+}
+
+.submitBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ─── Confirm Delete Modal ─────────────────────────────────────────────────── */
+.confirmBody {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.confirmIcon {
+  font-size: 48px;
+  text-align: center;
+  color: #ef4444;
+}
+
+.confirmTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  text-align: center;
+  margin: 0;
+}
+
+.confirmMessage {
+  font-size: 14px;
+  color: #6b7280;
+  text-align: center;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.confirmName {
+  font-weight: 700;
+  color: #ef4444;
+}
+
+.confirmFooter {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 28px;
+  border-top: 2px solid #f3f4f6;
+  background: #f9fafb;
+  border-radius: 0 0 16px 16px;
+}
+
+.confirmCancelBtn {
+  padding: 10px 32px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.confirmCancelBtn:hover {
+  background: #f8fafc;
+  border-color: #d1d5db;
+}
+
+.confirmDeleteBtn {
+  padding: 10px 32px;
+  border: none;
+  border-radius: 10px;
+  background: #ef4444;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(239,68,68,0.3);
+}
+
+.confirmDeleteBtn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.confirmDeleteBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ─── Time Display ─────────────────────────────────────────────────────────── */
+.timeDisplay {
+  font-weight: 600;
+  font-size: 13px;
+  color: #059669;
+}
+
+.timeDash {
+  color: #d1d5db;
+}
+
+.checkoutBtn {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.checkoutBtn:hover {
+  background: #fde68a;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────────── */
 @media (max-width: 1200px) {
   .statsGrid { grid-template-columns: repeat(3, 1fr); }
@@ -733,4 +1164,5 @@
   .modalContent { max-width: 100%; }
   .attendTable { font-size: 12px; }
   .timeInput { width: 80px; }
+  .tabBtn { padding: 12px 16px; font-size: 14px; }
 }

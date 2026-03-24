@@ -1,267 +1,29 @@
 import { request } from './apiClient';
 
-/**
- * Admin Service - Kết nối với Admin/Customer Management APIs
- * Backend Controller: CustomerController.java
- * Base Path: /api/admin/customer/
- */
-
-/**
- * Tạo customer mới (Admin only)
- * Backend: POST /api/admin/customer/create
- * 
- * @param {object} payload - Thông tin customer
- * @param {string} payload.fullName - Họ tên đầy đủ (required)
- * @param {string} payload.phone - Số điện thoại (required)
- * @param {string} payload.email - Email (required)
- * @param {string} payload.pin - PIN 6 chữ số (required)
- * @param {('MALE'|'FEMALE'|'OTHER')} payload.gender - Giới tính (required)
- * @param {string} payload.dob - Ngày sinh (yyyy-MM-dd) (optional)
- * @param {string} payload.avatar - Avatar URL/base64 (optional)
- * @param {string} token - JWT token
- * @returns {Promise} Response chứa thông tin customer đã tạo
- * 
- * Response format:
- * {
- *   success: true,
- *   data: {
- *     fullName: string,
- *     phone: string,
- *     email: string,
- *     pin: string,
- *     gender: string,
- *     dob: string,
- *     avatar: string
- *   }
- * }
- */
-export const createCustomer = (payload, token) => {
-  return request('/api/admin/customer/create', {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: JSON.stringify(payload),
-  });
-};
-
-/**
- * Lấy danh sách tất cả customers với phân trang và filters
- * Backend: GET /api/admin/customer/getAllCustomer
- * 
- * @param {object} params - Query parameters
- * @param {number} params.page - Số trang (default: 0)
- * @param {number} params.size - Số items per page (default: 10)
- * @param {string} params.date - Lọc theo ngày (yyyy-MM-dd) (optional)
- * @param {boolean} params.isGuest - Lọc guest/registered (optional)
- * @param {string} params.search - Tìm kiếm theo tên/phone/email (optional)
- * @param {string} params.status - Lọc theo trạng thái (optional)
- * @param {string} params.sort - Spring Pageable sort (vd: fullName,asc) (optional)
- * @param {string} params.sortBy - Backward-compatible sort field (optional)
- * @param {string} params.sortDirection - Backward-compatible sort direction (ASC|DESC) (optional)
- * @param {string} token - JWT token
- * @returns {Promise} Response chứa paginated customer list
- * 
- * Response format:
- * {
- *   success: true,
- *   data: {
- *     content: [
- *       {
- *         customerId: number,
- *         phone: string,
- *         fullName: string,
- *         email: string,
- *         dateOfBirth: string,
- *         address: string,
- *         isGuest: boolean,
- *         createdAt: string,
- *         totalBookings: number
- *       }
- *     ],
- *     totalElements: number,
- *     totalPages: number,
- *     size: number,
- *     number: number (current page)
- *   }
- * }
- */
-export const fetchAllCustomers = (params, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xem danh sách khách hàng.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  const searchParams = new URLSearchParams();
-
-  const page = Number.isFinite(params?.page) ? params.page : 0;
-  const size = Number.isFinite(params?.size) ? params.size : 10;
-  searchParams.set('page', String(page));
-  searchParams.set('size', String(size));
-
-  if (params?.date) searchParams.set('date', params.date);
-  if (typeof params?.isGuest === 'boolean') searchParams.set('isGuest', String(params.isGuest));
-  if (params?.search) searchParams.set('search', params.search);
-
-  if (params?.status) searchParams.set('status', params.status);
-
-  // Sorting: prefer Spring Pageable-style `sort=field,dir`
-  if (params?.sort) {
-    searchParams.set('sort', params.sort);
-  } else if (params?.sortBy) {
-    const dirRaw = params?.sortDirection || 'ASC';
-    const dir = String(dirRaw).toLowerCase() === 'desc' ? 'desc' : 'asc';
-    searchParams.set('sort', `${params.sortBy},${dir}`);
-  }
-
-  const qs = searchParams.toString();
-  const path = qs ? `/api/admin/customer/getAllCustomer?${qs}` : '/api/admin/customer/getAllCustomer';
-
-  return request(path, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-};
-
-/**
- * Lấy chi tiết một customer theo customerId
- * Ghi chú: endpoint có thể chưa được backend implement.
- * 
- * @param {number} customerId - ID của customer
- * @param {string} token - JWT token
- * @returns {Promise}
- */
-export const fetchCustomerDetail = (customerId, token) => {
-  const id = Number(customerId) || 0;
-  return request(`/api/admin/customer/${id}`, {
-    method: 'GET',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-};
-
-/**
- * Cập nhật thông tin customer (Admin)
- * Backend: PUT /api/admin/customer/{customerId}/update
- */
-export const updateCustomer = (customerId, payload, token) => {
-  const id = Number(customerId) || 0;
-  return request(`/api/admin/customer/${id}/update`, {
-    method: 'PUT',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: JSON.stringify(payload),
-  });
-};
-
-/**
- * Khóa tài khoản customer (Admin)
- * Backend: PUT /api/admin/customer/{customerId}/locked
- *
- * @param {number} customerId - ID của customer
- * @param {string} token - JWT token
- * @returns {Promise}
- */
-export const lockCustomerAccount = (customerId, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để thực hiện thao tác.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  const id = Number(customerId) || 0;
-  return request(`/api/admin/customer/${id}/locked`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-};
-
-/**
- * Xóa (soft-delete) tài khoản customer (Admin)
- * Backend: PUT /api/admin/customer/{customerId}/delete
- */
-export const deleteCustomerAccount = (customerId, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để thực hiện thao tác.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  const id = Number(customerId) || 0;
-  return request(`/api/admin/customer/${id}/delete`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-};
-
-/**
- * Xóa customer (Admin)
- * Ghi chú: endpoint có thể chưa được backend implement.
- * 
- * @param {number} customerId - ID của customer
- * @param {string} token - JWT token
- * @returns {Promise}
- */
-export const deleteCustomer = (customerId, token) => {
-  const id = Number(customerId) || 0;
-  return request(`/api/admin/customer/${id}`, {
-    method: 'DELETE',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-};
+// ============================================================
+// MANAGER: QUẢN LÝ NHÂN VIÊN
+// Base: /api/manager/employees
+// ============================================================
 
 /**
  * Lấy danh sách tất cả nhân viên
  * Backend: GET /api/manager/employees
- * Backend trả về: { success, data: [{ staffId, fullName, phone, email, position, avatar, status, dob, roles }] }
- * (List<EmployeeResponse> - flat array, không phân trang)
- *
- * @param {object} params - Query parameters (search)
- * @returns {Promise}
+ * Response: List<EmployeeResponse>
+ * Fields: staffId, fullName, phone, position, gender, dob, avatar
  */
-export const fetchAllStaff = (params) => {
+export const fetchAllStaff = () => {
   // apiClient.js tự lấy authToken từ localStorage
-  const searchParams = new URLSearchParams();
-  if (params?.search) searchParams.set('search', params.search);
-
-  const qs = searchParams.toString();
-  const path = `/api/manager/employees${qs ? `?${qs}` : ''}`;
-
-  return request(path, { method: 'GET' });
+  return request('/api/manager/employees', { method: 'GET' });
 };
 
 /**
- * Lấy danh sách tất cả roles của staff (Admin)
- * Backend: GET /api/admin/staff/all-roles
- */
-export const fetchAllStaffRoles = () => {
-  // apiClient.js tự lấy authToken từ localStorage
-  return request('/api/admin/staff/all-roles', { method: 'GET' });
-};
-
-/**
- * Tạo staff mới (Admin)
- * Backend: POST /api/admin/staff/create
- */
-export const createStaff = (payload, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để tạo tài khoản nhân viên.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  return request('/api/admin/staff/create', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
-  });
-};
-
-/**
- * Lấy chi tiết thông tin của nhân viên
+ * Lấy chi tiết nhân viên (kèm performance & attendance gần đây)
  * Backend: GET /api/manager/employees/{staffId}
- * Backend trả về: { success, data: { staffId, fullName, phone, email, position, gender, dob, avatar, employmentStatus, hireDate, performance: { totalWorkDays, totalTicketsHandled, ticketsAsAdvisor, ticketsAsTechnician }, recentAttendance: [...] } }
- *
- * @param {number|string} staffId
- * @param {string} token - JWT token
- * @returns {Promise}
+ * Response: EmployeeDetailResponse
+ * Fields: staffId, fullName, phone, position, gender, dob, avatar,
+ *         performance: { totalWorkDays, totalTicketsHandled },
+ *         recentAttendance: [{ checkinId, attendanceDate, shiftId, shiftName,
+ *                            checkInTime, checkOutTime, status }]
  */
 export const fetchStaffDetail = (staffId) => {
   const id = Number(staffId);
@@ -270,86 +32,200 @@ export const fetchStaffDetail = (staffId) => {
     error.status = 400;
     return Promise.reject(error);
   }
-
   // apiClient.js tự lấy authToken từ localStorage
-  return request(`/api/manager/employees/${id}`, {
-    method: 'GET',
-  });
+  return request(`/api/manager/employees/${id}`, { method: 'GET' });
+};
+
+// ============================================================
+// MANAGER: QUẢN LÝ CHẤM CÔNG
+// Base: /api/manager/attendance
+// ============================================================
+
+/**
+ * Lấy danh sách chấm công theo khoảng ngày
+ * Backend: GET /api/manager/attendance?staffId=&from=&to=
+ * Response: List<AttendanceCheckinResponse>
+ * Fields: checkinId, staffId, staffName, attendanceDate, shiftId, shiftName,
+ *         checkInTime, checkOutTime, status, notes, createdAt
+ */
+export const fetchAttendanceRecords = (params) => {
+  const searchParams = new URLSearchParams();
+  if (params?.staffId) searchParams.set('staffId', String(params.staffId));
+  if (params?.from) searchParams.set('from', params.from);
+  if (params?.to) searchParams.set('to', params.to);
+
+  const qs = searchParams.toString();
+  const path = `/api/manager/attendance${qs ? `?${qs}` : ''}`;
+  // apiClient.js tự lấy authToken từ localStorage
+  return request(path, { method: 'GET' });
 };
 
 /**
- * Cập nhật thông tin nhân viên (Admin)
- * Backend: PUT /api/admin/staff/{staffId}/update
+ * Lấy danh sách chấm công hôm nay
+ * Backend: GET /api/manager/attendance/today?date=yyyy-MM-dd
  */
-export const updateStaff = (staffId, payload, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để cập nhật nhân viên.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
+export const fetchTodayAttendance = (date) => {
+  const params = date ? `?date=${date}` : '';
+  return request(`/api/manager/attendance/today${params}`, { method: 'GET' });
+};
 
-  const id = Number(staffId);
-  if (!Number.isFinite(id) || id <= 0) {
-    const error = new Error('Staff ID không hợp lệ.');
-    error.status = 400;
-    return Promise.reject(error);
-  }
+/**
+ * Lấy tổng hợp chấm công hôm nay
+ * Backend: GET /api/manager/attendance/today-summary?date=yyyy-MM-dd
+ * Response: TodaySummaryResponse
+ * Fields: date, totalStaff, checkedIn, notCheckedIn, staffList[]
+ */
+export const fetchTodayAttendanceSummary = (date) => {
+  const params = date ? `?date=${date}` : '';
+  return request(`/api/manager/attendance/today-summary${params}`, { method: 'GET' });
+};
 
-  return request(`/api/admin/staff/${id}/update`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
+/**
+ * Check-in nhân viên
+ * Backend: POST /api/manager/attendance/check-in
+ * Payload: { staffId, shiftId, attendanceDate, checkInTime, notes }
+ */
+export const checkInStaff = (payload) => {
+  return request('/api/manager/attendance/check-in', {
+    method: 'POST',
     body: JSON.stringify(payload),
   });
 };
 
 /**
- * Khóa tài khoản nhân viên (Admin)
- * Backend: PUT /api/admin/staff/{staffId}/lock
+ * Check-out nhân viên
+ * Backend: PUT /api/manager/attendance/{checkinId}/check-out
+ * Payload: { checkOutTime, notes }
  */
-export const lockStaffAccount = (staffId, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để thực hiện thao tác.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  const id = Number(staffId);
-  if (!Number.isFinite(id) || id <= 0) {
-    const error = new Error('Staff ID không hợp lệ.');
-    error.status = 400;
-    return Promise.reject(error);
-  }
-
-  return request(`/api/admin/staff/${id}/lock`, {
+export const checkOutStaff = (checkinId, payload) => {
+  return request(`/api/manager/attendance/${checkinId}/check-out`, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
   });
 };
 
 /**
- * Xóa (soft-delete) tài khoản nhân viên (Admin)
- * Backend: PUT /api/admin/staff/{staffId}/delete
- *
- * @param {number|string} staffId
- * @param {string} token - JWT token
- * @returns {Promise}
+ * Xóa bản ghi chấm công
+ * Backend: DELETE /api/manager/attendance/{checkinId}
  */
-export const deleteStaffAccount = (staffId, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để thực hiện thao tác.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
+export const deleteAttendanceRecord = (checkinId) => {
+  return request(`/api/manager/attendance/${checkinId}`, { method: 'DELETE' });
+};
 
-  const id = Number(staffId);
-  if (!Number.isFinite(id) || id <= 0) {
-    const error = new Error('Staff ID không hợp lệ.');
-    error.status = 400;
-    return Promise.reject(error);
-  }
+// ============================================================
+// ADMIN: CRUD STAFF PROFILES
+// Base: /api/admin/staff
+// ============================================================
 
-  return request(`/api/admin/staff/${id}/delete`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
+/**
+ * Lấy danh sách tất cả staff profiles (phân trang)
+ * Backend: GET /api/admin/staff/all-staff
+ */
+export const fetchAllStaffProfiles = (params) => {
+  const searchParams = new URLSearchParams();
+  if (params?.page != null) searchParams.set('page', String(params.page));
+  if (params?.size != null) searchParams.set('size', String(params.size));
+  if (params?.isActive != null) searchParams.set('isActive', String(params.isActive));
+  if (params?.search) searchParams.set('search', params.search);
+
+  const qs = searchParams.toString();
+  const path = `/api/admin/staff/all-staff${qs ? `?${qs}` : ''}`;
+  return request(path, { method: 'GET' });
+};
+
+/**
+ * Lấy chi tiết staff profile
+ * Backend: GET /api/admin/staff/{staffId}
+ */
+export const fetchStaffProfile = (staffId) => {
+  return request(`/api/admin/staff/${staffId}`, { method: 'GET' });
+};
+
+/**
+ * Lấy danh sách roles
+ * Backend: GET /api/admin/staff/all-roles
+ */
+export const fetchAllStaffRoles = () => {
+  return request('/api/admin/staff/all-roles', { method: 'GET' });
+};
+
+/**
+ * Tạo staff mới
+ * Backend: POST /api/admin/staff/create
+ * Payload: { fullName, phone, position, password, email, status, dob, roles[] }
+ */
+export const createStaff = (payload) => {
+  return request('/api/admin/staff/create', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
+};
+
+/**
+ * Cập nhật staff profile
+ * Backend: PUT /api/admin/staff/{staffId}/update
+ */
+export const updateStaff = (staffId, payload) => {
+  return request(`/api/admin/staff/${staffId}/update`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+};
+
+/**
+ * Khóa tài khoản staff
+ * Backend: PUT /api/admin/staff/{staffId}/lock
+ */
+export const lockStaffAccount = (staffId) => {
+  return request(`/api/admin/staff/${staffId}/lock`, { method: 'PUT' });
+};
+
+/**
+ * Xóa (soft-delete) staff
+ * Backend: PUT /api/admin/staff/{staffId}/delete
+ */
+export const deleteStaffAccount = (staffId) => {
+  return request(`/api/admin/staff/${staffId}/delete`, { method: 'PUT' });
+};
+
+// ============================================================
+// ADMIN: CRUD CUSTOMERS
+// ============================================================
+
+export const createCustomer = (payload) => {
+  return request('/api/admin/customer/create', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
+export const fetchAllCustomers = (params) => {
+  const searchParams = new URLSearchParams();
+  if (params?.page != null) searchParams.set('page', String(params.page));
+  if (params?.size != null) searchParams.set('size', String(params.size));
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.status) searchParams.set('status', params.status);
+
+  const qs = searchParams.toString();
+  const path = `/api/admin/customer/getAllCustomer${qs ? `?${qs}` : ''}`;
+  return request(path, { method: 'GET' });
+};
+
+export const fetchCustomerDetail = (customerId) => {
+  return request(`/api/admin/customer/${customerId}`, { method: 'GET' });
+};
+
+export const updateCustomer = (customerId, payload) => {
+  return request(`/api/admin/customer/${customerId}/update`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+};
+
+export const lockCustomerAccount = (customerId) => {
+  return request(`/api/admin/customer/${customerId}/locked`, { method: 'PUT' });
+};
+
+export const deleteCustomerAccount = (customerId) => {
+  return request(`/api/admin/customer/${customerId}/delete`, { method: 'PUT' });
 };

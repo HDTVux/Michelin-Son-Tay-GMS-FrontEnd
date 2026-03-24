@@ -3,17 +3,15 @@ import { request } from './apiClient';
 /**
  * Service for Safety Inspection API - SafetyInspectionController
  * Backend: /api/safety-inspections
+ * Auth: JWT tự động từ apiClient
  */
 
-// Kích hoạt kiểm tra an toàn cho phiếu dịch vụ
-// POST /api/safety-inspections/{ticketCode}/enable
-export const enableSafetyInspection = (ticketCode, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để kích hoạt kiểm tra an toàn.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+/**
+ * Kích hoạt kiểm tra an toàn cho phiếu dịch vụ
+ * Backend: POST /api/safety-inspections/{ticketCode}/enable
+ * @param {string} ticketCode
+ */
+export const enableSafetyInspection = (ticketCode) => {
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
     const error = new Error('Thiếu ticketCode.');
@@ -21,21 +19,19 @@ export const enableSafetyInspection = (ticketCode, token) => {
     return Promise.reject(error);
   }
 
+  // apiClient.js tự lấy authToken từ localStorage
   return request(`/api/safety-inspections/${code}/enable`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
   });
 };
 
-// Bỏ qua kiểm tra an toàn cho phiếu dịch vụ
-// POST /api/safety-inspections/{ticketCode}/skip
-export const skipSafetyInspection = (ticketCode, reason = '', token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+/**
+ * Bỏ qua kiểm tra an toàn cho phiếu dịch vụ
+ * Backend: POST /api/safety-inspections/{ticketCode}/skip
+ * @param {string} ticketCode
+ * @param {string} reason - Lý do bỏ qua
+ */
+export const skipSafetyInspection = (ticketCode, reason = '') => {
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
     const error = new Error('Thiếu ticketCode.');
@@ -44,21 +40,18 @@ export const skipSafetyInspection = (ticketCode, reason = '', token) => {
   }
 
   const params = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+  // apiClient.js tự lấy authToken từ localStorage
   return request(`/api/safety-inspections/${code}/skip${params}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
   });
 };
 
-// Lấy chi tiết kiểm tra an toàn theo inspectionId
-// GET /api/safety-inspections/{inspectionId}
-export const getSafetyInspectionById = (inspectionId, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xem chi tiết kiểm tra.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+/**
+ * Lấy chi tiết kiểm tra an toàn theo inspectionId
+ * Backend: GET /api/safety-inspections/{inspectionId}
+ * @param {number} inspectionId
+ */
+export const getSafetyInspectionById = (inspectionId) => {
   const id = Number(inspectionId);
   if (!Number.isFinite(id) || id <= 0) {
     const error = new Error('Thiếu inspectionId hợp lệ.');
@@ -66,37 +59,31 @@ export const getSafetyInspectionById = (inspectionId, token) => {
     return Promise.reject(error);
   }
 
+  // apiClient.js tự lấy authToken từ localStorage
   return request(`/api/safety-inspections/${id}`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
   });
 };
 
-// Lưu dữ liệu kiểm tra an toàn (tạo mới hoặc cập nhật)
-// POST /api/safety-inspections
-export const saveSafetyInspectionData = (payload, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để lưu dữ liệu kiểm tra.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+/**
+ * Lưu dữ liệu kiểm tra an toàn (tạo mới hoặc cập nhật)
+ * Backend: POST /api/safety-inspections
+ * @param {object} payload
+ */
+export const saveSafetyInspectionData = (payload) => {
+  // apiClient.js tự lấy authToken từ localStorage
   return request('/api/safety-inspections', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload ?? {}),
   });
 };
 
-// Lấy kiểm tra an toàn theo mã phiếu dịch vụ
-// GET /api/safety-inspections/service-ticket/{ticketCode}
-export const getSafetyInspectionByTicketCode = (ticketCode, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xem kiểm tra an toàn.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+/**
+ * Lấy kiểm tra an toàn theo mã phiếu dịch vụ
+ * Backend: GET /api/safety-inspections/service-ticket/{ticketCode}
+ * @param {string} ticketCode
+ */
+export const getSafetyInspectionByTicketCode = (ticketCode) => {
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
     const error = new Error('Thiếu ticketCode.');
@@ -104,21 +91,19 @@ export const getSafetyInspectionByTicketCode = (ticketCode, token) => {
     return Promise.reject(error);
   }
 
+  // apiClient.js tự lấy authToken từ localStorage
   return request(`/api/safety-inspections/service-ticket/${code}`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
   });
 };
 
-// Cập nhật dữ liệu kiểm tra an toàn
-// PUT /api/safety-inspections/{inspectionId}
-export const updateSafetyInspectionData = (inspectionId, payload, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để cập nhật kiểm tra.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+/**
+ * Cập nhật dữ liệu kiểm tra an toàn
+ * Backend: PUT /api/safety-inspections/{inspectionId}
+ * @param {number} inspectionId
+ * @param {object} payload
+ */
+export const updateSafetyInspectionData = (inspectionId, payload) => {
   const id = Number(inspectionId);
   if (!Number.isFinite(id) || id <= 0) {
     const error = new Error('Thiếu inspectionId hợp lệ.');
@@ -126,68 +111,65 @@ export const updateSafetyInspectionData = (inspectionId, payload, token) => {
     return Promise.reject(error);
   }
 
+  // apiClient.js tự lấy authToken từ localStorage
   return request(`/api/safety-inspections/${id}`, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload ?? {}),
   });
 };
 
-// Lấy danh sách hạng mục kiểm tra an toàn
-// GET /api/safety-inspections/categories
-export const getSafetyInspectionCategories = (token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để lấy danh mục.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  return request('/api/safety-inspections/categories', {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-};
-
-// Lấy danh sách 13 hạng mục kiểm tra an toàn mặc định
-// GET /api/safety-inspections/categories/default
-export const getDefaultSafetyInspectionCategories = (token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để lấy danh mục mặc định.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+/**
+ * Lấy danh sách 13 hạng mục kiểm tra an toàn mặc định
+ * Backend: GET /api/safety-inspections/categories/default
+ * @deprecated Sử dụng getDefaultSafetyInspectionCategories thay thế
+ */
+export const getSafetyInspectionCategories = () => {
+  // apiClient.js tự lấy authToken từ localStorage
   return request('/api/safety-inspections/categories/default', {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
   });
 };
 
-// Tạo mới hạng mục kiểm tra an toàn
-// POST /api/safety-inspections/categories
-export const createWorkCategory = (payload, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để tạo hạng mục mới.');
-    error.status = 401;
+/**
+ * Lấy danh sách 13 hạng mục kiểm tra an toàn mặc định
+ * Backend: GET /api/safety-inspections/categories/default
+ */
+export const getDefaultSafetyInspectionCategories = () => {
+  // apiClient.js tự lấy authToken từ localStorage
+  return request('/api/safety-inspections/categories/default', {
+    method: 'GET',
+  });
+};
+
+/**
+ * Thêm hạng mục tùy chỉnh vào phiếu kiểm tra an toàn
+ * Backend: POST /api/safety-inspections/{inspectionId}/custom-categories
+ * @param {number} inspectionId
+ * @param {object} payload - { categoryName, displayOrder }
+ */
+export const addCustomCategory = (inspectionId, payload) => {
+  const id = Number(inspectionId);
+  if (!Number.isFinite(id) || id <= 0) {
+    const error = new Error('Thiếu inspectionId hợp lệ.');
+    error.status = 400;
     return Promise.reject(error);
   }
 
-  return request('/api/safety-inspections/categories', {
+  // apiClient.js tự lấy authToken từ localStorage
+  return request(`/api/safety-inspections/${id}/custom-categories`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload ?? {}),
   });
 };
 
-// Cập nhật advisor notes cho một hạng mục
-// PATCH /api/safety-inspections/{inspectionId}/advisor-notes
-export const updateAdvisorNote = (inspectionId, itemId, advisorNote, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để cập nhật ghi chú.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+/**
+ * Cập nhật advisor notes cho một hạng mục
+ * Backend: PATCH /api/safety-inspections/{inspectionId}/advisor-notes
+ * @param {number} inspectionId
+ * @param {number} itemId
+ * @param {string} advisorNote
+ */
+export const updateAdvisorNote = (inspectionId, itemId, advisorNote) => {
   const id = Number(inspectionId);
   if (!Number.isFinite(id) || id <= 0) {
     const error = new Error('Thiếu inspectionId hợp lệ.');
@@ -204,12 +186,12 @@ export const updateAdvisorNote = (inspectionId, itemId, advisorNote, token) => {
 
   const payload = {
     itemId: itemIdNum,
-    advisorNote: advisorNote || ''
+    advisorNote: advisorNote || '',
   };
 
+  // apiClient.js tự lấy authToken từ localStorage
   return request(`/api/safety-inspections/${id}/advisor-notes`, {
     method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload),
   });
 };

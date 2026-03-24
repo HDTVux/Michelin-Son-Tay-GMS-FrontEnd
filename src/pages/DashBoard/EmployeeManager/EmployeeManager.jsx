@@ -186,7 +186,6 @@ const EmployeeManager = () => {
             onChange={(e) => handleStatusChange(e.target.value)}
           >
             <option value="">Tất cả trạng thái</option>
-            <option value="">Tất cả trạng thái</option>
             <option value="ACTIVE">Hoạt động</option>
             <option value="INACTIVE">Ngưng hoạt động</option>
             <option value="LOCKED">Đã khóa</option>

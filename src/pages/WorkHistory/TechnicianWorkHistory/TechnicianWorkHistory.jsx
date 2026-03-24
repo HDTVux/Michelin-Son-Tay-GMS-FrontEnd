@@ -13,8 +13,6 @@ const TechnicianWorkHistory = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-
   const fetchWorkHistory = async (page = 0) => {
     if (!startDate || !endDate) {
       alert('Vui lòng chọn ngày bắt đầu và ngày kết thúc');
@@ -24,8 +22,7 @@ const TechnicianWorkHistory = () => {
     setLoading(true);
     try {
       const response = await fetchTechnicianWorkHistory(
-        { startDate, endDate, licensePlate: searchTerm, page, size: 20 },
-        token
+        { startDate, endDate, licensePlate: searchTerm, page, size: 20 }
       );
 
       console.log('API Response:', response);

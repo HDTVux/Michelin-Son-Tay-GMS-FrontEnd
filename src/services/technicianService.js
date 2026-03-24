@@ -1,19 +1,26 @@
 import { request } from './apiClient';
 
+// ============================================================
+// SERVICE TICKET TECHNICIANS APIs
+// Base: /api/service-ticket/technician
+// ============================================================
+
 /**
- * Service for Technician API - ServiceTicketTechnicianController
- * Backend: /api/service-ticket/technician
+ * Lấy danh sách phiếu dịch vụ của kỹ thuật viên (có phân trang)
+ * Backend: GET /api/service-ticket/technician/tickets
+ * @param {object} params
+ * @param {number} params.page    - Số trang (default 0)
+ * @param {number} params.size    - Kích thước trang (default 10)
+ * @param {string} params.date    - Lọc theo ngày nhận xe (yyyy-MM-dd)
+ * @param {string} params.status  - Lọc theo trạng thái (DRAFT/CREATED/IN_PROGRESS/COMPLETED/CANCELLED)
+ * @param {string} params.search  - Tìm kiếm (ticketCode/customerName/phone/licensePlate)
+ * Response: Page<TechnicianTicketListResponse>
+ * Fields: serviceTicketId, ticketCode, ticketStatus, vehicleId, licensePlate,
+ *         vehicleMake, vehicleModel, customerId, customerName, customerPhone,
+ *         bookingId, bookingCode, scheduledDate, scheduledTime,
+ *         customerRequest, technicianNotes, receivedAt, createdAt
  */
-
-// Lấy danh sách phiếu dịch vụ của kỹ thuật viên (có phân trang)
-// Params: page, size, date, status, search
-export const fetchTechnicianTickets = (params, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xem danh sách công việc.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+export const fetchTechnicianTickets = (params) => {
   const searchParams = new URLSearchParams();
 
   const page = Number.isFinite(params?.page) ? params.page : 0;
@@ -21,27 +28,29 @@ export const fetchTechnicianTickets = (params, token) => {
   searchParams.set('page', String(page));
   searchParams.set('size', String(size));
 
-  if (params?.date) searchParams.set('date', params.date);
+  if (params?.date)   searchParams.set('date', params.date);
   if (params?.status) searchParams.set('status', params.status);
   if (params?.search) searchParams.set('search', params.search);
 
   const qs = searchParams.toString();
-  const path = qs ? `/api/service-ticket/technician/tickets?${qs}` : '/api/service-ticket/technician/tickets';
+  const path = qs
+    ? `/api/service-ticket/technician/tickets?${qs}`
+    : '/api/service-ticket/technician/tickets';
 
-  return request(path, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  // apiClient.js tự lấy authToken từ localStorage
+  return request(path, { method: 'GET' });
 };
 
-// Lấy chi tiết phiếu dịch vụ theo ticketCode
-export const fetchTechnicianTicketDetail = (ticketCode, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xem chi tiết phiếu dịch vụ.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+/**
+ * Lấy chi tiết phiếu dịch vụ theo ticketCode
+ * Backend: GET /api/service-ticket/technician/tickets/{ticketCode}
+ * Response: TechnicianTicketDetailResponse
+ * Fields: serviceTicketId, ticketCode, customer{}, vehicle{}, booking{},
+ *         serviceCategory, customerRequest, services[], checkInNotes,
+ *         odometerReading, photos[], technicianNotes, ticketStatus,
+ *         receivedAt, deliveredAt, createdAt, updatedAt, createdBy, createdByName
+ */
+export const fetchTechnicianTicketDetail = (ticketCode) => {
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
     const error = new Error('Thiếu ticketCode.');
@@ -49,20 +58,18 @@ export const fetchTechnicianTicketDetail = (ticketCode, token) => {
     return Promise.reject(error);
   }
 
+  // apiClient.js tự lấy authToken từ localStorage
   return request(`/api/service-ticket/technician/tickets/${code}`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
   });
 };
 
-// Cập nhật ghi chú kỹ thuật viên
-export const updateTechnicianNotes = (ticketCode, payload, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để cập nhật ghi chú.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+/**
+ * Cập nhật ghi chú kỹ thuật viên
+ * Backend: PUT /api/service-ticket/technician/tickets/{ticketCode}/notes
+ * Payload: { technicianNotes: string }
+ */
+export const updateTechnicianNotes = (ticketCode, payload) => {
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
     const error = new Error('Thiếu ticketCode.');
@@ -70,9 +77,9 @@ export const updateTechnicianNotes = (ticketCode, payload, token) => {
     return Promise.reject(error);
   }
 
+  // apiClient.js tự lấy authToken từ localStorage
   return request(`/api/service-ticket/technician/tickets/${code}/notes`, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload ?? {}),
   });
 };

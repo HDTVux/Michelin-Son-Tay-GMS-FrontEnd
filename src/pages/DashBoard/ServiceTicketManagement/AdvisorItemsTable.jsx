@@ -540,9 +540,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 				serviceTicketId: idNum,
 				estimateType: 'INITIAL',
 				items,
-				},
-				token,
-			);
+			});
 			setEstimate(res?.data ?? null);
 			setIsCreating(false);
 		} catch (err) {

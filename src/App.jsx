@@ -21,7 +21,6 @@ import StaffManageSSO from './pages/StaffProfile/StaffManageSSO.jsx';
 import StaffLayout from './layouts/StaffLayout.jsx';
 import DailySchedule from './pages/DashBoard/DailySchedule/DailySchedule.jsx';
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
-import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.jsx';
 
 //Admin/Manager/Advisor pages
 import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
@@ -37,7 +36,6 @@ import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.j
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
-import ManageWorkShifts from './pages/DashBoard/ManageWorkShifts/ManageWorkShifts.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
 
 //Customer pages
@@ -85,6 +83,9 @@ import UpdateProgress from './pages/Technician/UpdateProgress/UpdateProgress.jsx
 // Import Advisor Inspection page
 import AdvisorInspection from './pages/DashBoard/AdvisorInspection/AdvisorInspection.jsx';
 import AdvisorInspectionList from './pages/DashBoard/AdvisorInspection/AdvisorInspectionList.jsx';
+
+// Import Promotion Management page
+import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 
 export default function App() {
   useEffect(() => {
@@ -147,12 +148,13 @@ export default function App() {
           <Route path="booking-request-management/:id/edit" element={<BookingRequestEdit />} />
           <Route path="staff-profile" element={<StaffProfile />} />
           <Route path="update-staff-profile" element={<UpdateStaffProfile />} />
-          <Route path="staff-change-password" element={<StaffChangePassword />} />
+          <Route path="
+          ord" element={<StaffChangePassword />} />
           <Route path="staff-manage-sso" element={<StaffManageSSO />} />
           <Route path="check-in" element={<CheckIn />} />
           <Route path="daily-schedule" element={<DailySchedule />} />
           <Route path="customer-profile/:customerId" element={<EditCustomerProfile />} />
-          <Route path="staff-attendance" element={<StaffAttendance />} />
+          <Route path="staff-attendance" element={<ShiftManagement />} />
           <Route path="technician-tasks" element={<TechnicianTasks />} />
           <Route path="assign-advisor" element={<AssignAdvisor />} />
           <Route path="service-ticket/:ticketCode" element={<ServiceTicketDetail />} />
@@ -161,8 +163,7 @@ export default function App() {
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="service-management" element={<ServiceManagement />} />
-          <Route path="manage-staff-attendance" element={<ShiftManagement />} />
-          <Route path="manage-work-shifts" element={<ManageWorkShifts />} />
+          <Route path="shift-management" element={<ShiftManagement />} />
           <Route path="queue-management" element={<QueueManagement />} />
           <Route path="create-booking" element={<CreatBooking />} />
           <Route path="customer-manager" element={<CustomerManager />} />
@@ -181,6 +182,7 @@ export default function App() {
           {/* Advisor pages */}
           <Route path="advisor/inspection/list" element={<AdvisorInspectionList />} />
           <Route path="advisor/inspection/:ticketCode" element={<AdvisorInspection />} />
+          <Route path="promotion-management" element={<PromotionManagement />} />
         </Route>
 
         <Route path="login" element={<Login />} />

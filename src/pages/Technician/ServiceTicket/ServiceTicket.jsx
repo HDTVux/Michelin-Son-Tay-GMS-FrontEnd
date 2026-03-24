@@ -10,7 +10,7 @@ import {
   getDefaultSafetyInspectionCategories,
   getSafetyInspectionCategories,
   skipSafetyInspection,
-  createWorkCategory,
+  addCustomCategory,
   enableSafetyInspection
 } from '../../../services/safetyInspectionService';
 import styles from './ServiceTicket.module.css';
@@ -66,12 +66,6 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-        if (!token) {
-          toast.error('Vui lòng đăng nhập');
-          setLoading(false);
-          return;
-        }
         if (!resolvedTicketCode) {
           toast.error('Thiếu mã phiếu dịch vụ');
           setLoading(false);
@@ -79,7 +73,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
         }
 
         // Fetch ticket detail
-        const ticketResponse = await fetchTechnicianTicketDetail(resolvedTicketCode, token);
+        const ticketResponse = await fetchTechnicianTicketDetail(resolvedTicketCode);
         if (ticketResponse?.data?.serviceTicketId) {
           setServiceTicketId(ticketResponse.data.serviceTicketId);
         }
@@ -87,7 +81,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
         // Load 13 default safety inspection categories first
         let defaultChecks = [];
         try {
-          const defaultCategoriesResponse = await getDefaultSafetyInspectionCategories(token);
+          const defaultCategoriesResponse = await getDefaultSafetyInspectionCategories();
           if (defaultCategoriesResponse?.data && defaultCategoriesResponse.data.length > 0) {
             defaultChecks = defaultCategoriesResponse.data.map((cat) => ({
               id: cat.id,
@@ -99,13 +93,11 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
               note: '',
               displayOrder: cat.displayOrder || 0
             }));
-            setSafetyChecks(defaultChecks);
           }
         } catch (catError) {
           console.log('Could not load default categories, falling back to DB categories:', catError.message);
-          // Fallback to ALL categories from DB if default API fails
           try {
-            const categoriesResponse = await getSafetyInspectionCategories(token);
+            const categoriesResponse = await getSafetyInspectionCategories();
             if (categoriesResponse?.data && categoriesResponse.data.length > 0) {
               defaultChecks = categoriesResponse.data.map((cat) => ({
                 id: cat.id,
@@ -117,7 +109,6 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
                 note: '',
                 displayOrder: cat.displayOrder || 0
               }));
-              setSafetyChecks(defaultChecks);
             }
           } catch (fallbackError) {
             console.log('Could not load DB categories:', fallbackError.message);
@@ -125,103 +116,136 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
         }
 
         // Fetch safety inspection if exists
+        let inspection = null;
         try {
-          const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
+          const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode);
           console.log('🔍 Inspection Response:', inspectionResponse);
           if (inspectionResponse?.data) {
-            const inspection = inspectionResponse.data;
+            inspection = inspectionResponse.data;
             console.log('📋 Inspection Items:', inspection.items);
-            
-            // Store inspection ID and service ticket ID
-            if (inspection.inspectionId) {
-              setInspectionId(inspection.inspectionId);
-            }
-            if (inspection.serviceTicketId) {
-              setServiceTicketId(inspection.serviceTicketId);
-            }
-            
-            // Set inspection status and determine if editable
-            const status = inspection.inspectionStatus || 'PENDING';
-            setInspectionStatus(status);
-            const canEdit = status === 'PENDING' || status === 'SKIPPED' || !status;
-            setIsEditable(!embedded && canEdit);
-            
-            // Transform inspection data to form - tires
-            if (inspection.tires && inspection.tires.length > 0) {
-              const newTireData = { ...defaultTireData };
-              inspection.tires.forEach(tire => {
-                const positionMap = {
-                  'FRONT_LEFT': 'frontLeft',
-                  'FRONT_RIGHT': 'frontRight',
-                  'REAR_LEFT': 'rearLeft',
-                  'REAR_RIGHT': 'rearRight',
-                  'SPARE': 'spare'
-                };
-                const position = positionMap[tire.tirePosition];
-                if (position) {
-                  // Parse tire specification like "205/55R16" into size1, size2, size3
-                  let size1 = '', size2 = '', size3 = '';
-                  if (tire.tireSpecification) {
-                    const match = tire.tireSpecification.match(/(\d+)\/(\d+)R(\d+)/);
-                    if (match) {
-                      size1 = match[1];
-                      size2 = match[2];
-                      size3 = match[3];
-                    }
-                  }
-                  
-                  const baseData = {
-                    size1,
-                    size2,
-                    size3,
-                    mm: tire.treadDepth?.toString() || '',
-                    pressure: tire.pressure?.toString() || '',
-                    recommendedPressure: tire.recommendedPressure?.toString() || ''
-                  };
-                  
-                  newTireData[position] = baseData;
-                  
-                  // Set recommended tire size from first tire if available
-                  if (tire.recommendedTireSize && !recommendedTireSize) {
-                    setRecommendedTireSize(tire.recommendedTireSize);
-                  }
-                }
-              });
-              setTireData(newTireData);
-            }
-
-            // Transform safety check items - merge with default categories
-            if (inspection.items && inspection.items.length > 0 && defaultChecks.length > 0) {
-              const transformedChecks = defaultChecks.map((defaultCheck) => {
-                const existingItem = inspection.items.find(item =>
-                  item.workCategoryId === defaultCheck.workCategoryId
-                );
-                if (existingItem) {
-                  return {
-                    ...defaultCheck,
-                    itemId: existingItem.itemId,
-                    good: existingItem.itemStatus === 'GOOD',
-                    warning: existingItem.itemStatus === 'WARNING',
-                    replace: existingItem.itemStatus === 'REPLACE',
-                    note: existingItem.advisorNote || ''
-                  };
-                }
-                return defaultCheck;
-              });
-              setSafetyChecks(transformedChecks);
-            }
-
-            if (inspection.technicianNotes) {
-              setNotes(inspection.technicianNotes);
-            }
           }
         } catch {
           console.log('No existing inspection found, using default template');
+        }
+
+        // Build final safety checks in ONE place — avoids React batch setState race condition
+        let finalSafetyChecks = [];
+
+        if (inspection) {
+          // Có inspection → merge backend items với default categories
+          const inspectionItems = inspection.items || [];
+
+          // Store inspection ID and service ticket ID
+          if (inspection.inspectionId) setInspectionId(inspection.inspectionId);
+          if (inspection.serviceTicketId) setServiceTicketId(inspection.serviceTicketId);
+
+          // Set inspection status and determine if editable
+          const status = inspection.inspectionStatus || 'PENDING';
+          setInspectionStatus(status);
+          const canEdit = status === 'PENDING' || status === 'SKIPPED' || !status;
+          setIsEditable(!embedded && canEdit);
+
+          // Transform tire data
+          if (inspection.tires && inspection.tires.length > 0) {
+            const newTireData = { ...defaultTireData };
+            inspection.tires.forEach(tire => {
+              const positionMap = {
+                'FRONT_LEFT': 'frontLeft',
+                'FRONT_RIGHT': 'frontRight',
+                'REAR_LEFT': 'rearLeft',
+                'REAR_RIGHT': 'rearRight',
+                'SPARE': 'spare'
+              };
+              const position = positionMap[tire.tirePosition];
+              if (position) {
+                let size1 = '', size2 = '', size3 = '';
+                if (tire.tireSpecification) {
+                  const match = tire.tireSpecification.match(/(\d+)\/(\d+)R(\d+)/);
+                  if (match) { size1 = match[1]; size2 = match[2]; size3 = match[3]; }
+                }
+                newTireData[position] = {
+                  size1, size2, size3,
+                  mm: tire.treadDepth?.toString() || '',
+                  pressure: tire.pressure?.toString() || '',
+                  recommendedPressure: tire.recommendedPressure?.toString() || ''
+                };
+                if (tire.recommendedTireSize && !recommendedTireSize) {
+                  setRecommendedTireSize(tire.recommendedTireSize);
+                }
+              }
+            });
+            setTireData(newTireData);
+          }
+
+          if (inspection.technicianNotes) setNotes(inspection.technicianNotes);
+
+          // Merge default categories với inspection items từ backend
+          if (defaultChecks.length > 0) {
+            // Map inspection items by workCategoryId để tìm nhanh
+            const itemsByWorkCat = {};
+            inspectionItems.forEach(item => {
+              if (item.workCategoryId != null) {
+                itemsByWorkCat[item.workCategoryId] = item;
+              }
+            });
+
+            finalSafetyChecks = defaultChecks.map(cat => {
+              const existingItem = itemsByWorkCat[cat.workCategoryId];
+              if (existingItem) {
+                return {
+                  ...cat,
+                  itemId: existingItem.itemId,
+                  good: existingItem.itemStatus === 'GOOD',
+                  warning: existingItem.itemStatus === 'WARNING',
+                  replace: existingItem.itemStatus === 'REPLACE',
+                  note: existingItem.advisorNote || ''
+                };
+              }
+              return cat;
+            });
+          } else {
+            // Không có default categories → dùng trực tiếp items từ backend
+            finalSafetyChecks = inspectionItems.map(item => ({
+              id: item.itemId || item.workCategoryId || item.customCategoryId,
+              itemId: item.itemId,
+              workCategoryId: item.workCategoryId,
+              customCategoryId: item.customCategoryId,
+              name: item.categoryName || '',
+              good: item.itemStatus === 'GOOD',
+              warning: item.itemStatus === 'WARNING',
+              replace: item.itemStatus === 'REPLACE',
+              note: item.advisorNote || '',
+              displayOrder: item.displayOrder || 0,
+              isCustom: item.customCategoryId != null,
+            }));
+          }
+
+          // Thêm custom items (có customCategoryId)
+          const customItems = inspectionItems
+            .filter(item => item.customCategoryId != null && item.workCategoryId == null)
+            .map(item => ({
+              id: item.itemId,
+              itemId: item.itemId,
+              workCategoryId: null,
+              customCategoryId: item.customCategoryId,
+              name: item.categoryName || '',
+              good: item.itemStatus === 'GOOD',
+              warning: item.itemStatus === 'WARNING',
+              replace: item.itemStatus === 'REPLACE',
+              note: item.advisorNote || '',
+              displayOrder: 999,
+              isCustom: true,
+            }));
+
+          finalSafetyChecks = [...finalSafetyChecks, ...customItems];
+        } else {
+          // Không có inspection → dùng 13 default categories
+          finalSafetyChecks = defaultChecks;
           setIsEditable(!embedded);
           setInspectionStatus('PENDING');
-          // Don't try to enable inspection automatically - let user save when ready
-          // This avoids 500 errors when backend can't create inspection yet
         }
+
+        setSafetyChecks(finalSafetyChecks);
       } catch (error) {
         console.error('Error fetching ticket data:', error);
         toast.error('Không thể tải dữ liệu phiếu dịch vụ: ' + (error.message || 'Lỗi không xác định'));
@@ -243,12 +267,41 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
 
   const handleSafetyCheck = (itemId, type) => {
     setSafetyChecks(prev =>
-      prev.map(item =>
-        item.id === itemId
-          ? { ...item, good: type === 'good', warning: type === 'warning', replace: type === 'replace' }
-          : item
-      )
+      prev.map(item => {
+        if (item.id !== itemId) return item;
+        if (type === 'good') {
+          return {
+            ...item,
+            good: !item.good,
+            warning: false,
+            replace: false,
+          };
+        }
+        if (type === 'warning') {
+          return {
+            ...item,
+            good: false,
+            warning: !item.warning,
+            replace: false,
+          };
+        }
+        if (type === 'replace') {
+          return {
+            ...item,
+            good: false,
+            warning: false,
+            replace: !item.replace,
+          };
+        }
+        return item;
+      })
     );
+  };
+
+  const handleDeleteCustomCategory = (itemId) => {
+    if (!window.confirm('Bạn có chắc muốn xóa hạng mục này?')) return;
+    setSafetyChecks(prev => prev.filter(item => item.id !== itemId));
+    toast.success('Đã xóa hạng mục thêm mới');
   };
 
   const handleAddCategory = async () => {
@@ -256,42 +309,41 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
       toast.error('Vui lòng nhập tên hạng mục');
       return;
     }
-    
-    if (!newCategoryCode.trim()) {
-      toast.error('Vui lòng nhập mã hạng mục');
+
+    if (!inspectionId) {
+      toast.error('Cần có inspectionId để thêm hạng mục. Vui lòng lưu phiếu kiểm tra trước.');
       return;
     }
 
     try {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-      
       // Get current max display order
-      const maxOrder = safetyChecks.length > 0 
+      const maxOrder = safetyChecks.length > 0
         ? Math.max(...safetyChecks.map(c => c.displayOrder || 0))
         : 0;
-      
-      const payload = { 
+
+      const payload = {
         categoryName: newCategoryName.trim(),
-        categoryCode: newCategoryCode.trim(),
         displayOrder: maxOrder + 1
       };
-      
-      console.log('➕ Creating category with payload:', payload);
-      
-      const response = await createWorkCategory(payload, token);
-      console.log('✅ Category created response:', response);
-      
+
+      console.log('➕ Adding custom category with payload:', payload);
+
+      const response = await addCustomCategory(inspectionId, payload);
+      console.log('✅ Custom category added response:', response);
+
       if (response?.data) {
         // Add new category to the checklist — mark as custom so it appears in the custom table
         const newCheck = {
-          id: response.data.id,
-          workCategoryId: response.data.id,
+          itemId: response.data.itemId,
+          id: response.data.itemId,
+          workCategoryId: null,
+          customCategoryId: response.data.customCategoryId,
           name: response.data.categoryName,
           good: false,
           warning: false,
           replace: false,
           note: '',
-          displayOrder: response.data.displayOrder,
+          displayOrder: maxOrder + 1,
           isCustom: true  // ← flag để phân biệt hạng mục tùy chỉnh
         };
         setSafetyChecks(prev => [...prev, newCheck]);
@@ -301,10 +353,10 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
         setNewCategoryCode('');
       }
     } catch (error) {
-      console.error('❌ Error creating category:', error);
+      console.error('❌ Error adding custom category:', error);
       console.error('Error status:', error.status);
       console.error('Error message:', error.message);
-      
+
       let errorMsg = 'Lỗi khi tạo hạng mục mới';
       if (error.status === 400) {
         // Backend validation error - show exact message from server
@@ -316,7 +368,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
       } else {
         errorMsg = error.message || 'Lỗi không xác định';
       }
-      
+
       toast.error(errorMsg);
     }
   };
@@ -324,8 +376,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
 
   const confirmSkip = async () => {
     try {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-      await skipSafetyInspection(resolvedTicketCode, skipReason || 'Bỏ qua kiểm tra an toàn', token);
+      await skipSafetyInspection(resolvedTicketCode, skipReason || 'Bỏ qua kiểm tra an toàn');
       toast.success('Đã bỏ qua kiểm tra an toàn!');
       setSkipModalOpen(false);
       if (!embedded) {
@@ -339,13 +390,11 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
 
   const handleSave = async () => {
     try {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-
       // Step 1: If no inspection exists, enable it first (creates PENDING record)
       if (!inspectionId) {
         console.log('🔄 Enabling safety inspection first...');
         try {
-          const enableResponse = await enableSafetyInspection(resolvedTicketCode, token);
+          const enableResponse = await enableSafetyInspection(resolvedTicketCode);
           console.log('✅ Enable response:', enableResponse);
           if (enableResponse?.data?.inspectionId) {
             setInspectionId(enableResponse.data.inspectionId);
@@ -413,10 +462,12 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
       console.log('🔧 Tires payload (TireInputRequest format):', tiresPayload);
 
       // Transform safety checks to API format - include ALL items with their status
+      // Distinguish between default items (workCategoryId) and custom items (customCategoryId)
       const itemsPayload = safetyChecks
         .filter(check => check.good || check.warning || check.replace)
         .map(check => ({
-          workCategoryId: check.workCategoryId,
+          workCategoryId: check.workCategoryId || null,
+          customCategoryId: check.isCustom ? (check.customCategoryId || check.id) : null,
           itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null
         }));
 
@@ -445,12 +496,12 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
       // If already COMPLETED and clicking "Hoàn thành" (editable), use update API
       // Otherwise, use save API to create new
       if (inspectionStatus === 'COMPLETED' && inspectionId && isEditable) {
-        await updateSafetyInspectionData(inspectionId, safetyPayload, token);
+        await updateSafetyInspectionData(inspectionId, safetyPayload);
         toast.success('Đã cập nhật phiếu kiểm tra an toàn!');
         // After update, lock editing again
         setIsEditable(false);
       } else {
-        await saveSafetyInspectionData(safetyPayload, token);
+        await saveSafetyInspectionData(safetyPayload);
         setInspectionStatus('COMPLETED');
         setIsEditable(false);
         toast.success('Đã lưu và hoàn thành kiểm tra an toàn!');
@@ -799,7 +850,7 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
         </div>
       </div>
 
-      {/* Safety Checklist — Default 13 items */}
+      {/* Safety Checklist — 13 items default + custom items */}
       <div className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h2 className={styles.sectionTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</h2>
@@ -825,19 +876,43 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
             </thead>
             <tbody>
               {safetyChecks
-                .filter(item => !item.isCustom)
                 .sort((a, b) => {
-                  const aHasNote = a.note && a.note.trim() !== '';
-                  const bHasNote = b.note && b.note.trim() !== '';
-                  if (inspectionStatus === 'SKIPPED') {
-                    if (aHasNote && !bHasNote) return -1;
-                    if (!aHasNote && bHasNote) return 1;
-                  }
-                  return 0;
+                  // Default items first (isCustom = false), then custom items
+                  if (a.isCustom !== b.isCustom) return a.isCustom ? 1 : -1;
+                  // Within same type, sort by displayOrder
+                  return (a.displayOrder || 0) - (b.displayOrder || 0);
                 })
                 .map((item) => (
-                <tr key={item.id}>
-                  <td className={styles.itemName}>{item.name}</td>
+                <tr key={item.id} style={item.isCustom ? { backgroundColor: '#fff7ed' } : {}}>
+                  <td className={styles.itemName}>
+                    {item.name}
+                    {item.isCustom && (
+                      <>
+                        <span style={{ fontSize: '11px', color: '#92400e', marginLeft: '6px', marginRight: '6px' }}>
+                          thêm mới
+                        </span>
+                        {isEditable && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCustomCategory(item.id)}
+                            style={{
+                              background: '#ef4444',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '1px 6px',
+                              cursor: 'pointer',
+                              fontSize: '11px',
+                              verticalAlign: 'middle',
+                            }}
+                            title="Xóa hạng mục"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </td>
                   <td>
                     <input
                       type="checkbox"
@@ -885,73 +960,6 @@ const ServiceTicket = ({ ticketCode, embedded = false }) => {
           </table>
         </div>
       </div>
-
-      {/* Custom Categories Table — only shows if there are custom items */}
-      {safetyChecks.some(item => item.isCustom) && (
-        <div className={styles.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h2 className={styles.sectionTitle}>HẠNG MỤC TÙY CHỈNH</h2>
-          </div>
-          <div className={styles.safetyTable}>
-            <table>
-              <thead>
-                <tr>
-                  <th>HẠNG MỤC TÙY CHỈNH</th>
-                  <th>TỐT</th>
-                  <th>LƯU Ý</th>
-                  <th>THAY</th>
-                  <th>GHI CHÚ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {safetyChecks
-                  .filter(item => item.isCustom)
-                  .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-                  .map((item) => (
-                  <tr key={item.id}>
-                    <td className={styles.itemName}>{item.name}</td>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={item.good}
-                        disabled={!isEditable}
-                        onChange={() => handleSafetyCheck(item.id, 'good')}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={item.warning}
-                        disabled={!isEditable}
-                        onChange={() => handleSafetyCheck(item.id, 'warning')}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={item.replace}
-                        disabled={!isEditable}
-                        onChange={() => handleSafetyCheck(item.id, 'replace')}
-                      />
-                    </td>
-                    <td className={styles.noteCell}>
-                      {item.note && item.note.trim() !== '' ? (
-                        <span style={{ color: '#92400e', fontStyle: 'italic', fontSize: '13px' }}>
-                          {item.note}
-                        </span>
-                      ) : (
-                        <span style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '13px' }}>
-                          —
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Notes Section - Technician Notes */}
       <div className={styles.card}>

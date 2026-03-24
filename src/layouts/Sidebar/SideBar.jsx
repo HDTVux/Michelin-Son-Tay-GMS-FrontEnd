@@ -65,9 +65,9 @@ const NAV_GROUPS = [
 			{ id: 'customer-manager', label: 'Quản lý khách hàng', path: '/customer-manager', icon: <IconUser />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ADMIN], },
 			{ id: 'staff-manager', label: 'Quản lý nhân viên', path: '/staff-manager', icon: <IconUser />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'employee-manager', label: 'Quản lý hồ sơ nhân viên', path: '/employee-manager', icon: <IconUser />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
-			{ id: 'manage-staff-attendance', label: 'Quản lý điểm danh', path: '/manage-staff-attendance', icon: <IconCalendar />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
-			{ id: 'manage-work-shifts', label: 'Quản lý ca làm việc', path: '/manage-work-shifts', icon: <IconLayers />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
+			{ id: 'shift-management', label: 'Ca & Điểm danh', path: '/shift-management', icon: <IconCalendar />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER], },
+			{ id: 'promotion-management', label: 'Quản lý khuyến mãi', path: '/promotion-management', icon: <IconPromotion />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'send-reminder', label: 'Gửi nhắc nhở', path: '/send-reminder', icon: <IconBell />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER], },
 			{ id: 'system-log-management', label: 'Quản lý nhật ký hệ thống', path: '/system-log-management', icon: <IconHistory />, roles: [STAFF_ROLE.ADMIN], },
 		],
@@ -350,6 +350,16 @@ function IconLayers() {
 			<polygon points="12 2 2 7 12 12 22 7 12 2" />
 			<polyline points="2 17 12 22 22 17" />
 			<polyline points="2 12 12 17 22 12" />
+		</svg>
+	);
+}
+
+function IconPromotion() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+			<circle cx="12" cy="12" r="10"/>
+			<path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+			<path d="M12 18V6"/>
 		</svg>
 	);
 }

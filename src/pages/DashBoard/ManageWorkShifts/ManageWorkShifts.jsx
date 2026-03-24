@@ -246,6 +246,8 @@ const ManageWorkShifts = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editShift, setEditShift] = useState(null);
   const [deleteShift, setDeleteShift] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const loadShifts = useCallback(async () => {
     setLoading(true);
@@ -294,6 +296,16 @@ const ManageWorkShifts = () => {
   const activeShifts  = shifts.filter((s) => s.isActive === true).length;
   const inactiveShifts = shifts.filter((s) => s.isActive === false).length;
 
+  // Filter logic
+  const filteredShifts = shifts.filter((shift) => {
+    const matchSearch = shift.shiftName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && shift.isActive === true) ||
+      (statusFilter === 'inactive' && shift.isActive === false);
+    return matchSearch && matchStatus;
+  });
+
   return (
     <div className={styles.container}>
       {/* Header */}
@@ -303,8 +315,32 @@ const ManageWorkShifts = () => {
           <p className={styles.subtitle}>Tạo, chỉnh sửa và quản lý các ca làm việc trong hệ thống</p>
         </div>
         <button className={styles.addBtn} onClick={handleAdd}>
-          <span>＋</span> Thêm ca làm việc
+          Thêm ca làm việc
         </button>
+      </div>
+
+      {/* Search & Filter */}
+      <div className={styles.filterBar}>
+        <div className={styles.searchBox}>
+          <input
+            type="text"
+            className={styles.searchInput}
+            placeholder="Tìm kiếm theo tên ca..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className={styles.filterGroup}>
+          <select
+            className={styles.filterSelect}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">Tất cả trạng thái</option>
+            <option value="active">Hoạt động</option>
+            <option value="inactive">Vô hiệu hóa</option>
+          </select>
+        </div>
       </div>
 
       {/* Stats */}
@@ -329,12 +365,18 @@ const ManageWorkShifts = () => {
           <div className={styles.loadingWrapper}>
             <div className={styles.spinner} />
           </div>
-        ) : shifts.length === 0 ? (
+        ) : filteredShifts.length === 0 ? (
           <div className={styles.emptyWrapper}>
             <div className={styles.emptyIcon}>📋</div>
-            <p className={styles.emptyText}>Chưa có ca làm việc nào</p>
+            <p className={styles.emptyText}>
+              {searchTerm || statusFilter !== 'all'
+                ? 'Không tìm thấy ca làm việc phù hợp'
+                : 'Chưa có ca làm việc nào'}
+            </p>
             <p className={styles.emptySubtext}>
-              Nhấn "Thêm ca làm việc" để tạo ca đầu tiên
+              {searchTerm || statusFilter !== 'all'
+                ? 'Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc'
+                : 'Nhấn "Thêm ca làm việc" để tạo ca đầu tiên'}
             </p>
           </div>
         ) : (
@@ -352,7 +394,7 @@ const ManageWorkShifts = () => {
                 </tr>
               </thead>
               <tbody>
-                {shifts.map((shift, index) => (
+                {filteredShifts.map((shift, index) => (
                   <tr key={shift.shiftId}>
                     <td className={styles.tdStt}>{index + 1}</td>
                     <td className={styles.tdName}>{shift.shiftName}</td>
@@ -382,14 +424,14 @@ const ManageWorkShifts = () => {
                           onClick={() => handleEdit(shift)}
                           title="Chỉnh sửa"
                         >
-                          ✏️
+                          Sửa
                         </button>
                         <button
                           className={`${styles.actionBtn} ${styles.deleteBtn}`}
                           onClick={() => handleDeleteClick(shift)}
                           title="Vô hiệu hóa"
                         >
-                          🗑️
+                          Xóa
                         </button>
                       </div>
                     </td>

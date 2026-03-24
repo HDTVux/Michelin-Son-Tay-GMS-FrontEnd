@@ -1,21 +1,38 @@
 import { API_BASE_URL, request } from './apiClient.js';
 
-// Lookup booking + customer info for receptionist check-in by bookingCode
-// Backend: POST /api/receptionist/check-in/lookup
-export const lookupCheckInByBookingCode = (bookingCode, token) => {
-  const code = String(bookingCode || '').trim();
+/**
+ * Service for Check-In API - CheckInController
+ * Backend: /api/receptionist/check-in
+ * Auth: JWT tự động từ apiClient
+ */
 
+/**
+ * Lookup booking + customer info by bookingCode
+ * Backend: POST /api/receptionist/check-in/lookup
+ * @param {string} bookingCode
+ */
+export const lookupCheckInByBookingCode = (bookingCode) => {
+  const code = String(bookingCode || '').trim();
+  if (!code) {
+    const error = new Error('Thiếu bookingCode.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  // apiClient.js tự lấy authToken từ localStorage
   return request('/api/receptionist/check-in/lookup', {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: JSON.stringify({ bookingCode: code }),
   });
 };
 
-
-// Complete receptionist check-in flow using multipart/form-data (for backends expecting @ModelAttribute/MultipartFile)
-// Backend: POST /api/receptionist/check-in/complete-all
-export const completeAllCheckInMultipart = async (payload, photoFiles, token) => {
+/**
+ * Complete receptionist check-in using multipart/form-data
+ * Backend: POST /api/receptionist/check-in/complete-all
+ * @param {object} payload - CompleteCheckInAllRequest fields
+ * @param {File[]} photoFiles - { licensePlatePhoto, conditionPhotos[] }
+ */
+export const completeAllCheckInMultipart = async (payload, photoFiles) => {
   const formData = new FormData();
 
   const files = photoFiles && typeof photoFiles === 'object' ? photoFiles : {};
@@ -24,11 +41,7 @@ export const completeAllCheckInMultipart = async (payload, photoFiles, token) =>
   Object.entries(payload ?? {}).forEach(([key, value]) => {
     if (value == null) return;
     if (typeof value === 'object') return;
-
-    // If backend expects MultipartFile for this key, never send a string.
-    // Only the real File should be appended (below). Omitting the field is OK.
     if (fileKeys.has(key)) return;
-
     formData.append(key, String(value));
   });
 
@@ -39,9 +52,13 @@ export const completeAllCheckInMultipart = async (payload, photoFiles, token) =>
     formData.append(key, file, file.name);
   });
 
+  // Lấy token tự động
+  const authToken = localStorage.getItem('authToken') || localStorage.getItem('staffToken') || '';
+  const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+
   const response = await fetch(`${API_BASE_URL}/api/receptionist/check-in/complete-all`, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: authHeaders,
     body: formData,
   });
 
@@ -64,22 +81,34 @@ export const completeAllCheckInMultipart = async (payload, photoFiles, token) =>
   return data;
 };
 
-// Get vehicles for a customer during receptionist check-in
-// Backend: GET /api/receptionist/check-in/customers/{customerId}/vehicles
-export const fetchCheckInCustomerVehicles = (customerId, token) => {
+/**
+ * Get customer's vehicles
+ * Backend: GET /api/receptionist/check-in/customers/{customerId}/vehicles
+ * @param {number} customerId
+ */
+export const fetchCheckInCustomerVehicles = (customerId) => {
   const id = Number(customerId) || 0;
+  if (id <= 0) {
+    const error = new Error('Thiếu customerId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  // apiClient.js tự lấy authToken từ localStorage
   return request(`/api/receptionist/check-in/customers/${id}/vehicles`, {
     method: 'GET',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
 
-// Create a new vehicle for a customer during receptionist check-in
-// Backend: POST /api/receptionist/check-in/vehicles/create
-export const createCheckInVehicle = (payload, token) => {
+/**
+ * Create a new vehicle for a customer during check-in
+ * Backend: POST /api/receptionist/check-in/vehicles/create
+ * @param {object} payload
+ */
+export const createCheckInVehicle = (payload) => {
+  // apiClient.js tự lấy authToken từ localStorage
   return request('/api/receptionist/check-in/vehicles/create', {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: JSON.stringify(payload ?? {}),
   });
 };

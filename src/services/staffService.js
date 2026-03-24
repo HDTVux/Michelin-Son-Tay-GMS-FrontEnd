@@ -1,12 +1,16 @@
 import { request } from './apiClient';
 
-// ============ STAFF DASHBOARD APIs ============
+// ============================================================
+// STAFF DASHBOARD APIs
+// Base: /api/staff
+// ============================================================
 
 /**
- * Lấy dashboard tổng quan cho nhân viên (KPI, biểu đồ, lịch hẹn gần đây)
- * Endpoint: GET /api/staff/dashboard
- * Backend trả về: { todayBookings, pendingBookings, completedBookings, totalCustomers,
- *                    revenue, avgRating, monthlyBookings[], serviceDistribution[], recentBookings[] }
+ * Lấy dashboard tổng quan cho nhân viên
+ * Backend: GET /api/staff/dashboard
+ * Response: DashboardOverviewResponse
+ * Fields: staff, todayShift, monthlyHours, completedServices,
+ *         todayTasks[], upcomingSchedule[], recentAttendance[], notifications[]
  */
 export const fetchStaffDashboard = () => {
   // apiClient.js tự lấy authToken từ localStorage
@@ -15,10 +19,10 @@ export const fetchStaffDashboard = () => {
 
 /**
  * Lấy lịch làm việc của nhân viên theo khoảng ngày
- * Endpoint: GET /api/staff/schedule?from=yyyy-MM-dd&to=yyyy-MM-dd
- * Backend trả về: [{ date, startTime, endTime, service, customerName, status, bookingCode }]
- * @param {string} from - Ngày bắt đầu (yyyy-MM-dd)
- * @param {string} to   - Ngày kết thúc (yyyy-MM-dd)
+ * Backend: GET /api/staff/schedule?from=yyyy-MM-dd&to=yyyy-MM-dd
+ * Response: List<ScheduleDayDto>
+ * Fields: date, dayOfWeek, shiftName, startTime, endTime, status
+ * Status values: SCHEDULED, CONFIRMED, CANCELLED, OFF
  */
 export const fetchStaffSchedule = (from, to) => {
   // apiClient.js tự lấy authToken từ localStorage
@@ -26,15 +30,37 @@ export const fetchStaffSchedule = (from, to) => {
   return request(`/api/staff/schedule?${params}`, { method: 'GET' });
 };
 
-// ============ STAFF ATTENDANCE APIs ============
+/**
+ * Lấy công việc hôm nay của nhân viên
+ * Backend: GET /api/staff/tasks/today
+ * Response: List<TaskSummaryDto>
+ * Fields: serviceTicketId, ticketCode, licensePlate, vehicleBrand,
+ *         vehicleModel, customerName, ticketStatus, receivedAt
+ */
+export const fetchTodayTasks = () => {
+  return request('/api/staff/tasks/today', { method: 'GET' });
+};
+
+/**
+ * Lấy thống kê cá nhân theo tháng
+ * Backend: GET /api/staff/statistics?month=&year=
+ * Response: Map<String, Object> with totalHours, month, completedServices count
+ */
+export const fetchStaffStatistics = (month, year) => {
+  const params = new URLSearchParams({ month: String(month), year: String(year) });
+  return request(`/api/staff/statistics?${params}`, { method: 'GET' });
+};
+
+// ============================================================
+// STAFF ATTENDANCE APIs (Personal)
+// ============================================================
 
 /**
  * Lấy lịch sử chấm công của nhân viên theo tháng
- * Endpoint: GET /api/staff/attendance/history?month=&year=
- * Backend trả về: ApiResponse<List<AttendanceRecordDto>>
- * DTO fields: date, dayOfWeek, shiftType, checkInTime, checkOutTime, status
- * @param {number} month - Tháng (1-12)
- * @param {number} year  - Năm
+ * Backend: GET /api/staff/attendance/history?month=&year=
+ * Response: List<AttendanceRecordDto>
+ * Fields: date, dayOfWeek, shiftType, checkInTime, checkOutTime, status
+ * Status values: PRESENT, LATE, EARLY_LEAVE, ABSENT
  */
 export const fetchStaffAttendance = (month, year) => {
   // apiClient.js tự lấy authToken từ localStorage
@@ -42,11 +68,13 @@ export const fetchStaffAttendance = (month, year) => {
   return request(`/api/staff/attendance/history?${params}`, { method: 'GET' });
 };
 
-// ============ STAFF PROFILE APIs ============
+// ============================================================
+// STAFF PROFILE APIs
+// ============================================================
 
 /**
- * Lấy thông tin profile của staff
- * Endpoint: GET /api/staff-profile
+ * Lấy thông tin profile của staff đang login
+ * Backend: GET /api/staff-profile
  */
 export const fetchStaffProfile = () => {
   // apiClient.js tự lấy authToken từ localStorage
@@ -55,8 +83,7 @@ export const fetchStaffProfile = () => {
 
 /**
  * Cập nhật thông tin profile của staff
- * Endpoint: PUT /api/staff-profile
- * @param {object} payload - Dữ liệu cập nhật
+ * Backend: PUT /api/staff-profile
  */
 export const updateStaffProfile = (payload) => {
   // apiClient.js tự lấy authToken từ localStorage
@@ -67,14 +94,9 @@ export const updateStaffProfile = (payload) => {
 };
 
 /**
- * Upload avatar cho staff
- * Endpoint: PUT /api/staff-profile/avatar
- * @param {File} file - File ảnh avatar
- */
-/**
  * Đổi mật khẩu nhân viên
- * Endpoint: PUT /api/staff-profile/password
- * @param {object} payload - { currentPassword, newPassword }
+ * Backend: PUT /api/staff-profile/password
+ * Payload: { currentPassword, newPassword }
  */
 export const changePassword = (payload) => {
   // apiClient.js tự lấy authToken từ localStorage
@@ -84,8 +106,12 @@ export const changePassword = (payload) => {
   });
 };
 
+/**
+ * Upload avatar cho staff
+ * Backend: PUT /api/staff-profile/avatar
+ * @param {File} file - File ảnh avatar
+ */
 export const uploadStaffAvatar = (file) => {
-  // apiClient.js tự lấy authToken từ localStorage
   const authToken = localStorage.getItem('authToken') || localStorage.getItem('staffToken') || '';
   const formData = new FormData();
   formData.append('avatar', file);
@@ -104,3 +130,4 @@ export const uploadStaffAvatar = (file) => {
     return data;
   });
 };
+

@@ -18,14 +18,7 @@ const MyTasks = () => {
   useEffect(() => {
     const fetchTickets = async () => {
       try {
-        const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-        if (!token) {
-          toast.error('Vui lòng đăng nhập để xem công việc');
-          setLoading(false);
-          return;
-        }
-
-        const response = await fetchTechnicianTickets({ page: 0, size: 50 }, token);
+        const response = await fetchTechnicianTickets({ page: 0, size: 50 });
 
         // Transform API response to match component expectations
         const tickets = response.data?.content || response.data || [];
@@ -35,7 +28,7 @@ const MyTasks = () => {
           let hasSafetyInspection = false;
           let inspectionStatus = null;
           try {
-            const inspectionRes = await getSafetyInspectionByTicketCode(ticket.ticketCode, token);
+            const inspectionRes = await getSafetyInspectionByTicketCode(ticket.ticketCode);
             if (inspectionRes?.data) {
               hasSafetyInspection = true;
               inspectionStatus = inspectionRes.data.inspectionStatus || null;
@@ -155,8 +148,7 @@ const MyTasks = () => {
 
   const handleViewTask = async (task) => {
     try {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-      const response = await fetchTechnicianTicketDetail(task.ticketCode || task.id, token);
+      const response = await fetchTechnicianTicketDetail(task.ticketCode || task.id);
       console.log('📋 Task Detail Response:', response.data);
       
       const data = response.data;

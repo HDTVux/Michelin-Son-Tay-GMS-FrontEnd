@@ -13,7 +13,7 @@ export const fetchWorkShiftById = (shiftId) => {
 };
 
 // POST /api/manager/work-shifts — Tạo ca làm việc mới
-// Payload: { shiftName, startTime, endTime } — startTime/endTime là "HH:mm" hoặc "HH:mm:ss"
+// Payload: { shiftName, startTime, endTime, shiftDate } — startTime/endTime là "HH:mm" hoặc "HH:mm:ss", shiftDate là "yyyy-MM-dd"
 export const createWorkShift = (payload) => {
   // apiClient.js tự lấy authToken từ localStorage
   return request('/api/manager/work-shifts', {

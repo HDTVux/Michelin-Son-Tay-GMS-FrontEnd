@@ -137,20 +137,6 @@ const VehicleStatus = () => {
     }
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'N/A';
-      return date.toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return 'N/A';
-    }
-  };
-
   const formatCurrency = (amount) => {
     if (!amount) return 'Chưa có';
     return new Intl.NumberFormat('vi-VN', {
@@ -308,6 +294,10 @@ const VehicleStatus = () => {
               vehicle={vehicle}
               onViewDetail={handleViewDetail}
               onContactTechnician={handleContactTechnician}
+              onViewInvoice={handleViewInvoice}
+              onRateService={handleRateService}
+              formatDate={formatDate}
+              formatCurrency={formatCurrency}
               getStatusText={getStatusText}
               getStatusClass={getStatusClass}
               getTaskIcon={getTaskIcon}
@@ -326,14 +316,9 @@ const VehicleStatus = () => {
         <VehicleDetailModal
           vehicle={selectedVehicle}
           onClose={() => setShowDetailModal(false)}
-          formatDate={formatDate}
-          formatTime={formatTime}
-          formatCurrency={formatCurrency}
           getStatusText={getStatusText}
           getStatusClass={getStatusClass}
           getTaskIcon={getTaskIcon}
-          onViewInvoice={handleViewInvoice}
-          onRateService={handleRateService}
         />
       )}
     </div>
@@ -345,6 +330,10 @@ const VehicleCard = ({
   vehicle,
   onViewDetail,
   onContactTechnician,
+  onViewInvoice,
+  onRateService,
+  formatDate,
+  formatCurrency,
   getStatusText,
   getStatusClass,
   getTaskIcon
@@ -467,14 +456,9 @@ const VehicleCard = ({
 const VehicleDetailModal = ({
   vehicle,
   onClose,
-  formatDate,
-  formatTime,
-  formatCurrency,
   getStatusText,
   getStatusClass,
-  getTaskIcon,
-  onViewInvoice,
-  onRateService
+  getTaskIcon
 }) => (
   <div className={styles.modalOverlay} onClick={onClose}>
     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -539,12 +523,12 @@ const VehicleDetailModal = ({
                   <div className={styles.timelineName}>{task.name}</div>
                   {task.completedAt && (
                     <div className={styles.timelineTime}>
-                      Hoàn thành: {formatTime(task.completedAt)}
+                      Hoàn thành: {task.completedAt}
                     </div>
                   )}
                   {task.startedAt && !task.completedAt && (
                     <div className={styles.timelineTime}>
-                      Bắt đầu: {formatTime(task.startedAt)}
+                      Bắt đầu: {task.startedAt}
                     </div>
                   )}
                 </div>

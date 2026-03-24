@@ -1,212 +1,187 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import styles from './ShiftManagement.module.css';
+import {
+  fetchAllWorkShifts,
+  createWorkShift,
+  updateWorkShift,
+  deleteWorkShift,
+} from '../../../services/workShiftService';
+import {
+  fetchAttendance,
+  createCheckin,
+  createCheckout,
+  deleteCheckin,
+} from '../../../services/attendanceService';
+import { fetchAllStaff } from '../../../services/adminService';
 
-// ─── Ca definitions ────────────────────────────────────────────────────────
-const SHIFTS = [
-  { id: 'MORNING',   label: 'Ca sáng',    time: '7h → 12h' },
-  { id: 'AFTERNOON', label: 'Ca chiều',   time: '12h30 → 18h30' },
-];
-
-// ─── Mock staff for attendance ───────────────────────────────────────────────
-const MOCK_STAFF = [
-  { staffId: 1, fullName: 'Nguyễn Văn A',  phone: '0901234561', role: 'KTV',      avatar: null },
-  { staffId: 2, fullName: 'Trần Thị B',    phone: '0901234562', role: 'KTV',      avatar: null },
-  { staffId: 3, fullName: 'Lê Văn C',      phone: '0901234563', role: 'KTV',      avatar: null },
-  { staffId: 4, fullName: 'Phạm Thị D',   phone: '0901234564', role: 'KTV',      avatar: null },
-  { staffId: 5, fullName: 'Hoàng Văn E',   phone: '0901234565', role: 'KTV',      avatar: null },
-  { staffId: 6, fullName: 'Vũ Thị F',     phone: '0901234566', role: 'KTV',      avatar: null },
-  { staffId: 7, fullName: 'Đặng Văn G',   phone: '0901234567', role: 'KTV',      avatar: null },
-];
-
-// ─── Mock schedule: date → { MORNING: [...], AFTERNOON: [...] } ─────────────
-const MOCK_SCHEDULE = {
-  '2026-03-02': {
-    MORNING:   [{ staffId: 1, checkIn: '06:58', checkOut: '12:05', attendance: 'present'  },
-                { staffId: 2, checkIn: '07:02', checkOut: '12:00', attendance: 'present'  },
-                { staffId: 3, checkIn: null,    checkOut: null,    attendance: 'absent'   }],
-    AFTERNOON: [{ staffId: 4, checkIn: '12:25', checkOut: '18:35', attendance: 'present'  },
-                { staffId: 5, checkIn: null,    checkOut: null,    attendance: 'absent'   }],
-  },
-  '2026-03-03': {
-    MORNING:   [{ staffId: 1, checkIn: '07:00', checkOut: '12:02', attendance: 'present' },
-                { staffId: 4, checkIn: '07:10', checkOut: null,     attendance: 'late'    }],
-    AFTERNOON: [{ staffId: 2, checkIn: '12:30', checkOut: '18:28', attendance: 'present' },
-                { staffId: 6, checkIn: null,    checkOut: null,    attendance: 'absent'  }],
-  },
-  '2026-03-05': {
-    MORNING:   [{ staffId: 3, checkIn: '06:55', checkOut: '12:00', attendance: 'present' },
-                { staffId: 7, checkIn: '07:05', checkOut: '12:00', attendance: 'present' }],
-    AFTERNOON: [{ staffId: 1, checkIn: '12:28', checkOut: '18:30', attendance: 'present' },
-                { staffId: 5, checkIn: '12:35', checkOut: null,     attendance: 'late'    }],
-  },
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const formatTime = (timeStr) => {
+  if (!timeStr) return '—';
+  return String(timeStr).substring(0, 5);
 };
 
-// ─── Attendance Modal ────────────────────────────────────────────────────────
-function AttendanceModal({ date, shift, onClose }) {
-  const dateStr = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '';
+const toDateStr = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-  // Init staff rows from MOCK_STAFF
-  const saved = MOCK_SCHEDULE[dateStr]?.[shift.id] || [];
-  const [rows, setRows] = useState(() =>
-    MOCK_STAFF.map((staff) => {
-      const found = saved.find((r) => r.staffId === staff.staffId);
-      return {
-        staffId:    staff.staffId,
-        fullName:   staff.fullName,
-        phone:      staff.phone,
-        role:       staff.role,
-        attendance: found?.attendance || 'absent',   // default vắng
-        checkIn:    found?.checkIn    || '',
-        checkOut:   found?.checkOut   || '',
-      };
-    })
-  );
-  const [saving, setSaving] = useState(false);
+const toDateKey = (dateVal) => {
+  if (!dateVal) return null;
+  if (typeof dateVal === 'string') return dateVal.substring(0, 10);
+  if (dateVal instanceof Date) return toDateStr(dateVal);
+  return null;
+};
 
-  const fmtDate = (d) =>
-    d ? d.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+const isWeekend = (d) => d && (d.getDay() === 0 || d.getDay() === 6);
+const isToday = (d) => d && d.toDateString() === new Date().toDateString();
 
-  const toggleAttendance = (staffId) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.staffId === staffId
-          ? { ...r, attendance: r.attendance === 'present' ? 'absent' : 'present',
-              checkIn: r.attendance === 'present' ? '' : r.checkIn,
-              checkOut: r.attendance === 'present' ? '' : r.checkOut }
-          : r
-      )
-    );
+const getDaysInMonth = (date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startingDayOfWeek = firstDay.getDay();
+  const days = [];
+  for (let i = 0; i < startingDayOfWeek; i++) days.push(null);
+  for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(year, month, d));
+  return days;
+};
+
+// ─── Shift Form Modal ────────────────────────────────────────────────────────
+function ShiftFormModal({ shift, onClose, onSuccess }) {
+  const isEdit = Boolean(shift);
+  const [form, setForm] = useState({
+    shiftName: shift?.shiftName || '',
+    startTime: shift?.startTime ? formatTime(shift.startTime) : '',
+    endTime: shift?.endTime ? formatTime(shift.endTime) : '',
+  });
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+
+  const validate = () => {
+    const errs = {};
+    if (!form.shiftName.trim()) errs.shiftName = 'Vui lòng nhập tên ca làm việc';
+    if (!form.startTime) errs.startTime = 'Vui lòng chọn giờ bắt đầu';
+    if (!form.endTime) errs.endTime = 'Vui lòng chọn giờ kết thúc';
+    if (form.startTime && form.endTime && form.startTime >= form.endTime) {
+      errs.endTime = 'Giờ kết thúc phải lớn hơn giờ bắt đầu';
+    }
+    return errs;
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 800));
-    const present = rows.filter((r) => r.attendance === 'present').length;
-    const absent  = rows.filter((r) => r.attendance === 'absent').length;
-    setSaving(false);
-    toast.success(
-      `Đã lưu điểm danh ca ${shift.label} ngày ${fmtDate(date)} — Có mặt: ${present}, Vắng: ${absent}`,
-      { toastId: 'attendance-saved' }
-    );
-    onClose();
+  const handleChange = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setSubmitting(true);
+    try {
+      const payload = {
+        shiftName: form.shiftName.trim(),
+        startTime: form.startTime + ':00',
+        endTime: form.endTime + ':00',
+      };
+      if (isEdit) {
+        await updateWorkShift(shift.shiftId, payload);
+        toast.success(`Đã cập nhật ca "${form.shiftName.trim()}" thành công!`);
+      } else {
+        await createWorkShift(payload);
+        toast.success(`Đã tạo ca "${form.shiftName.trim()}" thành công!`);
+      }
+      onSuccess();
+      onClose();
+    } catch (err) {
+      toast.error(err.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div className={styles.modalHeader}>
           <div>
-            <h3 className={styles.modalTitle}>
-              Điểm danh — {shift.label}
-            </h3>
-            <p className={styles.modalSubtitle}>{fmtDate(date)} · {shift.time}</p>
+            <h3 className={styles.modalTitle}>{isEdit ? 'Chỉnh sửa ca' : 'Thêm ca làm việc mới'}</h3>
+            <p className={styles.modalSubtitle}>
+              {isEdit ? `Mã ca: #${shift.shiftId}` : 'Điền thông tin ca làm việc'}
+            </p>
           </div>
           <button className={styles.modalClose} onClick={onClose}>✕</button>
         </div>
+        <form onSubmit={handleSubmit}>
+          <div className={styles.modalBody}>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Tên ca làm việc <span className={styles.requiredMark}>*</span></label>
+              <input type="text" className={styles.formInput} placeholder="VD: Ca Sáng, Ca Chiều"
+                value={form.shiftName} onChange={(e) => handleChange('shiftName', e.target.value)} maxLength={100} autoFocus />
+              {errors.shiftName && <span className={styles.formError}>{errors.shiftName}</span>}
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Thời gian làm việc <span className={styles.requiredMark}>*</span></label>
+              <div className={styles.timeInputs}>
+                <input type="time" className={styles.formInput} value={form.startTime}
+                  onChange={(e) => handleChange('startTime', e.target.value)} />
+                <span className={styles.timeSep}>→</span>
+                <input type="time" className={styles.formInput} value={form.endTime}
+                  onChange={(e) => handleChange('endTime', e.target.value)} />
+              </div>
+              {(errors.startTime || errors.endTime) && (
+                <span className={styles.formError}>{errors.startTime || errors.endTime}</span>
+              )}
+            </div>
+          </div>
+          <div className={styles.modalFooter}>
+            <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={submitting}>Hủy</button>
+            <button type="submit" className={styles.submitBtn} disabled={submitting}>
+              {submitting ? 'Đang xử lý...' : isEdit ? 'Cập nhật' : 'Tạo ca làm việc'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
-        {/* Summary chips */}
-        <div className={styles.modalSummary}>
-          <span className={styles.chipPresent}>
-            <span className={styles.chipDot} style={{ background: '#10b981' }} />
-            Có mặt: {rows.filter((r) => r.attendance === 'present').length}
-          </span>
-          <span className={styles.chipAbsent}>
-            <span className={styles.chipDot} style={{ background: '#ef4444' }} />
-            Vắng: {rows.filter((r) => r.attendance === 'absent').length}
-          </span>
+// ─── Delete Confirm Modal ────────────────────────────────────────────────────
+function DeleteConfirmModal({ shift, onClose, onConfirm }) {
+  const [deleting, setDeleting] = useState(false);
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await onConfirm(shift.shiftId);
+      toast.success(`Đã xóa ca "${shift.shiftName}"`);
+      onClose();
+    } catch (err) {
+      toast.error(err.message || 'Không thể xóa ca làm việc.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader} style={{ background: '#ef4444' }}>
+          <div>
+            <h3 className={styles.modalTitle}>Xác nhận xóa</h3>
+            <p className={styles.modalSubtitle}>Hành động này không thể hoàn tác</p>
+          </div>
+          <button className={styles.modalClose} onClick={onClose}>✕</button>
         </div>
-
-        {/* Table */}
-        <div className={styles.tableWrapper}>
-          <table className={styles.attendTable}>
-            <thead>
-              <tr>
-                <th className={styles.thStt}>STT</th>
-                <th className={styles.thName}>Nhân viên</th>
-                <th className={styles.thRole}>Vai trò</th>
-                <th className={styles.thAttend}>Có mặt</th>
-                <th className={styles.thAttend}>Vắng</th>
-                <th className={styles.thTime}>Check-in</th>
-                <th className={styles.thTime}>Check-out</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, idx) => (
-                <tr key={row.staffId} className={row.attendance === 'absent' ? styles.rowAbsent : ''}>
-                  <td className={styles.tdStt}>{idx + 1}</td>
-                  <td className={styles.tdName}>
-                    <div className={styles.staffAvatar}>
-                      {row.fullName.charAt(0)}
-                    </div>
-                    <div>
-                      <div className={styles.staffName}>{row.fullName}</div>
-                      <div className={styles.staffPhone}>{row.phone}</div>
-                    </div>
-                  </td>
-                  <td className={styles.tdRole}>
-                    <span className={styles.roleBadge}>{row.role}</span>
-                  </td>
-                  {/* Present toggle */}
-                  <td className={styles.tdToggle}>
-                    <button
-                      className={`${styles.toggleBtn} ${row.attendance === 'present' ? styles.toggleActive : ''}`}
-                      onClick={() => toggleAttendance(row.staffId)}
-                      disabled={row.attendance === 'present'}
-                    >
-                      {row.attendance === 'present' ? '✓' : ''}
-                    </button>
-                  </td>
-                  {/* Absent toggle */}
-                  <td className={styles.tdToggle}>
-                    <button
-                      className={`${styles.toggleBtn} ${styles.toggleAbsent} ${row.attendance === 'absent' ? styles.toggleActiveAbs : ''}`}
-                      onClick={() => toggleAttendance(row.staffId)}
-                      disabled={row.attendance === 'absent'}
-                    >
-                      {row.attendance === 'absent' ? '✕' : ''}
-                    </button>
-                  </td>
-                  {/* Check-in */}
-                  <td className={styles.tdTime}>
-                    <input
-                      type="time"
-                      className={styles.timeInput}
-                      value={row.checkIn}
-                      onChange={(e) =>
-                        setRows((prev) =>
-                          prev.map((r) => r.staffId === row.staffId ? { ...r, checkIn: e.target.value } : r)
-                        )
-                      }
-                      disabled={row.attendance === 'absent'}
-                    />
-                  </td>
-                  {/* Check-out */}
-                  <td className={styles.tdTime}>
-                    <input
-                      type="time"
-                      className={styles.timeInput}
-                      value={row.checkOut}
-                      onChange={(e) =>
-                        setRows((prev) =>
-                          prev.map((r) => r.staffId === row.staffId ? { ...r, checkOut: e.target.value } : r)
-                        )
-                      }
-                      disabled={row.attendance === 'absent'}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className={styles.confirmBody}>
+          <div className={styles.confirmIcon}>⚠️</div>
+          <h4 className={styles.confirmTitle}>Bạn có chắc chắn muốn xóa ca làm việc này?</h4>
+          <p className={styles.confirmMessage}>
+            Ca <span className={styles.confirmName}>"{shift.shiftName}"</span> ({formatTime(shift.startTime)} → {formatTime(shift.endTime)}) sẽ bị xóa.
+          </p>
         </div>
-
-        {/* Footer */}
-        <div className={styles.modalFooter}>
-          <button className={styles.cancelBtn} onClick={onClose} disabled={saving}>Hủy</button>
-          <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
-            {saving ? 'Đang lưu...' : 'Lưu điểm danh'}
+        <div className={styles.confirmFooter}>
+          <button className={styles.confirmCancelBtn} onClick={onClose} disabled={deleting}>Hủy bỏ</button>
+          <button className={styles.confirmDeleteBtn} onClick={handleDelete} disabled={deleting}>
+            {deleting ? 'Đang xử lý...' : 'Xóa'}
           </button>
         </div>
       </div>
@@ -214,206 +189,487 @@ function AttendanceModal({ date, shift, onClose }) {
   );
 }
 
-// ─── Calendar helpers ─────────────────────────────────────────────────────────
-const getDaysInMonth = (date) => {
-  const year  = date.getFullYear();
-  const month = date.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const lastDay  = new Date(year, month + 1, 0);
-  const daysInMonth = lastDay.getDate();
-  const startingDayOfWeek = firstDay.getDay();
-  const days = [];
-  for (let i = 0; i < startingDayOfWeek; i++) days.push(null);
-  for (let day = 1; day <= daysInMonth; day++) days.push(new Date(year, month, day));
-  return days;
-};
+// ─── Attendance Modal ────────────────────────────────────────────────────────
+function AttendanceModal({ date, shifts, staffList, existingCheckins, onClose, onRefresh }) {
+  const dateStr = toDateKey(date) || toDateStr(date);
+  const fmtDate = (d) => {
+    if (!d) return '';
+    const dd = new Date(d);
+    return dd.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
 
-const toDateStr = (date) => {
-  if (!date) return '';
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
+  // Lấy checkin của ngày này từ existingCheckins
+  const dayCheckins = existingCheckins.filter(c => toDateKey(c.attendanceDate) === dateStr);
 
-const isWeekend = (date) => date && (date.getDay() === 0 || date.getDay() === 6);
-const isToday   = (date) => date && date.toDateString() === new Date().toDateString();
+  const [rows, setRows] = useState(() =>
+    staffList.map((staff) => {
+      const staffCheckins = dayCheckins.filter(c => c.staffId === staff.staffId || c.staffId === staff.id);
+      return {
+        staffId: staff.staffId || staff.id,
+        fullName: staff.fullName || staff.name || '',
+        phone: staff.phone || '',
+        role: staff.position || staff.role || 'KTV',
+        // Tất cả checkins của nhân viên trong ngày này
+        checkins: staffCheckins.map(c => ({
+          checkinId: c.checkinId,
+          shiftId: c.shiftId,
+          shiftName: c.shiftName,
+          checkIn: formatTime(c.checkInTime),
+          checkOut: formatTime(c.checkOutTime),
+          status: c.status,
+          isCheckedOut: !!c.checkOutTime,
+        })),
+      };
+    })
+  );
+
+  const toggleShift = async (staffId, shiftId, isCheckedInForThisShift) => {
+    if (isCheckedInForThisShift) {
+      // Hủy check-in cho shift cụ thể
+      const checkin = rows.find(r => r.staffId === staffId)?.checkins.find(c => c.shiftId === shiftId);
+      if (checkin?.checkinId) {
+        try {
+          await deleteCheckin(checkin.checkinId);
+          setRows(prev => prev.map(r => {
+            if (r.staffId !== staffId) return r;
+            return { ...r, checkins: r.checkins.filter(c => c.shiftId !== shiftId) };
+          }));
+          toast.success('Đã hủy điểm danh');
+        } catch {
+          toast.error('Không thể hủy điểm danh');
+        }
+      }
+    } else {
+      // Check-in cho shift
+      try {
+        const res = await createCheckin({
+          staffId,
+          shiftId,
+          attendanceDate: dateStr,
+          checkInTime: new Date().toTimeString().substring(0, 5),
+        });
+        const newCheckin = res?.data || res;
+        const shift = shifts.find(s => s.shiftId === shiftId);
+        setRows(prev => prev.map(r => {
+          if (r.staffId !== staffId) return r;
+          const exists = r.checkins.find(c => c.shiftId === shiftId);
+          if (exists) return r;
+          return {
+            ...r,
+            checkins: [...r.checkins, {
+              checkinId: newCheckin.checkinId,
+              shiftId,
+              shiftName: shift?.shiftName || '',
+              checkIn: formatTime(newCheckin.checkInTime),
+              checkOut: '',
+              status: 'PRESENT',
+              isCheckedOut: false,
+            }]
+          };
+        }));
+        toast.success(`Đã check-in thành công`);
+      } catch (err) {
+        toast.error(err.message || 'Không thể check-in');
+      }
+    }
+  };
+
+  const handleCheckout = async (staffId, shiftId) => {
+    const checkin = rows.find(r => r.staffId === staffId)?.checkins.find(c => c.shiftId === shiftId);
+    if (!checkin?.checkinId) return;
+    try {
+      const res = await createCheckout(checkin.checkinId, {
+        checkOutTime: new Date().toTimeString().substring(0, 5),
+      });
+      const updated = res?.data || res;
+      setRows(prev => prev.map(r => {
+        if (r.staffId !== staffId) return r;
+        return {
+          ...r,
+          checkins: r.checkins.map(c =>
+            c.shiftId === shiftId
+              ? { ...c, checkOut: formatTime(updated.checkOutTime), isCheckedOut: true }
+              : c
+          )
+        };
+      }));
+      toast.success('Đã check-out thành công');
+    } catch (err) {
+      toast.error(err.message || 'Không thể check-out');
+    }
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
+        <div className={styles.modalHeader}>
+          <div>
+            <h3 className={styles.modalTitle}>Điểm danh</h3>
+            <p className={styles.modalSubtitle}>{fmtDate(date)}</p>
+          </div>
+          <button className={styles.modalClose} onClick={onClose}>✕</button>
+        </div>
+
+        {/* Header: ca làm việc */}
+        <div style={{ padding: '0 24px 12px', borderBottom: '1px solid #eee' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px' }}>
+            {shifts.map(shift => (
+              <div key={shift.shiftId} style={{ textAlign: 'center', padding: '8px', background: '#f0f4ff', borderRadius: '8px' }}>
+                <div style={{ fontWeight: 700, fontSize: '14px', color: '#1e40af' }}>{shift.shiftName}</div>
+                <div style={{ fontSize: '12px', color: '#6b7280' }}>{formatTime(shift.startTime)} → {formatTime(shift.endTime)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc' }}>
+                <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '13px', fontWeight: 700, position: 'sticky', top: 0, background: '#f8fafc' }}>Nhân viên</th>
+                {shifts.map(shift => (
+                  <th key={shift.shiftId} style={{ padding: '10px 8px', textAlign: 'center', fontSize: '12px', fontWeight: 700, position: 'sticky', top: 0, background: '#f8fafc' }}>
+                    {shift.shiftName}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.staffId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '10px 12px' }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{row.fullName}</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>{row.phone}</div>
+                  </td>
+                  {shifts.map(shift => {
+                    const checkin = row.checkins.find(c => c.shiftId === shift.shiftId);
+                    const isChecked = !!checkin;
+                    return (
+                      <td key={shift.shiftId} style={{ padding: '8px', textAlign: 'center' }}>
+                        {isChecked ? (
+                          <div>
+                            <div style={{ fontSize: '11px', color: '#10b981', fontWeight: 700, marginBottom: '2px' }}>
+                              ✓ {checkin.checkIn}
+                              {checkin.isCheckedOut && ` → ${checkin.checkOut}`}
+                            </div>
+                            {!checkin.isCheckedOut && (
+                              <button
+                                onClick={() => handleCheckout(row.staffId, shift.shiftId)}
+                                style={{
+                                  fontSize: '11px',
+                                  background: '#f59e0b',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  padding: '2px 8px',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Check-out
+                              </button>
+                            )}
+                            <div>
+                              <button
+                                onClick={() => toggleShift(row.staffId, shift.shiftId, true)}
+                                style={{
+                                  fontSize: '10px',
+                                  background: 'none',
+                                  color: '#ef4444',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  marginTop: '2px',
+                                }}
+                              >
+                                Hủy
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => toggleShift(row.staffId, shift.shiftId, false)}
+                            style={{
+                              background: '#10b981',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '6px 12px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            Check-in
+                          </button>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className={styles.modalFooter}>
+          <button className={styles.cancelBtn} onClick={() => { if (onRefresh) onRefresh(); onClose(); }}>
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const ShiftManagement = () => {
+  const [shifts, setShifts] = useState([]);
+  const [loadingShifts, setLoadingShifts] = useState(true);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editShift, setEditShift] = useState(null);
+  const [deleteShift, setDeleteShift] = useState(null);
+  const [activeModal, setActiveModal] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [activeModal, setActiveModal]    = useState(null); // { date, shift }
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [staffList, setStaffList] = useState([]);
 
-  const scheduleMap = MOCK_SCHEDULE;
+  // ── Load Shifts ─────────────────────────────────────────────────────────────
+  const loadShifts = useCallback(async () => {
+    setLoadingShifts(true);
+    try {
+      const res = await fetchAllWorkShifts();
+      const data = Array.isArray(res?.data) ? res.data : [];
+      setShifts(data.filter(s => s.isActive !== false));
+    } catch (err) {
+      toast.error(err.message || 'Không thể tải danh sách ca');
+    } finally {
+      setLoadingShifts(false);
+    }
+  }, []);
 
-  const goPrev  = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
-  const goNext  = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  // ── Load Staff ──────────────────────────────────────────────────────────────
+  const loadStaff = useCallback(async () => {
+    try {
+      const res = await fetchAllStaff();
+      const data = Array.isArray(res?.data) ? res.data : [];
+      setStaffList(data);
+    } catch (err) {
+      setStaffList([]);
+    }
+  }, []);
+
+  // ── Load Attendance ─────────────────────────────────────────────────────────
+  const loadAttendance = useCallback(async () => {
+    const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    try {
+      const res = await fetchAttendance({
+        from: toDateStr(firstDay),
+        to: toDateStr(lastDay),
+      });
+      const data = Array.isArray(res?.data) ? res.data : [];
+      setAttendanceData(data);
+    } catch {
+      setAttendanceData([]);
+    }
+  }, [currentMonth]);
+
+  useEffect(() => { loadShifts(); loadStaff(); }, [loadShifts, loadStaff]);
+  useEffect(() => { loadAttendance(); }, [loadAttendance]);
+
+  // ── Handlers ─────────────────────────────────────────────────────────────────
+  const handleAdd = () => { setEditShift(null); setShowFormModal(true); };
+  const handleEdit = (shift) => { setEditShift(shift); setShowFormModal(true); };
+  const handleDeleteClick = (shift) => { setDeleteShift(shift); setShowDeleteModal(true); };
+  const handleDeleteConfirm = async (shiftId) => {
+    await deleteWorkShift(shiftId);
+    await loadShifts();
+  };
+  const handleFormSuccess = () => { loadShifts(); loadAttendance(); };
+
+  const goPrev = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  const goNext = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   const goToday = () => setCurrentMonth(new Date());
+  const openModal = (day) => setActiveModal({ date: day });
 
+  // ── Stats ───────────────────────────────────────────────────────────────────
   const monthLabel = currentMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
   const days = getDaysInMonth(currentMonth);
-
-  // Stats
-  const totalDays     = Object.keys(scheduleMap).length;
-  const totalPresent  = Object.values(scheduleMap).reduce((s, v) =>
-    s + (v.MORNING?.filter((r) => r.attendance === 'present').length || 0) +
-        (v.AFTERNOON?.filter((r) => r.attendance === 'present').length || 0), 0);
-  const totalAbsent   = Object.values(scheduleMap).reduce((s, v) =>
-    s + (v.MORNING?.filter((r) => r.attendance === 'absent').length || 0) +
-        (v.AFTERNOON?.filter((r) => r.attendance === 'absent').length || 0), 0);
-  const totalLate     = Object.values(scheduleMap).reduce((s, v) =>
-    s + (v.MORNING?.filter((r) => r.attendance === 'late').length || 0) +
-        (v.AFTERNOON?.filter((r) => r.attendance === 'late').length || 0), 0);
-  const totalRows     = Object.values(scheduleMap).reduce((s, v) =>
-    s + (v.MORNING?.length || 0) + (v.AFTERNOON?.length || 0), 0);
-
-  const openModal = (date, shift) => {
-    setActiveModal({ date, shift });
-    toast.info(`Mở điểm danh: ${shift.label}`, { toastId: `open-${toDateStr(date)}-${shift.id}` });
-  };
+  const todayStr = toDateStr(new Date());
+  const todayCheckins = attendanceData.filter(a => toDateKey(a.attendanceDate) === todayStr);
 
   return (
     <div className={styles.container}>
       {/* Header */}
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Quản lý điểm danh</h1>
-          <p className={styles.subtitle}>Quản lý điểm danh nhân viên</p>
+          <h1 className={styles.title}>Ca & Điểm danh</h1>
+          <p className={styles.subtitle}>Quản lý ca làm việc và điểm danh nhân viên</p>
         </div>
+        <button className={styles.addBtn} onClick={handleAdd}>＋ Thêm ca làm việc</button>
       </div>
 
       {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={`${styles.statCard} ${styles.statTotal}`}>
-          <div className={styles.statValue}>{totalDays}</div>
-          <div className={styles.statLabel}>Ngày có lịch</div>
+          <div className={styles.statValue}>{shifts.length}</div>
+          <div className={styles.statLabel}>Tổng ca làm việc</div>
         </div>
         <div className={`${styles.statCard} ${styles.statActive}`}>
-          <div className={styles.statValue}>{totalPresent}</div>
-          <div className={styles.statLabel}>Có mặt</div>
+          <div className={styles.statValue}>{staffList.length}</div>
+          <div className={styles.statLabel}>Tổng nhân viên</div>
         </div>
         <div className={`${styles.statCard} ${styles.statLate}`}>
-          <div className={styles.statValue}>{totalLate}</div>
-          <div className={styles.statLabel}>Đi trễ</div>
-        </div>
-        <div className={`${styles.statCard} ${styles.statAbsent}`}>
-          <div className={styles.statValue}>{totalAbsent}</div>
-          <div className={styles.statLabel}>Vắng mặt</div>
-        </div>
-        <div className={`${styles.statCard} ${styles.statShift}`}>
-          <div className={styles.statValue}>{totalRows}</div>
-          <div className={styles.statLabel}>Lượt trực</div>
+          <div className={styles.statValue}>{todayCheckins.length}</div>
+          <div className={styles.statLabel}>Đã điểm danh hôm nay</div>
         </div>
       </div>
 
-      {/* Month navigation */}
-      <div className={styles.monthNav}>
-        <button className={styles.navBtn} onClick={goPrev}>◀ Tháng trước</button>
-        <button className={styles.currentMonth} onClick={goToday}>{monthLabel}</button>
-        <button className={styles.navBtn} onClick={goNext}>Tháng sau ▶</button>
+      {/* ── PHẦN 1: DANH SÁCH CA ─────────────────────────────────────────────── */}
+      <div className={styles.sectionCard}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Danh sách ca làm việc</h2>
+        </div>
+        <div className={styles.tableWrapper}>
+          {loadingShifts ? (
+            <div className={styles.loadingWrapper}><div className={styles.spinner} /></div>
+          ) : shifts.length === 0 ? (
+            <div className={styles.emptyWrapper}>
+              <div className={styles.emptyIcon}>📋</div>
+              <p className={styles.emptyText}>Chưa có ca làm việc nào.</p>
+            </div>
+          ) : (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>Tên ca</th>
+                  <th>Giờ bắt đầu</th>
+                  <th>Giờ kết thúc</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shifts.map((shift, idx) => (
+                  <tr key={shift.shiftId}>
+                    <td className={styles.tdStt}>{idx + 1}</td>
+                    <td className={styles.tdShiftName}>{shift.shiftName}</td>
+                    <td className={styles.tdTime}>{formatTime(shift.startTime)}</td>
+                    <td className={styles.tdTime}>{formatTime(shift.endTime)}</td>
+                    <td className={styles.tdStatus}>
+                      <span className={`${styles.statusBadge} ${shift.isActive ? styles.statusActive : styles.statusInactive}`}>
+                        <span className={styles.statusDot} />
+                        {shift.isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
+                      </span>
+                    </td>
+                    <td className={styles.tdActions}>
+                      <div className={styles.actions}>
+                        <button className={`${styles.actionBtn} ${styles.editBtn}`}
+                          onClick={() => handleEdit(shift)}>Sửa</button>
+                        <button className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                          onClick={() => handleDeleteClick(shift)}>Xóa</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
-      {/* Calendar */}
-      <div className={styles.calendarCard}>
-        <div className={styles.calendar}>
-          {/* Weekday headers */}
-          <div className={styles.weekDays}>
-            {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((d, i) => (
-              <div key={i} className={styles.weekDay}>{d}</div>
-            ))}
+      {/* ── PHẦN 2: LỊCH ĐIỂM DANH ──────────────────────────────────────────── */}
+      <div className={styles.sectionCard}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Lịch điểm danh</h2>
+          <div className={styles.monthNav}>
+            <button className={styles.navBtn} onClick={goPrev}>◀</button>
+            <button className={styles.currentMonth} onClick={goToday}>{monthLabel}</button>
+            <button className={styles.navBtn} onClick={goNext}>▶</button>
           </div>
+        </div>
 
-          {/* Day cells */}
-          <div className={styles.daysGrid}>
-            {days.map((day, index) => {
-              if (!day) return <div key={`empty-${index}`} className={styles.emptyCell} />;
+        <div className={styles.calendarCard}>
+          <div className={styles.calendar}>
+            <div className={styles.weekDays}>
+              {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((d, i) => (
+                <div key={i} className={styles.weekDay}>{d}</div>
+              ))}
+            </div>
+            <div className={styles.daysGrid}>
+              {days.map((day, index) => {
+                if (!day) return <div key={`empty-${index}`} className={styles.emptyCell} />;
+                const dateStr = toDateStr(day);
+                const today = isToday(day);
+                const weekend = isWeekend(day);
+                const dayCheckins = attendanceData.filter(a => toDateKey(a.attendanceDate) === dateStr);
 
-              const dateStr    = toDateStr(day);
-              const daySchedule = scheduleMap[dateStr] || {};
-              const today      = isToday(day);
-              const weekend    = isWeekend(day);
+                return (
+                  <div key={dateStr} className={`${styles.dayCell} ${today ? styles.today : ''} ${weekend ? styles.weekend : ''}`}>
+                    <div className={`${styles.dayNumber} ${today ? styles.dayNumberToday : ''}`}>
+                      {day.getDate()}
+                    </div>
+                    <div className={styles.shiftButtons}>
+                      {shifts.map((shift) => {
+                        const shiftCheckins = dayCheckins.filter(c => c.shiftId === shift.shiftId);
+                        const hasData = shiftCheckins.length > 0;
 
-              return (
-                <div
-                  key={dateStr}
-                  className={`${styles.dayCell} ${today ? styles.today : ''} ${weekend ? styles.weekend : ''}`}
-                >
-                  {/* Day number */}
-                  <div className={`${styles.dayNumber} ${today ? styles.dayNumberToday : ''}`}>
-                    {day.getDate()}
+                        return (
+                          <button key={shift.shiftId}
+                            className={`${styles.shiftBtn} ${hasData ? styles.shiftBtnActive : ''}`}
+                            onClick={() => openModal(day)}>
+                            <span className={styles.shiftBtnLabel}>{shift.shiftName}</span>
+                            <span className={styles.shiftBtnTime}>{formatTime(shift.startTime)} → {formatTime(shift.endTime)}</span>
+                            {hasData ? (
+                              <div className={styles.shiftBtnStats}>
+                                <span className={styles.statPresent}>{shiftCheckins.length}/{staffList.length}</span>
+                              </div>
+                            ) : (
+                              <span className={styles.shiftBtnEmpty}>Chưa điểm danh</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
-                  {/* Shift buttons */}
-                  <div className={styles.shiftButtons}>
-                    {SHIFTS.map((shift) => {
-                      const shiftData = daySchedule[shift.id] || [];
-                      const presentCnt = shiftData.filter((r) => r.attendance === 'present').length;
-                      const absentCnt  = shiftData.filter((r) => r.attendance === 'absent').length;
-                      const lateCnt    = shiftData.filter((r) => r.attendance === 'late').length;
-                      const totalCnt   = shiftData.length;
-                      const hasAny     = totalCnt > 0;
-
-                      return (
-                        <button
-                          key={shift.id}
-                          className={`${styles.shiftBtn} ${hasAny ? styles.shiftBtnActive : ''}`}
-                          onClick={() => openModal(day, shift)}
-                          title={`${shift.label} — ${shift.time}`}
-                        >
-                          <span className={styles.shiftBtnLabel}>{shift.label}</span>
-                          <span className={styles.shiftBtnTime}>{shift.time}</span>
-                          {hasAny && (
-                            <div className={styles.shiftBtnStats}>
-                              {presentCnt > 0 && (
-                                <span className={styles.statPresent}>{presentCnt} ✔</span>
-                              )}
-                              {lateCnt > 0 && (
-                                <span className={styles.statLate}>{lateCnt} ⚠</span>
-                              )}
-                              {absentCnt > 0 && (
-                                <span className={styles.statAbsent}>{absentCnt} ✕</span>
-                              )}
-                            </div>
-                          )}
-                          {!hasAny && (
-                            <span className={styles.shiftBtnEmpty}>Chưa điểm danh</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+        <div className={styles.legend}>
+          <div className={styles.legendTitle}>Chú thích:</div>
+          <div className={styles.legendItems}>
+            <div className={styles.legendItem}>
+              <span className={styles.legendDot} style={{ background: '#10b981' }} />
+              <span>Đã điểm danh</span>
+            </div>
+            <div className={styles.legendItem}>
+              <span className={styles.legendDot} style={{ background: '#9ca3af' }} />
+              <span>Chưa điểm danh</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Legend */}
-      <div className={styles.legend}>
-        <div className={styles.legendTitle}>Chú thích trạng thái:</div>
-        <div className={styles.legendItems}>
-          <div className={styles.legendItem}>
-            <span className={styles.legendDot} style={{ background: '#10b981' }} />
-            <span>Có mặt</span>
-          </div>
-          <div className={styles.legendItem}>
-            <span className={styles.legendDot} style={{ background: '#f59e0b' }} />
-            <span>Đi trễ</span>
-          </div>
-          <div className={styles.legendItem}>
-            <span className={styles.legendDot} style={{ background: '#ef4444' }} />
-            <span>Vắng mặt</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Attendance Modal */}
+      {/* Modals */}
+      {showFormModal && (
+        <ShiftFormModal shift={editShift} onClose={() => setShowFormModal(false)} onSuccess={handleFormSuccess} />
+      )}
+      {showDeleteModal && deleteShift && (
+        <DeleteConfirmModal shift={deleteShift} onClose={() => setShowDeleteModal(false)} onConfirm={handleDeleteConfirm} />
+      )}
       {activeModal && (
         <AttendanceModal
           date={activeModal.date}
-          shift={activeModal.shift}
+          shifts={shifts}
+          staffList={staffList}
+          existingCheckins={attendanceData}
           onClose={() => setActiveModal(null)}
+          onRefresh={loadAttendance}
         />
       )}
     </div>

@@ -511,8 +511,8 @@
 
 .listHeader {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: 1.2fr 0.8fr 1fr 1fr 1fr 1fr;
+  gap: 12px;
   padding: 16px 24px;
   background: #1E90FF;
   color: white;
@@ -531,8 +531,8 @@
 
 .listRow {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: 1.2fr 0.8fr 1fr 1fr 1fr 1fr;
+  gap: 12px;
   padding: 16px 24px;
   border-bottom: 1px solid #e2e8f0;
   transition: all 0.2s;
@@ -632,8 +632,8 @@
 
   .listHeader,
   .listRow {
-    grid-template-columns: 1fr 0.8fr 0.8fr 0.7fr 0.9fr 1.2fr;
-    gap: 12px;
+    grid-template-columns: 1.2fr 0.8fr 1fr 1fr 1fr 1fr;
+    gap: 10px;
   }
 }
 
@@ -715,23 +715,26 @@
 
   .listHeader,
   .listRow {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
 
-  .listHeaderCell {
+  .listHeaderCell:nth-child(n+3) {
     display: none;
   }
 
-  .listCell {
-    padding: 4px 0;
+  .listCell:nth-child(n+3) {
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 8px;
+    margin-top: 4px;
   }
 
   .listCell::before {
     content: attr(data-label);
-    font-weight: 400;
+    font-weight: 600;
     margin-right: 8px;
-    min-width: 100px;
+    min-width: 90px;
+    color: #6b7280;
   }
 
   .legend {

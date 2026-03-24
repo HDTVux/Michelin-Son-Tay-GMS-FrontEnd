@@ -9,6 +9,35 @@ import { fetchStaffAttendance, fetchStaffDashboard } from '../../../services/sta
 const toDateStr = (date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
+// Chuyển đổi dayOfWeek từ tiếng Anh (MONDAY, TUESDAY...) sang tiếng Việt
+const dayOfWeekToVietnamese = (day) => {
+  if (!day) return '—';
+  const mapping = {
+    'MONDAY': 'Thứ 2',
+    'TUESDAY': 'Thứ 3',
+    'WEDNESDAY': 'Thứ 4',
+    'THURSDAY': 'Thứ 5',
+    'FRIDAY': 'Thứ 6',
+    'SATURDAY': 'Thứ 7',
+    'SUNDAY': 'Chủ nhật',
+  };
+  return mapping[day.toUpperCase()] || day;
+};
+
+// Format ngày hiển thị (12/03/2026)
+const formatDisplayDate = (dateStr) => {
+  if (!dateStr) return '—';
+  try {
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
+};
+
 const getDaysInMonth = (date) => {
   const year  = date.getFullYear();
   const month = date.getMonth();
@@ -205,6 +234,7 @@ const StaffAttendance = () => {
             <option value="all">Tất cả</option>
             <option value="PRESENT">Có mặt</option>
             <option value="LATE">Đi trễ</option>
+            <option value="EARLY_LEAVE">Về sớm</option>
             <option value="ABSENT">Vắng mặt</option>
             <option value="OFF">Nghỉ</option>
           </select>
@@ -264,12 +294,12 @@ const StaffAttendance = () => {
       {viewMode === 'list' && (
         <div className={styles.listCard}>
           <div className={styles.listHeader}>
-            <div className={styles.listHeaderCell}>Ngày</div>
-            <div className={styles.listHeaderCell}>Thứ</div>
-            <div className={styles.listHeaderCell}>Ca</div>
-            <div className={styles.listHeaderCell}>Check-in</div>
-            <div className={styles.listHeaderCell}>Check-out</div>
-            <div className={styles.listHeaderCell}>Trạng thái</div>
+            <div className={styles.listHeaderCell} data-label="Ngày">Ngày</div>
+            <div className={styles.listHeaderCell} data-label="Thứ">Thứ</div>
+            <div className={styles.listHeaderCell} data-label="Ca">Ca</div>
+            <div className={styles.listHeaderCell} data-label="Check-in">Check-in</div>
+            <div className={styles.listHeaderCell} data-label="Check-out">Check-out</div>
+            <div className={styles.listHeaderCell} data-label="Trạng thái">Trạng thái</div>
           </div>
           <div className={styles.listBody}>
             {filteredByStatus.length === 0 ? (
@@ -277,17 +307,14 @@ const StaffAttendance = () => {
             ) : (
               filteredByStatus.map((record, index) => {
                 const si = getStatusInfo(record.status);
-                const dateStr = record.date
-                  ? new Date(record.date).toLocaleDateString('vi-VN')
-                  : '—';
                 return (
                   <div key={index} className={styles.listRow}>
-                    <div className={styles.listCell}><strong>{dateStr}</strong></div>
-                    <div className={styles.listCell}>{record.dayOfWeek || '—'}</div>
-                    <div className={styles.listCell}>{record.shiftType || '—'}</div>
-                    <div className={styles.listCell}>{record.checkInTime || '—'}</div>
-                    <div className={styles.listCell}>{record.checkOutTime || '—'}</div>
-                    <div className={styles.listCell}>
+                    <div className={styles.listCell} data-label="Ngày"><strong>{formatDisplayDate(record.date)}</strong></div>
+                    <div className={styles.listCell} data-label="Thứ">{dayOfWeekToVietnamese(record.dayOfWeek)}</div>
+                    <div className={styles.listCell} data-label="Ca">{record.shiftType || '—'}</div>
+                    <div className={styles.listCell} data-label="Check-in">{record.checkInTime || '—'}</div>
+                    <div className={styles.listCell} data-label="Check-out">{record.checkOutTime || '—'}</div>
+                    <div className={styles.listCell} data-label="Trạng thái">
                       <span className={`${styles.statusBadge} ${si.className}`}>{si.text}</span>
                     </div>
                   </div>
