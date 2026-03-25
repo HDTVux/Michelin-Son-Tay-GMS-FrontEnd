@@ -1,366 +1,452 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
+import {
+  fetchManagerAttendance,
+  fetchManagerTodaySummary,
+  fetchWorkShifts,
+  managerCheckIn,
+  managerCheckOut,
+  managerDeleteCheckin,
+} from '../../../services/managerService.js';
 import styles from './StaffAttendance.module.css';
-import { fetchStaffAttendance } from '../../../services/staffService.js';
 
-const StaffAttendance = () => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [viewMode, setViewMode] = useState('calendar');
-  const [loading, setLoading] = useState(true);
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [staffInfo, setStaffInfo] = useState({
-    id: null,
-    name: '',
-    position: '',
-    avatar: ''
+const getAuthToken = () =>
+  localStorage.getItem('authToken') ||
+  localStorage.getItem('adminToken') ||
+  localStorage.getItem('staffToken') ||
+  '';
+
+const today = new Date().toISOString().slice(0, 10);
+const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  .toISOString()
+  .slice(0, 10);
+
+const statusMeta = (status) => {
+  const key = String(status || '').toUpperCase();
+  if (key === 'PRESENT') return { label: 'Có mặt', cls: styles.statusPresent };
+  if (key === 'LATE') return { label: 'Muộn', cls: styles.statusLate };
+  if (key === 'ABSENT') return { label: 'Vắng', cls: styles.statusAbsent };
+  if (key === 'OFF') return { label: 'Nghỉ', cls: styles.statusOff };
+  return { label: key || '-', cls: styles.statusNotYet };
+};
+
+export default function StaffAttendance() {
+  const [loading, setLoading] = useState(false);
+  const [records, setRecords] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [error, setError] = useState('');
+
+  const [fromDate, setFromDate] = useState(firstDayOfMonth);
+  const [toDate, setToDate] = useState(today);
+  const [staffIdFilter, setStaffIdFilter] = useState('');
+
+  const [shifts, setShifts] = useState([]);
+  const [checkInForm, setCheckInForm] = useState({
+    staffId: '',
+    shiftId: '',
+    attendanceDate: today,
+    checkInTime: '',
+    notes: '',
   });
 
-  // Get status display info
-  const getStatusInfo = (status) => {
-    switch (status) {
-      case 'PRESENT':
-        return { text: 'Có mặt', className: styles.statusPresent };
-      case 'LATE':
-        return { text: 'Muộn', className: styles.statusLate };
-      case 'ABSENT':
-        return { text: 'Vắng', className: styles.statusAbsent };
-      case 'OFF':
-        return { text: 'Nghỉ', className: styles.statusOff };
-      case 'NOT_YET':
-        return { text: 'Chưa điểm', className: styles.statusNotYet };
-      default:
-        return { text: status, className: '' };
+  const [checkoutTarget, setCheckoutTarget] = useState(null);
+  const [checkoutForm, setCheckoutForm] = useState({ checkOutTime: '', notes: '' });
+
+  const loadShifts = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const response = await fetchWorkShifts(token);
+      const list = Array.isArray(response?.data) ? response.data : [];
+      setShifts(list.filter((s) => s?.isActive !== false));
+    } catch {
+      setShifts([]);
     }
-  };
+  }, []);
 
-  // Transform API response to display format
-  const transformAttendanceData = useCallback((data) => {
-    return data.map((item, index) => {
-      // Backend returns: attendanceDate (LocalDate), morningStatus, afternoonStatus
-      return {
-        idstaff_attendance: index + 1,
-        staff_id: staffInfo.id || 1,
-        attendance_date: item.attendanceDate, // Format: "2024-03-02"
-        morning_status: item.morningStatus, // Enum: NOT_YET, PRESENT, ABSENT, LATE, OFF
-        afternoon_status: item.afternoonStatus, // Enum: NOT_YET, PRESENT, ABSENT, LATE, OFF
-        created_at: `${item.attendanceDate} 08:00:00`,
-        updated_at: `${item.attendanceDate} 17:30:00`,
-      };
-    });
-  }, [staffInfo.id]);
+  const loadSummary = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const response = await fetchManagerTodaySummary({ date: toDate || today }, token);
+      setSummary(response?.data || null);
+    } catch {
+      setSummary(null);
+    }
+  }, [toDate]);
 
-  // Fetch attendance data on mount
+  const loadAttendance = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setError('Vui lòng đăng nhập để sử dụng màn chấm công.');
+      return;
+    }
+
+    if (!fromDate || !toDate) {
+      setError('Vui lòng chọn đầy đủ ngày bắt đầu và kết thúc.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetchManagerAttendance(
+        {
+          staffId: staffIdFilter ? Number(staffIdFilter) : undefined,
+          from: fromDate,
+          to: toDate,
+        },
+        token,
+      );
+
+      const list = Array.isArray(response?.data) ? response.data : [];
+      setRecords(list);
+      await loadSummary();
+    } catch (err) {
+      setRecords([]);
+      setError(err?.message || 'Không tải được dữ liệu chấm công.');
+    } finally {
+      setLoading(false);
+    }
+  }, [fromDate, toDate, staffIdFilter, loadSummary]);
+
   useEffect(() => {
-    const loadAttendance = async () => {
-      try {
-        setLoading(true);
-        
-        // Try to get staff token from localStorage
-        const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-        
-        console.log('=== DEBUG ATTENDANCE API ===');
-        console.log('Token found:', token ? 'YES' : 'NO');
-        
-        if (!token) {
-          console.warn('❌ No token found - Please login first');
-          setAttendanceData([]);
-          setStaffInfo({
-            id: '1',
-            name: 'Nhân viên',
-            position: 'Nhân viên',
-            avatar: ''
-          });
-          setLoading(false);
-          return;
-        }
-        
-        // Get staffId from localStorage
-        const staffId = localStorage.getItem('staffId') || '2';
-        
-        console.log('📞 Calling API with staffId:', staffId);
-        
-        const response = await fetchStaffAttendance(staffId, token);
-        
-        console.log('✅ API Response received:', response);
-
-        if (response && response.success && response.data) {
-          const attendanceList = Array.isArray(response.data) ? response.data : [];
-          
-          console.log('📊 Attendance records:', attendanceList.length);
-          
-          if (attendanceList.length > 0) {
-            const transformedData = transformAttendanceData(attendanceList);
-            setAttendanceData(transformedData);
-            console.log('✅ Using REAL data from API:', transformedData.length, 'records');
-          } else {
-            console.warn('⚠️ API returned empty array - No attendance records');
-            setAttendanceData([]);
-          }
-
-          // Set staff info if available
-          setStaffInfo({
-            id: staffId,
-            name: localStorage.getItem('staffName') || 'Nhân viên',
-            position: localStorage.getItem('staffPosition') || 'Nhân viên',
-            avatar: ''
-          });
-        } else {
-          console.warn('❌ Invalid API response structure');
-          setAttendanceData([]);
-        }
-      } catch (err) {
-        console.error('❌ Error fetching attendance:', err);
-        console.error('Error message:', err.message);
-        setAttendanceData([]);
-      } finally {
-        setLoading(false);
-        console.log('=== END DEBUG ===');
-      }
-    };
-
+    loadShifts();
     loadAttendance();
-  }, [transformAttendanceData]);
+  }, [loadShifts, loadAttendance]);
 
-  const getDaysInMonth = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
+  const stats = useMemo(() => {
+    const total = records.length;
+    const checkedOut = records.filter((r) => r?.checkOutTime).length;
+    const present = records.filter((r) => String(r?.status || '').toUpperCase() === 'PRESENT').length;
+    return { total, checkedOut, present };
+  }, [records]);
 
-    const days = [];
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
+  const handleCheckIn = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    if (!checkInForm.staffId || !checkInForm.shiftId) {
+      toast.error('Vui lòng chọn nhân viên và ca làm.');
+      return;
     }
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(year, month, day));
+
+    try {
+      await managerCheckIn(checkInForm, token);
+      toast.success('Check-in thành công.');
+      setCheckInForm((prev) => ({ ...prev, notes: '', checkInTime: '' }));
+      await loadAttendance();
+    } catch (err) {
+      toast.error(err?.message || 'Check-in thất bại.');
     }
-    return days;
   };
 
-  const goToPreviousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  const handleCheckOut = async () => {
+    if (!checkoutTarget) return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      await managerCheckOut(checkoutTarget.checkinId, checkoutForm, token);
+      toast.success('Check-out thành công.');
+      setCheckoutTarget(null);
+      setCheckoutForm({ checkOutTime: '', notes: '' });
+      await loadAttendance();
+    } catch (err) {
+      toast.error(err?.message || 'Check-out thất bại.');
+    }
   };
 
-  const goToNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  const handleDelete = async (checkinId) => {
+    if (!window.confirm('Bạn chắc chắn muốn xóa bản ghi chấm công này?')) return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      await managerDeleteCheckin(checkinId, token);
+      toast.success('Đã xóa bản ghi.');
+      await loadAttendance();
+    } catch (err) {
+      toast.error(err?.message || 'Xóa thất bại.');
+    }
   };
-
-  const goToCurrentMonth = () => {
-    setCurrentMonth(new Date());
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '';
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const getAttendanceForDate = (date) => {
-    if (!date) return null;
-    const dateStr = formatDate(date);
-    return attendanceData.find(a => a.attendance_date === dateStr);
-  };
-
-  const isToday = (date) => {
-    if (!date) return false;
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  };
-
-  const isWeekend = (date) => {
-    if (!date) return false;
-    const day = date.getDay();
-    return day === 0 || day === 6;
-  };
-
-  // Statistics based on DB fields
-  const totalDays = attendanceData.length;
-  const presentDays = attendanceData.filter(a => a.morning_status === 'PRESENT' || a.afternoon_status === 'PRESENT').length;
-  const lateDays = attendanceData.filter(a => a.morning_status === 'LATE' || a.afternoon_status === 'LATE').length;
-  const absentDays = attendanceData.filter(a => a.morning_status === 'ABSENT' || a.afternoon_status === 'ABSENT').length;
-  const offDays = attendanceData.filter(a => a.morning_status === 'OFF' || a.afternoon_status === 'OFF').length;
-
-  const days = getDaysInMonth(currentMonth);
-  const monthName = currentMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
-
-  const filteredAttendance = filterStatus === 'all' 
-    ? attendanceData 
-    : attendanceData.filter(a => a.morning_status === filterStatus || a.afternoon_status === filterStatus);
-
-  if (loading) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.loadingContainer}>
-          <div className={styles.spinner}></div>
-          <p>Đang tải dữ liệu...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={styles.container}>
+      {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
+          <div className={styles.staffAvatar}>📋</div>
           <div className={styles.staffInfo}>
-            <h1 className={styles.title}>Điểm danh của tôi</h1>
-            <p className={styles.subtitle}>
-              {staffInfo.name || 'Nhân viên'} - {staffInfo.position} - ID: {staffInfo.id}
-            </p>
+            <h1 className={styles.title}>Quản lý chấm công nhân viên</h1>
+            <p className={styles.subtitle}>Theo dõi và quản lý điểm danh hàng ngày</p>
           </div>
-        </div>
-        <div className={styles.headerRight}>
-          <button className={styles.exportButton}>Xuất báo cáo</button>
         </div>
       </div>
 
+      {/* Stats */}
       <div className={styles.statsGrid}>
-        <div className={`${styles.statCard} ${styles.statPrimary}`}>
-          <div className={styles.statContent}>
-            <div className={styles.statValue}>{totalDays}</div>
-            <div className={styles.statLabel}>Tong ngay</div>
-          </div>
+        <div className={`${styles.statCard} ${styles.statTotal}`}>
+          <p className={styles.statLabel}>Tổng bản ghi</p>
+          <p className={styles.statValue}>{stats.total}</p>
         </div>
-        <div className={`${styles.statCard} ${styles.statSuccess}`}>
-          <div className={styles.statContent}>
-            <div className={styles.statValue}>{presentDays}</div>
-            <div className={styles.statLabel}>Có mặt</div>
-          </div>
+        <div className={`${styles.statCard} ${styles.statPresent}`}>
+          <p className={styles.statLabel}>Đã check-out</p>
+          <p className={styles.statValue}>{stats.checkedOut}</p>
         </div>
-        <div className={`${styles.statCard} ${styles.statWarning}`}>
-          <div className={styles.statContent}>
-            <div className={styles.statValue}>{lateDays}</div>
-            <div className={styles.statLabel}>Muộn</div>
-          </div>
+        <div className={`${styles.statCard} ${styles.statPresent}`}>
+          <p className={styles.statLabel}>Trạng thái Có mặt</p>
+          <p className={styles.statValue}>{stats.present}</p>
         </div>
-        <div className={`${styles.statCard} ${styles.statDanger}`}>
-          <div className={styles.statContent}>
-            <div className={styles.statValue}>{absentDays}</div>
-            <div className={styles.statLabel}>Vắng mặt</div>
-          </div>
-        </div>
-        <div className={`${styles.statCard} ${styles.statInfo}`}>
-          <div className={styles.statContent}>
-            <div className={styles.statValue}>{offDays}</div>
-            <div className={styles.statLabel}>Nghỉ</div>
-          </div>
+        <div className={`${styles.statCard} ${styles.statTotal}`}>
+          <p className={styles.statLabel}>Tổng nhân sự hôm nay</p>
+          <p className={styles.statValue}>{summary?.totalStaff ?? 0}</p>
         </div>
       </div>
 
+      {/* Toolbar */}
       <div className={styles.toolbar}>
-        <div className={styles.toolbarLeft}>
-          <div className={styles.viewToggle}>
-            <button className={`${styles.viewButton} ${viewMode === 'calendar' ? styles.active : ''}`} onClick={() => setViewMode('calendar')}>Lich</button>
-            <button className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`} onClick={() => setViewMode('list')}>Danh sach</button>
-          </div>
-          <div className={styles.monthNavigation}>
-            <button className={styles.navButton} onClick={goToPreviousMonth}>◀ Tháng trước</button>
-            <button className={styles.currentButton} onClick={goToCurrentMonth}>{monthName}</button>
-            <button className={styles.navButton} onClick={goToNextMonth}>Tháng sau ▶</button>
-          </div>
+        <div className={styles.toolbarField}>
+          <label className={styles.toolbarLabel}>Từ ngày</label>
+          <input
+            className={styles.toolbarInput}
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+          />
         </div>
-        <div className={styles.toolbarRight}>
-          <select className={styles.filterSelect} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="all">Tất cả</option>
-            <option value="PRESENT">Có mặt</option>
-            <option value="LATE">Muộn</option>
-            <option value="ABSENT">Vắng mặt</option>
-            <option value="OFF">Nghỉ</option>
-            <option value="NOT_YET">Chưa điểm</option>
-          </select>
+        <div className={styles.toolbarField}>
+          <label className={styles.toolbarLabel}>Đến ngày</label>
+          <input
+            className={styles.toolbarInput}
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+          />
+        </div>
+        <div className={styles.toolbarField}>
+          <label className={styles.toolbarLabel}>Lọc theo Staff ID</label>
+          <input
+            className={styles.toolbarInput}
+            type="number"
+            value={staffIdFilter}
+            onChange={(e) => setStaffIdFilter(e.target.value)}
+            placeholder="Ví dụ: 12"
+          />
+        </div>
+        <div className={styles.toolbarActions}>
+          <button type="button" className={styles.primaryBtn} onClick={loadAttendance}>
+            Tải dữ liệu
+          </button>
+          <button type="button" className={styles.ghostBtn} onClick={loadSummary}>
+            Tải tổng hợp hôm nay
+          </button>
         </div>
       </div>
 
-      {viewMode === 'calendar' && (
-        <div className={styles.calendarCard}>
-          <div className={styles.calendar}>
-            <div className={styles.weekDays}>
-              {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((day, index) => (<div key={index} className={styles.weekDay}>{day}</div>))}
-            </div>
-            <div className={styles.daysGrid}>
-              {days.map((day, index) => {
-                const attendance = getAttendanceForDate(day);
-                const isCurrentDay = isToday(day);
-                const isWeekendDay = isWeekend(day);
+      {/* Check-in Panel */}
+      <div className={styles.checkinPanel}>
+        <div className={styles.checkinPanelHeader}>
+          <h3 className={styles.checkinPanelTitle}>📌 Check-in nhanh</h3>
+        </div>
+        <div className={styles.checkinForm}>
+          <div className={styles.checkinField}>
+            <label className={styles.checkinLabel}>Staff ID</label>
+            <input
+              className={styles.checkinInput}
+              type="number"
+              value={checkInForm.staffId}
+              onChange={(e) => setCheckInForm((p) => ({ ...p, staffId: e.target.value }))}
+              placeholder="Nhập ID nhân viên"
+            />
+          </div>
+          <div className={styles.checkinField}>
+            <label className={styles.checkinLabel}>Ca làm</label>
+            <select
+              className={styles.checkinSelect}
+              value={checkInForm.shiftId}
+              onChange={(e) => setCheckInForm((p) => ({ ...p, shiftId: e.target.value }))}
+            >
+              <option value="">Chọn ca</option>
+              {shifts.map((shift) => (
+                <option key={shift.shiftId} value={shift.shiftId}>
+                  {shift.shiftName} ({String(shift.startTime || '').slice(0, 5)}-{String(shift.endTime || '').slice(0, 5)})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.checkinField}>
+            <label className={styles.checkinLabel}>Ngày chấm công</label>
+            <input
+              className={styles.checkinInput}
+              type="date"
+              value={checkInForm.attendanceDate}
+              onChange={(e) => setCheckInForm((p) => ({ ...p, attendanceDate: e.target.value }))}
+            />
+          </div>
+          <div className={styles.checkinField}>
+            <label className={styles.checkinLabel}>Giờ vào (tùy chọn)</label>
+            <input
+              className={styles.checkinInput}
+              type="time"
+              value={checkInForm.checkInTime}
+              onChange={(e) => setCheckInForm((p) => ({ ...p, checkInTime: e.target.value }))}
+            />
+          </div>
+          <div className={styles.checkinField}>
+            <label className={styles.checkinLabel}>Ghi chú</label>
+            <input
+              className={styles.checkinInput}
+              value={checkInForm.notes}
+              onChange={(e) => setCheckInForm((p) => ({ ...p, notes: e.target.value }))}
+              placeholder="Ghi chú nếu có"
+            />
+          </div>
+          <div className={styles.checkinField}>
+            <label className={styles.checkinLabel}>&nbsp;</label>
+            <button type="button" className={styles.checkinBtn} onClick={handleCheckIn}>
+              ✓ Check-in
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>⚠</div>
+          <p className={styles.emptyMessage}>{error}</p>
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner}></div>
+          <p>Đang tải dữ liệu chấm công...</p>
+        </div>
+      )}
+
+      {/* Empty */}
+      {!loading && !error && records.length === 0 && (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>📋</div>
+          <p className={styles.emptyTitle}>Không có bản ghi nào</p>
+          <p className={styles.emptyMessage}>Không có dữ liệu trong khoảng ngày đã chọn.</p>
+        </div>
+      )}
+
+      {/* Table */}
+      {!loading && !error && records.length > 0 && (
+        <div className={styles.tableCard}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nhân viên</th>
+                <th>Ngày</th>
+                <th>Ca</th>
+                <th>Check-in</th>
+                <th>Check-out</th>
+                <th>Trạng thái</th>
+                <th>Ghi chú</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((row) => {
+                const meta = statusMeta(row?.status);
                 return (
-                  <div key={index} className={`${styles.dayCell} ${!day ? styles.emptyCell : ''} ${isCurrentDay ? styles.today : ''} ${isWeekendDay ? styles.weekend : ''}`}>
-                    {day && (
-                      <>
-                        <div className={styles.dayNumber}>{day.getDate()}</div>
-                        {attendance && (
-                          <div className={styles.dayContent}>
-                            <div className={styles.sessionStatus}>
-                              <span className={styles.sessionLabel}>Sáng:</span>
-                              <span className={`${styles.statusBadge} ${getStatusInfo(attendance.morning_status).className}`}>
-                                {getStatusInfo(attendance.morning_status).text}
-                              </span>
-                            </div>
-                            <div className={styles.sessionStatus}>
-                              <span className={styles.sessionLabel}>Chiều:</span>
-                              <span className={`${styles.statusBadge} ${getStatusInfo(attendance.afternoon_status).className}`}>
-                                {getStatusInfo(attendance.afternoon_status).text}
-                              </span>
-                            </div>
-                          </div>
+                  <tr key={row.checkinId}>
+                    <td>#{row.checkinId}</td>
+                    <td className={styles.staffCell}>
+                      <div className={styles.staffAvatar2}>{row.staffName ? row.staffName[0]?.toUpperCase() : '?'}</div>
+                      <div>
+                        <div className={styles.staffCellName}>{row.staffName || `ID ${row.staffId}`}</div>
+                        <div className={styles.staffCellSub}>#{row.staffId}</div>
+                      </div>
+                    </td>
+                    <td>{row.attendanceDate || '-'}</td>
+                    <td className={styles.shiftCell}>{row.shiftName || `Shift ${row.shiftId || '-'}`}</td>
+                    <td>{row.checkInTime || '-'}</td>
+                    <td>{row.checkOutTime || '-'}</td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${meta.cls}`}>{meta.label}</span>
+                    </td>
+                    <td className={styles.noteCell}>{row.notes || '-'}</td>
+                    <td>
+                      <div className={styles.actionGroup}>
+                        {!row.checkOutTime && (
+                          <button
+                            type="button"
+                            className={styles.checkoutBtn}
+                            onClick={() => {
+                              setCheckoutTarget(row);
+                              setCheckoutForm({ checkOutTime: '', notes: row.notes || '' });
+                            }}
+                          >
+                            Check-out
+                          </button>
                         )}
-                      </>
-                    )}
-                  </div>
+                        <button type="button" className={styles.deleteBtn} onClick={() => handleDelete(row.checkinId)}>
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Checkout Modal */}
+      {checkoutTarget && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>Check-out #{checkoutTarget.checkinId}</h3>
+                <p className={styles.modalSubtitle}>
+                  Nhân viên: {checkoutTarget.staffName || `ID ${checkoutTarget.staffId}`} — Ca: {checkoutTarget.shiftName || '-'}
+                </p>
+              </div>
+              <button type="button" className={styles.modalClose} onClick={() => setCheckoutTarget(null)}>✕</button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <div className={styles.formGrid}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Giờ ra (tùy chọn)</label>
+                  <input
+                    className={styles.input}
+                    type="time"
+                    value={checkoutForm.checkOutTime}
+                    onChange={(e) => setCheckoutForm((p) => ({ ...p, checkOutTime: e.target.value }))}
+                  />
+                </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label className={styles.label}>Ghi chú</label>
+                  <textarea
+                    className={styles.textarea}
+                    rows={3}
+                    value={checkoutForm.notes}
+                    onChange={(e) => setCheckoutForm((p) => ({ ...p, notes: e.target.value }))}
+                    placeholder="Nhập ghi chú nếu có..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button type="button" className={styles.cancelBtn} onClick={() => setCheckoutTarget(null)}>Hủy</button>
+              <button type="button" className={styles.saveBtn} onClick={handleCheckOut}>Xác nhận check-out</button>
             </div>
           </div>
         </div>
       )}
-
-      {viewMode === 'list' && (
-        <div className={styles.listCard}>
-          <div className={styles.listHeader}>
-            <div className={styles.listHeaderCell}>Ngày</div>
-            <div className={styles.listHeaderCell}>Trạng thái sáng</div>
-            <div className={styles.listHeaderCell}>Trạng thái chiều</div>
-          </div>
-          <div className={styles.listBody}>
-            {filteredAttendance.length > 0 ? (
-              filteredAttendance.map((record, index) => (
-                <div key={index} className={styles.listRow}>
-                  <div className={styles.listCell}><strong>{new Date(record.attendance_date).toLocaleDateString('vi-VN')}</strong></div>
-                  <div className={styles.listCell}>
-                    <span className={`${styles.statusBadge} ${getStatusInfo(record.morning_status).className}`}>
-                      {getStatusInfo(record.morning_status).text}
-                    </span>
-                  </div>
-                  <div className={styles.listCell}>
-                    <span className={`${styles.statusBadge} ${getStatusInfo(record.afternoon_status).className}`}>
-                      {getStatusInfo(record.afternoon_status).text}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className={styles.emptyState}>
-                <p>Chưa có dữ liệu điểm danh</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className={styles.legend}>
-        <div className={styles.legendTitle}>Chú thích:</div>
-        <div className={styles.legendItems}>
-          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusPresent}`}></span><span>Có mặt</span></div>
-          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusLate}`}></span><span>Muộn</span></div>
-          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusAbsent}`}></span><span>Vắng mặt</span></div>
-          <div className={styles.legendItem}><span className={`${styles.legendDot} ${styles.statusOff}`}></span><span>Nghỉ</span></div>
-        </div>
-      </div>
     </div>
   );
-};
-
-export default StaffAttendance;
+}

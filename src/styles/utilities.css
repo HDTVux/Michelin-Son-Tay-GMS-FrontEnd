@@ -83,25 +83,27 @@
 }
 
 .ui-btn--primary {
-  background: var(--ui-primary, #1d4ed8);
+  background: #1E90FF;
   color: #fff;
-  border-color: var(--ui-primary, #1d4ed8);
+  border-color: #1E90FF;
 }
 
 .ui-btn--primary:hover:not(:disabled) {
-  background: var(--ui-primary-hover, #1e40af);
-  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
+  background: #1873CC;
+  box-shadow: 0 4px 16px rgba(30, 144, 255, 0.4);
+  transform: translateY(-2px);
 }
 
 .ui-btn--ghost {
-  background: transparent;
-  border-color: var(--ui-border, #e5e7eb);
-  color: var(--ui-text-secondary, #6b7280);
+  background: white;
+  border-color: #e5e7eb;
+  color: #475569;
 }
 
 .ui-btn--ghost:hover:not(:disabled) {
-  background: var(--ui-bg-hover, #f3f4f6);
-  color: var(--ui-text-primary, #1f2937);
+  background: #f9fafb;
+  border-color: #1E90FF;
+  color: #1E90FF;
 }
 
 /* ===== Actions Footer Pattern ===== */
