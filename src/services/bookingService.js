@@ -211,3 +211,39 @@ export const lookupCustomerByPhone = (phone, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// Tự động set thứ tự hàng đợi cho các booking trong 1 slot (màn quản lý hàng đợi)
+// Backend: PUT /api/booking/manage/set-queue-auto?date=YYYY-MM-DD&slot=HH:mm:ss
+export const setQueueAuto = (date, slot, token) => {
+  const dateValue = String(date || '').trim();
+  const slotValue = String(slot || '').trim();
+
+  const searchParams = new URLSearchParams();
+  if (dateValue) searchParams.set('date', dateValue);
+  if (slotValue) searchParams.set('slot', slotValue);
+
+  const qs = searchParams.toString();
+  const path = qs ? `/api/booking/manage/set-queue-auto?${qs}` : '/api/booking/manage/set-queue-auto';
+
+  return request(path, {
+    method: 'PUT',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// Đổi vị trí 2 booking trong hàng đợi (màn quản lý hàng đợi)
+// Backend: PUT /api/booking/manage/swap
+// Request params: bookingId1, bookingId2 (RequestParam)
+export const swapQueueBookings = (bookingId1, bookingId2, token) => {
+  const searchParams = new URLSearchParams();
+  if (Number.isFinite(Number(bookingId1))) searchParams.set('bookingId1', String(bookingId1));
+  if (Number.isFinite(Number(bookingId2))) searchParams.set('bookingId2', String(bookingId2));
+
+  const qs = searchParams.toString();
+  const path = qs ? `/api/booking/manage/swap?${qs}` : '/api/booking/manage/swap';
+
+  return request(path, {
+    method: 'PUT',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
