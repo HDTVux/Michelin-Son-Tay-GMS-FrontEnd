@@ -221,10 +221,11 @@ function TicketPanel({
 						onChange={(e) => onChangeStatus?.(e.target.value)}
 					>
 						<option value="">Tất cả</option>
-						<option value="CREATED">Created</option>
-						<option value="DIAGNOSIS">Diagnosis</option>
-						<option value="IN_PROGRESS">In Progress</option>
-						<option value="COMPLETED">Completed</option>
+						<option value="CREATED">Đã tạo</option>
+						<option value="DIAGNOSIS">Chẩn đoán</option>
+						<option value="IN_PROGRESS">Đang thực hiện</option>
+						<option value="COMPLETED">Hoàn tất</option>
+						<option value="PAID">Đã thanh toán</option>
 					</select>
 					<div aria-hidden="true" />
 				</div>
