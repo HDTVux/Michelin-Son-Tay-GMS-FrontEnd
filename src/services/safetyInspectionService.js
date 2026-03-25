@@ -1,215 +1,179 @@
-import { request } from './apiClient';
+﻿import { request } from './apiClient';
 
-/**
- * Service for Safety Inspection API - SafetyInspectionController
- * Backend: /api/safety-inspections
- */
+const authHeaders = (token) => (token ? { Authorization: `Bearer ${token}` } : {});
 
-// Kích hoạt kiểm tra an toàn cho phiếu dịch vụ
-// POST /api/safety-inspections/{ticketCode}/enable
-export const enableSafetyInspection = (ticketCode, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để kích hoạt kiểm tra an toàn.');
-    error.status = 401;
-    return Promise.reject(error);
+const ensurePositiveId = (value, fieldName) => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) {
+    const error = new Error(`${fieldName} không h?p l?.`);
+    error.status = 400;
+    throw error;
   }
+  return num;
+};
 
+export const enableSafetyInspection = (ticketCode, token) => {
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
-    const error = new Error('Thiếu ticketCode.');
+    const error = new Error('Thi?u ticketCode.');
     error.status = 400;
     return Promise.reject(error);
   }
 
   return request(`/api/safety-inspections/${code}/enable`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: authHeaders(token),
   });
 };
 
-// Bỏ qua kiểm tra an toàn cho phiếu dịch vụ
-// POST /api/safety-inspections/{ticketCode}/skip
-export const skipSafetyInspection = (ticketCode, reason = '', token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
+export const reopenSafetyInspection = (ticketCode, token) => {
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
-    const error = new Error('Thiếu ticketCode.');
+    const error = new Error('Thi?u ticketCode.');
     error.status = 400;
     return Promise.reject(error);
   }
 
-  const params = reason ? `?reason=${encodeURIComponent(reason)}` : '';
-  return request(`/api/safety-inspections/${code}/skip${params}`, {
+  return request(`/api/safety-inspections/${code}/reopen`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: authHeaders(token),
   });
 };
 
-// Lấy chi tiết kiểm tra an toàn theo inspectionId
-// GET /api/safety-inspections/{inspectionId}
-export const getSafetyInspectionById = (inspectionId, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xem chi tiết kiểm tra.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  const id = Number(inspectionId);
-  if (!Number.isFinite(id) || id <= 0) {
-    const error = new Error('Thiếu inspectionId hợp lệ.');
+export const skipSafetyInspection = (ticketCode, reason = '', token) => {
+  void reason;
+  const code = encodeURIComponent(String(ticketCode ?? '').trim());
+  if (!code) {
+    const error = new Error('Thi?u ticketCode.');
     error.status = 400;
     return Promise.reject(error);
   }
 
+  return request(`/api/safety-inspections/${code}/skip`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  });
+};
+
+export const getSafetyInspectionById = (inspectionId, token) => {
+  const id = ensurePositiveId(inspectionId, 'inspectionId');
   return request(`/api/safety-inspections/${id}`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: authHeaders(token),
   });
 };
 
-// Lưu dữ liệu kiểm tra an toàn (tạo mới hoặc cập nhật)
-// POST /api/safety-inspections
-export const saveSafetyInspectionData = (payload, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để lưu dữ liệu kiểm tra.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  return request('/api/safety-inspections', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload ?? {}),
-  });
-};
-
-// Lấy kiểm tra an toàn theo mã phiếu dịch vụ
-// GET /api/safety-inspections/service-ticket/{ticketCode}
 export const getSafetyInspectionByTicketCode = (ticketCode, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xem kiểm tra an toàn.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
-    const error = new Error('Thiếu ticketCode.');
+    const error = new Error('Thi?u ticketCode.');
     error.status = 400;
     return Promise.reject(error);
   }
 
   return request(`/api/safety-inspections/service-ticket/${code}`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: authHeaders(token),
   });
 };
 
-// Cập nhật dữ liệu kiểm tra an toàn
-// PUT /api/safety-inspections/{inspectionId}
+export const saveSafetyInspectionData = (payload, token) => {
+  return request('/api/safety-inspections', {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload ?? {}),
+  });
+};
+
 export const updateSafetyInspectionData = (inspectionId, payload, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để cập nhật kiểm tra.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  const id = Number(inspectionId);
-  if (!Number.isFinite(id) || id <= 0) {
-    const error = new Error('Thiếu inspectionId hợp lệ.');
-    error.status = 400;
-    return Promise.reject(error);
-  }
-
+  const id = ensurePositiveId(inspectionId, 'inspectionId');
   return request(`/api/safety-inspections/${id}`, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: authHeaders(token),
     body: JSON.stringify(payload ?? {}),
   });
 };
 
-// Lấy danh sách hạng mục kiểm tra an toàn
-// GET /api/safety-inspections/categories
-export const getSafetyInspectionCategories = (token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để lấy danh mục.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  return request('/api/safety-inspections/categories', {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-};
-
-// Lấy danh sách 13 hạng mục kiểm tra an toàn mặc định
-// GET /api/safety-inspections/categories/default
 export const getDefaultSafetyInspectionCategories = (token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để lấy danh mục mặc định.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
   return request('/api/safety-inspections/categories/default', {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: authHeaders(token),
   });
 };
 
-// Tạo mới hạng mục kiểm tra an toàn
-// POST /api/safety-inspections/categories
-export const createWorkCategory = (payload, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để tạo hạng mục mới.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
+// Backward-compatible alias for older screens.
+export const getSafetyInspectionCategories = (token) => getDefaultSafetyInspectionCategories(token);
 
-  return request('/api/safety-inspections/categories', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload ?? {}),
+export const getSafetyInspectionItems = (inspectionId, token) => {
+  const id = ensurePositiveId(inspectionId, 'inspectionId');
+  return request(`/api/safety-inspections/${id}/items`, {
+    method: 'GET',
+    headers: authHeaders(token),
   });
 };
 
-// Cập nhật advisor notes cho một hạng mục
-// PATCH /api/safety-inspections/{inspectionId}/advisor-notes
-export const updateAdvisorNote = (inspectionId, itemId, advisorNote, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để cập nhật ghi chú.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  const id = Number(inspectionId);
-  if (!Number.isFinite(id) || id <= 0) {
-    const error = new Error('Thiếu inspectionId hợp lệ.');
-    error.status = 400;
-    return Promise.reject(error);
-  }
-
-  const itemIdNum = Number(itemId);
-  if (!Number.isFinite(itemIdNum) || itemIdNum <= 0) {
-    const error = new Error('Thiếu itemId hợp lệ.');
-    error.status = 400;
-    return Promise.reject(error);
-  }
-
-  const payload = {
-    itemId: itemIdNum,
-    advisorNote: advisorNote || ''
+export const addCustomCategory = (inspectionId, payload, token) => {
+  const id = ensurePositiveId(inspectionId, 'inspectionId');
+  const body = {
+    categoryName: payload?.categoryName?.trim() || '',
+    displayOrder: payload?.displayOrder != null ? Number(payload.displayOrder) : null,
   };
 
-  return request(`/api/safety-inspections/${id}/advisor-notes`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
+  return request(`/api/safety-inspections/${id}/custom-categories`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
   });
 };
+
+// Backward-compatible export name used by Technician screen.
+export const createWorkCategory = (inspectionId, payload, token) => {
+  if (typeof inspectionId === 'object' && token == null) {
+    const error = new Error('Thi?u inspectionId d? thêm h?ng m?c tùy ch?nh.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  return addCustomCategory(inspectionId, payload, token);
+};
+
+export const upsertSafetyInspectionItems = (inspectionId, items, token) => {
+  const id = ensurePositiveId(inspectionId, 'inspectionId');
+  return request(`/api/safety-inspections/${id}/items`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(Array.isArray(items) ? items : []),
+  });
+};
+
+export const updateAdvisorNotes = (inspectionId, items, token) => {
+  const id = ensurePositiveId(inspectionId, 'inspectionId');
+  return request(`/api/safety-inspections/${id}/advisor-notes`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify({ items: Array.isArray(items) ? items : [] }),
+  });
+};
+
+// Backward-compatible helper used by Advisor page.
+export const updateAdvisorNote = (inspectionId, itemOrItemId, advisorNoteOrToken, maybeToken) => {
+  let token = maybeToken;
+  let itemPayload;
+
+  if (typeof itemOrItemId === 'object' && itemOrItemId !== null) {
+    token = advisorNoteOrToken;
+    itemPayload = {
+      workCategoryId: itemOrItemId.workCategoryId ?? null,
+      customCategoryId: itemOrItemId.customCategoryId ?? null,
+      advisorNote: itemOrItemId.advisorNote ?? '',
+    };
+  } else {
+    itemPayload = {
+      workCategoryId: Number(itemOrItemId),
+      customCategoryId: null,
+      advisorNote: advisorNoteOrToken ?? '',
+    };
+  }
+
+  return updateAdvisorNotes(inspectionId, [itemPayload], token);
+};
+

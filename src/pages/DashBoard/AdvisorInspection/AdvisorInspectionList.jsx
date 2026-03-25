@@ -103,10 +103,10 @@ const AdvisorInspectionList = () => {
             <tr>
               <th>STT</th>
               <th>Mã phiếu</th>
-              <th>Biển số</th>
-              <th>Khách hàng</th>
-              <th>Dịch vụ</th>
-              <th>Ngày</th>
+              <th>Biển số xe</th>
+              <th>Tên khách hàng</th>
+              <th>Tên dịch vụ</th>
+              <th>Ngày đặt</th>
               <th>Trạng thái</th>
               <th>Hành động</th>
             </tr>
@@ -131,7 +131,7 @@ const AdvisorInspectionList = () => {
                       className={`${styles.actionBtn} ${styles.viewBtn}`}
                       onClick={() => handleViewInspection(ticket.ticketCode || ticket.code)}
                     >
-                      Kiểm tra
+                      Xem
                     </button>
                   </div>
                 </td>

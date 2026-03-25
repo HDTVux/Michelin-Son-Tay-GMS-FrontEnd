@@ -56,16 +56,14 @@
 }
 
 .statTotal   { border-color: #1E90FF; }
-.statActive  { border-color: #10b981; }
-.statInactive{ border-color: #ef4444; }
-.statLocked  { border-color: #f59e0b; }
-.statRating  { border-color: #8b5cf6; }
+.statMale    { border-color: #0ea5e9; }
+.statFemale  { border-color: #ec4899; }
+.statOther   { border-color: #8b5cf6; }
 
 .statTotal:hover   { box-shadow: 0 8px 24px rgba(30, 144, 255, 0.2); }
-.statActive:hover  { box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2); }
-.statInactive:hover{ box-shadow: 0 8px 24px rgba(239, 68, 68, 0.2); }
-.statLocked:hover  { box-shadow: 0 8px 24px rgba(245, 158, 11, 0.2); }
-.statRating:hover  { box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); }
+.statMale:hover    { box-shadow: 0 8px 24px rgba(14, 165, 233, 0.2); }
+.statFemale:hover  { box-shadow: 0 8px 24px rgba(236, 72, 153, 0.2); }
+.statOther:hover   { box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); }
 
 .statValue {
   font-size: 48px;
@@ -78,10 +76,9 @@
   line-height: 1;
 }
 
-.statActive .statValue   { background: linear-gradient(135deg, #10b981 0%, #059669 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-.statInactive .statValue { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-.statLocked .statValue   { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-.statRating .statValue   { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.statMale .statValue    { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.statFemale .statValue   { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.statOther .statValue    { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
 .statLabel {
   font-size: 14px;
@@ -208,9 +205,15 @@
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  object-fit: cover;
   border: 2px solid #e5e7eb;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #1E90FF, #1873CC);
 }
 
 .avatar img {
@@ -267,6 +270,26 @@
 .statusActive   { background: #d1fae5; color: #059669; }
 .statusInactive { background: #fee2e2; color: #dc2626; }
 .statusLocked   { background: #fef3c7; color: #d97706; }
+
+/* ── Refresh Button ──────────────────────────────────────────────────────── */
+.refreshButton {
+  padding: 12px 24px;
+  background: #1E90FF;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(30, 144, 255, 0.3);
+}
+
+.refreshButton:hover {
+  background: #1873CC;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(30, 144, 255, 0.4);
+}
 
 /* ── Action button ────────────────────────────────────────────────────────── */
 .actionBtn {
