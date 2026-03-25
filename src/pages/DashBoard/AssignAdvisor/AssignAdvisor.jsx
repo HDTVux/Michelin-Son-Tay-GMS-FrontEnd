@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { fetchServiceTicketsPaged, fetchAvailableStaff, assignStaff, fetchTechniciansWithWorkload } from '../../../services/serviceTicketService';
+import {
+  fetchServiceTicketsPaged,
+  fetchAvailableStaff,
+  assignStaff,
+  fetchTicketAssignments,
+} from '../../../services/serviceTicketService';
+import { fetchAllStaff } from '../../../services/adminService';
 import styles from './AssignAdvisor.module.css';
 
 const AssignAdvisor = () => {
@@ -17,24 +23,43 @@ const AssignAdvisor = () => {
   const [selectedAssistants, setSelectedAssistants] = useState([]);
   const [showAdvisorModal, setShowAdvisorModal] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
+  
+  // State cho xem phân công
+  const [showAssignmentsModal, setShowAssignmentsModal] = useState(false);
+  const [assignments, setAssignments] = useState([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+  
+  // State cho tracking ticket đã giao (dựa vào assignments)
+  const [ticketAssignments, setTicketAssignments] = useState({}); // { ticketId: true/false }
 
   // Fetch tickets from API
   useEffect(() => {
     const fetchTickets = async () => {
       try {
-        const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-        if (!token) {
-          toast.error('Vui lòng đăng nhập');
-          setLoading(false);
-          return;
-        }
-
-        const response = await fetchServiceTicketsPaged({ status: 'CREATED', size: 100 }, token);
+        // Lấy tất cả ticket (không filter theo status)
+        // Backend: GET /api/service-ticket/manage/tickets?page=0&size=100
+        // Response: Page<ServiceTicketListResponse> → { content: [ServiceTicketListResponse] }
+        const response = await fetchServiceTicketsPaged({ size: 100 });
         const list = response?.data?.content || response?.data || [];
         setTickets(list);
+
+        // Check assignments cho mỗi ticket để xác định đã giao chưa
+        const assignmentStatus = {};
+        await Promise.all(
+          list.map(async (ticket) => {
+            try {
+              const assignResp = await fetchTicketAssignments(ticket.serviceTicketId);
+              const assignmentList = assignResp?.data || [];
+              assignmentStatus[ticket.serviceTicketId] = assignmentList.length > 0;
+            } catch {
+              assignmentStatus[ticket.serviceTicketId] = false;
+            }
+          })
+        );
+        setTicketAssignments(assignmentStatus);
       } catch (error) {
         console.error('Error fetching tickets:', error);
-        toast.error('Không thể tải danh sách ticket');
+        toast.error('Không thể tải danh sách phiếu dịch vụ');
       } finally {
         setLoading(false);
       }
@@ -43,7 +68,7 @@ const AssignAdvisor = () => {
     fetchTickets();
   }, []);
 
-  // Fetch available advisors + all technicians with workload when a ticket is selected
+  // Fetch advisors + determine busy/free from all ticket assignments
   useEffect(() => {
     if (!selectedTicket) {
       setAdvisors([]);
@@ -51,46 +76,53 @@ const AssignAdvisor = () => {
     }
 
     const fetchAdvisors = async () => {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-      if (!token) return;
-
       setLoadingAdvisors(true);
       setAdvisors([]);
       setSelectedMainAdvisor(null);
       setSelectedAssistants([]);
+
       try {
-        // 1) Gọi song song: available staff + tất cả KTV có workload
-        const [availResp, techResp] = await Promise.all([
-          fetchAvailableStaff(selectedTicket.serviceTicketId, 'TECHNICIAN', token),
-          fetchTechniciansWithWorkload(token).catch(() => ({ data: [] })),
-        ]);
+        // Step 1: Get all staff (from EmployeeManageController: GET /api/manager/employees)
+        const staffResp = await fetchAllStaff({});
+        // Backend trả: List<EmployeeResponse> → flat array
+        const allStaff = Array.isArray(staffResp?.data) ? staffResp.data : [];
 
-        const staffList = availResp?.data || [];
-        const allTechs  = Array.isArray(techResp?.data) ? techResp.data : [];
+        // Step 2: Collect ALL staffIds currently assigned to ANY ticket
+        const busyStaffIds = new Set();
+        await Promise.all(
+          tickets.map(async (ticket) => {
+            try {
+              const assignResp = await fetchTicketAssignments(ticket.serviceTicketId);
+              (assignResp?.data || []).forEach((a) => busyStaffIds.add(a.staffId));
+            } catch {
+              // silently ignore
+            }
+          })
+        );
 
-        // Map workload vào danh sách available
-        const workloadMap = {};
-        allTechs.forEach((t) => {
-          workloadMap[t.staffId] = {
-            currentTicketCount: t.currentTicketCount ?? 0,
-            isBusy: t.isBusy ?? t.currentTicketCount > 0,
-          };
-        });
+        // Step 3: Get available-staff for THIS ticket (who CAN be assigned to this specific ticket)
+        // Backend: GET /api/service-ticket/assignment/{ticketId}/available-staff?role=TECHNICIAN
+        // Response: List<AvailableStaffDto> → { staffId, fullName, phone, position, roleCode }
+        const availResp = await fetchAvailableStaff(selectedTicket.serviceTicketId, 'TECHNICIAN').catch(() => ({}));
+        const availableIds = new Set((availResp?.data || []).map(s => s.staffId));
 
-        const normalized = staffList.map(staff => {
-          const techRole  = staff.roles?.find(r => r.roleCode === 'TECHNICIAN');
-          const workload  = workloadMap[staff.staffId] || {};
-          return {
-            ...staff,
-            normalizedRoleCode:   techRole?.roleCode || 'TECHNICIAN',
-            currentTicketCount:   workload.currentTicketCount ?? 0,
-            isBusy:                workload.isBusy ?? false,
-          };
-        });
+        // Step 4: Build advisor list — show technicians who are available for this ticket
+        // Note: availableIds contains staff eligible for this ticket
+        const merged = allStaff
+          .filter(t => availableIds.has(t.staffId))
+          .map(t => ({
+            ...t,
+            staffId: t.staffId,
+            fullName: t.fullName,
+            phone: t.phone,
+            avatar: t.avatar,
+            position: t.position,
+            isBusy: busyStaffIds.has(t.staffId),
+          }));
 
-        // KTV bận xếp xuống dưới
-        normalized.sort((a, b) => Number(a.isBusy) - Number(b.isBusy));
-        setAdvisors(normalized);
+        // Step 5: Sort — rảnh first, bận last
+        merged.sort((a, b) => Number(a.isBusy) - Number(b.isBusy));
+        setAdvisors(merged);
       } catch (error) {
         console.error('Error loading advisors:', error);
         toast.error('Không thể tải danh sách KTV');
@@ -100,25 +132,41 @@ const AssignAdvisor = () => {
     };
 
     fetchAdvisors();
-  }, [selectedTicket]);
+  }, [selectedTicket, tickets]);
 
-  // Stats
+  // Stats - dựa vào ticketAssignments thay vì ticketStatus
   const stats = {
     total: tickets.length,
-    assigned: tickets.filter(t => t.ticketStatus !== 'CREATED').length,
-    pending: tickets.filter(t => t.ticketStatus === 'CREATED').length,
+    assigned: tickets.filter(t => ticketAssignments[t.serviceTicketId] === true).length,
+    pending: tickets.filter(t => !ticketAssignments[t.serviceTicketId]).length,
   };
 
-  // Filter tickets
-  const filteredTickets = tickets.filter(ticket => {
-    const matchStatus = filterStatus === 'all' || ticket.ticketStatus === filterStatus;
+  // Filter tickets và chia thành 2 nhóm
+  const allFilteredTickets = tickets.filter(ticket => {
     const matchService = filterService === 'all' || (ticket.serviceCategory || '').toLowerCase().includes(filterService.toLowerCase());
     const matchSearch = !searchTerm ||
       (ticket.ticketCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (ticket.licensePlate || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (ticket.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
-    return matchStatus && matchService && matchSearch;
+    return matchService && matchSearch;
   });
+
+  // Chia thành 2 nhóm: chưa giao và đã giao
+  const unassignedTickets = allFilteredTickets.filter(ticket => !ticketAssignments[ticket.serviceTicketId]);
+  const assignedTickets = allFilteredTickets.filter(ticket => ticketAssignments[ticket.serviceTicketId]);
+  
+  // Apply filter status
+  let displayUnassigned = unassignedTickets;
+  let displayAssigned = assignedTickets;
+  
+  if (filterStatus !== 'all') {
+    if (filterStatus === 'CREATED') {
+      displayAssigned = []; // Chỉ hiển thị chưa giao
+    } else {
+      displayUnassigned = []; // Chỉ hiển thị đã giao
+      displayAssigned = assignedTickets.filter(t => t.ticketStatus === filterStatus);
+    }
+  }
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '—';
@@ -133,8 +181,33 @@ const AssignAdvisor = () => {
 
   const handleTicketClick = (ticket) => {
     setSelectedTicket(ticket);
-    setShowAdvisorModal(true);
-    toast.info(`Đang mở phân công phiếu ${ticket.ticketCode}`, { toastId: `open-${ticket.ticketCode}` });
+    
+    // Nếu ticket đã được giao việc, hiển thị modal xem phân công
+    if (ticket.ticketStatus !== 'CREATED') {
+      handleViewAssignments(ticket);
+    } else {
+      // Nếu chưa giao việc, hiển thị modal giao việc
+      setShowAdvisorModal(true);
+      toast.info(`Đang mở phân công phiếu ${ticket.ticketCode}`, { toastId: `open-${ticket.ticketCode}` });
+    }
+  };
+  
+  const handleViewAssignments = async (ticket) => {
+    setShowAssignmentsModal(true);
+    setLoadingAssignments(true);
+    setAssignments([]);
+
+    try {
+      // Backend: GET /api/service-ticket/assignment/{ticketId}/assignments
+      const response = await fetchTicketAssignments(ticket.serviceTicketId);
+      const assignmentList = response?.data || [];
+      setAssignments(assignmentList);
+    } catch (error) {
+      console.error('Error loading assignments:', error);
+      toast.error('Không thể tải danh sách phân công');
+    } finally {
+      setLoadingAssignments(false);
+    }
   };
 
   const handleSelectMain = (staffId) => {
@@ -167,27 +240,26 @@ const AssignAdvisor = () => {
       return;
     }
 
-    const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
     setIsAssigning(true);
     try {
       const mainAdvisor = advisors.find(a => a.staffId === selectedMainAdvisor);
+      // Backend: POST /api/service-ticket/assignment/{ticketId}/assign
       await assignStaff(selectedTicket.serviceTicketId, {
         staffId: selectedMainAdvisor,
-        roleInTicket: mainAdvisor?.normalizedRoleCode || 'TECHNICIAN',
+        roleInTicket: 'TECHNICIAN',
         isPrimary: true,
-        note: ''
-      }, token);
+        note: '',
+      });
 
-      if (selectedAssistants.length > 0) {
-        for (const asId of selectedAssistants) {
-          const assistant = advisors.find(a => a.staffId === asId);
-          await assignStaff(selectedTicket.serviceTicketId, {
-            staffId: asId,
-            roleInTicket: assistant?.normalizedRoleCode || 'TECHNICIAN',
-            isPrimary: false,
-            note: ''
-          }, token);
-        }
+      // Gán KTV phụ nếu có
+      for (const asId of selectedAssistants) {
+        const assistant = advisors.find(a => a.staffId === asId);
+        await assignStaff(selectedTicket.serviceTicketId, {
+          staffId: asId,
+          roleInTicket: 'TECHNICIAN',
+          isPrimary: false,
+          note: '',
+        });
       }
 
       const assistantNames = selectedAssistants
@@ -195,48 +267,38 @@ const AssignAdvisor = () => {
         .filter(Boolean)
         .join(', ');
 
-      if (selectedAssistants.length > 0) {
-        toast.success(
-          `Phân công thành công! KTV chính: ${mainAdvisor.fullName}, KTV phụ: ${assistantNames}`,
-          { toastId: 'assign-success' }
-        );
-      } else {
-        toast.success(
-          `Phân công thành công cho KTV: ${mainAdvisor.fullName}`,
-          { toastId: 'assign-success' }
-        );
-      }
+      toast.success(
+        selectedAssistants.length > 0
+          ? `Phân công thành công! KTV chính: ${mainAdvisor.fullName}, KTV phụ: ${assistantNames}`
+          : `Phân công thành công cho KTV: ${mainAdvisor.fullName}`,
+        { toastId: 'assign-success' }
+      );
 
       setShowAdvisorModal(false);
       setSelectedTicket(null);
 
       // Refresh ticket list
       setLoading(true);
-      const response = await fetchServiceTicketsPaged({ status: 'CREATED', size: 100 }, token);
+      const response = await fetchServiceTicketsPaged({ size: 100 });
       const list = response?.data?.content || response?.data || [];
       setTickets(list);
+
+      const assignmentStatus = {};
+      await Promise.all(
+        list.map(async (t) => {
+          try {
+            const assignResp = await fetchTicketAssignments(t.serviceTicketId);
+            assignmentStatus[t.serviceTicketId] = (assignResp?.data || []).length > 0;
+          } catch {
+            assignmentStatus[t.serviceTicketId] = false;
+          }
+        })
+      );
+      setTicketAssignments(assignmentStatus);
       setLoading(false);
     } catch (error) {
       console.error('Error assigning:', error);
-      const backendMsg = error?.response?.data?.message
-        || error?.response?.data
-        || error?.message
-        || 'Không xác định';
-
-      if (
-        backendMsg.includes('already') ||
-        backendMsg.includes('đã') ||
-        backendMsg.includes('primary') ||
-        (backendMsg.includes('KTV') && backendMsg.includes('chính'))
-      ) {
-        toast.error('Ticket đã có kĩ thuật viên chính!', { toastId: 'assign-error' });
-      } else if (backendMsg.includes('staff') && backendMsg.includes('not found')) {
-        toast.error('Nhân viên không tồn tại trong hệ thống!', { toastId: 'assign-error' });
-      } else if (backendMsg.includes('unavailable') || backendMsg.includes('không khả dụng')) {
-        toast.error('Nhân viên không còn khả dụng cho phiếu này!', { toastId: 'assign-error' });
-      } else {
-        toast.error(`Lỗi khi phân công: ${backendMsg}`, { toastId: 'assign-error' });
-      }
+      toast.error(error?.message || 'Lỗi khi phân công');
     } finally {
       setIsAssigning(false);
     }
@@ -324,23 +386,57 @@ const AssignAdvisor = () => {
         </div>
       </div>
 
-      {/* Ticket List */}
-      <div className={styles.tasksList}>
-        {filteredTickets.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p className={styles.emptyText}>Không có phiếu nào</p>
-            <p className={styles.emptySubtext}>Không có phiếu dịch vụ nào phù hợp với bộ lọc</p>
+      {/* Ticket List - 2 cột */}
+      <div className={styles.ticketsContainer}>
+        {/* Cột 1: Chưa giao */}
+        <div className={styles.ticketColumn}>
+          <div className={styles.columnHeader}>
+            <h3 className={styles.columnTitle}>Chưa phân công</h3>
+            <span className={styles.columnCount}>{displayUnassigned.length}</span>
           </div>
-        ) : (
-          filteredTickets.map((ticket) => (
-            <TicketCard
-              key={ticket.ticketCode}
-              ticket={ticket}
-              onAssign={() => handleTicketClick(ticket)}
-              formatDate={formatDate}
-            />
-          ))
-        )}
+          <div className={styles.tasksList}>
+            {displayUnassigned.length === 0 ? (
+              <div className={styles.emptyState}>
+                <p className={styles.emptyText}>Không có phiếu nào</p>
+              </div>
+            ) : (
+              displayUnassigned.map((ticket) => (
+                <TicketCard
+                  key={ticket.ticketCode}
+                  ticket={ticket}
+                  onAssign={() => handleTicketClick(ticket)}
+                  formatDate={formatDate}
+                  isAssigned={false}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Cột 2: Đã giao */}
+        <div className={styles.ticketColumn}>
+          <div className={styles.columnHeader}>
+            <h3 className={styles.columnTitle}>Đã phân công</h3>
+            <span className={styles.columnCount}>{displayAssigned.length}</span>
+          </div>
+          <div className={styles.tasksList}>
+            {displayAssigned.length === 0 ? (
+              <div className={styles.emptyState}>
+                <p className={styles.emptyText}>Không có phiếu nào</p>
+              </div>
+            ) : (
+              displayAssigned.map((ticket) => (
+                <TicketCard
+                  key={ticket.ticketCode}
+                  ticket={ticket}
+                  onAssign={() => handleTicketClick(ticket)}
+                  formatDate={formatDate}
+                  isAssigned={true}
+                />
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Advisor Selection Modal */}
@@ -425,9 +521,7 @@ const AssignAdvisor = () => {
                             {advisor.isBusy ? (
                               <>
                                 <span className={styles.busyDot} />
-                                <span className={styles.busyLabel}>
-                                  Đang làm {advisor.currentTicketCount} ticket
-                                </span>
+                                <span className={styles.busyLabel}>Bận</span>
                               </>
                             ) : (
                               <>
@@ -486,9 +580,7 @@ const AssignAdvisor = () => {
                               {advisor.isBusy ? (
                                 <>
                                   <span className={styles.busyDot} />
-                                  <span className={styles.busyLabel}>
-                                    Đang làm {advisor.currentTicketCount} ticket
-                                  </span>
+                                  <span className={styles.busyLabel}>Bận</span>
                                 </>
                               ) : (
                                 <>
@@ -527,21 +619,112 @@ const AssignAdvisor = () => {
           </div>
         </div>
       )}
+      
+      {/* Modal xem danh sách KTV đã được giao */}
+      {showAssignmentsModal && selectedTicket && (
+        <div className={styles.modalOverlay} onClick={() => setShowAssignmentsModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Danh sách KTV đã giao — {selectedTicket.ticketCode}</h3>
+              <button
+                className={styles.modalClose}
+                onClick={() => setShowAssignmentsModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {/* Ticket info summary */}
+              <div className={styles.ticketSummary}>
+                <div className={styles.ticketSummaryItem}>
+                  <span className={styles.fieldLabel}>Biển số</span>
+                  <span className={styles.fieldValue}>{selectedTicket.licensePlate}</span>
+                </div>
+                <div className={styles.ticketSummaryItem}>
+                  <span className={styles.fieldLabel}>Khách hàng</span>
+                  <span className={styles.fieldValue}>{selectedTicket.customerName || '—'}</span>
+                </div>
+                <div className={styles.ticketSummaryItem}>
+                  <span className={styles.fieldLabel}>Trạng thái</span>
+                  <span className={styles.fieldValue}>{selectedTicket.ticketStatus}</span>
+                </div>
+              </div>
+
+              {/* Assignments list */}
+              <div className={styles.modalSection}>
+                <h4 className={styles.sectionTitle}>Kỹ thuật viên đã được giao</h4>
+                {loadingAssignments ? (
+                  <div className={styles.loadingAdvisors}>
+                    <div className={styles.spinnerSmall}></div>
+                    <span>Đang tải danh sách...</span>
+                  </div>
+                ) : assignments.length === 0 ? (
+                  <div className={styles.noAdvisors}>Chưa có KTV nào được giao cho phiếu này</div>
+                ) : (
+                  <div className={styles.assignmentsList}>
+                    {assignments.map((assignment) => (
+                      <div key={assignment.assignmentId} className={styles.assignmentCard}>
+                        <div className={styles.assignmentHeader}>
+                          <div className={styles.assignmentName}>
+                            {assignment.staffName}
+                            {assignment.isPrimary && (
+                              <span className={styles.primaryBadge}>KTV Chính</span>
+                            )}
+                          </div>
+                          <span className={`${styles.assignmentStatus} ${styles[`status${assignment.status}`]}`}>
+                            {assignment.status}
+                          </span>
+                        </div>
+                        <div className={styles.assignmentDetails}>
+                          <div className={styles.assignmentField}>
+                            <span className={styles.fieldLabel}>Vai trò:</span>
+                            <span className={styles.fieldValue}>{assignment.roleInTicket}</span>
+                          </div>
+                          <div className={styles.assignmentField}>
+                            <span className={styles.fieldLabel}>Thời gian giao:</span>
+                            <span className={styles.fieldValue}>
+                              {assignment.assignedAt ? new Date(assignment.assignedAt).toLocaleString('vi-VN') : '—'}
+                            </span>
+                          </div>
+                          {assignment.note && (
+                            <div className={styles.assignmentField}>
+                              <span className={styles.fieldLabel}>Ghi chú:</span>
+                              <span className={styles.fieldValue}>{assignment.note}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button
+                className={styles.modalCancelBtn}
+                onClick={() => setShowAssignmentsModal(false)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 // Ticket Card Component
-const TicketCard = ({ ticket, onAssign, formatDate }) => {
-  const isPending = ticket.ticketStatus === 'CREATED';
-
+const TicketCard = ({ ticket, onAssign, formatDate, isAssigned }) => {
   return (
     <div className={styles.taskCard}>
       <div className={styles.taskHeader}>
         <div className={styles.taskHeaderLeft}>
           <h3 className={styles.taskTitle}>{ticket.ticketCode}</h3>
-          <span className={`${styles.priorityBadge} ${isPending ? styles.priorityPending : styles.priorityDone}`}>
-            {isPending ? 'Chưa phân công' : ticket.ticketStatus}
+          <span className={`${styles.priorityBadge} ${isAssigned ? styles.priorityDone : styles.priorityPending}`}>
+            {isAssigned ? ticket.ticketStatus : 'Chưa phân công'}
           </span>
         </div>
         <div className={styles.taskHeaderRight}>
@@ -602,15 +785,13 @@ const TicketCard = ({ ticket, onAssign, formatDate }) => {
       </div>
 
       <div className={styles.taskFooter}>
-        {isPending ? (
-          <>
-            <button className={styles.primaryButton} onClick={onAssign}>
-              Phân công KTV
-            </button>
-          </>
-        ) : (
-          <button className={styles.secondaryButton} onClick={onAssign}>
+        {isAssigned ? (
+          <button className={styles.viewButton} onClick={onAssign}>
             Xem phân công
+          </button>
+        ) : (
+          <button className={styles.primaryButton} onClick={onAssign}>
+            Phân công KTV
           </button>
         )}
       </div>
