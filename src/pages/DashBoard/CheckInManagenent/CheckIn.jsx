@@ -6,8 +6,6 @@ import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { fetchCheckInAdvisors, fetchCheckInCustomerVehicles } from '../../../services/checkInService.js';
 import { toast } from 'react-toastify';
 import { normalizeVehiclesPayload, useCheckInHandlers } from './useCheckInHandlers.js';
-
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 const CONDITION_PHOTO_KEYS = [
     'photoFront',
     'photoRear',
@@ -354,12 +352,6 @@ export default function CheckIn() {
                     accept="image/*"
                     onChange={(e) => {
                         const file = e.target.files?.[0] ?? null;
-
-                        if (file && file.size > MAX_IMAGE_BYTES) {
-                            notify('Ảnh vượt quá 5MB. Vui lòng chọn ảnh dung lượng ≤ 5MB.');
-                            e.target.value = ''; // Reset để có thể chọn lại cùng 1 file
-                            return;
-                        }
 
                         handlePhotoChange(keyName, file);
                         e.target.value = ''; // Reset để có thể chọn lại cùng 1 file

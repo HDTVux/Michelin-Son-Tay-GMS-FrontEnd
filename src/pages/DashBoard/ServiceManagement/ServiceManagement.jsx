@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
@@ -39,6 +40,7 @@ const MOCK_ITEMS = [
 
 export default function ServiceManagement() {
 	useScrollToTop();
+	const navigate = useNavigate();
 
 	const [isLoading] = useState(false);
 	const [error] = useState('');
@@ -120,6 +122,7 @@ export default function ServiceManagement() {
 						columns={activeConfig.columns}
 						rowKey={activeConfig.rowKey}
 						onViewDetail={setSelectedItem}
+						onAddProduct={() => navigate('/service-management/create-product')}
 						isLoading={isLoading}
 						error={error}
 						page={safePage}
@@ -163,6 +166,7 @@ function ServicePanel({
 	columns,
 	rowKey,
 	onViewDetail,
+	onAddProduct,
 	actionLabel,
 	isLoading,
 	error,
@@ -197,7 +201,16 @@ function ServicePanel({
 				<div className={styles['service-card__title']}>
 					{icon} {title}
 				</div>
-				<button className={styles['ghost-button']}>{actionLabel}</button>
+				<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+					{typeof onAddProduct === 'function' && (
+						<button type="button" className={styles['primary-button']} onClick={onAddProduct}>
+							Thêm sản phẩm
+						</button>
+					)}
+					<button type="button" className={styles['ghost-button']} disabled>
+						{actionLabel}
+					</button>
+				</div>
 			</div>
 
 			{error && <div className={styles['error-banner']}>{error}</div>}
@@ -364,6 +377,7 @@ ServicePanel.propTypes = {
 	).isRequired,
 	rowKey: PropTypes.func,
 	onViewDetail: PropTypes.func,
+	onAddProduct: PropTypes.func,
 	actionLabel: PropTypes.string,
 	isLoading: PropTypes.bool,
 	error: PropTypes.string,

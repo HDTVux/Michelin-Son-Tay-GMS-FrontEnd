@@ -36,6 +36,7 @@ import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.j
 import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.jsx';
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
+import CreateProduct from './pages/DashBoard/ServiceManagement/CreateProduct.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
@@ -161,6 +162,7 @@ export default function App() {
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="service-management" element={<ServiceManagement />} />
+          <Route path="service-management/create-product" element={<CreateProduct />} />
           <Route path="promotion-management" element={<PromotionManagement />} />
           <Route path="shift-management" element={<ShiftManagement />} />
           <Route path="queue-management" element={<QueueManagement />} />
