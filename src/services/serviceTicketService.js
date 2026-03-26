@@ -395,15 +395,5 @@ export const fetchTaxRulesAll = (token) => {
  * Lấy danh sách assignments của một ticket
  * Backend: GET /api/service-ticket/assignment/{ticketId}/assignments
  */
-export const fetchTicketAssignments = (ticketId) => {
-  const idNum = typeof ticketId === 'number' ? ticketId : Number(ticketId);
-  if (!Number.isFinite(idNum) || idNum <= 0) {
-    const error = new Error('Thiếu ticketId hợp lệ.');
-    error.status = 400;
-    return Promise.reject(error);
-  }
-  // apiClient.js tự lấy authToken từ localStorage
-  return request(`/api/service-ticket/assignment/${idNum}/assignments`, {
-    method: 'GET',
-  });
-};
+
+
