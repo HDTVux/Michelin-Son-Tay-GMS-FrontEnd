@@ -32,8 +32,7 @@ export const fetchPromotionByCode = async (promotionCode, token) => {
 			headers,
 		});
 	}
-
-import { request } from './apiClient';
+};
 
 const authHeaders = (token) => (token ? { Authorization: `Bearer ${token}` } : {});
 
@@ -69,19 +68,6 @@ export const fetchAllPromotions = (token) => {
   });
 };
 
-export const fetchAvailablePromotions = (token) => {
-  return request('/api/promotion/available', {
-    method: 'GET',
-    headers: authHeaders(token),
-  });
-};
-
-export const fetchPromotionByCode = (code, token) => {
-  return request(`/api/promotion/?code=${encodeURIComponent(String(code || '').trim())}`, {
-    method: 'GET',
-    headers: authHeaders(token),
-  });
-};
 
 export const createPromotion = (payload, token) => {
   return request('/api/promotion/admin/create', {
