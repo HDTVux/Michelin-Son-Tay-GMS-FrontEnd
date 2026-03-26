@@ -3,15 +3,12 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchServiceTicketDetail, fetchServiceTicketEstimate } from '../../../services/serviceTicketService.js';
+import { createPayment, payBill } from '../../../services/paymentService.js';
+import { fetchAvailablePromotions, fetchPromotionByCode } from '../../../services/promotionService.js';
 import { formatDateTimeViNoSeconds } from '../../../components/timeUtils.js';
 import Receipt from './Receipt.jsx';
 import { ReceiptPaymentMethodModal } from './ReceiptPaymentMethod.jsx';
 import styles from './ReceiptConfirm.module.css';
-
-const PROMOTIONS = {
-	VIP: { label: 'Khách hàng thân thiết: Giảm giá', discountRate: 0.05 },
-	COMBO_THANG: { label: 'Gói combo tháng', discountRate: 0.1 },
-};
 
 function toMoneyNumber(value) {
 	const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
@@ -110,6 +107,77 @@ function getItemConfirmedFlag(it) {
 	);
 }
 
+function parsePromotionYmdDate(value, { endOfDay } = {}) {
+	const raw = String(value ?? '').trim();
+	if (!raw) return null;
+	const [y, m, d] = raw.split('-').map(Number);
+	if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+	const hh = endOfDay ? 23 : 0;
+	const mm = endOfDay ? 59 : 0;
+	const ss = endOfDay ? 59 : 0;
+	const ms = endOfDay ? 999 : 0;
+	const dt = new Date(y, m - 1, d, hh, mm, ss, ms);
+	return Number.isFinite(dt.getTime()) ? dt : null;
+}
+
+function buildPromotionLabel(promo) {
+	if (!promo) return '';
+	const name = String(promo?.name || '').trim();
+	const code = String(promo?.code || '').trim();
+	const discountPercent = toMoneyNumber(promo?.discountPercent);
+	const parts = [name || code].filter(Boolean);
+	if (code && name) parts.push(code);
+	if (discountPercent > 0) parts.push(`-${discountPercent}%`);
+	return parts.join(' • ');
+}
+
+function validatePromotion(promo, subtotal) {
+	if (!promo) return 'Mã không hợp lệ';
+	if (promo?.isActive === false) return 'Khuyến mãi không còn hiệu lực';
+
+	const now = new Date();
+	const start = parsePromotionYmdDate(promo?.startDate, { endOfDay: false });
+	const end = parsePromotionYmdDate(promo?.endDate, { endOfDay: true });
+	if (start && now < start) return 'Khuyến mãi chưa bắt đầu';
+	if (end && now > end) return 'Khuyến mãi đã hết hạn';
+
+	const minOrderValue = toMoneyNumber(promo?.minOrderValue);
+	if (minOrderValue > 0 && subtotal < minOrderValue) {
+		return `Đơn tối thiểu ${new Intl.NumberFormat('vi-VN').format(minOrderValue)}đ để áp dụng`;
+	}
+
+	const discountPercent = toMoneyNumber(promo?.discountPercent);
+	if (discountPercent <= 0) return 'Khuyến mãi này chưa hỗ trợ trên hoá đơn';
+	return '';
+}
+
+function getPromotionId(promo) {
+	if (!promo) return null;
+	// Backend payloads are not always consistent: some return `promotionId`, some return `id`.
+	const raw =
+		promo?.promotionId ??
+		promo?.promotionID ??
+		promo?.PromotionId ??
+		promo?.id ??
+		promo?.ID ??
+		null;
+	if (raw == null) return null;
+	const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
+	return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function normalizePromotion(promo) {
+	if (!promo) return null;
+
+	// Many endpoints return { data: [...] } and callers sometimes pass that array directly.
+	// Normalize to a single promotion object before validation / payload building.
+	if (Array.isArray(promo)) return normalizePromotion(promo[0] ?? null);
+	if (Array.isArray(promo?.data)) return normalizePromotion(promo.data[0] ?? null);
+
+	const promotionId = getPromotionId(promo);
+	return promotionId ? { ...promo, promotionId } : promo;
+}
+
 export default function ReceiptConfirm() {
 	useScrollToTop();
 	const navigate = useNavigate();
@@ -127,11 +195,19 @@ export default function ReceiptConfirm() {
 	const [estimateLoading, setEstimateLoading] = useState(false);
 	const [estimateError, setEstimateError] = useState('');
 
+	const [availablePromotions, setAvailablePromotions] = useState([]);
+	const [promotionsLoading, setPromotionsLoading] = useState(false);
+	const [promotionsError, setPromotionsError] = useState('');
+
 	const [promoCode, setPromoCode] = useState('');
-	const [selectedCombo, setSelectedCombo] = useState('');
-	const [appliedPromoKey, setAppliedPromoKey] = useState('');
+	const [selectedPromotionId, setSelectedPromotionId] = useState('');
+	const [appliedPromotion, setAppliedPromotion] = useState(null);
+	const [promoApplying, setPromoApplying] = useState(false);
 	const [promoError, setPromoError] = useState('');
 	const [paymentOpen, setPaymentOpen] = useState(false);
+	const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+	const [bill, setBill] = useState(null);
+	const [billCreating, setBillCreating] = useState(false);
 
 	const notify = (message) => toast(message, { containerId: 'app-toast' });
 
@@ -197,6 +273,32 @@ export default function ReceiptConfirm() {
 		};
 	}, [ticket?.serviceTicketId]);
 
+	useEffect(() => {
+		const token = localStorage.getItem('authToken');
+		if (!token) return;
+
+		let ignore = false;
+		const run = async () => {
+			try {
+				setPromotionsLoading(true);
+				setPromotionsError('');
+				const res = await fetchAvailablePromotions(token);
+				if (ignore) return;
+				setAvailablePromotions(Array.isArray(res?.data) ? res.data : []);
+			} catch (err) {
+				if (ignore) return;
+				setAvailablePromotions([]);
+				setPromotionsError(err?.message || 'Không thể tải danh sách khuyến mãi.');
+			} finally {
+				if (!ignore) setPromotionsLoading(false);
+			}
+		};
+		run();
+		return () => {
+			ignore = true;
+		};
+	}, []);
+
 	const estimateItems = useMemo(() => {
 		const items = Array.isArray(estimate?.items) ? estimate.items : [];
 		return items
@@ -232,40 +334,67 @@ export default function ReceiptConfirm() {
 
 	const subtotal = useMemo(() => payItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotalDisplay ?? it.subTotal), 0), [payItems]);
 
-	const appliedPromo = useMemo(() => {
-		const key = String(appliedPromoKey || '').trim().toUpperCase();
-		return key ? PROMOTIONS[key] ?? null : null;
-	}, [appliedPromoKey]);
-
 	const discountAmount = useMemo(() => {
-		if (!appliedPromo) return 0;
-		const raw = subtotal * toMoneyNumber(appliedPromo.discountRate);
+		if (!appliedPromotion) return 0;
+		const validationMessage = validatePromotion(appliedPromotion, subtotal);
+		if (validationMessage) return 0;
+		const percent = toMoneyNumber(appliedPromotion?.discountPercent);
+		const raw = subtotal * (percent / 100);
 		return Math.min(subtotal, Math.max(0, raw));
-	}, [appliedPromo, subtotal]);
+	}, [appliedPromotion, subtotal]);
 
 	const total = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
 
 	const receivedAtDisplay = ticket?.receivedAt ? formatDateTimeViNoSeconds(ticket.receivedAt, '-') : '-';
 	const handoverAtDisplay = ticket?.handoverAt ? formatDateTimeViNoSeconds(ticket.handoverAt, '-') : '-';
 
-	const applyPromotion = () => {
+	const applyPromotion = async () => {
+		if (promoApplying) return;
 		setPromoError('');
-		const code = String(promoCode || '').trim().toUpperCase();
-		const comboKey = String(selectedCombo || '').trim().toUpperCase();
 
-		const pickedKey = code || comboKey;
-		if (!pickedKey) {
-			setAppliedPromoKey('');
+		const token = localStorage.getItem('authToken');
+		const code = String(promoCode || '').trim();
+		const selectedId = String(selectedPromotionId || '').trim();
+
+		if (!code && !selectedId) {
+			setAppliedPromotion(null);
 			return;
 		}
 
-		if (!PROMOTIONS[pickedKey]) {
-			setAppliedPromoKey('');
-			setPromoError('Mã không hợp lệ');
+		if (code) {
+			try {
+				setPromoApplying(true);
+				const res = await fetchPromotionByCode(code, token);
+				const promo = normalizePromotion(res?.data ?? null);
+				const validationMessage = validatePromotion(promo, subtotal);
+				if (validationMessage) {
+					setAppliedPromotion(null);
+					setPromoError(validationMessage);
+					return;
+				}
+				setAppliedPromotion(promo);
+				setSelectedPromotionId('');
+			} catch (err) {
+				setAppliedPromotion(null);
+				setPromoError(err?.message || 'Mã không hợp lệ');
+			} finally {
+				setPromoApplying(false);
+			}
 			return;
 		}
 
-		setAppliedPromoKey(pickedKey);
+		const picked =
+			availablePromotions.find((p) => {
+				const id = getPromotionId(p);
+				return id != null && String(id) === selectedId;
+			}) ?? null;
+		const validationMessage = validatePromotion(picked, subtotal);
+		if (validationMessage) {
+			setAppliedPromotion(null);
+			setPromoError(validationMessage);
+			return;
+		}
+		setAppliedPromotion(normalizePromotion(picked));
 	};
 
 	const handleBack = () => navigate(-1);
@@ -287,10 +416,66 @@ export default function ReceiptConfirm() {
 				vatRate: '',
 				vatAmount: 0,
 				total,
-				promotionLabel: appliedPromo?.label || '',
+				promotionLabel: buildPromotionLabel(appliedPromotion),
 			},
 		};
-	}, [ticket, receivedAtDisplay, handoverAtDisplay, payItems, subtotal, discountAmount, total, appliedPromo]);
+	}, [ticket, receivedAtDisplay, handoverAtDisplay, payItems, subtotal, discountAmount, total, appliedPromotion]);
+
+	const createBillIfNeeded = async () => {
+		if (billCreating) return bill;
+		if (bill?.billId) return bill;
+
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			notify('Vui lòng đăng nhập để tạo hoá đơn.');
+			return null;
+		}
+
+		const serviceTicketId = ticket?.serviceTicketId;
+		const serviceTicketIdNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
+		if (!Number.isFinite(serviceTicketIdNum) || serviceTicketIdNum <= 0) {
+			notify('Thiếu serviceTicketId hợp lệ để tạo hoá đơn.');
+			return null;
+		}
+
+		const estimateIdRaw = estimate?.estimateId ?? estimate?.id;
+		const estimateIdNum = typeof estimateIdRaw === 'number' ? estimateIdRaw : Number(estimateIdRaw);
+		if (!Number.isFinite(estimateIdNum) || estimateIdNum <= 0) {
+			notify('Thiếu estimateId hợp lệ để tạo hoá đơn.');
+			return null;
+		}
+
+		const version = estimate?.version ?? 0;
+		const promotionIdNum = getPromotionId(appliedPromotion);
+
+		const payload = {
+			serviceTicketId: serviceTicketIdNum,
+			subTotal: Math.max(0, Math.round(subtotal)),
+			discountAmount: Math.max(0, Math.round(discountAmount)),
+			finalAmount: Math.max(0, Math.round(total)),
+			paymentMethod: null,
+			paymentStatus: 'UNPAID',
+			paidAt: null,
+			billStatus: 'FINAL',
+			warehouseId: null,
+			version: Number.isFinite(Number(version)) ? Number(version) : 0,
+			estimateId: estimateIdNum,
+			...(promotionIdNum ? { promotionId: promotionIdNum } : {}),
+		};
+
+		try {
+			setBillCreating(true);
+			const res = await createPayment(payload, token);
+			const created = res?.data ?? res;
+			setBill(created ?? null);
+			return created ?? null;
+		} catch (err) {
+			notify(err?.message || 'Tạo hoá đơn thất bại.');
+			return null;
+		} finally {
+			setBillCreating(false);
+		}
+	};
 
 	const handlePrint = () => {
 		if (ticketLoading || estimateLoading) return;
@@ -299,10 +484,13 @@ export default function ReceiptConfirm() {
 			return;
 		}
 
-		// Allow UI to switch to print media.
-		requestAnimationFrame(() => {
+		// Create bill first (to get billId), then print.
+		createBillIfNeeded().then((created) => {
+			if (!created?.billId) return;
 			requestAnimationFrame(() => {
-				if (typeof globalThis?.print === 'function') globalThis.print();
+				requestAnimationFrame(() => {
+					if (typeof globalThis?.print === 'function') globalThis.print();
+				});
 			});
 		});
 	};
@@ -313,7 +501,45 @@ export default function ReceiptConfirm() {
 			notify('Chưa có hạng mục nào được advisor xác nhận để thanh toán.');
 			return;
 		}
+		if (!bill?.billId) {
+			notify('Vui lòng in hoá đơn để tạo bill trước khi thanh toán.');
+			return;
+		}
 		setPaymentOpen(true);
+	};
+
+	const handleConfirmPayment = async ({ method }) => {
+		if (paymentSubmitting) return;
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			notify('Vui lòng đăng nhập để thanh toán.');
+			return;
+		}
+
+		const billIdRaw = bill?.billId ?? bill?.id;
+		const billIdNum = typeof billIdRaw === 'number' ? billIdRaw : Number(String(billIdRaw ?? '').trim());
+		if (!Number.isFinite(billIdNum) || billIdNum <= 0) {
+			notify('Vui lòng in hoá đơn để tạo bill trước khi thanh toán.');
+			return;
+		}
+
+		const paymentMethod = method === 'cash' ? 'CASH' : 'TRANSFER';
+
+		const payload = {
+			billId: billIdNum,
+			amount: Math.max(0, Math.round(toMoneyNumber(bill?.finalAmount) || total)),
+			method: paymentMethod,
+		};
+
+		try {
+			setPaymentSubmitting(true);
+			await payBill(payload, token);
+			notify('Thanh toán thành công');
+		} catch (err) {
+			notify(err?.message || 'Thanh toán thất bại.');
+		} finally {
+			setPaymentSubmitting(false);
+		}
 	};
 
 	return (
@@ -384,7 +610,10 @@ export default function ReceiptConfirm() {
 										id="promo-code"
 										className={styles.promoInput}
 										value={promoCode}
-										onChange={(e) => setPromoCode(e.target.value)}
+										onChange={(e) => {
+											setPromoCode(e.target.value);
+											if (selectedPromotionId) setSelectedPromotionId('');
+										}}
 										placeholder="Mã khuyến mãi"
 									/>
 								</div>
@@ -392,25 +621,45 @@ export default function ReceiptConfirm() {
 						</div>
 
 						<div className={styles.promoRow}>
-							<label htmlFor="promo-combo">Hoặc chọn combo:</label>
+							<label htmlFor="promo-list">Hoặc chọn khuyến mãi:</label>
 							<select
-								id="promo-combo"
+								id="promo-list"
 								className={styles.promoSelect}
-								value={selectedCombo}
-								onChange={(e) => setSelectedCombo(e.target.value)}
+								value={selectedPromotionId}
+								onChange={(e) => {
+									setSelectedPromotionId(e.target.value);
+									if (promoCode) setPromoCode('');
+								}}
 							>
 								<option value="">-</option>
-								<option value="COMBO_THANG">Gói combo tháng</option>
+								{availablePromotions.map((p) => {
+									const id = getPromotionId(p);
+									const idValue = id == null ? '' : String(id);
+									if (!idValue) return null;
+									const label = buildPromotionLabel(p);
+									return (
+										<option key={idValue} value={idValue}>
+											{label || idValue}
+										</option>
+									);
+								})}
 							</select>
+							{promotionsLoading ? <div className={styles.subTitle}>Đang tải khuyến mãi...</div> : null}
+							{promotionsError ? <div className={styles.promoError}>{promotionsError}</div> : null}
 						</div>
 
-						<button type="button" className={`ui-btn ui-btn--primary ${styles.applyBtn}`} onClick={applyPromotion}>
+						<button
+							type="button"
+							className={`ui-btn ui-btn--primary ${styles.applyBtn}`}
+							onClick={applyPromotion}
+							disabled={promoApplying}
+						>
 							Áp dụng
 						</button>
 
-
-
-						{appliedPromo?.label ? <div className={styles.promoChip}>{appliedPromo.label}</div> : null}
+						{buildPromotionLabel(appliedPromotion) ? (
+							<div className={styles.promoChip}>{buildPromotionLabel(appliedPromotion)}</div>
+						) : null}
 
 						<div className={styles.summaryList}>
 							<div className={styles.summaryRow}>
@@ -438,18 +687,20 @@ export default function ReceiptConfirm() {
 							type="button"
 							className="ui-btn ui-btn--ghost"
 							onClick={handlePrint}
-							disabled={ticketLoading || estimateLoading || !!ticketError}
+							disabled={ticketLoading || estimateLoading || !!ticketError || billCreating}
 						>
 							In hóa đơn
 						</button>
-						<button
-							type="button"
-							className="ui-btn ui-btn--primary"
-							onClick={handleConfirm}
-							disabled={ticketLoading || estimateLoading || !!ticketError}
-						>
-							Thanh toán
-						</button>
+						{bill?.billId ? (
+							<button
+								type="button"
+								className="ui-btn ui-btn--primary"
+								onClick={handleConfirm}
+								disabled={ticketLoading || estimateLoading || !!ticketError}
+							>
+								Thanh toán
+							</button>
+						) : null}
 					</div>
 				</div>
 
@@ -459,6 +710,7 @@ export default function ReceiptConfirm() {
 					ticketCode={ticket.ticketCode || ticketCodeParam}
 					total={total}
 					printTicket={printTicket}
+					onConfirmPayment={handleConfirmPayment}
 				/>
 			</div>
 

@@ -1,12 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
+import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHandlers.js';
+import { approveServiceTicketEstimate, fetchServiceTicketEstimate } from '../../../services/serviceTicketService.js';
 import { ServiceTicket as TechnicianServiceTicket } from '../../Technician/ServiceTicket/ServiceTicket.jsx';
-import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHooks.js';
 import styles from './ServiceTicketDetail.module.css';
 
 const STAFF_ROLE = {
@@ -61,6 +62,37 @@ function pickFirstDefined(obj, keys) {
 		if (v != null && String(v).trim() !== '') return v;
 	}
 	return null;
+}
+
+function pickLatestEstimate(list) {
+	const arr = Array.isArray(list) ? list : [];
+	if (arr.length === 0) return null;
+	return [...arr].sort((a, b) => {
+		const va = Number(a?.version);
+		const vb = Number(b?.version);
+		const versionCmp = (Number.isFinite(vb) ? vb : -1) - (Number.isFinite(va) ? va : -1);
+		if (versionCmp !== 0) return versionCmp;
+		const ta = Date.parse(a?.createdAt || a?.approvedAt || 0);
+		const tb = Date.parse(b?.createdAt || b?.approvedAt || 0);
+		return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+	})[0];
+}
+
+function normalizeTicketStatus(raw) {
+	const value = String(raw || '')
+		.trim()
+		.toUpperCase()
+		.replaceAll(/\s+/g, '_');
+	if (!value) return '';
+
+	if (value === 'CREATED' || value === 'DRAFT') return 'DRAFT';
+	if (value === 'INSPECTION' || value === 'INSPECTING' || value === 'DIAGNOSIS') return 'INSPECTION';
+	if (value === 'PENDING' || value === 'WAITING') return 'PENDING';
+	if (value === 'IN_PROGRESS' || value === 'INPROGRESS' || value === 'PROCESSING') return 'IN_PROGRESS';
+	if (value === 'COMPLETED' || value === 'DONE' || value === 'FINISHED') return 'COMPLETED';
+	if (value === 'PAID' || value === 'PAYED') return 'PAID';
+	if (value === 'CANCELLED' || value === 'CANCELED' || value === 'CANCEL') return 'CANCELLED';
+	return value;
 }
 
 function buildTimelineEvents(input, receivedAt, handoverAt) {
@@ -269,6 +301,7 @@ export default function ServiceTicketDetail() {
 	const params = useParams();
 	const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
 	const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
+	const [receiptApproving, setReceiptApproving] = useState(false);
 
 	const ticketCodeParam = String(params?.ticketCode || '').trim();
 	const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
@@ -281,6 +314,10 @@ export default function ServiceTicketDetail() {
 	const ticket = useMemo(
 		() => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam),
 		[ticketRaw, ticketFromState, ticketCodeParam],
+	);
+	const ticketStatus = useMemo(
+		() => normalizeTicketStatus(ticket?.statusCode || ticket?.timelineStatus || ticket?.statusLabel),
+		[ticket?.statusCode, ticket?.timelineStatus, ticket?.statusLabel],
 	);
 	const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable);
 
@@ -309,15 +346,62 @@ export default function ServiceTicketDetail() {
 		odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
 
 	const handleBack = () => navigate(-1);
-	const handleCreateReceipt = () => {
+
+	// UI-only handlers for status transitions (backend will be wired later)
+	const handleCancelTicket = () => notify('Chức năng hủy phiếu dịch vụ đang được phát triển.');
+	const handleSetPending = () => notify('Chức năng chuyển sang "Chờ xử lý" đang được phát triển.');
+	const handleStartRepair = () => notify('Chức năng chuyển sang "Tiến hành sửa chữa" đang được phát triển.');
+	const handleCompleteRepair = () => notify('Chức năng chuyển sang "Hoàn tất sửa chữa" đang được phát triển.');
+	const handleAddService = () => notify('Chức năng "Thêm dịch vụ" đang được phát triển.');
+
+	const canCancel = ['DRAFT', 'INSPECTION', 'PENDING', 'IN_PROGRESS'].includes(ticketStatus);
+	const canSetPending = ticketStatus === 'DRAFT';
+	const canStartRepair = ticketStatus === 'DRAFT' || ticketStatus === 'PENDING';
+	const canCompleteRepair = ticketStatus === 'IN_PROGRESS';
+	const canAddService = ticketStatus === 'DRAFT' || ticketStatus === 'INSPECTION';
+	const canCreateReceipt = ticketStatus === 'COMPLETED';
+
+	const handleCreateReceipt = async () => {
+		if (receiptApproving) return;
 		const code = ticket.ticketCode || ticketCodeParam;
 		if (!code) {
 			notify('Thiếu mã phiếu dịch vụ để tạo hoá đơn.');
 			return;
 		}
-		navigate(`/service-ticket/${encodeURIComponent(String(code || '').trim())}/receipt-confirm`, {
-			state: { ticket: ticketRaw ?? ticketFromState ?? null },
-		});
+
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			notify('Vui lòng đăng nhập để tạo hoá đơn.');
+			return;
+		}
+
+		const serviceTicketIdRaw = ticket?.serviceTicketId;
+		const serviceTicketIdNum = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(serviceTicketIdRaw);
+		if (!Number.isFinite(serviceTicketIdNum) || serviceTicketIdNum <= 0) {
+			notify('Thiếu serviceTicketId hợp lệ để tạo hoá đơn.');
+			return;
+		}
+
+		try {
+			setReceiptApproving(true);
+			const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
+			const latest = pickLatestEstimate(estimateRes?.data);
+			const estimateIdRaw = latest?.estimateId ?? latest?.id;
+			const estimateIdNum = typeof estimateIdRaw === 'number' ? estimateIdRaw : Number(estimateIdRaw);
+			if (!Number.isFinite(estimateIdNum) || estimateIdNum <= 0) {
+				notify('Chưa có báo giá hợp lệ để xác nhận trước khi tạo hoá đơn.');
+				return;
+			}
+
+			await approveServiceTicketEstimate(estimateIdNum, token);
+			navigate(`/service-ticket/${encodeURIComponent(String(code || '').trim())}/receipt-confirm`, {
+				state: { ticket: ticketRaw ?? ticketFromState ?? null },
+			});
+		} catch (err) {
+			notify(err?.message || 'Không thể xác nhận báo giá để tạo hoá đơn.');
+		} finally {
+			setReceiptApproving(false);
+		}
 	};
 
 	return (
@@ -461,13 +545,47 @@ export default function ServiceTicketDetail() {
 							</>
 						)}
 
-						<div className="ui-actions">
+						<div className={`ui-actions ${styles.actions}`}>
 							<button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
 								Quay lại
 							</button>
-							<button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt}>
-								Tạo hoá đơn
-							</button>
+							<div className={styles.actionsRight}>
+								{canCancel && (
+									<button
+										type="button"
+										className="ui-btn ui-btn--danger"
+										onClick={handleCancelTicket}
+										disabled={receiptApproving}
+									>
+										Hủy phiếu dịch vụ
+									</button>
+								)}
+								{canSetPending && (
+									<button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving}>
+										Chờ xử lý
+									</button>
+								)}
+								{canAddService && (
+									<button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving}>
+										Thêm dịch vụ
+									</button>
+								)}
+								{canStartRepair && (
+									<button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving}>
+										Tiến hành sửa chữa
+									</button>
+								)}
+								{canCompleteRepair && (
+									<button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving}>
+										Hoàn tất sửa chữa
+									</button>
+								)}
+								{canCreateReceipt && (
+									<button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
+										Tạo hoá đơn
+									</button>
+								)}
+							</div>
 						</div>
 					</div>
 					</main>

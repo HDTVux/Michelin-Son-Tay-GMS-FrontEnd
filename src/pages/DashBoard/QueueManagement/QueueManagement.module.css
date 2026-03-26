@@ -15,6 +15,54 @@
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.controlsCard {
+	background: white;
+	border-radius: 12px;
+	padding: 16px 20px;
+	margin-bottom: 20px;
+	border: 2px solid #e5e7eb;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.controlsRow {
+	display: flex;
+	gap: 16px;
+	flex-wrap: wrap;
+	align-items: flex-end;
+}
+
+.control {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 200px;
+}
+
+.controlAction {
+	display: flex;
+	align-items: flex-end;
+}
+
+.input {
+	padding: 10px 12px;
+	border: 2px solid #e5e7eb;
+	border-radius: 10px;
+	font-size: 14px;
+	background: white;
+}
+
+.helpText {
+	margin-top: 10px;
+	font-size: 13px;
+	color: #6b7280;
+}
+
+.errorText {
+	margin-top: 10px;
+	font-size: 13px;
+	color: #dc2626;
+}
+
 .capacityBanner {
 	padding: 16px 20px;
 	border-radius: 12px;
@@ -150,6 +198,29 @@
 	background: #1873CC;
 	transform: translateY(-2px);
 	box-shadow: 0 4px 16px rgba(30, 144, 255, 0.4);
+}
+
+.secondaryButton {
+	padding: 12px 18px;
+	background: white;
+	color: #1a1a1a;
+	border: 2px solid #e5e7eb;
+	border-radius: 10px;
+	font-size: 15px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.3s;
+}
+
+.secondaryButton:hover {
+	border-color: #1E90FF;
+	transform: translateY(-2px);
+}
+
+.secondaryButton:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
 }
 
 .cancelButton {

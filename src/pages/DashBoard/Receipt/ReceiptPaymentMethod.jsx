@@ -127,17 +127,6 @@ export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, pr
 
 	useEffect(() => {
 		if (!open) return;
-		const onKeyDown = (e) => {
-			if (e.key !== 'Escape') return;
-			e.preventDefault();
-			onClose?.();
-		};
-		globalThis.addEventListener('keydown', onKeyDown);
-		return () => globalThis.removeEventListener('keydown', onKeyDown);
-	}, [open, onClose]);
-
-	useEffect(() => {
-		if (!open) return;
 		return () => {
 			safeRevokeObjectUrl(cashEvidencePreview);
 		};
@@ -219,7 +208,7 @@ export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, pr
 	if (!hasRequiredState) {
 		return (
 			<div className={styles.overlay}>
-				<button type="button" className={styles.backdrop} onClick={onClose} aria-label="Đóng" />
+				<div className={styles.backdrop} aria-hidden="true" />
 				<dialog
 					open
 					className={`ui-card ${styles.modal}`}
@@ -227,7 +216,6 @@ export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, pr
 					aria-labelledby="receipt-payment-method-title"
 					onCancel={(e) => {
 						e.preventDefault();
-						onClose?.();
 					}}
 				>
 					<header className={styles.header}>
@@ -251,7 +239,7 @@ export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, pr
 
 	return (
 		<div className={styles.overlay}>
-			<button type="button" className={styles.backdrop} onClick={onClose} aria-label="Đóng" />
+			<div className={styles.backdrop} aria-hidden="true" />
 			<dialog
 				open
 				className={`ui-card ${styles.modal}`}
@@ -259,7 +247,6 @@ export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, pr
 				aria-labelledby="receipt-payment-method-title"
 				onCancel={(e) => {
 					e.preventDefault();
-					onClose?.();
 				}}
 			>
 				<header className={styles.header}>

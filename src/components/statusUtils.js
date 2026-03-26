@@ -27,6 +27,10 @@ const STATUS_TEXT_VI = {
   // ── Managed booking statuses ──
   NEW: 'Mới',
   NOT_ARRIVED: 'Chưa đến',
+
+  //Service ticket statuses
+  PAID: 'Đã thanh toán',
+  INSPECTION: 'Đang kiểm tra',
 };
 
 function normalizeStatus(status) {
@@ -92,6 +96,7 @@ export function getStatusTone(status, fallback = 'info') {
   if (upper === 'CONFIRM' || upper === 'CONFIRMED' || upper === 'APPROVED') return 'success';
   if (upper === 'DONE' || upper === 'COMPLETED' || upper === 'PAID') return 'success';
   if (upper === 'NEW' || upper === 'DRAFT' || upper === 'IN_PROGRESS' || upper === 'PROCESSING') return 'info';
+  if (upper === 'PAID') return 'success';
 
   // Cancel variants
   if (
