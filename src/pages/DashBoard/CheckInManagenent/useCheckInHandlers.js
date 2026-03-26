@@ -80,6 +80,7 @@ export function useCheckInHandlers({
 	photoDescriptions,
 	odometerNumber,
 	damageNote,
+	safetyInspection,
 	previousVehicleIdRef,
 	notify,
 	navigate,
@@ -331,6 +332,7 @@ export function useCheckInHandlers({
 			photoDamageDescription: String(photoDescriptions?.photoDamageDescription || '').trim(),
 			odometerReading: Number(odometerNumber) || 0,
 			checkInNotes: String(damageNote || '').trim(),
+			safetyInspection: Boolean(safetyInspection),
 			staffId: Number(staffId) || 0,
 		};
 
@@ -352,6 +354,7 @@ export function useCheckInHandlers({
 			const data = response?.data?.data ?? response?.data ?? response;
 			const ticketCode = data?.ticketCode || '';
 			notify(ticketCode ? `Tạo phiếu thành công: ${ticketCode}` : 'Tạo phiếu thành công');
+			navigate('/service-ticket-management');
 		} catch (err) {
 			notify(err?.message || 'Tạo phiếu thất bại, vui lòng thử lại.');
 		} finally {
@@ -364,10 +367,12 @@ export function useCheckInHandlers({
 		damageNote,
 		isAddingNewVehicle,
 		isSubmitting,
+		navigate,
 		notify,
 		odometerNumber,
 		photoDescriptions,
 		photos,
+		safetyInspection,
 		selectedVehicle?.licensePlate,
 		selectedVehicle?.make,
 		selectedVehicle?.model,

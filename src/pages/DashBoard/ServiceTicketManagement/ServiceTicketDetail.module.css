@@ -251,6 +251,25 @@
   line-height: 1.5;
 }
 
+.safetyBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.safetyBadge--yes {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.safetyBadge--no {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .noteBox {
   border: 1px solid #e5e7eb;
   border-radius: 8px;

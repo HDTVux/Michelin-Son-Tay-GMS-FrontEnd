@@ -390,6 +390,16 @@ export default function ServiceTicketDetail() {
 											<span className={styles.kvLabel}>Ngày bàn giao:</span>
 											<span className={styles.kvValue}>{handoverAtDisplay}</span>
 										</div>
+										<div className={styles.kvRow}>
+											<span className={styles.kvLabel}>Kiểm tra an toàn:</span>
+											{ticketRaw?.safetyInspectionEnabled === true ? (
+												<span className={`${styles.safetyBadge} ${styles['safetyBadge--yes']}`}>Có</span>
+											) : ticketRaw?.safetyInspectionEnabled === false ? (
+												<span className={`${styles.safetyBadge} ${styles['safetyBadge--no']}`}>Không</span>
+											) : (
+												<span className={styles.kvValue}>-</span>
+											)}
+										</div>
 									</div>
 								</section>
 							</div>

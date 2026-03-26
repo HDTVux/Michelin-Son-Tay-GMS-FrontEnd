@@ -426,10 +426,10 @@ const UpdateProgress = () => {
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
           >
-            <option value="Check-in">Check-in</option>
-            <option value="Diagnosis">Diagnosis</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Completed">Completed</option>
+            <option value="DRAFT">Nháp</option>
+            <option value="INSPECTION">Đang kiểm tra</option>
+            <option value="IN_PROGRESS">Đang sửa chữa</option>
+            <option value="COMPLETED">Hoàn tất</option>
           </select>
         </div>
 

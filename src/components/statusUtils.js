@@ -1,5 +1,14 @@
 const STATUS_TEXT_VI = {
-  // Booking request statuses
+  // ── Service Ticket statuses ──
+  DRAFT: 'Nháp',
+  INSPECTION: 'Đang kiểm tra',
+  PENDING: 'Chờ duyệt',
+  IN_PROGRESS: 'Đang sửa chữa',
+  COMPLETED: 'Hoàn tất',
+  PAID: 'Đã thanh toán',
+  CANCELLED: 'Đã hủy',
+
+  // ── Booking request statuses ──
   PENDING: 'Chờ duyệt',
   CONTACTED: 'Đã liên hệ',
   CONFIRM: 'Đã xác nhận',
@@ -7,19 +16,16 @@ const STATUS_TEXT_VI = {
   APPROVED: 'Đã xác nhận',
   REJECTED: 'Từ chối',
   CANCEL: 'Đã hủy',
-  CANCELLED: 'Đã hủy',
   CANCELED: 'Đã hủy',
   SPAM: 'Spam',
 
-  // Booking lifecycle statuses
+  // ── Booking lifecycle statuses ──
   IN_PROGRESS: 'Đang thực hiện',
   PROCESSING: 'Đang xử lý',
-  COMPLETED: 'Hoàn tất',
   DONE: 'Hoàn tất',
 
-  // Managed booking statuses
+  // ── Managed booking statuses ──
   NEW: 'Mới',
-  DRAFT: 'Nháp',
   NOT_ARRIVED: 'Chưa đến',
 };
 
@@ -84,7 +90,7 @@ export function getStatusTone(status, fallback = 'info') {
   if (upper === 'PENDING') return 'warning';
   if (upper === 'CONTACTED') return 'info';
   if (upper === 'CONFIRM' || upper === 'CONFIRMED' || upper === 'APPROVED') return 'success';
-  if (upper === 'DONE' || upper === 'COMPLETED') return 'success';
+  if (upper === 'DONE' || upper === 'COMPLETED' || upper === 'PAID') return 'success';
   if (upper === 'NEW' || upper === 'DRAFT' || upper === 'IN_PROGRESS' || upper === 'PROCESSING') return 'info';
 
   // Cancel variants
@@ -96,6 +102,7 @@ export function getStatusTone(status, fallback = 'info') {
   ) return 'danger';
 
   if (upper === 'NOT_ARRIVED') return 'warning';
+  if (upper === 'INSPECTION') return 'warning';
 
   return fallback;
 }

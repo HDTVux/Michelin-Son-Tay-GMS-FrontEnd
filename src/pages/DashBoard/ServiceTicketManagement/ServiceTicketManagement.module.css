@@ -409,3 +409,302 @@
 	width: 20px;
 	height: 20px;
 }
+
+/* ─── Modal Giao việc ─── */
+.modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.45);
+	z-index: 1000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.modal-box {
+	background: white;
+	border-radius: 16px;
+	width: 480px;
+	max-width: 95vw;
+	max-height: 80vh;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+	overflow: hidden;
+}
+
+.modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 20px 24px 16px;
+	border-bottom: 2px solid #f3f4f6;
+}
+
+.modal-header h3 {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 700;
+	color: #1a1a1a;
+}
+
+.modal-close {
+	background: none;
+	border: none;
+	font-size: 28px;
+	color: #9ca3af;
+	cursor: pointer;
+	padding: 0;
+	line-height: 1;
+	transition: color 0.2s;
+}
+
+.modal-close:hover {
+	color: #374151;
+}
+
+.modal-body {
+	padding: 20px 24px 24px;
+	overflow-y: auto;
+	flex: 1;
+}
+
+.modal-info {
+	font-size: 14px;
+	color: #374151;
+	margin: 0 0 16px;
+}
+
+.loading-text,
+.empty-text {
+	text-align: center;
+	color: #6b7280;
+	font-size: 14px;
+	padding: 24px 0;
+}
+
+.advisor-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.advisor-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 14px 16px;
+	border: 2px solid #e5e7eb;
+	border-radius: 12px;
+	background: #fafafa;
+	transition: all 0.2s;
+}
+
+.advisor-card:hover {
+	border-color: #1E90FF;
+	background: #eff6ff;
+}
+
+.advisor-info {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.advisor-name {
+	font-weight: 600;
+	font-size: 15px;
+	color: #1a1a1a;
+}
+
+.advisor-phone {
+	font-size: 13px;
+	color: #6b7280;
+}
+
+.assign-btn {
+	background: #10b981;
+	color: white;
+	border: none;
+	padding: 8px 20px;
+	border-radius: 8px;
+	font-weight: 600;
+	font-size: 14px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.assign-btn:hover {
+	background: #059669;
+	transform: translateY(-1px);
+}
+
+.assign-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.success-banner {
+	background: #d1fae5;
+	border: 2px solid #a7f3d0;
+	color: #065f46;
+	padding: 12px 16px;
+	border-radius: 10px;
+	font-weight: 600;
+	font-size: 14px;
+	margin: 0 24px 16px;
+}
+
+/* ─── Nút thao tác trong bảng ─── */
+.action-buttons {
+	display: flex;
+	gap: 8px;
+	justify-content: center;
+	flex-wrap: wrap;
+}
+
+.assign-action-btn {
+	border: none;
+	background: #7c3aed;
+	color: #fff;
+	padding: 8px 16px;
+	border-radius: 8px;
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 14px;
+	transition: all 0.2s;
+}
+
+.assign-action-btn:hover {
+	background: #6d28d9;
+	transform: translateY(-1px);
+}
+
+/* ─── Section trong modal ─── */
+.assign-section {
+	margin-top: 16px;
+}
+
+.section-title {
+	font-size: 14px;
+	font-weight: 700;
+	color: #374151;
+	margin: 0 0 10px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid #e5e7eb;
+}
+
+/* ─── Staff card trong modal phân công ─── */
+.staff-card {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 14px;
+	border: 2px solid #e5e7eb;
+	border-radius: 12px;
+	background: #fafafa;
+	margin-bottom: 8px;
+	transition: all 0.2s;
+}
+
+.staff-card:hover {
+	border-color: #7c3aed;
+	background: #f5f0ff;
+}
+
+.staff-info {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.staff-name {
+	font-weight: 600;
+	font-size: 14px;
+	color: #1a1a1a;
+}
+
+.staff-phone {
+	font-size: 12px;
+	color: #6b7280;
+}
+
+.workload-badge {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+}
+
+.workload-badge span {
+	font-size: 11px;
+	font-weight: 600;
+	padding: 3px 8px;
+	border-radius: 6px;
+}
+
+.workload-badge .busy {
+	background: #fee2e2;
+	color: #991b1b;
+}
+
+.workload-badge .available {
+	background: #d1fae5;
+	color: #065f46;
+}
+
+/* ─── Assignment card (đã phân công) ─── */
+.assign-card {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	border: 2px solid #10b981;
+	border-radius: 12px;
+	background: #ecfdf5;
+	margin-bottom: 8px;
+}
+
+.assign-info {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.assign-name {
+	font-weight: 600;
+	font-size: 14px;
+	color: #1a1a1a;
+}
+
+.assign-role {
+	font-size: 12px;
+	color: #059669;
+}
+
+.cancel-btn {
+	background: #ef4444;
+	color: white;
+	border: none;
+	padding: 6px 14px;
+	border-radius: 8px;
+	font-weight: 600;
+	font-size: 13px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+	background: #dc2626;
+}
+
+.cancel-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}

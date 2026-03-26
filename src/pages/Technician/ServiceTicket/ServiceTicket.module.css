@@ -262,6 +262,36 @@
   font-weight: 500;
 }
 
+.itemNameText {
+  margin-right: 8px;
+}
+
+.customBadge {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.deleteCustomButton {
+  border: none;
+  border-radius: 6px;
+  background: #ef4444;
+  color: #fff;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deleteCustomButton:hover {
+  background: #dc2626;
+}
+
 .safetyTable input[type="checkbox"] {
   width: 18px;
   height: 18px;
@@ -486,10 +516,18 @@
 .actionButtons {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 16px;
   margin-top: 32px;
   padding-top: 24px;
   border-top: 2px solid #e5e7eb;
+}
+
+.actionLeft,
+.actionRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .closeButton,
@@ -501,12 +539,26 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
+}
+
+.closeButton {
+  background: #6b7280;
+  color: white;
+  box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
+}
+
+.closeButton:hover {
+  background: #4b5563;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(107, 114, 128, 0.35);
+}
+
+.completeButton {
   background: #1E90FF;
   color: white;
   box-shadow: 0 2px 8px rgba(30, 144, 255, 0.3);
 }
 
-.closeButton:hover,
 .completeButton:hover {
   background: #1873CC;
   transform: translateY(-2px);

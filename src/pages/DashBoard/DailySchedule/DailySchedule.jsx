@@ -198,8 +198,8 @@ export default function DailySchedule() {
             <option value="PENDING_CHECKIN">Chờ check-in</option>
             <option value="CONFIRMED">Đã xác nhận</option>
             <option value="CHECKED_IN">Đã check-in</option>
-            <option value="IN_PROGRESS">Đang xử lý</option>
-            <option value="COMPLETED">Hoàn thành</option>
+            <option value="IN_PROGRESS">Đang thực hiện</option>
+            <option value="COMPLETED">Hoàn tất</option>
             <option value="CANCELLED">Đã hủy</option>
           </select>
         </div>
