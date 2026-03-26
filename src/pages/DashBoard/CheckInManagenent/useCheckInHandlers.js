@@ -76,6 +76,8 @@ export function useCheckInHandlers({
 	vehicleMake,
 	vehicleModel,
 	vehicleYear,
+	safetyInspection,
+	selectedAdvisorId,
 	photos,
 	photoDescriptions,
 	odometerNumber,
@@ -316,6 +318,9 @@ export function useCheckInHandlers({
 			make: String(selectedVehicle?.make || '').trim(),
 			model: String(selectedVehicle?.model || '').trim(),
 			year: Number(selectedVehicle?.year) || 0,
+			
+			safetyInspection: safetyInspection ? 'true' : 'false',
+			advisorId: Number(selectedAdvisorId) || null,
 			licensePlatePhoto: photos?.licensePlatePhoto?.dataUrl || '',
 			photoFront: photos?.photoFront?.dataUrl || '',
 			photoFrontDescription: String(photoDescriptions?.photoFrontDescription || '').trim(),
@@ -352,6 +357,7 @@ export function useCheckInHandlers({
 			const data = response?.data?.data ?? response?.data ?? response;
 			const ticketCode = data?.ticketCode || '';
 			notify(ticketCode ? `Tạo phiếu thành công: ${ticketCode}` : 'Tạo phiếu thành công');
+			navigate('/service-ticket-management');
 		} catch (err) {
 			notify(err?.message || 'Tạo phiếu thất bại, vui lòng thử lại.');
 		} finally {
@@ -364,10 +370,13 @@ export function useCheckInHandlers({
 		damageNote,
 		isAddingNewVehicle,
 		isSubmitting,
+		navigate,
 		notify,
 		odometerNumber,
 		photoDescriptions,
 		photos,
+		safetyInspection,
+		selectedAdvisorId,
 		selectedVehicle?.licensePlate,
 		selectedVehicle?.make,
 		selectedVehicle?.model,

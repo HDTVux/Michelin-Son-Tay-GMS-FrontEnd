@@ -78,6 +78,23 @@ function pickLatestEstimate(list) {
 	})[0];
 }
 
+function normalizeTicketStatus(raw) {
+	const value = String(raw || '')
+		.trim()
+		.toUpperCase()
+		.replaceAll(/\s+/g, '_');
+	if (!value) return '';
+
+	if (value === 'CREATED' || value === 'DRAFT') return 'DRAFT';
+	if (value === 'INSPECTION' || value === 'INSPECTING' || value === 'DIAGNOSIS') return 'INSPECTION';
+	if (value === 'PENDING' || value === 'WAITING') return 'PENDING';
+	if (value === 'IN_PROGRESS' || value === 'INPROGRESS' || value === 'PROCESSING') return 'IN_PROGRESS';
+	if (value === 'COMPLETED' || value === 'DONE' || value === 'FINISHED') return 'COMPLETED';
+	if (value === 'PAID' || value === 'PAYED') return 'PAID';
+	if (value === 'CANCELLED' || value === 'CANCELED' || value === 'CANCEL') return 'CANCELLED';
+	return value;
+}
+
 function buildTimelineEvents(input, receivedAt, handoverAt) {
 	const createdAt = pickFirstDefined(input, [
 		'createdAt',
@@ -298,6 +315,10 @@ export default function ServiceTicketDetail() {
 		() => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam),
 		[ticketRaw, ticketFromState, ticketCodeParam],
 	);
+	const ticketStatus = useMemo(
+		() => normalizeTicketStatus(ticket?.statusCode || ticket?.timelineStatus || ticket?.statusLabel),
+		[ticket?.statusCode, ticket?.timelineStatus, ticket?.statusLabel],
+	);
 	const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable);
 
 	const {
@@ -325,6 +346,21 @@ export default function ServiceTicketDetail() {
 		odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
 
 	const handleBack = () => navigate(-1);
+
+	// UI-only handlers for status transitions (backend will be wired later)
+	const handleCancelTicket = () => notify('Chức năng hủy phiếu dịch vụ đang được phát triển.');
+	const handleSetPending = () => notify('Chức năng chuyển sang "Chờ xử lý" đang được phát triển.');
+	const handleStartRepair = () => notify('Chức năng chuyển sang "Tiến hành sửa chữa" đang được phát triển.');
+	const handleCompleteRepair = () => notify('Chức năng chuyển sang "Hoàn tất sửa chữa" đang được phát triển.');
+	const handleAddService = () => notify('Chức năng "Thêm dịch vụ" đang được phát triển.');
+
+	const canCancel = ['DRAFT', 'INSPECTION', 'PENDING', 'IN_PROGRESS'].includes(ticketStatus);
+	const canSetPending = ticketStatus === 'DRAFT';
+	const canStartRepair = ticketStatus === 'DRAFT' || ticketStatus === 'PENDING';
+	const canCompleteRepair = ticketStatus === 'IN_PROGRESS';
+	const canAddService = ticketStatus === 'DRAFT' || ticketStatus === 'INSPECTION';
+	const canCreateReceipt = ticketStatus === 'COMPLETED';
+
 	const handleCreateReceipt = async () => {
 		if (receiptApproving) return;
 		const code = ticket.ticketCode || ticketCodeParam;
@@ -499,13 +535,47 @@ export default function ServiceTicketDetail() {
 							</>
 						)}
 
-						<div className="ui-actions">
+						<div className={`ui-actions ${styles.actions}`}>
 							<button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
 								Quay lại
 							</button>
-							<button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-								Tạo hoá đơn
-							</button>
+							<div className={styles.actionsRight}>
+								{canCancel && (
+									<button
+										type="button"
+										className="ui-btn ui-btn--danger"
+										onClick={handleCancelTicket}
+										disabled={receiptApproving}
+									>
+										Hủy phiếu dịch vụ
+									</button>
+								)}
+								{canSetPending && (
+									<button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving}>
+										Chờ xử lý
+									</button>
+								)}
+								{canAddService && (
+									<button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving}>
+										Thêm dịch vụ
+									</button>
+								)}
+								{canStartRepair && (
+									<button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving}>
+										Tiến hành sửa chữa
+									</button>
+								)}
+								{canCompleteRepair && (
+									<button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving}>
+										Hoàn tất sửa chữa
+									</button>
+								)}
+								{canCreateReceipt && (
+									<button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
+										Tạo hoá đơn
+									</button>
+								)}
+							</div>
 						</div>
 					</div>
 					</main>

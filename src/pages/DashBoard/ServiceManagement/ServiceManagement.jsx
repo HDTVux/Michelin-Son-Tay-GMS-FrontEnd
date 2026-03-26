@@ -2,32 +2,40 @@ import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import ItemDetailModal from './ItemDetailModal.jsx';
+import { formatCurrencyVnd, formatItemTypeLabel } from './itemFormatters.js';
 
-function formatCurrencyVnd(value) {
-	const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
-	if (!Number.isFinite(n)) return '-';
-	return new Intl.NumberFormat('vi-VN').format(Math.round(n));
-}
+const buildRowKeyWithIndex = (baseKey, idx) => `${String(baseKey ?? '')}-${idx}`;
 
-const MOCK_SERVICES = [
-	{ code: 'SV-LOP-001', group: 'Lốp', detail: 'Thay lốp / Lốp du lịch', priceVnd: 1850000, unit: 'Cái' },
-	{ code: 'SV-LOP-001', group: 'Lốp', detail: 'Vá lốp / Vá dùi', priceVnd: 120000, unit: 'Lần' },
-	{ code: 'SV-LOP-001', group: 'Lốp', detail: 'Cân bằng động', priceVnd: 150000, unit: 'Lần' },
-	{ code: 'SV-LOP-001', group: 'Lốp', detail: 'Đảo lốp', priceVnd: 100000, unit: 'Lần' },
-	{ code: 'SV-THUOC-001', group: 'Căn chỉnh', detail: 'Cân chỉnh thước lái', priceVnd: 350000, unit: 'Lần' },
-	{ code: 'SV-PHANH-001', group: 'Phanh', detail: 'Thay má phanh trước', priceVnd: 950000, unit: 'Bộ' },
-	{ code: 'SV-PHANH-001', group: 'Phanh', detail: 'Thay dầu phanh', priceVnd: 280000, unit: 'Lần' },
-	{ code: 'SV-PHANH-001', group: 'Phanh', detail: 'Vệ sinh phanh', priceVnd: 180000, unit: 'Lần' },
-	{ code: 'SV-GAT-001', group: 'Gạt mưa', detail: 'Thay gạt mưa', priceVnd: 220000, unit: 'Cặp' },
-	{ code: 'SV-NUOC-001', group: 'Nước rửa kính', detail: 'Châm nước rửa kính', priceVnd: 60000, unit: 'Lần' },
-	{ code: 'SV-DAU-001', group: 'Dầu', detail: 'Thay dầu động cơ', priceVnd: 650000, unit: 'Lần' },
-	{ code: 'SV-DAU-002', group: 'Dầu', detail: 'Thay lọc dầu động cơ', priceVnd: 180000, unit: 'Cái' },
-	{ code: 'SV-LOC-001', group: 'Lọc', detail: 'Thay lọc gió động cơ', priceVnd: 220000, unit: 'Cái' },
-	{ code: 'SV-LOC-002', group: 'Lọc', detail: 'Thay lọc gió điều hòa', priceVnd: 260000, unit: 'Cái' },
-	{ code: 'SV-ACQUY-001', group: 'Ắc quy', detail: 'Thay ắc quy', priceVnd: 1650000, unit: 'Bình' },
-	{ code: 'SV-NUOCMAT-001', group: 'Nước mát', detail: 'Thay nước mát', priceVnd: 320000, unit: 'Lần' },
-	{ code: 'SV-KTAT-001', group: 'Kiểm tra', detail: 'Kiểm tra an toàn tổng quát', priceVnd: 0, unit: 'Lần' },
+// Mock theo shape API chi tiết sản phẩm (catalog item detail)
+const MOCK_ITEMS = [
+	{
+		itemId: 1,
+		itemName: 'Lốp Michelin 225/55R17 Primacy 4',
+		itemType: 'PART',
+		sku: 'MIC-22555R17-P4',
+		price: 2550000,
+		showPrice: true,
+		unit: 'Quả',
+		description: 'Lốp xe du lịch siêu êm ái, bám đường tốt trong điều kiện đường ướt.',
+		brand: {
+			brandId: 1,
+			brandName: 'Michelin',
+		},
+		productLine: {
+			productLineId: 1,
+			lineName: 'Primacy 4',
+		},
+		specifications: [
+			{ specId: 101, specType: 'Kích thước mâm (Rim Size)', specValue: '17 inch' },
+			{ specId: 102, specType: 'Chiều rộng lốp (Width)', specValue: '225 mm' },
+			{ specId: 103, specType: 'Tỷ lệ khung hình (Aspect Ratio)', specValue: '55 %' },
+			{ specId: 104, specType: 'Chỉ số tải trọng (Load Index)', specValue: '97' },
+			{ specId: 105, specType: 'Chỉ số tốc độ (Speed Rating)', specValue: 'W (270 km/h)' },
+		],
+	},
 ];
+
 
 export default function ServiceManagement() {
 	useScrollToTop();
@@ -39,20 +47,51 @@ export default function ServiceManagement() {
 	const [size, setSize] = useState(10);
 	const [search, setSearch] = useState('');
 	const [debouncedSearch, setDebouncedSearch] = useState('');
+	const [selectedItem, setSelectedItem] = useState(null);
 
 	useEffect(() => {
 		const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
 		return () => clearTimeout(timer);
 	}, [search]);
 
+	const activeConfig = useMemo(
+		() => ({
+			title: 'Danh sách hạng mục (dịch vụ / phụ tùng)',
+			data: MOCK_ITEMS,
+			columns: [
+				{ header: 'ID', get: (x) => x.itemId },
+				{ header: 'TÊN', get: (x) => x.itemName },
+				{ header: 'SKU', get: (x) => x.sku || '-' },
+				{
+					header: 'LOẠI',
+					get: (x) => x.itemType,
+					format: (raw) => formatItemTypeLabel(raw),
+				},
+				{ header: 'HÃNG', get: (x) => x.brand?.brandName || '-' },
+				{ header: 'DÒNG SP', get: (x) => x.productLine?.lineName || '-' },
+				{
+					header: 'GIÁ',
+					get: (x) => ({ showPrice: x.showPrice, price: x.price }),
+					format: (raw) => (raw?.showPrice ? `${formatCurrencyVnd(raw?.price)} ₫` : 'Liên hệ'),
+				},
+				{ header: 'ĐƠN VỊ', get: (x) => x.unit || '-' },
+			],
+			searchHint: '(tìm kiếm theo tên, SKU, loại, hãng, dòng sản phẩm)',
+			searchHaystack: (x) => `${x.itemId} ${x.itemName} ${x.sku || ''} ${x.itemType || ''} ${x.brand?.brandName || ''} ${x.productLine?.lineName || ''}`,
+			rowKey: (x, idx) => buildRowKeyWithIndex(x.itemId, idx),
+		}),
+		[]
+	);
+
 	const filtered = useMemo(() => {
+		const list = Array.isArray(activeConfig?.data) ? activeConfig.data : [];
 		const q = String(debouncedSearch || '').toLowerCase();
-		if (!q) return MOCK_SERVICES;
-		return MOCK_SERVICES.filter((s) => {
-			const hay = `${s.code} ${s.group} ${s.detail} ${s.unit}`.toLowerCase();
+		if (!q) return list;
+		return list.filter((item) => {
+			const hay = String(activeConfig?.searchHaystack?.(item) ?? '').toLowerCase();
 			return hay.includes(q);
 		});
-	}, [debouncedSearch]);
+	}, [activeConfig, debouncedSearch]);
 
 	const totalElements = filtered.length;
 	const totalPages = Math.max(1, Math.ceil(totalElements / Math.max(1, size)));
@@ -75,9 +114,12 @@ export default function ServiceManagement() {
 			<div className={styles['service-layout']}>
 				<div className={styles['service-left']}>
 					<ServicePanel
-						title="Danh sách dịch vụ"
+						title={activeConfig.title}
 						icon={<WrenchIcon />}
 						data={paged}
+						columns={activeConfig.columns}
+						rowKey={activeConfig.rowKey}
+						onViewDetail={setSelectedItem}
 						isLoading={isLoading}
 						error={error}
 						page={safePage}
@@ -95,11 +137,22 @@ export default function ServiceManagement() {
 							setPage(0);
 						}}
 						onResetFilters={handleResetFilters}
-						actionLabel={`${totalElements} dịch vụ`}
+						actionLabel={`${totalElements} mục`}
+						searchHint={activeConfig.searchHint}
 					/>
 				</div>
 			</div>
+
+			<ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
 		</div>
+	);
+}
+
+function ViewDetailButton({ onClick }) {
+	return (
+		<button type="button" className={styles['table-action-button']} onClick={onClick}>
+			Xem chi tiết
+		</button>
 	);
 }
 
@@ -107,6 +160,9 @@ function ServicePanel({
 	title,
 	icon,
 	data,
+	columns,
+	rowKey,
+	onViewDetail,
 	actionLabel,
 	isLoading,
 	error,
@@ -115,6 +171,7 @@ function ServicePanel({
 	totalPages,
 	totalElements,
 	search,
+	searchHint,
 	onChangePage,
 	onChangeSize,
 	onChangeSearch,
@@ -159,24 +216,23 @@ function ServicePanel({
 						Xóa bộ lọc
 					</button>
 				</div>
-				<p className={styles['filter-card__hint']}>(tìm kiếm theo cả mã, nhóm, phân loại, đơn vị tính)</p>
+				<p className={styles['filter-card__hint']}>{searchHint || '(tìm kiếm theo mã, tên)'}</p>
 			</div>
 
 			<div className={styles['service-table__wrapper']}>
 				<table className={styles['service-table']}>
 					<thead>
 						<tr>
-							<th>MÃ DỊCH VỤ</th>
-							<th>NHÓM DỊCH VỤ</th>
-							<th>CHI TIẾT / PHÂN LOẠI</th>
-							<th>GIÁ (VNĐ)</th>
-							<th>ĐƠN VỊ TÍNH</th>
+							{(Array.isArray(columns) ? columns : []).map((c) => (
+								<th key={c.header}>{c.header}</th>
+							))}
+							{typeof onViewDetail === 'function' && <th>THAO TÁC</th>}
 						</tr>
 					</thead>
 					<tbody>
 						{isLoading && (
 							<tr>
-								<td colSpan="5" className={styles['empty-row']}>
+								<td colSpan={Array.isArray(columns) ? columns.length : 1} className={styles['empty-row']}>
 									Đang tải dữ liệu...
 								</td>
 							</tr>
@@ -184,21 +240,34 @@ function ServicePanel({
 
 						{!isLoading && totalElements === 0 && (
 							<tr>
-								<td colSpan="5" className={styles['empty-row']}>
-									Không có dịch vụ nào.
+								<td colSpan={Array.isArray(columns) ? columns.length : 1} className={styles['empty-row']}>
+									Không có dữ liệu.
 								</td>
 							</tr>
 						)}
 
-						{!isLoading && data.map((item) => (
-							<tr key={item.code}>
-								<td className={styles['link-cell']}>{item.code}</td>
-								<td>{item.group}</td>
-								<td>{item.detail}</td>
-								<td className={styles['td-right']}>{item.priceVnd ? formatCurrencyVnd(item.priceVnd) : '-'}</td>
-								<td>{item.unit}</td>
-							</tr>
-						))}
+						{!isLoading && data.map((item, idx) => {
+							const key = rowKey ? rowKey(item, idx) : buildRowKeyWithIndex(item?.code, idx);
+							return (
+								<tr key={String(key)}>
+									{(Array.isArray(columns) ? columns : []).map((c) => {
+										const raw = c.get?.(item);
+										const value = typeof c.format === 'function' ? c.format(raw, item) : raw;
+										const className = c.className ? c.className : undefined;
+										return (
+											<td key={c.header} className={className}>
+												{value == null || value === '' ? '-' : value}
+											</td>
+										);
+									})}
+									{typeof onViewDetail === 'function' && (
+										<td>
+											<ViewDetailButton onClick={() => onViewDetail(item)} />
+										</td>
+									)}
+								</tr>
+							);
+						})}
 					</tbody>
 				</table>
 			</div>
@@ -284,15 +353,17 @@ function SearchIcon() {
 ServicePanel.propTypes = {
 	title: PropTypes.string.isRequired,
 	icon: PropTypes.node,
-	data: PropTypes.arrayOf(
+	data: PropTypes.arrayOf(PropTypes.object).isRequired,
+	columns: PropTypes.arrayOf(
 		PropTypes.shape({
-			code: PropTypes.string.isRequired,
-			group: PropTypes.string,
-			detail: PropTypes.string,
-			priceVnd: PropTypes.number,
-			unit: PropTypes.string,
+			header: PropTypes.string.isRequired,
+			get: PropTypes.func,
+			format: PropTypes.func,
+			className: PropTypes.string,
 		})
 	).isRequired,
+	rowKey: PropTypes.func,
+	onViewDetail: PropTypes.func,
 	actionLabel: PropTypes.string,
 	isLoading: PropTypes.bool,
 	error: PropTypes.string,
@@ -301,8 +372,13 @@ ServicePanel.propTypes = {
 	totalPages: PropTypes.number,
 	totalElements: PropTypes.number,
 	search: PropTypes.string,
+	searchHint: PropTypes.string,
 	onChangePage: PropTypes.func,
 	onChangeSize: PropTypes.func,
 	onChangeSearch: PropTypes.func,
 	onResetFilters: PropTypes.func,
+};
+
+ViewDetailButton.propTypes = {
+	onClick: PropTypes.func.isRequired,
 };

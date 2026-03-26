@@ -74,6 +74,15 @@ export const fetchCheckInCustomerVehicles = (customerId, token) => {
   });
 };
 
+// Get advisors list for receptionist check-in
+// Backend: GET /api/receptionist/check-in/advisors
+export const fetchCheckInAdvisors = (token) => {
+  return request('/api/receptionist/check-in/advisors', {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
 // Create a new vehicle for a customer during receptionist check-in
 // Backend: POST /api/receptionist/check-in/vehicles/create
 export const createCheckInVehicle = (payload, token) => {

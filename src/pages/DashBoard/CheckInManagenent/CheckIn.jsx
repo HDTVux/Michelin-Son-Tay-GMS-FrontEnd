@@ -3,9 +3,19 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import styles from './CheckIn.module.css';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
-import { fetchCheckInCustomerVehicles } from '../../../services/checkInService.js';
+import { fetchCheckInAdvisors, fetchCheckInCustomerVehicles } from '../../../services/checkInService.js';
 import { toast } from 'react-toastify';
 import { normalizeVehiclesPayload, useCheckInHandlers } from './useCheckInHandlers.js';
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+const CONDITION_PHOTO_KEYS = [
+    'photoFront',
+    'photoRear',
+    'photoLeftSide',
+    'photoRightSide',
+    'photoInterior',
+    'photoDamage',
+];
 
 export default function CheckIn() {
     useScrollToTop(); // Hook tự động cuộn lên đầu trang khi component mount
@@ -42,6 +52,14 @@ export default function CheckIn() {
     const [lastOdometerKm, setLastOdometerKm] = useState(null); // Số km lần trước (từ hệ thống)
     const [damageNote, setDamageNote] = useState(''); // Ghi chú hư hỏng bên ngoài
 
+    // Thông tin bổ sung cho phiếu dịch vụ (chưa có backend)
+        const [safetyInspection, setSafetyInspection] = useState(false);
+    const [selectedAdvisorId, setSelectedAdvisorId] = useState('');
+
+    // Advisors for receptionist check-in
+    const [advisors, setAdvisors] = useState([]);
+    const [isAdvisorsLoading, setIsAdvisorsLoading] = useState(false);
+
     // State quản lý 7 loại ảnh chụp tình trạng xe (Lưu cả File, Blob URL để preview và DataUrl để gửi đi)
     const [photos, setPhotos] = useState(() => ({
         licensePlatePhoto: { file: null, url: '', dataUrl: '' },
@@ -70,6 +88,12 @@ export default function CheckIn() {
 
     // Hiển thị thời gian hẹn và danh sách tên dịch vụ từ thông tin booking
     const scheduledTimeDisplay = booking?.scheduledTime ? (formatTimeHHmm(booking.scheduledTime) || '-') : '-';
+
+    const advisorPlaceholder = useMemo(() => {
+        if (isAdvisorsLoading) return 'Đang tải danh sách tư vấn viên...';
+        if (advisors.length) return 'Chọn tư vấn viên';
+        return 'Không có tư vấn viên';
+    }, [advisors.length, isAdvisorsLoading]);
 
     const servicesDisplay = useMemo(() => {
         const services = Array.isArray(booking?.services) ? booking.services : [];
@@ -137,6 +161,8 @@ export default function CheckIn() {
 		vehicleMake,
 		vehicleModel,
 		vehicleYear,
+        safetyInspection,
+        selectedAdvisorId,
 		photos,
 		photoDescriptions,
 		odometerNumber,
@@ -159,6 +185,61 @@ export default function CheckIn() {
 		setIsSubmitting,
 		setPhotos,
 	});
+
+    // Load danh sách tư vấn viên cho receptionist check-in 
+    useEffect(() => {
+        let cancelled = false;
+        const run = async () => {
+            try {
+                setIsAdvisorsLoading(true);
+                const token = localStorage.getItem('authToken');
+                const response = await fetchCheckInAdvisors(token);
+                const payload = response?.data?.data ?? response?.data ?? response;
+                const list = Array.isArray(payload) ? payload : [];
+
+                const normalized = list
+                    .map((item) => {
+                        if (!item) return null;
+                        return {
+                            staffId: item.staffId ?? item.id ?? 0,
+                            fullName: item.fullName ?? item.name ?? '',
+                            phone: item.phone ?? '',
+                            avatar: item.avatar ?? '',
+                            roles: Array.isArray(item.roles) ? item.roles : [],
+                        };
+                    })
+                    .filter(Boolean);
+
+                if (cancelled) return;
+                setAdvisors(normalized);
+            } catch (err) {
+                if (cancelled) return;
+                setAdvisors([]);
+                notify(err?.message || 'Không thể tải danh sách tư vấn viên.');
+            } finally {
+                if (!cancelled) setIsAdvisorsLoading(false);
+            }
+        };
+
+        run();
+        return () => {
+            cancelled = true;
+        };
+    }, [notify]);
+
+    const handleConfirmWithValidation = useCallback(() => {
+        const hasAnyConditionPhoto = CONDITION_PHOTO_KEYS.some((key) => {
+            const p = photos?.[key];
+            return Boolean(p?.file || p?.url || p?.dataUrl);
+        });
+
+        if (!hasAnyConditionPhoto) {
+            notify('Vui lòng chụp ít nhất 1 ảnh tình trạng xe (Bước 4) trước khi tiếp nhận.');
+            return;
+        }
+
+        handleConfirm();
+    }, [handleConfirm, notify, photos]);
 
     // Tự động tìm kiếm booking khi trang vừa được load
     useEffect(() => {
@@ -273,6 +354,13 @@ export default function CheckIn() {
                     accept="image/*"
                     onChange={(e) => {
                         const file = e.target.files?.[0] ?? null;
+
+                        if (file && file.size > MAX_IMAGE_BYTES) {
+                            notify('Ảnh vượt quá 5MB. Vui lòng chọn ảnh dung lượng ≤ 5MB.');
+                            e.target.value = ''; // Reset để có thể chọn lại cùng 1 file
+                            return;
+                        }
+
                         handlePhotoChange(keyName, file);
                         e.target.value = ''; // Reset để có thể chọn lại cùng 1 file
                     }}
@@ -333,7 +421,7 @@ export default function CheckIn() {
             <div className={styles.card}>
                 {/* Step 1: Lựa chọn xe của khách hoặc đăng ký xe mới cho khách */}
                 <section className={styles.step}>
-                    <h2 className={styles.stepTitle}>Step 1: Chọn xe</h2>
+                    <h2 className={styles.stepTitle}>Bước 1: Chọn xe</h2>
                     <div className={styles.stepRow}>
                         <div className="ui-field" style={{ marginBottom: 0 }}>
                             <label htmlFor={isAddingNewVehicle ? 'licensePlate' : 'vehicleSelect'}>
@@ -470,7 +558,7 @@ export default function CheckIn() {
 
                 {/* Step 2: Nhập số Km hiện tại và kiểm tra tính hợp lệ so với lần trước */}
                 <section className={styles.step}>
-                    <h2 className={styles.stepTitle}>Step 2: Ghi số Odometer</h2>
+                    <h2 className={styles.stepTitle}>Bước 2: Ghi số Odometer</h2>
                     <div className="ui-field" style={{ marginBottom: 0 }}>
                         <label htmlFor="odometer">Số km hiện tại</label>
                         <input
@@ -490,9 +578,58 @@ export default function CheckIn() {
                     )}
                 </section>
 
-                {/* Step 3: Chụp ảnh hiện trạng xe để làm bằng chứng lúc tiếp nhận */}
+                {/* Step 3: Thông tin bổ sung cho phiếu dịch vụ  */}
                 <section className={styles.step}>
-                    <h2 className={styles.stepTitle}>Step 3: Chụp ảnh tình trạng xe</h2>
+                    <h2 className={styles.stepTitle}>Bước 3: Thông tin phiếu dịch vụ</h2>
+                    <div className={styles.ticketFormGrid}>
+                        <div className="ui-field" style={{ marginBottom: 0 }}>
+                            <label htmlFor="safetyInspection">Kiểm tra an toàn</label>
+                                <div id="safetyInspection" style={{ display: 'flex', gap: 16, alignItems: 'center', height: 40 }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                                        <input
+                                            type="radio"
+                                            name="safetyInspection"
+                                            value="false"
+                                            checked={!safetyInspection}
+                                            onChange={() => setSafetyInspection(false)}
+                                        />
+                                        <span>Không</span>
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                                        <input
+                                            type="radio"
+                                            name="safetyInspection"
+                                            value="true"
+                                            checked={safetyInspection}
+                                            onChange={() => setSafetyInspection(true)}
+                                        />
+                                        <span>Có</span>
+                                    </label>
+                                </div>
+                        </div>
+
+                        <div className="ui-field" style={{ marginBottom: 0 }}>
+                            <label htmlFor="advisorSelect">Tư vấn viên</label>
+                            <select
+                                id="advisorSelect"
+                                value={selectedAdvisorId}
+                                onChange={(e) => setSelectedAdvisorId(e.target.value)}
+                                disabled={isAdvisorsLoading || !advisors.length}
+                            >
+                                <option value="">{advisorPlaceholder}</option>
+                                {advisors.map((a) => (
+                                    <option key={String(a.staffId)} value={String(a.staffId)}>
+                                        {a.fullName || `#${a.staffId}`}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Step 4: Chụp ảnh hiện trạng xe để làm bằng chứng lúc tiếp nhận */}
+                <section className={styles.step}>
+                    <h2 className={styles.stepTitle}>Bước 4: Chụp ảnh tình trạng xe( Yêu cầu phải có ít nhất 1 ảnh tình trạng xe!)</h2>
                     <div className={styles.photoGrid}>
                         {renderPhotoPicker({
                             keyName: 'photoFront',
@@ -558,7 +695,7 @@ export default function CheckIn() {
                         <button
                             type="button"
                             className="ui-btn ui-btn--primary"
-                            onClick={handleConfirm}
+                            onClick={handleConfirmWithValidation}
                             disabled={isSubmitting }
                         >
                             {isSubmitting ? 'Đang tạo phiếu...' : 'Xác nhận tiếp nhận'}

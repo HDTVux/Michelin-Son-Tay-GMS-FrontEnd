@@ -597,6 +597,19 @@
   white-space: nowrap;
 }
 
+/* Footer actions (override ui-actions layout locally) */
+.actions {
+  align-items: center;
+}
+
+.actionsRight {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* Inventory Check */
 .inventoryPanel {
   margin-top: 12px;
@@ -800,5 +813,11 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  .actionsRight {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 }

@@ -24,6 +24,7 @@ const STATUS_TEXT_VI = {
 
   //Service ticket statuses
   PAID: 'Đã thanh toán',
+  INSPECTION: 'Đang kiểm tra',
 };
 
 function normalizeStatus(status) {
