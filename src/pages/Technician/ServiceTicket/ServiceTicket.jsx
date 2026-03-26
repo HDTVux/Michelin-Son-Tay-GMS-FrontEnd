@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTechnicianTicketDetail } from '../../../services/technicianService';
+import { fetchServiceTicketDetail } from '../../../services/serviceTicketService';
 import {
   getSafetyInspectionByTicketCode,
   saveSafetyInspectionData,
@@ -10,15 +11,24 @@ import {
   getDefaultSafetyInspectionCategories,
   skipSafetyInspection,
   createWorkCategory,
-  enableSafetyInspection
+  deleteCustomCategory,
+  enableSafetyInspection,
+  reopenSafetyInspection,
+  updateAdvisorNotes,
 } from '../../../services/safetyInspectionService';
 import styles from './ServiceTicket.module.css';
 import carImage from '../../../assets/oto_4.jpg';
 
-export const ServiceTicket = ({ ticketCode, embedded = false }) => {
+export const ServiceTicket = ({
+  ticketCode,
+  embedded = false,
+  mode = 'technician',
+  backPath = '/technician/my-tasks',
+}) => {
   const { id: idParam } = useParams();
   const resolvedTicketCode = String(ticketCode || idParam || '').trim();
   const navigate = useNavigate();
+  const isAdvisorMode = mode === 'advisor';
   const [loading, setLoading] = useState(true);
   const [recommendedTireSize, setRecommendedTireSize] = useState('');
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
@@ -42,6 +52,15 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
   const [serviceTicketId, setServiceTicketId] = useState(null);
   const [inspectionId, setInspectionId] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const mergedSafetyChecks = useMemo(() => (
+    [...safetyChecks].sort((a, b) => {
+      if (Boolean(a.isCustom) !== Boolean(b.isCustom)) {
+        return a.isCustom ? 1 : -1;
+      }
+      return (a.displayOrder || 0) - (b.displayOrder || 0);
+    })
+  ), [safetyChecks]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -68,9 +87,19 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
           return;
         }
 
-        const ticketResponse = await fetchTechnicianTicketDetail(resolvedTicketCode, token);
+        let ticketResponse;
+        if (isAdvisorMode) {
+          ticketResponse = await fetchServiceTicketDetail(resolvedTicketCode, token);
+        } else {
+          ticketResponse = await fetchTechnicianTicketDetail(resolvedTicketCode, token);
+        }
+
         if (ticketResponse?.data?.serviceTicketId) {
           setServiceTicketId(ticketResponse.data.serviceTicketId);
+        } else if (ticketResponse?.data?.id) {
+          setServiceTicketId(ticketResponse.data.id);
+        } else if (ticketResponse?.data?.ticketId) {
+          setServiceTicketId(ticketResponse.data.ticketId);
         }
 
         let defaultChecks = [];
@@ -110,7 +139,7 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
             const status = inspection.inspectionStatus || 'PENDING';
             setInspectionStatus(status);
             const canEdit = status === 'PENDING' || status === 'SKIPPED' || !status;
-            setIsEditable(!embedded && canEdit);
+            setIsEditable(!embedded && canEdit); // COMPLETED -> khóa, phải bấm Chỉnh sửa để reopen rồi mới sửa tiếp (advisor+tech) // COMPLETED -> khóa, phải bấm Chỉnh sửa để reopen rồi mới sửa tiếp (advisor+tech)
 
             if (inspection.tires && inspection.tires.length > 0) {
               const newTireData = { ...defaultTireData };
@@ -159,7 +188,7 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
                 const existingItem = inspectionItems.find((item) =>
                   item.workCategoryId === defaultCheck.workCategoryId,
                 );
-                if (!existingItem) return defaultCheck;
+                if (!existingItem) return { ...defaultCheck, advisorNote: '' };
                 return {
                   ...defaultCheck,
                   itemId: existingItem.itemId,
@@ -167,6 +196,7 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
                   warning: existingItem.itemStatus === 'WARNING',
                   replace: existingItem.itemStatus === 'REPLACE',
                   note: existingItem.advisorNote || '',
+                  advisorNote: existingItem.advisorNote || '',
                 };
               });
 
@@ -182,6 +212,7 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
                   warning: item.itemStatus === 'WARNING',
                   replace: item.itemStatus === 'REPLACE',
                   note: item.advisorNote || '',
+                  advisorNote: item.advisorNote || '',
                   displayOrder: 9999,
                   isCustom: true,
                 }));
@@ -208,7 +239,7 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
 
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedTicketCode, defaultTireData, embedded, refreshKey]);
+  }, [resolvedTicketCode, defaultTireData, embedded, refreshKey, isAdvisorMode]);
 
   const handleTireDataChange = (position, field, value) => {
     setTireData(prev => ({
@@ -227,6 +258,34 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
     );
   };
 
+  const handleAdvisorNoteChange = (itemId, value) => {
+    setSafetyChecks(prev => prev.map(item =>
+      item.id === itemId ? { ...item, advisorNote: value } : item
+    ));
+  };
+
+  const handleEnableEdit = async () => {
+    try {
+      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      if (!token) {
+        toast.error('Vui lòng đăng nhập');
+        return;
+      }
+
+      if (inspectionStatus === 'COMPLETED') {
+        await reopenSafetyInspection(resolvedTicketCode, token);
+        setInspectionStatus('PENDING');
+        setRefreshKey((prev) => prev + 1);
+      }
+
+      setIsEditable(true);
+      toast.info('Đã bật chế độ chỉnh sửa phiếu.');
+    } catch (error) {
+      console.error('Lỗi khi mở lại phiếu:', error);
+      toast.error('Không thể mở lại phiếu để chỉnh sửa: ' + (error.message || 'Lỗi không xác định'));
+    }
+  };
+
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) {
       toast.error('Vui lòng nhập tên hạng mục');
@@ -240,6 +299,12 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
 
     try {
       const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+
+      if (inspectionStatus === 'COMPLETED') {
+        await reopenSafetyInspection(resolvedTicketCode, token);
+        setInspectionStatus('PENDING');
+        setRefreshKey((prev) => prev + 1);
+      }
 
       const maxOrder = safetyChecks.length > 0
         ? Math.max(...safetyChecks.map(c => c.displayOrder || 0))
@@ -274,6 +339,29 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
     } catch (error) {
       console.error('Lỗi khi tạo hạng mục:', error);
       toast.error(error.message || 'Lỗi khi tạo hạng mục mới');
+    }
+  };
+
+  const handleDeleteCustomCategory = async (item) => {
+    if (!item?.isCustom) return;
+
+    const ok = window.confirm('Bạn có chắc muốn xóa hạng mục thêm mới này?');
+    if (!ok) return;
+
+    if (!inspectionId || !item.customCategoryId) {
+      setSafetyChecks((prev) => prev.filter((check) => check.id !== item.id));
+      toast.success('Đã xóa hạng mục thêm mới.');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      await deleteCustomCategory(inspectionId, item.customCategoryId, token);
+      setSafetyChecks((prev) => prev.filter((check) => check.id !== item.id));
+      toast.success('Đã xóa hạng mục thêm mới.');
+    } catch (error) {
+      console.error('Lỗi khi xóa hạng mục tùy chỉnh:', error);
+      toast.error(error.message || 'Không thể xóa hạng mục thêm mới');
     }
   };
 
@@ -357,12 +445,12 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
       })();
 
       const itemsPayload = safetyChecks
-        .filter(check => check.good || check.warning || check.replace)
         .map(check => ({
           workCategoryId: check.workCategoryId || null,
           customCategoryId: check.customCategoryId || null,
-          itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null
-        }));
+          itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null,
+        }))
+        .filter(check => check.workCategoryId || check.customCategoryId);
 
       const parsedServiceTicketId = Number(resolvedTicketCode);
       const finalServiceTicketId =
@@ -376,19 +464,42 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
         technicianNotes: notes || null,
         tires: tiresPayload,
         items: itemsPayload,
-        inspectionStatus: 'COMPLETED'
+        inspectionStatus,
       };
 
+      let currentInspectionId = inspectionId;
+
       if (inspectionStatus === 'COMPLETED' && inspectionId && isEditable) {
-        await updateSafetyInspectionData(inspectionId, safetyPayload, token);
-        toast.success('Đã cập nhật phiếu kiểm tra an toàn!');
-        setIsEditable(false);
+        const updateRes = await updateSafetyInspectionData(inspectionId, safetyPayload, token);
+        currentInspectionId = updateRes?.data?.inspectionId || inspectionId;
       } else {
-        await saveSafetyInspectionData(safetyPayload, token);
+        const saveRes = await saveSafetyInspectionData(safetyPayload, token);
+        currentInspectionId = saveRes?.data?.inspectionId || inspectionId;
         setInspectionStatus('COMPLETED');
-        setIsEditable(false);
-        toast.success('Đã lưu và hoàn thành kiểm tra an toàn!');
       }
+
+      // Advisor note lưu cùng phiếu kỹ thuật viên
+      if (isAdvisorMode && currentInspectionId) {
+        const advisorItems = safetyChecks
+          .filter((item) => String(item.advisorNote || '').trim() !== '')
+          .map((item) => ({
+            workCategoryId: item.workCategoryId ?? null,
+            customCategoryId: item.customCategoryId ?? null,
+            advisorNote: item.advisorNote,
+          }));
+
+        if (advisorItems.length > 0) {
+          await updateAdvisorNotes(currentInspectionId, advisorItems, token);
+        }
+      }
+
+      if (currentInspectionId) {
+        setInspectionId(currentInspectionId);
+      }
+
+      toast.success('Đã lưu phiếu kiểm tra an toàn!');
+      setIsEditable(false);
+      setRefreshKey(prev => prev + 1); // reload để dữ liệu advisor/technician map đồng bộ qua API
     } catch (error) {
       console.error('Lỗi khi lưu dữ liệu:', error);
       toast.error('Lỗi khi lưu dữ liệu: ' + (error.message || 'Lỗi không xác định'));
@@ -410,7 +521,7 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Phiếu kiểm tra xe</h1>
+          <h1 className={styles.title}>{isAdvisorMode ? 'Phiếu kiểm tra - Cố vấn viên' : 'Phiếu kiểm tra xe'}</h1>
         </div>
       </div>
 
@@ -558,7 +669,7 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
       <div className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h2 className={styles.sectionTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</h2>
-          {isEditable && (
+          {isEditable && inspectionStatus !== 'COMPLETED' && (
             <button className={styles.addCategoryButton} onClick={() => setShowAddCategoryModal(true)}>
               + Thêm hạng mục mới
             </button>
@@ -572,45 +683,55 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
                 <th>TỐT</th>
                 <th>LƯU Ý</th>
                 <th>THAY</th>
-                <th>GHI CHÚ</th>
+                <th>{isAdvisorMode ? 'GHI CHÚ CỐ VẤN' : 'GHI CHÚ'}</th>
               </tr>
             </thead>
             <tbody>
-              {safetyChecks
-                .filter(item => !item.isCustom)
-                .sort((a, b) => {
-                  const aHasNote = a.note && a.note.trim() !== '';
-                  const bHasNote = b.note && b.note.trim() !== '';
-                  if (inspectionStatus === 'SKIPPED') {
-                    if (aHasNote && !bHasNote) return -1;
-                    if (!aHasNote && bHasNote) return 1;
-                  }
-                  return 0;
-                })
-                .map((item) => (
+              {mergedSafetyChecks.map((item) => (
                 <tr key={item.id}>
-                  <td className={styles.itemName}>{item.name}</td>
+                  <td className={styles.itemName}>
+                    <span className={styles.itemNameText}>{item.name}</span>
+                    {item.isCustom && <span className={styles.customBadge}>Thêm mới</span>}
+                    {item.isCustom && isEditable && inspectionStatus !== 'COMPLETED' && (
+                      <button
+                        type="button"
+                        className={styles.deleteCustomButton}
+                        onClick={() => handleDeleteCustomCategory(item)}
+                      >
+                        Xóa
+                      </button>
+                    )}
+                  </td>
                   <td>
                     <input type="checkbox"
-                      checked={inspectionStatus === 'SKIPPED' ? (item.note && item.note.trim() !== '') : item.good}
-                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !(item.note && item.note.trim() !== ''))}
+                      checked={inspectionStatus === 'SKIPPED' ? ((item.advisorNote || item.note || '').trim() !== '') : item.good}
+                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !((item.advisorNote || item.note || '').trim() !== ''))}
                       onChange={() => handleSafetyCheck(item.id, 'good')} />
                   </td>
                   <td>
                     <input type="checkbox"
-                      checked={inspectionStatus === 'SKIPPED' ? (item.note && item.note.trim() !== '') : item.warning}
-                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !(item.note && item.note.trim() !== ''))}
+                      checked={inspectionStatus === 'SKIPPED' ? ((item.advisorNote || item.note || '').trim() !== '') : item.warning}
+                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !((item.advisorNote || item.note || '').trim() !== ''))}
                       onChange={() => handleSafetyCheck(item.id, 'warning')} />
                   </td>
                   <td>
                     <input type="checkbox"
-                      checked={inspectionStatus === 'SKIPPED' ? (item.note && item.note.trim() !== '') : item.replace}
-                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !(item.note && item.note.trim() !== ''))}
+                      checked={inspectionStatus === 'SKIPPED' ? ((item.advisorNote || item.note || '').trim() !== '') : item.replace}
+                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !((item.advisorNote || item.note || '').trim() !== ''))}
                       onChange={() => handleSafetyCheck(item.id, 'replace')} />
                   </td>
                   <td className={styles.noteCell}>
-                    {item.note && item.note.trim() !== '' ? (
-                      <span style={{ color: '#92400e', fontStyle: 'italic', fontSize: '13px' }}>{item.note}</span>
+                    {isAdvisorMode ? (
+                      <input
+                        type="text"
+                        className={styles.noteInput}
+                        value={item.advisorNote || ''}
+                        onChange={(e) => handleAdvisorNoteChange(item.id, e.target.value)}
+                        placeholder="Nhập ghi chú cố vấn..."
+                        disabled={!isEditable}
+                      />
+                    ) : (item.advisorNote || item.note || '').trim() !== '' ? (
+                      <span style={{ color: '#92400e', fontStyle: 'italic', fontSize: '13px' }}>{item.advisorNote || item.note}</span>
                     ) : (
                       <span style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '13px' }}>—</span>
                     )}
@@ -621,48 +742,6 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
           </table>
         </div>
       </div>
-
-      {/* Bảng hạng mục tùy chỉnh */}
-      {safetyChecks.some(item => item.isCustom) && (
-        <div className={styles.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h2 className={styles.sectionTitle}>HẠNG MỤC TÙY CHỈNH</h2>
-          </div>
-          <div className={styles.safetyTable}>
-            <table>
-              <thead>
-                <tr>
-                  <th>HẠNG MỤC TÙY CHỈNH</th>
-                  <th>TỐT</th>
-                  <th>LƯU Ý</th>
-                  <th>THAY</th>
-                  <th>GHI CHÚ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {safetyChecks
-                  .filter(item => item.isCustom)
-                  .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-                  .map((item) => (
-                  <tr key={item.id}>
-                    <td className={styles.itemName}>{item.name}</td>
-                    <td><input type="checkbox" checked={item.good} disabled={!isEditable} onChange={() => handleSafetyCheck(item.id, 'good')} /></td>
-                    <td><input type="checkbox" checked={item.warning} disabled={!isEditable} onChange={() => handleSafetyCheck(item.id, 'warning')} /></td>
-                    <td><input type="checkbox" checked={item.replace} disabled={!isEditable} onChange={() => handleSafetyCheck(item.id, 'replace')} /></td>
-                    <td className={styles.noteCell}>
-                      {item.note && item.note.trim() !== '' ? (
-                        <span style={{ color: '#92400e', fontStyle: 'italic', fontSize: '13px' }}>{item.note}</span>
-                      ) : (
-                        <span style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '13px' }}>—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Phần ghi chú kỹ thuật viên */}
       <div className={styles.card}>
@@ -679,12 +758,18 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
 
       {!embedded && (
         <div className={styles.actionButtons}>
-          <button className={styles.closeButton} onClick={() => navigate('/technician/my-tasks')}>Đóng</button>
-          {inspectionStatus === 'COMPLETED' && !isEditable ? (
-            <button className={styles.completeButton} onClick={() => setIsEditable(true)}>Chỉnh sửa</button>
-          ) : (
-            <button className={styles.completeButton} onClick={handleSave}>Hoàn thành</button>
+          {!isAdvisorMode && (
+            <div className={styles.actionLeft}>
+              <button className={styles.closeButton} onClick={() => navigate(backPath)}>Đóng</button>
+            </div>
           )}
+          <div className={styles.actionRight}>
+            {inspectionStatus === 'COMPLETED' && !isEditable ? (
+              <button className={styles.completeButton} onClick={handleEnableEdit}>Chỉnh sửa</button>
+            ) : (
+              <button className={styles.completeButton} onClick={handleSave}>Hoàn thành</button>
+            )}
+          </div>
         </div>
       )}
 
@@ -739,6 +824,8 @@ export const ServiceTicket = ({ ticketCode, embedded = false }) => {
 ServiceTicket.propTypes = {
   ticketCode: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   embedded: PropTypes.bool,
+  mode: PropTypes.oneOf(['technician', 'advisor']),
+  backPath: PropTypes.string,
 };
 
 export default ServiceTicket;

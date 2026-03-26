@@ -27,7 +27,6 @@ import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.j
 import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
 import EditCustomerProfile from './pages/DashBoard/CustomerManager/EditCustomerProfile.jsx';
 import TechnicianTasks from './pages/DashBoard/TechnicianTasks/TechnicianTasks.jsx';
-import AssignAdvisor from './pages/DashBoard/AssignAdvisor/AssignAdvisor.jsx';
 import ServiceTicketDetail from './pages/DashBoard/ServiceTicketManagement/ServiceTicketDetail.jsx';
 import ServiceTicketManagement from './pages/DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
 import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
@@ -85,7 +84,6 @@ import UpdateProgress from './pages/Technician/UpdateProgress/UpdateProgress.jsx
 
 // Import Advisor Inspection page
 import AdvisorInspection from './pages/DashBoard/AdvisorInspection/AdvisorInspection.jsx';
-import AdvisorInspectionList from './pages/DashBoard/AdvisorInspection/AdvisorInspectionList.jsx';
 
 export default function App() {
   useEffect(() => {
@@ -155,7 +153,6 @@ export default function App() {
           <Route path="customer-profile/:customerId" element={<EditCustomerProfile />} />
           <Route path="staff-attendance" element={<StaffAttendance />} />
           <Route path="technician-tasks" element={<TechnicianTasks />} />
-          <Route path="assign-advisor" element={<AssignAdvisor />} />
           <Route path="service-ticket/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket/:ticketCode/receipt-confirm" element={<ReceiptConfirm />} />
           <Route path="service-ticket/:ticketCode/receipt-payment-method" element={<ReceiptPaymentMethod />} />
@@ -181,8 +178,7 @@ export default function App() {
           <Route path="technician/update-progress/:id" element={<UpdateProgress />} />
 
           {/* Advisor pages */}
-          <Route path="advisor/inspection/list" element={<AdvisorInspectionList />} />
-          <Route path="advisor/inspection/:ticketCode" element={<AdvisorInspection />} />
+          <Route path="advisor/inspection" element={<AdvisorInspection />} />
         </Route>
 
         <Route path="login" element={<Login />} />

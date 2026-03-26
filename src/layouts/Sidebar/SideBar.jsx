@@ -81,7 +81,7 @@ const NAV_GROUPS = [
 			{ id: 'daily-schedule', label: 'Lịch làm việc', path: '/daily-schedule', icon: <IconCalendar />, roles: 'ALL' },
 			{ id: 'my-tasks', label: 'Công việc của tôi', path: '/technician/my-tasks', icon: <IconTask />, roles: [STAFF_ROLE.TECHNICIAN] },
 			{ id: 'work-history-technician', label: 'Lịch sử công việc', path: '/work-history/technician', icon: <IconHistory />, roles: [STAFF_ROLE.TECHNICIAN] },
-			{ id: 'advisor-inspection', label: 'Phiếu kiểm tra', path: '/advisor/inspection/list', icon: <IconTask />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.MANAGER] },
+			{ id: 'advisor-inspection', label: 'Advisor/Inspection', path: '/advisor/inspection', icon: <IconTask />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.MANAGER] },
 		],
 	},
 ];

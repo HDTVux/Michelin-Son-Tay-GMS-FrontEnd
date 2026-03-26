@@ -30,19 +30,17 @@ const MyTasks = () => {
         // Transform API response to match component expectations
         const tickets = response.data?.content || response.data || [];
 
-        // Check safety inspection status for each ticket
-        const transformedTasks = await Promise.all(tickets.map(async ticket => {
-          let hasSafetyInspection = false;
+        const transformedTasks = await Promise.all(tickets.map(async (ticket) => {
+          const hasSafetyInspection = Boolean(ticket.safetyInspectionEnabled);
           let inspectionStatus = null;
-          try {
-            const inspectionRes = await getSafetyInspectionByTicketCode(ticket.ticketCode, token);
-            if (inspectionRes?.data) {
-              hasSafetyInspection = true;
-              inspectionStatus = inspectionRes.data.inspectionStatus || null;
+
+          if (hasSafetyInspection && ticket.ticketCode) {
+            try {
+              const inspectionRes = await getSafetyInspectionByTicketCode(ticket.ticketCode, token);
+              inspectionStatus = inspectionRes?.data?.inspectionStatus || null;
+            } catch {
+              inspectionStatus = null;
             }
-          } catch (error) {
-            // No safety inspection yet or error - ignore and set to false
-            console.log(`No safety inspection for ticket ${ticket.ticketCode}:`, error.message);
           }
 
           return {
@@ -55,7 +53,7 @@ const MyTasks = () => {
             serviceType: ticket.serviceCategory || '',
             priority: ticket.priority || 'Normal',
             timeSlot: ticket.scheduledTime || '',
-            status: ticket.ticketStatus ? ticket.ticketStatus.toUpperCase() : 'DRAFT', // Hiển thị đúng status từ backend
+            status: ticket.ticketStatus ? ticket.ticketStatus.toUpperCase() : 'DRAFT',
             customerRequest: ticket.customerRequest || '',
             customerName: ticket.customerName || '',
             customerPhone: ticket.customerPhone || '',
@@ -63,9 +61,9 @@ const MyTasks = () => {
             dueDate: ticket.scheduledDate || '',
             technicianNotes: ticket.technicianNotes,
             hasSafetyInspection,
-            inspectionStatus, // Trạng thái phiếu kiểm tra an toàn
+            inspectionStatus,
             // Services will be loaded from detail API
-            services: []
+            services: [],
           };
         }));
 
@@ -90,9 +88,9 @@ const MyTasks = () => {
   const mapInspectionStatus = (status) => {
     if (!status) return '';
     const statusMap = {
-      'PENDING': 'Chờ kiểm tra',
-      'COMPLETED': 'Đã kiểm tra',
-      'SKIPPED': 'Đã bỏ qua'
+      PENDING: 'Chờ kiểm tra',
+      COMPLETED: 'Đã kiểm tra',
+      SKIPPED: 'Đã bỏ qua',
     };
     return statusMap[status.toUpperCase()] || status;
   };
@@ -143,9 +141,10 @@ const MyTasks = () => {
   };
 
   const filteredTasks = tasks.filter(task => {
+    const inspectionStatus = String(task.inspectionStatus || '').toUpperCase();
     const matchesStatus = filterStatus === 'all' ||
       (filterStatus === 'no_inspection' && !task.hasSafetyInspection) ||
-      (filterStatus === task.inspectionStatus);
+      (filterStatus === inspectionStatus);
     const matchesSearch = !searchTerm ||
       (task.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (task.model?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -211,8 +210,8 @@ const MyTasks = () => {
   const stats = {
     total: tasks.length,
     assigned: tasks.filter(t => !t.hasSafetyInspection).length,
-    inProgress: tasks.filter(t => t.hasSafetyInspection && t.inspectionStatus === 'PENDING').length,
-    completed: tasks.filter(t => t.hasSafetyInspection && t.inspectionStatus === 'COMPLETED').length
+    inProgress: tasks.filter(t => t.hasSafetyInspection && String(t.inspectionStatus || '').toUpperCase() === 'PENDING').length,
+    completed: tasks.filter(t => t.hasSafetyInspection && String(t.inspectionStatus || '').toUpperCase() === 'COMPLETED').length,
   };
 
   if (loading) {
@@ -280,7 +279,7 @@ const MyTasks = () => {
             className={styles.filterSelect}
           >
             <option value="all">Tất cả</option>
-            <option value="no_inspection">Chưa kiểm tra</option>
+            <option value="no_inspection">Không kiểm tra an toàn</option>
             <option value="PENDING">Chờ kiểm tra</option>
             <option value="COMPLETED">Đã kiểm tra</option>
             <option value="SKIPPED">Đã bỏ qua</option>
@@ -420,14 +419,14 @@ const MyTasks = () => {
             </div>
 
             <div className={styles.modalFooter}>
-              <button 
+              <button
                 className={styles.modalActionBtn}
                 onClick={() => {
                   setShowModal(false);
                   navigate(`/technician/safetyinspection-ticket/${selectedTask.ticketCode || selectedTask.id}`);
                 }}
               >
-                {!selectedTask.hasSafetyInspection ? 'Bắt đầu làm việc' : 'Xem phiếu kiểm tra'}
+                {selectedTask.hasSafetyInspection ? 'Xem phiếu kiểm tra' : 'Làm việc (không kiểm tra an toàn)'}
               </button>
             </div>
           </div>

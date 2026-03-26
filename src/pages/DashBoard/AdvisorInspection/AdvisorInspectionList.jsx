@@ -173,8 +173,8 @@ const AdvisorInspectionList = () => {
             <option value="ALL">Tất cả trạng thái</option>
             <option value="PENDING_CHECKIN">Chờ check-in</option>
             <option value="CHECKED_IN">Đã check-in</option>
-            <option value="IN_PROGRESS">Đang xử lý</option>
-            <option value="COMPLETED">Hoàn thành</option>
+            <option value="IN_PROGRESS">Đang thực hiện</option>
+            <option value="COMPLETED">Hoàn tất</option>
           </select>
         </div>
       </div>

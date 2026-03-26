@@ -126,6 +126,15 @@ export const addCustomCategory = (inspectionId, payload, token) => {
   });
 };
 
+export const deleteCustomCategory = (inspectionId, customCategoryId, token) => {
+  const id = ensurePositiveId(inspectionId, 'inspectionId');
+  const categoryId = ensurePositiveId(customCategoryId, 'customCategoryId');
+  return request(`/api/safety-inspections/${id}/custom-categories/${categoryId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+};
+
 // Backward-compatible export name used by Technician screen.
 export const createWorkCategory = (inspectionId, payload, token) => {
   if (typeof inspectionId === 'object' && token == null) {
