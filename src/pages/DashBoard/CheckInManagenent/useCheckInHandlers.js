@@ -369,7 +369,7 @@ export function useCheckInHandlers({
             photoInteriorDescription: String(photoDescriptions?.photoInteriorDescription || '').trim(),
             photoDamage: photos?.photoDamage?.dataUrl || '',
             photoDamageDescription: String(photoDescriptions?.photoDamageDescription || '').trim(),
-            odometerReading: Number(odometerNumber) || 0,
+            odometerReading: Number(odometerNumber) || null,
             checkInNotes: String(damageNote || '').trim(),
             staffId: Number(staffId) || 0,
         };
