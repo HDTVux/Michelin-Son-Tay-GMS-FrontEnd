@@ -16,6 +16,7 @@ import {
   reopenSafetyInspection,
   updateAdvisorNotes,
 } from '../../../services/safetyInspectionService';
+import { updateServiceTicket } from '../../../services/serviceTicketService';
 import styles from './ServiceTicket.module.css';
 import carImage from '../../../assets/oto_4.jpg';
 
@@ -24,6 +25,7 @@ export const ServiceTicket = ({
   embedded = false,
   mode = 'technician',
   backPath = '/technician/my-tasks',
+  onClose = null,
 }) => {
   const { id: idParam } = useParams();
   const resolvedTicketCode = String(ticketCode || idParam || '').trim();
@@ -52,6 +54,8 @@ export const ServiceTicket = ({
   const [serviceTicketId, setServiceTicketId] = useState(null);
   const [inspectionId, setInspectionId] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const canEditTechnicalFields = isEditable;
+  const canEditAdvisorNotes = isEditable;
 
   const mergedSafetyChecks = useMemo(() => (
     [...safetyChecks].sort((a, b) => {
@@ -101,7 +105,6 @@ export const ServiceTicket = ({
         } else if (ticketResponse?.data?.ticketId) {
           setServiceTicketId(ticketResponse.data.ticketId);
         }
-
         let defaultChecks = [];
         try {
           const defaultCategoriesResponse = await getDefaultSafetyInspectionCategories(token);
@@ -125,6 +128,12 @@ export const ServiceTicket = ({
         }
 
         try {
+          if (ticketResponse?.data?.safetyInspectionEnabled === false) {
+            setInspectionStatus('SKIPPED');
+            setIsEditable(!embedded);
+            return;
+          }
+
           const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
           if (inspectionResponse?.data) {
             const inspection = inspectionResponse.data;
@@ -249,11 +258,14 @@ export const ServiceTicket = ({
   };
 
   const handleSafetyCheck = (itemId, type) => {
+    if (!canEditTechnicalFields) return;
     setSafetyChecks(prev =>
       prev.map(item =>
-        item.id === itemId
-          ? { ...item, good: type === 'good', warning: type === 'warning', replace: type === 'replace' }
-          : item
+        item.id !== itemId
+          ? item
+          : item[type]
+            ? { ...item, good: false, warning: false, replace: false }
+            : { ...item, good: type === 'good', warning: type === 'warning', replace: type === 'replace' }
       )
     );
   };
@@ -262,6 +274,19 @@ export const ServiceTicket = ({
     setSafetyChecks(prev => prev.map(item =>
       item.id === itemId ? { ...item, advisorNote: value } : item
     ));
+  };
+
+  const handleCloseTicket = () => {
+    if (typeof onClose === 'function') {
+      onClose();
+      return;
+    }
+    navigate(backPath);
+  };
+
+  const resolveServiceTicketId = () => {
+    const parsedServiceTicketId = Number(resolvedTicketCode);
+    return serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
   };
 
   const handleEnableEdit = async () => {
@@ -292,13 +317,44 @@ export const ServiceTicket = ({
       return;
     }
 
-    if (!inspectionId) {
-      toast.error('Cần tạo phiếu kiểm tra trước khi thêm hạng mục tùy chỉnh');
-      return;
-    }
-
     try {
       const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      let currentInspectionId = inspectionId;
+
+      if (!currentInspectionId) {
+        const finalServiceTicketId = resolveServiceTicketId();
+        if (!finalServiceTicketId) {
+          toast.error('Thiếu serviceTicketId để tạo phiếu kiểm tra.');
+          return;
+        }
+
+        const bootstrapPayload = {
+          serviceTicketId: finalServiceTicketId,
+          technicianNotes: null,
+          tires: {
+            frontTireSpecification: null,
+            rearTireSpecification: null,
+            recommendedTireSize: null,
+            frontLeft: null,
+            frontRight: null,
+            rearLeft: null,
+            rearRight: null,
+            spare: null,
+            frontRecommendedPressure: null,
+            rearRecommendedPressure: null,
+            spareRecommendedPressure: null,
+          },
+          items: [],
+          inspectionStatus: 'SKIPPED',
+        };
+        const bootstrapRes = await saveSafetyInspectionData(bootstrapPayload, token);
+        currentInspectionId = bootstrapRes?.data?.inspectionId || null;
+        if (!currentInspectionId) {
+          toast.error('Không tạo được phiếu kiểm tra để thêm hạng mục.');
+          return;
+        }
+        setInspectionId(currentInspectionId);
+      }
 
       if (inspectionStatus === 'COMPLETED') {
         await reopenSafetyInspection(resolvedTicketCode, token);
@@ -315,7 +371,17 @@ export const ServiceTicket = ({
         displayOrder: maxOrder + 1
       };
 
-      const response = await createWorkCategory(inspectionId, payload, token);
+      let response;
+      try {
+        response = await createWorkCategory(currentInspectionId, payload, token);
+      } catch (createErr) {
+        response = await createWorkCategory(
+          currentInspectionId,
+          { categoryName: newCategoryName.trim() },
+          token,
+        );
+        void createErr;
+      }
 
       if (response?.data) {
         const newCheck = {
@@ -383,8 +449,9 @@ export const ServiceTicket = ({
   const handleSave = async () => {
     try {
       const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      const isAdvisorSkipMode = isAdvisorMode && inspectionStatus === 'SKIPPED';
 
-      if (!inspectionId) {
+      if (!inspectionId && !isAdvisorSkipMode) {
         try {
           const enableResponse = await enableSafetyInspection(resolvedTicketCode, token);
           if (enableResponse?.data?.inspectionId) {
@@ -450,11 +517,9 @@ export const ServiceTicket = ({
           customCategoryId: check.customCategoryId || null,
           itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null,
         }))
-        .filter(check => check.workCategoryId || check.customCategoryId);
+        .filter(check => (check.workCategoryId || check.customCategoryId) && check.itemStatus);
 
-      const parsedServiceTicketId = Number(resolvedTicketCode);
-      const finalServiceTicketId =
-        serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
+      const finalServiceTicketId = resolveServiceTicketId();
       if (!finalServiceTicketId) {
         throw new Error('Thiếu serviceTicketId để lưu phiếu kiểm tra.');
       }
@@ -469,7 +534,16 @@ export const ServiceTicket = ({
 
       let currentInspectionId = inspectionId;
 
-      if (inspectionStatus === 'COMPLETED' && inspectionId && isEditable) {
+      if (isAdvisorSkipMode) {
+        if (inspectionId) {
+          const updateRes = await updateSafetyInspectionData(inspectionId, safetyPayload, token);
+          currentInspectionId = updateRes?.data?.inspectionId || inspectionId;
+        } else {
+          const saveRes = await saveSafetyInspectionData(safetyPayload, token);
+          currentInspectionId = saveRes?.data?.inspectionId || inspectionId;
+        }
+        setInspectionStatus('SKIPPED');
+      } else if (inspectionStatus === 'COMPLETED' && inspectionId && isEditable) {
         const updateRes = await updateSafetyInspectionData(inspectionId, safetyPayload, token);
         currentInspectionId = updateRes?.data?.inspectionId || inspectionId;
       } else {
@@ -497,8 +571,21 @@ export const ServiceTicket = ({
         setInspectionId(currentInspectionId);
       }
 
-      toast.success('Đã lưu phiếu kiểm tra an toàn!');
-      setIsEditable(false);
+      // Khi KTV hoàn thành kiểm tra an toàn -> chuyển ticket status sang INSPECTION
+      if (!embedded && !isAdvisorSkipMode) {
+        try {
+          await updateServiceTicket(
+            resolvedTicketCode,
+            { ticketStatus: 'INSPECTION' },
+            token,
+          );
+        } catch (statusErr) {
+          console.warn('Không sync được ticket status:', statusErr);
+        }
+      }
+
+      toast.success(isAdvisorSkipMode ? 'Đã lưu ghi chú phiếu SKIPPED.' : 'Đã lưu phiếu kiểm tra an toàn!');
+      setIsEditable(isAdvisorSkipMode);
       setRefreshKey(prev => prev + 1); // reload để dữ liệu advisor/technician map đồng bộ qua API
     } catch (error) {
       console.error('Lỗi khi lưu dữ liệu:', error);
@@ -537,7 +624,7 @@ export const ServiceTicket = ({
                 onChange={(e) => setRecommendedTireSize(e.target.value)}
                 className={styles.tireSizeInput}
                 placeholder="Nhập size lốp..."
-                disabled={!isEditable}
+                disabled={!canEditTechnicalFields}
               />
             </div>
           </div>
@@ -550,19 +637,19 @@ export const ServiceTicket = ({
             <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
               <div className={styles.tirePosition}>
                 <div className={styles.tireBoxRow}>
-                  <input type="text" value={tireData.frontLeft.size1} onChange={(e) => handleTireDataChange('frontLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!isEditable} />
+                  <input type="text" value={tireData.frontLeft.size1} onChange={(e) => handleTireDataChange('frontLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireSlash}>/</span>
-                  <input type="text" value={tireData.frontLeft.size2} onChange={(e) => handleTireDataChange('frontLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!isEditable} />
+                  <input type="text" value={tireData.frontLeft.size2} onChange={(e) => handleTireDataChange('frontLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireRLabel}>R</span>
-                  <input type="text" value={tireData.frontLeft.size3} onChange={(e) => handleTireDataChange('frontLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!isEditable} />
+                  <input type="text" value={tireData.frontLeft.size3} onChange={(e) => handleTireDataChange('frontLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                  <input type="text" value={tireData.frontLeft.mm} onChange={(e) => handleTireDataChange('frontLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} />
+                  <input type="text" value={tireData.frontLeft.mm} onChange={(e) => handleTireDataChange('frontLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm</span></div>
-                  <input type="text" value={tireData.frontLeft.pressure} onChange={(e) => handleTireDataChange('frontLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} />
+                  <input type="text" value={tireData.frontLeft.pressure} onChange={(e) => handleTireDataChange('frontLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
               </div>
             </div>
@@ -571,19 +658,19 @@ export const ServiceTicket = ({
             <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
               <div className={styles.tirePosition}>
                 <div className={styles.tireBoxRow}>
-                  <input type="text" value={tireData.rearLeft.size1} onChange={(e) => handleTireDataChange('rearLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!isEditable} />
+                  <input type="text" value={tireData.rearLeft.size1} onChange={(e) => handleTireDataChange('rearLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireSlash}>/</span>
-                  <input type="text" value={tireData.rearLeft.size2} onChange={(e) => handleTireDataChange('rearLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!isEditable} />
+                  <input type="text" value={tireData.rearLeft.size2} onChange={(e) => handleTireDataChange('rearLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireRLabel}>R</span>
-                  <input type="text" value={tireData.rearLeft.size3} onChange={(e) => handleTireDataChange('rearLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!isEditable} />
+                  <input type="text" value={tireData.rearLeft.size3} onChange={(e) => handleTireDataChange('rearLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                  <input type="text" value={tireData.rearLeft.mm} onChange={(e) => handleTireDataChange('rearLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} />
+                  <input type="text" value={tireData.rearLeft.mm} onChange={(e) => handleTireDataChange('rearLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm</span></div>
-                  <input type="text" value={tireData.rearLeft.pressure} onChange={(e) => handleTireDataChange('rearLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} />
+                  <input type="text" value={tireData.rearLeft.pressure} onChange={(e) => handleTireDataChange('rearLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
               </div>
             </div>
@@ -614,11 +701,11 @@ export const ServiceTicket = ({
             <div className={styles.tirePosition}>
               <div className={styles.tireBoxRow}>
                 <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                <input type="text" value={tireData.frontRight.mm} onChange={(e) => handleTireDataChange('frontRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} />
+                <input type="text" value={tireData.frontRight.mm} onChange={(e) => handleTireDataChange('frontRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
               </div>
               <div className={styles.tireBoxRow}>
                 <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm</span></div>
-                <input type="text" value={tireData.frontRight.pressure} onChange={(e) => handleTireDataChange('frontRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} />
+                <input type="text" value={tireData.frontRight.pressure} onChange={(e) => handleTireDataChange('frontRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
               </div>
             </div>
 
@@ -626,11 +713,11 @@ export const ServiceTicket = ({
             <div className={styles.tirePosition}>
               <div className={styles.tireBoxRow}>
                 <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                <input type="text" value={tireData.rearRight.mm} onChange={(e) => handleTireDataChange('rearRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} />
+                <input type="text" value={tireData.rearRight.mm} onChange={(e) => handleTireDataChange('rearRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
               </div>
               <div className={styles.tireBoxRow}>
                 <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm</span></div>
-                <input type="text" value={tireData.rearRight.pressure} onChange={(e) => handleTireDataChange('rearRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} />
+                <input type="text" value={tireData.rearRight.pressure} onChange={(e) => handleTireDataChange('rearRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
               </div>
             </div>
 
@@ -638,11 +725,11 @@ export const ServiceTicket = ({
             <div className={styles.tirePosition}>
               <div className={styles.tireBoxRow}>
                 <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                <input type="text" value={tireData.spare.mm} onChange={(e) => handleTireDataChange('spare', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} />
+                <input type="text" value={tireData.spare.mm} onChange={(e) => handleTireDataChange('spare', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
               </div>
               <div className={styles.tireBoxRow}>
                 <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm</span></div>
-                <input type="text" value={tireData.spare.pressure} onChange={(e) => handleTireDataChange('spare', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} />
+                <input type="text" value={tireData.spare.pressure} onChange={(e) => handleTireDataChange('spare', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
               </div>
             </div>
           </div>
@@ -651,15 +738,15 @@ export const ServiceTicket = ({
           <div style={{ position: 'absolute', right: '40px', top: '60px', display: 'flex', flexDirection: 'column', gap: '70px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '110px', justifyContent: 'center' }}>
               <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textAlign: 'center' }}>Áp suất<br/>khuyến cáo</label>
-              <input type="text" value={tireData.frontRight.recommendedPressure} onChange={(e) => handleTireDataChange('frontRight', 'recommendedPressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} style={{ width: '80px', height: '36px', fontSize: '14px' }} />
+              <input type="text" value={tireData.frontRight.recommendedPressure} onChange={(e) => handleTireDataChange('frontRight', 'recommendedPressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '80px', height: '36px', fontSize: '14px' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '110px', justifyContent: 'center' }}>
               <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textAlign: 'center' }}>Áp suất<br/>khuyến cáo</label>
-              <input type="text" value={tireData.rearRight.recommendedPressure} onChange={(e) => handleTireDataChange('rearRight', 'recommendedPressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} style={{ width: '80px', height: '36px', fontSize: '14px' }} />
+              <input type="text" value={tireData.rearRight.recommendedPressure} onChange={(e) => handleTireDataChange('rearRight', 'recommendedPressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '80px', height: '36px', fontSize: '14px' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '110px', justifyContent: 'center' }}>
               <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textAlign: 'center' }}>Áp suất<br/>khuyến cáo</label>
-              <input type="text" value={tireData.spare.recommendedPressure} onChange={(e) => handleTireDataChange('spare', 'recommendedPressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!isEditable} style={{ width: '80px', height: '36px', fontSize: '14px' }} />
+              <input type="text" value={tireData.spare.recommendedPressure} onChange={(e) => handleTireDataChange('spare', 'recommendedPressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '80px', height: '36px', fontSize: '14px' }} />
             </div>
           </div>
         </div>
@@ -669,7 +756,7 @@ export const ServiceTicket = ({
       <div className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h2 className={styles.sectionTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</h2>
-          {isEditable && inspectionStatus !== 'COMPLETED' && (
+          {canEditTechnicalFields && inspectionStatus !== 'COMPLETED' && (
             <button className={styles.addCategoryButton} onClick={() => setShowAddCategoryModal(true)}>
               + Thêm hạng mục mới
             </button>
@@ -692,7 +779,7 @@ export const ServiceTicket = ({
                   <td className={styles.itemName}>
                     <span className={styles.itemNameText}>{item.name}</span>
                     {item.isCustom && <span className={styles.customBadge}>Thêm mới</span>}
-                    {item.isCustom && isEditable && inspectionStatus !== 'COMPLETED' && (
+                    {item.isCustom && canEditTechnicalFields && inspectionStatus !== 'COMPLETED' && (
                       <button
                         type="button"
                         className={styles.deleteCustomButton}
@@ -704,20 +791,20 @@ export const ServiceTicket = ({
                   </td>
                   <td>
                     <input type="checkbox"
-                      checked={inspectionStatus === 'SKIPPED' ? ((item.advisorNote || item.note || '').trim() !== '') : item.good}
-                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !((item.advisorNote || item.note || '').trim() !== ''))}
+                      checked={item.good}
+                      disabled={!canEditTechnicalFields}
                       onChange={() => handleSafetyCheck(item.id, 'good')} />
                   </td>
                   <td>
                     <input type="checkbox"
-                      checked={inspectionStatus === 'SKIPPED' ? ((item.advisorNote || item.note || '').trim() !== '') : item.warning}
-                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !((item.advisorNote || item.note || '').trim() !== ''))}
+                      checked={item.warning}
+                      disabled={!canEditTechnicalFields}
                       onChange={() => handleSafetyCheck(item.id, 'warning')} />
                   </td>
                   <td>
                     <input type="checkbox"
-                      checked={inspectionStatus === 'SKIPPED' ? ((item.advisorNote || item.note || '').trim() !== '') : item.replace}
-                      disabled={!isEditable || (inspectionStatus === 'SKIPPED' && !((item.advisorNote || item.note || '').trim() !== ''))}
+                      checked={item.replace}
+                      disabled={!canEditTechnicalFields}
                       onChange={() => handleSafetyCheck(item.id, 'replace')} />
                   </td>
                   <td className={styles.noteCell}>
@@ -728,7 +815,7 @@ export const ServiceTicket = ({
                         value={item.advisorNote || ''}
                         onChange={(e) => handleAdvisorNoteChange(item.id, e.target.value)}
                         placeholder="Nhập ghi chú cố vấn..."
-                        disabled={!isEditable}
+                        disabled={!canEditAdvisorNotes}
                       />
                     ) : (item.advisorNote || item.note || '').trim() !== '' ? (
                       <span style={{ color: '#92400e', fontStyle: 'italic', fontSize: '13px' }}>{item.advisorNote || item.note}</span>
@@ -752,22 +839,22 @@ export const ServiceTicket = ({
           onChange={(e) => setNotes(e.target.value)}
           rows={4}
           placeholder="Nhập ghi chú..."
-          disabled={!isEditable}
+          disabled={!canEditTechnicalFields}
         />
       </div>
 
       {!embedded && (
         <div className={styles.actionButtons}>
-          {!isAdvisorMode && (
-            <div className={styles.actionLeft}>
-              <button className={styles.closeButton} onClick={() => navigate(backPath)}>Đóng</button>
-            </div>
-          )}
+          <div className={styles.actionLeft}>
+            <button className={styles.closeButton} onClick={handleCloseTicket}>Đóng</button>
+          </div>
           <div className={styles.actionRight}>
             {inspectionStatus === 'COMPLETED' && !isEditable ? (
               <button className={styles.completeButton} onClick={handleEnableEdit}>Chỉnh sửa</button>
             ) : (
-              <button className={styles.completeButton} onClick={handleSave}>Hoàn thành</button>
+              <button className={styles.completeButton} onClick={handleSave}>
+                {isAdvisorMode && inspectionStatus === 'SKIPPED' ? 'Lưu' : 'Hoàn thành'}
+              </button>
             )}
           </div>
         </div>
@@ -826,6 +913,7 @@ ServiceTicket.propTypes = {
   embedded: PropTypes.bool,
   mode: PropTypes.oneOf(['technician', 'advisor']),
   backPath: PropTypes.string,
+  onClose: PropTypes.func,
 };
 
 export default ServiceTicket;

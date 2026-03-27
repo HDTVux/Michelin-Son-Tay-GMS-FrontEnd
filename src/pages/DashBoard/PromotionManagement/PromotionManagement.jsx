@@ -23,15 +23,36 @@ const generateRandomCode = () => {
   return code;
 };
 
+const normalizeTypeValue = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw === 'PERCENTAGE') return 'PERCENT';
+  if (raw === 'BOGO') return 'BUY_X_GET_Y';
+  return raw || 'PERCENT';
+};
+
+const normalizeApplyToValue = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw === 'ALL' || raw === 'SPECIFIC') return raw;
+  return 'ALL';
+};
+
+const normalizeTargetTypeValue = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw === 'ALL_CUSTOMERS') return 'ALL';
+  if (raw === 'VIP_CUSTOMERS' || raw === 'NEW_CUSTOMERS') return 'SPECIFIC';
+  if (raw === 'ALL' || raw === 'SPECIFIC') return raw;
+  return 'ALL';
+};
+
 const defaultForm = {
   promotionId: null,
   code: '',
   name: '',
-  type: 'PERCENTAGE',
+  type: 'PERCENT',
   discountPercent: '',
   isActive: true,
   applyTo: 'ALL',
-  targetType: 'ALL_CUSTOMERS',
+  targetType: 'ALL',
   minOrderValue: '',
   startDate: '',
   endDate: '',
@@ -40,6 +61,11 @@ const defaultForm = {
   buyQuantity: '',
   getItemId: '',
   getQuantity: '',
+};
+
+const PROMOTION_TYPE_LABELS = {
+  PERCENT: 'Giảm theo phần trăm',
+  BUY_X_GET_Y: 'Mua X tặng Y',
 };
 
 export default function PromotionManagement() {
@@ -52,6 +78,9 @@ export default function PromotionManagement() {
   const [openModal, setOpenModal] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(defaultForm);
+  const normalizedFormType = normalizeTypeValue(form.type);
+  const isBuyXGetY = normalizedFormType === 'BUY_X_GET_Y';
+  const isPercentType = normalizedFormType === 'PERCENT';
 
   const loadData = useCallback(async () => {
     const token = getAuthToken();
@@ -109,11 +138,11 @@ export default function PromotionManagement() {
       promotionId: item?.promotionId ?? null,
       code: item?.code || '',
       name: item?.name || '',
-      type: item?.type || 'PERCENTAGE',
+      type: normalizeTypeValue(item?.type),
       discountPercent: item?.discountPercent ?? '',
       isActive: item?.isActive !== false,
-      applyTo: item?.applyTo || 'ALL',
-      targetType: item?.targetType || 'ALL_CUSTOMERS',
+      applyTo: normalizeApplyToValue(item?.applyTo),
+      targetType: normalizeTargetTypeValue(item?.targetType),
       minOrderValue: item?.minOrderValue ?? '',
       startDate: item?.startDate || '',
       endDate: item?.endDate || '',
@@ -135,18 +164,34 @@ export default function PromotionManagement() {
   const handleSubmit = async () => {
     const token = getAuthToken();
     if (!token) return;
+    const submitType = normalizeTypeValue(form.type);
 
-    if (!form.code || !form.name || !form.type) {
+    if (!form.code || !form.name || !submitType) {
       toast.error('Vui lòng nhập đầy đủ code, tên và loại khuyến mãi.');
       return;
     }
 
+    if (isPercentType && (form.discountPercent === '' || Number(form.discountPercent) <= 0)) {
+      toast.error('Vui lòng nhập phần trăm giảm hợp lệ.');
+      return;
+    }
+
+    if (submitType === 'BUY_X_GET_Y') {
+      const buyQty = Number(form.buyQuantity);
+      const getQty = Number(form.getQuantity);
+      if (!Number.isFinite(buyQty) || buyQty <= 0 || !Number.isFinite(getQty) || getQty <= 0) {
+        toast.error('Vui lòng nhập số lượng mua/tặng hợp lệ cho chương trình Mua X tặng Y.');
+        return;
+      }
+    }
+
     try {
+      const payload = { ...form, type: submitType };
       if (editing) {
-        await updatePromotion(form, token);
+        await updatePromotion(payload, token);
         toast.success('Cập nhật khuyến mãi thành công.');
       } else {
-        await createPromotion(form, token);
+        await createPromotion(payload, token);
         toast.success('Tạo khuyến mãi thành công.');
       }
       closeModal();
@@ -256,7 +301,9 @@ export default function PromotionManagement() {
                   <td className={styles.codeCell}>{item.code || '-'}</td>
                   <td className={styles.nameCell}>{item.name || '-'}</td>
                   <td>
-                    <span className={styles.typeBadge}>{item.type || '-'}</span>
+                    <span className={styles.typeBadge}>
+                      {PROMOTION_TYPE_LABELS[normalizeTypeValue(item.type)] || item.type || '-'}
+                    </span>
                   </td>
                   <td>{item.discountPercent ?? '-'}</td>
                   <td className={styles.dateCell}>
@@ -330,11 +377,10 @@ export default function PromotionManagement() {
                   <select
                     className={styles.select}
                     value={form.type}
-                    onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
+                    onChange={(e) => setForm((p) => ({ ...p, type: normalizeTypeValue(e.target.value) }))}
                   >
-                    <option value="PERCENTAGE">PERCENTAGE</option>
-                    <option value="BOGO">BOGO (Buy One Get One)</option>
-                    <option value="FIXED">FIXED AMOUNT</option>
+                    <option value="PERCENT">Giảm theo phần trăm</option>
+                    <option value="BUY_X_GET_Y">Mua X tặng Y</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>
@@ -347,8 +393,57 @@ export default function PromotionManagement() {
                     placeholder="Ví dụ: 15"
                     value={form.discountPercent}
                     onChange={(e) => setForm((p) => ({ ...p, discountPercent: e.target.value }))}
+                    disabled={!isPercentType}
                   />
                 </div>
+                {isBuyXGetY && (
+                  <>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Mã sản phẩm mua (tuỳ chọn)</label>
+                      <input
+                        className={styles.input}
+                        type="number"
+                        min="1"
+                        placeholder="Ví dụ: 101"
+                        value={form.buyItemId}
+                        onChange={(e) => setForm((p) => ({ ...p, buyItemId: e.target.value }))}
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Số lượng mua (X) <span className={styles.required}>*</span></label>
+                      <input
+                        className={styles.input}
+                        type="number"
+                        min="1"
+                        placeholder="Ví dụ: 2"
+                        value={form.buyQuantity}
+                        onChange={(e) => setForm((p) => ({ ...p, buyQuantity: e.target.value }))}
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Mã sản phẩm tặng (tuỳ chọn)</label>
+                      <input
+                        className={styles.input}
+                        type="number"
+                        min="1"
+                        placeholder="Ví dụ: 102"
+                        value={form.getItemId}
+                        onChange={(e) => setForm((p) => ({ ...p, getItemId: e.target.value }))}
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Số lượng tặng (Y) <span className={styles.required}>*</span></label>
+                      <input
+                        className={styles.input}
+                        type="number"
+                        min="1"
+                        placeholder="Ví dụ: 1"
+                        value={form.getQuantity}
+                        onChange={(e) => setForm((p) => ({ ...p, getQuantity: e.target.value }))}
+                      />
+                    </div>
+                  </>
+                )}
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Ngày bắt đầu</label>
                   <input
@@ -390,27 +485,25 @@ export default function PromotionManagement() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Apply To</label>
+                  <label className={styles.label}>Áp dụng cho</label>
                   <select
                     className={styles.select}
                     value={form.applyTo}
                     onChange={(e) => setForm((p) => ({ ...p, applyTo: e.target.value }))}
                   >
-                    <option value="ALL">ALL</option>
-                    <option value="SERVICE">SERVICE</option>
-                    <option value="PRODUCT">PRODUCT</option>
+                    <option value="ALL">Toàn bộ</option>
+                    <option value="SPECIFIC">Nhóm cụ thể</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Target Type</label>
+                  <label className={styles.label}>Đối tượng khách hàng</label>
                   <select
                     className={styles.select}
                     value={form.targetType}
                     onChange={(e) => setForm((p) => ({ ...p, targetType: e.target.value }))}
                   >
-                    <option value="ALL_CUSTOMERS">ALL_CUSTOMERS</option>
-                    <option value="NEW_CUSTOMERS">NEW_CUSTOMERS</option>
-                    <option value="VIP_CUSTOMERS">VIP_CUSTOMERS</option>
+                    <option value="ALL">Tất cả khách hàng</option>
+                    <option value="SPECIFIC">Nhóm khách hàng cụ thể</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>

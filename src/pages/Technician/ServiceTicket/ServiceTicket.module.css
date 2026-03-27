@@ -565,6 +565,13 @@
   box-shadow: 0 4px 16px rgba(30, 144, 255, 0.4);
 }
 
+.completeButton:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .cancelButton,
 .saveButton,
 .submitButton {

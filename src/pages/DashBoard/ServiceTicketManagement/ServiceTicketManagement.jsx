@@ -5,12 +5,8 @@ import styles from './ServiceTicketManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import {
 	fetchServiceTicketsPaged,
-	fetchAvailableStaffWithWorkload,
-	fetchTicketAssignments,
-	assignStaff,
-	cancelAssignment,
 } from '../../../services/serviceTicketService.js';
-import { combineDateTime, formatDateTimeVi, formatTimeHHmm } from '../../../components/timeUtils.js';
+import { formatDateTimeVi } from '../../../components/timeUtils.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
 
 export default function ServiceTicketManagement() {
@@ -35,19 +31,8 @@ export default function ServiceTicketManagement() {
 	// Debounce search
 	const [debouncedSearch, setDebouncedSearch] = useState('');
 
-	// Modal phân công / xem phân công
-	const [modal, setModal] = useState({ open: false, ticket: null, viewOnly: false });
-	const [staffList, setStaffList] = useState([]);
-	const [assignments, setAssignments] = useState([]);
-	const [loadingModal, setLoadingModal] = useState(false);
-	const [modalError, setModalError] = useState('');
-	const [modalSuccess, setModalSuccess] = useState('');
-
-	// Notify
-	const notify = (msg) => {
-		// eslint-disable-next-line no-alert
-		alert(msg);
-	};
+	// Modal xem phân công
+	const [modal, setModal] = useState({ open: false, ticket: null });
 
 	useEffect(() => {
 		const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
@@ -91,97 +76,13 @@ export default function ServiceTicketManagement() {
 		loadData();
 	}, [filters]);
 
-	// Mở modal: load phân công + advisor
-	const openModal = async (ticket) => {
-		setModal({ open: true, ticket, viewOnly: false });
-		setModalError('');
-		setModalSuccess('');
-		setStaffList([]);
-		setAssignments([]);
-		setLoadingModal(true);
-
-		const token = localStorage.getItem('authToken');
-		try {
-			// Load danh sách advisor có workload
-			const res = await fetchAvailableStaffWithWorkload('ADVISOR', token);
-			setStaffList(Array.isArray(res?.data) ? res.data : []);
-			// Load danh sách phân công
-			const assignRes = await fetchTicketAssignments(ticket.serviceTicketId, token);
-			setAssignments(
-				Array.isArray(assignRes?.data?.assignments)
-					? assignRes.data.assignments
-					: [],
-			);
-		} catch (err) {
-			setModalError(err?.message || 'Không tải được dữ liệu.');
-		} finally {
-			setLoadingModal(false);
-		}
+	// Mở modal: ticket đã có sẵn trong bảng từ check-in
+	const openModal = (ticket) => {
+		setModal({ open: true, ticket });
 	};
 
 	const closeModal = () => {
-		setModal({ open: false, ticket: null, viewOnly: false });
-		setStaffList([]);
-		setAssignments([]);
-		setModalError('');
-		setModalSuccess('');
-	};
-
-	// Gán advisor
-	const handleAssign = async (advisor) => {
-		const token = localStorage.getItem('authToken');
-		const ticket = modal.ticket;
-		setModalError('');
-		setModalSuccess('');
-		setLoadingModal(true);
-		try {
-			await assignStaff(ticket.serviceTicketId, {
-				staffId: advisor.staffId,
-				roleInTicket: 'ADVISOR',
-				isPrimary: false,
-				note: '',
-			}, token);
-			setModalSuccess(`Đã phân công cho ${advisor.fullName || `NV-${advisor.staffId}`}`);
-			// Reload assignments
-			const assignRes = await fetchTicketAssignments(ticket.serviceTicketId, token);
-			setAssignments(
-				Array.isArray(assignRes?.data?.assignments)
-					? assignRes.data.assignments
-					: [],
-			);
-			// Reload ticket list
-			loadData();
-		} catch (err) {
-			setModalError(err?.message || 'Phân công thất bại.');
-		} finally {
-			setLoadingModal(false);
-		}
-	};
-
-	// Hủy phân công
-	const handleCancel = async (assignment) => {
-		const token = localStorage.getItem('authToken');
-		const ticket = modal.ticket;
-		if (!window.confirm(`Hủy phân công cho ${assignment.staffName || 'nhân viên này'}?`)) return;
-		setModalError('');
-		setModalSuccess('');
-		setLoadingModal(true);
-		try {
-			await cancelAssignment(ticket.serviceTicketId, assignment.assignmentId, token);
-			setModalSuccess('Đã hủy phân công.');
-			// Reload
-			const assignRes = await fetchTicketAssignments(ticket.serviceTicketId, token);
-			setAssignments(
-				Array.isArray(assignRes?.data?.assignments)
-					? assignRes.data.assignments
-					: [],
-			);
-			loadData();
-		} catch (err) {
-			setModalError(err?.message || 'Hủy phân công thất bại.');
-		} finally {
-			setLoadingModal(false);
-		}
+		setModal({ open: false, ticket: null });
 	};
 
 	const handleResetFilters = () => {
@@ -190,13 +91,6 @@ export default function ServiceTicketManagement() {
 		setDate('');
 		setStatus('');
 		setSearch('');
-	};
-
-	// Kiểm tra ticket đã có phân công advisor chưa
-	const hasAdvisorAssignment = (ticketId) => {
-		// Hiện tại dựa vào ticket.status — khi có assignment trả về từ API thì dùng assignments
-		// Tạm thời: chưa phân công → status = DRAFT, đã phân công → INSPECTION
-		return false; // sẽ check từ API
 	};
 
 	return (
@@ -239,7 +133,7 @@ export default function ServiceTicketManagement() {
 				<div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
 					<div className={styles['modal-box']}>
 						<div className={styles['modal-header']}>
-							<h3>Phân công phiếu</h3>
+							<h3>Xem phân công</h3>
 							<button className={styles['modal-close']} onClick={closeModal}>×</button>
 						</div>
 
@@ -251,72 +145,23 @@ export default function ServiceTicketManagement() {
 								{getStatusTextVi(modal.ticket?.ticketStatus, modal.ticket?.ticketStatus || '-')}
 							</p>
 
-							{modalSuccess && <div className={styles['success-banner']}>{modalSuccess}</div>}
-							{modalError && <div className={styles['error-banner']}>{modalError}</div>}
-
-							{loadingModal && !modalSuccess && (
-								<div className={styles['loading-text']}>Đang tải...</div>
-							)}
-
-							{/* Danh sách phân công hiện tại */}
-							{assignments.length > 0 && (
+							{/* Thông tin cố vấn viên được giao */}
+							{modal.ticket && (
 								<div className={styles['assign-section']}>
-									<h4 className={styles['section-title']}>Nhân viên đã phân công</h4>
-									{assignments
-										.filter(a => a.status === 'ACTIVE')
-										.map(a => (
-											<div key={a.assignmentId} className={styles['assign-card']}>
-												<div className={styles['assign-info']}>
-													<span className={styles['assign-name']}>{a.staffName || `NV-${a.staffId}`}</span>
-													<span className={styles['assign-role']}>
-														{a.roleInTicket === 'ADVISOR' ? 'Cố vấn viên' : 'Kỹ thuật viên'}
-														{a.isPrimary ? ' (KTV chính)' : ''}
-													</span>
-												</div>
-												<button
-													className={styles['cancel-btn']}
-													onClick={() => handleCancel(a)}
-													disabled={loadingModal}
-												>
-													Hủy
-												</button>
-											</div>
-										))}
-								</div>
-							)}
-
-							{/* Danh sách nhân viên để phân công */}
-							{!loadingModal && staffList.length > 0 && (
-								<div className={styles['assign-section']}>
-									<h4 className={styles['section-title']}>Chọn cố vấn viên</h4>
-									{staffList.map(advisor => (
-										<div key={advisor.staffId} className={styles['staff-card']}>
-											<div className={styles['staff-info']}>
-												<span className={styles['staff-name']}>
-													{advisor.fullName || `NV-${advisor.staffId}`}
-												</span>
-												<span className={styles['staff-phone']}>{advisor.phone || ''}</span>
-											</div>
-											<div className={styles['workload-badge']}>
-												<span className={advisor.isBusy ? styles['busy'] : styles['available']}>
-													{advisor.workload || 0} phiếu
-													{advisor.isBusy ? ' (bận)' : ' (rảnh)'}
-												</span>
-											</div>
-											<button
-												className={styles['assign-btn']}
-												onClick={() => handleAssign(advisor)}
-												disabled={loadingModal || advisor.isBusy}
-											>
-												Phân công
-											</button>
+									<h4 className={styles['section-title']}>Cố vấn viên được giao</h4>
+									<div className={styles['assign-card']}>
+										<div className={styles['assign-info']}>
+											<span className={styles['assign-name']}>
+												{modal.ticket.advisorName || modal.ticket.advisor?.fullName || '-'}
+											</span>
+											<span className={styles['assign-role']}>Cố vấn viên</span>
 										</div>
-									))}
+									</div>
 								</div>
 							)}
 
-							{!loadingModal && staffList.length === 0 && !modalError && (
-								<div className={styles['empty-text']}>Không có cố vấn viên nào khả dụng.</div>
+							{!modal.ticket && (
+								<div className={styles['empty-text']}>Không có dữ liệu phiếu.</div>
 							)}
 						</div>
 					</div>
@@ -412,7 +257,6 @@ function TicketPanel({
 							const statusCode = item?.ticketStatus ?? item?.status;
 							const tone = getStatusTone(statusCode, 'info');
 							const displayStatus = getStatusTextVi(statusCode, String(statusCode || '-'));
-							const isAssigned = statusCode && statusCode !== 'DRAFT';
 							return (
 								<tr key={item?.serviceTicketId ?? item?.ticketCode ?? idx}>
 									<td>{item?.serviceTicketId || '-'}</td>
@@ -431,7 +275,7 @@ function TicketPanel({
 												Xem chi tiết
 											</button>
 											<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>
-												{isAssigned ? 'Xem phân công' : 'Phân công'}
+												Xem phân công
 											</button>
 										</div>
 									</td>
