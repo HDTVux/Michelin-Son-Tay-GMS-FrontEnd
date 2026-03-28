@@ -161,3 +161,13 @@ export const searchWarehouseCatalogItems = (params, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// GET: /api/warehouse/search/catalog-items/detail/{catalogItemId}
+export const fetchWarehouseCatalogItemDetail = (catalogItemId, token) => {
+  const idNum = typeof catalogItemId === 'number' ? catalogItemId : Number(catalogItemId);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+  return request(`/api/warehouse/search/catalog-items/detail/${encodeURIComponent(String(safeId))}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};

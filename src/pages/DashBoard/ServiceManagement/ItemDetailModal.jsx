@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './ServiceManagement.module.css';
+import { fetchWarehouseCatalogItemDetail, fetchWarehouseSpecificationsByCatalogItemId } from '../../../services/warehouseService.js';
 
  const formatCurrencyVnd = (value) => {
 	const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
@@ -14,13 +16,63 @@ import styles from './ServiceManagement.module.css';
 };
 
 export default function ItemDetailModal({ item, onClose }) {
+	const [detail, setDetail] = useState(null);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState('');
+
+	useEffect(() => {
+		let cancelled = false;
+		const load = async () => {
+			if (!item) return;
+			const id = item?.itemId ?? item?.itemId ?? item?.id ?? null;
+			if (!id) {
+				setDetail(item);
+				return;
+			}
+
+			setLoading(true);
+			setError('');
+			try {
+				const token = localStorage.getItem('authToken');
+				const res = await fetchWarehouseCatalogItemDetail(id, token);
+				const payload = res?.data?.data ?? res?.data ?? res;
+				let base = payload ?? {};
+				// If backend wraps again under data
+				if (base?.data) base = base.data;
+
+				// Try to fetch specifications as a supplement
+				try {
+					const specsRes = await fetchWarehouseSpecificationsByCatalogItemId(id, token);
+					const specsPayload = specsRes?.data?.data ?? specsRes?.data ?? specsRes;
+					base.specifications = Array.isArray(specsPayload) ? specsPayload : base.specifications ?? [];
+				} catch {
+					base.specifications = base.specifications ?? [];
+				}
+
+				if (!cancelled) setDetail(base);
+			} catch (err) {
+				if (!cancelled) {
+					setError(err?.message || 'Không thể tải chi tiết sản phẩm.');
+					setDetail(item);
+				}
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		};
+		load();
+		return () => {
+			cancelled = true;
+		};
+	}, [item]);
+
 	if (!item) return null;
 
-	const priceText = item?.showPrice ? `${formatCurrencyVnd(item?.price)} ₫` : 'Liên hệ';
-	const typeText = formatItemTypeLabel(item?.itemType);
-	const brandText = item?.brand?.brandName || '-';
-	const productLineText = item?.productLine?.lineName || '-';
-	const specs = Array.isArray(item?.specifications) ? item.specifications : [];
+	const display = detail ?? item;
+	const priceText = display?.showPrice ? `${formatCurrencyVnd(display?.price)} ₫` : 'Liên hệ';
+	const typeText = formatItemTypeLabel(display?.itemType);
+	const brandText = display?.brand?.brandName || (display?.brandId ? `#${display.brandId}` : '-');
+	const productLineText = display?.productLine?.lineName || (display?.productLineId ? `#${display.productLineId}` : '-');
+	const specs = Array.isArray(display?.specifications) ? display.specifications : [];
 
 	return (
 		<dialog
@@ -42,21 +94,24 @@ export default function ItemDetailModal({ item, onClose }) {
 			</div>
 
 			<div className={styles.modalBody}>
+				{loading ? <div className={styles['loading-inline']}>Đang tải chi tiết...</div> : null}
+				{error ? <div className={styles.errorBanner}>{error}</div> : null}
+
 				<div className={styles.modalSection}>
 					<div className={styles.modalSectionTitle}>Thông tin chính</div>
 					<table className={styles.detailTable}>
 						<tbody>
 							<tr>
 								<th>ID</th>
-								<td>{item?.itemId ?? '-'}</td>
+								<td>{display?.itemId ?? '-'}</td>
 							</tr>
 							<tr>
 								<th>Tên</th>
-								<td>{item?.itemName || '-'}</td>
+								<td>{display?.itemName || '-'}</td>
 							</tr>
 							<tr>
 								<th>SKU</th>
-								<td>{item?.sku || '-'}</td>
+								<td>{display?.sku || '-'}</td>
 							</tr>
 							<tr>
 								<th>Loại</th>
@@ -76,7 +131,7 @@ export default function ItemDetailModal({ item, onClose }) {
 							</tr>
 							<tr>
 								<th>Đơn vị</th>
-								<td>{item?.unit || '-'}</td>
+								<td>{display?.unit || '-'}</td>
 							</tr>
 						</tbody>
 					</table>
@@ -84,7 +139,7 @@ export default function ItemDetailModal({ item, onClose }) {
 
 				<div className={styles.modalSection}>
 					<div className={styles.modalSectionTitle}>Mô tả</div>
-					<div className={styles.modalText}>{item?.description || '—'}</div>
+					<div className={styles.modalText}>{display?.description || '—'}</div>
 				</div>
 
 				<div className={styles.modalSection}>
@@ -107,8 +162,8 @@ export default function ItemDetailModal({ item, onClose }) {
 								) : (
 									specs.map((s) => (
 										<tr key={String(s?.specId ?? `${s?.specType}-${s?.specValue}`)}>
-											<td>{s?.specType || '-'}</td>
-											<td>{s?.specValue || '-'}</td>
+											<td>{s?.specType || s?.attributeName || '-'}</td>
+											<td>{s?.specValue || s?.value || '-'}</td>
 										</tr>
 									))
 								)}
