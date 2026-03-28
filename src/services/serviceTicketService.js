@@ -218,23 +218,10 @@ export const updateServiceTicketEstimateItem = (estimateItemId, payload, token) 
   });
 };
 
-
-// Lấy danh sách nhân viên available kèm workload (sắp xếp workload thấp → cao)
-// Endpoint: GET /api/service-ticket/assignment/available-staff?role=ADVISOR
-export const fetchAvailableStaffWithWorkload = (role, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-  return request(`/api/service-ticket/assignment/available-staff?role=${encodeURIComponent(role)}`, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-};
-
 // Lấy danh sách phân công của một phiếu
-// Endpoint: GET /api/service-ticket/assignment/{ticketId}
+// Backend trả về: ApiResponse<List<AssignStaffDto>> → response.data là array thuần
+// Fields: assignmentId, serviceTicketId, staffId, roleInTicket, assignedAt, isPrimary, status, note
+// Endpoint: GET /api/service-ticket/assignment/{ticketId}/assignments
 export const fetchTicketAssignments = (ticketId, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập.');
@@ -247,13 +234,15 @@ export const fetchTicketAssignments = (ticketId, token) => {
     error.status = 400;
     return Promise.reject(error);
   }
-  return request(`/api/service-ticket/assignment/${idNum}`, {
+  return request(`/api/service-ticket/assignment/${idNum}/assignments`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
 };
 
-// Lấy danh sách nhân viên available để assign vào ticket (không có workload)
+// Lấy danh sách nhân viên available để assign vào ticket
+// Backend trả về: ApiResponse<List<AvailableStaffDto>> → response.data là array
+// Fields: staffId, fullName, phone, avatar, roles (KHÔNG có workload/isBusy)
 // Endpoint: GET /api/service-ticket/assignment/{ticketId}/available-staff?role={role}
 export const fetchAvailableStaff = (ticketId, role, token) => {
   if (!token) {
@@ -267,13 +256,31 @@ export const fetchAvailableStaff = (ticketId, role, token) => {
     error.status = 400;
     return Promise.reject(error);
   }
-  return request(`/api/service-ticket/assignment/${idNum}/available-staff?role=${encodeURIComponent(role)}`, {
+  const roleQs = encodeURIComponent(role);
+  return request(`/api/service-ticket/assignment/${idNum}/available-staff?role=${roleQs}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Lấy workload của tất cả KTV để hiển thị trạng thái bận/rảnh
+// Backend trả về: [{ staffId, fullName, phone, avatar, roles, currentTicketCount, isBusy }]
+// Endpoint: GET /api/staff/technicians
+export const fetchTechniciansWorkload = (token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+  return request('/api/staff/technicians?withWorkload=true', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
 };
 
 // Giao ticket cho nhân viên (KTV chính hoặc KTV phụ)
+// Backend trả về: ApiResponse<AssignStaffDto> → response.data là object đơn
+// Assignment mới luôn có status: PENDING
 // Endpoint: POST /api/service-ticket/assignment/{ticketId}/assign
 // Payload: { staffId, roleInTicket, isPrimary, note }
 export const assignStaff = (ticketId, payload, token) => {
@@ -282,14 +289,12 @@ export const assignStaff = (ticketId, payload, token) => {
     error.status = 401;
     return Promise.reject(error);
   }
-
   const idNum = typeof ticketId === 'number' ? ticketId : Number(ticketId);
   if (!Number.isFinite(idNum) || idNum <= 0) {
     const error = new Error('Thiếu ticketId hợp lệ.');
     error.status = 400;
     return Promise.reject(error);
   }
-
   return request(`/api/service-ticket/assignment/${idNum}/assign`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
@@ -297,7 +302,8 @@ export const assignStaff = (ticketId, payload, token) => {
   });
 };
 
-// Cập nhật thông tin assign (đổi nhân viên)
+// Cập nhật thông tin assign (đổi nhân viên / đổi isPrimary / đổi note)
+// Backend trả về: ApiResponse<AssignStaffDto>
 // Endpoint: PUT /api/service-ticket/assignment/{ticketId}/assign/{assignmentId}
 export const updateAssignment = (ticketId, assignmentId, payload, token) => {
   if (!token) {
@@ -319,21 +325,45 @@ export const updateAssignment = (ticketId, assignmentId, payload, token) => {
   });
 };
 
-// Hủy phân công
-// Endpoint: PUT /api/service-ticket/assignment/{ticketId}/assign/{assignmentId}
-// Payload: { status: 'CANCELLED' }
-export const cancelAssignment = (ticketId, assignmentId, token) => {
+// Hủy technician assignment từ màn advisor
+// Endpoint: DELETE /api/service-ticket/advisor/tickets/{ticketCode}/technician/{technicianId}
+export const cancelAssignment = (ticketCode, technicianId, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để hủy phân công.');
     error.status = 401;
     return Promise.reject(error);
   }
-  const ticketNum = typeof ticketId === 'number' ? ticketId : Number(ticketId);
-  const assignNum = typeof assignmentId === 'number' ? assignmentId : Number(assignmentId);
-  return request(`/api/service-ticket/assignment/${ticketNum}/assign/${assignNum}`, {
-    method: 'PUT',
+  const code = encodeURIComponent(String(ticketCode ?? '').trim());
+  const techIdNum = typeof technicianId === 'number' ? technicianId : Number(technicianId);
+  if (!code || !Number.isFinite(techIdNum) || techIdNum <= 0) {
+    const error = new Error('Thiếu ticketCode hoặc technicianId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  return request(`/api/service-ticket/advisor/tickets/${code}/technician/${techIdNum}`, {
+    method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ status: 'CANCELLED' }),
+  });
+};
+
+// Hủy technician assignment bằng ticketId (dùng cho AdvisorInspection modal)
+// Endpoint: DELETE /api/service-ticket/assignment/{ticketId}/assignments/{assignmentId}
+export const cancelAssignmentById = (ticketId, assignmentId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để hủy phân công.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+  const idNum = typeof ticketId === 'number' ? ticketId : Number(ticketId);
+  const assignNum = typeof assignmentId === 'number' ? assignmentId : Number(assignmentId);
+  if (!Number.isFinite(idNum) || idNum <= 0 || !Number.isFinite(assignNum) || assignNum <= 0) {
+    const error = new Error('Thiếu ticketId hoặc assignmentId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  return request(`/api/service-ticket/assignment/${idNum}/assignments/${assignNum}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
   });
 };
 
@@ -363,15 +393,15 @@ export const fetchAdvisorMyTickets = (params, token) => {
 };
 
 // Lấy danh sách tất cả KTV (dù đang bận hay rảnh) kèm số ticket đang làm
-// Endpoint: GET /api/staff/technicians?withWorkload=true
 // Backend trả về: [{ staffId, fullName, phone, avatar, roles, currentTicketCount, isBusy }]
+// Endpoint: GET /api/staff/technicians?withWorkload=true
 export const fetchTechniciansWithWorkload = (token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập.');
     error.status = 401;
     return Promise.reject(error);
   }
-  return request('/api/staff/technicians', {
+  return request('/api/staff/technicians?withWorkload=true', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -391,9 +421,3 @@ export const fetchTaxRulesAll = (token) => {
     headers: { Authorization: `Bearer ${token}` },
   });
 };
-/**
- * Lấy danh sách assignments của một ticket
- * Backend: GET /api/service-ticket/assignment/{ticketId}/assignments
- */
-
-
