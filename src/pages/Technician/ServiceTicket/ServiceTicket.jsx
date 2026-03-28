@@ -130,7 +130,7 @@ export const ServiceTicket = ({
         try {
           if (ticketResponse?.data?.safetyInspectionEnabled === false) {
             setInspectionStatus('SKIPPED');
-            setIsEditable(!embedded);
+            setIsEditable(canEdit);
             return;
           }
 
@@ -148,7 +148,7 @@ export const ServiceTicket = ({
             const status = inspection.inspectionStatus || 'PENDING';
             setInspectionStatus(status);
             const canEdit = status === 'PENDING' || status === 'SKIPPED' || !status;
-            setIsEditable(!embedded && canEdit); // COMPLETED -> khóa, phải bấm Chỉnh sửa để reopen rồi mới sửa tiếp (advisor+tech) // COMPLETED -> khóa, phải bấm Chỉnh sửa để reopen rồi mới sửa tiếp (advisor+tech)
+            setIsEditable(canEdit); // COMPLETED -> khóa, phải bấm Chỉnh sửa để reopen rồi mới sửa tiếp (advisor+tech) // COMPLETED -> khóa, phải bấm Chỉnh sửa để reopen rồi mới sửa tiếp (advisor+tech)
 
             if (inspection.tires && inspection.tires.length > 0) {
               const newTireData = { ...defaultTireData };
@@ -235,7 +235,7 @@ export const ServiceTicket = ({
           }
         } catch {
           console.log('Không tìm thấy phiếu kiểm tra, sử dụng mẫu mặc định');
-          setIsEditable(!embedded);
+          setIsEditable(true);
           setInspectionStatus('PENDING');
         }
       } catch (error) {
@@ -571,8 +571,8 @@ export const ServiceTicket = ({
         setInspectionId(currentInspectionId);
       }
 
-      // Khi KTV hoàn thành kiểm tra an toàn -> chuyển ticket status sang INSPECTION
-      if (!embedded && !isAdvisorSkipMode) {
+      // Khi hoàn thành kiểm tra an toàn -> chuyển ticket status sang INSPECTION
+      if ((isAdvisorMode || !embedded) && !isAdvisorSkipMode) {
         try {
           await updateServiceTicket(
             resolvedTicketCode,
@@ -843,7 +843,7 @@ export const ServiceTicket = ({
         />
       </div>
 
-      {!embedded && (
+      {(isAdvisorMode || !embedded) && (
         <div className={styles.actionButtons}>
           <div className={styles.actionLeft}>
             <button className={styles.closeButton} onClick={handleCloseTicket}>Đóng</button>

@@ -5,7 +5,10 @@ import styles from './ServiceTicketManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import {
 	fetchServiceTicketsPaged,
+	fetchTicketAssignments,
+	changeAdvisorByReceptionist,
 } from '../../../services/serviceTicketService.js';
+import { fetchCheckInAdvisors } from '../../../services/checkInService.js';
 import { formatDateTimeVi } from '../../../components/timeUtils.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
 
@@ -17,27 +20,29 @@ export default function ServiceTicketManagement() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState('');
 
-	// Query state
 	const [page, setPage] = useState(0);
 	const [size, setSize] = useState(10);
 	const [date, setDate] = useState('');
 	const [status, setStatus] = useState('');
 	const [search, setSearch] = useState('');
-
-	// Server paging metadata
 	const [totalPages, setTotalPages] = useState(1);
 	const [totalElements, setTotalElements] = useState(0);
-
-	// Debounce search
 	const [debouncedSearch, setDebouncedSearch] = useState('');
 
-	// Modal xem phân công
 	const [modal, setModal] = useState({ open: false, ticket: null });
+	const [modalAssignments, setModalAssignments] = useState([]);
+	const [modalLoading, setModalLoading] = useState(false);
+	const [modalError, setModalError] = useState('');
+	const [modalSuccess, setModalSuccess] = useState('');
+	const [advisorOptions, setAdvisorOptions] = useState([]);
+	const [selectedNewAdvisorId, setSelectedNewAdvisorId] = useState('');
 
 	useEffect(() => {
 		const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
 		return () => clearTimeout(timer);
 	}, [search]);
+
+	const getToken = () => localStorage.getItem('staffToken') || localStorage.getItem('authToken');
 
 	const filters = useMemo(() => ({
 		page,
@@ -76,13 +81,51 @@ export default function ServiceTicketManagement() {
 		loadData();
 	}, [loadData]);
 
-	// Mở modal: ticket đã có sẵn trong bảng từ check-in
-	const openModal = (ticket) => {
+	useEffect(() => {
+		const token = getToken();
+		if (!token) return;
+		fetchCheckInAdvisors(token)
+			.then((res) => {
+				setAdvisorOptions(Array.isArray(res?.data) ? res.data : []);
+			})
+			.catch(() => {
+				setAdvisorOptions([]);
+			});
+	}, []);
+
+	const openModal = async (ticket) => {
 		setModal({ open: true, ticket });
+		setModalAssignments([]);
+		setModalError('');
+		setModalSuccess('');
+		setSelectedNewAdvisorId('');
+
+		const token = getToken();
+		const ticketId = Number(ticket?.serviceTicketId || ticket?.ticketId || ticket?.id);
+		if (!token || !Number.isFinite(ticketId) || ticketId <= 0) return;
+
+		setModalLoading(true);
+		try {
+			const [assignRes] = await Promise.all([fetchTicketAssignments(ticketId, token)]);
+			const assignments = Array.isArray(assignRes?.data) ? assignRes.data : [];
+			setModalAssignments(assignments);
+			const advisor = assignments.find((a) =>
+				String(a?.roleInTicket || a?.role || '').toUpperCase() === 'ADVISOR'
+				&& String(a?.status || '').toUpperCase() !== 'CANCELLED');
+			if (advisor?.staffId != null) setSelectedNewAdvisorId(String(advisor.staffId));
+		} catch (err) {
+			setModalError(err?.message || 'Không tải được dữ liệu phân công.');
+		} finally {
+			setModalLoading(false);
+		}
 	};
 
 	const closeModal = () => {
 		setModal({ open: false, ticket: null });
+		setModalAssignments([]);
+		setModalError('');
+		setModalSuccess('');
+		setSelectedNewAdvisorId('');
 	};
 
 	const handleResetFilters = () => {
@@ -91,6 +134,51 @@ export default function ServiceTicketManagement() {
 		setDate('');
 		setStatus('');
 		setSearch('');
+	};
+
+	const currentAdvisor = modalAssignments.find((a) =>
+		String(a?.roleInTicket || a?.role || '').toUpperCase() === 'ADVISOR'
+		&& String(a?.status || '').toUpperCase() !== 'CANCELLED');
+
+	const currentAdvisorName =
+		currentAdvisor?.fullName || currentAdvisor?.staffName || modal.ticket?.advisorName || modal.ticket?.advisor?.fullName || '-';
+	const isTicketDraftForReception = String(modal.ticket?.ticketStatus || '').toUpperCase() === 'DRAFT';
+	const isAdvisorPendingForReception = String(currentAdvisor?.status || '').toUpperCase() === 'PENDING';
+	const canReceptionistChangeAdvisor = isTicketDraftForReception && isAdvisorPendingForReception;
+
+	const handleChangeAdvisorFromReception = async () => {
+		const token = getToken();
+		const ticketCode = String(modal.ticket?.ticketCode || '').trim();
+		const nextAdvisorId = Number(selectedNewAdvisorId);
+		const currentAdvisorId = Number(currentAdvisor?.staffId || 0);
+		const ticketId = Number(modal.ticket?.serviceTicketId || modal.ticket?.ticketId || modal.ticket?.id);
+		if (!token || !ticketCode || !Number.isFinite(nextAdvisorId) || nextAdvisorId <= 0) return;
+		if (!Number.isFinite(ticketId) || ticketId <= 0) return;
+		if (nextAdvisorId === currentAdvisorId) return;
+		if (!canReceptionistChangeAdvisor) {
+			setModalError('Le tan chi duoc doi advisor khi ticket DRAFT va advisor hien tai dang PENDING.');
+			return;
+		}
+
+		setModalError('');
+		setModalSuccess('');
+		setModalLoading(true);
+		try {
+			await changeAdvisorByReceptionist(
+				ticketCode,
+				nextAdvisorId,
+				'Doi advisor tu man le tan',
+				token,
+			);
+			const assignRes = await fetchTicketAssignments(ticketId, token);
+			setModalAssignments(Array.isArray(assignRes?.data) ? assignRes.data : []);
+			setModalSuccess('Da doi advisor thanh cong.');
+			await loadData();
+		} catch (err) {
+			setModalError(err?.message || 'Khong doi duoc advisor.');
+		} finally {
+			setModalLoading(false);
+		}
 	};
 
 	return (
@@ -128,7 +216,6 @@ export default function ServiceTicketManagement() {
 				</div>
 			</div>
 
-			{/* Modal Phân công / Xem phân công */}
 			{modal.open && (
 				<div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
 					<div className={styles['modal-box']}>
@@ -144,17 +231,45 @@ export default function ServiceTicketManagement() {
 								<strong>Trạng thái:</strong>{' '}
 								{getStatusTextVi(modal.ticket?.ticketStatus, modal.ticket?.ticketStatus || '-')}
 							</p>
+							{modalError && <div className={styles['error-banner']}>{modalError}</div>}
+							{modalSuccess && <div className={styles['success-banner']}>{modalSuccess}</div>}
+							{modalLoading && <div className={styles['empty-text']}>Đang tải phân công...</div>}
 
-							{/* Thông tin cố vấn viên được giao */}
-							{modal.ticket && (
+							{modal.ticket && !modalLoading && (
 								<div className={styles['assign-section']}>
 									<h4 className={styles['section-title']}>Cố vấn viên được giao</h4>
 									<div className={styles['assign-card']}>
 										<div className={styles['assign-info']}>
-											<span className={styles['assign-name']}>
-												{modal.ticket.advisorName || modal.ticket.advisor?.fullName || '-'}
-											</span>
-											<span className={styles['assign-role']}>Cố vấn viên</span>
+											<span className={styles['assign-name']}>{currentAdvisorName}</span>
+											<span className={styles['assign-role']}>Cố vấn viên {currentAdvisor?.status ? `• ${currentAdvisor.status}` : ''}</span>
+											{canReceptionistChangeAdvisor && (
+											<div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+												<select
+													value={selectedNewAdvisorId}
+													onChange={(e) => setSelectedNewAdvisorId(e.target.value)}
+													disabled={modalLoading}
+													style={{ flex: 1 }}
+												>
+													<option value="">Chọn advisor mới</option>
+													{advisorOptions.map((advisor) => (
+														<option key={advisor.staffId} value={advisor.staffId}>
+															{advisor.fullName || advisor.staffName || `NV-${advisor.staffId}`}
+														</option>
+													))}
+												</select>
+												<button
+													className={styles['assign-action-btn']}
+													onClick={handleChangeAdvisorFromReception}
+													disabled={
+														modalLoading ||
+														!selectedNewAdvisorId ||
+														Number(selectedNewAdvisorId) === Number(currentAdvisor?.staffId || 0)
+													}
+												>
+													Đổi advisor
+												</button>
+											</div>
+											)}
 										</div>
 									</div>
 								</div>
@@ -171,7 +286,6 @@ export default function ServiceTicketManagement() {
 	);
 }
 
-// ─── TicketPanel ────────────────────────────────────────────
 function TicketPanel({
 	title, icon, tone, data, actionLabel,
 	onViewDetail, onOpenAssign,
@@ -238,7 +352,7 @@ function TicketPanel({
 					<thead>
 						<tr>
 							<th>STT</th>
-							<th>Mã phiếu</th>
+							<th>MÃ PHIẾU</th>
 							<th>TÊN KHÁCH HÀNG</th>
 							<th>SĐT</th>
 							<th>TRẠNG THÁI</th>
@@ -264,19 +378,13 @@ function TicketPanel({
 									<td>{item?.customerName || '-'}</td>
 									<td>{item?.customerPhone || '-'}</td>
 									<td>
-										<span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>
-											{displayStatus}
-										</span>
+										<span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>{displayStatus}</span>
 									</td>
 									<td>{formatDateTimeVi(item?.receivedAt || item?.createdAt, '-')}</td>
 									<td>
 										<div className={styles['action-buttons']}>
-											<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>
-												Xem chi tiết
-											</button>
-											<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>
-												Xem phân công
-											</button>
+											<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
+											<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
 										</div>
 									</td>
 								</tr>
