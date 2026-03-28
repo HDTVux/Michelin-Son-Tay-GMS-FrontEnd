@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import styles from './ServiceTicketManagement.module.css';
@@ -47,7 +47,7 @@ export default function ServiceTicketManagement() {
 		search: debouncedSearch || undefined,
 	}), [page, size, date, status, debouncedSearch]);
 
-	const loadData = async () => {
+	const loadData = useCallback(async () => {
 		const token = localStorage.getItem('authToken');
 		if (!token) {
 			setError('Vui lòng đăng nhập.');
@@ -70,11 +70,11 @@ export default function ServiceTicketManagement() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [filters]);
 
 	useEffect(() => {
 		loadData();
-	}, [filters]);
+	}, [loadData]);
 
 	// Mở modal: ticket đã có sẵn trong bảng từ check-in
 	const openModal = (ticket) => {

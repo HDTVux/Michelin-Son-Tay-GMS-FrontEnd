@@ -2,14 +2,13 @@ const STATUS_TEXT_VI = {
   // ── Service Ticket statuses ──
   DRAFT: 'Nháp',
   INSPECTION: 'Đang kiểm tra',
-  PENDING: 'Chờ duyệt',
-  IN_PROGRESS: 'Đang sửa chữa',
+  PENDING: 'Chờ xử lý',
+  IN_PROGRESS: 'Đang thực hiện',
   COMPLETED: 'Hoàn tất',
   PAID: 'Đã thanh toán',
   CANCELLED: 'Đã hủy',
 
   // ── Booking request statuses ──
-  PENDING: 'Chờ duyệt',
   CONTACTED: 'Đã liên hệ',
   CONFIRM: 'Đã xác nhận',
   CONFIRMED: 'Đã xác nhận',
@@ -20,17 +19,12 @@ const STATUS_TEXT_VI = {
   SPAM: 'Spam',
 
   // ── Booking lifecycle statuses ──
-  IN_PROGRESS: 'Đang thực hiện',
   PROCESSING: 'Đang xử lý',
   DONE: 'Hoàn tất',
 
   // ── Managed booking statuses ──
   NEW: 'Mới',
   NOT_ARRIVED: 'Chưa đến',
-
-  //Service ticket statuses
-  PAID: 'Đã thanh toán',
-  INSPECTION: 'Đang kiểm tra',
 };
 
 function normalizeStatus(status) {
@@ -96,7 +90,6 @@ export function getStatusTone(status, fallback = 'info') {
   if (upper === 'CONFIRM' || upper === 'CONFIRMED' || upper === 'APPROVED') return 'success';
   if (upper === 'DONE' || upper === 'COMPLETED' || upper === 'PAID') return 'success';
   if (upper === 'NEW' || upper === 'DRAFT' || upper === 'IN_PROGRESS' || upper === 'PROCESSING') return 'info';
-  if (upper === 'PAID') return 'success';
 
   // Cancel variants
   if (

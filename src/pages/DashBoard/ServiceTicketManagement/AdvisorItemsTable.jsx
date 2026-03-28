@@ -9,20 +9,6 @@ import {
 
 const PHOTO_SLOTS = 4;
 
-const CATEGORY_SUGGESTIONS = [
-	{ label: 'Lốp' },
-	{ label: 'Van' },
-	{ label: 'Cân bằng động' },
-	{ label: 'Căn chỉnh thước lái' },
-	{ label: 'Phanh' },
-	{ label: 'Gạt mưa' },
-	{ label: 'Nước rửa kính' },
-	{ label: 'Dầu động cơ' },
-	{ label: 'Lọc dầu động cơ' },
-	{ label: 'Lọc gió động cơ' },
-	{ label: 'Lọc gió điều hòa' },
-];
-
 function TaxRuleQuickAdd({
 	show,
 	isAddingNewTaxRule,
@@ -138,6 +124,8 @@ function EstimateItemRow({
 	const taxRuleId = toIdOrNull(row?.taxRuleId);
 	const taxRule = taxRuleId ? taxRuleById.get(taxRuleId) : null;
 	const taxLabel = taxRule?.taxName || taxRule?.taxCode || '';
+	const isPredefinedCategory = Boolean(toIdOrNull(row?.workCategoryId));
+	const subTotalValue = taxRuleId ? (row?.subTotalWithVat ?? row?.subTotal) : row?.subTotal;
 
 	return (
 		<tr key={`advisor-row-${stt}-${row.key}`}>
@@ -198,10 +186,13 @@ function EstimateItemRow({
 				)}
 			</td>
 			<td className={styles.tdNumber}>
-				{showInputs ? formatCurrencyVnd(row.subTotal) : formatCurrencyVnd(row.subTotalDisplay ?? row.subTotal)}
+				{showInputs ? formatCurrencyVnd(subTotalValue) : formatCurrencyVnd(row.subTotalDisplay ?? row.subTotal)}
 			</td>
 			<td>
 				{showInputs ? (
+					isPredefinedCategory ? (
+						taxLabel || ''
+					) : (
 					<select
 						className={styles.tableInput}
 						value={row.taxRuleId ?? ''}
@@ -215,6 +206,7 @@ function EstimateItemRow({
 							</option>
 						))}
 					</select>
+					)
 				) : (
 					taxLabel || ''
 				)}
@@ -339,8 +331,10 @@ EstimateActions.propTypes = {
 	saveEdit: PropTypes.func,
 };
 
-export default function AdvisorItemsTable({ serviceTicketId }) {
+export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusChange }) {
 	const {
+		categorySuggestions,
+		workCategoriesLoading,
 		taxRules,
 		taxRulesLoading,
 		taxRuleById,
@@ -376,7 +370,9 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 		toggleChecked,
 		softDeleteEditRow,
 		inventory,
-	} = useAdvisorItemsTableHandlers(serviceTicketId);
+	} = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange });
+
+	const showTaxQuickAdd = showInputs && tableRows.some((r) => !isDraftRowEmpty(r) && !toIdOrNull(r?.workCategoryId));
 
 	return (
 		<section className={styles.block}>
@@ -543,7 +539,7 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 			</div>
 
 			<TaxRuleQuickAdd
-				show={showInputs}
+				show={showTaxQuickAdd}
 				isAddingNewTaxRule={isAddingNewTaxRule}
 				taxRulesLoading={taxRulesLoading}
 				isSaving={isSaving}
@@ -559,9 +555,11 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 
 			<div className={styles.tableWrap}>
 				<datalist id="estimate-category-suggestions">
-					{CATEGORY_SUGGESTIONS.map((it) => (
-						<option key={it.label} value={it.label} />
-					))}
+					{workCategoriesLoading ? null : (
+						(Array.isArray(categorySuggestions) ? categorySuggestions : []).map((label) => (
+							<option key={label} value={label} />
+						))
+					)}
 				</datalist>
 
 				<table className={styles.table}>
@@ -625,4 +623,5 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 
 AdvisorItemsTable.propTypes = {
 	serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+	onEstimateStatusChange: PropTypes.func,
 };
