@@ -7,6 +7,7 @@ import {
 	updateServiceTicketEstimateItem,
 } from '../../../services/serviceTicketService.js';
 import { fetchAllCatalogItems } from '../../../services/catalogService.js';
+import { createTaxRule } from '../../../services/warehouseService.js';
 
 const PLACEHOLDER_ROW_COUNT = 15;
 
@@ -108,6 +109,16 @@ function normalizeText(value) {
 		.normalize('NFD')
 		.replace(/[\u0300-\u036f]/g, '')
 		.toLowerCase();
+}
+
+function mapTaxRuleItem(item) {
+	if (!item) return null;
+	return {
+		taxRuleId: item.taxRuleId ?? item.id ?? 0,
+		taxCode: item.taxCode ?? item.code ?? '',
+		taxName: item.taxName ?? item.name ?? '',
+		taxRate: item.taxRate ?? item.rate ?? 0,
+	};
 }
 
 function matchesQuery(item, rawQuery) {
@@ -215,6 +226,10 @@ export function useAdvisorItemsTableHandlers(serviceTicketId) {
 	const [taxRules, setTaxRules] = useState([]);
 	const [taxRulesLoading, setTaxRulesLoading] = useState(false);
 	const [taxRulesError, setTaxRulesError] = useState('');
+	const [isAddingNewTaxRule, setIsAddingNewTaxRule] = useState(false);
+	const [taxName, setTaxName] = useState('');
+	const [taxRate, setTaxRate] = useState('');
+	const [isCreatingTaxRule, setIsCreatingTaxRule] = useState(false);
 	const [recommendation, setRecommendation] = useState('');
 	const [isCreating, setIsCreating] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
@@ -236,6 +251,9 @@ export function useAdvisorItemsTableHandlers(serviceTicketId) {
 			setTaxRules([]);
 			setTaxRulesError('');
 			setTaxRulesLoading(false);
+			setIsAddingNewTaxRule(false);
+			setTaxName('');
+			setTaxRate('');
 			return;
 		}
 
@@ -260,6 +278,74 @@ export function useAdvisorItemsTableHandlers(serviceTicketId) {
 			ignore = true;
 		};
 	}, []);
+
+	const startAddNewTaxRule = useCallback(() => {
+		if (taxRulesLoading) return;
+		setIsAddingNewTaxRule(true);
+		setTaxName('');
+		setTaxRate('');
+		setSaveError('');
+	}, [taxRulesLoading]);
+
+	const stopAddNewTaxRule = useCallback(() => {
+		if (isCreatingTaxRule) return;
+		setIsAddingNewTaxRule(false);
+		setTaxName('');
+		setTaxRate('');
+	}, [isCreatingTaxRule]);
+
+	const handleCreateTaxRule = useCallback(async () => {
+		if (isCreatingTaxRule) return;
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			setSaveError('Vui lòng đăng nhập để tạo loại thuế.');
+			return;
+		}
+
+		const name = String(taxName || '').trim();
+		if (!name) {
+			setSaveError('Vui lòng nhập tên thuế.');
+			return;
+		}
+		const rateNumber = Number(String(taxRate || '').trim());
+		if (Number.isNaN(rateNumber)) {
+			setSaveError('Vui lòng nhập thuế suất hợp lệ.');
+			return;
+		}
+
+		try {
+			setIsCreatingTaxRule(true);
+			setSaveError('');
+			const res = await createTaxRule(
+				{
+					taxName: name,
+					taxRate: rateNumber,
+				},
+				token,
+			);
+			const payload = res?.data?.data ?? res?.data ?? res;
+			const created = mapTaxRuleItem(payload);
+			const createdId = toIdOrNull(created?.taxRuleId);
+			if (!createdId) {
+				setSaveError('Tạo thuế thất bại (không nhận được taxRuleId).');
+				return;
+			}
+
+			setTaxRules((prev) => {
+				const list = Array.isArray(prev) ? prev : [];
+				const withoutDup = list.filter((t) => toIdOrNull(t?.taxRuleId) !== createdId);
+				return [created, ...withoutDup];
+			});
+
+			setIsAddingNewTaxRule(false);
+			setTaxName('');
+			setTaxRate('');
+		} catch (err) {
+			setSaveError(err?.message || 'Không thể tạo thuế.');
+		} finally {
+			setIsCreatingTaxRule(false);
+		}
+	}, [isCreatingTaxRule, taxName, taxRate]);
 
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
@@ -633,11 +719,6 @@ export function useAdvisorItemsTableHandlers(serviceTicketId) {
 			})
 			.filter((it) => it.newCategoryName && it.quantity > 0);
 
-		if (normalized.some((it) => !it.taxRuleId)) {
-			setSaveError('Vui lòng chọn loại thuế cho tất cả hạng mục.');
-			return;
-		}
-
 		const items = normalized;
 		if (items.length === 0) {
 			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
@@ -708,11 +789,6 @@ export function useAdvisorItemsTableHandlers(serviceTicketId) {
 				};
 			})
 			.filter((it) => it.newCategoryName && it.quantity > 0);
-
-		if (normalized.some((it) => !it.taxRuleId)) {
-			setSaveError('Vui lòng chọn loại thuế cho tất cả hạng mục.');
-			return;
-		}
 
 		const items = normalized;
 		if (items.length === 0) {
@@ -812,6 +888,15 @@ export function useAdvisorItemsTableHandlers(serviceTicketId) {
 		taxRules,
 		taxRulesLoading,
 		taxRulesError,
+		isAddingNewTaxRule,
+		taxName,
+		setTaxName,
+		taxRate,
+		setTaxRate,
+		isCreatingTaxRule,
+		startAddNewTaxRule,
+		stopAddNewTaxRule,
+		handleCreateTaxRule,
 		recommendation,
 		setRecommendation,
 		isCreating,

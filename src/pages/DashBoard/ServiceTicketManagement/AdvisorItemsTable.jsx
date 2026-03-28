@@ -23,11 +23,336 @@ const CATEGORY_SUGGESTIONS = [
 	{ label: 'Lọc gió điều hòa' },
 ];
 
+function TaxRuleQuickAdd({
+	show,
+	isAddingNewTaxRule,
+	taxRulesLoading,
+	isSaving,
+	isCreatingTaxRule,
+	taxName,
+	setTaxName,
+	taxRate,
+	setTaxRate,
+	startAddNewTaxRule,
+	stopAddNewTaxRule,
+	handleCreateTaxRule,
+}) {
+	if (!show) return null;
+
+	return (
+		<div style={{ marginTop: 12 }}>
+			<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+				<div style={{ fontWeight: 600 }}>Thuế</div>
+				{isAddingNewTaxRule ? (
+					<div className="ui-actions" style={{ marginTop: 0 }}>
+						<button
+							type="button"
+							className="ui-btn ui-btn--primary"
+							onClick={handleCreateTaxRule}
+							disabled={isCreatingTaxRule || isSaving}
+						>
+							{isCreatingTaxRule ? 'Đang thêm...' : 'Xác nhận thêm thuế'}
+						</button>
+						<button
+							type="button"
+							className="ui-btn ui-btn--ghost"
+							onClick={stopAddNewTaxRule}
+							disabled={isCreatingTaxRule || isSaving}
+						>
+							Chọn từ danh sách
+						</button>
+					</div>
+				) : (
+					<button
+						type="button"
+						className="ui-btn ui-btn--primary"
+						onClick={startAddNewTaxRule}
+						disabled={taxRulesLoading || isSaving}
+					>
+						Thêm thuế
+					</button>
+				)}
+			</div>
+
+			{isAddingNewTaxRule ? (
+				<div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, marginTop: 10 }}>
+					<div className="ui-field" style={{ marginBottom: 0 }}>
+						<label htmlFor="estimate-tax-name">Tên thuế (mới)</label>
+						<input
+							id="estimate-tax-name"
+							value={taxName}
+							onChange={(e) => setTaxName(e.target.value)}
+							placeholder="Nhập tên thuế"
+							autoComplete="off"
+							disabled={isCreatingTaxRule || isSaving}
+						/>
+					</div>
+					<div className="ui-field" style={{ marginBottom: 0 }}>
+						<label htmlFor="estimate-tax-rate">Thuế suất</label>
+						<input
+							id="estimate-tax-rate"
+							type="number"
+							step="0.01"
+							value={taxRate}
+							onChange={(e) => setTaxRate(e.target.value)}
+							placeholder="0"
+							disabled={isCreatingTaxRule || isSaving}
+						/>
+					</div>
+				</div>
+			) : null}
+		</div>
+	);
+}
+
+TaxRuleQuickAdd.propTypes = {
+	show: PropTypes.bool,
+	isAddingNewTaxRule: PropTypes.bool,
+	taxRulesLoading: PropTypes.bool,
+	isSaving: PropTypes.bool,
+	isCreatingTaxRule: PropTypes.bool,
+	taxName: PropTypes.string,
+	setTaxName: PropTypes.func,
+	taxRate: PropTypes.string,
+	setTaxRate: PropTypes.func,
+	startAddNewTaxRule: PropTypes.func,
+	stopAddNewTaxRule: PropTypes.func,
+	handleCreateTaxRule: PropTypes.func,
+};
+
+function EstimateItemRow({
+	row,
+	idx,
+	showInputs,
+	onChange,
+	isSaving,
+	taxRulesLoading,
+	taxRules,
+	taxRuleById,
+	toggleChecked,
+	canToggleChecked,
+	isEditing,
+	softDeleteEditRow,
+}) {
+	const stt = String(idx + 1).padStart(2, '0');
+	const taxRuleId = toIdOrNull(row?.taxRuleId);
+	const taxRule = taxRuleId ? taxRuleById.get(taxRuleId) : null;
+	const taxLabel = taxRule?.taxName || taxRule?.taxCode || '';
+
+	return (
+		<tr key={`advisor-row-${stt}-${row.key}`}>
+			<td>{stt}</td>
+			<td>
+				{showInputs ? (
+					<input
+						className={styles.tableInput}
+						value={row.newCategoryName}
+						onChange={(e) => onChange(idx, 'newCategoryName', e.target.value)}
+						placeholder="Hạng mục"
+						list="estimate-category-suggestions"
+						disabled={isSaving}
+					/>
+				) : (
+					row.categoryName || ''
+				)}
+			</td>
+			<td>
+				{showInputs ? (
+					<input
+						className={styles.tableInput}
+						value={row.itemName}
+						onChange={(e) => onChange(idx, 'itemName', e.target.value)}
+						placeholder="Diễn giải"
+						disabled={isSaving}
+					/>
+				) : (
+					row.itemName || ''
+				)}
+			</td>
+			<td className={styles.tdNumber}>
+				{showInputs ? (
+					<input
+						className={`${styles.tableInput} ${styles.tableInputNumber}`}
+						type="text"
+						value={row.quantity}
+						onChange={(e) => onChange(idx, 'quantity', e.target.value)}
+						placeholder="0"
+						disabled={isSaving}
+					/>
+				) : (
+					(row.quantity ?? '')
+				)}
+			</td>
+			<td className={styles.tdNumber}>
+				{showInputs ? (
+					<input
+						className={`${styles.tableInput} ${styles.tableInputNumber}`}
+						type="text"
+						value={row.unitPrice}
+						onChange={(e) => onChange(idx, 'unitPrice', e.target.value)}
+						placeholder="0"
+						disabled={isSaving}
+					/>
+				) : (
+					formatCurrencyVnd(row.unitPriceDisplay ?? row.unitPrice)
+				)}
+			</td>
+			<td className={styles.tdNumber}>
+				{showInputs ? formatCurrencyVnd(row.subTotal) : formatCurrencyVnd(row.subTotalDisplay ?? row.subTotal)}
+			</td>
+			<td>
+				{showInputs ? (
+					<select
+						className={styles.tableInput}
+						value={row.taxRuleId ?? ''}
+						onChange={(e) => onChange(idx, 'taxRuleId', e.target.value)}
+						disabled={isSaving || taxRulesLoading}
+					>
+						<option value="">{taxRulesLoading ? 'Đang tải...' : 'Không áp dụng'}</option>
+						{(Array.isArray(taxRules) ? taxRules : []).map((rule) => (
+							<option key={String(rule?.taxRuleId ?? '')} value={String(rule?.taxRuleId ?? '')}>
+								{rule?.taxName || rule?.taxCode || `Tax #${rule?.taxRuleId}`}
+							</option>
+						))}
+					</select>
+				) : (
+					taxLabel || ''
+				)}
+			</td>
+			<td />
+			<td className={styles.tdCenter}>
+				{showInputs ? (
+					<input
+						type="checkbox"
+						checked={Boolean(row.confirmed)}
+						onChange={(e) => onChange(idx, 'confirmed', e.target.checked)}
+						disabled={isSaving}
+					/>
+				) : (
+					<input
+						type="checkbox"
+						checked={Boolean(row.confirmed)}
+						onChange={(e) => toggleChecked(row.sourceIndex, e.target.checked)}
+						disabled={!canToggleChecked}
+					/>
+				)}
+			</td>
+			{isEditing ? (
+				<td className={styles.tdCenter}>
+					<button
+						type="button"
+						className="ui-btn ui-btn--ghost"
+						onClick={() => softDeleteEditRow(idx)}
+						disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row)}
+						title="Xóa dòng này"
+					>
+						Xóa
+					</button>
+				</td>
+			) : null}
+		</tr>
+	);
+}
+
+EstimateItemRow.propTypes = {
+	row: PropTypes.object,
+	idx: PropTypes.number,
+	showInputs: PropTypes.bool,
+	onChange: PropTypes.func,
+	isSaving: PropTypes.bool,
+	taxRulesLoading: PropTypes.bool,
+	taxRules: PropTypes.array,
+	taxRuleById: PropTypes.object,
+	toggleChecked: PropTypes.func,
+	canToggleChecked: PropTypes.bool,
+	isEditing: PropTypes.bool,
+	softDeleteEditRow: PropTypes.func,
+};
+
+function EstimateActions({
+	showAddEstimate,
+	canEdit,
+	isCreating,
+	isEditing,
+	isSaving,
+	startCreate,
+	startEdit,
+	cancelCreate,
+	cancelEdit,
+	saveEstimate,
+	saveEdit,
+}) {
+	return (
+		<>
+			{showAddEstimate ? (
+				<div className="ui-actions" style={{ marginTop: 12 }}>
+					<button type="button" className="ui-btn ui-btn--primary" onClick={startCreate}>
+						Tạo báo giá mới
+					</button>
+				</div>
+			) : null}
+
+			{canEdit ? (
+				<div className="ui-actions" style={{ marginTop: 12 }}>
+					<button type="button" className="ui-btn ui-btn--ghost" onClick={startEdit}>
+						Sửa báo giá
+					</button>
+				</div>
+			) : null}
+
+			{isCreating ? (
+				<div className="ui-actions" style={{ marginTop: 12 }}>
+					<button type="button" className="ui-btn ui-btn--ghost" onClick={cancelCreate} disabled={isSaving}>
+						Hủy
+					</button>
+					<button type="button" className="ui-btn ui-btn--primary" onClick={saveEstimate} disabled={isSaving}>
+						{isSaving ? 'Đang lưu...' : 'Lưu báo giá'}
+					</button>
+				</div>
+			) : null}
+
+			{isEditing ? (
+				<div className="ui-actions" style={{ marginTop: 12 }}>
+					<button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
+						Hủy
+					</button>
+					<button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
+						{isSaving ? 'Đang lưu...' : 'Lưu chỉnh sửa'}
+					</button>
+				</div>
+			) : null}
+		</>
+	);
+}
+
+EstimateActions.propTypes = {
+	showAddEstimate: PropTypes.bool,
+	canEdit: PropTypes.bool,
+	isCreating: PropTypes.bool,
+	isEditing: PropTypes.bool,
+	isSaving: PropTypes.bool,
+	startCreate: PropTypes.func,
+	startEdit: PropTypes.func,
+	cancelCreate: PropTypes.func,
+	cancelEdit: PropTypes.func,
+	saveEstimate: PropTypes.func,
+	saveEdit: PropTypes.func,
+};
+
 export default function AdvisorItemsTable({ serviceTicketId }) {
 	const {
 		taxRules,
 		taxRulesLoading,
 		taxRuleById,
+		isAddingNewTaxRule,
+		taxName,
+		setTaxName,
+		taxRate,
+		setTaxRate,
+		isCreatingTaxRule,
+		startAddNewTaxRule,
+		stopAddNewTaxRule,
+		handleCreateTaxRule,
 		recommendation,
 		setRecommendation,
 		isCreating,
@@ -201,45 +526,36 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 						</div>
 					</div>
 
-					{showAddEstimate ? (
-						<div className="ui-actions" style={{ marginTop: 12 }}>
-							<button type="button" className="ui-btn ui-btn--primary" onClick={startCreate}>
-								Tạo báo giá mới
-							</button>
-						</div>
-					) : null}
-
-					{canEdit ? (
-						<div className="ui-actions" style={{ marginTop: 12 }}>
-							<button type="button" className="ui-btn ui-btn--ghost" onClick={startEdit}>
-								Sửa báo giá
-							</button>
-						</div>
-					) : null}
-
-					{isCreating ? (
-						<div className="ui-actions" style={{ marginTop: 12 }}>
-							<button type="button" className="ui-btn ui-btn--ghost" onClick={cancelCreate} disabled={isSaving}>
-								Hủy
-							</button>
-							<button type="button" className="ui-btn ui-btn--primary" onClick={saveEstimate} disabled={isSaving}>
-								{isSaving ? 'Đang lưu...' : 'Lưu báo giá'}
-							</button>
-						</div>
-					) : null}
-
-					{isEditing ? (
-						<div className="ui-actions" style={{ marginTop: 12 }}>
-							<button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
-								Hủy
-							</button>
-							<button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
-								{isSaving ? 'Đang lưu...' : 'Lưu chỉnh sửa'}
-							</button>
-						</div>
-					) : null}
+					<EstimateActions
+						showAddEstimate={showAddEstimate}
+						canEdit={canEdit}
+						isCreating={isCreating}
+						isEditing={isEditing}
+						isSaving={isSaving}
+						startCreate={startCreate}
+						startEdit={startEdit}
+						cancelCreate={cancelCreate}
+						cancelEdit={cancelEdit}
+						saveEstimate={saveEstimate}
+						saveEdit={saveEdit}
+					/>
 				</div>
 			</div>
+
+			<TaxRuleQuickAdd
+				show={showInputs}
+				isAddingNewTaxRule={isAddingNewTaxRule}
+				taxRulesLoading={taxRulesLoading}
+				isSaving={isSaving}
+				isCreatingTaxRule={isCreatingTaxRule}
+				taxName={taxName}
+				setTaxName={setTaxName}
+				taxRate={taxRate}
+				setTaxRate={setTaxRate}
+				startAddNewTaxRule={startAddNewTaxRule}
+				stopAddNewTaxRule={stopAddNewTaxRule}
+				handleCreateTaxRule={handleCreateTaxRule}
+			/>
 
 			<div className={styles.tableWrap}>
 				<datalist id="estimate-category-suggestions">
@@ -264,125 +580,23 @@ export default function AdvisorItemsTable({ serviceTicketId }) {
 						</tr>
 					</thead>
 					<tbody>
-						{tableRows.map((row, idx) => {
-							const stt = String(idx + 1).padStart(2, '0');
-							const taxRuleId = toIdOrNull(row?.taxRuleId);
-							const taxRule = taxRuleId ? taxRuleById.get(taxRuleId) : null;
-							const taxLabel = taxRule?.taxName || taxRule?.taxCode || '';
-							return (
-								<tr key={`advisor-row-${stt}-${row.key}`}>
-									<td>{stt}</td>
-									<td>
-										{showInputs ? (
-											<input
-												className={styles.tableInput}
-												value={row.newCategoryName}
-												onChange={(e) => onChange(idx, 'newCategoryName', e.target.value)}
-												placeholder="Hạng mục"
-												list="estimate-category-suggestions"
-												disabled={isSaving}
-											/>
-										) : (
-											row.categoryName || ''
-										)}
-									</td>
-									<td>
-										{showInputs ? (
-											<input
-												className={styles.tableInput}
-												value={row.itemName}
-												onChange={(e) => onChange(idx, 'itemName', e.target.value)}
-												placeholder="Diễn giải"
-												disabled={isSaving}
-											/>
-										) : (
-											row.itemName || ''
-										)}
-									</td>
-									<td className={styles.tdNumber}>
-										{showInputs ? (
-											<input
-												className={`${styles.tableInput} ${styles.tableInputNumber}`}
-												type="text"
-												value={row.quantity}
-												onChange={(e) => onChange(idx, 'quantity', e.target.value)}
-												placeholder="0"
-												disabled={isSaving}
-											/>
-										) : (
-											(row.quantity ?? '')
-										)}
-									</td>
-									<td className={styles.tdNumber}>
-										{showInputs ? (
-											<input
-												className={`${styles.tableInput} ${styles.tableInputNumber}`}
-												type="text"
-												value={row.unitPrice}
-												onChange={(e) => onChange(idx, 'unitPrice', e.target.value)}
-												placeholder="0"
-												disabled={isSaving}
-											/>
-										) : (
-											formatCurrencyVnd(row.unitPriceDisplay ?? row.unitPrice)
-										)}
-									</td>
-									<td className={styles.tdNumber}>
-										{showInputs ? formatCurrencyVnd(row.subTotal) : formatCurrencyVnd(row.subTotalDisplay ?? row.subTotal)}
-									</td>
-									<td>
-										{showInputs ? (
-											<select
-												className={styles.tableInput}
-												value={row.taxRuleId ?? ''}
-												onChange={(e) => onChange(idx, 'taxRuleId', e.target.value)}
-												disabled={isSaving || taxRulesLoading}
-											>
-												<option value="">{taxRulesLoading ? 'Đang tải...' : '-- Chọn thuế --'}</option>
-												{(Array.isArray(taxRules) ? taxRules : []).map((rule) => (
-													<option key={String(rule?.taxRuleId ?? '')} value={String(rule?.taxRuleId ?? '')}>
-														{rule?.taxName || rule?.taxCode || `Tax #${rule?.taxRuleId}`}
-													</option>
-												))}
-											</select>
-										) : (
-											taxLabel || ''
-										)}
-									</td>
-								<td />
-								<td className={styles.tdCenter}>
-									{showInputs ? (
-										<input
-											type="checkbox"
-											checked={Boolean(row.confirmed)}
-											onChange={(e) => onChange(idx, 'confirmed', e.target.checked)}
-											disabled={isSaving}
-										/>
-									) : (
-										<input
-											type="checkbox"
-											checked={Boolean(row.confirmed)}
-											onChange={(e) => toggleChecked(row.sourceIndex, e.target.checked)}
-											disabled={!canToggleChecked}
-										/>
-									)}
-								</td>
-								{isEditing ? (
-									<td className={styles.tdCenter}>
-										<button
-											type="button"
-											className="ui-btn ui-btn--ghost"
-											onClick={() => softDeleteEditRow(idx)}
-											disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row)}
-											title="Xóa dòng này"
-										>
-											Xóa
-										</button>
-									</td>
-								) : null}
-							</tr>
-							);
-						})}
+						{tableRows.map((row, idx) => (
+							<EstimateItemRow
+								key={`advisor-row-${idx}-${row?.key ?? 'row'}`}
+								row={row}
+								idx={idx}
+								showInputs={showInputs}
+								onChange={onChange}
+								isSaving={isSaving}
+								taxRulesLoading={taxRulesLoading}
+								taxRules={taxRules}
+								taxRuleById={taxRuleById}
+								toggleChecked={toggleChecked}
+								canToggleChecked={canToggleChecked}
+								isEditing={isEditing}
+								softDeleteEditRow={softDeleteEditRow}
+							/>
+						))}
 					</tbody>
 					<tfoot>
 						<tr>
