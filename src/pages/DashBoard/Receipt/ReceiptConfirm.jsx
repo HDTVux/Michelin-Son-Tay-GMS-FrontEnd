@@ -397,7 +397,9 @@ export default function ReceiptConfirm() {
 		setAppliedPromotion(normalizePromotion(picked));
 	};
 
-	const handleBack = () => navigate(-1);
+	const handleBack =  () => {
+			navigate(-1);
+	};
 
 	const printTicket = useMemo(() => {
 		const invoiceItems = payItems.map((it) => ({
@@ -680,7 +682,7 @@ export default function ReceiptConfirm() {
 					</section>
 
 					<div className="ui-actions ui-actions--end">
-						<button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
+						<button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack} >
 							Hủy
 						</button>
 						<button

@@ -4,46 +4,20 @@ import PropTypes from 'prop-types';
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import ItemDetailModal from './ItemDetailModal.jsx';
+import { searchWarehouseCatalogItems } from '../../../services/warehouseService.js';
 import { formatCurrencyVnd, formatItemTypeLabel } from './itemFormatters.js';
 
 const buildRowKeyWithIndex = (baseKey, idx) => `${String(baseKey ?? '')}-${idx}`;
 
-// Mock theo shape API chi tiết sản phẩm (catalog item detail)
-const MOCK_ITEMS = [
-	{
-		itemId: 1,
-		itemName: 'Lốp Michelin 225/55R17 Primacy 4',
-		itemType: 'PART',
-		sku: 'MIC-22555R17-P4',
-		price: 2550000,
-		showPrice: true,
-		unit: 'Quả',
-		description: 'Lốp xe du lịch siêu êm ái, bám đường tốt trong điều kiện đường ướt.',
-		brand: {
-			brandId: 1,
-			brandName: 'Michelin',
-		},
-		productLine: {
-			productLineId: 1,
-			lineName: 'Primacy 4',
-		},
-		specifications: [
-			{ specId: 101, specType: 'Kích thước mâm (Rim Size)', specValue: '17 inch' },
-			{ specId: 102, specType: 'Chiều rộng lốp (Width)', specValue: '225 mm' },
-			{ specId: 103, specType: 'Tỷ lệ khung hình (Aspect Ratio)', specValue: '55 %' },
-			{ specId: 104, specType: 'Chỉ số tải trọng (Load Index)', specValue: '97' },
-			{ specId: 105, specType: 'Chỉ số tốc độ (Speed Rating)', specValue: 'W (270 km/h)' },
-		],
-	},
-];
+
 
 
 export default function ServiceManagement() {
 	useScrollToTop();
 	const navigate = useNavigate();
 
-	const [isLoading] = useState(false);
-	const [error] = useState('');
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState('');
 
 	const [page, setPage] = useState(0);
 	const [size, setSize] = useState(10);
@@ -51,15 +25,52 @@ export default function ServiceManagement() {
 	const [debouncedSearch, setDebouncedSearch] = useState('');
 	const [selectedItem, setSelectedItem] = useState(null);
 
+	// Server data
+	const [items, setItems] = useState([]);
+	const [totalElementsServer, setTotalElementsServer] = useState(0);
+	const [totalPagesServer, setTotalPagesServer] = useState(1);
+
 	useEffect(() => {
 		const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
 		return () => clearTimeout(timer);
 	}, [search]);
 
+	// Fetch catalog items from server whenever page/size/search changes
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			try {
+				setIsLoading(true);
+				setError('');
+				const token = localStorage.getItem('authToken');
+				const params = { page, size };
+				if (debouncedSearch) params.search = debouncedSearch;
+				const res = await searchWarehouseCatalogItems(params, token);
+				const payload = res?.data ?? res;
+				const content = Array.isArray(payload?.content) ? payload.content : [];
+				if (cancelled) return;
+				setItems(content);
+				setTotalElementsServer(Number(payload?.totalElements ?? content.length));
+				setTotalPagesServer(Number(payload?.totalPages ?? Math.max(1, Math.ceil((payload?.totalElements ?? content.length) / Math.max(1, size)))));
+			} catch (err) {
+				if (cancelled) return;
+				setError(err?.message || 'Không thể tải danh sách sản phẩm.');
+				setItems([]);
+				setTotalElementsServer(0);
+				setTotalPagesServer(1);
+			} finally {
+				if (!cancelled) setIsLoading(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [page, size, debouncedSearch]);
+
 	const activeConfig = useMemo(
 		() => ({
 			title: 'Danh sách hạng mục (dịch vụ / phụ tùng)',
-			data: MOCK_ITEMS,
+			data: items,
 			columns: [
 				{ header: 'ID', get: (x) => x.itemId },
 				{ header: 'TÊN', get: (x) => x.itemName },
@@ -82,28 +93,17 @@ export default function ServiceManagement() {
 			searchHaystack: (x) => `${x.itemId} ${x.itemName} ${x.sku || ''} ${x.itemType || ''} ${x.brand?.brandName || ''} ${x.productLine?.lineName || ''}`,
 			rowKey: (x, idx) => buildRowKeyWithIndex(x.itemId, idx),
 		}),
-		[]
+		[items]
 	);
 
-	const filtered = useMemo(() => {
-		const list = Array.isArray(activeConfig?.data) ? activeConfig.data : [];
-		const q = String(debouncedSearch || '').toLowerCase();
-		if (!q) return list;
-		return list.filter((item) => {
-			const hay = String(activeConfig?.searchHaystack?.(item) ?? '').toLowerCase();
-			return hay.includes(q);
-		});
-	}, [activeConfig, debouncedSearch]);
-
-	const totalElements = filtered.length;
-	const totalPages = Math.max(1, Math.ceil(totalElements / Math.max(1, size)));
+	// Use server-side totals when available
+	const totalElements = Number(totalElementsServer ?? (Array.isArray(items) ? items.length : 0));
+	const totalPages = Math.max(1, Number(totalPagesServer ?? Math.max(1, Math.ceil(totalElements / Math.max(1, size)))));
 	const safePage = Math.min(Math.max(0, page), totalPages - 1);
 
 	const paged = useMemo(() => {
-		const start = safePage * size;
-		const end = start + size;
-		return filtered.slice(start, end);
-	}, [filtered, safePage, size]);
+		return Array.isArray(items) ? items : [];
+	}, [items]);
 
 	const handleResetFilters = () => {
 		setPage(0);

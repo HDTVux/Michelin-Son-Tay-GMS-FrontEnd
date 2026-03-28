@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import ServiceTicketDetail from '../ServiceTicketManagement/ServiceTicketDetail.jsx';
@@ -335,7 +335,6 @@ export default function AdvisorInspection() {
     };
 
     fetchTickets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, searchTerm, statusFilter, reloadKey]);
 
   // --- Load workload map (fullName, isBusy, currentTicketCount) ---
@@ -689,7 +688,6 @@ export default function AdvisorInspection() {
     const ticketId = getTicketId(selectedTicket);
     const name = getStaffDisplayName(assignment.staffId);
 
-    // eslint-disable-next-line no-alert
     if (!window.confirm(`Hủy phân công ${name}?`)) return;
 
     if (!ticketId) {

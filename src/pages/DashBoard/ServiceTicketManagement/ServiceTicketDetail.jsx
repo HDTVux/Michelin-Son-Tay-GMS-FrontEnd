@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
@@ -6,7 +6,12 @@ import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/t
 import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHandlers.js';
-import { approveServiceTicketEstimate, fetchServiceTicketEstimate } from '../../../services/serviceTicketService.js';
+import {
+	fetchServiceTicketDetail,
+	fetchServiceTicketEstimate,
+	manageServiceTicketEstimateStatus,
+	manageServiceTicketStatus,
+} from '../../../services/serviceTicketService.js';
 import { ServiceTicket as TechnicianServiceTicket } from '../../Technician/ServiceTicket/ServiceTicket.jsx';
 import styles from './ServiceTicketDetail.module.css';
 
@@ -91,6 +96,18 @@ function normalizeTicketStatus(raw) {
 	if (value === 'IN_PROGRESS' || value === 'INPROGRESS' || value === 'PROCESSING') return 'IN_PROGRESS';
 	if (value === 'COMPLETED' || value === 'DONE' || value === 'FINISHED') return 'COMPLETED';
 	if (value === 'PAID' || value === 'PAYED') return 'PAID';
+	if (value === 'CANCELLED' || value === 'CANCELED' || value === 'CANCEL') return 'CANCELLED';
+	return value;
+}
+
+function normalizeEstimateStatus(raw) {
+	const value = String(raw || '')
+		.trim()
+		.toUpperCase()
+		.replaceAll(/\s+/g, '_');
+	if (!value) return '';
+
+	if (value === 'CONFIRMED') return 'APPROVED';
 	if (value === 'CANCELLED' || value === 'CANCELED' || value === 'CANCEL') return 'CANCELLED';
 	return value;
 }
@@ -271,14 +288,14 @@ function TimelineBlock({ steps }) {
 	);
 }
 
-function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serviceTicketId, ticketCode }) {
+function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serviceTicketId, ticketCode, onEstimateStatusChange }) {
 	if (!showTimeline && !showAdvisorTable) return null;
 	return (
 		<>
 			{showTimeline ? <TimelineBlock steps={timelineSteps} /> : null}
 			{showAdvisorTable ? (
 				<>
-					<TechnicianServiceTicket ticketCode={ticketCode} embedded mode="advisor" />
+					<TechnicianServiceTicket ticketCode={ticketCode} embedded />
 					<AdvisorItemsTable serviceTicketId={serviceTicketId} />
 				</>
 			) : null}
@@ -292,6 +309,7 @@ RoleBasedSections.propTypes = {
 	showAdvisorTable: PropTypes.bool,
 	serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
 	ticketCode: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+	onEstimateStatusChange: PropTypes.func,
 };
 
 export default function ServiceTicketDetail({
@@ -307,6 +325,9 @@ export default function ServiceTicketDetail({
 	const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
 	const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
 	const [receiptApproving, setReceiptApproving] = useState(false);
+	const [statusUpdating, setStatusUpdating] = useState(false);
+	const [estimateLoading, setEstimateLoading] = useState(false);
+	const [latestEstimate, setLatestEstimate] = useState(null);
 
 	const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
 	const ticketFromState =
@@ -328,6 +349,26 @@ export default function ServiceTicketDetail({
 		() => normalizeTicketStatus(ticket?.statusCode || ticket?.timelineStatus || ticket?.statusLabel),
 		[ticket?.statusCode, ticket?.timelineStatus, ticket?.statusLabel],
 	);
+
+	const serviceTicketIdNum = useMemo(() => {
+		const raw = ticket?.serviceTicketId;
+		const n = typeof raw === 'number' ? raw : Number(raw);
+		return Number.isFinite(n) && n > 0 ? n : null;
+	}, [ticket?.serviceTicketId]);
+
+	const estimateStatus = useMemo(() => {
+		return normalizeEstimateStatus(
+			latestEstimate?.estimateStatus ?? latestEstimate?.status ?? latestEstimate?.estimate_status,
+		);
+	}, [latestEstimate]);
+
+	const estimateIdNum = useMemo(() => {
+		const raw = latestEstimate?.estimateId ?? latestEstimate?.id;
+		const n = typeof raw === 'number' ? raw : Number(raw);
+		return Number.isFinite(n) && n > 0 ? n : null;
+	}, [latestEstimate]);
+
+	const isEstimateApproved = estimateStatus === 'APPROVED';
 	const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable);
 
 	const {
@@ -354,27 +395,121 @@ export default function ServiceTicketDetail({
 	const odometerDisplay =
 		odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
 
-	const handleBack = () => {
-		if (embedded && typeof onClose === 'function') {
-			onClose();
+	const handleBack = () => navigate(-1);
+
+	const handleUpdateTicketStatus = async (nextStatus, fallbackSuccessMessage) => {
+		if (statusUpdating) return;
+
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			notify('Vui lòng đăng nhập để cập nhật trạng thái phiếu dịch vụ.');
 			return;
 		}
-		navigate(-1);
+
+		if (!serviceTicketIdNum) {
+			notify('Thiếu serviceTicketId hợp lệ để cập nhật trạng thái.');
+			return;
+		}
+
+		const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
+		if (!ticketCode) {
+			notify('Thiếu mã phiếu dịch vụ để tải lại sau khi cập nhật trạng thái.');
+			return;
+		}
+
+		try {
+			setStatusUpdating(true);
+			setError('');
+			const res = await manageServiceTicketStatus(serviceTicketIdNum, nextStatus, token);
+			// Nếu backend trả về object ticket thì dùng luôn; nếu không thì fetch lại detail.
+			if (res?.data) {
+				setTicketRaw(res.data);
+			} else {
+				const detailRes = await fetchServiceTicketDetail(ticketCode, token);
+				setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
+			}
+			notify(res?.message || fallbackSuccessMessage || `Đã cập nhật trạng thái: ${nextStatus}`);
+		} catch (err) {
+			notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
+		} finally {
+			setStatusUpdating(false);
+		}
 	};
 
-	// UI-only handlers for status transitions (backend will be wired later)
-	const handleCancelTicket = () => notify('Chức năng hủy phiếu dịch vụ đang được phát triển.');
-	const handleSetPending = () => notify('Chức năng chuyển sang "Chờ xử lý" đang được phát triển.');
-	const handleStartRepair = () => notify('Chức năng chuyển sang "Tiến hành sửa chữa" đang được phát triển.');
-	const handleCompleteRepair = () => notify('Chức năng chuyển sang "Hoàn tất sửa chữa" đang được phát triển.');
-	const handleAddService = () => notify('Chức năng "Thêm dịch vụ" đang được phát triển.');
+	const handleCancelTicket = async () => {
+		if (statusUpdating) return;
+
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			notify('Vui lòng đăng nhập để hủy phiếu dịch vụ.');
+			return;
+		}
+
+		// Try to cancel latest estimate first (if exists), but do not block ticket cancellation on estimate error
+		try {
+			if (estimateIdNum) {
+				await manageServiceTicketEstimateStatus(estimateIdNum, 'CANCELLED', token);
+				setLatestEstimate((prev) => (prev ? { ...prev, status: 'CANCELLED', estimateStatus: 'CANCELLED' } : prev));
+			}
+		} catch (err) {
+			// notify but continue
+			notify(err?.message || 'Không thể cập nhật trạng thái báo giá.');
+		}
+
+		// Then cancel the ticket
+		await handleUpdateTicketStatus('CANCELLED', 'Đã hủy phiếu dịch vụ.');
+	};
+	const handleSetPending = () => handleUpdateTicketStatus('PENDING', 'Đã chuyển sang trạng thái "Chờ xử lý".');
+	const handleStartRepair = () => {
+		if (!estimateIdNum) {
+			notify('Chưa có báo giá hợp lệ. Vui lòng tạo và xác nhận báo giá trước khi tiến hành sửa chữa.');
+			return;
+		}
+		if (!isEstimateApproved) {
+			notify('Vui lòng xác nhận báo giá trước khi tiến hành sửa chữa.');
+			return;
+		}
+		handleUpdateTicketStatus('IN_PROGRESS', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
+	};
+	const handleCompleteRepair = () => handleUpdateTicketStatus('COMPLETED', 'Đã chuyển sang trạng thái "Hoàn tất sửa chữa".');
+	const handleAddService = () => handleUpdateTicketStatus('DRAFT', 'Đã chuyển về trạng thái "Nháp" để thêm dịch vụ.');
+
+	const handleConfirmEstimate = async () => {
+		if (estimateLoading) return;
+		if (!estimateIdNum) {
+			notify('Chưa có báo giá hợp lệ để xác nhận.');
+			return;
+		}
+		if (isEstimateApproved) {
+			notify('Báo giá đã được xác nhận trước đó.');
+			return;
+		}
+
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			notify('Vui lòng đăng nhập để xác nhận báo giá.');
+			return;
+		}
+
+		try {
+			setEstimateLoading(true);
+			await manageServiceTicketEstimateStatus(estimateIdNum, 'APPROVED', token);
+			setLatestEstimate((prev) => (prev ? { ...prev, status: 'APPROVED', estimateStatus: 'APPROVED' } : prev));
+			notify('Đã xác nhận báo giá.');
+		} catch (err) {
+			notify(err?.message || 'Không thể xác nhận báo giá.');
+		} finally {
+			setEstimateLoading(false);
+		}
+	};
 
 	const canCancel = ['DRAFT', 'INSPECTION', 'PENDING', 'IN_PROGRESS'].includes(ticketStatus);
 	const canSetPending = ticketStatus === 'DRAFT';
-	const canStartRepair = ticketStatus === 'DRAFT' || ticketStatus === 'PENDING';
+	const canStartRepair = (ticketStatus === 'DRAFT' || ticketStatus === 'PENDING') && isEstimateApproved;
 	const canCompleteRepair = ticketStatus === 'IN_PROGRESS';
 	const canAddService = ticketStatus === 'DRAFT' || ticketStatus === 'INSPECTION';
 	const canCreateReceipt = ticketStatus === 'COMPLETED';
+	const canConfirmEstimate = Boolean(estimateIdNum) && estimateStatus === 'DRAFT';
 
 	const handleCreateReceipt = async () => {
 		if (receiptApproving) return;
@@ -390,9 +525,7 @@ export default function ServiceTicketDetail({
 			return;
 		}
 
-		const serviceTicketIdRaw = ticket?.serviceTicketId;
-		const serviceTicketIdNum = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(serviceTicketIdRaw);
-		if (!Number.isFinite(serviceTicketIdNum) || serviceTicketIdNum <= 0) {
+		if (!serviceTicketIdNum) {
 			notify('Thiếu serviceTicketId hợp lệ để tạo hoá đơn.');
 			return;
 		}
@@ -408,7 +541,11 @@ export default function ServiceTicketDetail({
 				return;
 			}
 
-			await approveServiceTicketEstimate(estimateIdNum, token);
+			const latestStatus = normalizeEstimateStatus(latest?.estimateStatus ?? latest?.status);
+			if (latestStatus !== 'APPROVED') {
+				notify('Vui lòng xác nhận báo giá trước khi tạo hoá đơn.');
+				return;
+			}
 			navigate(`/service-ticket/${encodeURIComponent(String(code || '').trim())}/receipt-confirm`, {
 				state: { ticket: ticketRaw ?? ticketFromState ?? null },
 			});
@@ -555,7 +692,7 @@ export default function ServiceTicketDetail({
 
 						{hasAdvisorRole && (
 							<>
-								<TechnicianServiceTicket ticketCode={ticket.ticketCode || ticketCodeParam} embedded mode="advisor" />
+								<TechnicianServiceTicket ticketCode={ticket.ticketCode || ticketCodeParam} embedded />
 								<AdvisorItemsTable serviceTicketId={ticket?.serviceTicketId} />
 							</>
 						)}
@@ -570,28 +707,38 @@ export default function ServiceTicketDetail({
 										type="button"
 										className="ui-btn ui-btn--danger"
 										onClick={handleCancelTicket}
-										disabled={receiptApproving}
+										disabled={ statusUpdating}
 									>
 										Hủy phiếu dịch vụ
 									</button>
 								)}
 								{canSetPending && (
-									<button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving}>
+									<button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
 										Chờ xử lý
 									</button>
 								)}
 								{canAddService && (
-									<button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving}>
+									<button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
 										Thêm dịch vụ
 									</button>
 								)}
+								{canConfirmEstimate && (
+									<button
+										type="button"
+										className="ui-btn ui-btn--primary"
+										onClick={handleConfirmEstimate}
+										disabled={receiptApproving || statusUpdating || estimateLoading}
+									>
+										{estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
+									</button>
+								)}
 								{canStartRepair && (
-									<button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving}>
+									<button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
 										Tiến hành sửa chữa
 									</button>
 								)}
 								{canCompleteRepair && (
-									<button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving}>
+									<button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving || statusUpdating}>
 										Hoàn tất sửa chữa
 									</button>
 								)}
@@ -643,5 +790,7 @@ RoleBasedSections.propTypes = {
 	timelineSteps: PropTypes.array,
 	showAdvisorTable: PropTypes.bool.isRequired,
 	serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+	ticketCode: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+	onEstimateStatusChange: PropTypes.func,
 };
 

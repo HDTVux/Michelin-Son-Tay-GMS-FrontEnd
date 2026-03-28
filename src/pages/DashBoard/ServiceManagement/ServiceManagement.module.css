@@ -407,3 +407,25 @@
 	padding: 12px;
 	color: var(--ui-text-secondary, #6b7280);
 }
+
+/* Inline spec row controls */
+.spec-input {
+	padding: 8px 10px;
+	border-radius: 6px;
+	border: 1px solid var(--ui-line, #d9d9d9);
+	background: var(--ui-bg-card, #ffffff);
+	font-size: 14px;
+}
+
+.spec-select {
+	padding: 8px 10px;
+	border-radius: 6px;
+	border: 1px solid var(--ui-line, #d9d9d9);
+	background: var(--ui-bg-card, #ffffff);
+	font-size: 14px;
+	min-width: 160px;
+}
+
+.spec-input[readonly] {
+	background: var(--ui-bg-secondary, #fafafa);
+}

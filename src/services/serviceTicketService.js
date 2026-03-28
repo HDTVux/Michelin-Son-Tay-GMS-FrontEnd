@@ -1,5 +1,66 @@
 import { request } from './apiClient';
 
+// Đổi trạng thái phiếu dịch vụ theo serviceTicketId
+// Endpoint: PUT /api/service-ticket/manage/{serviceTicketId}/{status}
+export const manageServiceTicketStatus = (serviceTicketId, status, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật trạng thái phiếu dịch vụ.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu serviceTicketId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const statusNorm = String(status ?? '')
+    .trim()
+    .toUpperCase()
+    .replaceAll(/\s+/g, '_');
+
+
+  return request(`/api/service-ticket/manage/${encodeURIComponent(String(idNum))}/${encodeURIComponent(statusNorm)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+};
+
+// Đổi trạng thái báo giá (estimate)
+// Backend thường map: PUT /api/service-ticket/estimate/{estimateId}/{status}
+export const manageServiceTicketEstimateStatus = (estimateId, status, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật trạng thái báo giá.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const statusNorm = String(status ?? '')
+    .trim()
+    .toUpperCase()
+    .replaceAll(/\s+/g, '_');
+
+
+  return request(
+    `/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/${encodeURIComponent(statusNorm)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+};
+
 // Lấy danh sách phiếu dịch vụ (có phân trang / tìm kiếm / lọc)
 // Params backend: page, size, date (yyyy-mm-dd), status, search
 export const fetchServiceTicketsPaged = (params, token) => {
@@ -164,28 +225,6 @@ export const fetchServiceTicketEstimate = (serviceTicketId, token) => {
   const idEncoded = encodeURIComponent(idRaw);
   return request(`/api/service-ticket/estimate/${idEncoded}`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-};
-
-// Xác nhận bảng báo giá trước khi thanh toán
-// Endpoint: PUT /api/service-ticket/estimate/{estimateId}/approve
-export const approveServiceTicketEstimate = (estimateId, token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xác nhận báo giá.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
-  const idNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
-  if (!Number.isFinite(idNum) || idNum <= 0) {
-    const error = new Error('Thiếu estimateId hợp lệ.');
-    error.status = 400;
-    return Promise.reject(error);
-  }
-
-  return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/approve`, {
-    method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
   });
 };
@@ -492,6 +531,22 @@ export const fetchTaxRulesAll = (token) => {
   }
 
   return request('/api/service-ticket/tax-rule/all', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Lấy danh sách hạng mục công việc (work categories) dùng cho báo giá
+// Backend trả về: ApiResponse<List<WorkCategoryDto>>
+// Endpoint: GET /api/service-ticket/estimate/work-category/all
+export const fetchWorkCategoriesAll = (token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem danh sách hạng mục.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  return request('/api/service-ticket/estimate/work-category/all', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
