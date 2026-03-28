@@ -278,7 +278,7 @@ function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serv
 			{showTimeline ? <TimelineBlock steps={timelineSteps} /> : null}
 			{showAdvisorTable ? (
 				<>
-					<TechnicianServiceTicket ticketCode={ticketCode} embedded />
+					<TechnicianServiceTicket ticketCode={ticketCode} embedded mode="advisor" />
 					<AdvisorItemsTable serviceTicketId={serviceTicketId} />
 				</>
 			) : null}
@@ -294,7 +294,12 @@ RoleBasedSections.propTypes = {
 	ticketCode: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
-export default function ServiceTicketDetail() {
+export default function ServiceTicketDetail({
+	ticketCodeOverride = '',
+	ticketFromParent = null,
+	embedded = false,
+	onClose,
+}) {
 	useScrollToTop();
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -303,8 +308,12 @@ export default function ServiceTicketDetail() {
 	const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
 	const [receiptApproving, setReceiptApproving] = useState(false);
 
-	const ticketCodeParam = String(params?.ticketCode || '').trim();
-	const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
+	const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
+	const ticketFromState =
+		ticketFromParent ??
+		location?.state?.ticket ??
+		location?.state?.serviceTicket ??
+		null;
 
 	const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
 		ticketCodeParam,
@@ -345,7 +354,13 @@ export default function ServiceTicketDetail() {
 	const odometerDisplay =
 		odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
 
-	const handleBack = () => navigate(-1);
+	const handleBack = () => {
+		if (embedded && typeof onClose === 'function') {
+			onClose();
+			return;
+		}
+		navigate(-1);
+	};
 
 	// UI-only handlers for status transitions (backend will be wired later)
 	const handleCancelTicket = () => notify('Chức năng hủy phiếu dịch vụ đang được phát triển.');
@@ -540,7 +555,7 @@ export default function ServiceTicketDetail() {
 
 						{hasAdvisorRole && (
 							<>
-								<TechnicianServiceTicket ticketCode={ticket.ticketCode || ticketCodeParam} embedded />
+								<TechnicianServiceTicket ticketCode={ticket.ticketCode || ticketCodeParam} embedded mode="advisor" />
 								<AdvisorItemsTable serviceTicketId={ticket?.serviceTicketId} />
 							</>
 						)}
@@ -594,6 +609,13 @@ export default function ServiceTicketDetail() {
 		</div>
 	);
 }
+
+ServiceTicketDetail.propTypes = {
+	ticketCodeOverride: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+	ticketFromParent: PropTypes.object,
+	embedded: PropTypes.bool,
+	onClose: PropTypes.func,
+};
 
 InfoBlock.propTypes = {
 	title: PropTypes.string.isRequired,

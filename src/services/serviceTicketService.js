@@ -72,6 +72,79 @@ export const updateServiceTicket = (ticketCode, payload, token) => {
   });
 };
 
+// Lễ tân đổi advisor cho ticket
+// Endpoint: PUT /api/service-ticket/manage/tickets/{ticketCode}/change-advisor?newAdvisorId={id}&note={note}
+export const changeAdvisorByReceptionist = (ticketCode, newAdvisorId, note, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để đổi advisor.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+  const code = encodeURIComponent(String(ticketCode ?? '').trim());
+  const advisorId = Number(newAdvisorId);
+  if (!code || !Number.isFinite(advisorId) || advisorId <= 0) {
+    const error = new Error('Thiếu ticketCode hoặc newAdvisorId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  const searchParams = new URLSearchParams();
+  searchParams.set('newAdvisorId', String(advisorId));
+  if (note != null && String(note).trim() !== '') searchParams.set('note', String(note).trim());
+  return request(`/api/service-ticket/manage/tickets/${code}/change-advisor?${searchParams.toString()}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Advisor đổi advisor phụ trách ticket
+// Endpoint: PUT /api/service-ticket/advisor/tickets/{ticketCode}/change-advisor?newAdvisorId={id}&note={note}
+export const changeAdvisorByAdvisor = (ticketCode, newAdvisorId, note, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để đổi advisor.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+  const code = encodeURIComponent(String(ticketCode ?? '').trim());
+  const advisorId = Number(newAdvisorId);
+  if (!code || !Number.isFinite(advisorId) || advisorId <= 0) {
+    const error = new Error('Thiếu ticketCode hoặc newAdvisorId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  const searchParams = new URLSearchParams();
+  searchParams.set('newAdvisorId', String(advisorId));
+  if (note != null && String(note).trim() !== '') searchParams.set('note', String(note).trim());
+  return request(`/api/service-ticket/advisor/tickets/${code}/change-advisor?${searchParams.toString()}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Advisor đổi technician khi technician cũ đang PENDING
+// Endpoint: PUT /api/service-ticket/advisor/tickets/{ticketCode}/technician/{oldTechnicianId}/change/{newTechnicianId}?note={note}
+export const changeTechnicianByAdvisor = (ticketCode, oldTechnicianId, newTechnicianId, note, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để đổi kỹ thuật viên.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+  const code = encodeURIComponent(String(ticketCode ?? '').trim());
+  const oldId = Number(oldTechnicianId);
+  const newId = Number(newTechnicianId);
+  if (!code || !Number.isFinite(oldId) || oldId <= 0 || !Number.isFinite(newId) || newId <= 0) {
+    const error = new Error('Thiếu ticketCode hoặc technicianId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  const qs = note != null && String(note).trim() !== ''
+    ? `?note=${encodeURIComponent(String(note).trim())}`
+    : '';
+  return request(`/api/service-ticket/advisor/tickets/${code}/technician/${oldId}/change/${newId}${qs}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Lấy thông tin ước tính cho phiếu dịch vụ theo serviceTicketId
 // Endpoint: GET /api/service-ticket/estimate/{serviceTicketId}
 export const fetchServiceTicketEstimate = (serviceTicketId, token) => {
@@ -367,8 +440,8 @@ export const cancelAssignmentById = (ticketId, assignmentId, token) => {
   });
 };
 
-// Lấy danh sách phiếu được giao cho advisor đang đăng nhập
-// Endpoint: GET /api/service-ticket/advisor/my-tickets?page=0&size=10&status=INSPECTION
+// Lấy danh sách phiếu cho advisor
+// Endpoint: GET /api/service-ticket/advisor/tickets?page=0&size=10&date=yyyy-mm-dd&status=DRAFT&search=...
 export const fetchAdvisorMyTickets = (params, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để xem danh sách phiếu.');
@@ -381,10 +454,12 @@ export const fetchAdvisorMyTickets = (params, token) => {
   const size = Number.isFinite(params?.size) ? params.size : 10;
   searchParams.set('page', String(page));
   searchParams.set('size', String(size));
+  if (params?.date) searchParams.set('date', params.date);
   if (params?.status) searchParams.set('status', params.status);
+  if (params?.search) searchParams.set('search', params.search);
 
   const qs = searchParams.toString();
-  const path = qs ? `/api/service-ticket/advisor/my-tickets?${qs}` : '/api/service-ticket/advisor/my-tickets';
+  const path = qs ? `/api/service-ticket/advisor/tickets?${qs}` : '/api/service-ticket/advisor/tickets';
 
   return request(path, {
     method: 'GET',

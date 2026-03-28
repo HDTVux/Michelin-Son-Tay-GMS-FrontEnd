@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import ServiceTicket from '../../Technician/ServiceTicket/ServiceTicket.jsx';
+import ServiceTicketDetail from '../ServiceTicketManagement/ServiceTicketDetail.jsx';
 import {
-  fetchServiceTicketsPaged,
+  fetchAdvisorMyTickets,
   fetchAvailableStaff,
   assignStaff,
   cancelAssignmentById,
-  updateServiceTicket,
+  changeAdvisorByAdvisor,
+  changeTechnicianByAdvisor,
   fetchTechniciansWorkload,
   fetchTicketAssignments,
 } from '../../../services/serviceTicketService';
@@ -16,8 +17,37 @@ import { fetchCheckInAdvisors } from '../../../services/checkInService';
 import styles from './AdvisorInspection.module.css';
 
 const ITEMS_PER_PAGE = 10;
+const STAFF_ROLE = {
+  ADVISOR: 'ADVISOR',
+};
 
 const getToken = () => localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+const readStaffRolesFromStorage = () => {
+  try {
+    const raw = localStorage.getItem('staffRoles');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((r) => typeof r === 'string')
+      .map((r) => r.trim().toUpperCase())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+const readStaffIdFromProfile = () => {
+  try {
+    const raw = localStorage.getItem('staffProfile');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const staffId = Number(parsed?.staffId);
+    return Number.isFinite(staffId) && staffId > 0 ? staffId : null;
+  } catch {
+    return null;
+  }
+};
+
 const getTicketCode = (ticket) => ticket?.ticketCode || ticket?.code || '';
 const getTicketId = (ticket) => {
   if (ticket?.serviceTicketId != null) return Number(ticket.serviceTicketId);
@@ -31,6 +61,16 @@ const INSPECTION_STATUS_LABELS = {
   PENDING: 'Chờ kiểm tra',
   COMPLETED: 'Đã kiểm tra',
   SKIPPED: 'Đã bỏ qua',
+};
+
+const normalizeInspectionStatus = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (!raw) return null;
+  if (raw === 'WAITING' || raw === 'IN_PROGRESS' || raw === 'INSPECTION') return 'PENDING';
+  if (raw === 'DONE' || raw === 'FINISHED' || raw === 'PASSED') return 'COMPLETED';
+  if (raw === 'SKIP' || raw === 'DISABLED') return 'SKIPPED';
+  if (raw === 'PENDING' || raw === 'COMPLETED' || raw === 'SKIPPED') return raw;
+  return null;
 };
 
 const SERVICE_TICKET_STATUS_LABELS = {
@@ -49,6 +89,14 @@ const normalizeServiceTicketStatus = (ticket) => {
   if (raw === 'INSPECTING' || raw === 'DIAGNOSIS') return 'INSPECTION';
   return raw;
 };
+
+const getInspectionStatusFromTicket = (ticket) =>
+  normalizeInspectionStatus(
+    ticket?.inspectionStatus ||
+      ticket?.safetyInspectionStatus ||
+      ticket?.safetyInspection?.inspectionStatus ||
+      ticket?.safetyInspection?.status,
+  );
 
 const toAvailableStaffList = (response) => {
   if (Array.isArray(response?.data)) return response.data;
@@ -85,6 +133,9 @@ const normalizeAssignment = (raw) => {
 
 export default function AdvisorInspection() {
   const navigate = useNavigate();
+  const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
+  const currentStaffId = useMemo(() => readStaffIdFromProfile(), []);
+  const canChangeAdvisorByRole = staffRoles.includes(STAFF_ROLE.ADVISOR);
 
   // --- Ticket list state ---
   const [tickets, setTickets] = useState([]);
@@ -113,6 +164,9 @@ export default function AdvisorInspection() {
   const [modalTechList, setModalTechList] = useState([]);
   // Advisor đang phụ trách ticket này (từ /assignments)
   const [modalAdvisor, setModalAdvisor] = useState(null);
+  const [advisorOptions, setAdvisorOptions] = useState([]);
+  const [selectedNewAdvisorId, setSelectedNewAdvisorId] = useState('');
+  const [techReplacementByAssignment, setTechReplacementByAssignment] = useState({});
 
   // --- Assignments ở page-level (keyed theo ticketId) ---
   // Dùng cho cột "Phân công" trong bảng — vì backend không có GET /{ticketId}/assignments
@@ -168,9 +222,8 @@ export default function AdvisorInspection() {
 
   const getInspectionStatusForTicket = (ticket) => {
     const code = getTicketCode(ticket);
-    return (
-      inspectionByTicket[code]?.inspectionStatus ||
-      (ticket?.safetyInspectionEnabled ? null : 'SKIPPED')
+    return normalizeInspectionStatus(
+      inspectionByTicket[code]?.inspectionStatus || getInspectionStatusFromTicket(ticket),
     );
   };
 
@@ -213,7 +266,7 @@ export default function AdvisorInspection() {
     try {
       const res = await getSafetyInspectionByTicketCode(code, token);
       return {
-        inspectionStatus: res?.data?.inspectionStatus || null,
+        inspectionStatus: normalizeInspectionStatus(res?.data?.inspectionStatus),
         safetyInspectionEnabled: Boolean(res?.data),
       };
     } catch {
@@ -236,10 +289,11 @@ export default function AdvisorInspection() {
         const backendParams = {
           page: 0,
           size: 200,
+          status: statusFilter === 'ALL' ? undefined : statusFilter,
           search: searchTerm || undefined,
         };
 
-        const response = await fetchServiceTicketsPaged(backendParams, token);
+        const response = await fetchAdvisorMyTickets(backendParams, token);
         const list = Array.isArray(response?.data?.content)
           ? response.data.content
           : Array.isArray(response?.data)
@@ -258,20 +312,14 @@ export default function AdvisorInspection() {
         for (const t of list) {
           const code = getTicketCode(t);
           if (!code) continue;
-          if (!t?.safetyInspectionEnabled) {
-            inspectionMap[code] = {
-              inspectionStatus: 'SKIPPED',
-              safetyInspectionEnabled: false,
-            };
-            continue;
-          }
+          const statusFromTicket = getInspectionStatusFromTicket(t);
           // eslint-disable-next-line no-await-in-loop
           const result = await safeGetInspection(code, token);
-          if (result) {
+          if (result?.inspectionStatus) {
             inspectionMap[code] = result;
           } else {
             inspectionMap[code] = {
-              inspectionStatus: t?.safetyInspectionEnabled ? null : 'SKIPPED',
+              inspectionStatus: statusFromTicket,
               safetyInspectionEnabled: Boolean(t?.safetyInspectionEnabled),
             };
           }
@@ -315,6 +363,7 @@ export default function AdvisorInspection() {
     fetchCheckInAdvisors(token)
       .then((res) => {
         const advisors = Array.isArray(res?.data) ? res.data : [];
+        setAdvisorOptions(advisors);
         cacheStaffNames(advisors);
       })
       .catch(() => {});
@@ -377,6 +426,8 @@ export default function AdvisorInspection() {
     setModalTechList([]);
     setModalAssignments([]);
     setModalAdvisor(null);
+    setSelectedNewAdvisorId('');
+    setTechReplacementByAssignment({});
     setLoadingModal(true);
 
     const token = getToken();
@@ -412,6 +463,7 @@ export default function AdvisorInspection() {
       const techAssigns =
         techAssignsFromApi.length > 0 ? techAssignsFromApi : cachedTechAssigns;
       setModalAdvisor(advisorAssign || null);
+      setSelectedNewAdvisorId(advisorAssign?.staffId ? String(advisorAssign.staffId) : '');
       setModalAssignments(techAssigns);
 
       // Cập nhật pageAssignments để bảng hiển thị đúng tên KTV
@@ -460,15 +512,122 @@ export default function AdvisorInspection() {
     setModalTechList([]);
     setModalAssignments([]);
     setModalAdvisor(null);
+    setSelectedNewAdvisorId('');
+    setTechReplacementByAssignment({});
     setModalError('');
     setModalSuccess('');
   };
 
   // --- Gán KTV ---
+  const handleChangeAdvisor = async () => {
+    const token = getToken();
+    const ticketCode = getTicketCode(selectedTicket);
+    const currentAdvisorId = Number(modalAdvisor?.staffId);
+    const newAdvisorId = Number(selectedNewAdvisorId);
+
+    if (!token || !ticketCode || !Number.isFinite(currentAdvisorId) || currentAdvisorId <= 0) {
+      setModalError('Khong du du lieu de doi advisor.');
+      return;
+    }
+    if (!canChangeAdvisorByRole) {
+      setModalError('Chi advisor moi co quyen doi advisor.');
+      return;
+    }
+    if (modalAdvisor?.status !== 'PENDING' && modalAdvisor?.status !== 'ACTIVE') {
+      setModalError('Chi duoc doi advisor khi assignment hien tai dang PENDING hoac ACTIVE.');
+      return;
+    }
+    if (!Number.isFinite(newAdvisorId) || newAdvisorId <= 0 || newAdvisorId === currentAdvisorId) {
+      return;
+    }
+
+    setModalError('');
+    setModalSuccess('');
+    setLoadingModal(true);
+    try {
+      await changeAdvisorByAdvisor(
+        ticketCode,
+        newAdvisorId,
+        'Doi advisor tu man advisor',
+        token,
+      );
+      const selectedTicketId = getTicketId(selectedTicket);
+      const shouldHideFromCurrentAdvisor =
+        Number.isFinite(currentStaffId) && currentStaffId > 0 && newAdvisorId !== currentStaffId;
+
+      if (shouldHideFromCurrentAdvisor && Number.isFinite(selectedTicketId)) {
+        setTickets((prev) =>
+          prev.filter((t) => Number(getTicketId(t)) !== Number(selectedTicketId)),
+        );
+        setPageAssignments((prev) => {
+          const next = new Map(prev);
+          next.delete(Number(selectedTicketId));
+          return next;
+        });
+        setShowAssignModal(false);
+        setSelectedTicket(null);
+        setModalTechList([]);
+        setModalAssignments([]);
+        setModalAdvisor(null);
+        setSelectedNewAdvisorId('');
+        setTechReplacementByAssignment({});
+        toast.success('Da doi advisor. Phieu da duoc chuyen sang advisor moi.');
+      } else {
+        await handleOpenModal(selectedTicket);
+        setModalSuccess('Da doi advisor.');
+      }
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setModalError(err?.message || 'Doi advisor that bai.');
+    } finally {
+      setLoadingModal(false);
+    }
+  };
+
+  const handleChangeTechnician = async (assignment) => {
+    const token = getToken();
+    const ticketCode = getTicketCode(selectedTicket);
+    const oldTechnicianId = Number(assignment?.staffId);
+    const newTechnicianId = Number(
+      techReplacementByAssignment[String(assignment?.assignmentId)] || 0,
+    );
+
+    if (!token || !ticketCode || !Number.isFinite(oldTechnicianId) || oldTechnicianId <= 0) {
+      setModalError('Khong du du lieu de doi KTV.');
+      return;
+    }
+    if (assignment?.status !== 'PENDING') {
+      setModalError('Chi duoc doi KTV khi assignment hien tai dang PENDING.');
+      return;
+    }
+    if (!Number.isFinite(newTechnicianId) || newTechnicianId <= 0 || newTechnicianId === oldTechnicianId) {
+      return;
+    }
+
+    setModalError('');
+    setModalSuccess('');
+    setLoadingModal(true);
+    try {
+      await changeTechnicianByAdvisor(
+        ticketCode,
+        oldTechnicianId,
+        newTechnicianId,
+        'Doi KTV tu man advisor',
+        token,
+      );
+      await handleOpenModal(selectedTicket);
+      setModalSuccess('Da doi ky thuat vien.');
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setModalError(err?.message || 'Doi ky thuat vien that bai.');
+    } finally {
+      setLoadingModal(false);
+    }
+  };
+
   const handleAssign = async (tech, isPrimary) => {
     const token = getToken();
     const ticketId = getTicketId(selectedTicket);
-    const ticketCode = getTicketCode(selectedTicket);
     if (!ticketId) {
       setModalError('Không tìm thấy ticketId.');
       return;
@@ -502,24 +661,6 @@ export default function AdvisorInspection() {
         setModalAssignments((prev) => [...prev, { ...newAssignment }]);
       }
 
-      // Sync ticket status → INSPECTION
-      if (ticketCode) {
-        try {
-          await updateServiceTicket(ticketCode, { ticketStatus: 'INSPECTION' }, token);
-        } catch (statusErr) {
-          console.warn('Không sync được status ticket:', statusErr);
-        }
-      }
-
-      // Update ticket list
-      setTickets((prev) =>
-        prev.map((t) =>
-          getTicketId(t) === ticketId
-            ? { ...t, status: 'INSPECTION', ticketStatus: 'INSPECTION' }
-            : t,
-        ),
-      );
-
       // Xóa KTV khỏi danh sách khả dụng
       setModalTechList((prev) => prev.filter((t) => t.staffId !== tech.staffId));
 
@@ -533,6 +674,7 @@ export default function AdvisorInspection() {
 
       const label = isPrimary ? 'KTV chính' : 'KTV phụ';
       setModalSuccess(`Đã phân công ${label}: ${tech.fullName || `NV-${tech.staffId}`}`);
+      setReloadKey((k) => k + 1);
     } catch (err) {
       const msg = err?.message || 'Phân công thất bại.';
       setModalError(msg);
@@ -617,6 +759,7 @@ export default function AdvisorInspection() {
     ticket?.assignedAdvisorName ||
     (ticket?.advisorId ? getStaffDisplayName(ticket.advisorId) : '') ||
     '-';
+  const canChangeModalAdvisor = modalAdvisor?.status === 'PENDING' || modalAdvisor?.status === 'ACTIVE';
 
   return (
     <div className={styles.container}>
@@ -822,14 +965,13 @@ export default function AdvisorInspection() {
           )}
         </div>
 
-        {/* RIGHT: Phiếu kiểm tra chi tiết */}
+        {/* RIGHT: Service Ticket Detail + phiếu kiểm tra an toàn chỉnh sửa được */}
         {selectedTicketCode && (
           <div className={styles.rightPanel}>
-            <ServiceTicket
+            <ServiceTicketDetail
               key={selectedTicketCode}
-              ticketCode={selectedTicketCode}
-              mode="advisor"
-              backPath="/advisor/inspection"
+              ticketCodeOverride={selectedTicketCode}
+              embedded
               onClose={() => setSelectedTicketCode('')}
             />
           </div>
@@ -894,6 +1036,44 @@ export default function AdvisorInspection() {
                         Cố vấn viên &bull;{' '}
                         {STATUS_LABELS[modalAdvisor.status] || modalAdvisor.status}
                       </span>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        <select
+                          value={selectedNewAdvisorId}
+                          onChange={(e) => setSelectedNewAdvisorId(e.target.value)}
+                          disabled={loadingModal}
+                          style={{ flex: 1 }}
+                        >
+                          <option value="">Chon advisor moi</option>
+                          {advisorOptions.map((advisor) => (
+                            <option key={advisor.staffId} value={advisor.staffId}>
+                              {advisor.fullName || advisor.staffName || `NV-${advisor.staffId}`}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className={styles.modalActionBtn}
+                          onClick={handleChangeAdvisor}
+                          disabled={
+                            loadingModal ||
+                            !canChangeAdvisorByRole ||
+                            !canChangeModalAdvisor ||
+                            !selectedNewAdvisorId ||
+                            Number(selectedNewAdvisorId) === Number(modalAdvisor?.staffId)
+                          }
+                        >
+                          Doi advisor
+                        </button>
+                      </div>
+                      {!canChangeModalAdvisor && (
+                        <span className={styles.assignRole}>
+                          Chi duoc doi khi advisor hien tai dang PENDING hoac ACTIVE.
+                        </span>
+                      )}
+                      {!canChangeAdvisorByRole && (
+                        <span className={styles.assignRole}>
+                          Chi advisor moi co quyen doi advisor.
+                        </span>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -935,6 +1115,38 @@ export default function AdvisorInspection() {
                             {isPrimary ? 'KTV chính' : 'KTV phụ'} &bull;{' '}
                             {STATUS_LABELS[a.status] || a.status}
                           </span>
+                          {a?.status === 'PENDING' && (
+                            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                              <select
+                                value={techReplacementByAssignment[String(a?.assignmentId)] || ''}
+                                onChange={(e) =>
+                                  setTechReplacementByAssignment((prev) => ({
+                                    ...prev,
+                                    [String(a?.assignmentId)]: e.target.value,
+                                  }))
+                                }
+                                disabled={loadingModal}
+                                style={{ flex: 1 }}
+                              >
+                                <option value="">Chon KTV thay the</option>
+                                {modalTechList.map((tech) => (
+                                  <option key={tech.staffId} value={tech.staffId}>
+                                    {tech.fullName || `NV-${tech.staffId}`}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                className={styles.modalActionBtn}
+                                onClick={() => handleChangeTechnician(a)}
+                                disabled={
+                                  loadingModal ||
+                                  !techReplacementByAssignment[String(a?.assignmentId)]
+                                }
+                              >
+                                Doi KTV
+                              </button>
+                            </div>
+                          )}
                         </div>
                         {!isCancelled && (
                           <button
