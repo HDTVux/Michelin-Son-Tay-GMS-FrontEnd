@@ -18,7 +18,7 @@ const AdvisorInspectionList = () => {
   // Fetch tickets
   useEffect(() => {
     const fetchTickets = async () => {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       if (!token) {
         toast.error('Vui lòng đăng nhập');
         navigate('/login');

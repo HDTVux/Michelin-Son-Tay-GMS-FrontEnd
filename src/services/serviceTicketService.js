@@ -376,17 +376,30 @@ export const fetchAvailableStaff = (ticketId, role, token) => {
 };
 
 // Lấy workload của tất cả KTV để hiển thị trạng thái bận/rảnh
-// Backend trả về: [{ staffId, fullName, phone, avatar, roles, currentTicketCount, isBusy }]
-// Endpoint: GET /api/staff/technicians
+// Backend hiện tại: GET /api/staff-workload?role=TECHNICIAN
+// Chuẩn hóa response về shape cũ: { staffId, fullName, phone, roles, currentTicketCount, isBusy }
 export const fetchTechniciansWorkload = (token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập.');
     error.status = 401;
     return Promise.reject(error);
   }
-  return request('/api/staff/technicians?withWorkload=true', {
+  return request('/api/staff-workload?role=TECHNICIAN', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
+  }).then((res) => {
+    const rows = Array.isArray(res?.data) ? res.data : [];
+    const normalized = rows.map((row) => ({
+      staffId: row?.staffId,
+      fullName: row?.fullName || '',
+      phone: row?.phone || '',
+      roles: Array.isArray(row?.roles) ? row.roles : [],
+      currentTicketCount: Number.isFinite(row?.totalWorkload)
+        ? row.totalWorkload
+        : Number(row?.activeAssignments || 0) + Number(row?.pendingAssignments || 0),
+      isBusy: row?.isAvailable === false,
+    }));
+    return { ...res, data: normalized };
   });
 };
 
@@ -507,17 +520,29 @@ export const fetchAdvisorMyTickets = (params, token) => {
 };
 
 // Lấy danh sách tất cả KTV (dù đang bận hay rảnh) kèm số ticket đang làm
-// Backend trả về: [{ staffId, fullName, phone, avatar, roles, currentTicketCount, isBusy }]
-// Endpoint: GET /api/staff/technicians?withWorkload=true
+// Backend hiện tại: GET /api/staff-workload?role=TECHNICIAN
 export const fetchTechniciansWithWorkload = (token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập.');
     error.status = 401;
     return Promise.reject(error);
   }
-  return request('/api/staff/technicians?withWorkload=true', {
+  return request('/api/staff-workload?role=TECHNICIAN', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
+  }).then((res) => {
+    const rows = Array.isArray(res?.data) ? res.data : [];
+    const normalized = rows.map((row) => ({
+      staffId: row?.staffId,
+      fullName: row?.fullName || '',
+      phone: row?.phone || '',
+      roles: Array.isArray(row?.roles) ? row.roles : [],
+      currentTicketCount: Number.isFinite(row?.totalWorkload)
+        ? row.totalWorkload
+        : Number(row?.activeAssignments || 0) + Number(row?.pendingAssignments || 0),
+      isBusy: row?.isAvailable === false,
+    }));
+    return { ...res, data: normalized };
   });
 };
 

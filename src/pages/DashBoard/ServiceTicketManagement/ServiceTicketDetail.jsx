@@ -295,7 +295,7 @@ function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serv
 			{showTimeline ? <TimelineBlock steps={timelineSteps} /> : null}
 			{showAdvisorTable ? (
 				<>
-					<TechnicianServiceTicket ticketCode={ticketCode} embedded />
+					<TechnicianServiceTicket ticketCode={ticketCode} embedded mode="advisor" />
 					<AdvisorItemsTable serviceTicketId={serviceTicketId} onEstimateStatusChange={onEstimateStatusChange} />
 				</>
 			) : null}
@@ -312,7 +312,7 @@ RoleBasedSections.propTypes = {
 	onEstimateStatusChange: PropTypes.func,
 };
 
-export default function ServiceTicketDetail() {
+export default function ServiceTicketDetail({ ticketCodeOverride }) {
 	useScrollToTop();
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -324,7 +324,7 @@ export default function ServiceTicketDetail() {
 	const [estimateLoading, setEstimateLoading] = useState(false);
 	const [latestEstimate, setLatestEstimate] = useState(null);
 
-	const ticketCodeParam = String(params?.ticketCode || '').trim();
+	const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
 	const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
 
 	const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
@@ -709,7 +709,7 @@ export default function ServiceTicketDetail() {
 
 						{hasAdvisorRole && (
 							<>
-								<TechnicianServiceTicket ticketCode={ticket.ticketCode || ticketCodeParam} embedded />
+								<TechnicianServiceTicket ticketCode={ticket.ticketCode || ticketCodeParam} embedded mode="advisor" />
 								<AdvisorItemsTable serviceTicketId={ticket?.serviceTicketId} onEstimateStatusChange={(est) => setLatestEstimate(est)} />
 							</>
 						)}

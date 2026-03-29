@@ -43,6 +43,9 @@ const MyTasks = () => {
             }
           }
 
+          const normalizedInspectionStatus = String(inspectionStatus || '').toUpperCase();
+          const requiresSafetyInspection = hasSafetyInspection && normalizedInspectionStatus !== 'SKIPPED';
+
           return {
             id: ticket.serviceTicketId,
             ticketCode: ticket.ticketCode,
@@ -61,6 +64,7 @@ const MyTasks = () => {
             dueDate: ticket.scheduledDate || '',
             technicianNotes: ticket.technicianNotes,
             hasSafetyInspection,
+            requiresSafetyInspection,
             inspectionStatus,
             // Services will be loaded from detail API
             services: [],
@@ -143,7 +147,7 @@ const MyTasks = () => {
   const filteredTasks = tasks.filter(task => {
     const inspectionStatus = String(task.inspectionStatus || '').toUpperCase();
     const matchesStatus = filterStatus === 'all' ||
-      (filterStatus === 'no_inspection' && !task.hasSafetyInspection) ||
+      (filterStatus === 'no_inspection' && !task.requiresSafetyInspection) ||
       (filterStatus === inspectionStatus);
     const matchesSearch = !searchTerm ||
       (task.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -183,7 +187,7 @@ const MyTasks = () => {
     try {
       const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
       const response = await fetchTechnicianTicketDetail(task.ticketCode || task.id, token);
-      console.log('📋 Task Detail Response:', response.data);
+      console.log('Task Detail Response:', response.data);
       
       const data = response.data;
       
@@ -320,8 +324,8 @@ const MyTasks = () => {
         <div className={styles.column}>
           <h3 className={styles.columnTitle}>Có kiểm tra an toàn</h3>
           <div className={styles.tasksList}>
-            {filteredTasks.filter(t => t.hasSafetyInspection).length > 0 ? (
-              filteredTasks.filter(t => t.hasSafetyInspection).map((task) => (
+            {filteredTasks.filter(t => t.requiresSafetyInspection).length > 0 ? (
+              filteredTasks.filter(t => t.requiresSafetyInspection).map((task) => (
                 <TaskCard key={task.id} task={task} onView={handleViewTask} onNavigate={navigate} onStartWork={handleStartWork} getPriorityClass={getPriorityClass} formatDate={formatDate} mapInspectionStatus={mapInspectionStatus} getInspectionStatusClass={getInspectionStatusClass} />
               ))
             ) : (
@@ -336,8 +340,8 @@ const MyTasks = () => {
         <div className={styles.column}>
           <h3 className={styles.columnTitle}>Không kiểm tra an toàn</h3>
           <div className={styles.tasksList}>
-            {filteredTasks.filter(t => !t.hasSafetyInspection).length > 0 ? (
-              filteredTasks.filter(t => !t.hasSafetyInspection).map((task) => (
+            {filteredTasks.filter(t => !t.requiresSafetyInspection).length > 0 ? (
+              filteredTasks.filter(t => !t.requiresSafetyInspection).map((task) => (
                 <TaskCard key={task.id} task={task} onView={handleViewTask} onNavigate={navigate} onStartWork={handleStartWork} getPriorityClass={getPriorityClass} formatDate={formatDate} mapInspectionStatus={mapInspectionStatus} getInspectionStatusClass={getInspectionStatusClass} />
               ))
             ) : (

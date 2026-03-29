@@ -123,7 +123,7 @@ const StaffProfile = () => {
   const quickActions = [
     {
       id: 0,
-      icon: '�',
+      icon: '👤',
       title: 'Cập nhật thông tin cá nhân',
       description: 'Cập nhật thông tin cá nhân và hồ sơ của bạn',
       onClick: () => {

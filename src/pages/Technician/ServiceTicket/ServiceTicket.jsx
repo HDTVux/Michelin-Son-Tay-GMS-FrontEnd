@@ -79,7 +79,7 @@ export const ServiceTicket = ({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
         if (!token) {
           toast.error('Vui lòng đăng nhập');
           setLoading(false);
@@ -191,11 +191,12 @@ export const ServiceTicket = ({
 
             const inspectionItems = Array.isArray(inspection.items) ? inspection.items : [];
             if (inspectionItems.length > 0) {
+              const sameId = (left, right) => String(left ?? '') === String(right ?? '');
               const transformedDefaults = defaultChecks.map((defaultCheck) => {
                 const existingItem = inspectionItems.find((item) =>
-                  item.workCategoryId === defaultCheck.workCategoryId,
+                  sameId(item.workCategoryId, defaultCheck.workCategoryId),
                 );
-                if (!existingItem) return { ...defaultCheck, advisorNote: '' };
+                if (!existingItem) return { ...defaultCheck, note: '', advisorNote: '' };
                 return {
                   ...defaultCheck,
                   itemId: existingItem.itemId,
@@ -270,7 +271,7 @@ export const ServiceTicket = ({
 
   const handleAdvisorNoteChange = (itemId, value) => {
     setSafetyChecks(prev => prev.map(item =>
-      item.id === itemId ? { ...item, advisorNote: value } : item
+      item.id === itemId ? { ...item, advisorNote: value, note: value } : item
     ));
   };
 
@@ -289,14 +290,14 @@ export const ServiceTicket = ({
 
   const handleEnableEdit = async () => {
     try {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       if (!token) {
-        toast.error('Vui long dang nhap');
+        toast.error('Vui lòng đăng nhập');
         return;
       }
 
       if (!isAdvisorMode && !hasSafetyInspectionEnabled) {
-        toast.error('Phieu khong kiem tra an toan chi co van vien moi duoc mo lai de chinh sua.');
+        toast.error('Phiếu không kiểm tra an toàn chỉ có cố vấn viên mới được mở lại để chỉnh sửa.');
         return;
       }
 
@@ -321,7 +322,7 @@ export const ServiceTicket = ({
     }
 
     try {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       let currentInspectionId = inspectionId;
 
       if (!currentInspectionId) {
@@ -424,7 +425,7 @@ export const ServiceTicket = ({
     }
 
     try {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       await deleteCustomCategory(inspectionId, item.customCategoryId, token);
       setSafetyChecks((prev) => prev.filter((check) => check.id !== item.id));
       toast.success('Đã xóa hạng mục thêm mới.');
@@ -436,7 +437,7 @@ export const ServiceTicket = ({
 
   const confirmSkip = async () => {
     try {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       await skipSafetyInspection(resolvedTicketCode, skipReason || 'Bỏ qua kiểm tra an toàn', token);
       toast.success('Đã bỏ qua kiểm tra an toàn!');
       setSkipModalOpen(false);
@@ -497,17 +498,75 @@ export const ServiceTicket = ({
     if (missingItems.length > 0) {
       return isSkippedInspection
         ? 'Phiếu trạng thái đã bỏ qua: chỉ cần tích các hạng mục được cố vấn viên note trước khi hoàn thành.'
-        : 'Phiếu trạng thái chườ kiểm tra: bắt buộc kiểm tra đủ 13 hạng mục và các hạng mục thêm mới (nếu có) trước khi hoàn thành.';
+        : 'Phiếu trạng thái chờ kiểm tra: bắt buộc kiểm tra đủ 13 hạng mục và các hạng mục thêm mới (nếu có) trước khi hoàn thành.';
     }
 
     return null;
   };
 
+  const validateAdvisorCompletion = () => {
+    const normalizedInspectionStatus = String(inspectionStatus || '').toUpperCase();
+    const isSkippedInspection = normalizedInspectionStatus === 'SKIPPED';
+    const requiredItems = isSkippedInspection
+      ? mergedSafetyChecks.filter((item) => hasInputValue(item?.advisorNote || item?.note))
+      : mergedSafetyChecks;
+
+    if (requiredItems.length === 0) {
+      return 'Vui lòng tích ít nhất 1 hạng mục trước khi hoàn thành.';
+    }
+
+    const missingItems = requiredItems.filter((item) => !isInspectionItemChecked(item));
+    if (missingItems.length > 0) {
+      return isSkippedInspection
+        ? 'Phiếu SKIPPED: cần tích các hạng mục đã được note trước khi hoàn thành.'
+        : 'Vui lòng tích đầy đủ các hạng mục kiểm tra trước khi hoàn thành.';
+    }
+
+    return null;
+  };
+
+  const handleSaveAdvisorNotes = async () => {
+    if (!isAdvisorMode) return;
+
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      if (!token) {
+        toast.error('Vui lòng đăng nhập');
+        return;
+      }
+
+      let currentInspectionId = inspectionId;
+      if (!currentInspectionId) {
+        const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
+        currentInspectionId = inspectionResponse?.data?.inspectionId || null;
+        if (!currentInspectionId) {
+          toast.error('Phiếu chưa có bản ghi kiểm tra an toàn để lưu ghi chú.');
+          return;
+        }
+        setInspectionId(currentInspectionId);
+      }
+
+      const advisorItems = safetyChecks
+        .filter((item) => item.workCategoryId || item.customCategoryId)
+        .map((item) => ({
+          workCategoryId: item.workCategoryId ?? null,
+          customCategoryId: item.customCategoryId ?? null,
+          advisorNote: String(item.advisorNote ?? item.note ?? '').trim(),
+        }));
+
+      await updateAdvisorNotes(currentInspectionId, advisorItems, token);
+      toast.success('Đã lưu ghi chú cố vấn viên cho kỹ thuật viên.');
+      setRefreshKey((prev) => prev + 1);
+    } catch (error) {
+      console.error('Lỗi khi lưu ghi chú cố vấn viên:', error);
+      toast.error('Không thể lưu ghi chú: ' + (error.message || 'Lỗi không xác định'));
+    }
+  };
+
   const handleSave = async () => {
     try {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-      const isAdvisorSkipMode = isAdvisorMode && inspectionStatus === 'SKIPPED';
-      const completionInspectionStatus = isAdvisorSkipMode ? 'SKIPPED' : 'COMPLETED';
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      const completionInspectionStatus = 'COMPLETED';
 
       if (!isAdvisorMode) {
         const validationError = validateTechnicianCompletion();
@@ -515,9 +574,15 @@ export const ServiceTicket = ({
           toast.error(validationError);
           return;
         }
+      } else {
+        const validationError = validateAdvisorCompletion();
+        if (validationError) {
+          toast.error(validationError);
+          return;
+        }
       }
 
-      if (!inspectionId && !isAdvisorSkipMode && hasSafetyInspectionEnabled) {
+      if (!inspectionId && hasSafetyInspectionEnabled) {
         try {
           const enableResponse = await enableSafetyInspection(resolvedTicketCode, token);
           if (enableResponse?.data?.inspectionId) {
@@ -600,33 +665,23 @@ export const ServiceTicket = ({
 
       let currentInspectionId = inspectionId;
 
-      if (isAdvisorSkipMode) {
-        if (inspectionId) {
-          const updateRes = await updateSafetyInspectionData(inspectionId, safetyPayload, token);
-          currentInspectionId = updateRes?.data?.inspectionId || inspectionId;
-        } else {
-          const saveRes = await saveSafetyInspectionData(safetyPayload, token);
-          currentInspectionId = saveRes?.data?.inspectionId || inspectionId;
-        }
+      if (inspectionId) {
+        const updateRes = await updateSafetyInspectionData(inspectionId, safetyPayload, token);
+        currentInspectionId = updateRes?.data?.inspectionId || inspectionId;
       } else {
-        if (inspectionId) {
-          const updateRes = await updateSafetyInspectionData(inspectionId, safetyPayload, token);
-          currentInspectionId = updateRes?.data?.inspectionId || inspectionId;
-        } else {
-          const saveRes = await saveSafetyInspectionData(safetyPayload, token);
-          currentInspectionId = saveRes?.data?.inspectionId || inspectionId;
-        }
+        const saveRes = await saveSafetyInspectionData(safetyPayload, token);
+        currentInspectionId = saveRes?.data?.inspectionId || inspectionId;
       }
       setInspectionStatus(completionInspectionStatus);
 
       // Advisor note lưu cùng phiếu kỹ thuật viên
       if (isAdvisorMode && currentInspectionId) {
         const advisorItems = safetyChecks
-          .filter((item) => String(item.advisorNote || '').trim() !== '')
+          .filter((item) => String(item.advisorNote || item.note || '').trim() !== '')
           .map((item) => ({
             workCategoryId: item.workCategoryId ?? null,
             customCategoryId: item.customCategoryId ?? null,
-            advisorNote: item.advisorNote,
+            advisorNote: item.advisorNote ?? item.note ?? '',
           }));
 
         if (advisorItems.length > 0) {
@@ -638,8 +693,8 @@ export const ServiceTicket = ({
         setInspectionId(currentInspectionId);
       }
 
-      toast.success(isAdvisorSkipMode ? 'Đã lưu ghi chú phiếu SKIPPED.' : 'Đã lưu phiếu kiểm tra an toàn!');
-      setIsEditable(isAdvisorSkipMode);
+      toast.success('Đã hoàn thành phiếu kiểm tra an toàn.');
+      setIsEditable(false);
       setRefreshKey(prev => prev + 1); // reload để dữ liệu advisor/technician map đồng bộ qua API
     } catch (error) {
       console.error('Lỗi khi lưu dữ liệu:', error);
@@ -648,9 +703,9 @@ export const ServiceTicket = ({
   };
 
   const shouldShowEnableEditButton =
+    isAdvisorMode &&
     inspectionStatus === 'COMPLETED' &&
-    !isEditable &&
-    (isAdvisorMode || hasSafetyInspectionEnabled);
+    !isEditable;
 
   const isTechnicianLockedAfterSaveNoSafety =
     !isAdvisorMode &&
@@ -658,7 +713,13 @@ export const ServiceTicket = ({
     inspectionStatus === 'COMPLETED' &&
     !isEditable;
 
+  const isTechnicianLockedAfterSave =
+    !isAdvisorMode &&
+    inspectionStatus === 'COMPLETED' &&
+    !isEditable;
+
   const technicianCompletionError = !isAdvisorMode ? validateTechnicianCompletion() : null;
+  const advisorCompletionError = isAdvisorMode ? validateAdvisorCompletion() : null;
 
   if (loading) {
     return (
@@ -913,25 +974,44 @@ export const ServiceTicket = ({
       {(isAdvisorMode || !embedded) && (
         <div className={styles.actionButtons}>
           <div className={styles.actionLeft}>
-            <button className={styles.closeButton} onClick={handleCloseTicket}>Đóng</button>
+            {!(isAdvisorMode && embedded) && (
+              <button className={styles.closeButton} onClick={handleCloseTicket}>Đóng</button>
+            )}
           </div>
           <div className={styles.actionRight}>
             {shouldShowEnableEditButton ? (
               <button className={styles.completeButton} onClick={handleEnableEdit}>Chỉnh sửa</button>
+            ) : isAdvisorMode ? (
+              <>
+                <button
+                  className={styles.completeButton}
+                  onClick={handleSaveAdvisorNotes}
+                  disabled={!isEditable}
+                >
+                  Lưu
+                </button>
+                <button
+                  className={styles.completeButton}
+                  onClick={handleSave}
+                  disabled={!isEditable || Boolean(advisorCompletionError)}
+                  title={advisorCompletionError || ''}
+                >
+                  Hoàn thành
+                </button>
+              </>
             ) : (
               <button
                 className={styles.completeButton}
                 onClick={handleSave}
-                disabled={isTechnicianLockedAfterSaveNoSafety || Boolean(technicianCompletionError)}
+                disabled={isTechnicianLockedAfterSaveNoSafety || isTechnicianLockedAfterSave || Boolean(technicianCompletionError)}
                 title={technicianCompletionError || ''}
               >
-                {isAdvisorMode && inspectionStatus === 'SKIPPED' ? 'Lưu' : 'Hoàn thành'}
+                Hoàn thành
               </button>
             )}
           </div>
         </div>
       )}
-
       {/* Modal thêm hạng mục */}
       {showAddCategoryModal && (
         <div className={styles.modalOverlay} onClick={() => setShowAddCategoryModal(false)}>

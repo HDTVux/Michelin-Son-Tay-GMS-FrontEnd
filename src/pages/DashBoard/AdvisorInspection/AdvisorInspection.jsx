@@ -21,7 +21,7 @@ const STAFF_ROLE = {
   ADVISOR: 'ADVISOR',
 };
 
-const getToken = () => localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+const getToken = () => localStorage.getItem('authToken') || localStorage.getItem('staffToken');
 const readStaffRolesFromStorage = () => {
   try {
     const raw = localStorage.getItem('staffRoles');
@@ -992,12 +992,16 @@ export default function AdvisorInspection() {
                             className={`${styles.actionBtn} ${
                               selected ? styles.viewBtnActive : styles.viewBtn
                             }`}
-                            onClick={() =>
-                              setSelectedTicketCode(selected ? '' : code)
-                            }
+                            onClick={() => {
+                              if (!code) return;
+                              navigate(
+                                `/service-ticket-detail/${encodeURIComponent(code)}`,
+                                { state: { ticket } },
+                              );
+                            }}
                             disabled={!code}
                           >
-                            {selected ? 'Đóng' : 'Mở'}
+                            Mở
                           </button>
                         </td>
                       </tr>
