@@ -296,7 +296,7 @@ function RoleBasedSections({ showTimeline, timelineSteps, showAdvisorTable, serv
 			{showAdvisorTable ? (
 				<>
 					<TechnicianServiceTicket ticketCode={ticketCode} embedded />
-					<AdvisorItemsTable serviceTicketId={serviceTicketId} />
+					<AdvisorItemsTable serviceTicketId={serviceTicketId} onEstimateStatusChange={onEstimateStatusChange} />
 				</>
 			) : null}
 		</>
@@ -312,12 +312,7 @@ RoleBasedSections.propTypes = {
 	onEstimateStatusChange: PropTypes.func,
 };
 
-export default function ServiceTicketDetail({
-	ticketCodeOverride = '',
-	ticketFromParent = null,
-	embedded = false,
-	onClose,
-}) {
+export default function ServiceTicketDetail() {
 	useScrollToTop();
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -329,12 +324,8 @@ export default function ServiceTicketDetail({
 	const [estimateLoading, setEstimateLoading] = useState(false);
 	const [latestEstimate, setLatestEstimate] = useState(null);
 
-	const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
-	const ticketFromState =
-		ticketFromParent ??
-		location?.state?.ticket ??
-		location?.state?.serviceTicket ??
-		null;
+	const ticketCodeParam = String(params?.ticketCode || '').trim();
+	const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
 
 	const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
 		ticketCodeParam,
@@ -394,6 +385,32 @@ export default function ServiceTicketDetail({
 	const odometerKm = ticket?.vehicle?.odometerKm;
 	const odometerDisplay =
 		odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
+
+	useEffect(() => {
+		const token = localStorage.getItem('authToken');
+		if (!token) return;
+		if (!serviceTicketIdNum) return;
+
+		let cancelled = false;
+		(async () => {
+			try {
+				setEstimateLoading(true);
+				const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
+				if (cancelled) return;
+				const latest = pickLatestEstimate(estimateRes?.data);
+				setLatestEstimate(latest ?? null);
+			} catch {
+				if (cancelled) return;
+				setLatestEstimate(null);
+			} finally {
+				if (!cancelled) setEstimateLoading(false);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [serviceTicketIdNum]);
 
 	const handleBack = () => navigate(-1);
 
@@ -509,7 +526,7 @@ export default function ServiceTicketDetail({
 	const canCompleteRepair = ticketStatus === 'IN_PROGRESS';
 	const canAddService = ticketStatus === 'DRAFT' || ticketStatus === 'INSPECTION';
 	const canCreateReceipt = ticketStatus === 'COMPLETED';
-	const canConfirmEstimate = Boolean(estimateIdNum) && estimateStatus === 'DRAFT';
+	const canConfirmEstimate = Boolean(estimateIdNum) && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT');
 
 	const handleCreateReceipt = async () => {
 		if (receiptApproving) return;
@@ -693,7 +710,7 @@ export default function ServiceTicketDetail({
 						{hasAdvisorRole && (
 							<>
 								<TechnicianServiceTicket ticketCode={ticket.ticketCode || ticketCodeParam} embedded />
-								<AdvisorItemsTable serviceTicketId={ticket?.serviceTicketId} />
+								<AdvisorItemsTable serviceTicketId={ticket?.serviceTicketId} onEstimateStatusChange={(est) => setLatestEstimate(est)} />
 							</>
 						)}
 
@@ -756,13 +773,6 @@ export default function ServiceTicketDetail({
 		</div>
 	);
 }
-
-ServiceTicketDetail.propTypes = {
-	ticketCodeOverride: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-	ticketFromParent: PropTypes.object,
-	embedded: PropTypes.bool,
-	onClose: PropTypes.func,
-};
 
 InfoBlock.propTypes = {
 	title: PropTypes.string.isRequired,
