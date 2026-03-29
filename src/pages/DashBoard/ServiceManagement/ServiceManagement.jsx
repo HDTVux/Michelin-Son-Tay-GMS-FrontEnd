@@ -72,25 +72,21 @@ export default function ServiceManagement() {
 			title: 'Danh sách hạng mục (dịch vụ / phụ tùng)',
 			data: items,
 			columns: [
-				{ header: 'ID', get: (x) => x.itemId },
-				{ header: 'TÊN', get: (x) => x.itemName },
-				{ header: 'SKU', get: (x) => x.sku || '-' },
-				{
-					header: 'LOẠI',
-					get: (x) => x.itemType,
-					format: (raw) => formatItemTypeLabel(raw),
-				},
-				{ header: 'HÃNG', get: (x) => x.brand?.brandName || '-' },
-				{ header: 'DÒNG SP', get: (x) => x.productLine?.lineName || '-' },
-				{
-					header: 'GIÁ',
-					get: (x) => ({ showPrice: x.showPrice, price: x.price }),
-					format: (raw) => (raw?.showPrice ? `${formatCurrencyVnd(raw?.price)} ₫` : 'Liên hệ'),
-				},
-				{ header: 'ĐƠN VỊ', get: (x) => x.unit || '-' },
-			],
+  				{ header: 'ID', get: (x) => x.itemId },
+  				{ header: 'TÊN', get: (x) => x.itemName },
+  				{ header: 'SKU', get: (x) => x.sku || '-' },
+  				{ header: 'LOẠI', get: (x) => x.itemType, format: (raw) => formatItemTypeLabel(raw) },
+  				{ header: 'HÃNG', get: (x) => x.brand || '-' },           // <-- Sửa lại lấy string
+  				{ header: 'DÒNG SP', get: (x) => x.productLine || '-' },  // <-- Sửa lại lấy string
+  				{		
+    			header: 'GIÁ',
+    			get: (x) => ({ showPrice: x.showPrice, price: x.price }),
+    			format: (raw) => (raw?.showPrice ? `${formatCurrencyVnd(raw?.price)} ₫` : 'Liên hệ'),
+  				},
+  				{ header: 'ĐƠN VỊ', get: (x) => x.unit || '-' },
+				],
 			searchHint: '(tìm kiếm theo tên, SKU, loại, hãng, dòng sản phẩm)',
-			searchHaystack: (x) => `${x.itemId} ${x.itemName} ${x.sku || ''} ${x.itemType || ''} ${x.brand?.brandName || ''} ${x.productLine?.lineName || ''}`,
+			searchHaystack: (x) => `${x.itemId} ${x.itemName} ${x.sku || ''} ${x.itemType || ''} ${x.brand || ''} ${x.productLine || ''}`,
 			rowKey: (x, idx) => buildRowKeyWithIndex(x.itemId, idx),
 		}),
 		[items]

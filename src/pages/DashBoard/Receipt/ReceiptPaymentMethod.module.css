@@ -1,3 +1,9 @@
+.qrImgWrap {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin: 16px 0;
+}
 .page {
 	padding: 32px;
 	min-height: 100vh;

@@ -122,6 +122,7 @@ function EstimateItemRow({
     isEditing,
     softDeleteEditRow,
     openCatalogPicker,
+    showTaxColumn,
 }) {
     const stt = String(idx + 1).padStart(2, '0');
     const taxRuleId = toIdOrNull(row?.taxRuleId);
@@ -149,33 +150,24 @@ function EstimateItemRow({
             </td>
             <td>
                 {showInputs ? (
-                    isPredefinedCategory ? (
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <input
-                                className={styles.tableInput}
-                                value={row.itemName ?? ''}
-                                placeholder="Chọn sản phẩm từ danh mục"
-                                readOnly
-                                disabled={isSaving}
-                            />
-                            <button
-                                type="button"
-                                className="ui-btn ui-btn--ghost"
-                                onClick={() => openCatalogPicker(idx)}
-                                disabled={isSaving}
-                            >
-                                Chọn
-                            </button>
-                        </div>
-                    ) : (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <input
                             className={styles.tableInput}
                             value={row.itemName ?? ''}
-                            placeholder="Diễn giải"
-                            onChange={(e) => onChange(idx, 'itemName', e.target.value)}
+                            placeholder={isPredefinedCategory ? "Chọn sản phẩm từ danh mục" : "Diễn giải"}
+                            readOnly={isPredefinedCategory}
+                            onChange={isPredefinedCategory ? undefined : (e) => onChange(idx, 'itemName', e.target.value)}
                             disabled={isSaving}
                         />
-                    )
+                        <button
+                            type="button"
+                            className="ui-btn ui-btn--ghost"
+                            onClick={() => openCatalogPicker(idx, row)}
+                            disabled={isSaving}
+                        >
+                            Chọn
+                        </button>
+                    </div>
                 ) : (
                     row.itemName || ''
                 )}
@@ -211,29 +203,33 @@ function EstimateItemRow({
             <td className={styles.tdNumber}>
                 {showInputs ? formatCurrencyVnd(subTotalValue) : formatCurrencyVnd(row.subTotalDisplay ?? row.subTotal)}
             </td>
-            <td>
-                {showInputs ? (
-                    isPredefinedCategory ? (
-                        taxLabel || ''
+            
+            {showTaxColumn ? (
+                <td>
+                    {showInputs ? (
+                        isPredefinedCategory ? (
+                            taxLabel || ''
+                        ) : (
+                        <select
+                            className={styles.tableInput}
+                            value={row.taxRuleId ?? ''}
+                            onChange={(e) => onChange(idx, 'taxRuleId', e.target.value)}
+                            disabled={isSaving || taxRulesLoading}
+                        >
+                            <option value="">{taxRulesLoading ? 'Đang tải...' : 'Không áp dụng'}</option>
+                            {(Array.isArray(taxRules) ? taxRules : []).map((rule) => (
+                                <option key={String(rule?.taxRuleId ?? '')} value={String(rule?.taxRuleId ?? '')}>
+                                    {rule?.taxName || rule?.taxCode || `Tax #${rule?.taxRuleId}`}
+                                </option>
+                            ))}
+                        </select>
+                        )
                     ) : (
-                    <select
-                        className={styles.tableInput}
-                        value={row.taxRuleId ?? ''}
-                        onChange={(e) => onChange(idx, 'taxRuleId', e.target.value)}
-                        disabled={isSaving || taxRulesLoading}
-                    >
-                        <option value="">{taxRulesLoading ? 'Đang tải...' : 'Không áp dụng'}</option>
-                        {(Array.isArray(taxRules) ? taxRules : []).map((rule) => (
-                            <option key={String(rule?.taxRuleId ?? '')} value={String(rule?.taxRuleId ?? '')}>
-                                {rule?.taxName || rule?.taxCode || `Tax #${rule?.taxRuleId}`}
-                            </option>
-                        ))}
-                    </select>
-                    )
-                ) : (
-                    taxLabel || ''
-                )}
-            </td>
+                        taxLabel || ''
+                    )}
+                </td>
+            ) : null}
+
             <td />
             <td className={styles.tdCenter}>
                 {showInputs ? (
@@ -248,7 +244,7 @@ function EstimateItemRow({
                         type="checkbox"
                         checked={Boolean(row.confirmed)}
                         onChange={(e) => toggleChecked(row.sourceIndex, e.target.checked)}
-                        disabled={!canToggleChecked}
+                        disabled={!canToggleChecked || Boolean(row.confirmed)}
                     />
                 )}
             </td>
@@ -283,6 +279,7 @@ EstimateItemRow.propTypes = {
     isEditing: PropTypes.bool,
     softDeleteEditRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
+    showTaxColumn: PropTypes.bool,
 };
 
 function EstimateActions({
@@ -297,10 +294,11 @@ function EstimateActions({
     cancelEdit,
     saveEstimate,
     saveEdit,
+    isRestrictedStatus,
 }) {
     return (
         <>
-            {showAddEstimate ? (
+            {showAddEstimate && !isRestrictedStatus ? (
                 <div className="ui-actions" style={{ marginTop: 12 }}>
                     <button type="button" className="ui-btn ui-btn--primary" onClick={startCreate}>
                         Tạo báo giá mới
@@ -308,11 +306,14 @@ function EstimateActions({
                 </div>
             ) : null}
 
-            {canEdit ? (
+            {/* CHỈ CÒN NÚT "SỬA BÁO GIÁ" NẾU ĐƯỢC PHÉP */}
+            {!isCreating && !isEditing && !isRestrictedStatus ? (
                 <div className="ui-actions" style={{ marginTop: 12 }}>
-                    <button type="button" className="ui-btn ui-btn--ghost" onClick={startEdit}>
-                        Sửa báo giá
-                    </button>
+                    {canEdit ? (
+                        <button type="button" className="ui-btn ui-btn--ghost" onClick={startEdit}>
+                            Sửa báo giá
+                        </button>
+                    ) : null}
                 </div>
             ) : null}
 
@@ -321,9 +322,11 @@ function EstimateActions({
                     <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelCreate} disabled={isSaving}>
                         Hủy
                     </button>
-                    <button type="button" className="ui-btn ui-btn--primary" onClick={saveEstimate} disabled={isSaving}>
-                        {isSaving ? 'Đang lưu...' : 'Lưu báo giá'}
-                    </button>
+                    {!isRestrictedStatus ? (
+                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEstimate} disabled={isSaving}>
+                            {isSaving ? 'Đang lưu...' : 'Lưu báo giá'}
+                        </button>
+                    ) : null}
                 </div>
             ) : null}
 
@@ -332,9 +335,11 @@ function EstimateActions({
                     <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
                         Hủy
                     </button>
-                    <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
-                        {isSaving ? 'Đang lưu...' : 'Lưu chỉnh sửa'}
-                    </button>
+                    {!isRestrictedStatus ? (
+                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
+                            {isSaving ? 'Đang lưu...' : 'Lưu chỉnh sửa'}
+                        </button>
+                    ) : null}
                 </div>
             ) : null}
         </>
@@ -353,6 +358,7 @@ EstimateActions.propTypes = {
     cancelEdit: PropTypes.func,
     saveEstimate: PropTypes.func,
     saveEdit: PropTypes.func,
+    isRestrictedStatus: PropTypes.bool,
 };
 
 export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusChange }) {
@@ -394,19 +400,35 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
         toggleChecked,
         softDeleteEditRow,
         inventory,
+        estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange });
+
+    const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
+    const isRestrictedStatus = ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
 
     const [pickerOpen, setPickerOpen] = useState(false);
     const [activeRowIndex, setActiveRowIndex] = useState(null);
 
-    const openCatalogPicker = (rowIndex) => {
+    // Lưu categoryCode để truyền vào CatalogPicker
+    const [pickerCategoryCode, setPickerCategoryCode] = useState("");
+    const [pickerInitQuery, setPickerInitQuery] = useState("");
+
+    const openCatalogPicker = (rowIndex, rowObj) => {
         setActiveRowIndex(rowIndex);
+        // Ưu tiên lấy categoryCode từ workCategoryCode hoặc workCategory (object)
+        let code = rowObj?.workCategoryCode;
+        if (!code && rowObj?.workCategory && rowObj.workCategory.categoryCode) {
+            code = rowObj.workCategory.categoryCode;
+        }
+        setPickerCategoryCode(code || "");
+        setPickerInitQuery(code || "");
         setPickerOpen(true);
     };
 
     const closeCatalogPicker = () => {
         setPickerOpen(false);
         setActiveRowIndex(null);
+        setPickerInitQuery("");
     };
 
     const handlePickCatalogItem = (item) => {
@@ -443,26 +465,26 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                 <div className={styles.advisorCard}>
                     <h3 className={styles.advisorTitle}>Chẩn đoán kỹ thuật</h3>
                     <div className="ui-field" style={{ marginBottom: 0 }}>
-                        <textarea placeholder="Nhập kết quả chẩn đoán..." />
+                        <textarea placeholder="Nhập kết quả chẩn đoán..." disabled={isRestrictedStatus} />
                     </div>
 
                     <h3 className={styles.advisorTitle} style={{ marginTop: 14 }}>Dịch vụ đề xuất</h3>
                     <div className={styles.recommendList}>
                         <label className={styles.recommendItem}>
-                            <input type="checkbox" defaultChecked />
+                            <input type="checkbox" defaultChecked disabled={isRestrictedStatus} />
                             <span>Bảo dưỡng định kỳ</span>
                         </label>
                         <label className={styles.recommendItem}>
-                            <input type="checkbox" />
+                            <input type="checkbox" disabled={isRestrictedStatus} />
                             <span>Thay má phanh trước</span>
                         </label>
                         <label className={styles.recommendItem}>
-                            <input type="checkbox" />
+                            <input type="checkbox" disabled={isRestrictedStatus} />
                             <span>Thay dầu phanh</span>
                         </label>
                     </div>
                     <div className="ui-field" style={{ marginBottom: 0, marginTop: 10 }}>
-                        <input type="text" placeholder="Thêm dịch vụ khác..." />
+                        <input type="text" placeholder="Thêm dịch vụ khác..." disabled={isRestrictedStatus} />
                     </div>
                 </div>
 
@@ -569,20 +591,6 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                             </span>
                         </div>
                     </div>
-
-                    <EstimateActions
-                        showAddEstimate={showAddEstimate}
-                        canEdit={canEdit}
-                        isCreating={isCreating}
-                        isEditing={isEditing}
-                        isSaving={isSaving}
-                        startCreate={startCreate}
-                        startEdit={startEdit}
-                        cancelCreate={cancelCreate}
-                        cancelEdit={cancelEdit}
-                        saveEstimate={saveEstimate}
-                        saveEdit={saveEdit}
-                    />
                 </div>
             </div>
 
@@ -619,7 +627,7 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                             <th scope="col">SL</th>
                             <th scope="col">ĐƠN GIÁ</th>
                             <th scope="col">THÀNH TIỀN</th>
-                            <th scope="col">THUẾ</th>
+                            {isCreating || isEditing ? <th scope="col">THUẾ </th> : null}
                             <th scope="col">KHO</th>
                             <th scope="col">XÁC NHẬN</th>
                             {isEditing ? <th scope="col">XÓA</th> : null}
@@ -632,6 +640,7 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                                 row={row}
                                 idx={idx}
                                 showInputs={showInputs}
+                                showTaxColumn={isCreating || isEditing}
                                 onChange={onChange}
                                 isSaving={isSaving}
                                 taxRulesLoading={taxRulesLoading}
@@ -647,15 +656,32 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                     </tbody>
                     <tfoot>
                         <tr>
-                        <td className={styles.tableFooterLabel} colSpan={5}>
+                            <td className={styles.tableFooterLabel} colSpan={5}>
                                 TỔNG CỘNG
                             </td>
                             <td className={styles.tdNumber}>{footerTotalText}</td>
-                        <td colSpan={isEditing ? 4 : 3} />
+                            <td colSpan={isCreating || isEditing ? (isEditing ? 4 : 3) : 2} />
                         </tr>
                     </tfoot>
                 </table>
             </div>
+            <div style={{ marginTop: 16 }}>
+                <EstimateActions
+                    showAddEstimate={showAddEstimate}
+                    canEdit={canEdit}
+                    isCreating={isCreating}
+                    isEditing={isEditing}
+                    isSaving={isSaving}
+                    startCreate={startCreate}
+                    startEdit={startEdit}
+                    cancelCreate={cancelCreate}
+                    cancelEdit={cancelEdit}
+                    saveEstimate={saveEstimate}
+                    saveEdit={saveEdit}
+                    isRestrictedStatus={isRestrictedStatus}
+                />
+            </div>
+
             <div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
                 <label htmlFor="advisor-recommendation">Khuyến nghị</label>
                 <textarea
@@ -663,14 +689,18 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                     placeholder="Nhập khuyến nghị..."
                     value={recommendation}
                     onChange={(e) => setRecommendation(e.target.value)}
+                    disabled={isRestrictedStatus}
                 />
             </div>
 
-            {/* Gọi Component CatalogPicker đã được module hóa */}
+
+
             <CatalogPicker
                 open={pickerOpen}
                 onClose={closeCatalogPicker}
                 onPick={handlePickCatalogItem}
+                initQuery={pickerInitQuery}
+                categoryCode={pickerCategoryCode}
             />
         </section>
     );
