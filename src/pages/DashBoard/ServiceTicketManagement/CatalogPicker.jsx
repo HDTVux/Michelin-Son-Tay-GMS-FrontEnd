@@ -6,10 +6,10 @@ import styles from './CatalogPicker.module.css';
 import { searchWarehouseCatalogItems } from '../../../services/warehouseService.js';
 import { formatCurrencyVnd } from './useAdvisorItemsTableHandlers.js';
 
-function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage = 0, pageSize = 10 }) {
+function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage = 0, pageSize = 10, initQuery = '', categoryCode = '' }) {
   const dialogRef = useRef(null); // Tạo ref để điều khiển thẻ dialog
 
-  const [search, setSearch] = useState(initialSearch);
+  const [search, setSearch] = useState(initialSearch || initQuery);
   const [page, setPage] = useState(initialPage);
   const [size] = useState(pageSize);
   const [results, setResults] = useState([]);
@@ -29,6 +29,15 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
     }
   }, [open]);
 
+  // Khi mở dialog, nếu initQuery khác rỗng và khác search hiện tại thì setSearch(initQuery)
+  useEffect(() => {
+    if (open && initQuery && search !== initQuery) {
+      setSearch(initQuery);
+      setPage(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initQuery]);
+
   useEffect(() => {
     if (!open) return undefined;
     let cancelled = false;
@@ -38,7 +47,10 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
         setLoading(true);
         setError('');
         const token = localStorage.getItem('authToken');
-        const res = await searchWarehouseCatalogItems({ page, size, search }, token);
+        // Nếu có categoryCode thì truyền vào params tìm kiếm
+        const params = { page, size, search };
+        if (categoryCode) params.categoryCode = categoryCode;
+        const res = await searchWarehouseCatalogItems(params, token);
         const payload = res?.data ?? res;
         const content = Array.isArray(payload?.content) ? payload.content : Array.isArray(payload) ? payload : [];
         if (cancelled) return;
@@ -57,7 +69,7 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
     return () => {
       cancelled = true;
     };
-  }, [open, page, size, search]);
+  }, [open, page, size, search, categoryCode]);
 
   const handlePick = (item) => {
     onPick?.(item);
@@ -128,7 +140,7 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                         <td>{it?.itemId ?? '-'}</td>
                         <td>{it?.itemName || it?.name || '-'}</td>
                         <td>{it?.sku || '-'}</td>
-                        <td>{it?.brand?.brandName || it?.brandName || '-'}</td>
+                        <td>{it?.brand || '-'}</td>
                         <td className={styles.tdNumber}>{formatCurrencyVnd(it?.price ?? it?.unitPrice)}</td>
                         <td>{it?.unit || '-'}</td>
                         <td>
@@ -197,6 +209,8 @@ CatalogPicker.propTypes = {
   initialSearch: PropTypes.string,
   initialPage: PropTypes.number,
   pageSize: PropTypes.number,
+  initQuery: PropTypes.string,
+  categoryCode: PropTypes.string,
 };
 
 export default CatalogPicker;

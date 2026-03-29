@@ -489,7 +489,47 @@ export default function ServiceTicketDetail() {
 		handleUpdateTicketStatus('IN_PROGRESS', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
 	};
 	const handleCompleteRepair = () => handleUpdateTicketStatus('COMPLETED', 'Đã chuyển sang trạng thái "Hoàn tất sửa chữa".');
-	const handleAddService = () => handleUpdateTicketStatus('DRAFT', 'Đã chuyển về trạng thái "Nháp" để thêm dịch vụ.');
+	const handleAddService = async () => {
+		if (statusUpdating) return;
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			notify('Vui lòng đăng nhập để cập nhật trạng thái phiếu dịch vụ.');
+			return;
+		}
+		if (!serviceTicketIdNum) {
+			notify('Thiếu serviceTicketId hợp lệ để cập nhật trạng thái.');
+			return;
+		}
+		const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
+		if (!ticketCode) {
+			notify('Thiếu mã phiếu dịch vụ để tải lại sau khi cập nhật trạng thái.');
+			return;
+		}
+		try {
+			setStatusUpdating(true);
+			setError('');
+			await manageServiceTicketStatus(serviceTicketIdNum, 'DRAFT', token);
+			// Cập nhật local ticketRaw ngay để render lại UI
+			setTicketRaw((prev) => prev ? { ...prev, statusCode: 'DRAFT', ticketStatus: 'DRAFT', status: 'DRAFT' } : prev);
+			if (estimateIdNum) {
+				try {
+					await manageServiceTicketEstimateStatus(estimateIdNum, 'DRAFT', token);
+					// Cập nhật local latestEstimate nếu có
+					setLatestEstimate((prev) => prev ? { ...prev, status: 'DRAFT', estimateStatus: 'DRAFT' } : prev);
+				} catch (err) {
+					notify(err?.message || 'Không thể chuyển trạng thái báo giá về nháp.');
+				}
+			}
+			// Luôn fetch lại detail
+			const detailRes = await fetchServiceTicketDetail(ticketCode, token);
+			setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
+			notify('Đã chuyển về trạng thái "Nháp" để thêm dịch vụ.');
+		} catch (err) {
+			notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
+		} finally {
+			setStatusUpdating(false);
+		}
+	};
 
 	const handleConfirmEstimate = async () => {
 		if (estimateLoading) return;
@@ -526,7 +566,13 @@ export default function ServiceTicketDetail() {
 	const canCompleteRepair = ticketStatus === 'IN_PROGRESS';
 	const canAddService = ticketStatus === 'DRAFT' || ticketStatus === 'INSPECTION';
 	const canCreateReceipt = ticketStatus === 'COMPLETED';
-	const canConfirmEstimate = Boolean(estimateIdNum) && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT');
+	// Determine if there are any items and if at least one is checked
+	const advisorItems = useMemo(() => Array.isArray(latestEstimate?.items) ? latestEstimate.items.filter(it => !it?.isRemoved) : [], [latestEstimate]);
+	const hasAnyAdvisorItem = advisorItems.length > 0;
+	const hasAnyCheckedAdvisorItem = advisorItems.some(it => Boolean(
+		it?.isChecked ?? it?.confirmed ?? it?.isConfirmed ?? it?.approved ?? it?.isApproved ?? it?.customerConfirmed ?? it?.isCustomerConfirmed
+	));
+	const canConfirmEstimate = Boolean(estimateIdNum) && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT') && hasAnyAdvisorItem && hasAnyCheckedAdvisorItem;
 
 	const handleCreateReceipt = async () => {
 		if (receiptApproving) return;
@@ -710,7 +756,11 @@ export default function ServiceTicketDetail() {
 						{hasAdvisorRole && (
 							<>
 								<TechnicianServiceTicket ticketCode={ticket.ticketCode || ticketCodeParam} embedded />
-								<AdvisorItemsTable serviceTicketId={ticket?.serviceTicketId} onEstimateStatusChange={(est) => setLatestEstimate(est)} />
+								<AdvisorItemsTable
+									key={String(latestEstimate?.status || latestEstimate?.estimateStatus || ticketRaw?.statusCode || ticketRaw?.ticketStatus || ticketRaw?.status || ticket?.statusCode || ticket?.ticketStatus || ticket?.status || '') + '-' + (latestEstimate?.estimateId || latestEstimate?.id || ticket?.serviceTicketId || '')}
+									serviceTicketId={ticket?.serviceTicketId}
+									onEstimateStatusChange={(est) => setLatestEstimate(est)}
+								/>
 							</>
 						)}
 
