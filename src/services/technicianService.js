@@ -76,3 +76,47 @@ export const updateTechnicianNotes = (ticketCode, payload, token) => {
     body: JSON.stringify(payload ?? {}),
   });
 };
+
+// Kỹ thuật viên bắt đầu kiểm tra an toàn - DRAFT → INSPECTION
+// Backend: POST /api/service-ticket/technician/tickets/{ticketCode}/start-inspection
+export const startInspection = (ticketCode, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để bắt đầu kiểm tra.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const code = encodeURIComponent(String(ticketCode ?? '').trim());
+  if (!code) {
+    const error = new Error('Thiếu ticketCode.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/technician/tickets/${code}/start-inspection`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Kỹ thuật viên báo hoàn thành - IN_PROGRESS → COMPLETED
+// Backend: POST /api/service-ticket/technician/tickets/{ticketCode}/finish
+export const finishWork = (ticketCode, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để báo hoàn thành.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const code = encodeURIComponent(String(ticketCode ?? '').trim());
+  if (!code) {
+    const error = new Error('Thiếu ticketCode.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/technician/tickets/${code}/finish`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
