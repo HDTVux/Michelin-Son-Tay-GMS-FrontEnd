@@ -656,7 +656,6 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                     </tfoot>
                 </table>
             </div>
-
             <div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
                 <label htmlFor="advisor-recommendation">Khuyến nghị</label>
                 <textarea
