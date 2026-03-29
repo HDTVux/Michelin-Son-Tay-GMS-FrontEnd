@@ -250,7 +250,6 @@ export const ServiceTicket = ({
     };
 
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedTicketCode, defaultTireData, embedded, refreshKey, isAdvisorMode]);
 
   const handleTireDataChange = (position, field, value) => {
@@ -454,78 +453,11 @@ export const ServiceTicket = ({
     }
   };
 
-  const hasInputValue = (value) => String(value ?? '').trim() !== '';
-
-  const isInspectionItemChecked = (item) => Boolean(item?.good || item?.warning || item?.replace);
-
-  const getMissingTireFields = () => {
-    const checks = [
-      { label: 'Size lốp khuyến cáo', value: recommendedTireSize },
-      { label: 'Lốp trước trái (size 1)', value: tireData.frontLeft?.size1 },
-      { label: 'Lốp trước trái (size 2)', value: tireData.frontLeft?.size2 },
-      { label: 'Lốp trước trái (size 3)', value: tireData.frontLeft?.size3 },
-      { label: 'Lốp sau trái (size 1)', value: tireData.rearLeft?.size1 },
-      { label: 'Lốp sau trái (size 2)', value: tireData.rearLeft?.size2 },
-      { label: 'Lốp sau trái (size 3)', value: tireData.rearLeft?.size3 },
-      { label: 'Độ mòn lốp trước trái', value: tireData.frontLeft?.mm },
-      { label: 'Độ mòn lốp trước phải', value: tireData.frontRight?.mm },
-      { label: 'Độ mòn lốp sau trái', value: tireData.rearLeft?.mm },
-      { label: 'Độ mòn lốp sau phải', value: tireData.rearRight?.mm },
-      { label: 'Độ mòn lốp dự phòng', value: tireData.spare?.mm },
-      { label: 'Áp suất lốp trước trái', value: tireData.frontLeft?.pressure },
-      { label: 'Áp suất lốp trước phải', value: tireData.frontRight?.pressure },
-      { label: 'Áp suất lốp sau trái', value: tireData.rearLeft?.pressure },
-      { label: 'Áp suất lốp sau phải', value: tireData.rearRight?.pressure },
-      { label: 'Áp suất lốp dự phòng', value: tireData.spare?.pressure },
-      { label: 'Áp suất khuyến cáo trước', value: tireData.frontLeft?.recommendedPressure || tireData.frontRight?.recommendedPressure },
-      { label: 'Áp suất khuyến cáo sau', value: tireData.rearLeft?.recommendedPressure || tireData.rearRight?.recommendedPressure },
-      { label: 'Áp suất khuyến cáo lốp dự phòng', value: tireData.spare?.recommendedPressure },
-    ];
-    return checks.filter((item) => !hasInputValue(item.value)).map((item) => item.label);
-  };
-
   const validateTechnicianCompletion = () => {
-    const missingTires = getMissingTireFields();
-    if (missingTires.length > 0) {
-      return `Vui lòng điền đủ thông tin lốp xe trước khi hoàn thành (${missingTires[0]}).`;
-    }
-
-    const normalizedInspectionStatus = String(inspectionStatus || '').toUpperCase();
-    const isSkippedInspection = normalizedInspectionStatus === 'SKIPPED';
-    const requiredItems = isSkippedInspection
-      ? mergedSafetyChecks.filter((item) => hasInputValue(item?.advisorNote || item?.note))
-      : mergedSafetyChecks;
-
-    if (requiredItems.length === 0) return null;
-
-    const missingItems = requiredItems.filter((item) => !isInspectionItemChecked(item));
-    if (missingItems.length > 0) {
-      return isSkippedInspection
-        ? 'Phiếu trạng thái đã bỏ qua: chỉ cần tích các hạng mục được cố vấn viên note trước khi hoàn thành.'
-        : 'Phiếu trạng thái chờ kiểm tra: bắt buộc kiểm tra đủ 13 hạng mục và các hạng mục thêm mới (nếu có) trước khi hoàn thành.';
-    }
-
     return null;
   };
 
   const validateAdvisorCompletion = () => {
-    const normalizedInspectionStatus = String(inspectionStatus || '').toUpperCase();
-    const isSkippedInspection = normalizedInspectionStatus === 'SKIPPED';
-    const requiredItems = isSkippedInspection
-      ? mergedSafetyChecks.filter((item) => hasInputValue(item?.advisorNote || item?.note))
-      : mergedSafetyChecks;
-
-    if (requiredItems.length === 0) {
-      return 'Vui lòng tích ít nhất 1 hạng mục trước khi hoàn thành.';
-    }
-
-    const missingItems = requiredItems.filter((item) => !isInspectionItemChecked(item));
-    if (missingItems.length > 0) {
-      return isSkippedInspection
-        ? 'Phiếu SKIPPED: cần tích các hạng mục đã được note trước khi hoàn thành.'
-        : 'Vui lòng tích đầy đủ các hạng mục kiểm tra trước khi hoàn thành.';
-    }
-
     return null;
   };
 

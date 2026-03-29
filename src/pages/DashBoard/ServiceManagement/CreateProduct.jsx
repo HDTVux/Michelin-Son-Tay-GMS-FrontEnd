@@ -218,9 +218,10 @@ export default function CreateProduct() {
 
 				// Only auto-select if user hasn't picked (selectedCategoryId is empty or not in new list)
 				let newCatId = '';
-				const userPicked = catsNorm.some((c) => String(c.itemCategoryId) === String(selectedCategoryId));
+				const currentSelectedCategoryId = String(selectedCategoryIdRef.current || '').trim();
+				const userPicked = catsNorm.some((c) => String(c.itemCategoryId) === currentSelectedCategoryId);
 				if (userPicked) {
-					newCatId = String(selectedCategoryId);
+					newCatId = currentSelectedCategoryId;
 				} else if (prevCat && catsNorm.some((c) => String(c.itemCategoryId) === prevCat)) {
 					newCatId = prevCat;
 				} else if (catsNorm.length > 0) {

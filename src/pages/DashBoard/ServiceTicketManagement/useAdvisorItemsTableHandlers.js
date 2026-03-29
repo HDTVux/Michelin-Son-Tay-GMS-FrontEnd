@@ -248,7 +248,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 	useEffect(() => {
 		setRecommendation('');
-	}, [serviceTicketId]);
+	}, [serviceTicketId, onEstimateStatusChange]);
 
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
@@ -421,7 +421,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		return () => {
 			ignore = true;
 		};
-	}, [serviceTicketId]);
+	}, [serviceTicketId, onEstimateStatusChange]);
 
 	useEffect(() => {
 		if (!isCreating) return;
@@ -814,7 +814,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setIsSaving(false);
 			}
 		},
-		[canToggleChecked, estimate, serviceTicketId],
+		[canToggleChecked, estimate, serviceTicketId, onEstimateStatusChange],
 	);
 
 	const cancelEdit = useCallback(() => {
@@ -885,7 +885,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		} finally {
 			setIsSaving(false);
 		}
-	}, [draftRows, isSaving, serviceTicketId]);
+	}, [draftRows, isSaving, serviceTicketId, onEstimateStatusChange]);
 
 	const saveEdit = useCallback(async () => {
 		if (isSaving) return;
@@ -959,7 +959,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		} finally {
 			setIsSaving(false);
 		}
-	}, [editRows, estimate, isSaving, serviceTicketId]);
+	}, [editRows, estimate, isSaving, serviceTicketId, onEstimateStatusChange]);
 
 	const softDeleteEditRow = useCallback(
 		async (rowIndex) => {
@@ -1025,7 +1025,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setIsSaving(false);
 			}
 		},
-		[editComputed, isEditing, isSaving],
+		[editComputed, isEditing, isSaving, onEstimateStatusChange],
 	);
 
 	return {

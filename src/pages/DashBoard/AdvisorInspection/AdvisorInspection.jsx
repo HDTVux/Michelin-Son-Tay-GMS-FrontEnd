@@ -36,18 +36,6 @@ const readStaffRolesFromStorage = () => {
     return [];
   }
 };
-const readStaffIdFromProfile = () => {
-  try {
-    const raw = localStorage.getItem('staffProfile');
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    const staffId = Number(parsed?.staffId);
-    return Number.isFinite(staffId) && staffId > 0 ? staffId : null;
-  } catch {
-    return null;
-  }
-};
-
 const getTicketCode = (ticket) => ticket?.ticketCode || ticket?.code || '';
 const getTicketId = (ticket) => {
   if (ticket?.serviceTicketId != null) return Number(ticket.serviceTicketId);
@@ -155,7 +143,6 @@ const normalizeAssignment = (raw) => {
 export default function AdvisorInspection() {
   const navigate = useNavigate();
   const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
-  const currentStaffId = useMemo(() => readStaffIdFromProfile(), []);
   const canChangeAdvisorByRole = staffRoles.includes(STAFF_ROLE.ADVISOR);
 
   // --- Ticket list state ---
@@ -195,9 +182,6 @@ export default function AdvisorInspection() {
   const [loadingModal, setLoadingModal] = useState(false);
   const [modalError, setModalError] = useState('');
   const [modalSuccess, setModalSuccess] = useState('');
-  // Track whether any assignment changes have been made in the modal
-  const [hasSavedAssignments, setHasSavedAssignments] = useState(false);
-
   // --- Computed ---
   const filteredTickets = tickets.filter((t) => {
     if (statusFilter === 'ALL') return true;
@@ -336,7 +320,6 @@ export default function AdvisorInspection() {
           const code = getTicketCode(t);
           if (!code) continue;
           const statusFromTicket = getInspectionStatusFromTicket(t);
-          // eslint-disable-next-line no-await-in-loop
           const result = await safeGetInspection(code, token);
           if (result?.inspectionStatus) {
             inspectionMap[code] = result;
@@ -450,7 +433,6 @@ export default function AdvisorInspection() {
     setModalAdvisor(null);
     setSelectedNewAdvisorId('');
     setTechReplacementByAssignment({});
-    setHasSavedAssignments(false);
     setLoadingModal(true);
 
     const token = getToken();
@@ -532,7 +514,6 @@ export default function AdvisorInspection() {
     setTechReplacementByAssignment({});
     setModalError('');
     setModalSuccess('');
-    setHasSavedAssignments(false);
   };
 
   // --- Gán KTV ---
@@ -649,7 +630,6 @@ export default function AdvisorInspection() {
         'Doi KTV tu man advisor',
         token,
       );
-      setHasSavedAssignments(true);
       await handleOpenModal(selectedTicket);
       setModalSuccess('Đã đổi kỹ thuật viên.');
       setReloadKey((k) => k + 1);
@@ -708,7 +688,6 @@ export default function AdvisorInspection() {
       });
 
       const label = isPrimary ? 'KTV chính' : 'KTV phụ';
-      setHasSavedAssignments(true);
       setModalSuccess(`Đã phân công ${label}: ${tech.fullName || `NV-${tech.staffId}`}`);
       setReloadKey((k) => k + 1);
     } catch (err) {
