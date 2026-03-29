@@ -129,6 +129,8 @@ export const ServiceTicket = ({
 
         const safetyEnabledFromTicket = ticketResponse?.data?.safetyInspectionEnabled !== false;
         setHasSafetyInspectionEnabled(safetyEnabledFromTicket);
+        setTireData(defaultTireData);
+        setRecommendedTireSize('');
 
         try {
 
@@ -150,6 +152,7 @@ export const ServiceTicket = ({
 
             if (inspection.tires && inspection.tires.length > 0) {
               const newTireData = { ...defaultTireData };
+              let loadedRecommendedTireSize = '';
               inspection.tires.forEach(tire => {
                 const positionMap = {
                   'FRONT_LEFT': 'frontLeft',
@@ -181,12 +184,13 @@ export const ServiceTicket = ({
 
                   newTireData[position] = baseData;
 
-                  if (tire.recommendedTireSize && !recommendedTireSize) {
-                    setRecommendedTireSize(tire.recommendedTireSize);
+                  if (!loadedRecommendedTireSize && tire.recommendedTireSize) {
+                    loadedRecommendedTireSize = tire.recommendedTireSize;
                   }
                 }
               });
               setTireData(newTireData);
+              setRecommendedTireSize(loadedRecommendedTireSize || '');
             }
 
             const inspectionItems = Array.isArray(inspection.items) ? inspection.items : [];
@@ -537,13 +541,99 @@ export const ServiceTicket = ({
 
       let currentInspectionId = inspectionId;
       if (!currentInspectionId) {
-        const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
-        currentInspectionId = inspectionResponse?.data?.inspectionId || null;
-        if (!currentInspectionId) {
-          toast.error('Phiếu chưa có bản ghi kiểm tra an toàn để lưu ghi chú.');
-          return;
+        try {
+          const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
+          currentInspectionId = inspectionResponse?.data?.inspectionId || null;
+        } catch {
+          currentInspectionId = null;
         }
-        setInspectionId(currentInspectionId);
+      }
+
+      if (!currentInspectionId && hasSafetyInspectionEnabled) {
+        try {
+          const enableResponse = await enableSafetyInspection(resolvedTicketCode, token);
+          currentInspectionId = enableResponse?.data?.inspectionId || null;
+        } catch (enableError) {
+          console.error('Lỗi khi kích hoạt phiếu trước khi lưu:', enableError);
+        }
+      }
+
+      const getActualData = (data) => {
+        if (!data || (!data.mm && !data.pressure)) return null;
+        return {
+          treadDepth: data.mm ? parseFloat(data.mm) : null,
+          pressure: data.pressure ? parseFloat(data.pressure) : null,
+          pressureUnit: 'PSI',
+        };
+      };
+
+      const frontSpec = (tireData.frontLeft?.size1 && tireData.frontLeft?.size2 && tireData.frontLeft?.size3)
+        ? `${tireData.frontLeft.size1}/${tireData.frontLeft.size2}R${tireData.frontLeft.size3}`
+        : null;
+
+      const rearSpec = (tireData.rearLeft?.size1 && tireData.rearLeft?.size2 && tireData.rearLeft?.size3)
+        ? `${tireData.rearLeft.size1}/${tireData.rearLeft.size2}R${tireData.rearLeft.size3}`
+        : null;
+
+      const frontRecommendedPressure = tireData.frontRight?.recommendedPressure
+        ? parseFloat(tireData.frontRight.recommendedPressure)
+        : null;
+
+      const rearRecommendedPressure = tireData.rearRight?.recommendedPressure
+        ? parseFloat(tireData.rearRight.recommendedPressure)
+        : null;
+
+      const spareRecommendedPressure = tireData.spare?.recommendedPressure
+        ? parseFloat(tireData.spare.recommendedPressure)
+        : null;
+
+      const tiresPayload = {
+        frontTireSpecification: frontSpec,
+        rearTireSpecification: rearSpec,
+        recommendedTireSize: recommendedTireSize || null,
+        frontLeft: getActualData(tireData.frontLeft),
+        frontRight: getActualData(tireData.frontRight),
+        rearLeft: getActualData(tireData.rearLeft),
+        rearRight: getActualData(tireData.rearRight),
+        spare: getActualData(tireData.spare),
+        frontRecommendedPressure,
+        rearRecommendedPressure,
+        spareRecommendedPressure,
+      };
+
+      const itemsPayload = safetyChecks
+        .map((check) => ({
+          workCategoryId: check.workCategoryId || null,
+          customCategoryId: check.customCategoryId || null,
+          itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null,
+        }))
+        .filter((check) => check.workCategoryId || check.customCategoryId);
+
+      const finalServiceTicketId = resolveServiceTicketId();
+      if (!finalServiceTicketId) {
+        throw new Error('Thiếu serviceTicketId để lưu phiếu kiểm tra.');
+      }
+
+      const draftInspectionStatus = String(inspectionStatus || '').toUpperCase() === 'SKIPPED' ? 'SKIPPED' : 'PENDING';
+
+      const safetyPayload = {
+        serviceTicketId: finalServiceTicketId,
+        technicianNotes: notes || null,
+        tires: tiresPayload,
+        items: itemsPayload,
+        inspectionStatus: draftInspectionStatus,
+      };
+
+      if (currentInspectionId) {
+        const updateRes = await updateSafetyInspectionData(currentInspectionId, safetyPayload, token);
+        currentInspectionId = updateRes?.data?.inspectionId || currentInspectionId;
+      } else {
+        const saveRes = await saveSafetyInspectionData(safetyPayload, token);
+        currentInspectionId = saveRes?.data?.inspectionId || null;
+      }
+
+      if (!currentInspectionId) {
+        throw new Error('Không lấy được inspectionId sau khi lưu phiếu.');
       }
 
       const advisorItems = safetyChecks
@@ -555,11 +645,14 @@ export const ServiceTicket = ({
         }));
 
       await updateAdvisorNotes(currentInspectionId, advisorItems, token);
-      toast.success('Đã lưu ghi chú cố vấn viên cho kỹ thuật viên.');
+      setInspectionId(currentInspectionId);
+      setInspectionStatus(draftInspectionStatus);
+      setIsEditable(true);
+      toast.success('Đã lưu toàn bộ dữ liệu phiếu kiểm tra an toàn.');
       setRefreshKey((prev) => prev + 1);
     } catch (error) {
-      console.error('Lỗi khi lưu ghi chú cố vấn viên:', error);
-      toast.error('Không thể lưu ghi chú: ' + (error.message || 'Lỗi không xác định'));
+      console.error('Lỗi khi lưu dữ liệu phiếu (advisor):', error);
+      toast.error('Không thể lưu phiếu: ' + (error.message || 'Lỗi không xác định'));
     }
   };
 
@@ -595,7 +688,7 @@ export const ServiceTicket = ({
 
       const tiresPayload = (() => {
         const getActualData = (data) => {
-          if (!data || (!data.mm && !data.pressure && !data.size1)) return null;
+          if (!data || (!data.mm && !data.pressure)) return null;
           return {
             treadDepth: data.mm ? parseFloat(data.mm) : null,
             pressure: data.pressure ? parseFloat(data.pressure) : null,
@@ -605,23 +698,19 @@ export const ServiceTicket = ({
 
         const frontSpec = (tireData.frontLeft?.size1 && tireData.frontLeft?.size2 && tireData.frontLeft?.size3)
           ? `${tireData.frontLeft.size1}/${tireData.frontLeft.size2}R${tireData.frontLeft.size3}`
-          : (tireData.frontRight?.size1 && tireData.frontRight?.size2 && tireData.frontRight?.size3)
-            ? `${tireData.frontRight.size1}/${tireData.frontRight.size2}R${tireData.frontRight.size3}`
-            : null;
+          : null;
 
         const rearSpec = (tireData.rearLeft?.size1 && tireData.rearLeft?.size2 && tireData.rearLeft?.size3)
           ? `${tireData.rearLeft.size1}/${tireData.rearLeft.size2}R${tireData.rearLeft.size3}`
-          : (tireData.rearRight?.size1 && tireData.rearRight?.size2 && tireData.rearRight?.size3)
-            ? `${tireData.rearRight.size1}/${tireData.rearRight.size2}R${tireData.rearRight.size3}`
-            : null;
+          : null;
 
-        const frontRecommendedPressure = tireData.frontLeft?.recommendedPressure
-          ? parseFloat(tireData.frontLeft.recommendedPressure)
-          : (tireData.frontRight?.recommendedPressure ? parseFloat(tireData.frontRight.recommendedPressure) : null);
+        const frontRecommendedPressure = tireData.frontRight?.recommendedPressure
+          ? parseFloat(tireData.frontRight.recommendedPressure)
+          : null;
 
-        const rearRecommendedPressure = tireData.rearLeft?.recommendedPressure
-          ? parseFloat(tireData.rearLeft.recommendedPressure)
-          : (tireData.rearRight?.recommendedPressure ? parseFloat(tireData.rearRight.recommendedPressure) : null);
+        const rearRecommendedPressure = tireData.rearRight?.recommendedPressure
+          ? parseFloat(tireData.rearRight.recommendedPressure)
+          : null;
 
         const spareRecommendedPressure = tireData.spare?.recommendedPressure
           ? parseFloat(tireData.spare.recommendedPressure)
