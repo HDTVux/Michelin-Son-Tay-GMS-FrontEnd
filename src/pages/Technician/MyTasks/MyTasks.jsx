@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { fetchTechnicianTickets, fetchTechnicianTicketDetail } from '../../../services/technicianService';
+import { fetchTechnicianTickets, fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
 import { getSafetyInspectionByTicketCode } from '../../../services/safetyInspectionService';
 import styles from './MyTasks.module.css';
 
@@ -31,10 +31,10 @@ const MyTasks = () => {
         const tickets = response.data?.content || response.data || [];
 
         const transformedTasks = await Promise.all(tickets.map(async (ticket) => {
-          const hasSafetyInspection = Boolean(ticket.safetyInspectionEnabled);
+          const hasSafetyInspection = ticket.safetyInspectionEnabled !== false;
           let inspectionStatus = null;
 
-          if (hasSafetyInspection && ticket.ticketCode) {
+          if (ticket.ticketCode) {
             try {
               const inspectionRes = await getSafetyInspectionByTicketCode(ticket.ticketCode, token);
               inspectionStatus = inspectionRes?.data?.inspectionStatus || null;
@@ -42,6 +42,9 @@ const MyTasks = () => {
               inspectionStatus = null;
             }
           }
+
+          const normalizedInspectionStatus = String(inspectionStatus || '').toUpperCase();
+          const requiresSafetyInspection = hasSafetyInspection && normalizedInspectionStatus !== 'SKIPPED';
 
           return {
             id: ticket.serviceTicketId,
@@ -61,6 +64,7 @@ const MyTasks = () => {
             dueDate: ticket.scheduledDate || '',
             technicianNotes: ticket.technicianNotes,
             hasSafetyInspection,
+            requiresSafetyInspection,
             inspectionStatus,
             // Services will be loaded from detail API
             services: [],
@@ -143,7 +147,7 @@ const MyTasks = () => {
   const filteredTasks = tasks.filter(task => {
     const inspectionStatus = String(task.inspectionStatus || '').toUpperCase();
     const matchesStatus = filterStatus === 'all' ||
-      (filterStatus === 'no_inspection' && !task.hasSafetyInspection) ||
+      (filterStatus === 'no_inspection' && !task.requiresSafetyInspection) ||
       (filterStatus === inspectionStatus);
     const matchesSearch = !searchTerm ||
       (task.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -152,11 +156,38 @@ const MyTasks = () => {
     return matchesStatus && matchesSearch;
   });
 
+  const handleStartWork = async (task) => {
+    const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+    const ticketCode = String(task?.ticketCode || '').trim();
+    if (!token || !ticketCode) {
+      toast.error('Thiếu thông tin phiếu để bắt đầu làm việc.');
+      return;
+    }
+
+    try {
+      await startInspection(ticketCode, token);
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.ticketCode === ticketCode
+            ? {
+              ...t,
+              status: 'INSPECTION',
+              inspectionStatus: 'PENDING',
+            }
+            : t,
+        ),
+      );
+      navigate(`/technician/safetyinspection-ticket/${ticketCode}`);
+    } catch (error) {
+      toast.error(error?.message || 'Không thể bắt đầu làm việc.');
+    }
+  };
+
   const handleViewTask = async (task) => {
     try {
       const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
       const response = await fetchTechnicianTicketDetail(task.ticketCode || task.id, token);
-      console.log('📋 Task Detail Response:', response.data);
+      console.log('Task Detail Response:', response.data);
       
       const data = response.data;
       
@@ -209,7 +240,7 @@ const MyTasks = () => {
 
   const stats = {
     total: tasks.length,
-    assigned: tasks.filter(t => !t.hasSafetyInspection).length,
+    assigned: tasks.length,
     inProgress: tasks.filter(t => t.hasSafetyInspection && String(t.inspectionStatus || '').toUpperCase() === 'PENDING').length,
     completed: tasks.filter(t => t.hasSafetyInspection && String(t.inspectionStatus || '').toUpperCase() === 'COMPLETED').length,
   };
@@ -293,9 +324,9 @@ const MyTasks = () => {
         <div className={styles.column}>
           <h3 className={styles.columnTitle}>Có kiểm tra an toàn</h3>
           <div className={styles.tasksList}>
-            {filteredTasks.filter(t => t.hasSafetyInspection).length > 0 ? (
-              filteredTasks.filter(t => t.hasSafetyInspection).map((task) => (
-                <TaskCard key={task.id} task={task} onView={handleViewTask} onNavigate={navigate} getPriorityClass={getPriorityClass} formatDate={formatDate} mapInspectionStatus={mapInspectionStatus} getInspectionStatusClass={getInspectionStatusClass} />
+            {filteredTasks.filter(t => t.requiresSafetyInspection).length > 0 ? (
+              filteredTasks.filter(t => t.requiresSafetyInspection).map((task) => (
+                <TaskCard key={task.id} task={task} onView={handleViewTask} onNavigate={navigate} onStartWork={handleStartWork} getPriorityClass={getPriorityClass} formatDate={formatDate} mapInspectionStatus={mapInspectionStatus} getInspectionStatusClass={getInspectionStatusClass} />
               ))
             ) : (
               <div className={styles.emptyState}>
@@ -309,9 +340,9 @@ const MyTasks = () => {
         <div className={styles.column}>
           <h3 className={styles.columnTitle}>Không kiểm tra an toàn</h3>
           <div className={styles.tasksList}>
-            {filteredTasks.filter(t => !t.hasSafetyInspection).length > 0 ? (
-              filteredTasks.filter(t => !t.hasSafetyInspection).map((task) => (
-                <TaskCard key={task.id} task={task} onView={handleViewTask} onNavigate={navigate} getPriorityClass={getPriorityClass} formatDate={formatDate} mapInspectionStatus={mapInspectionStatus} getInspectionStatusClass={getInspectionStatusClass} />
+            {filteredTasks.filter(t => !t.requiresSafetyInspection).length > 0 ? (
+              filteredTasks.filter(t => !t.requiresSafetyInspection).map((task) => (
+                <TaskCard key={task.id} task={task} onView={handleViewTask} onNavigate={navigate} onStartWork={handleStartWork} getPriorityClass={getPriorityClass} formatDate={formatDate} mapInspectionStatus={mapInspectionStatus} getInspectionStatusClass={getInspectionStatusClass} />
               ))
             ) : (
               <div className={styles.emptyState}>
@@ -421,12 +452,23 @@ const MyTasks = () => {
             <div className={styles.modalFooter}>
               <button
                 className={styles.modalActionBtn}
-                onClick={() => {
+                onClick={async () => {
                   setShowModal(false);
+                  const isDraft = String(selectedTask?.status || '').toUpperCase() === 'DRAFT';
+                  const isCompletedInspection = String(selectedTask?.inspectionStatus || '').toUpperCase() === 'COMPLETED';
+                  if (isDraft && !isCompletedInspection) {
+                    await handleStartWork(selectedTask);
+                    return;
+                  }
                   navigate(`/technician/safetyinspection-ticket/${selectedTask.ticketCode || selectedTask.id}`);
                 }}
               >
-                {selectedTask.hasSafetyInspection ? 'Xem phiếu kiểm tra' : 'Làm việc (không kiểm tra an toàn)'}
+                {(() => {
+                  const isDraft = String(selectedTask?.status || '').toUpperCase() === 'DRAFT';
+                  const isCompletedInspection = String(selectedTask?.inspectionStatus || '').toUpperCase() === 'COMPLETED';
+                  if (isDraft && !isCompletedInspection) return 'Bắt đầu làm việc';
+                  return selectedTask.hasSafetyInspection ? 'Xem phiếu kiểm tra' : 'Làm việc (không kiểm tra an toàn)';
+                })()}
               </button>
             </div>
           </div>
@@ -437,7 +479,7 @@ const MyTasks = () => {
 };
 
 // TaskCard component
-const TaskCard = ({ task, onView, onNavigate, getPriorityClass, formatDate, mapInspectionStatus, getInspectionStatusClass }) => (
+const TaskCard = ({ task, onView, onNavigate, onStartWork, getPriorityClass, formatDate, mapInspectionStatus, getInspectionStatusClass }) => (
   <div className={styles.taskCard}>
     <div className={styles.taskHeader}>
       <div className={styles.taskHeaderLeft}>
@@ -514,56 +556,34 @@ const TaskCard = ({ task, onView, onNavigate, getPriorityClass, formatDate, mapI
         </div>
       </div>
 
-      {/* Checkbox hiển thị có kiểm tra an toàn hay không */}
-      <div className={styles.taskRow}>
-        <div className={styles.taskField} style={{ width: '100%' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'default' }}>
-            <input
-              type="checkbox"
-              checked={task.hasSafetyInspection || false}
-              readOnly
-              style={{ width: '16px', height: '16px' }}
-            />
-            <span style={{ fontSize: '13px', color: task.hasSafetyInspection ? '#28a745' : '#666' }}>
-              {task.hasSafetyInspection ? 'Có kiểm tra an toàn' : 'Không kiểm tra an toàn'}
-            </span>
-          </label>
-        </div>
-      </div>
     </div>
 
     <div className={styles.taskFooter}>
-      {task.hasSafetyInspection ? (
-        <>
-          <button
-            className={styles.primaryButton}
-            onClick={() => onNavigate(`/technician/safetyinspection-ticket/${task.ticketCode || task.id}`)}
-          >
-            Xem phiếu kiểm tra
-          </button>
-          <button
-            className={styles.secondaryButton}
-            onClick={() => onView(task)}
-          >
-            Chi tiết
-          </button>
-        </>
-      ) : (
-        <>
-          <button
-            className={styles.primaryButton}
-            onClick={() => onNavigate(`/technician/safetyinspection-ticket/${task.ticketCode || task.id}`)}
-          >
-            Bắt đầu làm việc
-          </button>
-          <button
-            className={styles.secondaryButton}
-            onClick={() => onView(task)}
-          >
-            Chi tiết
-          </button>
-        </>
-      )}
+      <button
+        className={styles.primaryButton}
+        onClick={() => {
+          const isDraft = String(task?.status || '').toUpperCase() === 'DRAFT';
+          const isCompletedInspection = String(task?.inspectionStatus || '').toUpperCase() === 'COMPLETED';
+          if (isDraft && !isCompletedInspection) {
+            onStartWork(task);
+            return;
+          }
+          onNavigate(`/technician/safetyinspection-ticket/${task.ticketCode || task.id}`);
+        }}
+      >
+        {(() => {
+          const isDraft = String(task?.status || '').toUpperCase() === 'DRAFT';
+          const isCompletedInspection = String(task?.inspectionStatus || '').toUpperCase() === 'COMPLETED';
+          if (isDraft && !isCompletedInspection) return 'Bắt đầu làm việc';
+          return task.hasSafetyInspection ? 'Xem phiếu kiểm tra' : 'Làm việc';
+        })()}
+      </button>
+      <button
+        className={styles.secondaryButton}
+        onClick={() => onView(task)}
+      >
+        Chi tiết
+      </button>
     </div>
   </div>
 );

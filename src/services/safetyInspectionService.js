@@ -5,7 +5,7 @@ const authHeaders = (token) => (token ? { Authorization: `Bearer ${token}` } : {
 const ensurePositiveId = (value, fieldName) => {
   const num = Number(value);
   if (!Number.isFinite(num) || num <= 0) {
-    const error = new Error(`${fieldName} không h?p l?.`);
+    const error = new Error(`${fieldName} không hợp lệ.`);
     error.status = 400;
     throw error;
   }
@@ -15,7 +15,7 @@ const ensurePositiveId = (value, fieldName) => {
 export const enableSafetyInspection = (ticketCode, token) => {
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
-    const error = new Error('Thi?u ticketCode.');
+    const error = new Error('Thiếu ticketCode.');
     error.status = 400;
     return Promise.reject(error);
   }
@@ -29,7 +29,7 @@ export const enableSafetyInspection = (ticketCode, token) => {
 export const reopenSafetyInspection = (ticketCode, token) => {
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
-    const error = new Error('Thi?u ticketCode.');
+    const error = new Error('Thiếu ticketCode.');
     error.status = 400;
     return Promise.reject(error);
   }
@@ -44,7 +44,7 @@ export const skipSafetyInspection = (ticketCode, reason = '', token) => {
   void reason;
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
-    const error = new Error('Thi?u ticketCode.');
+    const error = new Error('Thiếu ticketCode.');
     error.status = 400;
     return Promise.reject(error);
   }
@@ -66,7 +66,7 @@ export const getSafetyInspectionById = (inspectionId, token) => {
 export const getSafetyInspectionByTicketCode = (ticketCode, token) => {
   const code = encodeURIComponent(String(ticketCode ?? '').trim());
   if (!code) {
-    const error = new Error('Thi?u ticketCode.');
+    const error = new Error('Thiếu ticketCode.');
     error.status = 400;
     return Promise.reject(error);
   }
@@ -138,7 +138,7 @@ export const deleteCustomCategory = (inspectionId, customCategoryId, token) => {
 // Backward-compatible export name used by Technician screen.
 export const createWorkCategory = (inspectionId, payload, token) => {
   if (typeof inspectionId === 'object' && token == null) {
-    const error = new Error('Thi?u inspectionId d? thêm h?ng m?c tùy ch?nh.');
+    const error = new Error('Thiếu inspectionId để thêm hạng mục tùy chỉnh.');
     error.status = 400;
     return Promise.reject(error);
   }
