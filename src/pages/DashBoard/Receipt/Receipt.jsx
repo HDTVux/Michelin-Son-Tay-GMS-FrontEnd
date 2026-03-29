@@ -94,6 +94,8 @@ export default function Receipt({ ticket, carDiagramSrc }) {
 
     return (
     <section className={styles.sheet}>
+
+        {/* ===== HEADER ===== */}
         <header className={styles.topHeader}>
             <div className={styles.topHeaderLeft} />
             <div className={styles.topHeaderCenter}>
@@ -105,17 +107,16 @@ export default function Receipt({ ticket, carDiagramSrc }) {
             </div>
         </header>
 
-        {/* 1. KHU VỰC THÔNG TIN CHUNG (Trải dài toàn bộ chiều ngang) */}
-        {/* 1. KHU VỰC THÔNG TIN CHUNG (Chia 2 cột Trái/Phải như bản gốc) */}
+        {/* ===== 1. THÔNG TIN CHUNG ===== */}
         <div className={styles.infoSection}>
-            
-            {/* Cột Trái: Thông tin khách & Nhận xe */}
-            <div className={styles.infoColumn}>
+
+            {/* Cột Trái: Thông tin khách */}
+            <div className={`${styles.infoColumn} ${styles.infoColumnLeft}`}>
                 <div className={styles.infoRow}>
                     <div className={styles.infoLabel}>Họ tên:</div>
                     <div className={styles.infoDotted}>{safeText(customer?.name)}</div>
                 </div>
-                
+
                 <div className={styles.infoRowSub}>
                     <div className={styles.infoLabel}>Điện thoại:</div>
                     <div className={styles.infoDotted}>{safeText(customer?.phone)}</div>
@@ -141,13 +142,13 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                 </div>
             </div>
 
-            {/* Cột Phải: Thông tin xe & Giao xe */}
-            <div className={styles.infoColumn}>
+            {/* Cột Phải: Thông tin xe */}
+            <div className={`${styles.infoColumn} ${styles.infoColumnRight}`}>
                 <div className={styles.infoRow}>
                     <div className={styles.infoLabel}>Loại &amp; kiểu xe:</div>
                     <div className={styles.infoDotted}>{model}</div>
                 </div>
-                
+
                 <div className={styles.infoRowSub}>
                     <div className={styles.infoLabel}>Biển số:</div>
                     <div className={styles.infoDotted}>{licensePlate}</div>
@@ -160,26 +161,41 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                     <div className={styles.infoDotted}>{handoverAt}</div>
                 </div>
             </div>
-            
         </div>
 
-        {/* 2. KHU VỰC GIỮA: SƠ ĐỒ XE (Trái) - BẢNG AN TOÀN (Phải) */}
+        {/* ===== 2. SƠ ĐỒ XE & BẢNG AN TOÀN ===== */}
         <div className={styles.middleSplit}>
-            {/* Cột trái: Sơ đồ xe */}
+
+            {/* Cột trái: Sơ đồ xe + Áp suất khuyến cáo */}
             <div className={styles.diagramWrap}>
+
+                {/* Cột trái: Thông số lốp trước */}
                 <div className={styles.diagramLeft}>
                     <div className={styles.tireBlockTop}>
                         <div className={styles.tireHeading}>___ / ___ R ______</div>
-                        <div className={styles.tireCell}><div className={styles.tireUnit}>mm</div><div className={styles.tireValue} /></div>
-                        <div className={styles.tireCell}><div className={styles.tireUnit}>kg/cm²</div><div className={styles.tireValue} /></div>
+                        <div className={styles.tireCell}>
+                            <div className={styles.tireUnit}>mm</div>
+                            <div className={styles.tireValue} />
+                        </div>
+                        <div className={styles.tireCell}>
+                            <div className={styles.tireUnit}>kg/cm²</div>
+                            <div className={styles.tireValue} />
+                        </div>
                     </div>
                     <div className={styles.tireBlockBottom}>
                         <div className={styles.tireHeading}>___ / ___ R ______</div>
-                        <div className={styles.tireCell}><div className={styles.tireUnit}>mm</div><div className={styles.tireValue} /></div>
-                        <div className={styles.tireCell}><div className={styles.tireUnit}>kg/cm²</div><div className={styles.tireValue} /></div>
+                        <div className={styles.tireCell}>
+                            <div className={styles.tireUnit}>mm</div>
+                            <div className={styles.tireValue} />
+                        </div>
+                        <div className={styles.tireCell}>
+                            <div className={styles.tireUnit}>kg/cm²</div>
+                            <div className={styles.tireValue} />
+                        </div>
                     </div>
                 </div>
 
+                {/* Cột giữa: Hình xe */}
                 <div className={styles.diagramCenter}>
                     <div className={styles.carBox}>
                         <CarDiagram src={carDiagramSrc} />
@@ -194,14 +210,21 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                     </div>
                 </div>
 
+                {/* Cột phải: Áp suất khuyến cáo */}
                 <div className={styles.diagramRight}>
                     <div className={styles.pressureLayout}>
                         <div className={styles.pressureLabel}>Áp suất<br/>khuyến cáo</div>
                         <div className={styles.pressureBoxes}>
 							{PRESSURE_BOX_KEYS.map((key) => (
 								<div key={key} className={styles.pressureBox}>
-                                    <div className={styles.pressureRow}><div className={styles.pressureUnit}>mm</div><div className={styles.pressureValue} /></div>
-                                    <div className={styles.pressureRow}><div className={styles.pressureUnit}>kg/cm²</div><div className={styles.pressureValue} /></div>
+                                    <div className={styles.pressureRow}>
+                                        <div className={styles.pressureUnit}>mm</div>
+                                        <div className={styles.pressureValue} />
+                                    </div>
+                                    <div className={styles.pressureRow}>
+                                        <div className={styles.pressureUnit}>kg/cm²</div>
+                                        <div className={styles.pressureValue} />
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -224,7 +247,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         <div key={label} className={styles.safetyRow}>
                             <div className={styles.safetyItem}>{label}</div>
                             <div className={styles.safetyChecks}>
-                                <CheckboxCell /><CheckboxCell /><CheckboxCell />
+                                <CheckboxCell />
+                                <CheckboxCell />
+                                <CheckboxCell />
                             </div>
                         </div>
                     ))}
@@ -232,7 +257,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
             </div>
         </div>
 
-        {/* 3. BẢNG DỊCH VỤ (Giữ nguyên cấu trúc HTML cũ) */}
+        {/* ===== 3. BẢNG DỊCH VỤ ===== */}
         <div className={styles.serviceTableWrap}>
             <table className={styles.serviceTable}>
                 <thead>
@@ -269,48 +294,45 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                             </tr>
                         );
                     })}
+                    {/* Dòng TỔNG CỘNG */}
                     <tr>
-                        <td colSpan={5} className={styles.totalLabel}>GIÁ GỐC</td>
-                        <td className={styles.tdRight}>{formatCurrencyVnd(subtotal)}</td>
-                        <td colSpan={2} />
-                    </tr>
-                    <tr>
-                        <td colSpan={5} className={styles.totalLabel}>GIẢM GIÁ</td>
-                        <td className={styles.tdRight}>{discountAmount ? `- ${formatCurrencyVnd(discountAmount)}` : ''}</td>
-                        <td colSpan={2} />
-                    </tr>
-                    <tr>
-                        <td colSpan={5} className={styles.totalLabel}>TỔNG TIỀN</td>
-                        <td className={styles.tdRight}>{formatCurrencyVnd(total)}</td>
+                        <td colSpan={5} className={styles.totalLabel}>TỔNG CỘNG</td>
+                        <td className={`${styles.tdRight} ${styles.tdTotalValue}`}>{formatCurrencyVnd(total)}</td>
                         <td colSpan={2} />
                     </tr>
                 </tbody>
             </table>
         </div>
 
-        {/* 4. FOOTER (Cập nhật đoạn text dài) */}
+        {/* ===== 4. FOOTER ===== */}
         <div className={styles.footer}>
             <div className={styles.recommendation}>
                 <div className={styles.footerTitle}>Khuyến nghị:</div>
                 <div className={styles.legalText}>
-                    <span className={styles.checkBoxSmall} style={{ marginRight: '4px' }} />{' '}
+                    <span className={styles.checkBoxSmall} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                    {' '}
                     Tôi đồng ý rằng bất kỳ dữ liệu cá nhân nào được cung cấp theo mẫu này có thể được thu thập và xử lý bởi Michelin Việt Nam (Công Ty) và bất kỳ công ty nào thuộc tập đoàn Michelin (có thể nằm ngoài Việt Nam), nhằm mục đích cải thiện chất lượng dịch vụ và tiếp thị. Tôi đồng ý thêm rằng Công Ty có thể liên hệ với tôi (i) để nhận phản hồi về chất lượng dịch vụ cũng như (ii) cung cấp cho tôi về các sản phẩm, dịch vụ và khuyến mại của Michelin. Tôi cũng đồng ý rằng Công Ty chỉ chuyển dữ liệu cá nhân cho các nhà cung cấp dịch vụ và / hoặc chi nhánh của Michelin tại Việt Nam hoặc bên ngoài Việt Nam.
-Công Ty sẽ xử lý dữ liệu cá nhân của bạn theo Chính sách bảo mật của Michelin (https://www.michelin.vn/privacy-policy). Vui lòng liên hệ với công ty theo số hotline + 84 28 3942 1111 nếu bạn muốn giới hạn việc chúng tôi xử lý, truy cập hoặc chỉnh sửa dữ liệu của bạn”
+                    Công Ty sẽ xử lý dữ liệu cá nhân của bạn theo Chính sách bảo mật của Michelin (https://www.michelin.vn/privacy-policy). Vui lòng liên hệ với công ty theo số hotline + 84 28 3942 1111 nếu bạn muốn giới hạn việc chúng tôi xử lý, truy cập hoặc chỉnh sửa dữ liệu của bạn"
                 </div>
             </div>
+
+            {/* Chữ ký */}
             <div className={styles.signRow}>
                 <div className={styles.signCol}>
                     <div className={styles.signTitle}>Đại lý</div>
-                    <div className={styles.signHint}>(Ký tên)</div>
+                    <div className={styles.signHint}>(Ký tên &amp; đóng dấu)</div>
+                    <div className={styles.signLine} />
                 </div>
                 <div className={styles.signCol}>
                     <div className={styles.signTitle}>Khách hàng</div>
                     <div className={styles.signHint}>(Ký tên)</div>
+                    <div className={styles.signLine} />
                 </div>
             </div>
         </div>
+
     </section>
-);
+    );
 }
 
 Receipt.propTypes = {
@@ -355,4 +377,3 @@ Receipt.propTypes = {
 CarDiagram.propTypes = {
 	src: PropTypes.string,
 };
-

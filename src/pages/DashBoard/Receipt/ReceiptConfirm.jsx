@@ -489,11 +489,8 @@ export default function ReceiptConfirm() {
 		// Create bill first (to get billId), then print.
 		createBillIfNeeded().then((created) => {
 			if (!created?.billId) return;
-			requestAnimationFrame(() => {
-				requestAnimationFrame(() => {
-					if (typeof globalThis?.print === 'function') globalThis.print();
-				});
-			});
+			// In ngay — CSS @media print đã ẩn .screenOnly và hiện .printOnly rồi
+			if (typeof window?.print === 'function') window.print();
 		});
 	};
 

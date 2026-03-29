@@ -33,6 +33,15 @@
 	:global(body) {
 		background: #fff !important;
 	}
+
+	/* Ẩn toast notification khi in */
+	:global(.Toastify),
+	:global(.toast),
+	:global([class*="toastify"]) {
+		display: none !important;
+		visibility: hidden !important;
+		opacity: 0 !important;
+	}
 }
 
 .header {

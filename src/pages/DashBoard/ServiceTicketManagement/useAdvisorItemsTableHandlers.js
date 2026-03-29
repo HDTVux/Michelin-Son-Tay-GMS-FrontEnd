@@ -221,6 +221,7 @@ export function useInventoryCheckHandlers() {
 
 export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const { onEstimateStatusChange } = options || {};
+	const onEstimateStatusChangeRef = useRef(onEstimateStatusChange);
 	const [estimate, setEstimate] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [loadError, setLoadError] = useState('');
@@ -247,8 +248,12 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const inventory = useInventoryCheckHandlers();
 
 	useEffect(() => {
+		onEstimateStatusChangeRef.current = onEstimateStatusChange;
+	}, [onEstimateStatusChange]);
+
+	useEffect(() => {
 		setRecommendation('');
-	}, [serviceTicketId, onEstimateStatusChange]);
+	}, [serviceTicketId]);
 
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
@@ -390,7 +395,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			setFetched(false);
 			setIsCreating(false);
 			setIsEditing(false);
-			onEstimateStatusChange?.(null);
+			onEstimateStatusChangeRef.current?.(null);
 			return;
 		}
 
@@ -404,12 +409,12 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				if (ignore) return;
 				const picked = pickLatestEstimate(res?.data);
 				setEstimate(picked);
-				onEstimateStatusChange?.(picked);
+				onEstimateStatusChangeRef.current?.(picked);
 				setFetched(true);
 			} catch (err) {
 				if (ignore) return;
 				setEstimate(null);
-				onEstimateStatusChange?.(null);
+				onEstimateStatusChangeRef.current?.(null);
 				setLoadError(err?.message || 'Không thể tải ước tính.');
 				setFetched(true);
 			} finally {
@@ -421,7 +426,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		return () => {
 			ignore = true;
 		};
-	}, [serviceTicketId, onEstimateStatusChange]);
+	}, [serviceTicketId]);
 
 	useEffect(() => {
 		if (!isCreating) return;
@@ -805,7 +810,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				);
 				setEstimate((prev) => {
 					const next = res?.data ?? prev;
-					onEstimateStatusChange?.(next);
+					onEstimateStatusChangeRef.current?.(next);
 					return next;
 				});
 			} catch (err) {
@@ -814,7 +819,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setIsSaving(false);
 			}
 		},
-		[canToggleChecked, estimate, serviceTicketId, onEstimateStatusChange],
+		[canToggleChecked, estimate, serviceTicketId],
 	);
 
 	const cancelEdit = useCallback(() => {
@@ -878,14 +883,14 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				token,
 			);
 			setEstimate(res?.data ?? null);
-			onEstimateStatusChange?.(res?.data ?? null);
+			onEstimateStatusChangeRef.current?.(res?.data ?? null);
 			setIsCreating(false);
 		} catch (err) {
 			setSaveError(err?.message || 'Không thể lưu báo giá.');
 		} finally {
 			setIsSaving(false);
 		}
-	}, [draftRows, isSaving, serviceTicketId, onEstimateStatusChange]);
+	}, [draftRows, isSaving, serviceTicketId]);
 
 	const saveEdit = useCallback(async () => {
 		if (isSaving) return;
@@ -952,14 +957,14 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				token,
 			);
 			setEstimate(res?.data ?? null);
-			onEstimateStatusChange?.(res?.data ?? null);
+			onEstimateStatusChangeRef.current?.(res?.data ?? null);
 			setIsEditing(false);
 		} catch (err) {
 			setSaveError(err?.message || 'Không thể cập nhật báo giá.');
 		} finally {
 			setIsSaving(false);
 		}
-	}, [editRows, estimate, isSaving, serviceTicketId, onEstimateStatusChange]);
+	}, [editRows, estimate, isSaving, serviceTicketId]);
 
 	const softDeleteEditRow = useCallback(
 		async (rowIndex) => {
@@ -1016,7 +1021,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 							return it;
 						}),
 					};
-					onEstimateStatusChange?.(next);
+					onEstimateStatusChangeRef.current?.(next);
 					return next;
 				});
 			} catch (err) {
@@ -1025,7 +1030,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setIsSaving(false);
 			}
 		},
-		[editComputed, isEditing, isSaving, onEstimateStatusChange],
+		[editComputed, isEditing, isSaving],
 	);
 
 	return {
@@ -1084,3 +1089,4 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		inventory,
 	};
 }
+

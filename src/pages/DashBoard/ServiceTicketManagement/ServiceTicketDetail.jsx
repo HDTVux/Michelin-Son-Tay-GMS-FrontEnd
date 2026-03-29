@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
@@ -575,6 +575,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         it?.isChecked ?? it?.confirmed ?? it?.isConfirmed ?? it?.approved ?? it?.isApproved ?? it?.customerConfirmed ?? it?.isCustomerConfirmed
     ));
     const canConfirmEstimate = Boolean(estimateIdNum) && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT') && hasAnyAdvisorItem && hasAnyCheckedAdvisorItem;
+    const handleEstimateStatusChange = useCallback((est) => {
+        setLatestEstimate(est);
+    }, []);
 
     const handleCreateReceipt = async () => {
         if (receiptApproving) return;
@@ -764,10 +767,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 <AdvisorItemsTable 
                                     key={`advisor-${ticket?.serviceTicketId}-${ticketStatus}-${estimateStatus}-${refreshTick}`}
                                     serviceTicketId={ticket?.serviceTicketId} 
-                                    onEstimateStatusChange={(est) => {
-                                        setLatestEstimate(est);
-                                        // ĐÃ XÓA LỆNH TRIGGER REFRESH Ở ĐÂY ĐỂ CHẶN VÒNG LẶP
-                                    }} 
+                                    onEstimateStatusChange={handleEstimateStatusChange}
                                 />
                             </>
                         )}
@@ -861,3 +861,4 @@ RoleBasedSections.propTypes = {
     ticketCode: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     onEstimateStatusChange: PropTypes.func,
 };
+
