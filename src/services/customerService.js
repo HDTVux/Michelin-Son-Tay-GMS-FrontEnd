@@ -1,3 +1,9 @@
+// Tra cứu khách hàng theo số điện thoại (dành cho staff)
+export const fetchCustomerByPhone = (phone, token) =>
+  request(`/api/booking/staff/customer-lookup?phone=${encodeURIComponent(phone)}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
 import { request } from './apiClient';
 
 // Lấy thông tin profile khách hàng

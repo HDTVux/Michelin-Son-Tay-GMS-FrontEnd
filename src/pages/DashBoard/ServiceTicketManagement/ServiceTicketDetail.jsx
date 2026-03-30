@@ -451,6 +451,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const handleBack = () => navigate(-1);
 
+    //Chuyển trạng thái phiếu dịch vụ, với nextStatus là trạng thái đích đến (DRAFT, PENDING, IN_PROGRESS, COMPLETED, CANCELLED)
     const handleUpdateTicketStatus = async (nextStatus, fallbackSuccessMessage) => {
         if (statusUpdating) return;
 
@@ -490,6 +491,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    //Hủy phiếu dịch vụ: chuyển trạng thái phiếu dịch vụ về CANCELLED, đồng thời nếu có báo giá liên quan sẽ chuyển trạng thái báo giá về CANCELLED
     const handleCancelTicket = async () => {
         if (statusUpdating) return;
 
@@ -510,8 +512,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
         await handleUpdateTicketStatus('CANCELLED', 'Đã hủy phiếu dịch vụ.');
     };
+
+    //Chuyển trạng thái phiếu dịch vụ về PENDING (chờ xử lý)
     const handleSetPending = () => handleUpdateTicketStatus('PENDING', 'Đã chuyển sang trạng thái "Chờ xử lý".');
-    const handleStartRepair = () => {
+
+    //Chuyển trạng thái phiếu dịch vụ về IN_PROGRESS (tiến hành sửa chữa), đồng thời điều hướng sang trang kiểm tra an toàn
+    const handleStartRepair = async () => {
         if (!estimateIdNum) {
             notify('Chưa có báo giá hợp lệ. Vui lòng tạo và xác nhận báo giá trước khi tiến hành sửa chữa.');
             return;
@@ -520,10 +526,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Vui lòng xác nhận báo giá trước khi tiến hành sửa chữa.');
             return;
         }
-        handleUpdateTicketStatus('IN_PROGRESS', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
+        await handleUpdateTicketStatus('IN_PROGRESS', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
+        navigate('/advisor/inspection');
     };
+
+    //Chuyển trạng thái phiếu dịch vụ về COMPLETED (hoàn tất sửa chữa)
     const handleCompleteRepair = () => handleUpdateTicketStatus('COMPLETED', 'Đã chuyển sang trạng thái "Hoàn tất sửa chữa".');
     
+    //Chuyển trạng thái phiếu dịch vụ về DRAFT (nháp) để có thể thêm dịch vụ, đồng thời nếu có báo giá liên quan sẽ chuyển trạng thái báo giá về DRAFT
     const handleAddService = async () => {
         if (statusUpdating) return;
         const token = localStorage.getItem('authToken');
@@ -565,6 +575,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    //Xác nhận báo giá: chuyển trạng thái báo giá về APPROVED, đồng thời nếu có phiếu dịch vụ liên quan sẽ chuyển trạng thái phiếu dịch vụ về IN_PROGRESS (nếu đang ở DRAFT hoặc PENDING) để tiến hành sửa chữa
     const handleConfirmEstimate = async () => {
         if (estimateLoading) return;
         if (!estimateIdNum) {
@@ -596,6 +607,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    //Quyền hạn các hành động dựa trên trạng thái phiếu dịch vụ và báo giá
     const canCancel = ['DRAFT', 'INSPECTION', 'PENDING', 'IN_PROGRESS'].includes(ticketStatus);
     const canSetPending = ticketStatus === 'DRAFT';
     const canStartRepair = (ticketStatus === 'DRAFT' || ticketStatus === 'PENDING') && isEstimateApproved;
@@ -813,9 +825,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 {canCancel && (
                                     <button
                                         type="button"
-                                        className="ui-btn ui-btn--danger"
+                                        className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
                                         onClick={handleCancelTicket}
-                                        disabled={ statusUpdating}
+                                        disabled={statusUpdating}
                                     >
                                         Hủy phiếu dịch vụ
                                     </button>

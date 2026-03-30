@@ -19,19 +19,7 @@ const SAFETY_ITEMS = [
 	'Thước lái',
 ];
 
-const SERVICE_ROWS = [
-	'Lốp',
-	'Van',
-	'Cân bằng động',
-	'Cân chỉnh thước lái',
-	'Phanh',
-	'Gạt mưa',
-	'Nước rửa kính',
-	'Dầu động cơ',
-	'Lọc dầu động cơ',
-	'Lọc gió động cơ',
-	'Lọc gió điều hòa',
-];
+
 
 const PRESSURE_BOX_KEYS = ['pressure-a', 'pressure-b', 'pressure-c'];
 const SERVICE_LINE_KEYS = Array.from({ length: 15 }).map((_, i) => `service-line-${String(i + 1).padStart(2, '0')}`);
@@ -275,7 +263,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                 <tbody>
                     {SERVICE_LINE_KEYS.map((rowKey, idx) => {
                         const it = invoiceItems[idx] ?? null;
-                        const label = it?.categoryName ? it.categoryName : (SERVICE_ROWS[idx] || '');
+                        const label = it?.categoryName || '';
                         const desc = it?.itemName || '';
                         const qty = it?.quantity ? String(it.quantity) : '';
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
