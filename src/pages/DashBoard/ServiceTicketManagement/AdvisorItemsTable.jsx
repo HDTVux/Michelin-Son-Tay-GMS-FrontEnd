@@ -283,7 +283,7 @@ EstimateItemRow.propTypes = {
 };
 
 function EstimateActions({
-    showAddEstimate,
+    canCreateNew,
     canEdit,
     isCreating,
     isEditing,
@@ -298,7 +298,7 @@ function EstimateActions({
 }) {
     return (
         <>
-            {showAddEstimate && !isRestrictedStatus ? (
+            {canCreateNew ? (
                 <div className="ui-actions" style={{ marginTop: 12 }}>
                     <button type="button" className="ui-btn ui-btn--primary" onClick={startCreate}>
                         Tạo báo giá mới
@@ -347,7 +347,7 @@ function EstimateActions({
 }
 
 EstimateActions.propTypes = {
-    showAddEstimate: PropTypes.bool,
+    canCreateNew: PropTypes.bool,
     canEdit: PropTypes.bool,
     isCreating: PropTypes.bool,
     isEditing: PropTypes.bool,
@@ -361,7 +361,7 @@ EstimateActions.propTypes = {
     isRestrictedStatus: PropTypes.bool,
 };
 
-export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusChange }) {
+export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusChange, onRestartWorkflow }) {
     const {
         categorySuggestions,
         workCategoriesLoading,
@@ -404,7 +404,24 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange });
 
     const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
-    const isRestrictedStatus = ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
+    const isArchived = currentEstimateStatus === 'ARCHIVED';
+    // Khi đang tạo mới, chúng ta không bị hạn chế bởi status của báo giá cũ
+    const isRestrictedStatus = !isCreating && ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
+
+    // Cho phép tạo mới nếu chưa có báo giá hoặc báo giá hiện tại đã ARCHIVED
+    const canCreateNew = !isCreating && !isEditing && (showAddEstimate || isArchived);
+
+    const handleStartCreate = async () => {
+        if (isArchived && onRestartWorkflow) {
+            try {
+                // Đẩy ServiceTicket về DRAFT trước khi tạo Estimate mới
+                await onRestartWorkflow();
+            } catch {
+                return; // Nếu lỗi cập nhật ticket thì dừng lại
+            }
+        }
+        if (startCreate) startCreate();
+    };
 
     const [pickerOpen, setPickerOpen] = useState(false);
     const [activeRowIndex, setActiveRowIndex] = useState(null);
@@ -667,12 +684,12 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
             </div>
             <div style={{ marginTop: 16 }}>
                 <EstimateActions
-                    showAddEstimate={showAddEstimate}
+                    canCreateNew={canCreateNew}
                     canEdit={canEdit}
                     isCreating={isCreating}
                     isEditing={isEditing}
                     isSaving={isSaving}
-                    startCreate={startCreate}
+                    startCreate={handleStartCreate}
                     startEdit={startEdit}
                     cancelCreate={cancelCreate}
                     cancelEdit={cancelEdit}
@@ -709,4 +726,5 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
 AdvisorItemsTable.propTypes = {
     serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     onEstimateStatusChange: PropTypes.func,
+    onRestartWorkflow: PropTypes.func,
 };

@@ -19,17 +19,24 @@ export function formatCurrencyVnd(value) {
 }
 
 function pickLatestEstimate(list) {
-	const arr = Array.isArray(list) ? list : [];
-	if (arr.length === 0) return null;
-	return [...arr].sort((a, b) => {
-		const va = Number(a?.version);
-		const vb = Number(b?.version);
-		const versionCmp = (Number.isFinite(vb) ? vb : -1) - (Number.isFinite(va) ? va : -1);
-		if (versionCmp !== 0) return versionCmp;
-		const ta = Date.parse(a?.createdAt || a?.approvedAt || 0);
-		const tb = Date.parse(b?.createdAt || b?.approvedAt || 0);
-		return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
-	})[0];
+    const arr = Array.isArray(list) ? list : [];
+    if (arr.length === 0) return null;
+
+    return [...arr].sort((a, b) => {
+        // Bao phủ mọi trường hợp tên ID (id, estimateId, serviceTicketEstimateId...)
+        const idA = Number(a?.estimateId ?? a?.id ?? a?.serviceTicketEstimateId ?? 0);
+        const idB = Number(b?.estimateId ?? b?.id ?? b?.serviceTicketEstimateId ?? 0);
+        
+        // Luôn sắp xếp ID giảm dần (Báo giá tạo sau sẽ có ID lớn hơn)
+        if (idA > 0 && idB > 0 && idA !== idB) {
+            return idB - idA; 
+        }
+        
+        // Fallback: Nếu không tìm thấy ID, so sánh bằng thời gian tạo
+        const ta = new Date(a?.createdAt || a?.approvedAt || a?.createdDate || 0).getTime();
+        const tb = new Date(b?.createdAt || b?.approvedAt || b?.createdDate || 0).getTime();
+        return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+    })[0];
 }
 
 function createEmptyDraftRow() {
@@ -829,68 +836,70 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	}, [isSaving]);
 
 	const saveEstimate = useCallback(async () => {
-		if (isSaving) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setSaveError('Vui lòng đăng nhập để tạo báo giá.');
-			return;
-		}
+        if (isSaving) return;
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            setSaveError('Vui lòng đăng nhập để tạo báo giá.');
+            return;
+        }
 
-		const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
-		if (!Number.isFinite(idNum) || idNum <= 0) {
-			setSaveError('Thiếu serviceTicketId hợp lệ.');
-			return;
-		}
+        const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
+        if (!Number.isFinite(idNum) || idNum <= 0) {
+            setSaveError('Thiếu serviceTicketId hợp lệ.');
+            return;
+        }
 
-		const normalized = draftRows
-			.filter((r) => !isDraftRowEmpty(r))
-			.map((r) => {
-				const newCategoryName = String(r.newCategoryName ?? '').trim() || null;
-				const itemName = String(r.itemName ?? '').trim() || null;
-				const quantity = toNumberOrZero(r.quantity);
-				const unitPrice = toNumberOrZero(r.unitPrice);
-				const workCategoryId = toIdOrNull(r?.workCategoryId);
-				const taxRuleId = toIdOrNull(r?.taxRuleId);
-				return {
-					workCategoryId: workCategoryId ?? null,
-					newCategoryName: workCategoryId ? null : newCategoryName,
-					itemId: null,
-					itemName,
-					quantity,
-					unitPrice,
-					taxRuleId,
-					isChecked: Boolean(r?.confirmed),
-					isRemoved: false,
-				};
-			})
-			.filter((it) => (it.workCategoryId || it.newCategoryName) && it.quantity > 0);
+        const normalized = draftRows
+            .filter((r) => !isDraftRowEmpty(r))
+            .map((r) => {
+                const newCategoryName = String(r.newCategoryName ?? '').trim() || null;
+                const itemName = String(r.itemName ?? '').trim() || null;
+                const quantity = toNumberOrZero(r.quantity);
+                const unitPrice = toNumberOrZero(r.unitPrice);
+                const workCategoryId = toIdOrNull(r?.workCategoryId);
+                const taxRuleId = toIdOrNull(r?.taxRuleId);
+                return {
+                    workCategoryId: workCategoryId ?? null,
+                    newCategoryName: workCategoryId ? null : newCategoryName,
+                    itemId: null,
+                    itemName,
+                    quantity,
+                    unitPrice,
+                    taxRuleId,
+                    isChecked: Boolean(r?.confirmed),
+                    isRemoved: false,
+                };
+            })
+            .filter((it) => (it.workCategoryId || it.newCategoryName) && it.quantity > 0);
 
-		const items = normalized;
-		if (items.length === 0) {
-			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
-			return;
-		}
+        const items = normalized;
+        if (items.length === 0) {
+            setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
+            return;
+        }
 
-		try {
-			setIsSaving(true);
-			setSaveError('');
-			const res = await createServiceTicketEstimate(
-				{
-					serviceTicketId: idNum,
-					estimateType: 'INITIAL',
-					items,
-				},
-				token,
-			);
-			setEstimate(res?.data ?? null);
-			onEstimateStatusChangeRef.current?.(res?.data ?? null);
-			setIsCreating(false);
-		} catch (err) {
-			setSaveError(err?.message || 'Không thể lưu báo giá.');
-		} finally {
-			setIsSaving(false);
-		}
-	}, [draftRows, isSaving, serviceTicketId]);
+        try {
+            setIsSaving(true);
+            setSaveError('');
+            const res = await createServiceTicketEstimate(
+                {
+                    serviceTicketId: idNum,
+                    estimateType: 'INITIAL',
+                    status: 'DRAFT',         // <-- Bổ sung dòng này
+                    estimateStatus: 'DRAFT', // <-- (Thêm cả dòng này cho chắc ăn, tuỳ BE của bạn dùng field nào)
+                    items,
+                },
+                token,
+            );
+            setEstimate(res?.data ?? null);
+            onEstimateStatusChangeRef.current?.(res?.data ?? null);
+            setIsCreating(false);
+        } catch (err) {
+            setSaveError(err?.message || 'Không thể lưu báo giá.');
+        } finally {
+            setIsSaving(false);
+        }
+    }, [draftRows, isSaving, serviceTicketId]);
 
 	const saveEdit = useCallback(async () => {
 		if (isSaving) return;

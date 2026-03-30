@@ -800,11 +800,6 @@ export default function CreateProduct() {
 					<div className={styles['service-card__title']}>
 						<strong>Tạo sản phẩm</strong>
 					</div>
-					<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-						<button type="button" className={styles['ghost-button']} onClick={() => navigate(-1)}>
-							Quay lại
-						</button>
-					</div>
 				</div>
 
 				<div className={styles['pending-filters']}>
@@ -1017,7 +1012,7 @@ export default function CreateProduct() {
 							<textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 						</div>
 						<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
-							<label htmlFor="imageFile">Ảnh (chỉ lưu tạm trong trình duyệt)</label>
+							<label htmlFor="imageFile">Ảnh </label>
 							<input id="imageFile" type="file" accept="image/*" onChange={handleImageFileChange} disabled={Boolean(createdCatalogItemId)} />
 							{imagePreviewUrl ? (
 								<div style={{ marginTop: 8 }}>
@@ -1218,6 +1213,11 @@ export default function CreateProduct() {
 				</div>
 				) : null}
 			</section>
+					<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+						<button type="button" className={styles['primary-button']} onClick={() => navigate(-1)}>
+							Quay lại
+						</button>
+					</div>
 		</div>
 	);
 }
