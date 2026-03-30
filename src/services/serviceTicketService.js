@@ -493,7 +493,7 @@ export const cancelAssignmentById = (ticketId, assignmentId, token) => {
 };
 
 // Lấy danh sách phiếu cho advisor
-// Endpoint: GET /api/service-ticket/advisor/tickets?page=0&size=10&date=yyyy-mm-dd&status=DRAFT&search=...
+// Endpoint: GET /api/service-ticket/advisor/tickets?page=0&size=10&date=yyyy-mm-dd&status=DRAFT&search=...&technicianSearch=...&ticketCode=...
 export const fetchAdvisorMyTickets = (params, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để xem danh sách phiếu.');
@@ -509,6 +509,8 @@ export const fetchAdvisorMyTickets = (params, token) => {
   if (params?.date) searchParams.set('date', params.date);
   if (params?.status) searchParams.set('status', params.status);
   if (params?.search) searchParams.set('search', params.search);
+  if (params?.technicianSearch) searchParams.set('technicianSearch', params.technicianSearch);
+  if (params?.ticketCode) searchParams.set('ticketCode', params.ticketCode);
 
   const qs = searchParams.toString();
   const path = qs ? `/api/service-ticket/advisor/tickets?${qs}` : '/api/service-ticket/advisor/tickets';

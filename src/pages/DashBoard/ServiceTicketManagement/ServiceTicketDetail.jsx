@@ -11,6 +11,7 @@ import {
     fetchServiceTicketEstimate,
     manageServiceTicketEstimateStatus,
     manageServiceTicketStatus,
+    fetchTicketAssignments,
 } from '../../../services/serviceTicketService.js';
 import { ServiceTicket as TechnicianServiceTicket } from '../../Technician/ServiceTicket/ServiceTicket.jsx';
 import styles from './ServiceTicketDetail.module.css';
@@ -323,6 +324,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [statusUpdating, setStatusUpdating] = useState(false);
     const [estimateLoading, setEstimateLoading] = useState(false);
     const [latestEstimate, setLatestEstimate] = useState(null);
+    const [assignments, setAssignments] = useState([]);
+    const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
     const [refreshTick, setRefreshTick] = useState(0);
     const triggerRefresh = () => setRefreshTick(prev => prev + 1);
@@ -409,11 +412,42 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 if (!cancelled) setEstimateLoading(false);
             }
         })();
+        return () => { cancelled = true; };
+    }, [serviceTicketIdNum]);
 
-        return () => {
-            cancelled = true;
-        };
-    }, [serviceTicketIdNum, refreshTick]);
+    // Load assignments to check technician before allowing receipt creation
+    useEffect(() => {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        if (!serviceTicketIdNum) return;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                setAssignmentsLoading(true);
+                const res = await fetchTicketAssignments(serviceTicketIdNum, token);
+                if (cancelled) return;
+                setAssignments(Array.isArray(res?.data) ? res.data : []);
+            } catch {
+                if (cancelled) return;
+                setAssignments([]);
+            } finally {
+                if (!cancelled) setAssignmentsLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [serviceTicketIdNum]);
+
+    const hasTechnician = useMemo(() => {
+        if (assignmentsLoading) return true;
+        return assignments.some(
+            (a) =>
+                String(a?.roleInTicket || a?.role || '').toUpperCase() === 'TECHNICIAN'
+                && String(a?.status || '').toUpperCase() !== 'CANCELLED',
+        );
+    }, [assignments, assignmentsLoading]);
+
+    const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading && hasTechnician;
 
     const handleBack = () => navigate(-1);
 
@@ -567,8 +601,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const canStartRepair = (ticketStatus === 'DRAFT' || ticketStatus === 'PENDING') && isEstimateApproved;
     const canCompleteRepair = ticketStatus === 'IN_PROGRESS';
     const canAddService = ticketStatus === 'DRAFT' || ticketStatus === 'INSPECTION';
-    const canCreateReceipt = ticketStatus === 'COMPLETED';
-    
+
     const advisorItems = useMemo(() => Array.isArray(latestEstimate?.items) ? latestEstimate.items.filter(it => !it?.isRemoved) : [], [latestEstimate]);
     const hasAnyAdvisorItem = advisorItems.length > 0;
     const hasAnyCheckedAdvisorItem = advisorItems.some(it => Boolean(
@@ -821,6 +854,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
                                         Tạo hoá đơn
                                     </button>
+                                )}
+                                {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
+                                    <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
+                                        Cần phân công KTV trước khi tạo hóa đơn.
+                                    </span>
                                 )}
                             </div>
                         </div>

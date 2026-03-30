@@ -1,253 +1,320 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTechnicianTickets, fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
-import { getSafetyInspectionByTicketCode } from '../../../services/safetyInspectionService';
 import styles from './MyTasks.module.css';
 
-const MyTasks = () => {
+const getToken = () => localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+
+const SERVICE_TICKET_STATUS_LABELS = {
+  DRAFT: 'Nháp',
+  INSPECTION: 'Đang kiểm tra',
+  PENDING: 'Chờ duyệt',
+  IN_PROGRESS: 'Đang sửa chữa',
+  COMPLETED: 'Hoàn tất',
+  PAID: 'Đã thanh toán',
+  CANCELLED: 'Đã hủy',
+};
+
+const normalizeTicketStatus = (raw) => {
+  const s = String(raw || '').trim().toUpperCase();
+  if (!s || s === 'CREATED') return 'DRAFT';
+  if (s === 'INSPECTING' || s === 'DIAGNOSIS') return 'INSPECTION';
+  return s;
+};
+
+const INSPECTION_STATUS_LABELS = {
+  PENDING: 'Chờ kiểm tra',
+  COMPLETED: 'Đã kiểm tra',
+  SKIPPED: 'Đã bỏ qua',
+};
+
+const normalizeInspectionStatus = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (!raw) return null;
+  if (raw === 'WAITING' || raw === 'IN_PROGRESS' || raw === 'INSPECTION') return 'PENDING';
+  if (raw === 'DONE' || raw === 'FINISHED' || raw === 'PASSED') return 'COMPLETED';
+  if (raw === 'SKIP' || raw === 'DISABLED') return 'SKIPPED';
+  if (raw === 'PENDING' || raw === 'COMPLETED' || raw === 'SKIPPED') return raw;
+  return null;
+};
+
+export default function MyTasks() {
   const navigate = useNavigate();
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [tasks, setTasks] = useState([]);
+
+  // ── List state ────────────────────────────────────────
+  const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [error, setError] = useState('');
+
+  // ── Filter + pagination state ────────────────────────────
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+
+  // ── Modal state ────────────────────────────────────────
   const [showModal, setShowModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
-  // Fetch data from API
+  // ── Debounce search ────────────────────────────────────
   useEffect(() => {
-    const fetchTickets = async () => {
-      try {
-        const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-        if (!token) {
-          toast.error('Vui lòng đăng nhập để xem công việc');
-          setLoading(false);
-          return;
-        }
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-        const response = await fetchTechnicianTickets({ page: 0, size: 50 }, token);
+  const filters = useMemo(() => ({
+    page,
+    size,
+    date: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    status: statusFilter || undefined,
+    search: debouncedSearch || undefined,
+  }), [page, size, dateFrom, dateTo, statusFilter, debouncedSearch]);
 
-        // Transform API response to match component expectations
-        const tickets = response.data?.content || response.data || [];
-
-        const transformedTasks = await Promise.all(tickets.map(async (ticket) => {
-          const hasSafetyInspection = ticket.safetyInspectionEnabled !== false;
-          let inspectionStatus = null;
-
-          if (ticket.ticketCode) {
-            try {
-              const inspectionRes = await getSafetyInspectionByTicketCode(ticket.ticketCode, token);
-              inspectionStatus = inspectionRes?.data?.inspectionStatus || null;
-            } catch {
-              inspectionStatus = null;
-            }
-          }
-
-          const normalizedInspectionStatus = String(inspectionStatus || '').toUpperCase();
-          const requiresSafetyInspection = hasSafetyInspection && normalizedInspectionStatus !== 'SKIPPED';
-
-          return {
-            id: ticket.serviceTicketId,
-            ticketCode: ticket.ticketCode,
-            // List API returns flat structure
-            licensePlate: ticket.licensePlate || '',
-            make: ticket.vehicleMake || '',
-            model: ticket.vehicleModel || '',
-            serviceType: ticket.serviceCategory || '',
-            priority: ticket.priority || 'Normal',
-            timeSlot: ticket.scheduledTime || '',
-            status: ticket.ticketStatus ? ticket.ticketStatus.toUpperCase() : 'DRAFT',
-            customerRequest: ticket.customerRequest || '',
-            customerName: ticket.customerName || '',
-            customerPhone: ticket.customerPhone || '',
-            assignedDate: ticket.receivedAt || ticket.createdAt || '',
-            dueDate: ticket.scheduledDate || '',
-            technicianNotes: ticket.technicianNotes,
-            hasSafetyInspection,
-            requiresSafetyInspection,
-            inspectionStatus,
-            // Services will be loaded from detail API
-            services: [],
-          };
-        }));
-
-        setTasks(transformedTasks);
-      } catch (error) {
-        console.error('Error fetching tickets:', error);
-        toast.error('Không thể tải danh sách công việc: ' + (error.message || 'Lỗi không xác định'));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTickets();
-
-    // Auto refresh every 30 seconds
-    const interval = setInterval(fetchTickets, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Map inspection status to Vietnamese display
-  const mapInspectionStatus = (status) => {
-    if (!status) return '';
-    const statusMap = {
-      PENDING: 'Chờ kiểm tra',
-      COMPLETED: 'Đã kiểm tra',
-      SKIPPED: 'Đã bỏ qua',
-    };
-    return statusMap[status.toUpperCase()] || status;
-  };
-
-  // Get CSS class for inspection status
-  const getInspectionStatusClass = (status) => {
-    switch (status?.toUpperCase()) {
-      case 'PENDING':
-        return styles.statusInProgress;
-      case 'COMPLETED':
-        return styles.statusCompleted;
-      case 'SKIPPED':
-        return styles.statusPaused;
-      default:
-        return '';
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
-        return 'N/A';
-      }
-      return date.toLocaleDateString('vi-VN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-    } catch {
-      return 'N/A';
-    }
-  };
-
-  const getPriorityClass = (priority) => {
-    switch (priority) {
-      case 'Critical':
-        return styles.priorityCritical;
-      case 'Urgent':
-        return styles.priorityUrgent;
-      case 'Combo':
-        return styles.priorityCombo;
-      default:
-        return styles.priorityNormal;
-    }
-  };
-
-  const filteredTasks = tasks.filter(task => {
-    const inspectionStatus = String(task.inspectionStatus || '').toUpperCase();
-    const matchesStatus = filterStatus === 'all' ||
-      (filterStatus === 'no_inspection' && !task.requiresSafetyInspection) ||
-      (filterStatus === inspectionStatus);
-    const matchesSearch = !searchTerm ||
-      (task.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (task.model?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (task.serviceType?.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesStatus && matchesSearch;
-  });
-
-  const handleStartWork = async (task) => {
-    const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-    const ticketCode = String(task?.ticketCode || '').trim();
-    if (!token || !ticketCode) {
-      toast.error('Thiếu thông tin phiếu để bắt đầu làm việc.');
+  // ── Load ticket list ───────────────────────────────────
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      toast.error('Vui lòng đăng nhập');
+      setLoading(false);
       return;
     }
 
+    let ignore = false;
+    const run = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const response = await fetchTechnicianTickets({ page: 0, size: 200 }, token);
+
+        const rawTickets = response.data?.content || response.data || [];
+        const list = Array.isArray(rawTickets) ? rawTickets : [];
+
+        const transformed = list.map((t) => {
+          const statusRaw = normalizeTicketStatus(t.ticketStatus || t.status);
+          let inspectionStatus = null;
+          if (t.ticketCode) {
+            try {
+              const norm = normalizeInspectionStatus(
+                t.inspectionStatus || t.safetyInspectionStatus,
+              );
+              if (norm) inspectionStatus = norm;
+            } catch { /* ignore */ }
+          }
+          return {
+            ...t,
+            _status: statusRaw,
+            _inspectionStatus: inspectionStatus,
+          };
+        });
+
+        if (!ignore) {
+          setTickets(transformed);
+          setTotalElements(transformed.length);
+          setTotalPages(Math.max(1, Math.ceil(transformed.length / size)));
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err?.message || 'Không thể tải danh sách công việc.');
+          setTickets([]);
+        }
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+
+    run();
+    return () => { ignore = true; };
+  }, [filters]);
+
+  // ── Helpers ──────────────────────────────────────────
+  const getTicketCode = (ticket) =>
+    ticket?.ticketCode || ticket?.code || '';
+
+  const getTicketId = (ticket) => {
+    if (ticket?.serviceTicketId != null) return Number(ticket.serviceTicketId);
+    if (ticket?.ticketId != null) return Number(ticket.ticketId);
+    if (ticket?.id != null) return Number(ticket.id);
+    return null;
+  };
+
+  const getServiceTicketStatusDisplay = (ticket) => {
+    const s = ticket._status || normalizeTicketStatus(ticket?.ticketStatus || ticket?.status);
+    return SERVICE_TICKET_STATUS_LABELS[s] || s || '-';
+  };
+
+  const getServiceTicketStatusClass = (ticket) => {
+    const s = ticket._status || normalizeTicketStatus(ticket?.ticketStatus || ticket?.status);
+    if (s === 'DRAFT') return styles.statusPending;
+    if (s === 'INSPECTION') return styles.statusInspection;
+    if (s === 'PENDING') return styles.statusPending;
+    if (s === 'IN_PROGRESS') return styles.statusInspection;
+    if (s === 'COMPLETED' || s === 'PAID') return styles.statusActive;
+    if (s === 'CANCELLED') return styles.statusInactive;
+    return styles.statusPending;
+  };
+
+  const getInspectionStatusDisplay = (status) =>
+    INSPECTION_STATUS_LABELS[status?.toUpperCase()] || status || '-';
+
+  const getInspectionStatusClass = (status) => {
+    const s = status?.toUpperCase();
+    if (s === 'PENDING') return styles.statusInspection;
+    if (s === 'COMPLETED') return styles.statusActive;
+    if (s === 'SKIPPED') return styles.statusInactive;
+    return styles.statusPending;
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString('vi-VN');
+  };
+
+  const filteredTickets = useMemo(() => {
+    let result = tickets;
+    if (statusFilter) {
+      result = result.filter((t) => (t._status || '') === statusFilter);
+    }
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      result = result.filter((t) =>
+        (t.ticketCode || '').toLowerCase().includes(q)
+        || (t.licensePlate || '').toLowerCase().includes(q)
+        || (t.customerName || '').toLowerCase().includes(q)
+        || (t.customerPhone || '').toLowerCase().includes(q)
+        || (t.model || '').toLowerCase().includes(q)
+      );
+    }
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      from.setHours(0, 0, 0, 0);
+      result = result.filter((t) => {
+        const d = new Date(t.receivedAt || t.createdAt || t.scheduledDate || '');
+        return d >= from;
+      });
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      result = result.filter((t) => {
+        const d = new Date(t.receivedAt || t.createdAt || t.scheduledDate || '');
+        return d <= to;
+      });
+    }
+    return result;
+  }, [tickets, statusFilter, debouncedSearch, dateFrom, dateTo]);
+
+  const pagedTickets = useMemo(() => {
+    const start = page * size;
+    return filteredTickets.slice(start, start + size);
+  }, [filteredTickets, page, size]);
+
+  // ── Stats ─────────────────────────────────────────────
+  const stats = useMemo(() => ({
+    total: tickets.length,
+    inProgress: tickets.filter((t) =>
+      t._status === 'INSPECTION' || t._status === 'IN_PROGRESS',
+    ).length,
+    completed: tickets.filter((t) => t._status === 'COMPLETED' || t._status === 'PAID').length,
+    cancelled: tickets.filter((t) => t._status === 'CANCELLED').length,
+  }), [tickets]);
+
+  // ── Pagination helpers ─────────────────────────────────
+  const safePage = Math.min(Math.max(0, page), Math.max(1, totalPages) - 1);
+  const pageButtons = useMemo(() => {
+    const max = 5;
+    const last = Math.max(1, totalPages) - 1;
+    const start = Math.max(0, Math.min(safePage - 2, last - max + 1));
+    const items = [];
+    for (let i = start; i <= Math.min(last, start + max - 1); i += 1) items.push(i);
+    return items;
+  }, [safePage, totalPages]);
+
+  const handleResetFilters = () => {
+    setPage(0);
+    setSize(10);
+    setDateFrom('');
+    setDateTo('');
+    setStatusFilter('');
+    setSearch('');
+    setDebouncedSearch('');
+  };
+
+  // ── Start work ────────────────────────────────────────
+  const handleStartWork = async (ticket) => {
+    const token = getToken();
+    const code = String(getTicketCode(ticket) || '').trim();
+    if (!token || !code) {
+      toast.error('Thiếu thông tin phiếu để bắt đầu làm việc.');
+      return;
+    }
     try {
-      await startInspection(ticketCode, token);
-      setTasks((prev) =>
+      await startInspection(code, token);
+      setTickets((prev) =>
         prev.map((t) =>
-          t.ticketCode === ticketCode
-            ? {
-              ...t,
-              status: 'INSPECTION',
-              inspectionStatus: 'PENDING',
-            }
-            : t,
+          getTicketCode(t) === code ? { ...t, _status: 'INSPECTION' } : t,
         ),
       );
-      navigate(`/technician/safetyinspection-ticket/${ticketCode}`);
-    } catch (error) {
-      toast.error(error?.message || 'Không thể bắt đầu làm việc.');
+      navigate(`/technician/safetyinspection-ticket/${encodeURIComponent(code)}`);
+    } catch (err) {
+      toast.error(err?.message || 'Không thể bắt đầu làm việc.');
     }
   };
 
-  const handleViewTask = async (task) => {
+  // ── View detail ───────────────────────────────────────
+  const handleViewTask = async (ticket) => {
+    const token = getToken();
+    const code = getTicketCode(ticket);
+    if (!code) return;
+
+    setModalLoading(true);
     try {
-      const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
-      const response = await fetchTechnicianTicketDetail(task.ticketCode || task.id, token);
-      console.log('Task Detail Response:', response.data);
-      
-      const data = response.data;
-      
-      // Map nested objects correctly
+      const res = await fetchTechnicianTicketDetail(code, token);
+      const d = res.data;
       setSelectedTask({
-        ...task,
-        // Service ticket info
-        serviceTicketId: data.serviceTicketId,
-        ticketCode: data.ticketCode,
-        ticketStatus: data.ticketStatus,
-        
-        // Vehicle info (nested)
-        licensePlate: data.vehicle?.licensePlate || task.licensePlate,
-        make: data.vehicle?.make || task.make || '',
-        model: data.vehicle?.model || task.model,
-        year: data.vehicle?.year,
-        
-        // Customer info (nested)
-        customerName: data.customer?.fullName || '',
-        customerPhone: data.customer?.phone || '',
-        customerEmail: data.customer?.email || '',
-        
-        // Service info
-        serviceType: data.serviceCategory || task.serviceType,
-        customerRequest: data.customerRequest || task.customerRequest,
-        services: data.services || [], // Add services array
-        
-        // Booking info (nested)
-        timeSlot: data.booking?.scheduledTime || task.timeSlot,
-        scheduledDate: data.booking?.scheduledDate,
-        
-        // Dates
-        assignedDate: data.receivedAt || data.createdAt || task.assignedDate,
-        dueDate: data.booking?.scheduledDate || task.dueDate,
-        
-        // Notes
-        technicianNotes: data.technicianNotes,
-        checkInNotes: data.checkInNotes,
-        
-        // Other
-        odometerReading: data.odometerReading,
-        photos: data.photos
+        ...ticket,
+        serviceTicketId: d.serviceTicketId,
+        ticketCode: d.ticketCode,
+        ticketStatus: d.ticketStatus,
+        licensePlate: d.vehicle?.licensePlate || ticket.licensePlate,
+        make: d.vehicle?.make || ticket.make || '',
+        model: d.vehicle?.model || ticket.model,
+        year: d.vehicle?.year,
+        customerName: d.customer?.fullName || '',
+        customerPhone: d.customer?.phone || '',
+        customerEmail: d.customer?.email || '',
+        serviceType: d.serviceCategory || ticket.serviceType,
+        customerRequest: d.customerRequest || ticket.customerRequest,
+        services: d.services || [],
+        timeSlot: d.booking?.scheduledTime || ticket.timeSlot,
+        scheduledDate: d.booking?.scheduledDate,
+        assignedDate: d.receivedAt || d.createdAt || ticket.assignedDate,
+        dueDate: d.booking?.scheduledDate || ticket.dueDate,
+        technicianNotes: d.technicianNotes,
+        checkInNotes: d.checkInNotes,
+        odometerReading: d.odometerReading,
+        photos: d.photos,
       });
       setShowModal(true);
-    } catch (error) {
-      console.error('Error fetching task details:', error);
-      toast.error('Không thể tải chi tiết công việc');
+    } catch (err) {
+      toast.error('Không thể tải chi tiết công việc.');
+    } finally {
+      setModalLoading(false);
     }
   };
 
-  const stats = {
-    total: tasks.length,
-    assigned: tasks.length,
-    inProgress: tasks.filter(t => t.hasSafetyInspection && String(t.inspectionStatus || '').toUpperCase() === 'PENDING').length,
-    completed: tasks.filter(t => t.hasSafetyInspection && String(t.inspectionStatus || '').toUpperCase() === 'COMPLETED').length,
-  };
-
-  if (loading) {
+  if (loading && tickets.length === 0) {
     return (
-      <div className={styles.container}>
+      <div className={styles.bookingPage}>
         <div className={styles.loadingContainer}>
           <div className={styles.spinner}></div>
           <p>Đang tải dữ liệu...</p>
@@ -257,335 +324,396 @@ const MyTasks = () => {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <h1 className={styles.title}>Công việc của tôi</h1>
-          <p className={styles.subtitle}>Quản lý và theo dõi các phiếu dịch vụ được giao</p>
+    <div className={styles.bookingPage}>
+      {/* Header */}
+      <div className={styles.bookingHeader}>
+        <div className={styles.bookingHeaderTitle}>
+          <span className={styles.headerIcon}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+              <path d="M3 9h18M9 21V9" />
+            </svg>
+          </span>
+          <h1>Công việc của tôi</h1>
         </div>
+        <span className={styles.totalCount}>{totalElements} công việc</span>
       </div>
 
+      {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={`${styles.statCard} ${styles.statTotal}`}>
-          <div className={styles.statContent}>
+          <div className={styles.statIconWrap}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E90FF" strokeWidth="2">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+              <rect x="9" y="3" width="6" height="4" rx="1" />
+            </svg>
+          </div>
+          <div className={styles.statTextContent}>
             <div className={styles.statValue}>{stats.total}</div>
             <div className={styles.statLabel}>Tổng công việc</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statAssigned}`}>
-          <div className={styles.statContent}>
-            <div className={styles.statValue}>{stats.assigned}</div>
-            <div className={styles.statLabel}>Đã giao</div>
+          <div className={styles.statIconWrap}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div className={styles.statTextContent}>
+            <div className={styles.statValue}>{stats.inProgress}</div>
+            <div className={styles.statLabel}>Đang xử lý</div>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.statProgress}`}>
-          <div className={styles.statContent}>
-            <div className={styles.statValue}>{stats.inProgress}</div>
-            <div className={styles.statLabel}>Đang làm</div>
+          <div className={styles.statIconWrap}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
           </div>
-        </div>
-        <div className={`${styles.statCard} ${styles.statCompleted}`}>
-          <div className={styles.statContent}>
+          <div className={styles.statTextContent}>
             <div className={styles.statValue}>{stats.completed}</div>
             <div className={styles.statLabel}>Hoàn thành</div>
           </div>
         </div>
+        <div className={`${styles.statCard} ${styles.statCancelled}`}>
+          <div className={styles.statIconWrap}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          </div>
+          <div className={styles.statTextContent}>
+            <div className={styles.statValue}>{stats.cancelled}</div>
+            <div className={styles.statLabel}>Đã hủy</div>
+          </div>
+        </div>
       </div>
 
-      <div className={styles.toolbar}>
-        <div className={styles.searchBox}>
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo biển số, model, loại dịch vụ..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={styles.searchInput}
-          />
+      {/* Filters */}
+      <div className={styles.pendingFilters}>
+        <div className={styles.filterCardLabels}>
+          <span>Ngày hẹn từ</span>
+          <span>Ngày hẹn đến</span>
+          <span>Trạng thái</span>
         </div>
-        <div className={styles.filterBox}>
-          <label>Lọc theo trạng thái:</label>
+        <div className={styles.filterCardControls}>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+          />
           <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className={styles.filterSelect}
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
           >
-            <option value="all">Tất cả</option>
-            <option value="no_inspection">Không kiểm tra an toàn</option>
-            <option value="PENDING">Chờ kiểm tra</option>
-            <option value="COMPLETED">Đã kiểm tra</option>
-            <option value="SKIPPED">Đã bỏ qua</option>
+            <option value="">Tất cả</option>
+            <option value="DRAFT">Nháp</option>
+            <option value="INSPECTION">Đang kiểm tra</option>
+            <option value="PENDING">Chờ duyệt</option>
+            <option value="IN_PROGRESS">Đang sửa chữa</option>
+            <option value="COMPLETED">Hoàn tất</option>
+            <option value="PAID">Đã thanh toán</option>
+            <option value="CANCELLED">Đã hủy</option>
           </select>
         </div>
-      </div>
-
-      {/* Two columns layout */}
-      <div className={styles.twoColumns}>
-        {/* Column 1: Có kiểm tra an toàn */}
-        <div className={styles.column}>
-          <h3 className={styles.columnTitle}>Có kiểm tra an toàn</h3>
-          <div className={styles.tasksList}>
-            {filteredTasks.filter(t => t.requiresSafetyInspection).length > 0 ? (
-              filteredTasks.filter(t => t.requiresSafetyInspection).map((task) => (
-                <TaskCard key={task.id} task={task} onView={handleViewTask} onNavigate={navigate} onStartWork={handleStartWork} getPriorityClass={getPriorityClass} formatDate={formatDate} mapInspectionStatus={mapInspectionStatus} getInspectionStatusClass={getInspectionStatusClass} />
-              ))
-            ) : (
-              <div className={styles.emptyState}>
-                <p className={styles.emptyText}>Không có phiếu</p>
-              </div>
-            )}
+        <div className={styles.filterCardActions}>
+          <div className={styles.searchBox}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" style={{ flexShrink: 0 }}>
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              placeholder="Tìm mã phiếu, biển số, khách hàng, SĐT..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            />
           </div>
-        </div>
-
-        {/* Column 2: Không kiểm tra an toàn */}
-        <div className={styles.column}>
-          <h3 className={styles.columnTitle}>Không kiểm tra an toàn</h3>
-          <div className={styles.tasksList}>
-            {filteredTasks.filter(t => !t.requiresSafetyInspection).length > 0 ? (
-              filteredTasks.filter(t => !t.requiresSafetyInspection).map((task) => (
-                <TaskCard key={task.id} task={task} onView={handleViewTask} onNavigate={navigate} onStartWork={handleStartWork} getPriorityClass={getPriorityClass} formatDate={formatDate} mapInspectionStatus={mapInspectionStatus} getInspectionStatusClass={getInspectionStatusClass} />
-              ))
-            ) : (
-              <div className={styles.emptyState}>
-                <p className={styles.emptyText}>Không có phiếu</p>
-              </div>
-            )}
-          </div>
+          <button className={styles.ghostButton} onClick={handleResetFilters}>
+            Xóa bộ lọc
+          </button>
         </div>
       </div>
 
-      {/* Modal Popup */}
+      {error && <div className={styles.errorBanner}>{error}</div>}
+
+      {/* Table */}
+      <div className={styles.bookingCard}>
+        <div className={styles.tableWrapper}>
+          <table className={styles.bookingTable}>
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>MÃ PHIẾU</th>
+                <th>TÊN KHÁCH HÀNG</th>
+                <th>SĐT</th>
+                <th>BIỂN SỐ</th>
+                <th>TRẠNG THÁI</th>
+                <th>NGÀY HẸN</th>
+                <th>THAO TÁC</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr><td colSpan="8" className={styles.emptyRow}>Đang tải...</td></tr>
+              )}
+              {!loading && pagedTickets.length === 0 && (
+                <tr><td colSpan="8" className={styles.emptyRow}>Không có công việc nào.</td></tr>
+              )}
+              {!loading && pagedTickets.map((ticket, idx) => {
+                const code = getTicketCode(ticket);
+                const ticketId = getTicketId(ticket);
+                const hasSafetyInspection = ticket.safetyInspectionEnabled !== false;
+                const canStart = ticket._status === 'DRAFT' && hasSafetyInspection;
+                const canWork = ticket._status !== 'DRAFT' || !hasSafetyInspection;
+
+                return (
+                  <tr key={ticketId || code || idx}>
+                    <td>{idx + 1 + page * size}</td>
+                    <td className={styles.ticketCodeCell}>{code || '-'}</td>
+                    <td>{ticket.customerName || '-'}</td>
+                    <td>{ticket.customerPhone || '-'}</td>
+                    <td>
+                      <span className={styles.licensePlate}>
+                        {ticket.licensePlate || '-'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${getServiceTicketStatusClass(ticket)}`}>
+                        {getServiceTicketStatusDisplay(ticket)}
+                      </span>
+                    </td>
+                    <td>{formatDate(ticket.scheduledDate || ticket.bookingDate || ticket.appointmentDate)}</td>
+                    <td>
+                      <div className={styles.actionButtons}>
+                        {/* Chi tiết */}
+                        <button
+                          className={`${styles.actionBtn} ${styles.viewBtn}`}
+                          onClick={() => handleViewTask(ticket)}
+                        >
+                          Chi tiết
+                        </button>
+                        {/* Bắt đầu / Làm việc */}
+                        {canStart && (
+                          <button
+                            className={`${styles.actionBtn} ${styles.assignBtn}`}
+                            onClick={() => handleStartWork(ticket)}
+                          >
+                            Bắt đầu làm việc
+                          </button>
+                        )}
+                        {canWork && hasSafetyInspection && (
+                          <button
+                            className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
+                            onClick={() => navigate(`/technician/safetyinspection-ticket/${encodeURIComponent(code)}`)}
+                          >
+                            Phiếu KT an toàn
+                          </button>
+                        )}
+                        {canWork && !hasSafetyInspection && (
+                          <button
+                            className={`${styles.actionBtn} ${styles.assignBtn}`}
+                            onClick={() => handleViewTask(ticket)}
+                          >
+                            Làm việc
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer: page size + pagination */}
+        <div className={styles.bookingFooter}>
+          <div className={styles.pageSize}>
+            <span>Hiển thị:</span>
+            <select value={String(size)} onChange={(e) => { setSize(Number(e.target.value)); setPage(0); }}>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+          <div className={styles.pagination}>
+            <button
+              className={styles.primaryButton}
+              disabled={safePage <= 0 || loading}
+              onClick={() => setPage(safePage - 1)}
+            >
+              Trước
+            </button>
+            {pageButtons.map((p) => (
+              <button
+                key={p}
+                className={p === safePage ? styles.ghostButton : `${styles.primaryButton} ${styles.isGhost}`}
+                disabled={p === safePage || loading}
+                onClick={() => setPage(p)}
+              >
+                {p + 1}
+              </button>
+            ))}
+            <button
+              className={styles.primaryButton}
+              disabled={safePage >= Math.max(1, totalPages) - 1 || loading}
+              onClick={() => setPage(safePage + 1)}
+            >
+              Sau
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal Chi tiết */}
       {showModal && selectedTask && (
         <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>Chi tiết công việc</h3>
-              <button className={styles.modalClose} onClick={() => setShowModal(false)}>
-                ✕
-              </button>
+              <button className={styles.modalClose} onClick={() => setShowModal(false)}>×</button>
             </div>
 
-            <div className={styles.modalBody}>
-              <div className={styles.modalSection}>
-                <h4 className={styles.sectionTitle}>Thông tin phiếu</h4>
-                <div className={styles.infoGrid}>
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>ID Phiếu:</span>
-                    <span className={styles.infoValue}>#{selectedTask.id}</span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Trạng thái kiểm tra:</span>
-                    <span className={`${styles.statusBadge} ${getInspectionStatusClass(selectedTask.inspectionStatus)}`}>
-                      {mapInspectionStatus(selectedTask.inspectionStatus) || 'Chưa kiểm tra'}
-                    </span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Độ ưu tiên:</span>
-                    <span className={`${styles.priorityBadge} ${getPriorityClass(selectedTask.priority)}`}>
-                      {selectedTask.priority}
-                    </span>
-                  </div>
-                </div>
+            {modalLoading ? (
+              <div className={styles.loadingContainer} style={{ minHeight: 200 }}>
+                <div className={styles.spinner}></div>
               </div>
-
-              <div className={styles.modalSection}>
-                <h4 className={styles.sectionTitle}>Thông tin xe</h4>
-                <div className={styles.infoGrid}>
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Biển số:</span>
-                    <span className={styles.infoValue}>{selectedTask.licensePlate || 'N/A'}</span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Hãng xe:</span>
-                    <span className={styles.infoValue}>{selectedTask.make || 'N/A'}</span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Model:</span>
-                    <span className={styles.infoValue}>{selectedTask.model || 'N/A'}</span>
-                  </div>
-                  {selectedTask.year && (
-                    <div className={styles.infoItem}>
-                      <span className={styles.infoLabel}>Năm sản xuất:</span>
-                      <span className={styles.infoValue}>{selectedTask.year}</span>
-                    </div>
-                  )}
-                  {selectedTask.odometerReading && (
-                    <div className={styles.infoItem}>
-                      <span className={styles.infoLabel}>Số km:</span>
-                      <span className={styles.infoValue}>{selectedTask.odometerReading.toLocaleString('vi-VN')} km</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {(selectedTask.customerName || selectedTask.customerPhone) && (
+            ) : (
+              <div className={styles.modalBody}>
+                {/* Thông tin phiếu */}
                 <div className={styles.modalSection}>
-                  <h4 className={styles.sectionTitle}>Thông tin khách hàng</h4>
+                  <h4 className={styles.sectionTitle}>Thông tin phiếu</h4>
                   <div className={styles.infoGrid}>
-                    {selectedTask.customerName && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Mã phiếu</span>
+                      <span className={styles.infoValue}>{getTicketCode(selectedTask) || '-'}</span>
+                    </div>
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Trạng thái</span>
+                      <span className={`${styles.statusBadge} ${getServiceTicketStatusClass(selectedTask)}`}>
+                        {getServiceTicketStatusDisplay(selectedTask)}
+                      </span>
+                    </div>
+                    {selectedTask._inspectionStatus && (
                       <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Tên khách hàng:</span>
-                        <span className={styles.infoValue}>{selectedTask.customerName}</span>
-                      </div>
-                    )}
-                    {selectedTask.customerPhone && (
-                      <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Số điện thoại:</span>
-                        <span className={styles.infoValue}>{selectedTask.customerPhone}</span>
-                      </div>
-                    )}
-                    {selectedTask.customerEmail && (
-                      <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Email:</span>
-                        <span className={styles.infoValue}>{selectedTask.customerEmail}</span>
+                        <span className={styles.infoLabel}>Kiểm tra AT</span>
+                        <span className={`${styles.statusBadge} ${getInspectionStatusClass(selectedTask._inspectionStatus)}`}>
+                          {getInspectionStatusDisplay(selectedTask._inspectionStatus)}
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
-              )}
 
-              <div className={styles.modalSection}>
-                <h4 className={styles.sectionTitle}>Yêu cầu khách hàng</h4>
-                <p className={styles.customerRequestFull}>{selectedTask.customerRequest || 'Không có yêu cầu đặc biệt'}</p>
+                {/* Thông tin xe */}
+                <div className={styles.modalSection}>
+                  <h4 className={styles.sectionTitle}>Thông tin xe</h4>
+                  <div className={styles.infoGrid}>
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Biển số</span>
+                      <span className={styles.infoValue}>{selectedTask.licensePlate || 'N/A'}</span>
+                    </div>
+                    {selectedTask.make && (
+                      <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Hãng xe</span>
+                        <span className={styles.infoValue}>{selectedTask.make}</span>
+                      </div>
+                    )}
+                    {selectedTask.model && (
+                      <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Model</span>
+                        <span className={styles.infoValue}>{selectedTask.model}</span>
+                      </div>
+                    )}
+                    {selectedTask.year && (
+                      <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Năm SX</span>
+                        <span className={styles.infoValue}>{selectedTask.year}</span>
+                      </div>
+                    )}
+                    {selectedTask.odometerReading && (
+                      <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Số km</span>
+                        <span className={styles.infoValue}>{Number(selectedTask.odometerReading).toLocaleString('vi-VN')} km</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Thông tin khách hàng */}
+                {(selectedTask.customerName || selectedTask.customerPhone) && (
+                  <div className={styles.modalSection}>
+                    <h4 className={styles.sectionTitle}>Thông tin khách hàng</h4>
+                    <div className={styles.infoGrid}>
+                      {selectedTask.customerName && (
+                        <div className={styles.infoItem}>
+                          <span className={styles.infoLabel}>Tên khách hàng</span>
+                          <span className={styles.infoValue}>{selectedTask.customerName}</span>
+                        </div>
+                      )}
+                      {selectedTask.customerPhone && (
+                        <div className={styles.infoItem}>
+                          <span className={styles.infoLabel}>SĐT</span>
+                          <span className={styles.infoValue}>{selectedTask.customerPhone}</span>
+                        </div>
+                      )}
+                      {selectedTask.customerEmail && (
+                        <div className={styles.infoItem}>
+                          <span className={styles.infoLabel}>Email</span>
+                          <span className={styles.infoValue}>{selectedTask.customerEmail}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Yêu cầu KH */}
+                {selectedTask.customerRequest && (
+                  <div className={styles.modalSection}>
+                    <h4 className={styles.sectionTitle}>Yêu cầu khách hàng</h4>
+                    <p className={styles.customerRequestText}>{selectedTask.customerRequest}</p>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
             <div className={styles.modalFooter}>
-              <button
-                className={styles.modalActionBtn}
-                onClick={async () => {
-                  setShowModal(false);
-                  const isDraft = String(selectedTask?.status || '').toUpperCase() === 'DRAFT';
-                  const isCompletedInspection = String(selectedTask?.inspectionStatus || '').toUpperCase() === 'COMPLETED';
-                  if (isDraft && !isCompletedInspection) {
-                    await handleStartWork(selectedTask);
-                    return;
-                  }
-                  navigate(`/technician/safetyinspection-ticket/${selectedTask.ticketCode || selectedTask.id}`);
-                }}
-              >
-                {(() => {
-                  const isDraft = String(selectedTask?.status || '').toUpperCase() === 'DRAFT';
-                  const isCompletedInspection = String(selectedTask?.inspectionStatus || '').toUpperCase() === 'COMPLETED';
-                  if (isDraft && !isCompletedInspection) return 'Bắt đầu làm việc';
-                  return selectedTask.hasSafetyInspection ? 'Xem phiếu kiểm tra' : 'Làm việc (không kiểm tra an toàn)';
-                })()}
+              <button className={styles.modalCloseBtn} onClick={() => setShowModal(false)}>
+                Đóng
               </button>
+              {selectedTask._status === 'DRAFT' && selectedTask.safetyInspectionEnabled !== false && (
+                <button
+                  className={styles.modalActionBtn}
+                  onClick={() => {
+                    setShowModal(false);
+                    handleStartWork(selectedTask);
+                  }}
+                >
+                  Bắt đầu làm việc
+                </button>
+              )}
+              {selectedTask._status !== 'DRAFT' && selectedTask.safetyInspectionEnabled !== false && (
+                <button
+                  className={styles.modalActionBtn}
+                  onClick={() => {
+                    setShowModal(false);
+                    navigate(`/technician/safetyinspection-ticket/${encodeURIComponent(getTicketCode(selectedTask))}`);
+                  }}
+                >
+                  Phiếu kiểm tra AT
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
     </div>
   );
-};
-
-// TaskCard component
-const TaskCard = ({ task, onView, onNavigate, onStartWork, getPriorityClass, formatDate, mapInspectionStatus, getInspectionStatusClass }) => (
-  <div className={styles.taskCard}>
-    <div className={styles.taskHeader}>
-      <div className={styles.taskHeaderLeft}>
-        <h3 className={styles.taskTitle}>Phiếu #{task.id}</h3>
-        <span className={`${styles.priorityBadge} ${getPriorityClass(task.priority)}`}>
-          {task.priority}
-        </span>
-      </div>
-      <div className={styles.taskHeaderRight}>
-        {task.hasSafetyInspection && task.inspectionStatus ? (
-          <span className={`${styles.statusBadge} ${getInspectionStatusClass(task.inspectionStatus)}`}>
-            {mapInspectionStatus(task.inspectionStatus)}
-          </span>
-        ) : (
-          <span className={`${styles.statusBadge}`} style={{ backgroundColor: '#6c757d' }}>
-            Chưa kiểm tra
-          </span>
-        )}
-      </div>
-    </div>
-
-    <div className={styles.taskBody}>
-      <div className={styles.taskRow}>
-        <div className={styles.taskField}>
-          <span className={styles.fieldLabel}>Biển số:</span>
-          <span className={styles.fieldValue}>{task.licensePlate}</span>
-        </div>
-        <div className={styles.taskField}>
-          <span className={styles.fieldLabel}>Loại xe:</span>
-          <span className={styles.fieldValue}>{task.model}</span>
-        </div>
-      </div>
-
-      {task.customerName && (
-        <div className={styles.taskRow}>
-          <div className={styles.taskField}>
-            <span className={styles.fieldLabel}>Khách hàng:</span>
-            <span className={styles.fieldValue}>{task.customerName}</span>
-          </div>
-          {task.customerPhone && (
-            <div className={styles.taskField}>
-              <span className={styles.fieldLabel}>SĐT:</span>
-              <span className={styles.fieldValue}>{task.customerPhone}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className={styles.taskRow}>
-        <div className={styles.taskField}>
-          <span className={styles.fieldLabel}>Ngày nhận xe:</span>
-          <span className={styles.fieldValue}>{formatDate(task.dueDate)}</span>
-        </div>
-        <div className={styles.taskField}>
-          <span className={styles.fieldLabel}>Giờ nhận xe:</span>
-          <span className={styles.fieldValue}>{task.timeSlot}</span>
-        </div>
-      </div>
-      <div className={styles.taskRow}>
-        <div className={styles.taskField}>
-          <span className={styles.fieldLabel}>Ngày giao xe:</span>
-          <span className={styles.fieldValue}>{formatDate(task.dueDate)}</span>
-        </div>
-        <div className={styles.taskField}>
-          <span className={styles.fieldLabel}>Giờ giao xe:</span>
-          <span className={styles.fieldValue}>{task.timeSlot}</span>
-        </div>
-      </div>
-
-      <div className={styles.taskRow}>
-        <div className={styles.taskField} style={{ width: '100%' }}>
-          <span className={styles.fieldLabel}>Yêu cầu khách hàng:</span>
-          <p className={styles.customerRequest}>{task.customerRequest}</p>
-        </div>
-      </div>
-
-    </div>
-
-    <div className={styles.taskFooter}>
-      <button
-        className={styles.primaryButton}
-        onClick={() => {
-          const isDraft = String(task?.status || '').toUpperCase() === 'DRAFT';
-          const isCompletedInspection = String(task?.inspectionStatus || '').toUpperCase() === 'COMPLETED';
-          if (isDraft && !isCompletedInspection) {
-            onStartWork(task);
-            return;
-          }
-          onNavigate(`/technician/safetyinspection-ticket/${task.ticketCode || task.id}`);
-        }}
-      >
-        {(() => {
-          const isDraft = String(task?.status || '').toUpperCase() === 'DRAFT';
-          const isCompletedInspection = String(task?.inspectionStatus || '').toUpperCase() === 'COMPLETED';
-          if (isDraft && !isCompletedInspection) return 'Bắt đầu làm việc';
-          return task.hasSafetyInspection ? 'Xem phiếu kiểm tra' : 'Làm việc';
-        })()}
-      </button>
-      <button
-        className={styles.secondaryButton}
-        onClick={() => onView(task)}
-      >
-        Chi tiết
-      </button>
-    </div>
-  </div>
-);
-
-export default MyTasks;
+}
