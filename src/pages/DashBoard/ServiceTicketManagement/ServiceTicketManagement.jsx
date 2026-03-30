@@ -36,6 +36,7 @@ export default function ServiceTicketManagement() {
 	const [modalSuccess, setModalSuccess] = useState('');
 	const [advisorOptions, setAdvisorOptions] = useState([]);
 	const [selectedNewAdvisorId, setSelectedNewAdvisorId] = useState('');
+	const [, setPageAssignments] = useState(new Map());
 
 	useEffect(() => {
 		const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
@@ -80,6 +81,46 @@ export default function ServiceTicketManagement() {
 	useEffect(() => {
 		loadData();
 	}, [loadData]);
+
+	// Load technician assignments for all tickets on current page
+	useEffect(() => {
+		const token = getToken();
+		if (!token || tickets.length === 0) return;
+
+		const ticketIds = tickets
+			.map((t) => {
+				const id = Number(t?.serviceTicketId || t?.ticketId || t?.id);
+				return Number.isFinite(id) && id > 0 ? id : null;
+			})
+			.filter(Boolean);
+
+		if (ticketIds.length === 0) return;
+
+		Promise.all(
+			ticketIds.map(async (ticketId) => {
+				try {
+					const res = await fetchTicketAssignments(ticketId, token);
+					const rawList = Array.isArray(res?.data) ? res.data : [];
+					const hasTech = rawList.some(
+						(a) =>
+							String(a?.roleInTicket || a?.role || '').toUpperCase() === 'TECHNICIAN'
+							&& String(a?.status || '').toUpperCase() !== 'CANCELLED',
+					);
+					return { ticketId, hasTech };
+				} catch {
+					return { ticketId, hasTech: false };
+				}
+			}),
+		).then((rows) => {
+			setPageAssignments((prev) => {
+				const next = new Map(prev);
+				for (const row of rows) {
+					next.set(row.ticketId, row.hasTech);
+				}
+				return next;
+			});
+		});
+	}, [tickets, page, size, date, status, debouncedSearch]);
 
 	useEffect(() => {
 		const token = getToken();
@@ -355,17 +396,18 @@ function TicketPanel({
 							<th>MÃ PHIẾU</th>
 							<th>TÊN KHÁCH HÀNG</th>
 							<th>SĐT</th>
+							<th>BIỂN SỐ</th>
 							<th>TRẠNG THÁI</th>
-							<th>THỜI GIAN TẠO</th>
+							<th>NGÀY HẸN</th>
 							<th>THAO TÁC</th>
 						</tr>
 					</thead>
 					<tbody>
 						{isLoading && (
-							<tr><td colSpan="7" className={styles['empty-row']}>Đang tải...</td></tr>
+							<tr><td colSpan="8" className={styles['empty-row']}>Đang tải...</td></tr>
 						)}
 						{!isLoading && data.length === 0 && (
-							<tr><td colSpan="7" className={styles['empty-row']}>Không có phiếu nào.</td></tr>
+							<tr><td colSpan="8" className={styles['empty-row']}>Không có phiếu nào.</td></tr>
 						)}
 						{!isLoading && data.map((item, idx) => {
 							const statusCode = item?.ticketStatus ?? item?.status;
@@ -373,14 +415,19 @@ function TicketPanel({
 							const displayStatus = getStatusTextVi(statusCode, String(statusCode || '-'));
 							return (
 								<tr key={item?.serviceTicketId ?? item?.ticketCode ?? idx}>
-									<td>{item?.serviceTicketId || '-'}</td>
-									<td>{item?.ticketCode || '-'}</td>
+									<td>{idx + 1}</td>
+									<td className={styles['ticket-code-cell']}>{item?.ticketCode || '-'}</td>
 									<td>{item?.customerName || '-'}</td>
 									<td>{item?.customerPhone || '-'}</td>
 									<td>
+										<span className={styles['license-plate']}>
+											{item?.licensePlate || '-'}
+										</span>
+									</td>
+									<td>
 										<span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>{displayStatus}</span>
 									</td>
-									<td>{formatDateTimeVi(item?.receivedAt || item?.createdAt, '-')}</td>
+									<td>{formatDateTimeVi(item?.scheduledDate || item?.appointmentDate || item?.bookingDate, '-')}</td>
 									<td>
 										<div className={styles['action-buttons']}>
 											<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
