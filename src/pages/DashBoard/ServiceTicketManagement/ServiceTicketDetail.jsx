@@ -477,7 +477,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         await handleUpdateTicketStatus('CANCELLED', 'Đã hủy phiếu dịch vụ.');
     };
     const handleSetPending = () => handleUpdateTicketStatus('PENDING', 'Đã chuyển sang trạng thái "Chờ xử lý".');
-    const handleStartRepair = () => {
+    const handleStartRepair = async () => {
         if (!estimateIdNum) {
             notify('Chưa có báo giá hợp lệ. Vui lòng tạo và xác nhận báo giá trước khi tiến hành sửa chữa.');
             return;
@@ -486,7 +486,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Vui lòng xác nhận báo giá trước khi tiến hành sửa chữa.');
             return;
         }
-        handleUpdateTicketStatus('IN_PROGRESS', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
+        await handleUpdateTicketStatus('IN_PROGRESS', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
+        navigate('/advisor/inspection');
     };
     const handleCompleteRepair = () => handleUpdateTicketStatus('COMPLETED', 'Đã chuyển sang trạng thái "Hoàn tất sửa chữa".');
     
