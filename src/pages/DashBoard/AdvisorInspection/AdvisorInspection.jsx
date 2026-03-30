@@ -136,6 +136,7 @@ export default function AdvisorInspection() {
   const [advisorOptions, setAdvisorOptions] = useState([]);
   const [selectedNewAdvisorId, setSelectedNewAdvisorId] = useState('');
   const [techReplacementByAssignment, setTechReplacementByAssignment] = useState({});
+  const [techSortBy, setTechSortBy] = useState('ticket_asc'); // 'ticket_asc' | 'ticket_desc' | 'free_first' | 'busy_first'
   const [loadingModal, setLoadingModal] = useState(false);
   const [modalError, setModalError] = useState('');
   const [modalSuccess, setModalSuccess] = useState('');
@@ -773,15 +774,15 @@ export default function AdvisorInspection() {
                         <td>{formatDate(ticket.appointmentDate || ticket.bookingDate || ticket.scheduledDate)}</td>
                         <td>
                           <div className={styles.actionButtons}>
-                            {/* Nút Mở — navigate thẳng sang service-ticket-detail */}
+                            {/* Nút Mở — chỉ mở được khi đã phân công KTV */}
                             <button
                               className={styles.actionBtn}
                               onClick={() => {
-                                if (!code) return;
+                                if (!code || !hasTech) return;
                                 navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
                               }}
-                              disabled={!code}
-                              title="Mở chi tiết phiếu dịch vụ"
+                              disabled={!code || !hasTech}
+                              title={!hasTech ? 'Cần phân công KTV trước khi mở phiếu' : 'Mở chi tiết phiếu dịch vụ'}
                             >
                               Mở
                             </button>
@@ -873,225 +874,249 @@ export default function AdvisorInspection() {
               {modalSuccess && <div className={styles.successBanner}>{modalSuccess}</div>}
               {modalError && <div className={styles.errorBanner}>{modalError}</div>}
 
-              {/* Advisor */}
-              <div className={styles.assignSection}>
-                <h4 className={styles.sectionTitle}>TƯ VẤN VIÊN PHỤ TRÁCH</h4>
-                {loadingModal ? (
-                  <p style={{ color: '#9ca3af', fontSize: 13 }}>Đang tải...</p>
-                ) : modalAdvisor ? (
-                  <div className={styles.assignCard}>
-                    <div className={styles.assignInfo}>
-                      <span className={styles.assignName}>{getAdvisorDisplayName(selectedTicket)}</span>
-                      <span className={styles.assignRole}>
-                        Cố vấn viên &bull;{' '}
-                        {STATUS_LABELS[computeDisplayStatus(
-                          modalAdvisor.status,
-                          selectedTicket?.ticketStatus || selectedTicket?.status,
-                        )]
-                        || computeDisplayStatus(modalAdvisor.status, selectedTicket?.ticketStatus || selectedTicket?.status)}
-                      </span>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                        <select
-                          value={selectedNewAdvisorId}
-                          onChange={(e) => setSelectedNewAdvisorId(e.target.value)}
-                          disabled={loadingModal}
-                          style={{ flex: 1 }}
-                        >
-                          <option value="">Chọn advisor mới</option>
-                          {advisorOptions.map((advisor) => (
-                            <option key={advisor.staffId} value={advisor.staffId}>
-                              {advisor.fullName || advisor.staffName || `NV-${advisor.staffId}`}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          className={styles.modalActionBtn}
-                          onClick={handleChangeAdvisor}
-                          disabled={
-                            loadingModal
-                            || !canChangeAdvisorByRole
-                            || !canChangeModalAdvisor
-                            || !selectedNewAdvisorId
-                            || Number(selectedNewAdvisorId) === Number(modalAdvisor?.staffId)
-                          }
-                        >
-                          Đổi advisor
-                        </button>
-                      </div>
-                      {!canChangeModalAdvisor && (
-                        <span className={styles.assignRole}>
-                          Chỉ được đổi khi advisor hiện tại đang PENDING hoặc ACTIVE.
-                        </span>
-                      )}
-                      {!canChangeAdvisorByRole && (
-                        <span className={styles.assignRole}>
-                          Chỉ advisor mới có quyền đổi advisor.
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.assignCard}>
-                    <div className={styles.assignInfo}>
-                      <span className={styles.assignName}>{getAdvisorDisplayName(selectedTicket)}</span>
-                      <span className={styles.assignRole}>Chưa có cố vấn viên</span>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Kiểm tra trạng thái phiếu — không cho thay đổi khi hoàn tất/đã thanh toán/hủy */}
+              {(() => {
+                const ticketStatus = normalizeServiceTicketStatus(selectedTicket);
+                const isFinalized = ['COMPLETED', 'PAID', 'CANCELLED'].includes(ticketStatus);
 
-              {/* KTV đã phân công */}
-              {!loadingModal && modalAssignments.length > 0 && (
-                <div className={styles.assignSection}>
-                  <h4 className={styles.sectionTitle}>KTV ĐÃ PHÂN CÔNG</h4>
-                  {modalAssignments.map((a) => {
-                    const isCancelled = a?.status === 'CANCELLED';
-                    const isPrimary = a?.isPrimary;
-                    const ticketStatus = selectedTicket?.ticketStatus || selectedTicket?.status;
-                    const displayStatus = computeDisplayStatus(a.status, ticketStatus);
-                    return (
-                      <div key={a.assignmentId} className={styles.assignCard}>
-                        <div className={styles.assignInfo}>
-                          <span
-                            className={styles.assignName}
-                            style={isCancelled ? { color: '#9ca3af', textDecoration: 'line-through' } : {}}
-                          >
-                            {getStaffDisplayName(a.staffId, a.fullName)}
-                          </span>
-                          <span className={styles.assignRole}>
-                            {isPrimary ? 'KTV chính' : 'KTV phụ'} &bull;{' '}
-                            {STATUS_LABELS[displayStatus] || displayStatus}
-                          </span>
-                          {a?.status === 'PENDING' && !isCancelled && (
-                            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                              <select
-                                value={techReplacementByAssignment[String(a?.assignmentId)] || ''}
-                                onChange={(e) =>
-                                  setTechReplacementByAssignment((prev) => ({
-                                    ...prev,
-                                    [String(a?.assignmentId)]: e.target.value,
-                                  }))
-                                }
-                                disabled={loadingModal}
-                                style={{ flex: 1 }}
-                              >
-                                <option value="">Chọn KTV thay thế</option>
-                                {modalTechList.map((tech) => (
-                                  <option key={tech.staffId} value={tech.staffId}>
-                                    {tech.fullName || `NV-${tech.staffId}`}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                className={styles.modalActionBtn}
-                                onClick={() => handleChangeTechnician(a)}
-                                disabled={
-                                  loadingModal
-                                  || !techReplacementByAssignment[String(a?.assignmentId)]
-                                }
-                              >
-                                Đổi KTV
-                              </button>
+                return (
+                  <>
+                    {/* Advisor */}
+                    <div className={styles.assignSection}>
+                      <h4 className={styles.sectionTitle}>TƯ VẤN VIÊN PHỤ TRÁCH</h4>
+                      {loadingModal ? (
+                        <p style={{ color: '#9ca3af', fontSize: 13 }}>Đang tải...</p>
+                      ) : modalAdvisor ? (
+                        <div className={styles.assignCard}>
+                          <div className={styles.assignInfo}>
+                            <span className={styles.assignName}>{getAdvisorDisplayName(selectedTicket)}</span>
+                            <span className={styles.assignRole}>
+                              Cố vấn viên &bull;{' '}
+                              {STATUS_LABELS[computeDisplayStatus(
+                                modalAdvisor.status,
+                                selectedTicket?.ticketStatus || selectedTicket?.status,
+                              )]
+                              || computeDisplayStatus(modalAdvisor.status, selectedTicket?.ticketStatus || selectedTicket?.status)}
+                            </span>
+                            {!isFinalized && (
+                              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                <select
+                                  value={selectedNewAdvisorId}
+                                  onChange={(e) => setSelectedNewAdvisorId(e.target.value)}
+                                  disabled={loadingModal}
+                                  style={{ flex: 1 }}
+                                >
+                                  <option value="">Chọn advisor mới</option>
+                                  {advisorOptions.map((advisor) => (
+                                    <option key={advisor.staffId} value={advisor.staffId}>
+                                      {advisor.fullName || advisor.staffName || `NV-${advisor.staffId}`}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  className={styles.modalActionBtn}
+                                  onClick={handleChangeAdvisor}
+                                  disabled={
+                                    loadingModal
+                                    || !canChangeAdvisorByRole
+                                    || !canChangeModalAdvisor
+                                    || !selectedNewAdvisorId
+                                    || Number(selectedNewAdvisorId) === Number(modalAdvisor?.staffId)
+                                  }
+                                >
+                                  Đổi advisor
+                                </button>
+                              </div>
+                            )}
+                            {!canChangeModalAdvisor && !isFinalized && (
+                              <span className={styles.assignRole}>
+                                Chỉ được đổi khi advisor hiện tại đang PENDING hoặc ACTIVE.
+                              </span>
+                            )}
+                            {!canChangeAdvisorByRole && !isFinalized && (
+                              <span className={styles.assignRole}>
+                                Chỉ advisor mới có quyền đổi advisor.
+                              </span>
+                            )}
+                            {isFinalized && (
+                              <span className={styles.assignRole}>
+                                Không thể thay đổi khi phiếu đã hoàn tất / đã thanh toán / đã hủy.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={styles.assignCard}>
+                          <div className={styles.assignInfo}>
+                            <span className={styles.assignName}>{getAdvisorDisplayName(selectedTicket)}</span>
+                            <span className={styles.assignRole}>Chưa có cố vấn viên</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* KTV đã phân công */}
+                    {!loadingModal && modalAssignments.length > 0 && (
+                      <div className={styles.assignSection}>
+                        <h4 className={styles.sectionTitle}>KTV ĐÃ PHÂN CÔNG</h4>
+                        {modalAssignments.map((a) => {
+                          const isCancelled = a?.status === 'CANCELLED';
+                          const isPrimary = a?.isPrimary;
+                          const isPending = a?.status === 'PENDING';
+                          const ticketStatusRaw = selectedTicket?.ticketStatus || selectedTicket?.status;
+                          const displayStatus = computeDisplayStatus(a.status, ticketStatusRaw);
+                          return (
+                            <div key={a.assignmentId} className={styles.assignCard}>
+                              <div className={styles.assignInfo}>
+                                <span
+                                  className={styles.assignName}
+                                  style={isCancelled ? { color: '#9ca3af', textDecoration: 'line-through' } : {}}
+                                >
+                                  {getStaffDisplayName(a.staffId, a.fullName)}
+                                </span>
+                                <span className={styles.assignRole}>
+                                  {isPrimary ? 'KTV chính' : 'KTV phụ'} &bull;{' '}
+                                  {STATUS_LABELS[displayStatus] || displayStatus}
+                                </span>
+                                {/* Nút Đổi KTV / Hủy — chỉ khi PENDING và phiếu chưa finalized */}
+                                {isPending && !isCancelled && !isFinalized && (
+                                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                    <select
+                                      value={techReplacementByAssignment[String(a?.assignmentId)] || ''}
+                                      onChange={(e) =>
+                                        setTechReplacementByAssignment((prev) => ({
+                                          ...prev,
+                                          [String(a?.assignmentId)]: e.target.value,
+                                        }))
+                                      }
+                                      disabled={loadingModal}
+                                      style={{ flex: 1 }}
+                                    >
+                                      <option value="">Chọn KTV thay thế</option>
+                                      {modalTechList.map((tech) => (
+                                        <option key={tech.staffId} value={tech.staffId}>
+                                          {tech.fullName || `NV-${tech.staffId}`}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      className={styles.modalActionBtn}
+                                      onClick={() => handleChangeTechnician(a)}
+                                      disabled={
+                                        loadingModal
+                                        || !techReplacementByAssignment[String(a?.assignmentId)]
+                                      }
+                                    >
+                                      Đổi KTV
+                                    </button>
+                                    <button
+                                      className={styles.cancelBtn}
+                                      onClick={() => handleCancelTech(a)}
+                                      disabled={loadingModal}
+                                    >
+                                      Hủy
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        {a?.status === 'PENDING' && !isCancelled && (
-                          <button
-                            className={styles.cancelBtn}
-                            onClick={() => handleCancelTech(a)}
-                            disabled={loadingModal}
-                          >
-                            Hủy
-                          </button>
-                        )}
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    )}
 
-              {/* KTV chính */}
-              {!loadingModal && modalTechList.length > 0 && (
-                <div className={styles.assignSection}>
-                  <h4 className={styles.sectionTitle}>Phân công kỹ thuật viên chính</h4>
-                  {hasPrimaryTechnician && (
-                    <p className={styles.sectionHint}>
-                      Ticket đã có KTV chính đang PENDING/ACTIVE.
-                    </p>
-                  )}
-                  <div className={styles.techRow}>
-                    {modalTechList.map((tech) => {
-                      const workload = getTechWorkloadDisplay(tech);
-                      return (
-                        <div key={`primary-${tech.staffId}`} className={styles.techCard}>
-                          <div className={styles.techInfo}>
-                            <span className={styles.techName}>
-                              {tech.fullName || `NV-${tech.staffId}`}
-                            </span>
-                            <span className={styles.techPhone}>{tech.phone || ''}</span>
-                          </div>
-                          <div className={styles.workloadBadge}>
-                            <span className={workload.isBusy ? styles.busy : styles.available}>
-                              {workload.text}
-                            </span>
-                          </div>
-                          <button
-                            className={styles.assignBtn}
-                            onClick={() => handleAssign(tech, true)}
-                            disabled={loadingModal || hasPrimaryTechnician}
+                    {/* Danh sách KTV khả dụng — chỉ khi chưa finalized */}
+                    {!isFinalized && !loadingModal && modalTechList.length > 0 && (
+                      <div className={styles.assignSection}>
+                        <h4 className={styles.sectionTitle}>PHÂN CÔNG KỸ THUẬT VIÊN</h4>
+
+                        {/* Bộ lọc sắp xếp */}
+                        <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center' }}>
+                          <label style={{ fontSize: 13, color: '#6b7280', fontWeight: 600 }}>Sắp xếp:</label>
+                          <select
+                            value={techSortBy}
+                            onChange={(e) => setTechSortBy(e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              border: '2px solid #e5e7eb',
+                              fontSize: 13,
+                              color: '#1a1a1a',
+                              background: '#fff',
+                              cursor: 'pointer',
+                            }}
                           >
-                            Chọn KTV chính
-                          </button>
+                            <option value="ticket_asc">Số phiếu: ít → nhiều</option>
+                            <option value="ticket_desc">Số phiếu: nhiều → ít</option>
+                            <option value="free_first">Rảnh trước</option>
+                            <option value="busy_first">Bận trước</option>
+                          </select>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
-              {/* KTV phụ */}
-              {!loadingModal && modalTechList.length > 0 && (
-                <div className={styles.assignSection}>
-                  <h4 className={styles.sectionTitle}>Phân công kỹ thuật viên phụ</h4>
-                  <div className={styles.techRow}>
-                    {modalTechList.map((tech) => {
-                      const workload = getTechWorkloadDisplay(tech);
-                      return (
-                        <div key={`secondary-${tech.staffId}`} className={styles.techCard}>
-                          <div className={styles.techInfo}>
-                            <span className={styles.techName}>
-                              {tech.fullName || `NV-${tech.staffId}`}
-                            </span>
-                            <span className={styles.techPhone}>{tech.phone || ''}</span>
-                          </div>
-                          <div className={styles.workloadBadge}>
-                            <span className={workload.isBusy ? styles.busy : styles.available}>
-                              {workload.text}
-                            </span>
-                          </div>
-                          <button
-                            className={styles.assignBtn}
-                            onClick={() => handleAssign(tech, false)}
-                            disabled={loadingModal}
-                          >
-                            Thêm KTV phụ
-                          </button>
+                        {/* Danh sách dọc */}
+                        <div className={styles.techListVertical}>
+                          {(() => {
+                            const sorted = [...modalTechList].sort((a, b) => {
+                              const wA = workloadMap[Number(a?.staffId)]?.currentTicketCount ?? 0;
+                              const wB = workloadMap[Number(b?.staffId)]?.currentTicketCount ?? 0;
+                              const busyA = workloadMap[Number(a?.staffId)]?.isBusy ?? false;
+                              const busyB = workloadMap[Number(b?.staffId)]?.isBusy ?? false;
+                              if (techSortBy === 'ticket_asc') return wA - wB;
+                              if (techSortBy === 'ticket_desc') return wB - wA;
+                              if (techSortBy === 'free_first') {
+                                if (busyA !== busyB) return busyA ? 1 : -1;
+                                return wA - wB;
+                              }
+                              if (techSortBy === 'busy_first') {
+                                if (busyA !== busyB) return busyA ? -1 : 1;
+                                return wA - wB;
+                              }
+                              return 0;
+                            });
+
+                            return sorted.map((tech) => {
+                              const workload = getTechWorkloadDisplay(tech);
+                              return (
+                                <div key={tech.staffId} className={styles.techListItem}>
+                                  <div className={styles.techListInfo}>
+                                    <span className={styles.techName}>
+                                      {tech.fullName || `NV-${tech.staffId}`}
+                                    </span>
+                                    <span className={styles.techPhone}>{tech.phone || ''}</span>
+                                  </div>
+                                  <div className={styles.workloadBadge}>
+                                    <span className={workload.isBusy ? styles.busy : styles.available}>
+                                      {workload.text}
+                                    </span>
+                                  </div>
+                                  <button
+                                    className={styles.assignBtn}
+                                    onClick={() => handleAssign(tech, true)}
+                                    disabled={loadingModal}
+                                  >
+                                    Phân công
+                                  </button>
+                                </div>
+                              );
+                            });
+                          })()}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                      </div>
+                    )}
 
-              {!loadingModal && modalTechList.length === 0 && (
-                <div className={styles.emptyState}>
-                  <p>
-                    {modalAssignments.length > 0
-                      ? 'Không còn KTV khả dụng nào để phân công thêm.'
-                      : 'Chưa có KTV nào được phân công.'}
-                  </p>
-                </div>
-              )}
+                    {!loadingModal && modalTechList.length === 0 && !isFinalized && (
+                      <div className={styles.emptyState}>
+                        <p>
+                          {modalAssignments.length > 0
+                            ? 'Không còn KTV khả dụng nào để phân công thêm.'
+                            : 'Chưa có KTV nào khả dụng.'}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               <div className={styles.modalFooter}>
                 <button
