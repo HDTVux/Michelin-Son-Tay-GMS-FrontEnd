@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { fetchCustomerByPhone } from '../../../services/customerService.js';
 import { useNavigate } from 'react-router-dom';
 import bookingStyles from '../../Booking/Booking.module.css';
 import scheduleStyles from '../BookingRequestManagement/BookingRequestEdit.module.css';
@@ -19,6 +20,40 @@ export default function CreateBooking() {
 	useScrollToTop();
 	const navigate = useNavigate();
 
+	// Trạng thái kiểm tra khách hàng
+	const [checkingCustomer, setCheckingCustomer] = useState(false);
+	const [customerChecked, setCustomerChecked] = useState(null); // null | { exists, fullName, ... }
+	const [customerCheckError, setCustomerCheckError] = useState('');
+	const [info, setInfo] = useState({ name: '', phone: '', note: '' });
+
+
+	// Hàm kiểm tra khách hàng theo số điện thoại
+	const handleCheckCustomer = async () => {
+		setCheckingCustomer(true);
+		setCustomerCheckError('');
+		setCustomerChecked(null);
+		const phone = info.phone.trim();
+		if (!phone) {
+			setCustomerCheckError('Vui lòng nhập số điện thoại.');
+			setCheckingCustomer(false);
+			return;
+		}
+		try {
+			const token = localStorage.getItem('authToken');
+			const res = await fetchCustomerByPhone(phone, token);
+			if (res?.data?.exists) {
+				setInfo((prev) => ({ ...prev, name: res.data.fullName || '' }));
+				setCustomerChecked(res.data);
+			} else {
+				setCustomerChecked({ exists: false });
+			}
+		} catch (err) {
+			setCustomerCheckError(err?.message || 'Không thể kiểm tra khách hàng.');
+		} finally {
+			setCheckingCustomer(false);
+		}
+	};
+
 	const [services, setServices] = useState([]);
 	const [servicesLoading, setServicesLoading] = useState(false);
 	const [servicesError, setServicesError] = useState('');
@@ -30,7 +65,6 @@ export default function CreateBooking() {
 	const [schedule, setSchedule] = useState({ date: '', time: '' });
 	const [scheduleMode, setScheduleMode] = useState('manual'); // 'manual' | 'now'
 	const [showSchedulePicker, setShowSchedulePicker] = useState(false);
-	const [info, setInfo] = useState({ name: '', phone: '', note: '' });
 
 	const [baseSlots, setBaseSlots] = useState([]);
 	const [baseSlotsLoading, setBaseSlotsLoading] = useState(false);
@@ -254,7 +288,7 @@ export default function CreateBooking() {
 
 	return (
 		<div className={`${bookingStyles['booking-page']} ${styles.page}`}>
-			<h2 className={`${bookingStyles['section-title']} ${styles.title}`}>Tạo booking cho khách hàng</h2>
+			<h2 className={`${bookingStyles['section-title']} ${styles.title}`}>Tạo lịch cho khách hàng</h2>
 			<StepService
 				services={services}
 				selectedIds={selectedIds}
@@ -402,31 +436,54 @@ export default function CreateBooking() {
 			<p className={infoStyles['info-note']}>Vui lòng nhập thông tin để tiếp tục.</p>
 
 			<div className={infoStyles['info-card']}>
-				<div className={infoStyles.field}>
-					<label htmlFor="create-booking-fullname">Họ và tên</label>
-					<input
-						id="create-booking-fullname"
-						type="text"
-						placeholder="Nhập họ và tên của khách"
-						value={info.name}
-						onChange={(e) => setInfo((prev) => ({ ...prev, name: e.target.value }))}
-						required
-					/>
-				</div>
 
-				<div className={infoStyles.field}>
-					<label htmlFor="create-booking-phone">Số điện thoại</label>
-					<div className={infoStyles['inline-input']}>
-						<input
-							id="create-booking-phone"
-							type="tel"
-							placeholder="Nhập số điện thoại"
-							value={info.phone}
-							onChange={(e) => setInfo((prev) => ({ ...prev, phone: e.target.value }))}
-							required
-						/>
-					</div>
-				</div>
+						<div className={infoStyles.field}>
+							<label htmlFor="create-booking-phone">Số điện thoại</label>
+							<div className={infoStyles['inline-input']}>
+								<input
+									id="create-booking-phone"
+									type="tel"
+									placeholder="Nhập số điện thoại"
+									value={info.phone}
+									onChange={(e) => {
+										setInfo((prev) => ({ ...prev, phone: e.target.value }));
+										setCustomerChecked(null);
+										setCustomerCheckError('');
+									}}
+									required
+								/>
+								<button
+									type="button"
+									className={bookingStyles.btn}
+									onClick={handleCheckCustomer}
+									disabled={checkingCustomer || !info.phone.trim()}
+								>
+									{checkingCustomer ? 'Đang kiểm tra...' : 'Kiểm tra KH'}
+								</button>
+							</div>
+							{customerCheckError && <div style={{ color: '#e53935', fontSize: 13 }}>{customerCheckError}</div>}
+							{customerChecked?.exists === true && (
+								<div style={{ color: '#059669', fontSize: 13 }}>Khách hàng đã tồn tại: {customerChecked.fullName}</div>
+							)}
+							{customerChecked?.exists === false && (
+								<div style={{ color: '#f59e42', fontSize: 13 }}>Chưa có khách hàng này trong hệ thống.</div>
+							)}
+						</div>
+
+						<div className={infoStyles.field}>
+							<label htmlFor="create-booking-fullname">Họ và tên</label>
+							<input
+								id="create-booking-fullname"
+								type="text"
+								placeholder="Nhập họ và tên của khách"
+								value={info.name}
+								onChange={(e) => setInfo((prev) => ({ ...prev, name: e.target.value }))}
+								required
+								disabled={customerChecked?.exists === true}
+								style={customerChecked?.exists === true ? { background: '#f3f4f6', color: '#888' } : {}}
+							/>
+						</div>
+
 			</div>
 
 			{submitError && <div className={infoStyles.error}>{submitError}</div>}
@@ -485,7 +542,7 @@ export default function CreateBooking() {
 					disabled={!canSubmit}
 					aria-busy={submitting}
 				>
-					{submitting ? 'Đang xử lý...' : 'Tạo booking'}
+					{submitting ? 'Đang xử lý...' : 'Tạo lịch'}
 				</button>
 			</div>
 		</div>

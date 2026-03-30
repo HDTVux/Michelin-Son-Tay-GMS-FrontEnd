@@ -1,3 +1,17 @@
+/* Danger (red) button for cancel action */
+.dangerBtn {
+  background: #e53935 !important;
+  color: #fff !important;
+  border: 2px solid #e53935 !important;
+  transition: background 0.2s, color 0.2s;
+}
+
+.dangerBtn:hover,
+.dangerBtn:focus {
+  background: #b71c1c !important;
+  border-color: #b71c1c !important;
+  color: #fff !important;
+}
 .page {
   width: 100%;
   max-width: 100%;
