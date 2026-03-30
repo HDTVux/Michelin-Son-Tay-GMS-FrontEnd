@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import { fetchServiceTicketDetail, fetchServiceTicketEstimate } from '../../../services/serviceTicketService.js';
+import { fetchServiceTicketDetail, fetchServiceTicketEstimate, fetchTicketAssignments } from '../../../services/serviceTicketService.js';
 import { createPayment, payBill } from '../../../services/paymentService.js';
 import { fetchAvailablePromotions, fetchPromotionByCode } from '../../../services/promotionService.js';
 import { formatDateTimeViNoSeconds } from '../../../components/timeUtils.js';
@@ -208,6 +208,8 @@ export default function ReceiptConfirm() {
 	const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 	const [bill, setBill] = useState(null);
 	const [billCreating, setBillCreating] = useState(false);
+	const [assignments, setAssignments] = useState([]);
+	const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
 	const notify = (message) => toast(message, { containerId: 'app-toast' });
 
@@ -299,6 +301,33 @@ export default function ReceiptConfirm() {
 		};
 	}, []);
 
+	// Load assignments to check technician assignment before creating invoice
+	useEffect(() => {
+		const token = localStorage.getItem('authToken');
+		const serviceTicketId = ticket?.serviceTicketId;
+		if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') return;
+
+		let ignore = false;
+		const run = async () => {
+			try {
+				setAssignmentsLoading(true);
+				const res = await fetchTicketAssignments(serviceTicketId, token);
+				if (ignore) return;
+				const rawList = Array.isArray(res?.data) ? res.data : [];
+				setAssignments(rawList);
+			} catch {
+				if (ignore) return;
+				setAssignments([]);
+			} finally {
+				if (!ignore) setAssignmentsLoading(false);
+			}
+		};
+		run();
+		return () => {
+			ignore = true;
+		};
+	}, [ticket?.serviceTicketId]);
+
 	const estimateItems = useMemo(() => {
 		const items = Array.isArray(estimate?.items) ? estimate.items : [];
 		return items
@@ -333,6 +362,16 @@ export default function ReceiptConfirm() {
 	}, [estimateItems]);
 
 	const subtotal = useMemo(() => payItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotalDisplay ?? it.subTotal), 0), [payItems]);
+
+	// Check if ticket has at least one active technician assignment
+	const hasTechnician = useMemo(() => {
+		if (assignmentsLoading) return true; // don't block while loading
+		return assignments.some(
+			(a) =>
+				String(a?.roleInTicket || a?.role || '').toUpperCase() === 'TECHNICIAN'
+				&& String(a?.status || '').toUpperCase() !== 'CANCELLED',
+		);
+	}, [assignments, assignmentsLoading]);
 
 	const discountAmount = useMemo(() => {
 		if (!appliedPromotion) return 0;
@@ -678,6 +717,12 @@ export default function ReceiptConfirm() {
 						{promoError ? <div className={styles.promoError}>{promoError}</div> : null}
 					</section>
 
+					{!assignmentsLoading && !hasTechnician && (
+						<div className={styles.errorBanner} style={{ marginBottom: 16 }}>
+							Không thể tạo hóa đơn: phiếu này chưa có kỹ thuật viên được phân công. Vui lòng phân công KTV trước.
+						</div>
+					)}
+
 					<div className="ui-actions ui-actions--end">
 						<button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack} >
 							Hủy
@@ -686,7 +731,14 @@ export default function ReceiptConfirm() {
 							type="button"
 							className="ui-btn ui-btn--ghost"
 							onClick={handlePrint}
-							disabled={ticketLoading || estimateLoading || !!ticketError || billCreating}
+							disabled={
+								ticketLoading ||
+								estimateLoading ||
+								assignmentsLoading ||
+								!!ticketError ||
+								billCreating ||
+								(!assignmentsLoading && !hasTechnician)
+							}
 						>
 							In hóa đơn
 						</button>
@@ -695,7 +747,13 @@ export default function ReceiptConfirm() {
 								type="button"
 								className="ui-btn ui-btn--primary"
 								onClick={handleConfirm}
-								disabled={ticketLoading || estimateLoading || !!ticketError}
+								disabled={
+									ticketLoading ||
+									estimateLoading ||
+									assignmentsLoading ||
+									!!ticketError ||
+									(!assignmentsLoading && !hasTechnician)
+								}
 							>
 								Thanh toán
 							</button>

@@ -372,6 +372,25 @@
 	color: #059669;
 }
 
+.ticket-code-cell {
+	text-align: left;
+	color: #1E90FF;
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.license-plate {
+	display: inline-block;
+	background: #eff6ff;
+	color: #1d4ed8;
+	padding: 3px 10px;
+	border-radius: 6px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	white-space: nowrap;
+}
+
 .link-cell {
 	color: #1E90FF;
 	font-weight: 600;
