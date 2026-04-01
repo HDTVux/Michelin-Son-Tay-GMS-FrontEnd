@@ -86,6 +86,18 @@ function pickLatestEstimate(list) {
     })[0];
 }
 
+function getEstimateItemCheckedFlag(it) {
+    return Boolean(
+        it?.isChecked ??
+            it?.confirmed ??
+            it?.isConfirmed ??
+            it?.approved ??
+            it?.isApproved ??
+            it?.customerConfirmed ??
+            it?.isCustomerConfirmed,
+    );
+}
+
 function normalizeTicketStatus(raw) {
     const value = String(raw || '')
         .trim()
@@ -558,9 +570,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             }
             
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
-            setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
+            setTicketRaw(detailRes?.data ?? ticketRaw ?? null);            
             
-            triggerRefresh(); 
+            // Notify advisor table to open create mode immediately
+            try {
+                globalThis.dispatchEvent(new CustomEvent('startCreateEstimate'));
+            } catch {
+                // ignore if unavailable
+            }            triggerRefresh(); 
             notify('Đã chuyển về trạng thái "Nháp" để thêm dịch vụ.');
         } catch (err) {
             notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
@@ -586,6 +603,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
 
             triggerRefresh(); 
+            // Notify advisor table to open create mode immediately
+            try {
+                globalThis.dispatchEvent(new CustomEvent('startCreateEstimate'));
+            } catch {
+                // ignore if unavailable
+            }
             notify('Đã chuyển phiếu dịch vụ về trạng thái Nháp để bắt đầu báo giá mới.');
         } catch (err) {
             notify(err?.message || 'Không thể chuyển trạng thái phiếu dịch vụ về Nháp.');
@@ -612,8 +635,24 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             return;
         }
 
+        const rawItems = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+        const activeItems = rawItems.filter((it) => !it?.isRemoved);
+        const uncheckedActiveItems = activeItems.filter((it) => !getEstimateItemCheckedFlag(it));
+        if (activeItems.length === 0) {
+            notify('Báo giá không có hạng mục hợp lệ để xác nhận.');
+            return;
+        }
+
         try {
             setEstimateLoading(true);
+
+            if (uncheckedActiveItems.length > 0) {
+                notify(
+                    `Còn ${uncheckedActiveItems.length} hạng mục chưa được tích xác nhận. Vui lòng tích xác nhận hoặc xóa hẳn các dòng đó trước khi xác nhận báo giá.`,
+                );
+                return;
+            }
+
             await manageServiceTicketEstimateStatus(estimateIdNum, 'APPROVED', token);
             setLatestEstimate((prev) => (prev ? { ...prev, status: 'APPROVED', estimateStatus: 'APPROVED' } : prev));
             
@@ -638,10 +677,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const advisorItems = useMemo(() => Array.isArray(latestEstimate?.items) ? latestEstimate.items.filter(it => !it?.isRemoved) : [], [latestEstimate]);
     const hasAnyAdvisorItem = advisorItems.length > 0;
-    const hasAnyCheckedAdvisorItem = advisorItems.some(it => Boolean(
-        it?.isChecked ?? it?.confirmed ?? it?.isConfirmed ?? it?.approved ?? it?.isApproved ?? it?.customerConfirmed ?? it?.isCustomerConfirmed
-    ));
-    const canConfirmEstimate = Boolean(estimateIdNum) && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT') && hasAnyAdvisorItem && hasAnyCheckedAdvisorItem;
+    const canConfirmEstimate = Boolean(estimateIdNum) && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT') && hasAnyAdvisorItem;
     const handleEstimateStatusChange = useCallback((est) => {
         setLatestEstimate(est);
     }, []);
@@ -832,8 +868,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 />
                                 
                                 <AdvisorItemsTable 
-                                    key={`advisor-${ticket?.serviceTicketId}-${ticketStatus}-${estimateStatus}`} 
+                                    key={`advisor-${ticket?.serviceTicketId}`} 
                                     serviceTicketId={ticket?.serviceTicketId} 
+                                    ticketStatus={ticketStatus}
                                     onEstimateStatusChange={handleEstimateStatusChange}
                                     onRestartWorkflow={handleRestartFromArchived}
                                 />

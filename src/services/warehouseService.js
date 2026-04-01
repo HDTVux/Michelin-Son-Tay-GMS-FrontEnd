@@ -41,28 +41,47 @@ export const createTaxRule = (payload, token) => {
 // Warehouse item category APIs
 // GET: /api/warehouse/item-category/all (some envs may expose /item-categpry/all)
 export const fetchWarehouseItemCategories = async (token) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  // Prefer the correct endpoint
   try {
-    return await request('/api/warehouse/item-categoy/all', {
+    return await request('/api/warehouse/item-category/all', {
       method: 'GET',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers,
     });
   } catch {
-    // Fallback for older typo endpoint
-    return request('/api/warehouse/item-categoy/all', {
-      method: 'GET',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    // Fallbacks for older/typo endpoints in some envs
+    try {
+      return await request('/api/warehouse/item-categoy/all', {
+        method: 'GET',
+        headers,
+      });
+    } catch {
+      return request('/api/warehouse/item-categpry/all', {
+        method: 'GET',
+        headers,
+      });
+    }
   }
 };
 
-// POST: /api/warehouse/itemCategory/create
+// POST: /api/warehouse/item-category/create (newer)
+// POST: /api/warehouse/itemCategory/create (older)
 // Request: { itemCategoryId: null|number, categoryCode: string, categoryName: string, categoryType: string, isActive: string }
-export const createWarehouseItemCategory = (payload, token) => {
-  return request('/api/warehouse/itemCategory/create', {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: JSON.stringify(payload ?? {}),
-  });
+export const createWarehouseItemCategory = async (payload, token) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  try {
+    return await request('/api/warehouse/item-category/create', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload ?? {}),
+    });
+  } catch {
+    return request('/api/warehouse/itemCategory/create', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload ?? {}),
+    });
+  }
 };
 
 // Warehouse product line APIs
