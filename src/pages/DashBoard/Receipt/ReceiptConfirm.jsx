@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchServiceTicketDetail, fetchServiceTicketEstimate, manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
+import { getSafetyInspectionByTicketCode, getDefaultSafetyInspectionCategories } from '../../../services/safetyInspectionService.js';
 
 // (merged into above import)
 import { fetchAvailablePromotions, fetchPromotionByCode } from '../../../services/promotionService.js';
@@ -93,6 +94,7 @@ function normalizeTicketForReceipt(input, ticketCodeFallback) {
         ticketCode,
         receivedAt,
         handoverAt,
+        safetyInspectionEnabled: input?.safetyInspectionEnabled,
         customer: {
             name: input?.customer?.fullName || input?.customerName || input?.customer?.name || '',
             phone: input?.customer?.phone || input?.customerPhone || input?.phone || '',
@@ -202,6 +204,10 @@ export default function ReceiptConfirm() {
     const [estimateLoading, setEstimateLoading] = useState(false);
     const [estimateError, setEstimateError] = useState('');
 
+    const [safetyInspection, setSafetyInspection] = useState(null);
+
+    const [defaultCategories, setDefaultCategories] = useState([]);
+
     const [availablePromotions, setAvailablePromotions] = useState([]);
     const [promotionsLoading, setPromotionsLoading] = useState(false);
     const [promotionsError, setPromotionsError] = useState('');
@@ -304,6 +310,49 @@ export default function ReceiptConfirm() {
         return () => {
             ignore = true;
         };
+    }, []);
+
+    // Fetch safety inspection data
+    useEffect(() => {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        if (!ticketCodeParam) return;
+
+        let ignore = false;
+        const run = async () => {
+            try {
+                const res = await getSafetyInspectionByTicketCode(ticketCodeParam, token);
+                if (ignore) return;
+                console.log('>>> SAFETY INSPECTION DATA:', JSON.stringify(res?.data, null, 2));
+                setSafetyInspection(res?.data ?? null);
+            } catch {
+                if (ignore) return;
+                setSafetyInspection(null);
+            }
+        };
+        run();
+        return () => { ignore = true; };
+    }, [ticketCodeParam]);
+
+    // Fetch danh mục kiểm tra an toàn mặc định
+    useEffect(() => {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        let ignore = false;
+        const run = async () => {
+            try {
+                const res = await getDefaultSafetyInspectionCategories(token);
+                if (ignore) return;
+                const cats = Array.isArray(res?.data) ? res.data : [];
+                setDefaultCategories(cats);
+            } catch {
+                if (ignore) return;
+                setDefaultCategories([]);
+            }
+        };
+        run();
+        return () => { ignore = true; };
     }, []);
 
     const estimateItems = useMemo(() => {
@@ -418,6 +467,7 @@ export default function ReceiptConfirm() {
             ...ticket,
             receivedAtDisplay,
             handoverAtDisplay,
+            safetyInspectionEnabled: ticketRaw?.safetyInspectionEnabled,
             invoice: {
                 items: invoiceItems,
                 subtotal,
@@ -427,8 +477,10 @@ export default function ReceiptConfirm() {
                 total,
                 promotionLabel: buildPromotionLabel(appliedPromotion),
             },
+            safetyInspection,
+            defaultCategories,
         };
-    }, [ticket, receivedAtDisplay, handoverAtDisplay, payItems, subtotal, discountAmount, total, appliedPromotion]);
+    }, [ticket, ticketRaw, receivedAtDisplay, handoverAtDisplay, payItems, subtotal, discountAmount, total, appliedPromotion, safetyInspection, defaultCategories]);
 
     // Remove bill creation from print, only change ticket status to ARCHIVE
     const [archiving, setArchiving] = useState(false);

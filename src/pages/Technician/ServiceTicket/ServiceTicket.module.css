@@ -299,6 +299,50 @@
   accent-color: #3b82f6;
 }
 
+/* Safety checklist check cells */
+.checkCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+/* WHITE empty square — like □ */
+.checkEmpty {
+  color: #111111;
+  background: #ffffff;
+  border: 2px dashed #111111;
+}
+
+/* GREEN check — ✓ good */
+.checkGood {
+  color: #111111;
+  background: #16a34a;
+  border: 2px solid #16a34a;
+}
+
+/* ORANGE check — ✓ warning */
+.checkWarning {
+  color: #111111;
+  background: #ea580c;
+  border: 2px solid #ea580c;
+}
+
+/* RED check — ✓ replace */
+.checkReplace {
+  color: #111111;
+  background: #dc2626;
+  border: 2px solid #dc2626;
+}
+
 /* Custom Categories Table — same style as default table */
 .customTable {
   overflow-x: auto;
@@ -722,6 +766,29 @@
 
 .tireInputWhite:disabled {
   background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+/* Recommended pressure input - dashed border */
+.tireInputDashed {
+  width: 80px;
+  padding: 8px 6px;
+  border: 2px dashed #9ca3af;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+  background: white;
+  color: #1a1a1a;
+}
+
+.tireInputDashed:focus {
+  outline: none;
+  border-color: #3b82f6;
+  border-style: solid;
+}
+
+.tireInputDashed:disabled {
+  background: #f9fafb;
   cursor: not-allowed;
 }
 

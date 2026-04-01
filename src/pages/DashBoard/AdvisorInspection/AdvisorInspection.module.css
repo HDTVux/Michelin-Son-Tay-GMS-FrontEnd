@@ -97,10 +97,18 @@
   color: #374151;
 }
 
+.filterCardLabelsTwo {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
 .filterCardControls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+}
+
+.filterCardControlsTwo {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 }
 
 .filterCardControls input[type="date"],
@@ -128,6 +136,58 @@
   outline: none;
   border-color: #1E90FF;
   box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.1);
+}
+
+.dayNavigator {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.dayNavBtn,
+.dayCenterBtn {
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  height: 44px;
+}
+
+.dayNavBtn {
+  min-width: 78px;
+  padding: 0 12px;
+}
+
+.dayCenterBtn {
+  width: 100%;
+  padding: 0 14px;
+}
+
+.dayNavBtn:hover,
+.dayCenterBtn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.dayCenterBtn:focus-visible,
+.dayNavBtn:focus-visible {
+  outline: none;
+  border-color: #1E90FF;
+  box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.1);
+}
+
+.hiddenDateInput {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
 
 .filterCardActions {
@@ -289,6 +349,60 @@
   color: #c2410c;
 }
 
+.queueBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 108px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.queueHigh {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.queueMedium {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.queueNormal {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.queueNumber {
+  background: #e0f2fe;
+  color: #075985;
+  border-color: #bae6fd;
+}
+
+.queueUnassigned {
+  background: #f3f4f6;
+  color: #4b5563;
+  border-color: #e5e7eb;
+}
+
+.queueDone {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.queueCancelled {
+  background: #f3f4f6;
+  color: #4b5563;
+  border-color: #e5e7eb;
+}
+
 /* ─── License plate ─── */
 .licensePlate {
   display: inline-block;
@@ -358,6 +472,17 @@
   color: #fff;
 }
 
+.recommendBtn {
+  background: #fff;
+  color: #ea580c;
+  border-color: #ea580c;
+}
+
+.recommendBtn:hover:not(:disabled) {
+  background: #ea580c;
+  color: #fff;
+}
+
 /* Mở active */
 .viewBtnActive {
   background: #fff;
@@ -379,6 +504,19 @@
 
 .selectedRow td {
   background-color: #eff6ff !important;
+}
+
+.bookingTable tbody tr[draggable='true'] {
+  cursor: grab;
+}
+
+.bookingTable tbody tr[draggable='true']:active {
+  cursor: grabbing;
+}
+
+.draggingRow td {
+  opacity: 0.65;
+  background: #e0f2fe !important;
 }
 
 /* ─── Footer + Pagination ─── */
@@ -772,5 +910,19 @@
   }
   .rightPanel {
     min-height: 500px;
+  }
+}
+
+@media (max-width: 768px) {
+  .filterCardLabelsTwo,
+  .filterCardControlsTwo {
+    grid-template-columns: 1fr;
+  }
+  .dayNavigator {
+    grid-template-columns: 1fr;
+  }
+  .dayNavBtn,
+  .dayCenterBtn {
+    width: 100%;
   }
 }

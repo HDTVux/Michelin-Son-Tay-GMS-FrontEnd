@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { fetchTechnicianTicketDetail } from '../../../services/technicianService';
-import { fetchServiceTicketDetail } from '../../../services/serviceTicketService';
+import { fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
+import { fetchServiceTicketDetail, manageServiceTicketStatus } from '../../../services/serviceTicketService';
 import {
   getSafetyInspectionByTicketCode,
   saveSafetyInspectionData,
@@ -53,6 +53,21 @@ export const ServiceTicket = ({
   const [isEditable, setIsEditable] = useState(true);
   const [serviceTicketId, setServiceTicketId] = useState(null);
   const [inspectionId, setInspectionId] = useState(null);
+
+  // Error state cho validate 500 ký tự
+  const [recommendedTireSizeError, setRecommendedTireSizeError] = useState('');
+  const [notesError, setNotesError] = useState('');
+  const [skipReasonError, setSkipReasonError] = useState('');
+
+  // Error state cho advisor note (keyed by itemId)
+  const [advisorNoteErrors, setAdvisorNoteErrors] = useState({});
+
+  // Error state cho mm lốp (keyed by position)
+  const [tireMmErrors, setTireMmErrors] = useState({});
+
+  // Ref chống spam toast khi validate 500 ký tự
+  const toast500LastFired = useRef({});
+
   const [refreshKey, setRefreshKey] = useState(0);
   const canEditTechnicalFields = isEditable;
   const canEditAdvisorNotes = isEditable;
@@ -148,7 +163,7 @@ export const ServiceTicket = ({
             const status = inspection.inspectionStatus || (safetyEnabledFromTicket ? 'PENDING' : 'SKIPPED');
             setInspectionStatus(status);
             const canEdit = status === 'PENDING' || status === 'SKIPPED' || !status;
-            setIsEditable(canEdit); // COMPLETED -> khóa, phải bấm Chỉnh sửa để reopen rồi mới sửa tiếp (advisor+tech) // COMPLETED -> khóa, phải bấm Chỉnh sửa để reopen rồi mới sửa tiếp (advisor+tech)
+            setIsEditable(canEdit);
 
             if (inspection.tires && inspection.tires.length > 0) {
               const newTireData = { ...defaultTireData };
@@ -253,6 +268,38 @@ export const ServiceTicket = ({
   }, [resolvedTicketCode, defaultTireData, embedded, refreshKey, isAdvisorMode]);
 
   const handleTireDataChange = (position, field, value) => {
+    const key = `${position}_${field}`;
+
+    // Validate độ sâu mm: chỉ cho số từ 0–255
+    if (field === 'mm') {
+      const raw = String(value);
+      if (raw !== '') {
+        const num = parseFloat(raw);
+        if (!Number.isFinite(num) || num < 0 || num > 255) {
+          // Vẫn cho nhập để user thấy lỗi, nhưng KHÔNG cắt giá trị
+          setTireMmErrors(prev => ({ ...prev, [key]: 'Chỉ cho phép số từ 0 đến 255.' }));
+        } else {
+          setTireMmErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
+        }
+      } else {
+        setTireMmErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
+      }
+      setTireData(prev => ({
+        ...prev,
+        [position]: { ...prev[position], [field]: raw }
+      }));
+      return;
+    }
+
+    // Validate 500 ký tự cho các trường khác (size, pressure, recommendedPressure)
+    if (String(value).length > 500) {
+      setTireData(prev => ({
+        ...prev,
+        [position]: { ...prev[position], [field]: String(value).slice(0, 500) }
+      }));
+      return;
+    }
+
     setTireData(prev => ({
       ...prev,
       [position]: { ...prev[position], [field]: value }
@@ -273,8 +320,20 @@ export const ServiceTicket = ({
   };
 
   const handleAdvisorNoteChange = (itemId, value) => {
+    const raw = String(value);
+    if (raw.length > 500) {
+      const now = Date.now();
+      if (!toast500LastFired.current[`note_${itemId}`] || now - toast500LastFired.current[`note_${itemId}`] > 2000) {
+        toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
+        toast500LastFired.current[`note_${itemId}`] = now;
+      }
+      setAdvisorNoteErrors(prev => ({ ...prev, [itemId]: 'Tối đa 500 ký tự.' }));
+    } else {
+      setAdvisorNoteErrors(prev => { const n = { ...prev }; delete n[itemId]; return n; });
+    }
+    // Vẫn cập nhật giá trị để user thấy lỗi
     setSafetyChecks(prev => prev.map(item =>
-      item.id === itemId ? { ...item, advisorNote: value, note: value } : item
+      item.id === itemId ? { ...item, advisorNote: raw, note: raw } : item
     ));
   };
 
@@ -492,9 +551,14 @@ export const ServiceTicket = ({
 
       const getActualData = (data) => {
         if (!data || (!data.mm && !data.pressure)) return null;
+        const mmRaw = data.mm ? parseFloat(data.mm) : NaN;
+        const mm = Number.isFinite(mmRaw) ? mmRaw : null;
+        const pressureRaw = data.pressure ? parseFloat(data.pressure) : NaN;
+        const pressure = Number.isFinite(pressureRaw) ? pressureRaw : null;
+        if (mm == null && pressure == null) return null;
         return {
-          treadDepth: data.mm ? parseFloat(data.mm) : null,
-          pressure: data.pressure ? parseFloat(data.pressure) : null,
+          treadDepth: mm,
+          pressure,
           pressureUnit: 'PSI',
         };
       };
@@ -546,14 +610,11 @@ export const ServiceTicket = ({
         throw new Error('Thiếu serviceTicketId để lưu phiếu kiểm tra.');
       }
 
-      const draftInspectionStatus = String(inspectionStatus || '').toUpperCase() === 'SKIPPED' ? 'SKIPPED' : 'PENDING';
-
       const safetyPayload = {
         serviceTicketId: finalServiceTicketId,
         technicianNotes: notes || null,
         tires: tiresPayload,
         items: itemsPayload,
-        inspectionStatus: draftInspectionStatus,
       };
 
       if (currentInspectionId) {
@@ -573,15 +634,23 @@ export const ServiceTicket = ({
         .map((item) => ({
           workCategoryId: item.workCategoryId ?? null,
           customCategoryId: item.customCategoryId ?? null,
-          advisorNote: String(item.advisorNote ?? item.note ?? '').trim(),
+          advisorNote: String(item.advisorNote ?? item.note ?? ''),
         }));
 
       await updateAdvisorNotes(currentInspectionId, advisorItems, token);
+
+      // Lưu mềm cho advisor: giữ phiếu ở trạng thái có thể tiếp tục chỉnh sửa
+      try {
+        await reopenSafetyInspection(resolvedTicketCode, token);
+        setInspectionStatus('PENDING');
+      } catch (reopenError) {
+        console.warn('Không reopen được phiếu sau khi lưu mềm:', reopenError);
+      }
+
       setInspectionId(currentInspectionId);
-      setInspectionStatus(draftInspectionStatus);
       setIsEditable(true);
-      toast.success('Đã lưu toàn bộ dữ liệu phiếu kiểm tra an toàn.');
       setRefreshKey((prev) => prev + 1);
+      toast.success('Đã lưu dữ liệu phiếu kiểm tra an toàn.');
     } catch (error) {
       console.error('Lỗi khi lưu dữ liệu phiếu (advisor):', error);
       toast.error('Không thể lưu phiếu: ' + (error.message || 'Lỗi không xác định'));
@@ -621,9 +690,14 @@ export const ServiceTicket = ({
       const tiresPayload = (() => {
         const getActualData = (data) => {
           if (!data || (!data.mm && !data.pressure)) return null;
+          const mmRaw = data.mm ? parseFloat(data.mm) : NaN;
+          const mm = Number.isFinite(mmRaw) ? mmRaw : null;
+          const pressureRaw = data.pressure ? parseFloat(data.pressure) : NaN;
+          const pressure = Number.isFinite(pressureRaw) ? pressureRaw : null;
+          if (mm == null && pressure == null) return null;
           return {
-            treadDepth: data.mm ? parseFloat(data.mm) : null,
-            pressure: data.pressure ? parseFloat(data.pressure) : null,
+            treadDepth: mm,
+            pressure: pressure,
             pressureUnit: 'PSI'
           };
         };
@@ -669,7 +743,7 @@ export const ServiceTicket = ({
           customCategoryId: check.customCategoryId || null,
           itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null,
         }))
-        .filter(check => (check.workCategoryId || check.customCategoryId) && check.itemStatus);
+        .filter(check => (check.workCategoryId || check.customCategoryId));
 
       const finalServiceTicketId = resolveServiceTicketId();
       if (!finalServiceTicketId) {
@@ -707,6 +781,36 @@ export const ServiceTicket = ({
 
         if (advisorItems.length > 0) {
           await updateAdvisorNotes(currentInspectionId, advisorItems, token);
+        }
+      }
+
+      // Khi cố vấn viên hoàn thành phiếu an toàn: đồng bộ trạng thái công việc KTV ngay,
+      // không chờ kỹ thuật viên bấm "Bắt đầu làm việc".
+      if (isAdvisorMode) {
+        const finalServiceTicketId = resolveServiceTicketId();
+        let syncedTechnicianStatus = false;
+        let syncError = null;
+
+        try {
+          await startInspection(resolvedTicketCode, token);
+          syncedTechnicianStatus = true;
+        } catch (error) {
+          syncError = error;
+        }
+
+        if (!syncedTechnicianStatus && finalServiceTicketId) {
+          try {
+            await manageServiceTicketStatus(finalServiceTicketId, 'INSPECTION', token);
+            syncedTechnicianStatus = true;
+          } catch (error) {
+            syncError = error;
+          }
+        }
+
+        if (!syncedTechnicianStatus && syncError) {
+          toast.warn(
+            `Phiếu đã hoàn thành nhưng chưa đồng bộ trạng thái KTV: ${syncError.message || 'Lỗi không xác định'}`,
+          );
         }
       }
 
@@ -770,21 +874,38 @@ export const ServiceTicket = ({
               <input
                 type="text"
                 value={recommendedTireSize}
-                onChange={(e) => setRecommendedTireSize(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val.length > 500) {
+                    const now = Date.now();
+                    if (!toast500LastFired.current['recommendedTireSize'] || now - toast500LastFired.current['recommendedTireSize'] > 2000) {
+                      toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
+                      toast500LastFired.current['recommendedTireSize'] = now;
+                    }
+                    setRecommendedTireSizeError('Tối đa 500 ký tự.');
+                    setRecommendedTireSize(val);
+                  } else {
+                    setRecommendedTireSize(val);
+                    setRecommendedTireSizeError('');
+                  }
+                }}
                 className={styles.tireSizeInput}
                 placeholder="Nhập size lốp..."
                 disabled={!canEditTechnicalFields}
               />
+              {recommendedTireSizeError && (
+                <span style={{ color: '#dc2626', fontSize: '12px', marginTop: '2px' }}>{recommendedTireSizeError}</span>
+              )}
             </div>
           </div>
         </div>
 
-        <div style={{ position: 'relative', height: '550px', marginTop: '20px' }}>
-          {/* BÊN TRÁI - 2 lốp: Trước Trái + Sau Trái */}
-          <div style={{ position: 'absolute', left: '20px', top: '80px', display: 'flex', flexDirection: 'column', gap: '100px' }}>
-            {/* Lốp Trước Bên Trái */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div className={styles.tirePosition}>
+        <div style={{ position: 'relative', height: '520px', marginTop: '20px' }}>
+          {/* BÊN TRÁI - FRONT LEFT (trên-trái) + REAR LEFT (dưới-trái) */}
+          <div style={{ position: 'absolute', left: '10px', top: '50px', display: 'flex', flexDirection: 'column', gap: '100px' }}>
+            {/* FRONT LEFT */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div className={styles.tireBoxRow}>
                   <input type="text" value={tireData.frontLeft.size1} onChange={(e) => handleTireDataChange('frontLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireSlash}>/</span>
@@ -794,18 +915,21 @@ export const ServiceTicket = ({
                 </div>
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                  <input type="text" value={tireData.frontLeft.mm} onChange={(e) => handleTireDataChange('frontLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <input type="text" value={tireData.frontLeft.mm} onChange={(e) => handleTireDataChange('frontLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+                    {tireMmErrors['frontLeft_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['frontLeft_mm']}</span>}
+                  </div>
                 </div>
                 <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm</span></div>
+                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <input type="text" value={tireData.frontLeft.pressure} onChange={(e) => handleTireDataChange('frontLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
               </div>
             </div>
 
-            {/* Lốp Sau Bên Trái */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div className={styles.tirePosition}>
+            {/* REAR LEFT */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div className={styles.tireBoxRow}>
                   <input type="text" value={tireData.rearLeft.size1} onChange={(e) => handleTireDataChange('rearLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireSlash}>/</span>
@@ -815,87 +939,105 @@ export const ServiceTicket = ({
                 </div>
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                  <input type="text" value={tireData.rearLeft.mm} onChange={(e) => handleTireDataChange('rearLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <input type="text" value={tireData.rearLeft.mm} onChange={(e) => handleTireDataChange('rearLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+                    {tireMmErrors['rearLeft_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['rearLeft_mm']}</span>}
+                  </div>
                 </div>
                 <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm</span></div>
+                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <input type="text" value={tireData.rearLeft.pressure} onChange={(e) => handleTireDataChange('rearLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* THÂN XE - Giữa - có hình ảnh */}
-          <div style={{ position: 'absolute', left: '50%', top: '45%', transform: 'translate(-50%, -50%)' }}>
-            <img src={carImage} alt="Car" style={{ width: '280px', height: 'auto', objectFit: 'contain' }} />
+          {/* THÂN XE - Giữa */}
+          <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
+            <img src={carImage} alt="Car" style={{ width: '260px', height: 'auto', objectFit: 'contain' }} />
           </div>
 
-          {/* BÁNH XE - 4 vị trí */}
-          <div className={styles.wheel} style={{ position: 'absolute', top: '100px', left: '50%', transform: 'translateX(-130px)' }}>
+          {/* BÁNH XE - 4 vị trí hiển thị */}
+          <div className={styles.wheel} style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-120px)' }}>
             <div className={styles.wheelRim}></div>
           </div>
-          <div className={styles.wheel} style={{ position: 'absolute', top: '100px', left: '50%', transform: 'translateX(85px)' }}>
+          <div className={styles.wheel} style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(75px)' }}>
             <div className={styles.wheelRim}></div>
           </div>
-          <div className={styles.wheel} style={{ position: 'absolute', top: '300px', left: '50%', transform: 'translateX(-130px)' }}>
+          <div className={styles.wheel} style={{ position: 'absolute', top: '280px', left: '50%', transform: 'translateX(-120px)' }}>
             <div className={styles.wheelRim}></div>
           </div>
-          <div className={styles.wheel} style={{ position: 'absolute', top: '300px', left: '50%', transform: 'translateX(85px)' }}>
+          <div className={styles.wheel} style={{ position: 'absolute', top: '280px', left: '50%', transform: 'translateX(75px)' }}>
             <div className={styles.wheelRim}></div>
           </div>
 
-          {/* BÊN PHẢI - 3 lốp: Trước Phải + Sau Phải + Lốp Dự phòng */}
-          <div style={{ position: 'absolute', right: '140px', top: '60px', display: 'flex', flexDirection: 'column', gap: '70px' }}>
-            {/* Lốp Trước Bên Phải */}
-            <div className={styles.tirePosition}>
-              <div className={styles.tireBoxRow}>
-                <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                <input type="text" value={tireData.frontRight.mm} onChange={(e) => handleTireDataChange('frontRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+          {/* BÊN PHẢI - FRONT RIGHT + REAR RIGHT + SPARE */}
+          {/* Mỗi tire block gồm: [mm] [PSI] | [Áp suất khuyến cáo] */}
+          <div style={{ position: 'absolute', right: '10px', top: '50px', display: 'flex', flexDirection: 'column', gap: '50px' }}>
+
+            {/* FRONT RIGHT - [mm][PSI] | [Áp suất khuyến cáo] */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              {/* [mm] [PSI] */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div className={styles.tireBoxRow}>
+                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <input type="text" value={tireData.frontRight.mm} onChange={(e) => handleTireDataChange('frontRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+                    {tireMmErrors['frontRight_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['frontRight_mm']}</span>}
+                  </div>
+                </div>
+                <div className={styles.tireBoxRow}>
+                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                  <input type="text" value={tireData.frontRight.pressure} onChange={(e) => handleTireDataChange('frontRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+                </div>
               </div>
-              <div className={styles.tireBoxRow}>
-                <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm</span></div>
-                <input type="text" value={tireData.frontRight.pressure} onChange={(e) => handleTireDataChange('frontRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+              {/* [Áp suất khuyến cáo] */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
+                <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
+                <input type="text" value={tireData.frontRight.recommendedPressure} onChange={(e) => handleTireDataChange('frontRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
               </div>
             </div>
 
-            {/* Lốp Sau Bên Phải */}
-            <div className={styles.tirePosition}>
-              <div className={styles.tireBoxRow}>
-                <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                <input type="text" value={tireData.rearRight.mm} onChange={(e) => handleTireDataChange('rearRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+            {/* REAR RIGHT - [mm][PSI] | [Áp suất khuyến cáo] */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div className={styles.tireBoxRow}>
+                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <input type="text" value={tireData.rearRight.mm} onChange={(e) => handleTireDataChange('rearRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+                    {tireMmErrors['rearRight_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['rearRight_mm']}</span>}
+                  </div>
+                </div>
+                <div className={styles.tireBoxRow}>
+                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                  <input type="text" value={tireData.rearRight.pressure} onChange={(e) => handleTireDataChange('rearRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+                </div>
               </div>
-              <div className={styles.tireBoxRow}>
-                <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm</span></div>
-                <input type="text" value={tireData.rearRight.pressure} onChange={(e) => handleTireDataChange('rearRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
+                <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
+                <input type="text" value={tireData.rearRight.recommendedPressure} onChange={(e) => handleTireDataChange('rearRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
               </div>
             </div>
 
-            {/* Lốp Dự phòng */}
-            <div className={styles.tirePosition}>
-              <div className={styles.tireBoxRow}>
-                <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                <input type="text" value={tireData.spare.mm} onChange={(e) => handleTireDataChange('spare', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+            {/* SPARE - [mm][PSI] | [Áp suất khuyến cáo] */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div className={styles.tireBoxRow}>
+                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <input type="text" value={tireData.spare.mm} onChange={(e) => handleTireDataChange('spare', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+                    {tireMmErrors['spare_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['spare_mm']}</span>}
+                  </div>
+                </div>
+                <div className={styles.tireBoxRow}>
+                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                  <input type="text" value={tireData.spare.pressure} onChange={(e) => handleTireDataChange('spare', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+                </div>
               </div>
-              <div className={styles.tireBoxRow}>
-                <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm</span></div>
-                <input type="text" value={tireData.spare.pressure} onChange={(e) => handleTireDataChange('spare', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
+                <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
+                <input type="text" value={tireData.spare.recommendedPressure} onChange={(e) => handleTireDataChange('spare', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
               </div>
-            </div>
-          </div>
-
-          {/* CỘT ÁP SUẤT KHUYẾN CÁO - Bên phải */}
-          <div style={{ position: 'absolute', right: '40px', top: '60px', display: 'flex', flexDirection: 'column', gap: '70px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '110px', justifyContent: 'center' }}>
-              <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textAlign: 'center' }}>Áp suất<br/>khuyến cáo</label>
-              <input type="text" value={tireData.frontRight.recommendedPressure} onChange={(e) => handleTireDataChange('frontRight', 'recommendedPressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '80px', height: '36px', fontSize: '14px' }} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '110px', justifyContent: 'center' }}>
-              <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textAlign: 'center' }}>Áp suất<br/>khuyến cáo</label>
-              <input type="text" value={tireData.rearRight.recommendedPressure} onChange={(e) => handleTireDataChange('rearRight', 'recommendedPressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '80px', height: '36px', fontSize: '14px' }} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '110px', justifyContent: 'center' }}>
-              <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px', textAlign: 'center' }}>Áp suất<br/>khuyến cáo</label>
-              <input type="text" value={tireData.spare.recommendedPressure} onChange={(e) => handleTireDataChange('spare', 'recommendedPressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '80px', height: '36px', fontSize: '14px' }} />
             </div>
           </div>
         </div>
@@ -939,37 +1081,55 @@ export const ServiceTicket = ({
                     )}
                   </td>
                   <td>
-                    <input type="checkbox"
-                      checked={item.good}
-                      disabled={!canEditTechnicalFields}
-                      onChange={() => handleSafetyCheck(item.id, 'good')} />
+                    <div
+                      onClick={canEditTechnicalFields ? () => handleSafetyCheck(item.id, 'good') : undefined}
+                      className={`${styles.checkCell} ${item.good ? styles.checkGood : styles.checkEmpty}`}
+                      title={canEditTechnicalFields ? (item.good ? 'Bỏ chọn TỐT' : 'Chọn TỐT') : ''}
+                    >
+                      {item.good ? '✓' : '□'}
+                    </div>
                   </td>
                   <td>
-                    <input type="checkbox"
-                      checked={item.warning}
-                      disabled={!canEditTechnicalFields}
-                      onChange={() => handleSafetyCheck(item.id, 'warning')} />
+                    <div
+                      onClick={canEditTechnicalFields ? () => handleSafetyCheck(item.id, 'warning') : undefined}
+                      className={`${styles.checkCell} ${item.warning ? styles.checkWarning : styles.checkEmpty}`}
+                      title={canEditTechnicalFields ? (item.warning ? 'Bỏ chọn LƯU Ý' : 'Chọn LƯU Ý') : ''}
+                    >
+                      {item.warning ? '✓' : '□'}
+                    </div>
                   </td>
                   <td>
-                    <input type="checkbox"
-                      checked={item.replace}
-                      disabled={!canEditTechnicalFields}
-                      onChange={() => handleSafetyCheck(item.id, 'replace')} />
+                    <div
+                      onClick={canEditTechnicalFields ? () => handleSafetyCheck(item.id, 'replace') : undefined}
+                      className={`${styles.checkCell} ${item.replace ? styles.checkReplace : styles.checkEmpty}`}
+                      title={canEditTechnicalFields ? (item.replace ? 'Bỏ chọn THAY' : 'Chọn THAY') : ''}
+                    >
+                      {item.replace ? '✓' : '□'}
+                    </div>
                   </td>
                   <td className={styles.noteCell}>
                     {isAdvisorMode ? (
-                      <input
-                        type="text"
-                        className={styles.noteInput}
-                        value={item.advisorNote || ''}
-                        onChange={(e) => handleAdvisorNoteChange(item.id, e.target.value)}
-                        placeholder="Nhập ghi chú cố vấn..."
-                        disabled={!canEditAdvisorNotes}
-                      />
-                    ) : (item.advisorNote || item.note || '').trim() !== '' ? (
-                      <span style={{ color: '#92400e', fontStyle: 'italic', fontSize: '13px' }}>{item.advisorNote || item.note}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <input
+                          type="text"
+                          className={styles.noteInput}
+                          value={item.advisorNote || ''}
+                          onChange={(e) => handleAdvisorNoteChange(item.id, e.target.value)}
+                          placeholder="Nhập ghi chú cố vấn..."
+                          disabled={!canEditAdvisorNotes}
+                        />
+                        {advisorNoteErrors[item.id] && (
+                          <span style={{ color: '#dc2626', fontSize: '11px' }}>{advisorNoteErrors[item.id]}</span>
+                        )}
+                      </div>
                     ) : (
-                      <span style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '13px' }}>—</span>
+                      <>
+                        {(item.advisorNote || item.note || '').trim() !== '' ? (
+                          <span style={{ color: '#92400e', fontStyle: 'italic', fontSize: '13px' }}>{item.advisorNote || item.note}</span>
+                        ) : (
+                          <span style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '13px' }}>—</span>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>
@@ -985,11 +1145,28 @@ export const ServiceTicket = ({
         <textarea
           className={styles.notesTextarea}
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val.length > 500) {
+              const now = Date.now();
+              if (!toast500LastFired.current['notes'] || now - toast500LastFired.current['notes'] > 2000) {
+                toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
+                toast500LastFired.current['notes'] = now;
+              }
+              setNotesError('Tối đa 500 ký tự.');
+              setNotes(val);
+            } else {
+              setNotes(val);
+              setNotesError('');
+            }
+          }}
           rows={4}
           placeholder="Nhập ghi chú..."
           disabled={!canEditTechnicalFields}
         />
+        {notesError && (
+          <span style={{ color: '#dc2626', fontSize: '12px', marginTop: '2px', display: 'block' }}>{notesError}</span>
+        )}
       </div>
 
       {(isAdvisorMode || !embedded) && (
@@ -998,28 +1175,28 @@ export const ServiceTicket = ({
             {!(isAdvisorMode && embedded) && (
               <button className={styles.closeButton} onClick={handleCloseTicket}>Đóng</button>
             )}
+            {isAdvisorMode && !shouldShowEnableEditButton && (
+              <button
+                className={styles.completeButton}
+                onClick={handleSaveAdvisorNotes}
+                disabled={!isEditable}
+              >
+                Lưu
+              </button>
+            )}
           </div>
           <div className={styles.actionRight}>
             {shouldShowEnableEditButton ? (
               <button className={styles.completeButton} onClick={handleEnableEdit}>Chỉnh sửa</button>
             ) : isAdvisorMode ? (
-              <>
-                <button
-                  className={styles.completeButton}
-                  onClick={handleSaveAdvisorNotes}
-                  disabled={!isEditable}
-                >
-                  Lưu
-                </button>
-                <button
-                  className={styles.completeButton}
-                  onClick={handleSave}
-                  disabled={!isEditable || Boolean(advisorCompletionError)}
-                  title={advisorCompletionError || ''}
-                >
-                  Hoàn thành
-                </button>
-              </>
+              <button
+                className={styles.completeButton}
+                onClick={handleSave}
+                disabled={!isEditable || Boolean(advisorCompletionError)}
+                title={advisorCompletionError || ''}
+              >
+                Hoàn thành
+              </button>
             ) : (
               <button
                 className={styles.completeButton}
@@ -1067,7 +1244,30 @@ export const ServiceTicket = ({
               <p style={{ marginBottom: '16px', color: '#374151' }}>Bạn có chắc chắn muốn bỏ qua kiểm tra an toàn cho phiếu dịch vụ này không?</p>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Lý do bỏ qua:</label>
-                <textarea value={skipReason} onChange={(e) => setSkipReason(e.target.value)} className={styles.formInput} rows={3} placeholder="Nhập lý do bỏ qua kiểm tra..." />
+                <textarea
+                    value={skipReason}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (val.length > 500) {
+                            const now = Date.now();
+                            if (!toast500LastFired.current['skipReason'] || now - toast500LastFired.current['skipReason'] > 2000) {
+                                toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
+                                toast500LastFired.current['skipReason'] = now;
+                            }
+                            setSkipReasonError('Tối đa 500 ký tự.');
+                            setSkipReason(val);
+                        } else {
+                            setSkipReason(val);
+                            setSkipReasonError('');
+                        }
+                    }}
+                    className={styles.formInput}
+                    rows={3}
+                    placeholder="Nhập lý do bỏ qua kiểm tra..."
+                />
+                {skipReasonError && (
+                  <span style={{ color: '#dc2626', fontSize: '12px', marginTop: '2px', display: 'block' }}>{skipReasonError}</span>
+                )}
               </div>
             </div>
             <div className={styles.modalFooter}>

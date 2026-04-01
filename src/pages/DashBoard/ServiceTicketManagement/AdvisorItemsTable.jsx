@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
+import { toast } from 'react-toastify';
 import styles from './ServiceTicketDetail.module.css';
 import {
     formatCurrencyVnd,
@@ -120,7 +121,9 @@ function EstimateItemRow({
     toggleChecked,
     canToggleChecked,
     isEditing,
+    isCreating,
     softDeleteEditRow,
+    softDeleteDraftRow,
     openCatalogPicker,
     showTaxColumn,
 }) {
@@ -248,17 +251,29 @@ function EstimateItemRow({
                     />
                 )}
             </td>
-            {isEditing ? (
+            {(isEditing || isCreating) ? (
                 <td className={styles.tdCenter}>
-                    <button
-                        type="button"
-                        className="ui-btn ui-btn--ghost"
-                        onClick={() => softDeleteEditRow(idx)}
-                        disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row)}
-                        title="Xóa dòng này"
-                    >
-                        Xóa
-                    </button>
+                    {isEditing ? (
+                        <button
+                            type="button"
+                            className="ui-btn ui-btn--ghost"
+                            onClick={() => softDeleteEditRow(idx)}
+                            disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row)}
+                            title="Xóa dòng này"
+                        >
+                            Xóa
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            className="ui-btn ui-btn--ghost"
+                            onClick={() => softDeleteDraftRow(idx)}
+                            disabled={isSaving}
+                            title="Xóa dòng này"
+                        >
+                            Xóa
+                        </button>
+                    )}
                 </td>
             ) : null}
         </tr>
@@ -277,7 +292,9 @@ EstimateItemRow.propTypes = {
     toggleChecked: PropTypes.func,
     canToggleChecked: PropTypes.bool,
     isEditing: PropTypes.bool,
+    isCreating: PropTypes.bool,
     softDeleteEditRow: PropTypes.func,
+    softDeleteDraftRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
     showTaxColumn: PropTypes.bool,
 };
@@ -399,6 +416,7 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
         canToggleChecked,
         toggleChecked,
         softDeleteEditRow,
+        softDeleteDraftRow,
         inventory,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange });
@@ -410,6 +428,12 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
 
     // Cho phép tạo mới nếu chưa có báo giá hoặc báo giá hiện tại đã ARCHIVED
     const canCreateNew = !isCreating && !isEditing && (showAddEstimate || isArchived);
+
+    // Ref chống spam toast khi validate 500 ký tự
+    const toast500LastFired = useRef({});
+
+    // Error state cho validate 500 ký tự
+    const [recommendationError, setRecommendationError] = useState('');
 
     const handleStartCreate = async () => {
         if (isArchived && onRestartWorkflow) {
@@ -482,7 +506,10 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                 <div className={styles.advisorCard}>
                     <h3 className={styles.advisorTitle}>Chẩn đoán kỹ thuật</h3>
                     <div className="ui-field" style={{ marginBottom: 0 }}>
-                        <textarea placeholder="Nhập kết quả chẩn đoán..." disabled={isRestrictedStatus} />
+                        <textarea
+                            placeholder="Nhập kết quả chẩn đoán..."
+                            disabled={isRestrictedStatus}
+                        />
                     </div>
 
                     <h3 className={styles.advisorTitle} style={{ marginTop: 14 }}>Dịch vụ đề xuất</h3>
@@ -647,7 +674,7 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                             {isCreating || isEditing ? <th scope="col">THUẾ </th> : null}
                             <th scope="col">KHO</th>
                             <th scope="col">XÁC NHẬN</th>
-                            {isEditing ? <th scope="col">XÓA</th> : null}
+                            {isCreating || isEditing ? <th scope="col">XÓA</th> : null}
                         </tr>
                     </thead>
                     <tbody>
@@ -666,7 +693,9 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                                 toggleChecked={toggleChecked}
                                 canToggleChecked={canToggleChecked}
                                 isEditing={isEditing}
+                                isCreating={isCreating}
                                 softDeleteEditRow={softDeleteEditRow}
+                                softDeleteDraftRow={softDeleteDraftRow}
                                 openCatalogPicker={openCatalogPicker}
                             />
                         ))}
@@ -677,7 +706,7 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                                 TỔNG CỘNG
                             </td>
                             <td className={styles.tdNumber}>{footerTotalText}</td>
-                            <td colSpan={isCreating || isEditing ? (isEditing ? 4 : 3) : 2} />
+                            <td colSpan={isCreating || isEditing ? (isCreating ? 3 : 4) : 2} />
                         </tr>
                     </tfoot>
                 </table>
@@ -705,9 +734,26 @@ export default function AdvisorItemsTable({ serviceTicketId, onEstimateStatusCha
                     id="advisor-recommendation"
                     placeholder="Nhập khuyến nghị..."
                     value={recommendation}
-                    onChange={(e) => setRecommendation(e.target.value)}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (val.length > 500) {
+                            const now = Date.now();
+                            if (!toast500LastFired.current['recommendation'] || now - toast500LastFired.current['recommendation'] > 2000) {
+                                toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
+                                toast500LastFired.current['recommendation'] = now;
+                            }
+                            setRecommendationError('Tối đa 500 ký tự.');
+                            setRecommendation(val);
+                        } else {
+                            setRecommendation(val);
+                            setRecommendationError('');
+                        }
+                    }}
                     disabled={isRestrictedStatus}
                 />
+                {recommendationError && (
+                    <span style={{ color: '#dc2626', fontSize: '12px', marginTop: '2px', display: 'block' }}>{recommendationError}</span>
+                )}
             </div>
 
 

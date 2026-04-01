@@ -3,25 +3,6 @@ import styles from './Receipt.module.css';
 import logo from '../../../assets/Logo.png';
 import CarIcon from '../../../assets/car.jpg';
 
-const SAFETY_ITEMS = [
-	'Lốp',
-	'Gạt mưa',
-	'Nước rửa kính',
-	'Má phanh',
-	'Đĩa phanh',
-	'Dầu phanh',
-	'Dầu động cơ',
-	'Lọc dầu động cơ',
-	'Nước mát',
-	'Ắc quy',
-	'Lọc gió động cơ',
-	'Lọc gió điều hòa',
-	'Thước lái',
-];
-
-
-
-const PRESSURE_BOX_KEYS = ['pressure-a', 'pressure-b', 'pressure-c'];
 const SERVICE_LINE_KEYS = Array.from({ length: 15 }).map((_, i) => `service-line-${String(i + 1).padStart(2, '0')}`);
 
 function safeText(value) {
@@ -52,6 +33,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
 	const customer = ticket?.customer || {};
 	const vehicle = ticket?.vehicle || {};
     const invoice = ticket?.invoice || {};
+    const safetyInspection = ticket?.safetyInspection || {};
 
 	const receivedAt = safeText(ticket?.receivedAtDisplay || ticket?.receivedAt || '');
 	const handoverAt = safeText(ticket?.handoverAtDisplay || ticket?.handoverAt || '');
@@ -79,6 +61,70 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     const discountAmount = toMoneyNumber(invoice?.discountAmount);
     const vatAmount = toMoneyNumber(invoice?.vatAmount);
     const total = Number.isFinite(Number(invoice?.total)) ? Number(invoice.total) : Math.max(0, subtotal - discountAmount) + vatAmount;
+
+    // Safety inspection data
+    // Kiểm tra an toàn: dựa vào có dữ liệu safety inspection hay không
+    const hasSafetyEnabled = Boolean(safetyInspection) && (
+        Boolean(safetyInspection?.technicianNotes) ||
+        Boolean(safetyInspection?.recommendedTireSize) ||
+        Boolean(safetyInspection?.tires?.length) ||
+        Boolean(safetyInspection?.items?.length)
+    );
+
+    const recommendedTireSize = safeText(safetyInspection?.recommendedTireSize || '');
+    const technicianNotes = safeText(safetyInspection?.technicianNotes || '');
+
+    // Tire data - normalize from API
+    const tireDataMap = {};
+    if (Array.isArray(safetyInspection?.tires)) {
+        safetyInspection.tires.forEach(t => {
+            const posMap = {
+                'FRONT_LEFT': 'frontLeft',
+                'FRONT_RIGHT': 'frontRight',
+                'REAR_LEFT': 'rearLeft',
+                'REAR_RIGHT': 'rearRight',
+                'SPARE': 'spare',
+            };
+            const pos = posMap[t.tirePosition];
+            if (pos) {
+                tireDataMap[pos] = t;
+            }
+        });
+    }
+
+    const tireFrontLeft = tireDataMap['frontLeft'] || {};
+    const tireFrontRight = tireDataMap['frontRight'] || {};
+    const tireRearLeft = tireDataMap['rearLeft'] || {};
+    const tireRearRight = tireDataMap['rearRight'] || {};
+    const tireSpare = tireDataMap['spare'] || {};
+
+    // Áp suất khuyến cáo cho từng vị trí lốp (dùng recommendedPressure trong tire object)
+    const frontRecommendedPressure = tireFrontRight?.recommendedPressure != null ? String(tireFrontRight.recommendedPressure) : '';
+    const rearRecommendedPressure = tireRearRight?.recommendedPressure != null ? String(tireRearRight.recommendedPressure) : '';
+    const spareRecommendedPressure = tireSpare?.recommendedPressure != null ? String(tireSpare.recommendedPressure) : '';
+
+    // Build tire specification strings
+    const buildTireSpec = (t) => {
+        if (!t?.tireSpecification) return '___ / ___ R ___';
+        return t.tireSpecification;
+    };
+
+    // Safety items from inspection - lookup by workCategoryId
+    const safetyItemsMap = {};
+    if (Array.isArray(safetyInspection?.items)) {
+        safetyInspection.items.forEach(item => {
+            const key = item?.workCategoryId || item?.customCategoryId || '';
+            if (key) safetyItemsMap[key] = item;
+        });
+    }
+
+    // Danh sách hạng mục kiểm tra: dùng defaultCategories từ API
+    const defaultCategories = ticket?.defaultCategories || [];
+    const displayItems = Array.isArray(defaultCategories) && defaultCategories.length > 0
+        ? defaultCategories
+        : (Array.isArray(safetyInspection?.items)
+            ? safetyInspection.items.filter(it => it?.categoryName).map(it => ({ categoryName: it.categoryName }))
+            : []);
 
     return (
     <section className={styles.sheet}>
@@ -121,10 +167,10 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                     <div className={styles.infoLabel}>Kiểm tra an toàn:</div>
                     <div className={styles.inlineChecks}>
                         <span className={styles.checkItem}>
-                            <span className={styles.checkBoxSmall} /> Có
+                            <span className={styles.checkBoxSmall} style={hasSafetyEnabled ? { background: '#000' } : {}} /> Có
                         </span>
                         <span className={styles.checkItem}>
-                            <span className={styles.checkBoxSmall} /> Không
+                            <span className={styles.checkBoxSmall} style={!hasSafetyEnabled ? { background: '#000' } : {}} /> Không
                         </span>
                     </div>
                 </div>
@@ -154,93 +200,146 @@ export default function Receipt({ ticket, carDiagramSrc }) {
         {/* ===== 2. SƠ ĐỒ XE & BẢNG AN TOÀN ===== */}
         <div className={styles.middleSplit}>
 
-            {/* Cột trái: Sơ đồ xe + Áp suất khuyến cáo */}
-            <div className={styles.diagramWrap}>
-
-                {/* Cột trái: Thông số lốp trước */}
-                <div className={styles.diagramLeft}>
-                    <div className={styles.tireBlockTop}>
-                        <div className={styles.tireHeading}>___ / ___ R ______</div>
-                        <div className={styles.tireCell}>
-                            <div className={styles.tireUnit}>mm</div>
-                            <div className={styles.tireValue} />
-                        </div>
-                        <div className={styles.tireCell}>
-                            <div className={styles.tireUnit}>kg/cm²</div>
-                            <div className={styles.tireValue} />
-                        </div>
+            {/* Phần trái: 2 cụm thông số lốp — căn ngang bánh trước / bánh sau */}
+            <div className={styles.leftTires}>
+                {/* Cụm trước trái */}
+                <div className={styles.tireClusterLeft}>
+                    <div className={styles.tireClusterHeader}>
+                        <span className={styles.tireClusterLabel}>Thông số lốp</span>
                     </div>
-                    <div className={styles.tireBlockBottom}>
-                        <div className={styles.tireHeading}>___ / ___ R ______</div>
-                        <div className={styles.tireCell}>
-                            <div className={styles.tireUnit}>mm</div>
-                            <div className={styles.tireValue} />
-                        </div>
-                        <div className={styles.tireCell}>
-                            <div className={styles.tireUnit}>kg/cm²</div>
-                            <div className={styles.tireValue} />
-                        </div>
+                    <div className={styles.tireClusterSize}>{buildTireSpec(tireFrontLeft)}</div>
+                    <div className={styles.tireClusterRow}>
+                        <div className={styles.tireClusterUnit}>mm</div>
+                        <div className={styles.tireClusterValue}>{tireFrontLeft?.treadDepth != null ? tireFrontLeft.treadDepth : ''}</div>
+                    </div>
+                    <div className={styles.tireClusterRow}>
+                        <div className={styles.tireClusterUnit}>kg/cm²</div>
+                        <div className={styles.tireClusterValue}>{tireFrontLeft?.pressure != null ? tireFrontLeft.pressure : ''}</div>
                     </div>
                 </div>
 
-                {/* Cột giữa: Hình xe */}
-                <div className={styles.diagramCenter}>
-                    <div className={styles.carBox}>
-                        <CarDiagram src={carDiagramSrc} />
+                {/* Cụm sau trái */}
+                <div className={styles.tireClusterLeft}>
+                    <div className={styles.tireClusterSize}>{buildTireSpec(tireRearLeft)}</div>
+                    <div className={styles.tireClusterRow}>
+                        <div className={styles.tireClusterUnit}>mm</div>
+                        <div className={styles.tireClusterValue}>{tireRearLeft?.treadDepth != null ? tireRearLeft.treadDepth : ''}</div>
                     </div>
-                    <div className={styles.sizeNoteRow}>
-                        <span className={styles.infoLabel}>Size lốp khuyến cáo:</span>
-                        <div className={styles.infoDotted} />
-                    </div>
-                    <div className={styles.sizeNoteRow}>
-                        <span className={styles.infoLabel}>Lưu ý:</span>
-                        <div className={styles.infoDotted} />
-                    </div>
-                </div>
-
-                {/* Cột phải: Áp suất khuyến cáo */}
-                <div className={styles.diagramRight}>
-                    <div className={styles.pressureLayout}>
-                        <div className={styles.pressureLabel}>Áp suất<br/>khuyến cáo</div>
-                        <div className={styles.pressureBoxes}>
-							{PRESSURE_BOX_KEYS.map((key) => (
-								<div key={key} className={styles.pressureBox}>
-                                    <div className={styles.pressureRow}>
-                                        <div className={styles.pressureUnit}>mm</div>
-                                        <div className={styles.pressureValue} />
-                                    </div>
-                                    <div className={styles.pressureRow}>
-                                        <div className={styles.pressureUnit}>kg/cm²</div>
-                                        <div className={styles.pressureValue} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                    <div className={styles.tireClusterRow}>
+                        <div className={styles.tireClusterUnit}>kg/cm²</div>
+                        <div className={styles.tireClusterValue}>{tireRearLeft?.pressure != null ? tireRearLeft.pressure : ''}</div>
                     </div>
                 </div>
             </div>
 
+            {/* Phần giữa: Hình xe + Size lốp + Lưu ý */}
+            <div className={styles.carArea}>
+                {/* Hình xe */}
+                <div className={styles.carBox}>
+                    <CarDiagram src={carDiagramSrc} />
+                </div>
+                {/* Size lốp & Lưu ý nằm dưới đuôi xe, sát cả 2 bên */}
+                <div className={styles.sizeNoteWrap}>
+                    <div className={styles.sizeNoteRow}>
+                        <span className={styles.infoLabel}>Size lốp khuyến cáo:</span>
+                        <div className={styles.infoDotted}>{recommendedTireSize}</div>
+                    </div>
+                    <div className={styles.sizeNoteRow}>
+                        <span className={styles.infoLabel}>Lưu ý:</span>
+                        <div className={styles.infoDotted}>{technicianNotes}</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Phần phải: 3 cụm áp suất + nhãn xoay dọc */}
+            <div className={styles.rightPressures}>
+                <div className={styles.pressureClustersWrap}>
+                    <div className={styles.pressureCluster}>
+                        <div className={styles.pressureClusterUnit}>Trước</div>
+                        <div className={styles.pressureClusterRow}>
+                            <div className={styles.pressureUnit}>mm</div>
+                            <div className={styles.pressureValue}>{tireFrontRight?.treadDepth != null ? tireFrontRight.treadDepth : ''}</div>
+                        </div>
+                        <div className={styles.pressureClusterRow}>
+                            <div className={styles.pressureUnit}>kg/cm²</div>
+                            <div className={styles.pressureValue}>{frontRecommendedPressure}</div>
+                        </div>
+                    </div>
+                    <div className={styles.pressureCluster}>
+                        <div className={styles.pressureClusterUnit}>Sau</div>
+                        <div className={styles.pressureClusterRow}>
+                            <div className={styles.pressureUnit}>mm</div>
+                            <div className={styles.pressureValue}>{tireRearRight?.treadDepth != null ? tireRearRight.treadDepth : ''}</div>
+                        </div>
+                        <div className={styles.pressureClusterRow}>
+                            <div className={styles.pressureUnit}>kg/cm²</div>
+                            <div className={styles.pressureValue}>{rearRecommendedPressure}</div>
+                        </div>
+                    </div>
+                    <div className={styles.pressureCluster}>
+                        <div className={styles.pressureClusterUnit}>Dự phòng</div>
+                        <div className={styles.pressureClusterRow}>
+                            <div className={styles.pressureUnit}>mm</div>
+                            <div className={styles.pressureValue}>{tireSpare?.treadDepth != null ? tireSpare.treadDepth : ''}</div>
+                        </div>
+                        <div className={styles.pressureClusterRow}>
+                            <div className={styles.pressureUnit}>kg/cm²</div>
+                            <div className={styles.pressureValue}>{spareRecommendedPressure}</div>
+                        </div>
+                    </div>
+                </div>
+                {/* Chữ xoay 90° nằm sát mép phải bên ngoài */}
+                <div className={styles.pressureVerticalLabel}>Áp suất khuyến cáo</div>
+            </div>
+
             {/* Cột phải: Bảng hạng mục kiểm tra an toàn */}
-            <div className={styles.safetyBox}>
-                <div className={styles.safetyHeader}>
+                <div className={styles.safetyBox}>
+                    <div className={styles.safetyHeader}>
                     <div className={styles.safetyTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</div>
                     <div className={styles.safetyCols}>
                         <div className={styles.safetyCol}>TỐT</div>
                         <div className={styles.safetyCol}>LƯU Ý</div>
                         <div className={styles.safetyCol}>THAY</div>
                     </div>
-                </div>
+                    </div>
                 <div className={styles.safetyBody}>
-                    {SAFETY_ITEMS.map((label) => (
-                        <div key={label} className={styles.safetyRow}>
-                            <div className={styles.safetyItem}>{label}</div>
-                            <div className={styles.safetyChecks}>
-                                <CheckboxCell />
-                                <CheckboxCell />
-                                <CheckboxCell />
+                    {displayItems.length > 0 ? displayItems.map((cat) => {
+                        const key = cat?.id || cat?.workCategoryId || cat?.categoryName || '';
+                        const item = safetyItemsMap[key];
+                        const label = cat?.categoryName || cat?.displayName || '';
+                        const status = item?.itemStatus;
+                        const isGood = status === 'GOOD';
+                        const isWarning = status === 'WARNING';
+                        const isReplace = status === 'REPLACE';
+                        return (
+                            <div key={key || label} className={styles.safetyRow}>
+                                <div className={styles.safetyItem}>{label}</div>
+                                <div className={styles.safetyChecks}>
+                                    {isGood ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
+                                    {isWarning ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
+                                    {isReplace ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    }) : (
+                        (Array.isArray(safetyInspection?.items) ? safetyInspection.items : []).map((item, idx) => {
+                            const status = item?.itemStatus;
+                            const label = item?.categoryName || `Hạng mục ${idx + 1}`;
+                            const isGood = status === 'GOOD';
+                            const isWarning = status === 'WARNING';
+                            const isReplace = status === 'REPLACE';
+                            return (
+                                <div key={item?.itemId || item?.id || idx} className={styles.safetyRow}>
+                                    <div className={styles.safetyItem}>{label}</div>
+                                    <div className={styles.safetyChecks}>
+                                        {isGood ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
+                                        {isWarning ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
+                                        {isReplace ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
             </div>
         </div>
@@ -339,6 +438,7 @@ Receipt.propTypes = {
 		handoverAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
 		receivedAtDisplay: PropTypes.string,
 		handoverAtDisplay: PropTypes.string,
+		safetyInspectionEnabled: PropTypes.bool,
         invoice: PropTypes.shape({
             items: PropTypes.arrayOf(
                 PropTypes.shape({
@@ -358,6 +458,32 @@ Receipt.propTypes = {
             total: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
             promotionLabel: PropTypes.string,
         }),
+		defaultCategories: PropTypes.arrayOf(PropTypes.shape({
+			id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+			workCategoryId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+			categoryName: PropTypes.string,
+			displayName: PropTypes.string,
+		})),
+		safetyInspection: PropTypes.shape({
+			recommendedTireSize: PropTypes.string,
+			technicianNotes: PropTypes.string,
+			frontRecommendedPressure: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+			rearRecommendedPressure: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+			spareRecommendedPressure: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+			tires: PropTypes.arrayOf(PropTypes.shape({
+				tirePosition: PropTypes.string,
+				tireSpecification: PropTypes.string,
+				treadDepth: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+				pressure: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+				recommendedPressure: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+			})),
+			items: PropTypes.arrayOf(PropTypes.shape({
+				workCategoryId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+				customCategoryId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+				categoryName: PropTypes.string,
+				itemStatus: PropTypes.string,
+			})),
+		}),
 	}),
 	carDiagramSrc: PropTypes.string,
 };

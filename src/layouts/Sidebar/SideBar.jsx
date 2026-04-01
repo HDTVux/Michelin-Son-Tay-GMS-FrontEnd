@@ -67,6 +67,7 @@ const NAV_GROUPS = [
 			{ id: 'employee-manager', label: 'Quản lý hồ sơ nhân viên', path: '/employee-manager', icon: <IconUser />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'shift-management', label: 'Quản lý ca làm việc', path: '/shift-management', icon: <IconCalendar />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER], },
+			{ id: 'blog-management', label: 'Quản lý Blog', path: '/blog-management', icon: <IconPost />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'promotion-management', label: 'Quản lý khuyến mãi', path: '/promotion-management', icon: <IconBell />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'send-reminder', label: 'Gửi nhắc nhở', path: '/send-reminder', icon: <IconBell />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER], },
 			{ id: 'system-log-management', label: 'Quản lý nhật ký hệ thống', path: '/system-log-management', icon: <IconHistory />, roles: [STAFF_ROLE.ADMIN], },
@@ -255,6 +256,18 @@ function IconSettings() {
 	return (
 		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
 			<path d="M12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5m8.14-2.39-1.36-.76a6.52 6.52 0 0 0 0-1.7l1.36-.76a.5.5 0 0 0 .21-.68l-1.5-2.6a.5.5 0 0 0-.64-.21l-1.35.78a6.4 6.4 0 0 0-1.46-.85l-.2-1.54a.5.5 0 0 0-.5-.44h-3a.5.5 0 0 0-.5.44l-.2 1.54a6.4 6.4 0 0 0-1.46.85L5.79 6.3a.5.5 0 0 0-.64.21l-1.5 2.6a.5.5 0 0 0 .21.68l1.36.76a6.52 6.52 0 0 0 0 1.7l-1.36.76a.5.5 0 0 0-.21.68l1.5 2.6a.5.5 0 0 0 .64.21l1.35-.78a6.4 6.4 0 0 0 1.46.85l.2 1.54a.5.5 0 0 0 .5.44h3a.5.5 0 0 0 .5-.44l.2-1.54a6.4 6.4 0 0 0 1.46-.85l1.35.78a.5.5 0 0 0 .64-.21l1.5-2.6a.5.5 0 0 0-.21-.68M12 9.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5" />
+		</svg>
+	);
+}
+
+function IconPost() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+			<polyline points="14,2 14,8 20,8" />
+			<line x1="16" y1="13" x2="8" y2="13" />
+			<line x1="16" y1="17" x2="8" y2="17" />
+			<line x1="10" y1="9" x2="8" y2="9" />
 		</svg>
 	);
 }
