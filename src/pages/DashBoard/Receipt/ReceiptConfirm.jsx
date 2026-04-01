@@ -534,8 +534,20 @@ export default function ReceiptConfirm() {
         try {
             setPaymentSubmitting(true);
             // Here you would call your payment API with total and method if needed
-            notify('Thanh toán thành công');
-            setPaymentOpen(false); // Đóng modal sau khi thanh toán thành công
+                notify('Thanh toán thành công');
+                // Thay đổi trạng thái phiếu dịch vụ sang PAID
+                const serviceTicketId = ticket?.serviceTicketId ?? ticket?.serviceTicketId ?? null;
+                if (serviceTicketId != null) {
+                    try {
+                        await manageServiceTicketStatus(serviceTicketId, 'PAID', token);
+                        notify('Đã cập nhật trạng thái phiếu dịch vụ sang PAID.');
+                    } catch (err) {
+                        notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
+                    }
+                } else {
+                    notify('Không tìm thấy serviceTicketId để cập nhật trạng thái.');
+                }
+                setPaymentOpen(false); // Đóng modal sau khi thanh toán thành công
         } catch (err) {
             notify(err?.message || 'Thanh toán thất bại.');
         } finally {
