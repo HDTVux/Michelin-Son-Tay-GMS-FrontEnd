@@ -182,6 +182,40 @@ export const fetchServiceTicketDetail = (ticketCode, token) => {
   });
 };
 
+// Advisor: lấy khuyến nghị theo serviceTicketId
+// Endpoint: GET /api/service-ticket/advisor/recommend/{serviceTicketId}
+export const fetchServiceTicketAdvisorRecommend = (serviceTicketId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem khuyến nghị.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu serviceTicketId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/advisor/recommend/${encodeURIComponent(String(idNum))}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Cập nhật khuyến nghị (recommend) theo serviceTicketId
+// Backend đang đọc `recommend` bằng @RequestParam -> gửi qua query string.
+// Endpoint: PUT /api/safety-inspections/{serviceTicketId}/update-recommend?recommend=...
+export const updateSafetyInspectionRecommend = (serviceTicketId, recommend, token) => {
+  const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
+  const qs = new URLSearchParams({ recommend: String(recommend ?? '') }).toString();
+  return request(`/api/safety-inspections/${idNum}/update-recommend?${qs}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Chỉnh sửa phiếu dịch vụ theo ticketCode
 export const updateServiceTicket = (ticketCode, payload, token) => {
   if (!token) {

@@ -2,14 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	createServiceTicketEstimate,
 	fetchServiceTicketEstimate,
+	fetchServiceTicketAdvisorRecommend,
 	fetchWorkCategoriesAll,
 	fetchTaxRulesAll,
 	updateServiceTicketEstimate,
 	updateServiceTicketEstimateItem,
 } from '../../../services/serviceTicketService.js';
+import { updateSafetyInspectionRecommend } from '../../../services/safetyInspectionService.js';
 import { fetchAllCatalogItems } from '../../../services/catalogService.js';
 import { createTaxRule, fetchWarehouseCatalogItemDetail } from '../../../services/warehouseService.js';
-
 const PLACEHOLDER_ROW_COUNT = 15;
 
 export function formatCurrencyVnd(value) {
@@ -323,6 +324,8 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const [taxRate, setTaxRate] = useState('');
 	const [isCreatingTaxRule, setIsCreatingTaxRule] = useState(false);
 	const [recommendation, setRecommendation] = useState('');
+	const [recommendationLoading, setRecommendationLoading] = useState(false);
+	const [recommendationSaving, setRecommendationSaving] = useState(false);
 	const [isCreating, setIsCreating] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
@@ -405,9 +408,98 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		onEstimateStatusChangeRef.current = onEstimateStatusChange;
 	}, [onEstimateStatusChange]);
 
+	const recommendationLastSavedRef = useRef('');
+
 	useEffect(() => {
 		setRecommendation('');
+		// Reset last-saved marker on ticket switch.
+		recommendationLastSavedRef.current = '';
 	}, [serviceTicketId]);
+
+	const extractRecommendValue = useCallback((res) => {
+		const payload = res?.data?.data ?? res?.data ?? res;
+		if (payload == null) return '';
+		if (typeof payload === 'string') {
+			const raw = payload.trim();
+			if (raw.startsWith('{') || raw.startsWith('[')) {
+				try {
+					const parsed = JSON.parse(raw);
+					if (typeof parsed?.data === 'string') return parsed.data;
+					if (typeof parsed?.recommend === 'string') return parsed.recommend;
+					if (typeof parsed?.recommendation === 'string') return parsed.recommendation;
+				} catch {
+					// fall back to raw
+				}
+			}
+			return payload;
+		}
+		if (typeof payload?.recommend === 'string') return payload.recommend;
+		if (typeof payload?.recommendation === 'string') return payload.recommendation;
+		if (typeof payload?.data === 'string') return payload.data;
+		return '';
+	}, []);
+
+	useEffect(() => {
+		const token = localStorage.getItem('authToken');
+		const idNum = toIdOrNull(serviceTicketId);
+		if (!token || !idNum) return;
+
+		let ignore = false;
+		const run = async () => {
+			try {
+				setRecommendationLoading(true);
+				const res = await fetchServiceTicketAdvisorRecommend(idNum, token);
+				if (ignore) return;
+				const value = extractRecommendValue(res);
+				recommendationLastSavedRef.current = String(value ?? '');
+				setRecommendation(String(value ?? ''));
+			} catch {
+				// Silent: keep empty string.
+				if (ignore) return;
+				recommendationLastSavedRef.current = '';
+				setRecommendation('');
+			} finally {
+				if (!ignore) setRecommendationLoading(false);
+			}
+		};
+
+		run();
+		return () => {
+			ignore = true;
+		};
+	}, [serviceTicketId, extractRecommendValue]);
+
+	const saveRecommendation = useCallback(
+		async (valueOverride) => {
+			if (recommendationSaving) return false;
+			const token = localStorage.getItem('authToken');
+			if (!token) {
+				const error = new Error('Vui lòng đăng nhập để cập nhật khuyến nghị.');
+				error.status = 401;
+				throw error;
+			}
+
+			const idNum = toIdOrNull(serviceTicketId);
+			if (!idNum) {
+				const error = new Error('Thiếu serviceTicketId hợp lệ để cập nhật khuyến nghị.');
+				error.status = 400;
+				throw error;
+			}
+
+			const nextValue = valueOverride == null ? String(recommendation ?? '') : String(valueOverride);
+			if (nextValue === recommendationLastSavedRef.current) return false;
+
+			try {
+				setRecommendationSaving(true);
+				await updateSafetyInspectionRecommend(idNum, nextValue, token);
+				recommendationLastSavedRef.current = nextValue;
+				return true;
+			} finally {
+				setRecommendationSaving(false);
+			}
+		},
+		[serviceTicketId, recommendation, recommendationSaving],
+	);
 
 	useEffect(() => {
 		if (serviceTicketId == null) return;
@@ -1315,6 +1407,9 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		handleCreateTaxRule,
 		recommendation,
 		setRecommendation,
+		recommendationLoading,
+		recommendationSaving,
+		saveRecommendation,
 		isCreating,
 		isEditing,
 		isSaving,

@@ -446,6 +446,8 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
         handleCreateTaxRule,
         recommendation,
         setRecommendation,
+        recommendationSaving,
+        saveRecommendation,
         isCreating,
         isEditing,
         isSaving,
@@ -843,9 +845,30 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
                     placeholder="Nhập khuyến nghị..."
                     value={recommendation}
                     onChange={(e) => setRecommendation(e.target.value)}
-                    disabled={isRestrictedStatus}
+                    disabled={isRestrictedStatus || Boolean(recommendationSaving)}
                 />
             </div>
+
+            {isRestrictedStatus ? null : (
+                <div className="ui-actions" style={{ marginTop: 8 }}>
+                    <button
+                        type="button"
+                        className="ui-btn ui-btn--primary"
+                        onClick={() => {
+                            Promise.resolve(saveRecommendation?.())
+                                .then((saved) => {
+                                    if (saved) notify('Đã lưu khuyến nghị.');
+                                })
+                                .catch((err) => {
+                                    notify(err?.message || 'Không thể cập nhật khuyến nghị.');
+                                });
+                        }}
+                        disabled={Boolean(recommendationSaving) || Boolean(isSaving)}
+                    >
+                        {recommendationSaving ? 'Đang lưu...' : 'Lưu khuyến nghị'}
+                    </button>
+                </div>
+            )}
 
 
 
