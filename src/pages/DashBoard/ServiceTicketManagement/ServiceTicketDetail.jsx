@@ -356,7 +356,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         ticketCodeParam,
         ticketFromState,
     );
-    const notify = (message) => toast(message, { containerId: 'app-toast' });
+    const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
     const ticket = useMemo(
         () => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam),
         [ticketRaw, ticketFromState, ticketCodeParam],
@@ -652,7 +652,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setAddServiceReverting(false);
             triggerRefresh();
         }
-    }, [addServiceReverting, estimateIdNum, estimateStatus, notify, serviceTicketIdNum, ticket, ticketCodeParam, ticketRaw, ticketStatus]);
+    }, [addServiceReverting, notify, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw]);
 
     const handleRestartFromArchived = async () => {
         if (statusUpdating) return;
@@ -1011,6 +1011,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         </div>
     );
 }
+
+ServiceTicketDetail.propTypes = {
+    ticketCodeOverride: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+};
 
 InfoBlock.propTypes = {
     title: PropTypes.string.isRequired,

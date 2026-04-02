@@ -343,20 +343,36 @@ function EstimateActions({
     isRestrictedStatus,
     onCancelAppendOnly,
     isAppendOnlyEdit,
+    shouldRevertOnCancel,
+    setShouldRevertOnCancel,
 }) {
     const [cancelBusy, setCancelBusy] = useState(false);
 
-    const handleCancelEdit = useCallback(async () => {
+    const handleCancelCreate = useCallback(async () => {
         if (cancelBusy) return;
-        cancelEdit?.();
-        if (!isAppendOnlyEdit || !onCancelAppendOnly) return;
+        cancelCreate?.();
+        if (!shouldRevertOnCancel || !onCancelAppendOnly) return;
         try {
             setCancelBusy(true);
             await onCancelAppendOnly();
         } finally {
             setCancelBusy(false);
+            setShouldRevertOnCancel?.(false);
         }
-    }, [cancelBusy, cancelEdit, isAppendOnlyEdit, onCancelAppendOnly]);
+    }, [cancelBusy, cancelCreate, onCancelAppendOnly, setShouldRevertOnCancel, shouldRevertOnCancel]);
+
+    const handleCancelEdit = useCallback(async () => {
+        if (cancelBusy) return;
+        cancelEdit?.();
+        if ((!isAppendOnlyEdit && !shouldRevertOnCancel) || !onCancelAppendOnly) return;
+        try {
+            setCancelBusy(true);
+            await onCancelAppendOnly();
+        } finally {
+            setCancelBusy(false);
+            setShouldRevertOnCancel?.(false);
+        }
+    }, [cancelBusy, cancelEdit, isAppendOnlyEdit, onCancelAppendOnly, setShouldRevertOnCancel, shouldRevertOnCancel]);
 
     return (
         <>
@@ -399,14 +415,14 @@ function EstimateActions({
 
             {isCreating ? (
                 <div className="ui-actions" style={{ marginTop: 12 }}>
-                    <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelCreate} disabled={isSaving}>
+                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleCancelCreate} disabled={isSaving || cancelBusy}>
                         Hủy
                     </button>
-                    {!isRestrictedStatus ? (
+                    {isRestrictedStatus ? null : (
                         <button type="button" className="ui-btn ui-btn--primary" onClick={saveEstimate} disabled={isSaving}>
                             {isSaving ? 'Đang lưu...' : 'Lưu báo giá'}
                         </button>
-                    ) : null}
+                    )}
                 </div>
             ) : null}
 
@@ -415,11 +431,11 @@ function EstimateActions({
                     <button type="button" className="ui-btn ui-btn--ghost" onClick={handleCancelEdit} disabled={isSaving || cancelBusy}>
                         Hủy
                     </button>
-                    {!isRestrictedStatus ? (
+                    {isRestrictedStatus ? null : (
                         <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving || cancelBusy}>
                             {isSaving ? 'Đang lưu...' : 'Lưu chỉnh sửa'}
                         </button>
-                    ) : null}
+                    )}
                 </div>
             ) : null}
         </>
@@ -444,9 +460,12 @@ EstimateActions.propTypes = {
     isRestrictedStatus: PropTypes.bool,
     onCancelAppendOnly: PropTypes.func,
     isAppendOnlyEdit: PropTypes.bool,
+    shouldRevertOnCancel: PropTypes.bool,
+    setShouldRevertOnCancel: PropTypes.func,
 };
 
 export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refreshToken, onEstimateStatusChange, onRestartWorkflow, onCancelAppendOnly }) {
+    const [revertOnCancel, setRevertOnCancel] = useState(false);
     const {
         categorySuggestions,
         workCategoriesLoading,
@@ -514,6 +533,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
             notify('Không thể tạo báo giá khi phiếu dịch vụ đã được thanh toán (PAID).');
             return;
         }
+		setRevertOnCancel(false);
         if (startCreate) startCreate();
     };
 
@@ -523,6 +543,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
             notify('Không thể tạo báo giá khi phiếu dịch vụ đã được thanh toán (PAID).');
             return;
         }
+		setRevertOnCancel(false);
 
         // Seed các dòng của version trước sang version mới (read-only)
         startCreate?.({ seedFromPreviousEstimate: true });
@@ -576,6 +597,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                 return;
             }
             if (isCreating || isEditing) return;
+			setRevertOnCancel(true);
 
             // If there is no estimate yet, fall back to create mode.
             if (!estimate) {
@@ -600,6 +622,11 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
             }
         };
     }, [estimate, isTicketPaid, isCreating, isEditing, notify, startCreate, startEdit]);
+
+    const handleStartEdit = useCallback(() => {
+        setRevertOnCancel(false);
+        startEdit?.();
+    }, [startEdit]);
 
     const [pickerOpen, setPickerOpen] = useState(false);
     const [activeRowIndex, setActiveRowIndex] = useState(null);
@@ -882,7 +909,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                     isSaving={isSaving}
                     startCreate={handleStartCreate}
                     startCreateNewVersion={handleStartCreateNewVersion}
-                    startEdit={startEdit}
+                    startEdit={handleStartEdit}
                     cancelCreate={cancelCreate}
                     cancelEdit={cancelEdit}
                     saveEstimate={saveEstimate}
@@ -890,6 +917,8 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                     isRestrictedStatus={isRestrictedStatus}
                     onCancelAppendOnly={onCancelAppendOnly}
                     isAppendOnlyEdit={isAppendOnlyEdit}
+					shouldRevertOnCancel={revertOnCancel}
+					setShouldRevertOnCancel={setRevertOnCancel}
                 />
             </div>
 
@@ -900,11 +929,10 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                     placeholder="Nhập khuyến nghị..."
                     value={recommendation}
                     onChange={(e) => setRecommendation(e.target.value)}
-                    disabled={isRestrictedStatus || Boolean(recommendationSaving)}
+                    disabled={Boolean(recommendationSaving)}
                 />
             </div>
 
-            {isRestrictedStatus ? null : (
                 <div className="ui-actions" style={{ marginTop: 8 }}>
                     <button
                         type="button"
@@ -923,7 +951,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                         {recommendationSaving ? 'Đang lưu...' : 'Lưu khuyến nghị'}
                     </button>
                 </div>
-            )}
+
 
 
 
