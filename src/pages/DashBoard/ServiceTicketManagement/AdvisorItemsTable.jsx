@@ -341,7 +341,23 @@ function EstimateActions({
     saveEstimate,
     saveEdit,
     isRestrictedStatus,
+    onCancelAppendOnly,
+    isAppendOnlyEdit,
 }) {
+    const [cancelBusy, setCancelBusy] = useState(false);
+
+    const handleCancelEdit = useCallback(async () => {
+        if (cancelBusy) return;
+        cancelEdit?.();
+        if (!isAppendOnlyEdit || !onCancelAppendOnly) return;
+        try {
+            setCancelBusy(true);
+            await onCancelAppendOnly();
+        } finally {
+            setCancelBusy(false);
+        }
+    }, [cancelBusy, cancelEdit, isAppendOnlyEdit, onCancelAppendOnly]);
+
     return (
         <>
             {canCreateNew ? (
@@ -396,11 +412,11 @@ function EstimateActions({
 
             {isEditing ? (
                 <div className="ui-actions" style={{ marginTop: 12 }}>
-                    <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
+                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleCancelEdit} disabled={isSaving || cancelBusy}>
                         Hủy
                     </button>
                     {!isRestrictedStatus ? (
-                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
+                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving || cancelBusy}>
                             {isSaving ? 'Đang lưu...' : 'Lưu chỉnh sửa'}
                         </button>
                     ) : null}
@@ -426,9 +442,11 @@ EstimateActions.propTypes = {
     saveEstimate: PropTypes.func,
     saveEdit: PropTypes.func,
     isRestrictedStatus: PropTypes.bool,
+    onCancelAppendOnly: PropTypes.func,
+    isAppendOnlyEdit: PropTypes.bool,
 };
 
-export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEstimateStatusChange, onRestartWorkflow }) {
+export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refreshToken, onEstimateStatusChange, onRestartWorkflow, onCancelAppendOnly }) {
     const {
         categorySuggestions,
         workCategoriesLoading,
@@ -450,6 +468,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
         saveRecommendation,
         isCreating,
         isEditing,
+        isAppendOnlyEdit,
         isSaving,
         estimateCostText,
         statusLine,
@@ -470,12 +489,12 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
         softDeleteEditRow,
         inventory,
         estimate,
-    } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange });
+    } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange, refreshToken });
 
     const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
     const isArchived = currentEstimateStatus === 'ARCHIVED';
-    // Khi đang tạo mới, chúng ta không bị hạn chế bởi status của báo giá cũ
-    const isRestrictedStatus = !isCreating && ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
+    // Khi đang tạo mới / đang chỉnh sửa, chúng ta không bị hạn chế bởi status của báo giá cũ
+    const isRestrictedStatus = !(isCreating || isEditing) && ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
 
     // Cho phép tạo mới nếu chưa có báo giá hoặc báo giá hiện tại đã ARCHIVED
     const isTicketPaid = String(ticketStatus || '').trim().toUpperCase() === 'PAID';
@@ -547,6 +566,40 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
             }
         };
     }, [isTicketPaid, isCreating, isEditing, notify, startCreate]);
+
+    // Ensure append-only edit mode can be opened automatically (add service: keep current estimate version,
+    // lock existing rows, only allow adding new rows).
+    useEffect(() => {
+        const handler = () => {
+            if (isTicketPaid) {
+                notify('Không thể sửa báo giá khi phiếu dịch vụ đã được thanh toán (PAID).');
+                return;
+            }
+            if (isCreating || isEditing) return;
+
+            // If there is no estimate yet, fall back to create mode.
+            if (!estimate) {
+                startCreate?.();
+                return;
+            }
+
+            startEdit?.({ appendOnly: true });
+        };
+
+        try {
+            globalThis.addEventListener('startAppendEstimate', handler);
+        } catch {
+            return undefined;
+        }
+
+        return () => {
+            try {
+                globalThis.removeEventListener('startAppendEstimate', handler);
+            } catch {
+                // ignore
+            }
+        };
+    }, [estimate, isTicketPaid, isCreating, isEditing, notify, startCreate, startEdit]);
 
     const [pickerOpen, setPickerOpen] = useState(false);
     const [activeRowIndex, setActiveRowIndex] = useState(null);
@@ -835,6 +888,8 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
                     saveEstimate={saveEstimate}
                     saveEdit={saveEdit}
                     isRestrictedStatus={isRestrictedStatus}
+                    onCancelAppendOnly={onCancelAppendOnly}
+                    isAppendOnlyEdit={isAppendOnlyEdit}
                 />
             </div>
 
@@ -886,6 +941,8 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
 AdvisorItemsTable.propTypes = {
     serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     ticketStatus: PropTypes.string,
+    refreshToken: PropTypes.any,
     onEstimateStatusChange: PropTypes.func,
     onRestartWorkflow: PropTypes.func,
+    onCancelAppendOnly: PropTypes.func,
 };

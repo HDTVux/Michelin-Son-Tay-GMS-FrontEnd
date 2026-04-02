@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
@@ -344,6 +344,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [refreshTick, setRefreshTick] = useState(0);
     const triggerRefresh = () => setRefreshTick(prev => prev + 1);
 
+    // When using "Thêm dịch vụ" we temporarily force Ticket/Estimate to DRAFT.
+    // Cancel in append-only mode must revert them back.
+    const addServiceRevertRef = useRef(null);
+    const [addServiceReverting, setAddServiceReverting] = useState(false);
+
     const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
     const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
 
@@ -559,12 +564,22 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         try {
             setStatusUpdating(true);
             setError('');
+
+            // Capture current statuses so Cancel can revert them.
+            addServiceRevertRef.current = {
+                prevTicketStatus: ticketStatus,
+                prevEstimateStatus: estimateStatus,
+                estimateIdNum,
+            };
+
             await manageServiceTicketStatus(serviceTicketIdNum, 'DRAFT', token);
+            let canOpenAppendEdit = true;
             if (estimateIdNum) {
                 try {
                     await manageServiceTicketEstimateStatus(estimateIdNum, 'DRAFT', token);
                     setLatestEstimate((prev) => prev ? { ...prev, status: 'DRAFT', estimateStatus: 'DRAFT' } : prev);
                 } catch (err) {
+                    canOpenAppendEdit = false;
                     notify(err?.message || 'Không thể chuyển trạng thái báo giá về nháp.');
                 }
             }
@@ -572,12 +587,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
             setTicketRaw(detailRes?.data ?? ticketRaw ?? null);            
             
-            // Notify advisor table to open create mode immediately
-            try {
-                globalThis.dispatchEvent(new CustomEvent('startCreateEstimate'));
-            } catch {
-                // ignore if unavailable
-            }            triggerRefresh(); 
+            // Notify advisor table to open append-only edit mode immediately
+            if (canOpenAppendEdit) {
+                try {
+                    globalThis.dispatchEvent(new CustomEvent('startAppendEstimate'));
+                } catch {
+                    // ignore if unavailable
+                }
+            }
+
+            triggerRefresh(); 
             notify('Đã chuyển về trạng thái "Nháp" để thêm dịch vụ.');
         } catch (err) {
             notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
@@ -585,6 +604,55 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setStatusUpdating(false);
         }
     };
+
+    const handleCancelAppendOnly = useCallback(async () => {
+        if (addServiceReverting) return;
+        const snapshot = addServiceRevertRef.current;
+        // Only revert if we have a snapshot (i.e. this edit session came from "Thêm dịch vụ").
+        if (!snapshot) return;
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để cập nhật trạng thái phiếu dịch vụ.');
+            return;
+        }
+        if (!serviceTicketIdNum) {
+            notify('Thiếu serviceTicketId hợp lệ để cập nhật trạng thái.');
+            return;
+        }
+
+        const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
+        if (!ticketCode) {
+            notify('Thiếu mã phiếu dịch vụ để tải lại sau khi cập nhật trạng thái.');
+            return;
+        }
+
+        try {
+            setAddServiceReverting(true);
+
+            const prevTicketStatus = String(snapshot.prevTicketStatus || '').trim().toUpperCase();
+            if (prevTicketStatus) {
+                await manageServiceTicketStatus(serviceTicketIdNum, prevTicketStatus, token);
+            }
+
+            const prevEstimateStatus = String(snapshot.prevEstimateStatus || '').trim().toUpperCase();
+            if (snapshot.estimateIdNum && prevEstimateStatus) {
+                await manageServiceTicketEstimateStatus(snapshot.estimateIdNum, prevEstimateStatus, token);
+                setLatestEstimate((prev) => prev ? { ...prev, status: prevEstimateStatus, estimateStatus: prevEstimateStatus } : prev);
+            }
+
+            const detailRes = await fetchServiceTicketDetail(ticketCode, token);
+            setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
+
+            notify('Đã hoàn tác trạng thái trước khi thêm dịch vụ.');
+        } catch (err) {
+            notify(err?.message || 'Không thể hoàn tác trạng thái.');
+        } finally {
+            addServiceRevertRef.current = null;
+            setAddServiceReverting(false);
+            triggerRefresh();
+        }
+    }, [addServiceReverting, estimateIdNum, estimateStatus, notify, serviceTicketIdNum, ticket, ticketCodeParam, ticketRaw, ticketStatus]);
 
     const handleRestartFromArchived = async () => {
         if (statusUpdating) return;
@@ -673,7 +741,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const canSetPending = ticketStatus === 'DRAFT';
     const canStartRepair = (ticketStatus === 'DRAFT' || ticketStatus === 'PENDING' || ticketStatus === 'INSPECTION') && isEstimateApproved;
     const canCompleteRepair = ticketStatus === 'IN_PROGRESS';
-    const canAddService = ticketStatus === 'DRAFT' || ticketStatus === 'INSPECTION';
+    const canAddService = estimateStatus === 'APPROVED' || ticketStatus === 'INSPECTION' || ticketStatus === 'IN_PROGRESS';
 
     const advisorItems = useMemo(() => Array.isArray(latestEstimate?.items) ? latestEstimate.items.filter(it => !it?.isRemoved) : [], [latestEstimate]);
     const hasAnyAdvisorItem = advisorItems.length > 0;
@@ -871,8 +939,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     key={`advisor-${ticket?.serviceTicketId}`} 
                                     serviceTicketId={ticket?.serviceTicketId} 
                                     ticketStatus={ticketStatus}
+                                    refreshToken={refreshTick}
                                     onEstimateStatusChange={handleEstimateStatusChange}
                                     onRestartWorkflow={handleRestartFromArchived}
+                                    onCancelAppendOnly={handleCancelAppendOnly}
                                 />
                             </>
                         )}

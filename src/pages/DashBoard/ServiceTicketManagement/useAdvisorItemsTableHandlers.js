@@ -134,6 +134,15 @@ function mapEstimateItemToLockedRow(it, idx) {
 	};
 }
 
+function mapEstimateItemToAppendLockedRow(it, idx) {
+	const base = mapEstimateItemToLockedRow(it, idx);
+	return {
+		...base,
+		// Append-only on current estimate version: preserve the checked flag.
+		confirmed: getItemCheckedFlag(it),
+	};
+}
+
 function toNumberOrZero(value) {
 	const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
 	return Number.isFinite(n) ? n : 0;
@@ -307,7 +316,7 @@ export function useInventoryCheckHandlers() {
 }
 
 export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
-	const { onEstimateStatusChange } = options || {};
+	const { onEstimateStatusChange, refreshToken } = options || {};
 	const onEstimateStatusChangeRef = useRef(onEstimateStatusChange);
 	const [estimate, setEstimate] = useState(null);
 	const [loading, setLoading] = useState(false);
@@ -328,6 +337,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const [recommendationSaving, setRecommendationSaving] = useState(false);
 	const [isCreating, setIsCreating] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
+	const [isAppendOnlyEdit, setIsAppendOnlyEdit] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [saveError, setSaveError] = useState('');
 	const [draftRows, setDraftRows] = useState(() => [createEmptyDraftRow()]);
@@ -467,7 +477,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		return () => {
 			ignore = true;
 		};
-	}, [serviceTicketId, extractRecommendValue]);
+	}, [serviceTicketId, refreshToken, extractRecommendValue]);
 
 	const saveRecommendation = useCallback(
 		async (valueOverride) => {
@@ -685,7 +695,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		return () => {
 			ignore = true;
 		};
-	}, [serviceTicketId]);
+	}, [serviceTicketId, refreshToken]);
 
 	function isValidTicketId(value) {
 		return value != null && String(value).trim() !== '';
@@ -972,6 +982,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const handleEditChange = useCallback((index, field, value) => {
 		setEditRows((prev) => {
 			const base = Array.isArray(prev) ? prev : [];
+			if (base[index]?.isLockedFromPreviousVersion) return base;
 			const next = base.map((r, idx) => {
 				if (idx !== index) return r;
 				if (field === 'newCategoryName') return applyCategorySelection(r, value);
@@ -1005,12 +1016,29 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const cancelCreate = useCallback(() => {
 		if (isSaving) return;
 		setIsCreating(false);
+		setIsAppendOnlyEdit(false);
 		setSaveError('');
 	}, [isSaving]);
 
-	const startEdit = useCallback(() => {
+	const startEdit = useCallback((options) => {
 		if (!estimate || isCreating || isSaving) return;
+		const appendOnly = Boolean(options?.appendOnly);
 		const items = Array.isArray(estimate?.items) ? estimate.items : [];
+
+		if (appendOnly) {
+			// Append-only: keep current estimate version, lock existing rows and allow only adding new rows.
+			const locked = items.filter((it) => !it?.isRemoved).map(mapEstimateItemToAppendLockedRow);
+			const seeded = normalizeDraftRows([...locked, createEmptyDraftRow()], PLACEHOLDER_ROW_COUNT);
+			setEditRows(seeded);
+			setIsEditing(true);
+			setIsAppendOnlyEdit(true);
+			setSaveError('');
+			enrichRowsWithItemTaxes(seeded, setEditRows);
+			return;
+		}
+
+		setIsAppendOnlyEdit(false);
+
 		const mapped = items
 			.filter((it) => !it?.isRemoved)
 			.map((it) => {
@@ -1019,28 +1047,28 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				// Nếu sản phẩm có thuế thì luôn ưu tiên sản phẩm -> clear chọn thuế thủ công.
 				const taxRuleId = toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? '');
 				return {
-				estimateItemId: it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null,
-				workCategoryId:
-					it?.workCategoryId ??
-					it?.workCateId ??
-					it?.workCategory?.workCategoryId ??
-					it?.workCategory?.workCateId ??
-					it?.workCategory?.id ??
-					null,
-				workCategoryCode: String(it?.workCategory?.categoryCode ?? '').trim(),
-				workCategoryTaxRuleId,
-				itemId: it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null,
-				itemTaxRuleId,
-				newCategoryName: String(
-					it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
-				).trim(),
-				itemName: String(it?.itemName || '').trim(),
-				quantity: it?.quantity ?? '',
-				unitPrice: it?.unitPrice ?? '',
-				taxRuleId,
-				confirmed: getItemCheckedFlag(it),
-				isRemoved: Boolean(it?.isRemoved),
-			};
+					estimateItemId: it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null,
+					workCategoryId:
+						it?.workCategoryId ??
+						it?.workCateId ??
+						it?.workCategory?.workCategoryId ??
+						it?.workCategory?.workCateId ??
+						it?.workCategory?.id ??
+						null,
+					workCategoryCode: String(it?.workCategory?.categoryCode ?? '').trim(),
+					workCategoryTaxRuleId,
+					itemId: it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null,
+					itemTaxRuleId,
+					newCategoryName: String(
+						it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
+					).trim(),
+					itemName: String(it?.itemName || '').trim(),
+					quantity: it?.quantity ?? '',
+					unitPrice: it?.unitPrice ?? '',
+					taxRuleId,
+					confirmed: getItemCheckedFlag(it),
+					isRemoved: Boolean(it?.isRemoved),
+				};
 			});
 		const normalized = normalizeDraftRows(mapped, PLACEHOLDER_ROW_COUNT);
 		setEditRows(normalized);
@@ -1141,6 +1169,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const cancelEdit = useCallback(() => {
 		if (isSaving) return;
 		setIsEditing(false);
+		setIsAppendOnlyEdit(false);
 		setSaveError('');
 	}, [isSaving]);
 
@@ -1297,6 +1326,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			setEstimate(res?.data ?? null);
 			onEstimateStatusChangeRef.current?.(res?.data ?? null);
 			setIsEditing(false);
+			setIsAppendOnlyEdit(false);
 		} catch (err) {
 			setSaveError(err?.message || 'Không thể cập nhật báo giá.');
 		} finally {
@@ -1412,6 +1442,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		saveRecommendation,
 		isCreating,
 		isEditing,
+		isAppendOnlyEdit,
 		isSaving,
 		saveError,
 		setSaveError,
