@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'react-toastify';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { toast } from 'react-toastify';
 import styles from './ServiceTicketDetail.module.css';
 import {
     formatCurrencyVnd,
@@ -11,6 +11,13 @@ import {
 import CatalogPicker from './CatalogPicker.jsx';
 
 const PHOTO_SLOTS = 4;
+
+function normalizeTicketStatus(raw) {
+    const s = String(raw || '').trim().toUpperCase();
+    if (!s || s === 'CREATED') return 'DRAFT';
+    if (s === 'INSPECTING' || s === 'DIAGNOSIS') return 'INSPECTION';
+    return s;
+}
 
 function formatTaxRatePercent(rule) {
     const raw = rule?.taxRate ?? rule?.rate;
@@ -471,23 +478,34 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
         inventory,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange });
+    const [isStartingCreate, setIsStartingCreate] = useState(false);
+    const [recommendationError, setRecommendationError] = useState('');
+    const toast500LastFired = useRef({});
+
+    const notify = useCallback((message, type = 'info') => {
+        if (!message) return;
+        if (type === 'error') {
+            toast.error(message);
+            return;
+        }
+        if (type === 'success') {
+            toast.success(message);
+            return;
+        }
+        toast(message);
+    }, []);
 
     const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
     const isArchived = currentEstimateStatus === 'ARCHIVED';
+    const isTicketPaid = normalizeTicketStatus(ticketStatus) === 'PAID';
     // Khi đang tạo mới, chúng ta không bị hạn chế bởi status của báo giá cũ
     const isRestrictedStatus = !isCreating && ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
 
     // Cho phép tạo mới nếu chưa có báo giá hoặc báo giá hiện tại đã ARCHIVED
-    const isTicketPaid = String(ticketStatus || '').trim().toUpperCase() === 'PAID';
-    // "Tạo báo giá mới" chỉ dành cho trường hợp chưa có bất kì báo giá nào.
-    const canCreateNew = !isCreating && !isEditing && showAddEstimate && !isTicketPaid;
+    const canCreateNew = !isCreating && !isEditing && (showAddEstimate || isArchived);
 
-    // "Tạo version báo giá mới" chỉ dành cho trường hợp báo giá hiện tại là ARCHIVED.
-    const canCreateNewVersion = !isCreating && !isEditing && Boolean(estimate) && isArchived && !isTicketPaid;
-
-    const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
-
-    const [isStartingCreate, setIsStartingCreate] = useState(false);
+    // Cho phép tạo bản báo giá mới (version mới) khi đã có estimate cũ và không bị archived
+    const canCreateNewVersion = !isCreating && !isEditing && estimate && !isArchived;
 
     const handleStartCreate = async () => {
         if (isStartingCreate) return;
@@ -844,8 +862,22 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
                     id="advisor-recommendation"
                     placeholder="Nhập khuyến nghị..."
                     value={recommendation}
-                    onChange={(e) => setRecommendation(e.target.value)}
-                    disabled={isRestrictedStatus || Boolean(recommendationSaving)}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (val.length > 500) {
+                            const now = Date.now();
+                            if (!toast500LastFired.current['recommendation'] || now - toast500LastFired.current['recommendation'] > 2000) {
+                                toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
+                                toast500LastFired.current['recommendation'] = now;
+                            }
+                            setRecommendationError('Tối đa 500 ký tự.');
+                            setRecommendation(val);
+                        } else {
+                            setRecommendation(val);
+                            setRecommendationError('');
+                        }
+                    }}
+                    disabled={isRestrictedStatus}
                 />
             </div>
 

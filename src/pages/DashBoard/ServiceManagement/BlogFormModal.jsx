@@ -326,7 +326,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     } catch {
       // Keep local values.
     }
-  }, [baseItem?.itemId]);
+  }, [baseItem?.itemId, isEdit]);
 
   useEffect(() => {
     loadDetail();
