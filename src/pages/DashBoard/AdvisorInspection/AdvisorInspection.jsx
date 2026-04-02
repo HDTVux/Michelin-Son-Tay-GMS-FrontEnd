@@ -13,6 +13,7 @@ import {
   fetchTechniciansWorkload,
   fetchTicketAssignments,
   swapServiceTicketQueue,
+  fetchServiceTicketAdvisorRecommend,
 } from '../../../services/serviceTicketService';
 import { fetchCheckInAdvisors } from '../../../services/checkInService';
 import styles from './AdvisorInspection.module.css';
@@ -353,6 +354,13 @@ export default function AdvisorInspection() {
   const [reloadKey, setReloadKey] = useState(0);
   const [dragTicketId, setDragTicketId] = useState(null);
   const [swapping, setSwapping] = useState(false);
+
+  // Khuyến nghị modal
+  const [showRecommendModal, setShowRecommendModal] = useState(false);
+  const [recommendTicket, setRecommendTicket] = useState(null);
+  const [recommendData, setRecommendData] = useState(null);
+  const [recommendLoading, setRecommendLoading] = useState(false);
+  const [recommendError, setRecommendError] = useState('');
 
   // Workload map
   const [workloadMap, setWorkloadMap] = useState({});
@@ -1257,11 +1265,29 @@ export default function AdvisorInspection() {
               </button>
               <button
                 className={`${styles.actionBtn} ${styles.recommendBtn}`}
-                onClick={() => {
+                onClick={async () => {
                   if (!code) return;
-                  navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, {
-                    state: { ticket, focusRecommendation: true },
-                  });
+                  const ticketId = getTicketId(ticket);
+                  setRecommendTicket({ ...ticket, ticketCode: code, ticketId });
+                  setRecommendData(null);
+                  setRecommendError('');
+                  setRecommendLoading(true);
+                  setShowRecommendModal(true);
+                  const token = getToken();
+                  if (!ticketId || !token) {
+                    setRecommendError('Không tìm thấy thông tin phiếu.');
+                    setRecommendLoading(false);
+                    return;
+                  }
+                  try {
+                    const res = await fetchServiceTicketAdvisorRecommend(ticketId, token);
+                    const value = res?.data?.data ?? res?.data ?? res;
+                    setRecommendData(typeof value === 'string' ? value.trim() : '');
+                  } catch {
+                    setRecommendData('');
+                  } finally {
+                    setRecommendLoading(false);
+                  }
                 }}
                 disabled={!code || swapping}
                 title="Xem khuyến nghị của phiếu"
@@ -1609,6 +1635,80 @@ export default function AdvisorInspection() {
                   disabled={loadingModal}
                 >
                   Lưu & Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal xem khuyến nghị phiếu cũ */}
+      {showRecommendModal && recommendTicket && (
+        <div className={styles.modalOverlay} onClick={() => setShowRecommendModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Khuyến nghị phiếu trước</h3>
+              <button className={styles.modalClose} onClick={() => setShowRecommendModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              {/* Thông tin phiếu */}
+              <div style={{ marginBottom: 16, padding: '10px 14px', background: '#f9fafb', borderRadius: 8, fontSize: 13 }}>
+                <div style={{ display: 'flex', gap: 24 }}>
+                  <div>
+                    <span style={{ color: '#6b7280' }}>Phiếu hiện tại: </span>
+                    <strong>{recommendTicket.ticketCode || '-'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#6b7280' }}>Biển số: </span>
+                    <strong>{recommendTicket.licensePlate || '-'}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Loading */}
+              {recommendLoading && (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: '#6b7280' }}>
+                  Đang tải khuyến nghị...
+                </div>
+              )}
+
+              {/* Lỗi / không có khuyến nghị */}
+              {!recommendLoading && !recommendData && (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af' }}>
+                  Không có khuyến nghị từ phiếu trước cho xe này.
+                </div>
+              )}
+
+              {/* Hiển thị khuyến nghị */}
+              {!recommendLoading && recommendData && (
+                <div>
+                  <div style={{ marginBottom: 8, fontWeight: 600, color: '#374151', fontSize: 13 }}>
+                    Khuyến nghị từ phiếu trước (cùng biển số xe)
+                  </div>
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      background: '#fffbeb',
+                      border: '1px solid #fcd34d',
+                      borderRadius: 8,
+                      fontSize: 14,
+                      color: '#92400e',
+                      whiteSpace: 'pre-wrap',
+                      minHeight: 60,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {recommendData}
+                  </div>
+                </div>
+              )}
+
+              <div className={styles.modalFooter}>
+                <button
+                  className={styles.modalActionBtn}
+                  onClick={() => setShowRecommendModal(false)}
+                >
+                  Đóng
                 </button>
               </div>
             </div>
