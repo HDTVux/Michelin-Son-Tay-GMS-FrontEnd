@@ -1,4 +1,52 @@
-import { request } from './apiClient';
+import { API_BASE_URL, request } from './apiClient';
+
+function parseFilenameFromContentDisposition(headerValue) {
+  const raw = String(headerValue || '').trim();
+  if (!raw) return null;
+
+  // RFC 5987: filename*=UTF-8''...
+  const starMatch = /filename\*=UTF-8''([^;]+)/i.exec(raw);
+  if (starMatch?.[1]) {
+    try {
+      return decodeURIComponent(starMatch[1].trim());
+    } catch {
+      return starMatch[1].trim();
+    }
+  }
+
+  const basicMatch = /filename="?([^";]+)"?/i.exec(raw);
+  return basicMatch?.[1]?.trim() || null;
+}
+
+async function fetchBlobWithAuth(path, { method, body, token }) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers: {
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        Authorization: `Bearer ${token}`,
+      },
+      body,
+    });
+  } catch {
+    throw new Error('Không thể kết nối tới máy chủ');
+  }
+
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type');
+    const text = contentType?.includes('application/json')
+      ? JSON.stringify(await response.json().catch(() => ({})))
+      : await response.text().catch(() => '');
+    const err = new Error(text || 'Request failed');
+    err.status = response.status;
+    throw err;
+  }
+
+  const blob = await response.blob();
+  const filename = parseFilenameFromContentDisposition(response.headers.get('content-disposition'));
+  return { blob, filename };
+}
 
 // Đổi trạng thái phiếu dịch vụ theo serviceTicketId
 // Endpoint: PUT /api/service-ticket/manage/{serviceTicketId}/{status}
@@ -88,6 +136,29 @@ export const fetchServiceTicketsPaged = (params, token) => {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
+};
+
+// Export danh sách phiếu dịch vụ ra Excel
+// Endpoint: /api/service-ticket/manage/export
+// Request: startDate, endDate (yyyy-mm-dd)
+export const exportServiceTicketsManage = async ({ startDate, endDate }, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để export phiếu dịch vụ.');
+    error.status = 401;
+    throw error;
+  }
+
+  const start = String(startDate ?? '').trim();
+  const end = String(endDate ?? '').trim();
+  if (!start || !end) {
+    const error = new Error('Vui lòng chọn đủ startDate và endDate để export.');
+    error.status = 400;
+    throw error;
+  }
+
+  const basePath = '/api/service-ticket/manage/export';
+  const qs = new URLSearchParams({ startDate: start, endDate: end }).toString();
+  return await fetchBlobWithAuth(`${basePath}?${qs}`, { method: 'GET', body: undefined, token });
 };
 
 // Lấy chi tiết một phiếu dịch vụ theo ticketCode

@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchServiceTicketDetail, fetchServiceTicketEstimate, manageServiceTicketEstimateStatus, manageServiceTicketStatus } from '../../../services/serviceTicketService.js';
+import { createPayment, payBill } from '../../../services/paymentService.js';
 
 // (merged into above import)
 import { fetchAvailablePromotions, fetchPromotionByCode } from '../../../services/promotionService.js';
@@ -51,6 +52,39 @@ function pickLatestEstimate(list) {
 
     console.log("=> BÁO GIÁ ĐƯỢC CHỌN ĐỂ IN:", latest);
     return latest;
+}
+
+function pickNewestEstimateById(list) {
+    const arr = Array.isArray(list) ? list : [];
+    if (arr.length === 0) return null;
+
+    return arr.reduce((prev, current) => {
+        const prevId = Number(prev?.estimateId ?? prev?.id ?? prev?.serviceTicketEstimateId ?? 0);
+        const currentId = Number(current?.estimateId ?? current?.id ?? current?.serviceTicketEstimateId ?? 0);
+        return currentId > prevId ? current : prev;
+    }, arr[0]);
+}
+
+function normalizeBillId(input) {
+    const raw =
+        input?.billId ??
+        input?.billID ??
+        input?.data?.billId ??
+        input?.data?.billID ??
+        input?.id ??
+        input?.data?.id ??
+        null;
+
+    if (raw == null) return null;
+    const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function normalizePaymentMethod(method) {
+    const m = String(method || '').trim().toLowerCase();
+    if (m === 'cash') return 'CASH';
+    if (m === 'transfer') return 'TRANSFER';
+    return method;
 }
 
 function normalizeTicketForReceipt(input, ticketCodeFallback) {
@@ -214,7 +248,8 @@ export default function ReceiptConfirm() {
     
     const [paymentOpen, setPaymentOpen] = useState(false);
     const [paymentSubmitting, setPaymentSubmitting] = useState(false);
-    // Bill creation removed, no state needed
+    const [billCreating, setBillCreating] = useState(false);
+    const [billId, setBillId] = useState(null);
 
     const notify = (message) => toast(message, { containerId: 'app-toast' });
 
@@ -451,9 +486,7 @@ export default function ReceiptConfirm() {
             await manageServiceTicketEstimateStatus(estimateId, 'ARCHIVED', token);
             setArchived(true);
             notify('Đã chuyển báo giá sang trạng thái ARCHIVED.');
-            if (typeof window !== 'undefined' && typeof window.print === 'function') {
-                window.print();
-            }
+            globalThis.window?.print?.();
         } catch (err) {
             notify(err?.message || 'Chuyển trạng thái thất bại.');
         } finally {
@@ -467,37 +500,115 @@ export default function ReceiptConfirm() {
     // Only allow payment after archive
     const handleConfirm = async () => {
         if (!archived) return;
-        setPaymentOpen(true);
-    };
 
-    const handleConfirmPayment = async () => {
-        if (paymentSubmitting) return;
         const token = localStorage.getItem('authToken');
         if (!token) {
             notify('Vui lòng đăng nhập để thanh toán.');
             return;
         }
-        // paymentMethod variable removed as it's not used
-        // No bill, just notify payment success for now
+
+        if (billCreating) return;
+        if (billId) {
+            setPaymentOpen(true);
+            return;
+        }
+
+        const serviceTicketIdRaw = ticket?.serviceTicketId ?? null;
+        const serviceTicketId = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(String(serviceTicketIdRaw ?? '').trim());
+        if (!Number.isFinite(serviceTicketId) || serviceTicketId <= 0) {
+            notify('Không tìm thấy serviceTicketId hợp lệ để tạo hoá đơn.');
+            return;
+        }
+
+        try {
+            setBillCreating(true);
+
+            // Always re-fetch to ensure bill is created for newest estimate version
+            const estimateRes = await fetchServiceTicketEstimate(serviceTicketId, token);
+            const newestEstimate = pickNewestEstimateById(estimateRes?.data);
+            const estimateIdRaw = newestEstimate?.estimateId ?? newestEstimate?.id ?? newestEstimate?.serviceTicketEstimateId ?? null;
+            const estimateId = typeof estimateIdRaw === 'number' ? estimateIdRaw : Number(String(estimateIdRaw ?? '').trim());
+            if (!Number.isFinite(estimateId) || estimateId <= 0) {
+                throw new Error('Không tìm thấy báo giá mới nhất để tạo bill.');
+            }
+
+            const versionRaw =
+                newestEstimate?.version ??
+                newestEstimate?.estimateVersion ??
+                newestEstimate?.estimateNo ??
+                newestEstimate?.versionNo ??
+                null;
+            const versionParsed = typeof versionRaw === 'number' ? versionRaw : Number(String(versionRaw ?? '').trim());
+            const billVersion = Number.isFinite(versionParsed) && versionParsed > 0 ? versionParsed : 1;
+
+            const promotionId = getPromotionId(appliedPromotion);
+            const createPayload = {
+                serviceTicketId,
+                estimateId,
+                version: billVersion,
+                paymentStatus: 'UNPAID',
+                subTotal: toMoneyNumber(subtotal),
+                discount_amount: toMoneyNumber(discountAmount),
+                final_amount: toMoneyNumber(total),
+                promotionId: promotionId ?? null,
+                discountAmount: toMoneyNumber(discountAmount),
+                totalAmount: toMoneyNumber(total),
+            };
+
+            const billRes = await createPayment(createPayload, token);
+            const createdBillId = normalizeBillId(billRes);
+            if (!createdBillId) {
+                throw new Error('Tạo bill thất bại (không nhận được billId).');
+            }
+
+            setBillId(createdBillId);
+            notify('Đã tạo hoá đơn. Vui lòng xác nhận đã thanh toán.');
+            setPaymentOpen(true);
+        } catch (err) {
+            notify(err?.message || 'Tạo hoá đơn thất bại.');
+        } finally {
+            setBillCreating(false);
+        }
+    };
+
+    const handleConfirmPayment = async ({ method } = {}) => {
+        if (paymentSubmitting) return;
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để thanh toán.');
+            throw new Error('Vui lòng đăng nhập để thanh toán.');
+        }
+
+        const serviceTicketIdRaw = ticket?.serviceTicketId ?? null;
+        const serviceTicketId = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(String(serviceTicketIdRaw ?? '').trim());
+        if (!Number.isFinite(serviceTicketId) || serviceTicketId <= 0) {
+            notify('Không tìm thấy serviceTicketId hợp lệ để thanh toán.');
+            throw new Error('Không tìm thấy serviceTicketId hợp lệ để thanh toán.');
+        }
+
+        if (!billId) {
+            notify('Chưa tạo hoá đơn. Vui lòng bấm "Thanh toán" để tạo hoá đơn trước.');
+            throw new Error('Chưa tạo hoá đơn.');
+        }
+
         try {
             setPaymentSubmitting(true);
-            // Here you would call your payment API with total and method if needed
-                notify('Thanh toán thành công');
-                // Thay đổi trạng thái phiếu dịch vụ sang PAID
-                const serviceTicketId = ticket?.serviceTicketId ?? ticket?.serviceTicketId ?? null;
-                if (serviceTicketId != null) {
-                    try {
-                        await manageServiceTicketStatus(serviceTicketId, 'PAID', token);
-                        notify('Đã cập nhật trạng thái phiếu dịch vụ sang PAID.');
-                    } catch (err) {
-                        notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
-                    }
-                } else {
-                    notify('Không tìm thấy serviceTicketId để cập nhật trạng thái.');
-                }
-                setPaymentOpen(false); // Đóng modal sau khi thanh toán thành công
+
+            const payPayload = {
+                billId,
+                amount: toMoneyNumber(total),
+                method: normalizePaymentMethod(method),
+            };
+            await payBill(payPayload, token);
+
+            await manageServiceTicketStatus(serviceTicketId, 'PAID', token);
+            notify('Thanh toán thành công');
+            notify('Đã cập nhật trạng thái phiếu dịch vụ sang PAID.');
+            setPaymentOpen(false);
         } catch (err) {
             notify(err?.message || 'Thanh toán thất bại.');
+            throw err;
         } finally {
             setPaymentSubmitting(false);
         }
@@ -656,9 +767,9 @@ export default function ReceiptConfirm() {
                             type="button"
                             className="ui-btn ui-btn--primary"
                             onClick={handleConfirm}
-                            disabled={!archived}
+                            disabled={!archived || billCreating}
                         >
-                            Thanh toán
+                            {billCreating ? 'Đang tạo hoá đơn...' : 'Thanh toán'}
                         </button>
                     </div>
                 </div>

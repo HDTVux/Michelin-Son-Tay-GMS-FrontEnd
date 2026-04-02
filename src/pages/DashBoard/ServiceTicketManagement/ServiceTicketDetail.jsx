@@ -713,7 +713,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             }
 
             const latestStatus = normalizeEstimateStatus(latest?.estimateStatus ?? latest?.status);
-            if (latestStatus !== 'APPROVED') {
+            if (latestStatus !== 'APPROVED' && latestStatus !== 'ARCHIVED') {
                 notify('Vui lòng xác nhận báo giá trước khi tạo hoá đơn.');
                 return;
             }
