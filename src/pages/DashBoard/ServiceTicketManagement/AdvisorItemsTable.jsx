@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import PropTypes from 'prop-types';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 import {
     formatCurrencyVnd,
@@ -147,9 +147,7 @@ function EstimateItemRow({
     toggleChecked,
     canToggleChecked,
     isEditing,
-    isCreating,
     softDeleteEditRow,
-    softDeleteDraftRow,
     openCatalogPicker,
     showTaxColumn,
 }) {
@@ -161,7 +159,9 @@ function EstimateItemRow({
     const itemTaxRuleId = toIdOrNull(row?.itemTaxRuleId);
     const categoryTaxRuleId = toIdOrNull(row?.workCategoryTaxRuleId);
 
-    const effectiveTaxRuleId = manualTaxRuleId || itemTaxRuleId || categoryTaxRuleId;
+    // Business rule: ưu tiên thuế sản phẩm; nếu không có mới lấy thuế hạng mục;
+    // chỉ khi cả 2 đều null mới dùng thuế thủ công.
+    const effectiveTaxRuleId = itemTaxRuleId || categoryTaxRuleId || manualTaxRuleId;
     const taxRule = effectiveTaxRuleId ? taxRuleById.get(effectiveTaxRuleId) : null;
     const taxLabel = getTaxRuleDisplayLabel(taxRule);
     const taxRateText = formatTaxRatePercent(taxRule);
@@ -291,13 +291,13 @@ function EstimateItemRow({
                     />
                 )}
             </td>
-            {(isEditing || isCreating) ? (
+            {isEditing ? (
                 <td className={styles.tdCenter}>
                     <button
                         type="button"
                         className="ui-btn ui-btn--ghost"
                         onClick={() => softDeleteEditRow(idx)}
-                        disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row)}
+                        disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row) || isLocked}
                         title="Xóa dòng này"
                     >
                         Xóa
@@ -320,9 +320,7 @@ EstimateItemRow.propTypes = {
     toggleChecked: PropTypes.func,
     canToggleChecked: PropTypes.bool,
     isEditing: PropTypes.bool,
-    isCreating: PropTypes.bool,
     softDeleteEditRow: PropTypes.func,
-    softDeleteDraftRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
     showTaxColumn: PropTypes.bool,
 };
@@ -468,7 +466,6 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
         canToggleChecked,
         toggleChecked,
         softDeleteEditRow,
-        softDeleteDraftRow,
         inventory,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange });
@@ -479,7 +476,16 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
     const isRestrictedStatus = !isCreating && ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
 
     // Cho phép tạo mới nếu chưa có báo giá hoặc báo giá hiện tại đã ARCHIVED
-    const canCreateNew = !isCreating && !isEditing && (showAddEstimate || isArchived);
+    const isTicketPaid = String(ticketStatus || '').trim().toUpperCase() === 'PAID';
+    // "Tạo báo giá mới" chỉ dành cho trường hợp chưa có bất kì báo giá nào.
+    const canCreateNew = !isCreating && !isEditing && showAddEstimate && !isTicketPaid;
+
+    // "Tạo version báo giá mới" chỉ dành cho trường hợp báo giá hiện tại là ARCHIVED.
+    const canCreateNewVersion = !isCreating && !isEditing && Boolean(estimate) && isArchived && !isTicketPaid;
+
+    const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
+
+    const [isStartingCreate, setIsStartingCreate] = useState(false);
 
     const handleStartCreate = async () => {
         if (isStartingCreate) return;
@@ -604,10 +610,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
                 <div className={styles.advisorCard}>
                     <h3 className={styles.advisorTitle}>Chẩn đoán kỹ thuật</h3>
                     <div className="ui-field" style={{ marginBottom: 0 }}>
-                        <textarea
-                            placeholder="Nhập kết quả chẩn đoán..."
-                            disabled={isRestrictedStatus}
-                        />
+                        <textarea placeholder="Nhập kết quả chẩn đoán..." disabled={isRestrictedStatus} />
                     </div>
 
                     <h3 className={styles.advisorTitle} style={{ marginTop: 14 }}>Dịch vụ đề xuất</h3>
@@ -778,7 +781,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
                             {isCreating || isEditing ? <th scope="col">THUẾ </th> : null}
                             <th scope="col">KHO</th>
                             <th scope="col">XÁC NHẬN</th>
-                            {isCreating || isEditing ? <th scope="col">XÓA</th> : null}
+                            {isEditing ? <th scope="col">XÓA</th> : null}
                         </tr>
                     </thead>
                     <tbody>
@@ -797,9 +800,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
                                 toggleChecked={toggleChecked}
                                 canToggleChecked={canToggleChecked}
                                 isEditing={isEditing}
-                                isCreating={isCreating}
                                 softDeleteEditRow={softDeleteEditRow}
-                                softDeleteDraftRow={softDeleteDraftRow}
                                 openCatalogPicker={openCatalogPicker}
                             />
                         ))}
@@ -810,7 +811,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
                                 TỔNG CỘNG
                             </td>
                             <td className={styles.tdNumber}>{footerTotalText}</td>
-                            <td colSpan={isCreating || isEditing ? (isCreating ? 3 : 4) : 2} />
+                            <td colSpan={isCreating || isEditing ? (isEditing ? 4 : 3) : 2} />
                         </tr>
                     </tfoot>
                 </table>
@@ -841,26 +842,9 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
                     id="advisor-recommendation"
                     placeholder="Nhập khuyến nghị..."
                     value={recommendation}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (val.length > 500) {
-                            const now = Date.now();
-                            if (!toast500LastFired.current['recommendation'] || now - toast500LastFired.current['recommendation'] > 2000) {
-                                toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
-                                toast500LastFired.current['recommendation'] = now;
-                            }
-                            setRecommendationError('Tối đa 500 ký tự.');
-                            setRecommendation(val);
-                        } else {
-                            setRecommendation(val);
-                            setRecommendationError('');
-                        }
-                    }}
+                    onChange={(e) => setRecommendation(e.target.value)}
                     disabled={isRestrictedStatus}
                 />
-                {recommendationError && (
-                    <span style={{ color: '#dc2626', fontSize: '12px', marginTop: '2px', display: 'block' }}>{recommendationError}</span>
-                )}
             </div>
 
 

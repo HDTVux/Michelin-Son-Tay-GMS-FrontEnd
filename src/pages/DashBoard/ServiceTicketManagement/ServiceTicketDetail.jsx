@@ -333,7 +333,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const params = useParams();
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
-    const shouldHideEditButton = hasAdvisorRole;
     
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -343,7 +342,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
     const [refreshTick, setRefreshTick] = useState(0);
-    void refreshTick; // suppress lint — kept for future polling use
     const triggerRefresh = () => setRefreshTick(prev => prev + 1);
 
     const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
@@ -673,7 +671,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const canCancel = ['DRAFT', 'INSPECTION', 'PENDING', 'IN_PROGRESS'].includes(ticketStatus);
     const canSetPending = ticketStatus === 'DRAFT';
-    const canStartRepair = (ticketStatus === 'DRAFT' || ticketStatus === 'PENDING') && isEstimateApproved;
+    const canStartRepair = (ticketStatus === 'DRAFT' || ticketStatus === 'PENDING' || ticketStatus === 'INSPECTION') && isEstimateApproved;
     const canCompleteRepair = ticketStatus === 'IN_PROGRESS';
     const canAddService = ticketStatus === 'DRAFT' || ticketStatus === 'INSPECTION';
 
@@ -741,16 +739,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                             </div>
                         </div>
-                        {!shouldHideEditButton && (
-                            <button
-                                type="button"
-                                className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
-                                onClick={toggleEdit}
-                                disabled={isLoading || isSaving}
-                            >
-                                {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
+                            onClick={toggleEdit}
+                            disabled={isLoading || isSaving}
+                        >
+                            {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
+                        </button>
                     </header>
 
                     {error && <div className={styles.errorBanner}>{error}</div>}
