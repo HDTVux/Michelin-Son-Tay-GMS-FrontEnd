@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import styles from './ServiceTicketDetail.module.css';
@@ -501,6 +501,9 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
 
     // Cho phép tạo mới nếu chưa có báo giá hoặc báo giá hiện tại đã ARCHIVED
     const canCreateNew = !isCreating && !isEditing && (showAddEstimate || isArchived);
+
+    // Cho phép tạo bản báo giá mới (version mới) khi đã có estimate cũ và không bị archived
+    const canCreateNewVersion = !isCreating && !isEditing && estimate && !isArchived;
 
     const handleStartCreate = async () => {
         if (isStartingCreate) return;

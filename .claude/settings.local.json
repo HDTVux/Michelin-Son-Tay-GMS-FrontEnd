@@ -3,7 +3,8 @@
     "allow": [
       "Bash(node -e 'const fs=require\\(\"\"fs\"\"\\); const p=\"\"c:/Users/Admin/Michelin-Son-Tay-GMS-FrontEnd/src/pages/DashBoard/AdvisorInspection/AdvisorInspection.jsx\"\"; const lines=fs.readFileSync\\(p,\"\"utf8\"\"\\).split\\(\"\"\\\\n\"\"\\); const idx=lines.findIndex\\(l=>l.includes\\(\"\"styles.leftPanelCompact\"\"\\)\\); if\\(idx>=0\\){ lines[idx]=\"\"        <div className={`${styles.leftPanel} ${isInspectionOpen ? styles.leftPanelCompact : styles.leftPanelExpanded}`}>\"\"; fs.writeFileSync\\(p,lines.join\\(\"\"\\\\n\"\"\\)\\); console.log\\(\"\"fixed line\"\", idx+1\\);} else {console.log\\(\"\"line not found\"\"\\);}')",
       "Bash(npm run:*)",
-      "Bash(find D:Michelin-Son-Tay-GMS_17srcmainjava -type d -name *voucher* -o -type d -name *coupon* -o -type d -name *discount*)"
+      "Bash(find D:Michelin-Son-Tay-GMS_17srcmainjava -type d -name *voucher* -o -type d -name *coupon* -o -type d -name *discount*)",
+      "Bash(npx vite:*)"
     ]
   }
 }
