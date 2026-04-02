@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import { fetchServiceTicketDetail, fetchServiceTicketEstimate, manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
+import {
+    fetchServiceTicketDetail,
+    fetchServiceTicketEstimate,
+    manageServiceTicketEstimateStatus,
+    manageServiceTicketStatus,
+} from '../../../services/serviceTicketService.js';
 import { getSafetyInspectionByTicketCode, getDefaultSafetyInspectionCategories } from '../../../services/safetyInspectionService.js';
 
 // (merged into above import)

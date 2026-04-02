@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import styles from './ServiceTicketDetail.module.css';
@@ -11,6 +11,13 @@ import {
 import CatalogPicker from './CatalogPicker.jsx';
 
 const PHOTO_SLOTS = 4;
+
+function normalizeTicketStatus(raw) {
+    const s = String(raw || '').trim().toUpperCase();
+    if (!s || s === 'CREATED') return 'DRAFT';
+    if (s === 'INSPECTING' || s === 'DIAGNOSIS') return 'INSPECTION';
+    return s;
+}
 
 function formatTaxRatePercent(rule) {
     const raw = rule?.taxRate ?? rule?.rate;
@@ -149,7 +156,6 @@ function EstimateItemRow({
     isEditing,
     isCreating,
     softDeleteEditRow,
-    softDeleteDraftRow,
     openCatalogPicker,
     showTaxColumn,
 }) {
@@ -322,7 +328,6 @@ EstimateItemRow.propTypes = {
     isEditing: PropTypes.bool,
     isCreating: PropTypes.bool,
     softDeleteEditRow: PropTypes.func,
-    softDeleteDraftRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
     showTaxColumn: PropTypes.bool,
 };
@@ -468,18 +473,35 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
         canToggleChecked,
         toggleChecked,
         softDeleteEditRow,
-        softDeleteDraftRow,
         inventory,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange });
+    const [isStartingCreate, setIsStartingCreate] = useState(false);
+    const [recommendationError, setRecommendationError] = useState('');
+    const toast500LastFired = useRef({});
+
+    const notify = useCallback((message, type = 'info') => {
+        if (!message) return;
+        if (type === 'error') {
+            toast.error(message);
+            return;
+        }
+        if (type === 'success') {
+            toast.success(message);
+            return;
+        }
+        toast(message);
+    }, []);
 
     const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
     const isArchived = currentEstimateStatus === 'ARCHIVED';
+    const isTicketPaid = normalizeTicketStatus(ticketStatus) === 'PAID';
     // Khi đang tạo mới, chúng ta không bị hạn chế bởi status của báo giá cũ
     const isRestrictedStatus = !isCreating && ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
 
     // Cho phép tạo mới nếu chưa có báo giá hoặc báo giá hiện tại đã ARCHIVED
-    const canCreateNew = !isCreating && !isEditing && (showAddEstimate || isArchived);
+    const canCreateNew = !isCreating && !isEditing && showAddEstimate && !isArchived;
+    const canCreateNewVersion = !isCreating && !isEditing && isArchived;
 
     const handleStartCreate = async () => {
         if (isStartingCreate) return;
@@ -799,7 +821,6 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
                                 isEditing={isEditing}
                                 isCreating={isCreating}
                                 softDeleteEditRow={softDeleteEditRow}
-                                softDeleteDraftRow={softDeleteDraftRow}
                                 openCatalogPicker={openCatalogPicker}
                             />
                         ))}
@@ -850,7 +871,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, onEst
                                 toast500LastFired.current['recommendation'] = now;
                             }
                             setRecommendationError('Tối đa 500 ký tự.');
-                            setRecommendation(val);
+                            setRecommendation(val.slice(0, 500));
                         } else {
                             setRecommendation(val);
                             setRecommendationError('');

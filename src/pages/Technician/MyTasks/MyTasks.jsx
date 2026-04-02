@@ -4,7 +4,44 @@ import { toast } from 'react-toastify';
 import { fetchTechnicianTickets, fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
 import styles from './MyTasks.module.css';
 
+const TECHNICIAN_MY_TASKS_DAY_STORAGE_KEY = 'technicianMyTasks.activeDay';
 const getToken = () => localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+const getAuthFingerprint = () => {
+  const token = getToken();
+  if (!token) return '';
+  return String(token).slice(-24);
+};
+const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
+const readPersistedActiveDay = () => {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = sessionStorage.getItem(TECHNICIAN_MY_TASKS_DAY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const storedFingerprint = String(parsed?.authFingerprint || '');
+    const currentFingerprint = getAuthFingerprint();
+    const storedDate = String(parsed?.date || '').trim();
+    if (!storedFingerprint || storedFingerprint !== currentFingerprint) return null;
+    if (!isIsoDate(storedDate)) return null;
+    return storedDate;
+  } catch {
+    return null;
+  }
+};
+const persistActiveDay = (dateIso) => {
+  try {
+    if (typeof window === 'undefined') return;
+    const nextDate = String(dateIso || '').trim();
+    if (!isIsoDate(nextDate)) return;
+    const payload = {
+      authFingerprint: getAuthFingerprint(),
+      date: nextDate,
+    };
+    sessionStorage.setItem(TECHNICIAN_MY_TASKS_DAY_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore storage write failure
+  }
+};
 const getTodayLocalISO = () => {
   const now = new Date();
   const offsetMs = now.getTimezoneOffset() * 60000;
@@ -64,7 +101,7 @@ const normalizeInspectionStatus = (value) => {
 
 export default function MyTasks() {
   const navigate = useNavigate();
-  const initialDate = useMemo(() => getTodayLocalISO(), []);
+  const initialDate = useMemo(() => readPersistedActiveDay() || getTodayLocalISO(), []);
 
   // ── List state ────────────────────────────────────────
   const [tickets, setTickets] = useState([]);
@@ -265,6 +302,12 @@ export default function MyTasks() {
   }, [safePage, totalPages]);
 
   const activeDate = dateFrom || dateTo || initialDate;
+  useEffect(() => {
+    const nextActiveDate = dateFrom || dateTo || initialDate;
+    if (!isIsoDate(nextActiveDate)) return;
+    persistActiveDay(nextActiveDate);
+  }, [dateFrom, dateTo, initialDate]);
+
   const applySingleDayFilter = (dateIso) => {
     const next = String(dateIso || '').trim();
     if (!next) return;

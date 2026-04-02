@@ -358,6 +358,13 @@ export default function AdvisorInspection() {
   const [workloadMap, setWorkloadMap] = useState({});
   const [staffNameMap, setStaffNameMap] = useState({});
 
+  // Recommendation panel state
+  const [recPanelTicket, setRecPanelTicket] = useState(null);   // ticket đang xem khuyến nghị
+  const [recPanelCode, setRecPanelCode] = useState('');           // ticketCode để fetch
+  const [recPanelLoading, setRecPanelLoading] = useState(false);
+  const [recPanelRecommendation, setRecPanelRecommendation] = useState('');
+  const [recPanelSaveLoading, setRecPanelSaveLoading] = useState(false);
+
   // Modal state
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -558,6 +565,39 @@ export default function AdvisorInspection() {
       return next;
     });
   }, [loading, tickets]);
+
+  // Load recommendation when panel opens / ticket code changes
+  useEffect(() => {
+    if (!recPanelCode) return;
+    const token = getToken();
+    if (!token) return;
+
+    let ignore = false;
+    const run = async () => {
+      try {
+        setRecPanelLoading(true);
+        const res = await fetchServiceTicketDetail(recPanelCode, token);
+        if (ignore) return;
+        const data = res?.data?.data ?? res?.data ?? {};
+        // Ưu tiên lấy từ trường advisorRecommendation, recommendation, hoặc note tùy backend trả về gì
+        const rawRec =
+          data?.advisorRecommendation
+          || data?.recommendation
+          || data?.advisorNote
+          || data?.note
+          || '';
+        setRecPanelRecommendation(rawRec);
+        setRecPanelTicket(data);
+      } catch {
+        // ignore
+      } finally {
+        if (!ignore) setRecPanelLoading(false);
+      }
+    };
+
+    run();
+    return () => { ignore = true; };
+  }, [recPanelCode]);
 
   // Load workload + advisor list
   useEffect(() => {
@@ -1100,7 +1140,7 @@ export default function AdvisorInspection() {
         <span className={styles.totalCount}>{totalElements} phiếu</span>
       </div>
 
-      <div className={styles.splitLayout}>
+      <div className={`${styles.splitLayout} ${recPanelCode ? styles.splitLayoutOpen : styles.splitLayoutClosed}`}>
         {/* LEFT: Table */}
         <div className={styles.leftPanel}>
 
@@ -1259,9 +1299,9 @@ export default function AdvisorInspection() {
                 className={`${styles.actionBtn} ${styles.recommendBtn}`}
                 onClick={() => {
                   if (!code) return;
-                  navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, {
-                    state: { ticket, focusRecommendation: true },
-                  });
+                  setRecPanelTicket(ticket);
+                  setRecPanelCode(code);
+                  setRecPanelRecommendation('');
                 }}
                 disabled={!code || swapping}
                 title="Xem khuyến nghị của phiếu"
@@ -1333,6 +1373,75 @@ export default function AdvisorInspection() {
             </div>
           </div>
         </div>
+
+        {/* RIGHT: Recommendation panel */}
+        {recPanelCode && (
+          <div className={styles.rightPanel}>
+            {/* Header */}
+            <div className={styles.recPanelHeader}>
+              <div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>Mã phiếu</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a1a' }}>
+                  {recPanelCode}
+                </div>
+                {recPanelTicket?.customerName && (
+                  <div style={{ fontSize: 13, color: '#374151', marginTop: 4 }}>
+                    {recPanelTicket.customerName} &bull; {recPanelTicket.licensePlate || '-'}
+                  </div>
+                )}
+              </div>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 22,
+                  color: '#9ca3af',
+                  lineHeight: 1,
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                }}
+                onClick={() => { setRecPanelCode(''); setRecPanelTicket(null); setRecPanelRecommendation(''); }}
+                title="Đóng"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '16px 20px' }}>
+              {recPanelLoading ? (
+                <div style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>
+                  Đang tải khuyến nghị...
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 14, color: '#374151' }}>
+                    Khuyến nghị
+                  </div>
+                  <textarea
+                    style={{
+                      width: '100%',
+                      minHeight: 200,
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '2px solid #e5e7eb',
+                      fontSize: 14,
+                      color: '#1a1a1a',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                      lineHeight: 1.6,
+                    }}
+                    placeholder="Không có khuyến nghị cho phiếu này."
+                    value={recPanelRecommendation}
+                    onChange={(e) => setRecPanelRecommendation(e.target.value)}
+                    readOnly
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
 
