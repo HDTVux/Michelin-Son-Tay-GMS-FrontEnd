@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   fetchAdvisorMyTickets,
+  fetchServiceTicketDetail,
+  fetchServiceTicketsPaged,
   fetchAvailableStaff,
   assignStaff,
   cancelAssignmentById,
@@ -10,13 +12,74 @@ import {
   changeTechnicianByAdvisor,
   fetchTechniciansWorkload,
   fetchTicketAssignments,
+  swapServiceTicketQueue,
 } from '../../../services/serviceTicketService';
 import { fetchCheckInAdvisors } from '../../../services/checkInService';
 import styles from './AdvisorInspection.module.css';
 
 const STAFF_ROLE = { ADVISOR: 'ADVISOR' };
+const ADVISOR_INSPECTION_DAY_STORAGE_KEY = 'advisorInspection.activeDay';
 
 const getToken = () => localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+const getAuthFingerprint = () => {
+  const token = getToken();
+  if (!token) return '';
+  return String(token).slice(-24);
+};
+const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
+const readPersistedActiveDay = () => {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = sessionStorage.getItem(ADVISOR_INSPECTION_DAY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const storedFingerprint = String(parsed?.authFingerprint || '');
+    const currentFingerprint = getAuthFingerprint();
+    const storedDate = String(parsed?.date || '').trim();
+    if (!storedFingerprint || storedFingerprint !== currentFingerprint) return null;
+    if (!isIsoDate(storedDate)) return null;
+    return storedDate;
+  } catch {
+    return null;
+  }
+};
+const persistActiveDay = (dateIso) => {
+  try {
+    if (typeof window === 'undefined') return;
+    const nextDate = String(dateIso || '').trim();
+    if (!isIsoDate(nextDate)) return;
+    const payload = {
+      authFingerprint: getAuthFingerprint(),
+      date: nextDate,
+    };
+    sessionStorage.setItem(ADVISOR_INSPECTION_DAY_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore storage write failure
+  }
+};
+const getTodayLocalISO = () => {
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+const shiftLocalISODate = (dateIso, days) => {
+  const raw = String(dateIso || '').trim();
+  const baseDate = raw ? new Date(`${raw}T00:00:00`) : new Date();
+  if (Number.isNaN(baseDate.getTime())) return getTodayLocalISO();
+  baseDate.setDate(baseDate.getDate() + Number(days || 0));
+  const offsetMs = baseDate.getTimezoneOffset() * 60000;
+  return new Date(baseDate.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+const formatCalendarDisplay = (dateIso) => {
+  const raw = String(dateIso || '').trim();
+  if (!raw) return 'Chọn ngày';
+  const date = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return raw;
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
+};
 
 const readStaffRolesFromStorage = () => {
   try {
@@ -41,6 +104,165 @@ const getTicketId = (ticket) => {
   return null;
 };
 const getTicketStatus = (ticket) => ticket?.status || ticket?.ticketStatus || '';
+const getTicketCustomerPhone = (ticket) =>
+  ticket?.customerPhone
+  || ticket?.phone
+  || ticket?.customer?.phone
+  || ticket?.checkInPhone
+  || ticket?.checkIn?.phone
+  || '-';
+const toDateKey = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw.slice(0, 10);
+  const offsetMs = parsed.getTimezoneOffset() * 60000;
+  return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+const getTicketCreateDateKey = (ticket) =>
+  toDateKey(
+    ticket?.createdAt
+    || ticket?.createDate
+    || ticket?.createdDate
+    || ticket?.created_at
+    || ticket?.serviceTicket?.createdAt
+    || '',
+  );
+const toPositiveQueueNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
+};
+const isQueueLikeKey = (rawKey) => {
+  const key = String(rawKey || '').toLowerCase();
+  if (!key) return false;
+  if (key === 'stt') return true;
+  if (key.includes('queue') && (key.includes('number') || key.includes('order') || key.endsWith('no'))) {
+    return true;
+  }
+  if (key.includes('queue') && (key === 'queue' || key.endsWith('_queue'))) return true;
+  return false;
+};
+const findQueueNumberDeep = (input, maxDepth = 3) => {
+  if (!input || typeof input !== 'object') return null;
+  const visited = new Set();
+  const stack = [{ node: input, depth: 0 }];
+
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop();
+    if (!node || typeof node !== 'object') continue;
+    if (visited.has(node)) continue;
+    visited.add(node);
+
+    for (const [rawKey, rawValue] of Object.entries(node)) {
+      if (isQueueLikeKey(rawKey)) {
+        if (rawValue && typeof rawValue === 'object') {
+          const inner = toPositiveQueueNumber(
+            rawValue?.number ?? rawValue?.order ?? rawValue?.no,
+          );
+          if (inner != null) return inner;
+        } else {
+          const direct = toPositiveQueueNumber(rawValue);
+          if (direct != null) return direct;
+        }
+      }
+
+      if (depth < maxDepth && rawValue && typeof rawValue === 'object') {
+        stack.push({ node: rawValue, depth: depth + 1 });
+      }
+    }
+  }
+
+  return null;
+};
+const getTicketQueueNumber = (ticket) => {
+  const keys = [
+    'queueNumber',
+    'queue_number',
+    'queueNo',
+    'queue_no',
+    'queueOrder',
+    'queue_order',
+    'orderInQueue',
+    'order_in_queue',
+    'stt',
+  ];
+
+  for (const key of keys) {
+    const direct = toPositiveQueueNumber(ticket?.[key]);
+    if (direct != null) return direct;
+  }
+
+  const nestedSources = [
+    ticket?.checkIn,
+    ticket?.checkin,
+    ticket?.checkInInfo,
+    ticket?.reception,
+    ticket?.receptionInfo,
+    ticket?.booking,
+    ticket?.serviceTicket,
+    ticket?.ticket,
+  ];
+
+  for (const nested of nestedSources) {
+    for (const key of keys) {
+      const nestedValue = toPositiveQueueNumber(nested?.[key]);
+      if (nestedValue != null) return nestedValue;
+    }
+  }
+
+  if (ticket && typeof ticket === 'object') {
+    for (const [rawKey, rawValue] of Object.entries(ticket)) {
+      if (!isQueueLikeKey(rawKey)) continue;
+      const value = toPositiveQueueNumber(rawValue);
+      if (value != null) return value;
+    }
+  }
+
+  return findQueueNumberDeep(ticket);
+};
+const getTicketQueueTime = (ticket) => {
+  const raw =
+    ticket?.checkInTime
+    || ticket?.checkinTime
+    || ticket?.checkedInAt
+    || ticket?.createdAt
+    || ticket?.updatedAt
+    || '';
+  const ms = Date.parse(String(raw));
+  return Number.isFinite(ms) ? ms : null;
+};
+const sortTicketsByQueueOrder = (rows) => {
+  const list = Array.isArray(rows) ? rows : [];
+  return [...list].sort((a, b) => {
+    const aq = getTicketQueueNumber(a);
+    const bq = getTicketQueueNumber(b);
+    const aHasQueue = Number.isFinite(aq) && aq > 0;
+    const bHasQueue = Number.isFinite(bq) && bq > 0;
+    if (aHasQueue && bHasQueue) return aq - bq;
+    if (aHasQueue) return -1;
+    if (bHasQueue) return 1;
+
+    const at = getTicketQueueTime(a);
+    const bt = getTicketQueueTime(b);
+    if (Number.isFinite(at) && Number.isFinite(bt) && at !== bt) return at - bt;
+    if (Number.isFinite(at)) return -1;
+    if (Number.isFinite(bt)) return 1;
+
+    const aid = Number(getTicketId(a) || 0);
+    const bid = Number(getTicketId(b) || 0);
+    return aid - bid;
+  });
+};
+const getSwappedTicketOrder = (rows, sourceTicketId, targetTicketId) => {
+  const list = Array.isArray(rows) ? rows : [];
+  const fromIndex = list.findIndex((t) => Number(getTicketId(t)) === Number(sourceTicketId));
+  const toIndex = list.findIndex((t) => Number(getTicketId(t)) === Number(targetTicketId));
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return list;
+  const next = [...list];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+};
 
 const SERVICE_TICKET_STATUS_LABELS = {
   DRAFT: 'Nháp',
@@ -103,31 +325,40 @@ const normalizeAssignment = (raw) => {
   };
 };
 
+const isActiveTechnicianAssignment = (assignment) =>
+  String(assignment?.roleInTicket || assignment?.role || '').trim().toUpperCase() === 'TECHNICIAN'
+  && String(assignment?.status || '').trim().toUpperCase() !== 'CANCELLED';
+
 export default function AdvisorInspection() {
   const navigate = useNavigate();
   const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
   const canChangeAdvisorByRole = staffRoles.includes(STAFF_ROLE.ADVISOR);
+  const initialDate = useMemo(() => readPersistedActiveDay() || getTodayLocalISO(), []);
+  const queueCacheRef = useRef(new Map());
+  const dayPickerRef = useRef(null);
 
-  // ── Ticket list state ──────────────────────────────────────
+  // Ticket list state
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(initialDate);
+  const [dateTo, setDateTo] = useState(initialDate);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
+  const [dragTicketId, setDragTicketId] = useState(null);
+  const [swapping, setSwapping] = useState(false);
 
-  // ── Workload map ──────────────────────────────────────────
+  // Workload map
   const [workloadMap, setWorkloadMap] = useState({});
   const [staffNameMap, setStaffNameMap] = useState({});
 
-  // ── Modal state ──────────────────────────────────────────
+  // Modal state
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [modalAssignments, setModalAssignments] = useState([]);
@@ -142,7 +373,7 @@ export default function AdvisorInspection() {
   const [modalSuccess, setModalSuccess] = useState('');
   const [modalPageAssignments, setModalPageAssignments] = useState(new Map());
 
-  // ── Debounce search ───────────────────────────────────────
+  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
     return () => clearTimeout(timer);
@@ -157,7 +388,7 @@ export default function AdvisorInspection() {
     search: debouncedSearch || undefined,
   }), [page, size, dateFrom, dateTo, statusFilter, debouncedSearch]);
 
-  // ── Load ticket list (paginated) ─────────────────────────
+  // Load ticket list (paginated)
   useEffect(() => {
     const token = getToken();
     if (!token) {
@@ -180,7 +411,8 @@ export default function AdvisorInspection() {
           : Array.isArray(response?.data)
             ? response.data
             : [];
-        setTickets(list);
+        const sortedList = sortTicketsByQueueOrder(list);
+        setTickets(sortedList);
         setTotalPages(Math.max(1, Number(pageData?.totalPages) || 1));
         setTotalElements(Math.max(0, Number(pageData?.totalElements) || 0));
         cacheStaffNames(
@@ -189,6 +421,89 @@ export default function AdvisorInspection() {
             fullName: t?.advisorName || t?.assignedAdvisorName || t?.advisor?.fullName,
           })),
         );
+
+        const missingQueueCodes = sortedList
+          .filter((ticket) => getTicketQueueNumber(ticket) == null)
+          .map((ticket) => String(getTicketCode(ticket) || '').trim())
+          .filter(Boolean);
+
+        if (missingQueueCodes.length > 0) {
+          const queueByCode = new Map();
+          for (const code of missingQueueCodes) {
+            const cached = queueCacheRef.current.get(code);
+            if (cached != null) queueByCode.set(code, cached);
+          }
+
+          const unresolvedCodes = missingQueueCodes.filter((code) => !queueByCode.has(code));
+          if (unresolvedCodes.length > 0) {
+            const detailRows = await Promise.allSettled(
+              unresolvedCodes.map((code) => fetchServiceTicketDetail(code, token)),
+            );
+            if (ignore) return;
+
+            const stillUnresolved = [];
+            detailRows.forEach((row, idx) => {
+              const code = unresolvedCodes[idx];
+              if (row.status !== 'fulfilled') {
+                stillUnresolved.push(code);
+                return;
+              }
+              const detailCandidate = row?.value?.data?.data ?? row?.value?.data ?? row?.value;
+              const queueNumber = getTicketQueueNumber(detailCandidate);
+              if (queueNumber != null) {
+                queueByCode.set(code, queueNumber);
+                queueCacheRef.current.set(code, queueNumber);
+              } else {
+                stillUnresolved.push(code);
+              }
+            });
+
+            if (stillUnresolved.length > 0) {
+              const manageRows = await Promise.allSettled(
+                stillUnresolved.map((code) =>
+                  fetchServiceTicketsPaged({ page: 0, size: 20, search: code }, token),
+                ),
+              );
+              if (ignore) return;
+
+              manageRows.forEach((row, idx) => {
+                if (row.status !== 'fulfilled') return;
+                const code = stillUnresolved[idx];
+                const pageData = row?.value?.data;
+                const list = Array.isArray(pageData?.content)
+                  ? pageData.content
+                  : Array.isArray(pageData?.data)
+                    ? pageData.data
+                    : Array.isArray(pageData)
+                      ? pageData
+                      : [];
+                if (list.length === 0) return;
+                const matched = list.find((item) => String(getTicketCode(item) || '').trim() === code) || list[0];
+                const queueNumber = getTicketQueueNumber(matched);
+                if (queueNumber == null) return;
+                queueByCode.set(code, queueNumber);
+                queueCacheRef.current.set(code, queueNumber);
+              });
+            }
+          }
+
+          if (queueByCode.size > 0) {
+            setTickets((prev) => sortTicketsByQueueOrder(
+              prev.map((ticket) => {
+                const code = String(getTicketCode(ticket) || '').trim();
+                const queueNumber = queueByCode.get(code);
+                if (queueNumber == null) return ticket;
+                return {
+                  ...ticket,
+                  queueNumber,
+                  queue_number: queueNumber,
+                  queueOrder: queueNumber,
+                  queue_order: queueNumber,
+                };
+              }),
+            ));
+          }
+        }
       } catch (err) {
         if (ignore) return;
         setError(err?.message || 'Không thể tải danh sách phiếu.');
@@ -202,7 +517,7 @@ export default function AdvisorInspection() {
     return () => { ignore = true; };
   }, [filters, reloadKey]);
 
-  // ── Load page-level assignments (for "has technician" check) ──
+  // Load page-level assignments (for "has technician" check)
   useEffect(() => {
     const token = getToken();
     if (!token || loading || tickets.length === 0) return;
@@ -244,7 +559,7 @@ export default function AdvisorInspection() {
     });
   }, [loading, tickets]);
 
-  // ── Load workload + advisor list ───────────────────────────
+  // Load workload + advisor list
   useEffect(() => {
     const token = getToken();
     if (!token) return;
@@ -275,7 +590,7 @@ export default function AdvisorInspection() {
     setSelectedTicket(null);
   }, [tickets, selectedTicket]);
 
-  // ── Helpers ──────────────────────────────────────────────
+  // Helpers
   const getServiceTicketStatusDisplay = (ticket) => {
     const status = normalizeServiceTicketStatus(ticket);
     return SERVICE_TICKET_STATUS_LABELS[status] || status || '-';
@@ -290,6 +605,15 @@ export default function AdvisorInspection() {
     if (status === 'COMPLETED' || status === 'PAID') return styles.statusActive;
     if (status === 'CANCELLED') return styles.statusInactive;
     return styles.statusPending;
+  };
+
+  const getQueueStatusInfo = (ticket) => {
+    const queueNumber = getTicketQueueNumber(ticket);
+    if (Number.isFinite(queueNumber) && queueNumber > 0) {
+      return { label: String(queueNumber), className: styles.queueNumber };
+    }
+
+    return { label: '-', className: styles.queueUnassigned };
   };
 
   const formatDate = (dateStr) => {
@@ -327,7 +651,7 @@ export default function AdvisorInspection() {
     });
   };
 
-  // ── Open modal ────────────────────────────────────────────
+  // Open modal
   const handleOpenModal = async (ticket) => {
     setSelectedTicket(ticket);
     setShowAssignModal(true);
@@ -407,7 +731,7 @@ export default function AdvisorInspection() {
     setModalSuccess('');
   };
 
-  // ── Change advisor ─────────────────────────────────────────
+  // Change advisor
   const handleChangeAdvisor = async () => {
     const token = getToken();
     const ticketCode = getTicketCode(selectedTicket);
@@ -415,11 +739,16 @@ export default function AdvisorInspection() {
     const newAdvisorId = Number(selectedNewAdvisorId);
 
     if (!token || !ticketCode || !Number.isFinite(currentAdvisorId) || currentAdvisorId <= 0) {
-      setModalError('Không đủ dữ liệu để đổi advisor.'); return;
+      setModalError('Không đủ dữ liệu để đổi cố vấn viên.');
+      return;
     }
-    if (!canChangeAdvisorByRole) { setModalError('Chỉ advisor mới có quyền đổi advisor.'); return; }
+    if (!canChangeAdvisorByRole) {
+      setModalError('Chỉ advisor mới có quyền đổi advisor.');
+      return;
+    }
     if (modalAdvisor?.status !== 'PENDING' && modalAdvisor?.status !== 'ACTIVE') {
-      setModalError('Chỉ được đổi advisor khi assignment hiện tại đang PENDING hoặc ACTIVE.'); return;
+      setModalError('Chỉ được đổi advisor khi assignment hiện tại đang PENDING hoặc ACTIVE.');
+      return;
     }
     if (!Number.isFinite(newAdvisorId) || newAdvisorId <= 0 || newAdvisorId === currentAdvisorId) return;
 
@@ -436,7 +765,7 @@ export default function AdvisorInspection() {
       await changeAdvisorByAdvisor(ticketCode, newAdvisorId, 'Đổi advisor từ trang advisor', token);
       const selectedTicketId = getTicketId(selectedTicket);
       if (Number.isFinite(selectedTicketId)) {
-        setTickets((prev) => prev.filter((t) => Number(getTicketId(t)) !== Number(selectedTicketId)));
+        setTickets((prev) => prev.filter((ticketItem) => Number(getTicketId(ticketItem)) !== Number(selectedTicketId)));
       }
       toast.success('Đã đổi cố vấn viên. Phiếu đã được chuyển sang cố vấn viên mới.');
       handleCloseModal();
@@ -447,7 +776,7 @@ export default function AdvisorInspection() {
     }
   };
 
-  // ── Change technician ──────────────────────────────────────
+  // Change technician
   const handleChangeTechnician = async (assignment) => {
     const token = getToken();
     const ticketCode = getTicketCode(selectedTicket);
@@ -455,10 +784,12 @@ export default function AdvisorInspection() {
     const newTechnicianId = Number(techReplacementByAssignment[String(assignment?.assignmentId)] || 0);
 
     if (!token || !ticketCode || !Number.isFinite(oldTechnicianId) || oldTechnicianId <= 0) {
-      setModalError('Không đủ dữ liệu để đổi KTV.'); return;
+      setModalError('Không đủ dữ liệu để đổi kỹ thuật viên.');
+      return;
     }
     if (assignment?.status !== 'PENDING') {
-      setModalError('Chỉ được đổi KTV khi assignment hiện tại đang PENDING.'); return;
+      setModalError('Chỉ được đổi kỹ thuật viên khi assignment hiện tại đang PENDING.');
+      return;
     }
     if (!Number.isFinite(newTechnicianId) || newTechnicianId <= 0 || newTechnicianId === oldTechnicianId) return;
 
@@ -466,10 +797,10 @@ export default function AdvisorInspection() {
     setModalSuccess('');
     const oldTechName = getStaffDisplayName(oldTechnicianId);
     const newTechName = modalTechList.find(
-      (t) => Number(t.staffId) === newTechnicianId,
+      (techItem) => Number(techItem.staffId) === newTechnicianId,
     )?.fullName || `NV-${newTechnicianId}`;
 
-    if (!window.confirm(`Bạn có muốn đổi KTV?\n\nKTV cũ: ${oldTechName}\nKTV mới: ${newTechName}`)) return;
+    if (!window.confirm(`Bạn có muốn đổi kỹ thuật viên?\n\nKTV cũ: ${oldTechName}\nKTV mới: ${newTechName}`)) return;
 
     setLoadingModal(true);
     try {
@@ -483,11 +814,19 @@ export default function AdvisorInspection() {
     }
   };
 
-  // ── Assign technician ──────────────────────────────────────
+  // Assign technician
   const handleAssign = async (tech, isPrimary) => {
     const token = getToken();
     const ticketId = getTicketId(selectedTicket);
-    if (!ticketId) { setModalError('Không tìm thấy ticketId.'); return; }
+    if (!ticketId) {
+      setModalError('Không tìm thấy ticketId.');
+      return;
+    }
+    const hasAssignedTechnician = modalAssignments.some(isActiveTechnicianAssignment);
+    if (hasAssignedTechnician) {
+      setModalError('Phiếu đã có kỹ thuật viên chính. Vui lòng dùng nút Đổi KTV nếu cần thay đổi.');
+      return;
+    }
 
     setModalError('');
     setModalSuccess('');
@@ -510,14 +849,14 @@ export default function AdvisorInspection() {
         setModalAssignments((prev) => [...prev, { ...newAssignment }]);
       }
 
-      setModalTechList((prev) => prev.filter((t) => t.staffId !== tech.staffId));
+      setModalTechList((prev) => prev.filter((techItem) => techItem.staffId !== tech.staffId));
       setModalPageAssignments((prev) => {
         const next = new Map(prev);
         next.set(ticketId, true);
         return next;
       });
 
-      const label = isPrimary ? 'KTV chính' : 'KTV phụ';
+      const label = 'Kỹ thuật viên';
       setModalSuccess(`Đã phân công ${label}: ${tech.fullName || `NV-${tech.staffId}`}`);
     } catch (err) {
       setModalError(err?.message || 'Phân công thất bại.');
@@ -526,14 +865,17 @@ export default function AdvisorInspection() {
     }
   };
 
-  // ── Cancel technician ──────────────────────────────────────
+  // Cancel technician
   const handleCancelTech = async (assignment) => {
     const token = getToken();
     const ticketId = getTicketId(selectedTicket);
     const name = getStaffDisplayName(assignment.staffId, assignment.fullName);
 
     if (!window.confirm(`Bạn có muốn hủy phân công KTV ${name} không?`)) return;
-    if (!ticketId) { setModalError('Không tìm thấy ticketId.'); return; }
+    if (!ticketId) {
+      setModalError('Không tìm thấy ticketId.');
+      return;
+    }
 
     setModalError('');
     setModalSuccess('');
@@ -543,15 +885,15 @@ export default function AdvisorInspection() {
       await cancelAssignmentById(ticketId, assignment.assignmentId, token);
 
       setModalAssignments((prev) =>
-        prev.map((a) =>
-          a.assignmentId === assignment.assignmentId
-            ? { ...a, status: 'CANCELLED' }
-            : a,
+        prev.map((item) =>
+          item.assignmentId === assignment.assignmentId
+            ? { ...item, status: 'CANCELLED' }
+            : item,
         ),
       );
 
       const cancelled = modalAssignments.find(
-        (a) => a.assignmentId === assignment.assignmentId,
+        (item) => item.assignmentId === assignment.assignmentId,
       );
       if (cancelled) {
         const techData = workloadMap[cancelled.staffId];
@@ -570,10 +912,10 @@ export default function AdvisorInspection() {
       }
 
       const stillHasTech = modalAssignments.some(
-        (a) =>
-          a.assignmentId !== assignment.assignmentId
-          && String(a?.roleInTicket).toUpperCase() === 'TECHNICIAN'
-          && String(a?.status).toUpperCase() !== 'CANCELLED',
+        (item) =>
+          item.assignmentId !== assignment.assignmentId
+          && String(item?.roleInTicket).toUpperCase() === 'TECHNICIAN'
+          && String(item?.status).toUpperCase() !== 'CANCELLED',
       );
       setModalPageAssignments((prev) => {
         const next = new Map(prev);
@@ -589,12 +931,6 @@ export default function AdvisorInspection() {
     }
   };
 
-  // ── Modal helpers ──────────────────────────────────────────
-  const hasPrimaryTechnician = modalAssignments.some(
-    (a) =>
-      a?.roleInTicket === 'TECHNICIAN' && a?.isPrimary === true
-      && (a?.status === 'PENDING' || a?.status === 'ACTIVE'),
-  );
 
   const getAdvisorDisplayName = (ticket) =>
     modalAdvisor?.fullName
@@ -625,14 +961,14 @@ export default function AdvisorInspection() {
 
     return {
       isBusy,
-      text: busyNote || (hasBusyInfo ? (isBusy ? 'Bận' : 'Rảnh') : `${ticketCount} phiếu — ${isBusy ? 'bận' : 'rảnh'}`),
+      text: busyNote || (hasBusyInfo ? (isBusy ? 'Bận' : 'Rảnh') : `${ticketCount} phiếu • ${isBusy ? 'bận' : 'rảnh'}`),
     };
   };
 
   const canChangeModalAdvisor =
     modalAdvisor?.status === 'PENDING' || modalAdvisor?.status === 'ACTIVE';
 
-  // ── Pagination helpers ─────────────────────────────────────
+  // Pagination helpers
   const safePage = Math.min(Math.max(0, page), Math.max(1, totalPages) - 1);
   const pageButtons = useMemo(() => {
     const max = 5;
@@ -643,14 +979,107 @@ export default function AdvisorInspection() {
     return items;
   }, [safePage, totalPages]);
 
+  const activeDate = dateFrom || dateTo || initialDate;
+  useEffect(() => {
+    const nextActiveDate = dateFrom || dateTo || initialDate;
+    if (!isIsoDate(nextActiveDate)) return;
+    persistActiveDay(nextActiveDate);
+  }, [dateFrom, dateTo, initialDate]);
+
+  const applySingleDayFilter = (dateIso) => {
+    const next = String(dateIso || '').trim();
+    if (!next) return;
+    setDateFrom(next);
+    setDateTo(next);
+    setPage(0);
+  };
+  const handlePreviousDay = () => applySingleDayFilter(shiftLocalISODate(activeDate, -1));
+  const handleNextDay = () => applySingleDayFilter(shiftLocalISODate(activeDate, 1));
+  const handlePickDay = (value) => applySingleDayFilter(value);
+  const handleOpenCalendar = () => {
+    const picker = dayPickerRef.current;
+    if (!picker) return;
+    if (typeof picker.showPicker === 'function') {
+      picker.showPicker();
+      return;
+    }
+    picker.click();
+  };
+
   const handleResetFilters = () => {
+    const today = getTodayLocalISO();
     setPage(0);
     setSize(10);
-    setDateFrom('');
-    setDateTo('');
+    setDateFrom(today);
+    setDateTo(today);
     setStatusFilter('');
     setSearch('');
     setDebouncedSearch('');
+  };
+  const handleSwapTickets = async (sourceTicketId, targetTicketId) => {
+    if (swapping) return;
+    if (!Number.isFinite(Number(sourceTicketId)) || !Number.isFinite(Number(targetTicketId))) return;
+    if (Number(sourceTicketId) === Number(targetTicketId)) return;
+
+    const token = getToken();
+    if (!token) {
+      toast.error('Vui lòng đăng nhập để đổi thứ tự phiếu.');
+      return;
+    }
+
+    const sourceTicket = tickets.find((t) => Number(getTicketId(t)) === Number(sourceTicketId));
+    const targetTicket = tickets.find((t) => Number(getTicketId(t)) === Number(targetTicketId));
+    const sourceCreateDate = getTicketCreateDateKey(sourceTicket);
+    const targetCreateDate = getTicketCreateDateKey(targetTicket);
+    if (sourceCreateDate && targetCreateDate && sourceCreateDate !== targetCreateDate) {
+      toast.error('Chỉ được đổi thứ tự các phiếu cùng ngày tạo.');
+      return;
+    }
+
+    let rollbackTickets = null;
+    setTickets((prev) => {
+      rollbackTickets = prev;
+      return getSwappedTicketOrder(prev, sourceTicketId, targetTicketId);
+    });
+
+    setSwapping(true);
+    try {
+      const response = await swapServiceTicketQueue(sourceTicketId, targetTicketId, token);
+      const swapped = Array.isArray(response?.data) ? response.data : [];
+      const queueByTicketId = new Map(
+        swapped
+          .map((row) => [Number(row?.serviceTicketId), row])
+          .filter(([id]) => Number.isFinite(id) && id > 0),
+      );
+
+      if (queueByTicketId.size > 0) {
+        setTickets((prev) => prev.map((ticket) => {
+          const ticketId = Number(getTicketId(ticket));
+          const swappedRow = queueByTicketId.get(ticketId);
+          if (!swappedRow) return ticket;
+          const nextStatus =
+            swappedRow?.ticketStatus
+            || swappedRow?.status
+            || ticket?.ticketStatus
+            || ticket?.status;
+          const nextQueueNumber = getTicketQueueNumber(swappedRow) ?? getTicketQueueNumber(ticket);
+          return {
+            ...ticket,
+            queueNumber: nextQueueNumber,
+            queue_number: nextQueueNumber,
+            ticketStatus: nextStatus,
+            status: nextStatus,
+          };
+        }));
+      }
+
+      toast.success(response?.message || 'Đã lưu thứ tự phiếu.');
+    } catch (err) {
+      if (Array.isArray(rollbackTickets) && rollbackTickets.length > 0) setTickets(rollbackTickets);
+      toast.error(err?.message || 'Không thể lưu thứ tự phiếu.');
+    } finally {
+      setSwapping(false);
+    }
   };
 
   return (
@@ -677,22 +1106,30 @@ export default function AdvisorInspection() {
 
           {/* Filters */}
           <div className={styles.pendingFilters}>
-            <div className={styles.filterCardLabels}>
-              <span>Ngày hẹn từ</span>
-              <span>Ngày hẹn đến</span>
+            <div className={`${styles.filterCardLabels} ${styles.filterCardLabelsTwo}`}>
+              <span>Lịch ngày</span>
               <span>Trạng thái</span>
             </div>
-            <div className={styles.filterCardControls}>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
-              />
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
-              />
+            <div className={`${styles.filterCardControls} ${styles.filterCardControlsTwo}`}>
+              <div className={styles.dayNavigator}>
+                <button type="button" className={styles.dayNavBtn} onClick={handlePreviousDay}>
+                  Trước
+                </button>
+                <button type="button" className={styles.dayCenterBtn} onClick={handleOpenCalendar}>
+                  {formatCalendarDisplay(activeDate)}
+                </button>
+                <button type="button" className={styles.dayNavBtn} onClick={handleNextDay}>
+                  Sau
+                </button>
+                <input
+                  ref={dayPickerRef}
+                  type="date"
+                  value={activeDate}
+                  onChange={(e) => handlePickDay(e.target.value)}
+                  className={styles.hiddenDateInput}
+                  aria-label="Chọn ngày xử lý"
+                />
+              </div>
               <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
@@ -720,7 +1157,7 @@ export default function AdvisorInspection() {
                 />
               </div>
               <button className={styles.ghostButton} onClick={handleResetFilters}>
-                Xóa bộ lọc
+                Về hôm nay
               </button>
             </div>
           </div>
@@ -731,85 +1168,130 @@ export default function AdvisorInspection() {
           <div className={styles.bookingCard}>
             <div className={styles.tableWrapper}>
               <table className={styles.bookingTable}>
-                <thead>
-                  <tr>
-                    <th>STT</th>
-                    <th>MÃ PHIẾU</th>
-                    <th>TÊN KHÁCH HÀNG</th>
-                    <th>SĐT</th>
-                    <th>BIỂN SỐ</th>
-                    <th>TRẠNG THÁI</th>
-                    <th>NGÀY HẸN</th>
-                    <th>THAO TÁC</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading && (
-                    <tr><td colSpan="8" className={styles.emptyRow}>Đang tải...</td></tr>
-                  )}
-                  {!loading && tickets.length === 0 && (
-                    <tr><td colSpan="8" className={styles.emptyRow}>Không có phiếu nào.</td></tr>
-                  )}
-                  {!loading && tickets.map((ticket, idx) => {
-                    const code = getTicketCode(ticket);
-                    const ticketId = getTicketId(ticket);
-                    const hasTech = modalPageAssignments.get(ticketId) ?? false;
+  <thead>
+    <tr>
+      <th>STT HÀNG ĐỢI</th>
+      <th>MÃ PHIẾU</th>
+      <th>TÊN KHÁCH HÀNG</th>
+      <th>SĐT</th>
+      <th>BIỂN SỐ</th>
+      <th>TRẠNG THÁI</th>
+      <th>NGÀY HẸN</th>
+      <th>THAO TÁC</th>
+    </tr>
+  </thead>
+  <tbody>
+    {loading && (
+      <tr><td colSpan="8" className={styles.emptyRow}>Đang tải...</td></tr>
+    )}
+    {!loading && tickets.length === 0 && (
+      <tr><td colSpan="8" className={styles.emptyRow}>Không có phiếu nào.</td></tr>
+    )}
+    {!loading && tickets.map((ticket, idx) => {
+      const code = getTicketCode(ticket);
+      const ticketId = getTicketId(ticket);
+      const hasTech = modalPageAssignments.get(ticketId) ?? false;
+      const queueInfo = getQueueStatusInfo(ticket);
+      const customerPhone = getTicketCustomerPhone(ticket);
+      const rowDraggable = Number.isFinite(ticketId) && ticketId > 0 && !swapping;
+      const isDraggingSource = rowDraggable && Number(ticketId) === Number(dragTicketId);
 
-                    return (
-                      <tr key={code || ticketId || idx}>
-                        <td>{idx + 1 + page * size}</td>
-                        <td className={styles.ticketCodeCell}>{code || '-'}</td>
-                        <td>{ticket.customerName || ticket.fullName || '-'}</td>
-                        <td>{ticket.customerPhone || ticket.phone || '-'}</td>
-                        <td>
-                          <span className={styles.licensePlate}>
-                            {ticket.licensePlate || '-'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`${styles.statusBadge} ${getServiceTicketStatusClass(ticket)}`}>
-                            {getServiceTicketStatusDisplay(ticket)}
-                          </span>
-                        </td>
-                        <td>{formatDate(ticket.appointmentDate || ticket.bookingDate || ticket.scheduledDate)}</td>
-                        <td>
-                          <div className={styles.actionButtons}>
-                            {/* Nút Mở — chỉ mở được khi đã phân công KTV */}
-                            <button
-                              className={styles.actionBtn}
-                              onClick={() => {
-                                if (!code || !hasTech) return;
-                                navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
-                              }}
-                              disabled={!code || !hasTech}
-                              title={!hasTech ? 'Cần phân công KTV trước khi mở phiếu' : 'Mở chi tiết phiếu dịch vụ'}
-                            >
-                              Mở
-                            </button>
-                            {/* Phân công / Xem phân công */}
-                            {hasTech ? (
-                              <button
-                                className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
-                                onClick={() => handleOpenModal(ticket)}
-                              >
-                                Xem phân công
-                              </button>
-                            ) : (
-                              <button
-                                className={`${styles.actionBtn} ${styles.assignBtn}`}
-                                onClick={() => handleOpenModal(ticket)}
-                                disabled={!ticketId}
-                              >
-                                Phân công
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+      return (
+        <tr
+          key={code || ticketId || idx}
+          className={isDraggingSource ? styles.draggingRow : ''}
+          draggable={rowDraggable}
+          onDragStart={(e) => {
+            if (!rowDraggable) return;
+            setDragTicketId(ticketId);
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', String(ticketId));
+          }}
+          onDragOver={(e) => {
+            if (!rowDraggable) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const sourceRaw = e.dataTransfer.getData('text/plain') || String(dragTicketId || '');
+            const sourceId = Number(sourceRaw);
+            const targetId = Number(ticketId);
+            setDragTicketId(null);
+            if (!Number.isFinite(sourceId) || !Number.isFinite(targetId)) return;
+            handleSwapTickets(sourceId, targetId);
+          }}
+          onDragEnd={() => setDragTicketId(null)}
+        >
+          <td>
+            <span className={`${styles.queueBadge} ${queueInfo.className}`}>
+              {queueInfo.label}
+            </span>
+          </td>
+          <td className={styles.ticketCodeCell}>{code || '-'}</td>
+          <td>{ticket.customerName || ticket.fullName || '-'}</td>
+          <td>{customerPhone}</td>
+          <td>
+            <span className={styles.licensePlate}>
+              {ticket.licensePlate || '-'}
+            </span>
+          </td>
+          <td>
+            <span className={`${styles.statusBadge} ${getServiceTicketStatusClass(ticket)}`}>
+              {getServiceTicketStatusDisplay(ticket)}
+            </span>
+          </td>
+          <td>{formatDate(ticket.appointmentDate || ticket.bookingDate || ticket.scheduledDate)}</td>
+          <td>
+            <div className={styles.actionButtons}>
+              <button
+                className={styles.actionBtn}
+                onClick={() => {
+                  if (!code || !hasTech) return;
+                  navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
+                }}
+                disabled={!code || !hasTech || swapping}
+                title={!hasTech ? 'Cần phân công KTV trước khi mở phiếu' : 'Mở chi tiết phiếu dịch vụ'}
+              >
+                Mở
+              </button>
+              <button
+                className={`${styles.actionBtn} ${styles.recommendBtn}`}
+                onClick={() => {
+                  if (!code) return;
+                  navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, {
+                    state: { ticket, focusRecommendation: true },
+                  });
+                }}
+                disabled={!code || swapping}
+                title="Xem khuyến nghị của phiếu"
+              >
+                Xem khuyến nghị
+              </button>
+              {hasTech ? (
+                <button
+                  className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
+                  onClick={() => handleOpenModal(ticket)}
+                  disabled={swapping}
+                >
+                  Xem phân công
+                </button>
+              ) : (
+                <button
+                  className={`${styles.actionBtn} ${styles.assignBtn}`}
+                  onClick={() => handleOpenModal(ticket)}
+                  disabled={!ticketId || swapping}
+                >
+                  Phân công
+                </button>
+              )}
+            </div>
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
             </div>
 
             {/* Footer: page size + pagination */}
@@ -860,7 +1342,7 @@ export default function AdvisorInspection() {
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>
-                Phân công KTV — {getTicketCode(selectedTicket) || '-'}
+                Phân công KTV • {getTicketCode(selectedTicket) || '-'}
               </h3>
               <button className={styles.modalClose} onClick={handleCloseModal}>×</button>
             </div>
@@ -874,10 +1356,11 @@ export default function AdvisorInspection() {
               {modalSuccess && <div className={styles.successBanner}>{modalSuccess}</div>}
               {modalError && <div className={styles.errorBanner}>{modalError}</div>}
 
-              {/* Kiểm tra trạng thái phiếu — không cho thay đổi khi hoàn tất/đã thanh toán/hủy */}
+              {/* Kiểm tra trạng thái phiếu: không cho thay đổi khi hoàn tất/đã thanh toán/hủy */}
               {(() => {
                 const ticketStatus = normalizeServiceTicketStatus(selectedTicket);
                 const isFinalized = ['COMPLETED', 'PAID', 'CANCELLED'].includes(ticketStatus);
+                const hasAssignedTechnician = modalAssignments.some(isActiveTechnicianAssignment);
 
                 return (
                   <>
@@ -961,7 +1444,6 @@ export default function AdvisorInspection() {
                         <h4 className={styles.sectionTitle}>KTV ĐÃ PHÂN CÔNG</h4>
                         {modalAssignments.map((a) => {
                           const isCancelled = a?.status === 'CANCELLED';
-                          const isPrimary = a?.isPrimary;
                           const isPending = a?.status === 'PENDING';
                           const ticketStatusRaw = selectedTicket?.ticketStatus || selectedTicket?.status;
                           const displayStatus = computeDisplayStatus(a.status, ticketStatusRaw);
@@ -975,10 +1457,10 @@ export default function AdvisorInspection() {
                                   {getStaffDisplayName(a.staffId, a.fullName)}
                                 </span>
                                 <span className={styles.assignRole}>
-                                  {isPrimary ? 'KTV chính' : 'KTV phụ'} &bull;{' '}
+                                  {a?.isPrimary ? 'Kỹ thuật viên chính' : 'Kỹ thuật viên'} &bull;{' '}
                                   {STATUS_LABELS[displayStatus] || displayStatus}
                                 </span>
-                                {/* Nút Đổi KTV / Hủy — chỉ khi PENDING và phiếu chưa finalized */}
+                                {/* Nút Đổi KTV / Hủy: chỉ khi PENDING và phiếu chưa finalized */}
                                 {isPending && !isCancelled && !isFinalized && (
                                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                                     <select
@@ -1025,8 +1507,8 @@ export default function AdvisorInspection() {
                       </div>
                     )}
 
-                    {/* Danh sách KTV khả dụng — chỉ khi chưa finalized */}
-                    {!isFinalized && !loadingModal && modalTechList.length > 0 && (
+                    {/* Danh sách KTV khả dụng: chỉ khi chưa finalized */}
+                    {!isFinalized && !loadingModal && !hasAssignedTechnician && modalTechList.length > 0 && (
                       <div className={styles.assignSection}>
                         <h4 className={styles.sectionTitle}>PHÂN CÔNG KỸ THUẬT VIÊN</h4>
 
@@ -1060,8 +1542,8 @@ export default function AdvisorInspection() {
                             const sorted = [...modalTechList].sort((a, b) => {
                               const wA = workloadMap[Number(a?.staffId)]?.currentTicketCount ?? 0;
                               const wB = workloadMap[Number(b?.staffId)]?.currentTicketCount ?? 0;
-                              const busyA = workloadMap[Number(a?.staffId)]?.isBusy ?? false;
-                              const busyB = workloadMap[Number(b?.staffId)]?.isBusy ?? false;
+                              const busyA = Boolean(workloadMap[Number(a?.staffId)]?.isBusy);
+                              const busyB = Boolean(workloadMap[Number(b?.staffId)]?.isBusy);
                               if (techSortBy === 'ticket_asc') return wA - wB;
                               if (techSortBy === 'ticket_desc') return wB - wA;
                               if (techSortBy === 'free_first') {
@@ -1105,12 +1587,14 @@ export default function AdvisorInspection() {
                       </div>
                     )}
 
-                    {!loadingModal && modalTechList.length === 0 && !isFinalized && (
+                    {!loadingModal && !isFinalized && (hasAssignedTechnician || modalTechList.length === 0) && (
                       <div className={styles.emptyState}>
                         <p>
-                          {modalAssignments.length > 0
-                            ? 'Không còn KTV khả dụng nào để phân công thêm.'
-                            : 'Chưa có KTV nào khả dụng.'}
+                          {hasAssignedTechnician
+                            ? 'Phiếu đã có 1 kỹ thuật viên chính. Nếu cần thay đổi, hãy dùng nút Đổi KTV.'
+                            : modalAssignments.length > 0
+                              ? 'Không còn KTV khả dụng nào để phân công thêm.'
+                              : 'Chưa có KTV nào khả dụng.'}
                         </p>
                       </div>
                     )}
@@ -1134,3 +1618,7 @@ export default function AdvisorInspection() {
     </div>
   );
 }
+
+
+
+

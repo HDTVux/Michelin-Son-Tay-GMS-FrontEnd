@@ -134,10 +134,18 @@
   color: #374151;
 }
 
+.filterCardLabelsTwo {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
 .filterCardControls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+}
+
+.filterCardControlsTwo {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 }
 
 .filterCardControls input[type="date"],
@@ -165,6 +173,58 @@
   outline: none;
   border-color: #1E90FF;
   box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.1);
+}
+
+.dayNavigator {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.dayNavBtn,
+.dayCenterBtn {
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  height: 44px;
+}
+
+.dayNavBtn {
+  min-width: 78px;
+  padding: 0 12px;
+}
+
+.dayCenterBtn {
+  width: 100%;
+  padding: 0 14px;
+}
+
+.dayNavBtn:hover,
+.dayCenterBtn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.dayCenterBtn:focus-visible,
+.dayNavBtn:focus-visible {
+  outline: none;
+  border-color: #1E90FF;
+  box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.1);
+}
+
+.hiddenDateInput {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
 
 .filterCardActions {
@@ -703,4 +763,15 @@
   .statsGrid { grid-template-columns: 1fr 1fr; }
   .infoGrid { grid-template-columns: 1fr; }
   .pendingFilters { padding: 12px; }
+  .filterCardLabelsTwo,
+  .filterCardControlsTwo {
+    grid-template-columns: 1fr;
+  }
+  .dayNavigator {
+    grid-template-columns: 1fr;
+  }
+  .dayNavBtn,
+  .dayCenterBtn {
+    width: 100%;
+  }
 }

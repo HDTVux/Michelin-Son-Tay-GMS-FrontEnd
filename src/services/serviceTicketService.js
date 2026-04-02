@@ -592,6 +592,33 @@ export const fetchAdvisorMyTickets = (params, token) => {
   });
 };
 
+// Đổi vị trí 2 service ticket trong hàng đợi
+// Endpoint: PUT /api/service-ticket/manage/swap?serviceTicketId1={id1}&serviceTicketId2={id2}
+export const swapServiceTicketQueue = (serviceTicketId1, serviceTicketId2, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để đổi thứ tự phiếu.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const id1 = Number(serviceTicketId1);
+  const id2 = Number(serviceTicketId2);
+  if (!Number.isFinite(id1) || id1 <= 0 || !Number.isFinite(id2) || id2 <= 0) {
+    const error = new Error('Thiếu serviceTicketId hợp lệ để đổi thứ tự.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const searchParams = new URLSearchParams();
+  searchParams.set('serviceTicketId1', String(id1));
+  searchParams.set('serviceTicketId2', String(id2));
+
+  return request(`/api/service-ticket/manage/swap?${searchParams.toString()}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Lấy danh sách tất cả KTV (dù đang bận hay rảnh) kèm số ticket đang làm
 // Backend hiện tại: GET /api/staff-workload?role=TECHNICIAN
 export const fetchTechniciansWithWorkload = (token) => {

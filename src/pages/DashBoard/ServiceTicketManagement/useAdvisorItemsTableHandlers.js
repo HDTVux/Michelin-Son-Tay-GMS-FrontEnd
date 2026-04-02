@@ -1172,6 +1172,19 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		[editComputed, isEditing, isSaving],
 	);
 
+	// Xóa mềm dòng đang tạo mới (chỉ cần xóa khỏi draftRows, chưa có estimateItemId nên không cần gọi API)
+	const softDeleteDraftRow = useCallback(
+		(rowIndex) => {
+			if (!isCreating || isSaving) return;
+			setDraftRows((prev) => {
+				const base = Array.isArray(prev) ? prev : [];
+				const next = base.filter((_, idx) => idx !== rowIndex);
+				return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
+			});
+		},
+		[isCreating, isSaving],
+	);
+
 	return {
 		estimate,
 		loading,
@@ -1225,6 +1238,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		saveEstimate,
 		saveEdit,
 		softDeleteEditRow,
+		softDeleteDraftRow,
 		inventory,
 	};
 }
