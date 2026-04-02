@@ -179,88 +179,116 @@
 }
 
 /* =========================================
-   2. MIDDLE SPLIT (Sơ đồ xe & Bảng An Toàn)
+   2. SƠ ĐỒ XE — xe ở giữa, cụm trái/phải bao quanh
 ========================================= */
 .middleSplit {
     display: grid;
-    grid-template-columns: 1fr 88mm;
-    gap: 6mm;
+    grid-template-columns: 22mm 1fr 22mm 80mm;
+    gap: 3mm;
     align-items: start;
-    margin-bottom: 5mm;
+    margin-bottom: 4mm;
     margin-top: 4mm;
 }
 
-/* --- SƠ ĐỒ XE --- */
-.diagramWrap {
-    display: grid;
-    grid-template-columns: 26mm 1fr 26mm;
-    gap: 2mm;
-    align-items: center;
-    min-width: 0;
-    border: 2px solid var(--line);
-    padding: 4mm 3mm;
-    background: #f9f9f9;
+/* ===== PHẦN TRÁI: 2 cụm thông số lốp — căn theo bánh xe ===== */
+.leftTires {
+    display: flex;
+    flex-direction: column;
+    /* 2 cụm cách đều: 1 cụm ngang bánh trước, 1 cụm ngang bánh sau */
+    justify-content: space-between;
+    align-items: flex-end;
+    /* Chiếm đúng chiều cao tương ứng với hình xe: front axle ~đầu xe, rear axle ~giữa-đuôi */
+    height: 55mm;
 }
 
-/* Cột trái sơ đồ: Thông số lốp trước */
-.diagramLeft {
+/* Mỗi cụm: nhãn, size, 2 ô mm/kg/cm² */
+.tireClusterLeft {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    height: 100%;
-    gap: 8mm;
+    outline: 1.5px dotted var(--line);
+    outline-offset: -1.5px;
+    width: 20mm;
+    /* Cụm trên (trước) & cụm dưới (sau) — không margin để canh đúng trục */
 }
-.tireBlockTop,
-.tireBlockBottom {
+.tireClusterHeader {
+    background: #fff;
+    border-bottom: 1px dotted var(--soft);
+    padding: 1mm 1.5mm;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
-.tireHeading {
+.tireClusterLabel {
     font-weight: 900;
     font-size: 8px;
-    margin-bottom: 1.5px;
-    text-align: center;
-    white-space: nowrap;
     color: #333;
+    white-space: nowrap;
 }
-.tireCell {
-    display: grid;
-    grid-template-columns: 11mm 1fr;
-    border: 1.5px solid var(--line);
-    margin-bottom: 1.5mm;
-    min-height: 6mm;
-    align-items: stretch;
-    min-width: 0;
-}
-.tireUnit {
-    font-size: 8px;
+.tireClusterSubHeader {
     font-weight: 900;
-    padding: 1mm;
-    border-right: 1.5px solid var(--line);
+    font-size: 8px;
+    padding: 1mm 1.5mm;
+    text-align: center;
+    background: #f0f5ff;
+    border-bottom: 1px dotted var(--soft);
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tireClusterSize {
+    font-weight: 900;
+    font-size: 8px;
+    padding: 1mm 1.5mm;
+    text-align: center;
+    background: #f0f5ff;
+    border-bottom: 1px dotted var(--soft);
+    color: #333;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+}
+.tireClusterRow {
+    display: grid;
+    grid-template-columns: 9mm 1fr;
+    min-height: 7mm;
+    border-top: 1px dotted var(--soft);
+    align-items: stretch;
+}
+.tireClusterRow:first-of-type {
+    border-top: none;
+}
+.tireClusterUnit {
+    font-size: 7.5px;
+    font-weight: 900;
+    padding: 1mm 1mm;
     background: var(--bar);
     color: var(--barText);
     text-align: center;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 8px;
+    border-right: 1px dotted var(--line);
+    white-space: nowrap;
 }
-.tireValue {
+.tireClusterValue {
     background: #fff;
-    min-height: 6mm;
+    min-height: 7mm;
+    padding: 0 1.5mm;
+    display: flex;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 700;
 }
 
-/* Cột giữa: Hình xe */
-.diagramCenter {
+/* ===== PHẦN GIỮA: Hình xe + Size lốp + Lưu ý ===== */
+.carArea {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 0 4px;
     min-width: 0;
 }
 .carBox {
     width: 100%;
-    height: 44mm;
+    height: 55mm;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -268,76 +296,121 @@
 }
 .carImg {
     width: auto;
-    height: 42mm;
+    height: 53mm;
     object-fit: contain;
     display: block;
+}
+/* Size lốp & Lưu ý: nằm ngay dưới xe, căn trái nhẹ */
+.sizeNoteWrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    /* Đặt sát dưới hình xe, căn trái */
+    padding-left: 2px;
 }
 .sizeNoteRow {
     display: flex;
     align-items: baseline;
-    gap: 3px;
-    margin-top: 2px;
-    width: 100%;
+    /* Không có gap — số nằm ngay sau dấu : */
+    border-top: 1px dotted var(--soft);
+    padding: 1mm 0 0;
+}
+.sizeNoteRow .infoDotted {
+    flex-grow: 0;
+    min-width: unset;
+}
+.sizeNoteRow:first-child {
+    border-top: none;
+    padding-top: 0;
 }
 
-/* Cột phải: Áp suất khuyến cáo */
-.diagramRight {
-    display: block;
-    min-width: 0;
-    height: 100%;
-}
-.pressureLayout {
+/* ===== PHẦN PHẢI: 3 cụm áp suất xếp dọc đều nhau + nhãn xoay ===== */
+.rightPressures {
     display: grid;
-    grid-template-columns: 5mm 1fr;
-    column-gap: 1.5mm;
-    align-items: center;
-    height: 100%;
+    grid-template-columns: 1fr auto;
+    gap: 0;
+    align-items: stretch;
+    /* Chiều cao khớp với hình xe (carBox height: 55mm) */
+    height: 55mm;
 }
-.pressureLabel {
-    white-space: pre-line;
+
+/* Wrapper bao quanh 3 cụm — phân bố đều, có khung nét đứt */
+.pressureClustersWrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    /* Khung nét đứt bao trọn 3 cụm */
+    outline: 2px dashed var(--line);
+    outline-offset: -2px;
+    padding: 1mm 0;
+}
+
+/* Khung bao quanh từng cụm */
+.pressureCluster {
+    display: flex;
+    flex-direction: column;
+    outline: 1.5px dotted var(--line);
+    outline-offset: -1.5px;
+    /* Bỏ margin cứng — dùng space-between của flex parent */
+}
+.pressureClusterUnit {
     font-weight: 900;
-    font-size: 7.5px;
+    font-size: 8px;
+    padding: 1mm 1.5mm;
     text-align: center;
-    line-height: 1.1;
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
+    background: #f0f5ff;
+    border-bottom: 1px dotted var(--soft);
     color: #333;
+    white-space: nowrap;
 }
-.pressureBoxes {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5mm;
-    justify-content: center;
-}
-.pressureBox {
-    display: flex;
-    flex-direction: column;
-}
-.pressureRow {
+.pressureClusterRow {
     display: grid;
-    grid-template-columns: 11mm 1fr;
-    border: 1.5px solid var(--line);
-    min-height: 6mm;
-    border-bottom: none;
+    grid-template-columns: 9mm 1fr;
+    min-height: 7mm;
+    border-top: 1px dotted var(--soft);
     align-items: stretch;
 }
-.pressureRow:last-child {
-    border-bottom: 1.5px solid var(--line);
+.pressureClusterRow:first-of-type {
+    border-top: none;
 }
 .pressureUnit {
+    font-size: 7.5px;
+    font-weight: 900;
+    padding: 1mm 1mm;
     background: var(--bar);
     color: var(--barText);
-    font-weight: 900;
-    font-size: 7.5px;
+    text-align: center;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-right: 1.5px solid var(--line);
-    padding: 1mm;
+    border-right: 1px dotted var(--line);
+    white-space: nowrap;
 }
 .pressureValue {
     background: #fff;
-    min-height: 6mm;
+    min-height: 7mm;
+    padding: 0 1.5mm;
+    display: flex;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+/* Chữ xoay 90° nằm sát mép phải bên ngoài */
+.pressureVerticalLabel {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-weight: 900;
+    font-size: 8px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2mm 1.5mm;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    background: #f9f9f9;
+    border-left: 1px dotted var(--soft);
 }
 
 /* --- BẢNG KIỂM TRA AN TOÀN --- */

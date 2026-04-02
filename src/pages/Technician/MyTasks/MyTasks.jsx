@@ -1,10 +1,33 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTechnicianTickets, fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
 import styles from './MyTasks.module.css';
 
 const getToken = () => localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+const getTodayLocalISO = () => {
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+const shiftLocalISODate = (dateIso, days) => {
+  const raw = String(dateIso || '').trim();
+  const baseDate = raw ? new Date(`${raw}T00:00:00`) : new Date();
+  if (Number.isNaN(baseDate.getTime())) return getTodayLocalISO();
+  baseDate.setDate(baseDate.getDate() + Number(days || 0));
+  const offsetMs = baseDate.getTimezoneOffset() * 60000;
+  return new Date(baseDate.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+const formatCalendarDisplay = (dateIso) => {
+  const raw = String(dateIso || '').trim();
+  if (!raw) return 'Chọn ngày';
+  const date = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return raw;
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
+};
 
 const SERVICE_TICKET_STATUS_LABELS = {
   DRAFT: 'Nháp',
@@ -41,6 +64,7 @@ const normalizeInspectionStatus = (value) => {
 
 export default function MyTasks() {
   const navigate = useNavigate();
+  const initialDate = useMemo(() => getTodayLocalISO(), []);
 
   // ── List state ────────────────────────────────────────
   const [tickets, setTickets] = useState([]);
@@ -51,8 +75,8 @@ export default function MyTasks() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(initialDate);
+  const [dateTo, setDateTo] = useState(initialDate);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -62,6 +86,7 @@ export default function MyTasks() {
   const [showModal, setShowModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const dayPickerRef = useRef(null);
 
   // ── Debounce search ────────────────────────────────────
   useEffect(() => {
@@ -132,7 +157,7 @@ export default function MyTasks() {
 
     run();
     return () => { ignore = true; };
-  }, [filters]);
+  }, [filters, size]);
 
   // ── Helpers ──────────────────────────────────────────
   const getTicketCode = (ticket) =>
@@ -239,11 +264,33 @@ export default function MyTasks() {
     return items;
   }, [safePage, totalPages]);
 
+  const activeDate = dateFrom || dateTo || initialDate;
+  const applySingleDayFilter = (dateIso) => {
+    const next = String(dateIso || '').trim();
+    if (!next) return;
+    setDateFrom(next);
+    setDateTo(next);
+    setPage(0);
+  };
+  const handlePreviousDay = () => applySingleDayFilter(shiftLocalISODate(activeDate, -1));
+  const handleNextDay = () => applySingleDayFilter(shiftLocalISODate(activeDate, 1));
+  const handlePickDay = (value) => applySingleDayFilter(value);
+  const handleOpenCalendar = () => {
+    const picker = dayPickerRef.current;
+    if (!picker) return;
+    if (typeof picker.showPicker === 'function') {
+      picker.showPicker();
+      return;
+    }
+    picker.click();
+  };
+
   const handleResetFilters = () => {
+    const today = getTodayLocalISO();
     setPage(0);
     setSize(10);
-    setDateFrom('');
-    setDateTo('');
+    setDateFrom(today);
+    setDateTo(today);
     setStatusFilter('');
     setSearch('');
     setDebouncedSearch('');
@@ -265,8 +312,8 @@ export default function MyTasks() {
         ),
       );
       navigate(`/technician/safetyinspection-ticket/${encodeURIComponent(code)}`);
-    } catch (err) {
-      toast.error(err?.message || 'Không thể bắt đầu làm việc.');
+    } catch {
+      toast.error('Không thể bắt đầu làm việc.');
     }
   };
 
@@ -305,7 +352,7 @@ export default function MyTasks() {
         photos: d.photos,
       });
       setShowModal(true);
-    } catch (err) {
+    } catch {
       toast.error('Không thể tải chi tiết công việc.');
     } finally {
       setModalLoading(false);
@@ -392,27 +439,35 @@ export default function MyTasks() {
       </div>
 
       {/* Filters */}
-      <div className={styles.pendingFilters}>
-        <div className={styles.filterCardLabels}>
-          <span>Ngày hẹn từ</span>
-          <span>Ngày hẹn đến</span>
-          <span>Trạng thái</span>
-        </div>
-        <div className={styles.filterCardControls}>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
-          />
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-          >
+        <div className={styles.pendingFilters}>
+          <div className={`${styles.filterCardLabels} ${styles.filterCardLabelsTwo}`}>
+            <span>Lịch ngày</span>
+            <span>Trạng thái</span>
+          </div>
+          <div className={`${styles.filterCardControls} ${styles.filterCardControlsTwo}`}>
+            <div className={styles.dayNavigator}>
+              <button type="button" className={styles.dayNavBtn} onClick={handlePreviousDay}>
+                Trước
+              </button>
+              <button type="button" className={styles.dayCenterBtn} onClick={handleOpenCalendar}>
+                {formatCalendarDisplay(activeDate)}
+              </button>
+              <button type="button" className={styles.dayNavBtn} onClick={handleNextDay}>
+                Sau
+              </button>
+              <input
+                ref={dayPickerRef}
+                type="date"
+                value={activeDate}
+                onChange={(e) => handlePickDay(e.target.value)}
+                className={styles.hiddenDateInput}
+                aria-label="Chọn ngày xử lý"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+            >
             <option value="">Tất cả</option>
             <option value="DRAFT">Nháp</option>
             <option value="INSPECTION">Đang kiểm tra</option>
@@ -436,7 +491,7 @@ export default function MyTasks() {
             />
           </div>
           <button className={styles.ghostButton} onClick={handleResetFilters}>
-            Xóa bộ lọc
+            Về hôm nay
           </button>
         </div>
       </div>

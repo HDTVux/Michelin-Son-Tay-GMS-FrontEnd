@@ -2,14 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	createServiceTicketEstimate,
 	fetchServiceTicketEstimate,
+	fetchServiceTicketAdvisorRecommend,
 	fetchWorkCategoriesAll,
 	fetchTaxRulesAll,
 	updateServiceTicketEstimate,
 	updateServiceTicketEstimateItem,
 } from '../../../services/serviceTicketService.js';
+import { updateSafetyInspectionRecommend } from '../../../services/safetyInspectionService.js';
 import { fetchAllCatalogItems } from '../../../services/catalogService.js';
-import { createTaxRule } from '../../../services/warehouseService.js';
-
+import { createTaxRule, fetchWarehouseCatalogItemDetail } from '../../../services/warehouseService.js';
 const PLACEHOLDER_ROW_COUNT = 15;
 
 export function formatCurrencyVnd(value) {
@@ -19,24 +20,34 @@ export function formatCurrencyVnd(value) {
 }
 
 function pickLatestEstimate(list) {
-	const arr = Array.isArray(list) ? list : [];
-	if (arr.length === 0) return null;
-	return [...arr].sort((a, b) => {
-		const va = Number(a?.version);
-		const vb = Number(b?.version);
-		const versionCmp = (Number.isFinite(vb) ? vb : -1) - (Number.isFinite(va) ? va : -1);
-		if (versionCmp !== 0) return versionCmp;
-		const ta = Date.parse(a?.createdAt || a?.approvedAt || 0);
-		const tb = Date.parse(b?.createdAt || b?.approvedAt || 0);
-		return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
-	})[0];
+    const arr = Array.isArray(list) ? list : [];
+    if (arr.length === 0) return null;
+
+    return [...arr].sort((a, b) => {
+        // Bao phủ mọi trường hợp tên ID (id, estimateId, serviceTicketEstimateId...)
+        const idA = Number(a?.estimateId ?? a?.id ?? a?.serviceTicketEstimateId ?? 0);
+        const idB = Number(b?.estimateId ?? b?.id ?? b?.serviceTicketEstimateId ?? 0);
+        
+        // Luôn sắp xếp ID giảm dần (Báo giá tạo sau sẽ có ID lớn hơn)
+        if (idA > 0 && idB > 0 && idA !== idB) {
+            return idB - idA; 
+        }
+        
+        // Fallback: Nếu không tìm thấy ID, so sánh bằng thời gian tạo
+        const ta = new Date(a?.createdAt || a?.approvedAt || a?.createdDate || 0).getTime();
+        const tb = new Date(b?.createdAt || b?.approvedAt || b?.createdDate || 0).getTime();
+        return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+    })[0];
 }
 
 function createEmptyDraftRow() {
 	return {
 		estimateItemId: null,
 		workCategoryId: null,
+		workCategoryCode: '',
+		workCategoryTaxRuleId: '',
 		itemId: null,
+		itemTaxRuleId: '',
 		newCategoryName: '',
 		itemName: '',
 		quantity: '',
@@ -44,6 +55,91 @@ function createEmptyDraftRow() {
 		taxRuleId: '',
 		confirmed: false,
 		isRemoved: false,
+		isLockedFromPreviousVersion: false,
+	};
+}
+
+function getEffectiveTaxRuleId(row) {
+	// Business rule:
+	// - Prefer product tax (itemTaxRuleId)
+	// - Else use category tax (workCategoryTaxRuleId)
+	// - Only when both null, allow manual selection (taxRuleId)
+	return toIdOrNull(row?.itemTaxRuleId) || toIdOrNull(row?.workCategoryTaxRuleId) || toIdOrNull(row?.taxRuleId);
+}
+
+function getItemTaxRuleIdFromEstimateItem(it) {
+	return (
+		it?.item?.taxRuleId ??
+			it?.catalogItem?.taxRuleId ??
+			it?.serviceItem?.taxRuleId ??
+			it?.product?.taxRuleId ??
+			it?.service?.taxRuleId ??
+			''
+	);
+}
+
+function extractApiPayload(response) {
+	return response?.data?.data ?? response?.data ?? response;
+}
+
+function getTaxRuleIdFromCatalogPayload(payload) {
+	return (
+		payload?.taxRuleId ??
+			payload?.tax_rule_id ??
+			payload?.taxRule?.taxRuleId ??
+			payload?.taxRule?.id ??
+			payload?.tax_rule?.tax_rule_id ??
+			payload?.tax_rule?.id ??
+			''
+	);
+}
+
+function mapEstimateItemToLockedRow(it, idx) {
+	const workCategoryId =
+		it?.workCategoryId ??
+		it?.workCateId ??
+		it?.workCategory?.workCategoryId ??
+		it?.workCategory?.workCateId ??
+		it?.workCategory?.id ??
+		null;
+	const workCategoryCode = String(it?.workCategory?.categoryCode ?? '').trim();
+	const workCategoryTaxRuleId = it?.workCategory?.taxRuleId ?? '';
+	const estimateItemId = it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null;
+	const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
+	const itemTaxRuleId =
+		getItemTaxRuleIdFromEstimateItem(it);
+	const newCategoryName = String(
+		it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
+	).trim();
+
+	return {
+		key: `locked-${idx + 1}-${String(estimateItemId ?? itemId ?? it?.itemName ?? '')}`,
+		estimateItemId,
+		workCategoryId,
+		workCategoryCode,
+		workCategoryTaxRuleId,
+		itemId,
+		itemTaxRuleId,
+		categoryName: newCategoryName,
+		newCategoryName,
+		itemName: String(it?.itemName || '').trim(),
+		quantity: it?.quantity ?? '',
+		unitPrice: it?.unitPrice ?? '',
+		// Dòng khóa (seed từ version trước): vẫn ưu tiên thuế sản phẩm nếu có.
+		taxRuleId: toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? ''),
+		// Dòng đã lưu ở version trước: mặc định coi như đã xác nhận để không bị chặn lưu.
+		confirmed: true,
+		isRemoved: false,
+		isLockedFromPreviousVersion: true,
+	};
+}
+
+function mapEstimateItemToAppendLockedRow(it, idx) {
+	const base = mapEstimateItemToLockedRow(it, idx);
+	return {
+		...base,
+		// Append-only on current estimate version: preserve the checked flag.
+		confirmed: getItemCheckedFlag(it),
 	};
 }
 
@@ -220,7 +316,7 @@ export function useInventoryCheckHandlers() {
 }
 
 export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
-	const { onEstimateStatusChange } = options || {};
+	const { onEstimateStatusChange, refreshToken } = options || {};
 	const onEstimateStatusChangeRef = useRef(onEstimateStatusChange);
 	const [estimate, setEstimate] = useState(null);
 	const [loading, setLoading] = useState(false);
@@ -237,22 +333,189 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const [taxRate, setTaxRate] = useState('');
 	const [isCreatingTaxRule, setIsCreatingTaxRule] = useState(false);
 	const [recommendation, setRecommendation] = useState('');
+	const [recommendationLoading, setRecommendationLoading] = useState(false);
+	const [recommendationSaving, setRecommendationSaving] = useState(false);
 	const [isCreating, setIsCreating] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
+	const [isAppendOnlyEdit, setIsAppendOnlyEdit] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [saveError, setSaveError] = useState('');
 	const [draftRows, setDraftRows] = useState(() => [createEmptyDraftRow()]);
 	const [editRows, setEditRows] = useState(() => [createEmptyDraftRow()]);
-	const prevServiceTicketIdRef = useRef(serviceTicketId);
+	const lastValidServiceTicketIdRef = useRef(
+		serviceTicketId != null && String(serviceTicketId).trim() !== '' ? serviceTicketId : null,
+	);
 
 	const inventory = useInventoryCheckHandlers();
+
+	const itemTaxRuleCacheRef = useRef(new Map());
+	const resolveItemTaxRuleId = useCallback(async (itemId) => {
+		const idNum = toIdOrNull(itemId);
+		if (!idNum) return '';
+		const cache = itemTaxRuleCacheRef.current;
+		if (cache.has(idNum)) return cache.get(idNum);
+
+		const token = localStorage.getItem('authToken');
+		if (!token) return '';
+		try {
+			const res = await fetchWarehouseCatalogItemDetail(idNum, token);
+			const payload = extractApiPayload(res);
+			const rawTaxId = getTaxRuleIdFromCatalogPayload(payload);
+			const normalized = rawTaxId == null ? '' : String(rawTaxId);
+			cache.set(idNum, normalized);
+			return normalized;
+		} catch {
+			cache.set(idNum, '');
+			return '';
+		}
+	}, []);
+
+	const enrichRowsWithItemTaxes = useCallback(
+		async (rowsSnapshot, setRows) => {
+			const base = Array.isArray(rowsSnapshot) ? rowsSnapshot : [];
+			const missingItemIds = [
+				...new Set(
+					base
+						.map((r) => toIdOrNull(r?.itemId))
+						.filter((id) => id && !toIdOrNull(base.find((x) => toIdOrNull(x?.itemId) === id)?.itemTaxRuleId)),
+				),
+			];
+			if (missingItemIds.length === 0) return;
+
+			const pairs = await Promise.all(
+				missingItemIds.map(async (id) => {
+					const taxId = await resolveItemTaxRuleId(id);
+					return [id, taxId];
+				}),
+			);
+			const taxByItemId = new Map(pairs.filter(([, taxId]) => toIdOrNull(taxId)));
+			if (taxByItemId.size === 0) return;
+
+			setRows((prev) => {
+				const current = Array.isArray(prev) ? prev : [];
+				let changed = false;
+				const next = current.map((r) => {
+					const id = toIdOrNull(r?.itemId);
+					if (!id) return r;
+					if (toIdOrNull(r?.itemTaxRuleId)) return r;
+					const taxId = taxByItemId.get(id);
+					if (!taxId) return r;
+					changed = true;
+					return {
+						...r,
+						itemTaxRuleId: String(taxId),
+						// Item có thuế -> không cho dùng manual tax.
+						taxRuleId: '',
+					};
+				});
+				return changed ? next : current;
+			});
+		},
+		[resolveItemTaxRuleId],
+	);
 
 	useEffect(() => {
 		onEstimateStatusChangeRef.current = onEstimateStatusChange;
 	}, [onEstimateStatusChange]);
 
+	const recommendationLastSavedRef = useRef('');
+
 	useEffect(() => {
 		setRecommendation('');
+		// Reset last-saved marker on ticket switch.
+		recommendationLastSavedRef.current = '';
+	}, [serviceTicketId]);
+
+	const extractRecommendValue = useCallback((res) => {
+		const payload = res?.data?.data ?? res?.data ?? res;
+		if (payload == null) return '';
+		if (typeof payload === 'string') {
+			const raw = payload.trim();
+			if (raw.startsWith('{') || raw.startsWith('[')) {
+				try {
+					const parsed = JSON.parse(raw);
+					if (typeof parsed?.data === 'string') return parsed.data;
+					if (typeof parsed?.recommend === 'string') return parsed.recommend;
+					if (typeof parsed?.recommendation === 'string') return parsed.recommendation;
+				} catch {
+					// fall back to raw
+				}
+			}
+			return payload;
+		}
+		if (typeof payload?.recommend === 'string') return payload.recommend;
+		if (typeof payload?.recommendation === 'string') return payload.recommendation;
+		if (typeof payload?.data === 'string') return payload.data;
+		return '';
+	}, []);
+
+	useEffect(() => {
+		const token = localStorage.getItem('authToken');
+		const idNum = toIdOrNull(serviceTicketId);
+		if (!token || !idNum) return;
+
+		let ignore = false;
+		const run = async () => {
+			try {
+				setRecommendationLoading(true);
+				const res = await fetchServiceTicketAdvisorRecommend(idNum, token);
+				if (ignore) return;
+				const value = extractRecommendValue(res);
+				recommendationLastSavedRef.current = String(value ?? '');
+				setRecommendation(String(value ?? ''));
+			} catch {
+				// Silent: keep empty string.
+				if (ignore) return;
+				recommendationLastSavedRef.current = '';
+				setRecommendation('');
+			} finally {
+				if (!ignore) setRecommendationLoading(false);
+			}
+		};
+
+		run();
+		return () => {
+			ignore = true;
+		};
+	}, [serviceTicketId, refreshToken, extractRecommendValue]);
+
+	const saveRecommendation = useCallback(
+		async (valueOverride) => {
+			if (recommendationSaving) return false;
+			const token = localStorage.getItem('authToken');
+			if (!token) {
+				const error = new Error('Vui lòng đăng nhập để cập nhật khuyến nghị.');
+				error.status = 401;
+				throw error;
+			}
+
+			const idNum = toIdOrNull(serviceTicketId);
+			if (!idNum) {
+				const error = new Error('Thiếu serviceTicketId hợp lệ để cập nhật khuyến nghị.');
+				error.status = 400;
+				throw error;
+			}
+
+			const nextValue = valueOverride == null ? String(recommendation ?? '') : String(valueOverride);
+			if (nextValue === recommendationLastSavedRef.current) return false;
+
+			try {
+				setRecommendationSaving(true);
+				await updateSafetyInspectionRecommend(idNum, nextValue, token);
+				recommendationLastSavedRef.current = nextValue;
+				return true;
+			} finally {
+				setRecommendationSaving(false);
+			}
+		},
+		[serviceTicketId, recommendation, recommendationSaving],
+	);
+
+	useEffect(() => {
+		if (serviceTicketId == null) return;
+		const s = String(serviceTicketId).trim();
+		if (!s) return;
+		lastValidServiceTicketIdRef.current = serviceTicketId;
 	}, [serviceTicketId]);
 
 	useEffect(() => {
@@ -390,12 +653,18 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
-		if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') {
+		const hasValidServiceTicketId = serviceTicketId != null && String(serviceTicketId).trim() !== '';
+		if (!token || !hasValidServiceTicketId) {
 			setEstimate(null);
 			setFetched(false);
-			setIsCreating(false);
-			setIsEditing(false);
 			onEstimateStatusChangeRef.current?.(null);
+			// Nếu mất token thì chắc chắn phải reset trạng thái.
+			// Nếu serviceTicketId rỗng nhưng trước đó đã có ID hợp lệ,
+			// coi như trạng thái tạm trong lúc reload (onRestartWorkflow) và không wipe draft.
+			if (!token || lastValidServiceTicketIdRef.current == null) {
+				setIsCreating(false);
+				setIsEditing(false);
+			}
 			return;
 		}
 
@@ -426,19 +695,34 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		return () => {
 			ignore = true;
 		};
-	}, [serviceTicketId]);
+	}, [serviceTicketId, refreshToken]);
 
+	function isValidTicketId(value) {
+		return value != null && String(value).trim() !== '';
+	}
+
+	const prevCreateServiceTicketIdRef = useRef(
+		isValidTicketId(serviceTicketId) ? serviceTicketId : lastValidServiceTicketIdRef.current,
+	);
 	useEffect(() => {
 		if (!isCreating) return;
+		if (!isValidTicketId(serviceTicketId)) return;
+		const prev = prevCreateServiceTicketIdRef.current;
+		prevCreateServiceTicketIdRef.current = serviceTicketId;
+		if (prev === serviceTicketId) return;
 		setDraftRows([createEmptyDraftRow()]);
 		setSaveError('');
 	}, [serviceTicketId, isCreating]);
 
+	const prevEditServiceTicketIdRef = useRef(
+		isValidTicketId(serviceTicketId) ? serviceTicketId : lastValidServiceTicketIdRef.current,
+	);
 	useEffect(() => {
-		const prev = prevServiceTicketIdRef.current;
-		prevServiceTicketIdRef.current = serviceTicketId;
 		if (!isEditing) return;
-		if (prev === serviceTicketId) return;
+		if (!isValidTicketId(serviceTicketId)) return;
+		const prevValid = prevEditServiceTicketIdRef.current;
+		prevEditServiceTicketIdRef.current = serviceTicketId;
+		if (prevValid === serviceTicketId) return;
 		setEditRows([createEmptyDraftRow()]);
 		setSaveError('');
 	}, [serviceTicketId, isEditing]);
@@ -465,13 +749,21 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					it?.workCategory?.workCateId ??
 					it?.workCategory?.id ??
 					null;
+				const workCategoryCode = String(it?.workCategory?.categoryCode ?? '').trim();
+				const workCategoryTaxRuleId = it?.workCategory?.taxRuleId ?? '';
 				const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
+				const itemTaxRuleId = getItemTaxRuleIdFromEstimateItem(it);
+				// Nếu sản phẩm có thuế, luôn ưu tiên thuế sản phẩm -> clear chọn thuế thủ công để UI hiển thị đúng.
+				const taxRuleId = toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? '');
 				return {
 					key: String(it?.estimateItemId ?? it?.itemId ?? it?.itemName ?? `item-${idx}`),
 					sourceIndex: idx,
 					estimateItemId,
 					workCategoryId,
+					workCategoryCode,
+					workCategoryTaxRuleId,
 					itemId,
+					itemTaxRuleId,
 					categoryName,
 					itemName: it?.itemName || '',
 					quantity,
@@ -479,7 +771,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					subTotal,
 					unitPriceDisplay: pickMoneyDisplayValue(unitPriceWithVat, unitPrice),
 					subTotalDisplay: pickMoneyDisplayValue(subTotalWithVat, subTotal),
-					taxRuleId: it?.taxRuleId ?? '',
+					taxRuleId,
 					confirmed,
 					isRemoved: Boolean(it?.isRemoved),
 				};
@@ -525,6 +817,9 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				return {
 					...row,
 					workCategoryId: null,
+					workCategoryCode: '',
+					workCategoryTaxRuleId: '',
+					itemTaxRuleId: '',
 					newCategoryName: nextCategoryLabel,
 				};
 			}
@@ -534,12 +829,20 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				found?.workCategoryId ??
 				found?.id ??
 				null;
+			const workCategoryCode = String(found?.categoryCode ?? '').trim();
 			const taxRuleId = found?.taxRuleId ?? '';
+			const nextWorkCategoryTaxRuleId = taxRuleId == null ? '' : String(taxRuleId);
 			return {
 				...row,
 				workCategoryId,
+				workCategoryCode,
+				workCategoryTaxRuleId: nextWorkCategoryTaxRuleId,
+				itemId: null,
+				itemName: '',
+				itemTaxRuleId: '',
 				newCategoryName: found?.categoryName || found?.categoryCode || label,
-				taxRuleId: taxRuleId == null ? '' : String(taxRuleId),
+				// Chỉ cho chọn thuế thủ công khi cả sản phẩm & hạng mục đều không có thuế.
+				taxRuleId: nextWorkCategoryTaxRuleId ? '' : String(row?.taxRuleId ?? ''),
 			};
 		},
 		[workCategoryByNormalizedName],
@@ -556,7 +859,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			const unitPrice = toNumberOrZero(r.unitPrice);
 			const subTotal = quantity * unitPrice;
 
-			const taxId = toIdOrNull(r?.taxRuleId);
+			const taxId = getEffectiveTaxRuleId(r);
 			const taxRateRaw = taxId ? taxRuleById.get(taxId)?.taxRate : 0;
 			let rate = toNumberOrZero(taxRateRaw);
 			if (rate > 1) rate = rate / 100;
@@ -579,7 +882,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			const unitPrice = toNumberOrZero(r.unitPrice);
 			const subTotal = quantity * unitPrice;
 
-			const taxId = toIdOrNull(r?.taxRuleId);
+			const taxId = getEffectiveTaxRuleId(r);
 			const taxRateRaw = taxId ? taxRuleById.get(taxId)?.taxRate : 0;
 			let rate = toNumberOrZero(taxRateRaw);
 			if (rate > 1) rate = rate / 100;
@@ -599,7 +902,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	// Tổng tiền của các dòng ước tính đang tạo hoặc đang edit, được dùng để hiển thị ở dòng status và footer của table
 	const draftTotal = useMemo(() => {
 		return draftComputed.reduce((acc, r) => {
-			const taxId = toIdOrNull(r?.taxRuleId);
+			const taxId = getEffectiveTaxRuleId(r);
 			const raw = taxId ? r?.subTotalWithVat : r?.subTotal;
 			return acc + toNumberOrZero(raw);
 		}, 0);
@@ -607,7 +910,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 	const editTotal = useMemo(() => {
 		return editComputed.reduce((acc, r) => {
-			const taxId = toIdOrNull(r?.taxRuleId);
+			const taxId = getEffectiveTaxRuleId(r);
 			const raw = taxId ? r?.subTotalWithVat : r?.subTotal;
 			return acc + toNumberOrZero(raw);
 		}, 0);
@@ -639,7 +942,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			const hasAny = activeRows.some((r) => !isDraftRowEmpty(r));
 			const allHaveTax = activeRows
 				.filter((r) => !isDraftRowEmpty(r))
-				.every((r) => Boolean(toIdOrNull(r?.taxRuleId)) || Boolean(toIdOrNull(r?.workCategoryId)));
+				.every((r) => Boolean(getEffectiveTaxRuleId(r)));
 			if (!hasAny) return 'Chưa bao gồm VAT';
 			return allHaveTax ? 'Đã bao gồm VAT (ước tính)' : 'Chưa bao gồm VAT';
 		}
@@ -666,6 +969,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const handleDraftChange = useCallback((index, field, value) => {
 		setDraftRows((prev) => {
 			const base = Array.isArray(prev) ? prev : [];
+			if (base[index]?.isLockedFromPreviousVersion) return base;
 			const next = base.map((r, idx) => {
 				if (idx !== index) return r;
 				if (field === 'newCategoryName') return applyCategorySelection(r, value);
@@ -678,6 +982,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const handleEditChange = useCallback((index, field, value) => {
 		setEditRows((prev) => {
 			const base = Array.isArray(prev) ? prev : [];
+			if (base[index]?.isLockedFromPreviousVersion) return base;
 			const next = base.map((r, idx) => {
 				if (idx !== index) return r;
 				if (field === 'newCategoryName') return applyCategorySelection(r, value);
@@ -691,48 +996,87 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		return isCreating ? handleDraftChange : handleEditChange;
 	}, [isCreating, handleDraftChange, handleEditChange]);
 
-	const startCreate = useCallback(() => {
+	const startCreate = useCallback((options) => {
 		if (isEditing) return;
+		const seedFromPreviousEstimate = Boolean(options?.seedFromPreviousEstimate);
 		setIsCreating(true);
 		setSaveError('');
+		if (seedFromPreviousEstimate) {
+			const items = Array.isArray(estimate?.items) ? estimate.items : [];
+			const locked = items.filter((it) => !it?.isRemoved).map(mapEstimateItemToLockedRow);
+			const seeded = normalizeDraftRows([...locked, createEmptyDraftRow()], PLACEHOLDER_ROW_COUNT);
+			setDraftRows(seeded);
+			// Enrich tax for seeded locked rows if estimate API didn't embed item tax.
+			enrichRowsWithItemTaxes(seeded, setDraftRows);
+			return;
+		}
 		setDraftRows([createEmptyDraftRow()]);
-	}, [isEditing]);
+	}, [estimate, enrichRowsWithItemTaxes, isEditing]);
 
 	const cancelCreate = useCallback(() => {
 		if (isSaving) return;
 		setIsCreating(false);
+		setIsAppendOnlyEdit(false);
 		setSaveError('');
 	}, [isSaving]);
 
-	const startEdit = useCallback(() => {
+	const startEdit = useCallback((options) => {
 		if (!estimate || isCreating || isSaving) return;
+		const appendOnly = Boolean(options?.appendOnly);
 		const items = Array.isArray(estimate?.items) ? estimate.items : [];
+
+		if (appendOnly) {
+			// Append-only: keep current estimate version, lock existing rows and allow only adding new rows.
+			const locked = items.filter((it) => !it?.isRemoved).map(mapEstimateItemToAppendLockedRow);
+			const seeded = normalizeDraftRows([...locked, createEmptyDraftRow()], PLACEHOLDER_ROW_COUNT);
+			setEditRows(seeded);
+			setIsEditing(true);
+			setIsAppendOnlyEdit(true);
+			setSaveError('');
+			enrichRowsWithItemTaxes(seeded, setEditRows);
+			return;
+		}
+
+		setIsAppendOnlyEdit(false);
+
 		const mapped = items
 			.filter((it) => !it?.isRemoved)
-			.map((it) => ({
-				estimateItemId: it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null,
-				workCategoryId:
-					it?.workCategoryId ??
-					it?.workCateId ??
-					it?.workCategory?.workCategoryId ??
-					it?.workCategory?.workCateId ??
-					it?.workCategory?.id ??
-					null,
-				itemId: it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null,
-				newCategoryName: String(
-					it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
-				).trim(),
-				itemName: String(it?.itemName || '').trim(),
-				quantity: it?.quantity ?? '',
-				unitPrice: it?.unitPrice ?? '',
-				taxRuleId: it?.taxRuleId ?? '',
-				confirmed: getItemCheckedFlag(it),
-				isRemoved: Boolean(it?.isRemoved),
-			}));
-		setEditRows(normalizeDraftRows(mapped, PLACEHOLDER_ROW_COUNT));
+			.map((it) => {
+				const workCategoryTaxRuleId = it?.workCategory?.taxRuleId ?? '';
+				const itemTaxRuleId = getItemTaxRuleIdFromEstimateItem(it);
+				// Nếu sản phẩm có thuế thì luôn ưu tiên sản phẩm -> clear chọn thuế thủ công.
+				const taxRuleId = toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? '');
+				return {
+					estimateItemId: it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null,
+					workCategoryId:
+						it?.workCategoryId ??
+						it?.workCateId ??
+						it?.workCategory?.workCategoryId ??
+						it?.workCategory?.workCateId ??
+						it?.workCategory?.id ??
+						null,
+					workCategoryCode: String(it?.workCategory?.categoryCode ?? '').trim(),
+					workCategoryTaxRuleId,
+					itemId: it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null,
+					itemTaxRuleId,
+					newCategoryName: String(
+						it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
+					).trim(),
+					itemName: String(it?.itemName || '').trim(),
+					quantity: it?.quantity ?? '',
+					unitPrice: it?.unitPrice ?? '',
+					taxRuleId,
+					confirmed: getItemCheckedFlag(it),
+					isRemoved: Boolean(it?.isRemoved),
+				};
+			});
+		const normalized = normalizeDraftRows(mapped, PLACEHOLDER_ROW_COUNT);
+		setEditRows(normalized);
 		setIsEditing(true);
 		setSaveError('');
-	}, [estimate, isCreating, isSaving]);
+		// Enrich itemTaxRuleId by itemId if backend doesn't embed it in estimate.
+		enrichRowsWithItemTaxes(normalized, setEditRows);
+	}, [estimate, enrichRowsWithItemTaxes, isCreating, isSaving]);
 
 	const canToggleChecked = useMemo(() => {
 		return fetched && !loading && !loadError && !!estimate && !isCreating && !isEditing && !isSaving;
@@ -825,22 +1169,23 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const cancelEdit = useCallback(() => {
 		if (isSaving) return;
 		setIsEditing(false);
+		setIsAppendOnlyEdit(false);
 		setSaveError('');
 	}, [isSaving]);
 
 	const saveEstimate = useCallback(async () => {
-		if (isSaving) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setSaveError('Vui lòng đăng nhập để tạo báo giá.');
-			return;
-		}
+        if (isSaving) return;
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            setSaveError('Vui lòng đăng nhập để tạo báo giá.');
+            return;
+        }
 
-		const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
-		if (!Number.isFinite(idNum) || idNum <= 0) {
-			setSaveError('Thiếu serviceTicketId hợp lệ.');
-			return;
-		}
+        const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
+        if (!Number.isFinite(idNum) || idNum <= 0) {
+            setSaveError('Thiếu serviceTicketId hợp lệ.');
+            return;
+        }
 
 		const normalized = draftRows
 			.filter((r) => !isDraftRowEmpty(r))
@@ -850,46 +1195,58 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const quantity = toNumberOrZero(r.quantity);
 				const unitPrice = toNumberOrZero(r.unitPrice);
 				const workCategoryId = toIdOrNull(r?.workCategoryId);
-				const taxRuleId = toIdOrNull(r?.taxRuleId);
-				return {
+				const itemId = toIdOrNull(r?.itemId);
+				const taxRuleId = toIdOrNull(getEffectiveTaxRuleId(r));
+				const payload = {
 					workCategoryId: workCategoryId ?? null,
 					newCategoryName: workCategoryId ? null : newCategoryName,
-					itemId: null,
+					itemId: itemId ?? null,
 					itemName,
 					quantity,
 					unitPrice,
-					taxRuleId,
 					isChecked: Boolean(r?.confirmed),
 					isRemoved: false,
 				};
+				if (taxRuleId) payload.taxRuleId = taxRuleId;
+				return payload;
 			})
 			.filter((it) => (it.workCategoryId || it.newCategoryName) && it.quantity > 0);
 
-		const items = normalized;
-		if (items.length === 0) {
-			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
+        const items = normalized;
+        if (items.length === 0) {
+            setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
+            return;
+        }
+
+		const uncheckedCount = items.filter((it) => !it?.isRemoved && !it?.isChecked).length;
+		if (uncheckedCount > 0) {
+			setSaveError(
+				`Còn ${uncheckedCount} dòng chưa tích xác nhận. Vui lòng tích xác nhận hoặc xóa dòng đó trước khi lưu báo giá.`,
+			);
 			return;
 		}
 
-		try {
-			setIsSaving(true);
-			setSaveError('');
+        try {
+            setIsSaving(true);
+            setSaveError('');
 			const res = await createServiceTicketEstimate(
-				{
-					serviceTicketId: idNum,
-					estimateType: 'INITIAL',
+                {
+                    serviceTicketId: idNum,
+                    estimateType: 'INITIAL',
+                    status: 'DRAFT',         // <-- Bổ sung dòng này
+                    estimateStatus: 'DRAFT', // <-- (Thêm cả dòng này cho chắc ăn, tuỳ BE của bạn dùng field nào)
 					items,
-				},
-				token,
-			);
-			setEstimate(res?.data ?? null);
-			onEstimateStatusChangeRef.current?.(res?.data ?? null);
-			setIsCreating(false);
-		} catch (err) {
-			setSaveError(err?.message || 'Không thể lưu báo giá.');
-		} finally {
-			setIsSaving(false);
-		}
+                },
+                token,
+            );
+            setEstimate(res?.data ?? null);
+            onEstimateStatusChangeRef.current?.(res?.data ?? null);
+            setIsCreating(false);
+        } catch (err) {
+            setSaveError(err?.message || 'Không thể lưu báo giá.');
+        } finally {
+            setIsSaving(false);
+        }
 	}, [draftRows, isSaving, serviceTicketId]);
 
 	const saveEdit = useCallback(async () => {
@@ -923,24 +1280,34 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const quantity = toNumberOrZero(r.quantity);
 				const unitPrice = toNumberOrZero(r.unitPrice);
 				const workCategoryId = toIdOrNull(r?.workCategoryId);
-				const taxRuleId = toIdOrNull(r?.taxRuleId);
-				return {
+				const itemId = toIdOrNull(r?.itemId);
+				const taxRuleId = toIdOrNull(getEffectiveTaxRuleId(r));
+				const payload = {
 					workCategoryId: workCategoryId ?? null,
 					newCategoryName: workCategoryId ? null : newCategoryName,
-					itemId: null,
+					itemId: itemId ?? null,
 					itemName,
 					quantity,
 					unitPrice,
-					taxRuleId,
 					isChecked: Boolean(r?.confirmed),
 					isRemoved: false,
 				};
+				if (taxRuleId) payload.taxRuleId = taxRuleId;
+				return payload;
 			})
 			.filter((it) => (it.workCategoryId || it.newCategoryName) && it.quantity > 0);
 
 		const items = normalized;
 		if (items.length === 0) {
 			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
+			return;
+		}
+
+		const uncheckedCount = items.filter((it) => !it?.isRemoved && !it?.isChecked).length;
+		if (uncheckedCount > 0) {
+			setSaveError(
+				`Còn ${uncheckedCount} dòng chưa tích xác nhận. Vui lòng tích xác nhận hoặc xóa dòng đó trước khi lưu chỉnh sửa.`,
+			);
 			return;
 		}
 
@@ -959,6 +1326,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			setEstimate(res?.data ?? null);
 			onEstimateStatusChangeRef.current?.(res?.data ?? null);
 			setIsEditing(false);
+			setIsAppendOnlyEdit(false);
 		} catch (err) {
 			setSaveError(err?.message || 'Không thể cập nhật báo giá.');
 		} finally {
@@ -1033,6 +1401,19 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		[editComputed, isEditing, isSaving],
 	);
 
+	// Xóa mềm dòng đang tạo mới (chỉ cần xóa khỏi draftRows, chưa có estimateItemId nên không cần gọi API)
+	const softDeleteDraftRow = useCallback(
+		(rowIndex) => {
+			if (!isCreating || isSaving) return;
+			setDraftRows((prev) => {
+				const base = Array.isArray(prev) ? prev : [];
+				const next = base.filter((_, idx) => idx !== rowIndex);
+				return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
+			});
+		},
+		[isCreating, isSaving],
+	);
+
 	return {
 		estimate,
 		loading,
@@ -1056,8 +1437,12 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		handleCreateTaxRule,
 		recommendation,
 		setRecommendation,
+		recommendationLoading,
+		recommendationSaving,
+		saveRecommendation,
 		isCreating,
 		isEditing,
+		isAppendOnlyEdit,
 		isSaving,
 		saveError,
 		setSaveError,
@@ -1086,6 +1471,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		saveEstimate,
 		saveEdit,
 		softDeleteEditRow,
+		softDeleteDraftRow,
 		inventory,
 	};
 }

@@ -94,6 +94,18 @@ export const updateSafetyInspectionData = (inspectionId, payload, token) => {
   });
 };
 
+// Cập nhật khuyến nghị (recommend) theo serviceTicketId
+// Backend đang đọc `recommend` bằng @RequestParam -> gửi qua query string.
+// Endpoint: PUT /api/safety-inspections/{serviceTicketId}/update-recommend?recommend=...
+export const updateSafetyInspectionRecommend = (serviceTicketId, recommend, token) => {
+  const id = ensurePositiveId(serviceTicketId, 'serviceTicketId');
+  const qs = new URLSearchParams({ recommend: String(recommend ?? '') }).toString();
+  return request(`/api/safety-inspections/${id}/update-recommend?${qs}`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+  });
+};
+
 export const getDefaultSafetyInspectionCategories = (token) => {
   return request('/api/safety-inspections/categories/default', {
     method: 'GET',

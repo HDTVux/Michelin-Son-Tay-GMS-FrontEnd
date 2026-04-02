@@ -11,11 +11,13 @@ import {
 	createWarehouseProductLine,
 	createWarehouseSpecAttribute,
 	createWarehouseSpecificationValue,
+	createTaxRule,
 	fetchWarehouseBrands,
 	fetchWarehouseItemCategories,
 	fetchWarehouseProductLines,
 	fetchWarehouseSpecAttributes,
 	fetchWarehouseSpecificationsByCatalogItemId,
+	fetchTaxRules,
 } from '../../../services/warehouseService.js';
 
 const extractPayload = (response) => response?.data?.data ?? response?.data ?? response;
@@ -31,12 +33,42 @@ const mapBrandItem = (item) => {
 const mapCategoryItem = (item) => {
 	if (!item) return null;
 	return {
-		itemCategoryId: item.itemCategoryId ?? item.id ?? null,
+		itemCategoryId: item.itemCategoryId ?? item.workCategoryId ?? item.workCateId ?? item.id ?? null,
 		categoryCode: item.categoryCode ?? item.code ?? '',
 		categoryName: item.categoryName ?? item.name ?? '',
 		categoryType: item.categoryType ?? item.type ?? '',
+		taxRuleId: item.taxRuleId ?? item.tax_rule_id ?? null,
 		isActive: item.isActive ?? item.active ?? '',
 	};
+};
+
+const mapTaxRuleItem = (item) => {
+	if (!item) return null;
+	return {
+		taxRuleId: item.taxRuleId ?? item.id ?? null,
+		taxCode: item.taxCode ?? item.code ?? '',
+		taxName: item.taxName ?? item.name ?? '',
+		taxRate: item.taxRate ?? item.rate ?? 0,
+	};
+};
+
+const formatTaxRatePercent = (rule) => {
+	const raw = rule?.taxRate ?? rule?.rate;
+	const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+	if (!Number.isFinite(n)) return '';
+	let rate = n;
+	if (rate > 1) rate = rate / 100;
+	if (rate < 0) rate = 0;
+	const pct = rate * 100;
+	const text = pct.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+	return `${text}%`;
+};
+
+const getTaxRuleSelectLabel = (rule) => {
+	if (!rule) return '';
+	const name = String(rule?.taxName ?? rule?.name ?? '').trim();
+	const code = String(rule?.taxCode ?? rule?.code ?? '').trim();
+	return name || code;
 };
 
 const mapProductLineItem = (item) => {
@@ -63,10 +95,7 @@ const mapSpecAttributeItem = (item) => {
 // Each product can add the attributes it needs; if an attribute does not exist
 // it will be created via the API when the user requests it.
 
-const CATEGORY_TYPE_OPTIONS = [
-	{ value: 'PART', label: 'Phụ tùng (PART)' },
-	{ value: 'SERVICE', label: 'Dịch vụ (SERVICE)' },
-];
+const CATEGORY_TYPE_FIXED = 'PART';
 
 export default function CreateProduct() {
 	useScrollToTop();
@@ -82,8 +111,17 @@ export default function CreateProduct() {
 	const previousCategoryIdRef = useRef('');
 	const [categoryCode, setCategoryCode] = useState('');
 	const [categoryName, setCategoryName] = useState('');
-	const [categoryType, setCategoryType] = useState('');
+	const [categoryType] = useState(CATEGORY_TYPE_FIXED);
 	const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
+	// Tax rules for category
+	const [taxRules, setTaxRules] = useState([]);
+	const [isTaxRulesLoading, setIsTaxRulesLoading] = useState(false);
+	const [selectedTaxRuleId, setSelectedTaxRuleId] = useState('');
+	const [isAddingNewTaxRule, setIsAddingNewTaxRule] = useState(false);
+	const [taxName, setTaxName] = useState('');
+	const [taxRate, setTaxRate] = useState('');
+	const [isCreatingTaxRule, setIsCreatingTaxRule] = useState(false);
 
 	// Step 2: Brand
 	const [brands, setBrands] = useState([]);
@@ -108,7 +146,12 @@ export default function CreateProduct() {
 	// Step 4: Catalog item
 	const [isCreatingCatalogItem, setIsCreatingCatalogItem] = useState(false);
 	const [createdCatalogItem, setCreatedCatalogItem] = useState(null);
-	const [itemType, setItemType] = useState('PART');
+	const itemType = 'PART';
+	const [selectedProductTaxRuleId, setSelectedProductTaxRuleId] = useState('');
+	const [isAddingNewProductTaxRule, setIsAddingNewProductTaxRule] = useState(false);
+	const [productTaxName, setProductTaxName] = useState('');
+	const [productTaxRate, setProductTaxRate] = useState('');
+	const [isCreatingProductTaxRule, setIsCreatingProductTaxRule] = useState(false);
 	const [sku, setSku] = useState('');
 	const [price, setPrice] = useState('');
 	const [showPrice, setShowPrice] = useState(true);
@@ -188,29 +231,34 @@ export default function CreateProduct() {
 				setIsBrandsLoading(true);
 				setIsProductLinesLoading(true);
 				setIsSpecAttributesLoading(true);
+				setIsTaxRulesLoading(true);
 
-				const [catRes, brandRes, lineRes, attrRes] = await Promise.all([
+				const [catRes, brandRes, lineRes, attrRes, taxRes] = await Promise.all([
 					fetchWarehouseItemCategories(token),
 					fetchWarehouseBrands(token),
 					fetchWarehouseProductLines(token),
 					fetchWarehouseSpecAttributes(token),
+					fetchTaxRules(token),
 				]);
 
 				const catList = Array.isArray(extractPayload(catRes)) ? extractPayload(catRes) : [];
 				const brandList = Array.isArray(extractPayload(brandRes)) ? extractPayload(brandRes) : [];
 				const lineList = Array.isArray(extractPayload(lineRes)) ? extractPayload(lineRes) : [];
 				const attrList = Array.isArray(extractPayload(attrRes)) ? extractPayload(attrRes) : [];
+				const taxList = Array.isArray(extractPayload(taxRes)) ? extractPayload(taxRes) : [];
 
 				const catsNorm = catList.map(mapCategoryItem).filter(Boolean);
 				const brandsNorm = brandList.map(mapBrandItem).filter(Boolean);
 				const linesNorm = lineList.map(mapProductLineItem).filter(Boolean);
 				const attrsNorm = attrList.map(mapSpecAttributeItem).filter(Boolean);
+				const taxNorm = taxList.map(mapTaxRuleItem).filter(Boolean);
 
 				if (cancelled) return;
 				setCategories(catsNorm);
 				setBrands(brandsNorm);
 				setProductLines(linesNorm);
 				setSpecAttributes(attrsNorm);
+				setTaxRules(taxNorm);
 
 				const prevCat = String(selectedCategoryIdRef.current || '').trim();
 				const prevBrand = String(selectedBrandIdRef.current || '').trim();
@@ -240,6 +288,7 @@ export default function CreateProduct() {
 				setBrands([]);
 				setProductLines([]);
 				setSpecAttributes([]);
+				setTaxRules([]);
 				setSelectedCategoryId('');
 				setSelectedBrandId('');
 				setSelectedProductLineId('');
@@ -250,6 +299,7 @@ export default function CreateProduct() {
 					setIsBrandsLoading(false);
 					setIsProductLinesLoading(false);
 					setIsSpecAttributesLoading(false);
+					setIsTaxRulesLoading(false);
 				}
 			}
 		};
@@ -264,6 +314,16 @@ export default function CreateProduct() {
 		const id = String(selectedCategoryId || '').trim();
 		return categories.find((c) => String(c.itemCategoryId) === id) || null;
 	}, [categories, selectedCategoryId]);
+
+	const selectedTaxRule = useMemo(() => {
+		const id = String(selectedTaxRuleId || '').trim();
+		return taxRules.find((t) => String(t.taxRuleId) === id) || null;
+	}, [selectedTaxRuleId, taxRules]);
+
+	const selectedProductTaxRule = useMemo(() => {
+		const id = String(selectedProductTaxRuleId || '').trim();
+		return taxRules.find((t) => String(t.taxRuleId) === id) || null;
+	}, [selectedProductTaxRuleId, taxRules]);
 
 	const selectedBrand = useMemo(() => {
 		const id = String(selectedBrandId || '').trim();
@@ -447,7 +507,10 @@ export default function CreateProduct() {
 		setSelectedCategoryId('');
 		setCategoryCode('');
 		setCategoryName('');
-		setCategoryType('');
+		setSelectedTaxRuleId('');
+		setIsAddingNewTaxRule(false);
+		setTaxName('');
+		setTaxRate('');
 	}, [selectedCategoryId]);
 
 	const stopAddNewCategory = useCallback(() => {
@@ -466,18 +529,34 @@ export default function CreateProduct() {
 		if (isCreatingCategory) return;
 		const code = String(categoryCode || '').trim();
 		const name = String(categoryName || '').trim();
-		const type = String(categoryType || '').trim();
-		if (!code || !name || !type) {
-			notify('Vui lòng nhập đủ: Mã nhóm, Tên nhóm, Loại nhóm.');
+		const type = CATEGORY_TYPE_FIXED;
+		const taxRuleIdNumRaw = selectedTaxRuleId ? Number(selectedTaxRuleId) : null;
+		const taxRuleIdNum = Number.isFinite(taxRuleIdNumRaw) && taxRuleIdNumRaw > 0 ? taxRuleIdNumRaw : null;
+		if (!code || !name) {
+			notify('Vui lòng nhập đủ: Mã nhóm, Tên nhóm.');
 			return;
 		}
 		try {
 			setIsCreatingCategory(true);
 			const token = localStorage.getItem('authToken');
-			const res = await createWarehouseItemCategory(
-				{ itemCategoryId: null, categoryCode: code, categoryName: name, categoryType: type, isActive: '1' },
-				token,
-			);
+
+			const basePayload = {
+				// Legacy id field (some envs still expect itemCategoryId)
+				itemCategoryId: null,
+				// New id field (work category)
+				workCategoryId: null,
+				categoryCode: code,
+				categoryName: name,
+				displayOrder: 0,
+				isActive: true,
+				estimateItemEstimateItem: 0,
+				isDefault: true,
+				taxRuleId: taxRuleIdNum,
+				categoryType: type,
+			};
+
+			const res = await createWarehouseItemCategory(basePayload, token);
+
 			const created = mapCategoryItem(extractPayload(res));
 			const createdId = Number(created?.itemCategoryId) || null;
 			if (!createdId) {
@@ -497,7 +576,121 @@ export default function CreateProduct() {
 		} finally {
 			setIsCreatingCategory(false);
 		}
-	}, [categoryCode, categoryName, categoryType, isCreatingCategory, notify]);
+	}, [categoryCode, categoryName, isCreatingCategory, notify, selectedTaxRuleId]);
+
+	const startAddNewTaxRule = useCallback(() => {
+		if (isTaxRulesLoading) return;
+		setIsAddingNewTaxRule(true);
+		setTaxName('');
+		setTaxRate('');
+	}, [isTaxRulesLoading]);
+
+	const stopAddNewTaxRule = useCallback(() => {
+		if (isCreatingTaxRule) return;
+		setIsAddingNewTaxRule(false);
+		setTaxName('');
+		setTaxRate('');
+	}, [isCreatingTaxRule]);
+
+	const handleCreateTaxRule = useCallback(async () => {
+		if (isCreatingTaxRule) return;
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			notify('Vui lòng đăng nhập để tạo loại thuế.');
+			return;
+		}
+		const name = String(taxName || '').trim();
+		if (!name) {
+			notify('Vui lòng nhập tên thuế.');
+			return;
+		}
+		const rateNumber = Number(String(taxRate || '').trim());
+		if (Number.isNaN(rateNumber)) {
+			notify('Vui lòng nhập thuế suất hợp lệ.');
+			return;
+		}
+		try {
+			setIsCreatingTaxRule(true);
+			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
+			const created = mapTaxRuleItem(extractPayload(res));
+			const createdId = Number(created?.taxRuleId) || null;
+			if (!createdId) {
+				notify('Tạo thuế thất bại (không nhận được taxRuleId).');
+				return;
+			}
+			setTaxRules((prev) => {
+				const list = Array.isArray(prev) ? prev : [];
+				const withoutDup = list.filter((t) => Number(t?.taxRuleId) !== createdId);
+				return [created, ...withoutDup];
+			});
+			setSelectedTaxRuleId(String(createdId));
+			setIsAddingNewTaxRule(false);
+			setTaxName('');
+			setTaxRate('');
+			notify('Đã thêm thuế mới.');
+		} catch (err) {
+			notify(err?.message || 'Không thể tạo thuế.');
+		} finally {
+			setIsCreatingTaxRule(false);
+		}
+	}, [isCreatingTaxRule, notify, taxName, taxRate]);
+
+	const startAddNewProductTaxRule = useCallback(() => {
+		if (isTaxRulesLoading) return;
+		setIsAddingNewProductTaxRule(true);
+		setProductTaxName('');
+		setProductTaxRate('');
+	}, [isTaxRulesLoading]);
+
+	const stopAddNewProductTaxRule = useCallback(() => {
+		if (isCreatingProductTaxRule) return;
+		setIsAddingNewProductTaxRule(false);
+		setProductTaxName('');
+		setProductTaxRate('');
+	}, [isCreatingProductTaxRule]);
+
+	const handleCreateProductTaxRule = useCallback(async () => {
+		if (isCreatingProductTaxRule) return;
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			notify('Vui lòng đăng nhập để tạo loại thuế.');
+			return;
+		}
+		const name = String(productTaxName || '').trim();
+		if (!name) {
+			notify('Vui lòng nhập tên thuế.');
+			return;
+		}
+		const rateNumber = Number(String(productTaxRate || '').trim());
+		if (Number.isNaN(rateNumber)) {
+			notify('Vui lòng nhập thuế suất hợp lệ.');
+			return;
+		}
+		try {
+			setIsCreatingProductTaxRule(true);
+			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
+			const created = mapTaxRuleItem(extractPayload(res));
+			const createdId = Number(created?.taxRuleId) || null;
+			if (!createdId) {
+				notify('Tạo thuế thất bại (không nhận được taxRuleId).');
+				return;
+			}
+			setTaxRules((prev) => {
+				const list = Array.isArray(prev) ? prev : [];
+				const withoutDup = list.filter((t) => Number(t?.taxRuleId) !== createdId);
+				return [created, ...withoutDup];
+			});
+			setSelectedProductTaxRuleId(String(createdId));
+			setIsAddingNewProductTaxRule(false);
+			setProductTaxName('');
+			setProductTaxRate('');
+			notify('Đã thêm thuế mới cho sản phẩm.');
+		} catch (err) {
+			notify(err?.message || 'Không thể tạo thuế.');
+		} finally {
+			setIsCreatingProductTaxRule(false);
+		}
+	}, [isCreatingProductTaxRule, notify, productTaxName, productTaxRate]);
 
 	const startAddNewProductLine = useCallback(() => {
 		previousProductLineIdRef.current = String(selectedProductLineId || '');
@@ -631,6 +824,8 @@ export default function CreateProduct() {
 
 		try {
 			setIsCreatingCatalogItem(true);
+			const taxRuleIdNumRaw = selectedProductTaxRuleId ? Number(selectedProductTaxRuleId) : null;
+			const taxRuleIdNum = Number.isFinite(taxRuleIdNumRaw) && taxRuleIdNumRaw > 0 ? taxRuleIdNumRaw : null;
 			const res = await createWarehouseCatalogItem(
 				{
 					itemName,
@@ -648,7 +843,11 @@ export default function CreateProduct() {
 					isRecurring: false,
 					brandId,
 					productLineId,
+					// Backward compatible (older warehouse API)
 					itemCategoryId: categoryId,
+					// Newer API shape (work category)
+					workCategoryId: categoryId,
+					taxRuleId: taxRuleIdNum,
 				},
 				token,
 			);
@@ -676,6 +875,7 @@ export default function CreateProduct() {
 		selectedBrandId,
 		selectedCategoryId,
 		selectedProductLineId,
+		selectedProductTaxRuleId,
 		showPrice,
 		sku,
 		unit,
@@ -800,11 +1000,6 @@ export default function CreateProduct() {
 					<div className={styles['service-card__title']}>
 						<strong>Tạo sản phẩm</strong>
 					</div>
-					<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-						<button type="button" className={styles['ghost-button']} onClick={() => navigate(-1)}>
-							Quay lại
-						</button>
-					</div>
 				</div>
 
 				<div className={styles['pending-filters']}>
@@ -861,19 +1056,94 @@ export default function CreateProduct() {
 							</div>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="categoryType">Loại</label>
-								<select id="categoryType" value={categoryType} onChange={(e) => setCategoryType(e.target.value)} disabled={Boolean(createdCatalogItemId)}>
-									<option value="">Chọn loại</option>
-									{CATEGORY_TYPE_OPTIONS.map((opt) => (
-										<option key={opt.value} value={opt.value}>
-											{opt.label}
-										</option>
-									))}
-								</select>
+								<input id="categoryType" value={categoryType} disabled />
+							</div>
+							<div style={{ gridColumn: '1 / -1', marginTop: 12 }}>
+								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+									<div style={{ fontWeight: 600 }}>Thuế</div>
+									{isAddingNewTaxRule ? (
+										<div style={{ display: 'flex', gap: 8 }}>
+											<button
+												type="button"
+												className={styles['primary-button']}
+												onClick={handleCreateTaxRule}
+												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
+											>
+												{isCreatingTaxRule ? 'Đang thêm...' : 'Xác nhận thuế'}
+											</button>
+											<button
+												type="button"
+												className={styles['ghost-button']}
+												onClick={stopAddNewTaxRule}
+												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
+											>
+												Hủy
+											</button>
+										</div>
+									) : (
+										<button
+											type="button"
+											className={styles['ghost-button']}
+											onClick={startAddNewTaxRule}
+											disabled={isTaxRulesLoading || Boolean(createdCatalogItemId)}
+										>
+											Thêm thuế
+										</button>
+									)}
+								</div>
+
+								{isAddingNewTaxRule ? (
+									<div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+										<div className="ui-field" style={{ marginBottom: 0 }}>
+											<label htmlFor="taxName">Tên thuế</label>
+											<input
+												id="taxName"
+												value={taxName}
+												onChange={(e) => setTaxName(e.target.value)}
+												placeholder="Ví dụ: VAT 10%"
+												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
+											/>
+										</div>
+										<div className="ui-field" style={{ marginBottom: 0 }}>
+											<label htmlFor="taxRate">Thuế suất</label>
+											<input
+												id="taxRate"
+												value={taxRate}
+												onChange={(e) => setTaxRate(e.target.value)}
+												placeholder="10 hoặc 0.1"
+												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
+											/>
+										</div>
+									</div>
+								) : (
+									<div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+										<div className="ui-field" style={{ marginBottom: 0 }}>
+											<label htmlFor="taxRuleSelect">Chọn thuế</label>
+											<select
+												id="taxRuleSelect"
+												value={selectedTaxRuleId}
+												onChange={(e) => setSelectedTaxRuleId(e.target.value)}
+												disabled={isTaxRulesLoading || isCreatingCategory || Boolean(createdCatalogItemId)}
+											>
+												<option value="">Không áp dụng</option>
+												{taxRules.map((t) => (
+													<option key={String(t.taxRuleId)} value={String(t.taxRuleId)}>
+														{getTaxRuleSelectLabel(t) || `#${t.taxRuleId}`}
+													</option>
+												))}
+											</select>
+											{selectedTaxRule ? (
+												<div className={styles['filter-card__hint']}>
+													Thuế suất: {formatTaxRatePercent(selectedTaxRule) || '--'}
+												</div>
+											) : null}
+										</div>
+									</div>
+								)}
 							</div>
 						</div>
 					) : (
 						<div className="ui-field" style={{ marginBottom: 0 }}>
-							<label htmlFor="categorySelect">Nhóm có sẵn</label>
 							<select
 								id="categorySelect"
 								value={selectedCategoryId}
@@ -919,7 +1189,6 @@ export default function CreateProduct() {
 							</div>
 						) : (
 							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="brandSelect">Hãng có sẵn</label>
 								<select id="brandSelect" value={selectedBrandId} onChange={(e) => setSelectedBrandId(e.target.value)} disabled={isBrandsLoading || !brands.length || Boolean(createdCatalogItemId)}>
 									<option value="">{brandPlaceholder}</option>
 									{brands.map((b) => (
@@ -961,7 +1230,6 @@ export default function CreateProduct() {
 							</div>
 						) : (
 							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="productLineSelect">Dòng sản phẩm có sẵn</label>
 								<select id="productLineSelect" value={selectedProductLineId} onChange={(e) => setSelectedProductLineId(e.target.value)} disabled={isProductLinesLoading || !filteredProductLines.length || Boolean(createdCatalogItemId)}>
 									<option value="">{productLinePlaceholder}</option>
 									{filteredProductLines.map((l) => (
@@ -982,10 +1250,7 @@ export default function CreateProduct() {
 						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="itemType">Loại</label>
-								<select id="itemType" value={itemType} onChange={(e) => setItemType(e.target.value)} disabled={Boolean(createdCatalogItemId)}>
-									<option value="PART">Phụ tùng</option>
-									<option value="SERVICE">Dịch vụ</option>
-								</select>
+								<input id="itemType" value={itemType} disabled />
 							</div>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="sku">SKU</label>
@@ -1012,12 +1277,94 @@ export default function CreateProduct() {
 								</label>
 							</div>
 						</div>
+
+						<div style={{ marginTop: 12 }}>
+							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+								<div style={{ fontWeight: 600 }}>Thuế sản phẩm</div>
+								{isAddingNewProductTaxRule ? (
+									<div style={{ display: 'flex', gap: 8 }}>
+										<button
+											type="button"
+											className={styles['primary-button']}
+											onClick={handleCreateProductTaxRule}
+											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
+										>
+											{isCreatingProductTaxRule ? 'Đang thêm...' : 'Xác nhận thuế'}
+										</button>
+										<button
+											type="button"
+											className={styles['ghost-button']}
+											onClick={stopAddNewProductTaxRule}
+											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
+										>
+											Hủy
+										</button>
+									</div>
+								) : (
+									<button
+										type="button"
+										className={styles['ghost-button']}
+										onClick={startAddNewProductTaxRule}
+										disabled={isTaxRulesLoading || Boolean(createdCatalogItemId)}
+									>
+										Thêm thuế
+									</button>
+								)}
+							</div>
+
+							{isAddingNewProductTaxRule ? (
+								<div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+									<div className="ui-field" style={{ marginBottom: 0 }}>
+										<label htmlFor="productTaxName">Tên thuế</label>
+										<input
+											id="productTaxName"
+											value={productTaxName}
+											onChange={(e) => setProductTaxName(e.target.value)}
+											placeholder="Ví dụ: VAT 10%"
+											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
+										/>
+									</div>
+									<div className="ui-field" style={{ marginBottom: 0 }}>
+										<label htmlFor="productTaxRate">Thuế suất</label>
+										<input
+											id="productTaxRate"
+											value={productTaxRate}
+											onChange={(e) => setProductTaxRate(e.target.value)}
+											placeholder="10 hoặc 0.1"
+											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
+										/>
+									</div>
+							</div>
+							) : (
+								<div className="ui-field" style={{ marginBottom: 0 }}>
+									<label htmlFor="productTaxRuleSelect">Chọn thuế</label>
+									<select
+										id="productTaxRuleSelect"
+										value={selectedProductTaxRuleId}
+										onChange={(e) => setSelectedProductTaxRuleId(e.target.value)}
+										disabled={isTaxRulesLoading || isCreatingCatalogItem || Boolean(createdCatalogItemId)}
+									>
+										<option value="">Không áp dụng</option>
+										{taxRules.map((t) => (
+											<option key={String(t.taxRuleId)} value={String(t.taxRuleId)}>
+												{getTaxRuleSelectLabel(t) || `#${t.taxRuleId}`}
+											</option>
+										))}
+									</select>
+									{selectedProductTaxRule ? (
+										<div className={styles['filter-card__hint']}>
+											Thuế suất: {formatTaxRatePercent(selectedProductTaxRule) || '--'}
+										</div>
+									) : null}
+								</div>
+							)}
+						</div>
 						<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
 							<label htmlFor="description">Mô tả</label>
 							<textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 						</div>
 						<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
-							<label htmlFor="imageFile">Ảnh (chỉ lưu tạm trong trình duyệt)</label>
+							<label htmlFor="imageFile">Ảnh </label>
 							<input id="imageFile" type="file" accept="image/*" onChange={handleImageFileChange} disabled={Boolean(createdCatalogItemId)} />
 							{imagePreviewUrl ? (
 								<div style={{ marginTop: 8 }}>
@@ -1218,6 +1565,11 @@ export default function CreateProduct() {
 				</div>
 				) : null}
 			</section>
+					<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+						<button type="button" className={styles['primary-button']} onClick={() => navigate(-1)}>
+							Quay lại
+						</button>
+					</div>
 		</div>
 	);
 }

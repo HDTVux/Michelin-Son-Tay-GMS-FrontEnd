@@ -36,6 +36,7 @@ import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.j
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
 import CreateProduct from './pages/DashBoard/ServiceManagement/CreateProduct.jsx';
+import BlogManagement from './pages/DashBoard/ServiceManagement/BlogManagement.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
@@ -160,6 +161,7 @@ export default function App() {
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="service-management" element={<ServiceManagement />} />
           <Route path="service-management/create-product" element={<CreateProduct />} />
+          <Route path="blog-management" element={<BlogManagement />} />
           <Route path="promotion-management" element={<PromotionManagement />} />
           <Route path="shift-management" element={<ShiftManagement />} />
           <Route path="queue-management" element={<QueueManagement />} />
@@ -176,6 +178,7 @@ export default function App() {
           <Route path="technician/my-tasks" element={<MyTasks />} />
           <Route path="technician/safetyinspection-ticket/:id" element={<ServiceTicket />} />
           <Route path="technician/update-progress/:id" element={<UpdateProgress />} />
+
 
           {/* Advisor pages */}
           <Route path="advisor/inspection" element={<AdvisorInspection />} />
