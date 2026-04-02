@@ -198,7 +198,7 @@ export const fetchServiceTicketAdvisorRecommend = (serviceTicketId, token) => {
     return Promise.reject(error);
   }
 
-  return request(`/api/service-ticket/advisor/recommend/${encodeURIComponent(String(idNum))}`, {
+  return request(`/api/safety-inspections/${encodeURIComponent(String(idNum))}/curent-recommend`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
