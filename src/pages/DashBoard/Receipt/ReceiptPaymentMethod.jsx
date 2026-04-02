@@ -87,6 +87,7 @@ export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, pr
     const [cashEvidenceFile, setCashEvidenceFile] = useState(null);
     const [cashEvidencePreview, setCashEvidencePreview] = useState('');
     const [cashError, setCashError] = useState('');
+    const [submitting, setSubmitting] = useState(false);
     const navigate = useNavigate();
 
     const ticketCodeSafe = String(ticketCode || '').trim();
@@ -118,16 +119,34 @@ export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, pr
         setCashEvidencePreview('');
     };
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         setCashError('');
+        if (submitting) return;
+
         if (method === 'cash') {
             if (!cashEvidenceFile) {
                 setCashError('Vui lòng upload ảnh hoá đơn để xác nhận.');
                 return;
             }
-            onConfirmPayment?.({ method, evidenceFile: cashEvidenceFile });
+            try {
+                setSubmitting(true);
+                await Promise.resolve(onConfirmPayment?.({ method, evidenceFile: cashEvidenceFile }));
+            } catch (error) {
+                toast.error(error?.message || 'Thanh toán thất bại.');
+                return;
+            } finally {
+                setSubmitting(false);
+            }
         } else if (method === 'transfer') {
-            onConfirmPayment?.({ method, evidenceFile: null });
+            try {
+                setSubmitting(true);
+                await Promise.resolve(onConfirmPayment?.({ method, evidenceFile: null }));
+            } catch (error) {
+                toast.error(error?.message || 'Thanh toán thất bại.');
+                return;
+            } finally {
+                setSubmitting(false);
+            }
         }
         
         // Chuyển trang ngay sau khi xác nhận thanh toán
@@ -259,9 +278,9 @@ export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, pr
                         type="button"
                         className="ui-btn ui-btn--primary"
                         onClick={handleConfirm}
-                        disabled={method === 'cash' && !cashEvidenceFile}
+                        disabled={submitting || (method === 'cash' && !cashEvidenceFile)}
                     >
-                        Xác nhận đã thanh toán
+                        {submitting ? 'Đang xử lý...' : 'Xác nhận đã thanh toán'}
                     </button>
                 </div>
             </dialog>

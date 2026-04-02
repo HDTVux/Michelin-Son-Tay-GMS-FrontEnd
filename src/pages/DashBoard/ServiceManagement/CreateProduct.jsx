@@ -1144,7 +1144,6 @@ export default function CreateProduct() {
 						</div>
 					) : (
 						<div className="ui-field" style={{ marginBottom: 0 }}>
-							<label htmlFor="categorySelect">Nhóm có sẵn</label>
 							<select
 								id="categorySelect"
 								value={selectedCategoryId}
@@ -1190,7 +1189,6 @@ export default function CreateProduct() {
 							</div>
 						) : (
 							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="brandSelect">Hãng có sẵn</label>
 								<select id="brandSelect" value={selectedBrandId} onChange={(e) => setSelectedBrandId(e.target.value)} disabled={isBrandsLoading || !brands.length || Boolean(createdCatalogItemId)}>
 									<option value="">{brandPlaceholder}</option>
 									{brands.map((b) => (
@@ -1232,7 +1230,6 @@ export default function CreateProduct() {
 							</div>
 						) : (
 							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="productLineSelect">Dòng sản phẩm có sẵn</label>
 								<select id="productLineSelect" value={selectedProductLineId} onChange={(e) => setSelectedProductLineId(e.target.value)} disabled={isProductLinesLoading || !filteredProductLines.length || Boolean(createdCatalogItemId)}>
 									<option value="">{productLinePlaceholder}</option>
 									{filteredProductLines.map((l) => (

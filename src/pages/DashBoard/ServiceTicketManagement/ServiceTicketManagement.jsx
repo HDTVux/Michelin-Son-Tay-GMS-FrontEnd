@@ -7,6 +7,7 @@ import {
 	fetchServiceTicketsPaged,
 	fetchTicketAssignments,
 	changeAdvisorByReceptionist,
+	exportServiceTicketsManage,
 } from '../../../services/serviceTicketService.js';
 import { fetchCheckInAdvisors } from '../../../services/checkInService.js';
 import { formatDateTimeVi } from '../../../components/timeUtils.js';
@@ -23,11 +24,13 @@ export default function ServiceTicketManagement() {
 	const [page, setPage] = useState(0);
 	const [size, setSize] = useState(10);
 	const [date, setDate] = useState('');
+	const [endDate, setEndDate] = useState('');
 	const [status, setStatus] = useState('');
 	const [search, setSearch] = useState('');
 	const [totalPages, setTotalPages] = useState(1);
 	const [totalElements, setTotalElements] = useState(0);
 	const [debouncedSearch, setDebouncedSearch] = useState('');
+	const [isExporting, setIsExporting] = useState(false);
 
 	const [modal, setModal] = useState({ open: false, ticket: null });
 	const [modalAssignments, setModalAssignments] = useState([]);
@@ -173,9 +176,48 @@ export default function ServiceTicketManagement() {
 		setPage(0);
 		setSize(10);
 		setDate('');
+		setEndDate('');
 		setStatus('');
 		setSearch('');
 	};
+
+	const downloadBlob = (blob, filename) => {
+		const safeName = String(filename || '').trim() || `service-tickets_${date || 'export'}_${endDate || date || 'export'}.xlsx`;
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = safeName;
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		URL.revokeObjectURL(url);
+	};
+
+	const handleExport = useCallback(async () => {
+		if (isExporting) return;
+		const token = getToken();
+		if (!token) {
+			setError('Vui lòng đăng nhập.');
+			return;
+		}
+		const startDate = String(date || '').trim();
+		const end = String(endDate || date || '').trim();
+		if (!startDate || !end) {
+			setError('Vui lòng chọn đủ Từ ngày và Đến ngày để export.');
+			return;
+		}
+
+		try {
+			setIsExporting(true);
+			setError('');
+			const { blob, filename } = await exportServiceTicketsManage({ startDate, endDate: end }, token);
+			downloadBlob(blob, filename);
+		} catch (err) {
+			setError(err?.message || 'Không thể export file.');
+		} finally {
+			setIsExporting(false);
+		}
+	}, [date, endDate, isExporting]);
 
 	const currentAdvisor = modalAssignments.find((a) =>
 		String(a?.roleInTicket || a?.role || '').toUpperCase() === 'ADVISOR'
@@ -238,14 +280,18 @@ export default function ServiceTicketManagement() {
 						totalPages={totalPages}
 						totalElements={totalElements}
 						date={date}
+						endDate={endDate}
 						status={status}
 						search={search}
 						onChangePage={setPage}
 						onChangeSize={(next) => { setSize(next); setPage(0); }}
 						onChangeDate={(next) => { setDate(next); setPage(0); }}
+						onChangeEndDate={(next) => { setEndDate(next); }}
 						onChangeStatus={(next) => { setStatus(next); setPage(0); }}
 						onChangeSearch={(next) => { setSearch(next); setPage(0); }}
 						onResetFilters={handleResetFilters}
+						onExport={handleExport}
+						isExporting={isExporting}
 						onViewDetail={(ticket) => {
 							const code = String(ticket?.ticketCode || '').trim();
 							if (!code) { setError('Phiếu này chưa có ticketCode.'); return; }
@@ -332,10 +378,11 @@ function TicketPanel({
 	onViewDetail, onOpenAssign,
 	isLoading, error,
 	page, size, totalPages,
-	date, status, search,
+	date, endDate, status, search,
 	onChangePage, onChangeSize,
-	onChangeDate, onChangeStatus,
+	onChangeDate, onChangeEndDate, onChangeStatus,
 	onChangeSearch, onResetFilters,
+	onExport, isExporting,
 }) {
 	const toneClass = styles['booking-card--' + tone];
 	const safeTotalPages = Number.isFinite(totalPages) ? Math.max(1, totalPages) : 1;
@@ -361,12 +408,13 @@ function TicketPanel({
 
 			<div className={styles['pending-filters']}>
 				<div className={styles['filter-card__labels']}>
-					<span>Ngày hẹn</span>
+					<span>Từ ngày</span>
+					<span>Đến ngày</span>
 					<span>Trạng thái</span>
-					<span aria-hidden="true" />
 				</div>
 				<div className={styles['filter-card__controls']}>
 					<input type="date" value={date} onChange={e => onChangeDate?.(e.target.value)} />
+					<input type="date" value={endDate} onChange={e => onChangeEndDate?.(e.target.value)} />
 					<select value={status} onChange={e => onChangeStatus?.(e.target.value)}>
 						<option value="">Tất cả</option>
 						<option value="DRAFT">Nháp</option>
@@ -385,6 +433,13 @@ function TicketPanel({
 						<SearchIcon />
 					</div>
 					<button className={styles['ghost-button']} onClick={onResetFilters}>Xóa bộ lọc</button>
+					<button
+						className={styles['primary-button']}
+						onClick={onExport}
+						disabled={Boolean(isExporting)}
+					>
+						{isExporting ? 'Đang xuất...' : 'Export'}
+					</button>
 				</div>
 			</div>
 
@@ -473,10 +528,16 @@ TicketPanel.propTypes = {
 	onViewDetail: PropTypes.func, onOpenAssign: PropTypes.func,
 	isLoading: PropTypes.bool, error: PropTypes.string,
 	page: PropTypes.number, size: PropTypes.number, totalPages: PropTypes.number,
-	date: PropTypes.string, status: PropTypes.string, search: PropTypes.string,
+	date: PropTypes.string,
+	endDate: PropTypes.string,
+	status: PropTypes.string, search: PropTypes.string,
 	onChangePage: PropTypes.func, onChangeSize: PropTypes.func,
-	onChangeDate: PropTypes.func, onChangeStatus: PropTypes.func,
+	onChangeDate: PropTypes.func,
+	onChangeEndDate: PropTypes.func,
+	onChangeStatus: PropTypes.func,
 	onChangeSearch: PropTypes.func, onResetFilters: PropTypes.func,
+	onExport: PropTypes.func,
+	isExporting: PropTypes.bool,
 };
 
 function TicketIcon() {

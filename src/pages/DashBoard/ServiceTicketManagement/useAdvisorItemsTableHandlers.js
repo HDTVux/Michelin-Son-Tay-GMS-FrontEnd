@@ -8,7 +8,7 @@ import {
 	updateServiceTicketEstimateItem,
 } from '../../../services/serviceTicketService.js';
 import { fetchAllCatalogItems } from '../../../services/catalogService.js';
-import { createTaxRule } from '../../../services/warehouseService.js';
+import { createTaxRule, fetchWarehouseCatalogItemDetail } from '../../../services/warehouseService.js';
 
 const PLACEHOLDER_ROW_COUNT = 15;
 
@@ -59,7 +59,38 @@ function createEmptyDraftRow() {
 }
 
 function getEffectiveTaxRuleId(row) {
-	return toIdOrNull(row?.taxRuleId) || toIdOrNull(row?.itemTaxRuleId) || toIdOrNull(row?.workCategoryTaxRuleId);
+	// Business rule:
+	// - Prefer product tax (itemTaxRuleId)
+	// - Else use category tax (workCategoryTaxRuleId)
+	// - Only when both null, allow manual selection (taxRuleId)
+	return toIdOrNull(row?.itemTaxRuleId) || toIdOrNull(row?.workCategoryTaxRuleId) || toIdOrNull(row?.taxRuleId);
+}
+
+function getItemTaxRuleIdFromEstimateItem(it) {
+	return (
+		it?.item?.taxRuleId ??
+			it?.catalogItem?.taxRuleId ??
+			it?.serviceItem?.taxRuleId ??
+			it?.product?.taxRuleId ??
+			it?.service?.taxRuleId ??
+			''
+	);
+}
+
+function extractApiPayload(response) {
+	return response?.data?.data ?? response?.data ?? response;
+}
+
+function getTaxRuleIdFromCatalogPayload(payload) {
+	return (
+		payload?.taxRuleId ??
+			payload?.tax_rule_id ??
+			payload?.taxRule?.taxRuleId ??
+			payload?.taxRule?.id ??
+			payload?.tax_rule?.tax_rule_id ??
+			payload?.tax_rule?.id ??
+			''
+	);
 }
 
 function mapEstimateItemToLockedRow(it, idx) {
@@ -75,11 +106,7 @@ function mapEstimateItemToLockedRow(it, idx) {
 	const estimateItemId = it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null;
 	const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
 	const itemTaxRuleId =
-		it?.item?.taxRuleId ??
-		it?.catalogItem?.taxRuleId ??
-		it?.serviceItem?.taxRuleId ??
-		it?.product?.taxRuleId ??
-		'';
+		getItemTaxRuleIdFromEstimateItem(it);
 	const newCategoryName = String(
 		it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
 	).trim();
@@ -97,8 +124,8 @@ function mapEstimateItemToLockedRow(it, idx) {
 		itemName: String(it?.itemName || '').trim(),
 		quantity: it?.quantity ?? '',
 		unitPrice: it?.unitPrice ?? '',
-		// Giữ nguyên taxRuleId đã áp dụng ở version trước (read-only)
-		taxRuleId: it?.taxRuleId ?? '',
+		// Dòng khóa (seed từ version trước): vẫn ưu tiên thuế sản phẩm nếu có.
+		taxRuleId: toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? ''),
 		// Dòng đã lưu ở version trước: mặc định coi như đã xác nhận để không bị chặn lưu.
 		confirmed: true,
 		isRemoved: false,
@@ -307,6 +334,72 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	);
 
 	const inventory = useInventoryCheckHandlers();
+
+	const itemTaxRuleCacheRef = useRef(new Map());
+	const resolveItemTaxRuleId = useCallback(async (itemId) => {
+		const idNum = toIdOrNull(itemId);
+		if (!idNum) return '';
+		const cache = itemTaxRuleCacheRef.current;
+		if (cache.has(idNum)) return cache.get(idNum);
+
+		const token = localStorage.getItem('authToken');
+		if (!token) return '';
+		try {
+			const res = await fetchWarehouseCatalogItemDetail(idNum, token);
+			const payload = extractApiPayload(res);
+			const rawTaxId = getTaxRuleIdFromCatalogPayload(payload);
+			const normalized = rawTaxId == null ? '' : String(rawTaxId);
+			cache.set(idNum, normalized);
+			return normalized;
+		} catch {
+			cache.set(idNum, '');
+			return '';
+		}
+	}, []);
+
+	const enrichRowsWithItemTaxes = useCallback(
+		async (rowsSnapshot, setRows) => {
+			const base = Array.isArray(rowsSnapshot) ? rowsSnapshot : [];
+			const missingItemIds = [
+				...new Set(
+					base
+						.map((r) => toIdOrNull(r?.itemId))
+						.filter((id) => id && !toIdOrNull(base.find((x) => toIdOrNull(x?.itemId) === id)?.itemTaxRuleId)),
+				),
+			];
+			if (missingItemIds.length === 0) return;
+
+			const pairs = await Promise.all(
+				missingItemIds.map(async (id) => {
+					const taxId = await resolveItemTaxRuleId(id);
+					return [id, taxId];
+				}),
+			);
+			const taxByItemId = new Map(pairs.filter(([, taxId]) => toIdOrNull(taxId)));
+			if (taxByItemId.size === 0) return;
+
+			setRows((prev) => {
+				const current = Array.isArray(prev) ? prev : [];
+				let changed = false;
+				const next = current.map((r) => {
+					const id = toIdOrNull(r?.itemId);
+					if (!id) return r;
+					if (toIdOrNull(r?.itemTaxRuleId)) return r;
+					const taxId = taxByItemId.get(id);
+					if (!taxId) return r;
+					changed = true;
+					return {
+						...r,
+						itemTaxRuleId: String(taxId),
+						// Item có thuế -> không cho dùng manual tax.
+						taxRuleId: '',
+					};
+				});
+				return changed ? next : current;
+			});
+		},
+		[resolveItemTaxRuleId],
+	);
 
 	useEffect(() => {
 		onEstimateStatusChangeRef.current = onEstimateStatusChange;
@@ -557,7 +650,9 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const workCategoryCode = String(it?.workCategory?.categoryCode ?? '').trim();
 				const workCategoryTaxRuleId = it?.workCategory?.taxRuleId ?? '';
 				const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
-				const taxRuleId = it?.taxRuleId ?? '';
+				const itemTaxRuleId = getItemTaxRuleIdFromEstimateItem(it);
+				// Nếu sản phẩm có thuế, luôn ưu tiên thuế sản phẩm -> clear chọn thuế thủ công để UI hiển thị đúng.
+				const taxRuleId = toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? '');
 				return {
 					key: String(it?.estimateItemId ?? it?.itemId ?? it?.itemName ?? `item-${idx}`),
 					sourceIndex: idx,
@@ -566,7 +661,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					workCategoryCode,
 					workCategoryTaxRuleId,
 					itemId,
-					itemTaxRuleId: '',
+					itemTaxRuleId,
 					categoryName,
 					itemName: it?.itemName || '',
 					quantity,
@@ -806,11 +901,14 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		if (seedFromPreviousEstimate) {
 			const items = Array.isArray(estimate?.items) ? estimate.items : [];
 			const locked = items.filter((it) => !it?.isRemoved).map(mapEstimateItemToLockedRow);
-			setDraftRows(normalizeDraftRows([...locked, createEmptyDraftRow()], PLACEHOLDER_ROW_COUNT));
+			const seeded = normalizeDraftRows([...locked, createEmptyDraftRow()], PLACEHOLDER_ROW_COUNT);
+			setDraftRows(seeded);
+			// Enrich tax for seeded locked rows if estimate API didn't embed item tax.
+			enrichRowsWithItemTaxes(seeded, setDraftRows);
 			return;
 		}
 		setDraftRows([createEmptyDraftRow()]);
-	}, [estimate, isEditing]);
+	}, [estimate, enrichRowsWithItemTaxes, isEditing]);
 
 	const cancelCreate = useCallback(() => {
 		if (isSaving) return;
@@ -823,7 +921,12 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		const items = Array.isArray(estimate?.items) ? estimate.items : [];
 		const mapped = items
 			.filter((it) => !it?.isRemoved)
-			.map((it) => ({
+			.map((it) => {
+				const workCategoryTaxRuleId = it?.workCategory?.taxRuleId ?? '';
+				const itemTaxRuleId = getItemTaxRuleIdFromEstimateItem(it);
+				// Nếu sản phẩm có thuế thì luôn ưu tiên sản phẩm -> clear chọn thuế thủ công.
+				const taxRuleId = toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? '');
+				return {
 				estimateItemId: it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null,
 				workCategoryId:
 					it?.workCategoryId ??
@@ -833,23 +936,27 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					it?.workCategory?.id ??
 					null,
 				workCategoryCode: String(it?.workCategory?.categoryCode ?? '').trim(),
-				workCategoryTaxRuleId: it?.workCategory?.taxRuleId ?? '',
+				workCategoryTaxRuleId,
 				itemId: it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null,
-				itemTaxRuleId: '',
+				itemTaxRuleId,
 				newCategoryName: String(
 					it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
 				).trim(),
 				itemName: String(it?.itemName || '').trim(),
 				quantity: it?.quantity ?? '',
 				unitPrice: it?.unitPrice ?? '',
-				taxRuleId: it?.taxRuleId ?? '',
+				taxRuleId,
 				confirmed: getItemCheckedFlag(it),
 				isRemoved: Boolean(it?.isRemoved),
-			}));
-		setEditRows(normalizeDraftRows(mapped, PLACEHOLDER_ROW_COUNT));
+			};
+			});
+		const normalized = normalizeDraftRows(mapped, PLACEHOLDER_ROW_COUNT);
+		setEditRows(normalized);
 		setIsEditing(true);
 		setSaveError('');
-	}, [estimate, isCreating, isSaving]);
+		// Enrich itemTaxRuleId by itemId if backend doesn't embed it in estimate.
+		enrichRowsWithItemTaxes(normalized, setEditRows);
+	}, [estimate, enrichRowsWithItemTaxes, isCreating, isSaving]);
 
 	const canToggleChecked = useMemo(() => {
 		return fetched && !loading && !loadError && !!estimate && !isCreating && !isEditing && !isSaving;
