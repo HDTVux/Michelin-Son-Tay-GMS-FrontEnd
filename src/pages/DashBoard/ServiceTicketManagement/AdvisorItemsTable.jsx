@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
-import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 import {
     formatCurrencyVnd,
