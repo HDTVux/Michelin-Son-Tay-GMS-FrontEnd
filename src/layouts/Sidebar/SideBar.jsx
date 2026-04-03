@@ -59,6 +59,7 @@ const NAV_GROUPS = [
 			{ id: 'booking-management', label: 'Quản lý lịch hẹn', path: '/booking-management', icon: <IconHome />, roles: [STAFF_ROLE.RECEPTIONIST], },
 			{ id: 'booking-request-management', label: 'Yêu cầu đặt lịch', path: '/booking-request-management', icon: <IconHistory />, roles: [STAFF_ROLE.RECEPTIONIST], },
 			{ id: 'service-ticket-management', label: 'Phiếu dịch vụ', path: '/service-ticket-management', icon: <IconBell />, roles: 'ALL' },
+			{ id: 'advisor-inspection', label: 'Điều phối phiếu dịch vụ', path: '/advisor/inspection', icon: <IconTask />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.MANAGER, STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.TECHNICIAN, STAFF_ROLE.ADMIN], },
 			{ id: 'queue-management', label: 'Quản lý hàng đợi', path: '/queue-management', icon: <IconClock />, roles: 'ALL' },
 			{id: 'create-booking',label: 'Tạo lịch hẹn',path: '/create-booking',icon: <IconCheckIn />,roles: [STAFF_ROLE.RECEPTIONIST],},
 			{id: 'staff-attendance',label: 'Chấm công',path: '/staff-attendance',icon: <IconClock />,roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADVISOR],},
@@ -69,6 +70,7 @@ const NAV_GROUPS = [
 			{ id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER], },
 			{ id: 'blog-management', label: 'Quản lý Blog', path: '/blog-management', icon: <IconPost />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'promotion-management', label: 'Quản lý khuyến mãi', path: '/promotion-management', icon: <IconBell />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
+			{ id: 'my-tasks', label: 'Công việc hôm nay', path: '/technician/my-tasks', icon: <IconTask />, roles: 'ALL' },
 			{ id: 'send-reminder', label: 'Gửi nhắc nhở', path: '/send-reminder', icon: <IconBell />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER], },
 			{ id: 'system-log-management', label: 'Quản lý nhật ký hệ thống', path: '/system-log-management', icon: <IconHistory />, roles: [STAFF_ROLE.ADMIN], },
 		],
@@ -80,9 +82,7 @@ const NAV_GROUPS = [
 		items: [
 			{ id: 'staff-profile', label: 'Hồ sơ nhân viên', path: '/staff-profile', icon: <IconUser />, roles: 'ALL' },
 			{ id: 'daily-schedule', label: 'Lịch làm việc', path: '/daily-schedule', icon: <IconCalendar />, roles: 'ALL' },
-			{ id: 'my-tasks', label: 'Công việc của tôi', path: '/technician/my-tasks', icon: <IconTask />, roles: [STAFF_ROLE.TECHNICIAN] },
 			{ id: 'work-history-technician', label: 'Lịch sử công việc', path: '/work-history/technician', icon: <IconHistory />, roles: [STAFF_ROLE.TECHNICIAN] },
-			{ id: 'advisor-inspection', label: 'Điều phối phiếu dịch vụ', path: '/advisor/inspection', icon: <IconTask />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.MANAGER, STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.TECHNICIAN, STAFF_ROLE.ADMIN], },
 		],
 	},
 ];

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
+import RouteSessionPersistence from './components/RouteSessionPersistence.jsx';
 
 //Home page and common pages
 import Home from './pages/home/Home.jsx';
@@ -93,6 +94,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <RouteSessionPersistence />
       <ToastBox />
       <ToastContainer
         position="top-center"

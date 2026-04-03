@@ -16,6 +16,7 @@ import {
   fetchServiceTicketAdvisorRecommend,
 } from '../../../services/serviceTicketService';
 import { fetchCheckInAdvisors } from '../../../services/checkInService';
+import { formatTimeHHmm, parseBackendDateTime } from '../../../components/timeUtils.js';
 import styles from './AdvisorInspection.module.css';
 
 const STAFF_ROLE = { ADVISOR: 'ADVISOR' };
@@ -76,10 +77,10 @@ const formatCalendarDisplay = (dateIso) => {
   if (!raw) return 'Chọn ngày';
   const date = new Date(`${raw}T00:00:00`);
   if (Number.isNaN(date.getTime())) return raw;
-  const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
-  return `${month}/${day}/${year}`;
+  return `${day}/${month}/${year}`;
 };
 
 const readStaffRolesFromStorage = () => {
@@ -360,7 +361,7 @@ export default function AdvisorInspection() {
   const [recommendTicket, setRecommendTicket] = useState(null);
   const [recommendData, setRecommendData] = useState(null);
   const [recommendLoading, setRecommendLoading] = useState(false);
-  const [recommendError, setRecommendError] = useState('');
+  const [_recommendError, setRecommendError] = useState('');
 
   // Workload map
   const [workloadMap, setWorkloadMap] = useState({});
@@ -624,11 +625,39 @@ export default function AdvisorInspection() {
     return { label: '-', className: styles.queueUnassigned };
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    if (Number.isNaN(date.getTime())) return dateStr;
-    return date.toLocaleDateString('vi-VN');
+  const formatAppointmentDateTime = (ticket) => {
+    const dateRaw = String(
+      ticket?.appointmentDate || ticket?.bookingDate || ticket?.scheduledDate || '',
+    ).trim();
+    const timeRaw = formatTimeHHmm(
+      ticket?.appointmentTime || ticket?.bookingTime || ticket?.scheduledTime || '',
+    );
+
+    if (!dateRaw && !timeRaw) return '-';
+
+    const hasTimeInDate = /(?:T|\s)\d{2}:\d{2}/.test(dateRaw);
+    const dateTimeRaw = dateRaw && !hasTimeInDate && timeRaw
+      ? `${dateRaw} ${timeRaw}`
+      : dateRaw;
+    const parsed = parseBackendDateTime(dateTimeRaw);
+
+    if (!parsed) {
+      if (dateRaw && timeRaw) return `${dateRaw} ${timeRaw}`;
+      return dateRaw || timeRaw || '-';
+    }
+
+    if (hasTimeInDate || timeRaw) {
+      return parsed.toLocaleString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+    }
+
+    return parsed.toLocaleDateString('vi-VN');
   };
 
   const getStaffDisplayName = (staffId, fallbackName = '') => {
@@ -657,6 +686,20 @@ export default function AdvisorInspection() {
       }
       return changed ? next : prev;
     });
+  };
+
+  const resolveTicketId = async (ticket, ticketCode, token) => {
+    const directId = getTicketId(ticket);
+    if (Number.isFinite(directId) && directId > 0) return directId;
+    if (!token || !ticketCode) return null;
+    try {
+      const detailRes = await fetchServiceTicketDetail(ticketCode, token);
+      const detail = detailRes?.data?.data ?? detailRes?.data ?? detailRes;
+      const resolvedId = getTicketId(detail);
+      return Number.isFinite(resolvedId) && resolvedId > 0 ? resolvedId : null;
+    } catch {
+      return null;
+    }
   };
 
   // Open modal
@@ -770,7 +813,7 @@ export default function AdvisorInspection() {
 
     setLoadingModal(true);
     try {
-      await changeAdvisorByAdvisor(ticketCode, newAdvisorId, 'Đổi advisor từ trang advisor', token);
+      await changeAdvisorByAdvisor(ticketCode, newAdvisorId, 'đổi advisor từ trang advisor', token);
       const selectedTicketId = getTicketId(selectedTicket);
       if (Number.isFinite(selectedTicketId)) {
         setTickets((prev) => prev.filter((ticketItem) => Number(getTicketId(ticketItem)) !== Number(selectedTicketId)));
@@ -812,7 +855,7 @@ export default function AdvisorInspection() {
 
     setLoadingModal(true);
     try {
-      await changeTechnicianByAdvisor(ticketCode, oldTechnicianId, newTechnicianId, 'Đổi KTV từ trang advisor', token);
+      await changeTechnicianByAdvisor(ticketCode, oldTechnicianId, newTechnicianId, 'đổi KTV từ trang advisor', token);
       await handleOpenModal(selectedTicket);
       setModalSuccess('Đã đổi kỹ thuật viên.');
     } catch (err) {
@@ -832,7 +875,7 @@ export default function AdvisorInspection() {
     }
     const hasAssignedTechnician = modalAssignments.some(isActiveTechnicianAssignment);
     if (hasAssignedTechnician) {
-      setModalError('Phiếu đã có kỹ thuật viên chính. Vui lòng dùng nút Đổi KTV nếu cần thay đổi.');
+      setModalError('Phiếu đã có kỹ thuật viên chính. Vui lòng dùng nút đổi KTV nếu cần thay đổi.');
       return;
     }
 
@@ -1249,7 +1292,7 @@ export default function AdvisorInspection() {
               {getServiceTicketStatusDisplay(ticket)}
             </span>
           </td>
-          <td>{formatDate(ticket.appointmentDate || ticket.bookingDate || ticket.scheduledDate)}</td>
+          <td>{formatAppointmentDateTime(ticket)}</td>
           <td>
             <div className={styles.actionButtons}>
               <button
@@ -1368,7 +1411,7 @@ export default function AdvisorInspection() {
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>
-                Phân công KTV • {getTicketCode(selectedTicket) || '-'}
+                Phân công KTV - {getTicketCode(selectedTicket) || '-'}
               </h3>
               <button className={styles.modalClose} onClick={handleCloseModal}>×</button>
             </div>
@@ -1486,7 +1529,7 @@ export default function AdvisorInspection() {
                                   {a?.isPrimary ? 'Kỹ thuật viên chính' : 'Kỹ thuật viên'} &bull;{' '}
                                   {STATUS_LABELS[displayStatus] || displayStatus}
                                 </span>
-                                {/* Nút Đổi KTV / Hủy: chỉ khi PENDING và phiếu chưa finalized */}
+                                {/* Nút đổi KTV / Hủy: chỉ khi PENDING và phiếu chưa finalized */}
                                 {isPending && !isCancelled && !isFinalized && (
                                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                                     <select
@@ -1555,8 +1598,8 @@ export default function AdvisorInspection() {
                               cursor: 'pointer',
                             }}
                           >
-                            <option value="ticket_asc">Số phiếu: ít → nhiều</option>
-                            <option value="ticket_desc">Số phiếu: nhiều → ít</option>
+                            <option value="ticket_asc">Số phiếu: ít đến nhiều</option>
+                            <option value="ticket_desc">Số phiếu: nhiều đến ít</option>
                             <option value="free_first">Rảnh trước</option>
                             <option value="busy_first">Bận trước</option>
                           </select>
@@ -1617,7 +1660,7 @@ export default function AdvisorInspection() {
                       <div className={styles.emptyState}>
                         <p>
                           {hasAssignedTechnician
-                            ? 'Phiếu đã có 1 kỹ thuật viên chính. Nếu cần thay đổi, hãy dùng nút Đổi KTV.'
+                            ? 'Phiếu đã có 1 kỹ thuật viên chính. Nếu cần thay đổi, hãy dùng nút đổi KTV.'
                             : modalAssignments.length > 0
                               ? 'Không còn KTV khả dụng nào để phân công thêm.'
                               : 'Chưa có KTV nào khả dụng.'}
@@ -1634,7 +1677,7 @@ export default function AdvisorInspection() {
                   onClick={handleCloseModal}
                   disabled={loadingModal}
                 >
-                  Lưu & Đóng
+                  Lưu & đóng
                 </button>
               </div>
             </div>
@@ -1718,7 +1761,4 @@ export default function AdvisorInspection() {
     </div>
   );
 }
-
-
-
 
