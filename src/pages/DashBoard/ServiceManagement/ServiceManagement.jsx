@@ -69,7 +69,7 @@ export default function ServiceManagement() {
 
 	const activeConfig = useMemo(
 		() => ({
-			title: 'Danh sách hạng mục (dịch vụ / phụ tùng)',
+			title: 'Danh sách hạng mục (phụ tùng)',
 			data: items,
 			columns: [
   				{ header: 'ID', get: (x) => x.itemId },

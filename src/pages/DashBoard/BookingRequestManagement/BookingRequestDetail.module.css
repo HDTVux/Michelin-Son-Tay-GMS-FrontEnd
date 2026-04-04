@@ -291,6 +291,11 @@
   font-size: 13px;
 }
 
+.slotBadgeButton {
+  border: none;
+  cursor: pointer;
+}
+
 .slotEmpty { color: #9ca3af; font-size: 13px; }
 
 .slotMeta { display: flex; align-items: center; gap: 8px; }
