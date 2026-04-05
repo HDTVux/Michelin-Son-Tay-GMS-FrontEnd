@@ -216,7 +216,7 @@ function EstimateItemRow({
                         className={`${styles.tableInput} ${styles.tableInputNumber}`}
                         type="text"
                         value={row.quantity}
-                        onChange={(e) => onChange(idx, 'quantity', e.target.value)}
+                        onChange={(e) => onChange(idx, 'quantity', String(e.target.value || '').replaceAll(/\D/g, ''))}
                         placeholder="0"
                         disabled={isSaving}
                     />
@@ -230,7 +230,13 @@ function EstimateItemRow({
                         className={`${styles.tableInput} ${styles.tableInputNumber}`}
                         type="text"
                         value={row.unitPrice}
-                        onChange={(e) => onChange(idx, 'unitPrice', e.target.value)}
+                        onChange={(e) => {
+                            const raw = String(e.target.value || '').replaceAll(/[^\d.]/g, '');
+                            // Ensure only one decimal point
+                            const parts = raw.split('.');
+                            const sanitized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : raw;
+                            onChange(idx, 'unitPrice', sanitized);
+                        }}
                         placeholder="0"
                         disabled={isSaving}
                     />

@@ -10,6 +10,7 @@ import { fetchHomeServices } from '../../services/homeService.js';
 import { cancelCustomerBooking, createCustomerBooking, createGuestBooking, modifyCustomerBooking } from '../../services/bookingService.js';
 import { getValidToken } from '../../services/tokenUtils.js';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
+import { validateTextInput } from '../../components/inputValidation.js';
 
 const STEPS = [
 	{ id: 'service', label: 'Chọn dịch vụ' },
@@ -191,25 +192,22 @@ export default function Booking() {
 	 const goBackFromInfo = () => setStepIndex(1);
 const goSubmitInfo = async () => {
   // 1. Validation cơ bản tại Front-end
-  if (!info.name || !info.phone || submitting) return;
+	  if (!info.name?.trim() || !info.phone?.trim() || submitting) return;
   setSubmitError('');
   setSubmitting(true);
 
-	const rawNote = String(info.note || '');
-	const hasForbiddenChars = /[<>{}]/.test(rawNote);
-	const trimmedNote = rawNote.trim();
+		const { value: trimmedNote, error: noteError } = validateTextInput(info.note, {
+			fieldLabel: 'Ghi chú',
+			required: false,
+			maxLength: 255,
+			trim: true,
+		});
 
-	if (hasForbiddenChars) {
-		setSubmitError('Ghi chú không được chứa ký tự <, >, {, }.');
-		setSubmitting(false);
-		return;
-	}
-
-	if (trimmedNote.length > 500) {
-		setSubmitError('Ghi chú tối đa 500 ký tự.');
-		setSubmitting(false);
-		return;
-	}
+		if (noteError) {
+			setSubmitError(noteError);
+			setSubmitting(false);
+			return;
+		}
 
   // 2. Chuẩn bị danh sách catalogItemId (backend tạo/đổi booking dùng catalogItemId)
   const catalogItemIds = selectedIds

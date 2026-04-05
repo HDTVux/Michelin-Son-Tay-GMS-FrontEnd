@@ -58,7 +58,6 @@ const UserProfile = () => {
   // Linked Accounts Modal State
   const [linkedAccounts, setLinkedAccounts] = useState({
     google: false,
-    zalo: false
   });
 
   // Load profile data
@@ -129,7 +128,7 @@ const UserProfile = () => {
       id: 4,
       icon: '🔗',
       title: 'Liên kết tài khoản',
-      description: 'Liên kết tài khoản Zalo, Google',
+      description: 'Liên kết tài khoản Google',
       onClick: () => setShowLinkedAccountsModal(true)
     },
     {
@@ -321,12 +320,12 @@ const UserProfile = () => {
   // Linked Accounts Functions
   const handleLinkAccount = (provider) => {
     setLinkedAccounts(prev => ({ ...prev, [provider]: true }));
-    alert(`Đã liên kết tài khoản ${provider === 'google' ? 'Google' : 'Zalo'}`);
+    alert(`Đã liên kết tài khoản ${provider === 'google' ? 'Google' : provider}`);
   };
 
   const handleUnlinkAccount = (provider) => {
     setLinkedAccounts(prev => ({ ...prev, [provider]: false }));
-    alert(`Đã hủy liên kết tài khoản ${provider === 'google' ? 'Google' : 'Zalo'}`);
+    alert(`Đã hủy liên kết tài khoản ${provider === 'google' ? 'Google' : provider}`);
   };
 
   const formatDate = (dateString) => {
@@ -759,36 +758,6 @@ const UserProfile = () => {
                       type="button"
                       className={styles.btnLink}
                       onClick={() => handleLinkAccount('google')}
-                    >
-                      Liên kết
-                    </button>
-                  )}
-                </div>
-
-                {/* Zalo */}
-                <div className={styles.linkedAccountItem}>
-                  <div className={styles.accountInfo}>
-                    <div className={`${styles.accountIcon} ${styles.zalo}`}>Z</div>
-                    <div className={styles.accountDetails}>
-                      <span className={styles.accountName}>Zalo</span>
-                      <span className={styles.accountStatus}>
-                        {linkedAccounts.zalo ? '(Đã liên kết)' : '(Chưa liên kết)'}
-                      </span>
-                    </div>
-                  </div>
-                  {linkedAccounts.zalo ? (
-                    <button
-                      type="button"
-                      className={styles.btnUnlink}
-                      onClick={() => handleUnlinkAccount('zalo')}
-                    >
-                      Hủy liên kết
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.btnLink}
-                      onClick={() => handleLinkAccount('zalo')}
                     >
                       Liên kết
                     </button>

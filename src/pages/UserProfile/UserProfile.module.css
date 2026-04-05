@@ -435,10 +435,6 @@
   background: #4285f4;
 }
 
-.accountIcon.zalo {
-  background: #0068ff;
-}
-
 .accountDetails {
   display: flex;
   flex-direction: column;

@@ -12,12 +12,6 @@ const StaffManageSSO = () => {
       linkedAt: '22/03/2023 10:30',
     },
     {
-      id: 'zalo',
-      name: 'Zalo',
-      status: 'linked',
-      linkedAt: '15/01/2023 14:00',
-    },
-    {
       id: 'facebook',
       name: 'Facebook',
       status: 'unlinked',

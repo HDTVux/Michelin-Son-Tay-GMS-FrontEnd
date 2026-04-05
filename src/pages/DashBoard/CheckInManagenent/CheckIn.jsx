@@ -14,6 +14,7 @@ const CONDITION_PHOTO_KEYS = [
     'photoInterior',
     'photoDamage',
 ];
+const DESCRIPTION_MAX_LENGTH = 255;
 
 export default function CheckIn() {
     useScrollToTop(); // Hook tự động cuộn lên đầu trang khi component mount
@@ -113,6 +114,22 @@ export default function CheckIn() {
         if (lastOdometerKm == null) return false;
         return odometerNumber < lastOdometerKm;
     }, [odometerNumber, lastOdometerKm]);
+
+    const damageNoteLength = useMemo(() => String(damageNote || '').length, [damageNote]);
+    const damageNoteRemaining = useMemo(() => Math.max(0, DESCRIPTION_MAX_LENGTH - damageNoteLength), [damageNoteLength]);
+
+    const descriptionLengths = useMemo(() => {
+        const result = {};
+        const keys = [
+            'photoFrontDescription', 'photoRearDescription', 'photoLeftSideDescription',
+            'photoRightSideDescription', 'photoInteriorDescription', 'photoDamageDescription',
+        ];
+        keys.forEach(key => {
+            const len = String(photoDescriptions?.[key] || '').length;
+            result[key] = Math.max(0, DESCRIPTION_MAX_LENGTH - len);
+        });
+        return result;
+    }, [photoDescriptions]);
 
     // Đồng bộ ref mỗi khi state photos thay đổi
     useEffect(() => {
@@ -377,8 +394,10 @@ export default function CheckIn() {
                                     [descriptionKey]: e.target.value,
                                 }))
                             }
+                            maxLength={DESCRIPTION_MAX_LENGTH}
                             placeholder=""
                         />
+                        <div className={styles['char-count']}>{descriptionLengths[descriptionKey]} ký tự còn lại</div>
                     </div>
                 )}
             </div>
@@ -557,7 +576,7 @@ export default function CheckIn() {
                             id="odometer"
                             inputMode="numeric"
                             value={odometerKm}
-                            onChange={(e) => setOdometerKm(e.target.value)}
+                            onChange={(e) => setOdometerKm(String(e.target.value || '').replaceAll(/\D/g, ''))}
                             placeholder="Số km hiện tại"
                             autoComplete="off"
                         />
@@ -673,8 +692,10 @@ export default function CheckIn() {
                             id="damageNote"
                             value={damageNote}
                             onChange={(e) => setDamageNote(e.target.value)}
+                            maxLength={DESCRIPTION_MAX_LENGTH}
                             placeholder="Ghi chú hư hỏng"
                         />
+                        <div className={styles['char-count']}>{damageNoteRemaining} ký tự còn lại</div>
                     </div>
                 </section>
 

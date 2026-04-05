@@ -1,13 +1,16 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './BookingRequestDetail.module.css';
 import { buildAllSlots } from './scheduleUtils.js';
+import { fetchManagedBookingsPaged } from '../../../services/bookingService.js';
+import { formatTimeHHmm } from '../../../components/timeUtils.js';
 
 
 export default function SchedulePanel({
   dateLabel,        // Ngày đang hiển thị (vd: 2026-02-13)
   pickedTime,       // Khung giờ khách hàng mong muốn
   slotData,         // Dữ liệu khách hàng đã đặt từ Server
+  token,            // JWT token (optional). If not provided, will try localStorage.
   startHour = 7,    // Giờ mở cửa garage
   endHour = 20,     // Giờ đóng cửa garage
   defaultCapacity = 6, // Sức chứa xe tối đa mỗi slot
@@ -16,11 +19,90 @@ export default function SchedulePanel({
   showPickedTag = true,
   onBookingClick,
 }) {
+  const [loadedSlotData, setLoadedSlotData] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [selectedDate, setSelectedDate] = useState(String(dateLabel || '').trim());
+
   /**
    * useMemo (dateOptions): Tạo danh sách 10 ngày tới cho ô chọn Select.
    * Để nhân viên có thể nhanh chóng kiểm tra lịch của những ngày lân cận mà không cần tải lại trang.
    */
   const dateOptions = useMemo(() => buildDateOptions(10), []);
+
+  // Sync with parent-provided date when it changes (eg: user changes date in the left form)
+  useEffect(() => {
+    setSelectedDate(String(dateLabel || '').trim());
+  }, [dateLabel]);
+
+  const dateValueSet = useMemo(() => new Set(dateOptions.map((o) => o.value)), [dateOptions]);
+  const isSelectedDateOutOfRange = !!selectedDate && !dateValueSet.has(selectedDate);
+  const baseDateLabel = String(dateLabel || '').trim();
+
+  const effectiveToken = token || localStorage.getItem('authToken');
+
+  useEffect(() => {
+    const safeDate = String(selectedDate || '').trim();
+    if (!safeDate) {
+      setLoadedSlotData({});
+      setIsLoading(false);
+      setLoadError('');
+      return;
+    }
+
+    if (!effectiveToken) {
+      setLoadedSlotData({});
+      setIsLoading(false);
+      setLoadError('Vui lòng đăng nhập để xem lịch.');
+      return;
+    }
+
+    let active = true;
+    setIsLoading(true);
+    setLoadError('');
+  setLoadedSlotData({});
+
+    (async () => {
+      try {
+        const size = 200;
+        const maxPages = 10;
+        const collected = [];
+
+        for (let page = 0; page < maxPages; page++) {
+          const res = await fetchManagedBookingsPaged({ page, size, date: safeDate }, effectiveToken);
+          const pageData = res?.data;
+          const content = Array.isArray(pageData?.content) ? pageData.content : [];
+          collected.push(...content);
+
+          const totalPages = Number.isFinite(pageData?.totalPages) ? pageData.totalPages : 1;
+          if (page >= totalPages - 1) break;
+          if (content.length === 0) break;
+        }
+
+        if (active) {
+          setLoadedSlotData(buildSlotDataFromManagedBookings(collected, defaultCapacity));
+        }
+      } catch (err) {
+        if (active) {
+          setLoadedSlotData({});
+          setLoadError(err?.message || 'Không thể tải lịch theo ngày.');
+        }
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedDate, effectiveToken, defaultCapacity]);
+
+  const effectiveSlotData = (() => {
+    const provided = slotData && typeof slotData === 'object' ? slotData : {};
+    const hasProvided = Object.keys(provided).length > 0;
+    const canUseProvided = hasProvided && String(selectedDate || '').trim() === baseDateLabel;
+    return canUseProvided ? provided : loadedSlotData;
+  })();
 
   /**
    * useMemo (slots): Xử lý danh sách khung giờ để hiển thị.
@@ -28,13 +110,13 @@ export default function SchedulePanel({
    * Nếu giờ của slot trùng với pickedTime, nó sẽ nổi bật lên để nhân viên dễ đối chiếu.
    */
   const slots = useMemo(() => {
-    const built = buildAllSlots({ slotData: slotData || {}, startHour, endHour, defaultCapacity });
+    const built = buildAllSlots({ slotData: effectiveSlotData || {}, startHour, endHour, defaultCapacity });
     return built.map((slot) => ({
       ...slot,
       // Đánh dấu 'selected' cho giờ mà khách hàng đang yêu cầu trong đơn đặt lịch
       state: slot.time === pickedTime ? 'selected' : slot.state,
     }));
-  }, [slotData, startHour, endHour, defaultCapacity, pickedTime]);
+  }, [effectiveSlotData, startHour, endHour, defaultCapacity, pickedTime]);
 
   const renderSlotCustomers = (slot) => {
     const hasBookings = Array.isArray(slot?.bookings) && slot.bookings.length > 0;
@@ -72,9 +154,17 @@ export default function SchedulePanel({
     <aside className={styles.schedulePanel}>
       <div className={styles.scheduleHeader}>
         <div className={styles.scheduleDateRow}>
-          <div className={styles.scheduleTitle}>{title} {dateLabel}</div>
+          <div className={styles.scheduleTitle}>{title} {selectedDate}</div>
           {/* Ô chọn ngày: Cho phép xem lịch của các ngày khác */}
-          <select className={styles.scheduleDateSelect} defaultValue={dateLabel}>
+          <select
+            className={styles.scheduleDateSelect}
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+          >
+            <option value="">Chọn ngày</option>
+            {isSelectedDateOutOfRange && (
+              <option value={selectedDate}>{selectedDate}</option>
+            )}
             {dateOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
@@ -85,6 +175,8 @@ export default function SchedulePanel({
       </div>
 
       <div className={styles.slotList}>
+        {isLoading && <div className={styles.serviceStatus}>Đang tải lịch...</div>}
+        {!isLoading && loadError && <div className={`${styles.serviceStatus} ${styles.serviceStatusError}`}>{loadError}</div>}
         {slots.map((slot) => (
           /* Mỗi slotItem sẽ có class màu sắc dựa trên state (ok, full, selected) */
           <div key={slot.time} className={`${styles.slotItem} ${styles['slotItem--' + slot.state]}`}>
@@ -105,6 +197,70 @@ export default function SchedulePanel({
       </div>
     </aside>
   );
+}
+
+const queueOrderKey = (item) => {
+  const n = Number(item?.queueOrder);
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+};
+
+function getBookingBadgeLabel(item) {
+  const plate =
+    item?.licensePlate ||
+    item?.plateNumber ||
+    item?.vehiclePlate ||
+    item?.vehicleNumber ||
+    item?.carPlate ||
+    item?.vehicleLicensePlate;
+  if (plate) return String(plate);
+
+  const name = item?.customerName || item?.fullName || item?.customer?.fullName || item?.name;
+  if (name) return String(name);
+
+  const code = item?.bookingCode || item?.booking_code || item?.code;
+  if (code) return String(code);
+
+  const id = item?.bookingId || item?.id;
+  return id == null ? 'Khách' : `#${id}`;
+}
+
+function buildSlotDataFromManagedBookings(bookings, capacity) {
+  const list = Array.isArray(bookings) ? bookings : [];
+  const byTime = new Map();
+
+  for (const item of list) {
+    const key = formatTimeHHmm(item?.scheduledTime);
+    if (!key) continue;
+    const entry = byTime.get(key) || [];
+    entry.push(item);
+    byTime.set(key, entry);
+  }
+
+  const result = {};
+  for (const [key, items] of byTime.entries()) {
+    const sorted = [...items].sort((a, b) => {
+      const byOrder = queueOrderKey(a) - queueOrderKey(b);
+      if (byOrder !== 0) return byOrder;
+      return String(a?.createdAt || '').localeCompare(String(b?.createdAt || ''));
+    });
+
+    const bookingsView = sorted.map((item) => ({
+      bookingId: item?.bookingId ?? item?.id,
+      bookingCode: item?.bookingCode ?? item?.booking_code ?? item?.code,
+      queueOrder: item?.queueOrder,
+      createdAt: item?.createdAt,
+      label: getBookingBadgeLabel(item),
+    }));
+
+    result[key] = {
+      bookings: bookingsView,
+      customers: bookingsView.map((b) => b.label).filter(Boolean),
+      current: bookingsView.length,
+      capacity,
+    };
+  }
+
+  return result;
 }
 
 /**
@@ -139,6 +295,7 @@ SchedulePanel.propTypes = {
   dateLabel: PropTypes.string,
   pickedTime: PropTypes.string,
   slotData: PropTypes.object,
+  token: PropTypes.string,
   startHour: PropTypes.number,
   endHour: PropTypes.number,
   defaultCapacity: PropTypes.number,

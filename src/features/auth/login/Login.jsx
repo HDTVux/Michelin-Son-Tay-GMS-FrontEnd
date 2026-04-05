@@ -212,9 +212,6 @@ export default function Login() {
             <button type="button" className={styles.socialBtn} onClick={handleGoogleLogin}>
               Google
             </button>
-            <button type="button" className={styles.socialBtn}>
-              Zalo
-            </button>
           </div>
         </div>
       </div>

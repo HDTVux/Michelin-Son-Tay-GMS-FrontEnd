@@ -8,6 +8,7 @@ import {
 	normalizeBackendTime,
 	toLocalDateTime,
 } from '../../../components/timeUtils.js';
+import { validateTextInput } from '../../../components/inputValidation.js';
 
 export const normalizePeriodLabel = (raw) => {
 	if (!raw) return '';
@@ -19,13 +20,6 @@ export const normalizePeriodLabel = (raw) => {
 };
 
 export const timeKey = (t) => formatTimeHHmm(t || '');
-
-const sanitizeNote = (value) => {
-	const raw = String(value ?? '');
-	const hasForbiddenChars = /[<>{}]/.test(raw);
-	const trimmed = raw.trim();
-	return { raw, trimmed, hasForbiddenChars };
-};
 
 const pickNextSlotFromBaseSlots = (baseSlots, now) => {
 	const list = Array.isArray(baseSlots) ? baseSlots : [];
@@ -145,16 +139,14 @@ export function useCreateBookingHandlers({
 		setCreatedBookingForCheckIn(null);
 		setSubmitting(true);
 
-		const { trimmed, hasForbiddenChars } = sanitizeNote(info?.note);
-
-		if (hasForbiddenChars) {
-			setSubmitError('Ghi chú không được chứa ký tự <, >, {, }.');
-			setSubmitting(false);
-			return;
-		}
-
-		if (trimmed.length > 500) {
-			setSubmitError('Ghi chú tối đa 500 ký tự.');
+		const { value: trimmedNote, error: noteError } = validateTextInput(info?.note, {
+			fieldLabel: 'Ghi chú',
+			required: false,
+			maxLength: 255,
+			trim: true,
+		});
+		if (noteError) {
+			setSubmitError(noteError);
 			setSubmitting(false);
 			return;
 		}
@@ -167,7 +159,7 @@ export function useCreateBookingHandlers({
 			const res = await staffCreateBooking({
 				appointmentDate: schedule?.date,
 				appointmentTime: normalizeBackendTime(schedule?.time),
-				userNote: trimmed,
+				userNote: trimmedNote,
 				selectedServiceIds: catalogItemIds,
 				fullName: String(info?.name ?? '').trim(),
 				phone: String(info?.phone ?? '').trim(),
