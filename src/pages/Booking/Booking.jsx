@@ -292,6 +292,13 @@ const goSubmitInfo = async () => {
 			if (bookingData) {
 				setBookingData((prev) => ({ ...prev, status: prev?.status || 'CANCELLED' }));
 			}
+			// Reset to create new booking
+			setSelectedIds([]);
+			setSchedule({ date: '', time: '' });
+			setInfo({ name: info.name, phone: info.phone, note: '' });
+			setModifyBookingId(null);
+			setBookingData(null);
+			setStepIndex(0);
 		} catch (err) {
 			console.error('[booking] cancel error:', err);
 			const errorMsg = err?.message || 'Không thể hủy lịch hẹn.';

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
@@ -9,8 +9,6 @@ import {
     useAdvisorItemsTableHandlers,
 } from './useAdvisorItemsTableHandlers.js';
 import CatalogPicker from './CatalogPicker.jsx';
-
-const PHOTO_SLOTS = 4;
 
 function formatTaxRatePercent(rule) {
     const raw = rule?.taxRate ?? rule?.rate;
@@ -470,7 +468,7 @@ EstimateActions.propTypes = {
     setShouldRevertOnCancel: PropTypes.func,
 };
 
-export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refreshToken, onEstimateStatusChange, onRestartWorkflow, onCancelAppendOnly }) {
+export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, ticketPhotos, refreshToken, onEstimateStatusChange, onRestartWorkflow, onCancelAppendOnly }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const {
         categorySuggestions,
@@ -522,12 +520,15 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
     const isRestrictedStatus = !(isCreating || isEditing) && ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
 
     // Cho phép tạo mới nếu chưa có báo giá hoặc báo giá hiện tại đã ARCHIVED
-    const isTicketPaid = String(ticketStatus || '').trim().toUpperCase() === 'PAID';
+    const ticketStatusUpper = String(ticketStatus || '').trim().toUpperCase();
+    const isTicketPaid = ticketStatusUpper === 'PAID';
+    const isTicketCancelled = ['CANCELLED', 'CANCELED', 'CANCEL'].includes(ticketStatusUpper);
+    const isTicketLocked = isTicketPaid || isTicketCancelled;
     // "Tạo báo giá mới" chỉ dành cho trường hợp chưa có bất kì báo giá nào.
-    const canCreateNew = !isCreating && !isEditing && showAddEstimate && !isTicketPaid;
+    const canCreateNew = !isCreating && !isEditing && showAddEstimate && !isTicketLocked;
 
     // "Tạo version báo giá mới" chỉ dành cho trường hợp báo giá hiện tại là ARCHIVED.
-    const canCreateNewVersion = !isCreating && !isEditing && Boolean(estimate) && isArchived && !isTicketPaid;
+    const canCreateNewVersion = !isCreating && !isEditing && Boolean(estimate) && isArchived && !isTicketLocked;
 
     const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
@@ -535,8 +536,8 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
 
     const handleStartCreate = async () => {
         if (isStartingCreate) return;
-        if (isTicketPaid) {
-            notify('Không thể tạo báo giá khi phiếu dịch vụ đã được thanh toán (PAID).');
+        if (isTicketLocked) {
+            notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
             return;
         }
 		setRevertOnCancel(false);
@@ -545,8 +546,8 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
 
     const handleStartCreateNewVersion = async () => {
         if (isStartingCreate) return;
-        if (isTicketPaid) {
-            notify('Không thể tạo báo giá khi phiếu dịch vụ đã được thanh toán (PAID).');
+        if (isTicketLocked) {
+            notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
             return;
         }
 		setRevertOnCancel(false);
@@ -571,8 +572,8 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
     // Ensure create mode can be opened automatically after the ticket is restarted/refreshed.
     useEffect(() => {
         const handler = () => {
-            if (isTicketPaid) {
-                notify('Không thể tạo báo giá khi phiếu dịch vụ đã được thanh toán (PAID).');
+            if (isTicketLocked) {
+                notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
                 return;
             }
             if (isCreating || isEditing) return;
@@ -592,14 +593,14 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                 // ignore
             }
         };
-    }, [isTicketPaid, isCreating, isEditing, notify, startCreate]);
+    }, [isTicketLocked, isCreating, isEditing, notify, startCreate]);
 
     // Ensure append-only edit mode can be opened automatically (add service: keep current estimate version,
     // lock existing rows, only allow adding new rows).
     useEffect(() => {
         const handler = () => {
-            if (isTicketPaid) {
-                notify('Không thể sửa báo giá khi phiếu dịch vụ đã được thanh toán (PAID).');
+            if (isTicketLocked) {
+                notify('Không thể sửa báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
                 return;
             }
             if (isCreating || isEditing) return;
@@ -627,7 +628,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                 // ignore
             }
         };
-    }, [estimate, isTicketPaid, isCreating, isEditing, notify, startCreate, startEdit]);
+    }, [estimate, isTicketLocked, isCreating, isEditing, notify, startCreate, startEdit]);
 
     const handleStartEdit = useCallback(() => {
         setRevertOnCancel(false);
@@ -674,7 +675,37 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
         closeCatalogPicker();
     };
 
-    const showTaxQuickAdd = showInputs && tableRows.some((r) => !isDraftRowEmpty(r) && !toIdOrNull(r?.workCategoryId));
+    const showTaxQuickAdd = !isTicketLocked && showInputs && tableRows.some((r) => !isDraftRowEmpty(r) && !toIdOrNull(r?.workCategoryId));
+
+    const shouldShowInventoryPanel = !isTicketLocked && inventory.isOpen;
+
+    const [photoPreview, setPhotoPreview] = useState(null);
+    const closePhotoPreview = useCallback(() => setPhotoPreview(null), []);
+
+    const conditionPhotos = useMemo(() => {
+        const allowed = new Set(['FRONT', 'BACK', 'LEFT', 'RIGHT', 'OVERALL', 'DAMAGE']);
+        const arr = Array.isArray(ticketPhotos) ? ticketPhotos : [];
+        return arr.filter((p) => allowed.has(String(p?.category || '').toUpperCase()) && String(p?.url || '').trim() !== '');
+    }, [ticketPhotos]);
+
+    useEffect(() => {
+        if (!photoPreview?.url) return undefined;
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') closePhotoPreview();
+        };
+        try {
+            globalThis.addEventListener('keydown', onKeyDown);
+        } catch {
+            return undefined;
+        }
+        return () => {
+            try {
+                globalThis.removeEventListener('keydown', onKeyDown);
+            } catch {
+                // ignore
+            }
+        };
+    }, [photoPreview, closePhotoPreview]);
 
     return (
         <section className={styles.block}>
@@ -684,41 +715,36 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
             <div className={styles.advisorStack}>
                 <div className={styles.advisorCard}>
                     <h3 className={styles.advisorTitle}>Ảnh tình trạng xe</h3>
-                    <div className={styles.photoStrip}>
-                        {Array.from({ length: PHOTO_SLOTS }).map((_, idx) => (
-                            <div
-                                key={`photo-slot-${idx + 1}`}
-                                className={styles.photoPlaceholder}
-                                aria-label={`Ảnh ${idx + 1}`}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                <div className={styles.advisorCard}>
-                    <h3 className={styles.advisorTitle}>Chẩn đoán kỹ thuật</h3>
-                    <div className="ui-field" style={{ marginBottom: 0 }}>
-                        <textarea placeholder="Nhập kết quả chẩn đoán..." disabled={isRestrictedStatus} />
-                    </div>
-
-                    <h3 className={styles.advisorTitle} style={{ marginTop: 14 }}>Dịch vụ đề xuất</h3>
-                    <div className={styles.recommendList}>
-                        <label className={styles.recommendItem}>
-                            <input type="checkbox" defaultChecked disabled={isRestrictedStatus} />
-                            <span>Bảo dưỡng định kỳ</span>
-                        </label>
-                        <label className={styles.recommendItem}>
-                            <input type="checkbox" disabled={isRestrictedStatus} />
-                            <span>Thay má phanh trước</span>
-                        </label>
-                        <label className={styles.recommendItem}>
-                            <input type="checkbox" disabled={isRestrictedStatus} />
-                            <span>Thay dầu phanh</span>
-                        </label>
-                    </div>
-                    <div className="ui-field" style={{ marginBottom: 0, marginTop: 10 }}>
-                        <input type="text" placeholder="Thêm dịch vụ khác..." disabled={isRestrictedStatus} />
-                    </div>
+                    {conditionPhotos.length > 0 ? (
+                        <div className={styles.vehiclePhotoGrid}>
+                            {conditionPhotos.map((p, idx) => {
+                                const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
+                                const label = String(p?.label || p?.category || '').trim();
+                                const caption = label || (p?.description ? String(p.description) : `Ảnh ${idx + 1}`);
+                                return (
+                                    <figure key={key} className={styles.vehiclePhotoCard}>
+                                        <button
+                                            type="button"
+                                            className={styles.vehiclePhotoButton}
+                                            onClick={() => setPhotoPreview({ url: p?.url, caption })}
+                                            aria-label={`Phóng to: ${caption}`}
+                                        >
+                                            <img
+                                                className={styles.vehiclePhotoImg}
+                                                src={p.url}
+                                                alt={caption}
+                                                loading="lazy"
+                                                referrerPolicy="no-referrer"
+                                            />
+                                        </button>
+                                        <figcaption className={styles.vehiclePhotoCaption}>{caption}</figcaption>
+                                    </figure>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className={styles.noteBox}>-</div>
+                    )}
                 </div>
 
                 <div className={styles.advisorCard}>
@@ -731,15 +757,17 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                             <span className={styles.tag}>In Stock</span>
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        className={`ui-btn ui-btn--ghost ${styles.fullWidthBtn}`}
-                        onClick={inventory.toggleOpen}
-                    >
-                        {inventory.isOpen ? 'Đóng kiểm tra tồn kho' : 'Kiểm tra tồn kho'}
-                    </button>
+                    {!isTicketLocked && (
+                        <button
+                            type="button"
+                            className={`ui-btn ui-btn--ghost ${styles.fullWidthBtn}`}
+                            onClick={inventory.toggleOpen}
+                        >
+                            {inventory.isOpen ? 'Đóng kiểm tra tồn kho' : 'Kiểm tra tồn kho'}
+                        </button>
+                    )}
 
-                    {inventory.isOpen ? (
+                    {shouldShowInventoryPanel && (
                         <div className={styles.inventoryPanel}>
                             <form className={styles.inventorySearchRow} onSubmit={inventory.onSubmit}>
                                 <div className="ui-field" style={{ marginBottom: 0, flex: 1 }}>
@@ -801,7 +829,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                                 </button>
                             </div>
                         </div>
-                    ) : null}
+                    )}
                 </div>
 
                 <div className={styles.advisorCard}>
@@ -904,29 +932,31 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                     </tfoot>
                 </table>
             </div>
-            <div style={{ marginTop: 16 }}>
-                <EstimateActions
-                    canCreateNew={canCreateNew}
-                    canCreateNewVersion={canCreateNewVersion}
-                    createBusy={isStartingCreate}
-                    canEdit={canEdit}
-                    isCreating={isCreating}
-                    isEditing={isEditing}
-                    isSaving={isSaving}
-                    startCreate={handleStartCreate}
-                    startCreateNewVersion={handleStartCreateNewVersion}
-                    startEdit={handleStartEdit}
-                    cancelCreate={cancelCreate}
-                    cancelEdit={cancelEdit}
-                    saveEstimate={saveEstimate}
-                    saveEdit={saveEdit}
-                    isRestrictedStatus={isRestrictedStatus}
-                    onCancelAppendOnly={onCancelAppendOnly}
-                    isAppendOnlyEdit={isAppendOnlyEdit}
+            {isTicketLocked ? null : (
+                <div style={{ marginTop: 16 }}>
+                    <EstimateActions
+                        canCreateNew={canCreateNew}
+                        canCreateNewVersion={canCreateNewVersion}
+                        createBusy={isStartingCreate}
+                        canEdit={canEdit}
+                        isCreating={isCreating}
+                        isEditing={isEditing}
+                        isSaving={isSaving}
+                        startCreate={handleStartCreate}
+                        startCreateNewVersion={handleStartCreateNewVersion}
+                        startEdit={handleStartEdit}
+                        cancelCreate={cancelCreate}
+                        cancelEdit={cancelEdit}
+                        saveEstimate={saveEstimate}
+                        saveEdit={saveEdit}
+                        isRestrictedStatus={isRestrictedStatus}
+                        onCancelAppendOnly={onCancelAppendOnly}
+                        isAppendOnlyEdit={isAppendOnlyEdit}
 					shouldRevertOnCancel={revertOnCancel}
 					setShouldRevertOnCancel={setRevertOnCancel}
-                />
-            </div>
+                    />
+                </div>
+            )}
 
             <div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
                 <label htmlFor="advisor-recommendation">Khuyến nghị</label>
@@ -935,28 +965,30 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                     placeholder="Nhập khuyến nghị..."
                     value={recommendation}
                     onChange={(e) => setRecommendation(e.target.value)}
-                    disabled={Boolean(recommendationSaving)}
+                    disabled={Boolean(recommendationSaving) || isTicketLocked}
                 />
             </div>
 
-                <div className="ui-actions" style={{ marginTop: 8 }}>
-                    <button
-                        type="button"
-                        className="ui-btn ui-btn--primary"
-                        onClick={() => {
-                            Promise.resolve(saveRecommendation?.())
-                                .then((saved) => {
-                                    if (saved) notify('Đã lưu khuyến nghị.');
-                                })
-                                .catch((err) => {
-                                    notify(err?.message || 'Không thể cập nhật khuyến nghị.');
-                                });
-                        }}
-                        disabled={Boolean(recommendationSaving) || Boolean(isSaving)}
-                    >
-                        {recommendationSaving ? 'Đang lưu...' : 'Lưu khuyến nghị'}
-                    </button>
-                </div>
+                {isTicketLocked ? null : (
+                    <div className="ui-actions" style={{ marginTop: 8 }}>
+                        <button
+                            type="button"
+                            className="ui-btn ui-btn--primary"
+                            onClick={() => {
+                                Promise.resolve(saveRecommendation?.())
+                                    .then((saved) => {
+                                        if (saved) notify('Đã lưu khuyến nghị.');
+                                    })
+                                    .catch((err) => {
+                                        notify(err?.message || 'Không thể cập nhật khuyến nghị.');
+                                    });
+                            }}
+                            disabled={Boolean(recommendationSaving) || Boolean(isSaving)}
+                        >
+                            {recommendationSaving ? 'Đang lưu...' : 'Lưu khuyến nghị'}
+                        </button>
+                    </div>
+                )}
 
 
 
@@ -968,6 +1000,34 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                 initQuery={pickerInitQuery}
                 categoryCode={pickerCategoryCode}
             />
+
+            {photoPreview?.url ? (
+                <dialog
+                    className={styles.photoModalDialog}
+                    open
+                    onClose={closePhotoPreview}
+                    onCancel={(e) => {
+                        e.preventDefault();
+                        closePhotoPreview();
+                    }}
+                    aria-label={photoPreview.caption || 'Xem ảnh'}
+                >
+                    <div className={styles.photoModalContent}>
+                        <div className={styles.photoModalHeader}>
+                            <div className={styles.photoModalTitle}>{photoPreview.caption || ''}</div>
+                            <button type="button" className="ui-btn ui-btn--ghost" onClick={closePhotoPreview}>
+                                Đóng
+                            </button>
+                        </div>
+                        <img
+                            className={styles.photoModalImg}
+                            src={photoPreview.url}
+                            alt={photoPreview.caption || 'Ảnh'}
+                            referrerPolicy="no-referrer"
+                        />
+                    </div>
+                </dialog>
+            ) : null}
         </section>
     );
 }
@@ -975,6 +1035,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
 AdvisorItemsTable.propTypes = {
     serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     ticketStatus: PropTypes.string,
+    ticketPhotos: PropTypes.array,
     refreshToken: PropTypes.any,
     onEstimateStatusChange: PropTypes.func,
     onRestartWorkflow: PropTypes.func,

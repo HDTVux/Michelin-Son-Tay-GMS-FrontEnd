@@ -2,8 +2,34 @@ import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './BookingRequestDetail.module.css';
 import { buildAllSlots } from './scheduleUtils.js';
-import { fetchManagedBookingsPaged } from '../../../services/bookingService.js';
+import { fetchAllSlots, fetchManagedBookingsPaged } from '../../../services/bookingService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
+
+const isConfirmed = (status) => String(status || '').trim().toUpperCase() === 'CONFIRMED';
+
+function normalizeSlotDataToConfirmed(source, defaultCapacity) {
+  const src = source && typeof source === 'object' ? source : {};
+  const result = {};
+
+  for (const [timeKey, slot] of Object.entries(src)) {
+    const capacity = Number.isFinite(Number(slot?.capacity)) ? Number(slot.capacity) : defaultCapacity;
+    const bookings = Array.isArray(slot?.bookings) ? slot.bookings : [];
+    const confirmedBookings = bookings.filter((b) => isConfirmed(b?.status));
+    const customers = confirmedBookings
+      .map((b) => b?.label || b?.bookingCode || b?.licensePlate || b?.customerName || b?.fullName)
+      .filter(Boolean);
+
+    result[timeKey] = {
+      ...slot,
+      capacity,
+      bookings: confirmedBookings,
+      customers,
+      current: confirmedBookings.length,
+    };
+  }
+
+  return result;
+}
 
 
 export default function SchedulePanel({
@@ -20,9 +46,11 @@ export default function SchedulePanel({
   onBookingClick,
 }) {
   const [loadedSlotData, setLoadedSlotData] = useState({});
+  const [baseSlots, setBaseSlots] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [selectedDate, setSelectedDate] = useState(String(dateLabel || '').trim());
+  const pickedTimeKey = useMemo(() => formatTimeHHmm(String(pickedTime || '').trim()), [pickedTime]);
 
   /**
    * useMemo (dateOptions): Tạo danh sách 10 ngày tới cho ô chọn Select.
@@ -40,6 +68,27 @@ export default function SchedulePanel({
   const baseDateLabel = String(dateLabel || '').trim();
 
   const effectiveToken = token || localStorage.getItem('authToken');
+
+  // Load canonical slots from backend so the number/time of slots matches the booking flow.
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const res = await fetchAllSlots(effectiveToken);
+        const list = Array.isArray(res?.data) ? res.data : [];
+        const filtered = list.filter((s) => s && (s.isActive ?? true));
+        filtered.sort((a, b) => formatTimeHHmm(a?.startTime).localeCompare(formatTimeHHmm(b?.startTime)));
+        if (active) setBaseSlots(filtered);
+      } catch {
+        if (active) setBaseSlots([]);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [effectiveToken]);
 
   useEffect(() => {
     const safeDate = String(selectedDate || '').trim();
@@ -101,7 +150,8 @@ export default function SchedulePanel({
     const provided = slotData && typeof slotData === 'object' ? slotData : {};
     const hasProvided = Object.keys(provided).length > 0;
     const canUseProvided = hasProvided && String(selectedDate || '').trim() === baseDateLabel;
-    return canUseProvided ? provided : loadedSlotData;
+    const sourceData = canUseProvided ? provided : loadedSlotData;
+    return normalizeSlotDataToConfirmed(sourceData, defaultCapacity);
   })();
 
   /**
@@ -110,13 +160,51 @@ export default function SchedulePanel({
    * Nếu giờ của slot trùng với pickedTime, nó sẽ nổi bật lên để nhân viên dễ đối chiếu.
    */
   const slots = useMemo(() => {
-    const built = buildAllSlots({ slotData: effectiveSlotData || {}, startHour, endHour, defaultCapacity });
+    const isPickedDate = String(selectedDate || '').trim() === baseDateLabel;
+    const slotData = effectiveSlotData || {};
+
+    const apiTimes = Array.isArray(baseSlots) && baseSlots.length > 0
+      ? baseSlots.map((s) => formatTimeHHmm(s?.startTime)).filter(Boolean)
+      : [];
+
+    // Keep any extra times that exist in slotData (to avoid hiding bookings).
+    const apiTimeSet = new Set(apiTimes);
+    const extraTimes = Object.keys(slotData)
+      .filter((t) => !apiTimeSet.has(t))
+      .sort((a, b) => String(a).localeCompare(String(b)));
+
+    if (apiTimes.length > 0) {
+      const times = [...apiTimes, ...extraTimes];
+      return times.map((time) => {
+        const data = slotData[time] || {};
+        const bookings = Array.isArray(data?.bookings) ? data.bookings : [];
+        const customers = Array.isArray(data?.customers) ? data.customers : [];
+        const current = Number.isFinite(Number(data?.current)) ? Number(data.current) : bookings.length;
+        const capacity = Number.isFinite(Number(data?.capacity)) ? Number(data.capacity) : defaultCapacity;
+
+        let state = 'ok';
+        if (current === capacity) state = 'full';
+        if (current > capacity) state = 'over';
+        if (isPickedDate && pickedTimeKey && time === pickedTimeKey) state = 'selected';
+
+        return {
+          time,
+          bookings,
+          customers,
+          current,
+          capacity,
+          quota: `${current}/${capacity}`,
+          state,
+        };
+      });
+    }
+
+    const built = buildAllSlots({ slotData, startHour, endHour, defaultCapacity });
     return built.map((slot) => ({
       ...slot,
-      // Đánh dấu 'selected' cho giờ mà khách hàng đang yêu cầu trong đơn đặt lịch
-      state: slot.time === pickedTime ? 'selected' : slot.state,
+      state: isPickedDate && pickedTimeKey && slot.time === pickedTimeKey ? 'selected' : slot.state,
     }));
-  }, [effectiveSlotData, startHour, endHour, defaultCapacity, pickedTime]);
+  }, [effectiveSlotData, startHour, endHour, defaultCapacity, pickedTimeKey, selectedDate, baseDateLabel, baseSlots]);
 
   const renderSlotCustomers = (slot) => {
     const hasBookings = Array.isArray(slot?.bookings) && slot.bookings.length > 0;
@@ -171,7 +259,7 @@ export default function SchedulePanel({
           </select>
         </div>
         {/* Nhắc lại khung giờ khách đang yêu cầu để nhân viên không bị quên khi cuộn danh sách */}
-        <div className={styles.scheduleSub}>{subtitlePrefix} {pickedTime}</div>
+        <div className={styles.scheduleSub}>{subtitlePrefix} {pickedTimeKey}</div>
       </div>
 
       <div className={styles.slotList}>
@@ -229,6 +317,7 @@ function buildSlotDataFromManagedBookings(bookings, capacity) {
   const byTime = new Map();
 
   for (const item of list) {
+    if (!isConfirmed(item?.status)) continue;
     const key = formatTimeHHmm(item?.scheduledTime);
     if (!key) continue;
     const entry = byTime.get(key) || [];
@@ -249,6 +338,7 @@ function buildSlotDataFromManagedBookings(bookings, capacity) {
       bookingCode: item?.bookingCode ?? item?.booking_code ?? item?.code,
       queueOrder: item?.queueOrder,
       createdAt: item?.createdAt,
+      status: item?.status,
       label: getBookingBadgeLabel(item),
     }));
 

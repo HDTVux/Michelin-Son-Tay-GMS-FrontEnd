@@ -104,7 +104,7 @@ export default function Login() {
 			}
 
       setServerMessage(data?.data?.message || data?.message || 'Đăng nhập thành công');
-      navigate('/booking-request-management', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       setErrors({ api: error.message || 'Không thể kết nối máy chủ. Vui lòng thử lại.' });
     } finally {

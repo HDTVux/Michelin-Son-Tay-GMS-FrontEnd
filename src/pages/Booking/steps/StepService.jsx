@@ -92,7 +92,6 @@ export default function StepService({
             <option value="general">Khác</option>
           </select>
         </div>
-        <p className={styles['slider-hint']}>Kéo vuốt ngang để xem thêm dịch vụ.</p>
       </div>
 
       {loading && <div className={styles['service-status']}>Đang tải danh sách dịch vụ...</div>}
