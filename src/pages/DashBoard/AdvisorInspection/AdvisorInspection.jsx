@@ -265,6 +265,35 @@ const getSwappedTicketOrder = (rows, sourceTicketId, targetTicketId) => {
   next.splice(toIndex, 0, moved);
   return next;
 };
+const withQueueNumber = (ticket, queueNumber) => {
+  const num = Number(queueNumber);
+  if (!Number.isFinite(num) || num <= 0) {
+    return {
+      ...ticket,
+      queueNumber: null,
+      queue_number: null,
+      queueNo: null,
+      queue_no: null,
+      queueOrder: null,
+      queue_order: null,
+      orderInQueue: null,
+      order_in_queue: null,
+      stt: null,
+    };
+  }
+  return {
+    ...ticket,
+    queueNumber: num,
+    queue_number: num,
+    queueNo: num,
+    queue_no: num,
+    queueOrder: num,
+    queue_order: num,
+    orderInQueue: num,
+    order_in_queue: num,
+    stt: num,
+  };
+};
 
 const SERVICE_TICKET_STATUS_LABELS = {
   DRAFT: 'Nháp',
@@ -1080,6 +1109,8 @@ export default function AdvisorInspection() {
 
     const sourceTicket = tickets.find((t) => Number(getTicketId(t)) === Number(sourceTicketId));
     const targetTicket = tickets.find((t) => Number(getTicketId(t)) === Number(targetTicketId));
+    const sourceQueueNumber = getTicketQueueNumber(sourceTicket);
+    const targetQueueNumber = getTicketQueueNumber(targetTicket);
     const sourceCreateDate = getTicketCreateDateKey(sourceTicket);
     const targetCreateDate = getTicketCreateDateKey(targetTicket);
     if (sourceCreateDate && targetCreateDate && sourceCreateDate !== targetCreateDate) {
@@ -1090,7 +1121,14 @@ export default function AdvisorInspection() {
     let rollbackTickets = null;
     setTickets((prev) => {
       rollbackTickets = prev;
-      return getSwappedTicketOrder(prev, sourceTicketId, targetTicketId);
+      const reordered = getSwappedTicketOrder(prev, sourceTicketId, targetTicketId);
+      // Sau khi đổi vị trí, hoán đổi luôn số STT giữa 2 phiếu.
+      return reordered.map((ticket) => {
+        const ticketId = Number(getTicketId(ticket));
+        if (ticketId === Number(sourceTicketId)) return withQueueNumber(ticket, targetQueueNumber);
+        if (ticketId === Number(targetTicketId)) return withQueueNumber(ticket, sourceQueueNumber);
+        return ticket;
+      });
     });
 
     setSwapping(true);
@@ -1113,11 +1151,8 @@ export default function AdvisorInspection() {
             || swappedRow?.status
             || ticket?.ticketStatus
             || ticket?.status;
-          const nextQueueNumber = getTicketQueueNumber(swappedRow) ?? getTicketQueueNumber(ticket);
           return {
             ...ticket,
-            queueNumber: nextQueueNumber,
-            queue_number: nextQueueNumber,
             ticketStatus: nextStatus,
             status: nextStatus,
           };
@@ -1298,11 +1333,11 @@ export default function AdvisorInspection() {
               <button
                 className={styles.actionBtn}
                 onClick={() => {
-                  if (!code || !hasTech) return;
+                  if (!code) return;
                   navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
                 }}
-                disabled={!code || !hasTech || swapping}
-                title={!hasTech ? 'Cần phân công KTV trước khi mở phiếu' : 'Mở chi tiết phiếu dịch vụ'}
+                disabled={!code || swapping}
+                title="Mở chi tiết phiếu dịch vụ"
               >
                 Mở
               </button>

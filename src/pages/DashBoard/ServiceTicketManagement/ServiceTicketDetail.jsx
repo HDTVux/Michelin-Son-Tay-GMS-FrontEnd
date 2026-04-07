@@ -351,6 +351,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
     const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
+    const isFromAdvisor = location?.state?.fromAdvisorInspection === true;
 
     const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
         ticketCodeParam,
@@ -807,14 +808,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
-                            onClick={toggleEdit}
-                            disabled={isLoading || isSaving}
-                        >
-                            {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
-                        </button>
+                        {!isFromAdvisor && (
+                            <button
+                                type="button"
+                                className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
+                                onClick={toggleEdit}
+                                disabled={isLoading || isSaving}
+                            >
+                                {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
+                            </button>
+                        )}
                     </header>
 
                     {error && <div className={styles.errorBanner}>{error}</div>}

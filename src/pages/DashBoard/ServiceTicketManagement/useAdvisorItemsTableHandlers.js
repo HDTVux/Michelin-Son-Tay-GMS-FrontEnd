@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	createServiceTicketEstimate,
 	fetchServiceTicketEstimate,
-	fetchServiceTicketAdvisorRecommend,
+	fetchSafetyInspectionCurrentRecommend,
 	fetchWorkCategoriesAll,
 	fetchTaxRulesAll,
 	updateServiceTicketEstimate,
@@ -458,7 +458,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		const run = async () => {
 			try {
 				setRecommendationLoading(true);
-				const res = await fetchServiceTicketAdvisorRecommend(idNum, token);
+				const res = await fetchSafetyInspectionCurrentRecommend(idNum, token);
 				if (ignore) return;
 				const value = extractRecommendValue(res);
 				recommendationLastSavedRef.current = String(value ?? '');

@@ -114,7 +114,7 @@ export default function Booking() {
 							name: item.title || 'Dịch vụ',
 							desc: item.shortDescription || 'Hiện chưa có mô tả ngắn.',
 							category: 'all',
-							thumbnail: item.mediaThumbnail || '',
+							thumbnail: item.thumbnailUrl || item.imageUrl || item.mediaThumbnail || '',
 						};
 					})
 					.filter(Boolean);// Loại bỏ các giá trị null vừa tạo ra ở trên

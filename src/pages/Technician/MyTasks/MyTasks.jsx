@@ -93,6 +93,7 @@ const normalizeInspectionStatus = (value) => {
   if (raw === 'PENDING' || raw === 'COMPLETED' || raw === 'SKIPPED') return raw;
   return null;
 };
+<<<<<<< Updated upstream
 const toPositiveNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
@@ -176,14 +177,38 @@ const parseTimeParts = (value) => {
   const minute = Number(match[2]);
   const second = match[3] != null ? Number(match[3]) : 0;
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) return null;
+=======
+const parseTimeParts = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const match = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const second = Number(match[3] || 0);
+  if (
+    !Number.isInteger(hour)
+    || !Number.isInteger(minute)
+    || !Number.isInteger(second)
+    || hour < 0
+    || hour > 23
+    || minute < 0
+    || minute > 59
+    || second < 0
+    || second > 59
+  ) return null;
+>>>>>>> Stashed changes
   return { hour, minute, second };
 };
 const parseFlexibleDateTime = (dateValue, timeValue) => {
   const rawDate = String(dateValue || '').trim();
   if (!rawDate) return null;
   const rawTime = String(timeValue || '').trim();
+<<<<<<< Updated upstream
 
   // ISO-like input first
+=======
+>>>>>>> Stashed changes
   const isoTry = new Date(rawDate);
   if (!Number.isNaN(isoTry.getTime())) {
     const hasTimeInDate = /[T\s]\d{1,2}:\d{2}/.test(rawDate);
@@ -197,10 +222,16 @@ const parseFlexibleDateTime = (dateValue, timeValue) => {
     return { date: isoTry, hasTime: false };
   }
 
+<<<<<<< Updated upstream
   // dd/MM/yyyy or dd-MM-yyyy, optional time part in the same string
   const compact = rawDate.replace(/\s+/g, ' ').trim();
   const dmY = compact.match(
     /^(d{1,2})[/-](d{1,2})[/-](d{4})(?:s+(d{1,2}):(d{2})(?::(d{2}))?)?$/,
+=======
+  const compact = rawDate.replace(/\s+/g, ' ').trim();
+  const dmY = compact.match(
+    /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+>>>>>>> Stashed changes
   );
   if (!dmY) return null;
 
@@ -211,7 +242,10 @@ const parseFlexibleDateTime = (dateValue, timeValue) => {
   let minute = dmY[5] != null ? Number(dmY[5]) : 0;
   let second = dmY[6] != null ? Number(dmY[6]) : 0;
   let hasTime = dmY[4] != null;
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
   if (!hasTime) {
     const timeParts = parseTimeParts(rawTime);
     if (timeParts) {
@@ -223,9 +257,15 @@ const parseFlexibleDateTime = (dateValue, timeValue) => {
   }
 
   const parsed = new Date(year, month - 1, day, hour, minute, second, 0);
+<<<<<<< Updated upstream
   if (Number.isNaN(parsed.getTime())) return null;
   if (
     parsed.getFullYear() !== year
+=======
+  if (
+    Number.isNaN(parsed.getTime())
+    || parsed.getFullYear() !== year
+>>>>>>> Stashed changes
     || parsed.getMonth() !== month - 1
     || parsed.getDate() !== day
   ) return null;
@@ -233,13 +273,21 @@ const parseFlexibleDateTime = (dateValue, timeValue) => {
 };
 const getTicketScheduleDateTimeInfo = (ticket) => {
   const timeFallback = [
+<<<<<<< Updated upstream
     ticket?.appointmentTime,
     ticket?.scheduledTime,
+=======
+    ticket?.scheduledTime,
+    ticket?.appointmentTime,
+>>>>>>> Stashed changes
     ticket?.bookingTime,
     ticket?.timeSlot,
     ticket?.booking?.scheduledTime,
   ].find((item) => String(item || '').trim() !== '');
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
   const dateCandidates = [
     ticket?.appointmentDate,
     ticket?.scheduledDate,
@@ -249,7 +297,10 @@ const getTicketScheduleDateTimeInfo = (ticket) => {
     ticket?.receivedAt,
     ticket?.createdAt,
   ];
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
   for (const candidate of dateCandidates) {
     const parsed = parseFlexibleDateTime(candidate, timeFallback);
     if (parsed?.date) return parsed;
@@ -273,6 +324,58 @@ const formatTicketScheduleDateTime = (ticket) => {
     : '--:--';
   return `${datePart} ${timePart}`;
 };
+<<<<<<< Updated upstream
+=======
+const normalizeAssignmentStatus = (value) => String(value || '').trim().toUpperCase();
+const isCancelledAssignmentStatus = (value) => {
+  const status = normalizeAssignmentStatus(value);
+  return status === 'CANCELLED' || status === 'CANCELED' || status === 'REMOVED' || status === 'DELETED';
+};
+const getTicketIdRaw = (ticket) => toPositiveNumber(ticket?.serviceTicketId ?? ticket?.ticketId ?? ticket?.id);
+const getDirectTechnicianIdsFromTicket = (ticket) => {
+  const ids = new Set();
+  const directCandidates = [
+    ticket?.technicianId,
+    ticket?.assignedTechnicianId,
+    ticket?.primaryTechnicianId,
+    ticket?.technician?.staffId,
+    ticket?.primaryTechnician?.staffId,
+  ];
+  directCandidates.forEach((candidate) => {
+    const parsed = toPositiveNumber(candidate);
+    if (parsed != null) ids.add(parsed);
+  });
+
+  const assignmentSources = [
+    ticket?.assignments,
+    ticket?.ticketAssignments,
+    ticket?.staffAssignments,
+    ticket?.serviceTicketAssignments,
+  ];
+  assignmentSources.forEach((source) => {
+    if (!Array.isArray(source)) return;
+    source.forEach((item) => {
+      const role = String(item?.roleInTicket || item?.role || '').trim().toUpperCase();
+      if (role !== 'TECHNICIAN') return;
+      if (isCancelledAssignmentStatus(item?.status || item?.assignmentStatus)) return;
+      const parsed = toPositiveNumber(item?.staffId);
+      if (parsed != null) ids.add(parsed);
+    });
+  });
+  return ids;
+};
+const hasCurrentTechnicianAssignment = (assignments, technicianId) => {
+  const currentTechId = toPositiveNumber(technicianId);
+  if (currentTechId == null) return false;
+  const rows = Array.isArray(assignments) ? assignments : [];
+  return rows.some((assignment) => {
+    const role = String(assignment?.roleInTicket || assignment?.role || '').trim().toUpperCase();
+    if (role !== 'TECHNICIAN') return false;
+    if (isCancelledAssignmentStatus(assignment?.status || assignment?.assignmentStatus)) return false;
+    return toPositiveNumber(assignment?.staffId) === currentTechId;
+  });
+};
+>>>>>>> Stashed changes
 const hasAnyActiveTechnicianAssignment = (assignments) => {
   const rows = Array.isArray(assignments) ? assignments : [];
   return rows.some((assignment) => {
@@ -301,9 +404,13 @@ const extractTicketListFromResponse = (response) => {
     root,
   ];
   for (const candidate of directCandidates) {
+<<<<<<< Updated upstream
     if (Array.isArray(candidate) && candidate.some(looksLikeTicketRow)) {
       return candidate;
     }
+=======
+    if (Array.isArray(candidate) && candidate.some(looksLikeTicketRow)) return candidate;
+>>>>>>> Stashed changes
   }
 
   const queue = [{ node: root, depth: 0 }];
@@ -327,7 +434,25 @@ const extractTicketListFromResponse = (response) => {
       }
     });
   }
+<<<<<<< Updated upstream
 
+=======
+  return [];
+};
+const extractAssignmentListFromResponse = (response) => {
+  const root = response?.data ?? response;
+  const candidates = [
+    root,
+    root?.data,
+    root?.content,
+    root?.data?.content,
+    root?.data?.data,
+    root?.data?.data?.content,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+>>>>>>> Stashed changes
   return [];
 };
 
@@ -348,6 +473,10 @@ export default function MyTasks() {
   const [dateTo, setDateTo] = useState(initialDate);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
+<<<<<<< Updated upstream
+=======
+  const [totalElements, setTotalElements] = useState(0);
+>>>>>>> Stashed changes
 
   // ── Modal state ────────────────────────────────────────
   const [showModal, setShowModal] = useState(false);
@@ -362,13 +491,11 @@ export default function MyTasks() {
   }, [search]);
 
   const filters = useMemo(() => ({
-    page,
-    size,
     date: dateFrom || undefined,
     dateTo: dateTo || undefined,
     status: statusFilter || undefined,
     search: debouncedSearch || undefined,
-  }), [page, size, dateFrom, dateTo, statusFilter, debouncedSearch]);
+  }), [dateFrom, dateTo, statusFilter, debouncedSearch]);
 
   // ── Load ticket list ───────────────────────────────────
   useEffect(() => {
@@ -376,6 +503,7 @@ export default function MyTasks() {
     if (!token) {
       toast.error('Vui lòng đăng nhập');
       setLoading(false);
+      setTotalElements(0);
       return;
     }
 
@@ -384,6 +512,7 @@ export default function MyTasks() {
       try {
         setLoading(true);
         setError('');
+<<<<<<< Updated upstream
         const response = await fetchTechnicianTickets({
           ...filters,
           page: 0,
@@ -454,6 +583,45 @@ export default function MyTasks() {
             visibleTickets = list;
           }
         }
+=======
+        const technicianId = getCurrentTechnicianId(token);
+        const response = await fetchTechnicianTickets({ ...filters, page: 0, size: 200 }, token);
+        const list = extractTicketListFromResponse(response);
+
+        const assignmentChecked = await Promise.all(
+          list.map(async (ticket) => {
+            const directIds = getDirectTechnicianIdsFromTicket(ticket);
+            const ticketId = getTicketIdRaw(ticket);
+
+            if (ticketId == null) {
+              if (technicianId != null && directIds.size > 0) {
+                return directIds.has(technicianId) ? ticket : null;
+              }
+              return ticket;
+            }
+
+            try {
+              const assignmentResponse = await fetchTicketAssignments(ticketId, token);
+              const assignments = extractAssignmentListFromResponse(assignmentResponse);
+              if (assignments.length > 0) {
+                if (technicianId != null) {
+                  return hasCurrentTechnicianAssignment(assignments, technicianId) ? ticket : null;
+                }
+                return hasAnyActiveTechnicianAssignment(assignments) ? ticket : null;
+              }
+            } catch {
+              // Fallback to direct fields if assignment endpoint is temporarily unavailable.
+            }
+
+            if (technicianId != null) {
+              if (directIds.size === 0) return ticket;
+              return directIds.has(technicianId) ? ticket : null;
+            }
+            return ticket;
+          }),
+        );
+        const visibleTickets = assignmentChecked.filter(Boolean);
+>>>>>>> Stashed changes
 
         const transformed = visibleTickets.map((t) => {
           const statusRaw = normalizeTicketStatus(t.ticketStatus || t.status);
@@ -475,11 +643,16 @@ export default function MyTasks() {
 
         if (!ignore) {
           setTickets(transformed);
+<<<<<<< Updated upstream
+=======
+          setTotalElements(transformed.length);
+>>>>>>> Stashed changes
         }
       } catch (err) {
         if (!ignore) {
           setError(err?.message || 'Không thể tải danh sách công việc.');
           setTickets([]);
+          setTotalElements(0);
         }
       } finally {
         if (!ignore) setLoading(false);
@@ -488,7 +661,7 @@ export default function MyTasks() {
 
     run();
     return () => { ignore = true; };
-  }, [filters, size]);
+  }, [filters]);
 
   // ── Helpers ──────────────────────────────────────────
   const getTicketCode = (ticket) =>
@@ -548,8 +721,12 @@ export default function MyTasks() {
       from.setHours(0, 0, 0, 0);
       result = result.filter((t) => {
         const info = getTicketScheduleDateTimeInfo(t);
+<<<<<<< Updated upstream
         if (!info?.date) return true;
         return info.date >= from;
+=======
+        return info?.date ? info.date >= from : false;
+>>>>>>> Stashed changes
       });
     }
     if (dateTo) {
@@ -557,13 +734,18 @@ export default function MyTasks() {
       to.setHours(23, 59, 59, 999);
       result = result.filter((t) => {
         const info = getTicketScheduleDateTimeInfo(t);
+<<<<<<< Updated upstream
         if (!info?.date) return true;
         return info.date <= to;
+=======
+        return info?.date ? info.date <= to : false;
+>>>>>>> Stashed changes
       });
     }
     return result;
   }, [tickets, statusFilter, debouncedSearch, dateFrom, dateTo]);
 
+<<<<<<< Updated upstream
   const filteredTotalElements = filteredTickets.length;
   const computedTotalPages = Math.max(1, Math.ceil(filteredTotalElements / size));
   const safePage = Math.min(Math.max(0, page), computedTotalPages - 1);
@@ -572,6 +754,11 @@ export default function MyTasks() {
     if (page !== safePage) setPage(safePage);
   }, [page, safePage]);
 
+=======
+  const computedTotalPages = Math.max(1, Math.ceil(filteredTickets.length / size));
+  const safePage = Math.min(Math.max(0, page), computedTotalPages - 1);
+
+>>>>>>> Stashed changes
   const pagedTickets = useMemo(() => {
     const start = safePage * size;
     return filteredTickets.slice(start, start + size);
@@ -863,7 +1050,7 @@ export default function MyTasks() {
 
                 return (
                   <tr key={ticketId || code || idx}>
-                    <td>{idx + 1 + page * size}</td>
+                    <td>{idx + 1 + safePage * size}</td>
                     <td className={styles.ticketCodeCell}>{code || '-'}</td>
                     <td>{ticket.customerName || '-'}</td>
                     <td>{ticket.customerPhone || '-'}</td>

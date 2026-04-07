@@ -599,3 +599,20 @@
     padding: 10px 8px;
   }
 }
+
+.emptyState {
+  text-align: center;
+  padding: 24px 16px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.chartEmpty,
+.chartLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 180px;
+  color: #9ca3af;
+  font-size: 14px;
+}

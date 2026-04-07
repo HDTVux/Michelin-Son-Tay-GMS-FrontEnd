@@ -1,337 +1,543 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import {
+  fetchStaffDashboard,
+  fetchStaffStatistics,
+  fetchStaffAttendanceHistory,
+} from '../../../services/staffDashboardService.js';
 import styles from './StaffDashboard.module.css';
 
 const StaffDashboard = () => {
   useScrollToTop();
   const navigate = useNavigate();
+  const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
 
-  // Mock data KPIs
-  const [kpis] = useState({
-    todayBookings: 12,
-    pendingBookings: 5,
-    completedBookings: 156,
-    totalCustomers: 89,
-    revenue: 45000000,
-    avgRating: 4.8,
-  });
+  const today = new Date();
+  const currentMonth = today.getMonth() + 1;
+  const currentYear = today.getFullYear();
 
-  // Mock data for charts
-  const [chartData] = useState({
-    monthlyBookings: [
-      { month: 'T1', value: 120 },
-      { month: 'T2', value: 145 },
-      { month: 'T3', value: 132 },
-    ],
-    serviceDistribution: [
-      { name: 'Thay lốp', value: 35, color: '#667eea' },
-      { name: 'Bảo dưỡng', value: 28, color: '#48bb78' },
-      { name: 'Sửa chữa', value: 20, color: '#ed8936' },
-      { name: 'Kiểm tra', value: 17, color: '#4299e1' },
-    ],
-    weeklyRevenue: [
-      { day: 'T2', value: 12000000 },
-      { day: 'T3', value: 15000000 },
-      { day: 'T4', value: 11000000 },
-      { day: 'T5', value: 18000000 },
-      { day: 'T6', value: 22000000 },
-      { day: 'T7', value: 25000000 },
-      { day: 'CN', value: 8000000 },
-    ],
-  });
+  // ── Dashboard overview ──
+  const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState('');
 
-  const [recentBookings] = useState([
-    { id: 1, customerName: 'Nguyễn Văn A', service: 'Thay lốp xe', time: '09:00', status: 'confirmed', price: 1200000 },
-    { id: 2, customerName: 'Trần Thị B', service: 'Bảo dưỡng định kỳ', time: '10:30', status: 'pending', price: 2500000 },
-    { id: 3, customerName: 'Lê Văn C', service: 'Kiểm tra phanh', time: '14:00', status: 'confirmed', price: 800000 },
-    { id: 4, customerName: 'Phạm Thị D', service: 'Thay dầu', time: '15:30', status: 'completed', price: 650000 },
-    { id: 5, customerName: 'Hoàng Văn E', service: 'Cân xe', time: '16:00', status: 'confirmed', price: 200000 },
-  ]);
+  // ── Personal statistics ──
+  const [statsData, setStatsData] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState('');
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'confirmed':
-        return { text: 'Đã xác nhận', className: styles.statusConfirmed };
-      case 'pending':
-        return { text: 'Chờ xác nhận', className: styles.statusPending };
-      case 'completed':
-        return { text: 'Hoàn thành', className: styles.statusCompleted };
-      default:
-        return { text: status, className: '' };
-    }
+  // ── Attendance history ──
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(true);
+  const [attendanceError, setAttendanceError] = useState('');
+
+  // ── Load all 3 APIs ──
+  useEffect(() => {
+    if (!token) return;
+
+    const loadAll = async () => {
+      setDashboardLoading(true);
+      setStatsLoading(true);
+      setAttendanceLoading(true);
+
+      // 1. Dashboard overview
+      try {
+        const dashRes = await fetchStaffDashboard(token);
+        setDashboardData(dashRes?.data || null);
+      } catch (err) {
+        setDashboardError('Không tải được dashboard.');
+      } finally {
+        setDashboardLoading(false);
+      }
+
+      // 2. Personal statistics
+      try {
+        const statsRes = await fetchStaffStatistics(currentMonth, currentYear, token);
+        setStatsData(statsRes?.data || null);
+      } catch (err) {
+        setStatsError('Không tải được thống kê.');
+      } finally {
+        setStatsLoading(false);
+      }
+
+      // 3. Attendance history
+      try {
+        const attRes = await fetchStaffAttendanceHistory(currentMonth, currentYear, token);
+        setAttendanceData(Array.isArray(attRes?.data) ? attRes.data : []);
+      } catch (err) {
+        setAttendanceError('Không tải được lịch sử chấm công.');
+      } finally {
+        setAttendanceLoading(false);
+      }
+    };
+
+    loadAll();
+  }, [token, currentMonth, currentYear]);
+
+  // ── Derived data ──
+  const staff = dashboardData?.staff;
+  const todayShift = dashboardData?.todayShift;
+  const recentAttendance = dashboardData?.recentAttendance || [];
+  const notifications = dashboardData?.notifications || [];
+
+  const totalWorkDays = attendanceData.length;
+  const presentDays = attendanceData.filter(
+    (a) => a?.status === 'PRESENT' || a?.status === 'LATE',
+  ).length;
+
+  // ── Helpers ──
+  const formatHours = (value) =>
+    typeof value === 'number' ? value.toFixed(1) + 'h' : '—';
+
+  const getAttendanceStatusClass = (status) => {
+    if (status === 'PRESENT') return styles.statusCompleted;
+    if (status === 'LATE') return styles.statusPending;
+    if (status === 'EARLY_LEAVE') return styles.statusWarning;
+    if (status === 'ABSENT') return styles.statusDanger;
+    return '';
   };
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
+  const getAttendanceStatusText = (status) => {
+    const map = {
+      PRESENT: 'Có mặt',
+      LATE: 'Đi muộn',
+      EARLY_LEAVE: 'Về sớm',
+      ABSENT: 'Vắng',
+      NOT_CHECKED_IN: 'Chưa chấm',
+    };
+    return map[status] || status || '—';
   };
 
-  const maxBookingValue = Math.max(...chartData.monthlyBookings.map(d => d.value));
-  const maxRevenueValue = Math.max(...chartData.weeklyRevenue.map(d => d.value));
+  const getDayOfWeekVi = (dow) => {
+    const map = {
+      MONDAY: 'T2', TUESDAY: 'T3', WEDNESDAY: 'T4',
+      THURSDAY: 'T5', FRIDAY: 'T6', SATURDAY: 'T7', SUNDAY: 'CN',
+    };
+    return map[dow] || dow || '—';
+  };
+
+  const getNotificationIcon = (type) => {
+    const map = {
+      BOOKING: '📅', CHECKIN: '✅', COMPLETE: '🎉',
+      REMINDER: '🔔', WARNING: '⚠️', SYSTEM: 'ℹ️',
+    };
+    return map[type] || '📌';
+  };
+
+  const calcHours = (checkIn, checkOut) => {
+    if (!checkIn || !checkOut) return 0;
+    const [inH, inM] = (checkIn || '').split(':').map(Number);
+    const [outH, outM] = (checkOut || '').split(':').map(Number);
+    if (inH == null || outH == null) return 0;
+    return Math.max(0, (outH * 60 + outM - (inH * 60 + inM)) / 60);
+  };
+
+  const anyLoading = dashboardLoading || statsLoading || attendanceLoading;
 
   return (
     <div className={styles.container}>
-      {/* Header */}
+
+      {/* ── Header ── */}
       <div className={styles.header}>
         <div className={styles.headerContent}>
-          <h1 className={styles.title}>Bảng điều khiển</h1>
-          <p className={styles.subtitle}>Tổng quan hệ thống - Cập nhật thời gian thực</p>
+          <h1 className={styles.title}>
+            Xin chào, {staff?.fullName || 'Nhân viên'} 👋
+          </h1>
+          <p className={styles.subtitle}>
+            Chào mừng bạn quay trở lại – Đây là tổng quan ngày làm việc hôm nay
+          </p>
         </div>
         <div className={styles.headerDate}>
-          <span>{new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+          <span className={styles.dateIcon}>📅</span>
+          <span>{new Date().toLocaleDateString('vi-VN', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+          })}</span>
         </div>
       </div>
 
-      {/* KPIs Grid */}
+      {/* ── KPI Grid ── */}
       <div className={styles.kpiGrid}>
-        <div className={`${styles.kpiCard} ${styles.kpiPrimary}`}>
+
+        {/* Ca làm hôm nay */}
+        <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiTrend}>+12%</span>
+            <div className={styles.kpiIcon}>🕐</div>
           </div>
-          <div className={styles.kpiValue}>{kpis.todayBookings}</div>
-          <div className={styles.kpiLabel}>Lich hen hom nay</div>
-          <div className={styles.kpiProgress}>
-            <div className={styles.kpiProgressBar} style={{ width: '75%' }}></div>
+          <div className={styles.kpiValue}>
+            {dashboardLoading ? '…' : (todayShift?.shiftName || 'Chưa có ca')}
+          </div>
+          <div className={styles.kpiLabel}>Ca làm hôm nay</div>
+          <div className={styles.kpiSubtext}>
+            {!dashboardLoading && todayShift?.startTime && todayShift?.endTime
+              ? `${todayShift.startTime} – ${todayShift.endTime}`
+              : !dashboardLoading && todayShift?.status === 'NOT_CHECKED_IN'
+                ? 'Chưa check-in'
+                : ''}
           </div>
         </div>
 
-        <div className={`${styles.kpiCard} ${styles.kpiWarning}`}>
+        {/* Giờ làm tháng */}
+        <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiTrend}>+3</span>
+            <div className={styles.kpiIcon}>⏱️</div>
           </div>
-          <div className={styles.kpiValue}>{kpis.pendingBookings}</div>
-          <div className={styles.kpiLabel}>Cho xac nhan</div>
-          <div className={styles.kpiSubtext}>Can xu ly ngay</div>
-        </div>
-
-        <div className={`${styles.kpiCard} ${styles.kpiSuccess}`}>
-          <div className={styles.kpiHeader}>
-            <span className={styles.kpiTrend}>+8%</span>
+          <div className={styles.kpiValue}>
+            {statsLoading ? '…' : formatHours(statsData?.totalHours ?? dashboardData?.monthlyHours?.totalHours)}
           </div>
-          <div className={styles.kpiValue}>{kpis.completedBookings}</div>
-          <div className={styles.kpiLabel}>Hoan thanh thang</div>
-          <div className={styles.kpiProgress}>
-            <div className={styles.kpiProgressBar} style={{ width: '85%' }}></div>
+          <div className={styles.kpiLabel}>Giờ làm tháng {currentMonth}</div>
+          <div className={styles.kpiSubtext}>
+            {dashboardData?.monthlyHours?.month || `${currentYear}-${String(currentMonth).padStart(2, '0')}`}
           </div>
         </div>
 
-        <div className={`${styles.kpiCard} ${styles.kpiInfo}`}>
+        {/* Phiếu hoàn tất */}
+        <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
-            <span className={styles.kpiTrend}>+5</span>
+            <div className={styles.kpiIcon}>✅</div>
           </div>
-          <div className={styles.kpiValue}>{kpis.totalCustomers}</div>
-          <div className={styles.kpiLabel}>Tong khach hang</div>
-          <div className={styles.kpiSubtext}>Thang nay</div>
-        </div>
-
-        <div className={`${styles.kpiCard} ${styles.kpiPurple}`}>
-          <div className={styles.kpiHeader}>
-            <span className={styles.kpiTrend}>+15%</span>
+          <div className={styles.kpiValue}>
+            {statsLoading ? '…' : (statsData?.completedTickets ?? dashboardData?.completedServices?.count ?? 0)}
           </div>
-          <div className={styles.kpiValue}>{formatCurrency(kpis.revenue)}</div>
-          <div className={styles.kpiLabel}>Doanh thu thang</div>
-          <div className={styles.kpiProgress}>
-            <div className={styles.kpiProgressBar} style={{ width: '70%' }}></div>
+          <div className={styles.kpiLabel}>Phiếu hoàn tất tháng</div>
+          <div className={styles.kpiSubtext}>
+            {dashboardData?.completedServices?.month || `${currentYear}-${String(currentMonth).padStart(2, '0')}`}
           </div>
         </div>
 
-        <div className={`${styles.kpiCard} ${styles.kpiOrange}`}>
+        {/* Ngày đi làm */}
+        <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
+            <div className={styles.kpiIcon}>📆</div>
           </div>
-          <div className={styles.kpiValue}>{kpis.avgRating}<span className={styles.kpiMax}>/5.0</span></div>
-          <div className={styles.kpiLabel}>Danh gia trung binh</div>
-          <div className={styles.kpiStars}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <span key={star} className={star <= Math.floor(kpis.avgRating) ? styles.starFilled : styles.starEmpty}>★</span>
-            ))}
+          <div className={styles.kpiValue}>
+            {attendanceLoading ? '…' : `${presentDays}/${totalWorkDays}`}
           </div>
+          <div className={styles.kpiLabel}>Ngày đi làm / Tổng</div>
+          <div className={styles.kpiSubtext}>Tháng {currentMonth}/{currentYear}</div>
         </div>
+
+        {/* Thông báo chưa đọc */}
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <div className={styles.kpiIcon}>🔔</div>
+          </div>
+          <div className={styles.kpiValue}>
+            {dashboardLoading ? '…' : (notifications.filter((n) => !n.isRead)?.length ?? 0)}
+          </div>
+          <div className={styles.kpiLabel}>Thông báo chưa đọc</div>
+          <div className={styles.kpiSubtext}>Tổng: {notifications.length} thông báo</div>
+        </div>
+
+        {/* Phiếu hôm nay */}
+        <div className={styles.kpiCard}>
+          <div className={styles.kpiHeader}>
+            <div className={styles.kpiIcon}>📋</div>
+          </div>
+          <div className={styles.kpiValue}>
+            {dashboardLoading ? '…' : (dashboardData?.todayTasks?.length ?? 0)}
+          </div>
+          <div className={styles.kpiLabel}>Phiếu hôm nay</div>
+          <div className={styles.kpiSubtext}>Cần xử lý</div>
+        </div>
+
       </div>
 
-      {/* Charts Section */}
+      {/* ── Charts Grid ── */}
       <div className={styles.chartsGrid}>
-        {/* Bar Chart - Monthly Bookings */}
-        <div className={styles.chartCard}>
-          <div className={styles.chartHeader}>
-            <h3>Lịch hẹn theo tháng</h3>
-            <span className={styles.chartPeriod}>Quý I/2024</span>
-          </div>
-          <div className={styles.barChart}>
-            {chartData.monthlyBookings.map((item, index) => (
-              <div key={index} className={styles.barItem}>
-                <div className={styles.barValue}>{item.value}</div>
-                <div className={styles.barContainer}>
-                  <div className={styles.bar} style={{ height: `${(item.value / maxBookingValue) * 100}%` }}></div>
-                </div>
-                <div className={styles.barLabel}>{item.month}</div>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Pie Chart - Service Distribution */}
+        {/* Bar chart – Lịch sử chấm công 7 ngày */}
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
-            <h3>Phân bố dịch vụ</h3>
-            <span className={styles.chartPeriod}>Tỷ lệ %</span>
+            <h3>Lịch sử chấm công</h3>
+            <span className={styles.chartPeriod}>7 ngày gần nhất</span>
           </div>
-          <div className={styles.pieChartContainer}>
-            <div className={styles.pieChart}>
-              {chartData.serviceDistribution.map((item, index) => {
-                const total = chartData.serviceDistribution.reduce((sum, d) => sum + d.value, 0);
-                const percentage = (item.value / total) * 100;
-                let cumulativePercent = 0;
-                chartData.serviceDistribution.slice(0, index).forEach(d => {
-                  cumulativePercent += (d.value / total) * 100;
-                });
+          {attendanceLoading ? (
+            <div className={styles.chartEmpty}>Đang tải…</div>
+          ) : recentAttendance.length === 0 ? (
+            <div className={styles.chartEmpty}>Chưa có dữ liệu chấm công.</div>
+          ) : (
+            <div className={styles.barChart}>
+              {recentAttendance.slice(0, 7).map((record, index) => {
+                const hours = calcHours(record?.checkInTime, record?.checkOutTime);
+                const maxHours = 10;
                 return (
-                  <div key={index} className={styles.pieSlice} style={{
-                    background: `conic-gradient(${item.color} ${cumulativePercent}% ${cumulativePercent + percentage}%),
-                      #f0f0f0 ${cumulativePercent + percentage}% 100%)`,
-                  }}></div>
+                  <div key={index} className={styles.barItem}>
+                    <div className={styles.barValue}>{hours.toFixed(1)}h</div>
+                    <div className={styles.barContainer}>
+                      <div
+                        className={styles.bar}
+                        style={{ height: `${Math.min(100, (hours / maxHours) * 100)}%` }}
+                      />
+                    </div>
+                    <div className={styles.barLabel}>{getDayOfWeekVi(record?.dayOfWeek)}</div>
+                  </div>
                 );
               })}
-              <div className={styles.pieCenter}>
-                <span className={styles.pieCenterValue}>{chartData.serviceDistribution.reduce((s, d) => s + d.value, 0)}</span>
-                <span className={styles.pieCenterLabel}>Tổng</span>
-              </div>
             </div>
-            <div className={styles.pieLegend}>
-              {chartData.serviceDistribution.map((item, index) => (
-                <div key={index} className={styles.pieLegendItem}>
-                  <span className={styles.pieLegendDot} style={{ background: item.color }}></span>
-                  <span className={styles.pieLegendName}>{item.name}</span>
-                  <span className={styles.pieLegendValue}>{item.value}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Line Chart - Weekly Revenue */}
+        {/* Pie chart – Tỷ lệ chấm công tháng */}
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
-            <h3>Doanh thu tuần</h3>
-            <span className={styles.chartPeriod}>Tuần này</span>
+            <h3>Tỷ lệ chấm công</h3>
+            <span className={styles.chartPeriod}>Tháng {currentMonth}/{currentYear}</span>
           </div>
-          <div className={styles.lineChart}>
-            <div className={styles.lineChartYAxis}>
-              <span>25M</span>
-              <span>20M</span>
-              <span>15M</span>
-              <span>10M</span>
-              <span>5M</span>
-              <span>0</span>
-            </div>
-            <div className={styles.lineChartContent}>
-              <svg className={styles.lineSvg} viewBox="0 0 400 150">
-                <defs>
-                  <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: '#667eea', stopOpacity: 0.3 }} />
-                    <stop offset="100%" style={{ stopColor: '#667eea', stopOpacity: 0 }} />
-                  </linearGradient>
-                </defs>
-                <path className={styles.lineArea} d={`M0,${150 - (chartData.weeklyRevenue[0].value / maxRevenueValue) * 130} ${chartData.weeklyRevenue.map((d, i) => `L${(i + 1) * (400 / 7)},${150 - (d.value / maxRevenueValue) * 130}`).join(' ')} L${400},150 L0,150 Z`} fill="url(#lineGradient)" />
-                <path className={styles.linePath} d={`M0,${150 - (chartData.weeklyRevenue[0].value / maxRevenueValue) * 130} ${chartData.weeklyRevenue.map((d, i) => `L${(i + 1) * (400 / 7)},${150 - (d.value / maxRevenueValue) * 130}`).join(' ')}`} fill="none" stroke="#667eea" strokeWidth="3" />
-                {chartData.weeklyRevenue.map((d, i) => (
-                  <circle key={i} cx={(i + 1) * (400 / 7)} cy={150 - (d.value / maxRevenueValue) * 130} r="5" fill="#667eea" />
-                ))}
-              </svg>
-              <div className={styles.lineChartXAxis}>
-                {chartData.weeklyRevenue.map((d, i) => (
-                  <span key={i}>{d.day}</span>
-                ))}
+          {attendanceLoading ? (
+            <div className={styles.chartEmpty}>Đang tải…</div>
+          ) : attendanceData.length === 0 ? (
+            <div className={styles.chartEmpty}>Chưa có dữ liệu.</div>
+          ) : (() => {
+            const counts = {
+              PRESENT: attendanceData.filter((a) => a?.status === 'PRESENT').length,
+              LATE: attendanceData.filter((a) => a?.status === 'LATE').length,
+              EARLY_LEAVE: attendanceData.filter((a) => a?.status === 'EARLY_LEAVE').length,
+              ABSENT: attendanceData.filter((a) => a?.status === 'ABSENT').length,
+            };
+            const total = attendanceData.length || 1;
+            const legend = [
+              { label: 'Có mặt', key: 'PRESENT', color: '#48bb78' },
+              { label: 'Đi muộn', key: 'LATE', color: '#ed8936' },
+              { label: 'Về sớm', key: 'EARLY_LEAVE', color: '#4299e1' },
+              { label: 'Vắng', key: 'ABSENT', color: '#fc8181' },
+            ];
+            const pct = (key) => Math.round(((counts[key] || 0) / total) * 100);
+
+            let gradient = '';
+            let offset = 0;
+            for (const item of legend) {
+              const p = ((counts[item.key] || 0) / total) * 100;
+              if (p > 0) {
+                gradient += `${item.color} ${offset}% ${offset + p}%, `;
+                offset += p;
+              }
+            }
+            gradient += `#e2e8f0 ${offset}% 100%`;
+
+            return (
+              <div className={styles.pieChartContainer}>
+                <div className={styles.pieChart}>
+                  <div
+                    className={styles.pieSlice}
+                    style={{ background: `conic-gradient(${gradient})` }}
+                  />
+                  <div className={styles.pieCenter}>
+                    <span className={styles.pieCenterValue}>{total}</span>
+                    <span className={styles.pieCenterLabel}>Ngày</span>
+                  </div>
+                </div>
+                <div className={styles.pieLegend}>
+                  {legend.map((item) => (
+                    <div key={item.key} className={styles.pieLegendItem}>
+                      <span className={styles.pieLegendDot} style={{ background: item.color }} />
+                      <span className={styles.pieLegendName}>{item.label}</span>
+                      <span className={styles.pieLegendValue}>{pct(item.key)}%</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            );
+          })()}
+        </div>
+
+        {/* Line chart – Giờ làm theo ngày */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            <h3>Giờ làm theo ngày</h3>
+            <span className={styles.chartPeriod}>7 ngày gần nhất</span>
           </div>
+          {attendanceLoading ? (
+            <div className={styles.chartEmpty}>Đang tải…</div>
+          ) : recentAttendance.length === 0 ? (
+            <div className={styles.chartEmpty}>Chưa có dữ liệu.</div>
+          ) : (() => {
+            const days = recentAttendance.slice(0, 7).map((r) =>
+              calcHours(r?.checkInTime, r?.checkOutTime),
+            );
+            const maxH = Math.max(...days, 1);
+
+            const points = days.map((h, i) => {
+              const x = 20 + (i / Math.max(days.length - 1, 1)) * 360;
+              const y = 140 - (h / maxH) * 120;
+              return `${x},${y}`;
+            });
+            const polyline = points.join(' ');
+
+            return (
+              <div className={styles.lineChart}>
+                <div className={styles.lineChartYAxis}>
+                  <span>{maxH.toFixed(0)}h</span>
+                  <span>{(maxH / 2).toFixed(0)}h</span>
+                  <span>0</span>
+                </div>
+                <div className={styles.lineChartContent}>
+                  <svg className={styles.lineSvg} viewBox="0 0 400 150" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#667eea" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#667eea" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <polygon points={`20,140 ${polyline} 380,140`} fill="url(#lineGrad)" />
+                    <polyline points={polyline} fill="none" stroke="#667eea" strokeWidth="3" strokeLinejoin="round" />
+                    {days.map((h, i) => {
+                      const x = 20 + (i / Math.max(days.length - 1, 1)) * 360;
+                      const y = 140 - (h / maxH) * 120;
+                      return <circle key={i} cx={x} cy={y} r="4" fill="#667eea" />;
+                    })}
+                  </svg>
+                  <div className={styles.lineChartXAxis}>
+                    {recentAttendance.slice(0, 7).map((r, i) => (
+                      <span key={i}>{getDayOfWeekVi(r?.dayOfWeek)}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+      </div>
+
+      {/* ── Thông báo ── */}
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Thông báo gần đây</h2>
+        </div>
+        <div className={styles.recentBookings}>
+          {dashboardLoading ? (
+            <div className={styles.emptyState}>Đang tải thông báo…</div>
+          ) : notifications.length === 0 ? (
+            <div className={styles.emptyState}>Không có thông báo nào.</div>
+          ) : (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Loại</th>
+                  <th>Tiêu đề</th>
+                  <th>Nội dung</th>
+                  <th>Thời gian</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notifications.map((n) => (
+                  <tr key={n?.notificationId}>
+                    <td>{getNotificationIcon(n?.notificationType)}</td>
+                    <td><strong>{n?.title || '—'}</strong></td>
+                    <td>{n?.message || '—'}</td>
+                    <td>{n?.sentAt ? new Date(n.sentAt).toLocaleString('vi-VN') : '—'}</td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${n?.isRead ? styles.statusCompleted : styles.statusPending}`}>
+                        {n?.isRead ? 'Đã đọc' : 'Chưa đọc'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* Recent Bookings Table */}
+      {/* ── Lịch sử chấm công tháng ── */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Lịch hẹn gần đây</h2>
-          <button className={styles.viewAllBtn} onClick={() => navigate('/booking-management')}>
+          <h2 className={styles.sectionTitle}>
+            Lịch sử chấm công tháng {currentMonth}/{currentYear}
+          </h2>
+          <button className={styles.viewAllBtn} onClick={() => navigate('/staff-attendance')}>
             Xem tất cả →
           </button>
         </div>
         <div className={styles.recentBookings}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>STT</th>
-                <th>Khách hàng</th>
-                <th>Dịch vụ</th>
-                <th>Giờ</th>
-                <th>Giá tiền</th>
-                <th>Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentBookings.map((booking, index) => (
-                <tr key={booking.id}>
-                  <td className={styles.sttCell}>{index + 1}</td>
-                  <td className={styles.customerCell}>
-                    <div className={styles.customerAvatar}>{booking.customerName.charAt(0)}</div>
-                    {booking.customerName}
-                  </td>
-                  <td>{booking.service}</td>
-                  <td>{booking.time}</td>
-                  <td className={styles.priceCell}>{formatCurrency(booking.price)}</td>
-                  <td>
-                    <span className={`${styles.statusBadge} ${getStatusBadge(booking.status).className}`}>
-                      {getStatusBadge(booking.status).text}
-                    </span>
-                  </td>
+          {attendanceLoading ? (
+            <div className={styles.emptyState}>Đang tải…</div>
+          ) : attendanceData.length === 0 ? (
+            <div className={styles.emptyState}>Chưa có dữ liệu chấm công.</div>
+          ) : (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Ngày</th>
+                  <th>Thứ</th>
+                  <th>Ca làm</th>
+                  <th>Giờ vào</th>
+                  <th>Giờ ra</th>
+                  <th>Trạng thái</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {attendanceData.map((record, idx) => (
+                  <tr key={idx}>
+                    <td className={styles.sttCell}>{record?.date || '—'}</td>
+                    <td>{getDayOfWeekVi(record?.dayOfWeek)}</td>
+                    <td>{record?.shiftType || '—'}</td>
+                    <td>{record?.checkInTime || '—'}</td>
+                    <td>{record?.checkOutTime || '—'}</td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${getAttendanceStatusClass(record?.status)}`}>
+                        {getAttendanceStatusText(record?.status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* ── Quick Actions ── */}
       <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Truy cap nhanh</h2>
+        <h2 className={styles.sectionTitle}>Truy cập nhanh</h2>
         <div className={styles.quickActions}>
           <div className={styles.actionCard} onClick={() => navigate('/booking-request-management')}>
+            <div className={styles.actionIcon}>📅</div>
             <div className={styles.actionContent}>
-              <h3>Yeu cau dat lich</h3>
-              <p>Quan ly yeu cau dat lich tu khach hang</p>
+              <h3>Yêu cầu đặt lịch</h3>
+              <p>Quản lý yêu cầu đặt lịch từ khách hàng</p>
             </div>
           </div>
           <div className={styles.actionCard} onClick={() => navigate('/booking-management')}>
+            <div className={styles.actionIcon}>📋</div>
             <div className={styles.actionContent}>
-              <h3>Lich hen</h3>
-              <p>Xem va quan ly lich hen da xac nhan</p>
+              <h3>Lịch hẹn</h3>
+              <p>Xem và quản lý lịch hẹn đã xác nhận</p>
             </div>
           </div>
           <div className={styles.actionCard} onClick={() => navigate('/check-in')}>
+            <div className={styles.actionIcon}>✅</div>
             <div className={styles.actionContent}>
               <h3>Check-in</h3>
-              <p>Check-in khach hang khi den</p>
+              <p>Check-in khách hàng khi đến</p>
             </div>
           </div>
           <div className={styles.actionCard} onClick={() => navigate('/staff-attendance')}>
+            <div className={styles.actionIcon}>🕐</div>
             <div className={styles.actionContent}>
-              <h3>Cham cong</h3>
-              <p>Theo doi gio lam viec hang ngay</p>
+              <h3>Chấm công</h3>
+              <p>Theo dõi giờ làm việc hàng ngày</p>
             </div>
           </div>
           <div className={styles.actionCard} onClick={() => navigate('/customer-manager')}>
+            <div className={styles.actionIcon}>👥</div>
             <div className={styles.actionContent}>
-              <h3>Khach hang</h3>
-              <p>Quan ly thong tin khach hang</p>
+              <h3>Khách hàng</h3>
+              <p>Quản lý thông tin khách hàng</p>
             </div>
           </div>
           <div className={styles.actionCard} onClick={() => navigate('/daily-schedule')}>
+            <div className={styles.actionIcon}>📆</div>
             <div className={styles.actionContent}>
-              <h3>Lich lam viec</h3>
-              <p>Xem lich lam viec ca nhan</p>
+              <h3>Lịch làm việc</h3>
+              <p>Xem lịch làm việc cá nhân</p>
             </div>
           </div>
         </div>
       </div>
+
     </div>
   );
 };

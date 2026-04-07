@@ -1,9 +1,15 @@
-import './Services.css';
+﻿import './Services.css';
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchHomeServices } from '../../../services/homeService';
+import { fetchHomeProducts } from '../../../services/homeService';
 import serviceFallback from '../../../assets/lop and mam.jpg';
 import processImg from '../../../assets/Quy trình 7 bước (1).png';
+
+const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
+const toPositiveNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
+};
 
 const Services = () => {
   const [services, setServices] = useState([]);
@@ -78,21 +84,34 @@ const Services = () => {
     let active = true;
     setTimeout(() => { if (active) { setServicesLoading(true); setServicesError(''); }}, 0);
 
-    fetchHomeServices()
+    fetchHomeProducts({
+      page: 0,
+      size: 20,
+      itemType: 'SERVICE',
+    })
       .then((res) => {
         if (!active) return;
-        console.log('[Services] API response:', res);
-        const list = Array.isArray(res?.data) ? res.data : [];
-        console.log('[Services] Services list:', list);
-        const mapped = list.map((item) => ({
-          id: item.serviceId,
-		  catalogItemId: item.catalogItemId,
-          title: item.title || 'Dịch vụ',
-          description: item.shortDescription || '',
-          image: item.mediaThumbnail || '',
-          price: item.showPrice ? item.displayPrice || 'Liên hệ' : 'Liên hệ',
-        }));
-        console.log('[Services] Mapped services:', mapped);
+        const payload = extractPayload(res);
+        const list = Array.isArray(payload?.content)
+          ? payload.content
+          : Array.isArray(payload)
+            ? payload
+            : [];
+        const mapped = list.map((item) => {
+          const display = String(item?.displayPrice || '').trim();
+          const numeric = Number(item?.price);
+          const formatted = Number.isFinite(numeric) ? numeric.toLocaleString('vi-VN') : '';
+          return {
+            id: toPositiveNumber(item?.catalogItemId ?? item?.serviceId),
+            catalogItemId: toPositiveNumber(item?.catalogItemId),
+            serviceId: toPositiveNumber(item?.serviceId),
+            itemType: String(item?.itemType || 'SERVICE').toUpperCase(),
+            title: String(item?.title || item?.itemName || 'Dịch vụ').trim(),
+            description: String(item?.shortDescription || '').trim(),
+            image: String(item?.thumbnailUrl || item?.imageUrl || item?.mediaThumbnail || '').trim(),
+            price: item?.showPrice ? (display || (formatted ? `${formatted} đ` : 'Liên hệ')) : 'Liên hệ',
+          };
+        });
         setServices(mapped);
       })
       .catch((err) => {
@@ -293,7 +312,16 @@ const Services = () => {
                         <div className="servicePrice">Giá: {service.price || 'Liên hệ'}</div>
                         <div className="serviceActions">
                           <Link
-                            to={service.id ? `/services/${service.id}` : '/services'}
+                            to={service.serviceId || service.catalogItemId ? `/services/${service.serviceId || service.catalogItemId}` : '/services'}
+                            state={
+                              service.catalogItemId != null || service.serviceId != null
+                                ? {
+                                    catalogItemId: service.catalogItemId,
+                                    serviceId: service.serviceId,
+                                    itemType: service.itemType || 'SERVICE',
+                                  }
+                                : undefined
+                            }
                             className="btnViewDetail"
                           >
                             Xem chi tiết

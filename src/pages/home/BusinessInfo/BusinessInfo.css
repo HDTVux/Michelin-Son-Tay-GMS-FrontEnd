@@ -418,3 +418,196 @@
 		width: 100%;
 	}
 }
+
+/* Floating Kênh liên hệ */
+.floatingContact {
+	position: fixed;
+	right: 24px;
+	bottom: 40px;
+	z-index: 100;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+}
+
+.floatingContact__label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 14px;
+	font-weight: 700;
+	color: #1f2937;
+	background: #ffffff;
+	padding: 6px 14px;
+	border-radius: 999px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+	white-space: nowrap;
+	margin-bottom: 4px;
+	animation: floatBounce 3s ease-in-out infinite;
+}
+
+@keyframes floatBounce {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-6px); }
+}
+
+.floatingCircle {
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-decoration: none;
+	font-weight: 700;
+	font-size: 11px;
+	cursor: pointer;
+	position: relative;
+	transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18), 0 0 0 3px rgba(255, 255, 255, 0.8);
+	animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+
+.floatingCircle:nth-child(2) { animation-delay: 0.1s; }
+.floatingCircle:nth-child(3) { animation-delay: 0.2s; }
+.floatingCircle:nth-child(4) { animation-delay: 0.3s; }
+
+@keyframes slideInRight {
+	from { transform: translateX(120px); opacity: 0; }
+	to { transform: translateX(0); opacity: 1; }
+}
+
+.floatingCircle__icon {
+	font-size: 22px;
+	line-height: 1;
+	margin-bottom: 2px;
+	animation: pulse 2s ease-in-out infinite;
+}
+
+.floatingCircle:nth-child(2) .floatingCircle__icon { animation-delay: 0s; }
+.floatingCircle:nth-child(3) .floatingCircle__icon { animation-delay: 0.3s; }
+.floatingCircle:nth-child(4) .floatingCircle__icon { animation-delay: 0.6s; }
+
+@keyframes pulse {
+	0%, 100% { transform: scale(1); }
+	50% { transform: scale(1.15); }
+}
+
+.floatingCircle__text {
+	line-height: 1;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+/* Zalo - Blue */
+.floatingCircle--zalo {
+	background: linear-gradient(135deg, #0068ff 0%, #0055d4 100%);
+	color: #ffffff;
+}
+
+.floatingCircle--zalo:hover {
+	transform: scale(1.18) translateY(-6px);
+	box-shadow: 0 12px 32px rgba(0, 104, 255, 0.45), 0 0 0 4px rgba(0, 104, 255, 0.3);
+}
+
+.floatingCircle--zalo:hover .floatingCircle__icon {
+	animation: zaloShake 0.5s ease-in-out infinite;
+}
+
+@keyframes zaloShake {
+	0%, 100% { transform: scale(1.15) rotate(0deg); }
+	25% { transform: scale(1.15) rotate(-8deg); }
+	75% { transform: scale(1.15) rotate(8deg); }
+}
+
+/* Gọi - Green */
+.floatingCircle--call {
+	background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+	color: #ffffff;
+}
+
+.floatingCircle--call:hover {
+	transform: scale(1.18) translateY(-6px);
+	box-shadow: 0 12px 32px rgba(16, 185, 129, 0.45), 0 0 0 4px rgba(16, 185, 129, 0.3);
+}
+
+.floatingCircle--call:hover .floatingCircle__icon {
+	animation: ringBell 0.5s ease-in-out infinite;
+}
+
+@keyframes ringBell {
+	0%, 100% { transform: scale(1.15) rotate(0deg); }
+	20% { transform: scale(1.15) rotate(-15deg); }
+	40% { transform: scale(1.15) rotate(15deg); }
+	60% { transform: scale(1.15) rotate(-10deg); }
+	80% { transform: scale(1.15) rotate(10deg); }
+}
+
+/* Email - Red */
+.floatingCircle--email {
+	background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+	color: #ffffff;
+}
+
+.floatingCircle--email:hover {
+	transform: scale(1.18) translateY(-6px);
+	box-shadow: 0 12px 32px rgba(239, 68, 68, 0.45), 0 0 0 4px rgba(239, 68, 68, 0.3);
+}
+
+.floatingCircle--email:hover .floatingCircle__icon {
+	animation: flyUp 0.4s ease-out;
+}
+
+@keyframes flyUp {
+	0% { transform: scale(1.15) translateY(0); }
+	50% { transform: scale(1.15) translateY(-12px); }
+	100% { transform: scale(1.15) translateY(0); }
+}
+
+/* Ripple effect on click */
+.floatingCircle::after {
+	content: '';
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.4);
+	transform: scale(0);
+	opacity: 0;
+	transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+.floatingCircle:active::after {
+	transform: scale(1.5);
+	opacity: 0;
+	transition: transform 0s, opacity 0s;
+}
+
+@media (max-width: 640px) {
+	.floatingContact {
+		right: 16px;
+		bottom: 24px;
+		gap: 10px;
+	}
+
+	.floatingCircle {
+		width: 54px;
+		height: 54px;
+	}
+
+	.floatingCircle__icon {
+		font-size: 18px;
+	}
+
+	.floatingCircle__text {
+		font-size: 10px;
+	}
+
+	.floatingContact__label {
+		font-size: 12px;
+		padding: 5px 12px;
+	}
+}

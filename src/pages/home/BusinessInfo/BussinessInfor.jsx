@@ -58,21 +58,25 @@ export default function BussinessInfor() {
 						<span className="hoursTime">6:30 - 20:00</span>
 					</div>
 				</div>
+			</div>
 
-				<div>
-					<div className="contactTitle">Kênh liên hệ</div>
-					<div className="contactActions">
-						<a className="contactCircle" href="https://zalo.me/3178553865233362097" target="_blank" rel="noreferrer">
-							Zalo
-						</a>
-						<a className="contactCircle" href="tel:0987545680">
-							Gọi
-						</a>
-						<a className="contactCircle" href="mailto:minhanhauto.sontay@gmail.com">
-							Email
-						</a>
-					</div>
+			{/* Floating Kênh liên hệ */}
+			<div className="floatingContact">
+				<div className="floatingContact__label">
+					<span>📞</span> Kênh liên hệ
 				</div>
+				<a className="floatingCircle floatingCircle--zalo" href="https://zalo.me/3178553865233362097" target="_blank" rel="noreferrer" aria-label="Liên hệ Zalo">
+					<span className="floatingCircle__icon">💬</span>
+					<span className="floatingCircle__text">Zalo</span>
+				</a>
+				<a className="floatingCircle floatingCircle--call" href="tel:0987545680" aria-label="Gọi điện">
+					<span className="floatingCircle__icon">📞</span>
+					<span className="floatingCircle__text">Gọi</span>
+				</a>
+				<a className="floatingCircle floatingCircle--email" href="mailto:minhanhauto.sontay@gmail.com" aria-label="Gửi Email">
+					<span className="floatingCircle__icon">✉️</span>
+					<span className="floatingCircle__text">Email</span>
+				</a>
 			</div>
 
 			<div className="mapCard">

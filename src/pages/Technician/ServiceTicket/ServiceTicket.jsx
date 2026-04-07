@@ -512,13 +512,32 @@ export const ServiceTicket = ({
     }
   };
 
-  const validateTechnicianCompletion = () => {
+  const validateSafetyChecklistCompletion = () => {
+    // Nếu ticket không bật kiểm tra an toàn từ lúc check-in thì không bắt buộc tick hạng mục.
+    if (!hasSafetyInspectionEnabled) return null;
+
+    const checklistItems = Array.isArray(safetyChecks)
+      ? safetyChecks.filter((item) => item?.workCategoryId || item?.customCategoryId)
+      : [];
+
+    if (checklistItems.length === 0) {
+      return 'Chưa có hạng mục kiểm tra an toàn. Vui lòng tải lại phiếu và kiểm tra lại danh mục.';
+    }
+
+    const uncheckedCount = checklistItems.filter(
+      (item) => !(item?.good || item?.warning || item?.replace),
+    ).length;
+
+    if (uncheckedCount > 0) {
+      return `Còn ${uncheckedCount} hạng mục chưa được tích trạng thái. Vui lòng tích đầy đủ trước khi hoàn thành.`;
+    }
+
     return null;
   };
 
-  const validateAdvisorCompletion = () => {
-    return null;
-  };
+  const validateTechnicianCompletion = () => validateSafetyChecklistCompletion();
+
+  const validateAdvisorCompletion = () => validateSafetyChecklistCompletion();
 
   const handleSaveAdvisorNotes = async () => {
     if (!isAdvisorMode) return;

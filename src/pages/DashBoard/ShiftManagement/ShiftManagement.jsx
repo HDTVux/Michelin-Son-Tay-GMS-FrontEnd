@@ -338,7 +338,21 @@ export default function ShiftManagement() {
     [attendanceMinDate, attendanceMaxDate],
   );
 
+<<<<<<< Updated upstream
   const loadData = useCallback(async ({ background = false } = {}) => {
+=======
+  // Chấm công state
+  const todayInit = new Date().toISOString().slice(0, 10);
+  const [viewFromDate, setViewFromDate] = useState(todayInit);
+  const [viewToDate, setViewToDate] = useState(todayInit);
+  const [viewStaffIdFilter, setViewStaffIdFilter] = useState('');
+  const [viewSummary, setViewSummary] = useState(null);
+  const [checkInForm, setCheckInForm] = useState({ staffId: '', shiftId: '', attendanceDate: todayInit, checkInTime: '', notes: '' });
+  const [checkoutTarget, setCheckoutTarget] = useState(null);
+  const [checkoutForm, setCheckoutForm] = useState({ checkOutTime: '', notes: '' });
+
+  const loadData = useCallback(async () => {
+>>>>>>> Stashed changes
     const token = getAuthToken();
     if (!token) {
       setError('Vui lòng đăng nhập để quản lý ca làm việc.');
@@ -573,12 +587,27 @@ export default function ShiftManagement() {
     }
   };
 
+<<<<<<< Updated upstream
   const handleReactivate = async (shiftId) => {
     if (!window.confirm('Bạn chắc chắn muốn khôi phục ca làm việc này?')) return;
+=======
+  const handleViewShift = async (shift) => {
+    const today = new Date().toISOString().slice(0, 10);
+    setViewShiftModal(shift);
+    setShiftAttendances([]);
+    setLoadingShiftAttendances(true);
+    setViewFromDate(today);
+    setViewToDate(today);
+    setViewStaffIdFilter('');
+    setCheckoutTarget(null);
+    setCheckInForm({ staffId: '', shiftId: shift?.shiftId || '', attendanceDate: today, checkInTime: '', notes: '' });
+
+>>>>>>> Stashed changes
     const token = getAuthToken();
     if (!token) return;
 
     try {
+<<<<<<< Updated upstream
       await reactivateWorkShift(shiftId, token);
       toast.success('Đã khôi phục ca làm việc.');
       await loadData({ background: true });
@@ -670,7 +699,44 @@ export default function ShiftManagement() {
         const anchorTime = record?.checkInTime || record?.checkOutTime;
         return isTimeInsideShift(anchorTime, shift?.startTime, shift?.endTime);
       });
+=======
+      const [attendanceRes, summaryRes] = await Promise.all([
+        fetchManagerAttendance({ from: today, to: today, shiftId: shift?.shiftId }, token),
+        fetchManagerTodaySummary({ date: today, shiftId: shift?.shiftId }, token),
+      ]);
+
+      const allRecords = Array.isArray(attendanceRes?.data) ? attendanceRes.data : [];
+      const matchedRecords = allRecords.filter(
+        (record) => Number(record?.shiftId) === Number(shift?.shiftId),
+      );
+>>>>>>> Stashed changes
       setShiftAttendances(matchedRecords);
+      setViewSummary(summaryRes?.data || null);
+    } catch {
+      setShiftAttendances([]);
+      setViewSummary(null);
+    } finally {
+      setLoadingShiftAttendances(false);
+    }
+  };
+
+  const loadViewAttendance = async () => {
+    if (!viewShiftModal) return;
+    const token = getAuthToken();
+    if (!token) return;
+    setLoadingShiftAttendances(true);
+    try {
+      const allRecords = await fetchManagerAttendance({
+        from: viewFromDate,
+        to: viewToDate,
+        shiftId: viewShiftModal?.shiftId,
+        staffId: viewStaffIdFilter ? Number(viewStaffIdFilter) : undefined,
+      }, token);
+      const list = Array.isArray(allRecords?.data) ? allRecords.data : [];
+      const filtered = list.filter(
+        (r) => Number(r?.shiftId) === Number(viewShiftModal?.shiftId),
+      );
+      setShiftAttendances(filtered);
     } catch {
       setShiftAttendances([]);
     } finally {
@@ -893,6 +959,7 @@ export default function ShiftManagement() {
     }
   };
 
+<<<<<<< Updated upstream
   const getStatusBadgeClass = (status) => {
     const key = normalizeStatusKey(status);
     switch (key) {
@@ -924,8 +991,82 @@ export default function ShiftManagement() {
         return 'Chưa vào ca';
       default:
         return key ? 'Khác' : '-';
+=======
+  const loadViewSummary = async () => {
+    if (!viewShiftModal) return;
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const res = await fetchManagerTodaySummary({ date: viewToDate, shiftId: viewShiftModal?.shiftId }, token);
+      setViewSummary(res?.data || null);
+    } catch {
+      setViewSummary(null);
     }
   };
+
+  const handleViewCheckIn = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    if (!checkInForm.staffId || !checkInForm.shiftId) {
+      toast.error('Vui lòng nhập Staff ID và chọn ca làm.');
+      return;
+    }
+    try {
+      await managerCheckIn(checkInForm, token);
+      toast.success('Check-in thành công.');
+      setCheckInForm((prev) => ({ ...prev, notes: '', checkInTime: '' }));
+      await loadViewAttendance();
+      await loadViewSummary();
+    } catch (err) {
+      toast.error(err?.message || 'Check-in thất bại.');
+>>>>>>> Stashed changes
+    }
+  };
+
+  const handleViewCheckOut = async () => {
+    if (!checkoutTarget) return;
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      await managerCheckOut(checkoutTarget.checkinId, checkoutForm, token);
+      toast.success('Check-out thành công.');
+      setCheckoutTarget(null);
+      setCheckoutForm({ checkOutTime: '', notes: '' });
+      await loadViewAttendance();
+    } catch (err) {
+      toast.error(err?.message || 'Check-out thất bại.');
+    }
+  };
+
+  const handleViewDelete = async (checkinId) => {
+    if (!window.confirm('Bạn chắc chắn muốn xóa bản ghi chấm công này?')) return;
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      await managerDeleteCheckin(checkinId, token);
+      toast.success('Đã xóa bản ghi.');
+      await loadViewAttendance();
+    } catch (err) {
+      toast.error(err?.message || 'Xóa thất bại.');
+    }
+  };
+
+  const statusMeta = (status) => {
+    const key = String(status || '').toUpperCase();
+    if (key === 'PRESENT') return { label: 'Có mặt', cls: styles.statusPresent };
+    if (key === 'LATE') return { label: 'Muộn', cls: styles.statusLate };
+    if (key === 'ABSENT') return { label: 'Vắng', cls: styles.statusAbsent };
+    if (key === 'OFF') return { label: 'Nghỉ', cls: styles.statusOff };
+    return { label: key || '-', cls: styles.statusNotYet };
+  };
+
+  const viewStats = useMemo(() => {
+    const total = shiftAttendances.length;
+    const checkedOut = shiftAttendances.filter((r) => r?.checkOutTime).length;
+    const present = shiftAttendances.filter((r) => String(r?.status || '').toUpperCase() === 'PRESENT').length;
+    return { total, checkedOut, present };
+  }, [shiftAttendances]);
+
 
   return (
     <div className={styles.container}>
@@ -1272,6 +1413,7 @@ export default function ShiftManagement() {
       )}
 
       {viewShiftModal && (
+<<<<<<< Updated upstream
         <div className={styles.modalOverlay} onClick={closeViewShiftModal}>
           <div className={`${styles.modalContent} ${styles.modalContentLarge}`} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
@@ -1509,12 +1651,243 @@ export default function ShiftManagement() {
                   </table>
                 </div>
               )}
+=======
+        <div className={styles.modalOverlay} onClick={() => setViewShiftModal(null)}>
+          <div
+            className={styles.modalContent}
+            style={{ maxWidth: '1100px', width: '95vw' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className={styles.attendanceModalHeader}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingRight: 4 }}>
+                <div>
+                  <h3 className={styles.attendanceModalTitle}>Chấm công ca {viewShiftModal.shiftName}</h3>
+                  <p className={styles.attendanceModalSubtitle}>
+                    Ca làm: {String(viewShiftModal.startTime || '').slice(0, 5)} — {String(viewShiftModal.endTime || '').slice(0, 5)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  style={{
+                    width: 32, height: 32, border: 'none', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.2)', color: '#fff', fontSize: 16,
+                    fontWeight: 700, cursor: 'pointer', lineHeight: 1, flexShrink: 0,
+                  }}
+                  onClick={() => setViewShiftModal(null)}
+                >
+                  ✕
+                </button>
+              </div>
+>>>>>>> Stashed changes
             </div>
 
+            <div className={styles.attendanceModalBody}>
+              {/* Stats */}
+              <div className={styles.attendanceStats}>
+                <div className={styles.attendanceStatItem}>
+                  <div className={`${styles.attendanceStatIcon} ${styles.attendanceStatIconBlue}`}>📋</div>
+                  <div className={styles.attendanceStatContent}>
+                    <span className={styles.attendanceStatValue}>{viewStats.total}</span>
+                    <span className={styles.attendanceStatLabel}>Tổng bản ghi</span>
+                  </div>
+                </div>
+                <div className={styles.attendanceStatItem}>
+                  <div className={`${styles.attendanceStatIcon} ${styles.attendanceStatIconGreen}`}>✓</div>
+                  <div className={styles.attendanceStatContent}>
+                    <span className={styles.attendanceStatValue}>{viewStats.checkedOut}</span>
+                    <span className={styles.attendanceStatLabel}>Đã check-out</span>
+                  </div>
+                </div>
+                <div className={styles.attendanceStatItem}>
+                  <div className={`${styles.attendanceStatIcon} ${styles.attendanceStatIconYellow}`}>👤</div>
+                  <div className={styles.attendanceStatContent}>
+                    <span className={styles.attendanceStatValue}>{viewStats.present}</span>
+                    <span className={styles.attendanceStatLabel}>Có mặt</span>
+                  </div>
+                </div>
+                <div className={styles.attendanceStatItem}>
+                  <div className={`${styles.attendanceStatIcon} ${styles.attendanceStatIconPurple}`}>👥</div>
+                  <div className={styles.attendanceStatContent}>
+                    <span className={styles.attendanceStatValue}>{viewSummary?.totalStaff ?? 0}</span>
+                    <span className={styles.attendanceStatLabel}>Tổng nhân sự hôm nay</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Toolbar */}
+              <div className={styles.attendanceToolbar}>
+                <div className={styles.attendanceToolbarField}>
+                  <label className={styles.attendanceToolbarLabel}>Từ ngày</label>
+                  <input className={styles.attendanceToolbarInput} type="date" value={viewFromDate} onChange={(e) => setViewFromDate(e.target.value)} />
+                </div>
+                <div className={styles.attendanceToolbarField}>
+                  <label className={styles.attendanceToolbarLabel}>Đến ngày</label>
+                  <input className={styles.attendanceToolbarInput} type="date" value={viewToDate} onChange={(e) => setViewToDate(e.target.value)} />
+                </div>
+                <div className={styles.attendanceToolbarField}>
+                  <label className={styles.attendanceToolbarLabel}>Staff ID</label>
+                  <input className={styles.attendanceToolbarInput} type="number" value={viewStaffIdFilter} onChange={(e) => setViewStaffIdFilter(e.target.value)} placeholder="Lọc theo ID" />
+                </div>
+                <div className={styles.attendanceToolbarActions}>
+                  <button type="button" className={styles.attendanceLoadBtn} onClick={loadViewAttendance}>🔍 Tải dữ liệu</button>
+                  <button type="button" className={styles.attendanceLoadBtnGhost} onClick={loadViewSummary}>📊 Tải tổng hợp</button>
+                </div>
+              </div>
+
+              {/* Check-in nhanh */}
+              <div className={styles.attendanceCheckin}>
+                <div className={styles.attendanceCheckinHeader}>
+                  <h4 className={styles.attendanceCheckinTitle}>📌 Check-in nhanh</h4>
+                </div>
+                <div className={styles.attendanceCheckinForm}>
+                  <div className={styles.attendanceCheckinField}>
+                    <label className={styles.attendanceCheckinLabel}>Staff ID</label>
+                    <input className={styles.attendanceCheckinInput} type="number" value={checkInForm.staffId} onChange={(e) => setCheckInForm((p) => ({ ...p, staffId: e.target.value }))} placeholder="Nhập ID nhân viên" />
+                  </div>
+                  <div className={styles.attendanceCheckinField}>
+                    <label className={styles.attendanceCheckinLabel}>Ca làm</label>
+                    <select className={styles.attendanceCheckinSelect} value={checkInForm.shiftId} onChange={(e) => setCheckInForm((p) => ({ ...p, shiftId: e.target.value }))}>
+                      <option value="">Chọn ca</option>
+                      {shifts.map((s) => (
+                        <option key={s.shiftId} value={s.shiftId}>{s.shiftName} ({String(s.startTime || '').slice(0, 5)}-{String(s.endTime || '').slice(0, 5)})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={styles.attendanceCheckinField}>
+                    <label className={styles.attendanceCheckinLabel}>Ngày chấm công</label>
+                    <input className={styles.attendanceCheckinInput} type="date" value={checkInForm.attendanceDate} onChange={(e) => setCheckInForm((p) => ({ ...p, attendanceDate: e.target.value }))} />
+                  </div>
+                  <div className={styles.attendanceCheckinField}>
+                    <label className={styles.attendanceCheckinLabel}>Giờ vào (tùy chọn)</label>
+                    <input className={styles.attendanceCheckinInput} type="time" value={checkInForm.checkInTime} onChange={(e) => setCheckInForm((p) => ({ ...p, checkInTime: e.target.value }))} />
+                  </div>
+                  <div className={styles.attendanceCheckinField}>
+                    <label className={styles.attendanceCheckinLabel}>Ghi chú</label>
+                    <input className={styles.attendanceCheckinInput} value={checkInForm.notes} onChange={(e) => setCheckInForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Ghi chú nếu có" />
+                  </div>
+                  <button type="button" className={styles.attendanceCheckinBtn} onClick={handleViewCheckIn}>✓ Check-in</button>
+                </div>
+              </div>
+
+              {/* Bảng danh sách */}
+              <div className={styles.attendanceTableWrapper}>
+                {loadingShiftAttendances ? (
+                  <div className={styles.loadingContainer} style={{ minHeight: '150px' }}>
+                    <div className={styles.spinner}></div>
+                    <p>Đang tải dữ liệu chấm công...</p>
+                  </div>
+                ) : shiftAttendances.length === 0 ? (
+                  <div className={styles.attendanceEmptyState}>
+                    <div className={styles.attendanceEmptyIcon}>📋</div>
+                    <p className={styles.attendanceEmptyTitle}>Chưa có ai điểm danh</p>
+                    <p className={styles.attendanceEmptyMessage}>Không có bản ghi chấm công nào cho ca này trong khoảng thời gian đã chọn.</p>
+                  </div>
+                ) : (
+                  <div className={styles.attendanceTableCard}>
+                    <table className={styles.attendanceTable}>
+                      <thead>
+                        <tr>
+                          <th>STT</th>
+                          <th>Nhân viên</th>
+                          <th>Ngày</th>
+                          <th>Check-in</th>
+                          <th>Check-out</th>
+                          <th>Trạng thái</th>
+                          <th>Ghi chú</th>
+                          <th>Hành động</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {shiftAttendances.map((record, idx) => {
+                          const meta = statusMeta(record?.status);
+                          const statusCls =
+                            meta.label === 'Có mặt' ? styles.attendanceStatusPresent :
+                            meta.label === 'Muộn' ? styles.attendanceStatusLate :
+                            meta.label === 'Vắng' ? styles.attendanceStatusAbsent :
+                            meta.label === 'Nghỉ' ? styles.attendanceStatusOff :
+                            styles.attendanceStatusNotYet;
+                          return (
+                            <tr key={record.checkinId || idx}>
+                              <td>{idx + 1}</td>
+                              <td>
+                                <div className={styles.attendanceStaffCell}>
+                                  <div className={styles.attendanceStaffAvatar}>
+                                    {(record.staffName || '?')[0]?.toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div className={styles.attendanceStaffName}>{record.staffName || `ID ${record.staffId}`}</div>
+                                    <div className={styles.attendanceStaffId}>#{record.staffId}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td>{record.attendanceDate || '-'}</td>
+                              <td>{record.checkInTime || '-'}</td>
+                              <td>{record.checkOutTime || '-'}</td>
+                              <td>
+                                <span className={`${styles.attendanceStatusBadge} ${statusCls}`}>{meta.label}</span>
+                              </td>
+                              <td>{record.notes || '-'}</td>
+                              <td>
+                                <div className={styles.attendanceActionGroup}>
+                                  {!record.checkOutTime && (
+                                    <button type="button" className={styles.attendanceCheckoutBtn} onClick={() => { setCheckoutTarget(record); setCheckoutForm({ checkOutTime: '', notes: record.notes || '' }); }}>Check-out</button>
+                                  )}
+                                  <button type="button" className={styles.attendanceDeleteBtn} onClick={() => handleViewDelete(record.checkinId)}>Xóa</button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className={styles.attendanceModalFooter}>
+              <button type="button" className={styles.cancelBtn} onClick={() => setViewShiftModal(null)}>Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Modal */}
+      {checkoutTarget && (
+        <div className={styles.modalOverlay} onClick={() => setCheckoutTarget(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>Check-out #{checkoutTarget.checkinId}</h3>
+                <p className={styles.modalSubtitle}>
+                  Nhân viên: {checkoutTarget.staffName || `ID ${checkoutTarget.staffId}`} — Ca: {checkoutTarget.shiftName || '-'}
+                </p>
+              </div>
+              <button type="button" className={styles.modalClose} onClick={() => setCheckoutTarget(null)}>✕</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.formGrid}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Giờ ra (tùy chọn)</label>
+                  <input className={styles.input} type="time" value={checkoutForm.checkOutTime} onChange={(e) => setCheckoutForm((p) => ({ ...p, checkOutTime: e.target.value }))} />
+                </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label className={styles.label}>Ghi chú</label>
+                  <textarea className={styles.textarea} rows={3} value={checkoutForm.notes} onChange={(e) => setCheckoutForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Nhập ghi chú nếu có..." />
+                </div>
+              </div>
+            </div>
             <div className={styles.modalFooter}>
+<<<<<<< Updated upstream
               <button type="button" className={styles.cancelBtn} onClick={closeViewShiftModal}>
                 Đóng
               </button>
+=======
+              <button type="button" className={styles.cancelBtn} onClick={() => setCheckoutTarget(null)}>Hủy</button>
+              <button type="button" className={styles.saveBtn} onClick={handleViewCheckOut}>Xác nhận check-out</button>
+>>>>>>> Stashed changes
             </div>
           </div>
         </div>
