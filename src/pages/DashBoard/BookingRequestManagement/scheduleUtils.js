@@ -7,30 +7,6 @@ const defaultSlotData = {
     '11:00': { customers: ['Lê Văn C'], current: 1, capacity: 3 },
 };
 
-export const approvedBookingsBySlot = {
-    '09:30': [
-        {
-            id: 'DB-202310-26-001',
-            name: 'Nguyễn Văn A',
-            phone: '0912345678',
-            service: 'Làm lốp',
-            note: 'Ưu tiên trước 10h',
-            status: 'Đã duyệt',
-        },
-    ],
-    '10:00': [
-        {
-            id: 'DB-202310-26-002',
-            name: 'Trần Thị B',
-            phone: '0912345679',
-            service: 'Vá xăm',
-            note: 'Gọi trước khi tới',
-            status: 'Đã duyệt',
-        },
-    ],
-};
-
-
 export function buildSlots({ slotData = defaultSlotData, startHour = 6, endHour = 10, defaultCapacity = 3 } = {}) {
     return buildSlotList({ slotData, startHour, endHour, defaultCapacity, include24hClosingHalf: false });
 }
@@ -70,7 +46,10 @@ function buildSlotList({ slotData, startHour, endHour, defaultCapacity, include2
              * Nếu slot đó chưa có ai đặt, sẽ lấy giá trị mặc định (trống khách).
              */
             const data = slotData[time] || { customers: [], current: 0, capacity: defaultCapacity };
-            const { current, capacity } = data;
+            const customers = Array.isArray(data?.customers) ? data.customers : [];
+            const bookings = Array.isArray(data?.bookings) ? data.bookings : [];
+            const current = Number.isFinite(Number(data?.current)) ? Number(data.current) : Math.max(customers.length, bookings.length);
+            const capacity = Number.isFinite(Number(data?.capacity)) ? Number(data.capacity) : defaultCapacity;
 
             /**
              * PHÂN LOẠI TRẠNG THÁI (State Management):
@@ -83,7 +62,8 @@ function buildSlotList({ slotData, startHour, endHour, defaultCapacity, include2
             // Đẩy dữ liệu đã xử lý vào mảng kết quả
             slots.push({
                 time,                       // Chuỗi hiển thị (08:30)
-                customers: data.customers,   // Danh sách khách đã đặt trong tầm này
+                customers,                   // Danh sách khách đã đặt trong tầm này
+                bookings,                    // Danh sách booking chi tiết (optional)
                 quota: `${current}/${capacity}`, // Hiển thị dạng phân số (1/3)
                 state,                      // Trạng thái để map với CSS class
             });

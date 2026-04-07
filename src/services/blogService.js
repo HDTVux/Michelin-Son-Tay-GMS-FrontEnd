@@ -1,8 +1,7 @@
 import { request } from './apiClient.js';
 
-// ── Lấy danh sách blog/catalog theo bộ lọc
+// Fetch catalog list with filters
 // GET /api/warehouse/search/catalog-items
-// params: { page, size, search, itemType, isActive, brand, productLine, categoryCode, minPrice, maxPrice, sortBy }
 export const fetchCatalogItems = (params, token) => {
   const qp = new URLSearchParams();
   const safeParams = params || {};
@@ -20,7 +19,7 @@ export const fetchCatalogItems = (params, token) => {
   });
 };
 
-// ── Lấy chi tiết 1 catalog item
+// Fetch one catalog detail
 // GET /api/warehouse/search/catalog-items/detail/{catalogItemId}
 export const fetchCatalogItemDetail = (catalogItemId, token) => {
   const idNum = typeof catalogItemId === 'number' ? catalogItemId : Number(catalogItemId);
@@ -31,11 +30,23 @@ export const fetchCatalogItemDetail = (catalogItemId, token) => {
   });
 };
 
-// ── Tạo blog mới (multipart/form-data)
-// POST /api/service/create
-export const createBlog = async (formData, token) => {
+// Fallback basic endpoint
+// GET /api/catalog/items/{itemId}
+export const fetchCatalogBasicItemById = (itemId, token) => {
+  const idNum = typeof itemId === 'number' ? itemId : Number(itemId);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+  return request('/api/catalog/items/' + encodeURIComponent(String(safeId)), {
+    method: 'GET',
+    headers: token ? { Authorization: 'Bearer ' + token } : {},
+  });
+};
+
+// Create blog/service by catalog id
+// POST /api/service/create/{catalogId}
+export const createServiceForCatalog = async (catalogId, formData, token) => {
+  const id = typeof catalogId === 'number' ? catalogId : Number(catalogId) || 0;
   return fetch(
-    (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080') + '/api/service/create',
+    (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080') + '/api/service/create/' + encodeURIComponent(String(id)),
     {
       method: 'POST',
       headers: token ? { Authorization: 'Bearer ' + token } : {},
@@ -48,10 +59,10 @@ export const createBlog = async (formData, token) => {
   });
 };
 
-// ── Cập nhật blog/catalog item (multipart/form-data)
-// PUT /api/service/update/{catalogItemId}
-export const updateBlog = async (catalogItemId, formData, token) => {
-  const id = typeof catalogItemId === 'number' ? catalogItemId : Number(catalogItemId) || 0;
+// Update blog/service by serviceId
+// PUT /api/service/update/{serviceId}
+export const updateServiceById = async (serviceId, formData, token) => {
+  const id = typeof serviceId === 'number' ? serviceId : Number(serviceId) || 0;
   return fetch(
     (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080') + '/api/service/update/' + encodeURIComponent(String(id)),
     {

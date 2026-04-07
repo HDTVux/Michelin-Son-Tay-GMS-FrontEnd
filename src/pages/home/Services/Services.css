@@ -63,6 +63,18 @@
   transform: translateX(0);
 }
 
+/* Scroll reveal cho slider */
+.servicesSlider.reveal {
+  opacity: 0;
+  transform: translateY(60px);
+  transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1), transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.servicesSlider.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .servicesLabel {
   font-size: 14px;
   font-weight: 700;

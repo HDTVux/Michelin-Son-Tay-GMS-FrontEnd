@@ -1,28 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import './Banner.css';
-import combo7 from '../../../assets/anh_combo7.jpg'
-import combo8 from '../../../assets/anh_combo8.jpg'
-import combo9 from '../../../assets/anh_com9.jpg'
+import wheel1 from '../../../assets/wheel1.jpg'
+import wheel2 from '../../../assets/wheel2.jpg'
+import wheel3 from '../../../assets/wheel3.jpg'
 
 export default function Banner(){
     const slides = [
-        { 
-            id: 1, 
-            img: combo7, 
-            title: 'HIỆU SUẤT BỀN BỈ, AN TOÀN TỐI ĐA', 
-            subtitle: 'MICHELIN' 
+        {
+            id: 1,
+            img: wheel1,
+            title: 'HIỆU SUẤT BỀN BỈ, AN TOÀN TỐI ĐA',
         },
-        { 
-            id: 2, 
-            img: combo8, 
-            title: 'CHINH PHỤC MỌI ĐỊA HÌNH', 
-            subtitle: 'MICHELIN' 
+        {
+            id: 2,
+            img: wheel2,
+            title: 'CHINH PHỤC MỌI ĐỊA HÌNH',
         },
-        { 
-            id: 3, 
-            img: combo9, 
-            title: 'ÊM ÁI VÀ AN TOÀN TRÊN MỌI CUNG ĐƯỜNG ƯỚT', 
-            subtitle: 'MICHELIN' 
+        {
+            id: 3,
+            img: wheel3,
+            title: 'ÊM ÁI VÀ AN TOÀN TRÊN MỌI CUNG ĐƯỜNG ƯỚT',
         }
     ];
 
@@ -135,11 +132,9 @@ export default function Banner(){
                         <div className="slide" key={s.id}>
                             <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image fixed-zoom" />
                             <div className={`slide-text ${textVisible && index === s.id - 1 ? 'visible' : ''}`}>
-                                <div className="banner-label">/MICHELIN/</div>
                                 <h1 className="banner-title">
                                     <span className="titlePart1">{s.title}</span>
                                 </h1>
-                                <p className="banner-sub">{s.subtitle}</p>
                             </div>
                         </div>
                         ))} 

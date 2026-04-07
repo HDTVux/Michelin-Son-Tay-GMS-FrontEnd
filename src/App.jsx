@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
+import RouteSessionPersistence from './components/RouteSessionPersistence.jsx';
 
 //Home page and common pages
 import Home from './pages/home/Home.jsx';
 import Services from './pages/home/Services/Services.jsx';
+import Parts from './pages/home/Parts/Parts.jsx';
 import About from './pages/About/About.jsx';
 import Booking from './pages/Booking/Booking.jsx';
 import ToastBox from './components/Toast/ToastBox.jsx';
@@ -34,12 +36,14 @@ import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.j
 import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.jsx';
 import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.jsx';
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
-import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
-import CreateProduct from './pages/DashBoard/ServiceManagement/CreateProduct.jsx';
-import BlogManagement from './pages/DashBoard/ServiceManagement/BlogManagement.jsx';
+import CreateProduct from './pages/DashBoard/PartManagement/CreateProduct.jsx';
+import ServiceManagement from './pages/DashBoard/PartManagement/ServiceManagement.jsx';
+import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx';
+import CreateService from './pages/DashBoard/PartManagement/CreateService.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
+import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
 
 //Customer pages
 import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
@@ -86,6 +90,41 @@ import UpdateProgress from './pages/Technician/UpdateProgress/UpdateProgress.jsx
 // Import Advisor Inspection page
 import AdvisorInspection from './pages/DashBoard/AdvisorInspection/AdvisorInspection.jsx';
 
+// Title updater based on route
+function TitleUpdater() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const titles = {
+      '/': 'Michelin Sơn Tây - Trung tâm dịch vụ lốp xe uy tín',
+      '/about': 'Giới thiệu - Michelin Sơn Tây',
+      '/services': 'Dịch vụ - Michelin Sơn Tây',
+      '/parts': 'Phụ tùng - Michelin Sơn Tây',
+      '/booking': 'Đặt lịch - Michelin Sơn Tây',
+      '/user-profile': 'Tài khoản - Michelin Sơn Tây',
+      '/my-bookings': 'Đặt lịch của tôi - Michelin Sơn Tây',
+      '/login': 'Đăng nhập - Michelin Sơn Tây',
+      '/forgot-password': 'Quên mật khẩu - Michelin Sơn Tây',
+    };
+
+    // Match /services/:id patterns
+    if (location.pathname.startsWith('/services/')) {
+      document.title = `Chi tiết dịch vụ - Michelin Sơn Tây`;
+      return;
+    }
+
+    const base = 'Michelin Sơn Tây';
+    const title =
+      titles[location.pathname] ||
+      titles[Object.keys(titles).find((k) => location.pathname.startsWith(k))] ||
+      base;
+
+    document.title = title;
+  }, [location]);
+
+  return null;
+}
+
 export default function App() {
   useEffect(() => {
     cleanupExpiredTokens();
@@ -93,6 +132,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <RouteSessionPersistence />
       <ToastBox />
       <ToastContainer
         position="top-center"
@@ -109,6 +149,7 @@ export default function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="services" element={<Services />} />
+          <Route path="parts" element={<Parts />} />
           <Route path="services/:serviceId" element={<ServiceDetail />} />
           <Route path="about" element={<About />} />
           <Route path="customer-login" element={<CustomerLogin />} />
@@ -159,9 +200,10 @@ export default function App() {
           <Route path="service-ticket/:ticketCode/receipt-payment-method" element={<ReceiptPaymentMethod />} />
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
+          <Route path="part-management" element={<PartManagement />} />
+          <Route path="part-management/create-product" element={<CreateProduct />} />
           <Route path="service-management" element={<ServiceManagement />} />
-          <Route path="service-management/create-product" element={<CreateProduct />} />
-          <Route path="blog-management" element={<BlogManagement />} />
+          <Route path="service-management/create-service" element={<CreateService />} />
           <Route path="promotion-management" element={<PromotionManagement />} />
           <Route path="shift-management" element={<ShiftManagement />} />
           <Route path="queue-management" element={<QueueManagement />} />
@@ -172,6 +214,7 @@ export default function App() {
           <Route path="employee-manager/:staffId" element={<EmployeeProfilePage />} />
           <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
           <Route path="send-reminder" element={<SendReminder />} />
+          <Route path="feedback-management" element={<FeedbackManagement />} />
           <Route path="system-log-management" element={<SystemLogManagement />} />
           
           {/* Technician pages */}

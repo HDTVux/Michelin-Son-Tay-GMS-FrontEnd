@@ -22,6 +22,7 @@ export const fetchTechnicianTickets = (params, token) => {
   searchParams.set('size', String(size));
 
   if (params?.date) searchParams.set('date', params.date);
+  if (params?.dateTo) searchParams.set('dateTo', params.dateTo);
   if (params?.status) searchParams.set('status', params.status);
   if (params?.search) searchParams.set('search', params.search);
 

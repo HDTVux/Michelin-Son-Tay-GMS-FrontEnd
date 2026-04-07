@@ -198,6 +198,28 @@ export const fetchServiceTicketAdvisorRecommend = (serviceTicketId, token) => {
     return Promise.reject(error);
   }
 
+  return request(`/api/service-ticket/advisor/recommend/${encodeURIComponent(String(idNum))}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Safety inspection: lấy khuyến nghị hiện tại của chính phiếu
+// Endpoint: GET /api/safety-inspections/{serviceTicketId}/curent-recommend
+export const fetchSafetyInspectionCurrentRecommend = (serviceTicketId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem khuyến nghị.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu serviceTicketId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
   return request(`/api/safety-inspections/${encodeURIComponent(String(idNum))}/curent-recommend`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
@@ -662,6 +684,33 @@ export const fetchTechniciansWithWorkload = (token) => {
     return Promise.reject(error);
   }
   return request('/api/staff-workload?role=TECHNICIAN', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  }).then((res) => {
+    const rows = Array.isArray(res?.data) ? res.data : [];
+    const normalized = rows.map((row) => ({
+      staffId: row?.staffId,
+      fullName: row?.fullName || '',
+      phone: row?.phone || '',
+      roles: Array.isArray(row?.roles) ? row.roles : [],
+      currentTicketCount: Number.isFinite(row?.totalWorkload)
+        ? row.totalWorkload
+        : Number(row?.activeAssignments || 0) + Number(row?.pendingAssignments || 0),
+      isBusy: row?.isAvailable === false,
+    }));
+    return { ...res, data: normalized };
+  });
+};
+
+// Lấy workload của tất cả Advisor để hiển thị trong modal đổi advisor
+// Backend: GET /api/staff-workload?role=ADVISOR
+export const fetchAdvisorsWithWorkload = (token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+  return request('/api/staff-workload?role=ADVISOR', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   }).then((res) => {

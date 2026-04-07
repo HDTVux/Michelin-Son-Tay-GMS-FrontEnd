@@ -938,6 +938,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, refre
                         type="button"
                         className="ui-btn ui-btn--primary"
                         onClick={() => {
+                            console.log('[DEBUG recommend] button click, recommendation value:', JSON.stringify(recommendation));
                             Promise.resolve(saveRecommendation?.())
                                 .then((saved) => {
                                     if (saved) notify('Đã lưu khuyến nghị.');

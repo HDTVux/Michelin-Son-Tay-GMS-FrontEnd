@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import PropTypes from 'prop-types';
 import styles from './BookingRequestDetail.module.css';
 import { buildAllSlots } from './scheduleUtils.js';
 
@@ -12,6 +13,8 @@ export default function SchedulePanel({
   defaultCapacity = 6, // Sức chứa xe tối đa mỗi slot
   title = 'Lịch ngày',
   subtitlePrefix = 'Khung giờ khách chọn:',
+  showPickedTag = true,
+  onBookingClick,
 }) {
   /**
    * useMemo (dateOptions): Tạo danh sách 10 ngày tới cho ô chọn Select.
@@ -32,6 +35,38 @@ export default function SchedulePanel({
       state: slot.time === pickedTime ? 'selected' : slot.state,
     }));
   }, [slotData, startHour, endHour, defaultCapacity, pickedTime]);
+
+  const renderSlotCustomers = (slot) => {
+    const hasBookings = Array.isArray(slot?.bookings) && slot.bookings.length > 0;
+    const clickable = typeof onBookingClick === 'function';
+
+    if (hasBookings) {
+      return slot.bookings.map((b, idx) => {
+        const key = b?.bookingCode || b?.bookingId || `${slot.time}-${idx}`;
+        const label = b?.bookingCode || b?.licensePlate || b?.customerName || b?.fullName || 'Booking';
+
+        return clickable ? (
+          <button
+            key={key}
+            type="button"
+            className={`${styles.slotBadge} ${styles.slotBadgeButton}`}
+            onClick={() => onBookingClick(b)}
+            title="Xem chi tiết"
+          >
+            {label}
+          </button>
+        ) : (
+          <span key={key} className={styles.slotBadge}>{label}</span>
+        );
+      });
+    }
+
+    if (!slot?.customers || slot.customers.length === 0) {
+      return <span className={styles.slotEmpty}>Trống</span>;
+    }
+
+    return slot.customers.map((c) => <span key={c} className={styles.slotBadge}>{c}</span>);
+  };
 
   return (
     <aside className={styles.schedulePanel}>
@@ -56,19 +91,14 @@ export default function SchedulePanel({
             <div className={styles.slotTime}>{slot.time}</div>
             
             <div className={styles.slotCustomers}>
-              {slot.customers.length === 0 ? (
-                <span className={styles.slotEmpty}>Trống</span>
-              ) : (
-                /* Hiển thị danh sách biển số xe hoặc tên khách đã đặt chỗ này */
-                slot.customers.map((c) => <span key={c} className={styles.slotBadge}>{c}</span>)
-              )}
+              {renderSlotCustomers(slot)}
             </div>
 
             <div className={styles.slotMeta}>
               {/* Hiển thị tỉ lệ lấp đầy (vd: 1/3) */}
               <span className={styles.slotQuota}>{slot.quota}</span>
               {/* Nếu là giờ khách chọn, hiển thị thêm nhãn "Muốn đặt" để nhấn mạnh */}
-              {slot.state === 'selected' && <span className={styles.slotTag}>Muốn đặt</span>}
+              {showPickedTag && slot.state === 'selected' && <span className={styles.slotTag}>Muốn đặt</span>}
             </div>
           </div>
         ))}
@@ -104,3 +134,16 @@ function formatDateLabel(date) {
   const wd = weekdays[date.getDay()];
   return `${wd} ${dd}/${mm}/${yyyy}`;
 }
+
+SchedulePanel.propTypes = {
+  dateLabel: PropTypes.string,
+  pickedTime: PropTypes.string,
+  slotData: PropTypes.object,
+  startHour: PropTypes.number,
+  endHour: PropTypes.number,
+  defaultCapacity: PropTypes.number,
+  title: PropTypes.string,
+  subtitlePrefix: PropTypes.string,
+  showPickedTag: PropTypes.bool,
+  onBookingClick: PropTypes.func,
+};

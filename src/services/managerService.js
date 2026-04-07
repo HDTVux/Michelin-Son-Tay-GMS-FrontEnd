@@ -135,3 +135,10 @@ export const deactivateWorkShift = (shiftId, token) => {
     headers: authHeaders(token),
   });
 };
+
+export const reactivateWorkShift = (shiftId, token) => {
+  return request(`/api/manager/work-shifts/${encodeURIComponent(String(shiftId))}/reactivate`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+  });
+};

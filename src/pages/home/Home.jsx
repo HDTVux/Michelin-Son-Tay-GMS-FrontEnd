@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import './Home.css';
 import TVC from '../../assets/video 1.mp4';
 import Service from './Services/Services.jsx';
+import Parts from './Parts/Parts.jsx';
 import Banner from './Banner/Banner.jsx';
 import Form from './Form/Form.jsx';
 import BussinessInfor from './BusinessInfo/BussinessInfor.jsx';
@@ -116,8 +117,9 @@ const Home = () => {
         </section>
 
         {!isAuthenticated && <Form/>}
-        
+
         <Service/>
+        <Parts/>
         <Partners/>
         <BussinessInfor/>
         </>
