@@ -1,11 +1,100 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import styles from '../BookingRequestManagement/BookingRequestDetail.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import SchedulePanel from '../BookingRequestManagement/SchedulePanel.jsx';
-import { fetchManagedBookingDetail } from '../../../services/bookingService.js';
+import { fetchManagedBookingDetail, fetchManagedBookingsPaged } from '../../../services/bookingService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
+
+const DEFAULT_SLOT_CAPACITY = 6;
+
+const queueOrderKey = (item) => {
+  const n = Number(item?.queueOrder);
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+};
+
+function getBookingBadgeLabel(item) {
+  const plate =
+    item?.licensePlate ||
+    item?.plateNumber ||
+    item?.vehiclePlate ||
+    item?.vehicleNumber ||
+    item?.carPlate ||
+    item?.vehicleLicensePlate;
+  if (plate) return String(plate);
+
+  const name = item?.customerName || item?.fullName || item?.customer?.fullName || item?.name;
+  if (name) return String(name);
+
+  const code = item?.bookingCode || item?.code;
+  if (code) return String(code);
+
+  const id = item?.bookingId || item?.id;
+  return id == null ? 'Khách' : `#${id}`;
+}
+
+async function fetchManagedBookingsByDate(dateISO, token) {
+  const safeDate = String(dateISO || '').trim();
+  if (!safeDate) return [];
+
+  const size = 200;
+  const maxPages = 10;
+  const collected = [];
+
+  for (let page = 0; page < maxPages; page++) {
+    const res = await fetchManagedBookingsPaged({ page, size, date: safeDate }, token);
+    const pageData = res?.data;
+    const content = Array.isArray(pageData?.content) ? pageData.content : [];
+    collected.push(...content);
+
+    const totalPages = Number.isFinite(pageData?.totalPages) ? pageData.totalPages : 1;
+    if (page >= totalPages - 1) break;
+    if (content.length === 0) break;
+  }
+
+  return collected;
+}
+
+function buildSlotDataFromManagedBookings(bookings, capacity = DEFAULT_SLOT_CAPACITY) {
+  const list = Array.isArray(bookings) ? bookings : [];
+  const byTime = new Map();
+
+  for (const item of list) {
+    const timeKey = formatTimeHHmm(item?.scheduledTime);
+    if (!timeKey) continue;
+    const entry = byTime.get(timeKey) || [];
+    entry.push(item);
+    byTime.set(timeKey, entry);
+  }
+
+  const result = {};
+  for (const [timeKey, items] of byTime.entries()) {
+    const sorted = [...items].sort((a, b) => {
+      const byOrder = queueOrderKey(a) - queueOrderKey(b);
+      if (byOrder !== 0) return byOrder;
+      return String(a?.createdAt || '').localeCompare(String(b?.createdAt || ''));
+    });
+
+    const bookingsView = sorted.map((item) => ({
+      bookingId: item?.bookingId ?? item?.id,
+      bookingCode: item?.bookingCode ?? item?.booking_code ?? item?.code,
+      queueOrder: item?.queueOrder,
+      createdAt: item?.createdAt,
+      label: getBookingBadgeLabel(item),
+    }));
+
+    result[timeKey] = {
+      bookings: bookingsView,
+      customers: bookingsView.map((b) => b.label).filter(Boolean),
+      current: bookingsView.length,
+      capacity,
+    };
+  }
+
+  return result;
+}
 
 function InfoRow({ label, value, link, type, extraAction, full }) {
   const safeValue = value == null ? '' : String(value);
@@ -31,6 +120,15 @@ function InfoRow({ label, value, link, type, extraAction, full }) {
     </div>
   );
 }
+
+InfoRow.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  link: PropTypes.bool,
+  type: PropTypes.string,
+  extraAction: PropTypes.node,
+  full: PropTypes.bool,
+};
 
 function mapStatusTone(status) {
   const upper = (status || '').toUpperCase();
@@ -112,6 +210,18 @@ export default function ConfirmedBookingDetail() {
         const response = await fetchManagedBookingDetail(bookingCode, token);
         const payload = response?.data?.data ?? response?.data;
         const mapped = mapBooking(payload);
+
+        let slotData = {};
+        const dateISO = mapped?.scheduledDate;
+        if (dateISO) {
+          try {
+            const dayBookings = await fetchManagedBookingsByDate(dateISO, token);
+            slotData = buildSlotDataFromManagedBookings(dayBookings, DEFAULT_SLOT_CAPACITY);
+          } catch {
+            slotData = {};
+          }
+        }
+
         setBooking(
           mapped
             ? {
@@ -119,6 +229,7 @@ export default function ConfirmedBookingDetail() {
                 id: String(bookingCode || ''),
                 name: mapped.name || fallbackCustomerName || '',
                 phone: mapped.phone || fallbackCustomerPhone || '',
+                slotData,
               }
             : null,
         );
@@ -148,14 +259,14 @@ export default function ConfirmedBookingDetail() {
         <button className={styles.backButton} onClick={() => navigate('/booking-management')}>
           ← Quay lại
         </button>
-        <div className={styles.headerTitle}>Chi tiết booking</div>
+        <div className={styles.headerTitle}>Chi tiết lịch hẹn</div>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
-      {isLoading && <div className={styles.loadingBox}>Đang tải chi tiết booking...</div>}
+      {isLoading && <div className={styles.loadingBox}>Đang tải chi tiết lịch hẹn...</div>}
 
       {!isLoading && !booking && !error && (
-        <div className={styles.emptyBox}>Không tìm thấy dữ liệu booking.</div>
+        <div className={styles.emptyBox}>Không tìm thấy dữ liệu lịch hẹn.</div>
       )}
 
       {!isLoading && booking && (
@@ -163,7 +274,7 @@ export default function ConfirmedBookingDetail() {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <div>
-                <div className={styles.label}>Mã booking</div>
+                <div className={styles.label}>Mã lịch hẹn</div>
                 <div className={styles.requestId}>{booking.id || '-'}</div>
               </div>
               <span className={`${styles.statusPill} ${styles['statusPill--' + booking.statusTone]}`}>
@@ -218,6 +329,12 @@ export default function ConfirmedBookingDetail() {
             pickedTime={booking.scheduledTime}
             slotData={booking.slotData}
             subtitlePrefix="Khung giờ hẹn:"
+            showPickedTag={false}
+            onBookingClick={(b) => {
+              const targetId = b?.bookingCode ?? b?.bookingId;
+              if (!targetId) return;
+              navigate(`/booking-management/${encodeURIComponent(String(targetId))}`);
+            }}
           />
         </div>
       )}
