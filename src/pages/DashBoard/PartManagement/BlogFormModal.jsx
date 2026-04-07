@@ -81,7 +81,7 @@ const getServiceIdFromUnknownShape = (input, maxDepth = 3) => {
       if (looksLikeServiceId) {
         if (rawValue && typeof rawValue === 'object') {
           const nestedParsed = toNullablePositiveNumber(
-            rawValue.id ?? rawValue.serviceId ?? rawValue.service_id ?? rawValue.service_service_id,
+            rawValue.serviceId ?? rawValue.service_id ?? rawValue.service_service_id ?? rawValue.serviceServiceId,
           );
           if (nestedParsed != null) return nestedParsed;
         } else {
@@ -309,13 +309,12 @@ const normalizeExistingMedia = (input) => {
 const getServiceServiceId = (item) => {
   if (!item || typeof item !== 'object') return null;
   const candidates = [
-    item.id,
     item.service_service_id, item.serviceServiceId, item.service_serviceId, item.serviceServiceID,
     item.serviceId, item.service_id,
-    item?.data?.serviceId, item?.data?.service_service_id, item?.data?.serviceServiceId, item?.data?.id,
+    item?.data?.serviceId, item?.data?.service_service_id, item?.data?.serviceServiceId,
     item?.service?.service_service_id, item?.service?.serviceServiceId,
-    item?.service?.service_id, item?.service?.id, item?.serviceInfo?.service_service_id,
-    item?.serviceInfo?.serviceServiceId, item?.serviceInfo?.service_id, item?.serviceInfo?.id,
+    item?.service?.service_id, item?.serviceInfo?.service_service_id,
+    item?.serviceInfo?.serviceServiceId, item?.serviceInfo?.service_id,
   ];
   for (const value of candidates) {
     const parsed = toNullablePositiveNumber(value);
@@ -333,6 +332,13 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   const isEdit = mode === 'edit' && Boolean(baseItem?.itemId);
   const isCreateFromCatalog = mode === 'createFromCatalog' && Boolean(baseItem?.itemId);
   const isCreateNew = !isEdit && !isCreateFromCatalog;
+  const normalizedItemType = useMemo(() => {
+    const rawType = String(baseItem?.itemType || '').trim().toUpperCase();
+    return rawType === 'SERVICE' ? 'SERVICE' : 'PART';
+  }, [baseItem?.itemType]);
+  const itemTypeLabel = normalizedItemType === 'SERVICE' ? 'Dịch vụ' : 'Phụ tùng';
+  const itemCodeLabel = normalizedItemType === 'SERVICE' ? 'Mã dịch vụ' : 'Mã phụ tùng';
+  const itemPriceLabel = normalizedItemType === 'SERVICE' ? 'Giá dịch vụ' : 'Giá phụ tùng';
   const initialDescription = useMemo(() => splitDescriptionSections(baseItem.description || ''), [baseItem.description]);
 
   const [itemName, setItemName] = useState(baseItem.itemName || '');
@@ -357,7 +363,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       ? String(baseItem.workCategoryId)
       : baseItem.itemCategoryId != null
         ? String(baseItem.itemCategoryId)
-        : 'SERVICE_AUTO',
+        : `${normalizedItemType}_AUTO`,
   );
   const [categoryInputMode, setCategoryInputMode] = useState('select');
   const [workCategories, setWorkCategories] = useState([]);
@@ -378,11 +384,32 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   const thumbnailPreviewRef = useRef('');
   const mediaFilesRef = useRef([]);
 
-  const modalTitle = useMemo(() => {
-    if (isEdit) return 'Sửa dịch vụ';
-    if (isCreateFromCatalog) return 'Tạo dịch vụ từ Catalog';
-    return 'Tạo dịch vụ mới';
-  }, [isCreateFromCatalog, isEdit]);
+  const modalTitle = 'Tạo bài viết';
+  const draftStorageKey = useMemo(() => {
+    const itemId = baseItem?.itemId != null ? String(baseItem.itemId) : 'new';
+    return `gms_blog_form_draft_v1:${mode}:${itemId}`;
+  }, [baseItem?.itemId, mode]);
+
+  const readDraft = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = window.localStorage.getItem(draftStorageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, [draftStorageKey]);
+
+  const clearDraft = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.removeItem(draftStorageKey);
+    } catch {
+      // Ignore.
+    }
+  }, [draftStorageKey]);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -467,11 +494,27 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
         setThumbnailPreview(detail.thumbnailUrl || detail.imageUrl || detail.mediaThumbnail);
       }
       setExistingMedia(normalizeExistingMedia(detail?.media ?? detail?.mediaList));
+
+      const draft = readDraft();
+      if (draft) {
+        if (typeof draft.itemName === 'string') setItemName(draft.itemName);
+        if (typeof draft.sku === 'string') setSku(draft.sku);
+        if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
+        if (typeof draft.price === 'string') setPrice(draft.price);
+        if (typeof draft.introText === 'string') setIntroText(draft.introText);
+        if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
+        if (typeof draft.unit === 'string') setUnit(draft.unit);
+        if (typeof draft.warrantyMonths === 'string') setWarrantyMonths(draft.warrantyMonths);
+        if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
+        if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
+        if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
+        if (typeof draft.itemCategoryId === 'string') setItemCategoryId(draft.itemCategoryId);
+      }
     } catch {
       // Keep local values.
       setExistingMedia([]);
     }
-  }, [baseItem, isEdit]);
+  }, [baseItem, isEdit, readDraft]);
 
   const loadWorkCategoryOptions = useCallback(async () => {
     const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -481,11 +524,11 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       const res = await fetchWarehouseItemCategories(token);
       const payload = extractPayload(res);
       const normalized = normalizeWorkCategoryList(payload)
-        .filter((entry) => entry.categoryType === 'SERVICE')
+        .filter((entry) => entry.categoryType === normalizedItemType)
         .sort((a, b) => a.workCategoryId - b.workCategoryId);
       setWorkCategories(normalized);
-      // Auto-select the first SERVICE category on initial load
-      if (itemCategoryId === 'SERVICE_AUTO' && normalized.length > 0) {
+      // Auto-select the first category by current item type on initial load
+      if (itemCategoryId === `${normalizedItemType}_AUTO` && normalized.length > 0) {
         setItemCategoryId(String(normalized[0].workCategoryId));
       }
     } catch {
@@ -493,11 +536,29 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     } finally {
       setIsLoadingWorkCategories(false);
     }
-  }, []);
+  }, [itemCategoryId, normalizedItemType]);
 
   useEffect(() => {
     loadDetail();
   }, [loadDetail]);
+
+  useEffect(() => {
+    if (!isCreateNew) return;
+    const draft = readDraft();
+    if (!draft) return;
+    if (typeof draft.itemName === 'string') setItemName(draft.itemName);
+    if (typeof draft.sku === 'string') setSku(draft.sku);
+    if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
+    if (typeof draft.price === 'string') setPrice(draft.price);
+    if (typeof draft.introText === 'string') setIntroText(draft.introText);
+    if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
+    if (typeof draft.unit === 'string') setUnit(draft.unit);
+    if (typeof draft.warrantyMonths === 'string') setWarrantyMonths(draft.warrantyMonths);
+    if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
+    if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
+    if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
+    if (typeof draft.itemCategoryId === 'string') setItemCategoryId(draft.itemCategoryId);
+  }, [isCreateNew, readDraft]);
 
   useEffect(() => {
     if (!isCreateNew) return;
@@ -607,6 +668,82 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     });
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const snapshot = {
+      itemName,
+      sku,
+      priceMode,
+      price,
+      introText,
+      detailHtml,
+      unit,
+      warrantyMonths,
+      isActive,
+      brandId,
+      productLineId,
+      itemCategoryId,
+    };
+    try {
+      window.localStorage.setItem(draftStorageKey, JSON.stringify(snapshot));
+    } catch {
+      // Ignore quota/private mode.
+    }
+  }, [
+    brandId,
+    detailHtml,
+    draftStorageKey,
+    introText,
+    isActive,
+    itemCategoryId,
+    itemName,
+    price,
+    priceMode,
+    productLineId,
+    sku,
+    unit,
+    warrantyMonths,
+  ]);
+
+  const handleClearDraft = useCallback(() => {
+    clearDraft();
+    if (thumbnailPreviewRef.current) {
+      URL.revokeObjectURL(thumbnailPreviewRef.current);
+      thumbnailPreviewRef.current = '';
+    }
+    mediaFilesRef.current.forEach((entry) => {
+      if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+    });
+    mediaFilesRef.current = [];
+    setMediaFiles([]);
+    setThumbnailFile(null);
+    setAutoGenHint('');
+    setErrors({});
+    if (baseItem?.itemId) {
+      void loadDetail();
+      return;
+    }
+    setItemName(baseItem.itemName || '');
+    setSku(baseItem.sku || '');
+    setPriceMode(pickPriceMode(baseItem.showPrice ?? true));
+    setPrice(baseItem.price != null ? String(baseItem.price) : '');
+    setIntroText(initialDescription.introText);
+    setDetailHtml(initialDescription.detailHtml);
+    setUnit(baseItem.unit || '');
+    setWarrantyMonths(baseItem.warrantyDurationMonths != null ? String(baseItem.warrantyDurationMonths) : '');
+    setIsActive(isEdit ? (baseItem.isActive ?? true) : true);
+    setBrandId(baseItem.brandId != null ? String(baseItem.brandId) : '');
+    setProductLineId(baseItem.productLineId != null ? String(baseItem.productLineId) : '');
+    setItemCategoryId(
+      baseItem.workCategoryId != null
+        ? String(baseItem.workCategoryId)
+        : baseItem.itemCategoryId != null
+          ? String(baseItem.itemCategoryId)
+          : `${normalizedItemType}_AUTO`,
+    );
+    setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || '');
+  }, [baseItem, clearDraft, initialDescription.detailHtml, initialDescription.introText, isEdit, loadDetail, normalizedItemType]);
+
   const buildDescriptionHtml = useCallback(() => composeDescriptionHtml(introText, detailHtml), [detailHtml, introText]);
 
   const buildServiceFormData = useCallback(() => {
@@ -640,7 +777,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     const parsedItemCategoryId = toNullablePositiveNumber(itemCategoryId);
     return {
       itemName: String(itemName || '').trim() || undefined,
-      itemType: 'SERVICE',
+      itemType: normalizedItemType,
       sku: String(sku || '').trim(),
       price: resolvedPrice,
       showPrice,
@@ -655,7 +792,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       is_active: 1,
       workCategoryId: parsedItemCategoryId ?? 0,
     };
-  }, [buildDescriptionHtml, isActive, itemCategoryId, itemName, price, priceMode, sku, unit, warrantyMonths]);
+  }, [buildDescriptionHtml, isActive, itemCategoryId, itemName, normalizedItemType, price, priceMode, sku, unit, warrantyMonths]);
 
   const validateBeforeSubmit = useCallback(() => {
     const nextErrors = {};
@@ -750,6 +887,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
         }
         await updateServiceById(serviceId, buildServiceFormData(), token);
         notify('Cap nhat Blog thanh cong!', 'success');
+        clearDraft();
         onSaved({ catalogItemId: catalogItemId ?? baseItem.itemId, serviceServiceId: serviceId });
         return;
       }
@@ -771,13 +909,14 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
         throw new Error('Da tao blog nhung chua nhan duoc serviceId.');
       }
       notify('Tao Blog thanh cong!', 'success');
+      clearDraft();
       onSaved({ catalogItemId, serviceServiceId });
     } catch (err) {
       notify(err?.message || 'Thao tac that bai. Vui long thu lai.', 'error');
     } finally {
       setIsSubmitting(false);
     }
-  }, [baseItem, buildCatalogPayload, buildServiceFormData, isCreateFromCatalog, isCreateNew, isEdit, notify, onSaved, validateBeforeSubmit]);
+  }, [baseItem, buildCatalogPayload, buildServiceFormData, clearDraft, isCreateFromCatalog, isCreateNew, isEdit, notify, onSaved, validateBeforeSubmit]);
 
   return (
     <div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -788,7 +927,9 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
         </div>
         <div className={styles['modal-body']}>
           {/* ── Thông tin dịch vụ ── */}
-          <div className={styles['section-label']}>Thông tin dịch vụ</div>
+          <div className={styles['section-label']}>
+            {normalizedItemType === 'SERVICE' ? 'Thông tin dịch vụ' : 'Thông tin phụ tùng'}
+          </div>
 
           <div className={styles.field}>
             <label htmlFor="item-name">Tiêu đề <span className={styles.required}>*</span></label>
@@ -807,15 +948,15 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
             <label>Loại</label>
             <div className={styles['price-mode-row']}>
               <label className={styles['price-choice']}>
-                <input type="radio" name="item-type" value="SERVICE" checked readOnly />
-                Dịch vụ
+                <input type="radio" name="item-type" value={normalizedItemType} checked readOnly />
+                {itemTypeLabel}
               </label>
             </div>
           </div>
 
           <div className={styles['field-row']}>
             <div className={styles.field}>
-              <label htmlFor="item-sku">Mã dịch vụ <span className={styles.required}>*</span></label>
+              <label htmlFor="item-sku">{itemCodeLabel} <span className={styles.required}>*</span></label>
               <div className={styles['field']} style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                 <input
                   id="item-sku"
@@ -854,7 +995,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
               </div>
             </div>
             <div className={styles.field}>
-              <label htmlFor="item-price">Giá dịch vụ</label>
+              <label htmlFor="item-price">{itemPriceLabel}</label>
               {priceMode === 'fixed' ? (
                 <>
                   <input
@@ -1109,22 +1250,25 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
           </div>
         </div>
 
-        <div className={styles['modal-body']} style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 0 }}>
+        <div className={styles['modal-body']} style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 0 }}>
+          <button
+            type="button"
+            className={styles['cancel-btn']}
+            onClick={handleClearDraft}
+            disabled={isSubmitting || isAutoGenerating}
+          >
+            Xóa nháp
+          </button>
           <button
             type="button"
             className={styles['submit-btn']}
             onClick={handleSubmit}
             disabled={isSubmitting || isAutoGenerating}
           >
-            {isSubmitting ? 'Đang xử lý...' : isEdit ? 'Lưu thay đổi' : 'Tạo dịch vụ'}
+            {isSubmitting ? 'Đang xử lý...' : 'Lưu'}
           </button>
         </div>
       </div>
     </div>
   );
 }
-
-
-
-
-

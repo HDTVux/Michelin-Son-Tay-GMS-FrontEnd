@@ -938,9 +938,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     mode="advisor" 
                                 />
                                 
-                                <AdvisorItemsTable 
-                                    key={`advisor-${ticket?.serviceTicketId}`} 
-                                    serviceTicketId={ticket?.serviceTicketId} 
+                                <AdvisorItemsTable
+                                    key={`advisor-table-${ticketCodeParam}`}
+                                    serviceTicketId={ticket?.serviceTicketId}
                                     ticketStatus={ticketStatus}
                                     refreshToken={refreshTick}
                                     onEstimateStatusChange={handleEstimateStatusChange}

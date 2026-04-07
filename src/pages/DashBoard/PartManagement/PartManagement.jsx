@@ -14,7 +14,34 @@ const toNullablePositiveNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
 };
-const SERVICE_LINK_CACHE_KEY = 'gms_service_link_cache_v2';
+const SERVICE_LINK_CACHE_KEY = 'gms_service_link_cache_v3';
+
+const getServiceServiceId = (item) => {
+  if (!item || typeof item !== 'object') return null;
+  const candidates = [
+    item?.serviceServiceId,
+    item?.service_service_id,
+    item?.service_serviceId,
+    item?.serviceServiceID,
+    item?.serviceId,
+    item?.service_id,
+    item?.data?.serviceId,
+    item?.data?.service_service_id,
+    item?.data?.serviceServiceId,
+    item?.service?.serviceId,
+    item?.service?.service_service_id,
+    item?.service?.serviceServiceId,
+    item?.service?.serviceServiceID,
+    item?.serviceInfo?.serviceId,
+    item?.serviceInfo?.service_service_id,
+    item?.serviceInfo?.serviceServiceId,
+  ];
+  for (const value of candidates) {
+    const parsed = toNullablePositiveNumber(value);
+    if (parsed != null) return parsed;
+  }
+  return null;
+};
 
 const buildHomeServiceMap = (homeRes) => {
   const payload = extractPayload(homeRes);
@@ -29,7 +56,14 @@ const buildHomeServiceMap = (homeRes) => {
       entry?.catalogItemId ?? entry?.catalog_item_id ?? entry?.catalogId ?? entry?.itemId,
     );
     const serviceId = toNullablePositiveNumber(
-      entry?.serviceId ?? entry?.service_id ?? entry?.id,
+      entry?.serviceId
+      ?? entry?.service_id
+      ?? entry?.serviceServiceId
+      ?? entry?.service_service_id
+      ?? entry?.service?.serviceId
+      ?? entry?.service?.service_id
+      ?? entry?.service?.serviceServiceId
+      ?? entry?.service?.service_service_id,
     );
     if (catalogItemId != null && serviceId != null) {
       serviceIdByCatalogId.set(catalogItemId, serviceId);
@@ -76,24 +110,7 @@ const writeServiceLinkCache = (catalogItemId, serviceId) => {
 };
 
 const hasBlog = (item) => {
-  const candidates = [
-    item?.serviceServiceId,
-    item?.service_service_id,
-    item?.service_serviceId,
-    item?.serviceServiceID,
-    item?.serviceId,
-    item?.service_id,
-    item?.data?.serviceId,
-    item?.data?.serviceServiceId,
-    item?.service?.serviceServiceId,
-    item?.service?.service_service_id,
-    item?.service?.serviceServiceID,
-    item?.service?.id,
-  ];
-  return candidates.some((v) => {
-    const n = typeof v === 'number' ? v : Number(v);
-    return Number.isFinite(n) && n > 0;
-  });
+  return getServiceServiceId(item) != null;
 };
 
 const parseIsActive = (item) => {
@@ -177,19 +194,10 @@ export default function PartManagement() {
           const itemId = toNullablePositiveNumber(item.itemId);
           const homeServiceId = itemId != null ? homeServiceIdByCatalogId.get(itemId) ?? null : null;
           const cachedServiceId = itemId != null ? cachedServiceIdByCatalogId.get(itemId) ?? null : null;
-          const itemServiceId = hasBlog(item)
-            ? toNullablePositiveNumber(
-              item?.serviceServiceId
-                ?? item?.service_service_id
-                ?? item?.serviceId
-                ?? item?.service_id
-                ?? item?.data?.serviceId
-                ?? item?.data?.serviceServiceId,
-            )
-            : null;
+          const itemServiceId = getServiceServiceId(item);
           const resolvedServiceId = itemServiceId ?? homeServiceId ?? cachedServiceId;
-          if (itemId != null && resolvedServiceId != null) {
-            writeServiceLinkCache(itemId, resolvedServiceId);
+          if (itemId != null && itemServiceId != null) {
+            writeServiceLinkCache(itemId, itemServiceId);
           }
           return {
             ...item,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import styles from './ServiceManagement.module.css';
 import {
@@ -68,14 +68,13 @@ const generateServiceCode = (title) => {
 const getServiceServiceId = (item) => {
   if (!item || typeof item !== 'object') return null;
   const candidates = [
-    item.id,
     item.service_service_id, item.serviceServiceId, item.service_serviceId, item.serviceServiceID,
     item.serviceId, item.service_id,
-    item?.data?.serviceId, item?.data?.service_service_id, item?.data?.serviceServiceId, item?.data?.id,
+    item?.data?.serviceId, item?.data?.service_service_id, item?.data?.serviceServiceId,
     item?.service?.service_service_id, item?.service?.serviceServiceId,
-    item?.service?.service_id, item?.service?.id,
+    item?.service?.service_id,
     item?.serviceInfo?.service_service_id, item?.serviceInfo?.serviceServiceId,
-    item?.serviceInfo?.service_id, item?.serviceInfo?.id,
+    item?.serviceInfo?.service_id,
   ];
   for (const value of candidates) {
     const parsed = toNullablePositiveNumber(value);
@@ -105,9 +104,9 @@ const splitDescriptionSections = (descriptionHtml) => {
   const source = String(descriptionHtml || '').trim();
   if (!source) return { introText: '', detailHtml: '' };
   const introMatch = source.match(
-    /<h3[^>]*>\s*(?:Giới thiệu|Gioi thieu)\s*<\/h3>([\s\S]*?)(?=<h3[^>]*>\s*(?:Chi tiết dịch vụ|Chi tiet dich vu)\s*<\/h3>|$)/i,
+    /<h3[^>]*>\s*(?:Giá»›i thiá»‡u|Gioi thieu)\s*<\/h3>([\s\S]*?)(?=<h3[^>]*>\s*(?:Chi tiáº¿t dá»‹ch vá»¥|Chi tiet dich vu)\s*<\/h3>|$)/i,
   );
-  const detailMatch = source.match(/<h3[^>]*>\s*(?:Chi tiết dịch vụ|Chi tiet dich vu)\s*<\/h3>([\s\S]*)$/i);
+  const detailMatch = source.match(/<h3[^>]*>\s*(?:Chi tiáº¿t dá»‹ch vá»¥|Chi tiet dich vu)\s*<\/h3>([\s\S]*)$/i);
   if (!introMatch && !detailMatch) return { introText: '', detailHtml: normalizeEditorHtml(source) };
   return {
     introText: introMatch ? stripHtml(introMatch[1]) : '',
@@ -125,12 +124,12 @@ const composeDescriptionHtml = (introText, detailHtml) => {
       .filter(Boolean)
       .map((line) => `<p>${escapeHtml(line)}</p>`)
       .join('');
-    sections.push('<h3>Giới thiệu</h3>');
+    sections.push('<h3>Giá»›i thiá»‡u</h3>');
     sections.push(introParagraphs);
   }
   const normalizedDetail = normalizeEditorHtml(detailHtml);
   if (stripHtml(normalizedDetail)) {
-    sections.push('<h3>Chi tiết dịch vụ</h3>');
+    sections.push('<h3>Chi tiáº¿t dá»‹ch vá»¥</h3>');
     sections.push(normalizedDetail);
   }
   if (!sections.length) return normalizedDetail;
@@ -184,9 +183,9 @@ const analyzeImageStats = (file) =>
           sampleCount += 1;
         }
         const avgBrightness = sampleCount > 0 ? brightnessSum / sampleCount : 128;
-        const orientation = img.naturalWidth >= img.naturalHeight ? 'ngang' : 'dọc';
+        const orientation = img.naturalWidth >= img.naturalHeight ? 'ngang' : 'dá»c';
         const lightLevel =
-          avgBrightness >= 170 ? 'sáng rõ' : avgBrightness >= 120 ? 'ánh sáng trung bình' : 'ánh sáng thấp';
+          avgBrightness >= 170 ? 'sÃ¡ng rÃµ' : avgBrightness >= 120 ? 'Ã¡nh sÃ¡ng trung bÃ¬nh' : 'Ã¡nh sÃ¡ng tháº¥p';
         resolve({ width: img.naturalWidth, height: img.naturalHeight, orientation, lightLevel });
       } catch (err) {
         reject(err);
@@ -196,7 +195,7 @@ const analyzeImageStats = (file) =>
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error('Không thể đọc ảnh đã chọn.'));
+      reject(new Error('KhÃ´ng thá»ƒ Ä‘á»c áº£nh Ä‘Ã£ chá»n.'));
     };
     img.src = objectUrl;
   });
@@ -208,59 +207,59 @@ const pickTemplateByContext = (itemName, sku, fileName) => {
       id: 'wheel-alignment',
       keywords: ['chinh thuoc lai', 'do chum', 'thuoc lai', 'wheel alignment', 'can chinh goc dat banh'],
       intro:
-        'Xe bị lệch lái, vô lăng không thẳng hoặc mòn lốp bất thường? Dịch vụ chỉnh thước lái giúp xe vận hành ổn định và an toàn hơn.',
-      detailQuestion: 'Xe bị lệch lái, vô lăng không thẳng hoặc mòn lốp bất thường?',
+        'Xe bá»‹ lá»‡ch lÃ¡i, vÃ´ lÄƒng khÃ´ng tháº³ng hoáº·c mÃ²n lá»‘p báº¥t thÆ°á»ng? Dá»‹ch vá»¥ chá»‰nh thÆ°á»›c lÃ¡i giÃºp xe váº­n hÃ nh á»•n Ä‘á»‹nh vÃ  an toÃ n hÆ¡n.',
+      detailQuestion: 'Xe bá»‹ lá»‡ch lÃ¡i, vÃ´ lÄƒng khÃ´ng tháº³ng hoáº·c mÃ²n lá»‘p báº¥t thÆ°á»ng?',
       detailAnswer:
-        'Đây là dấu hiệu phổ biến cho thấy hệ thống góc đặt bánh xe đang sai lệch. Cần cân chỉnh lại đúng thông số để xe chạy êm và bám đường tốt hơn.',
+        'ÄÃ¢y lÃ  dáº¥u hiá»‡u phá»• biáº¿n cho tháº¥y há»‡ thá»‘ng gÃ³c Ä‘áº·t bÃ¡nh xe Ä‘ang sai lá»‡ch. Cáº§n cÃ¢n chá»‰nh láº¡i Ä‘Ãºng thÃ´ng sá»‘ Ä‘á»ƒ xe cháº¡y Ãªm vÃ  bÃ¡m Ä‘Æ°á»ng tá»‘t hÆ¡n.',
       checklist: [
-        'Kiểm tra độ chụm và góc đặt bánh xe bằng thiết bị chuyên dụng.',
-        'Cân chỉnh vô lăng về vị trí cân bằng khi xe đi thẳng.',
-        'Đánh giá độ mòn lốp trước/sau để phát hiện lệch góc đặt.',
+        'Kiá»ƒm tra Ä‘á»™ chá»¥m vÃ  gÃ³c Ä‘áº·t bÃ¡nh xe báº±ng thiáº¿t bá»‹ chuyÃªn dá»¥ng.',
+        'CÃ¢n chá»‰nh vÃ´ lÄƒng vá» vá»‹ trÃ­ cÃ¢n báº±ng khi xe Ä‘i tháº³ng.',
+        'ÄÃ¡nh giÃ¡ Ä‘á»™ mÃ²n lá»‘p trÆ°á»›c/sau Ä‘á»ƒ phÃ¡t hiá»‡n lá»‡ch gÃ³c Ä‘áº·t.',
       ],
       process: [
-        'Tiếp nhận xe và kiểm tra nhanh tình trạng vận hành.',
-        'Đo thông số góc đặt bánh xe trên máy cân chỉnh.',
-        'Hiệu chỉnh theo thông số chuẩn của nhà sản xuất.',
-        'Chạy thử và xác nhận xe đi thẳng, vô lăng cân.',
+        'Tiáº¿p nháº­n xe vÃ  kiá»ƒm tra nhanh tÃ¬nh tráº¡ng váº­n hÃ nh.',
+        'Äo thÃ´ng sá»‘ gÃ³c Ä‘áº·t bÃ¡nh xe trÃªn mÃ¡y cÃ¢n chá»‰nh.',
+        'Hiá»‡u chá»‰nh theo thÃ´ng sá»‘ chuáº©n cá»§a nhÃ  sáº£n xuáº¥t.',
+        'Cháº¡y thá»­ vÃ  xÃ¡c nháº­n xe Ä‘i tháº³ng, vÃ´ lÄƒng cÃ¢n.',
       ],
     },
     {
       id: 'general-maintenance',
       keywords: ['bao duong', 'maintenance', 'kiem tra tong quat', 'service'],
       intro:
-        'Bảo dưỡng định kỳ giúp xe vận hành ổn định, tăng tuổi thọ linh kiện và hạn chế sự cố phát sinh trong quá trình sử dụng.',
-      detailQuestion: 'Vì sao nên thực hiện bảo dưỡng định kỳ?',
+        'Báº£o dÆ°á»¡ng Ä‘á»‹nh ká»³ giÃºp xe váº­n hÃ nh á»•n Ä‘á»‹nh, tÄƒng tuá»•i thá» linh kiá»‡n vÃ  háº¡n cháº¿ sá»± cá»‘ phÃ¡t sinh trong quÃ¡ trÃ¬nh sá»­ dá»¥ng.',
+      detailQuestion: 'VÃ¬ sao nÃªn thá»±c hiá»‡n báº£o dÆ°á»¡ng Ä‘á»‹nh ká»³?',
       detailAnswer:
-        'Bảo dưỡng đúng lịch giúp phát hiện sớm hao mòn, giảm rủi ro hỏng hóc lớn và đảm bảo xe luôn trong trạng thái vận hành an toàn.',
+        'Báº£o dÆ°á»¡ng Ä‘Ãºng lá»‹ch giÃºp phÃ¡t hiá»‡n sá»›m hao mÃ²n, giáº£m rá»§i ro há»ng hÃ³c lá»›n vÃ  Ä‘áº£m báº£o xe luÃ´n trong tráº¡ng thÃ¡i váº­n hÃ nh an toÃ n.',
       checklist: [
-        'Kiểm tra nhanh các hạng mục an toàn cơ bản của xe.',
-        'Đánh giá các bộ phận có dấu hiệu hao mòn theo thời gian sử dụng.',
-        'Tư vấn phương án xử lý tối ưu theo tình trạng thực tế.',
+        'Kiá»ƒm tra nhanh cÃ¡c háº¡ng má»¥c an toÃ n cÆ¡ báº£n cá»§a xe.',
+        'ÄÃ¡nh giÃ¡ cÃ¡c bá»™ pháº­n cÃ³ dáº¥u hiá»‡u hao mÃ²n theo thá»i gian sá»­ dá»¥ng.',
+        'TÆ° váº¥n phÆ°Æ¡ng Ã¡n xá»­ lÃ½ tá»‘i Æ°u theo tÃ¬nh tráº¡ng thá»±c táº¿.',
       ],
       process: [
-        'Tiếp nhận thông tin tình trạng xe từ khách hàng.',
-        'Kiểm tra tổng quát theo quy trình kỹ thuật của xưởng.',
-        'Thực hiện hạng mục cần thiết và ghi nhận kết quả.',
-        'Bàn giao xe kèm khuyến nghị theo dõi định kỳ tiếp theo.',
+        'Tiáº¿p nháº­n thÃ´ng tin tÃ¬nh tráº¡ng xe tá»« khÃ¡ch hÃ ng.',
+        'Kiá»ƒm tra tá»•ng quÃ¡t theo quy trÃ¬nh ká»¹ thuáº­t cá»§a xÆ°á»Ÿng.',
+        'Thá»±c hiá»‡n háº¡ng má»¥c cáº§n thiáº¿t vÃ  ghi nháº­n káº¿t quáº£.',
+        'BÃ n giao xe kÃ¨m khuyáº¿n nghá»‹ theo dÃµi Ä‘á»‹nh ká»³ tiáº¿p theo.',
       ],
     },
     {
       id: 'default',
       keywords: [],
-      intro: 'Dịch vụ giúp xe vận hành ổn định hơn, hạn chế hao mòn và nâng cao độ an toàn khi sử dụng hàng ngày.',
-      detailQuestion: 'Khi nào nên kiểm tra hạng mục này?',
+      intro: 'Dá»‹ch vá»¥ giÃºp xe váº­n hÃ nh á»•n Ä‘á»‹nh hÆ¡n, háº¡n cháº¿ hao mÃ²n vÃ  nÃ¢ng cao Ä‘á»™ an toÃ n khi sá»­ dá»¥ng hÃ ng ngÃ y.',
+      detailQuestion: 'Khi nÃ o nÃªn kiá»ƒm tra háº¡ng má»¥c nÃ y?',
       detailAnswer:
-        'Khi xe có dấu hiệu vận hành bất thường hoặc đã đến mốc bảo dưỡng, bạn nên kiểm tra sớm để tránh phát sinh lỗi lớn.',
+        'Khi xe cÃ³ dáº¥u hiá»‡u váº­n hÃ nh báº¥t thÆ°á»ng hoáº·c Ä‘Ã£ Ä‘áº¿n má»‘c báº£o dÆ°á»¡ng, báº¡n nÃªn kiá»ƒm tra sá»›m Ä‘á»ƒ trÃ¡nh phÃ¡t sinh lá»—i lá»›n.',
       checklist: [
-        'Kiểm tra tình trạng thực tế của hệ thống liên quan.',
-        'Đánh giá mức độ hao mòn và nguy cơ ảnh hưởng vận hành.',
-        'Đề xuất phương án xử lý phù hợp và minh bạch chi phí.',
+        'Kiá»ƒm tra tÃ¬nh tráº¡ng thá»±c táº¿ cá»§a há»‡ thá»‘ng liÃªn quan.',
+        'ÄÃ¡nh giÃ¡ má»©c Ä‘á»™ hao mÃ²n vÃ  nguy cÆ¡ áº£nh hÆ°á»Ÿng váº­n hÃ nh.',
+        'Äá» xuáº¥t phÆ°Æ¡ng Ã¡n xá»­ lÃ½ phÃ¹ há»£p vÃ  minh báº¡ch chi phÃ­.',
       ],
       process: [
-        'Tiếp nhận và kiểm tra ban đầu.',
-        'Đo/đánh giá thông số kỹ thuật cần thiết.',
-        'Thực hiện xử lý theo đúng quy trình.',
-        'Kiểm tra lại và bàn giao xe.',
+        'Tiáº¿p nháº­n vÃ  kiá»ƒm tra ban Ä‘áº§u.',
+        'Äo/Ä‘Ã¡nh giÃ¡ thÃ´ng sá»‘ ká»¹ thuáº­t cáº§n thiáº¿t.',
+        'Thá»±c hiá»‡n xá»­ lÃ½ theo Ä‘Ãºng quy trÃ¬nh.',
+        'Kiá»ƒm tra láº¡i vÃ  bÃ n giao xe.',
       ],
     },
   ];
@@ -271,16 +270,16 @@ const pickTemplateByContext = (itemName, sku, fileName) => {
 };
 
 const buildAutoContentFromImage = ({ template, imageStats, itemName }) => {
-  const safeName = String(itemName || '').trim() || 'dịch vụ này';
+  const safeName = String(itemName || '').trim() || 'dá»‹ch vá»¥ nÃ y';
   const imageHint = imageStats
-    ? `Dựa trên ảnh đại diện (${imageStats.width}x${imageStats.height}, khung ${imageStats.orientation}, ${imageStats.lightLevel}), kỹ thuật viên đang thao tác trực tiếp theo quy trình tại xưởng.`
-    : 'Dựa trên ảnh đại diện đã chọn, kỹ thuật viên đang thao tác trực tiếp theo quy trình tại xưởng.';
+    ? `Dá»±a trÃªn áº£nh Ä‘áº¡i diá»‡n (${imageStats.width}x${imageStats.height}, khung ${imageStats.orientation}, ${imageStats.lightLevel}), ká»¹ thuáº­t viÃªn Ä‘ang thao tÃ¡c trá»±c tiáº¿p theo quy trÃ¬nh táº¡i xÆ°á»Ÿng.`
+    : 'Dá»±a trÃªn áº£nh Ä‘áº¡i diá»‡n Ä‘Ã£ chá»n, ká»¹ thuáº­t viÃªn Ä‘ang thao tÃ¡c trá»±c tiáº¿p theo quy trÃ¬nh táº¡i xÆ°á»Ÿng.';
   const introText = `${template.intro}\n${imageHint}`;
   const checklistHtml = template.checklist.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
   const processHtml = template.process.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
   const detailHtml = [
     `<p><strong>${escapeHtml(template.detailQuestion)}</strong> ${escapeHtml(template.detailAnswer)}</p>`,
-    `<p>${escapeHtml(`Đối với ${safeName}, xưởng sẽ kiểm tra và xử lý theo đúng tiêu chuẩn kỹ thuật.`)}</p>`,
+    `<p>${escapeHtml(`Äá»‘i vá»›i ${safeName}, xÆ°á»Ÿng sáº½ kiá»ƒm tra vÃ  xá»­ lÃ½ theo Ä‘Ãºng tiÃªu chuáº©n ká»¹ thuáº­t.`)}</p>`,
     `<ul>${checklistHtml}</ul>`,
     `<ol>${processHtml}</ol>`,
     `<p><em>${escapeHtml(imageHint)}</em></p>`,
@@ -364,11 +363,32 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
   const thumbnailPreviewRef = useRef('');
   const mediaFilesRef = useRef([]);
 
-  const modalTitle = useMemo(() => {
-    if (isEdit) return 'Sửa dịch vụ';
-    if (isCreateFromCatalog) return 'Tạo dịch vụ từ Catalog';
-    return 'Tạo dịch vụ mới';
-  }, [isCreateFromCatalog, isEdit]);
+  const modalTitle = 'Táº¡o bÃ i viáº¿t';
+  const draftStorageKey = useMemo(() => {
+    const itemId = baseItem?.itemId != null ? String(baseItem.itemId) : 'new';
+    return `gms_service_form_draft_v1:${mode}:${itemId}`;
+  }, [baseItem?.itemId, mode]);
+
+  const readDraft = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = window.localStorage.getItem(draftStorageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, [draftStorageKey]);
+
+  const clearDraft = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.removeItem(draftStorageKey);
+    } catch {
+      // Ignore.
+    }
+  }, [draftStorageKey]);
 
   // Sync rich editor when detailHtml changes
   useEffect(() => {
@@ -454,11 +474,27 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
         setThumbnailPreview(detail.thumbnailUrl || detail.imageUrl || detail.mediaThumbnail);
       }
       setExistingMedia(normalizeExistingMedia(detail?.media ?? detail?.mediaList));
+
+      const draft = readDraft();
+      if (draft) {
+        if (typeof draft.itemName === 'string') setItemName(draft.itemName);
+        if (typeof draft.sku === 'string') setSku(draft.sku);
+        if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
+        if (typeof draft.price === 'string') setPrice(draft.price);
+        if (typeof draft.introText === 'string') setIntroText(draft.introText);
+        if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
+        if (typeof draft.unit === 'string') setUnit(draft.unit);
+        if (typeof draft.warrantyMonths === 'string') setWarrantyMonths(draft.warrantyMonths);
+        if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
+        if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
+        if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
+        if (typeof draft.itemCategoryId === 'string') setItemCategoryId(draft.itemCategoryId);
+      }
     } catch {
       // Keep local values.
       setExistingMedia([]);
     }
-  }, [baseItem, isEdit]);
+  }, [baseItem, isEdit, readDraft]);
 
   const loadWorkCategoryOptions = useCallback(async () => {
     const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -481,6 +517,24 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
   useEffect(() => {
     loadDetail();
   }, [loadDetail]);
+
+  useEffect(() => {
+    if (!isCreateNew) return;
+    const draft = readDraft();
+    if (!draft) return;
+    if (typeof draft.itemName === 'string') setItemName(draft.itemName);
+    if (typeof draft.sku === 'string') setSku(draft.sku);
+    if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
+    if (typeof draft.price === 'string') setPrice(draft.price);
+    if (typeof draft.introText === 'string') setIntroText(draft.introText);
+    if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
+    if (typeof draft.unit === 'string') setUnit(draft.unit);
+    if (typeof draft.warrantyMonths === 'string') setWarrantyMonths(draft.warrantyMonths);
+    if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
+    if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
+    if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
+    if (typeof draft.itemCategoryId === 'string') setItemCategoryId(draft.itemCategoryId);
+  }, [isCreateNew, readDraft]);
 
   useEffect(() => {
     if (!isCreateNew) return;
@@ -535,7 +589,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
   const autoGenerateContentFromImage = useCallback(
     async (file, { force = false } = {}) => {
       if (!file) {
-        notify('Vui lòng chọn ảnh đại diện để tự động tạo nội dung từ ảnh.', 'info');
+        notify('Vui lÃ²ng chá»n áº£nh Ä‘áº¡i diá»‡n Ä‘á»ƒ tá»± Ä‘á»™ng táº¡o ná»™i dung tá»« áº£nh.', 'info');
         return;
       }
       try {
@@ -548,16 +602,16 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
         if (force || !hasIntro) setIntroText(generated.introText);
         if (force || !hasDetail) setDetailHtml(generated.detailHtml);
         if (!force && hasIntro && hasDetail) {
-          setAutoGenHint('Đã có nội dung sẵn. Nhấn "Tạo lại từ ảnh" nếu bạn muốn ghi đè.');
-          notify('Đã phân tích ảnh. Nội dung hiện tại được giữ nguyên.', 'info');
+          setAutoGenHint('ÄÃ£ cÃ³ ná»™i dung sáºµn. Nháº¥n "Táº¡o láº¡i tá»« áº£nh" náº¿u báº¡n muá»‘n ghi Ä‘Ã¨.');
+          notify('ÄÃ£ phÃ¢n tÃ­ch áº£nh. Ná»™i dung hiá»‡n táº¡i Ä‘Æ°á»£c giá»¯ nguyÃªn.', 'info');
           return;
         }
         setAutoGenHint(
-          `Đã tạo nội dung theo ảnh (${stats?.width || '-'}x${stats?.height || '-'}, khung ${stats?.orientation || '-'}).`,
+          `ÄÃ£ táº¡o ná»™i dung theo áº£nh (${stats?.width || '-'}x${stats?.height || '-'}, khung ${stats?.orientation || '-'}).`,
         );
-        notify(force ? 'Đã tạo lại nội dung từ ảnh.' : 'Đã tự động tạo nội dung từ ảnh.', 'success');
+        notify(force ? 'ÄÃ£ táº¡o láº¡i ná»™i dung tá»« áº£nh.' : 'ÄÃ£ tá»± Ä‘á»™ng táº¡o ná»™i dung tá»« áº£nh.', 'success');
       } catch (err) {
-        notify(err?.message || 'Không thể tự động tạo nội dung từ ảnh.', 'error');
+        notify(err?.message || 'KhÃ´ng thá»ƒ tá»± Ä‘á»™ng táº¡o ná»™i dung tá»« áº£nh.', 'error');
       } finally {
         setIsAutoGenerating(false);
       }
@@ -582,7 +636,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       thumbnailPreviewRef.current = objectUrl;
       setThumbnailFile(file);
       setThumbnailPreview(objectUrl);
-      setAutoGenHint('Đã nhận ảnh. Bạn có thể bấm "Tạo lại từ ảnh" để cập nhật nội dung.');
+      setAutoGenHint('ÄÃ£ nháº­n áº£nh. Báº¡n cÃ³ thá»ƒ báº¥m "Táº¡o láº¡i tá»« áº£nh" Ä‘á»ƒ cáº­p nháº­t ná»™i dung.');
       void autoGenerateContentFromImage(file, { force: false });
     },
     [autoGenerateContentFromImage, baseItem.imageUrl, baseItem.thumbnailUrl],
@@ -602,6 +656,82 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       return prev.filter((_, i) => i !== index);
     });
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const snapshot = {
+      itemName,
+      sku,
+      priceMode,
+      price,
+      introText,
+      detailHtml,
+      unit,
+      warrantyMonths,
+      isActive,
+      brandId,
+      productLineId,
+      itemCategoryId,
+    };
+    try {
+      window.localStorage.setItem(draftStorageKey, JSON.stringify(snapshot));
+    } catch {
+      // Ignore quota/private mode.
+    }
+  }, [
+    brandId,
+    detailHtml,
+    draftStorageKey,
+    introText,
+    isActive,
+    itemCategoryId,
+    itemName,
+    price,
+    priceMode,
+    productLineId,
+    sku,
+    unit,
+    warrantyMonths,
+  ]);
+
+  const handleClearDraft = useCallback(() => {
+    clearDraft();
+    if (thumbnailPreviewRef.current) {
+      URL.revokeObjectURL(thumbnailPreviewRef.current);
+      thumbnailPreviewRef.current = '';
+    }
+    mediaFilesRef.current.forEach((entry) => {
+      if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+    });
+    mediaFilesRef.current = [];
+    setMediaFiles([]);
+    setThumbnailFile(null);
+    setAutoGenHint('');
+    setErrors({});
+    if (baseItem?.itemId) {
+      void loadDetail();
+      return;
+    }
+    setItemName(baseItem.itemName || '');
+    setSku(baseItem.sku || '');
+    setPriceMode(baseItem.showPrice !== false ? 'fixed' : 'contact');
+    setPrice(baseItem.price != null ? String(baseItem.price) : '');
+    setIntroText(initialDescription.introText);
+    setDetailHtml(initialDescription.detailHtml);
+    setUnit(baseItem.unit || '');
+    setWarrantyMonths(baseItem.warrantyDurationMonths != null ? String(baseItem.warrantyDurationMonths) : '');
+    setIsActive(isEdit ? baseItem.isActive !== false : true);
+    setBrandId(baseItem.brandId != null ? String(baseItem.brandId) : '');
+    setProductLineId(baseItem.productLineId != null ? String(baseItem.productLineId) : '');
+    setItemCategoryId(
+      baseItem.workCategoryId != null
+        ? String(baseItem.workCategoryId)
+        : baseItem.itemCategoryId != null
+          ? String(baseItem.itemCategoryId)
+          : '',
+    );
+    setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || '');
+  }, [baseItem, clearDraft, initialDescription.detailHtml, initialDescription.introText, isEdit, loadDetail]);
 
   const buildDescriptionHtml = useCallback(
     () => composeDescriptionHtml(introText, detailHtml),
@@ -673,12 +803,12 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
   const validateBeforeSubmit = useCallback(() => {
     const nextErrors = {};
-    if (!String(itemName || '').trim()) nextErrors.itemName = 'Vui lòng nhập tiêu đề dịch vụ.';
-    if (!String(sku || '').trim()) nextErrors.sku = 'Vui lòng nhập mã dịch vụ.';
-    if (!String(unit || '').trim()) nextErrors.unit = 'Vui lòng nhập đơn vị.';
+    if (!String(itemName || '').trim()) nextErrors.itemName = 'Vui lÃ²ng nháº­p tiÃªu Ä‘á» dá»‹ch vá»¥.';
+    if (!String(sku || '').trim()) nextErrors.sku = 'Vui lÃ²ng nháº­p mÃ£ dá»‹ch vá»¥.';
+    if (!String(unit || '').trim()) nextErrors.unit = 'Vui lÃ²ng nháº­p Ä‘Æ¡n vá»‹.';
     if (priceMode === 'fixed') {
       const priceNum = Number(String(price || '').trim());
-      if (!Number.isFinite(priceNum) || priceNum < 0) nextErrors.price = 'Vui lòng nhập giá hợp lệ.';
+      if (!Number.isFinite(priceNum) || priceNum < 0) nextErrors.price = 'Vui lÃ²ng nháº­p giÃ¡ há»£p lá»‡.';
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -686,11 +816,11 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
   const handleCreateWorkCategory = useCallback(async () => {
     const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-    if (!token) { notify('Vui lòng đăng nhập.', 'error'); return; }
+    if (!token) { notify('Vui lÃ²ng Ä‘Äƒng nháº­p.', 'error'); return; }
     const categoryCode = String(newWorkCategoryCode || '').trim();
     const categoryName = String(newWorkCategoryName || '').trim();
-    if (!categoryCode) { notify('Vui lòng nhập mã category.', 'error'); return; }
-    if (!categoryName) { notify('Vui lòng nhập tên category.', 'error'); return; }
+    if (!categoryCode) { notify('Vui lÃ²ng nháº­p mÃ£ category.', 'error'); return; }
+    if (!categoryName) { notify('Vui lÃ²ng nháº­p tÃªn category.', 'error'); return; }
     try {
       setIsCreatingWorkCategory(true);
       const res = await createWarehouseItemCategory(
@@ -708,7 +838,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       const createdId = toNullablePositiveNumber(
         created?.workCategoryId ?? created?.itemCategoryId ?? created?.id,
       );
-      if (createdId == null) throw new Error('Không nhận được ID.');
+      if (createdId == null) throw new Error('KhÃ´ng nháº­n Ä‘Æ°á»£c ID.');
       const nextEntry = {
         workCategoryId: createdId,
         categoryCode: String(created?.categoryCode ?? categoryCode).trim(),
@@ -724,9 +854,9 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       setCategoryInputMode('select');
       setNewWorkCategoryCode('');
       setNewWorkCategoryName('');
-      notify(`Đã tạo category #${createdId}.`, 'success');
+      notify(`ÄÃ£ táº¡o category #${createdId}.`, 'success');
     } catch (err) {
-      notify(err?.message || 'Không thể tạo category.', 'error');
+      notify(err?.message || 'KhÃ´ng thá»ƒ táº¡o category.', 'error');
     } finally {
       setIsCreatingWorkCategory(false);
     }
@@ -752,6 +882,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
         }
         await updateServiceById(serviceId, buildServiceFormData(), token);
         notify('Cap nhat dich vu thanh cong!', 'success');
+        clearDraft();
         onSaved({ catalogItemId: catalogItemId ?? baseItem.itemId, serviceServiceId: serviceId });
         return;
       }
@@ -774,6 +905,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
         throw new Error('Da tao dich vu nhung chua nhan duoc serviceId.');
       }
       notify('Tao dich vu thanh cong!', 'success');
+      clearDraft();
       onSaved({ catalogItemId, serviceServiceId });
     } catch (err) {
       notify(err?.message || 'Thao tac that bai. Vui long thu lai.', 'error');
@@ -790,26 +922,27 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     notify,
     onSaved,
     validateBeforeSubmit,
+    clearDraft,
   ]);
   return (
     <div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className={styles['modal-box']}>
         <div className={styles['modal-header']}>
           <h3>{modalTitle}</h3>
-          <button type="button" className={styles['modal-close']} onClick={onClose} aria-label="Đóng">x</button>
+          <button type="button" className={styles['modal-close']} onClick={onClose} aria-label="ÄÃ³ng">x</button>
         </div>
         <div className={styles['modal-body']}>
-          {/* ── Thông tin dịch vụ ── */}
-          <div className={styles['section-label']}>Thông tin dịch vụ</div>
+          {/* â”€â”€ ThÃ´ng tin dá»‹ch vá»¥ â”€â”€ */}
+          <div className={styles['section-label']}>ThÃ´ng tin dá»‹ch vá»¥</div>
 
           <div className={styles['field']}>
-            <label htmlFor="svc-item-name">Tiêu đề <span className={styles['required']}>*</span></label>
+            <label htmlFor="svc-item-name">TiÃªu Ä‘á» <span className={styles['required']}>*</span></label>
             <input
               id="svc-item-name"
               type="text"
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
-              placeholder="VD: Chỉnh thước lái (độ chụm)"
+              placeholder="VD: Chá»‰nh thÆ°á»›c lÃ¡i (Ä‘á»™ chá»¥m)"
               disabled={isSubmitting || isCreateFromCatalog}
             />
             {errors.itemName && <span className={styles['field-error']}>{errors.itemName}</span>}
@@ -817,7 +950,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
           <div className={styles['field-row']}>
             <div className={styles['field']}>
-              <label htmlFor="svc-item-sku">Mã dịch vụ <span className={styles['required']}>*</span></label>
+              <label htmlFor="svc-item-sku">MÃ£ dá»‹ch vá»¥ <span className={styles['required']}>*</span></label>
               <div className={styles['field']} style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                 <input
                   id="svc-item-sku"
@@ -834,7 +967,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                   onClick={handleRandomServiceCode}
                   disabled={isSubmitting || isCreateFromCatalog}
                 >
-                  Random mã
+                  Random mÃ£
                 </button>
               </div>
               {errors.sku && <span className={styles['field-error']}>{errors.sku}</span>}
@@ -843,7 +976,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
           <div className={styles['field-row']}>
             <div className={styles['field']}>
-              <label>Loại giá</label>
+              <label>Loáº¡i giÃ¡</label>
               <div className={styles['price-mode-row']}>
                 <label className={styles['price-choice']}>
                   <input
@@ -854,7 +987,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                     onChange={() => setPriceMode('contact')}
                     disabled={isSubmitting}
                   />
-                  Liên hệ
+                  LiÃªn há»‡
                 </label>
                 <label className={styles['price-choice']}>
                   <input
@@ -865,12 +998,12 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                     onChange={() => setPriceMode('fixed')}
                     disabled={isSubmitting}
                   />
-                  Nhập giá
+                  Nháº­p giÃ¡
                 </label>
               </div>
             </div>
             <div className={styles['field']}>
-              <label htmlFor="svc-item-price">Giá dịch vụ</label>
+              <label htmlFor="svc-item-price">GiÃ¡ dá»‹ch vá»¥</label>
               {priceMode === 'fixed' ? (
                 <>
                   <input
@@ -885,19 +1018,19 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                   {errors.price && <span className={styles['field-error']}>{errors.price}</span>}
                 </>
               ) : (
-                <div className={styles['readonly-value']}>Liên hệ</div>
+                <div className={styles['readonly-value']}>LiÃªn há»‡</div>
               )}
             </div>
           </div>
 
           <div className={styles['field']}>
-            <label htmlFor="svc-item-unit">Đơn vị <span className={styles['required']}>*</span></label>
+            <label htmlFor="svc-item-unit">ÄÆ¡n vá»‹ <span className={styles['required']}>*</span></label>
             <input
               id="svc-item-unit"
               type="text"
               value={unit}
               onChange={(e) => { setUnit(e.target.value); setErrors((p) => ({ ...p, unit: undefined })); }}
-              placeholder="VD: Lần"
+              placeholder="VD: Láº§n"
               disabled={isSubmitting}
             />
             {errors.unit && <span className={styles['field-error']}>{errors.unit}</span>}
@@ -905,7 +1038,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
           <div className={styles['field-row']}>
             <div className={styles['field']}>
-              <label htmlFor="svc-item-warranty">Bảo hành (tháng)</label>
+              <label htmlFor="svc-item-warranty">Báº£o hÃ nh (thÃ¡ng)</label>
               <input
                 id="svc-item-warranty"
                 type="number"
@@ -917,21 +1050,21 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
               />
             </div>
             <div className={styles['field']}>
-              <label htmlFor="svc-item-status">Trạng thái</label>
+              <label htmlFor="svc-item-status">Tráº¡ng thÃ¡i</label>
               <select
                 id="svc-item-status"
                 value={String(isActive)}
                 onChange={(e) => setIsActive(e.target.value === 'true')}
                 disabled={isSubmitting}
               >
-                <option value="true">Hoạt động</option>
-                <option value="false">Không hoạt động</option>
+                <option value="true">Hoáº¡t Ä‘á»™ng</option>
+                <option value="false">KhÃ´ng hoáº¡t Ä‘á»™ng</option>
               </select>
             </div>
           </div>
 
           <div className={styles['field']}>
-            <label htmlFor="svc-item-thumb">Ảnh đại diện</label>
+            <label htmlFor="svc-item-thumb">áº¢nh Ä‘áº¡i diá»‡n</label>
             <input
               id="svc-item-thumb"
               type="file"
@@ -958,27 +1091,27 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
               onClick={() => autoGenerateContentFromImage(thumbnailFile, { force: true })}
               disabled={isSubmitting || isAutoGenerating || !thumbnailFile}
             >
-              {isAutoGenerating ? 'Đang phân tích ảnh...' : 'Tạo lại Giới thiệu & Chi tiết từ ảnh'}
+              {isAutoGenerating ? 'Äang phÃ¢n tÃ­ch áº£nh...' : 'Táº¡o láº¡i Giá»›i thiá»‡u & Chi tiáº¿t tá»« áº£nh'}
             </button>
             <span className={styles['auto-gen-hint']}>
-              {autoGenHint || 'Nội dung sẽ được tự động gợi ý sau khi chọn ảnh đại diện.'}
+              {autoGenHint || 'Ná»™i dung sáº½ Ä‘Æ°á»£c tá»± Ä‘á»™ng gá»£i Ã½ sau khi chá»n áº£nh Ä‘áº¡i diá»‡n.'}
             </span>
           </div>
 
           <div className={styles['field']}>
-            <label htmlFor="svc-intro-text">Giới thiệu</label>
+            <label htmlFor="svc-intro-text">Giá»›i thiá»‡u</label>
             <textarea
               id="svc-intro-text"
               rows={4}
               value={introText}
               onChange={(e) => setIntroText(e.target.value)}
-              placeholder="Mô tả ngắn về lợi ích dịch vụ..."
+              placeholder="MÃ´ táº£ ngáº¯n vá» lá»£i Ã­ch dá»‹ch vá»¥..."
               disabled={isSubmitting}
             />
           </div>
 
           <div className={styles['field']}>
-            <label>Chi tiết dịch vụ</label>
+            <label>Chi tiáº¿t dá»‹ch vá»¥</label>
             <div className={styles['editor-toolbar']}>
               <button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('bold')}>
                 <strong>B</strong>
@@ -1005,12 +1138,12 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
               onBlur={syncDetailFromEditor}
             />
             <div className={styles['editor-hint']}>
-              Output HTML dùng các thẻ {'<strong>'}, {'<em>'}, span uppercase, {'<ol>'}, {'<ul>'}.
+              Output HTML dÃ¹ng cÃ¡c tháº» {'<strong>'}, {'<em>'}, span uppercase, {'<ol>'}, {'<ul>'}.
             </div>
           </div>
 
           <div className={styles['field']}>
-            <label htmlFor="svc-item-media">Thư viện hình ảnh / video (tùy chọn)</label>
+            <label htmlFor="svc-item-media">ThÆ° viá»‡n hÃ¬nh áº£nh / video (tÃ¹y chá»n)</label>
             <input
               id="svc-item-media"
               type="file"
@@ -1050,7 +1183,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                       type="button"
                       className={styles['remove-media-btn']}
                       onClick={() => removeMedia(index)}
-                      title="Xóa"
+                      title="XÃ³a"
                     >
                       x
                     </button>
@@ -1060,8 +1193,8 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
             )}
           </div>
 
-          {/* ── Thông tin hệ thống ── */}
-          <div className={styles['section-label']}>Thông tin hệ thống</div>
+          {/* â”€â”€ ThÃ´ng tin há»‡ thá»‘ng â”€â”€ */}
+          <div className={styles['section-label']}>ThÃ´ng tin há»‡ thá»‘ng</div>
 
           {isCreateNew && (
             <>
@@ -1095,10 +1228,10 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
               <div className={styles['field']}>
                 <label>Work Category</label>
                 <div className={styles['field']} style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                  <button type="button" className={styles['auto-gen-button']} onClick={() => setCategoryInputMode('select')} disabled={isSubmitting} style={{ opacity: categoryInputMode === 'select' ? 1 : 0.7 }}>Chọn sẵn</button>
-                  <button type="button" className={styles['auto-gen-button']} onClick={() => setCategoryInputMode('manual')} disabled={isSubmitting} style={{ opacity: categoryInputMode === 'manual' ? 1 : 0.7 }}>Nhập ID</button>
+                  <button type="button" className={styles['auto-gen-button']} onClick={() => setCategoryInputMode('select')} disabled={isSubmitting} style={{ opacity: categoryInputMode === 'select' ? 1 : 0.7 }}>Chá»n sáºµn</button>
+                  <button type="button" className={styles['auto-gen-button']} onClick={() => setCategoryInputMode('manual')} disabled={isSubmitting} style={{ opacity: categoryInputMode === 'manual' ? 1 : 0.7 }}>Nháº­p ID</button>
                   <button type="button" className={styles['auto-gen-button']} onClick={loadWorkCategoryOptions} disabled={isSubmitting || isLoadingWorkCategories}>
-                    {isLoadingWorkCategories ? 'Đang tải...' : 'Tải danh sách'}
+                    {isLoadingWorkCategories ? 'Äang táº£i...' : 'Táº£i danh sÃ¡ch'}
                   </button>
                 </div>
                 {categoryInputMode === 'select' ? (
@@ -1107,7 +1240,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                     onChange={(e) => setItemCategoryId(e.target.value)}
                     disabled={isSubmitting || isLoadingWorkCategories}
                   >
-                    <option value="">Chọn workCategoryId</option>
+                    <option value="">Chá»n workCategoryId</option>
                     {workCategories.map((entry) => (
                       <option key={entry.workCategoryId} value={String(entry.workCategoryId)}>
                         #{entry.workCategoryId} - {entry.categoryName || entry.categoryCode || 'Category'}
@@ -1120,7 +1253,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                     min="0"
                     value={itemCategoryId}
                     onChange={(e) => setItemCategoryId(e.target.value)}
-                    placeholder="Nhập workCategoryId"
+                    placeholder="Nháº­p workCategoryId"
                     disabled={isSubmitting}
                   />
                 )}
@@ -1128,7 +1261,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
               <div className={styles['field-row']}>
                 <div className={styles['field']}>
-                  <label htmlFor="svc-new-cat-code">Tạo category mới - Mã</label>
+                  <label htmlFor="svc-new-cat-code">Táº¡o category má»›i - MÃ£</label>
                   <input
                     id="svc-new-cat-code"
                     type="text"
@@ -1139,14 +1272,14 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                   />
                 </div>
                 <div className={styles['field']}>
-                  <label htmlFor="svc-new-cat-name">Tên category</label>
+                  <label htmlFor="svc-new-cat-name">TÃªn category</label>
                   <div className={styles['field']} style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                     <input
                       id="svc-new-cat-name"
                       type="text"
                       value={newWorkCategoryName}
                       onChange={(e) => setNewWorkCategoryName(e.target.value)}
-                      placeholder="VD: Cân bằng động"
+                      placeholder="VD: CÃ¢n báº±ng Ä‘á»™ng"
                       disabled={isSubmitting || isCreatingWorkCategory}
                       style={{ flex: 1 }}
                     />
@@ -1156,7 +1289,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                       onClick={handleCreateWorkCategory}
                       disabled={isSubmitting || isCreatingWorkCategory}
                     >
-                      {isCreatingWorkCategory ? 'Đang tạo...' : 'Tạo category'}
+                      {isCreatingWorkCategory ? 'Äang táº¡o...' : 'Táº¡o category'}
                     </button>
                   </div>
                 </div>
@@ -1165,9 +1298,17 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
           )}
         </div>
 
-        <div className={styles['modal-body']} style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 0 }}>
+                <div className={styles['modal-body']} style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 0 }}>
           <button type="button" className={styles['cancel-btn']} onClick={onClose} disabled={isSubmitting}>
-            Hủy
+            Huy
+          </button>
+          <button
+            type="button"
+            className={styles['cancel-btn']}
+            onClick={handleClearDraft}
+            disabled={isSubmitting || isAutoGenerating}
+          >
+            Xóa nháp
           </button>
           <button
             type="button"
@@ -1175,7 +1316,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
             onClick={handleSubmit}
             disabled={isSubmitting || isAutoGenerating}
           >
-            {isSubmitting ? 'Đang xử lý...' : isEdit ? 'Lưu thay đổi' : 'Tạo dịch vụ'}
+            {isSubmitting ? 'Đang xử lý...' : 'Lưu'}
           </button>
         </div>
       </div>
@@ -1184,5 +1325,6 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 }
 
 export default ServiceFormModal;
+
 
 

@@ -338,9 +338,6 @@ export default function ShiftManagement() {
     [attendanceMinDate, attendanceMaxDate],
   );
 
-<<<<<<< Updated upstream
-  const loadData = useCallback(async ({ background = false } = {}) => {
-=======
   // Chấm công state
   const todayInit = new Date().toISOString().slice(0, 10);
   const [viewFromDate, setViewFromDate] = useState(todayInit);
@@ -351,8 +348,7 @@ export default function ShiftManagement() {
   const [checkoutTarget, setCheckoutTarget] = useState(null);
   const [checkoutForm, setCheckoutForm] = useState({ checkOutTime: '', notes: '' });
 
-  const loadData = useCallback(async () => {
->>>>>>> Stashed changes
+  const loadData = useCallback(async ({ background = false } = {}) => {
     const token = getAuthToken();
     if (!token) {
       setError('Vui lòng đăng nhập để quản lý ca làm việc.');
@@ -587,10 +583,20 @@ export default function ShiftManagement() {
     }
   };
 
-<<<<<<< Updated upstream
   const handleReactivate = async (shiftId) => {
     if (!window.confirm('Bạn chắc chắn muốn khôi phục ca làm việc này?')) return;
-=======
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      await reactivateWorkShift(shiftId, token);
+      toast.success('Đã khôi phục ca làm việc.');
+      await loadData({ background: true });
+    } catch (err) {
+      toast.error(err?.message || 'Khôi phục thất bại.');
+    }
+  };
+
   const handleViewShift = async (shift) => {
     const today = new Date().toISOString().slice(0, 10);
     setViewShiftModal(shift);
@@ -602,17 +608,26 @@ export default function ShiftManagement() {
     setCheckoutTarget(null);
     setCheckInForm({ staffId: '', shiftId: shift?.shiftId || '', attendanceDate: today, checkInTime: '', notes: '' });
 
->>>>>>> Stashed changes
     const token = getAuthToken();
     if (!token) return;
 
     try {
-<<<<<<< Updated upstream
-      await reactivateWorkShift(shiftId, token);
-      toast.success('Đã khôi phục ca làm việc.');
-      await loadData({ background: true });
-    } catch (err) {
-      toast.error(err?.message || 'Khôi phục thất bại.');
+      const [attendanceRes, summaryRes] = await Promise.all([
+        fetchManagerAttendance({ from: today, to: today, shiftId: shift?.shiftId }, token),
+        fetchManagerTodaySummary({ date: today, shiftId: shift?.shiftId }, token),
+      ]);
+
+      const allRecords = Array.isArray(attendanceRes?.data) ? attendanceRes.data : [];
+      const matchedRecords = allRecords.filter(
+        (record) => Number(record?.shiftId) === Number(shift?.shiftId),
+      );
+      setShiftAttendances(matchedRecords);
+      setViewSummary(summaryRes?.data || null);
+    } catch {
+      setShiftAttendances([]);
+      setViewSummary(null);
+    } finally {
+      setLoadingShiftAttendances(false);
     }
   };
 
@@ -699,26 +714,15 @@ export default function ShiftManagement() {
         const anchorTime = record?.checkInTime || record?.checkOutTime;
         return isTimeInsideShift(anchorTime, shift?.startTime, shift?.endTime);
       });
-=======
-      const [attendanceRes, summaryRes] = await Promise.all([
-        fetchManagerAttendance({ from: today, to: today, shiftId: shift?.shiftId }, token),
-        fetchManagerTodaySummary({ date: today, shiftId: shift?.shiftId }, token),
-      ]);
-
-      const allRecords = Array.isArray(attendanceRes?.data) ? attendanceRes.data : [];
-      const matchedRecords = allRecords.filter(
-        (record) => Number(record?.shiftId) === Number(shift?.shiftId),
-      );
->>>>>>> Stashed changes
       setShiftAttendances(matchedRecords);
-      setViewSummary(summaryRes?.data || null);
+      setViewSummary(null);
     } catch {
       setShiftAttendances([]);
       setViewSummary(null);
     } finally {
       setLoadingShiftAttendances(false);
     }
-  };
+  }, [shifts]);
 
   const loadViewAttendance = async () => {
     if (!viewShiftModal) return;
@@ -733,16 +737,16 @@ export default function ShiftManagement() {
         staffId: viewStaffIdFilter ? Number(viewStaffIdFilter) : undefined,
       }, token);
       const list = Array.isArray(allRecords?.data) ? allRecords.data : [];
-      const filtered = list.filter(
+      const filtered2 = list.filter(
         (r) => Number(r?.shiftId) === Number(viewShiftModal?.shiftId),
       );
-      setShiftAttendances(filtered);
+      setShiftAttendances(filtered2);
     } catch {
       setShiftAttendances([]);
     } finally {
       setLoadingShiftAttendances(false);
     }
-  }, [shifts]);
+  };
 
   useEffect(() => {
     if (loading || hasRestoredRuntimeRef.current) return;
@@ -805,27 +809,6 @@ export default function ShiftManagement() {
       }
     }
   }, [loading, shifts, loadShiftAttendances, loadModalEmployees]);
-
-  const handleViewShift = async (shift) => {
-    const today = getTodayLocalISO();
-    const pickedDate = toDateKey(createdDateFilter) || today;
-    const defaultCheckInTime = String(shift?.startTime || '').slice(0, 5);
-    setViewShiftModal(shift);
-    setAttendanceSearch('');
-    setViewAttendanceDate(pickedDate);
-    setAttendanceForm({
-      staffId: '',
-      attendanceDate: pickedDate,
-      checkInTime: defaultCheckInTime,
-      notes: '',
-    });
-    setShiftAttendances([]);
-
-    await Promise.all([
-      loadShiftAttendances(shift, pickedDate),
-      loadModalEmployees(),
-    ]);
-  };
 
   const handleModalDateChange = async (nextDate) => {
     const date = String(nextDate || '').trim();
@@ -959,39 +942,6 @@ export default function ShiftManagement() {
     }
   };
 
-<<<<<<< Updated upstream
-  const getStatusBadgeClass = (status) => {
-    const key = normalizeStatusKey(status);
-    switch (key) {
-      case 'PRESENT':
-        return styles.statusPresent;
-      case 'LATE':
-        return styles.statusLate;
-      case 'ABSENT':
-        return styles.statusAbsent;
-      case 'OFF':
-        return styles.statusOff;
-      default:
-        return styles.statusNotYet;
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    const key = normalizeStatusKey(status);
-    switch (key) {
-      case 'PRESENT':
-        return 'Có mặt';
-      case 'LATE':
-        return 'Muộn';
-      case 'ABSENT':
-        return 'Vắng';
-      case 'OFF':
-        return 'Nghỉ';
-      case 'NOT_YET':
-        return 'Chưa vào ca';
-      default:
-        return key ? 'Khác' : '-';
-=======
   const loadViewSummary = async () => {
     if (!viewShiftModal) return;
     const token = getAuthToken();
@@ -1019,7 +969,6 @@ export default function ShiftManagement() {
       await loadViewSummary();
     } catch (err) {
       toast.error(err?.message || 'Check-in thất bại.');
->>>>>>> Stashed changes
     }
   };
 
@@ -1413,245 +1362,6 @@ export default function ShiftManagement() {
       )}
 
       {viewShiftModal && (
-<<<<<<< Updated upstream
-        <div className={styles.modalOverlay} onClick={closeViewShiftModal}>
-          <div className={`${styles.modalContent} ${styles.modalContentLarge}`} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <div>
-                <h3 className={styles.modalTitle}>Chấm công ca {viewShiftModal.shiftName}</h3>
-                <p className={styles.modalSubtitle}>
-                  Ca làm: {String(viewShiftModal.startTime || '').slice(0, 5)} -{' '}
-                  {String(viewShiftModal.endTime || '').slice(0, 5)} - Ngày {formatCalendarDisplay(viewAttendanceDate)}
-                </p>
-              </div>
-              <button type="button" className={styles.modalClose} onClick={closeViewShiftModal}>
-                x
-              </button>
-            </div>
-
-            <div className={styles.modalBody}>
-              <div className={styles.modalPanel}>
-                <h4 className={styles.modalPanelTitle}>Điểm danh nhân viên trong ca</h4>
-
-                <div className={styles.modalFilterRow}>
-                  <div className={styles.modalFilterField}>
-                    <label className={styles.modalFilterLabel}>Ngày chấm công</label>
-                    <input
-                      type="date"
-                      className={styles.modalFilterInput}
-                      value={viewAttendanceDate}
-                      onChange={(e) => handleModalDateChange(e.target.value)}
-                    />
-                  </div>
-
-                  <div className={styles.modalFilterField}>
-                    <label className={styles.modalFilterLabel}>Tìm ID/Tên</label>
-                    <input
-                      className={styles.modalFilterInput}
-                      value={attendanceSearch}
-                      onChange={(e) => setAttendanceSearch(e.target.value)}
-                      placeholder="Tìm theo mã, tên nhân viên..."
-                    />
-                  </div>
-
-                  <div className={styles.modalFilterField}>
-                    <label className={styles.modalFilterLabel}>Nhân viên</label>
-                    <select
-                      className={styles.modalFilterInput}
-                      value={attendanceForm.staffId}
-                      onChange={(e) => setAttendanceForm((prev) => ({ ...prev, staffId: e.target.value }))}
-                      disabled={loadingEmployees || submittingCheckIn}
-                    >
-                      <option value="">
-                        {loadingEmployees ? 'Đang tải nhân viên...' : 'Chọn nhân viên'}
-                      </option>
-                      {filteredEmployeesForAttendance.map((employee) => {
-                        const employeeId = Number(employee?.staffId);
-                        const alreadyChecked = checkedInStaffIds.has(employeeId);
-                        return (
-                          <option key={employee.staffId} value={employee.staffId} disabled={alreadyChecked}>
-                            #{employee.staffId} - {employee.fullName || employee.name || 'Không tên'} ({employee.position || 'N/A'}) {alreadyChecked ? '- Đã điểm danh' : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-
-                  <div className={styles.modalFilterField}>
-                    <label className={styles.modalFilterLabel}>Giờ vào</label>
-                    <select
-                      className={styles.modalFilterInput}
-                      value={attendanceForm.checkInTime}
-                      onChange={(e) => setAttendanceForm((prev) => ({ ...prev, checkInTime: e.target.value }))}
-                    >
-                      <option value="">Chọn giờ vào</option>
-                      {shiftTimeOptions.map((time) => (
-                        <option key={time} value={time}>{time}</option>
-                      ))}
-                    </select>
-                    <div className={styles.timeQuickActions}>
-                      <button
-                        type="button"
-                        className={styles.timeQuickBtn}
-                        onClick={() => handleUseShiftBoundaryTime(viewShiftStart)}
-                      >
-                        Đầu ca {viewShiftStart}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.timeQuickBtn}
-                        onClick={handleUseNowCheckInTime}
-                      >
-                        Giờ hiện tại
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.timeQuickBtn}
-                        onClick={() => handleUseShiftBoundaryTime(viewShiftEnd)}
-                      >
-                        Cuối ca {viewShiftEnd}
-                      </button>
-                    </div>
-                    <p className={styles.timeHint}>
-                      Chỉ được điểm danh trong khung giờ {viewShiftStart} - {viewShiftEnd}.
-                    </p>
-                  </div>
-                </div>
-
-                <div className={styles.modalFilterRow}>
-                  <div className={`${styles.modalFilterField} ${styles.modalFilterFieldGrow}`}>
-                    <label className={styles.modalFilterLabel}>Ghi chú</label>
-                    <input
-                      className={styles.modalFilterInput}
-                      value={attendanceForm.notes}
-                      onChange={(e) => setAttendanceForm((prev) => ({ ...prev, notes: e.target.value }))}
-                      placeholder="Nhập ghi chú nếu có"
-                    />
-                  </div>
-                  <div className={styles.modalFilterActions}>
-                    <button
-                      type="button"
-                      className={styles.filterPrimaryBtn}
-                      onClick={handleModalCheckIn}
-                      disabled={
-                        submittingCheckIn
-                        || viewShiftModal?.isActive === false
-                        || !attendanceForm.staffId
-                        || !attendanceForm.checkInTime
-                        || !isTimeInsideShift(attendanceForm.checkInTime, viewShiftModal?.startTime, viewShiftModal?.endTime)
-                        || !isAttendanceActionDateAllowed(viewAttendanceDate)
-                      }
-                    >
-                      {viewShiftModal?.isActive === false
-                        ? 'Ca đã vô hiệu'
-                        : submittingCheckIn
-                        ? 'Đang điểm danh...'
-                        : 'Điểm danh'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {loadingShiftAttendances ? (
-                <div className={styles.loadingContainer} style={{ minHeight: '200px' }}>
-                  <div className={styles.spinner}></div>
-                  <p>Đang tải dữ liệu chấm công...</p>
-                </div>
-              ) : shiftAttendances.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <div className={styles.emptyIcon}>i</div>
-                  <p className={styles.emptyTitle}>Chưa có bản ghi trong ngày này</p>
-                  <p className={styles.emptyMessage}>
-                    Chưa có nhân viên điểm danh vào/ra ca {viewShiftModal.shiftName} vào ngày {formatCalendarDisplay(viewAttendanceDate)}.
-                  </p>
-                </div>
-              ) : visibleShiftAttendances.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <div className={styles.emptyIcon}>i</div>
-                  <p className={styles.emptyTitle}>Không có kết quả phù hợp</p>
-                  <p className={styles.emptyMessage}>
-                    Không tìm thấy nhân viên theo từ khóa "{attendanceSearch.trim()}".
-                  </p>
-                </div>
-              ) : (
-                <div className={styles.tableCardInner}>
-                  <table className={`${styles.table} ${styles.attendanceTable}`}>
-                    <thead>
-                      <tr>
-                        <th>STT</th>
-                        <th>Mã chấm công</th>
-                        <th>Mã nhân viên</th>
-                        <th>Nhân viên</th>
-                        <th>Mã ca</th>
-                        <th>Tên ca</th>
-                        <th>Ngày</th>
-                        <th>Giờ vào</th>
-                        <th>Giờ ra</th>
-                        <th>Trạng thái</th>
-                        <th>Ghi chú</th>
-                        <th>Hành động</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleShiftAttendances.map((record, idx) => {
-                        const checkinId = Number(record?.checkinId);
-                        const recordDate = toDateKey(record?.attendanceDate) || viewAttendanceDate;
-                        const canActionDate = isAttendanceActionDateAllowed(recordDate);
-                        const canCheckOut = !record?.checkOutTime && Number.isFinite(checkinId) && checkinId > 0 && canActionDate;
-                        const resolvedStatus = resolveAttendanceStatus(record, viewShiftModal);
-                        return (
-                          <tr key={record.checkinId || idx}>
-                            <td>{idx + 1}</td>
-                            <td>{record.checkinId ?? '-'}</td>
-                            <td>{record.staffId ?? '-'}</td>
-                            <td>{record.staffName || '-'}</td>
-                            <td>{record.shiftId ?? '-'}</td>
-                            <td>{record.shiftName || viewShiftModal.shiftName || '-'}</td>
-                            <td>{recordDate || '-'}</td>
-                            <td>{record.checkInTime || '-'}</td>
-                            <td>{record.checkOutTime || '-'}</td>
-                            <td>
-                              <span className={`${styles.statusBadge} ${getStatusBadgeClass(resolvedStatus)}`}>
-                                {getStatusLabel(resolvedStatus)}
-                              </span>
-                            </td>
-                            <td>{record.notes || '-'}</td>
-                            <td>
-                              <div className={styles.actionGroup}>
-                                {canCheckOut && (
-                                  <button
-                                    type="button"
-                                    className={styles.checkoutBtn}
-                                    onClick={() => handleModalCheckOut(record)}
-                                    disabled={checkingOutId === checkinId}
-                                  >
-                                    {checkingOutId === checkinId ? 'Đang xử lý...' : 'Chấm công ra'}
-                                  </button>
-                                )}
-                                {!canActionDate && (
-                                  <span className={styles.blockedLabel}>Ngoài hạn</span>
-                                )}
-                                {record.checkInTime && (
-                                  <button
-                                    type="button"
-                                    className={styles.deactivateBtn}
-                                    onClick={() => handleDeleteCheckin(record)}
-                                    disabled={checkingOutId === checkinId}
-                                    title="Xóa bản ghi điểm danh"
-                                  >
-                                    Xóa
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-=======
         <div className={styles.modalOverlay} onClick={() => setViewShiftModal(null)}>
           <div
             className={styles.modalContent}
@@ -1679,7 +1389,6 @@ export default function ShiftManagement() {
                   ✕
                 </button>
               </div>
->>>>>>> Stashed changes
             </div>
 
             <div className={styles.attendanceModalBody}>
@@ -1880,14 +1589,8 @@ export default function ShiftManagement() {
               </div>
             </div>
             <div className={styles.modalFooter}>
-<<<<<<< Updated upstream
-              <button type="button" className={styles.cancelBtn} onClick={closeViewShiftModal}>
-                Đóng
-              </button>
-=======
               <button type="button" className={styles.cancelBtn} onClick={() => setCheckoutTarget(null)}>Hủy</button>
               <button type="button" className={styles.saveBtn} onClick={handleViewCheckOut}>Xác nhận check-out</button>
->>>>>>> Stashed changes
             </div>
           </div>
         </div>
@@ -1895,4 +1598,3 @@ export default function ShiftManagement() {
     </div>
   );
 }
-

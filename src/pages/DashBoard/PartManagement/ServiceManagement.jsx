@@ -13,7 +13,7 @@ const toNullablePositiveNumber = (value) => {
   return Number.isFinite(num) && num > 0 ? num : null;
 };
 
-const SERVICE_LINK_CACHE_KEY = 'gms_service_link_cache_v2';
+const SERVICE_LINK_CACHE_KEY = 'gms_service_link_cache_v3';
 
 const toNullableBoolean = (value) => {
   if (value === true || value === false) return value;
@@ -38,11 +38,11 @@ const getServiceServiceId = (item) => {
     item.service_serviceId, item.serviceServiceID,
     item.serviceId, item.service_id,
     item?.data?.serviceId, item?.data?.service_service_id,
-    item?.data?.serviceServiceId, item?.data?.id,
+    item?.data?.serviceServiceId,
     item?.service?.service_service_id, item?.service?.serviceServiceId,
-    item?.service?.service_id, item?.service?.id,
+    item?.service?.service_id,
     item?.serviceInfo?.service_service_id, item?.serviceInfo?.serviceServiceId,
-    item?.serviceInfo?.service_id, item?.serviceInfo?.id,
+    item?.serviceInfo?.service_id,
   ];
   for (const value of candidates) {
     const parsed = toNullablePositiveNumber(value);
@@ -65,7 +65,7 @@ const getServiceServiceId = (item) => {
       const looksLikeServiceObject = key.includes('service') && rawValue && typeof rawValue === 'object';
       if (looksLikeServiceObject) {
         const nestedFromServiceObject = toNullablePositiveNumber(
-          rawValue.id ?? rawValue.serviceId ?? rawValue.service_id ?? rawValue.service_service_id,
+          rawValue.serviceId ?? rawValue.service_id ?? rawValue.service_service_id ?? rawValue.serviceServiceId,
         );
         if (nestedFromServiceObject != null) return nestedFromServiceObject;
       }
@@ -79,7 +79,7 @@ const getServiceServiceId = (item) => {
         if (direct != null) return direct;
         if (rawValue && typeof rawValue === 'object') {
           const nested = toNullablePositiveNumber(
-            rawValue.id ?? rawValue.serviceId ?? rawValue.service_id ?? rawValue.service_service_id,
+            rawValue.serviceId ?? rawValue.service_id ?? rawValue.service_service_id ?? rawValue.serviceServiceId,
           );
           if (nested != null) return nested;
         }
@@ -105,7 +105,14 @@ const buildHomeServiceMap = (homeRes) => {
       entry?.catalogItemId ?? entry?.catalog_item_id ?? entry?.catalogId ?? entry?.itemId,
     );
     const serviceId = toNullablePositiveNumber(
-      entry?.serviceId ?? entry?.service_id ?? entry?.id,
+      entry?.serviceId
+      ?? entry?.service_id
+      ?? entry?.serviceServiceId
+      ?? entry?.service_service_id
+      ?? entry?.service?.serviceId
+      ?? entry?.service?.service_id
+      ?? entry?.service?.serviceServiceId
+      ?? entry?.service?.service_service_id,
     );
     if (catalogItemId != null && serviceId != null) {
       serviceIdByCatalogId.set(catalogItemId, serviceId);
@@ -227,10 +234,11 @@ export default function ServiceManagement() {
           const itemId = toNullablePositiveNumber(item.itemId);
           const homeServiceId = itemId != null ? homeServiceIdByCatalogId.get(itemId) ?? null : null;
           const cachedServiceId = itemId != null ? cachedServiceIdByCatalogId.get(itemId) ?? null : null;
-          const resolvedServiceId = getServiceServiceId(item) ?? homeServiceId ?? cachedServiceId;
+          const directServiceId = getServiceServiceId(item);
+          const resolvedServiceId = directServiceId ?? homeServiceId ?? cachedServiceId;
           const normalizedIsActive = parseIsActive(item);
-          if (itemId != null && resolvedServiceId != null) {
-            writeServiceLinkCache(itemId, resolvedServiceId);
+          if (itemId != null && directServiceId != null) {
+            writeServiceLinkCache(itemId, directServiceId);
           }
           return {
             ...item,
