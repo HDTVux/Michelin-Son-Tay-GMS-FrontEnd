@@ -6,7 +6,12 @@ import {
     createCheckInVehicle,
     lookupCheckInByBookingCode,
 } from '../../../services/checkInService.js';
-import { validateLicensePlateStrict, validateTextInput, validatePositiveNumber } from '../../../components/inputValidation.js';
+import {
+    validateFixedDigitsYear,
+    validateLicensePlateStrict,
+    validateTextInput,
+    validatePositiveNumber,
+} from '../../../components/inputValidation.js';
 
 const CHECKIN_DESCRIPTION_FIELDS = Object.freeze([
     { key: 'photoFrontDescription', label: 'Mô tả ảnh phía trước' },
@@ -283,20 +288,47 @@ export function useCheckInHandlers({
         }
         const licensePlateValue = plateValidation.value;
 
-
-        const yearValue = Number(String(vehicleYear || '').replaceAll(/\D/g, '')) || 0;
-        if (yearValue && yearValue < 1900) {
-            notify('Năm sản xuất không hợp lệ.');
+        const makeValidation = validateTextInput(vehicleMake, {
+            fieldLabel: 'Hãng xe',
+            required: false,
+            maxLength: 100,
+            trim: true,
+        });
+        if (makeValidation.error) {
+            notify(makeValidation.error);
             return;
         }
 
+        const modelValidation = validateTextInput(vehicleModel, {
+            fieldLabel: 'Dòng xe',
+            required: false,
+            maxLength: 100,
+            trim: true,
+        });
+        if (modelValidation.error) {
+            notify(modelValidation.error);
+            return;
+        }
+
+        const yearValidation = validateFixedDigitsYear(vehicleYear, {
+            fieldLabel: 'Năm sản xuất',
+            required: false,
+            digits: 4,
+            min: 1900,
+            max: 9999,
+        });
+        if (yearValidation.error) {
+            notify(yearValidation.error);
+            return;
+        }
+        const hasYearValue = Number.isInteger(yearValidation.value);
 
         const createPayload = {
             customerId,
             licensePlate: licensePlateValue,
-            make: String(vehicleMake || '').trim(),
-            model: String(vehicleModel || '').trim(),
-            ...(yearValue ? { year: yearValue } : {}),
+            make: makeValidation.value,
+            model: modelValidation.value,
+            ...(hasYearValue ? { year: yearValidation.value } : {}),
         };
 
 

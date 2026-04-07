@@ -54,7 +54,7 @@ export function validateLicensePlateStrict(value, { fieldLabel = 'Biển số xe
 
   const ok = /^\d{2}[A-Z]\d{5}$/.test(normalized);
   if (!ok) {
-    return { value: normalized, error: `${fieldLabel} không hợp lệ. Mẫu đúng: xx-ký tự-xxxxx (VD: 29-A-12345).` };
+    return { value: normalized, error: `${fieldLabel} không hợp lệ. Mẫu đúng: xx + ký tự + xxxxx (VD: 29A12345).` };
   }
 
   return { value: normalized, error: '' };
@@ -88,4 +88,40 @@ export function validatePositiveNumber(value, { fieldLabel = 'Giá trị', requi
     return { value: n, error: `${fieldLabel} phải là số nguyên dương.` };
   }
   return { value: n, error: '' };
+}
+
+/**
+ * Validate year-like input: digits only and exact number of digits.
+ *
+ * @param {unknown} value
+ * @param {{ fieldLabel?: string, required?: boolean, digits?: number, min?: number, max?: number }} [options]
+ * @returns {{ value: number|null, error: string }}
+ */
+export function validateFixedDigitsYear(
+  value,
+  { fieldLabel = 'Năm sản xuất', required = true, digits = 4, min = 1900, max = 9999 } = {}
+) {
+  const normalized = normalizeTextInput(value, { trim: true });
+
+  if (!normalized) {
+    return required ? { value: null, error: `${fieldLabel} là bắt buộc.` } : { value: null, error: '' };
+  }
+
+  if (!/^\d+$/.test(normalized)) {
+    return { value: null, error: `${fieldLabel} chỉ được chứa chữ số.` };
+  }
+
+  if (normalized.length !== digits) {
+    return { value: null, error: `${fieldLabel} phải có đúng ${digits} chữ số.` };
+  }
+
+  const year = Number(normalized);
+  if (!Number.isInteger(year)) {
+    return { value: null, error: `${fieldLabel} không hợp lệ.` };
+  }
+  if (year < min || year > max) {
+    return { value: year, error: `${fieldLabel} phải trong khoảng ${min}-${max}.` };
+  }
+
+  return { value: year, error: '' };
 }

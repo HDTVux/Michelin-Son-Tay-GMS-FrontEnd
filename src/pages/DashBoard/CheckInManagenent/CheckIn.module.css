@@ -139,6 +139,12 @@
   font-weight: 400;
 }
 
+.photoLabelFieldLike {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ui-text-primary, #1f2937);
+}
+
 /* Smaller preview for per-category photos */
 .photoItem .imageSlot {
   width: 180px;
