@@ -29,6 +29,7 @@ export default function StepService({
   error = '',
   activeTab = 'SERVICE',
   onChangeTab,
+  allowPartTab = true,
 }) {
   const [visible, setVisible] = useState(3);
   const [index, setIndex] = useState(0);
@@ -47,8 +48,9 @@ export default function StepService({
   }, []);
 
   const isMobileSlider = visible === 1;
-  const currentTab = normalizeItemType(activeTab);
-  const allItems = Array.isArray(services) ? services : [];
+  const incomingTab = normalizeItemType(activeTab);
+  const currentTab = allowPartTab ? incomingTab : 'SERVICE';
+  const allItems = useMemo(() => (Array.isArray(services) ? services : []), [services]);
 
   const scopedByType = useMemo(
     () => allItems.filter((item) => normalizeItemType(item?.itemType) === currentTab),
@@ -89,6 +91,12 @@ export default function StepService({
     const t = setTimeout(() => setIndex((prev) => Math.min(prev, maxIndex)), 0);
     return () => clearTimeout(t);
   }, [currentTab, filtered.length, maxIndex]);
+
+  useEffect(() => {
+    if (allowPartTab) return;
+    if (incomingTab !== 'PART') return;
+    onChangeTab?.('SERVICE');
+  }, [allowPartTab, incomingTab, onChangeTab]);
 
   const offset = (index * 100) / visible;
   const prev = () => setIndex((i) => Math.max(0, i - 1));

@@ -42,12 +42,6 @@ const mergeWithMeaningfulServiceData = (catalogDetail, serviceDetail) => {
   });
   return base;
 };
-const toNullableNonNegativeNumber = (value) => {
-  const text = String(value ?? '').trim();
-  if (text === '') return null;
-  const num = Number(text);
-  return Number.isFinite(num) && num >= 0 ? Math.trunc(num) : null;
-};
 const toServiceCodeFragment = (value) => String(value || '')
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')

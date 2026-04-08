@@ -342,7 +342,6 @@ export default function MyTasks() {
   const [dateTo, setDateTo] = useState(initialDate);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
-  const [totalElements, setTotalElements] = useState(0);
 
   // ── Modal state ────────────────────────────────────────
   const [showModal, setShowModal] = useState(false);
@@ -369,7 +368,6 @@ export default function MyTasks() {
     if (!token) {
       toast.error('Vui lòng đăng nhập');
       setLoading(false);
-      setTotalElements(0);
       return;
     }
 
@@ -436,13 +434,11 @@ export default function MyTasks() {
 
         if (!ignore) {
           setTickets(transformed);
-          setTotalElements(transformed.length);
         }
       } catch (err) {
         if (!ignore) {
           setError(err?.message || 'Không thể tải danh sách công việc.');
           setTickets([]);
-          setTotalElements(0);
         }
       } finally {
         if (!ignore) setLoading(false);

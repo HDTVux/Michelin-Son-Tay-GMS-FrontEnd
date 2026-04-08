@@ -57,6 +57,7 @@ const NAV_GROUPS = [
 		defaultOpen: true,
 		items: [
 			{ id: 'booking-management', label: 'Quản lý lịch hẹn', path: '/booking-management', icon: <IconHome />, roles: [STAFF_ROLE.RECEPTIONIST], },
+			{ id: 'create-booking', label: 'Tạo lịch hẹn', path: '/create-booking', icon: <IconEdit />, roles: [STAFF_ROLE.RECEPTIONIST], },
 			{ id: 'booking-request-management', label: 'Yêu cầu đặt lịch', path: '/booking-request-management', icon: <IconHistory />, roles: [STAFF_ROLE.RECEPTIONIST], },
 			{ id: 'service-ticket-management', label: 'Phiếu dịch vụ', path: '/service-ticket-management', icon: <IconBell />, roles: 'ALL' },
 			{ id: 'advisor-inspection', label: 'Điều phối phiếu dịch vụ', path: '/advisor/inspection', icon: <IconTask />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.MANAGER, STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.TECHNICIAN, STAFF_ROLE.ADMIN], },
@@ -69,6 +70,8 @@ const NAV_GROUPS = [
 			{ id: 'promotion-management', label: 'Quản lý khuyến mãi', path: '/promotion-management', icon: <IconBell />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'my-tasks', label: 'Công việc hôm nay', path: '/technician/my-tasks', icon: <IconTask />, roles: 'ALL' },
 			{ id: 'send-reminder', label: 'Gửi nhắc nhở', path: '/send-reminder', icon: <IconBell />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER], },
+			{ id: 'feedback-management', label: 'Quản lý feedback', path: '/feedback-management', icon: <IconBell />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
+			{ id: 'vehicle-management', label: 'Quản lý phương tiện', path: '/vehicle-management', icon: <IconVehicle />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.RECEPTIONIST], },
 			{ id: 'system-log-management', label: 'Quản lý nhật ký hệ thống', path: '/system-log-management', icon: <IconHistory />, roles: [STAFF_ROLE.ADMIN], },
 		],
 	},
@@ -329,6 +332,16 @@ function IconTask() {
 	);
 }
 
+function IconVehicle() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M5.4 8.2a3 3 0 0 1 2.8-2.2h7.6a3 3 0 0 1 2.8 2.2l.7 2.8A2.5 2.5 0 0 1 21 13.4V18a1 1 0 0 1-1 1h-1.2a1 1 0 0 1-1-1v-1H6.2v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4.6A2.5 2.5 0 0 1 4.7 11z" />
+			<circle cx="7.2" cy="14.4" r="1.2" />
+			<circle cx="16.8" cy="14.4" r="1.2" />
+		</svg>
+	);
+}
+
 function IconCheckIn() {
 	return (
 		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -354,4 +367,6 @@ function IconMoon() {
 	);
 }
 
+export { SideBar };
 export default SideBar;
+

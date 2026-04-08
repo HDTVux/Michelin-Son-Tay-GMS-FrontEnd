@@ -513,8 +513,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		return () => {
 			cancelled = true;
 		};
-		// NOTE: intentionally omitting extractRecommendValue from deps to avoid re-fetches
-	}, [serviceTicketId, refreshToken]);
+	}, [serviceTicketId, refreshToken, extractRecommendValue]);
 
 	const saveRecommendation = useCallback(
 		async (valueOverride) => {
@@ -551,7 +550,18 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				// Re-fetch from backend to sync with actual stored value.
 				try {
 					const refreshed = await fetchSafetyInspectionCurrentRecommend(idNum, token);
-					const confirmed = extractRecommendValue(refreshed);
+					const confirmed = (() => {
+							const payload = refreshed?.data?.data ?? refreshed?.data ?? refreshed;
+							if (payload == null) return '';
+							if (typeof payload === 'string') {
+								const raw = payload.trim();
+								if (raw.startsWith('{') || raw.startsWith('[')) {
+									try { const p = JSON.parse(raw); return typeof p === 'string' ? p : ''; } catch { return ''; }
+								}
+								return raw;
+							}
+							return '';
+						})();
 					console.log('[DEBUG recommend] after-save fetched value:', JSON.stringify(confirmed));
 					// Only update if backend confirms a value (avoid overriding with stale empty string)
 					if (String(confirmed).trim() !== '') {

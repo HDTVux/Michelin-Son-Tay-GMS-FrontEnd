@@ -176,18 +176,6 @@ export default function ServiceTicketManagement() {
 		setSearch('');
 	};
 
-	const downloadBlob = (blob, filename) => {
-		const safeName = String(filename || '').trim() || `service-tickets_${date || 'export'}_${endDate || date || 'export'}.xlsx`;
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = safeName;
-		document.body.appendChild(a);
-		a.click();
-		a.remove();
-		URL.revokeObjectURL(url);
-	};
-
 	const handleExport = useCallback(async () => {
 		if (isExporting) return;
 		const token = getToken();
@@ -206,13 +194,21 @@ export default function ServiceTicketManagement() {
 			setIsExporting(true);
 			setError('');
 			const { blob, filename } = await exportServiceTicketsManage({ startDate, endDate: end }, token);
-			downloadBlob(blob, filename);
+			const safeName = String(filename || '').trim() || `service-tickets_${date || 'export'}_${endDate || date || 'export'}.xlsx`;
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = safeName;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(url);
 		} catch (err) {
 			setError(err?.message || 'Không thể export file.');
 		} finally {
 			setIsExporting(false);
 		}
-	}, [date, endDate, isExporting, downloadBlob]);
+	}, [date, endDate, isExporting]);
 
 	const currentAdvisor = modalAssignments.find((a) =>
 		String(a?.roleInTicket || a?.role || '').toUpperCase() === 'ADVISOR'

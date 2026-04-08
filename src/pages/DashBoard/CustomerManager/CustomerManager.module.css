@@ -316,6 +316,18 @@
   box-shadow: 0 4px 12px rgba(30, 144, 255, 0.4);
 }
 
+.vehicleBtn {
+  background: #10b981;
+  color: white;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.vehicleBtn:hover {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
 .editBtn {
   background: #1E90FF;
   color: white;

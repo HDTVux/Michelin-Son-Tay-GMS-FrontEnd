@@ -44,6 +44,7 @@ import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.j
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
+import VehicleManagement from './pages/DashBoard/VehicleManagement/VehicleManagement.jsx';
 
 //Customer pages
 import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
@@ -215,6 +216,7 @@ export default function App() {
           <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
           <Route path="send-reminder" element={<SendReminder />} />
           <Route path="feedback-management" element={<FeedbackManagement />} />
+          <Route path="vehicle-management" element={<VehicleManagement />} />
           <Route path="system-log-management" element={<SystemLogManagement />} />
           
           {/* Technician pages */}

@@ -5,8 +5,8 @@ import {
   deactivateWorkShift,
   reactivateWorkShift,
   fetchManagerAttendance,
-  fetchManagerEmployees,
   fetchWorkShifts,
+  fetchManagerTodaySummary,
   managerCheckIn,
   managerCheckOut,
   managerDeleteCheckin,
@@ -191,42 +191,6 @@ const normalizeAttendanceRecord = (record) => ({
   notes: record?.notes ?? record?.note ?? '',
 });
 
-const normalizeStatusKey = (value) => {
-  const raw = String(value || '').trim().toUpperCase().replaceAll('-', '_').replaceAll(' ', '_');
-  if (!raw) return '';
-  if (raw === 'LATE' || raw === 'MUON' || raw.includes('LATE')) return 'LATE';
-  if (raw === 'PRESENT' || raw === 'CO_MAT' || raw === 'CHECKED_IN' || raw.includes('PRESENT')) return 'PRESENT';
-  if (raw === 'ABSENT' || raw === 'VANG' || raw.includes('ABSENT')) return 'ABSENT';
-  if (raw === 'OFF' || raw === 'NGHI' || raw.includes('OFF')) return 'OFF';
-  if (raw === 'NOT_YET' || raw === 'PENDING' || raw.includes('PENDING') || raw.includes('NOT_YET')) return 'NOT_YET';
-  return raw;
-};
-
-const resolveAttendanceStatus = (record, shift) => {
-  const directStatus = normalizeStatusKey(record?.status);
-  const hasCheckIn = Boolean(String(record?.checkInTime || '').trim());
-  const checkInMinutes = toTimeMinutes(record?.checkInTime);
-  const shiftStart = record?.shiftStartTime || shift?.startTime || '';
-  const shiftStartMinutes = toTimeMinutes(shiftStart);
-  const isLateByTime = (
-    hasCheckIn
-    && checkInMinutes != null
-    && shiftStartMinutes != null
-    && checkInMinutes > shiftStartMinutes
-  );
-
-  if (directStatus === 'ABSENT' || directStatus === 'OFF') return directStatus;
-  if (record?.isLate === true || isLateByTime) return 'LATE';
-  if (directStatus) return directStatus;
-  if (!hasCheckIn) return 'NOT_YET';
-
-  if (checkInMinutes != null && shiftStartMinutes != null) {
-    return 'PRESENT';
-  }
-
-  return 'PRESENT';
-};
-
 const readPersistedFilters = () => {
   try {
     if (typeof window === 'undefined') return { search: '', statusFilter: '', createdDateFilter: '' };
@@ -311,10 +275,6 @@ export default function ShiftManagement() {
   );
   const [shiftAttendances, setShiftAttendances] = useState([]);
   const [loadingShiftAttendances, setLoadingShiftAttendances] = useState(false);
-  const [employees, setEmployees] = useState([]);
-  const [loadingEmployees, setLoadingEmployees] = useState(false);
-  const [submittingCheckIn, setSubmittingCheckIn] = useState(false);
-  const [checkingOutId, setCheckingOutId] = useState(null);
   const [attendanceSearch, setAttendanceSearch] = useState(
     String(initialRuntimeState?.attendanceSearch || ''),
   );
@@ -327,17 +287,6 @@ export default function ShiftManagement() {
     checkInTime: String(initialRuntimeState?.attendanceForm?.checkInTime || ''),
     notes: String(initialRuntimeState?.attendanceForm?.notes || ''),
   });
-  const attendanceMaxDate = getTodayLocalISO();
-  const attendanceMinDate = shiftLocalISODate(attendanceMaxDate, -3);
-  const isAttendanceActionDateAllowed = useCallback(
-    (date) => {
-      const key = toDateKey(date);
-      if (!key) return false;
-      return key >= attendanceMinDate && key <= attendanceMaxDate;
-    },
-    [attendanceMinDate, attendanceMaxDate],
-  );
-
   // Chấm công state
   const todayInit = new Date().toISOString().slice(0, 10);
   const [viewFromDate, setViewFromDate] = useState(todayInit);
@@ -446,42 +395,6 @@ export default function ShiftManagement() {
     return { total, active, inactive: total - active };
   }, [shifts]);
 
-  const checkedInStaffIds = useMemo(() => {
-    const set = new Set();
-    shiftAttendances.forEach((record) => {
-      const staffId = Number(record?.staffId);
-      if (Number.isFinite(staffId) && staffId > 0) set.add(staffId);
-    });
-    return set;
-  }, [shiftAttendances]);
-
-  const normalizedAttendanceSearch = attendanceSearch.trim().toLowerCase();
-
-  const filteredEmployeesForAttendance = useMemo(() => {
-    if (!normalizedAttendanceSearch) return employees;
-    return employees.filter((employee) => {
-      const idText = String(employee?.staffId ?? '');
-      const nameText = String(employee?.fullName || employee?.name || '');
-      return `${idText} ${nameText}`.toLowerCase().includes(normalizedAttendanceSearch);
-    });
-  }, [employees, normalizedAttendanceSearch]);
-
-  const visibleShiftAttendances = useMemo(() => {
-    if (!normalizedAttendanceSearch) return shiftAttendances;
-    return shiftAttendances.filter((record) => {
-      const checkinIdText = String(record?.checkinId ?? '');
-      const staffIdText = String(record?.staffId ?? '');
-      const nameText = String(record?.staffName || '');
-      return `${checkinIdText} ${staffIdText} ${nameText}`.toLowerCase().includes(normalizedAttendanceSearch);
-    });
-  }, [shiftAttendances, normalizedAttendanceSearch]);
-
-  const viewShiftStart = String(viewShiftModal?.startTime || '').slice(0, 5);
-  const viewShiftEnd = String(viewShiftModal?.endTime || '').slice(0, 5);
-  const shiftTimeOptions = useMemo(
-    () => buildShiftTimeOptions(viewShiftStart, viewShiftEnd, 5),
-    [viewShiftStart, viewShiftEnd],
-  );
   const fullDayTimeOptions = useMemo(() => buildShiftTimeOptions('00:00', '23:55', 5), []);
   const modalShiftSuggestions = useMemo(() => {
     const query = modalShiftSearch.trim().toLowerCase();
@@ -631,52 +544,6 @@ export default function ShiftManagement() {
     }
   };
 
-  const handleDeleteCheckin = async (record) => {
-    const checkinId = Number(record?.checkinId);
-    if (!Number.isFinite(checkinId) || checkinId <= 0) return;
-    if (!window.confirm('Bạn chắc chắn muốn xóa bản ghi điểm danh này?')) return;
-    const token = getAuthToken();
-    if (!token) return;
-
-    try {
-      await managerDeleteCheckin(checkinId, token);
-      toast.success('Đã xóa bản ghi điểm danh.');
-      await loadShiftAttendances(viewShiftModal, viewAttendanceDate);
-    } catch (err) {
-      toast.error(err?.message || 'Xóa thất bại.');
-    }
-  };
-
-  const closeViewShiftModal = () => {
-    setViewShiftModal(null);
-    setShiftAttendances([]);
-    setEmployees([]);
-    setAttendanceSearch('');
-    setCheckingOutId(null);
-    setSubmittingCheckIn(false);
-    setAttendanceForm({
-      staffId: '',
-      attendanceDate: getTodayLocalISO(),
-      checkInTime: '',
-      notes: '',
-    });
-  };
-
-  const loadModalEmployees = useCallback(async () => {
-    const token = getAuthToken();
-    if (!token) return;
-
-    setLoadingEmployees(true);
-    try {
-      const response = await fetchManagerEmployees(token);
-      const list = Array.isArray(response?.data) ? response.data : [];
-      setEmployees(list);
-    } catch {
-      setEmployees([]);
-    } finally {
-      setLoadingEmployees(false);
-    }
-  }, []);
 
   const loadShiftAttendances = useCallback(async (shift, attendanceDate) => {
     if (!shift?.shiftId) return;
@@ -802,96 +669,10 @@ export default function ShiftManagement() {
           checkInTime: String(restoredAttendanceForm?.checkInTime || String(matchedViewShift?.startTime || '').slice(0, 5)),
           notes: String(restoredAttendanceForm?.notes || ''),
         }));
-        void Promise.all([
-          loadShiftAttendances(matchedViewShift, restoredDate),
-          loadModalEmployees(),
-        ]);
+        void loadShiftAttendances(matchedViewShift, restoredDate);
       }
     }
-  }, [loading, shifts, loadShiftAttendances, loadModalEmployees]);
-
-  const handleModalDateChange = async (nextDate) => {
-    const date = String(nextDate || '').trim();
-    if (!date || !viewShiftModal?.shiftId) return;
-    setViewAttendanceDate(date);
-    setAttendanceForm((prev) => ({ ...prev, attendanceDate: date }));
-    await loadShiftAttendances(viewShiftModal, date);
-  };
-
-  const handleModalCheckIn = async () => {
-    if (!viewShiftModal?.shiftId) return;
-    const token = getAuthToken();
-    if (!token) return;
-
-    const staffId = Number(attendanceForm.staffId);
-    if (!Number.isFinite(staffId) || staffId <= 0) {
-      toast.error('Vui lòng chọn nhân viên để điểm danh.');
-      return;
-    }
-    if (checkedInStaffIds.has(staffId)) {
-      toast.error('Nhân viên này đã được điểm danh trong ca.');
-      return;
-    }
-
-    const attendanceDate = attendanceForm.attendanceDate || viewAttendanceDate || getTodayLocalISO();
-    if (!isAttendanceActionDateAllowed(attendanceDate)) {
-      toast.error(`Chỉ được điểm danh từ ${attendanceMinDate} đến ${attendanceMaxDate}.`);
-      return;
-    }
-    const selectedCheckInTime = String(attendanceForm.checkInTime || '').slice(0, 5);
-    if (!selectedCheckInTime) {
-      toast.error('Vui lòng chọn giờ vào.');
-      return;
-    }
-    if (!isTimeInsideShift(selectedCheckInTime, viewShiftModal?.startTime, viewShiftModal?.endTime)) {
-      toast.error(`Chỉ được điểm danh trong khung giờ ca ${viewShiftStart} - ${viewShiftEnd}.`);
-      return;
-    }
-
-    setSubmittingCheckIn(true);
-    try {
-      await managerCheckIn(
-        {
-          staffId,
-          shiftId: Number(viewShiftModal.shiftId),
-          attendanceDate,
-          checkInTime: selectedCheckInTime,
-          notes: attendanceForm.notes || '',
-        },
-        token,
-      );
-      toast.success('Điểm danh vào ca thành công.');
-      setAttendanceForm((prev) => ({
-        ...prev,
-        staffId: '',
-        notes: '',
-      }));
-      setViewAttendanceDate(attendanceDate);
-      await loadShiftAttendances(viewShiftModal, attendanceDate);
-    } catch (err) {
-      toast.error(err?.message || 'Điểm danh thất bại.');
-    } finally {
-      setSubmittingCheckIn(false);
-    }
-  };
-
-  const handleUseNowCheckInTime = () => {
-    if (!viewShiftModal) return;
-    const now = getNowLocalHHMM();
-    if (isTimeInsideShift(now, viewShiftModal?.startTime, viewShiftModal?.endTime)) {
-      setAttendanceForm((prev) => ({ ...prev, checkInTime: now }));
-      return;
-    }
-    const fallback = String(viewShiftModal?.startTime || '').slice(0, 5);
-    setAttendanceForm((prev) => ({ ...prev, checkInTime: fallback }));
-    toast.info(`Giờ hiện tại ngoài ca, đã chuyển về giờ bắt đầu ca ${fallback}.`);
-  };
-
-  const handleUseShiftBoundaryTime = (value) => {
-    const normalized = String(value || '').slice(0, 5);
-    if (!normalized) return;
-    setAttendanceForm((prev) => ({ ...prev, checkInTime: normalized }));
-  };
+  }, [loading, shifts, loadShiftAttendances]);
 
   const handleUseFormTimeNow = (field) => {
     const now = getNowLocalHHMM();
@@ -919,28 +700,6 @@ export default function ShiftManagement() {
     }
   };
 
-  const handleModalCheckOut = async (record) => {
-    const checkinId = Number(record?.checkinId);
-    if (!Number.isFinite(checkinId) || checkinId <= 0) return;
-    const token = getAuthToken();
-    if (!token || !viewShiftModal?.shiftId) return;
-    const recordDate = toDateKey(record?.attendanceDate) || viewAttendanceDate;
-    if (!isAttendanceActionDateAllowed(recordDate)) {
-      toast.error(`Chỉ được điểm danh từ ${attendanceMinDate} đến ${attendanceMaxDate}.`);
-      return;
-    }
-
-    setCheckingOutId(checkinId);
-    try {
-      await managerCheckOut(checkinId, {}, token);
-      toast.success('Chấm công ra thành công.');
-      await loadShiftAttendances(viewShiftModal, viewAttendanceDate);
-    } catch (err) {
-      toast.error(err?.message || 'Chấm công ra thất bại.');
-    } finally {
-      setCheckingOutId(null);
-    }
-  };
 
   const loadViewSummary = async () => {
     if (!viewShiftModal) return;

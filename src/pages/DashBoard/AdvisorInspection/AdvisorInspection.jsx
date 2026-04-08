@@ -717,20 +717,6 @@ export default function AdvisorInspection() {
     });
   };
 
-  const resolveTicketId = async (ticket, ticketCode, token) => {
-    const directId = getTicketId(ticket);
-    if (Number.isFinite(directId) && directId > 0) return directId;
-    if (!token || !ticketCode) return null;
-    try {
-      const detailRes = await fetchServiceTicketDetail(ticketCode, token);
-      const detail = detailRes?.data?.data ?? detailRes?.data ?? detailRes;
-      const resolvedId = getTicketId(detail);
-      return Number.isFinite(resolvedId) && resolvedId > 0 ? resolvedId : null;
-    } catch {
-      return null;
-    }
-  };
-
   // Open modal
   const handleOpenModal = async (ticket) => {
     setSelectedTicket(ticket);

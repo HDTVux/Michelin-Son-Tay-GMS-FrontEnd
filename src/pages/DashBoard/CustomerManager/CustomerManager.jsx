@@ -278,6 +278,17 @@ const CustomerManager = () => {
                       >
                         Xem
                       </button>
+                      <button
+                        className={`${styles.actionBtn} ${styles.vehicleBtn}`}
+                        onClick={() =>
+                          navigate(
+                            `/vehicle-management?customerId=${encodeURIComponent(customer.customerId || customer.id)}&customerName=${encodeURIComponent(customer.fullName || '')}`,
+                          )
+                        }
+                        title="Xem phương tiện"
+                      >
+                        Xe
+                      </button>
                       {canManage && (
                         <>
                           {status !== 'LOCKED' && (
