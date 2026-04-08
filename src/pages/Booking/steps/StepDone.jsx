@@ -1,43 +1,71 @@
-import React, { useMemo } from 'react'
-import styles from './StepDone.module.css'
-import bookingStyles from '../Booking.module.css'
+import React, { useMemo } from 'react';
+import styles from './StepDone.module.css';
+import bookingStyles from '../Booking.module.css';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 
 const formatDate = (value) => {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
-}
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+};
 
-export default function StepDone({ schedule, info, bookingData, services, selectedIds, isAuthed, onReschedule, onCancel, onHome }) {
-  const serviceIds = useMemo(() => {
+const normalizeItemType = (value) => {
+  const text = String(value || '').trim().toUpperCase();
+  if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') {
+    return 'PART';
+  }
+  return 'SERVICE';
+};
+
+export default function StepDone({
+  schedule,
+  info,
+  bookingData,
+  services,
+  selectedIds,
+  isAuthed,
+  onReschedule,
+  onCancel,
+  onHome,
+}) {
+  const itemIds = useMemo(() => {
     const ids = Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0
       ? bookingData.serviceIds
-      : selectedIds
-    return ids.map((id) => String(id)).filter(Boolean)
-  }, [bookingData?.serviceIds, selectedIds])
+      : selectedIds;
+    return ids.map((id) => String(id)).filter(Boolean);
+  }, [bookingData?.serviceIds, selectedIds]);
 
-  const selectedServices = useMemo(
-    () => services.filter((s) => serviceIds.includes(String(s.id))),
-    [services, serviceIds]
-  )
+  const selectedItems = useMemo(
+    () => services.filter((item) => itemIds.includes(String(item.id))),
+    [services, itemIds],
+  );
 
-  // Dùng mã trả về từ backend (customer: bookingId, guest: requestId/code)
+  const selectedItemsLabel = useMemo(() => {
+    const typeSet = new Set(selectedItems.map((item) => normalizeItemType(item?.itemType)));
+    if (typeSet.size === 1) return typeSet.has('PART') ? 'Phụ tùng' : 'Dịch vụ';
+    return 'Hạng mục';
+  }, [selectedItems]);
+
   const bookingCode = bookingData?.bookingCode
     ? `${bookingData.bookingCode}`
     : bookingData?.requestCode
       ? `${bookingData.requestCode}`
-      : bookingData?.code || ''
+      : bookingData?.code || '';
 
-  const confirmedDate = bookingData?.scheduledDate || schedule.date
-  const confirmedTime = bookingData?.scheduledTime || schedule.time
-  const confirmedNote = bookingData?.description || info.note
+  const confirmedDate = bookingData?.scheduledDate || schedule.date;
+  const confirmedTime = bookingData?.scheduledTime || schedule.time;
+  const confirmedNote = bookingData?.description || info.note;
 
   return (
     <div className={styles['done-card']}>
       <div className={styles['done-header']}>
-        <div className={styles['done-icon']}>✅</div>
+        <div className={styles['done-icon']}>✓</div>
         <h2 className={styles['done-title']}>Đặt lịch giữ chỗ thành công!</h2>
         <p className={styles['done-sub']}>Chúng tôi sẽ liên hệ xác nhận lại nếu cần.</p>
       </div>
@@ -57,7 +85,9 @@ export default function StepDone({ schedule, info, bookingData, services, select
         <div className={styles['row-content']}>
           <div className={styles['row-title']}>Thông tin khách hàng:</div>
           <div className={styles['row-desc']}>{info.name || 'Chưa có tên'}</div>
-          <div className={`${styles['row-desc']} ${styles['phone-info']}`}>📞 {info.phone || 'Chưa có số điện thoại'}</div>
+          <div className={`${styles['row-desc']} ${styles['phone-info']}`}>
+            📞 {info.phone || 'Chưa có số điện thoại'}
+          </div>
         </div>
       </div>
 
@@ -71,22 +101,22 @@ export default function StepDone({ schedule, info, bookingData, services, select
         </div>
       </div>
 
-    { serviceIds.length > 0 &&(
-      <>
-      <hr className={styles['done-sep']} />
+      {itemIds.length > 0 && (
+        <>
+          <hr className={styles['done-sep']} />
 
-      <div className={styles['done-section']}>
-        <div className={styles['row-icon']}>🔧</div>
-        <div className={styles['row-content']}>
-          <div className={styles['row-title']}>Dịch vụ:</div>
-          <ul className={styles['bullet-list']}>
-            {selectedServices.map((item) => (
-              <li key={item.id}>{item.name}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
-      </>
+          <div className={styles['done-section']}>
+            <div className={styles['row-icon']}>🔧</div>
+            <div className={styles['row-content']}>
+              <div className={styles['row-title']}>{selectedItemsLabel}:</div>
+              <ul className={styles['bullet-list']}>
+                {selectedItems.map((item) => (
+                  <li key={item.id}>{item.name}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </>
       )}
 
       <hr className={styles['done-sep']} />
@@ -108,20 +138,33 @@ export default function StepDone({ schedule, info, bookingData, services, select
       <div className={styles['done-section']}>
         <div className={styles['row-icon']}>📍</div>
         <div className={styles['row-content']}>
-          <div className={styles['row-title']}>Michelin Sơn Tây – 123 Đường A, Phường B, Quận C, Hà Nội</div>
-          <button className={bookingStyles['link-btn']} onClick={() => window.open('https://maps.google.com', '_blank')}>Xem trên bản đồ</button>
+          <div className={styles['row-title']}>
+            Michelin Sơn Tây - 123 Đường A, Phường B, Quận C, Hà Nội
+          </div>
+          <button
+            className={bookingStyles['link-btn']}
+            onClick={() => window.open('https://maps.google.com', '_blank')}
+          >
+            Xem trên bản đồ
+          </button>
         </div>
       </div>
 
       <div className={styles['done-actions']}>
         {isAuthed && (
           <>
-            <button className={bookingStyles.btn} onClick={onReschedule}>Đổi lịch</button>
-            <button className={`${bookingStyles.btn} ${styles.danger}`} onClick={onCancel}>Hủy lịch</button>
+            <button className={bookingStyles.btn} onClick={onReschedule}>
+              Đổi lịch
+            </button>
+            <button className={`${bookingStyles.btn} ${styles.danger}`} onClick={onCancel}>
+              Hủy lịch
+            </button>
           </>
         )}
-        <button className={`${bookingStyles.btn} ${bookingStyles.primary}`} onClick={onHome}>Về trang chủ</button>
+        <button className={`${bookingStyles.btn} ${bookingStyles.primary}`} onClick={onHome}>
+          Về trang chủ
+        </button>
       </div>
     </div>
-  )
+  );
 }

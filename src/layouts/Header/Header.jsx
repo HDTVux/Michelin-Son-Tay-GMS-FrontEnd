@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Header.css';
 import CustomerLogin from '../../features/auth/components/CustomerLoginModal.jsx';
-import logo from '../../assets/Logo3.jpg';
+import logo from '../../assets/LogoNonBackground.png';
 
 const Header = () => {
   const STORE_PHONE_TEL = '0987545680';
@@ -130,8 +130,15 @@ const Header = () => {
           >
             Dịch vụ
           </Link>
-          <Link 
-            to="/" 
+          <Link
+            to="/parts"
+            className={isActive('/parts') ? 'active' : ''}
+            onClick={() => { closeMenu(); scrollToTop(); }}
+          >
+            Phụ tùng
+          </Link>
+          <Link
+            to="/"
             className=""
             onClick={(e) => {
               e.preventDefault();

@@ -106,10 +106,17 @@ export const createWarehouseProductLine = (payload, token) => {
 // Warehouse catalog item APIs
 // POST: /api/warehouse/catalog-item/create
 export const createWarehouseCatalogItem = (payload, token) => {
+  // Strip both null and undefined values to avoid backend crash on findById(null)
+  const clean = (payload ?? {});
+  const stripped = {};
+  Object.entries(clean).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    stripped[k] = v;
+  });
   return request('/api/warehouse/catalog-item/create', {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: JSON.stringify(payload ?? {}),
+    body: JSON.stringify(stripped),
   });
 };
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	createServiceTicketEstimate,
 	fetchServiceTicketEstimate,
-	fetchServiceTicketAdvisorRecommend,
+	fetchSafetyInspectionCurrentRecommend,
 	fetchWorkCategoriesAll,
 	fetchTaxRulesAll,
 	updateServiceTicketEstimate,
@@ -420,64 +420,101 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 	const recommendationLastSavedRef = useRef('');
 
-	useEffect(() => {
-		setRecommendation('');
-		// Reset last-saved marker on ticket switch.
-		recommendationLastSavedRef.current = '';
-	}, [serviceTicketId]);
+	// DO NOT reset recommendation state here — the fetch effect below handles loading fresh data
+	// recommendationLastSavedRef tracks what was last confirmed from backend
 
 	const extractRecommendValue = useCallback((res) => {
 		const payload = res?.data?.data ?? res?.data ?? res;
-		if (payload == null) return '';
+		console.log('[DEBUG recommend] extractRecommendValue raw payload:', JSON.stringify(payload), '| type:', typeof payload);
+		if (payload == null) {
+			console.log('[DEBUG recommend] payload is null/undefined, returning empty');
+			return '';
+		}
 		if (typeof payload === 'string') {
 			const raw = payload.trim();
 			if (raw.startsWith('{') || raw.startsWith('[')) {
 				try {
 					const parsed = JSON.parse(raw);
-					if (typeof parsed?.data === 'string') return parsed.data;
-					if (typeof parsed?.recommend === 'string') return parsed.recommend;
-					if (typeof parsed?.recommendation === 'string') return parsed.recommendation;
+					return extractRecommendValue({ data: parsed });
 				} catch {
 					// fall back to raw
 				}
 			}
+			console.log('[DEBUG recommend] string payload:', payload);
 			return payload;
 		}
-		if (typeof payload?.recommend === 'string') return payload.recommend;
-		if (typeof payload?.recommendation === 'string') return payload.recommendation;
-		if (typeof payload?.data === 'string') return payload.data;
+		if (typeof payload === 'object') {
+			// 1. Explicit recommend/recommendation field
+			if (typeof payload?.recommend === 'string') {
+				console.log('[DEBUG recommend] found payload.recommend:', payload.recommend);
+				return payload.recommend;
+			}
+			if (typeof payload?.recommendation === 'string') {
+				console.log('[DEBUG recommend] found payload.recommendation:', payload.recommendation);
+				return payload.recommendation;
+			}
+			// 2. Explicit data field (could be a string or an object)
+			if (typeof payload?.data === 'string') {
+				console.log('[DEBUG recommend] found payload.data string:', payload.data);
+				return payload.data;
+			}
+			if (typeof payload?.data === 'object' && payload?.data != null) {
+				const nested = payload.data;
+				if (typeof nested?.recommend === 'string') return nested.recommend;
+				if (typeof nested?.recommendation === 'string') return nested.recommendation;
+				// 3. Backend stores recommendation as a simple key-value pair
+				// e.g. {"recommendationText": "some text"} — extract first string value found
+				for (const [k, v] of Object.entries(nested)) {
+					if (typeof v === 'string' && v.trim() !== '') {
+						console.log('[DEBUG recommend] found nested string key:', k, 'value:', v);
+						return v;
+					}
+				}
+			}
+			// 4. No known field — try first non-empty string value in the object
+			for (const [k, v] of Object.entries(payload)) {
+				if (typeof v === 'string' && v.trim() !== '' && !v.match(/^\d{4}-\d{2}-\d{2}/)) {
+					console.log('[DEBUG recommend] fallback string key:', k, 'value:', v);
+					return v;
+				}
+			}
+		}
+		console.log('[DEBUG recommend] extractRecommendValue returning empty');
 		return '';
 	}, []);
 
+	// Load recommendation from backend when serviceTicketId is available.
+	// Use ref to track which id the current fetch is for — avoid stale results.
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
 		const idNum = toIdOrNull(serviceTicketId);
+		console.log('[DEBUG recommend] effect, serviceTicketId=', serviceTicketId, '→ idNum=', idNum);
 		if (!token || !idNum) return;
 
-		let ignore = false;
+		let cancelled = false;
 		const run = async () => {
 			try {
 				setRecommendationLoading(true);
-				const res = await fetchServiceTicketAdvisorRecommend(idNum, token);
-				if (ignore) return;
+				const res = await fetchSafetyInspectionCurrentRecommend(idNum, token);
+				if (cancelled) return;
+				console.log('[DEBUG recommend] API response:', JSON.stringify(res));
 				const value = extractRecommendValue(res);
-				recommendationLastSavedRef.current = String(value ?? '');
-				setRecommendation(String(value ?? ''));
-			} catch {
-				// Silent: keep empty string.
-				if (ignore) return;
-				recommendationLastSavedRef.current = '';
-				setRecommendation('');
+				console.log('[DEBUG recommend] extracted value:', JSON.stringify(value));
+				recommendationLastSavedRef.current = value;
+				setRecommendation(value);
+			} catch (err) {
+				console.warn('[DEBUG recommend] load failed:', err?.message);
 			} finally {
-				if (!ignore) setRecommendationLoading(false);
+				if (!cancelled) setRecommendationLoading(false);
 			}
 		};
 
 		run();
 		return () => {
-			ignore = true;
+			cancelled = true;
 		};
-	}, [serviceTicketId, refreshToken, extractRecommendValue]);
+		// NOTE: intentionally omitting extractRecommendValue from deps to avoid re-fetches
+	}, [serviceTicketId, refreshToken]);
 
 	const saveRecommendation = useCallback(
 		async (valueOverride) => {
@@ -497,12 +534,34 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			}
 
 			const nextValue = valueOverride == null ? String(recommendation ?? '') : String(valueOverride);
-			if (nextValue === recommendationLastSavedRef.current) return false;
+			console.log('[DEBUG recommend] save called, nextValue:', JSON.stringify(nextValue), 'ref.current:', JSON.stringify(recommendationLastSavedRef.current));
+			if (nextValue === recommendationLastSavedRef.current) {
+				console.log('[DEBUG recommend] skipped - same as last saved');
+				return false;
+			}
+			console.log('[DEBUG recommend] calling updateSafetyInspectionRecommend, idNum:', idNum, 'value:', nextValue);
 
 			try {
 				setRecommendationSaving(true);
-				await updateSafetyInspectionRecommend(idNum, nextValue, token);
-				recommendationLastSavedRef.current = nextValue;
+				const savedValue = nextValue; // capture here so re-fetch doesn't override wrongly
+				await updateSafetyInspectionRecommend(idNum, savedValue, token);
+				recommendationLastSavedRef.current = savedValue;
+				// Update local state immediately — do NOT wait for re-fetch to fix UI
+				setRecommendation(savedValue);
+				// Re-fetch from backend to sync with actual stored value.
+				try {
+					const refreshed = await fetchSafetyInspectionCurrentRecommend(idNum, token);
+					const confirmed = extractRecommendValue(refreshed);
+					console.log('[DEBUG recommend] after-save fetched value:', JSON.stringify(confirmed));
+					// Only update if backend confirms a value (avoid overriding with stale empty string)
+					if (String(confirmed).trim() !== '') {
+						recommendationLastSavedRef.current = confirmed;
+						setRecommendation(confirmed);
+					}
+				} catch (err) {
+					// Save succeeded — re-fetch failure is non-critical.
+					console.warn('[DEBUG recommend] re-fetch failed:', err?.message);
+				}
 				return true;
 			} finally {
 				setRecommendationSaving(false);

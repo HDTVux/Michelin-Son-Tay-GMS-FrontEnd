@@ -13,8 +13,10 @@ import {
   fetchTechniciansWorkload,
   fetchTicketAssignments,
   swapServiceTicketQueue,
+  fetchServiceTicketAdvisorRecommend,
 } from '../../../services/serviceTicketService';
 import { fetchCheckInAdvisors } from '../../../services/checkInService';
+import { formatTimeHHmm, parseBackendDateTime } from '../../../components/timeUtils.js';
 import styles from './AdvisorInspection.module.css';
 
 const STAFF_ROLE = { ADVISOR: 'ADVISOR' };
@@ -75,10 +77,10 @@ const formatCalendarDisplay = (dateIso) => {
   if (!raw) return 'Chọn ngày';
   const date = new Date(`${raw}T00:00:00`);
   if (Number.isNaN(date.getTime())) return raw;
-  const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
-  return `${month}/${day}/${year}`;
+  return `${day}/${month}/${year}`;
 };
 
 const readStaffRolesFromStorage = () => {
@@ -263,6 +265,35 @@ const getSwappedTicketOrder = (rows, sourceTicketId, targetTicketId) => {
   next.splice(toIndex, 0, moved);
   return next;
 };
+const withQueueNumber = (ticket, queueNumber) => {
+  const num = Number(queueNumber);
+  if (!Number.isFinite(num) || num <= 0) {
+    return {
+      ...ticket,
+      queueNumber: null,
+      queue_number: null,
+      queueNo: null,
+      queue_no: null,
+      queueOrder: null,
+      queue_order: null,
+      orderInQueue: null,
+      order_in_queue: null,
+      stt: null,
+    };
+  }
+  return {
+    ...ticket,
+    queueNumber: num,
+    queue_number: num,
+    queueNo: num,
+    queue_no: num,
+    queueOrder: num,
+    queue_order: num,
+    orderInQueue: num,
+    order_in_queue: num,
+    stt: num,
+  };
+};
 
 const SERVICE_TICKET_STATUS_LABELS = {
   DRAFT: 'Nháp',
@@ -353,6 +384,13 @@ export default function AdvisorInspection() {
   const [reloadKey, setReloadKey] = useState(0);
   const [dragTicketId, setDragTicketId] = useState(null);
   const [swapping, setSwapping] = useState(false);
+
+  // Khuyến nghị modal
+  const [showRecommendModal, setShowRecommendModal] = useState(false);
+  const [recommendTicket, setRecommendTicket] = useState(null);
+  const [recommendData, setRecommendData] = useState(null);
+  const [recommendLoading, setRecommendLoading] = useState(false);
+  const [_recommendError, setRecommendError] = useState('');
 
   // Workload map
   const [workloadMap, setWorkloadMap] = useState({});
@@ -616,11 +654,39 @@ export default function AdvisorInspection() {
     return { label: '-', className: styles.queueUnassigned };
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    if (Number.isNaN(date.getTime())) return dateStr;
-    return date.toLocaleDateString('vi-VN');
+  const formatAppointmentDateTime = (ticket) => {
+    const dateRaw = String(
+      ticket?.appointmentDate || ticket?.bookingDate || ticket?.scheduledDate || '',
+    ).trim();
+    const timeRaw = formatTimeHHmm(
+      ticket?.appointmentTime || ticket?.bookingTime || ticket?.scheduledTime || '',
+    );
+
+    if (!dateRaw && !timeRaw) return '-';
+
+    const hasTimeInDate = /(?:T|\s)\d{2}:\d{2}/.test(dateRaw);
+    const dateTimeRaw = dateRaw && !hasTimeInDate && timeRaw
+      ? `${dateRaw} ${timeRaw}`
+      : dateRaw;
+    const parsed = parseBackendDateTime(dateTimeRaw);
+
+    if (!parsed) {
+      if (dateRaw && timeRaw) return `${dateRaw} ${timeRaw}`;
+      return dateRaw || timeRaw || '-';
+    }
+
+    if (hasTimeInDate || timeRaw) {
+      return parsed.toLocaleString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+    }
+
+    return parsed.toLocaleDateString('vi-VN');
   };
 
   const getStaffDisplayName = (staffId, fallbackName = '') => {
@@ -649,6 +715,20 @@ export default function AdvisorInspection() {
       }
       return changed ? next : prev;
     });
+  };
+
+  const resolveTicketId = async (ticket, ticketCode, token) => {
+    const directId = getTicketId(ticket);
+    if (Number.isFinite(directId) && directId > 0) return directId;
+    if (!token || !ticketCode) return null;
+    try {
+      const detailRes = await fetchServiceTicketDetail(ticketCode, token);
+      const detail = detailRes?.data?.data ?? detailRes?.data ?? detailRes;
+      const resolvedId = getTicketId(detail);
+      return Number.isFinite(resolvedId) && resolvedId > 0 ? resolvedId : null;
+    } catch {
+      return null;
+    }
   };
 
   // Open modal
@@ -762,7 +842,7 @@ export default function AdvisorInspection() {
 
     setLoadingModal(true);
     try {
-      await changeAdvisorByAdvisor(ticketCode, newAdvisorId, 'Đổi advisor từ trang advisor', token);
+      await changeAdvisorByAdvisor(ticketCode, newAdvisorId, 'đổi advisor từ trang advisor', token);
       const selectedTicketId = getTicketId(selectedTicket);
       if (Number.isFinite(selectedTicketId)) {
         setTickets((prev) => prev.filter((ticketItem) => Number(getTicketId(ticketItem)) !== Number(selectedTicketId)));
@@ -804,7 +884,7 @@ export default function AdvisorInspection() {
 
     setLoadingModal(true);
     try {
-      await changeTechnicianByAdvisor(ticketCode, oldTechnicianId, newTechnicianId, 'Đổi KTV từ trang advisor', token);
+      await changeTechnicianByAdvisor(ticketCode, oldTechnicianId, newTechnicianId, 'đổi KTV từ trang advisor', token);
       await handleOpenModal(selectedTicket);
       setModalSuccess('Đã đổi kỹ thuật viên.');
     } catch (err) {
@@ -824,7 +904,7 @@ export default function AdvisorInspection() {
     }
     const hasAssignedTechnician = modalAssignments.some(isActiveTechnicianAssignment);
     if (hasAssignedTechnician) {
-      setModalError('Phiếu đã có kỹ thuật viên chính. Vui lòng dùng nút Đổi KTV nếu cần thay đổi.');
+      setModalError('Phiếu đã có kỹ thuật viên chính. Vui lòng dùng nút đổi KTV nếu cần thay đổi.');
       return;
     }
 
@@ -1029,6 +1109,8 @@ export default function AdvisorInspection() {
 
     const sourceTicket = tickets.find((t) => Number(getTicketId(t)) === Number(sourceTicketId));
     const targetTicket = tickets.find((t) => Number(getTicketId(t)) === Number(targetTicketId));
+    const sourceQueueNumber = getTicketQueueNumber(sourceTicket);
+    const targetQueueNumber = getTicketQueueNumber(targetTicket);
     const sourceCreateDate = getTicketCreateDateKey(sourceTicket);
     const targetCreateDate = getTicketCreateDateKey(targetTicket);
     if (sourceCreateDate && targetCreateDate && sourceCreateDate !== targetCreateDate) {
@@ -1039,7 +1121,14 @@ export default function AdvisorInspection() {
     let rollbackTickets = null;
     setTickets((prev) => {
       rollbackTickets = prev;
-      return getSwappedTicketOrder(prev, sourceTicketId, targetTicketId);
+      const reordered = getSwappedTicketOrder(prev, sourceTicketId, targetTicketId);
+      // Sau khi đổi vị trí, hoán đổi luôn số STT giữa 2 phiếu.
+      return reordered.map((ticket) => {
+        const ticketId = Number(getTicketId(ticket));
+        if (ticketId === Number(sourceTicketId)) return withQueueNumber(ticket, targetQueueNumber);
+        if (ticketId === Number(targetTicketId)) return withQueueNumber(ticket, sourceQueueNumber);
+        return ticket;
+      });
     });
 
     setSwapping(true);
@@ -1062,11 +1151,8 @@ export default function AdvisorInspection() {
             || swappedRow?.status
             || ticket?.ticketStatus
             || ticket?.status;
-          const nextQueueNumber = getTicketQueueNumber(swappedRow) ?? getTicketQueueNumber(ticket);
           return {
             ...ticket,
-            queueNumber: nextQueueNumber,
-            queue_number: nextQueueNumber,
             ticketStatus: nextStatus,
             status: nextStatus,
           };
@@ -1241,27 +1327,45 @@ export default function AdvisorInspection() {
               {getServiceTicketStatusDisplay(ticket)}
             </span>
           </td>
-          <td>{formatDate(ticket.appointmentDate || ticket.bookingDate || ticket.scheduledDate)}</td>
+          <td>{formatAppointmentDateTime(ticket)}</td>
           <td>
             <div className={styles.actionButtons}>
               <button
                 className={styles.actionBtn}
                 onClick={() => {
-                  if (!code || !hasTech) return;
+                  if (!code) return;
                   navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
                 }}
-                disabled={!code || !hasTech || swapping}
-                title={!hasTech ? 'Cần phân công KTV trước khi mở phiếu' : 'Mở chi tiết phiếu dịch vụ'}
+                disabled={!code || swapping}
+                title="Mở chi tiết phiếu dịch vụ"
               >
                 Mở
               </button>
               <button
                 className={`${styles.actionBtn} ${styles.recommendBtn}`}
-                onClick={() => {
+                onClick={async () => {
                   if (!code) return;
-                  navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, {
-                    state: { ticket, focusRecommendation: true },
-                  });
+                  const ticketId = getTicketId(ticket);
+                  setRecommendTicket({ ...ticket, ticketCode: code, ticketId });
+                  setRecommendData(null);
+                  setRecommendError('');
+                  setRecommendLoading(true);
+                  setShowRecommendModal(true);
+                  const token = getToken();
+                  if (!ticketId || !token) {
+                    setRecommendError('Không tìm thấy thông tin phiếu.');
+                    setRecommendLoading(false);
+                    return;
+                  }
+                  try {
+                    const res = await fetchServiceTicketAdvisorRecommend(ticketId, token);
+                    const value = res?.data?.data ?? res?.data ?? res;
+                    setRecommendData(typeof value === 'string' ? value.trim() : '');
+                  } catch {
+                    setRecommendData('');
+                  } finally {
+                    setRecommendLoading(false);
+                  }
                 }}
                 disabled={!code || swapping}
                 title="Xem khuyến nghị của phiếu"
@@ -1342,7 +1446,7 @@ export default function AdvisorInspection() {
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>
-                Phân công KTV • {getTicketCode(selectedTicket) || '-'}
+                Phân công KTV - {getTicketCode(selectedTicket) || '-'}
               </h3>
               <button className={styles.modalClose} onClick={handleCloseModal}>×</button>
             </div>
@@ -1460,7 +1564,7 @@ export default function AdvisorInspection() {
                                   {a?.isPrimary ? 'Kỹ thuật viên chính' : 'Kỹ thuật viên'} &bull;{' '}
                                   {STATUS_LABELS[displayStatus] || displayStatus}
                                 </span>
-                                {/* Nút Đổi KTV / Hủy: chỉ khi PENDING và phiếu chưa finalized */}
+                                {/* Nút đổi KTV / Hủy: chỉ khi PENDING và phiếu chưa finalized */}
                                 {isPending && !isCancelled && !isFinalized && (
                                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                                     <select
@@ -1529,8 +1633,8 @@ export default function AdvisorInspection() {
                               cursor: 'pointer',
                             }}
                           >
-                            <option value="ticket_asc">Số phiếu: ít → nhiều</option>
-                            <option value="ticket_desc">Số phiếu: nhiều → ít</option>
+                            <option value="ticket_asc">Số phiếu: ít đến nhiều</option>
+                            <option value="ticket_desc">Số phiếu: nhiều đến ít</option>
                             <option value="free_first">Rảnh trước</option>
                             <option value="busy_first">Bận trước</option>
                           </select>
@@ -1591,7 +1695,7 @@ export default function AdvisorInspection() {
                       <div className={styles.emptyState}>
                         <p>
                           {hasAssignedTechnician
-                            ? 'Phiếu đã có 1 kỹ thuật viên chính. Nếu cần thay đổi, hãy dùng nút Đổi KTV.'
+                            ? 'Phiếu đã có 1 kỹ thuật viên chính. Nếu cần thay đổi, hãy dùng nút đổi KTV.'
                             : modalAssignments.length > 0
                               ? 'Không còn KTV khả dụng nào để phân công thêm.'
                               : 'Chưa có KTV nào khả dụng.'}
@@ -1608,7 +1712,81 @@ export default function AdvisorInspection() {
                   onClick={handleCloseModal}
                   disabled={loadingModal}
                 >
-                  Lưu & Đóng
+                  Lưu & đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal xem khuyến nghị phiếu cũ */}
+      {showRecommendModal && recommendTicket && (
+        <div className={styles.modalOverlay} onClick={() => setShowRecommendModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Khuyến nghị phiếu trước</h3>
+              <button className={styles.modalClose} onClick={() => setShowRecommendModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              {/* Thông tin phiếu */}
+              <div style={{ marginBottom: 16, padding: '10px 14px', background: '#f9fafb', borderRadius: 8, fontSize: 13 }}>
+                <div style={{ display: 'flex', gap: 24 }}>
+                  <div>
+                    <span style={{ color: '#6b7280' }}>Phiếu hiện tại: </span>
+                    <strong>{recommendTicket.ticketCode || '-'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#6b7280' }}>Biển số: </span>
+                    <strong>{recommendTicket.licensePlate || '-'}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Loading */}
+              {recommendLoading && (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: '#6b7280' }}>
+                  Đang tải khuyến nghị...
+                </div>
+              )}
+
+              {/* Lỗi / không có khuyến nghị */}
+              {!recommendLoading && !recommendData && (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af' }}>
+                  Không có khuyến nghị từ phiếu trước cho xe này.
+                </div>
+              )}
+
+              {/* Hiển thị khuyến nghị */}
+              {!recommendLoading && recommendData && (
+                <div>
+                  <div style={{ marginBottom: 8, fontWeight: 600, color: '#374151', fontSize: 13 }}>
+                    Khuyến nghị từ phiếu trước (cùng biển số xe)
+                  </div>
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      background: '#fffbeb',
+                      border: '1px solid #fcd34d',
+                      borderRadius: 8,
+                      fontSize: 14,
+                      color: '#92400e',
+                      whiteSpace: 'pre-wrap',
+                      minHeight: 60,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {recommendData}
+                  </div>
+                </div>
+              )}
+
+              <div className={styles.modalFooter}>
+                <button
+                  className={styles.modalActionBtn}
+                  onClick={() => setShowRecommendModal(false)}
+                >
+                  Đóng
                 </button>
               </div>
             </div>
@@ -1618,7 +1796,4 @@ export default function AdvisorInspection() {
     </div>
   );
 }
-
-
-
 

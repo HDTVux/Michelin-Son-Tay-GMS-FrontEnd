@@ -7,57 +7,79 @@ import { getValidToken } from '../../services/tokenUtils.js';
 import { toast } from 'react-toastify';
 import styles from './StaffProfile.module.css';
 
+const ROLE_LABELS = {
+  MANAGER: 'Quản lý',
+  ADVISOR: 'Cố vấn viên',
+  RECEPTIONIST: 'Lễ tân',
+  TECHNICIAN: 'Kỹ thuật viên',
+  ADMIN: 'Quản trị viên',
+};
+
+const readStaffProfileFromStorage = () => {
+  try {
+    const raw = localStorage.getItem('staffProfile');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      staffId: parsed.staffId ?? null,
+      fullName: typeof parsed.fullName === 'string' ? parsed.fullName : '',
+      avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : '',
+      role: Array.isArray(parsed.role) ? parsed.role : [],
+    };
+  } catch {
+    return null;
+  }
+};
+
 const StaffProfile = () => {
   useScrollToTop();
-  
+
   const fileInputRef = useRef(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [loading, setLoading] = useState(true);
- 
+
+  // Lấy profile từ localStorage trước (dữ liệu từ lúc đăng nhập)
+  const storedProfile = readStaffProfileFromStorage();
+
   const [staffInfo, setStaffInfo] = useState({
-    staffId: null,
-    avatar: null,
-    fullName: '',
+    staffId: storedProfile?.staffId ?? null,
+    avatar: storedProfile?.avatarUrl ?? null,
+    fullName: storedProfile?.fullName ?? '',
     gender: 'MALE',
     dob: '',
     phone: '',
-    position: ''
+    position: ROLE_LABELS[storedProfile?.role?.[0] ?? ''] ?? storedProfile?.role?.[0] ?? ''
   });
 
-  // Fetch staff profile on mount
+  // Fetch staff profile from API để lấy thêm thông tin chi tiết
   useEffect(() => {
     const loadStaffProfile = async () => {
       try {
         const token = await getValidToken('authToken');
-        if (token) {
-          const response = await fetchStaffProfile(token);
-          console.log('Backend response:', response);
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+        const response = await fetchStaffProfile(token);
+        const data = response?.data || response;
 
-          const data = response.data || response;
-          // Sử dụng dữ liệu từ API
-          setStaffInfo({
-            staffId: data.staffId || data.id || null,
-            avatar: data.avatar || data.avatarUrl || null,
-            fullName: data.fullName || data.name || '',
-            gender: data.gender || 'MALE',
-            dob: data.dob || data.dateOfBirth || '',
-            phone: data.phone || data.phoneNumber || '',
-            position: data.position || data.role || data.chucDanh || ''
-          });
+        // Chỉ merge nếu API trả đúng dữ liệu (không phải mock/greeting)
+        if (data && typeof data === 'object' && (data.staffId || data.id || data.fullName)) {
+          setStaffInfo((prev) => ({
+            staffId: data.staffId ?? data.id ?? prev.staffId,
+            avatar: data.avatarUrl ?? data.avatar ?? prev.avatar,
+            fullName: data.fullName ?? data.name ?? prev.fullName,
+            gender: data.gender ?? prev.gender,
+            dob: data.dob ?? data.dateOfBirth ?? prev.dob,
+            phone: data.phone ?? data.phoneNumber ?? prev.phone,
+            position: ROLE_LABELS[data.position] ?? ROLE_LABELS[data.role] ?? data.position ?? data.role ?? data.chucDanh ?? prev.position,
+          }));
         }
       } catch (error) {
-        console.error('Error fetching staff profile:', error);
-        // Vẫn hiển thị mock data nếu có lỗi
-        setStaffInfo({
-          staffId: 1,
-          avatar: null,
-          fullName: 'Nhân viên Demo',
-          gender: 'MALE',
-          dob: '1990-01-01',
-          phone: '0900000000',
-          position: 'Nhân viên'
-        });
+        console.error('Error fetching staff profile from API:', error);
+        // Không dùng mock data — vẫn giữ data từ localStorage
       } finally {
         setLoading(false);
       }

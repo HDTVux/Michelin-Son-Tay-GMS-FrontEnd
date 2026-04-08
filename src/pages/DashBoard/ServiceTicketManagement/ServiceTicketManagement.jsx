@@ -8,9 +8,9 @@ import {
 	fetchTicketAssignments,
 	changeAdvisorByReceptionist,
 	exportServiceTicketsManage,
+	fetchAdvisorsWithWorkload,
 } from '../../../services/serviceTicketService.js';
-import { fetchCheckInAdvisors } from '../../../services/checkInService.js';
-import { formatDateTimeVi } from '../../../components/timeUtils.js';
+import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
 
 export default function ServiceTicketManagement() {
@@ -38,7 +38,7 @@ export default function ServiceTicketManagement() {
 	const [modalError, setModalError] = useState('');
 	const [modalSuccess, setModalSuccess] = useState('');
 	const [advisorOptions, setAdvisorOptions] = useState([]);
-	const [selectedNewAdvisorId, setSelectedNewAdvisorId] = useState('');
+	const [workloadFilter, setWorkloadFilter] = useState('all'); // 'all' | 'least' | 'most'
 	const [, setPageAssignments] = useState(new Map());
 
 	useEffect(() => {
@@ -125,10 +125,11 @@ export default function ServiceTicketManagement() {
 		});
 	}, [tickets, page, size, date, status, debouncedSearch]);
 
+	// Load advisors with workload for the change-advisor modal
 	useEffect(() => {
 		const token = getToken();
 		if (!token) return;
-		fetchCheckInAdvisors(token)
+		fetchAdvisorsWithWorkload(token)
 			.then((res) => {
 				setAdvisorOptions(Array.isArray(res?.data) ? res.data : []);
 			})
@@ -142,7 +143,6 @@ export default function ServiceTicketManagement() {
 		setModalAssignments([]);
 		setModalError('');
 		setModalSuccess('');
-		setSelectedNewAdvisorId('');
 
 		const token = getToken();
 		const ticketId = Number(ticket?.serviceTicketId || ticket?.ticketId || ticket?.id);
@@ -153,10 +153,6 @@ export default function ServiceTicketManagement() {
 			const [assignRes] = await Promise.all([fetchTicketAssignments(ticketId, token)]);
 			const assignments = Array.isArray(assignRes?.data) ? assignRes.data : [];
 			setModalAssignments(assignments);
-			const advisor = assignments.find((a) =>
-				String(a?.roleInTicket || a?.role || '').toUpperCase() === 'ADVISOR'
-				&& String(a?.status || '').toUpperCase() !== 'CANCELLED');
-			if (advisor?.staffId != null) setSelectedNewAdvisorId(String(advisor.staffId));
 		} catch (err) {
 			setModalError(err?.message || 'Không tải được dữ liệu phân công.');
 		} finally {
@@ -169,7 +165,6 @@ export default function ServiceTicketManagement() {
 		setModalAssignments([]);
 		setModalError('');
 		setModalSuccess('');
-		setSelectedNewAdvisorId('');
 	};
 
 	const handleResetFilters = () => {
@@ -217,7 +212,7 @@ export default function ServiceTicketManagement() {
 		} finally {
 			setIsExporting(false);
 		}
-	}, [date, endDate, isExporting]);
+	}, [date, endDate, isExporting, downloadBlob]);
 
 	const currentAdvisor = modalAssignments.find((a) =>
 		String(a?.roleInTicket || a?.role || '').toUpperCase() === 'ADVISOR'
@@ -229,17 +224,19 @@ export default function ServiceTicketManagement() {
 	const isAdvisorPendingForReception = String(currentAdvisor?.status || '').toUpperCase() === 'PENDING';
 	const canReceptionistChangeAdvisor = isTicketDraftForReception && isAdvisorPendingForReception;
 
-	const handleChangeAdvisorFromReception = async () => {
+	const handleChangeAdvisorFromReception = async (newAdvisorId) => {
 		const token = getToken();
 		const ticketCode = String(modal.ticket?.ticketCode || '').trim();
-		const nextAdvisorId = Number(selectedNewAdvisorId);
-		const currentAdvisorId = Number(currentAdvisor?.staffId || 0);
 		const ticketId = Number(modal.ticket?.serviceTicketId || modal.ticket?.ticketId || modal.ticket?.id);
-		if (!token || !ticketCode || !Number.isFinite(nextAdvisorId) || nextAdvisorId <= 0) return;
+		const currentAdvisorId = Number(currentAdvisor?.staffId || 0);
+		const nextAdvisorId = Number(newAdvisorId);
+
+		if (!token || !ticketCode) return;
+		if (!Number.isFinite(nextAdvisorId) || nextAdvisorId <= 0) return;
 		if (!Number.isFinite(ticketId) || ticketId <= 0) return;
 		if (nextAdvisorId === currentAdvisorId) return;
 		if (!canReceptionistChangeAdvisor) {
-			setModalError('Le tan chi duoc doi advisor khi ticket DRAFT va advisor hien tai dang PENDING.');
+			setModalError('Chỉ lễ tân được đổi advisor khi phiếu đang ở trạng thái Nháp và advisor hiện tại đang ở trạng thái Chờ duyệt.');
 			return;
 		}
 
@@ -250,15 +247,15 @@ export default function ServiceTicketManagement() {
 			await changeAdvisorByReceptionist(
 				ticketCode,
 				nextAdvisorId,
-				'Doi advisor tu man le tan',
+				'Đổi advisor từ màn lễ tân',
 				token,
 			);
 			const assignRes = await fetchTicketAssignments(ticketId, token);
 			setModalAssignments(Array.isArray(assignRes?.data) ? assignRes.data : []);
-			setModalSuccess('Da doi advisor thanh cong.');
+			setModalSuccess('Đã đổi cố vấn viên thành công.');
 			await loadData();
 		} catch (err) {
-			setModalError(err?.message || 'Khong doi duoc advisor.');
+			setModalError(err?.message || 'Không thể đổi cố vấn viên.');
 		} finally {
 			setModalLoading(false);
 		}
@@ -328,37 +325,74 @@ export default function ServiceTicketManagement() {
 									<div className={styles['assign-card']}>
 										<div className={styles['assign-info']}>
 											<span className={styles['assign-name']}>{currentAdvisorName}</span>
-											<span className={styles['assign-role']}>Cố vấn viên {currentAdvisor?.status ? `• ${currentAdvisor.status}` : ''}</span>
-											{canReceptionistChangeAdvisor && (
-											<div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-												<select
-													value={selectedNewAdvisorId}
-													onChange={(e) => setSelectedNewAdvisorId(e.target.value)}
-													disabled={modalLoading}
-													style={{ flex: 1 }}
-												>
-													<option value="">Chọn advisor mới</option>
-													{advisorOptions.map((advisor) => (
-														<option key={advisor.staffId} value={advisor.staffId}>
-															{advisor.fullName || advisor.staffName || `NV-${advisor.staffId}`}
-														</option>
-													))}
-												</select>
-												<button
-													className={styles['assign-action-btn']}
-													onClick={handleChangeAdvisorFromReception}
-													disabled={
-														modalLoading ||
-														!selectedNewAdvisorId ||
-														Number(selectedNewAdvisorId) === Number(currentAdvisor?.staffId || 0)
-													}
-												>
-													Đổi advisor
-												</button>
-											</div>
-											)}
+											<span className={styles['assign-role']}>
+												Cố vấn viên {currentAdvisor?.status ? `• ${getStatusTextVi(currentAdvisor.status, currentAdvisor.status)}` : ''}
+											</span>
 										</div>
 									</div>
+
+									{canReceptionistChangeAdvisor && advisorOptions.length > 0 && (
+										<div className={styles['advisor-change-section']}>
+											<div className={styles['workload-filter']}>
+												<label>Lọc theo số phiếu:</label>
+												<select
+													value={workloadFilter}
+													onChange={(e) => setWorkloadFilter(e.target.value)}
+												>
+													<option value="all">Tất cả</option>
+													<option value="least">Ít phiếu nhất</option>
+													<option value="most">Nhiều phiếu nhất</option>
+												</select>
+											</div>
+
+											<div className={styles['advisor-list']}>
+												{(() => {
+													let filtered = [...advisorOptions];
+													if (workloadFilter === 'least') {
+														filtered.sort((a, b) => a.currentTicketCount - b.currentTicketCount);
+													} else if (workloadFilter === 'most') {
+														filtered.sort((a, b) => b.currentTicketCount - a.currentTicketCount);
+													}
+
+													return filtered.map((advisor) => {
+														const isCurrent = Number(advisor.staffId) === Number(currentAdvisor?.staffId || 0);
+														return (
+															<div
+																key={advisor.staffId}
+																className={`${styles['advisor-card']} ${isCurrent ? styles['advisor-card--current'] : ''}`}
+															>
+																<div className={styles['advisor-info']}>
+																	<span className={styles['advisor-name']}>
+																		{advisor.fullName || `NV-${advisor.staffId}`}
+																		{isCurrent && <span className={styles['current-tag']}> (Hiện tại)</span>}
+																	</span>
+																	<span className={styles['advisor-phone']}>
+																		{advisor.phone || 'Không có SĐT'}
+																	</span>
+																</div>
+																<div className={styles['workload-badge']}>
+																	<span className={`${styles['workload-count']} ${advisor.isBusy ? styles['workload--busy'] : styles['workload--free']}`}>
+																		{advisor.currentTicketCount ?? 0} phiếu
+																	</span>
+																</div>
+																<button
+																	className={styles['assign-btn']}
+																	onClick={() => handleChangeAdvisorFromReception(advisor.staffId)}
+																	disabled={modalLoading || isCurrent}
+																>
+																	Đổi
+																</button>
+															</div>
+														);
+													});
+												})()}
+											</div>
+										</div>
+									)}
+
+									{canReceptionistChangeAdvisor && advisorOptions.length === 0 && (
+										<div className={styles['empty-text']}>Không có cố vấn viên nào.</div>
+									)}
 								</div>
 							)}
 
@@ -482,7 +516,13 @@ function TicketPanel({
 									<td>
 										<span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>{displayStatus}</span>
 									</td>
-									<td>{formatDateTimeVi(item?.scheduledDate || item?.appointmentDate || item?.bookingDate, '-')}</td>
+									<td>
+										{item?.booking?.scheduledDate
+											? `${item.booking.scheduledDate} ${formatTimeHHmm(item?.booking?.scheduledTime)}`.trim()
+											: (item?.scheduledDate
+												? `${item.scheduledDate} ${formatTimeHHmm(item?.scheduledTime)}`.trim()
+												: '-')}
+									</td>
 									<td>
 										<div className={styles['action-buttons']}>
 											<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>

@@ -1,4 +1,4 @@
-.servicesPage {
+.partsPage {
   min-height: auto;
   padding: 80px 5%;
   background: #ffffff;
@@ -7,75 +7,49 @@
   overflow: hidden;
 }
 
-.servicesPage::before {
+.partsPage::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #10b981, #34d399, #10b981);
+  background: linear-gradient(90deg, #005aa9, #22c55e, #005aa9);
   background-size: 200% 100%;
-  animation: shimmer 3s linear infinite;
+  animation: partsShimmer 3s linear infinite;
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: 0% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
+@keyframes partsShimmer {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
 }
 
-.combosPage {
-  min-height: auto;
-  padding: 80px 5%;
-  background: #fafafa;
-  color: #0a0f1c;
-  position: relative;
-  overflow: hidden;
-}
-
-.combosPage::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b);
-  background-size: 200% 100%;
-  animation: shimmer 3s linear infinite;
-}
-
-.servicesHero {
+.partsHero {
   text-align: left;
   margin-bottom: 60px;
-  padding-left: 0;
   opacity: 0;
   transform: translateX(100px);
   transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.servicesHero.visible {
+.partsHero.visible {
   opacity: 1;
   transform: translateX(0);
 }
 
 /* Scroll reveal cho slider */
-.servicesSlider.reveal {
+.partsSlider.reveal {
   opacity: 0;
   transform: translateY(60px);
   transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1), transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.servicesSlider.reveal.is-visible {
+.partsSlider.reveal.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-.servicesLabel {
+.partsLabel {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 2px;
@@ -87,12 +61,12 @@
   transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
 }
 
-.servicesHero.visible .servicesLabel {
+.partsHero.visible .partsLabel {
   opacity: 1;
   transform: translateX(0);
 }
 
-.servicesTitle {
+.partsTitle {
   font-size: 64px;
   font-weight: 700;
   margin-bottom: 20px;
@@ -105,17 +79,17 @@
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.titlePart1 {
+.partsTitle .titlePart1 {
   color: #0a0f1c;
   font-weight: 700;
 }
 
-.titlePart2 {
+.partsTitle .titlePart2 {
   color: #005aa9;
   font-weight: 700;
 }
 
-.servicesSubtitle {
+.partsSubtitle {
   font-size: 20px;
   color: #64748b;
   max-width: 700px;
@@ -129,11 +103,12 @@
   letter-spacing: 0.3px;
 }
 
-.servicesHero.visible .servicesSubtitle {
+.partsHero.visible .partsSubtitle {
   opacity: 1;
   transform: translateX(0);
 }
-.servicesSlider {
+
+.partsSlider {
   position: relative;
   margin-bottom: 40px;
   max-width: 1400px;
@@ -141,90 +116,88 @@
   margin-right: auto;
 }
 
-.sliderViewport {
+.partsViewport {
   overflow-x: hidden;
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y pinch-zoom;
 }
 
-.sliderTrack {
+.partsTrack {
   display: flex;
-  gap: 0; 
+  gap: 0;
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
   cursor: grab;
   touch-action: pan-y pinch-zoom;
-  -webkit-overflow-scrolling: touch;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.serviceSlide {
-  flex: 0 0 calc(100% / 4);
-  padding: 0 15px;
-  box-sizing: border-box;
-  display: flex;
-}
-
-.serviceSlide .serviceCard {
-  width: 100%;
-}
-
-.sliderArrow {
+.partsArrow {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
   width: 56px;
   height: 56px;
   border-radius: 8px;
-  border: 1px solid rgba(0,90,169,0.18);
-  background: rgba(0,90,169,0.08);
+  border: 1px solid rgba(0, 90, 169, 0.18);
+  background: rgba(0, 90, 169, 0.08);
   color: #005aa9;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 10;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
   transition: transform 0.18s ease, background 0.18s ease;
   font-size: 24px;
   font-weight: bold;
 }
 
-.sliderArrow:hover { 
-  transform: translateY(-50%) scale(1.04); 
-  background: rgba(0,90,169,0.14); 
+.partsArrow:hover {
+  transform: translateY(-50%) scale(1.04);
+  background: rgba(0, 90, 169, 0.14);
 }
 
-.sliderArrow:disabled { 
-  opacity: 0.35; 
-  cursor: default; 
+.partsArrow:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
-.sliderArrow.left { 
-  left: -50px; 
+.partsArrow.left {
+  left: -50px;
 }
 
-.sliderArrow.right {
+.partsArrow.right {
   right: -50px;
 }
 
-@media (max-width: 900px) {
-  .serviceSlide {
-    flex: 0 0 calc(100% / 2);
-  }
+.partsStatus {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px;
+  text-align: center;
+  font-size: 18px;
+  color: #64748b;
 }
 
-@media (max-width: 480px) {
-  .serviceSlide {
-    flex: 0 0 100%;
-  }
-  .sliderArrow.left { left: 6px; }
-  .sliderArrow.right { right: 6px; }
+.partsStatusError {
+  color: #b91c1c;
 }
 
-.serviceCard {
+.partSlide {
+  flex: 0 0 calc(100% / 4);
+  padding: 0 15px;
+  box-sizing: border-box;
+  display: flex;
+}
+
+.partSlide .partCard {
+  width: 100%;
+}
+
+.partCard {
   background: #ffffff;
   border-radius: 16px;
   padding: 0;
@@ -238,32 +211,31 @@
   position: relative;
 }
 
-.serviceCard:hover {
+.partCard:hover {
   transform: translateY(-6px);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
   border-color: rgba(0, 90, 169, 0.2);
 }
 
-.serviceCard-imageTop {
+.partCard-imageTop {
   width: 100%;
   height: 240px;
   overflow: hidden;
   position: relative;
 }
 
-
-.serviceCard-image {
+.partCard-imageTop img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.serviceCard:hover .serviceCard-image {
+.partCard:hover .partCard-imageTop img {
   transform: scale(1.08);
 }
 
-.serviceCard-content {
+.partCard-content {
   padding: 20px;
   flex: 1;
   display: flex;
@@ -272,7 +244,7 @@
   justify-content: space-between;
 }
 
-.serviceTitle {
+.partCardTitle {
   font-size: 20px;
   font-weight: 700;
   margin-bottom: 12px;
@@ -281,7 +253,7 @@
   text-align: center;
 }
 
-.serviceDescription {
+.partCardDesc {
   font-size: 14px;
   color: #475569;
   line-height: 1.6;
@@ -295,63 +267,15 @@
   text-align: center;
 }
 
-.comboDescription{
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  margin-bottom: 14px;
-}
-
-.serviceFeatures {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 16px 0;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.serviceFeatures li {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  color: #475569;
-  margin-bottom: 8px;
-  padding: 4px 0;
-  line-height: 1.35;
-  overflow: hidden;
-}
-
-.serviceFeatures li > :not(.checkIcon) {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  overflow: hidden;
-}
-
-.checkIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
-  color: white;
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: bold;
-  margin-right: 10px;
-  flex-shrink: 0;
-}
-
-.servicePrice {
+.partCardPrice {
   font-size: 16px;
   font-weight: 600;
   color: #005aa9;
   margin-bottom: 8px;
+  text-align: center;
 }
 
-.serviceActions {
+.partCardActions {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
@@ -360,8 +284,8 @@
   width: 100%;
 }
 
-.btnViewDetail,
-.btnBookNow {
+.partCardActions .partOutlineBtn,
+.partCardActions .partSolidBtn {
   width: 100%;
   height: 48px;
   padding: 0 26px;
@@ -377,118 +301,104 @@
   transition: all 0.3s ease;
   border: 2px solid transparent;
   white-space: nowrap;
-}
-
-.btnViewDetail,
-.btnBookNow {
-  background: #005aa9;
-  color: #ffffff;
-  border-color: #005aa9;
   box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
 }
 
-.btnViewDetail:hover,
-.btnBookNow:hover {
+.partCardActions .partSolidBtn {
+  background: #005aa9;
+  color: #ffffff;
+  border-color: #005aa9;
+}
+
+.partCardActions .partOutlineBtn {
+  background: #ffffff;
+  color: #005aa9;
+  border-color: #005aa9;
+}
+
+.partCardActions .partSolidBtn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(0, 90, 169, 0.4);
-  background: #005aa9;
+  background: #00407f;
+  border-color: #00407f;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.partCardActions .partOutlineBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 90, 169, 0.25);
+  background: rgba(0, 90, 169, 0.06);
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* ── Responsive ── */
 @media (max-width: 1024px) {
-  .serviceSlide {
+  .partSlide {
+    flex: 0 0 calc(100% / 3);
+  }
+}
+
+@media (max-width: 900px) {
+  .partSlide {
     flex: 0 0 calc(100% / 2);
   }
 }
 
 @media (max-width: 768px) {
-  .servicesPage,
-  .combosPage {
+  .partsPage {
     padding: 40px 4%;
   }
 
-  .servicesHero {
+  .partsHero {
     margin-bottom: 40px;
   }
 
-  .servicesTitle {
+  .partsTitle {
     font-size: 44px;
   }
 
-  .servicesLabel {
+  .partsLabel {
     font-size: 12px;
   }
 
-  .servicesSubtitle {
+  .partsSubtitle {
     font-size: 17px;
   }
 
-  .servicesSlider {
+  .partsSlider {
     margin-bottom: 30px;
   }
 
-  .serviceCard {
+  .partCard {
     height: auto;
   }
 
-  .serviceCard-content {
+  .partCard-content {
     padding: 18px;
   }
 
-  .serviceTitle {
+  .partCardTitle {
     font-size: 17px;
     margin-bottom: 10px;
   }
 
-  .serviceDescription {
+  .partCardDesc {
     font-size: 13px;
     margin-bottom: 12px;
   }
 
-  .serviceCard-imageTop {
+  .partCard-imageTop {
     height: 180px;
   }
 
-  .serviceFeatures {
-    margin-bottom: 12px;
-  }
-
-  .serviceFeatures li {
-    font-size: 12px;
-    margin-bottom: 6px;
-  }
-
-  .servicePrice {
+  .partCardPrice {
     font-size: 15px;
     margin-bottom: 12px;
   }
 
-  .sliderArrow {
+  .partsArrow {
     display: none;
   }
 
-  .sliderViewport {
+  .partsViewport {
     overflow-x: auto;
     overflow-y: visible;
     scroll-snap-type: x mandatory;
@@ -497,104 +407,85 @@
     -ms-overflow-style: none;
   }
 
-  .sliderViewport::-webkit-scrollbar {
+  .partsViewport::-webkit-scrollbar {
     display: none;
   }
 
-  .sliderTrack {
+  .partsTrack {
     scroll-snap-type: x mandatory;
   }
 
-  .serviceSlide {
+  .partSlide {
     scroll-snap-align: start;
   }
 }
 
 @media (max-width: 480px) {
-  .servicesPage,
-  .combosPage {
+  .partsPage {
     padding: 30px 3% 24px;
   }
 
-  .servicesHero {
+  .partsHero {
     margin-bottom: 30px;
   }
 
-  .servicesTitle {
+  .partsTitle {
     font-size: 32px;
     margin-bottom: 12px;
   }
 
-  .servicesLabel {
+  .partsLabel {
     font-size: 11px;
     letter-spacing: 1.5px;
   }
 
-  .servicesSubtitle {
+  .partsSubtitle {
     font-size: 14px;
     line-height: 1.5;
   }
 
-  .servicesSlider {
+  .partsSlider {
     margin-bottom: 20px;
     padding: 0 8px;
   }
 
-  .serviceSlide {
+  .partSlide {
     flex: 0 0 100%;
     padding: 0 8px;
   }
 
-  .serviceCard {
+  .partCard {
     border-radius: 16px;
     height: auto;
   }
 
-  .serviceCard-content {
+  .partCard-content {
     padding: 16px;
   }
 
-  .serviceTitle {
+  .partCardTitle {
     font-size: 15px;
     margin-bottom: 8px;
     line-height: 1.4;
   }
 
-  .serviceDescription {
+  .partCardDesc {
     font-size: 12px;
     margin-bottom: 10px;
     line-height: 1.5;
   }
 
-  .serviceCard-imageTop {
+  .partCard-imageTop {
     height: 150px;
   }
 
-  .serviceFeatures {
-    margin-bottom: 10px;
-  }
-
-  .serviceFeatures li {
-    font-size: 11px;
-    margin-bottom: 5px;
-    padding: 3px 0;
-    line-height: 1.4;
-  }
-
-  .checkIcon {
-    width: 16px;
-    height: 16px;
-    font-size: 10px;
-    margin-right: 8px;
-  }
-
-  .servicePrice {
+  .partCardPrice {
     font-size: 13px;
     margin-bottom: 12px;
     font-weight: 700;
   }
 
-  .sliderArrow {
+  .partsArrow {
     width: 40px;
     height: 40px;
     font-size: 18px;
@@ -602,7 +493,7 @@
     display: none;
   }
 
-  .sliderViewport {
+  .partsViewport {
     overflow-x: auto;
     overflow-y: visible;
     scroll-snap-type: x mandatory;
@@ -611,19 +502,19 @@
     -ms-overflow-style: none;
   }
 
-  .sliderViewport::-webkit-scrollbar {
+  .partsViewport::-webkit-scrollbar {
     display: none;
   }
 
-  .sliderTrack {
+  .partsTrack {
     scroll-snap-type: x mandatory;
   }
 
-  .serviceSlide {
+  .partSlide {
     scroll-snap-align: start;
   }
 
-  .sliderViewport {
+  .partsViewport {
     margin: 0 -8px;
   }
 }

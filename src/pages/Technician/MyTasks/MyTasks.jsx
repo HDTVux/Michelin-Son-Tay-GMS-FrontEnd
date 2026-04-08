@@ -2,9 +2,41 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTechnicianTickets, fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
+import { fetchTicketAssignments } from '../../../services/serviceTicketService';
+import { tryGetJwtPayload } from '../../../services/tokenUtils';
 import styles from './MyTasks.module.css';
 
-const getToken = () => localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+const getToken = () => {
+  const staffToken = localStorage.getItem('staffToken') || '';
+  const authToken = localStorage.getItem('authToken') || '';
+
+  const toValidId = (value) => {
+    const id = Number(value);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  };
+  const getStaffIdFromToken = (token) => {
+    const payload = tryGetJwtPayload(token);
+    return toValidId(payload?.staffId ?? payload?.staff_id ?? null);
+  };
+
+  let profileId = null;
+  try {
+    const profileRaw = localStorage.getItem('staffProfile');
+    if (profileRaw) {
+      const profile = JSON.parse(profileRaw);
+      profileId = toValidId(profile?.staffId ?? profile?.id ?? null);
+    }
+  } catch {
+    profileId = null;
+  }
+
+  if (profileId != null) {
+    if (staffToken && getStaffIdFromToken(staffToken) === profileId) return staffToken;
+    if (authToken && getStaffIdFromToken(authToken) === profileId) return authToken;
+  }
+
+  return staffToken || authToken;
+};
 const getTodayLocalISO = () => {
   const now = new Date();
   const offsetMs = now.getTimezoneOffset() * 60000;
@@ -26,7 +58,7 @@ const formatCalendarDisplay = (dateIso) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   const year = date.getFullYear();
-  return `${month}/${day}/${year}`;
+  return `${day}/${month}/${year}`;
 };
 
 const SERVICE_TICKET_STATUS_LABELS = {
@@ -61,6 +93,237 @@ const normalizeInspectionStatus = (value) => {
   if (raw === 'PENDING' || raw === 'COMPLETED' || raw === 'SKIPPED') return raw;
   return null;
 };
+const toPositiveNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
+};
+const parseTimeParts = (timeStr) => {
+  if (!timeStr) return null;
+  const m = timeStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  const hour = Number(m[1]);
+  const minute = Number(m[2]);
+  const second = m[3] != null ? Number(m[3]) : 0;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) return null;
+  return { hour, minute, second };
+};
+const getCurrentTechnicianId = (tokenArg) => {
+  const token = tokenArg || getToken();
+  if (!token) return null;
+  const payload = tryGetJwtPayload(token);
+  const staffId = Number(payload?.staffId ?? payload?.staff_id ?? null);
+  return Number.isFinite(staffId) && staffId > 0 ? Math.trunc(staffId) : null;
+};
+const parseFlexibleDateTime = (dateValue, timeValue) => {
+  const rawDate = String(dateValue || '').trim();
+  if (!rawDate) return null;
+  const rawTime = String(timeValue || '').trim();
+  const isoTry = new Date(rawDate);
+  if (!Number.isNaN(isoTry.getTime())) {
+    const hasTimeInDate = /[T\s]\d{1,2}:\d{2}/.test(rawDate);
+    if (hasTimeInDate) return { date: isoTry, hasTime: true };
+    const timeParts = parseTimeParts(rawTime);
+    if (timeParts) {
+      isoTry.setHours(timeParts.hour, timeParts.minute, timeParts.second, 0);
+      return { date: isoTry, hasTime: true };
+    }
+    isoTry.setHours(0, 0, 0, 0);
+    return { date: isoTry, hasTime: false };
+  }
+
+  // dd/MM/yyyy or dd-MM-yyyy, optional time part in the same string
+  const compact = rawDate.replace(/\s+/g, ' ').trim();
+  const dmY = compact.match(
+    /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (!dmY) return null;
+
+  const day = Number(dmY[1]);
+  const month = Number(dmY[2]);
+  const year = Number(dmY[3]);
+  let hour = dmY[4] != null ? Number(dmY[4]) : 0;
+  let minute = dmY[5] != null ? Number(dmY[5]) : 0;
+  let second = dmY[6] != null ? Number(dmY[6]) : 0;
+  let hasTime = dmY[4] != null;
+  if (!hasTime) {
+    const timeParts = parseTimeParts(rawTime);
+    if (timeParts) {
+      hour = timeParts.hour;
+      minute = timeParts.minute;
+      second = timeParts.second;
+      hasTime = true;
+    }
+  }
+
+  const parsed = new Date(year, month - 1, day, hour, minute, second, 0);
+  if (
+    Number.isNaN(parsed.getTime())
+    || parsed.getFullYear() !== year
+    || parsed.getMonth() !== month - 1
+    || parsed.getDate() !== day
+  ) return null;
+  return { date: parsed, hasTime };
+};
+
+const getTicketScheduleDateTimeInfo = (ticket) => {
+  const timeFallback = [
+    ticket?.scheduledTime,
+    ticket?.appointmentTime,
+    ticket?.bookingTime,
+    ticket?.timeSlot,
+    ticket?.booking?.scheduledTime,
+  ].find((item) => String(item || '').trim() !== '');
+  const dateCandidates = [
+    ticket?.appointmentDate,
+    ticket?.scheduledDate,
+    ticket?.bookingDate,
+    ticket?.booking?.scheduledDate,
+    ticket?.dueDate,
+    ticket?.receivedAt,
+    ticket?.createdAt,
+  ];
+  for (const candidate of dateCandidates) {
+    const parsed = parseFlexibleDateTime(candidate, timeFallback);
+    if (parsed?.date) return parsed;
+  }
+  return null;
+};
+const formatTicketScheduleDateTime = (ticket) => {
+  const info = getTicketScheduleDateTimeInfo(ticket);
+  if (!info?.date) return '-';
+  const datePart = new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(info.date);
+  const timePart = info.hasTime
+    ? new Intl.DateTimeFormat('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(info.date)
+    : '--:--';
+  return `${datePart} ${timePart}`;
+};
+
+const normalizeAssignmentStatus = (value) => String(value || '').trim().toUpperCase();
+const isCancelledAssignmentStatus = (value) => {
+  const status = normalizeAssignmentStatus(value);
+  return status === 'CANCELLED' || status === 'CANCELED' || status === 'REMOVED' || status === 'DELETED';
+};
+const getTicketIdRaw = (ticket) => toPositiveNumber(ticket?.serviceTicketId ?? ticket?.ticketId ?? ticket?.id);
+const getDirectTechnicianIdsFromTicket = (ticket) => {
+  const ids = new Set();
+  const directCandidates = [
+    ticket?.technicianId,
+    ticket?.assignedTechnicianId,
+    ticket?.primaryTechnicianId,
+    ticket?.technician?.staffId,
+    ticket?.primaryTechnician?.staffId,
+  ];
+  directCandidates.forEach((candidate) => {
+    const parsed = toPositiveNumber(candidate);
+    if (parsed != null) ids.add(parsed);
+  });
+
+  const assignmentSources = [
+    ticket?.assignments,
+    ticket?.ticketAssignments,
+    ticket?.staffAssignments,
+    ticket?.serviceTicketAssignments,
+  ];
+  assignmentSources.forEach((source) => {
+    if (!Array.isArray(source)) return;
+    source.forEach((item) => {
+      const role = String(item?.roleInTicket || item?.role || '').trim().toUpperCase();
+      if (role !== 'TECHNICIAN') return;
+      if (isCancelledAssignmentStatus(item?.status || item?.assignmentStatus)) return;
+      const parsed = toPositiveNumber(item?.staffId);
+      if (parsed != null) ids.add(parsed);
+    });
+  });
+  return ids;
+};
+const hasCurrentTechnicianAssignment = (assignments, technicianId) => {
+  const currentTechId = toPositiveNumber(technicianId);
+  if (currentTechId == null) return false;
+  const rows = Array.isArray(assignments) ? assignments : [];
+  return rows.some((assignment) => {
+    const role = String(assignment?.roleInTicket || assignment?.role || '').trim().toUpperCase();
+    if (role !== 'TECHNICIAN') return false;
+    if (isCancelledAssignmentStatus(assignment?.status || assignment?.assignmentStatus)) return false;
+    return toPositiveNumber(assignment?.staffId) === currentTechId;
+  });
+};
+const hasAnyActiveTechnicianAssignment = (assignments) => {
+  const rows = Array.isArray(assignments) ? assignments : [];
+  return rows.some((assignment) => {
+    const role = String(assignment?.roleInTicket || assignment?.role || '').trim().toUpperCase();
+    if (role !== 'TECHNICIAN') return false;
+    return !isCancelledAssignmentStatus(assignment?.status || assignment?.assignmentStatus);
+  });
+};
+const looksLikeTicketRow = (row) =>
+  row
+  && typeof row === 'object'
+  && (
+    row.ticketCode != null
+    || row.serviceTicketId != null
+    || row.ticketId != null
+    || row.licensePlate != null
+  );
+const extractTicketListFromResponse = (response) => {
+  const root = response?.data ?? response;
+  const directCandidates = [
+    root?.content,
+    root?.data?.content,
+    root?.data?.data?.content,
+    root?.data?.data,
+    root?.data,
+    root,
+  ];
+  for (const candidate of directCandidates) {
+    if (Array.isArray(candidate) && candidate.some(looksLikeTicketRow)) return candidate;
+  }
+
+  const queue = [{ node: root, depth: 0 }];
+  const visited = new Set();
+  while (queue.length > 0) {
+    const { node, depth } = queue.shift();
+    if (!node || typeof node !== 'object' || visited.has(node) || depth > 4) continue;
+    visited.add(node);
+
+    if (Array.isArray(node)) {
+      if (node.some(looksLikeTicketRow)) return node;
+      node.forEach((item) => queue.push({ node: item, depth: depth + 1 }));
+      continue;
+    }
+
+    Object.values(node).forEach((value) => {
+      if (Array.isArray(value) && value.some(looksLikeTicketRow)) {
+        queue.unshift({ node: value, depth: depth + 1 });
+      } else if (value && typeof value === 'object') {
+        queue.push({ node: value, depth: depth + 1 });
+      }
+    });
+  }
+  return [];
+};
+const extractAssignmentListFromResponse = (response) => {
+  const root = response?.data ?? response;
+  const candidates = [
+    root,
+    root?.data,
+    root?.content,
+    root?.data?.content,
+    root?.data?.data,
+    root?.data?.data?.content,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+  return [];
+};
 
 export default function MyTasks() {
   const navigate = useNavigate();
@@ -79,7 +342,6 @@ export default function MyTasks() {
   const [dateTo, setDateTo] = useState(initialDate);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
 
   // ── Modal state ────────────────────────────────────────
@@ -95,13 +357,11 @@ export default function MyTasks() {
   }, [search]);
 
   const filters = useMemo(() => ({
-    page,
-    size,
     date: dateFrom || undefined,
     dateTo: dateTo || undefined,
     status: statusFilter || undefined,
     search: debouncedSearch || undefined,
-  }), [page, size, dateFrom, dateTo, statusFilter, debouncedSearch]);
+  }), [dateFrom, dateTo, statusFilter, debouncedSearch]);
 
   // ── Load ticket list ───────────────────────────────────
   useEffect(() => {
@@ -109,6 +369,7 @@ export default function MyTasks() {
     if (!token) {
       toast.error('Vui lòng đăng nhập');
       setLoading(false);
+      setTotalElements(0);
       return;
     }
 
@@ -117,12 +378,45 @@ export default function MyTasks() {
       try {
         setLoading(true);
         setError('');
-        const response = await fetchTechnicianTickets({ page: 0, size: 200 }, token);
+        const technicianId = getCurrentTechnicianId(token);
+        const response = await fetchTechnicianTickets({ ...filters, page: 0, size: 200 }, token);
+        const list = extractTicketListFromResponse(response);
 
-        const rawTickets = response.data?.content || response.data || [];
-        const list = Array.isArray(rawTickets) ? rawTickets : [];
+        const assignmentChecked = await Promise.all(
+          list.map(async (ticket) => {
+            const directIds = getDirectTechnicianIdsFromTicket(ticket);
+            const ticketId = getTicketIdRaw(ticket);
 
-        const transformed = list.map((t) => {
+            if (ticketId == null) {
+              if (technicianId != null && directIds.size > 0) {
+                return directIds.has(technicianId) ? ticket : null;
+              }
+              return ticket;
+            }
+
+            try {
+              const assignmentResponse = await fetchTicketAssignments(ticketId, token);
+              const assignments = extractAssignmentListFromResponse(assignmentResponse);
+              if (assignments.length > 0) {
+                if (technicianId != null) {
+                  return hasCurrentTechnicianAssignment(assignments, technicianId) ? ticket : null;
+                }
+                return hasAnyActiveTechnicianAssignment(assignments) ? ticket : null;
+              }
+            } catch {
+              // Fallback to direct fields if assignment endpoint is temporarily unavailable.
+            }
+
+            if (technicianId != null) {
+              if (directIds.size === 0) return ticket;
+              return directIds.has(technicianId) ? ticket : null;
+            }
+            return ticket;
+          }),
+        );
+        const visibleTickets = assignmentChecked.filter(Boolean);
+
+        const transformed = visibleTickets.map((t) => {
           const statusRaw = normalizeTicketStatus(t.ticketStatus || t.status);
           let inspectionStatus = null;
           if (t.ticketCode) {
@@ -143,12 +437,12 @@ export default function MyTasks() {
         if (!ignore) {
           setTickets(transformed);
           setTotalElements(transformed.length);
-          setTotalPages(Math.max(1, Math.ceil(transformed.length / size)));
         }
       } catch (err) {
         if (!ignore) {
           setError(err?.message || 'Không thể tải danh sách công việc.');
           setTickets([]);
+          setTotalElements(0);
         }
       } finally {
         if (!ignore) setLoading(false);
@@ -157,7 +451,7 @@ export default function MyTasks() {
 
     run();
     return () => { ignore = true; };
-  }, [filters, size]);
+  }, [filters]);
 
   // ── Helpers ──────────────────────────────────────────
   const getTicketCode = (ticket) =>
@@ -197,13 +491,6 @@ export default function MyTasks() {
     return styles.statusPending;
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    if (Number.isNaN(date.getTime())) return dateStr;
-    return date.toLocaleDateString('vi-VN');
-  };
-
   const filteredTickets = useMemo(() => {
     let result = tickets;
     if (statusFilter) {
@@ -223,25 +510,33 @@ export default function MyTasks() {
       const from = new Date(dateFrom);
       from.setHours(0, 0, 0, 0);
       result = result.filter((t) => {
-        const d = new Date(t.receivedAt || t.createdAt || t.scheduledDate || '');
-        return d >= from;
+        const info = getTicketScheduleDateTimeInfo(t);
+        return info?.date ? info.date >= from : false;
       });
     }
     if (dateTo) {
       const to = new Date(dateTo);
       to.setHours(23, 59, 59, 999);
       result = result.filter((t) => {
-        const d = new Date(t.receivedAt || t.createdAt || t.scheduledDate || '');
-        return d <= to;
+        const info = getTicketScheduleDateTimeInfo(t);
+        return info?.date ? info.date <= to : false;
       });
     }
     return result;
   }, [tickets, statusFilter, debouncedSearch, dateFrom, dateTo]);
 
+  const filteredTotalElements = filteredTickets.length;
+  const computedTotalPages = Math.max(1, Math.ceil(filteredTotalElements / size));
+  const safePage = Math.min(Math.max(0, page), computedTotalPages - 1);
+
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
+
   const pagedTickets = useMemo(() => {
-    const start = page * size;
+    const start = safePage * size;
     return filteredTickets.slice(start, start + size);
-  }, [filteredTickets, page, size]);
+  }, [filteredTickets, safePage, size]);
 
   // ── Stats ─────────────────────────────────────────────
   const stats = useMemo(() => ({
@@ -254,15 +549,14 @@ export default function MyTasks() {
   }), [tickets]);
 
   // ── Pagination helpers ─────────────────────────────────
-  const safePage = Math.min(Math.max(0, page), Math.max(1, totalPages) - 1);
   const pageButtons = useMemo(() => {
     const max = 5;
-    const last = Math.max(1, totalPages) - 1;
+    const last = computedTotalPages - 1;
     const start = Math.max(0, Math.min(safePage - 2, last - max + 1));
     const items = [];
     for (let i = start; i <= Math.min(last, start + max - 1); i += 1) items.push(i);
     return items;
-  }, [safePage, totalPages]);
+  }, [safePage, computedTotalPages]);
 
   const activeDate = dateFrom || dateTo || initialDate;
   const applySingleDayFilter = (dateIso) => {
@@ -383,7 +677,7 @@ export default function MyTasks() {
           </span>
           <h1>Công việc của tôi</h1>
         </div>
-        <span className={styles.totalCount}>{totalElements} công việc</span>
+        <span className={styles.totalCount}>{filteredTotalElements} công việc</span>
       </div>
 
       {/* Stats */}
@@ -530,7 +824,7 @@ export default function MyTasks() {
 
                 return (
                   <tr key={ticketId || code || idx}>
-                    <td>{idx + 1 + page * size}</td>
+                    <td>{idx + 1 + safePage * size}</td>
                     <td className={styles.ticketCodeCell}>{code || '-'}</td>
                     <td>{ticket.customerName || '-'}</td>
                     <td>{ticket.customerPhone || '-'}</td>
@@ -544,7 +838,7 @@ export default function MyTasks() {
                         {getServiceTicketStatusDisplay(ticket)}
                       </span>
                     </td>
-                    <td>{formatDate(ticket.scheduledDate || ticket.bookingDate || ticket.appointmentDate)}</td>
+                    <td>{formatTicketScheduleDateTime(ticket)}</td>
                     <td>
                       <div className={styles.actionButtons}>
                         {/* Chi tiết */}
@@ -618,7 +912,7 @@ export default function MyTasks() {
             ))}
             <button
               className={styles.primaryButton}
-              disabled={safePage >= Math.max(1, totalPages) - 1 || loading}
+              disabled={safePage >= computedTotalPages - 1 || loading}
               onClick={() => setPage(safePage + 1)}
             >
               Sau
