@@ -36,8 +36,15 @@ import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.j
 import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.jsx';
 import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.jsx';
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
-import CreateProduct from './pages/DashBoard/PartManagement/CreateProduct.jsx';
-import ServiceManagement from './pages/DashBoard/PartManagement/ServiceManagement.jsx';
+import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
+import CreateProduct from './pages/DashBoard/ServiceManagement/CreateProduct.jsx';
+import WarehouseStockEntry from './pages/DashBoard/WarehouseManagement/WarehouseStockEntry.jsx';
+import WarehouseStockEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
+import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryDetail.jsx';
+import WarehouseReturnEntry from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntry.jsx';
+import WarehouseReturnEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryManagement.jsx';
+import WarehouseReturnEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryDetail.jsx';
+import BlogManagement from './pages/DashBoard/ServiceManagement/BlogManagement.jsx';
 import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx';
 import CreateService from './pages/DashBoard/PartManagement/CreateService.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
@@ -204,6 +211,14 @@ export default function App() {
           <Route path="part-management" element={<PartManagement />} />
           <Route path="part-management/create-product" element={<CreateProduct />} />
           <Route path="service-management" element={<ServiceManagement />} />
+          <Route path="service-management/create-product" element={<CreateProduct />} />
+          <Route path="warehouse-stock-entries" element={<WarehouseStockEntryManagement />} />
+          <Route path="warehouse-stock-entries/:entryId" element={<WarehouseStockEntryDetail />} />
+          <Route path="warehouse-stock-entry" element={<WarehouseStockEntry />} />
+          <Route path="warehouse-return-entry" element={<WarehouseReturnEntry />} />
+          <Route path="warehouse-return-entries" element={<WarehouseReturnEntryManagement />} />
+          <Route path="warehouse-return-entries/:returnId" element={<WarehouseReturnEntryDetail />} />
+          <Route path="blog-management" element={<BlogManagement />} />
           <Route path="service-management/create-service" element={<CreateService />} />
           <Route path="promotion-management" element={<PromotionManagement />} />
           <Route path="shift-management" element={<ShiftManagement />} />

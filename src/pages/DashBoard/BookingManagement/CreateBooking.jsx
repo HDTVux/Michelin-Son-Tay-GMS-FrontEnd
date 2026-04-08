@@ -14,6 +14,7 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 
 const DURATION_MINUTES = 60;
 const DATE_RANGE_DAYS = 10;
+const NOTE_MAX_LENGTH = 255;
 
 const toItemType = (value) => {
 	const text = String(value || '').trim().toUpperCase();
@@ -38,6 +39,8 @@ export default function CreateBooking() {
 	const [customerChecked, setCustomerChecked] = useState(null); // null | { exists, fullName, ... }
 	const [customerCheckError, setCustomerCheckError] = useState('');
 	const [info, setInfo] = useState({ name: '', phone: '', note: '' });
+	const noteLength = useMemo(() => String(info.note || '').length, [info.note]);
+	const noteRemaining = useMemo(() => Math.max(0, NOTE_MAX_LENGTH - noteLength), [noteLength]);
 
 
 	// Hàm kiểm tra khách hàng theo số điện thoại
@@ -513,7 +516,7 @@ export default function CreateBooking() {
 			<div className={infoStyles['info-card']}>
 
 						<div className={infoStyles.field}>
-							<label htmlFor="create-booking-phone">Số điện thoại</label>
+							<label htmlFor="create-booking-phone" >Số điện thoại (<span className={styles.required}>*</span>)</label>
 							<div className={infoStyles['inline-input']}>
 								<input
 									id="create-booking-phone"
@@ -546,7 +549,7 @@ export default function CreateBooking() {
 						</div>
 
 						<div className={infoStyles.field}>
-							<label htmlFor="create-booking-fullname">Họ và tên</label>
+							<label htmlFor="create-booking-fullname">Họ và tên (<span className={styles.required}>*</span>)</label>
 							<input
 								id="create-booking-fullname"
 								type="text"
@@ -554,7 +557,6 @@ export default function CreateBooking() {
 								value={info.name}
 								onChange={(e) => setInfo((prev) => ({ ...prev, name: e.target.value }))}
 								required
-								disabled={customerChecked?.exists === true}
 								style={customerChecked?.exists === true ? { background: '#f3f4f6', color: '#888' } : {}}
 							/>
 						</div>
@@ -576,14 +578,10 @@ export default function CreateBooking() {
 						rows="6"
 						placeholder="VD: Kiểm tra thêm tiếng kêu ở bánh trước, cần lấy xe trước 17h, ..."
 						value={info.note}
-						onChange={(e) => {
-							const sanitized = String(e.target.value)
-								.replaceAll(/[<>{}]/g, '')
-								.slice(0, 500);
-							setInfo((prev) => ({ ...prev, note: sanitized }));
-						}}
-						maxLength={500}
+						onChange={(e) => setInfo((prev) => ({ ...prev, note: e.target.value }))}
+						maxLength={NOTE_MAX_LENGTH}
 					/>
+					<div className={infoStyles['char-count']}>{noteRemaining} ký tự còn lại</div>
 				</div>
 			</div>
 			{submitSuccess && (

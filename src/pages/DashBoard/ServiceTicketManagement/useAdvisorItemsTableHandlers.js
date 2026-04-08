@@ -1042,6 +1042,18 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			const next = base.map((r, idx) => {
 				if (idx !== index) return r;
 				if (field === 'newCategoryName') return applyCategorySelection(r, value);
+				// Convert quantity to Number (positive integer only)
+				if (field === 'quantity') {
+					const normalized = String(value || '').trim();
+					const num = normalized ? Number(normalized) : 0;
+					return { ...r, [field]: num };
+				}
+				// Convert unitPrice to Number (positive decimal allowed)
+				if (field === 'unitPrice') {
+					const normalized = String(value || '').trim();
+					const num = normalized ? Number(normalized) : 0;
+					return { ...r, [field]: num };
+				}
 				return { ...r, [field]: value };
 			});
 			return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
@@ -1055,6 +1067,18 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			const next = base.map((r, idx) => {
 				if (idx !== index) return r;
 				if (field === 'newCategoryName') return applyCategorySelection(r, value);
+				// Convert quantity to Number (positive integer only)
+				if (field === 'quantity') {
+					const normalized = String(value || '').trim();
+					const num = normalized ? Number(normalized) : 0;
+					return { ...r, [field]: num };
+				}
+				// Convert unitPrice to Number (positive decimal allowed)
+				if (field === 'unitPrice') {
+					const normalized = String(value || '').trim();
+					const num = normalized ? Number(normalized) : 0;
+					return { ...r, [field]: num };
+				}
 				return { ...r, [field]: value };
 			});
 			return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
