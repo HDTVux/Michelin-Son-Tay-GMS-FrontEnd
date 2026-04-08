@@ -36,6 +36,12 @@ import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.j
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
 import CreateProduct from './pages/DashBoard/ServiceManagement/CreateProduct.jsx';
+import WarehouseStockEntry from './pages/DashBoard/WarehouseManagement/WarehouseStockEntry.jsx';
+import WarehouseStockEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
+import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryDetail.jsx';
+import WarehouseReturnEntry from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntry.jsx';
+import WarehouseReturnEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryManagement.jsx';
+import WarehouseReturnEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryDetail.jsx';
 import BlogManagement from './pages/DashBoard/ServiceManagement/BlogManagement.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
@@ -161,6 +167,12 @@ export default function App() {
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="service-management" element={<ServiceManagement />} />
           <Route path="service-management/create-product" element={<CreateProduct />} />
+          <Route path="warehouse-stock-entries" element={<WarehouseStockEntryManagement />} />
+          <Route path="warehouse-stock-entries/:entryId" element={<WarehouseStockEntryDetail />} />
+          <Route path="warehouse-stock-entry" element={<WarehouseStockEntry />} />
+          <Route path="warehouse-return-entry" element={<WarehouseReturnEntry />} />
+          <Route path="warehouse-return-entries" element={<WarehouseReturnEntryManagement />} />
+          <Route path="warehouse-return-entries/:returnId" element={<WarehouseReturnEntryDetail />} />
           <Route path="blog-management" element={<BlogManagement />} />
           <Route path="promotion-management" element={<PromotionManagement />} />
           <Route path="shift-management" element={<ShiftManagement />} />

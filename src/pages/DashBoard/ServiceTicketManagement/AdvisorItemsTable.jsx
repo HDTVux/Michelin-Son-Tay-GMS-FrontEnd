@@ -845,12 +845,6 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, ticke
                                 {estimateCostText}
                             </span>
                         </div>
-                        <div className={styles.kvRow}>
-                            <span className={styles.kvLabel} />
-                            <span className={styles.kvValue} style={{ color: 'var(--ui-muted)' }}>
-                                {statusLine}
-                            </span>
-                        </div>
                     </div>
                 </div>
             </div>

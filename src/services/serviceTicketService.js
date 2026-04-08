@@ -109,6 +109,28 @@ export const manageServiceTicketEstimateStatus = (estimateId, status, token) => 
   );
 };
 
+// Giữ chỗ vật tư trong kho theo báo giá trước khi tiến hành sửa chữa
+// Endpoint: POST /api/service-ticket/estimate/{estimateId}/stock-allocation
+export const allocateEstimateStock = (estimateId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để giữ chỗ vật tư trong kho.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ để giữ chỗ vật tư.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/stock-allocation`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Lấy danh sách phiếu dịch vụ (có phân trang / tìm kiếm / lọc)
 // Params backend: page, size, date (yyyy-mm-dd), status, search
 export const fetchServiceTicketsPaged = (params, token) => {

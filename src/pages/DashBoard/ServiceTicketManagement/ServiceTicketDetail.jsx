@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHandlers.js';
 import {
+    allocateEstimateStock,
     fetchServiceTicketDetail,
     fetchServiceTicketEstimate,
     manageServiceTicketEstimateStatus,
@@ -601,6 +602,20 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Vui lòng xác nhận báo giá trước khi tiến hành sửa chữa.');
             return;
         }
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để giữ chỗ vật tư và tiến hành sửa chữa.');
+            return;
+        }
+
+        try {
+            await allocateEstimateStock(estimateIdNum, token);
+        } catch (err) {
+            notify(err?.message || 'Không thể giữ chỗ vật tư trong kho.');
+            return;
+        }
+
         await handleUpdateTicketStatus('IN_PROGRESS', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
         navigate('/advisor/inspection');
     };

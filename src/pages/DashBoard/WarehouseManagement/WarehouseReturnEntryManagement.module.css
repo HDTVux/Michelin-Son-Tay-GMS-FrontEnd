@@ -1,0 +1,10 @@
+.wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.emptyCell {
+  text-align: center;
+  color: #64748b;
+  padding: 18px 12px;
+}

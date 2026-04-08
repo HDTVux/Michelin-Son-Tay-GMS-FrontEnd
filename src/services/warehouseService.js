@@ -1,4 +1,4 @@
-import { request } from './apiClient.js';
+import { API_BASE_URL, request } from './apiClient.js';
 
 // Warehouse brand APIs
 // GET: /api/warehouse/brand/all
@@ -187,6 +187,205 @@ export const fetchWarehouseCatalogItemDetail = (catalogItemId, token) => {
   const safeId = Number.isFinite(idNum) ? idNum : 0;
   return request(`/api/warehouse/search/catalog-items/detail/${encodeURIComponent(String(safeId))}`, {
     method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// GET: /api/warehouse/catalog/search?keyword=...
+export const searchWarehouseCatalog = (keyword, token) => {
+  const value = String(keyword ?? '').trim();
+  const qs = value ? `?keyword=${encodeURIComponent(value)}` : '';
+  return request(`/api/warehouse/catalog/search${qs}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/stock-entries/with-attachment
+export const createWarehouseStockEntryWithAttachment = async (payload, file, token) => {
+  const formData = new FormData();
+  const safePayload = payload && typeof payload === 'object' ? payload : {};
+
+  Object.entries(safePayload).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    if (key === 'items') {
+      formData.append(key, typeof value === 'string' ? value : JSON.stringify(value));
+      return;
+    }
+    if (typeof value === 'object') return;
+    formData.append(key, String(value));
+  });
+
+  const uploadFile = file ?? safePayload.file ?? null;
+  if (uploadFile && typeof File !== 'undefined' && uploadFile instanceof File) {
+    formData.append('file', uploadFile, uploadFile.name);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/warehouse/stock-entries/with-attachment`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json') ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof data === 'string' ? data : data?.message || 'Request failed';
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  if (data?.success === false) {
+    const error = new Error(data?.message || data?.data?.message || 'Request failed');
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+};
+
+// GET: /api/warehouse/stock-entries?warehouseId=...&status=...
+export const fetchWarehouseStockEntries = (params, token) => {
+  const qp = new URLSearchParams();
+  const safeParams = params && typeof params === 'object' ? params : {};
+
+  Object.entries(safeParams).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    const text = String(value).trim();
+    if (!text) return;
+    qp.append(key, text);
+  });
+
+  const qs = qp.toString();
+  const path = '/api/warehouse/stock-entries' + (qs ? `?${qs}` : '');
+
+  return request(path, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// GET: /api/warehouse/stock-entries/{id}
+export const fetchWarehouseStockEntryDetail = (id, token) => {
+  const idNum = typeof id === 'number' ? id : Number(id);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  return request(`/api/warehouse/stock-entries/${encodeURIComponent(String(safeId))}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/stock-entries/{id}/confirm
+export const confirmWarehouseStockEntry = (id, token) => {
+  const idNum = typeof id === 'number' ? id : Number(id);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  return request(`/api/warehouse/stock-entries/${encodeURIComponent(String(safeId))}/confirm`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/return-entries/with-attachments
+// multipart fields: warehouseId, returnReason, returnType, items(JSON), exchangeItems(JSON optional for EXCHANGE), file_0..file_n
+export const createWarehouseReturnEntryWithAttachments = async (payload, files, token) => {
+  const formData = new FormData();
+  const safePayload = payload && typeof payload === 'object' ? payload : {};
+
+  const appendText = (key, value) => {
+    if (value === undefined || value === null) return;
+    const text = String(value).trim();
+    if (!text) return;
+    formData.append(key, text);
+  };
+
+  appendText('warehouseId', safePayload.warehouseId);
+  appendText('returnReason', safePayload.returnReason);
+  appendText('returnType', safePayload.returnType);
+
+  const items = Array.isArray(safePayload.items) ? safePayload.items : [];
+  formData.append('items', JSON.stringify(items));
+
+  const hasCustomerReturnType = String(safePayload.returnType || '').toUpperCase() === 'EXCHANGE';
+  if (hasCustomerReturnType) {
+    const exchangeItems = Array.isArray(safePayload.exchangeItems) ? safePayload.exchangeItems : [];
+    formData.append('exchangeItems', JSON.stringify(exchangeItems));
+  }
+
+  const uploadFiles = Array.isArray(files) ? files : [];
+  uploadFiles.forEach((file, idx) => {
+    const isFile = typeof File !== 'undefined' && file instanceof File;
+    if (!isFile) return;
+    formData.append(`file_${idx}`, file, file.name);
+  });
+
+  const response = await fetch(`${API_BASE_URL}/api/warehouse/return-entries/with-attachments`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json') ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof data === 'string' ? data : data?.message || 'Request failed';
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  if (data?.success === false) {
+    const error = new Error(data?.message || data?.data?.message || 'Request failed');
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+};
+
+// GET: /api/warehouse/return-entries
+// Params: { warehouseId: number, status?: string, ... }
+export const fetchWarehouseReturnEntries = (params, token) => {
+  const query = new URLSearchParams();
+  const safeParams = params && typeof params === 'object' ? params : {};
+  
+  Object.entries(safeParams).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    const text = String(value).trim();
+    if (text) query.append(key, text);
+  });
+
+  const queryString = query.toString();
+  const url = queryString ? `/api/warehouse/return-entries?${queryString}` : '/api/warehouse/return-entries';
+
+  return request(url, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// GET: /api/warehouse/return-entries/{id}
+export const fetchWarehouseReturnEntryDetail = (id, token) => {
+  const idNum = typeof id === 'number' ? id : Number(id);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  return request(`/api/warehouse/return-entries/${encodeURIComponent(String(safeId))}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/return-entries/{id}/confirm
+export const confirmWarehouseReturnEntry = (id, token) => {
+  const idNum = typeof id === 'number' ? id : Number(id);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  return request(`/api/warehouse/return-entries/${encodeURIComponent(String(safeId))}/confirm`, {
+    method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
