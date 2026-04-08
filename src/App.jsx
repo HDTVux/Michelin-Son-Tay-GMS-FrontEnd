@@ -37,14 +37,14 @@ import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.j
 import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.jsx';
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import ServiceManagement from './pages/DashBoard/ServiceManagement/ServiceManagement.jsx';
-import CreateProduct from './pages/DashBoard/ServiceManagement/CreateProduct.jsx';
+import CreateProduct from './pages/DashBoard/PartManagement/CreateProduct.jsx';
 import WarehouseStockEntry from './pages/DashBoard/WarehouseManagement/WarehouseStockEntry.jsx';
 import WarehouseStockEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
 import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryDetail.jsx';
 import WarehouseReturnEntry from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntry.jsx';
 import WarehouseReturnEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryManagement.jsx';
 import WarehouseReturnEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryDetail.jsx';
-import BlogManagement from './pages/DashBoard/ServiceManagement/BlogManagement.jsx';
+import BlogManagement from './pages/DashBoard/PartManagement/ServiceManagement.jsx';
 import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx';
 import CreateService from './pages/DashBoard/PartManagement/CreateService.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';

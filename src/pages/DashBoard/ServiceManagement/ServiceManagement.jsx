@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import styles from './ServiceManagement.module.css';
+import styles from '../PartManagement/ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import ItemDetailModal from './ItemDetailModal.jsx';
+import ItemDetailModal from '../PartManagement/ItemDetailModal.jsx';
 import { searchWarehouseCatalogItems } from '../../../services/warehouseService.js';
-import { formatCurrencyVnd, formatItemTypeLabel } from './itemFormatters.js';
+import { formatCurrencyVnd, formatItemTypeLabel } from '../PartManagement/itemFormatters.js';
 
 const buildRowKeyWithIndex = (baseKey, idx) => `${String(baseKey ?? '')}-${idx}`;
 
