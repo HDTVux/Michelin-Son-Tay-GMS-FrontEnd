@@ -537,7 +537,6 @@ export default function ReceiptConfirm() {
             setArchiving(true);
             await manageServiceTicketEstimateStatus(estimateId, 'ARCHIVED', token);
             setArchived(true);
-            notify('Đã chuyển báo giá sang trạng thái ARCHIVED.');
             globalThis.window?.print?.();
         } catch (err) {
             notify(err?.message || 'Chuyển trạng thái thất bại.');
@@ -614,7 +613,7 @@ export default function ReceiptConfirm() {
             }
 
             setBillId(createdBillId);
-            notify('Đã tạo hoá đơn. Vui lòng xác nhận đã thanh toán.');
+            notify('Đã tạo hoá đơn. Vui lòng xác nhận thanh toán nếu khách hàng đã thanh toán thành công.');
             setPaymentOpen(true);
         } catch (err) {
             notify(err?.message || 'Tạo hoá đơn thất bại.');
@@ -656,7 +655,6 @@ export default function ReceiptConfirm() {
 
             await manageServiceTicketStatus(serviceTicketId, 'PAID', token);
             notify('Thanh toán thành công');
-            notify('Đã cập nhật trạng thái phiếu dịch vụ sang PAID.');
             setPaymentOpen(false);
         } catch (err) {
             notify(err?.message || 'Thanh toán thất bại.');

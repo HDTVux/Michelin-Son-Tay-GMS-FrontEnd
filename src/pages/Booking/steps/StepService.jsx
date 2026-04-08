@@ -65,7 +65,7 @@ export default function StepService({
     });
     return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
   }, [scopedByType]);
-
+  
   useEffect(() => {
     if (!onFilter) return;
     if (filter === 'all') return;

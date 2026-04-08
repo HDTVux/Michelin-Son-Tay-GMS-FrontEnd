@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Mascot from '../../../assets/Mascot.jpg';
 import styles from './ForgotPassword.module.css';
+import {
+  requestStaffOtp,
+  verifyStaffOtp,
+  setupStaffPass,
+} from '../../../services/authService.js';
 
 export default function ForgotPassword() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: identifier, 2: otp, 3: reset
   const [identifier, setIdentifier] = useState('');
   const [otp, setOtp] = useState('');
@@ -14,6 +20,22 @@ export default function ForgotPassword() {
   const [countdown, setCountdown] = useState(60);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const sanitizeIdentifier = (value) => {
+    const trimmed = (value || '').trim();
+    if (emailRegex.test(trimmed)) return trimmed;
+    return trimmed.replace(/\D/g, '');
+  };
+
+  const validateIdentifier = (value) => {
+    const trimmed = (value || '').trim();
+    if (!trimmed) return 'Vui lòng nhập Email hoặc Số điện thoại';
+    if (emailRegex.test(trimmed)) return '';
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length < 6) return 'Số điện thoại không hợp lệ';
+    return '';
+  };
 
   useEffect(() => {
     if (step !== 2) return undefined;
@@ -34,42 +56,70 @@ export default function ForgotPassword() {
     setCountdown(60);
   };
 
-  const handleIdentifierSubmit = (event) => {
+  const handleIdentifierSubmit = async (event) => {
     event.preventDefault();
-    if (!identifier.trim()) {
-      setError('Vui lòng nhập Email hoặc Số điện thoại');
+    const validationMessage = validateIdentifier(identifier);
+    if (validationMessage) {
+      setError(validationMessage);
       return;
     }
     setError('');
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const sanitized = sanitizeIdentifier(identifier);
+      await requestStaffOtp(sanitized);
+      setOtp('');
       setStep(2);
-    }, 700);
+    } catch (err) {
+      setError(err?.message || 'Không thể gửi OTP');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleOtpSubmit = (event) => {
+  const handleOtpSubmit = async (event) => {
     event.preventDefault();
-    const cleaned = otp.replace(/[^0-9]/g, '');
+    const cleaned = otp.replace(/\D/g, '');
     if (cleaned.length !== 6) {
       setError('Mã OTP cần 6 chữ số');
       return;
     }
     setError('');
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const sanitized = sanitizeIdentifier(identifier);
+      await verifyStaffOtp(sanitized, cleaned);
       setStep(3);
-    }, 700);
+    } catch (err) {
+      setError(err?.message || 'OTP không hợp lệ');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (countdown > 0) return;
-    setCountdown(60);
-    setOtp('');
+    const validationMessage = validateIdentifier(identifier);
+    if (validationMessage) {
+      setError(validationMessage);
+      setStep(1);
+      return;
+    }
+    setError('');
+    setIsLoading(true);
+    try {
+      const sanitized = sanitizeIdentifier(identifier);
+      await requestStaffOtp(sanitized);
+      setCountdown(60);
+      setOtp('');
+    } catch (err) {
+      setError(err?.message || 'Không thể gửi lại OTP');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleResetSubmit = (event) => {
+  const handleResetSubmit = async (event) => {
     event.preventDefault();
     if (!password.trim()) {
       setError('Vui lòng nhập mật khẩu mới');
@@ -85,11 +135,21 @@ export default function ForgotPassword() {
     }
     setError('');
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      alert('Đổi mật khẩu thành công');
+    try {
+      const sanitized = sanitizeIdentifier(identifier);
+      await setupStaffPass({
+        phone: sanitized,
+        pin: password,
+        confirmPin: confirmPassword,
+      });
+      window.alert('Đổi mật khẩu thành công');
       resetAll();
-    }, 800);
+      navigate('/login', { replace: true });
+    } catch (err) {
+      setError(err?.message || 'Không thể đổi mật khẩu');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

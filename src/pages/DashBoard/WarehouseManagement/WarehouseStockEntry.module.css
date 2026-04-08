@@ -1,0 +1,521 @@
+.page {
+  min-height: 100vh;
+  padding: 24px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  color: #1a1a1a;
+}
+
+.shell {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.heroCard,
+.card,
+.actionCard {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.heroCard {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.headerMain {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 10px;
+}
+
+.backButton {
+  padding: 10px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.backButton:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.kicker,
+.cardEyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: #6b7280;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 400;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.heroMeta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: min(520px, 100%);
+}
+
+.metaBox {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metaLabel,
+.summaryItem span,
+.responseBox span {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.metaBox strong,
+.summaryItem strong,
+.responseBox strong {
+  color: #1f2937;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.85fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.mainColumn,
+.sideColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card,
+.actionCard {
+  padding: 16px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.badge {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 2px solid #005aa9;
+  color: #005aa9;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #374151;
+  font-size: 14px;
+}
+
+.field input,
+.field select,
+.searchBar input,
+.inlineInput {
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+  min-height: 44px;
+  outline: none;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.field input:focus,
+.field select:focus,
+.searchBar input:focus,
+.inlineInput:focus {
+  border-color: #1e90ff;
+  box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.1);
+}
+
+.searchBar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.searchBar input {
+  flex: 1;
+}
+
+.primaryButton,
+.secondaryButton,
+.ghostButton,
+.addButton,
+.removeButton {
+  border: none;
+  border-radius: 10px;
+  min-height: 42px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.primaryButton,
+.secondaryButton,
+.addButton {
+  background: #005aa9;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 90, 169, 0.3);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.addButton:hover {
+  background: #004b8c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.4);
+}
+
+.ghostButton,
+.removeButton {
+  background: #ffffff;
+  color: #374151;
+  border: 2px solid #e5e7eb;
+}
+
+.ghostButton:hover,
+.removeButton:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.ghostButton:disabled,
+.addButton:disabled,
+.removeButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+.resultsPanel {
+  min-height: 120px;
+}
+
+.resultsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.resultRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.resultMain {
+  min-width: 0;
+}
+
+.resultTitle {
+  margin-bottom: 4px;
+  color: #1f1f1f;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.resultMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.emptyState,
+.tableEmpty {
+  text-align: center;
+  color: #6b7280;
+  padding: 20px;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.errorBanner {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  font-weight: 600;
+}
+
+.tableWrap {
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+}
+
+.table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #f5f5f5;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 14px;
+  color: #1f1f1f;
+}
+
+.table th {
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.table tbody tr:nth-child(odd) {
+  background: #fafafa;
+}
+
+.table tbody tr:hover {
+  background: #f5f8ff;
+}
+
+.rowName {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.rowName span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.inlineInput {
+  width: 120px;
+  min-height: 40px;
+  text-align: center;
+}
+
+.summaryRow {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.summaryItem {
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.uploadBox {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: 10px;
+  border: 2px dashed #d1d5db;
+  background: #f9fafb;
+  padding: 16px;
+  min-height: 130px;
+  cursor: pointer;
+}
+
+.uploadBox input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.uploadBox span {
+  margin: 0;
+  color: #1e90ff;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.uploadBox strong {
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.noteBox {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.responseBox {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.responseBox > div {
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.actionCard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.backBottomButton {
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 2px solid #005aa9;
+  background: #eaf3ff;
+  color: #005aa9;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.backBottomButton:hover {
+  background: #d8e9ff;
+  border-color: #004b8c;
+  color: #004b8c;
+}
+
+.backBottomButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 1180px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sideColumn {
+    order: -1;
+  }
+}
+
+@media (max-width: 860px) {
+  .heroCard {
+    flex-direction: column;
+  }
+
+  .heroMeta,
+  .formGrid,
+  .summaryRow,
+  .actionCard {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .searchBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .resultRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .inlineInput {
+    width: 100%;
+  }
+}

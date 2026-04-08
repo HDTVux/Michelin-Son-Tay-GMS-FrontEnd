@@ -6,6 +6,61 @@ import {
     createCheckInVehicle,
     lookupCheckInByBookingCode,
 } from '../../../services/checkInService.js';
+import {
+    validateFixedDigitsYear,
+    validateLicensePlateStrict,
+    validateTextInput,
+    validatePositiveNumber,
+} from '../../../components/inputValidation.js';
+
+const CHECKIN_DESCRIPTION_FIELDS = Object.freeze([
+    { key: 'photoFrontDescription', label: 'Mô tả ảnh phía trước' },
+    { key: 'photoRearDescription', label: 'Mô tả ảnh phía sau' },
+    { key: 'photoLeftSideDescription', label: 'Mô tả ảnh bên trái' },
+    { key: 'photoRightSideDescription', label: 'Mô tả ảnh bên phải' },
+    { key: 'photoInteriorDescription', label: 'Mô tả ảnh nội thất' },
+    { key: 'photoDamageDescription', label: 'Mô tả ảnh hư hỏng' },
+]);
+
+const validateCheckInForm = ({ selectedVehicle, odometerNumber, damageNote, photoDescriptions }) => {
+    const plate = validateLicensePlateStrict(selectedVehicle?.licensePlate);
+    if (plate.error) return { error: plate.error };
+
+    const odometer = validatePositiveNumber(odometerNumber, {
+        fieldLabel: 'Số km hiện tại',
+        required: false,
+        integer: true,
+    });
+    if (odometer.error) return { error: odometer.error };
+
+    const damage = validateTextInput(damageNote, {
+        fieldLabel: 'Ghi chú hư hỏng',
+        required: false,
+        maxLength: 255,
+        trim: true,
+    });
+    if (damage.error) return { error: damage.error };
+
+    const descriptions = {};
+    for (const f of CHECKIN_DESCRIPTION_FIELDS) {
+        const v = validateTextInput(photoDescriptions?.[f.key], {
+            fieldLabel: f.label,
+            required: false,
+            maxLength: 255,
+            trim: true,
+        });
+        if (v.error) return { error: v.error };
+        descriptions[f.key] = v.value;
+    }
+
+    return {
+        error: '',
+        licensePlate: plate.value,
+        odometerValue: odometer.value,
+        checkInNotes: damage.value,
+        descriptions,
+    };
+};
 
 
 /** Chuẩn hóa thông tin từng xe từ dữ liệu thô của API.
@@ -30,7 +85,9 @@ export const mapVehicleItem = (item) => {
  */
 export const normalizeVehiclesPayload = (raw) => {
     const payload = raw?.data?.data ?? raw?.data ?? raw;
-    const list = Array.isArray(payload?.vehicles) ? payload.vehicles : Array.isArray(payload) ? payload : [];
+    let list = [];
+    if (Array.isArray(payload?.vehicles)) list = payload.vehicles;
+    else if (Array.isArray(payload)) list = payload;
     return list.map(mapVehicleItem).filter(Boolean);
 };
 
@@ -205,7 +262,9 @@ export function useCheckInHandlers({
         setIsAddingNewVehicle(false);
         const restored = previousVehicleIdRef.current;
         const restoredExists = restored && vehicles.some((v) => String(v?.vehicleId) === String(restored));
-        const nextId = restoredExists ? restored : vehicles?.[0]?.vehicleId ? String(vehicles[0].vehicleId) : '';
+        let nextId = '';
+        if (restoredExists) nextId = restored;
+        else if (vehicles?.[0]?.vehicleId) nextId = String(vehicles[0].vehicleId);
         setSelectedVehicleId(nextId);
     }, [previousVehicleIdRef, setIsAddingNewVehicle, setSelectedVehicleId, vehicles]);
 
@@ -222,26 +281,54 @@ export function useCheckInHandlers({
         }
 
 
-        const licensePlateValue = String(licensePlate || '').trim();
-        if (!licensePlateValue) {
-            notify('Vui lòng nhập biển số cho xe mới.');
+        const plateValidation = validateLicensePlateStrict(licensePlate);
+        if (plateValidation.error) {
+            notify(plateValidation.error);
+            return;
+        }
+        const licensePlateValue = plateValidation.value;
+
+        const makeValidation = validateTextInput(vehicleMake, {
+            fieldLabel: 'Hãng xe',
+            required: false,
+            maxLength: 100,
+            trim: true,
+        });
+        if (makeValidation.error) {
+            notify(makeValidation.error);
             return;
         }
 
-
-        const yearValue = Number(String(vehicleYear || '').replaceAll(/\D/g, '')) || 0;
-        if (yearValue && yearValue < 1900) {
-            notify('Năm sản xuất không hợp lệ.');
+        const modelValidation = validateTextInput(vehicleModel, {
+            fieldLabel: 'Dòng xe',
+            required: false,
+            maxLength: 100,
+            trim: true,
+        });
+        if (modelValidation.error) {
+            notify(modelValidation.error);
             return;
         }
 
+        const yearValidation = validateFixedDigitsYear(vehicleYear, {
+            fieldLabel: 'Năm sản xuất',
+            required: false,
+            digits: 4,
+            min: 1900,
+            max: 9999,
+        });
+        if (yearValidation.error) {
+            notify(yearValidation.error);
+            return;
+        }
+        const hasYearValue = Number.isInteger(yearValidation.value);
 
         const createPayload = {
             customerId,
             licensePlate: licensePlateValue,
-            make: String(vehicleMake || '').trim(),
-            model: String(vehicleModel || '').trim(),
-            ...(yearValue ? { year: yearValue } : {}),
+            make: makeValidation.value,
+            model: modelValidation.value,
+            ...(hasYearValue ? { year: yearValidation.value } : {}),
         };
 
 
@@ -334,6 +421,17 @@ export function useCheckInHandlers({
             return;
         }
 
+        const validated = validateCheckInForm({
+            selectedVehicle,
+            odometerNumber,
+            damageNote,
+            photoDescriptions,
+        });
+        if (validated.error) {
+            notify(validated.error);
+            return;
+        }
+
 
         const staffProfileRaw = localStorage.getItem('staffProfile');
         let staffId = 0;
@@ -349,7 +447,7 @@ export function useCheckInHandlers({
             bookingId,
             customerId,
             vehicleId: existingVehicleId,
-            licensePlate: String(selectedVehicle?.licensePlate || '').trim(),
+            licensePlate: validated.licensePlate,
             make: String(selectedVehicle?.make || '').trim(),
             model: String(selectedVehicle?.model || '').trim(),
             year: Number(selectedVehicle?.year) || 0,
@@ -358,19 +456,19 @@ export function useCheckInHandlers({
             advisorId: Number(selectedAdvisorId) || null,
             licensePlatePhoto: photos?.licensePlatePhoto?.dataUrl || '',
             photoFront: photos?.photoFront?.dataUrl || '',
-            photoFrontDescription: String(photoDescriptions?.photoFrontDescription || '').trim(),
+            photoFrontDescription: validated.descriptions.photoFrontDescription,
             photoRear: photos?.photoRear?.dataUrl || '',
-            photoRearDescription: String(photoDescriptions?.photoRearDescription || '').trim(),
+            photoRearDescription: validated.descriptions.photoRearDescription,
             photoLeftSide: photos?.photoLeftSide?.dataUrl || '',
-            photoLeftSideDescription: String(photoDescriptions?.photoLeftSideDescription || '').trim(),
+            photoLeftSideDescription: validated.descriptions.photoLeftSideDescription,
             photoRightSide: photos?.photoRightSide?.dataUrl || '',
-            photoRightSideDescription: String(photoDescriptions?.photoRightSideDescription || '').trim(),
+            photoRightSideDescription: validated.descriptions.photoRightSideDescription,
             photoInterior: photos?.photoInterior?.dataUrl || '',
-            photoInteriorDescription: String(photoDescriptions?.photoInteriorDescription || '').trim(),
+            photoInteriorDescription: validated.descriptions.photoInteriorDescription,
             photoDamage: photos?.photoDamage?.dataUrl || '',
-            photoDamageDescription: String(photoDescriptions?.photoDamageDescription || '').trim(),
-            odometerReading: Number(odometerNumber) || null,
-            checkInNotes: String(damageNote || '').trim(),
+            photoDamageDescription: validated.descriptions.photoDamageDescription,
+            odometerReading: validated.odometerValue,
+            checkInNotes: validated.checkInNotes,
             staffId: Number(staffId) || 0,
         };
 
@@ -415,11 +513,7 @@ export function useCheckInHandlers({
         photos,
         safetyInspection,
         selectedAdvisorId,
-        selectedVehicle?.licensePlate,
-        selectedVehicle?.make,
-        selectedVehicle?.model,
-        selectedVehicle?.vehicleId,
-        selectedVehicle?.year,
+        selectedVehicle,
         setIsSubmitting,
     ]);
 

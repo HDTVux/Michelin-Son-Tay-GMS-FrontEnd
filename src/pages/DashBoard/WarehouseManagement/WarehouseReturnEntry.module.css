@@ -1,0 +1,315 @@
+.page {
+  min-height: 100vh;
+  padding: 24px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  color: #1a1a1a;
+}
+
+.shell {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 400;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cardHeader h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #374151;
+  font-size: 14px;
+}
+
+.fullRow {
+  grid-column: 1 / -1;
+}
+
+.field input,
+.field select,
+.searchBar input,
+.table input {
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+  min-height: 44px;
+  outline: none;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.field input:focus,
+.field select:focus,
+.searchBar input:focus,
+.table input:focus {
+  border-color: #1e90ff;
+  box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.1);
+}
+
+.searchBar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.searchBar input {
+  flex: 1;
+}
+
+.backButton,
+.searchBar button,
+.resultActions button,
+.table button,
+.ghostButton,
+.primaryButton {
+  border: none;
+  border-radius: 10px;
+  min-height: 42px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.primaryButton,
+.searchBar button {
+  background: #005aa9;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 90, 169, 0.3);
+}
+
+.primaryButton:hover,
+.searchBar button:hover {
+  background: #004b8c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.4);
+}
+
+.backButton,
+.resultActions button,
+.table button,
+.ghostButton {
+  background: #ffffff;
+  color: #374151;
+  border: 2px solid #e5e7eb;
+}
+
+.backButton:hover,
+.resultActions button:hover,
+.table button:hover,
+.ghostButton:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.backButton:disabled,
+.searchBar button:disabled,
+.resultActions button:disabled,
+.table button:disabled,
+.ghostButton:disabled,
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+.resultList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.resultRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.resultRow strong {
+  color: #1f1f1f;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.resultRow p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.resultActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.gridSingle {
+  grid-template-columns: 1fr;
+}
+
+.gridSingle > .card {
+  width: 100%;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #f5f5f5;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 14px;
+  color: #1f1f1f;
+}
+
+.table th {
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.table tbody tr:nth-child(odd) {
+  background: #fafafa;
+}
+
+.table tbody tr:hover {
+  background: #f5f8ff;
+}
+
+.table input {
+  min-height: 40px;
+}
+
+.error {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.empty {
+  text-align: center;
+  color: #6b7280;
+  padding: 20px;
+}
+
+.required {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.fileList {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: #374151;
+}
+
+.fileList li {
+  margin-bottom: 4px;
+}
+
+.footerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 1024px) {
+  .formGrid,
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .resultRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .resultActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

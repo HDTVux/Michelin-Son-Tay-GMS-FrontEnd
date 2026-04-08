@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import styles from './BookingRequestEdit.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import SchedulePanel from './SchedulePanel.jsx';
@@ -12,6 +13,7 @@ import {
 } from '../../../services/bookingService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
+import { validateTextInput } from '../../../components/inputValidation.js';
 
 function mapStatusTone(status) {
   const upper = (status || '').toUpperCase();
@@ -218,15 +220,14 @@ export default function BookingRequestEdit() {
       return;
     }
 
-    const rawNote = String(form.note || '');
-    if (/[<>{}]/.test(rawNote)) {
-      setError('Yêu cầu thêm không được chứa ký tự <, >, {, }.');
-      return;
-    }
-
-    const trimmedNote = rawNote.trim();
-    if (trimmedNote.length > 500) {
-      setError('Yêu cầu thêm tối đa 500 ký tự.');
+    const { value: trimmedNote, error: noteError } = validateTextInput(form.note, {
+      fieldLabel: 'Yêu cầu thêm',
+      required: false,
+      maxLength: 255,
+      trim: true,
+    });
+    if (noteError) {
+      setError(noteError);
       return;
     }
 
@@ -564,16 +565,6 @@ export default function BookingRequestEdit() {
               </div>
             </div>
 
-            <div className={styles.formField}>
-              <label className={styles.label} htmlFor="services">Dịch vụ</label>
-              <input
-                id="services"
-                type="text"
-                value={form.services}
-                onChange={(e) => handleChange('services', e.target.value)}
-                placeholder="Nhập dịch vụ, phân tách bằng dấu phẩy"
-              />
-            </div>
 
             <div className={styles.formField}>
               <label className={styles.label} htmlFor="note">Yêu cầu thêm</label>
@@ -583,6 +574,7 @@ export default function BookingRequestEdit() {
                 onChange={(e) => handleChange('note', e.target.value)}
                 placeholder="Ghi chú thêm"
                 rows={3}
+                maxLength={255}
               />
             </div>
         <div className={styles.headerActions}>
@@ -604,7 +596,7 @@ export default function BookingRequestEdit() {
         <SchedulePanel
           dateLabel={form.desiredDate}
           pickedTime={form.desiredTime}
-          slotData={booking.slotData}
+          token={localStorage.getItem('authToken')}
           title="Lịch ngày"
           subtitlePrefix="Khung giờ đang chọn:"
         />
@@ -638,3 +630,12 @@ function InfoRow({ label, value, link, type, extraAction, full }) {
     </div>
   );
 }
+
+InfoRow.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  link: PropTypes.bool,
+  type: PropTypes.string,
+  extraAction: PropTypes.node,
+  full: PropTypes.bool,
+};

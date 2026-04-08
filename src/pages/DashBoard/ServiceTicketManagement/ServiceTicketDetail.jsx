@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHandlers.js';
 import {
+    allocateEstimateStock,
     fetchServiceTicketDetail,
     fetchServiceTicketEstimate,
     manageServiceTicketEstimateStatus,
@@ -165,6 +166,58 @@ function buildTimelineEvents(input, receivedAt, handoverAt) {
     return events.filter((e) => e.at != null && String(e.at).trim() !== '');
 }
 
+function getPhotoCategoryLabel(category) {
+    const c = String(category || '').trim().toUpperCase();
+    if (c === 'FRONT') return 'Trước';
+    if (c === 'BACK') return 'Sau';
+    if (c === 'LEFT') return 'Trái';
+    if (c === 'RIGHT') return 'Phải';
+    if (c === 'OVERALL') return 'Tổng quan';
+    if (c === 'DAMAGE') return 'Hư hỏng';
+    if (c === 'LICENSE_PLATE') return 'Biển số';
+    if (!c) return '';
+    return toTitleCaseFromCode(c);
+}
+
+function photoCategoryRank(category) {
+    const c = String(category || '').trim().toUpperCase();
+    if (c === 'FRONT') return 1;
+    if (c === 'BACK') return 2;
+    if (c === 'LEFT') return 3;
+    if (c === 'RIGHT') return 4;
+    if (c === 'OVERALL') return 10;
+    if (c === 'DAMAGE') return 20;
+    if (c === 'LICENSE_PLATE') return 90;
+    return 99;
+}
+
+function normalizeTicketPhotos(list) {
+    const arr = Array.isArray(list) ? list : [];
+    return arr
+        .map((p) => {
+            const url = String(p?.photoUrl ?? p?.url ?? p?.imageUrl ?? '').trim();
+            const category = String(p?.category ?? p?.type ?? '').trim().toUpperCase();
+            if (!url) return null;
+            return {
+                photoId: p?.photoId ?? p?.id ?? null,
+                category,
+                label: getPhotoCategoryLabel(category),
+                url,
+                description: String(p?.description ?? '').trim(),
+                uploadedAt: p?.uploadedAt ?? p?.createdAt ?? null,
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+            const ra = photoCategoryRank(a?.category);
+            const rb = photoCategoryRank(b?.category);
+            if (ra !== rb) return ra - rb;
+            const ta = new Date(a?.uploadedAt || 0).getTime();
+            const tb = new Date(b?.uploadedAt || 0).getTime();
+            return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+        });
+}
+
 function normalizeTicket(input, codeFallback) {
     const ticketCode = String(input?.ticketCode || codeFallback || '').trim();
     const serviceTicketId =
@@ -210,6 +263,7 @@ function normalizeTicket(input, codeFallback) {
     );
 
     const timelineEvents = buildTimelineEvents(input, receivedAt, handoverAt);
+    const photos = normalizeTicketPhotos(input?.photos);
 
     return {
         serviceTicketId,
@@ -246,6 +300,7 @@ function normalizeTicket(input, codeFallback) {
             '',
         services:
             Array.isArray(input?.services) ? input.services : [],
+        photos,
         externalDependency: Boolean(input?.externalDependency || input?.isExternalDependency),
         timelineStatus: input?.timelineStatus || statusCode || statusLabel,
     };
@@ -351,7 +406,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
     const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
-    const isFromAdvisor = location?.state?.fromAdvisorInspection === true;
 
     const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
         ticketCodeParam,
@@ -366,6 +420,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => normalizeTicketStatus(ticket?.statusCode || ticket?.timelineStatus || ticket?.statusLabel),
         [ticket?.statusCode, ticket?.timelineStatus, ticket?.statusLabel],
     );
+
+    const isTicketCancelled = ticketStatus === 'CANCELLED';
 
     const serviceTicketIdNum = useMemo(() => {
         const raw = ticket?.serviceTicketId;
@@ -411,6 +467,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const odometerKm = ticket?.vehicle?.odometerKm;
     const odometerDisplay =
         odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
+
+    const ticketPhotos = useMemo(() => (Array.isArray(ticket?.photos) ? ticket.photos : []), [ticket?.photos]);
+    const licensePlatePhotos = useMemo(
+        () => ticketPhotos.filter((p) => String(p?.category || '').toUpperCase() === 'LICENSE_PLATE'),
+        [ticketPhotos],
+    );
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
@@ -540,6 +602,20 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Vui lòng xác nhận báo giá trước khi tiến hành sửa chữa.');
             return;
         }
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để giữ chỗ vật tư và tiến hành sửa chữa.');
+            return;
+        }
+
+        try {
+            await allocateEstimateStock(estimateIdNum, token);
+        } catch (err) {
+            notify(err?.message || 'Không thể giữ chỗ vật tư trong kho.');
+            return;
+        }
+
         await handleUpdateTicketStatus('IN_PROGRESS', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
         navigate('/advisor/inspection');
     };
@@ -808,16 +884,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                             </div>
                         </div>
-                        {!isFromAdvisor && (
+                        { staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && ticket.statusCode === 'DRAFT' && (
                             <button
                                 type="button"
                                 className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
                                 onClick={toggleEdit}
                                 disabled={isLoading || isSaving}
-                            >
-                                {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
-                            </button>
-                        )}
+                        >
+                            {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
+                        </button>
+                         )}
                     </header>
 
                     {error && <div className={styles.errorBanner}>{error}</div>}
@@ -881,6 +957,33 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         </div>
 
                         <section className={styles.block}>
+                            <h2 className={styles.blockTitle}>Ảnh biển số xe</h2>
+                            {licensePlatePhotos.length > 0 ? (
+                                <div className={styles.vehiclePhotoGrid}>
+                                    {licensePlatePhotos.map((p, idx) => {
+                                        const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
+                                        const label = String(p?.label || p?.category || '').trim();
+                                        const caption = label || (p?.description ? String(p.description) : `Ảnh ${idx + 1}`);
+                                        return (
+                                            <figure key={key} className={styles.vehiclePhotoCard}>
+                                                <img
+                                                    className={styles.vehiclePhotoImg}
+                                                    src={p.url}
+                                                    alt={caption}
+                                                    loading="lazy"
+                                                    referrerPolicy="no-referrer"
+                                                />
+                                                <figcaption className={styles.vehiclePhotoCaption}>{caption}</figcaption>
+                                            </figure>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className={styles.noteBox}>{isLoading ? 'Đang tải...' : '-'}</div>
+                            )}
+                        </section>
+
+                        <section className={styles.block}>
                             <h2 className={styles.blockTitle}>Dịch vụ đã chọn</h2>
                             <div className={styles.servicesList}>
                                 {(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
@@ -938,10 +1041,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     mode="advisor" 
                                 />
                                 
-                                <AdvisorItemsTable
-                                    key={`advisor-table-${ticketCodeParam}`}
-                                    serviceTicketId={ticket?.serviceTicketId}
+                                <AdvisorItemsTable 
+                                    key={`advisor-${ticket?.serviceTicketId}`} 
+                                    serviceTicketId={ticket?.serviceTicketId} 
                                     ticketStatus={ticketStatus}
+                                    ticketPhotos={ticketPhotos}
                                     refreshToken={refreshTick}
                                     onEstimateStatusChange={handleEstimateStatusChange}
                                     onRestartWorkflow={handleRestartFromArchived}
@@ -950,63 +1054,65 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                             </>
                         )}
 
-                        <div className={`ui-actions ${styles.actions}`}>
-                            <button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
-                                Quay lại
-                            </button>
-                            <div className={styles.actionsRight}>
-                                {canCancel && (
-                                    <button
-                                        type="button"
-                                        className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
-                                        onClick={handleCancelTicket}
-                                        disabled={statusUpdating}
-                                    >
-                                        Hủy phiếu dịch vụ
-                                    </button>
-                                )}
-                                {canSetPending && (
-                                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
-                                        Chờ xử lý
-                                    </button>
-                                )}
-                                {canAddService && (
-                                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
-                                        Thêm dịch vụ
-                                    </button>
-                                )}
-                                {canConfirmEstimate && (
-                                    <button
-                                        type="button"
-                                        className="ui-btn ui-btn--primary"
-                                        onClick={handleConfirmEstimate}
-                                        disabled={receiptApproving || statusUpdating || estimateLoading}
-                                    >
-                                        {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
-                                    </button>
-                                )}
-                                {canStartRepair && (
-                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
-                                        Tiến hành sửa chữa
-                                    </button>
-                                )}
-                                {canCompleteRepair && (
-                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving || statusUpdating}>
-                                        Hoàn tất sửa chữa
-                                    </button>
-                                )}
-                                {canCreateReceipt && (
-                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-                                        Tạo hoá đơn
-                                    </button>
-                                )}
-                                {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
-                                    <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
-                                        Cần phân công KTV trước khi tạo hóa đơn.
-                                    </span>
-                                )}
+                        {isTicketCancelled ? null : (
+                            <div className={`ui-actions ${styles.actions}`}>
+                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
+                                    Quay lại
+                                </button>
+                                <div className={styles.actionsRight}>
+                                    {canCancel && (
+                                        <button
+                                            type="button"
+                                            className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
+                                            onClick={handleCancelTicket}
+                                            disabled={statusUpdating}
+                                        >
+                                            Hủy phiếu dịch vụ
+                                        </button>
+                                    )}
+                                    {canSetPending && (
+                                        <button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
+                                            Chờ xử lý
+                                        </button>
+                                    )}
+                                    {canAddService && (
+                                        <button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
+                                            Thêm dịch vụ
+                                        </button>
+                                    )}
+                                    {canConfirmEstimate && (
+                                        <button
+                                            type="button"
+                                            className="ui-btn ui-btn--primary"
+                                            onClick={handleConfirmEstimate}
+                                            disabled={receiptApproving || statusUpdating || estimateLoading}
+                                        >
+                                            {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
+                                        </button>
+                                    )}
+                                    {canStartRepair && (
+                                        <button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
+                                            Tiến hành sửa chữa
+                                        </button>
+                                    )}
+                                    {canCompleteRepair && (
+                                        <button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving || statusUpdating}>
+                                            Hoàn tất sửa chữa
+                                        </button>
+                                    )}
+                                    {canCreateReceipt && (
+                                        <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
+                                            Tạo hoá đơn
+                                        </button>
+                                    )}
+                                    {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
+                                        <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
+                                            Cần phân công KTV trước khi tạo hóa đơn.
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                     </main>
                 </div>

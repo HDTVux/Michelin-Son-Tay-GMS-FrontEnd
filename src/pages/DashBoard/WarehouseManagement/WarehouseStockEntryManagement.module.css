@@ -1,0 +1,57 @@
+.wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.emptyCell {
+  text-align: center;
+  color: #64748b;
+  padding: 18px 12px;
+}
+
+.detailGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.fullRow {
+  grid-column: 1 / -1;
+}
+
+.sectionTitle {
+  margin: 14px 0 10px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.attachmentList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attachmentList a {
+  color: #005aa9;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.attachmentList a:hover {
+  text-decoration: underline;
+}
+
+.emptyText {
+  margin: 0;
+  color: #64748b;
+}
+
+@media (max-width: 860px) {
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+}

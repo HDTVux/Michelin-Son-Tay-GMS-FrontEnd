@@ -1,0 +1,535 @@
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
+import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import {
+  createWarehouseStockEntryWithAttachment,
+  searchWarehouseCatalog,
+} from '../../../services/warehouseService.js';
+import styles from './WarehouseStockEntry.module.css';
+
+const DEFAULT_WAREHOUSE_ID = 1;
+const DRAFT_STORAGE_KEY = 'warehouse-stock-entry-draft-v1';
+
+const formatCurrency = (value) => {
+  const num = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+  if (!Number.isFinite(num)) return '-';
+  return new Intl.NumberFormat('vi-VN').format(Math.round(num));
+};
+
+const readNumber = (value) => {
+  const num = typeof value === 'number' ? value : Number(String(value ?? '').trim().replaceAll(',', ''));
+  return Number.isFinite(num) ? num : Number.NaN;
+};
+
+const extractCatalogItems = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? response;
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.content)) return payload.content;
+  return [];
+};
+
+const mapCatalogItem = (item) => ({
+  itemId: Number(item?.itemId ?? item?.id ?? 0) || 0,
+  itemName: String(item?.itemName ?? item?.name ?? '').trim(),
+  itemType: String(item?.itemType ?? '').trim(),
+  sku: String(item?.sku ?? '').trim(),
+  partNumber: String(item?.partNumber ?? '').trim(),
+  barcode: String(item?.barcode ?? '').trim(),
+  unit: String(item?.unit ?? '').trim(),
+  brandId: item?.brandId ?? null,
+  productLineId: item?.productLineId ?? null,
+});
+
+const buildDraftPayload = (warehouseId, supplierName, notes, selectedItems) => ({
+  warehouseId: Number(warehouseId) || DEFAULT_WAREHOUSE_ID,
+  supplierName: String(supplierName || '').trim(),
+  notes: String(notes || '').trim(),
+  items: (Array.isArray(selectedItems) ? selectedItems : []).map((row) => ({
+    itemId: Number(row.itemId) || 0,
+    quantity: Number(row.quantity) || 0,
+    importPrice: Number(row.importPrice) || 0,
+    markupMultiplier: Number(row.markupMultiplier) || 0,
+  })),
+});
+
+export default function WarehouseStockEntry() {
+  useScrollToTop();
+  const navigate = useNavigate();
+
+  const notify = (message) => toast(message, { containerId: 'app-toast' });
+
+  const [warehouseId] = useState(DEFAULT_WAREHOUSE_ID);
+  const [supplierName, setSupplierName] = useState('');
+  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState('');
+  const [keyword, setKeyword] = useState('');
+  const [submittedKeyword, setSubmittedKeyword] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [catalogItems, setCatalogItems] = useState([]);
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (!draft || typeof draft !== 'object') return;
+      if (typeof draft.supplierName === 'string') setSupplierName(draft.supplierName);
+      if (typeof draft.notes === 'string') setNotes(draft.notes);
+      if (Array.isArray(draft.selectedItems)) {
+        setSelectedItems(
+          draft.selectedItems
+            .map((row) => ({
+              ...mapCatalogItem(row),
+              quantity: String(row?.quantity ?? '1'),
+              importPrice: String(row?.importPrice ?? ''),
+              markupMultiplier: String(row?.markupMultiplier ?? '1'),
+            }))
+            .filter((row) => row.itemId),
+        );
+      }
+    } catch {
+      // Ignore malformed draft data.
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSubmittedKeyword(keyword.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [keyword]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const keywordValue = String(submittedKeyword || '').trim();
+
+    if (!keywordValue) {
+      setCatalogItems([]);
+      setSearchError('');
+      setSearchLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const run = async () => {
+      try {
+        setSearchLoading(true);
+        setSearchError('');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        const res = await searchWarehouseCatalog(keywordValue, token);
+        const list = extractCatalogItems(res).map(mapCatalogItem).filter((item) => item.itemId);
+        if (cancelled) return;
+        setCatalogItems(list);
+      } catch (err) {
+        if (cancelled) return;
+        setCatalogItems([]);
+        setSearchError(err?.message || 'Không thể tìm hạng mục.');
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [submittedKeyword]);
+
+  const selectedItemIds = useMemo(
+    () => new Set(selectedItems.map((row) => Number(row.itemId)).filter((value) => Number.isFinite(value))),
+    [selectedItems],
+  );
+
+  const selectedTotals = useMemo(() => {
+    return selectedItems.reduce(
+      (acc, row) => {
+        const quantity = readNumber(row.quantity);
+        const importPrice = readNumber(row.importPrice);
+        if (Number.isFinite(quantity)) acc.quantity += quantity;
+        if (Number.isFinite(importPrice) && Number.isFinite(quantity)) acc.amount += quantity * importPrice;
+        return acc;
+      },
+      { quantity: 0, amount: 0 },
+    );
+  }, [selectedItems]);
+
+  const catalogContent = searchLoading ? null : catalogItems;
+  const hasCatalogResults = Array.isArray(catalogContent) && catalogContent.length > 0;
+
+  let catalogResultsContent;
+  if (searchLoading) {
+    catalogResultsContent = <div className={styles.emptyState}>Đang tải dữ liệu...</div>;
+  } else if (hasCatalogResults) {
+    catalogResultsContent = (
+      <div className={styles.resultsList}>
+        {catalogItems.map((item) => {
+          const alreadyAdded = selectedItemIds.has(Number(item.itemId));
+          return (
+            <article key={String(item.itemId)} className={styles.resultRow}>
+              <div className={styles.resultMain}>
+                <div className={styles.resultTitle}>{item.itemName || '-'}</div>
+                <div className={styles.resultMeta}>
+                  <span>ID: {item.itemId}</span>
+                  <span>SKU: {item.sku || '-'}</span>
+                  <span>PN: {item.partNumber || '-'}</span>
+                  <span>ĐV: {item.unit || '-'}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.addButton}
+                onClick={() => addCatalogItem(item)}
+                disabled={alreadyAdded}
+              >
+                {alreadyAdded ? 'Đã thêm' : 'Thêm'}
+              </button>
+            </article>
+          );
+        })}
+      </div>
+    );
+  } else {
+    catalogResultsContent = <div className={styles.emptyState}>Không có kết quả phù hợp.</div>;
+  }
+
+  const addCatalogItem = (item) => {
+    const mapped = mapCatalogItem(item);
+    if (!mapped.itemId) return;
+    setSelectedItems((prev) => {
+      if (prev.some((row) => Number(row.itemId) === Number(mapped.itemId))) return prev;
+      return [
+        ...prev,
+        {
+          ...mapped,
+          quantity: '1',
+          importPrice: '',
+          markupMultiplier: '1',
+        },
+      ];
+    });
+  };
+
+  const updateSelectedItem = (itemId, field, value) => {
+    setSelectedItems((prev) =>
+      prev.map((row) => {
+        if (Number(row.itemId) !== Number(itemId)) return row;
+        return { ...row, [field]: value };
+      }),
+    );
+  };
+
+  const removeSelectedItem = (itemId) => {
+    setSelectedItems((prev) => prev.filter((row) => Number(row.itemId) !== Number(itemId)));
+  };
+
+
+  const handleSubmit = async () => {
+    const supplier = String(supplierName || '').trim();
+    if (!supplier) {
+      notify('Vui lòng nhập nhà cung cấp.');
+      return;
+    }
+    if (selectedItems.length === 0) {
+      notify('Vui lòng thêm ít nhất 1 hàng vào bảng nhập.');
+      return;
+    }
+
+    const invalidRow = selectedItems.find((row) => {
+      const quantity = readNumber(row.quantity);
+      const importPrice = readNumber(row.importPrice);
+      const markupMultiplier = readNumber(row.markupMultiplier);
+      return !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(importPrice) || importPrice <= 0 || !Number.isFinite(markupMultiplier) || markupMultiplier < 0;
+    });
+
+    if (invalidRow) {
+      notify(`Dữ liệu chưa hợp lệ ở dòng: ${invalidRow.itemName || invalidRow.sku || invalidRow.itemId}`);
+      return;
+    }
+
+    const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+    if (!token) {
+      notify('Vui lòng đăng nhập để xác nhận nhập kho.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const payload = buildDraftPayload(warehouseId, supplierName, notes, selectedItems);
+      const response = await createWarehouseStockEntryWithAttachment(payload, attachmentFile, token);
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      notify(response?.message || 'Xác nhận nhập kho thành công.');
+    } catch (err) {
+      const message = err?.message || 'Không thể xác nhận nhập kho.';
+      notify(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const clearForm = () => {
+    setSupplierName('');
+    setEntryDate(new Date().toISOString().slice(0, 10));
+    setNotes('');
+    setKeyword('');
+    setSubmittedKeyword('');
+    setCatalogItems([]);
+    setSelectedItems([]);
+    setAttachmentFile(null);
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+  };
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.shell}>
+        <header className={styles.heroCard}>
+          <div className={styles.headerMain}>
+            <div>
+              <h1 className={styles.title}>Phiếu nhập kho</h1>
+              <p className={styles.subtitle}>Chọn hạng mục theo keyword, thêm vào bảng nhập và xác nhận bằng file đính kèm.</p>
+            </div>
+          </div>
+          <div className={styles.heroMeta}>
+            <div className={styles.metaBox}>
+              <span className={styles.metaLabel}>Kho hiện tại</span>
+              <strong>KHO #{warehouseId}</strong>
+            </div>
+            <div className={styles.metaBox}>
+              <span className={styles.metaLabel}>Ngày nhập</span>
+              <strong>{entryDate}</strong>
+            </div>
+            <div className={styles.metaBox}>
+              <span className={styles.metaLabel}>Số dòng</span>
+              <strong>{selectedItems.length}</strong>
+            </div>
+          </div>
+        </header>
+
+        <section className={styles.grid}>
+          <div className={styles.mainColumn}>
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <p className={styles.cardEyebrow}>Thông tin nhập kho</p>
+                  <h2 className={styles.cardTitle}>Tạo phiếu nhập</h2>
+                </div>
+              </div>
+
+              <div className={styles.formGrid}>
+                <label className={styles.field}>
+                  <span>Kho</span>
+                  <select value={warehouseId} disabled>
+                    <option value={DEFAULT_WAREHOUSE_ID}>Kho chính</option>
+                  </select>
+                </label>
+
+                <label className={styles.field}>
+                  <span>Nhà cung cấp</span>
+                  <input
+                    type="text"
+                    value={supplierName}
+                    onChange={(e) => setSupplierName(e.target.value)}
+                    placeholder="Nhập tên nhà cung cấp"
+                  />
+                </label>
+
+                <label className={styles.field}>
+                  <span>Ngày nhập</span>
+                  <input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
+                </label>
+
+                <label className={styles.field}>
+                  <span>Ghi chú</span>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Nhập ghi chú cho phiếu nhập"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <h2 className={styles.cardTitle}>Tìm hạng mục</h2>
+                </div>
+                <span className={styles.badge}>{searchLoading ? 'Đang tìm...' : `${catalogItems.length} kết quả`}</span>
+              </div>
+
+              <form
+                className={styles.searchBar}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const nextKeyword = keyword.trim();
+                  if (!nextKeyword) {
+                    setCatalogItems([]);
+                    setSearchError('Vui lòng nhập keyword để tìm hạng mục.');
+                    return;
+                  }
+                  setSubmittedKeyword(nextKeyword);
+                }}
+              >
+                <input
+                  type="text"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="Nhập keyword để tìm mã, tên, SKU..."
+                />
+                <button type="submit" className={styles.primaryButton} disabled={searchLoading}>
+                  Tìm
+                </button>
+              </form>
+
+              {searchError ? <div className={styles.errorBanner}>{searchError}</div> : null}
+
+              <div className={styles.resultsPanel}>
+                {catalogResultsContent}
+              </div>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <p className={styles.cardEyebrow}>Danh sách nhập</p>
+                  <h2 className={styles.cardTitle}>Bảng nhập hàng</h2>
+                </div>
+                <span className={styles.badge}>{selectedItems.length} dòng</span>
+              </div>
+
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Tên</th>
+                      <th>SL</th>
+                      <th>Giá nhập</th>
+                      <th>Mức lợi nhuận</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className={styles.tableEmpty}>
+                          Chưa có hạng mục nào.
+                        </td>
+                      </tr>
+                    ) : (
+                      selectedItems.map((row) => {
+                        return (
+                          <tr key={String(row.itemId)}>
+                            <td>
+                              <div className={styles.rowName}>
+                                <strong>{row.itemName || '-'}</strong>
+                                <span>{row.sku || row.partNumber || `#${row.itemId}`}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <input
+                                className={styles.inlineInput}
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={row.quantity}
+                                onChange={(e) => updateSelectedItem(row.itemId, 'quantity', e.target.value)}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                className={styles.inlineInput}
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={row.importPrice}
+                                onChange={(e) => updateSelectedItem(row.itemId, 'importPrice', e.target.value)}
+                                placeholder="0"
+                              />
+                            </td>
+                            <td>
+                              <input
+                                className={styles.inlineInput}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={row.markupMultiplier}
+                                onChange={(e) => updateSelectedItem(row.itemId, 'markupMultiplier', e.target.value)}
+                                placeholder="1.0"
+                              />
+                            </td>
+                            <td>
+                              <button type="button" className={styles.removeButton} onClick={() => removeSelectedItem(row.itemId)}>
+                                Xóa
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className={styles.summaryRow}>
+                <div className={styles.summaryItem}>
+                  <span>Tổng số lượng</span>
+                  <strong>{selectedTotals.quantity}</strong>
+                </div>
+                <div className={styles.summaryItem}>
+                  <span>Tổng tiền nhập</span>
+                  <strong>{formatCurrency(selectedTotals.amount)} ₫</strong>
+                </div>
+                <div className={styles.summaryItem}>
+                  <span>Tệp đính kèm</span>
+                  <strong>{attachmentFile ? attachmentFile.name : 'Chưa chọn'}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside className={styles.sideColumn}>
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <p className={styles.cardEyebrow}>Tệp đính kèm</p>
+                  <h2 className={styles.cardTitle}>Ảnh chứng từ</h2>
+                </div>
+              </div>
+
+              <label className={styles.uploadBox}>
+                <input
+                  type="file"
+                  onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
+                />
+                <span>Chọn file ảnh hoặc tài liệu</span>
+                <strong>{attachmentFile ? attachmentFile.name : 'Kéo thả hoặc bấm để chọn'}</strong>
+              </label>
+
+            </div>
+
+            <div className={styles.actionCard}>
+              <button type="button" className={styles.ghostButton} onClick={clearForm} disabled={isSubmitting}>
+                Xóa form
+              </button>
+                <button type="button" className={styles.primaryButton} onClick={handleSubmit} disabled={isSubmitting || selectedItems.length === 0}>
+                {isSubmitting ? 'Đang xác nhận...' : 'Xác nhận nhập kho'}
+              </button>
+            </div>
+              <button type="button" className={styles.backBottomButton} onClick={() => navigate('/warehouse-stock-entries')}>
+                Quay lại
+              </button>
+          </aside>
+        </section>
+      </div>
+    </div>
+  );
+}
