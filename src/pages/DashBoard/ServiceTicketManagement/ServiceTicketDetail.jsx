@@ -5,6 +5,8 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
+import EstimateTimePopup from './EstimateTimePopup.jsx';
+import MaintenanceBookingPopup from './MaintenanceBookingPopup.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHandlers.js';
 import { getServiceTicketStatusTextVi } from '../../../components/statusUtils.js';
 import {
@@ -21,6 +23,7 @@ import styles from './ServiceTicketDetail.module.css';
 const STAFF_ROLE = {
     ADVISOR: 'ADVISOR',
     RECEPTIONIST: 'RECEPTIONIST',
+    ACCOUNTANT: 'ACCOUNTANT',
 };
 
 function readStaffRolesFromStorage() {
@@ -53,7 +56,7 @@ function toTitleCaseFromCode(value) {
 function formatCurrencyVnd(value) {
     const n = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(n)) return '-';
-    return `${new Intl.NumberFormat('vi-VN').format(n)} VND`;
+    return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
 }
 
 function normalizeOdometerKm(value) {
@@ -393,6 +396,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const params = useParams();
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
+    const isAccountant = staffRoles.includes(STAFF_ROLE.ACCOUNTANT);
     
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -402,6 +406,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
     const [isEstimateEditing, setIsEstimateEditing] = useState(false);
+
+    const [maintenancePopupOpen, setMaintenancePopupOpen] = useState(false);
+    const [maintenanceDraft, setMaintenanceDraft] = useState({ scheduledAt: '', note: '' });
+    const [estimateTimePopupOpen, setEstimateTimePopupOpen] = useState(false);
+    const [estimatedTimeDraft, setEstimatedTimeDraft] = useState('');
+
+    // Only for flow: "Tạo bản báo giá mới" (restart from archived).
+    // While active, hide other ticket action buttons and only allow confirming estimate after it is saved.
+    const [isCreatingNewEstimateVersion, setIsCreatingNewEstimateVersion] = useState(false);
+    const createNewEstimateRevertRef = useRef(null);
 
     const [refreshTick, setRefreshTick] = useState(0);
     const triggerRefresh = () => setRefreshTick(prev => prev + 1);
@@ -536,7 +550,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         );
     }, [assignments, assignmentsLoading]);
 
-    const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading && hasTechnician;
+    const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading;
+    const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED';
 
     const handleBack = () => navigate(-1);
 
@@ -754,6 +769,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         
         try {
             setStatusUpdating(true);
+            // Snapshot current ticket status so Cancel during "create new estimate version" can revert.
+            if (!createNewEstimateRevertRef.current) {
+                createNewEstimateRevertRef.current = { prevTicketStatus: ticketStatus };
+            }
+            setIsCreatingNewEstimateVersion(true);
             // Simplified rule: "Tạo bản báo giá mới" always brings ticket to ESTIMATED.
             await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
             
@@ -771,13 +791,61 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Đã chuyển phiếu dịch vụ về trạng thái để bắt đầu báo giá mới.');
         } catch (err) {
             notify(err?.message || 'Không thể chuyển trạng thái phiếu dịch vụ để bắt đầu báo giá mới.');
+            createNewEstimateRevertRef.current = null;
+            setIsCreatingNewEstimateVersion(false);
             throw err;
         } finally {
             setStatusUpdating(false);
         }
     };
 
-    const handleConfirmEstimate = async () => {
+    const handleCancelCreateNewEstimateVersion = useCallback(async () => {
+        const snapshot = createNewEstimateRevertRef.current;
+        if (!snapshot?.prevTicketStatus) {
+            setIsCreatingNewEstimateVersion(false);
+            return;
+        }
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để cập nhật trạng thái phiếu dịch vụ.');
+            return;
+        }
+        if (!serviceTicketIdNum) {
+            notify('Thiếu serviceTicketId hợp lệ để cập nhật trạng thái.');
+            return;
+        }
+
+        const code = String(ticket.ticketCode || ticketCodeParam || '').trim();
+        if (!code) {
+            notify('Thiếu mã phiếu dịch vụ để tải lại sau khi cập nhật trạng thái.');
+            return;
+        }
+
+        try {
+            setStatusUpdating(true);
+            const prev = String(snapshot.prevTicketStatus || '').trim().toUpperCase();
+            if (prev) {
+                await manageServiceTicketStatus(serviceTicketIdNum, prev, token);
+            }
+            const detailRes = await fetchServiceTicketDetail(code, token);
+            setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
+            triggerRefresh();
+            notify('Đã hoàn tác trạng thái phiếu dịch vụ trước khi tạo báo giá mới.');
+        } catch (err) {
+            notify(err?.message || 'Không thể hoàn tác trạng thái phiếu dịch vụ.');
+        } finally {
+            createNewEstimateRevertRef.current = null;
+            setIsCreatingNewEstimateVersion(false);
+            setStatusUpdating(false);
+        }
+    }, [notify, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw]);
+
+    const handleOpenEstimateTimePopup = () => {
+        setEstimateTimePopupOpen(true);
+    };
+
+    const executeConfirmEstimate = async (estimatedAt = '') => {
         if (estimateLoading) return;
         if (!estimateIdNum) {
             notify('Chưa có báo giá hợp lệ để xác nhận.');
@@ -815,6 +883,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
             await manageServiceTicketEstimateStatus(estimateIdNum, 'APPROVED', token);
             setLatestEstimate((prev) => (prev ? { ...prev, status: 'APPROVED', estimateStatus: 'APPROVED' } : prev));
+            if (estimatedAt) {
+                setEstimatedTimeDraft(estimatedAt);
+            }
             
             const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
@@ -822,11 +893,20 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
             triggerRefresh(); 
             notify('Đã xác nhận báo giá.');
+
+            // End "create new estimate version" flow after confirming.
+            createNewEstimateRevertRef.current = null;
+            setIsCreatingNewEstimateVersion(false);
         } catch (err) {
             notify(err?.message || 'Không thể xác nhận báo giá.');
         } finally {
             setEstimateLoading(false);
         }
+    };
+
+    const handleSubmitEstimateTime = async ({ estimatedAt }) => {
+        setEstimateTimePopupOpen(false);
+        await executeConfirmEstimate(estimatedAt);
     };
 
     const canCancel = ['CREATED', 'INSPECTING', 'PENDING', 'INSPECTED', 'ESTIMATED', 'REPAIRING'].includes(ticketStatus);
@@ -891,6 +971,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         } finally {
             setReceiptApproving(false);
         }
+    };
+
+    const handleSubmitMaintenance = ({ scheduledAt, note }) => {
+        setMaintenanceDraft({ scheduledAt: String(scheduledAt || ''), note: String(note || '') });
+        setMaintenancePopupOpen(false);
+        notify('Đã ghi nhận lịch bảo dưỡng (chưa gửi server).');
     };
 
     return (
@@ -1068,8 +1154,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     ticketStatus={ticketStatus}
                                     ticketPhotos={ticketPhotos}
                                     refreshToken={refreshTick}
+                                    estimatedTimeDisplay={estimatedTimeDraft ? formatDateTimeViNoSeconds(estimatedTimeDraft, '-') : '-'}
                                     onEstimateStatusChange={handleEstimateStatusChange}
                                     onRestartWorkflow={handleRestartFromArchived}
+                                    onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
                                     onCancelAppendOnly={handleCancelAppendOnly}
                                     onEstimateEditingChange={setIsEstimateEditing}
                                 />
@@ -1082,60 +1170,101 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     Quay lại
                                 </button>
                                 <div className={styles.actionsRight}>
-                                    {canCancel && (
-                                        <button
-                                            type="button"
-                                            className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
-                                            onClick={handleCancelTicket}
-                                            disabled={statusUpdating}
-                                        >
-                                            Hủy phiếu dịch vụ
-                                        </button>
-                                    )}
-                                    {canSetPending && (
-                                        <button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
-                                            Chờ xử lý
-                                        </button>
-                                    )}
-                                    {canAddService && (
-                                        <button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
-                                            Thêm dịch vụ
-                                        </button>
-                                    )}
-                                    {canConfirmEstimate && (
+                                    {isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                         <button
                                             type="button"
                                             className="ui-btn ui-btn--primary"
-                                            onClick={handleConfirmEstimate}
+                                            onClick={handleOpenEstimateTimePopup}
                                             disabled={receiptApproving || statusUpdating || estimateLoading}
                                         >
                                             {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
                                         </button>
-                                    )}
-                                    {canStartRepair && (
-                                        <button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
-                                            Tiến hành sửa chữa
-                                        </button>
-                                    )}
-                                    {canCompleteRepair && (
-                                        <button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving || statusUpdating}>
-                                            Hoàn tất sửa chữa
-                                        </button>
-                                    )}
-                                    {canCreateReceipt && (
-                                        <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-                                            Tạo hoá đơn
-                                        </button>
-                                    )}
-                                    {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
-                                        <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
-                                            Cần phân công KTV trước khi tạo hóa đơn.
-                                        </span>
+                                    ) : null}
+
+                                    {isCreatingNewEstimateVersion ? null : (
+                                        <>
+                                            {canCancel && (
+                                                <button
+                                                    type="button"
+                                                    className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
+                                                    onClick={handleCancelTicket}
+                                                    disabled={statusUpdating}
+                                                >
+                                                    Hủy phiếu dịch vụ
+                                                </button>
+                                            )}
+                                            {canSetPending && (
+                                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
+                                                    Chờ xử lý
+                                                </button>
+                                            )}
+                                            {canAddService && (
+                                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
+                                                    Thêm dịch vụ
+                                                </button>
+                                            )}
+                                            {canConfirmEstimate && (
+                                                <button
+                                                    type="button"
+                                                    className="ui-btn ui-btn--primary"
+                                                    onClick={handleOpenEstimateTimePopup}
+                                                    disabled={receiptApproving || statusUpdating || estimateLoading}
+                                                >
+                                                    {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
+                                                </button>
+                                            )}
+                                            {canStartRepair && (
+                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
+                                                    Tiến hành sửa chữa
+                                                </button>
+                                            )}
+                                            {canCompleteRepair && (
+                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving || statusUpdating}>
+                                                    Hoàn tất sửa chữa
+                                                </button>
+                                            )}
+                                            {canBookMaintenance && (
+                                                <button
+                                                    type="button"
+                                                    className="ui-btn ui-btn--ghost"
+                                                    onClick={() => setMaintenancePopupOpen(true)}
+                                                    disabled={statusUpdating || receiptApproving}
+                                                >
+                                                    Đặt lịch bảo dưỡng
+                                                </button>
+                                            )}
+                                            {canCreateReceipt && isAccountant && (
+                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
+                                                    Tạo hoá đơn
+                                                </button>
+                                            )}
+
+                                            {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
+                                                <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
+                                                    Cần phân công KTV trước khi tạo hóa đơn.
+                                                </span>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>
                         )}
                     </div>
+
+                    <MaintenanceBookingPopup
+                        open={maintenancePopupOpen}
+                        initialDateTime={maintenanceDraft.scheduledAt}
+                        initialNote={maintenanceDraft.note}
+                        durationMinutes={60}
+                        onClose={() => setMaintenancePopupOpen(false)}
+                        onSubmit={handleSubmitMaintenance}
+                    />
+                    <EstimateTimePopup
+                        open={estimateTimePopupOpen}
+                        initialDateTime={estimatedTimeDraft}
+                        onClose={() => setEstimateTimePopupOpen(false)}
+                        onSubmit={handleSubmitEstimateTime}
+                    />
                     </main>
                 </div>
             </div>

@@ -128,6 +128,8 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                     <th>Tên</th>
                     <th>SKU</th>
                     <th>HÃNG</th>
+                    <th>Màu sắc</th>
+                    <th>Xuất xứ</th>
                     <th>GIÁ</th>
                     <th>ĐV</th>
                     <th />
@@ -141,6 +143,8 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                         <td>{it?.itemName || it?.name || '-'}</td>
                         <td>{it?.sku || '-'}</td>
                         <td>{it?.brand || '-'}</td>
+                        <td>{it?.color || '-'}</td>
+                        <td>{it?.madeIn || '-'}</td>
                         <td className={styles.tdNumber}>{formatCurrencyVnd(it?.price ?? it?.unitPrice)}</td>
                         <td>{it?.unit || '-'}</td>
                         <td>

@@ -349,21 +349,44 @@ function EstimateActions({
     isAppendOnlyEdit,
     shouldRevertOnCancel,
     setShouldRevertOnCancel,
+    shouldRevertTicketOnCancel,
+    setShouldRevertTicketOnCancel,
+    onCancelCreateNewVersion,
 }) {
     const [cancelBusy, setCancelBusy] = useState(false);
 
     const handleCancelCreate = useCallback(async () => {
         if (cancelBusy) return;
         cancelCreate?.();
-        if (!shouldRevertOnCancel || !onCancelAppendOnly) return;
+
+        const shouldRevertTicket = Boolean(shouldRevertTicketOnCancel && onCancelCreateNewVersion);
+        const shouldRevertAppendOnly = Boolean(shouldRevertOnCancel && onCancelAppendOnly);
+        if (!shouldRevertTicket && !shouldRevertAppendOnly) return;
+
         try {
             setCancelBusy(true);
-            await onCancelAppendOnly();
+
+            if (shouldRevertTicket) {
+                await onCancelCreateNewVersion();
+            }
+            if (shouldRevertAppendOnly) {
+                await onCancelAppendOnly();
+            }
         } finally {
             setCancelBusy(false);
             setShouldRevertOnCancel?.(false);
+            setShouldRevertTicketOnCancel?.(false);
         }
-    }, [cancelBusy, cancelCreate, onCancelAppendOnly, setShouldRevertOnCancel, shouldRevertOnCancel]);
+    }, [
+        cancelBusy,
+        cancelCreate,
+        onCancelAppendOnly,
+        onCancelCreateNewVersion,
+        setShouldRevertOnCancel,
+        setShouldRevertTicketOnCancel,
+        shouldRevertOnCancel,
+        shouldRevertTicketOnCancel,
+    ]);
 
     const handleCancelEdit = useCallback(async () => {
         if (cancelBusy) return;
@@ -466,6 +489,9 @@ EstimateActions.propTypes = {
     isAppendOnlyEdit: PropTypes.bool,
     shouldRevertOnCancel: PropTypes.bool,
     setShouldRevertOnCancel: PropTypes.func,
+    shouldRevertTicketOnCancel: PropTypes.bool,
+    setShouldRevertTicketOnCancel: PropTypes.func,
+    onCancelCreateNewVersion: PropTypes.func,
 };
 
 export default function AdvisorItemsTable({
@@ -473,12 +499,15 @@ export default function AdvisorItemsTable({
     ticketStatus,
     ticketPhotos,
     refreshToken,
+    estimatedTimeDisplay,
     onEstimateStatusChange,
     onRestartWorkflow,
+    onCancelCreateNewVersion,
     onCancelAppendOnly,
     onEstimateEditingChange,
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
+    const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
     const {
         categorySuggestions,
         workCategoriesLoading,
@@ -560,6 +589,7 @@ export default function AdvisorItemsTable({
             return;
         }
 		setRevertOnCancel(false);
+		setRevertTicketOnCancel(false);
         if (startCreate) startCreate();
     };
 
@@ -570,6 +600,7 @@ export default function AdvisorItemsTable({
             return;
         }
 		setRevertOnCancel(false);
+        setRevertTicketOnCancel(true);
 
         // Seed các dòng của version trước sang version mới (read-only)
         startCreate?.({ seedFromPreviousEstimate: true });
@@ -582,11 +613,18 @@ export default function AdvisorItemsTable({
             // Đẩy ServiceTicket về ESTIMATED trước khi tạo Estimate mới (backend không cho phép DRAFT)
             await onRestartWorkflow();
         } catch {
+            setRevertTicketOnCancel(false);
             cancelCreate?.();
         } finally {
             setIsStartingCreate(false);
         }
     };
+
+    useEffect(() => {
+        if (!isCreating) {
+            setRevertTicketOnCancel(false);
+        }
+    }, [isCreating]);
 
     // Ensure create mode can be opened automatically after the ticket is restarted/refreshed.
     useEffect(() => {
@@ -856,7 +894,7 @@ export default function AdvisorItemsTable({
                     <div className={styles.kvList}>
                         <div className={styles.kvRow}>
                             <span className={styles.kvLabel}>Thời gian</span>
-                            <span className={styles.kvValue}>-</span>
+                            <span className={styles.kvValue}>{estimatedTimeDisplay || '-'}</span>
                         </div>
                         <div className={styles.kvRow}>
                             <span className={styles.kvLabel}>Chi phí dự kiến</span>
@@ -973,6 +1011,9 @@ export default function AdvisorItemsTable({
                         isAppendOnlyEdit={isAppendOnlyEdit}
 					shouldRevertOnCancel={revertOnCancel}
 					setShouldRevertOnCancel={setRevertOnCancel}
+                        shouldRevertTicketOnCancel={revertTicketOnCancel}
+                        setShouldRevertTicketOnCancel={setRevertTicketOnCancel}
+                        onCancelCreateNewVersion={onCancelCreateNewVersion}
                     />
                 </div>
             )}
@@ -1056,8 +1097,10 @@ AdvisorItemsTable.propTypes = {
     ticketStatus: PropTypes.string,
     ticketPhotos: PropTypes.array,
     refreshToken: PropTypes.any,
+    estimatedTimeDisplay: PropTypes.string,
     onEstimateStatusChange: PropTypes.func,
     onEstimateEditingChange: PropTypes.func,
     onRestartWorkflow: PropTypes.func,
+    onCancelCreateNewVersion: PropTypes.func,
     onCancelAppendOnly: PropTypes.func,
 };
