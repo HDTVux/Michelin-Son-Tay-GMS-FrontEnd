@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { buildDateOptions, formatDateTimeViNoSeconds, formatLocalDateYYYYMMDD, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { fetchAllSlots, setQueueAuto, swapQueueBookings } from '../../../services/bookingService.js';
@@ -22,6 +23,7 @@ const minutesSinceMidnight = (timeRaw) => {
 
 export default function QueueManagement() {
 	useScrollToTop();
+	const navigate = useNavigate();
 
 	const notify = (message) => toast(message, { containerId: 'app-toast' });
 
@@ -162,6 +164,28 @@ export default function QueueManagement() {
 		}
 	};
 
+	const handleCheckIn = (item) => {
+		const bookingId = item?.bookingId ?? item?.id ?? null;
+		const bookingCode = item?.bookingCode ?? '';
+		const customerName = item?.customer?.fullName || item?.customer?.name || item?.fullName || item?.name || '-';
+		const customerPhone = item?.customer?.phone || item?.phone || '-';
+		const appointmentAt = item?.appointmentAt || ((item?.scheduledDate && item?.scheduledTime) ? `${String(item.scheduledDate).trim()}T${String(item.scheduledTime).trim()}` : null);
+
+		navigate('/check-in', {
+			state: {
+				bookingCode,
+				bookingId,
+				booking: {
+					bookingId,
+					bookingCode,
+					customerName,
+					customerPhone,
+					appointmentAt,
+				},
+			},
+		});
+	};
+
 	return (
 		<div className={styles.page}>
 			<h1 className={styles.pageTitle}>Quản lý hàng đợi</h1>
@@ -223,7 +247,7 @@ export default function QueueManagement() {
 							onClick={handleSetQueueAuto}
 							disabled={queueLoading || !dateISO || !slot}
 						>
-							{queueLoading ? 'Đang xử lý...' : 'Tự động xếp hàng'}
+							{queueLoading ? 'Đang xử lý...' : 'Hàng chờ đặt lịch'}
 						</button>
 					</div>
 				</div>
@@ -283,6 +307,16 @@ export default function QueueManagement() {
 										<div className={styles.infoItem}>
 											<span className={styles.label}>Ghi chú:</span> {item?.description || '-'}
 										</div>
+									</div>
+
+									<div className={styles.actionButtons}>
+										<button
+											type="button"
+											className={styles.secondaryButton}
+											onClick={() => handleCheckIn(item)}
+										>
+											Check-in
+										</button>
 									</div>
 								</div>
 							</article>

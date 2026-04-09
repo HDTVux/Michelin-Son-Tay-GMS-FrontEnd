@@ -6,6 +6,7 @@ import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/t
 import { toast } from 'react-toastify';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHandlers.js';
+import { getServiceTicketStatusTextVi } from '../../../components/statusUtils.js';
 import {
     allocateEstimateStock,
     fetchServiceTicketDetail,
@@ -106,10 +107,12 @@ function normalizeTicketStatus(raw) {
         .replaceAll(/\s+/g, '_');
     if (!value) return '';
 
-    if (value === 'CREATED' || value === 'DRAFT') return 'DRAFT';
-    if (value === 'INSPECTION' || value === 'INSPECTING' || value === 'DIAGNOSIS') return 'INSPECTION';
+    if (value === 'CREATED' || value === 'DRAFT') return 'CREATED';
+    if (value === 'INSPECTION' || value === 'INSPECTING' || value === 'DIAGNOSIS') return 'INSPECTING';
+    if (value === 'INSPECTED' || value === 'INSPECTED_DIAGNOSTIC') return 'INSPECTED';
     if (value === 'PENDING' || value === 'WAITING') return 'PENDING';
-    if (value === 'IN_PROGRESS' || value === 'INPROGRESS' || value === 'PROCESSING') return 'IN_PROGRESS';
+    if (value === 'ESTIMATED' || value === 'ESTIMATE') return 'ESTIMATED';
+    if (value === 'IN_PROGRESS' || value === 'INPROGRESS' || value === 'PROCESSING' || value === 'REPAIRING') return 'REPAIRING';
     if (value === 'COMPLETED' || value === 'DONE' || value === 'FINISHED') return 'COMPLETED';
     if (value === 'PAID' || value === 'PAYED') return 'PAID';
     if (value === 'CANCELLED' || value === 'CANCELED' || value === 'CANCEL') return 'CANCELLED';
@@ -228,7 +231,9 @@ function normalizeTicket(input, codeFallback) {
         null;
 
     const statusCode = String(input?.ticketStatus || input?.status || '').trim();
-    const statusLabel = String(input?.statusLabel || input?.statusText || statusCode).trim() || '-';
+    const statusLabelRaw = String(input?.statusLabel || input?.statusText || statusCode).trim() || '-';
+    const canonicalCode = normalizeTicketStatus(statusCode || statusLabelRaw);
+    const statusLabel = getServiceTicketStatusTextVi(canonicalCode, toTitleCaseFromCode(statusLabelRaw));
 
     const receivedAt = pickFirstDefined(input, [
         'receivedAt',
@@ -270,7 +275,7 @@ function normalizeTicket(input, codeFallback) {
         immutable: Boolean(input?.immutable),
         ticketCode,
         statusCode,
-        statusLabel: toTitleCaseFromCode(statusLabel),
+        statusLabel,
         receivedAt,
         handoverAt,
         timelineEvents,
@@ -302,7 +307,7 @@ function normalizeTicket(input, codeFallback) {
             Array.isArray(input?.services) ? input.services : [],
         photos,
         externalDependency: Boolean(input?.externalDependency || input?.isExternalDependency),
-        timelineStatus: input?.timelineStatus || statusCode || statusLabel,
+        timelineStatus: input?.timelineStatus || statusCode || statusLabelRaw,
     };
 }
 
@@ -396,11 +401,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [assignments, setAssignments] = useState([]);
     const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
+    const [isEstimateEditing, setIsEstimateEditing] = useState(false);
+
     const [refreshTick, setRefreshTick] = useState(0);
     const triggerRefresh = () => setRefreshTick(prev => prev + 1);
 
-    // When using "Thêm dịch vụ" we temporarily force Ticket/Estimate to DRAFT.
-    // Cancel in append-only mode must revert them back.
+    // When using "Thêm dịch vụ" we temporarily force Estimate to DRAFT.
+    // Cancel in append-only mode must revert statuses back.
     const addServiceRevertRef = useRef(null);
     const [addServiceReverting, setAddServiceReverting] = useState(false);
 
@@ -616,12 +623,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             return;
         }
 
-        await handleUpdateTicketStatus('IN_PROGRESS', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
+        await handleUpdateTicketStatus('REPAIRING', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
         navigate('/advisor/inspection');
     };
 
     const handleCompleteRepair = () => handleUpdateTicketStatus('COMPLETED', 'Đã chuyển sang trạng thái "Hoàn tất sửa chữa".');
-    
+
     const handleAddService = async () => {
         if (statusUpdating) return;
         const token = localStorage.getItem('authToken');
@@ -649,7 +656,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 estimateIdNum,
             };
 
-            await manageServiceTicketStatus(serviceTicketIdNum, 'DRAFT', token);
+            // Simplified rule: "Thêm dịch vụ" always brings ticket to ESTIMATED.
+            await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
             let canOpenAppendEdit = true;
             if (estimateIdNum) {
                 try {
@@ -674,7 +682,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             }
 
             triggerRefresh(); 
-            notify('Đã chuyển về trạng thái "Nháp" để thêm dịch vụ.');
+            notify(`Đã chuyển về trạng thái để thêm dịch vụ.`);
         } catch (err) {
             notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
         } finally {
@@ -738,10 +746,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Vui lòng đăng nhập để cập nhật trạng thái phiếu dịch vụ.');
             throw new Error('No auth token');
         }
+
+        if (!serviceTicketIdNum) {
+            notify('Thiếu serviceTicketId hợp lệ để bắt đầu báo giá mới.');
+            throw new Error('Missing serviceTicketId');
+        }
         
         try {
             setStatusUpdating(true);
-            await manageServiceTicketStatus(serviceTicketIdNum, 'DRAFT', token);
+            // Simplified rule: "Tạo bản báo giá mới" always brings ticket to ESTIMATED.
+            await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
             
             const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
@@ -754,9 +768,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             } catch {
                 // ignore if unavailable
             }
-            notify('Đã chuyển phiếu dịch vụ về trạng thái Nháp để bắt đầu báo giá mới.');
+            notify('Đã chuyển phiếu dịch vụ về trạng thái để bắt đầu báo giá mới.');
         } catch (err) {
-            notify(err?.message || 'Không thể chuyển trạng thái phiếu dịch vụ về Nháp.');
+            notify(err?.message || 'Không thể chuyển trạng thái phiếu dịch vụ để bắt đầu báo giá mới.');
             throw err;
         } finally {
             setStatusUpdating(false);
@@ -798,6 +812,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 return;
             }
 
+            await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
             await manageServiceTicketEstimateStatus(estimateIdNum, 'APPROVED', token);
             setLatestEstimate((prev) => (prev ? { ...prev, status: 'APPROVED', estimateStatus: 'APPROVED' } : prev));
             
@@ -814,15 +829,21 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
-    const canCancel = ['DRAFT', 'INSPECTION', 'PENDING', 'IN_PROGRESS'].includes(ticketStatus);
-    const canSetPending = ticketStatus === 'DRAFT';
-    const canStartRepair = (ticketStatus === 'DRAFT' || ticketStatus === 'PENDING' || ticketStatus === 'INSPECTION') && isEstimateApproved;
-    const canCompleteRepair = ticketStatus === 'IN_PROGRESS';
-    const canAddService = estimateStatus === 'APPROVED' || ticketStatus === 'INSPECTION' || ticketStatus === 'IN_PROGRESS';
+    const canCancel = ['CREATED', 'INSPECTING', 'PENDING', 'INSPECTED', 'ESTIMATED', 'REPAIRING'].includes(ticketStatus);
+    const canSetPending = ticketStatus === 'ESTIMATED';
+    const canAddService = (ticketStatus === 'ESTIMATED' || ticketStatus === 'REPAIRING');
+    const canStartRepair = (ticketStatus === 'ESTIMATED' || ticketStatus === 'PENDING');
+    const canCompleteRepair = ticketStatus === 'REPAIRING';
 
     const advisorItems = useMemo(() => Array.isArray(latestEstimate?.items) ? latestEstimate.items.filter(it => !it?.isRemoved) : [], [latestEstimate]);
     const hasAnyAdvisorItem = advisorItems.length > 0;
-    const canConfirmEstimate = Boolean(estimateIdNum) && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT') && hasAnyAdvisorItem;
+    const isEstimatePersisted = Boolean(latestEstimate?.createdAt || latestEstimate?.estimateId || latestEstimate?.id);
+    const canConfirmEstimate = Boolean(estimateIdNum)
+        && estimateStatus === 'DRAFT'
+        && (ticketStatus === 'CREATED' || ticketStatus === 'INSPECTED' || ticketStatus === 'ESTIMATED')
+        && hasAnyAdvisorItem
+        && isEstimatePersisted
+        && !isEstimateEditing;
     const handleEstimateStatusChange = useCallback((est) => {
         setLatestEstimate(est);
     }, []);
@@ -884,7 +905,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                             </div>
                         </div>
-                        { staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && ticket.statusCode === 'DRAFT' && (
+                        { staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT') && (
                             <button
                                 type="button"
                                 className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
@@ -1050,6 +1071,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     onEstimateStatusChange={handleEstimateStatusChange}
                                     onRestartWorkflow={handleRestartFromArchived}
                                     onCancelAppendOnly={handleCancelAppendOnly}
+                                    onEstimateEditingChange={setIsEstimateEditing}
                                 />
                             </>
                         )}

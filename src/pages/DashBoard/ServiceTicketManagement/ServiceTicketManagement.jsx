@@ -11,7 +11,7 @@ import {
 	fetchAdvisorsWithWorkload,
 } from '../../../services/serviceTicketService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
-import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
+import { getServiceTicketStatusTextVi, getServiceTicketStatusTone, getStatusTextVi } from '../../../components/statusUtils.js';
 
 export default function ServiceTicketManagement() {
 	useScrollToTop();
@@ -309,7 +309,7 @@ export default function ServiceTicketManagement() {
 								<strong>Phiếu:</strong> {modal.ticket?.ticketCode || '-'}
 								{' | '}
 								<strong>Trạng thái:</strong>{' '}
-								{getStatusTextVi(modal.ticket?.ticketStatus, modal.ticket?.ticketStatus || '-')}
+								{getServiceTicketStatusTextVi(modal.ticket?.ticketStatus, modal.ticket?.ticketStatus || '-')}
 							</p>
 							{modalError && <div className={styles['error-banner']}>{modalError}</div>}
 							{modalSuccess && <div className={styles['success-banner']}>{modalSuccess}</div>}
@@ -496,8 +496,8 @@ function TicketPanel({
 						)}
 						{!isLoading && data.map((item, idx) => {
 							const statusCode = item?.ticketStatus ?? item?.status;
-							const tone = getStatusTone(statusCode, 'info');
-							const displayStatus = getStatusTextVi(statusCode, String(statusCode || '-'));
+							const tone = getServiceTicketStatusTone(statusCode, 'info');
+							const displayStatus = getServiceTicketStatusTextVi(statusCode, String(statusCode || '-'));
 							return (
 								<tr key={item?.serviceTicketId ?? item?.ticketCode ?? idx}>
 									<td>{idx + 1}</td>
