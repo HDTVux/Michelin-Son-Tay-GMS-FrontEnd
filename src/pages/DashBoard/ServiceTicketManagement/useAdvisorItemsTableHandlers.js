@@ -1012,10 +1012,10 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			const allHaveTax = activeRows
 				.filter((r) => !isDraftRowEmpty(r))
 				.every((r) => Boolean(getEffectiveTaxRuleId(r)));
-			if (!hasAny) return 'Chưa bao gồm VAT';
-			return allHaveTax ? 'Đã bao gồm VAT (ước tính)' : 'Chưa bao gồm VAT';
+			if (!hasAny) return 'Chưa bao gồm thuế';
+			return allHaveTax ? 'Đã bao gồm thuế (ước tính)' : 'Chưa bao gồm thuế';
 		}
-		return 'Đã bao gồm VAT';
+		return 'Đã bao gồm thuế(Nếu có)';
 	}, [saveError, loadError, taxRulesError, workCategoriesError, isCreating, isEditing, draftRows, editRows]);
 
 	const footerTotalText = useMemo(() => {

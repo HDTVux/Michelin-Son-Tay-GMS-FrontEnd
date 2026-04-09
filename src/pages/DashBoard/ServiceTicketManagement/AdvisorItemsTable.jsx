@@ -468,7 +468,16 @@ EstimateActions.propTypes = {
     setShouldRevertOnCancel: PropTypes.func,
 };
 
-export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, ticketPhotos, refreshToken, onEstimateStatusChange, onRestartWorkflow, onCancelAppendOnly }) {
+export default function AdvisorItemsTable({
+    serviceTicketId,
+    ticketStatus,
+    ticketPhotos,
+    refreshToken,
+    onEstimateStatusChange,
+    onRestartWorkflow,
+    onCancelAppendOnly,
+    onEstimateEditingChange,
+}) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const {
         categorySuggestions,
@@ -513,6 +522,16 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, ticke
         inventory,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange, refreshToken });
+
+    // Let parent know whether estimate is currently being created/edited/saved.
+    // Used to hide actions like "Xác nhận báo giá" until user presses Save successfully.
+    useEffect(() => {
+        try {
+            onEstimateEditingChange?.(Boolean(isCreating || isEditing || isSaving));
+        } catch {
+            // ignore
+        }
+    }, [isCreating, isEditing, isSaving, onEstimateEditingChange]);
 
     const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
     const isArchived = currentEstimateStatus === 'ARCHIVED';
@@ -560,7 +579,7 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, ticke
         try {
             setIsStartingCreate(true);
             notify('Đang chuẩn bị tạo bản báo giá mới...');
-            // Đẩy ServiceTicket về DRAFT trước khi tạo Estimate mới
+            // Đẩy ServiceTicket về ESTIMATED trước khi tạo Estimate mới (backend không cho phép DRAFT)
             await onRestartWorkflow();
         } catch {
             cancelCreate?.();
@@ -845,6 +864,12 @@ export default function AdvisorItemsTable({ serviceTicketId, ticketStatus, ticke
                                 {estimateCostText}
                             </span>
                         </div>
+                        <div className={styles.kvRow}>
+                            <span className={styles.kvLabel} />
+                            <span className={styles.kvValue} style={{ color: 'var(--ui-muted)' }}>
+                                {statusLine}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1032,6 +1057,7 @@ AdvisorItemsTable.propTypes = {
     ticketPhotos: PropTypes.array,
     refreshToken: PropTypes.any,
     onEstimateStatusChange: PropTypes.func,
+    onEstimateEditingChange: PropTypes.func,
     onRestartWorkflow: PropTypes.func,
     onCancelAppendOnly: PropTypes.func,
 };
