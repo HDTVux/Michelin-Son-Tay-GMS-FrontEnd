@@ -6,7 +6,7 @@ import scheduleStyles from '../BookingRequestManagement/BookingRequestEdit.modul
 import styles from './CreateBooking.module.css';
 import StepService from '../../Booking/steps/StepService.jsx';
 import infoStyles from '../../Booking/steps/StepInfo.module.css';
-import { fetchHomeServices } from '../../../services/homeService.js';
+import { fetchHomeProducts } from '../../../services/homeService.js';
 import { fetchAllSlots, fetchAvailableSlotStaff } from '../../../services/bookingService.js';
 import { buildDateOptions, formatTimeHHmm, isPastSlot } from '../../../components/timeUtils.js';
 import { normalizePeriodLabel, timeKey, useCreateBookingHandlers } from './useCreateBookingHandlers.js';
@@ -14,6 +14,20 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 
 const DURATION_MINUTES = 60;
 const DATE_RANGE_DAYS = 10;
+const NOTE_MAX_LENGTH = 255;
+
+const toItemType = (value) => {
+	const text = String(value || '').trim().toUpperCase();
+	if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
+	return 'SERVICE';
+};
+
+const extractHomeProductsList = (res) => {
+	const payload = res?.data?.data ?? res?.data ?? res;
+	if (Array.isArray(payload)) return payload;
+	if (Array.isArray(payload?.content)) return payload.content;
+	return [];
+};
 
 
 export default function CreateBooking() {
@@ -25,6 +39,8 @@ export default function CreateBooking() {
 	const [customerChecked, setCustomerChecked] = useState(null); // null | { exists, fullName, ... }
 	const [customerCheckError, setCustomerCheckError] = useState('');
 	const [info, setInfo] = useState({ name: '', phone: '', note: '' });
+	const noteLength = useMemo(() => String(info.note || '').length, [info.note]);
+	const noteRemaining = useMemo(() => Math.max(0, NOTE_MAX_LENGTH - noteLength), [noteLength]);
 
 
 	// Hàm kiểm tra khách hàng theo số điện thoại
@@ -61,6 +77,7 @@ export default function CreateBooking() {
 	const [selectedIds, setSelectedIds] = useState([]);
 	const [search, setSearch] = useState('');
 	const [filter, setFilter] = useState('all');
+	const [activeTab, setActiveTab] = useState('SERVICE');
 
 	const [schedule, setSchedule] = useState({ date: '', time: '' });
 	const [scheduleMode, setScheduleMode] = useState('manual'); // 'manual' | 'now'
@@ -87,29 +104,82 @@ export default function CreateBooking() {
 			setServicesError('');
 		});
 
-		fetchHomeServices()
-			.then((res) => {
+		Promise.allSettled([
+			fetchHomeProducts({ page: 0, size: 500, itemType: 'SERVICE' }),
+			fetchHomeProducts({ page: 0, size: 500, itemType: 'PART' }),
+			fetchHomeProducts({ page: 0, size: 500, itemType: 'PRODUCT' }),
+		])
+			.then((results) => {
 				if (!active) return;
-				const list = Array.isArray(res?.data) ? res.data : [];
-				const mapped = list
+
+				const [serviceRes, partRes, productRes] = results;
+				const mergedRaw = [
+					...(serviceRes?.status === 'fulfilled'
+						? extractHomeProductsList(serviceRes.value).map((item) => ({ ...item, __sourceType: 'SERVICE' }))
+						: []),
+					...(partRes?.status === 'fulfilled'
+						? extractHomeProductsList(partRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
+						: []),
+					...(productRes?.status === 'fulfilled'
+						? extractHomeProductsList(productRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
+						: []),
+				];
+
+				const mapped = mergedRaw
 					.map((item) => {
-						const catalogItemId = Number(item?.catalogItemId);
-						if (!Number.isFinite(catalogItemId) || catalogItemId < 0) return null;
+						const catalogItemId = Number(item?.catalogItemId ?? item?.catalog_item_id ?? item?.itemId);
+						if (!Number.isFinite(catalogItemId) || catalogItemId <= 0) return null;
+
+						const itemType = toItemType(item?.itemType ?? item?.type ?? item?.__sourceType);
+						const category = String(
+							item?.itemCategoryCode
+							?? item?.categoryCode
+							?? item?.itemCategoryName
+							?? item?.categoryName
+							?? 'all',
+						).trim() || 'all';
+						const categoryLabel = String(
+							item?.itemCategoryName
+							?? item?.categoryName
+							?? item?.itemCategoryCode
+							?? item?.categoryCode
+							?? 'Khac',
+						).trim() || 'Khac';
+
 						return {
 							id: String(catalogItemId),
-							serviceId: Number(item?.serviceId),
-							name: item.title || 'Dịch vụ',
-							desc: item.shortDescription || 'Hiện chưa có mô tả ngắn.',
-							category: 'all',
-							thumbnail: item.thumbnailUrl || item.imageUrl || item.mediaThumbnail || '',
+							serviceId: Number(item?.serviceId ?? item?.service_id),
+							itemType,
+							name: String(item?.title || item?.itemName || (itemType === 'PART' ? 'Phu tung' : 'Dich vu')).trim(),
+							desc: String(item?.shortDescription || item?.description || 'Hien chua co mo ta ngan.').trim(),
+							category,
+							categoryLabel,
+							thumbnail: item?.thumbnailUrl || item?.imageUrl || item?.mediaThumbnail || '',
 						};
 					})
 					.filter(Boolean);
-				setServices(mapped);
+
+				const deduped = new Map();
+				mapped.forEach((item) => {
+					if (!deduped.has(item.id)) deduped.set(item.id, item);
+				});
+				setServices(Array.from(deduped.values()));
+
+				const serviceFailed = serviceRes?.status === 'rejected';
+				const partFailed = partRes?.status === 'rejected';
+				const productFailed = productRes?.status === 'rejected';
+				if (serviceFailed && partFailed && productFailed) {
+					setServicesError(
+						serviceRes?.reason?.message
+						|| partRes?.reason?.message
+						|| productRes?.reason?.message
+						|| 'Khong the tai danh sach dich vu/phu tung.',
+					);
+				}
 			})
 			.catch((err) => {
 				if (!active) return;
-				setServicesError(err?.message || 'Không thể tải danh sách dịch vụ.');
+				setServicesError(err?.message || 'Khong the tai danh sach dich vu/phu tung.');
 				setServices([]);
 			})
 			.finally(() => {
@@ -160,6 +230,12 @@ export default function CreateBooking() {
 			setSubmitSuccess,
 			setCreatedBookingForCheckIn,
 		});
+
+	const handleChangeTab = (nextTab) => {
+		setActiveTab(toItemType(nextTab));
+		setFilter('all');
+		setSearch('');
+	};
 
 	const dateOptions = useMemo(() => buildDateOptions(DATE_RANGE_DAYS), []);
 	const allowedDateSet = useMemo(() => new Set(dateOptions.map((o) => o.value)), [dateOptions]);
@@ -299,6 +375,8 @@ export default function CreateBooking() {
 				onFilter={setFilter}
 				loading={servicesLoading}
 				error={servicesError}
+				activeTab={activeTab}
+				onChangeTab={handleChangeTab}
 				showActions={false}
 			/>
 
@@ -438,7 +516,7 @@ export default function CreateBooking() {
 			<div className={infoStyles['info-card']}>
 
 						<div className={infoStyles.field}>
-							<label htmlFor="create-booking-phone">Số điện thoại</label>
+							<label htmlFor="create-booking-phone" >Số điện thoại (<span className={styles.required}>*</span>)</label>
 							<div className={infoStyles['inline-input']}>
 								<input
 									id="create-booking-phone"
@@ -471,7 +549,7 @@ export default function CreateBooking() {
 						</div>
 
 						<div className={infoStyles.field}>
-							<label htmlFor="create-booking-fullname">Họ và tên</label>
+							<label htmlFor="create-booking-fullname">Họ và tên (<span className={styles.required}>*</span>)</label>
 							<input
 								id="create-booking-fullname"
 								type="text"
@@ -479,7 +557,6 @@ export default function CreateBooking() {
 								value={info.name}
 								onChange={(e) => setInfo((prev) => ({ ...prev, name: e.target.value }))}
 								required
-								disabled={customerChecked?.exists === true}
 								style={customerChecked?.exists === true ? { background: '#f3f4f6', color: '#888' } : {}}
 							/>
 						</div>
@@ -501,14 +578,10 @@ export default function CreateBooking() {
 						rows="6"
 						placeholder="VD: Kiểm tra thêm tiếng kêu ở bánh trước, cần lấy xe trước 17h, ..."
 						value={info.note}
-						onChange={(e) => {
-							const sanitized = String(e.target.value)
-								.replaceAll(/[<>{}]/g, '')
-								.slice(0, 500);
-							setInfo((prev) => ({ ...prev, note: sanitized }));
-						}}
-						maxLength={500}
+						onChange={(e) => setInfo((prev) => ({ ...prev, note: e.target.value }))}
+						maxLength={NOTE_MAX_LENGTH}
 					/>
+					<div className={infoStyles['char-count']}>{noteRemaining} ký tự còn lại</div>
 				</div>
 			</div>
 			{submitSuccess && (

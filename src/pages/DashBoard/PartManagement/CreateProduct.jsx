@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import { validateTaxName, validateTaxRatePercent } from '../../../components/inputValidation.js';
 import {
 	createWarehouseBrand,
 	createWarehouseCatalogItem,
@@ -96,6 +97,35 @@ const mapSpecAttributeItem = (item) => {
 // it will be created via the API when the user requests it.
 
 const CATEGORY_TYPE_FIXED = 'PART';
+const COUNTRY_OPTIONS = [
+	'Việt Nam',
+	'Nhật Bản',
+	'Hàn Quốc',
+	'Trung Quốc',
+	'Thái Lan',
+	'Indonesia',
+	'Malaysia',
+	'Singapore',
+	'Đức',
+	'Pháp',
+	'Ý',
+	'Anh',
+	'Mỹ',
+];
+const COLOR_OPTIONS = [
+	'Đen',
+	'Trắng',
+	'Xám',
+	'Bạc',
+	'Đỏ',
+	'Xanh dương',
+	'Xanh lá',
+	'Vàng',
+	'Cam',
+	'Nâu',
+	'Be',
+];
+const OTHER_OPTION_VALUE = '__OTHER__';
 
 export default function CreateProduct() {
 	useScrollToTop();
@@ -156,6 +186,10 @@ export default function CreateProduct() {
 	const [price, setPrice] = useState('');
 	const [showPrice, setShowPrice] = useState(true);
 	const [unit, setUnit] = useState('');
+	const [origin, setOrigin] = useState('');
+	const [customOrigin, setCustomOrigin] = useState('');
+	const [color, setColor] = useState('');
+	const [customColor, setCustomColor] = useState('');
 	const [description, setDescription] = useState('');
 	// Image file is kept only in component state (no upload at create time)
 	const [imageFile, setImageFile] = useState(null);
@@ -260,28 +294,19 @@ export default function CreateProduct() {
 				setSpecAttributes(attrsNorm);
 				setTaxRules(taxNorm);
 
-				const prevCat = String(selectedCategoryIdRef.current || '').trim();
-				const prevBrand = String(selectedBrandIdRef.current || '').trim();
-				const prevLine = String(selectedProductLineIdRef.current || '').trim();
+				// Keep user's current selection only if it still exists in the refreshed list.
+				// Otherwise, stay at default (empty) so the user explicitly chooses.
+				const currentCategoryId = String(selectedCategoryIdRef.current || '').trim();
+				const categoryValid = currentCategoryId && catsNorm.some((c) => String(c.itemCategoryId) === currentCategoryId);
+				setSelectedCategoryId(categoryValid ? currentCategoryId : '');
 
-				// Only auto-select if user hasn't picked (selectedCategoryId is empty or not in new list)
-				let newCatId = '';
-				const currentSelectedCategoryId = String(selectedCategoryIdRef.current || '').trim();
-				const userPicked = catsNorm.some((c) => String(c.itemCategoryId) === currentSelectedCategoryId);
-				if (userPicked) {
-					newCatId = currentSelectedCategoryId;
-				} else if (prevCat && catsNorm.some((c) => String(c.itemCategoryId) === prevCat)) {
-					newCatId = prevCat;
-				} else if (catsNorm.length > 0) {
-					newCatId = String(catsNorm[0].itemCategoryId);
-				}
-				setSelectedCategoryId(newCatId);
+				const currentBrandId = String(selectedBrandIdRef.current || '').trim();
+				const brandValid = currentBrandId && brandsNorm.some((b) => String(b.brandId) === currentBrandId);
+				setSelectedBrandId(brandValid ? currentBrandId : '');
 
-				const brandExists = prevBrand && brandsNorm.some((b) => String(b.brandId) === prevBrand);
-				setSelectedBrandId(brandExists ? prevBrand : brandsNorm?.[0]?.brandId ? String(brandsNorm[0].brandId) : '');
-
-				const lineExists = prevLine && linesNorm.some((l) => String(l.productLineId) === prevLine);
-				setSelectedProductLineId(lineExists ? prevLine : linesNorm?.[0]?.productLineId ? String(linesNorm[0].productLineId) : '');
+				const currentLineId = String(selectedProductLineIdRef.current || '').trim();
+				const lineValid = currentLineId && linesNorm.some((l) => String(l.productLineId) === currentLineId);
+				setSelectedProductLineId(lineValid ? currentLineId : '');
 			} catch (err) {
 				if (cancelled) return;
 				setCategories([]);
@@ -343,14 +368,16 @@ export default function CreateProduct() {
 	}, [productLines, selectedProductLineId]);
 
 	useEffect(() => {
-		// Auto-pick a product line when brand changes.
+		// When brand changes, keep current product line only if still valid; otherwise reset to default.
 		const brandIdNum = Number(selectedBrandId) || null;
 		const list = Array.isArray(filteredProductLines) ? filteredProductLines : [];
 		const current = String(selectedProductLineId || '').trim();
-		if (!brandIdNum) return;
+		if (!brandIdNum) {
+			if (current) setSelectedProductLineId('');
+			return;
+		}
 		if (current && list.some((l) => String(l.productLineId) === current)) return;
-		const firstId = list?.[0]?.productLineId ? String(list[0].productLineId) : '';
-		setSelectedProductLineId(firstId);
+		setSelectedProductLineId('');
 	}, [filteredProductLines, selectedBrandId, selectedProductLineId]);
 
 	useEffect(() => {
@@ -453,8 +480,7 @@ export default function CreateProduct() {
 			setSelectedBrandId(restored);
 			return;
 		}
-		const firstId = brands?.[0]?.brandId ? String(brands[0].brandId) : '';
-		setSelectedBrandId(firstId);
+		setSelectedBrandId('');
 	}, [brands]);
 
 	const handleCreateBrand = useCallback(async () => {
@@ -521,8 +547,7 @@ export default function CreateProduct() {
 			setSelectedCategoryId(restored);
 			return;
 		}
-		const firstId = categories?.[0]?.itemCategoryId ? String(categories[0].itemCategoryId) : '';
-		setSelectedCategoryId(firstId);
+		setSelectedCategoryId('');
 	}, [categories]);
 
 	const handleCreateCategory = useCallback(async () => {
@@ -599,16 +624,18 @@ export default function CreateProduct() {
 			notify('Vui lòng đăng nhập để tạo loại thuế.');
 			return;
 		}
-		const name = String(taxName || '').trim();
-		if (!name) {
-			notify('Vui lòng nhập tên thuế.');
+		const nameValidated = validateTaxName(taxName, { required: true });
+		if (nameValidated.error) {
+			notify(nameValidated.error);
 			return;
 		}
-		const rateNumber = Number(String(taxRate || '').trim());
-		if (Number.isNaN(rateNumber)) {
-			notify('Vui lòng nhập thuế suất hợp lệ.');
+		const rateValidated = validateTaxRatePercent(taxRate, { required: true });
+		if (rateValidated.error) {
+			notify(rateValidated.error);
 			return;
 		}
+		const name = nameValidated.value;
+		const rateNumber = rateValidated.value;
 		try {
 			setIsCreatingTaxRule(true);
 			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
@@ -656,16 +683,18 @@ export default function CreateProduct() {
 			notify('Vui lòng đăng nhập để tạo loại thuế.');
 			return;
 		}
-		const name = String(productTaxName || '').trim();
-		if (!name) {
-			notify('Vui lòng nhập tên thuế.');
+		const nameValidated = validateTaxName(productTaxName, { required: true });
+		if (nameValidated.error) {
+			notify(nameValidated.error);
 			return;
 		}
-		const rateNumber = Number(String(productTaxRate || '').trim());
-		if (Number.isNaN(rateNumber)) {
-			notify('Vui lòng nhập thuế suất hợp lệ.');
+		const rateValidated = validateTaxRatePercent(productTaxRate, { required: true });
+		if (rateValidated.error) {
+			notify(rateValidated.error);
 			return;
 		}
+		const name = nameValidated.value;
+		const rateNumber = rateValidated.value;
 		try {
 			setIsCreatingProductTaxRule(true);
 			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
@@ -707,9 +736,8 @@ export default function CreateProduct() {
 			setSelectedProductLineId(restored);
 			return;
 		}
-		const firstId = filteredProductLines?.[0]?.productLineId ? String(filteredProductLines[0].productLineId) : '';
-		setSelectedProductLineId(firstId);
-	}, [filteredProductLines, productLines]);
+		setSelectedProductLineId('');
+	}, [productLines]);
 
 	const handleCreateProductLine = useCallback(async () => {
 		if (isCreatingProductLine) return;
@@ -821,6 +849,8 @@ export default function CreateProduct() {
 			notify('Bảo hành (tháng) không hợp lệ.');
 			return;
 		}
+		const resolvedOrigin = origin === OTHER_OPTION_VALUE ? String(customOrigin || '').trim() : String(origin || '').trim();
+		const resolvedColor = color === OTHER_OPTION_VALUE ? String(customColor || '').trim() : String(color || '').trim();
 
 		try {
 			setIsCreatingCatalogItem(true);
@@ -836,6 +866,9 @@ export default function CreateProduct() {
 					price: priceNum,
 					showPrice,
 					description: String(description || '').trim(),
+					madeIn: resolvedOrigin,
+					origin: resolvedOrigin,
+					color: resolvedColor,
 					// imageUrl: String(imageUrl || '').trim(),
 					unit: String(unit || '').trim(),
 					comboDurationMonths: 0,
@@ -866,11 +899,15 @@ export default function CreateProduct() {
 		}
 	}, [
 		description,
+		color,
 		computedItemName,
+		customColor,
+		customOrigin,
 		// imageUrl,
 		isCreatingCatalogItem,
 		itemType,
 		notify,
+		origin,
 		price,
 		selectedBrandId,
 		selectedCategoryId,
@@ -1261,7 +1298,7 @@ export default function CreateProduct() {
 								<input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 							</div>
 						</div>
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="unit">Đơn vị</label>
 								<input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
@@ -1270,6 +1307,50 @@ export default function CreateProduct() {
 								<label htmlFor="warranty">Bảo hành (tháng)</label>
 								<input id="warranty" type="number" value={warrantyDurationMonths} onChange={(e) => setWarrantyDurationMonths(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 							</div>
+							<div className="ui-field" style={{ marginBottom: 0 }}>
+								<label htmlFor="origin">Xuất xứ</label>
+								<select id="origin" value={origin} onChange={(e) => setOrigin(e.target.value)} disabled={Boolean(createdCatalogItemId)}>
+									<option value="">Chọn xuất xứ</option>
+									{COUNTRY_OPTIONS.map((country) => (
+										<option key={country} value={country}>
+											{country}
+										</option>
+									))}
+									<option value={OTHER_OPTION_VALUE}>Khác</option>
+								</select>
+								{origin === OTHER_OPTION_VALUE ? (
+									<input
+										style={{ marginTop: 8 }}
+										value={customOrigin}
+										onChange={(e) => setCustomOrigin(e.target.value)}
+										placeholder="Nhập xuất xứ"
+										disabled={Boolean(createdCatalogItemId)}
+									/>
+								) : null}
+							</div>
+							<div className="ui-field" style={{ marginBottom: 0 }}>
+								<label htmlFor="color">Màu</label>
+								<select id="color" value={color} onChange={(e) => setColor(e.target.value)} disabled={Boolean(createdCatalogItemId)}>
+									<option value="">Chọn màu</option>
+									{COLOR_OPTIONS.map((colorOption) => (
+										<option key={colorOption} value={colorOption}>
+											{colorOption}
+										</option>
+									))}
+									<option value={OTHER_OPTION_VALUE}>Khác</option>
+								</select>
+								{color === OTHER_OPTION_VALUE ? (
+									<input
+										style={{ marginTop: 8 }}
+										value={customColor}
+										onChange={(e) => setCustomColor(e.target.value)}
+										placeholder="Nhập màu"
+										disabled={Boolean(createdCatalogItemId)}
+									/>
+								) : null}
+							</div>
+						</div>
+						<div style={{ marginTop: 12 }}>
 							<div className="ui-field" style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end' }}>
 								<label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
 									<input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} disabled={Boolean(createdCatalogItemId)} />

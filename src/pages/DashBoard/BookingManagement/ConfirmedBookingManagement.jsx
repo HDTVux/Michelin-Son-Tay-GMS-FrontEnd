@@ -108,7 +108,7 @@ export default function ConfirmedBookingManagement() {
       <div className={styles['booking-layout']}>
         <div className={styles['booking-left']}>
           <BookingPanel
-            title="Booking đã confirm"
+            title="Quản lý lịch hẹn"
             icon={<CheckIcon />}
             tone="success"
             data={bookings}
@@ -152,11 +152,13 @@ export default function ConfirmedBookingManagement() {
               }
               navigate(`/booking-management/${code}`, { state });
             }}
-            onCheckIn={(payload) => {
-              navigate('/check-in', { state: payload });
-            }}
             actionLabel={`${totalElements} booking`}
           />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+            <button className={styles['ghost-button']} onClick={() => navigate('/queue-management')}>
+              Quản lý hàng chờ đặt lịch
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -170,7 +172,6 @@ function BookingPanel({
   data,
   actionLabel,
   onViewDetail,
-  onCheckIn,
   isLoading,
   error,
   page,
@@ -281,10 +282,6 @@ function BookingPanel({
               const customerName = item?.customer?.fullName || item?.fullName || item?.name || '-';
               const customerPhone = item?.customer?.phone || item?.phone || '-';
 
-              const appointmentAt = (item?.scheduledDate && item?.scheduledTime)
-                ? `${String(item.scheduledDate).trim()}T${String(item.scheduledTime).trim()}`
-                : (item?.appointmentAt || null);
-
               const rowKey = bookingId ?? `${item?.createdAt || 'row'}-${idx}`;
 
               return (
@@ -315,24 +312,6 @@ function BookingPanel({
                       >
                         Xem chi tiết
                       </button>
-                      {rawStatus === 'CONFIRMED' && (
-                      <button
-                        className={`${styles['primary-button']} ${styles['is-ghost']}`}
-                        onClick={() => onCheckIn?.({
-                          bookingCode,
-                          bookingId,
-                          booking: {
-                            bookingId,
-                            bookingCode,
-                            customerName,
-                            customerPhone,
-                            appointmentAt,
-                          },
-                        })}
-                      >
-                        Check-in
-                      </button>
-            )}
                     </div>
                   </td>
                 </tr>

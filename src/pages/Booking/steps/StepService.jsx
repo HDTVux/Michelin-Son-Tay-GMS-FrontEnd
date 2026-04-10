@@ -29,6 +29,7 @@ export default function StepService({
   error = '',
   activeTab = 'SERVICE',
   onChangeTab,
+  allowPartTab = true,
 }) {
   const [visible, setVisible] = useState(3);
   const [index, setIndex] = useState(0);
@@ -47,8 +48,9 @@ export default function StepService({
   }, []);
 
   const isMobileSlider = visible === 1;
-  const currentTab = normalizeItemType(activeTab);
-  const allItems = Array.isArray(services) ? services : [];
+  const incomingTab = normalizeItemType(activeTab);
+  const currentTab = allowPartTab ? incomingTab : 'SERVICE';
+  const allItems = useMemo(() => (Array.isArray(services) ? services : []), [services]);
 
   const scopedByType = useMemo(
     () => allItems.filter((item) => normalizeItemType(item?.itemType) === currentTab),
@@ -65,7 +67,7 @@ export default function StepService({
     });
     return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
   }, [scopedByType]);
-
+  
   useEffect(() => {
     if (!onFilter) return;
     if (filter === 'all') return;
@@ -90,15 +92,18 @@ export default function StepService({
     return () => clearTimeout(t);
   }, [currentTab, filtered.length, maxIndex]);
 
+  useEffect(() => {
+    if (allowPartTab) return;
+    if (incomingTab !== 'PART') return;
+    onChangeTab?.('SERVICE');
+  }, [allowPartTab, incomingTab, onChangeTab]);
+
   const offset = (index * 100) / visible;
   const prev = () => setIndex((i) => Math.max(0, i - 1));
   const next = () => setIndex((i) => Math.min(maxIndex, i + 1));
 
   const sectionLabel = currentTab === 'PART' ? 'Chọn phụ tùng' : 'Chọn dịch vụ';
   const searchPlaceholder = currentTab === 'PART' ? 'Tìm kiếm phụ tùng...' : 'Tìm kiếm dịch vụ...';
-  const sliderHint = currentTab === 'PART'
-    ? 'Kéo vuốt ngang để xem thêm phụ tùng.'
-    : 'Kéo vuốt ngang để xem thêm dịch vụ.';
   const emptyLabel = currentTab === 'PART' ? 'Chưa có phụ tùng phù hợp.' : 'Chưa có dịch vụ phù hợp.';
 
   return (
@@ -139,7 +144,6 @@ export default function StepService({
               ))}
             </select>
           </div>
-          <p className={styles['slider-hint']}>{sliderHint}</p>
         </div>
 
         {loading && <div className={styles['service-status']}>Đang tải danh sách...</div>}

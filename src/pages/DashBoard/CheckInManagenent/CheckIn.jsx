@@ -14,6 +14,7 @@ const CONDITION_PHOTO_KEYS = [
     'photoInterior',
     'photoDamage',
 ];
+const DESCRIPTION_MAX_LENGTH = 255;
 
 export default function CheckIn() {
     useScrollToTop(); // Hook tự động cuộn lên đầu trang khi component mount
@@ -113,6 +114,22 @@ export default function CheckIn() {
         if (lastOdometerKm == null) return false;
         return odometerNumber < lastOdometerKm;
     }, [odometerNumber, lastOdometerKm]);
+
+    const damageNoteLength = useMemo(() => String(damageNote || '').length, [damageNote]);
+    const damageNoteRemaining = useMemo(() => Math.max(0, DESCRIPTION_MAX_LENGTH - damageNoteLength), [damageNoteLength]);
+
+    const descriptionLengths = useMemo(() => {
+        const result = {};
+        const keys = [
+            'photoFrontDescription', 'photoRearDescription', 'photoLeftSideDescription',
+            'photoRightSideDescription', 'photoInteriorDescription', 'photoDamageDescription',
+        ];
+        keys.forEach(key => {
+            const len = String(photoDescriptions?.[key] || '').length;
+            result[key] = Math.max(0, DESCRIPTION_MAX_LENGTH - len);
+        });
+        return result;
+    }, [photoDescriptions]);
 
     // Đồng bộ ref mỗi khi state photos thay đổi
     useEffect(() => {
@@ -226,6 +243,15 @@ export default function CheckIn() {
     }, [notify]);
 
     const handleConfirmWithValidation = useCallback(() => {
+        const hasLicensePlatePhoto = Boolean(
+            photos?.licensePlatePhoto?.file || photos?.licensePlatePhoto?.url || photos?.licensePlatePhoto?.dataUrl,
+        );
+
+        if (!hasLicensePlatePhoto) {
+            notify('Vui lòng chụp ảnh biển số (Bước 1) trước khi tiếp nhận.');
+            return;
+        }
+
         const hasAnyConditionPhoto = CONDITION_PHOTO_KEYS.some((key) => {
             const p = photos?.[key];
             return Boolean(p?.file || p?.url || p?.dataUrl);
@@ -325,13 +351,18 @@ export default function CheckIn() {
         descriptionKey,
         descriptionLabel,
         withDescription,
+        labelClassName,
+        required,
     }) => {
         const photo = photos?.[keyName];
         const hasPhoto = Boolean(photo?.url);
 
         return (
             <div className={styles.photoItem}>
-                <div className={styles.photoLabel}>{label}</div>
+                <div className={`${styles.photoLabel} ${labelClassName || ''}`.trim()}>
+                    {label}
+                    {required ? <span className={styles.required}>*</span> : null}
+                </div>
                 {hasPhoto && (
                     <div className={styles.imageSlot}>
                         <img className={styles.previewImg} src={photo.url} alt={label} />
@@ -377,8 +408,10 @@ export default function CheckIn() {
                                     [descriptionKey]: e.target.value,
                                 }))
                             }
+                            maxLength={DESCRIPTION_MAX_LENGTH}
                             placeholder=""
                         />
+                        <div className={styles['char-count']}>{descriptionLengths[descriptionKey]} ký tự còn lại</div>
                     </div>
                 )}
             </div>
@@ -413,7 +446,7 @@ export default function CheckIn() {
             <div className={styles.card}>
                 {/* Step 1: Lựa chọn xe của khách hoặc đăng ký xe mới cho khách */}
                 <section className={styles.step}>
-                    <h2 className={styles.stepTitle}>Bước 1: Chọn xe</h2>
+                    <h2 className={styles.stepTitle}>Bước 1: Chọn xe (<span className={styles.required}>*</span>)</h2>
                     <div className={styles.stepRow}>
                         <div className="ui-field" style={{ marginBottom: 0 }}>
                             <label htmlFor={isAddingNewVehicle ? 'licensePlate' : 'vehicleSelect'}>
@@ -521,7 +554,10 @@ export default function CheckIn() {
                                     id="vehicleYear"
                                     inputMode="numeric"
                                     value={vehicleYear}
-                                    onChange={(e) => setVehicleYear(e.target.value)}
+                                    onChange={(e) =>
+                                        setVehicleYear(String(e.target.value || '').replaceAll(/\D/g, '').slice(0, 4))
+                                    }
+                                    maxLength={4}
                                     placeholder="Ví dụ: 2020"
                                     autoComplete="off"
                                 />
@@ -543,7 +579,9 @@ export default function CheckIn() {
                         {renderPhotoPicker({
                             keyName: 'licensePlatePhoto',
                             label: 'Ảnh biển số',
+                            labelClassName: styles.photoLabelFieldLike,
                             withDescription: false,
+                            required: true,
                         })}
                     </div>
                 </section>
@@ -557,7 +595,7 @@ export default function CheckIn() {
                             id="odometer"
                             inputMode="numeric"
                             value={odometerKm}
-                            onChange={(e) => setOdometerKm(e.target.value)}
+                            onChange={(e) => setOdometerKm(String(e.target.value || '').replaceAll(/\D/g, ''))}
                             placeholder="Số km hiện tại"
                             autoComplete="off"
                         />
@@ -572,7 +610,7 @@ export default function CheckIn() {
 
                 {/* Step 3: Thông tin bổ sung cho phiếu dịch vụ  */}
                 <section className={styles.step}>
-                    <h2 className={styles.stepTitle}>Bước 3: Thông tin phiếu dịch vụ</h2>
+                    <h2 className={styles.stepTitle}>Bước 3: Thông tin phiếu dịch vụ (<span className={styles.required}>*</span>)</h2>
                     <div className={styles.ticketFormGrid}>
                         <div className="ui-field" style={{ marginBottom: 0 }}>
                             <label htmlFor="safetyInspection">Kiểm tra an toàn</label>
@@ -673,8 +711,10 @@ export default function CheckIn() {
                             id="damageNote"
                             value={damageNote}
                             onChange={(e) => setDamageNote(e.target.value)}
+                            maxLength={DESCRIPTION_MAX_LENGTH}
                             placeholder="Ghi chú hư hỏng"
                         />
+                        <div className={styles['char-count']}>{damageNoteRemaining} ký tự còn lại</div>
                     </div>
                 </section>
 

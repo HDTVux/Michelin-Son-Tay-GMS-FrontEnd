@@ -247,3 +247,22 @@ export const swapQueueBookings = (bookingId1, bookingId2, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// Lấy danh sách booking trong 1 slot theo ngày + khung giờ (màn quản lý hàng đợi)
+// Backend: GET /api/booking/manage/slot?date=YYYY-MM-DD&slot=HH:mm:ss
+export const fetchQueueBySlot = (date, slot, token) => {
+  const dateValue = String(date || '').trim();
+  const slotValue = String(slot || '').trim();
+
+  const searchParams = new URLSearchParams();
+  if (dateValue) searchParams.set('date', dateValue);
+  if (slotValue) searchParams.set('slot', slotValue);
+
+  const qs = searchParams.toString();
+  const path = qs ? `/api/booking/manage/slot?${qs}` : '/api/booking/manage/slot';
+
+  return request(path, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};

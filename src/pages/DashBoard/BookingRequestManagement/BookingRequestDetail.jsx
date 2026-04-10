@@ -22,6 +22,8 @@ import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components
 
 const DEFAULT_SLOT_CAPACITY = 6;
 
+const isConfirmed = (status) => String(status || '').trim().toUpperCase() === 'CONFIRMED';
+
 const queueOrderKey = (item) => {
   const n = Number(item?.queueOrder);
   return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
@@ -74,6 +76,7 @@ function buildSlotDataFromManagedBookings(bookings, capacity = DEFAULT_SLOT_CAPA
   const byTime = new Map();
 
   for (const item of list) {
+    if (!isConfirmed(item?.status)) continue;
     const timeKey = formatTimeHHmm(item?.scheduledTime);
     if (!timeKey) continue;
 
@@ -95,6 +98,7 @@ function buildSlotDataFromManagedBookings(bookings, capacity = DEFAULT_SLOT_CAPA
       bookingCode: item?.bookingCode ?? item?.booking_code ?? item?.code,
       queueOrder: item?.queueOrder,
       createdAt: item?.createdAt,
+      status: item?.status,
       label: getBookingBadgeLabel(item),
     }));
 

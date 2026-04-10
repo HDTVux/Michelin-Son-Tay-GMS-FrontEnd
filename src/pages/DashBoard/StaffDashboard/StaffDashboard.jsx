@@ -20,17 +20,14 @@ const StaffDashboard = () => {
   // ── Dashboard overview ──
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
-  const [dashboardError, setDashboardError] = useState('');
 
   // ── Personal statistics ──
   const [statsData, setStatsData] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [statsError, setStatsError] = useState('');
 
   // ── Attendance history ──
   const [attendanceData, setAttendanceData] = useState([]);
   const [attendanceLoading, setAttendanceLoading] = useState(true);
-  const [attendanceError, setAttendanceError] = useState('');
 
   // ── Load all 3 APIs ──
   useEffect(() => {
@@ -45,8 +42,6 @@ const StaffDashboard = () => {
       try {
         const dashRes = await fetchStaffDashboard(token);
         setDashboardData(dashRes?.data || null);
-      } catch (err) {
-        setDashboardError('Không tải được dashboard.');
       } finally {
         setDashboardLoading(false);
       }
@@ -55,8 +50,6 @@ const StaffDashboard = () => {
       try {
         const statsRes = await fetchStaffStatistics(currentMonth, currentYear, token);
         setStatsData(statsRes?.data || null);
-      } catch (err) {
-        setStatsError('Không tải được thống kê.');
       } finally {
         setStatsLoading(false);
       }
@@ -65,8 +58,6 @@ const StaffDashboard = () => {
       try {
         const attRes = await fetchStaffAttendanceHistory(currentMonth, currentYear, token);
         setAttendanceData(Array.isArray(attRes?.data) ? attRes.data : []);
-      } catch (err) {
-        setAttendanceError('Không tải được lịch sử chấm công.');
       } finally {
         setAttendanceLoading(false);
       }
@@ -132,8 +123,6 @@ const StaffDashboard = () => {
     if (inH == null || outH == null) return 0;
     return Math.max(0, (outH * 60 + outM - (inH * 60 + inM)) / 60);
   };
-
-  const anyLoading = dashboardLoading || statsLoading || attendanceLoading;
 
   return (
     <div className={styles.container}>

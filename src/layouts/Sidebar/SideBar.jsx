@@ -57,6 +57,7 @@ const NAV_GROUPS = [
 		defaultOpen: true,
 		items: [
 			{ id: 'booking-management', label: 'Quản lý lịch hẹn', path: '/booking-management', icon: <IconHome />, roles: [STAFF_ROLE.RECEPTIONIST], },
+			{ id: 'create-booking', label: 'Tạo lịch hẹn', path: '/create-booking', icon: <IconEdit />, roles: [STAFF_ROLE.RECEPTIONIST], },
 			{ id: 'booking-request-management', label: 'Yêu cầu đặt lịch', path: '/booking-request-management', icon: <IconHistory />, roles: [STAFF_ROLE.RECEPTIONIST], },
 			{ id: 'service-ticket-management', label: 'Phiếu dịch vụ', path: '/service-ticket-management', icon: <IconBell />, roles: 'ALL' },
 			{ id: 'advisor-inspection', label: 'Điều phối phiếu dịch vụ', path: '/advisor/inspection', icon: <IconTask />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.MANAGER, STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.TECHNICIAN, STAFF_ROLE.ADMIN], },
@@ -65,10 +66,14 @@ const NAV_GROUPS = [
 			{ id: 'employee-manager', label: 'Quản lý hồ sơ nhân viên', path: '/employee-manager', icon: <IconUser />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'shift-management', label: 'Quản lý ca làm việc', path: '/shift-management', icon: <IconCalendar />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'part-management', label: 'Quản lý phụ tùng', path: '/part-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER], },
+			{ id: 'warehouse-stock-entries', label: 'Quản lý phiếu nhập', path: '/warehouse-stock-entries', icon: <IconBox />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, STAFF_ROLE.WAREHOUSE_KEEPER], },
+			{ id: 'warehouse-return-entries', label: 'Quản lý phiếu trả hàng', path: '/warehouse-return-entries', icon: <IconBox />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, STAFF_ROLE.WAREHOUSE_KEEPER], },
 			{ id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconPost />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'promotion-management', label: 'Quản lý khuyến mãi', path: '/promotion-management', icon: <IconBell />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'my-tasks', label: 'Công việc hôm nay', path: '/technician/my-tasks', icon: <IconTask />, roles: 'ALL' },
 			{ id: 'send-reminder', label: 'Gửi nhắc nhở', path: '/send-reminder', icon: <IconBell />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER], },
+			{ id: 'feedback-management', label: 'Quản lý feedback', path: '/feedback-management', icon: <IconBell />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
+			{ id: 'vehicle-management', label: 'Quản lý phương tiện', path: '/vehicle-management', icon: <IconVehicle />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.RECEPTIONIST], },
 			{ id: 'system-log-management', label: 'Quản lý nhật ký hệ thống', path: '/system-log-management', icon: <IconHistory />, roles: [STAFF_ROLE.ADMIN], },
 		],
 	},
@@ -312,6 +317,16 @@ function IconCalendar() {
 	);
 }
 
+function IconBox() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M3.5 7.5 12 3l8.5 4.5L12 12z" />
+			<path d="M3.5 7.5V16.5L12 21l8.5-4.5V7.5" />
+			<path d="M12 12v9" />
+		</svg>
+	);
+}
+
 function IconClock() {
 	return (
 		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -325,6 +340,16 @@ function IconTask() {
 	return (
 		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
 			<path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm3.7 7.7 1.4 1.4L6.4 15.8l-2.1-2.1 1.4-1.4 1.4 1.4 1.6-1.1Z" />
+		</svg>
+	);
+}
+
+function IconVehicle() {
+	return (
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M5.4 8.2a3 3 0 0 1 2.8-2.2h7.6a3 3 0 0 1 2.8 2.2l.7 2.8A2.5 2.5 0 0 1 21 13.4V18a1 1 0 0 1-1 1h-1.2a1 1 0 0 1-1-1v-1H6.2v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4.6A2.5 2.5 0 0 1 4.7 11z" />
+			<circle cx="7.2" cy="14.4" r="1.2" />
+			<circle cx="16.8" cy="14.4" r="1.2" />
 		</svg>
 	);
 }
@@ -354,4 +379,6 @@ function IconMoon() {
 	);
 }
 
+export { SideBar };
 export default SideBar;
+

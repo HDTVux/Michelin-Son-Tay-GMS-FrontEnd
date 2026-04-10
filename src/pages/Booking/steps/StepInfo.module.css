@@ -39,6 +39,13 @@
   resize: vertical;
 }
 
+.char-count {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #4b5563;
+  text-align: right;
+}
+
 .error {
   margin: 0 0 12px;
   padding: 12px;

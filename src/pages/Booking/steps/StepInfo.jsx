@@ -3,11 +3,16 @@ import styles from './StepInfo.module.css'
 import bookingStyles from '../Booking.module.css'
 
 export default function StepInfo({ value, onChange, onBack, onSubmit, loading = false, error = '', isAuthed = false }) {
+  const NOTE_MAX_LENGTH = 255
+
   const handleChange = (key) => (e) => onChange({ [key]: e.target.value })
   const canSubmit =
     value.name.trim() &&
     value.phone.trim() &&
     !loading
+
+  const noteLength = String(value.note || '').length
+  const noteRemaining = Math.max(0, NOTE_MAX_LENGTH - noteLength)
 
   return (
     <>
@@ -16,7 +21,7 @@ export default function StepInfo({ value, onChange, onBack, onSubmit, loading = 
 
       <div className={styles['info-card']}>
         <div className={styles.field}>
-          <label>Họ và tên</label>
+          <label>Họ và tên (<span className={styles.required}>*</span>) </label>
           <input
             type="text"
             placeholder="Nhập họ và tên của bạn"
@@ -28,7 +33,7 @@ export default function StepInfo({ value, onChange, onBack, onSubmit, loading = 
         </div>
 
         <div className={styles.field}>
-          <label>Số điện thoại</label>
+          <label>Số điện thoại (<span className={styles.required}>*</span>) </label>
           <div className={styles['inline-input']}>
             <input
               type="tel"
@@ -56,7 +61,9 @@ export default function StepInfo({ value, onChange, onBack, onSubmit, loading = 
             placeholder="VD: Kiểm tra thêm tiếng kêu ở bánh trước, cần lấy xe trước 17h, ..."
             value={value.note}
             onChange={handleChange('note')}
+            maxLength={NOTE_MAX_LENGTH}
           />
+          <div className={styles['char-count']}>{noteRemaining} ký tự còn lại</div>
         </div>
       </div>
 

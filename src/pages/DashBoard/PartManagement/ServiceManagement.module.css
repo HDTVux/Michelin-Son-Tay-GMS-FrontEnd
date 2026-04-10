@@ -450,6 +450,15 @@
 
 .modal-header h3 {
   font-size: 16px;
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
   font-weight: 700;
   color: #1a1a1a;
   margin: 0;

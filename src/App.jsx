@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
 import RouteSessionPersistence from './components/RouteSessionPersistence.jsx';
@@ -37,13 +37,20 @@ import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.j
 import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.jsx';
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
 import CreateProduct from './pages/DashBoard/PartManagement/CreateProduct.jsx';
-import ServiceManagement from './pages/DashBoard/PartManagement/ServiceManagement.jsx';
+import WarehouseStockEntry from './pages/DashBoard/WarehouseManagement/WarehouseStockEntry.jsx';
+import WarehouseStockEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
+import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryDetail.jsx';
+import WarehouseReturnEntry from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntry.jsx';
+import WarehouseReturnEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryManagement.jsx';
+import WarehouseReturnEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryDetail.jsx';
+import BlogManagement from './pages/DashBoard/PartManagement/ServiceManagement.jsx';
 import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx';
 import CreateService from './pages/DashBoard/PartManagement/CreateService.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
+import VehicleManagement from './pages/DashBoard/VehicleManagement/VehicleManagement.jsx';
 
 //Customer pages
 import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
@@ -202,7 +209,14 @@ export default function App() {
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="part-management" element={<PartManagement />} />
           <Route path="part-management/create-product" element={<CreateProduct />} />
-          <Route path="service-management" element={<ServiceManagement />} />
+          <Route path="service-management" element={<BlogManagement />} />
+          <Route path="warehouse-stock-entries" element={<WarehouseStockEntryManagement />} />
+          <Route path="warehouse-stock-entries/:entryId" element={<WarehouseStockEntryDetail />} />
+          <Route path="warehouse-stock-entry" element={<WarehouseStockEntry />} />
+          <Route path="warehouse-return-entry" element={<WarehouseReturnEntry />} />
+          <Route path="warehouse-return-entries" element={<WarehouseReturnEntryManagement />} />
+          <Route path="warehouse-return-entries/:returnId" element={<WarehouseReturnEntryDetail />} />
+          <Route path="blog-management" element={<Navigate to="/service-management" replace />} />
           <Route path="service-management/create-service" element={<CreateService />} />
           <Route path="promotion-management" element={<PromotionManagement />} />
           <Route path="shift-management" element={<ShiftManagement />} />
@@ -215,6 +229,7 @@ export default function App() {
           <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
           <Route path="send-reminder" element={<SendReminder />} />
           <Route path="feedback-management" element={<FeedbackManagement />} />
+          <Route path="vehicle-management" element={<VehicleManagement />} />
           <Route path="system-log-management" element={<SystemLogManagement />} />
           
           {/* Technician pages */}

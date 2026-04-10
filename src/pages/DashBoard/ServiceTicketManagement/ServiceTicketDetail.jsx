@@ -4,9 +4,14 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { toast } from 'react-toastify';
+import { validateTextInput } from '../../../components/inputValidation.js';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
+import EstimateTimePopup from './EstimateTimePopup.jsx';
+import MaintenanceBookingPopup from './MaintenanceBookingPopup.jsx';
 import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTicketDetailHandlers.js';
+import { getServiceTicketStatusTextVi } from '../../../components/statusUtils.js';
 import {
+    allocateEstimateStock,
     fetchServiceTicketDetail,
     fetchServiceTicketEstimate,
     manageServiceTicketEstimateStatus,
@@ -19,6 +24,7 @@ import styles from './ServiceTicketDetail.module.css';
 const STAFF_ROLE = {
     ADVISOR: 'ADVISOR',
     RECEPTIONIST: 'RECEPTIONIST',
+    ACCOUNTANT: 'ACCOUNTANT',
 };
 
 function readStaffRolesFromStorage() {
@@ -51,7 +57,7 @@ function toTitleCaseFromCode(value) {
 function formatCurrencyVnd(value) {
     const n = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(n)) return '-';
-    return `${new Intl.NumberFormat('vi-VN').format(n)} VND`;
+    return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
 }
 
 function normalizeOdometerKm(value) {
@@ -105,10 +111,12 @@ function normalizeTicketStatus(raw) {
         .replaceAll(/\s+/g, '_');
     if (!value) return '';
 
-    if (value === 'CREATED' || value === 'DRAFT') return 'DRAFT';
-    if (value === 'INSPECTION' || value === 'INSPECTING' || value === 'DIAGNOSIS') return 'INSPECTION';
+    if (value === 'CREATED' || value === 'DRAFT') return 'CREATED';
+    if (value === 'INSPECTION' || value === 'INSPECTING' || value === 'DIAGNOSIS') return 'INSPECTING';
+    if (value === 'INSPECTED' || value === 'INSPECTED_DIAGNOSTIC') return 'INSPECTED';
     if (value === 'PENDING' || value === 'WAITING') return 'PENDING';
-    if (value === 'IN_PROGRESS' || value === 'INPROGRESS' || value === 'PROCESSING') return 'IN_PROGRESS';
+    if (value === 'ESTIMATED' || value === 'ESTIMATE') return 'ESTIMATED';
+    if (value === 'IN_PROGRESS' || value === 'INPROGRESS' || value === 'PROCESSING' || value === 'REPAIRING') return 'REPAIRING';
     if (value === 'COMPLETED' || value === 'DONE' || value === 'FINISHED') return 'COMPLETED';
     if (value === 'PAID' || value === 'PAYED') return 'PAID';
     if (value === 'CANCELLED' || value === 'CANCELED' || value === 'CANCEL') return 'CANCELLED';
@@ -165,6 +173,58 @@ function buildTimelineEvents(input, receivedAt, handoverAt) {
     return events.filter((e) => e.at != null && String(e.at).trim() !== '');
 }
 
+function getPhotoCategoryLabel(category) {
+    const c = String(category || '').trim().toUpperCase();
+    if (c === 'FRONT') return 'Trước';
+    if (c === 'BACK') return 'Sau';
+    if (c === 'LEFT') return 'Trái';
+    if (c === 'RIGHT') return 'Phải';
+    if (c === 'OVERALL') return 'Tổng quan';
+    if (c === 'DAMAGE') return 'Hư hỏng';
+    if (c === 'LICENSE_PLATE') return 'Biển số';
+    if (!c) return '';
+    return toTitleCaseFromCode(c);
+}
+
+function photoCategoryRank(category) {
+    const c = String(category || '').trim().toUpperCase();
+    if (c === 'FRONT') return 1;
+    if (c === 'BACK') return 2;
+    if (c === 'LEFT') return 3;
+    if (c === 'RIGHT') return 4;
+    if (c === 'OVERALL') return 10;
+    if (c === 'DAMAGE') return 20;
+    if (c === 'LICENSE_PLATE') return 90;
+    return 99;
+}
+
+function normalizeTicketPhotos(list) {
+    const arr = Array.isArray(list) ? list : [];
+    return arr
+        .map((p) => {
+            const url = String(p?.photoUrl ?? p?.url ?? p?.imageUrl ?? '').trim();
+            const category = String(p?.category ?? p?.type ?? '').trim().toUpperCase();
+            if (!url) return null;
+            return {
+                photoId: p?.photoId ?? p?.id ?? null,
+                category,
+                label: getPhotoCategoryLabel(category),
+                url,
+                description: String(p?.description ?? '').trim(),
+                uploadedAt: p?.uploadedAt ?? p?.createdAt ?? null,
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+            const ra = photoCategoryRank(a?.category);
+            const rb = photoCategoryRank(b?.category);
+            if (ra !== rb) return ra - rb;
+            const ta = new Date(a?.uploadedAt || 0).getTime();
+            const tb = new Date(b?.uploadedAt || 0).getTime();
+            return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+        });
+}
+
 function normalizeTicket(input, codeFallback) {
     const ticketCode = String(input?.ticketCode || codeFallback || '').trim();
     const serviceTicketId =
@@ -175,7 +235,9 @@ function normalizeTicket(input, codeFallback) {
         null;
 
     const statusCode = String(input?.ticketStatus || input?.status || '').trim();
-    const statusLabel = String(input?.statusLabel || input?.statusText || statusCode).trim() || '-';
+    const statusLabelRaw = String(input?.statusLabel || input?.statusText || statusCode).trim() || '-';
+    const canonicalCode = normalizeTicketStatus(statusCode || statusLabelRaw);
+    const statusLabel = getServiceTicketStatusTextVi(canonicalCode, toTitleCaseFromCode(statusLabelRaw));
 
     const receivedAt = pickFirstDefined(input, [
         'receivedAt',
@@ -210,13 +272,14 @@ function normalizeTicket(input, codeFallback) {
     );
 
     const timelineEvents = buildTimelineEvents(input, receivedAt, handoverAt);
+    const photos = normalizeTicketPhotos(input?.photos);
 
     return {
         serviceTicketId,
         immutable: Boolean(input?.immutable),
         ticketCode,
         statusCode,
-        statusLabel: toTitleCaseFromCode(statusLabel),
+        statusLabel,
         receivedAt,
         handoverAt,
         timelineEvents,
@@ -246,8 +309,9 @@ function normalizeTicket(input, codeFallback) {
             '',
         services:
             Array.isArray(input?.services) ? input.services : [],
+        photos,
         externalDependency: Boolean(input?.externalDependency || input?.isExternalDependency),
-        timelineStatus: input?.timelineStatus || statusCode || statusLabel,
+        timelineStatus: input?.timelineStatus || statusCode || statusLabelRaw,
     };
 }
 
@@ -333,6 +397,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const params = useParams();
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
+    const isAccountant = staffRoles.includes(STAFF_ROLE.ACCOUNTANT);
     
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -341,17 +406,28 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [assignments, setAssignments] = useState([]);
     const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
+    const [isEstimateEditing, setIsEstimateEditing] = useState(false);
+
+    const [maintenancePopupOpen, setMaintenancePopupOpen] = useState(false);
+    const [maintenanceDraft, setMaintenanceDraft] = useState({ scheduledAt: '', note: '' });
+    const [estimateTimePopupOpen, setEstimateTimePopupOpen] = useState(false);
+    const [estimatedTimeDraft, setEstimatedTimeDraft] = useState('');
+
+    // Only for flow: "Tạo bản báo giá mới" (restart from archived).
+    // While active, hide other ticket action buttons and only allow confirming estimate after it is saved.
+    const [isCreatingNewEstimateVersion, setIsCreatingNewEstimateVersion] = useState(false);
+    const createNewEstimateRevertRef = useRef(null);
+
     const [refreshTick, setRefreshTick] = useState(0);
     const triggerRefresh = () => setRefreshTick(prev => prev + 1);
 
-    // When using "Thêm dịch vụ" we temporarily force Ticket/Estimate to DRAFT.
-    // Cancel in append-only mode must revert them back.
+    // When using "Thêm dịch vụ" we temporarily force Estimate to DRAFT.
+    // Cancel in append-only mode must revert statuses back.
     const addServiceRevertRef = useRef(null);
     const [addServiceReverting, setAddServiceReverting] = useState(false);
 
     const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
     const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
-    const isFromAdvisor = location?.state?.fromAdvisorInspection === true;
 
     const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
         ticketCodeParam,
@@ -366,6 +442,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => normalizeTicketStatus(ticket?.statusCode || ticket?.timelineStatus || ticket?.statusLabel),
         [ticket?.statusCode, ticket?.timelineStatus, ticket?.statusLabel],
     );
+
+    const isTicketCancelled = ticketStatus === 'CANCELLED';
 
     const serviceTicketIdNum = useMemo(() => {
         const raw = ticket?.serviceTicketId;
@@ -411,6 +489,26 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const odometerKm = ticket?.vehicle?.odometerKm;
     const odometerDisplay =
         odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
+
+    const ticketPhotos = useMemo(() => (Array.isArray(ticket?.photos) ? ticket.photos : []), [ticket?.photos]);
+    const licensePlatePhotos = useMemo(
+        () => ticketPhotos.filter((p) => String(p?.category || '').toUpperCase() === 'LICENSE_PLATE'),
+        [ticketPhotos],
+    );
+
+    const CUSTOMER_REQUEST_MAX_LENGTH = 255;
+    const customerRequestValidation = useMemo(
+        () =>
+            validateTextInput(editForm?.customerRequest, {
+                fieldLabel: 'Nội dung yêu cầu',
+                required: false,
+                trim: false,
+                maxLength: CUSTOMER_REQUEST_MAX_LENGTH,
+            }),
+        [editForm?.customerRequest],
+    );
+    const customerRequestRemaining = CUSTOMER_REQUEST_MAX_LENGTH - String(editForm?.customerRequest ?? '').length;
+    const customerRequestHasError = Boolean(customerRequestValidation?.error);
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
@@ -467,7 +565,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         );
     }, [assignments, assignmentsLoading]);
 
-    const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading && hasTechnician;
+    const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading;
+    const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED';
 
     const handleBack = () => navigate(-1);
 
@@ -540,12 +639,26 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Vui lòng xác nhận báo giá trước khi tiến hành sửa chữa.');
             return;
         }
-        await handleUpdateTicketStatus('IN_PROGRESS', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để giữ chỗ vật tư và tiến hành sửa chữa.');
+            return;
+        }
+
+        try {
+            await allocateEstimateStock(estimateIdNum, token);
+        } catch (err) {
+            notify(err?.message || 'Không thể giữ chỗ vật tư trong kho.');
+            return;
+        }
+
+        await handleUpdateTicketStatus('REPAIRING', 'Đã chuyển sang trạng thái "Tiến hành sửa chữa".');
         navigate('/advisor/inspection');
     };
 
     const handleCompleteRepair = () => handleUpdateTicketStatus('COMPLETED', 'Đã chuyển sang trạng thái "Hoàn tất sửa chữa".');
-    
+
     const handleAddService = async () => {
         if (statusUpdating) return;
         const token = localStorage.getItem('authToken');
@@ -573,7 +686,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 estimateIdNum,
             };
 
-            await manageServiceTicketStatus(serviceTicketIdNum, 'DRAFT', token);
+            // Simplified rule: "Thêm dịch vụ" always brings ticket to ESTIMATED.
+            await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
             let canOpenAppendEdit = true;
             if (estimateIdNum) {
                 try {
@@ -598,7 +712,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             }
 
             triggerRefresh(); 
-            notify('Đã chuyển về trạng thái "Nháp" để thêm dịch vụ.');
+            notify(`Đã chuyển về trạng thái để thêm dịch vụ.`);
         } catch (err) {
             notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
         } finally {
@@ -662,10 +776,21 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Vui lòng đăng nhập để cập nhật trạng thái phiếu dịch vụ.');
             throw new Error('No auth token');
         }
+
+        if (!serviceTicketIdNum) {
+            notify('Thiếu serviceTicketId hợp lệ để bắt đầu báo giá mới.');
+            throw new Error('Missing serviceTicketId');
+        }
         
         try {
             setStatusUpdating(true);
-            await manageServiceTicketStatus(serviceTicketIdNum, 'DRAFT', token);
+            // Snapshot current ticket status so Cancel during "create new estimate version" can revert.
+            if (!createNewEstimateRevertRef.current) {
+                createNewEstimateRevertRef.current = { prevTicketStatus: ticketStatus };
+            }
+            setIsCreatingNewEstimateVersion(true);
+            // Simplified rule: "Tạo bản báo giá mới" always brings ticket to ESTIMATED.
+            await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
             
             const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
@@ -678,16 +803,64 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             } catch {
                 // ignore if unavailable
             }
-            notify('Đã chuyển phiếu dịch vụ về trạng thái Nháp để bắt đầu báo giá mới.');
+            notify('Đã chuyển phiếu dịch vụ về trạng thái để bắt đầu báo giá mới.');
         } catch (err) {
-            notify(err?.message || 'Không thể chuyển trạng thái phiếu dịch vụ về Nháp.');
+            notify(err?.message || 'Không thể chuyển trạng thái phiếu dịch vụ để bắt đầu báo giá mới.');
+            createNewEstimateRevertRef.current = null;
+            setIsCreatingNewEstimateVersion(false);
             throw err;
         } finally {
             setStatusUpdating(false);
         }
     };
 
-    const handleConfirmEstimate = async () => {
+    const handleCancelCreateNewEstimateVersion = useCallback(async () => {
+        const snapshot = createNewEstimateRevertRef.current;
+        if (!snapshot?.prevTicketStatus) {
+            setIsCreatingNewEstimateVersion(false);
+            return;
+        }
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để cập nhật trạng thái phiếu dịch vụ.');
+            return;
+        }
+        if (!serviceTicketIdNum) {
+            notify('Thiếu serviceTicketId hợp lệ để cập nhật trạng thái.');
+            return;
+        }
+
+        const code = String(ticket.ticketCode || ticketCodeParam || '').trim();
+        if (!code) {
+            notify('Thiếu mã phiếu dịch vụ để tải lại sau khi cập nhật trạng thái.');
+            return;
+        }
+
+        try {
+            setStatusUpdating(true);
+            const prev = String(snapshot.prevTicketStatus || '').trim().toUpperCase();
+            if (prev) {
+                await manageServiceTicketStatus(serviceTicketIdNum, prev, token);
+            }
+            const detailRes = await fetchServiceTicketDetail(code, token);
+            setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
+            triggerRefresh();
+            notify('Đã hoàn tác trạng thái phiếu dịch vụ trước khi tạo báo giá mới.');
+        } catch (err) {
+            notify(err?.message || 'Không thể hoàn tác trạng thái phiếu dịch vụ.');
+        } finally {
+            createNewEstimateRevertRef.current = null;
+            setIsCreatingNewEstimateVersion(false);
+            setStatusUpdating(false);
+        }
+    }, [notify, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw]);
+
+    const handleOpenEstimateTimePopup = () => {
+        setEstimateTimePopupOpen(true);
+    };
+
+    const executeConfirmEstimate = async (estimatedAt = '') => {
         if (estimateLoading) return;
         if (!estimateIdNum) {
             notify('Chưa có báo giá hợp lệ để xác nhận.');
@@ -722,8 +895,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 return;
             }
 
+            await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
             await manageServiceTicketEstimateStatus(estimateIdNum, 'APPROVED', token);
             setLatestEstimate((prev) => (prev ? { ...prev, status: 'APPROVED', estimateStatus: 'APPROVED' } : prev));
+            if (estimatedAt) {
+                setEstimatedTimeDraft(estimatedAt);
+            }
             
             const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
@@ -731,6 +908,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
             triggerRefresh(); 
             notify('Đã xác nhận báo giá.');
+
+            // End "create new estimate version" flow after confirming.
+            createNewEstimateRevertRef.current = null;
+            setIsCreatingNewEstimateVersion(false);
         } catch (err) {
             notify(err?.message || 'Không thể xác nhận báo giá.');
         } finally {
@@ -738,15 +919,26 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
-    const canCancel = ['DRAFT', 'INSPECTION', 'PENDING', 'IN_PROGRESS'].includes(ticketStatus);
-    const canSetPending = ticketStatus === 'DRAFT';
-    const canStartRepair = (ticketStatus === 'DRAFT' || ticketStatus === 'PENDING' || ticketStatus === 'INSPECTION') && isEstimateApproved;
-    const canCompleteRepair = ticketStatus === 'IN_PROGRESS';
-    const canAddService = estimateStatus === 'APPROVED' || ticketStatus === 'INSPECTION' || ticketStatus === 'IN_PROGRESS';
+    const handleSubmitEstimateTime = async ({ estimatedAt }) => {
+        setEstimateTimePopupOpen(false);
+        await executeConfirmEstimate(estimatedAt);
+    };
+
+    const canCancel = ['CREATED', 'INSPECTING', 'PENDING', 'INSPECTED', 'ESTIMATED', 'REPAIRING'].includes(ticketStatus);
+    const canSetPending = ticketStatus === 'ESTIMATED';
+    const canAddService = (ticketStatus === 'ESTIMATED' || ticketStatus === 'REPAIRING');
+    const canStartRepair = (ticketStatus === 'ESTIMATED' || ticketStatus === 'PENDING');
+    const canCompleteRepair = ticketStatus === 'REPAIRING';
 
     const advisorItems = useMemo(() => Array.isArray(latestEstimate?.items) ? latestEstimate.items.filter(it => !it?.isRemoved) : [], [latestEstimate]);
     const hasAnyAdvisorItem = advisorItems.length > 0;
-    const canConfirmEstimate = Boolean(estimateIdNum) && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT') && hasAnyAdvisorItem;
+    const isEstimatePersisted = Boolean(latestEstimate?.createdAt || latestEstimate?.estimateId || latestEstimate?.id);
+    const canConfirmEstimate = Boolean(estimateIdNum)
+        && estimateStatus === 'DRAFT'
+        && (ticketStatus === 'CREATED' || ticketStatus === 'INSPECTED' || ticketStatus === 'ESTIMATED')
+        && hasAnyAdvisorItem
+        && isEstimatePersisted
+        && !isEstimateEditing;
     const handleEstimateStatusChange = useCallback((est) => {
         setLatestEstimate(est);
     }, []);
@@ -796,6 +988,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    const handleSubmitMaintenance = ({ scheduledAt, note }) => {
+        setMaintenanceDraft({ scheduledAt: String(scheduledAt || ''), note: String(note || '') });
+        setMaintenancePopupOpen(false);
+        notify('Đã ghi nhận lịch bảo dưỡng (chưa gửi server).');
+    };
+
     return (
         <div className={styles.page}>
             <div className={styles.screenOnly}>
@@ -808,16 +1006,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                             </div>
                         </div>
-                        {!isFromAdvisor && (
+                        { staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED') && (
                             <button
                                 type="button"
                                 className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
                                 onClick={toggleEdit}
                                 disabled={isLoading || isSaving}
-                            >
-                                {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
-                            </button>
-                        )}
+                        >
+                            {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
+                        </button>
+                         )}
                     </header>
 
                     {error && <div className={styles.errorBanner}>{error}</div>}
@@ -881,6 +1079,33 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         </div>
 
                         <section className={styles.block}>
+                            <h2 className={styles.blockTitle}>Ảnh biển số xe</h2>
+                            {licensePlatePhotos.length > 0 ? (
+                                <div className={styles.vehiclePhotoGrid}>
+                                    {licensePlatePhotos.map((p, idx) => {
+                                        const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
+                                        const label = String(p?.label || p?.category || '').trim();
+                                        const caption = label || (p?.description ? String(p.description) : `Ảnh ${idx + 1}`);
+                                        return (
+                                            <figure key={key} className={styles.vehiclePhotoCard}>
+                                                <img
+                                                    className={styles.vehiclePhotoImg}
+                                                    src={p.url}
+                                                    alt={caption}
+                                                    loading="lazy"
+                                                    referrerPolicy="no-referrer"
+                                                />
+                                                <figcaption className={styles.vehiclePhotoCaption}>{caption}</figcaption>
+                                            </figure>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className={styles.noteBox}>{isLoading ? 'Đang tải...' : '-'}</div>
+                            )}
+                        </section>
+
+                        <section className={styles.block}>
                             <h2 className={styles.blockTitle}>Dịch vụ đã chọn</h2>
                             <div className={styles.servicesList}>
                                 {(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
@@ -914,12 +1139,33 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             onChange={(e) => setEditForm((prev) => ({ ...prev, customerRequest: e.target.value }))}
                                             disabled={isSaving}
                                         />
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            gap: 12,
+                                            marginTop: 6,
+                                            fontSize: 12,
+                                            color: '#6b7280',
+                                        }}
+                                    >
+                                        <span>
+                                            {customerRequestRemaining >= 0
+                                                ? `Còn ${customerRequestRemaining} ký tự`
+                                                : `Vượt ${Math.abs(customerRequestRemaining)} ký tự`}
+                                        </span>
+                                    </div>
+                                    {customerRequestHasError ? (
+                                        <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>
+                                            {customerRequestValidation.error}
+                                        </div>
+                                    ) : null}
                                     </div>
                                     <div className="ui-actions ui-actions--end">
                                         <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
                                             Hủy
                                         </button>
-                                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
+                                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving || customerRequestHasError}>
                                             {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
                                         </button>
                                     </div>
@@ -938,76 +1184,123 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     mode="advisor" 
                                 />
                                 
-                                <AdvisorItemsTable
-                                    key={`advisor-table-${ticketCodeParam}`}
-                                    serviceTicketId={ticket?.serviceTicketId}
+                                <AdvisorItemsTable 
+                                    key={`advisor-${ticket?.serviceTicketId}`} 
+                                    serviceTicketId={ticket?.serviceTicketId} 
                                     ticketStatus={ticketStatus}
+                                    ticketPhotos={ticketPhotos}
                                     refreshToken={refreshTick}
+                                    estimatedTimeDisplay={estimatedTimeDraft ? formatDateTimeViNoSeconds(estimatedTimeDraft, '-') : '-'}
                                     onEstimateStatusChange={handleEstimateStatusChange}
                                     onRestartWorkflow={handleRestartFromArchived}
+                                    onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
                                     onCancelAppendOnly={handleCancelAppendOnly}
+                                    onEstimateEditingChange={setIsEstimateEditing}
                                 />
                             </>
                         )}
 
-                        <div className={`ui-actions ${styles.actions}`}>
-                            <button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
-                                Quay lại
-                            </button>
-                            <div className={styles.actionsRight}>
-                                {canCancel && (
-                                    <button
-                                        type="button"
-                                        className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
-                                        onClick={handleCancelTicket}
-                                        disabled={statusUpdating}
-                                    >
-                                        Hủy phiếu dịch vụ
-                                    </button>
-                                )}
-                                {canSetPending && (
-                                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
-                                        Chờ xử lý
-                                    </button>
-                                )}
-                                {canAddService && (
-                                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
-                                        Thêm dịch vụ
-                                    </button>
-                                )}
-                                {canConfirmEstimate && (
-                                    <button
-                                        type="button"
-                                        className="ui-btn ui-btn--primary"
-                                        onClick={handleConfirmEstimate}
-                                        disabled={receiptApproving || statusUpdating || estimateLoading}
-                                    >
-                                        {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
-                                    </button>
-                                )}
-                                {canStartRepair && (
-                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
-                                        Tiến hành sửa chữa
-                                    </button>
-                                )}
-                                {canCompleteRepair && (
-                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving || statusUpdating}>
-                                        Hoàn tất sửa chữa
-                                    </button>
-                                )}
-                                {canCreateReceipt && (
-                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-                                        Tạo hoá đơn
-                                    </button>
-                                )}
-                                {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
-                                    <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
-                                        Cần phân công KTV trước khi tạo hóa đơn.
-                                    </span>
-                                )}
+                        {isTicketCancelled ? null : (
+                            <div className={`ui-actions ${styles.actions}`}>
+                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
+                                    Quay lại
+                                </button>
+                                <div className={styles.actionsRight}>
+                                    {isCreatingNewEstimateVersion && canConfirmEstimate ? (
+                                        <button
+                                            type="button"
+                                            className="ui-btn ui-btn--primary"
+                                            onClick={handleOpenEstimateTimePopup}
+                                            disabled={receiptApproving || statusUpdating || estimateLoading}
+                                        >
+                                            {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
+                                        </button>
+                                    ) : null}
+
+                                    {isCreatingNewEstimateVersion ? null : (
+                                        <>
+                                            {canCancel && (
+                                                <button
+                                                    type="button"
+                                                    className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
+                                                    onClick={handleCancelTicket}
+                                                    disabled={statusUpdating}
+                                                >
+                                                    Hủy phiếu dịch vụ
+                                                </button>
+                                            )}
+                                            {canSetPending && (
+                                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
+                                                    Chờ xử lý
+                                                </button>
+                                            )}
+                                            {canAddService && (
+                                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
+                                                    Thêm dịch vụ
+                                                </button>
+                                            )}
+                                            {canConfirmEstimate && (
+                                                <button
+                                                    type="button"
+                                                    className="ui-btn ui-btn--primary"
+                                                    onClick={handleOpenEstimateTimePopup}
+                                                    disabled={receiptApproving || statusUpdating || estimateLoading}
+                                                >
+                                                    {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
+                                                </button>
+                                            )}
+                                            {canStartRepair && (
+                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
+                                                    Tiến hành sửa chữa
+                                                </button>
+                                            )}
+                                            {canCompleteRepair && (
+                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving || statusUpdating}>
+                                                    Hoàn tất sửa chữa
+                                                </button>
+                                            )}
+                                            {canBookMaintenance && (
+                                                <button
+                                                    type="button"
+                                                    className="ui-btn ui-btn--ghost"
+                                                    onClick={() => setMaintenancePopupOpen(true)}
+                                                    disabled={statusUpdating || receiptApproving}
+                                                >
+                                                    Đặt lịch bảo dưỡng
+                                                </button>
+                                            )}
+                                            {canCreateReceipt && isAccountant && (
+                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
+                                                    Tạo hoá đơn
+                                                </button>
+                                            )}
+
+                                            {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
+                                                <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
+                                                    Cần phân công KTV trước khi tạo hóa đơn.
+                                                </span>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
+
+                    <MaintenanceBookingPopup
+                        open={maintenancePopupOpen}
+                        initialDateTime={maintenanceDraft.scheduledAt}
+                        initialNote={maintenanceDraft.note}
+                        durationMinutes={60}
+                        onClose={() => setMaintenancePopupOpen(false)}
+                        onSubmit={handleSubmitMaintenance}
+                    />
+                    <EstimateTimePopup
+                        open={estimateTimePopupOpen}
+                        initialDateTime={estimatedTimeDraft}
+                        onClose={() => setEstimateTimePopupOpen(false)}
+                        onSubmit={handleSubmitEstimateTime}
+                    />
                     </main>
                 </div>
             </div>

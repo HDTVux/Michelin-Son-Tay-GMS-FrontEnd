@@ -1,4 +1,4 @@
-import { request, API_BASE_URL } from './apiClient.js';
+import { request } from './apiClient.js';
 
 export async function loginCustomer(phone, pin) {
   const payload = JSON.stringify({ phone, pin });
@@ -52,6 +52,32 @@ export async function verifyCustomerOtp(phone, otp) {
 export async function setupCustomerPin({ phone, pin, confirmPin }) {
   const payload = JSON.stringify({ phone, pin, confirmPin });
   return request('/api/auth/customer/setup-pin', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+// Staff: quên mật khẩu qua OTP 
+export async function requestStaffOtp(phone) {
+  const payload = JSON.stringify({ phone });
+  return request('/api/auth/staff-auth/request-otp', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export async function verifyStaffOtp(phone, otp) {
+  const payload = JSON.stringify({ phone, otp });
+  return request('/api/auth/staff-auth/verify-otp', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+// Đặt lại mật khẩu staff (phone, pin, confirmPin)
+export async function setupStaffPass({ phone, pin, confirmPin }) {
+  const payload = JSON.stringify({ phone, pin, confirmPin });
+  return request('/api/auth/staff-auth/setup-pass', {
     method: 'POST',
     body: payload,
   });

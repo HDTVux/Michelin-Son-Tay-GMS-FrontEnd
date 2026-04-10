@@ -1,21 +1,69 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchManagerEmployeeDetail } from '../../../services/managerService.js';
-import ui from '../common/ManagementCommon.module.css';
+import styles from './EmployeeProfilePage.module.css';
 
 const getAuthToken = () =>
-  localStorage.getItem('authToken') ||
-  localStorage.getItem('adminToken') ||
-  localStorage.getItem('staffToken') ||
-  '';
+  localStorage.getItem('authToken')
+  || localStorage.getItem('adminToken')
+  || localStorage.getItem('staffToken')
+  || '';
 
-const statusMeta = (status) => {
-  const key = String(status || '').toUpperCase();
-  if (key === 'PRESENT') return { label: 'C� m?t', cls: ui.badgeSuccess };
-  if (key === 'LATE') return { label: 'Mu?n', cls: ui.badgeWarning };
-  if (key === 'ABSENT') return { label: 'V?ng', cls: ui.badgeDanger };
-  if (key === 'OFF') return { label: 'Ngh?', cls: ui.badgeMuted };
-  return { label: key || '-', cls: ui.badgeMuted };
+const pickValue = (...values) => {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return '';
+};
+
+const extractPayload = (response) => {
+  if (!response) return null;
+  if (response?.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+    return response.data;
+  }
+  if (typeof response === 'object' && !Array.isArray(response)) {
+    return response;
+  }
+  return null;
+};
+
+const formatDateVi = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '-';
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return text;
+  return date.toLocaleDateString('vi-VN');
+};
+
+const formatGenderLabel = (value) => {
+  const code = String(value || '').trim().toUpperCase();
+  if (!code) return '-';
+  if (code === 'MALE' || code === 'M' || code === '1') return 'Nam';
+  if (code === 'FEMALE' || code === 'F' || code === '0') return 'Nữ';
+  if (code === 'OTHER' || code === 'O') return 'Khác';
+  return code;
+};
+
+const toStatusMeta = (status) => {
+  const key = String(status || '').trim().toUpperCase();
+  if (key === 'PRESENT') return { label: 'Có mặt', className: styles.badgeSuccess };
+  if (key === 'LATE') return { label: 'Muộn', className: styles.badgeWarning };
+  if (key === 'ABSENT') return { label: 'Vắng', className: styles.badgeDanger };
+  if (key === 'OFF') return { label: 'Nghỉ', className: styles.badgeMuted };
+  return { label: key || '-', className: styles.badgeMuted };
+};
+
+const getInitials = (name) => {
+  const text = String(name || '').trim();
+  if (!text) return 'NV';
+  return text
+    .split(/\s+/)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 };
 
 export default function EmployeeProfilePage() {
@@ -29,7 +77,7 @@ export default function EmployeeProfilePage() {
   const loadData = useCallback(async () => {
     const token = getAuthToken();
     if (!token) {
-      setError('Vui l�ng dang nh?p d? xem h? so nh�n vi�n.');
+      setError('Vui lòng đăng nhập để xem hồ sơ nhân viên.');
       setLoading(false);
       return;
     }
@@ -39,10 +87,11 @@ export default function EmployeeProfilePage() {
 
     try {
       const response = await fetchManagerEmployeeDetail(staffId, token);
-      setProfile(response?.data || null);
+      const payload = extractPayload(response);
+      setProfile(payload);
     } catch (err) {
       setProfile(null);
-      setError(err?.message || 'Kh�ng t?i du?c chi ti?t nh�n vi�n.');
+      setError(err?.message || 'Không tải được chi tiết nhân viên.');
     } finally {
       setLoading(false);
     }
@@ -52,105 +101,145 @@ export default function EmployeeProfilePage() {
     loadData();
   }, [loadData]);
 
-  const stats = useMemo(() => {
-    const perf = profile?.performance || {};
+  const summary = useMemo(() => {
+    const performance = profile?.performance || {};
+    const fullName = pickValue(profile?.fullName, profile?.staffName, profile?.name, '-');
+
     return {
-      workDays: perf.totalWorkDays || 0,
-      tickets: perf.totalTicketsHandled || 0,
+      staffId: pickValue(profile?.staffId, staffId, '-'),
+      fullName,
+      phone: pickValue(profile?.phone, profile?.phoneNumber, '-'),
+      position: pickValue(profile?.position, profile?.roleName, '-'),
+      gender: formatGenderLabel(profile?.gender),
+      dob: formatDateVi(profile?.dob || profile?.dateOfBirth),
+      avatar: pickValue(profile?.avatar, profile?.avatarUrl, ''),
+      workDays: Number(performance?.totalWorkDays || 0),
+      tickets: Number(performance?.totalTicketsHandled || 0),
     };
+  }, [profile, staffId]);
+
+  const attendanceRows = useMemo(() => {
+    const rows = Array.isArray(profile?.recentAttendance) ? profile.recentAttendance : [];
+    return [...rows].sort((a, b) => {
+      const da = new Date(a?.attendanceDate || 0).getTime();
+      const db = new Date(b?.attendanceDate || 0).getTime();
+      return db - da;
+    });
   }, [profile]);
 
   return (
-    <div className={ui.page}>
-      <div className={ui.header}>
-        <div>
-          <h1 className={ui.title}>Chi ti?t h? so nh�n vi�n</h1>
-          <p className={ui.subtitle}>N?i tr?c ti?p EmployeeManageController#getEmployeeDetail</p>
+    <div className={styles.page}>
+      <section className={styles.heroCard}>
+        <div className={styles.heroIdentity}>
+          <div className={styles.avatarWrap}>
+            {summary.avatar ? (
+              <img src={summary.avatar} alt={summary.fullName} className={styles.avatarImg} />
+            ) : (
+              <span className={styles.avatarFallback}>{getInitials(summary.fullName)}</span>
+            )}
+          </div>
+          <div>
+            <h1 className={styles.title}>Chi tiết hồ sơ nhân viên</h1>
+            <p className={styles.subtitle}>Mã nhân viên: #{summary.staffId}</p>
+          </div>
         </div>
-        <div className={ui.inlineActions}>
-          <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate('/employee-manager')}>
-            Quay l?i
-          </button>
-          <button type="button" className="ui-btn ui-btn--primary" onClick={loadData}>
-            L�m m?i
-          </button>
-        </div>
-      </div>
 
-      {loading && <div className={ui.loading}>�ang t?i h? so...</div>}
-      {!loading && error && <div className={ui.error}>{error}</div>}
-      {!loading && !error && !profile && <div className={ui.empty}>Kh�ng t�m th?y nh�n vi�n.</div>}
+        <div className={styles.heroActions}>
+          <button type="button" className={styles.ghostButton} onClick={() => navigate('/employee-manager')}>
+            Quay lại
+          </button>
+          <button type="button" className={styles.primaryButton} onClick={loadData}>
+            Làm mới
+          </button>
+        </div>
+      </section>
+
+      {loading && (
+        <div className={styles.loadingState}>
+          <div className={styles.spinner} />
+          <p>Đang tải hồ sơ nhân viên...</p>
+        </div>
+      )}
+
+      {!loading && error && <div className={styles.errorState}>{error}</div>}
+
+      {!loading && !error && !profile && (
+        <div className={styles.emptyState}>Không tìm thấy thông tin nhân viên.</div>
+      )}
 
       {!loading && !error && profile && (
         <>
-          <div className={ui.statsGrid}>
-            <div className={ui.statCard}>
-              <p className={ui.statLabel}>Staff ID</p>
-              <p className={ui.statValue}>#{profile.staffId}</p>
-            </div>
-            <div className={ui.statCard}>
-              <p className={ui.statLabel}>Ng�y c�ng th�ng n�y</p>
-              <p className={ui.statValue}>{stats.workDays}</p>
-            </div>
-            <div className={ui.statCard}>
-              <p className={ui.statLabel}>Ticket th�ng n�y</p>
-              <p className={ui.statValue}>{stats.tickets}</p>
-            </div>
-            <div className={ui.statCard}>
-              <p className={ui.statLabel}>V? tr�</p>
-              <p className={ui.statValue} style={{ fontSize: '20px' }}>{profile.position || '-'}</p>
-            </div>
-          </div>
+          <section className={styles.statGrid}>
+            <article className={styles.statCard}>
+              <p className={styles.statLabel}>Staff ID</p>
+              <p className={styles.statValue}>#{summary.staffId}</p>
+            </article>
+            <article className={styles.statCard}>
+              <p className={styles.statLabel}>Ngày công tháng này</p>
+              <p className={styles.statValue}>{summary.workDays}</p>
+            </article>
+            <article className={styles.statCard}>
+              <p className={styles.statLabel}>Ticket tháng này</p>
+              <p className={styles.statValue}>{summary.tickets}</p>
+            </article>
+            <article className={styles.statCard}>
+              <p className={styles.statLabel}>Vị trí</p>
+              <p className={styles.statValue}>{summary.position}</p>
+            </article>
+          </section>
 
-          <div className="ui-card" style={{ marginBottom: '16px' }}>
-            <h2 className="ui-section-title">Th�ng tin co b?n</h2>
-            <div className={ui.modalGrid}>
-              <div className={ui.field}>
-                <label>H? t�n</label>
-                <input className={ui.input} value={profile.fullName || '-'} readOnly />
+          <section className={styles.infoCard}>
+            <h2 className={styles.sectionTitle}>Thông tin cơ bản</h2>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <span>Họ tên</span>
+                <strong>{summary.fullName}</strong>
               </div>
-              <div className={ui.field}>
-                <label>S? di?n tho?i</label>
-                <input className={ui.input} value={profile.phone || '-'} readOnly />
+              <div className={styles.infoItem}>
+                <span>Số điện thoại</span>
+                <strong>{summary.phone}</strong>
               </div>
-              <div className={ui.field}>
-                <label>Gi?i t�nh</label>
-                <input className={ui.input} value={profile.gender || '-'} readOnly />
+              <div className={styles.infoItem}>
+                <span>Giới tính</span>
+                <strong>{summary.gender}</strong>
               </div>
-              <div className={ui.field}>
-                <label>Ng�y sinh</label>
-                <input className={ui.input} value={profile.dob || '-'} readOnly />
+              <div className={styles.infoItem}>
+                <span>Ngày sinh</span>
+                <strong>{summary.dob}</strong>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="ui-card">
-            <h2 className="ui-section-title">L?ch s? ch?m c�ng 30 ng�y g?n nh?t</h2>
-            {Array.isArray(profile.recentAttendance) && profile.recentAttendance.length > 0 ? (
-              <div className={ui.tableWrap}>
-                <table className={ui.table}>
+          <section className={styles.tableCard}>
+            <h2 className={styles.sectionTitle}>Lịch sử chấm công 30 ngày gần nhất</h2>
+
+            {attendanceRows.length === 0 ? (
+              <div className={styles.emptyState}>Chưa có bản ghi chấm công gần đây.</div>
+            ) : (
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Checkin ID</th>
-                      <th>Ng�y</th>
+                      <th>Check-in ID</th>
+                      <th>Ngày</th>
                       <th>Ca</th>
-                      <th>Gi? v�o</th>
-                      <th>Gi? ra</th>
-                      <th>Tr?ng th�i</th>
+                      <th>Giờ vào</th>
+                      <th>Giờ ra</th>
+                      <th>Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {profile.recentAttendance.map((item) => {
-                      const meta = statusMeta(item?.status);
+                    {attendanceRows.map((item) => {
+                      const meta = toStatusMeta(item?.status);
                       return (
-                        <tr key={item.checkinId}>
-                          <td>#{item.checkinId}</td>
-                          <td>{item.attendanceDate || '-'}</td>
-                          <td>{item.shiftName || `Shift ${item.shiftId || '-'}`}</td>
-                          <td>{item.checkInTime || '-'}</td>
-                          <td>{item.checkOutTime || '-'}</td>
+                        <tr key={item?.checkinId || `${item?.attendanceDate}-${item?.shiftId}`}>
+                          <td>#{item?.checkinId ?? '-'}</td>
+                          <td>{formatDateVi(item?.attendanceDate)}</td>
+                          <td>{pickValue(item?.shiftName, item?.shiftId ? `Ca #${item.shiftId}` : '-', '-')}</td>
+                          <td>{pickValue(item?.checkInTime, '-')}</td>
+                          <td>{pickValue(item?.checkOutTime, '-')}</td>
                           <td>
-                            <span className={`${ui.badge} ${meta.cls}`}>{meta.label}</span>
+                            <span className={`${styles.badge} ${meta.className}`}>{meta.label}</span>
                           </td>
                         </tr>
                       );
@@ -158,10 +247,8 @@ export default function EmployeeProfilePage() {
                   </tbody>
                 </table>
               </div>
-            ) : (
-              <div className={ui.empty}>Chua c� b?n ghi ch?m c�ng g?n d�y.</div>
             )}
-          </div>
+          </section>
         </>
       )}
     </div>

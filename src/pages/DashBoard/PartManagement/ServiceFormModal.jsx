@@ -207,59 +207,59 @@ const pickTemplateByContext = (itemName, sku, fileName) => {
       id: 'wheel-alignment',
       keywords: ['chinh thuoc lai', 'do chum', 'thuoc lai', 'wheel alignment', 'can chinh goc dat banh'],
       intro:
-        'Xe bá»‹ lá»‡ch lÃ¡i, vÃ´ lÄƒng khÃ´ng tháº³ng hoáº·c mÃ²n lá»‘p báº¥t thÆ°á»ng? Dá»‹ch vá»¥ chá»‰nh thÆ°á»›c lÃ¡i giÃºp xe váº­n hÃ nh á»•n Ä‘á»‹nh vÃ  an toÃ n hÆ¡n.',
+        'Xe bá»‹ lá»‡ch lÃ¡i, vÃ´ lÄƒng khÃ´ng tháº³ng hoáº·c mÃ²n lá»‘p báº¥t thÆ°á»ng? Dá»‹ch vá»¥ chá»‰nh thÆ°á»›c lÃ¡i giÃºp xe váº­n hÃ nh á»•n Ä‘á»‹nh vÃ  an toÃ n hÆ¡n.',
       detailQuestion: 'Xe bá»‹ lá»‡ch lÃ¡i, vÃ´ lÄƒng khÃ´ng tháº³ng hoáº·c mÃ²n lá»‘p báº¥t thÆ°á»ng?',
       detailAnswer:
-        'ÄÃ¢y lÃ  dáº¥u hiá»‡u phá»• biáº¿n cho tháº¥y há»‡ thá»‘ng gÃ³c Ä‘áº·t bÃ¡nh xe Ä‘ang sai lá»‡ch. Cáº§n cÃ¢n chá»‰nh láº¡i Ä‘Ãºng thÃ´ng sá»‘ Ä‘á»ƒ xe cháº¡y Ãªm vÃ  bÃ¡m Ä‘Æ°á»ng tá»‘t hÆ¡n.',
+        'ÄÃ¢y lÃ  dáº¥u hiá»‡u phá»• biáº¿n cho tháº¥y há»‡ thá»‘ng gÃ³c Ä‘áº·t bÃ¡nh xe Ä‘ang sai lá»‡ch. Cáº§n cÃ¢n chá»‰nh láº¡i Ä‘Ãºng thÃ´ng sá»‘ Ä‘á»ƒ xe cháº¡y Ãªm vÃ  bÃ¡m Ä‘Æ°á»ng tá»‘t hÆ¡n.',
       checklist: [
-        'Kiá»ƒm tra Ä‘á»™ chá»¥m vÃ  gÃ³c Ä‘áº·t bÃ¡nh xe báº±ng thiáº¿t bá»‹ chuyÃªn dá»¥ng.',
+        'Kiá»ƒm tra Ä‘á»™ chá»¥m vÃ  gÃ³c Ä‘áº·t bÃ¡nh xe báº±ng thiáº¿t bá»‹ chuyÃªn dá»¥ng.',
         'CÃ¢n chá»‰nh vÃ´ lÄƒng vá» vá»‹ trÃ­ cÃ¢n báº±ng khi xe Ä‘i tháº³ng.',
         'ÄÃ¡nh giÃ¡ Ä‘á»™ mÃ²n lá»‘p trÆ°á»›c/sau Ä‘á»ƒ phÃ¡t hiá»‡n lá»‡ch gÃ³c Ä‘áº·t.',
       ],
       process: [
-        'Tiáº¿p nháº­n xe vÃ  kiá»ƒm tra nhanh tÃ¬nh tráº¡ng váº­n hÃ nh.',
+        'Tiáº¿p nháº­n xe vÃ  kiá»ƒm tra nhanh tÃ¬nh tráº¡ng váº­n hÃ nh.',
         'Äo thÃ´ng sá»‘ gÃ³c Ä‘áº·t bÃ¡nh xe trÃªn mÃ¡y cÃ¢n chá»‰nh.',
-        'Hiá»‡u chá»‰nh theo thÃ´ng sá»‘ chuáº©n cá»§a nhÃ  sáº£n xuáº¥t.',
-        'Cháº¡y thá»­ vÃ  xÃ¡c nháº­n xe Ä‘i tháº³ng, vÃ´ lÄƒng cÃ¢n.',
+        'Hiá»‡u chá»‰nh theo thÃ´ng sá»‘ chuáº©n cá»§a nhÃ  sáº£n xuáº¥t.',
+        'Cháº¡y thá»­ vÃ  xÃ¡c nháº­n xe Ä‘i tháº³ng, vÃ´ lÄƒng cÃ¢n.',
       ],
     },
     {
       id: 'general-maintenance',
       keywords: ['bao duong', 'maintenance', 'kiem tra tong quat', 'service'],
       intro:
-        'Báº£o dÆ°á»¡ng Ä‘á»‹nh ká»³ giÃºp xe váº­n hÃ nh á»•n Ä‘á»‹nh, tÄƒng tuá»•i thá» linh kiá»‡n vÃ  háº¡n cháº¿ sá»± cá»‘ phÃ¡t sinh trong quÃ¡ trÃ¬nh sá»­ dá»¥ng.',
+        'Báº£o dÆ°á»¡ng Ä‘á»‹nh ká»³ giÃºp xe váº­n hÃ nh á»•n Ä‘á»‹nh, tÄƒng tuá»•i thá» linh kiá»‡n vÃ  háº¡n cháº¿ sá»± cá»‘ phÃ¡t sinh trong quÃ¡ trÃ¬nh sá»­ dá»¥ng.',
       detailQuestion: 'VÃ¬ sao nÃªn thá»±c hiá»‡n báº£o dÆ°á»¡ng Ä‘á»‹nh ká»³?',
       detailAnswer:
-        'Báº£o dÆ°á»¡ng Ä‘Ãºng lá»‹ch giÃºp phÃ¡t hiá»‡n sá»›m hao mÃ²n, giáº£m rá»§i ro há»ng hÃ³c lá»›n vÃ  Ä‘áº£m báº£o xe luÃ´n trong tráº¡ng thÃ¡i váº­n hÃ nh an toÃ n.',
+        'Báº£o dÆ°á»¡ng Ä‘Ãºng lá»‹ch giÃºp phÃ¡t hiá»‡n sá»›m hao mÃ²n, giáº£m rá»§i ro há»ng hÃ³c lá»›n vÃ  Ä‘áº£m báº£o xe luÃ´n trong tráº¡ng thÃ¡i váº­n hÃ nh an toÃ n.',
       checklist: [
-        'Kiá»ƒm tra nhanh cÃ¡c háº¡ng má»¥c an toÃ n cÆ¡ báº£n cá»§a xe.',
+        'Kiá»ƒm tra nhanh cÃ¡c háº¡ng má»¥c an toÃ n cÆ¡ báº£n cá»§a xe.',
         'ÄÃ¡nh giÃ¡ cÃ¡c bá»™ pháº­n cÃ³ dáº¥u hiá»‡u hao mÃ²n theo thá»i gian sá»­ dá»¥ng.',
         'TÆ° váº¥n phÆ°Æ¡ng Ã¡n xá»­ lÃ½ tá»‘i Æ°u theo tÃ¬nh tráº¡ng thá»±c táº¿.',
       ],
       process: [
-        'Tiáº¿p nháº­n thÃ´ng tin tÃ¬nh tráº¡ng xe tá»« khÃ¡ch hÃ ng.',
+        'Tiáº¿p nháº­n thÃ´ng tin tÃ¬nh tráº¡ng xe tá»« khÃ¡ch hÃ ng.',
         'Kiá»ƒm tra tá»•ng quÃ¡t theo quy trÃ¬nh ká»¹ thuáº­t cá»§a xÆ°á»Ÿng.',
-        'Thá»±c hiá»‡n háº¡ng má»¥c cáº§n thiáº¿t vÃ  ghi nháº­n káº¿t quáº£.',
-        'BÃ n giao xe kÃ¨m khuyáº¿n nghá»‹ theo dÃµi Ä‘á»‹nh ká»³ tiáº¿p theo.',
+        'Thá»±c hiá»‡n háº¡ng má»¥c cáº§n thiáº¿t vÃ  ghi nháº­n káº¿t quáº£.',
+        'BÃ n giao xe kÃ¨m khuyáº¿n nghá»‹ theo dÃµi Ä‘á»‹nh ká»³ tiáº¿p theo.',
       ],
     },
     {
       id: 'default',
       keywords: [],
-      intro: 'Dá»‹ch vá»¥ giÃºp xe váº­n hÃ nh á»•n Ä‘á»‹nh hÆ¡n, háº¡n cháº¿ hao mÃ²n vÃ  nÃ¢ng cao Ä‘á»™ an toÃ n khi sá»­ dá»¥ng hÃ ng ngÃ y.',
-      detailQuestion: 'Khi nÃ o nÃªn kiá»ƒm tra háº¡ng má»¥c nÃ y?',
+      intro: 'Dá»‹ch vá»¥ giÃºp xe váº­n hÃ nh á»•n Ä‘á»‹nh hÆ¡n, háº¡n cháº¿ hao mÃ²n vÃ  nÃ¢ng cao Ä‘á»™ an toÃ n khi sá»­ dá»¥ng hÃ ng ngÃ y.',
+      detailQuestion: 'Khi nÃ o nÃªn kiá»ƒm tra háº¡ng má»¥c nÃ y?',
       detailAnswer:
-        'Khi xe cÃ³ dáº¥u hiá»‡u váº­n hÃ nh báº¥t thÆ°á»ng hoáº·c Ä‘Ã£ Ä‘áº¿n má»‘c báº£o dÆ°á»¡ng, báº¡n nÃªn kiá»ƒm tra sá»›m Ä‘á»ƒ trÃ¡nh phÃ¡t sinh lá»—i lá»›n.',
+        'Khi xe cÃ³ dáº¥u hiá»‡u váº­n hÃ nh báº¥t thÆ°á»ng hoáº·c Ä‘Ã£ Ä‘áº¿n má»‘c báº£o dÆ°á»¡ng, báº¡n nÃªn kiá»ƒm tra sá»›m Ä‘á»ƒ trÃ¡nh phÃ¡t sinh lá»—i lá»›n.',
       checklist: [
         'Kiá»ƒm tra tÃ¬nh tráº¡ng thá»±c táº¿ cá»§a há»‡ thá»‘ng liÃªn quan.',
-        'ÄÃ¡nh giÃ¡ má»©c Ä‘á»™ hao mÃ²n vÃ  nguy cÆ¡ áº£nh hÆ°á»Ÿng váº­n hÃ nh.',
-        'Äá» xuáº¥t phÆ°Æ¡ng Ã¡n xá»­ lÃ½ phÃ¹ há»£p vÃ  minh báº¡ch chi phÃ­.',
+        'ÄÃ¡nh giÃ¡ má»©c Ä‘á»™ hao mÃ²n vÃ  nguy cÆ¡ áº£nh hÆ°á»Ÿng váº­n hÃ nh.',
+        'Äá» xuáº¥t phÆ°Æ¡ng Ã¡n xá»­ lÃ½ phÃ¹ há»£p vÃ  minh báº¡ch chi phÃ­.',
       ],
       process: [
-        'Tiáº¿p nháº­n vÃ  kiá»ƒm tra ban Ä‘áº§u.',
+        'Tiáº¿p nháº­n vÃ  kiá»ƒm tra ban Ä‘áº§u.',
         'Äo/Ä‘Ã¡nh giÃ¡ thÃ´ng sá»‘ ká»¹ thuáº­t cáº§n thiáº¿t.',
         'Thá»±c hiá»‡n xá»­ lÃ½ theo Ä‘Ãºng quy trÃ¬nh.',
-        'Kiá»ƒm tra láº¡i vÃ  bÃ n giao xe.',
+        'Kiá»ƒm tra láº¡i vÃ  bÃ n giao xe.',
       ],
     },
   ];
@@ -270,7 +270,7 @@ const pickTemplateByContext = (itemName, sku, fileName) => {
 };
 
 const buildAutoContentFromImage = ({ template, imageStats, itemName }) => {
-  const safeName = String(itemName || '').trim() || 'dá»‹ch vá»¥ nÃ y';
+  const safeName = String(itemName || '').trim() || 'dá»‹ch vá»¥ nÃ y';
   const imageHint = imageStats
     ? `Dá»±a trÃªn áº£nh Ä‘áº¡i diá»‡n (${imageStats.width}x${imageStats.height}, khung ${imageStats.orientation}, ${imageStats.lightLevel}), ká»¹ thuáº­t viÃªn Ä‘ang thao tÃ¡c trá»±c tiáº¿p theo quy trÃ¬nh táº¡i xÆ°á»Ÿng.`
     : 'Dá»±a trÃªn áº£nh Ä‘áº¡i diá»‡n Ä‘Ã£ chá»n, ká»¹ thuáº­t viÃªn Ä‘ang thao tÃ¡c trá»±c tiáº¿p theo quy trÃ¬nh táº¡i xÆ°á»Ÿng.';
@@ -279,7 +279,7 @@ const buildAutoContentFromImage = ({ template, imageStats, itemName }) => {
   const processHtml = template.process.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
   const detailHtml = [
     `<p><strong>${escapeHtml(template.detailQuestion)}</strong> ${escapeHtml(template.detailAnswer)}</p>`,
-    `<p>${escapeHtml(`Äá»‘i vá»›i ${safeName}, xÆ°á»Ÿng sáº½ kiá»ƒm tra vÃ  xá»­ lÃ½ theo Ä‘Ãºng tiÃªu chuáº©n ká»¹ thuáº­t.`)}</p>`,
+    `<p>${escapeHtml(`Äá»‘i vá»›i ${safeName}, xÆ°á»Ÿng sáº½ kiá»ƒm tra vÃ  xá»­ lÃ½ theo Ä‘Ãºng tiÃªu chuáº©n ká»¹ thuáº­t.`)}</p>`,
     `<ul>${checklistHtml}</ul>`,
     `<ol>${processHtml}</ol>`,
     `<p><em>${escapeHtml(imageHint)}</em></p>`,
@@ -363,7 +363,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
   const thumbnailPreviewRef = useRef('');
   const mediaFilesRef = useRef([]);
 
-  const modalTitle = 'Táº¡o bÃ i viáº¿t';
+  const modalTitle = 'Táº¡o bÃ i viáº¿t';
   const draftStorageKey = useMemo(() => {
     const itemId = baseItem?.itemId != null ? String(baseItem.itemId) : 'new';
     return `gms_service_form_draft_v1:${mode}:${itemId}`;
@@ -1038,7 +1038,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
           <div className={styles['field-row']}>
             <div className={styles['field']}>
-              <label htmlFor="svc-item-warranty">Báº£o hÃ nh (thÃ¡ng)</label>
+              <label htmlFor="svc-item-warranty">Báº£o hÃ nh (thÃ¡ng)</label>
               <input
                 id="svc-item-warranty"
                 type="number"

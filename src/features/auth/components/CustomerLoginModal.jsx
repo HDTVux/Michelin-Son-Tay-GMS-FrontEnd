@@ -51,9 +51,6 @@ function CustomerLoginInner({ onClose }){
             <button className={styles.primaryBtn} type="submit" disabled={isLoading}>
               {isLoading ? 'Đang gửi...' : 'Tiếp tục'}
             </button>
-            <button type="button" className={styles.secondaryBtn} onClick={() => { /* placeholder for social login */ }}>
-              Đăng nhập bằng Zalo
-            </button>
           </form>
         )}
 
