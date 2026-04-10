@@ -96,6 +96,35 @@ const mapSpecAttributeItem = (item) => {
 // it will be created via the API when the user requests it.
 
 const CATEGORY_TYPE_FIXED = 'PART';
+const COUNTRY_OPTIONS = [
+	'Việt Nam',
+	'Nhật Bản',
+	'Hàn Quốc',
+	'Trung Quốc',
+	'Thái Lan',
+	'Indonesia',
+	'Malaysia',
+	'Singapore',
+	'Đức',
+	'Pháp',
+	'Ý',
+	'Anh',
+	'Mỹ',
+];
+const COLOR_OPTIONS = [
+	'Đen',
+	'Trắng',
+	'Xám',
+	'Bạc',
+	'Đỏ',
+	'Xanh dương',
+	'Xanh lá',
+	'Vàng',
+	'Cam',
+	'Nâu',
+	'Be',
+];
+const OTHER_OPTION_VALUE = '__OTHER__';
 
 export default function CreateProduct() {
 	useScrollToTop();
@@ -156,6 +185,10 @@ export default function CreateProduct() {
 	const [price, setPrice] = useState('');
 	const [showPrice, setShowPrice] = useState(true);
 	const [unit, setUnit] = useState('');
+	const [origin, setOrigin] = useState('');
+	const [customOrigin, setCustomOrigin] = useState('');
+	const [color, setColor] = useState('');
+	const [customColor, setCustomColor] = useState('');
 	const [description, setDescription] = useState('');
 	// Image file is kept only in component state (no upload at create time)
 	const [imageFile, setImageFile] = useState(null);
@@ -821,6 +854,8 @@ export default function CreateProduct() {
 			notify('Bảo hành (tháng) không hợp lệ.');
 			return;
 		}
+		const resolvedOrigin = origin === OTHER_OPTION_VALUE ? String(customOrigin || '').trim() : String(origin || '').trim();
+		const resolvedColor = color === OTHER_OPTION_VALUE ? String(customColor || '').trim() : String(color || '').trim();
 
 		try {
 			setIsCreatingCatalogItem(true);
@@ -836,6 +871,9 @@ export default function CreateProduct() {
 					price: priceNum,
 					showPrice,
 					description: String(description || '').trim(),
+					madeIn: resolvedOrigin,
+					origin: resolvedOrigin,
+					color: resolvedColor,
 					// imageUrl: String(imageUrl || '').trim(),
 					unit: String(unit || '').trim(),
 					comboDurationMonths: 0,
@@ -866,11 +904,15 @@ export default function CreateProduct() {
 		}
 	}, [
 		description,
+		color,
 		computedItemName,
+		customColor,
+		customOrigin,
 		// imageUrl,
 		isCreatingCatalogItem,
 		itemType,
 		notify,
+		origin,
 		price,
 		selectedBrandId,
 		selectedCategoryId,
@@ -1261,7 +1303,7 @@ export default function CreateProduct() {
 								<input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 							</div>
 						</div>
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="unit">Đơn vị</label>
 								<input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
@@ -1270,6 +1312,50 @@ export default function CreateProduct() {
 								<label htmlFor="warranty">Bảo hành (tháng)</label>
 								<input id="warranty" type="number" value={warrantyDurationMonths} onChange={(e) => setWarrantyDurationMonths(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 							</div>
+							<div className="ui-field" style={{ marginBottom: 0 }}>
+								<label htmlFor="origin">Xuất xứ</label>
+								<select id="origin" value={origin} onChange={(e) => setOrigin(e.target.value)} disabled={Boolean(createdCatalogItemId)}>
+									<option value="">Chọn xuất xứ</option>
+									{COUNTRY_OPTIONS.map((country) => (
+										<option key={country} value={country}>
+											{country}
+										</option>
+									))}
+									<option value={OTHER_OPTION_VALUE}>Khác</option>
+								</select>
+								{origin === OTHER_OPTION_VALUE ? (
+									<input
+										style={{ marginTop: 8 }}
+										value={customOrigin}
+										onChange={(e) => setCustomOrigin(e.target.value)}
+										placeholder="Nhập xuất xứ"
+										disabled={Boolean(createdCatalogItemId)}
+									/>
+								) : null}
+							</div>
+							<div className="ui-field" style={{ marginBottom: 0 }}>
+								<label htmlFor="color">Màu</label>
+								<select id="color" value={color} onChange={(e) => setColor(e.target.value)} disabled={Boolean(createdCatalogItemId)}>
+									<option value="">Chọn màu</option>
+									{COLOR_OPTIONS.map((colorOption) => (
+										<option key={colorOption} value={colorOption}>
+											{colorOption}
+										</option>
+									))}
+									<option value={OTHER_OPTION_VALUE}>Khác</option>
+								</select>
+								{color === OTHER_OPTION_VALUE ? (
+									<input
+										style={{ marginTop: 8 }}
+										value={customColor}
+										onChange={(e) => setCustomColor(e.target.value)}
+										placeholder="Nhập màu"
+										disabled={Boolean(createdCatalogItemId)}
+									/>
+								) : null}
+							</div>
+						</div>
+						<div style={{ marginTop: 12 }}>
 							<div className="ui-field" style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end' }}>
 								<label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
 									<input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} disabled={Boolean(createdCatalogItemId)} />

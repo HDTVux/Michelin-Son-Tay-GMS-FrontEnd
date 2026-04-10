@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './ServiceManagement.module.css';
 import { fetchWarehouseCatalogItemDetail, fetchWarehouseSpecificationsByCatalogItemId } from '../../../services/warehouseService.js';
+import { getItemColorText, getItemOriginText } from './itemFormatters.js';
 
 const formatCurrencyVnd = (value) => {
     const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
@@ -79,6 +80,8 @@ export default function ItemDetailModal({ item, onClose }) {
         : (display?.productLine?.lineName || display?.productLineId || '-');
 
     const specs = Array.isArray(display?.specifications) ? display.specifications : [];
+    const originText = getItemOriginText(display);
+    const colorText = getItemColorText(display);
 
     return (
         <div
@@ -109,6 +112,8 @@ export default function ItemDetailModal({ item, onClose }) {
                                 <tr><th>Dòng sản phẩm</th><td>{productLineText}</td></tr>
                                 <tr><th>Giá</th><td>{priceText}</td></tr>
                                 <tr><th>Đơn vị</th><td>{display?.unit || '-'}</td></tr>
+                                <tr><th>Xuất xứ</th><td>{originText}</td></tr>
+                                <tr><th>Màu</th><td>{colorText}</td></tr>
                             </tbody>
                         </table>
                     </div>

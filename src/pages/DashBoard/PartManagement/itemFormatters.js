@@ -5,7 +5,36 @@ export const formatCurrencyVnd = (value) => {
 };
 
 export const formatItemTypeLabel = (itemType) => {
-	if (itemType === 'PART') return 'Phụ tùng';
-	if (itemType === 'SERVICE') return 'Dịch vụ';
+	if (itemType === 'PART') return 'Phá»¥ tÃ¹ng';
+	if (itemType === 'SERVICE') return 'Dá»‹ch vá»¥';
 	return itemType || '-';
 };
+
+const pickFirstText = (item, keys) => {
+	for (const key of keys) {
+		const value = item?.[key];
+		if (value == null) continue;
+		const text = String(value).trim();
+		if (text) return text;
+	}
+	return '-';
+};
+
+export const getItemOriginText = (item) =>
+	pickFirstText(item, [
+		'origin',
+		'itemOrigin',
+		'originCountry',
+		'countryOfOrigin',
+		'country_origin',
+		'madeIn',
+	]);
+
+export const getItemColorText = (item) =>
+	pickFirstText(item, [
+		'color',
+		'itemColor',
+		'colour',
+		'productColor',
+		'catalogColor',
+	]);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -17,6 +17,7 @@ import {
 } from '../../../services/serviceTicketService';
 import { fetchCheckInAdvisors } from '../../../services/checkInService';
 import { formatTimeHHmm, parseBackendDateTime } from '../../../components/timeUtils.js';
+import { getServiceTicketStatusTextVi, normalizeServiceTicketStatusCode } from '../../../components/statusUtils.js';
 import styles from './AdvisorInspection.module.css';
 
 const STAFF_ROLE = { ADVISOR: 'ADVISOR' };
@@ -295,21 +296,8 @@ const withQueueNumber = (ticket, queueNumber) => {
   };
 };
 
-const SERVICE_TICKET_STATUS_LABELS = {
-  DRAFT: 'Nháp',
-  INSPECTION: 'Đang kiểm tra',
-  PENDING: 'Chờ duyệt',
-  IN_PROGRESS: 'Đang sửa chữa',
-  COMPLETED: 'Hoàn tất',
-  PAID: 'Đã thanh toán',
-  CANCELLED: 'Đã hủy',
-};
-
 const normalizeServiceTicketStatus = (ticket) => {
-  const raw = String(getTicketStatus(ticket) || '').trim().toUpperCase();
-  if (!raw || raw === 'CREATED') return 'DRAFT';
-  if (raw === 'INSPECTING' || raw === 'DIAGNOSIS') return 'INSPECTION';
-  return raw;
+  return normalizeServiceTicketStatusCode(getTicketStatus(ticket)) || 'CREATED';
 };
 
 const toAvailableStaffList = (response) => {
@@ -322,18 +310,35 @@ const toAvailableStaffList = (response) => {
 };
 
 const STATUS_LABELS = {
-  PENDING: 'Chờ bắt đầu',
+  PENDING: 'Chưa bắt đầu',
   ACTIVE: 'Đang làm',
-  DONE: 'Hoàn tất',
+  DONE: 'Hoàn thành',
+  INSPECTING: 'Đang kiểm tra',
+  INSPECTED: 'Đã kiểm tra',
+  REPAIRING: 'Đang sửa chữa',
+  COMPLETED: 'Hoàn thành',
+  PAID: 'Đã thanh toán',
   CANCELLED: 'Đã hủy',
+};
+
+const normalizeAssignmentDisplayStatus = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (!raw) return '';
+  if (raw === 'IN_PROGRESS' || raw === 'INPROGRESS' || raw === 'WORKING') return 'ACTIVE';
+  if (raw === 'COMPLETED' || raw === 'DONE' || raw === 'FINISHED') return 'DONE';
+  if (raw === 'CANCELED') return 'CANCELLED';
+  return raw;
 };
 
 const computeDisplayStatus = (assignmentStatus, ticketStatus) => {
   const tStatus = normalizeServiceTicketStatus({ status: ticketStatus });
-  if (tStatus === 'INSPECTION') return 'ACTIVE';
-  if (tStatus === 'COMPLETED' || tStatus === 'PAID') return 'DONE';
+  if (tStatus === 'INSPECTING') return 'INSPECTING';
+  if (tStatus === 'INSPECTED') return 'INSPECTED';
+  if (tStatus === 'REPAIRING') return 'REPAIRING';
+  if (tStatus === 'COMPLETED') return 'COMPLETED';
+  if (tStatus === 'PAID') return 'PAID';
   if (tStatus === 'CANCELLED') return 'CANCELLED';
-  return assignmentStatus || 'PENDING';
+  return normalizeAssignmentDisplayStatus(assignmentStatus) || 'PENDING';
 };
 
 const normalizeAssignment = (raw) => {
@@ -345,7 +350,7 @@ const normalizeAssignment = (raw) => {
     assignmentId: Number.isFinite(assignmentId) ? assignmentId : null,
     staffId: Number.isFinite(staffId) ? staffId : null,
     roleInTicket: String(raw.roleInTicket || raw.role || '').trim().toUpperCase(),
-    status: String(raw.status || raw.assignmentStatus || '').trim().toUpperCase(),
+    status: normalizeAssignmentDisplayStatus(raw.status || raw.assignmentStatus),
     isPrimary: Boolean(raw.isPrimary),
     fullName:
       typeof raw.fullName === 'string'
@@ -631,15 +636,15 @@ export default function AdvisorInspection() {
   // Helpers
   const getServiceTicketStatusDisplay = (ticket) => {
     const status = normalizeServiceTicketStatus(ticket);
-    return SERVICE_TICKET_STATUS_LABELS[status] || status || '-';
+    return getServiceTicketStatusTextVi(status, status || '-');
   };
 
   const getServiceTicketStatusClass = (ticket) => {
     const status = normalizeServiceTicketStatus(ticket);
-    if (status === 'DRAFT') return styles.statusPending;
-    if (status === 'INSPECTION') return styles.statusInspection;
+    if (status === 'CREATED') return styles.statusPending;
+    if (status === 'INSPECTING') return styles.statusInspection;
     if (status === 'PENDING') return styles.statusPending;
-    if (status === 'IN_PROGRESS') return styles.statusInspection;
+    if (status === 'REPAIRING') return styles.statusInspection;
     if (status === 'COMPLETED' || status === 'PAID') return styles.statusActive;
     if (status === 'CANCELLED') return styles.statusInactive;
     return styles.statusPending;
@@ -1027,7 +1032,7 @@ export default function AdvisorInspection() {
 
     return {
       isBusy,
-      text: busyNote || (hasBusyInfo ? (isBusy ? 'Bận' : 'Rảnh') : `${ticketCount} phiếu • ${isBusy ? 'bận' : 'rảnh'}`),
+      text: busyNote || (hasBusyInfo ? (isBusy ? 'Bận' : 'Rảnh') : `${ticketCount} phiếu ⬢ ${isBusy ? 'bận' : 'rảnh'}`),
     };
   };
 
@@ -1207,10 +1212,12 @@ export default function AdvisorInspection() {
                 onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
               >
                 <option value="">Tất cả</option>
-                <option value="DRAFT">Nháp</option>
-                <option value="INSPECTION">Đang kiểm tra</option>
-                <option value="PENDING">Chờ duyệt</option>
-                <option value="IN_PROGRESS">Đang sửa chữa</option>
+                <option value="CREATED">Tạo mới</option>
+                <option value="INSPECTING">Đang kiểm tra</option>
+                <option value="INSPECTED">Đã kiểm tra</option>
+                <option value="PENDING">Chờ xử lý</option>
+                <option value="ESTIMATED">Đã báo giá</option>
+                <option value="REPAIRING">Đang sửa chữa</option>
                 <option value="COMPLETED">Hoàn tất</option>
                 <option value="PAID">Đã thanh toán</option>
                 <option value="CANCELLED">Đã hủy</option>
@@ -1446,7 +1453,7 @@ export default function AdvisorInspection() {
               {modalSuccess && <div className={styles.successBanner}>{modalSuccess}</div>}
               {modalError && <div className={styles.errorBanner}>{modalError}</div>}
 
-              {/* Kiểm tra trạng thái phiếu: không cho thay đổi khi hoàn tất/đã thanh toán/hủy */}
+                        {/* Kiểm tra trạng thái phiếu: không cho thay đổi khi hoàn tất/đã thanh toán/hủy */}
               {(() => {
                 const ticketStatus = normalizeServiceTicketStatus(selectedTicket);
                 const isFinalized = ['COMPLETED', 'PAID', 'CANCELLED'].includes(ticketStatus);
@@ -1481,10 +1488,10 @@ export default function AdvisorInspection() {
                                 >
                                   <option value="">Chọn advisor mới</option>
                                   {advisorOptions.map((advisor) => (
-                                    <option key={advisor.staffId} value={advisor.staffId}>
-                                      {advisor.fullName || advisor.staffName || `NV-${advisor.staffId}`}
-                                    </option>
-                                  ))}
+                                        <option key={advisor.staffId} value={advisor.staffId}>
+                                          {advisor.fullName || advisor.staffName || `NV-${advisor.staffId}`}
+                                        </option>
+                                      ))}
                                 </select>
                                 <button
                                   className={styles.modalActionBtn}
@@ -1550,7 +1557,7 @@ export default function AdvisorInspection() {
                                   {a?.isPrimary ? 'Kỹ thuật viên chính' : 'Kỹ thuật viên'} &bull;{' '}
                                   {STATUS_LABELS[displayStatus] || displayStatus}
                                 </span>
-                                {/* Nút đổi KTV / Hủy: chỉ khi PENDING và phiếu chưa finalized */}
+                                {/* NÃºt đổi KTV / Hủy: chỉ khi PENDING và phiếu chưa finalized */}
                                 {isPending && !isCancelled && !isFinalized && (
                                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                                     <select
@@ -1706,7 +1713,7 @@ export default function AdvisorInspection() {
         </div>
       )}
 
-      {/* Modal xem khuyến nghị phiếu cũ */}
+      {/* Modal xem khuyến nghị phiếu cÅ© */}
       {showRecommendModal && recommendTicket && (
         <div className={styles.modalOverlay} onClick={() => setShowRecommendModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -1782,4 +1789,3 @@ export default function AdvisorInspection() {
     </div>
   );
 }
-

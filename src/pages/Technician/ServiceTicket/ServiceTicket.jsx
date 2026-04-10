@@ -13,13 +13,13 @@ import {
   createWorkCategory,
   deleteCustomCategory,
   enableSafetyInspection,
-  reopenSafetyInspection,
   updateAdvisorNotes,
 } from '../../../services/safetyInspectionService';
 import styles from './ServiceTicket.module.css';
 import carImage from '../../../assets/oto_4.jpg';
 
 const LOCKED_SERVICE_TICKET_STATUSES = new Set(['PAID', 'COMPLETED']);
+const INSPECTION_EDITABLE_STATUSES = new Set(['PENDING', 'SKIPPED', 'INSPECTING', '']);
 
 const normalizeServiceTicketStatus = (status) => String(status ?? '')
   .trim()
@@ -97,7 +97,7 @@ export const ServiceTicket = ({
   // Error state cho mm lốp (keyed by position)
   const [tireMmErrors, setTireMmErrors] = useState({});
 
-  // Ref chống spam toast khi validate 500 ký tự
+  // Ref chá»‘ng spam toast khi validate 500 kÃ½ tá»±
   const toast500LastFired = useRef({});
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -106,7 +106,7 @@ export const ServiceTicket = ({
     [serviceTicketStatus],
   );
   const isServiceTicketLocked = LOCKED_SERVICE_TICKET_STATUSES.has(normalizedServiceTicketStatus);
-  const serviceTicketLockMessage = 'Phiếu dịch vụ đã thanh toán/hoàn tất. Không thể chỉnh sửa phiếu kiểm tra an toàn.';
+  const serviceTicketLockMessage = 'Phiếu dịch vụ đã thanh toÃ¡n/hoàn tất. Không thể chỉnh sửa phiếu kiểm tra an toàn.';
   const canEditTechnicalFields = isEditable;
   const canEditAdvisorNotes = isEditable;
 
@@ -174,7 +174,10 @@ export const ServiceTicket = ({
         } else if (ticketDetail.ticketId) {
           setServiceTicketId(ticketDetail.ticketId);
         }
+        const safetyEnabledFromTicket = ticketResponse?.data?.safetyInspectionEnabled !== false;
         let defaultChecks = [];
+        let loadedInspectionStatus = safetyEnabledFromTicket ? 'PENDING' : 'SKIPPED';
+
         try {
           const defaultCategoriesResponse = await getDefaultSafetyInspectionCategories(token);
           if (defaultCategoriesResponse?.data && defaultCategoriesResponse.data.length > 0) {
@@ -196,7 +199,6 @@ export const ServiceTicket = ({
           console.log('Không tải được danh mục mặc định:', catError.message);
         }
 
-        const safetyEnabledFromTicket = ticketResponse?.data?.safetyInspectionEnabled !== false;
         setHasSafetyInspectionEnabled(safetyEnabledFromTicket);
         setTireData(defaultTireData);
         setTireMmErrors({});
@@ -216,8 +218,9 @@ export const ServiceTicket = ({
             }
 
             const status = inspection.inspectionStatus || (safetyEnabledFromTicket ? 'PENDING' : 'SKIPPED');
+            loadedInspectionStatus = status;
             setInspectionStatus(status);
-            const canEdit = status === 'PENDING' || status === 'SKIPPED' || !status;
+            const canEdit = INSPECTION_EDITABLE_STATUSES.has(String(status || '').trim().toUpperCase());
             setIsEditable(canEdit && !isLockedByTicketStatus);
 
             if (inspection.tires && inspection.tires.length > 0) {
@@ -308,9 +311,35 @@ export const ServiceTicket = ({
             }
           }
         } catch {
-          console.log('Không tìm thấy phiếu kiểm tra, sử dụng mẫu mặc định');
+          console.log('Không tÃ¬m tháº¥y phiếu kiểm tra, sử dụng mẫu mặc định');
           setIsEditable(!isLockedByTicketStatus);
-          setInspectionStatus(safetyEnabledFromTicket ? 'PENDING' : 'SKIPPED');
+          setInspectionStatus(loadedInspectionStatus);
+        }
+
+        if (!isAdvisorMode && safetyEnabledFromTicket && !isLockedByTicketStatus) {
+          const latestInspectionStatus = String(loadedInspectionStatus || '').trim().toUpperCase();
+          const shouldMoveToInspecting = latestInspectionStatus !== 'COMPLETED'
+            && normalizedTicketStatus !== 'INSPECTING'
+            && normalizedTicketStatus !== 'INSPECTED';
+
+          if (shouldMoveToInspecting) {
+            let synced = false;
+            try {
+              await startInspection(resolvedTicketCode, token);
+              synced = true;
+            } catch (startError) {
+              console.warn('KhÃƒÂ´ng start-inspection Ã„â€˜Ã†Â°Ã¡Â»Â£c khi mÃ¡Â»Å¸ phiÃ¡ÂºÂ¿u:', startError);
+            }
+
+            if (!synced) {
+              await syncServiceTicketStatus('INSPECTING', token, 'ChÃ†Â°a Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ Ã„â€˜Ã†Â°Ã¡Â»Â£c trÃ¡ÂºÂ¡ng thÃƒÂ¡i phiÃ¡ÂºÂ¿u dÃ¡Â»â€¹ch vÃ¡Â»Â¥ sang Ã„Âang kiÃ¡Â»Æ’m tra');
+            } else {
+              setServiceTicketStatus('INSPECTING');
+            }
+
+            setInspectionStatus('INSPECTING');
+            setIsEditable(true);
+          }
         }
       } catch (error) {
         console.error('Lỗi khi tải dữ liệu phiếu:', error);
@@ -385,7 +414,7 @@ export const ServiceTicket = ({
     } else {
       setAdvisorNoteErrors(prev => { const n = { ...prev }; delete n[itemId]; return n; });
     }
-    // Vẫn cập nhật giá trị để user thấy lỗi
+    // Váº«n cáº­p nháº­t giÃ¡ trá»‹ để user tháº¥y lỗi
     setSafetyChecks(prev => prev.map(item =>
       item.id === itemId ? { ...item, advisorNote: raw, note: raw } : item
     ));
@@ -404,33 +433,21 @@ export const ServiceTicket = ({
     return serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
   };
 
-  const handleEnableEdit = async () => {
-    if (!guardServiceTicketEditable()) return;
+  const syncServiceTicketStatus = async (nextStatus, token, fallbackMessage) => {
+    const finalServiceTicketId = resolveServiceTicketId();
+    if (!finalServiceTicketId) return false;
     try {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-      if (!token) {
-        toast.error('Vui lòng đăng nhập');
-        return;
-      }
-
-      if (!isAdvisorMode && !hasSafetyInspectionEnabled) {
-        toast.error('Phiếu không kiểm tra an toàn chỉ có cố vấn viên mới được mở lại để chỉnh sửa.');
-        return;
-      }
-
-      if (inspectionStatus === 'COMPLETED') {
-        await reopenSafetyInspection(resolvedTicketCode, token);
-        setInspectionStatus('PENDING');
-        setRefreshKey((prev) => prev + 1);
-      }
-
-      setIsEditable(true);
-      toast.info('Đã bật chế độ chỉnh sửa phiếu.');
+      await manageServiceTicketStatus(finalServiceTicketId, nextStatus, token);
+      setServiceTicketStatus(nextStatus);
+      return true;
     } catch (error) {
-      console.error('Lỗi khi mở lại phiếu:', error);
-      toast.error('Không thể mở lại phiếu để chỉnh sửa: ' + (error.message || 'Lỗi không xác định'));
+      if (fallbackMessage) {
+        toast.warn(`${fallbackMessage}: ${error?.message || 'Lỗi không xác định'}`);
+      }
+      return false;
     }
   };
+
 
   const handleAddCategory = async () => {
     if (!guardServiceTicketEditable()) return;
@@ -479,9 +496,8 @@ export const ServiceTicket = ({
       }
 
       if (inspectionStatus === 'COMPLETED') {
-        await reopenSafetyInspection(resolvedTicketCode, token);
-        setInspectionStatus('PENDING');
-        setRefreshKey((prev) => prev + 1);
+        toast.info('Phiếu kiểm tra an toàn đã hoàn thành, không thể chỉnh sửa lại.');
+        return;
       }
 
       const maxOrder = safetyChecks.length > 0
@@ -534,12 +550,12 @@ export const ServiceTicket = ({
     if (!item?.isCustom) return;
     if (!guardServiceTicketEditable()) return;
 
-    const ok = window.confirm('Bạn có chắc muốn xóa hạng mục thêm mới này?');
+    const ok = window.confirm('Bạn có cháº¯c muốn xÃ³a hạng mục thêm mới này?');
     if (!ok) return;
 
     if (!inspectionId || !item.customCategoryId) {
       setSafetyChecks((prev) => prev.filter((check) => check.id !== item.id));
-      toast.success('Đã xóa hạng mục thêm mới.');
+      toast.success('Đã xÃ³a hạng mục thêm mới.');
       return;
     }
 
@@ -547,10 +563,10 @@ export const ServiceTicket = ({
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       await deleteCustomCategory(inspectionId, item.customCategoryId, token);
       setSafetyChecks((prev) => prev.filter((check) => check.id !== item.id));
-      toast.success('Đã xóa hạng mục thêm mới.');
+      toast.success('Đã xÃ³a hạng mục thêm mới.');
     } catch (error) {
-      console.error('Lỗi khi xóa hạng mục tùy chỉnh:', error);
-      toast.error(error.message || 'Không thể xóa hạng mục thêm mới');
+      console.error('Lỗi khi xÃ³a hạng mục tÃ¹y chỉnh:', error);
+      toast.error(error.message || 'Không thể xÃ³a hạng mục thêm mới');
     }
   };
 
@@ -587,7 +603,7 @@ export const ServiceTicket = ({
     ).length;
 
     if (uncheckedCount > 0) {
-      return `Còn ${uncheckedCount} hạng mục chưa được tích trạng thái. Vui lòng tích đầy đủ trước khi hoàn thành.`;
+      return `CÃ²n ${uncheckedCount} hạng mục chưa được tích trạng thái. Vui lòng tích đầy Ä‘ủ trước khi hoàn thành.`;
     }
 
     return null;
@@ -720,15 +736,6 @@ export const ServiceTicket = ({
         }));
 
       await updateAdvisorNotes(currentInspectionId, advisorItems, token);
-
-      // Lưu mềm cho advisor: giữ phiếu ở trạng thái có thể tiếp tục chỉnh sửa
-      try {
-        await reopenSafetyInspection(resolvedTicketCode, token);
-        setInspectionStatus('PENDING');
-      } catch (reopenError) {
-        console.warn('Không reopen được phiếu sau khi lưu mềm:', reopenError);
-      }
-
       setInspectionId(currentInspectionId);
       setIsEditable(true);
       setRefreshKey((prev) => prev + 1);
@@ -872,7 +879,7 @@ export const ServiceTicket = ({
       }
 
       // Khi cố vấn viên hoàn thành phiếu an toàn: đồng bộ trạng thái công việc KTV ngay,
-      // không chờ kỹ thuật viên bấm "Bắt đầu làm việc".
+      // không chá» kỹ thuật viên báº¥m "Bắt đầu làm việc".
       if (isAdvisorMode) {
         const finalServiceTicketId = resolveServiceTicketId();
         let syncedTechnicianStatus = false;
@@ -901,6 +908,10 @@ export const ServiceTicket = ({
         }
       }
 
+      if (hasSafetyInspectionEnabled) {
+        await syncServiceTicketStatus('INSPECTED', token, 'Phiếu đã hoàn thành nhưng chưa đồng bộ được trạng thái phiếu dịch vụ sang Hoàn tất kiểm tra');
+      }
+
       if (currentInspectionId) {
         setInspectionId(currentInspectionId);
       }
@@ -914,11 +925,7 @@ export const ServiceTicket = ({
     }
   };
 
-  const shouldShowEnableEditButton =
-    isAdvisorMode &&
-    inspectionStatus === 'COMPLETED' &&
-    !isEditable &&
-    !isServiceTicketLocked;
+  const shouldShowEnableEditButton = false;
 
   const isTechnicianLockedAfterSaveNoSafety =
     !isAdvisorMode &&
@@ -994,7 +1001,7 @@ export const ServiceTicket = ({
                   }
                 }}
                 className={styles.tireSizeInput}
-                placeholder="Nhập size lốp..."
+                placeholder="Nháº­p size lốp..."
                 disabled={!canEditTechnicalFields}
               />
               {recommendedTireSizeError && (
@@ -1005,7 +1012,7 @@ export const ServiceTicket = ({
         </div>
 
         <div style={{ position: 'relative', height: '520px', marginTop: '20px' }}>
-          {/* BÊN TRÁI - FRONT LEFT (trên-trái) + REAR LEFT (dưới-trái) */}
+          {/* BÊN TRÁI - FRONT LEFT (trÃªn-trÃ¡i) + REAR LEFT (dÆ°á»›i-trÃ¡i) */}
           <div style={{ position: 'absolute', left: '10px', top: '50px', display: 'flex', flexDirection: 'column', gap: '100px' }}>
             {/* FRONT LEFT */}
             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
@@ -1072,12 +1079,12 @@ export const ServiceTicket = ({
             </div>
           </div>
 
-          {/* THÂN XE - Giữa */}
+          {/* THÃ‚N XE - Giữa */}
           <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
             <img src={carImage} alt="Car" style={{ width: '260px', height: 'auto', objectFit: 'contain' }} />
           </div>
 
-          {/* BÁNH XE - 4 vị trí hiển thị */}
+          {/* BÁNH XE - 4 vị trí hiá»ƒn thá»‹ */}
           <div className={styles.wheel} style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-120px)' }}>
             <div className={styles.wheelRim}></div>
           </div>
@@ -1175,7 +1182,7 @@ export const ServiceTicket = ({
         </div>
       </div>
 
-      {/* Bảng kiểm tra an toàn - 13 hạng mục mặc định */}
+      {/* Báº£ng kiểm tra an toàn - 13 hạng mục mặc định */}
       <div className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h2 className={styles.sectionTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</h2>
@@ -1247,7 +1254,7 @@ export const ServiceTicket = ({
                           className={styles.noteInput}
                           value={item.advisorNote || ''}
                           onChange={(e) => handleAdvisorNoteChange(item.id, e.target.value)}
-                          placeholder="Nhập ghi chú cố vấn..."
+                          placeholder="Nháº­p ghi chú cá»‘ váº¥n..."
                           disabled={!canEditAdvisorNotes}
                         />
                         {advisorNoteErrors[item.id] && (
@@ -1318,9 +1325,7 @@ export const ServiceTicket = ({
             )}
           </div>
           <div className={styles.actionRight}>
-            {shouldShowEnableEditButton ? (
-              <button className={styles.completeButton} onClick={handleEnableEdit}>Chỉnh sửa</button>
-            ) : isAdvisorMode ? (
+            {isAdvisorMode ? (
               <button
                 className={styles.completeButton}
                 onClick={handleSave}

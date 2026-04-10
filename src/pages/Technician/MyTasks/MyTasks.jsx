@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTechnicianTickets, fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
 import { fetchTicketAssignments } from '../../../services/serviceTicketService';
+import { getServiceTicketStatusTextVi, normalizeServiceTicketStatusCode } from '../../../components/statusUtils.js';
 import { tryGetJwtPayload } from '../../../services/tokenUtils';
 import styles from './MyTasks.module.css';
 
@@ -61,21 +62,8 @@ const formatCalendarDisplay = (dateIso) => {
   return `${day}/${month}/${year}`;
 };
 
-const SERVICE_TICKET_STATUS_LABELS = {
-  DRAFT: 'Nháp',
-  INSPECTION: 'Đang kiểm tra',
-  PENDING: 'Chờ duyệt',
-  IN_PROGRESS: 'Đang sửa chữa',
-  COMPLETED: 'Hoàn tất',
-  PAID: 'Đã thanh toán',
-  CANCELLED: 'Đã hủy',
-};
-
 const normalizeTicketStatus = (raw) => {
-  const s = String(raw || '').trim().toUpperCase();
-  if (!s || s === 'CREATED') return 'DRAFT';
-  if (s === 'INSPECTING' || s === 'DIAGNOSIS') return 'INSPECTION';
-  return s;
+  return normalizeServiceTicketStatusCode(raw) || 'CREATED';
 };
 
 const INSPECTION_STATUS_LABELS = {
@@ -84,10 +72,10 @@ const INSPECTION_STATUS_LABELS = {
   SKIPPED: 'Đã bỏ qua',
 };
 
-const normalizeInspectionStatus = (value) => {
+const normalizeINSPECTINGStatus = (value) => {
   const raw = String(value || '').trim().toUpperCase();
   if (!raw) return null;
-  if (raw === 'WAITING' || raw === 'IN_PROGRESS' || raw === 'INSPECTION') return 'PENDING';
+  if (raw === 'WAITING' || raw === 'REPAIRING' || raw === 'INSPECTING') return 'PENDING';
   if (raw === 'DONE' || raw === 'FINISHED' || raw === 'PASSED') return 'COMPLETED';
   if (raw === 'SKIP' || raw === 'DISABLED') return 'SKIPPED';
   if (raw === 'PENDING' || raw === 'COMPLETED' || raw === 'SKIPPED') return raw;
@@ -325,16 +313,16 @@ const extractAssignmentListFromResponse = (response) => {
   return [];
 };
 
-export default function MyTasks() {
+function MyTasks() {
   const navigate = useNavigate();
   const initialDate = useMemo(() => getTodayLocalISO(), []);
 
-  // ── List state ────────────────────────────────────────
+  // â”€â”€ List state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // ── Filter + pagination state ────────────────────────────
+  // â”€â”€ Filter + pagination state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -343,13 +331,13 @@ export default function MyTasks() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
 
-  // ── Modal state ────────────────────────────────────────
+  // â”€â”€ Modal state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [showModal, setShowModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
   const dayPickerRef = useRef(null);
 
-  // ── Debounce search ────────────────────────────────────
+  // â”€â”€ Debounce search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
     return () => clearTimeout(timer);
@@ -362,7 +350,7 @@ export default function MyTasks() {
     search: debouncedSearch || undefined,
   }), [dateFrom, dateTo, statusFilter, debouncedSearch]);
 
-  // ── Load ticket list ───────────────────────────────────
+  // â”€â”€ Load ticket list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     const token = getToken();
     if (!token) {
@@ -416,19 +404,19 @@ export default function MyTasks() {
 
         const transformed = visibleTickets.map((t) => {
           const statusRaw = normalizeTicketStatus(t.ticketStatus || t.status);
-          let inspectionStatus = null;
+          let INSPECTINGStatus = null;
           if (t.ticketCode) {
             try {
-              const norm = normalizeInspectionStatus(
-                t.inspectionStatus || t.safetyInspectionStatus,
+              const norm = normalizeINSPECTINGStatus(
+                t.INSPECTINGStatus || t.safetyINSPECTINGStatus,
               );
-              if (norm) inspectionStatus = norm;
+              if (norm) INSPECTINGStatus = norm;
             } catch { /* ignore */ }
           }
           return {
             ...t,
             _status: statusRaw,
-            _inspectionStatus: inspectionStatus,
+            _INSPECTINGStatus: INSPECTINGStatus,
           };
         });
 
@@ -449,7 +437,7 @@ export default function MyTasks() {
     return () => { ignore = true; };
   }, [filters]);
 
-  // ── Helpers ──────────────────────────────────────────
+  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const getTicketCode = (ticket) =>
     ticket?.ticketCode || ticket?.code || '';
 
@@ -462,24 +450,24 @@ export default function MyTasks() {
 
   const getServiceTicketStatusDisplay = (ticket) => {
     const s = ticket._status || normalizeTicketStatus(ticket?.ticketStatus || ticket?.status);
-    return SERVICE_TICKET_STATUS_LABELS[s] || s || '-';
+    return getServiceTicketStatusTextVi(s, s || '-');
   };
 
   const getServiceTicketStatusClass = (ticket) => {
     const s = ticket._status || normalizeTicketStatus(ticket?.ticketStatus || ticket?.status);
-    if (s === 'DRAFT') return styles.statusPending;
-    if (s === 'INSPECTION') return styles.statusInspection;
+    if (s === 'CREATED') return styles.statusPending;
+    if (s === 'INSPECTING') return styles.statusInspection;
     if (s === 'PENDING') return styles.statusPending;
-    if (s === 'IN_PROGRESS') return styles.statusInspection;
+    if (s === 'REPAIRING') return styles.statusInspection;
     if (s === 'COMPLETED' || s === 'PAID') return styles.statusActive;
     if (s === 'CANCELLED') return styles.statusInactive;
     return styles.statusPending;
   };
 
-  const getInspectionStatusDisplay = (status) =>
+  const getINSPECTINGStatusDisplay = (status) =>
     INSPECTION_STATUS_LABELS[status?.toUpperCase()] || status || '-';
 
-  const getInspectionStatusClass = (status) => {
+  const getINSPECTINGStatusClass = (status) => {
     const s = status?.toUpperCase();
     if (s === 'PENDING') return styles.statusInspection;
     if (s === 'COMPLETED') return styles.statusActive;
@@ -534,17 +522,17 @@ export default function MyTasks() {
     return filteredTickets.slice(start, start + size);
   }, [filteredTickets, safePage, size]);
 
-  // ── Stats ─────────────────────────────────────────────
+  // â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const stats = useMemo(() => ({
     total: tickets.length,
     inProgress: tickets.filter((t) =>
-      t._status === 'INSPECTION' || t._status === 'IN_PROGRESS',
+      t._status === 'INSPECTING' || t._status === 'REPAIRING',
     ).length,
     completed: tickets.filter((t) => t._status === 'COMPLETED' || t._status === 'PAID').length,
     cancelled: tickets.filter((t) => t._status === 'CANCELLED').length,
   }), [tickets]);
 
-  // ── Pagination helpers ─────────────────────────────────
+  // â”€â”€ Pagination helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const pageButtons = useMemo(() => {
     const max = 5;
     const last = computedTotalPages - 1;
@@ -586,7 +574,7 @@ export default function MyTasks() {
     setDebouncedSearch('');
   };
 
-  // ── Start work ────────────────────────────────────────
+  // â”€â”€ Start work â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleStartWork = async (ticket) => {
     const token = getToken();
     const code = String(getTicketCode(ticket) || '').trim();
@@ -598,7 +586,7 @@ export default function MyTasks() {
       await startInspection(code, token);
       setTickets((prev) =>
         prev.map((t) =>
-          getTicketCode(t) === code ? { ...t, _status: 'INSPECTION' } : t,
+          getTicketCode(t) === code ? { ...t, _status: 'INSPECTING' } : t,
         ),
       );
       navigate(`/technician/safetyinspection-ticket/${encodeURIComponent(code)}`);
@@ -607,7 +595,34 @@ export default function MyTasks() {
     }
   };
 
-  // ── View detail ───────────────────────────────────────
+  const handleOpenSafetyInspection = async (ticket) => {
+    const token = getToken();
+    const code = String(getTicketCode(ticket) || '').trim();
+    if (!token || !code) {
+      toast.error('Thiếu thông tin phiếu để mở phiếu kiểm tra an toàn.');
+      return;
+    }
+
+    const status = normalizeTicketStatus(ticket?._status || ticket?.ticketStatus || ticket?.status);
+    const canTrySync = !['INSPECTING', 'INSPECTED', 'REPAIRING', 'COMPLETED', 'PAID', 'CANCELLED'].includes(status);
+
+    if (canTrySync) {
+      try {
+        await startInspection(code, token);
+        setTickets((prev) =>
+          prev.map((t) =>
+            getTicketCode(t) === code ? { ...t, _status: 'INSPECTING' } : t,
+          ),
+        );
+      } catch {
+        // Do not block navigation if the backend rejects a duplicate/unsupported transition.
+      }
+    }
+
+    navigate(`/technician/safetyinspection-ticket/${encodeURIComponent(code)}`);
+  };
+
+  // â”€â”€ View detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleViewTask = async (ticket) => {
     const token = getToken();
     const code = getTicketCode(ticket);
@@ -759,10 +774,12 @@ export default function MyTasks() {
               onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
             >
             <option value="">Tất cả</option>
-            <option value="DRAFT">Nháp</option>
-            <option value="INSPECTION">Đang kiểm tra</option>
-            <option value="PENDING">Chờ duyệt</option>
-            <option value="IN_PROGRESS">Đang sửa chữa</option>
+            <option value="CREATED">Tạo mới</option>
+            <option value="INSPECTING">Đang kiểm tra</option>
+            <option value="INSPECTED">Đã kiểm tra</option>
+            <option value="PENDING">Chờ xử lý</option>
+            <option value="ESTIMATED">Đã báo giá</option>
+            <option value="REPAIRING">Đang sửa chữa</option>
             <option value="COMPLETED">Hoàn tất</option>
             <option value="PAID">Đã thanh toán</option>
             <option value="CANCELLED">Đã hủy</option>
@@ -815,8 +832,8 @@ export default function MyTasks() {
                 const code = getTicketCode(ticket);
                 const ticketId = getTicketId(ticket);
                 const hasSafetyInspection = ticket.safetyInspectionEnabled !== false;
-                const canStart = ticket._status === 'DRAFT' && hasSafetyInspection;
-                const canWork = ticket._status !== 'DRAFT' || !hasSafetyInspection;
+                const canStart = ticket._status === 'CREATED' && hasSafetyInspection;
+                const canWork = ticket._status !== 'CREATED' || !hasSafetyInspection;
 
                 return (
                   <tr key={ticketId || code || idx}>
@@ -856,7 +873,7 @@ export default function MyTasks() {
                         {canWork && hasSafetyInspection && (
                           <button
                             className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
-                            onClick={() => navigate(`/technician/safetyinspection-ticket/${encodeURIComponent(code)}`)}
+                            onClick={() => handleOpenSafetyInspection(ticket)}
                           >
                             Phiếu KT an toàn
                           </button>
@@ -946,11 +963,11 @@ export default function MyTasks() {
                         {getServiceTicketStatusDisplay(selectedTask)}
                       </span>
                     </div>
-                    {selectedTask._inspectionStatus && (
+                    {selectedTask._INSPECTINGStatus && (
                       <div className={styles.infoItem}>
                         <span className={styles.infoLabel}>Kiểm tra AT</span>
-                        <span className={`${styles.statusBadge} ${getInspectionStatusClass(selectedTask._inspectionStatus)}`}>
-                          {getInspectionStatusDisplay(selectedTask._inspectionStatus)}
+                        <span className={`${styles.statusBadge} ${getINSPECTINGStatusClass(selectedTask._INSPECTINGStatus)}`}>
+                          {getINSPECTINGStatusDisplay(selectedTask._INSPECTINGStatus)}
                         </span>
                       </div>
                     )}
@@ -1033,7 +1050,7 @@ export default function MyTasks() {
               <button className={styles.modalCloseBtn} onClick={() => setShowModal(false)}>
                 Đóng
               </button>
-              {selectedTask._status === 'DRAFT' && selectedTask.safetyInspectionEnabled !== false && (
+              {selectedTask._status === 'CREATED' && selectedTask.safetyInspectionEnabled !== false && (
                 <button
                   className={styles.modalActionBtn}
                   onClick={() => {
@@ -1044,12 +1061,12 @@ export default function MyTasks() {
                   Bắt đầu làm việc
                 </button>
               )}
-              {selectedTask._status !== 'DRAFT' && selectedTask.safetyInspectionEnabled !== false && (
+              {selectedTask._status !== 'CREATED' && selectedTask.safetyInspectionEnabled !== false && (
                 <button
                   className={styles.modalActionBtn}
                   onClick={() => {
                     setShowModal(false);
-                    navigate(`/technician/safetyinspection-ticket/${encodeURIComponent(getTicketCode(selectedTask))}`);
+                    handleOpenSafetyInspection(selectedTask);
                   }}
                 >
                   Phiếu kiểm tra AT
@@ -1062,3 +1079,5 @@ export default function MyTasks() {
     </div>
   );
 }
+
+export default MyTasks;

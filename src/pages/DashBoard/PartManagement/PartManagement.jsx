@@ -5,7 +5,12 @@ import ItemDetailModal from './ItemDetailModal.jsx';
 import BlogFormModal from './BlogFormModal.jsx';
 import { searchWarehouseCatalogItems } from '../../../services/warehouseService.js';
 import { fetchHomeProducts, fetchHomeServices } from '../../../services/homeService.js';
-import { formatCurrencyVnd, formatItemTypeLabel } from './itemFormatters.js';
+import {
+  formatCurrencyVnd,
+  formatItemTypeLabel,
+  getItemColorText,
+  getItemOriginText,
+} from './itemFormatters.js';
 import styles from './ServiceManagement.module.css';
 
 const buildRowKeyWithIndex = (baseKey, idx) => `${String(baseKey ?? '')}-${idx}`;
@@ -149,6 +154,8 @@ export default function PartManagement() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [originFilter, setOriginFilter] = useState('');
+  const [colorFilter, setColorFilter] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [blogModalItem, setBlogModalItem] = useState(null);
 
@@ -163,7 +170,7 @@ export default function PartManagement() {
 
   useEffect(() => {
     setPage(0);
-  }, [statusFilter]);
+  }, [statusFilter, originFilter, colorFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,7 +179,12 @@ export default function PartManagement() {
         setIsLoading(true);
         setError('');
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-        const params = { page, size, itemType: 'PART' };
+        const hasClientOnlyFilters = Boolean(originFilter || colorFilter);
+        const params = {
+          page: hasClientOnlyFilters ? 0 : page,
+          size: hasClientOnlyFilters ? 500 : size,
+          itemType: 'PART',
+        };
         if (debouncedSearch) params.search = debouncedSearch;
         if (statusFilter) params.isActive = statusFilter === 'true' ? 1 : 0;
 
@@ -225,10 +237,41 @@ export default function PartManagement() {
     return () => {
       cancelled = true;
     };
-  }, [page, size, debouncedSearch, dataVersion, statusFilter]);
+  }, [page, size, debouncedSearch, dataVersion, statusFilter, originFilter, colorFilter]);
+  const originOptions = useMemo(() => {
+    const set = new Set();
+    items.forEach((item) => {
+      const text = getItemOriginText(item);
+      if (text && text !== '-') set.add(text);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [items]);
 
-  const totalElements = Number(totalElementsServer ?? (Array.isArray(items) ? items.length : 0));
-  const totalPages = Math.max(1, Number(totalPagesServer ?? Math.max(1, Math.ceil(totalElements / Math.max(1, size)))));
+  const colorOptions = useMemo(() => {
+    const set = new Set();
+    items.forEach((item) => {
+      const text = getItemColorText(item);
+      if (text && text !== '-') set.add(text);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    const list = Array.isArray(items) ? items : [];
+    return list.filter((item) => {
+      const matchesOrigin = !originFilter || getItemOriginText(item) === originFilter;
+      const matchesColor = !colorFilter || getItemColorText(item) === colorFilter;
+      return matchesOrigin && matchesColor;
+    });
+  }, [colorFilter, items, originFilter]);
+
+  const hasClientOnlyFilters = Boolean(originFilter || colorFilter);
+  const totalElements = hasClientOnlyFilters
+    ? filteredItems.length
+    : Number(totalElementsServer ?? (Array.isArray(items) ? items.length : 0));
+  const totalPages = hasClientOnlyFilters
+    ? Math.max(1, Math.ceil(totalElements / Math.max(1, size)))
+    : Math.max(1, Number(totalPagesServer ?? Math.max(1, Math.ceil(totalElements / Math.max(1, size)))));
   const safePage = Math.min(Math.max(0, page), totalPages - 1);
 
   const pageButtons = useMemo(() => {
@@ -240,13 +283,19 @@ export default function PartManagement() {
     return result;
   }, [safePage, totalPages]);
 
-  const paged = useMemo(() => (Array.isArray(items) ? items : []), [items]);
+  const paged = useMemo(() => {
+    if (!hasClientOnlyFilters) return Array.isArray(items) ? items : [];
+    const start = safePage * size;
+    return filteredItems.slice(start, start + size);
+  }, [filteredItems, hasClientOnlyFilters, items, safePage, size]);
 
   const handleResetFilters = () => {
     setPage(0);
     setSize(10);
     setSearch('');
     setStatusFilter('');
+    setOriginFilter('');
+    setColorFilter('');
   };
 
   const handleBlogSaved = (savedData) => {
@@ -303,7 +352,8 @@ export default function PartManagement() {
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
-              placeholder="Tim kiem theo ten, SKU, hang, dong san pham..."
+           placeholder="Tìm kiếm theo tên, SKU, hãng, dòng sản phẩm..."
+
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -319,9 +369,39 @@ export default function PartManagement() {
               setPage(0);
             }}
           >
-            <option value="">Tat ca trang thai</option>
-            <option value="true">Hoat dong</option>
-            <option value="false">Khong hoat dong</option>
+            <option value="">Tất cả trạng thái</option>
+            <option value="true">Hoạt động</option>
+            <option value="false">Không hoạt động</option>
+          </select>
+          <select
+            className={styles['status-filter']}
+            value={originFilter}
+            onChange={(e) => {
+              setOriginFilter(e.target.value);
+              setPage(0);
+            }}
+          >
+               <option value="">Tất cả xuất xứ</option>
+            {originOptions.map((origin) => (
+              <option key={origin} value={origin}>
+                {origin}
+              </option>
+            ))}
+          </select>
+          <select
+            className={styles['status-filter']}
+            value={colorFilter}
+            onChange={(e) => {
+              setColorFilter(e.target.value);
+              setPage(0);
+            }}
+          >
+           <option value="">Tất cả màu</option>
+            {colorOptions.map((color) => (
+              <option key={color} value={color}>
+                {color}
+              </option>
+            ))}
           </select>
           <button className={styles['ghost-button']} onClick={handleResetFilters}>
             Xoa bo loc
@@ -336,27 +416,28 @@ export default function PartManagement() {
           <table className={styles['service-table']}>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>TEN</th>
+             <th>ID</th>
+                <th>TÊN</th>
                 <th>SKU</th>
-                <th>HANG</th>
-                <th>DONG SP</th>
-                <th>LOAI</th>
-                <th>GIA</th>
-                <th>DON VI</th>
-                <th>TRANG THAI</th>
+                <th>HÃNG</th>
+                <th>DÒNG SP</th>
+                <th>LOẠI</th>
+                <th>GIÁ</th>
+                <th>ĐƠN VỊ</th>
+                <th>XUẤT XỨ</th>
+                <th>MÀU</th>
                 <th>TẠO BÀI VIẾT</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan="10" className={styles['empty-row']}>Dang tai du lieu...</td>
+                  <td colSpan="11" className={styles['empty-row']}>Dang tai du lieu...</td>
                 </tr>
               )}
               {!isLoading && totalElements === 0 && (
                 <tr>
-                  <td colSpan="10" className={styles['empty-row']}>Khong co phu tung nao.</td>
+                  <td colSpan="11" className={styles['empty-row']}>Khong co phu tung nao.</td>
                 </tr>
               )}
               {!isLoading &&
@@ -373,15 +454,8 @@ export default function PartManagement() {
                       <td>{formatItemTypeLabel(item.itemType)}</td>
                       <td>{formatPrice(item)}</td>
                       <td>{item.unit || '-'}</td>
-                      <td>
-                        <span className={`${styles['status-badge']} ${parseIsActive(item) ? styles['status-active'] : styles['status-inactive']}`}>
-                          {parseIsActive(item) === true
-                            ? 'Hoat dong'
-                            : parseIsActive(item) === false
-                              ? 'Khong hoat dong'
-                              : '-'}
-                        </span>
-                      </td>
+                      <td>{getItemOriginText(item)}</td>
+                      <td>{getItemColorText(item)}</td>
                       <td>
                         <div className={styles['action-buttons']}>
                           <button

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import styles from './ServiceTicketManagement.module.css';
@@ -13,7 +13,7 @@ import {
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getServiceTicketStatusTextVi, getServiceTicketStatusTone, getStatusTextVi } from '../../../components/statusUtils.js';
 
-export default function ServiceTicketManagement() {
+function ServiceTicketManagement() {
 	useScrollToTop();
 
 	const navigate = useNavigate();
@@ -186,7 +186,7 @@ export default function ServiceTicketManagement() {
 		const startDate = String(date || '').trim();
 		const end = String(endDate || date || '').trim();
 		if (!startDate || !end) {
-			setError('Vui lòng chọn đủ Từ ngày và Đến ngày để export.');
+			setError('Vui lòng chọn Ä‘ủ Từ ngày và Đến ngày để export.');
 			return;
 		}
 
@@ -216,9 +216,9 @@ export default function ServiceTicketManagement() {
 
 	const currentAdvisorName =
 		currentAdvisor?.fullName || currentAdvisor?.staffName || modal.ticket?.advisorName || modal.ticket?.advisor?.fullName || '-';
-	const isTicketDraftForReception = String(modal.ticket?.ticketStatus || '').toUpperCase() === 'DRAFT';
+	const isTicketCREATEDForReception = String(modal.ticket?.ticketStatus || '').toUpperCase() === 'CREATED';
 	const isAdvisorPendingForReception = String(currentAdvisor?.status || '').toUpperCase() === 'PENDING';
-	const canReceptionistChangeAdvisor = isTicketDraftForReception && isAdvisorPendingForReception;
+	const canReceptionistChangeAdvisor = isTicketCREATEDForReception && isAdvisorPendingForReception;
 
 	const handleChangeAdvisorFromReception = async (newAdvisorId) => {
 		const token = getToken();
@@ -403,6 +403,8 @@ export default function ServiceTicketManagement() {
 	);
 }
 
+export default ServiceTicketManagement;
+
 function TicketPanel({
 	title, icon, tone, data, actionLabel,
 	onViewDetail, onOpenAssign,
@@ -447,10 +449,10 @@ function TicketPanel({
 					<input type="date" value={endDate} onChange={e => onChangeEndDate?.(e.target.value)} />
 					<select value={status} onChange={e => onChangeStatus?.(e.target.value)}>
 						<option value="">Tất cả</option>
-						<option value="DRAFT">Nháp</option>
-						<option value="INSPECTION">Đang kiểm tra</option>
+						<option value="CREATED">Tạo mới</option>
+						<option value="INSPECTING">Đang kiểm tra</option>
 						<option value="PENDING">Chờ duyệt</option>
-						<option value="IN_PROGRESS">Đang sửa chữa</option>
+						<option value="REPAIRING">Đang sửa chữa</option>
 						<option value="COMPLETED">Hoàn tất</option>
 						<option value="PAID">Đã thanh toán</option>
 						<option value="CANCELLED">Đã hủy</option>
@@ -478,12 +480,12 @@ function TicketPanel({
 					<thead>
 						<tr>
 							<th>STT</th>
-							<th>MÃ PHIẾU</th>
+							<th>MÒ PHIẾU</th>
 							<th>TÊN KHÁCH HÀNG</th>
 							<th>SĐT</th>
 							<th>BIỂN SỐ</th>
 							<th>TRẠNG THÁI</th>
-							<th>NGÀY HẸN</th>
+							<th>NGìY HẸN</th>
 							<th>THAO TÁC</th>
 						</tr>
 					</thead>
@@ -595,3 +597,5 @@ function SearchIcon() {
 		</svg>
 	);
 }
+
+
