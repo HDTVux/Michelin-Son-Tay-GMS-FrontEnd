@@ -226,7 +226,7 @@ export default function PartManagement() {
         );
       } catch (err) {
         if (cancelled) return;
-        setError(err?.message || 'Khong the tai danh sach phu tung.');
+        setError(err?.message || 'Không thể tải danh sách phụ tùng.');
         setItems([]);
         setTotalElementsServer(0);
         setTotalPagesServer(1);
@@ -322,7 +322,7 @@ export default function PartManagement() {
   const formatPrice = (item) => {
     const show = item?.showPrice;
     const price = item?.price;
-    return show ? `${formatCurrencyVnd(price)} ₫` : 'Lien he';
+    return show ? `${formatCurrencyVnd(price)} ₫` : 'Liên hệ';
   };
 
   return (
@@ -334,13 +334,13 @@ export default function PartManagement() {
               <path d="M14.7 6.1a5.3 5.3 0 0 0-6.9 6.9l-4.2 4.2a1.6 1.6 0 0 0 2.3 2.3l4.2-4.2a5.3 5.3 0 0 0 6.9-6.9l-2.4 2.4-2.9-.7-.7-2.9 2.4-2.4Z" />
             </svg>
           </span>
-          <h1>Danh sach phu tung</h1>
+          <h1>Danh sách phụ tùng</h1>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <button className={styles['primary-button']} onClick={() => navigate('/part-management/create-product')}>
-            Them phu tung
+            Thêm phụ tùng
           </button>
-          <span className={styles['total-count']}>{totalElements} phu tung</span>
+          <span className={styles['total-count']}>{totalElements} phụ tùng</span>
         </div>
       </div>
 
@@ -421,7 +421,6 @@ export default function PartManagement() {
                 <th>SKU</th>
                 <th>HÃNG</th>
                 <th>DÒNG SP</th>
-                <th>LOẠI</th>
                 <th>GIÁ</th>
                 <th>ĐƠN VỊ</th>
                 <th>XUẤT XỨ</th>
@@ -451,7 +450,6 @@ export default function PartManagement() {
                       <td>{item.sku || '-'}</td>
                       <td>{item.brand || '-'}</td>
                       <td>{item.productLine || '-'}</td>
-                      <td>{formatItemTypeLabel(item.itemType)}</td>
                       <td>{formatPrice(item)}</td>
                       <td>{item.unit || '-'}</td>
                       <td>{getItemOriginText(item)}</td>

@@ -175,6 +175,28 @@ export default function RouteSessionPersistence() {
   const lastScrollSaveRef = useRef(0);
 
   useEffect(() => {
+    // Some routes (like create forms) should always start from defaults.
+    // Disable persistence entirely for those paths.
+    const disabledPaths = new Set([
+      '/part-management/create-product',
+      '/queue-management',
+    ]);
+
+    if (disabledPaths.has(location.pathname)) {
+      try {
+        const prefix = `${ROUTE_STATE_PREFIX}${location.pathname}`;
+        for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+          const k = sessionStorage.key(i);
+          if (k?.startsWith(prefix)) sessionStorage.removeItem(k);
+        }
+      } catch {
+        // ignore storage failures
+      }
+      return () => {
+        // no-op
+      };
+    }
+
     const routeKey = `${location.pathname}${location.search}${location.hash || ''}`;
     const storageKey = `${ROUTE_STATE_PREFIX}${routeKey}`;
 

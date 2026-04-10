@@ -11,6 +11,13 @@ import {
 import { updateSafetyInspectionRecommend } from '../../../services/safetyInspectionService.js';
 import { fetchAllCatalogItems } from '../../../services/catalogService.js';
 import { createTaxRule, fetchWarehouseCatalogItemDetail } from '../../../services/warehouseService.js';
+import {
+	validateNonNegativeNumber,
+	validatePositiveNumber,
+	validateTaxName,
+	validateTaxRatePercent,
+	validateTextInput,
+} from '../../../components/inputValidation.js';
 const PLACEHOLDER_ROW_COUNT = 15;
 
 export function formatCurrencyVnd(value) {
@@ -76,6 +83,51 @@ function getItemTaxRuleIdFromEstimateItem(it) {
 			it?.service?.taxRuleId ??
 			''
 	);
+}
+
+function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCategory) {
+	const rowNo = rowIndex + 1;
+	const workCategoryId = toIdOrNull(row?.workCategoryId);
+
+	if (!workCategoryId) {
+		const categoryValidated = validateTextInput(row?.newCategoryName, {
+			fieldLabel: 'Hạng mục',
+			required: true,
+			trim: true,
+			maxLength: 255,
+		});
+		if (categoryValidated.error) return `Dòng ${rowNo}: ${categoryValidated.error}`;
+	}
+
+	if (workCategoryId && requireItemForPredefinedCategory && !toIdOrNull(row?.itemId)) {
+		return `Dòng ${rowNo}: Vui lòng chọn sản phẩm/dịch vụ.`;
+	}
+
+	if (!workCategoryId) {
+		const itemNameValidated = validateTextInput(row?.itemName, {
+			fieldLabel: 'Diễn giải',
+			required: true,
+			trim: true,
+			maxLength: 255,
+		});
+		if (itemNameValidated.error) return `Dòng ${rowNo}: ${itemNameValidated.error}`;
+	}
+
+	const qtyValidated = validatePositiveNumber(row?.quantity, {
+		fieldLabel: 'Số lượng',
+		required: true,
+		integer: true,
+	});
+	if (qtyValidated.error) return `Dòng ${rowNo}: ${qtyValidated.error}`;
+
+	const priceValidated = validateNonNegativeNumber(row?.unitPrice, {
+		fieldLabel: 'Đơn giá',
+		required: true,
+		integer: false,
+	});
+	if (priceValidated.error) return `Dòng ${rowNo}: ${priceValidated.error}`;
+
+	return '';
 }
 
 function extractApiPayload(response) {
@@ -675,16 +727,18 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			return;
 		}
 
-		const name = String(taxName || '').trim();
-		if (!name) {
-			setSaveError('Vui lòng nhập tên thuế.');
+		const nameValidated = validateTaxName(taxName, { required: true });
+		if (nameValidated.error) {
+			setSaveError(nameValidated.error);
 			return;
 		}
-		const rateNumber = Number(String(taxRate || '').trim());
-		if (Number.isNaN(rateNumber)) {
-			setSaveError('Vui lòng nhập thuế suất hợp lệ.');
+		const rateValidated = validateTaxRatePercent(taxRate, { required: true });
+		if (rateValidated.error) {
+			setSaveError(rateValidated.error);
 			return;
 		}
+		const name = nameValidated.value;
+		const rateNumber = rateValidated.value;
 
 		try {
 			setIsCreatingTaxRule(true);
@@ -719,6 +773,19 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			setIsCreatingTaxRule(false);
 		}
 	}, [isCreatingTaxRule, taxName, taxRate]);
+
+	const validateDraftOrEditRows = useCallback((rows, requireItemForPredefinedCategory = true) => {
+		const base = Array.isArray(rows) ? rows : [];
+		const active = base.map((r, index) => ({ r, index })).filter(({ r }) => !isDraftRowEmpty(r));
+		if (active.length === 0) return { ok: false, error: 'Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).' };
+
+		for (const { r, index } of active) {
+			const error = getEstimateRowValidationError(r, index, requireItemForPredefinedCategory);
+			if (error) return { ok: false, error };
+		}
+
+		return { ok: true, error: '' };
+	}, []);
 
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
@@ -1280,36 +1347,54 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
             return;
         }
 
-		const normalized = draftRows
+		const validation = validateDraftOrEditRows(draftRows);
+		if (!validation.ok) {
+			setSaveError(validation.error);
+			return;
+		}
+
+		const items = (Array.isArray(draftRows) ? draftRows : [])
 			.filter((r) => !isDraftRowEmpty(r))
 			.map((r) => {
-				const newCategoryName = String(r.newCategoryName ?? '').trim() || null;
-				const itemName = String(r.itemName ?? '').trim() || null;
-				const quantity = toNumberOrZero(r.quantity);
-				const unitPrice = toNumberOrZero(r.unitPrice);
 				const workCategoryId = toIdOrNull(r?.workCategoryId);
 				const itemId = toIdOrNull(r?.itemId);
 				const taxRuleId = toIdOrNull(getEffectiveTaxRuleId(r));
+				const categoryNameValidated = validateTextInput(r?.newCategoryName, {
+					fieldLabel: 'Hạng mục',
+					required: !workCategoryId,
+					trim: true,
+					maxLength: 255,
+				});
+				const itemNameValidated = validateTextInput(r?.itemName, {
+					fieldLabel: 'Diễn giải',
+					required: !workCategoryId,
+					trim: true,
+					maxLength: 255,
+				});
+				const qtyValidated = validatePositiveNumber(r?.quantity, {
+					fieldLabel: 'Số lượng',
+					required: true,
+					integer: true,
+				});
+				const priceValidated = validateNonNegativeNumber(r?.unitPrice, {
+					fieldLabel: 'Đơn giá',
+					required: true,
+					integer: false,
+				});
+
 				const payload = {
 					workCategoryId: workCategoryId ?? null,
-					newCategoryName: workCategoryId ? null : newCategoryName,
+					newCategoryName: workCategoryId ? null : categoryNameValidated.value || null,
 					itemId: itemId ?? null,
-					itemName,
-					quantity,
-					unitPrice,
+					itemName: itemNameValidated.value || null,
+					quantity: qtyValidated.value ?? 0,
+					unitPrice: priceValidated.value ?? 0,
 					isChecked: Boolean(r?.confirmed),
 					isRemoved: false,
 				};
 				if (taxRuleId) payload.taxRuleId = taxRuleId;
 				return payload;
-			})
-			.filter((it) => (it.workCategoryId || it.newCategoryName) && it.quantity > 0);
-
-        const items = normalized;
-        if (items.length === 0) {
-            setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
-            return;
-        }
+			});
 
 		const uncheckedCount = items.filter((it) => !it?.isRemoved && !it?.isChecked).length;
 		if (uncheckedCount > 0) {
@@ -1340,7 +1425,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
         } finally {
             setIsSaving(false);
         }
-	}, [draftRows, isSaving, serviceTicketId]);
+	}, [draftRows, isSaving, serviceTicketId, validateDraftOrEditRows]);
 
 	const saveEdit = useCallback(async () => {
 		if (isSaving) return;
@@ -1365,36 +1450,54 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			return;
 		}
 
-		const normalized = editRows
+		const validation = validateDraftOrEditRows(editRows);
+		if (!validation.ok) {
+			setSaveError(validation.error);
+			return;
+		}
+
+		const items = (Array.isArray(editRows) ? editRows : [])
 			.filter((r) => !isDraftRowEmpty(r))
 			.map((r) => {
-				const newCategoryName = String(r.newCategoryName ?? '').trim() || null;
-				const itemName = String(r.itemName ?? '').trim() || null;
-				const quantity = toNumberOrZero(r.quantity);
-				const unitPrice = toNumberOrZero(r.unitPrice);
 				const workCategoryId = toIdOrNull(r?.workCategoryId);
 				const itemId = toIdOrNull(r?.itemId);
 				const taxRuleId = toIdOrNull(getEffectiveTaxRuleId(r));
+				const categoryNameValidated = validateTextInput(r?.newCategoryName, {
+					fieldLabel: 'Hạng mục',
+					required: !workCategoryId,
+					trim: true,
+					maxLength: 255,
+				});
+				const itemNameValidated = validateTextInput(r?.itemName, {
+					fieldLabel: 'Diễn giải',
+					required: !workCategoryId,
+					trim: true,
+					maxLength: 255,
+				});
+				const qtyValidated = validatePositiveNumber(r?.quantity, {
+					fieldLabel: 'Số lượng',
+					required: true,
+					integer: true,
+				});
+				const priceValidated = validateNonNegativeNumber(r?.unitPrice, {
+					fieldLabel: 'Đơn giá',
+					required: true,
+					integer: false,
+				});
+
 				const payload = {
 					workCategoryId: workCategoryId ?? null,
-					newCategoryName: workCategoryId ? null : newCategoryName,
+					newCategoryName: workCategoryId ? null : categoryNameValidated.value || null,
 					itemId: itemId ?? null,
-					itemName,
-					quantity,
-					unitPrice,
+					itemName: itemNameValidated.value || null,
+					quantity: qtyValidated.value ?? 0,
+					unitPrice: priceValidated.value ?? 0,
 					isChecked: Boolean(r?.confirmed),
 					isRemoved: false,
 				};
 				if (taxRuleId) payload.taxRuleId = taxRuleId;
 				return payload;
-			})
-			.filter((it) => (it.workCategoryId || it.newCategoryName) && it.quantity > 0);
-
-		const items = normalized;
-		if (items.length === 0) {
-			setSaveError('Vui lòng nhập ít nhất 1 dòng (hạng mục, số lượng).');
-			return;
-		}
+			});
 
 		const uncheckedCount = items.filter((it) => !it?.isRemoved && !it?.isChecked).length;
 		if (uncheckedCount > 0) {
@@ -1425,7 +1528,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		} finally {
 			setIsSaving(false);
 		}
-	}, [editRows, estimate, isSaving, serviceTicketId]);
+	}, [editRows, estimate, isSaving, serviceTicketId, validateDraftOrEditRows]);
 
 	const softDeleteEditRow = useCallback(
 		async (rowIndex) => {

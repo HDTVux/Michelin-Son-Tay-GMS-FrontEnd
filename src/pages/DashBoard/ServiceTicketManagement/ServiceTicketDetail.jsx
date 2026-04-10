@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { toast } from 'react-toastify';
+import { validateTextInput } from '../../../components/inputValidation.js';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import EstimateTimePopup from './EstimateTimePopup.jsx';
 import MaintenanceBookingPopup from './MaintenanceBookingPopup.jsx';
@@ -494,6 +495,20 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => ticketPhotos.filter((p) => String(p?.category || '').toUpperCase() === 'LICENSE_PLATE'),
         [ticketPhotos],
     );
+
+    const CUSTOMER_REQUEST_MAX_LENGTH = 255;
+    const customerRequestValidation = useMemo(
+        () =>
+            validateTextInput(editForm?.customerRequest, {
+                fieldLabel: 'Nội dung yêu cầu',
+                required: false,
+                trim: false,
+                maxLength: CUSTOMER_REQUEST_MAX_LENGTH,
+            }),
+        [editForm?.customerRequest],
+    );
+    const customerRequestRemaining = CUSTOMER_REQUEST_MAX_LENGTH - String(editForm?.customerRequest ?? '').length;
+    const customerRequestHasError = Boolean(customerRequestValidation?.error);
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
@@ -991,7 +1006,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                             </div>
                         </div>
-                        { staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT') && (
+                        { staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED') && (
                             <button
                                 type="button"
                                 className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
@@ -1124,12 +1139,33 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             onChange={(e) => setEditForm((prev) => ({ ...prev, customerRequest: e.target.value }))}
                                             disabled={isSaving}
                                         />
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            gap: 12,
+                                            marginTop: 6,
+                                            fontSize: 12,
+                                            color: '#6b7280',
+                                        }}
+                                    >
+                                        <span>
+                                            {customerRequestRemaining >= 0
+                                                ? `Còn ${customerRequestRemaining} ký tự`
+                                                : `Vượt ${Math.abs(customerRequestRemaining)} ký tự`}
+                                        </span>
+                                    </div>
+                                    {customerRequestHasError ? (
+                                        <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>
+                                            {customerRequestValidation.error}
+                                        </div>
+                                    ) : null}
                                     </div>
                                     <div className="ui-actions ui-actions--end">
                                         <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
                                             Hủy
                                         </button>
-                                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
+                                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving || customerRequestHasError}>
                                             {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
                                         </button>
                                     </div>

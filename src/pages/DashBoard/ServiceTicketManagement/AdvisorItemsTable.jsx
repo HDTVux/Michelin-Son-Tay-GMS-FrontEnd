@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
+import { validateTaxName, validateTaxRatePercent, validateTextInput } from '../../../components/inputValidation.js';
 import {
     formatCurrencyVnd,
     isDraftRowEmpty,
@@ -50,6 +51,10 @@ function TaxRuleQuickAdd({
     stopAddNewTaxRule,
     handleCreateTaxRule,
 }) {
+    const taxNameValidation = validateTaxName(taxName, { required: true });
+    const taxRateValidation = validateTaxRatePercent(taxRate, { required: true });
+    const taxHasError = Boolean(taxNameValidation.error || taxRateValidation.error);
+
     if (!show) return null;
 
     return (
@@ -62,7 +67,7 @@ function TaxRuleQuickAdd({
                             type="button"
                             className="ui-btn ui-btn--primary"
                             onClick={handleCreateTaxRule}
-                            disabled={isCreatingTaxRule || isSaving}
+                            disabled={isCreatingTaxRule || isSaving || taxHasError}
                         >
                             {isCreatingTaxRule ? 'Đang thêm...' : 'Xác nhận thêm thuế'}
                         </button>
@@ -72,13 +77,13 @@ function TaxRuleQuickAdd({
                             onClick={stopAddNewTaxRule}
                             disabled={isCreatingTaxRule || isSaving}
                         >
-                            Chọn từ danh sách
+                            Hủy
                         </button>
                     </div>
                 ) : (
                     <button
                         type="button"
-                        className="ui-btn ui-btn--primary"
+                        className="ui-btn ui-btn--ghost"
                         onClick={startAddNewTaxRule}
                         disabled={taxRulesLoading || isSaving}
                     >
@@ -99,6 +104,9 @@ function TaxRuleQuickAdd({
                             autoComplete="off"
                             disabled={isCreatingTaxRule || isSaving}
                         />
+                        {taxNameValidation.error ? (
+                            <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>{taxNameValidation.error}</div>
+                        ) : null}
                     </div>
                     <div className="ui-field" style={{ marginBottom: 0 }}>
                         <label htmlFor="estimate-tax-rate">Thuế suất</label>
@@ -111,6 +119,9 @@ function TaxRuleQuickAdd({
                             placeholder="0"
                             disabled={isCreatingTaxRule || isSaving}
                         />
+                        {taxRateValidation.error ? (
+                            <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>{taxRateValidation.error}</div>
+                        ) : null}
                     </div>
                 </div>
             ) : null}
@@ -552,6 +563,20 @@ export default function AdvisorItemsTable({
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange, refreshToken });
 
+    const RECOMMEND_MAX_LENGTH = 255;
+    const recommendationValidation = useMemo(
+        () =>
+            validateTextInput(recommendation, {
+                fieldLabel: 'Khuyến nghị',
+                required: false,
+                trim: false,
+                maxLength: RECOMMEND_MAX_LENGTH,
+            }),
+        [recommendation],
+    );
+    const recommendationRemaining = RECOMMEND_MAX_LENGTH - String(recommendation ?? '').length;
+    const recommendationHasError = Boolean(recommendationValidation?.error);
+
     // Let parent know whether estimate is currently being created/edited/saved.
     // Used to hide actions like "Xác nhận báo giá" until user presses Save successfully.
     useEffect(() => {
@@ -732,7 +757,7 @@ export default function AdvisorItemsTable({
         closeCatalogPicker();
     };
 
-    const showTaxQuickAdd = !isTicketLocked && showInputs && tableRows.some((r) => !isDraftRowEmpty(r) && !toIdOrNull(r?.workCategoryId));
+    const showTaxQuickAdd = !isTicketLocked && showInputs;
 
     const shouldShowInventoryPanel = !isTicketLocked && inventory.isOpen;
 
@@ -1027,6 +1052,27 @@ export default function AdvisorItemsTable({
                     onChange={(e) => setRecommendation(e.target.value)}
                     disabled={Boolean(recommendationSaving) || isTicketLocked}
                 />
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        marginTop: 6,
+                        fontSize: 12,
+                        color: '#6b7280',
+                    }}
+                >
+                    <span>
+                        {recommendationRemaining >= 0
+                            ? `Còn ${recommendationRemaining} ký tự`
+                            : `Vượt ${Math.abs(recommendationRemaining)} ký tự`}
+                    </span>
+                </div>
+                {recommendationHasError ? (
+                    <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>
+                        {recommendationValidation.error}
+                    </div>
+                ) : null}
             </div>
 
                 {isTicketLocked ? null : (
@@ -1035,7 +1081,17 @@ export default function AdvisorItemsTable({
                             type="button"
                             className="ui-btn ui-btn--primary"
                             onClick={() => {
-                                Promise.resolve(saveRecommendation?.())
+							const validated = validateTextInput(recommendation, {
+								fieldLabel: 'Khuyến nghị',
+								required: false,
+								trim: true,
+								maxLength: RECOMMEND_MAX_LENGTH,
+							});
+							if (validated.error) {
+								notify(validated.error);
+								return;
+							}
+							Promise.resolve(saveRecommendation?.(validated.value))
                                     .then((saved) => {
                                         if (saved) notify('Đã lưu khuyến nghị.');
                                     })
@@ -1043,7 +1099,7 @@ export default function AdvisorItemsTable({
                                         notify(err?.message || 'Không thể cập nhật khuyến nghị.');
                                     });
                             }}
-                            disabled={Boolean(recommendationSaving) || Boolean(isSaving)}
+							disabled={Boolean(recommendationSaving) || Boolean(isSaving) || recommendationHasError}
                         >
                             {recommendationSaving ? 'Đang lưu...' : 'Lưu khuyến nghị'}
                         </button>
