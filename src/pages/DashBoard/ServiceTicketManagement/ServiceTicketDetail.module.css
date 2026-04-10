@@ -541,6 +541,13 @@
   text-align: center;
 }
 
+.pickButtonNoWrap {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  flex-shrink: 0;
+}
+
 .tableEmpty {
   text-align: center;
   color: #6b7280;

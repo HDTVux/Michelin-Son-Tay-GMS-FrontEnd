@@ -54,6 +54,8 @@ function createEmptyDraftRow() {
 		workCategoryCode: '',
 		workCategoryTaxRuleId: '',
 		itemId: null,
+		warehouseId: '',
+		warehouseAvailableQuantity: null,
 		itemTaxRuleId: '',
 		newCategoryName: '',
 		itemName: '',
@@ -88,6 +90,7 @@ function getItemTaxRuleIdFromEstimateItem(it) {
 function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCategory) {
 	const rowNo = rowIndex + 1;
 	const workCategoryId = toIdOrNull(row?.workCategoryId);
+	const isLocked = Boolean(row?.isLockedFromPreviousVersion);
 
 	if (!workCategoryId) {
 		const categoryValidated = validateTextInput(row?.newCategoryName, {
@@ -99,7 +102,7 @@ function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCa
 		if (categoryValidated.error) return `Dòng ${rowNo}: ${categoryValidated.error}`;
 	}
 
-	if (workCategoryId && requireItemForPredefinedCategory && !toIdOrNull(row?.itemId)) {
+	if (workCategoryId && requireItemForPredefinedCategory && !isLocked && !toIdOrNull(row?.itemId)) {
 		return `Dòng ${rowNo}: Vui lòng chọn sản phẩm/dịch vụ.`;
 	}
 
@@ -119,6 +122,22 @@ function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCa
 		integer: true,
 	});
 	if (qtyValidated.error) return `Dòng ${rowNo}: ${qtyValidated.error}`;
+
+	// Nếu đã chọn kho và có số lượng tồn kho của kho đó thì không cho vượt quá.
+	const warehouseId = toIdOrNull(row?.warehouseId ?? row?.warehouse_id);
+	const maxQtyRaw = row?.warehouseAvailableQuantity ?? row?.availableQuantity;
+	let maxQty = Number.NaN;
+	if (typeof maxQtyRaw === 'number') {
+		maxQty = maxQtyRaw;
+	} else {
+		const maxQtyText = String(maxQtyRaw ?? '').trim();
+		maxQty = maxQtyText ? Number(maxQtyText) : Number.NaN;
+	}
+	if (!isLocked && warehouseId && Number.isFinite(maxQty) && maxQty >= 0 && Number.isFinite(qtyValidated.value)) {
+		if (qtyValidated.value > maxQty) {
+			return `Dòng ${rowNo}: Số lượng không được vượt quá tồn kho (${maxQty}) của kho đã chọn.`;
+		}
+	}
 
 	const priceValidated = validateNonNegativeNumber(row?.unitPrice, {
 		fieldLabel: 'Đơn giá',
@@ -160,6 +179,7 @@ function mapEstimateItemToLockedRow(it, idx) {
 	const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
 	const itemTaxRuleId =
 		getItemTaxRuleIdFromEstimateItem(it);
+	const warehouseId = it?.warehouseId ?? it?.warehouse_id ?? it?.warehouse?.warehouseId ?? '';
 	const newCategoryName = String(
 		it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
 	).trim();
@@ -171,6 +191,8 @@ function mapEstimateItemToLockedRow(it, idx) {
 		workCategoryCode,
 		workCategoryTaxRuleId,
 		itemId,
+		warehouseId,
+		warehouseAvailableQuantity: null,
 		itemTaxRuleId,
 		categoryName: newCategoryName,
 		newCategoryName,
@@ -1358,6 +1380,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			.map((r) => {
 				const workCategoryId = toIdOrNull(r?.workCategoryId);
 				const itemId = toIdOrNull(r?.itemId);
+				const warehouseId = toIdOrNull(r?.warehouseId ?? r?.warehouse_id);
 				const taxRuleId = toIdOrNull(getEffectiveTaxRuleId(r));
 				const categoryNameValidated = validateTextInput(r?.newCategoryName, {
 					fieldLabel: 'Hạng mục',
@@ -1392,6 +1415,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					isChecked: Boolean(r?.confirmed),
 					isRemoved: false,
 				};
+				if (warehouseId) payload.warehouseId = warehouseId;
 				if (taxRuleId) payload.taxRuleId = taxRuleId;
 				return payload;
 			});
@@ -1461,6 +1485,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			.map((r) => {
 				const workCategoryId = toIdOrNull(r?.workCategoryId);
 				const itemId = toIdOrNull(r?.itemId);
+				const warehouseId = toIdOrNull(r?.warehouseId ?? r?.warehouse_id);
 				const taxRuleId = toIdOrNull(getEffectiveTaxRuleId(r));
 				const categoryNameValidated = validateTextInput(r?.newCategoryName, {
 					fieldLabel: 'Hạng mục',
@@ -1495,6 +1520,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					isChecked: Boolean(r?.confirmed),
 					isRemoved: false,
 				};
+				if (warehouseId) payload.warehouseId = warehouseId;
 				if (taxRuleId) payload.taxRuleId = taxRuleId;
 				return payload;
 			});

@@ -128,6 +128,40 @@ export const allocateEstimateStock = (estimateId, token) => {
   return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/stock-allocation`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
+    body: '{}',
+  });
+};
+
+// Cập nhật giữ chỗ vật tư trong kho theo báo giá (dùng khi thêm dịch vụ rồi xác nhận lại báo giá)
+// Endpoint: PUT /api/service-ticket/estimate/{estimateId}/stock-allocation/update
+// Request body: Array<{
+//   allocationId?, serviceTicketId, estimateItemId, warehouseId?, itemId, estimateId, quantity, status?, createdBy?
+// }>
+export const updateEstimateStockAllocation = (estimateId, allocations, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật giữ chỗ vật tư trong kho.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ để cập nhật giữ chỗ vật tư.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const bodyArr = Array.isArray(allocations) ? allocations : [];
+  if (bodyArr.length === 0) {
+    const error = new Error('Thiếu danh sách giữ chỗ vật tư để cập nhật.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/stock-allocation/update`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(bodyArr),
   });
 };
 

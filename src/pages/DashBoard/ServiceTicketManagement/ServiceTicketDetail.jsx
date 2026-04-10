@@ -12,6 +12,7 @@ import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTi
 import { getServiceTicketStatusTextVi } from '../../../components/statusUtils.js';
 import {
     allocateEstimateStock,
+    updateEstimateStockAllocation,
     fetchServiceTicketDetail,
     fetchServiceTicketEstimate,
     manageServiceTicketEstimateStatus,
@@ -64,6 +65,77 @@ function normalizeOdometerKm(value) {
     if (value == null) return null;
     const n = typeof value === 'number' ? value : Number(String(value).replaceAll(/\D/g, ''));
     return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function toPositiveNumberOrNull(value) {
+    if (value == null) return null;
+    const n = typeof value === 'number' ? value : Number(String(value).trim());
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estimateItems }) {
+    const estId = toPositiveNumberOrNull(estimateId);
+    const ticketId = toPositiveNumberOrNull(serviceTicketId);
+    const items = Array.isArray(estimateItems) ? estimateItems : [];
+    if (!estId || !ticketId || items.length === 0) return [];
+
+    const rows = items
+        .filter((it) => !it?.isRemoved)
+        .map((it) => {
+            const estimateItemId =
+                it?.estimateItemId ??
+                it?.estimateItemID ??
+                it?.estimate_item_id ??
+                it?.id ??
+                null;
+
+            // Try to avoid mistakenly picking estimateItemId as itemId by checking nested fields first.
+            const itemId =
+                it?.itemId ??
+                it?.catalogItemId ??
+                it?.serviceItemId ??
+                it?.productId ??
+                it?.item?.itemId ??
+                it?.catalogItem?.itemId ??
+                it?.serviceItem?.itemId ??
+                null;
+
+            const quantity = toPositiveNumberOrNull(it?.quantity ?? it?.qty);
+            if (!toPositiveNumberOrNull(estimateItemId) || !toPositiveNumberOrNull(itemId) || !quantity) return null;
+
+            const warehouseId =
+                it?.warehouseId ??
+                it?.warehouseID ??
+                it?.warehouse_id ??
+                it?.warehouse?.warehouseId ??
+                it?.warehouse?.id ??
+                undefined;
+
+            const allocationId =
+                it?.allocationId ??
+                it?.stockAllocationId ??
+                it?.stock_allocation_id ??
+                it?.reservationId ??
+                undefined;
+
+            const status = it?.allocationStatus ?? it?.stockAllocationStatus ?? it?.stock_allocation_status ?? undefined;
+            const createdBy = it?.createdBy ?? it?.created_by ?? undefined;
+
+            return {
+                ...(allocationId == null ? {} : { allocationId }),
+                serviceTicketId: ticketId,
+                estimateItemId: Number(estimateItemId),
+                ...(warehouseId == null ? {} : { warehouseId }),
+                itemId: Number(itemId),
+                estimateId: estId,
+                quantity: Number(quantity),
+                ...(status == null ? {} : { status }),
+                ...(createdBy == null ? {} : { createdBy }),
+            };
+        })
+        .filter(Boolean);
+
+    return rows;
 }
 
 function pickFirstDefined(obj, keys) {
@@ -403,6 +475,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [statusUpdating, setStatusUpdating] = useState(false);
     const [estimateLoading, setEstimateLoading] = useState(false);
     const [latestEstimate, setLatestEstimate] = useState(null);
+    const estimateLoadSeqRef = useRef(0);
     const [assignments, setAssignments] = useState([]);
     const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
@@ -450,6 +523,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         const n = typeof raw === 'number' ? raw : Number(raw);
         return Number.isFinite(n) && n > 0 ? n : null;
     }, [ticket?.serviceTicketId]);
+
+    // Route param changes often reuse the same component instance.
+    // Ensure transient workflow refs don't leak across tickets.
+    useEffect(() => {
+        addServiceRevertRef.current = null;
+        createNewEstimateRevertRef.current = null;
+        setIsCreatingNewEstimateVersion(false);
+    }, [serviceTicketIdNum]);
 
     const estimateStatus = useMemo(() => {
         return normalizeEstimateStatus(
@@ -510,28 +591,29 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const customerRequestRemaining = CUSTOMER_REQUEST_MAX_LENGTH - String(editForm?.customerRequest ?? '').length;
     const customerRequestHasError = Boolean(customerRequestValidation?.error);
 
-    useEffect(() => {
+    const loadLatestEstimate = useCallback(async () => {
         const token = localStorage.getItem('authToken');
         if (!token) return;
         if (!serviceTicketIdNum) return;
 
-        let cancelled = false;
-        (async () => {
-            try {
-                setEstimateLoading(true);
-                const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
-                if (cancelled) return;
-                const latest = pickLatestEstimate(estimateRes?.data);
-                setLatestEstimate(latest ?? null);
-            } catch {
-                if (cancelled) return;
-                setLatestEstimate(null);
-            } finally {
-                if (!cancelled) setEstimateLoading(false);
-            }
-        })();
-        return () => { cancelled = true; };
+        const seq = ++estimateLoadSeqRef.current;
+        try {
+            setEstimateLoading(true);
+            const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
+            if (estimateLoadSeqRef.current !== seq) return;
+            const latest = pickLatestEstimate(estimateRes?.data);
+            setLatestEstimate(latest ?? null);
+        } catch {
+            if (estimateLoadSeqRef.current !== seq) return;
+            setLatestEstimate(null);
+        } finally {
+            if (estimateLoadSeqRef.current === seq) setEstimateLoading(false);
+        }
     }, [serviceTicketIdNum]);
+
+    useEffect(() => {
+        loadLatestEstimate();
+    }, [loadLatestEstimate]);
 
     // Load assignments to check technician before allowing receipt creation
     useEffect(() => {
@@ -637,19 +719,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
         if (!isEstimateApproved) {
             notify('Vui lòng xác nhận báo giá trước khi tiến hành sửa chữa.');
-            return;
-        }
-
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-            notify('Vui lòng đăng nhập để giữ chỗ vật tư và tiến hành sửa chữa.');
-            return;
-        }
-
-        try {
-            await allocateEstimateStock(estimateIdNum, token);
-        } catch (err) {
-            notify(err?.message || 'Không thể giữ chỗ vật tư trong kho.');
             return;
         }
 
@@ -784,6 +853,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         
         try {
             setStatusUpdating(true);
+            // Starting a new estimate/version should not be treated as append-only.
+            addServiceRevertRef.current = null;
             // Snapshot current ticket status so Cancel during "create new estimate version" can revert.
             if (!createNewEstimateRevertRef.current) {
                 createNewEstimateRevertRef.current = { prevTicketStatus: ticketStatus };
@@ -860,6 +931,40 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         setEstimateTimePopupOpen(true);
     };
 
+    const revertEstimateToDraftSilently = useCallback(async (token) => {
+        if (!estimateIdNum) return;
+        try {
+            await manageServiceTicketEstimateStatus(estimateIdNum, 'DRAFT', token);
+        } catch {
+            // ignore
+        }
+        setLatestEstimate((prev) => (prev ? { ...prev, status: 'DRAFT', estimateStatus: 'DRAFT' } : prev));
+    }, [estimateIdNum]);
+
+    const ensureStockAllocationAfterConfirm = useCallback(async ({ token, isAppendOnlyConfirm }) => {
+        if (!estimateIdNum) return;
+
+        try {
+            if (isAppendOnlyConfirm) {
+                const payload = buildStockAllocationUpdatePayload({
+                    estimateId: estimateIdNum,
+                    serviceTicketId: serviceTicketIdNum,
+                    estimateItems: latestEstimate?.items,
+                });
+                // Nếu không có dòng vật tư cần giữ chỗ (toàn dịch vụ), bỏ qua update.
+                if (payload.length > 0) {
+                    await updateEstimateStockAllocation(estimateIdNum, payload, token);
+                }
+                return;
+            }
+
+            await allocateEstimateStock(estimateIdNum, token);
+        } catch (err) {
+            await revertEstimateToDraftSilently(token);
+            throw err;
+        }
+    }, [estimateIdNum, latestEstimate?.items, revertEstimateToDraftSilently, serviceTicketIdNum]);
+
     const executeConfirmEstimate = async (estimatedAt = '') => {
         if (estimateLoading) return;
         if (!estimateIdNum) {
@@ -898,6 +1003,20 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
             await manageServiceTicketEstimateStatus(estimateIdNum, 'APPROVED', token);
             setLatestEstimate((prev) => (prev ? { ...prev, status: 'APPROVED', estimateStatus: 'APPROVED' } : prev));
+
+            // Giữ chỗ vật tư:
+            // - Báo giá mới / version mới: POST allocateEstimateStock
+            // - Thêm dịch vụ (append-only) và xác nhận lại: PUT stock-allocation/update
+            const appendSnapshot = addServiceRevertRef.current;
+            const snapshotEstimateId = toPositiveNumberOrNull(appendSnapshot?.estimateIdNum);
+            const snapshotPrevStatus = normalizeEstimateStatus(appendSnapshot?.prevEstimateStatus);
+            const isAppendOnlyConfirm =
+                !isCreatingNewEstimateVersion &&
+                snapshotEstimateId != null &&
+                snapshotEstimateId === estimateIdNum &&
+                snapshotPrevStatus === 'APPROVED';
+            await ensureStockAllocationAfterConfirm({ token, isAppendOnlyConfirm });
+
             if (estimatedAt) {
                 setEstimatedTimeDraft(estimatedAt);
             }
@@ -912,6 +1031,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             // End "create new estimate version" flow after confirming.
             createNewEstimateRevertRef.current = null;
             setIsCreatingNewEstimateVersion(false);
+
+            // End "Thêm dịch vụ" append-only flow after confirming.
+            addServiceRevertRef.current = null;
         } catch (err) {
             notify(err?.message || 'Không thể xác nhận báo giá.');
         } finally {
@@ -940,8 +1062,24 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         && isEstimatePersisted
         && !isEstimateEditing;
     const handleEstimateStatusChange = useCallback((est) => {
-        setLatestEstimate(est);
-    }, []);
+        setLatestEstimate((prev) => {
+            if (!est) return null;
+            const next = { ...(prev || {}), ...(est || {}) };
+            // Some update APIs may return estimate meta without items.
+            // Keep previous items temporarily to avoid disabling confirm button,
+            // then trigger a refetch to sync the real latest estimate.
+            if (!Array.isArray(est?.items) && Array.isArray(prev?.items)) {
+                next.items = prev.items;
+            }
+            return next;
+        });
+
+        const hasEstimateId = Boolean(est?.estimateId ?? est?.id);
+        const hasItems = Array.isArray(est?.items) && est.items.length > 0;
+        if (hasEstimateId && !hasItems) {
+            loadLatestEstimate();
+        }
+    }, [loadLatestEstimate]);
 
     const handleCreateReceipt = async () => {
         if (receiptApproving) return;

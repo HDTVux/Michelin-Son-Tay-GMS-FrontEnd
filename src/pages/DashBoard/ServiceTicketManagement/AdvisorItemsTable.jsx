@@ -201,14 +201,14 @@ function EstimateItemRow({
                         <input
                             className={styles.tableInput}
                             value={row.itemName ?? ''}
-                            placeholder={isPredefinedCategory ? "Chọn sản phẩm từ danh mục" : "Diễn giải"}
+                            placeholder={isPredefinedCategory ? "Chọn sản phẩm " : "Diễn giải"}
                             readOnly={isPredefinedCategory}
                             onChange={isPredefinedCategory ? undefined : (e) => onChange(idx, 'itemName', e.target.value)}
                             disabled={isSaving}
                         />
                         <button
                             type="button"
-                            className="ui-btn ui-btn--ghost"
+                            className={`ui-btn ui-btn--ghost ${styles.pickButtonNoWrap}`}
                             onClick={() => openCatalogPicker(idx, row)}
                             disabled={isSaving}
                         >
@@ -542,6 +542,10 @@ export default function AdvisorItemsTable({
         isEditing,
         isAppendOnlyEdit,
         isSaving,
+        loadError,
+        taxRulesError,
+        workCategoriesError,
+        saveError,
         estimateCostText,
         statusLine,
         footerTotalText,
@@ -576,6 +580,8 @@ export default function AdvisorItemsTable({
     );
     const recommendationRemaining = RECOMMEND_MAX_LENGTH - String(recommendation ?? '').length;
     const recommendationHasError = Boolean(recommendationValidation?.error);
+
+    const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
 
     // Let parent know whether estimate is currently being created/edited/saved.
     // Used to hide actions like "Xác nhận báo giá" until user presses Save successfully.
@@ -744,11 +750,29 @@ export default function AdvisorItemsTable({
         if (activeRowIndex == null) return;
         const id = item?.itemId ?? item?.id ?? null;
         const name = item?.itemName ?? item?.name ?? '';
-        const price = item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
+        const price = item?.sellingPrice ?? item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
+        const warehouseId = item?.warehouseId ?? item?.selectedWarehouse?.warehouseId ?? null;
+        const availableQtyRaw =
+            item?.availableQuantity ??
+            item?.selectedWarehouse?.quantity ??
+            item?.selectedWarehouse?.availableQuantity ??
+            null;
+        const availableQtyNum =
+            typeof availableQtyRaw === 'number' ? availableQtyRaw : Number(String(availableQtyRaw ?? '').trim());
         const rawTaxId = item?.taxRuleId ?? item?.tax_rule_id ?? item?.taxRule?.taxRuleId ?? item?.taxRule?.id ?? '';
         onChange(activeRowIndex, 'itemId', id);
         onChange(activeRowIndex, 'itemName', name);
         onChange(activeRowIndex, 'unitPrice', price);
+        if (warehouseId != null && String(warehouseId).trim() !== '') {
+            onChange(activeRowIndex, 'warehouseId', warehouseId);
+        } else {
+            onChange(activeRowIndex, 'warehouseId', '');
+        }
+        if (Number.isFinite(availableQtyNum) && availableQtyNum >= 0) {
+            onChange(activeRowIndex, 'warehouseAvailableQuantity', availableQtyNum);
+        } else {
+            onChange(activeRowIndex, 'warehouseAvailableQuantity', null);
+        }
         onChange(activeRowIndex, 'itemTaxRuleId', rawTaxId == null ? '' : String(rawTaxId));
 
         // Nếu sản phẩm có thuế thì ưu tiên sản phẩm -> clear chọn thuế thủ công.
@@ -930,13 +954,12 @@ export default function AdvisorItemsTable({
                         <div className={styles.kvRow}>
                             <span className={styles.kvLabel} />
                             <span className={styles.kvValue} style={{ color: 'var(--ui-muted)' }}>
-                                {statusLine}
+                                {errorLine ? '' : statusLine}
                             </span>
                         </div>
                     </div>
                 </div>
             </div>
-
             <TaxRuleQuickAdd
                 show={showTaxQuickAdd}
                 isAddingNewTaxRule={isAddingNewTaxRule}
@@ -1014,6 +1037,12 @@ export default function AdvisorItemsTable({
                     </tfoot>
                 </table>
             </div>
+
+            {errorLine ? (
+                <div className={styles.errorBanner} style={{ marginTop: 12, marginBottom: 0, textAlign: 'center' }}>
+                    {errorLine}
+                </div>
+            ) : null}
             {isTicketLocked ? null : (
                 <div style={{ marginTop: 16 }}>
                     <EstimateActions
