@@ -4,7 +4,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { toast } from 'react-toastify';
-import { validateTextInput } from '../../../components/inputValidation.js';
 import AdvisorItemsTable from './AdvisorItemsTable.jsx';
 import EstimateTimePopup from './EstimateTimePopup.jsx';
 import MaintenanceBookingPopup from './MaintenanceBookingPopup.jsx';
@@ -582,20 +581,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => ticketPhotos.filter((p) => String(p?.category || '').toUpperCase() === 'LICENSE_PLATE'),
         [ticketPhotos],
     );
-
-    const CUSTOMER_REQUEST_MAX_LENGTH = 255;
-    const customerRequestValidation = useMemo(
-        () =>
-            validateTextInput(editForm?.customerRequest, {
-                fieldLabel: 'Nội dung yêu cầu',
-                required: false,
-                trim: false,
-                maxLength: CUSTOMER_REQUEST_MAX_LENGTH,
-            }),
-        [editForm?.customerRequest],
-    );
-    const customerRequestRemaining = CUSTOMER_REQUEST_MAX_LENGTH - String(editForm?.customerRequest ?? '').length;
-    const customerRequestHasError = Boolean(customerRequestValidation?.error);
 
     const loadLatestEstimate = useCallback(async () => {
         const token = localStorage.getItem('authToken');
@@ -1275,18 +1260,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 </button>
                             )}
                         </header>
-                        </div>
-                        { staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED') && (
-                            <button
-                                type="button"
-                                className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
-                                onClick={toggleEdit}
-                                disabled={isLoading || isSaving}
-                        >
-                            {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
-                        </button>
-                         )}
-                    </header>
 
                         {error && <div className={styles.errorBanner}>{error}</div>}
 
@@ -1447,44 +1420,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         onCancelAppendOnly={handleCancelAppendOnly}
                                         onEstimateEditingChange={setIsEstimateEditing}
                                     />
-                                    <div className="ui-field" style={{ marginBottom: 0 }}>
-                                        <label htmlFor="service-ticket-customer-request">Nội dung yêu cầu</label>
-                                        <textarea
-                                            id="service-ticket-customer-request"
-                                            value={editForm.customerRequest}
-                                            onChange={(e) => setEditForm((prev) => ({ ...prev, customerRequest: e.target.value }))}
-                                            disabled={isSaving}
-                                        />
-                                    <div
-                                        style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            gap: 12,
-                                            marginTop: 6,
-                                            fontSize: 12,
-                                            color: '#6b7280',
-                                        }}
-                                    >
-                                        <span>
-                                            {customerRequestRemaining >= 0
-                                                ? `Còn ${customerRequestRemaining} ký tự`
-                                                : `Vượt ${Math.abs(customerRequestRemaining)} ký tự`}
-                                        </span>
-                                    </div>
-                                    {customerRequestHasError ? (
-                                        <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>
-                                            {customerRequestValidation.error}
-                                        </div>
-                                    ) : null}
-                                    </div>
-                                    <div className="ui-actions ui-actions--end">
-                                        <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
-                                            Hủy
-                                        </button>
-                                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving || customerRequestHasError}>
-                                            {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
-                                        </button>
-                                    </div>
                                 </>
                             )}
 
@@ -1551,7 +1486,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                     <button
                                                         type="button"
                                                         className="ui-btn ui-btn--ghost"
-                                                        onClick={() => setMaintenancePopupOpen(true)}
+                                                        onClick={handleOpenMaintenancePopup}
                                                         disabled={statusUpdating || receiptApproving}
                                                     >
                                                         Đặt lịch bảo dưỡng
@@ -1571,71 +1506,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             </>
                                         )}
                                     </div>
-                                    {isCreatingNewEstimateVersion ? null : (
-                                        <>
-                                            {canCancel && (
-                                                <button
-                                                    type="button"
-                                                    className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
-                                                    onClick={handleCancelTicket}
-                                                    disabled={statusUpdating}
-                                                >
-                                                    Hủy phiếu dịch vụ
-                                                </button>
-                                            )}
-                                            {canSetPending && (
-                                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
-                                                    Chờ xử lý
-                                                </button>
-                                            )}
-                                            {canAddService && (
-                                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
-                                                    Thêm dịch vụ
-                                                </button>
-                                            )}
-                                            {canConfirmEstimate && (
-                                                <button
-                                                    type="button"
-                                                    className="ui-btn ui-btn--primary"
-                                                    onClick={handleOpenEstimateTimePopup}
-                                                    disabled={receiptApproving || statusUpdating || estimateLoading}
-                                                >
-                                                    {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
-                                                </button>
-                                            )}
-                                            {canStartRepair && (
-                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
-                                                    Tiến hành sửa chữa
-                                                </button>
-                                            )}
-                                            {canCompleteRepair && (
-                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving || statusUpdating}>
-                                                    Hoàn tất sửa chữa
-                                                </button>
-                                            )}
-                                            {canBookMaintenance && (
-                                                <button
-                                                    type="button"
-                                                    className="ui-btn ui-btn--ghost"
-                                                    onClick={handleOpenMaintenancePopup}
-                                                    disabled={statusUpdating || receiptApproving}
-                                                >
-                                                    Đặt lịch bảo dưỡng
-                                                </button>
-                                            )}
-                                            {canCreateReceipt && isAccountant && (
-                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-                                                    Tạo hoá đơn
-                                                </button>
-                                            )}
-
-                                            {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
-                                                <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
-                                                    Cần phân công KTV trước khi tạo hóa đơn.
-                                                </span>
-                                            )}
-                                        </>
-                                    )}
                                 </div>
                             )}
                         </div>
