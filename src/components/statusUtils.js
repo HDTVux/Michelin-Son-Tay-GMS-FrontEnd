@@ -1,7 +1,7 @@
 const STATUS_TEXT_VI = {
-  DRAFT: 'Nháp',
+  DRAFT: 'Khởi tạo phiếu',
   INSPECTION: 'Đang kiểm tra',
-  CREATED: 'Tạo mới',
+  CREATED: 'Khởi tạo phiếu',
   INSPECTING: 'Đang kiểm tra',
   INSPECTED: 'Đã kiểm tra',
   ESTIMATED: 'Đã báo giá',
@@ -26,7 +26,7 @@ const STATUS_TEXT_VI = {
 };
 
 const SERVICE_TICKET_STATUS_TEXT_VI = {
-  CREATED: 'Tạo mới',
+  CREATED: 'Khởi tạo phiếu',
   INSPECTING: 'Đang kiểm tra',
   INSPECTED: 'Đã kiểm tra',
   PENDING: 'Chờ xử lý',
@@ -101,7 +101,7 @@ export function getServiceTicketStatusTextVi(status, fallback = '-') {
   return fallback;
 }
 
-export function getBookingStatusTextVi(status, fallback = 'Chờ duyệt') {
+export function getBookingStatusTextVi(status, fallback = 'Cho duyet') {
   return getStatusTextVi(status, fallback);
 }
 

@@ -71,30 +71,39 @@ export default function MaintenanceBookingPopup({
     useEffect(() => {
         if (!open) return;
         const parts = splitDateTimeLocal(initialDateTime);
-        setDate(parts.date);
-        setTimeSlot(parts.time);
-        setNote(String(initialNote || ''));
+        const timer = setTimeout(() => {
+            setDate(parts.date);
+            setTimeSlot(parts.time);
+            setNote(String(initialNote || ''));
+        }, 0);
+        return () => clearTimeout(timer);
     }, [open, initialDateTime, initialNote]);
 
     useEffect(() => {
         if (!open || !date) {
-            setSlotOptions([]);
-            setSlotsError('');
-            setSlotsLoading(false);
-            return;
+            const timer = setTimeout(() => {
+                setSlotOptions([]);
+                setSlotsError('');
+                setSlotsLoading(false);
+            }, 0);
+            return () => clearTimeout(timer);
         }
 
         const token = localStorage.getItem('authToken');
         if (!token) {
-            setSlotOptions([]);
-            setSlotsError('Vui lòng đăng nhập để xem slot khả dụng.');
-            setSlotsLoading(false);
-            return;
+            const timer = setTimeout(() => {
+                setSlotOptions([]);
+                setSlotsError('Vui lòng đăng nhập để xem slot khả dụng.');
+                setSlotsLoading(false);
+            }, 0);
+            return () => clearTimeout(timer);
         }
 
         let active = true;
-        setSlotsLoading(true);
-        setSlotsError('');
+        const timer = setTimeout(() => {
+            setSlotsLoading(true);
+            setSlotsError('');
+        }, 0);
 
         fetchAvailableSlotStaff(date, token, durationMinutes)
             .then((res) => {
@@ -112,6 +121,7 @@ export default function MaintenanceBookingPopup({
             });
 
         return () => {
+            clearTimeout(timer);
             active = false;
         };
     }, [date, durationMinutes, open]);
@@ -121,7 +131,10 @@ export default function MaintenanceBookingPopup({
         if (!Array.isArray(slotOptions) || slotOptions.length === 0) return;
         const matched = slotOptions.find((s) => s.value === timeSlot);
         if (!matched?.isAvailable) {
-            setTimeSlot('');
+            const timer = setTimeout(() => {
+                setTimeSlot('');
+            }, 0);
+            return () => clearTimeout(timer);
         }
     }, [slotOptions, timeSlot]);
 

@@ -402,6 +402,16 @@
   border-color: #3b82f6;
 }
 
+.noteMetaRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.charCounter {
+  font-size: 11px;
+  color: #6b7280;
+}
+
 /* Service Items Table */
 .tableHeader {
   display: flex;
@@ -554,6 +564,14 @@
 .notesTextarea:focus {
   outline: none;
   border-color: #3b82f6;
+}
+
+.notesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 /* Action Buttons */

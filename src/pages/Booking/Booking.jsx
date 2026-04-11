@@ -15,7 +15,6 @@ import {
 } from '../../services/bookingService.js';
 import { getValidToken } from '../../services/tokenUtils.js';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import { validateTextInput } from '../../components/inputValidation.js';
 
 const STEPS = [
   { id: 'service', label: 'Chọn dịch vụ' },

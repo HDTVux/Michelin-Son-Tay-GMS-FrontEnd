@@ -80,11 +80,11 @@ function pickLatestEstimate(list) {
     return [...arr].sort((a, b) => {
         const idA = Number(a?.estimateId ?? a?.id ?? a?.serviceTicketEstimateId ?? 0);
         const idB = Number(b?.estimateId ?? b?.id ?? b?.serviceTicketEstimateId ?? 0);
-        
+
         if (idA > 0 && idB > 0 && idA !== idB) {
-            return idB - idA; 
+            return idB - idA;
         }
-        
+
         const ta = new Date(a?.createdAt || a?.approvedAt || a?.createdDate || 0).getTime();
         const tb = new Date(b?.createdAt || b?.approvedAt || b?.createdDate || 0).getTime();
         return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
@@ -94,12 +94,12 @@ function pickLatestEstimate(list) {
 function getEstimateItemCheckedFlag(it) {
     return Boolean(
         it?.isChecked ??
-            it?.confirmed ??
-            it?.isConfirmed ??
-            it?.approved ??
-            it?.isApproved ??
-            it?.customerConfirmed ??
-            it?.isCustomerConfirmed,
+        it?.confirmed ??
+        it?.isConfirmed ??
+        it?.approved ??
+        it?.isApproved ??
+        it?.customerConfirmed ??
+        it?.isCustomerConfirmed,
     );
 }
 
@@ -262,12 +262,12 @@ function normalizeTicket(input, codeFallback) {
 
     const odometerKm = normalizeOdometerKm(
         input?.odometerReading ??
-            input?.vehicle?.lastOdometerReading ??
-            input?.vehicle?.odometerReading ??
-            input?.odometerKm ??
-            input?.mileage ??
-            input?.vehicle?.odometerKm ??
-            input?.vehicle?.mileage,
+        input?.vehicle?.lastOdometerReading ??
+        input?.vehicle?.odometerReading ??
+        input?.odometerKm ??
+        input?.mileage ??
+        input?.vehicle?.odometerKm ??
+        input?.vehicle?.mileage,
     );
 
     const timelineEvents = buildTimelineEvents(input, receivedAt, handoverAt);
@@ -397,7 +397,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
     const isAccountant = staffRoles.includes(STAFF_ROLE.ACCOUNTANT);
-    
+
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
     const [estimateLoading, setEstimateLoading] = useState(false);
@@ -579,11 +579,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setStatusUpdating(true);
             setError('');
             const res = await manageServiceTicketStatus(serviceTicketIdNum, nextStatus, token);
-            
+
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
             setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
 
-            triggerRefresh(); 
+            triggerRefresh();
             notify(res?.message || fallbackSuccessMessage || `Đã cập nhật trạng thái: ${nextStatus}`);
         } catch (err) {
             notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
@@ -683,10 +683,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                     notify(err?.message || 'Không thể chuyển trạng thái báo giá về nháp.');
                 }
             }
-            
+
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
-            setTicketRaw(detailRes?.data ?? ticketRaw ?? null);            
-            
+            setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
+
             // Notify advisor table to open append-only edit mode immediately
             if (canOpenAppendEdit) {
                 try {
@@ -696,7 +696,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 }
             }
 
-            triggerRefresh(); 
+            triggerRefresh();
             notify(`Đã chuyển về trạng thái để thêm dịch vụ.`);
         } catch (err) {
             notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
@@ -766,7 +766,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Thiếu serviceTicketId hợp lệ để bắt đầu báo giá mới.');
             throw new Error('Missing serviceTicketId');
         }
-        
+
         try {
             setStatusUpdating(true);
             // Snapshot current ticket status so Cancel during "create new estimate version" can revert.
@@ -776,12 +776,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setIsCreatingNewEstimateVersion(true);
             // Simplified rule: "Tạo bản báo giá mới" always brings ticket to ESTIMATED.
             await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
-            
+
             const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
             setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
 
-            triggerRefresh(); 
+            triggerRefresh();
             // Notify advisor table to open create mode immediately
             try {
                 globalThis.dispatchEvent(new CustomEvent('startCreateEstimate'));
@@ -886,12 +886,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             if (estimatedAt) {
                 setEstimatedTimeDraft(estimatedAt);
             }
-            
+
             const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
             if (detailRes?.data) setTicketRaw(detailRes.data);
 
-            triggerRefresh(); 
+            triggerRefresh();
             notify('Đã xác nhận báo giá.');
 
             // End "create new estimate version" flow after confirming.
@@ -927,6 +927,20 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const handleEstimateStatusChange = useCallback((est) => {
         setLatestEstimate(est);
     }, []);
+
+    const handleInspectionCompleted = useCallback(async () => {
+        const token = localStorage.getItem('authToken');
+        const code = String(ticket.ticketCode || ticketCodeParam || '').trim();
+        if (!token || !code) return;
+
+        try {
+            const detailRes = await fetchServiceTicketDetail(code, token);
+            if (detailRes?.data) setTicketRaw(detailRes.data);
+            setRefreshTick(prev => prev + 1);
+        } catch (err) {
+            notify(err?.message || 'Không thể tải lại trạng thái phiếu dịch vụ sau khi hoàn thành kiểm tra.');
+        }
+    }, [notify, setTicketRaw, ticket.ticketCode, ticketCodeParam]);
 
     const handleCreateReceipt = async () => {
         if (receiptApproving) return;
@@ -979,292 +993,330 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         notify('Đã ghi nhận lịch bảo dưỡng (chưa gửi server).');
     };
 
+    // Chặn toàn bộ trang nếu chưa phân công kỹ thuật viên
+    if (!assignmentsLoading && !hasTechnician) {
+        return (
+            <div className={styles.page}>
+                <div className={styles.screenOnly}>
+                    <div className={styles.layout}>
+                        <main className={styles.main}>
+                            <header className={styles.header}>
+                                <div className={styles.headerLeft}>
+                                    <div className={styles.titleRow}>
+                                        <h1 className={styles.title}>Phiếu dịch vụ #{ticketCodeParam || '-'}</h1>
+                                    </div>
+                                </div>
+                            </header>
+                            <div className={`ui-card ${styles.card}`} style={{ textAlign: 'center', padding: '48px 24px' }}>
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+                                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', marginBottom: '12px' }}>
+                                    Chưa phân công kỹ thuật viên
+                                </h2>
+                                <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', maxWidth: '440px', margin: '0 auto 32px' }}>
+                                    Phiếu dịch vụ này chưa được phân công kỹ thuật viên. Vui lòng phân công kỹ thuật viên trước khi mở phiếu.
+                                </p>
+                                <button
+                                    type="button"
+                                    className="ui-btn ui-btn--ghost"
+                                    onClick={() => navigate(-1)}
+                                >
+                                    Quay lại
+                                </button>
+                            </div>
+                        </main>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={styles.page}>
             <div className={styles.screenOnly}>
                 <div className={styles.layout}>
                     <main className={styles.main}>
-                    <header className={styles.header}>
-                        <div className={styles.headerLeft}>
-                            <div className={styles.titleRow}>
-                                <h1 className={styles.title}>Phiếu dịch vụ #{ticket.ticketCode || ticketCodeParam || '-'}</h1>
-                                <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
+                        <header className={styles.header}>
+                            <div className={styles.headerLeft}>
+                                <div className={styles.titleRow}>
+                                    <h1 className={styles.title}>Phiếu dịch vụ #{ticket.ticketCode || ticketCodeParam || '-'}</h1>
+                                    <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
+                                </div>
                             </div>
-                        </div>
-                        { staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT') && (
-                            <button
-                                type="button"
-                                className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
-                                onClick={toggleEdit}
-                                disabled={isLoading || isSaving}
-                        >
-                            {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
-                        </button>
-                         )}
-                    </header>
+                            {staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT') && (
+                                <button
+                                    type="button"
+                                    className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
+                                    onClick={toggleEdit}
+                                    disabled={isLoading || isSaving}
+                                >
+                                    {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
+                                </button>
+                            )}
+                        </header>
 
-                    {error && <div className={styles.errorBanner}>{error}</div>}
+                        {error && <div className={styles.errorBanner}>{error}</div>}
 
-                    <div className={`ui-card ${styles.card}`}>
-                        <div className={styles.topInfoGrid}>
-                            <div className={styles.topInfoCol}>
-                                <InfoBlock
-                                    title="Thông tin khách hàng"
-                                    rows={[
-                                        { label: 'Họ tên:', value: ticket.customer?.name || '-' },
-                                        { label: 'SĐT:', value: ticket.customer?.phone || '-' },
-                                        { label: 'Email:', value: ticket.customer?.email || '-' },
-                                    ]}
-                                />
-                                <InfoBlock
-                                    title="Thông tin xe"
-                                    rows={[
-                                        { label: 'Biển số xe:', value: ticket.vehicle?.licensePlate || '-' },
-                                        { label: 'Số km:', value: odometerDisplay },
-                                        { label: 'Model:', value: ticket.vehicle?.model || '-' },
-                                    ]}
-                                />
+                        <div className={`ui-card ${styles.card}`}>
+                            <div className={styles.topInfoGrid}>
+                                <div className={styles.topInfoCol}>
+                                    <InfoBlock
+                                        title="Thông tin khách hàng"
+                                        rows={[
+                                            { label: 'Họ tên:', value: ticket.customer?.name || '-' },
+                                            { label: 'SĐT:', value: ticket.customer?.phone || '-' },
+                                            { label: 'Email:', value: ticket.customer?.email || '-' },
+                                        ]}
+                                    />
+                                    <InfoBlock
+                                        title="Thông tin xe"
+                                        rows={[
+                                            { label: 'Biển số xe:', value: ticket.vehicle?.licensePlate || '-' },
+                                            { label: 'Số km:', value: odometerDisplay },
+                                            { label: 'Model:', value: ticket.vehicle?.model || '-' },
+                                        ]}
+                                    />
+                                </div>
+                                <div className={styles.topInfoCol}>
+                                    <InfoBlock
+                                        title="Thông tin ticket"
+                                        rows={[
+                                            { label: 'Ngày tiếp nhận:', value: receivedAtDisplay },
+                                            { label: 'Người tạo:', value: ticket.createdBy || '-' },
+                                        ]}
+                                    />
+                                    <section className={styles.block}>
+                                        <h2 className={styles.blockTitle}>Lịch hẹn</h2>
+                                        <div className={styles.kvList}>
+                                            <div className={styles.kvRow}>
+                                                <span className={styles.kvLabel}>Ngày & Giờ hẹn:</span>
+                                                <span className={styles.kvValue}>
+                                                    {ticket?.booking?.scheduledDate
+                                                        ? `${ticket.booking.scheduledDate} ${formatTimeHHmm(ticket.booking.scheduledTime) || ''}`.trim()
+                                                        : '-'}
+                                                </span>
+                                            </div>
+                                            <div className={styles.kvRow}>
+                                                <span className={styles.kvLabel}>Ngày bàn giao:</span>
+                                                <span className={styles.kvValue}>{handoverAtDisplay}</span>
+                                            </div>
+                                            <div className={styles.kvRow}>
+                                                <span className={styles.kvLabel}>Kiểm tra an toàn:</span>
+                                                {ticketRaw?.safetyInspectionEnabled === true ? (
+                                                    <span className={`${styles.safetyBadge} ${styles['safetyBadge--yes']}`}>Có</span>
+                                                ) : ticketRaw?.safetyInspectionEnabled === false ? (
+                                                    <span className={`${styles.safetyBadge} ${styles['safetyBadge--no']}`}>Không</span>
+                                                ) : (
+                                                    <span className={styles.kvValue}>-</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
                             </div>
-                            <div className={styles.topInfoCol}>
-                                <InfoBlock
-                                    title="Thông tin ticket"
-                                    rows={[
-                                        { label: 'Ngày tiếp nhận:', value: receivedAtDisplay },
-                                        { label: 'Người tạo:', value: ticket.createdBy || '-' },
-                                    ]}
-                                />
-                                <section className={styles.block}>
-                                    <h2 className={styles.blockTitle}>Lịch hẹn</h2>
-                                    <div className={styles.kvList}>
-                                        <div className={styles.kvRow}>
-                                            <span className={styles.kvLabel}>Ngày & Giờ hẹn:</span>
-                                            <span className={styles.kvValue}>
-                                                {ticket?.booking?.scheduledDate
-                                                    ? `${ticket.booking.scheduledDate} ${formatTimeHHmm(ticket.booking.scheduledTime) || ''}`.trim()
-                                                    : '-'}
-                                            </span>
-                                        </div>
-                                        <div className={styles.kvRow}>
-                                            <span className={styles.kvLabel}>Ngày bàn giao:</span>
-                                            <span className={styles.kvValue}>{handoverAtDisplay}</span>
-                                        </div>
-                                        <div className={styles.kvRow}>
-                                            <span className={styles.kvLabel}>Kiểm tra an toàn:</span>
-                                            {ticketRaw?.safetyInspectionEnabled === true ? (
-                                                <span className={`${styles.safetyBadge} ${styles['safetyBadge--yes']}`}>Có</span>
-                                            ) : ticketRaw?.safetyInspectionEnabled === false ? (
-                                                <span className={`${styles.safetyBadge} ${styles['safetyBadge--no']}`}>Không</span>
-                                            ) : (
-                                                <span className={styles.kvValue}>-</span>
-                                            )}
-                                        </div>
+
+                            <section className={styles.block}>
+                                <h2 className={styles.blockTitle}>Ảnh biển số xe</h2>
+                                {licensePlatePhotos.length > 0 ? (
+                                    <div className={styles.vehiclePhotoGrid}>
+                                        {licensePlatePhotos.map((p, idx) => {
+                                            const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
+                                            const label = String(p?.label || p?.category || '').trim();
+                                            const caption = label || (p?.description ? String(p.description) : `Ảnh ${idx + 1}`);
+                                            return (
+                                                <figure key={key} className={styles.vehiclePhotoCard}>
+                                                    <img
+                                                        className={styles.vehiclePhotoImg}
+                                                        src={p.url}
+                                                        alt={caption}
+                                                        loading="lazy"
+                                                        referrerPolicy="no-referrer"
+                                                    />
+                                                    <figcaption className={styles.vehiclePhotoCaption}>{caption}</figcaption>
+                                                </figure>
+                                            );
+                                        })}
                                     </div>
-                                </section>
-                            </div>
-                        </div>
+                                ) : (
+                                    <div className={styles.noteBox}>{isLoading ? 'Đang tải...' : '-'}</div>
+                                )}
+                            </section>
 
-                        <section className={styles.block}>
-                            <h2 className={styles.blockTitle}>Ảnh biển số xe</h2>
-                            {licensePlatePhotos.length > 0 ? (
-                                <div className={styles.vehiclePhotoGrid}>
-                                    {licensePlatePhotos.map((p, idx) => {
-                                        const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
-                                        const label = String(p?.label || p?.category || '').trim();
-                                        const caption = label || (p?.description ? String(p.description) : `Ảnh ${idx + 1}`);
+                            <section className={styles.block}>
+                                <h2 className={styles.blockTitle}>Dịch vụ đã chọn</h2>
+                                <div className={styles.servicesList}>
+                                    {(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
+                                        const price = s?.priceVnd ?? s?.price;
                                         return (
-                                            <figure key={key} className={styles.vehiclePhotoCard}>
-                                                <img
-                                                    className={styles.vehiclePhotoImg}
-                                                    src={p.url}
-                                                    alt={caption}
-                                                    loading="lazy"
-                                                    referrerPolicy="no-referrer"
-                                                />
-                                                <figcaption className={styles.vehiclePhotoCaption}>{caption}</figcaption>
-                                            </figure>
+                                            <div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
+                                                <span className={styles.serviceName}>{s?.serviceName || s?.label || s?.name || '-'}</span>
+                                                <span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
+                                            </div>
                                         );
                                     })}
+                                    {(!Array.isArray(ticket.services) || ticket.services.length === 0) && <div className={styles.noteBox}>-</div>}
                                 </div>
-                            ) : (
-                                <div className={styles.noteBox}>{isLoading ? 'Đang tải...' : '-'}</div>
-                            )}
-                        </section>
 
-                        <section className={styles.block}>
-                            <h2 className={styles.blockTitle}>Dịch vụ đã chọn</h2>
-                            <div className={styles.servicesList}>
-                                {(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
-                                    const price = s?.priceVnd ?? s?.price;
-                                    return (
-                                        <div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
-                                            <span className={styles.serviceName}>{s?.serviceName || s?.label || s?.name || '-'}</span>
-                                            <span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
+                                {ticket.externalDependency && (
+                                    <div className={styles.tagsRow}>
+                                        <span className={styles.tag}>External Dependency</span>
+                                    </div>
+                                )}
+                            </section>
+
+                            <section className={styles.block}>
+                                <h2 className={styles.blockTitle}>Yêu cầu khách hàng</h2>
+                                {isEditing ? (
+                                    <>
+                                        <div className="ui-field" style={{ marginBottom: 0 }}>
+                                            <label htmlFor="service-ticket-customer-request">Nội dung yêu cầu</label>
+                                            <textarea
+                                                id="service-ticket-customer-request"
+                                                value={editForm.customerRequest}
+                                                onChange={(e) => setEditForm((prev) => ({ ...prev, customerRequest: e.target.value }))}
+                                                disabled={isSaving}
+                                            />
                                         </div>
-                                    );
-                                })}
-                                {(!Array.isArray(ticket.services) || ticket.services.length === 0) && <div className={styles.noteBox}>-</div>}
-                            </div>
+                                        <div className="ui-actions ui-actions--end">
+                                            <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
+                                                Hủy
+                                            </button>
+                                            <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
+                                                {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                                            </button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className={styles.noteBox}>{ticket.requestNote || (isLoading ? 'Đang tải...' : '-')}</div>
+                                )}
+                            </section>
 
-                            {ticket.externalDependency && (
-                                <div className={styles.tagsRow}>
-                                    <span className={styles.tag}>External Dependency</span>
-                                </div>
-                            )}
-                        </section>
-
-                        <section className={styles.block}>
-                            <h2 className={styles.blockTitle}>Yêu cầu khách hàng</h2>
-                            {isEditing ? (
+                            {hasAdvisorRole && (
                                 <>
-                                    <div className="ui-field" style={{ marginBottom: 0 }}>
-                                        <label htmlFor="service-ticket-customer-request">Nội dung yêu cầu</label>
-                                        <textarea
-                                            id="service-ticket-customer-request"
-                                            value={editForm.customerRequest}
-                                            onChange={(e) => setEditForm((prev) => ({ ...prev, customerRequest: e.target.value }))}
-                                            disabled={isSaving}
-                                        />
-                                    </div>
-                                    <div className="ui-actions ui-actions--end">
-                                        <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
-                                            Hủy
-                                        </button>
-                                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
-                                            {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
-                                        </button>
-                                    </div>
+                                    <TechnicianServiceTicket
+                                        key={`tech-${ticket.ticketCode || ticketCodeParam}-${ticketStatus}-${estimateStatus}`}
+                                        ticketCode={ticket.ticketCode || ticketCodeParam}
+                                        embedded
+                                        mode="advisor"
+                                        onInspectionCompleted={handleInspectionCompleted}
+                                    />
+
+                                    <AdvisorItemsTable
+                                        key={`advisor-${ticket?.serviceTicketId}`}
+                                        serviceTicketId={ticket?.serviceTicketId}
+                                        ticketStatus={ticketStatus}
+                                        ticketPhotos={ticketPhotos}
+                                        refreshToken={refreshTick}
+                                        estimatedTimeDisplay={estimatedTimeDraft ? formatDateTimeViNoSeconds(estimatedTimeDraft, '-') : '-'}
+                                        onEstimateStatusChange={handleEstimateStatusChange}
+                                        onRestartWorkflow={handleRestartFromArchived}
+                                        onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
+                                        onCancelAppendOnly={handleCancelAppendOnly}
+                                        onEstimateEditingChange={setIsEstimateEditing}
+                                    />
                                 </>
-                            ) : (
-                                <div className={styles.noteBox}>{ticket.requestNote || (isLoading ? 'Đang tải...' : '-')}</div>
                             )}
-                        </section>
 
-                        {hasAdvisorRole && (
-                            <>
-                                <TechnicianServiceTicket 
-                                    key={`tech-${ticket.ticketCode || ticketCodeParam}-${ticketStatus}-${estimateStatus}`} 
-                                    ticketCode={ticket.ticketCode || ticketCodeParam} 
-                                    embedded 
-                                    mode="advisor" 
-                                />
-                                
-                                <AdvisorItemsTable 
-                                    key={`advisor-${ticket?.serviceTicketId}`} 
-                                    serviceTicketId={ticket?.serviceTicketId} 
-                                    ticketStatus={ticketStatus}
-                                    ticketPhotos={ticketPhotos}
-                                    refreshToken={refreshTick}
-                                    estimatedTimeDisplay={estimatedTimeDraft ? formatDateTimeViNoSeconds(estimatedTimeDraft, '-') : '-'}
-                                    onEstimateStatusChange={handleEstimateStatusChange}
-                                    onRestartWorkflow={handleRestartFromArchived}
-                                    onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
-                                    onCancelAppendOnly={handleCancelAppendOnly}
-                                    onEstimateEditingChange={setIsEstimateEditing}
-                                />
-                            </>
-                        )}
+                            {isTicketCancelled ? null : (
+                                <div className={`ui-actions ${styles.actions}`}>
+                                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
+                                        Quay lại
+                                    </button>
+                                    <div className={styles.actionsRight}>
+                                        {isCreatingNewEstimateVersion && canConfirmEstimate ? (
+                                            <button
+                                                type="button"
+                                                className="ui-btn ui-btn--primary"
+                                                onClick={handleOpenEstimateTimePopup}
+                                                disabled={receiptApproving || statusUpdating || estimateLoading}
+                                            >
+                                                {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
+                                            </button>
+                                        ) : null}
 
-                        {isTicketCancelled ? null : (
-                            <div className={`ui-actions ${styles.actions}`}>
-                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack}>
-                                    Quay lại
-                                </button>
-                                <div className={styles.actionsRight}>
-                                    {isCreatingNewEstimateVersion && canConfirmEstimate ? (
-                                        <button
-                                            type="button"
-                                            className="ui-btn ui-btn--primary"
-                                            onClick={handleOpenEstimateTimePopup}
-                                            disabled={receiptApproving || statusUpdating || estimateLoading}
-                                        >
-                                            {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
-                                        </button>
-                                    ) : null}
+                                        {isCreatingNewEstimateVersion ? null : (
+                                            <>
+                                                {canCancel && (
+                                                    <button
+                                                        type="button"
+                                                        className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
+                                                        onClick={handleCancelTicket}
+                                                        disabled={statusUpdating}
+                                                    >
+                                                        Hủy phiếu dịch vụ
+                                                    </button>
+                                                )}
+                                                {canSetPending && (
+                                                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
+                                                        Chờ xử lý
+                                                    </button>
+                                                )}
+                                                {canAddService && (
+                                                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
+                                                        Thêm dịch vụ
+                                                    </button>
+                                                )}
+                                                {canConfirmEstimate && (
+                                                    <button
+                                                        type="button"
+                                                        className="ui-btn ui-btn--primary"
+                                                        onClick={handleOpenEstimateTimePopup}
+                                                        disabled={receiptApproving || statusUpdating || estimateLoading}
+                                                    >
+                                                        {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
+                                                    </button>
+                                                )}
+                                                {canStartRepair && (
+                                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
+                                                        Tiến hành sửa chữa
+                                                    </button>
+                                                )}
+                                                {canCompleteRepair && (
+                                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving || statusUpdating}>
+                                                        Hoàn tất sửa chữa
+                                                    </button>
+                                                )}
+                                                {canBookMaintenance && (
+                                                    <button
+                                                        type="button"
+                                                        className="ui-btn ui-btn--ghost"
+                                                        onClick={() => setMaintenancePopupOpen(true)}
+                                                        disabled={statusUpdating || receiptApproving}
+                                                    >
+                                                        Đặt lịch bảo dưỡng
+                                                    </button>
+                                                )}
+                                                {canCreateReceipt && isAccountant && (
+                                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
+                                                        Tạo hoá đơn
+                                                    </button>
+                                                )}
 
-                                    {isCreatingNewEstimateVersion ? null : (
-                                        <>
-                                            {canCancel && (
-                                                <button
-                                                    type="button"
-                                                    className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
-                                                    onClick={handleCancelTicket}
-                                                    disabled={statusUpdating}
-                                                >
-                                                    Hủy phiếu dịch vụ
-                                                </button>
-                                            )}
-                                            {canSetPending && (
-                                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
-                                                    Chờ xử lý
-                                                </button>
-                                            )}
-                                            {canAddService && (
-                                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
-                                                    Thêm dịch vụ
-                                                </button>
-                                            )}
-                                            {canConfirmEstimate && (
-                                                <button
-                                                    type="button"
-                                                    className="ui-btn ui-btn--primary"
-                                                    onClick={handleOpenEstimateTimePopup}
-                                                    disabled={receiptApproving || statusUpdating || estimateLoading}
-                                                >
-                                                    {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
-                                                </button>
-                                            )}
-                                            {canStartRepair && (
-                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
-                                                    Tiến hành sửa chữa
-                                                </button>
-                                            )}
-                                            {canCompleteRepair && (
-                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleCompleteRepair} disabled={receiptApproving || statusUpdating}>
-                                                    Hoàn tất sửa chữa
-                                                </button>
-                                            )}
-                                            {canBookMaintenance && (
-                                                <button
-                                                    type="button"
-                                                    className="ui-btn ui-btn--ghost"
-                                                    onClick={() => setMaintenancePopupOpen(true)}
-                                                    disabled={statusUpdating || receiptApproving}
-                                                >
-                                                    Đặt lịch bảo dưỡng
-                                                </button>
-                                            )}
-                                            {canCreateReceipt && isAccountant && (
-                                                <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-                                                    Tạo hoá đơn
-                                                </button>
-                                            )}
-
-                                            {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
-                                                <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
-                                                    Cần phân công KTV trước khi tạo hóa đơn.
-                                                </span>
-                                            )}
-                                        </>
-                                    )}
+                                                {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
+                                                    <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
+                                                        Cần phân công KTV trước khi tạo hóa đơn.
+                                                    </span>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
 
-                    <MaintenanceBookingPopup
-                        open={maintenancePopupOpen}
-                        initialDateTime={maintenanceDraft.scheduledAt}
-                        initialNote={maintenanceDraft.note}
-                        durationMinutes={60}
-                        onClose={() => setMaintenancePopupOpen(false)}
-                        onSubmit={handleSubmitMaintenance}
-                    />
-                    <EstimateTimePopup
-                        open={estimateTimePopupOpen}
-                        initialDateTime={estimatedTimeDraft}
-                        onClose={() => setEstimateTimePopupOpen(false)}
-                        onSubmit={handleSubmitEstimateTime}
-                    />
+                        <MaintenanceBookingPopup
+                            open={maintenancePopupOpen}
+                            initialDateTime={maintenanceDraft.scheduledAt}
+                            initialNote={maintenanceDraft.note}
+                            durationMinutes={60}
+                            onClose={() => setMaintenancePopupOpen(false)}
+                            onSubmit={handleSubmitMaintenance}
+                        />
+                        <EstimateTimePopup
+                            open={estimateTimePopupOpen}
+                            initialDateTime={estimatedTimeDraft}
+                            onClose={() => setEstimateTimePopupOpen(false)}
+                            onSubmit={handleSubmitEstimateTime}
+                        />
                     </main>
                 </div>
             </div>

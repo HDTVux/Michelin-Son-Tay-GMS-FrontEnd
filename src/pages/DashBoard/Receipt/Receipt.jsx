@@ -396,6 +396,13 @@ export default function Receipt({ ticket, carDiagramSrc }) {
             <div className={styles.recommendation}>
                 <div className={styles.footerTitle}>Khuyến nghị:</div>
                 <div className={styles.legalText}>
+                    {safeText(ticket?.recommendation || '')}
+                </div>
+            </div>
+
+            <div className={styles.recommendation}>
+                <div className={styles.footerTitle}>Quyền riêng tư:</div>
+                <div className={styles.legalText}>
                     <span className={styles.checkBoxSmall} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                     {' '}
                     Tôi đồng ý rằng bất kỳ dữ liệu cá nhân nào được cung cấp theo mẫu này có thể được thu thập và xử lý bởi Michelin Việt Nam (Công Ty) và bất kỳ công ty nào thuộc tập đoàn Michelin (có thể nằm ngoài Việt Nam), nhằm mục đích cải thiện chất lượng dịch vụ và tiếp thị. Tôi đồng ý thêm rằng Công Ty có thể liên hệ với tôi (i) để nhận phản hồi về chất lượng dịch vụ cũng như (ii) cung cấp cho tôi về các sản phẩm, dịch vụ và khuyến mại của Michelin. Tôi cũng đồng ý rằng Công Ty chỉ chuyển dữ liệu cá nhân cho các nhà cung cấp dịch vụ và / hoặc chi nhánh của Michelin tại Việt Nam hoặc bên ngoài Việt Nam.
@@ -439,6 +446,7 @@ Receipt.propTypes = {
 		receivedAtDisplay: PropTypes.string,
 		handoverAtDisplay: PropTypes.string,
 		safetyInspectionEnabled: PropTypes.bool,
+		recommendation: PropTypes.string,
         invoice: PropTypes.shape({
             items: PropTypes.arrayOf(
                 PropTypes.shape({

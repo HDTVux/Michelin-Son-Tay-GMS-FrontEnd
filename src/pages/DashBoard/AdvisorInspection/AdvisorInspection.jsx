@@ -18,12 +18,33 @@ import {
 import { fetchCheckInAdvisors } from '../../../services/checkInService';
 import { formatTimeHHmm, parseBackendDateTime } from '../../../components/timeUtils.js';
 import { getServiceTicketStatusTextVi, normalizeServiceTicketStatusCode } from '../../../components/statusUtils.js';
+import { tryGetJwtPayload } from '../../../services/tokenUtils';
 import styles from './AdvisorInspection.module.css';
 
 const STAFF_ROLE = { ADVISOR: 'ADVISOR' };
 const ADVISOR_INSPECTION_DAY_STORAGE_KEY = 'advisorInspection.activeDay';
 
 const getToken = () => localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+const toPositiveStaffId = (value) => {
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? Math.trunc(id) : null;
+};
+const getCurrentStaffId = (tokenArg) => {
+  let profileId = null;
+  try {
+    const raw = localStorage.getItem('staffProfile');
+    if (raw) {
+      const profile = JSON.parse(raw);
+      profileId = toPositiveStaffId(profile?.staffId ?? profile?.id);
+    }
+  } catch {
+    profileId = null;
+  }
+  if (profileId != null) return profileId;
+
+  const payload = tryGetJwtPayload(tokenArg || getToken());
+  return toPositiveStaffId(payload?.staffId ?? payload?.staff_id ?? payload?.id);
+};
 const getAuthFingerprint = () => {
   const token = getToken();
   if (!token) return '';
@@ -102,8 +123,16 @@ const readStaffRolesFromStorage = () => {
 const getTicketCode = (ticket) => ticket?.ticketCode || ticket?.code || '';
 const getTicketId = (ticket) => {
   if (ticket?.serviceTicketId != null) return Number(ticket.serviceTicketId);
+  if (ticket?.serviceTicketID != null) return Number(ticket.serviceTicketID);
+  if (ticket?.service_ticket_id != null) return Number(ticket.service_ticket_id);
   if (ticket?.ticketId != null) return Number(ticket.ticketId);
+  if (ticket?.ticketID != null) return Number(ticket.ticketID);
+  if (ticket?.ticket_id != null) return Number(ticket.ticket_id);
   if (ticket?.id != null) return Number(ticket.id);
+  if (ticket?.serviceTicket?.serviceTicketId != null) return Number(ticket.serviceTicket.serviceTicketId);
+  if (ticket?.serviceTicket?.id != null) return Number(ticket.serviceTicket.id);
+  if (ticket?.ticket?.serviceTicketId != null) return Number(ticket.ticket.serviceTicketId);
+  if (ticket?.ticket?.id != null) return Number(ticket.ticket.id);
   return null;
 };
 const getTicketStatus = (ticket) => ticket?.status || ticket?.ticketStatus || '';
@@ -365,6 +394,51 @@ const isActiveTechnicianAssignment = (assignment) =>
   String(assignment?.roleInTicket || assignment?.role || '').trim().toUpperCase() === 'TECHNICIAN'
   && String(assignment?.status || '').trim().toUpperCase() !== 'CANCELLED';
 
+const isActiveAdvisorAssignment = (assignment) =>
+  String(assignment?.roleInTicket || assignment?.role || '').trim().toUpperCase() === 'ADVISOR'
+  && String(assignment?.status || '').trim().toUpperCase() !== 'CANCELLED';
+
+const getTicketAdvisorId = (ticket) => toPositiveStaffId(
+  ticket?.advisorId
+  ?? ticket?.assignedAdvisorId
+  ?? ticket?.advisor?.staffId
+  ?? ticket?.advisor?.id
+  ?? ticket?.assignedAdvisor?.staffId
+  ?? ticket?.assignedAdvisor?.id,
+);
+
+const filterTicketsByCurrentAdvisor = async (list, token, currentAdvisorId) => {
+  if (!currentAdvisorId) return Array.isArray(list) ? list : [];
+
+  const rows = await Promise.allSettled(
+    (Array.isArray(list) ? list : []).map(async (ticket) => {
+      const ticketId = getTicketId(ticket);
+      if (!Number.isFinite(ticketId) || ticketId <= 0) {
+        const directAdvisorId = getTicketAdvisorId(ticket);
+        return { ticket, keep: directAdvisorId == null || directAdvisorId === currentAdvisorId };
+      }
+
+      const res = await fetchTicketAssignments(ticketId, token);
+      const assignments = (Array.isArray(res?.data) ? res.data : [])
+        .map(normalizeAssignment)
+        .filter(Boolean);
+      const activeAdvisor = assignments.find(isActiveAdvisorAssignment);
+
+      if (!activeAdvisor) {
+        const directAdvisorId = getTicketAdvisorId(ticket);
+        return { ticket, keep: directAdvisorId == null || directAdvisorId === currentAdvisorId };
+      }
+
+      return { ticket, keep: Number(activeAdvisor.staffId) === Number(currentAdvisorId) };
+    }),
+  );
+
+  return rows
+    .map((row, index) => (row.status === 'fulfilled' ? row.value : { ticket: list[index], keep: true }))
+    .filter((row) => row.keep)
+    .map((row) => row.ticket);
+};
+
 export default function AdvisorInspection() {
   const navigate = useNavigate();
   const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
@@ -387,6 +461,7 @@ export default function AdvisorInspection() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
+  const [transferredOutTicketCodes, setTransferredOutTicketCodes] = useState(() => new Set());
   const [dragTicketId, setDragTicketId] = useState(null);
   const [swapping, setSwapping] = useState(false);
 
@@ -454,12 +529,19 @@ export default function AdvisorInspection() {
           : Array.isArray(response?.data)
             ? response.data
             : [];
-        const sortedList = sortTicketsByQueueOrder(list);
+        const sessionVisibleList = list.filter((ticket) => {
+          const code = String(getTicketCode(ticket) || '').trim();
+          return !code || !transferredOutTicketCodes.has(code);
+        });
+        const currentAdvisorId = getCurrentStaffId(token);
+        const visibleList = await filterTicketsByCurrentAdvisor(sessionVisibleList, token, currentAdvisorId);
+        if (ignore) return;
+        const sortedList = sortTicketsByQueueOrder(visibleList);
         setTickets(sortedList);
         setTotalPages(Math.max(1, Number(pageData?.totalPages) || 1));
-        setTotalElements(Math.max(0, Number(pageData?.totalElements) || 0));
+        setTotalElements(Math.max(0, (Number(pageData?.totalElements) || 0) - (list.length - visibleList.length)));
         cacheStaffNames(
-          list.map((t) => ({
+          visibleList.map((t) => ({
             staffId: t?.advisorId || t?.assignedAdvisorId,
             fullName: t?.advisorName || t?.assignedAdvisorName || t?.advisor?.fullName,
           })),
@@ -558,7 +640,7 @@ export default function AdvisorInspection() {
 
     run();
     return () => { ignore = true; };
-  }, [filters, reloadKey]);
+  }, [filters, reloadKey, transferredOutTicketCodes]);
 
   // Load page-level assignments (for "has technician" check)
   useEffect(() => {
@@ -806,10 +888,11 @@ export default function AdvisorInspection() {
   const handleChangeAdvisor = async () => {
     const token = getToken();
     const ticketCode = getTicketCode(selectedTicket);
+    const normalizedTicketCode = String(ticketCode || '').trim();
     const currentAdvisorId = Number(modalAdvisor?.staffId);
     const newAdvisorId = Number(selectedNewAdvisorId);
 
-    if (!token || !ticketCode || !Number.isFinite(currentAdvisorId) || currentAdvisorId <= 0) {
+    if (!token || !normalizedTicketCode || !Number.isFinite(currentAdvisorId) || currentAdvisorId <= 0) {
       setModalError('Không đủ dữ liệu để đổi cố vấn viên.');
       return;
     }
@@ -833,11 +916,30 @@ export default function AdvisorInspection() {
 
     setLoadingModal(true);
     try {
-      await changeAdvisorByAdvisor(ticketCode, newAdvisorId, 'đổi advisor từ trang advisor', token);
+      await changeAdvisorByAdvisor(normalizedTicketCode, newAdvisorId, 'đổi advisor từ trang advisor', token);
       const selectedTicketId = getTicketId(selectedTicket);
+      setTransferredOutTicketCodes((prev) => {
+        const next = new Set(prev);
+        next.add(normalizedTicketCode);
+        return next;
+      });
+      setTickets((prev) => prev.filter((ticketItem) => {
+        const sameCode = String(getTicketCode(ticketItem) || '').trim() === normalizedTicketCode;
+        const ticketItemId = getTicketId(ticketItem);
+        const sameId = Number.isFinite(selectedTicketId)
+          && Number.isFinite(ticketItemId)
+          && Number(ticketItemId) === Number(selectedTicketId);
+        return !(sameCode || sameId);
+      }));
+      setTotalElements((prev) => Math.max(0, Number(prev || 0) - 1));
       if (Number.isFinite(selectedTicketId)) {
-        setTickets((prev) => prev.filter((ticketItem) => Number(getTicketId(ticketItem)) !== Number(selectedTicketId)));
+        setModalPageAssignments((prev) => {
+          const next = new Map(prev);
+          next.delete(Number(selectedTicketId));
+          return next;
+        });
       }
+      setReloadKey((prev) => prev + 1);
       toast.success('Đã đổi cố vấn viên. Phiếu đã được chuyển sang cố vấn viên mới.');
       handleCloseModal();
     } catch (err) {
@@ -1212,7 +1314,7 @@ export default function AdvisorInspection() {
                 onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
               >
                 <option value="">Tất cả</option>
-                <option value="CREATED">Tạo mới</option>
+                <option value="CREATED">Khởi tạo phiếu</option>
                 <option value="INSPECTING">Đang kiểm tra</option>
                 <option value="INSPECTED">Đã kiểm tra</option>
                 <option value="PENDING">Chờ xử lý</option>

@@ -31,8 +31,11 @@ export default function EstimateTimePopup({ open, initialDateTime, onClose, onSu
     useEffect(() => {
         if (!open) return;
         const parts = splitDateTimeLocal(initialDateTime);
-        setDate(parts.date);
-        setTime(parts.time);
+        const timer = setTimeout(() => {
+            setDate(parts.date);
+            setTime(parts.time);
+        }, 0);
+        return () => clearTimeout(timer);
     }, [initialDateTime, open]);
 
     if (!open) return null;
