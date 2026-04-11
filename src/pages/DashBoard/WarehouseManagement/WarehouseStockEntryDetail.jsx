@@ -35,16 +35,6 @@ const EntrySummaryCard = ({ entry, statusLabel, statusValue, isDraft, isConfirmi
         <div className={styles.entryCode}>{entry?.entryCode || `#${entry?.entryId || '-'}`}</div>
         <span className={`${commonStyles.badge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
       </div>
-      {isDraft ? (
-        <button
-          type="button"
-          className="ui-btn ui-btn--primary"
-          onClick={onConfirm}
-          disabled={isConfirming}
-        >
-          {isConfirming ? 'Đang xác nhận...' : 'Xác nhận phiếu nhập'}
-        </button>
-      ) : null}
     </div>
 
     <div className={styles.detailGrid}>
@@ -274,6 +264,16 @@ export default function WarehouseStockEntryDetail() {
         </header>
 
         {bodyContent}
+              {isDraft ? (
+        <button
+          type="button"
+          className="ui-btn ui-btn--primary"
+          onClick={handleConfirm}
+          disabled={isConfirming}
+        >
+          {isConfirming ? 'Đang xác nhận...' : 'Xác nhận phiếu nhập'}
+        </button>
+      ) : null}
       </div>
     </div>
   );

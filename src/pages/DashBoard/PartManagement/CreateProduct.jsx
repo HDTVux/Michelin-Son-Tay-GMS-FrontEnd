@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import { validateTaxName, validateTaxRatePercent } from '../../../components/inputValidation.js';
 import {
 	createWarehouseBrand,
 	createWarehouseCatalogItem,
@@ -293,28 +294,19 @@ export default function CreateProduct() {
 				setSpecAttributes(attrsNorm);
 				setTaxRules(taxNorm);
 
-				const prevCat = String(selectedCategoryIdRef.current || '').trim();
-				const prevBrand = String(selectedBrandIdRef.current || '').trim();
-				const prevLine = String(selectedProductLineIdRef.current || '').trim();
+				// Keep user's current selection only if it still exists in the refreshed list.
+				// Otherwise, stay at default (empty) so the user explicitly chooses.
+				const currentCategoryId = String(selectedCategoryIdRef.current || '').trim();
+				const categoryValid = currentCategoryId && catsNorm.some((c) => String(c.itemCategoryId) === currentCategoryId);
+				setSelectedCategoryId(categoryValid ? currentCategoryId : '');
 
-				// Only auto-select if user hasn't picked (selectedCategoryId is empty or not in new list)
-				let newCatId = '';
-				const currentSelectedCategoryId = String(selectedCategoryIdRef.current || '').trim();
-				const userPicked = catsNorm.some((c) => String(c.itemCategoryId) === currentSelectedCategoryId);
-				if (userPicked) {
-					newCatId = currentSelectedCategoryId;
-				} else if (prevCat && catsNorm.some((c) => String(c.itemCategoryId) === prevCat)) {
-					newCatId = prevCat;
-				} else if (catsNorm.length > 0) {
-					newCatId = String(catsNorm[0].itemCategoryId);
-				}
-				setSelectedCategoryId(newCatId);
+				const currentBrandId = String(selectedBrandIdRef.current || '').trim();
+				const brandValid = currentBrandId && brandsNorm.some((b) => String(b.brandId) === currentBrandId);
+				setSelectedBrandId(brandValid ? currentBrandId : '');
 
-				const brandExists = prevBrand && brandsNorm.some((b) => String(b.brandId) === prevBrand);
-				setSelectedBrandId(brandExists ? prevBrand : brandsNorm?.[0]?.brandId ? String(brandsNorm[0].brandId) : '');
-
-				const lineExists = prevLine && linesNorm.some((l) => String(l.productLineId) === prevLine);
-				setSelectedProductLineId(lineExists ? prevLine : linesNorm?.[0]?.productLineId ? String(linesNorm[0].productLineId) : '');
+				const currentLineId = String(selectedProductLineIdRef.current || '').trim();
+				const lineValid = currentLineId && linesNorm.some((l) => String(l.productLineId) === currentLineId);
+				setSelectedProductLineId(lineValid ? currentLineId : '');
 			} catch (err) {
 				if (cancelled) return;
 				setCategories([]);
@@ -376,14 +368,16 @@ export default function CreateProduct() {
 	}, [productLines, selectedProductLineId]);
 
 	useEffect(() => {
-		// Auto-pick a product line when brand changes.
+		// When brand changes, keep current product line only if still valid; otherwise reset to default.
 		const brandIdNum = Number(selectedBrandId) || null;
 		const list = Array.isArray(filteredProductLines) ? filteredProductLines : [];
 		const current = String(selectedProductLineId || '').trim();
-		if (!brandIdNum) return;
+		if (!brandIdNum) {
+			if (current) setSelectedProductLineId('');
+			return;
+		}
 		if (current && list.some((l) => String(l.productLineId) === current)) return;
-		const firstId = list?.[0]?.productLineId ? String(list[0].productLineId) : '';
-		setSelectedProductLineId(firstId);
+		setSelectedProductLineId('');
 	}, [filteredProductLines, selectedBrandId, selectedProductLineId]);
 
 	useEffect(() => {
@@ -486,8 +480,7 @@ export default function CreateProduct() {
 			setSelectedBrandId(restored);
 			return;
 		}
-		const firstId = brands?.[0]?.brandId ? String(brands[0].brandId) : '';
-		setSelectedBrandId(firstId);
+		setSelectedBrandId('');
 	}, [brands]);
 
 	const handleCreateBrand = useCallback(async () => {
@@ -554,8 +547,7 @@ export default function CreateProduct() {
 			setSelectedCategoryId(restored);
 			return;
 		}
-		const firstId = categories?.[0]?.itemCategoryId ? String(categories[0].itemCategoryId) : '';
-		setSelectedCategoryId(firstId);
+		setSelectedCategoryId('');
 	}, [categories]);
 
 	const handleCreateCategory = useCallback(async () => {
@@ -632,16 +624,18 @@ export default function CreateProduct() {
 			notify('Vui lòng đăng nhập để tạo loại thuế.');
 			return;
 		}
-		const name = String(taxName || '').trim();
-		if (!name) {
-			notify('Vui lòng nhập tên thuế.');
+		const nameValidated = validateTaxName(taxName, { required: true });
+		if (nameValidated.error) {
+			notify(nameValidated.error);
 			return;
 		}
-		const rateNumber = Number(String(taxRate || '').trim());
-		if (Number.isNaN(rateNumber)) {
-			notify('Vui lòng nhập thuế suất hợp lệ.');
+		const rateValidated = validateTaxRatePercent(taxRate, { required: true });
+		if (rateValidated.error) {
+			notify(rateValidated.error);
 			return;
 		}
+		const name = nameValidated.value;
+		const rateNumber = rateValidated.value;
 		try {
 			setIsCreatingTaxRule(true);
 			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
@@ -689,16 +683,18 @@ export default function CreateProduct() {
 			notify('Vui lòng đăng nhập để tạo loại thuế.');
 			return;
 		}
-		const name = String(productTaxName || '').trim();
-		if (!name) {
-			notify('Vui lòng nhập tên thuế.');
+		const nameValidated = validateTaxName(productTaxName, { required: true });
+		if (nameValidated.error) {
+			notify(nameValidated.error);
 			return;
 		}
-		const rateNumber = Number(String(productTaxRate || '').trim());
-		if (Number.isNaN(rateNumber)) {
-			notify('Vui lòng nhập thuế suất hợp lệ.');
+		const rateValidated = validateTaxRatePercent(productTaxRate, { required: true });
+		if (rateValidated.error) {
+			notify(rateValidated.error);
 			return;
 		}
+		const name = nameValidated.value;
+		const rateNumber = rateValidated.value;
 		try {
 			setIsCreatingProductTaxRule(true);
 			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
@@ -740,9 +736,8 @@ export default function CreateProduct() {
 			setSelectedProductLineId(restored);
 			return;
 		}
-		const firstId = filteredProductLines?.[0]?.productLineId ? String(filteredProductLines[0].productLineId) : '';
-		setSelectedProductLineId(firstId);
-	}, [filteredProductLines, productLines]);
+		setSelectedProductLineId('');
+	}, [productLines]);
 
 	const handleCreateProductLine = useCallback(async () => {
 		if (isCreatingProductLine) return;

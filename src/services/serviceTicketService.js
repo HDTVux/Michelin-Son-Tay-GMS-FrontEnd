@@ -128,6 +128,40 @@ export const allocateEstimateStock = (estimateId, token) => {
   return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/stock-allocation`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
+    body: '{}',
+  });
+};
+
+// Cập nhật giữ chỗ vật tư trong kho theo báo giá (dùng khi thêm dịch vụ rồi xác nhận lại báo giá)
+// Endpoint: PUT /api/service-ticket/estimate/{estimateId}/stock-allocation/update
+// Request body: Array<{
+//   allocationId?, serviceTicketId, estimateItemId, warehouseId?, itemId, estimateId, quantity, status?, createdBy?
+// }>
+export const updateEstimateStockAllocation = (estimateId, allocations, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật giữ chỗ vật tư trong kho.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ để cập nhật giữ chỗ vật tư.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const bodyArr = Array.isArray(allocations) ? allocations : [];
+  if (bodyArr.length === 0) {
+    const error = new Error('Thiếu danh sách giữ chỗ vật tư để cập nhật.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/stock-allocation/update`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(bodyArr),
   });
 };
 
@@ -223,6 +257,65 @@ export const fetchServiceTicketAdvisorRecommend = (serviceTicketId, token) => {
   return request(`/api/service-ticket/advisor/recommend/${encodeURIComponent(String(idNum))}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Tạo nhắc lịch bảo dưỡng (reminder) cho phiếu dịch vụ
+// Endpoint: POST /api/service-ticket/remind/create
+// Request body: { serviceTicketId, vehicleId, customerId, reminderDate: 'YYYY-MM-DD', reminderTime: 'HH:mm', note }
+export const createServiceTicketReminder = (payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để tạo lịch nhắc.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const serviceTicketId = typeof payload?.serviceTicketId === 'number' ? payload.serviceTicketId : Number(payload?.serviceTicketId);
+  const vehicleId = typeof payload?.vehicleId === 'number' ? payload.vehicleId : Number(payload?.vehicleId);
+  const customerId = typeof payload?.customerId === 'number' ? payload.customerId : Number(payload?.customerId);
+
+  if (!Number.isFinite(serviceTicketId) || serviceTicketId <= 0) {
+    const error = new Error('Thiếu serviceTicketId hợp lệ để tạo lịch nhắc.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  if (!Number.isFinite(vehicleId) || vehicleId <= 0) {
+    const error = new Error('Thiếu vehicleId hợp lệ để tạo lịch nhắc.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  if (!Number.isFinite(customerId) || customerId <= 0) {
+    const error = new Error('Thiếu customerId hợp lệ để tạo lịch nhắc.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const reminderDate = String(payload?.reminderDate ?? '').trim();
+  const reminderTime = String(payload?.reminderTime ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(reminderDate)) {
+    const error = new Error('Thiếu reminderDate hợp lệ (YYYY-MM-DD).');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  if (!/^\d{2}:\d{2}$/.test(reminderTime)) {
+    const error = new Error('Thiếu reminderTime hợp lệ (HH:mm).');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const note = String(payload?.note ?? '').trim();
+
+  return request('/api/service-ticket/remind/create', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      serviceTicketId,
+      vehicleId,
+      customerId,
+      reminderDate,
+      reminderTime,
+      note,
+    }),
   });
 };
 

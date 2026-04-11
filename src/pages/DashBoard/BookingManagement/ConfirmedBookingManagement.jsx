@@ -108,7 +108,7 @@ export default function ConfirmedBookingManagement() {
       <div className={styles['booking-layout']}>
         <div className={styles['booking-left']}>
           <BookingPanel
-            title="Booking đã confirm"
+            title="Quản lý lịch hẹn"
             icon={<CheckIcon />}
             tone="success"
             data={bookings}

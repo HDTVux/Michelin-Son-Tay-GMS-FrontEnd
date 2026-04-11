@@ -10,11 +10,15 @@ const formatCurrencyVnd = (value) => {
     return new Intl.NumberFormat('vi-VN').format(Math.round(n));
 };
 
-const formatItemTypeLabel = (itemType) => {
-    if (itemType === 'PART') return 'Phụ tùng';
-    if (itemType === 'SERVICE') return 'Dịch vụ';
-    return itemType || '-';
+const formatTaxRatePercent = (value) => {
+    const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+    if (!Number.isFinite(n)) return '-';
+
+    // Support both 0-1 (e.g. 0.1) and 0-100 (e.g. 10)
+    const percent = n > 0 && n <= 1 ? n * 100 : n;
+    return `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(percent)}%`;
 };
+
 
 export default function ItemDetailModal({ item, onClose }) {
     const [detail, setDetail] = useState(null);
@@ -69,8 +73,10 @@ export default function ItemDetailModal({ item, onClose }) {
 
     const display = detail ?? item;
     const priceText = display?.showPrice ? `${formatCurrencyVnd(display?.price)} ₫` : 'Liên hệ';
-    const typeText = formatItemTypeLabel(display?.itemType);
-
+    const tax = display?.taxRule ?? display?.tax ?? null;
+    const taxName = tax?.taxName || '-';
+    const taxRateText = formatTaxRatePercent(tax?.taxRate);
+    const taxText = taxName === '-' && taxRateText === '-' ? '-' : `${taxName} (${taxRateText})`;
     const brandText = typeof display?.brandId === 'string'
         ? display.brandId
         : (display?.brand?.brandName || '-');
@@ -84,11 +90,19 @@ export default function ItemDetailModal({ item, onClose }) {
     const colorText = getItemColorText(display);
 
     return (
-        <div
-            className={styles['modal-overlay']}
-            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-        >
-            <div className={styles['modal-box']} onClick={(e) => e.stopPropagation()}>
+        <div className={styles['modal-overlay']}>
+            <button
+                type="button"
+                className={styles['modal-backdrop']}
+                onClick={onClose}
+                onKeyDown={(e) => {
+                    if (e.key === 'Escape') onClose();
+                }}
+                aria-label="Đóng"
+            />
+            <div
+                className={styles['modal-box']}
+            >
                 <div className={styles['modal-header']}>
                     <h3 id="item-detail-title">Chi tiết phụ tùng</h3>
                     <button type="button" className={styles['modal-close']} onClick={onClose} aria-label="Đóng">
@@ -107,10 +121,10 @@ export default function ItemDetailModal({ item, onClose }) {
                                 <tr><th>ID</th><td>{display?.itemId ?? '-'}</td></tr>
                                 <tr><th>Tên</th><td>{display?.itemName || '-'}</td></tr>
                                 <tr><th>SKU</th><td>{display?.sku || '-'}</td></tr>
-                                <tr><th>Loại</th><td>{typeText}</td></tr>
                                 <tr><th>Hãng</th><td>{brandText}</td></tr>
                                 <tr><th>Dòng sản phẩm</th><td>{productLineText}</td></tr>
                                 <tr><th>Giá</th><td>{priceText}</td></tr>
+                                <tr><th>Thuế</th><td>{taxText}</td></tr>
                                 <tr><th>Đơn vị</th><td>{display?.unit || '-'}</td></tr>
                                 <tr><th>Xuất xứ</th><td>{originText}</td></tr>
                                 <tr><th>Màu</th><td>{colorText}</td></tr>

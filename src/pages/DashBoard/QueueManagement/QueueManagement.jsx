@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { buildDateOptions, formatDateTimeViNoSeconds, formatLocalDateYYYYMMDD, formatTimeHHmm } from '../../../components/timeUtils.js';
-import { fetchAllSlots, setQueueAuto, swapQueueBookings } from '../../../services/bookingService.js';
+import { fetchAllSlots, fetchQueueBySlot, setQueueAuto, swapQueueBookings } from '../../../services/bookingService.js';
 import styles from './QueueManagement.module.css';
 
 const timeKey = (t) => formatTimeHHmm(t || '');
@@ -21,11 +21,24 @@ const minutesSinceMidnight = (timeRaw) => {
 	return hh * 60 + mm;
 };
 
+const pickCurrentSlotStartTime = (options, now = new Date()) => {
+	const list = Array.isArray(options) ? options : [];
+	if (list.length === 0) return '';
+	const nowMinutes = now.getHours() * 60 + now.getMinutes();
+	let picked = list[0]?.startTime || '';
+	for (const s of list) {
+		const start = minutesSinceMidnight(s?.startTime);
+		if (!Number.isFinite(start)) continue;
+		if (start <= nowMinutes) picked = s?.startTime || picked;
+	}
+	return picked;
+};
+
 export default function QueueManagement() {
 	useScrollToTop();
 	const navigate = useNavigate();
 
-	const notify = (message) => toast(message, { containerId: 'app-toast' });
+	const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
 	const [dateISO, setDateISO] = useState(() => formatLocalDateYYYYMMDD(new Date()));
 	const [slot, setSlot] = useState('');
@@ -37,6 +50,7 @@ export default function QueueManagement() {
 	const [queueLoading, setQueueLoading] = useState(false);
 	const [queueError, setQueueError] = useState('');
 	const [dragBookingId, setDragBookingId] = useState(null);
+	const didAutoLoadRef = useRef(false);
 
 	const dateOptions = useMemo(() => buildDateOptions(10), []);
 
@@ -61,9 +75,6 @@ export default function QueueManagement() {
 				const filtered = list.filter((s) => s && (s.isActive ?? true));
 				filtered.sort((a, b) => timeKey(a?.startTime).localeCompare(timeKey(b?.startTime)));
 				setSlots(filtered);
-				if (!slot && filtered.length > 0) {
-					setSlot(filtered[0]?.startTime || '');
-				}
 			})
 			.catch((err) => {
 				if (!active) return;
@@ -77,57 +88,108 @@ export default function QueueManagement() {
 		return () => {
 			active = false;
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	const handlePickCurrentSlot = () => {
+	const handlePickCurrentSlot = useCallback(() => {
 		const todayISO = formatLocalDateYYYYMMDD(new Date());
 		setDateISO(todayISO);
-
-		const now = new Date();
-		const nowMinutes = now.getHours() * 60 + now.getMinutes();
-		const options = slotOptions;
-		if (!options || options.length === 0) return;
-
-		let picked = options[0]?.startTime || '';
-		for (const s of options) {
-			const start = minutesSinceMidnight(s?.startTime);
-			if (!Number.isFinite(start)) continue;
-			if (start <= nowMinutes) picked = s?.startTime || picked;
-		}
+		const picked = pickCurrentSlotStartTime(slotOptions);
 		setSlot(picked);
-	};
+	}, [slotOptions]);
 
-	const handleSetQueueAuto = () => {
-		if (!dateISO || !slot) {
+	const loadQueue = useCallback(async ({ date, slot: slotValue, silent } = {}) => {
+		const dateParam = String(date ?? dateISO ?? '').trim();
+		const slotParam = String(slotValue ?? slot ?? '').trim();
+		const isSilent = Boolean(silent);
+
+		if (!dateParam || !slotParam) {
 			notify('Vui lòng chọn ngày và khung giờ.');
+			return;
+		}
+
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			setQueue([]);
+			setQueueError('Vui lòng đăng nhập để xem hàng đợi.');
 			return;
 		}
 
 		setQueueLoading(true);
 		setQueueError('');
-
-		setQueueAuto(dateISO, slot)
-			.then((res) => {
-				const list = Array.isArray(res?.data) ? [...res.data] : [];
-				list.sort((a, b) => {
-					const byOrder = queueOrderKey(a) - queueOrderKey(b);
-					if (byOrder !== 0) return byOrder;
-					return String(a?.createdAt || '').localeCompare(String(b?.createdAt || ''));
-				});
-				setQueue(list);
-				notify(res?.message || 'Thành công');
-			})
-			.catch((err) => {
-				const msg = err?.message || 'Không thể tải hàng đợi.';
-				setQueueError(msg);
-				setQueue([]);
-				notify(msg);
-			})
-			.finally(() => {
-				setQueueLoading(false);
+		try {
+			const res = await fetchQueueBySlot(dateParam, slotParam, token);
+			const list = Array.isArray(res?.data) ? [...res.data] : [];
+			list.sort((a, b) => {
+				const byOrder = queueOrderKey(a) - queueOrderKey(b);
+				if (byOrder !== 0) return byOrder;
+				return String(a?.createdAt || '').localeCompare(String(b?.createdAt || ''));
 			});
-	};
+			setQueue(list);
+			if (!isSilent && res?.message) notify(res.message);
+		} catch (err) {
+			const msg = err?.message || 'Không thể tải hàng đợi.';
+			setQueueError(msg);
+			setQueue([]);
+			if (!isSilent) notify(msg);
+		} finally {
+			setQueueLoading(false);
+		}
+	}, [dateISO, notify, slot]);
+
+	const handleSetQueueAuto = useCallback(async () => {
+		if (!dateISO || !slot) {
+			notify('Vui lòng chọn ngày và khung giờ.');
+			return;
+		}
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			setQueueError('Vui lòng đăng nhập để thao tác.');
+			return;
+		}
+		try {
+			setQueueLoading(true);
+			setQueueError('');
+			const res = await setQueueAuto(dateISO, slot, token);
+			notify(res?.message || 'Đã tự động xếp hàng.');
+		} catch (err) {
+			const msg = err?.message || 'Không thể tự động xếp hàng.';
+			setQueueError(msg);
+			notify(msg);
+		} finally {
+			setQueueLoading(false);
+			// Always refresh from GET for display.
+			loadQueue({ silent: true });
+		}
+	}, [dateISO, loadQueue, notify, slot]);
+
+	useEffect(() => {
+		// Auto pick current date + slot and fetch queue once.
+		if (didAutoLoadRef.current) return;
+		if (slotsLoading) return;
+		if (slotsError) return;
+		if (!slotOptions || slotOptions.length === 0) return;
+
+		// If user already picked a slot before slots finished loading, don't override.
+		if (String(slot || '').trim()) {
+			didAutoLoadRef.current = true;
+			return;
+		}
+
+		const todayISO = formatLocalDateYYYYMMDD(new Date());
+		const picked = pickCurrentSlotStartTime(slotOptions);
+		if (!picked) return;
+
+		didAutoLoadRef.current = true;
+		setDateISO(todayISO);
+		setSlot(picked);
+	}, [slot, slotOptions, slotsError, slotsLoading]);
+
+	useEffect(() => {
+		if (slotsLoading) return;
+		if (slotsError) return;
+		if (!dateISO || !slot) return;
+		loadQueue({ silent: true });
+	}, [dateISO, loadQueue, slot, slotsError, slotsLoading]);
 
 	const applySwapLocal = (fromId, toId) => {
 		setQueue((prev) => {
@@ -145,7 +207,8 @@ export default function QueueManagement() {
 	const handleSwap = async (fromId, toId) => {
 		if (!fromId || !toId || Number(fromId) === Number(toId)) return;
 		try {
-			const res = await swapQueueBookings(Number(fromId), Number(toId));
+			const token = localStorage.getItem('authToken');
+			const res = await swapQueueBookings(Number(fromId), Number(toId), token || undefined);
 			const list = Array.isArray(res?.data) ? [...res.data] : null;
 			if (list) {
 				list.sort((a, b) => {
@@ -236,7 +299,7 @@ export default function QueueManagement() {
 							onClick={handlePickCurrentSlot}
 							disabled={slotsLoading || slotOptions.length === 0}
 						>
-							Lấy slot hiện tại
+							Lấy khung giờ hiện tại
 						</button>
 					</div>
 
@@ -247,7 +310,7 @@ export default function QueueManagement() {
 							onClick={handleSetQueueAuto}
 							disabled={queueLoading || !dateISO || !slot}
 						>
-							{queueLoading ? 'Đang xử lý...' : 'Hàng chờ đặt lịch'}
+							{queueLoading ? 'Đang xử lý...' : 'Tự động xếp hàng'}
 						</button>
 					</div>
 				</div>

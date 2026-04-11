@@ -104,9 +104,6 @@ export default function StepService({
 
   const sectionLabel = currentTab === 'PART' ? 'Chọn phụ tùng' : 'Chọn dịch vụ';
   const searchPlaceholder = currentTab === 'PART' ? 'Tìm kiếm phụ tùng...' : 'Tìm kiếm dịch vụ...';
-  const sliderHint = currentTab === 'PART'
-    ? 'Kéo vuốt ngang để xem thêm phụ tùng.'
-    : 'Kéo vuốt ngang để xem thêm dịch vụ.';
   const emptyLabel = currentTab === 'PART' ? 'Chưa có phụ tùng phù hợp.' : 'Chưa có dịch vụ phù hợp.';
 
   return (
@@ -147,7 +144,6 @@ export default function StepService({
               ))}
             </select>
           </div>
-          <p className={styles['slider-hint']}>{sliderHint}</p>
         </div>
 
         {loading && <div className={styles['service-status']}>Đang tải danh sách...</div>}

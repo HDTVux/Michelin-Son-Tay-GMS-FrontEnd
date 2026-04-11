@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchServiceTicketDetail, updateServiceTicket } from '../../../services/serviceTicketService.js';
+import { validateTextInput } from '../../../components/inputValidation.js';
 
 // --------- Ticket detail loading ---------
 export function useServiceTicketDetailData(ticketCodeParam, ticketFromState) {
@@ -61,16 +62,6 @@ export function useServiceTicketDetailData(ticketCodeParam, ticketFromState) {
 	};
 }
 
-// --------- Editing logic ---------
-function extractCatalogItemIdsFromTicket(ticketLike) {
-	const list = Array.isArray(ticketLike?.services) ? ticketLike.services : [];
-	return list
-		// API may still name catalogId as serviceId.
-		.map((s) => s?.catalogId ?? s?.serviceId ?? s?.id)
-		.map(Number)
-		.filter((n) => Number.isFinite(n) && n > 0);
-}
-
 function getSaveEditGuardError({ ticketCodeParam, isImmutable }) {
 	if (!ticketCodeParam) return 'Thiếu ticketCode để cập nhật.';
 	if (isImmutable) return 'Phiếu dịch vụ này không thể chỉnh sửa.';
@@ -81,6 +72,8 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [editForm, setEditForm] = useState({ customerRequest: '' });
+
+	const CUSTOMER_REQUEST_MAX_LENGTH = 255;
 
 	const initialEditState = useMemo(() => {
 		const request = String(ticketRaw?.customerRequest ?? ticket?.requestNote ?? '').trim();
@@ -121,12 +114,18 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 			return;
 		}
 
-		const customerRequest = String(editForm.customerRequest || '').trim();
-		const catalogItemIds = extractCatalogItemIdsFromTicket(ticketRaw ?? ticket);
-		if (!catalogItemIds.length) {
-			setError('Không tìm thấy dịch vụ hiện có của ticket để cập nhật.');
+		const validated = validateTextInput(editForm.customerRequest, {
+			fieldLabel: 'Nội dung yêu cầu',
+			required: false,
+			trim: true,
+			maxLength: CUSTOMER_REQUEST_MAX_LENGTH,
+		});
+		if (validated.error) {
+			setError(validated.error);
 			return;
 		}
+
+		const customerRequest = validated.value;
 
 		try {
 			setIsSaving(true);
@@ -135,10 +134,6 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 				ticketCodeParam,
 				{
 					customerRequest,
-					// Keep services unchanged; backend requires not-null list.
-					catalogItemIds,
-					// Backward-compat (if backend still reads serviceIds)
-					serviceIds: catalogItemIds,
 				},
 				token,
 			);

@@ -3,8 +3,35 @@ import PropTypes from 'prop-types';
 // Lưu ý: Nếu bạn để CSS chung thì giữ nguyên dòng này. 
 // Nếu tách file thì đổi thành import styles from './CatalogPicker.module.css';
 import styles from './CatalogPicker.module.css'; 
-import { searchWarehouseCatalogItems } from '../../../services/warehouseService.js';
+import { searchWarehouseCatalogItemsDetail } from '../../../services/warehouseService.js';
 import { formatCurrencyVnd } from './useAdvisorItemsTableHandlers.js';
+
+function getWarehouseDisplayName(detail) {
+  return String(detail?.warehouseName || detail?.warehouseCode || detail?.warehouseId || '').trim() || '-';
+}
+
+function getWarehouseAvailableQty(detail) {
+  // UX requirement: show remaining quantity by `quantity` (not `availableQuantity`).
+  if (Number.isFinite(detail?.quantity)) return detail.quantity;
+  if (Number.isFinite(detail?.availableQuantity)) return detail.availableQuantity;
+  return null;
+}
+
+function buildPickedCatalogItem(item, warehouseDetail) {
+  if (!warehouseDetail) return item;
+  const sellingPrice = warehouseDetail?.sellingPrice;
+  const nextPrice = sellingPrice ?? item?.price ?? item?.unitPrice;
+  return {
+    ...item,
+    warehouseId: warehouseDetail?.warehouseId,
+    selectedWarehouse: warehouseDetail,
+    sellingPrice,
+    price: nextPrice,
+    unitPrice: nextPrice,
+    // Keep naming for downstream code, but align value with what we show in dropdown.
+    availableQuantity: getWarehouseAvailableQty(warehouseDetail),
+  };
+}
 
 function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage = 0, pageSize = 10, initQuery = '', categoryCode = '' }) {
   const dialogRef = useRef(null); // Tạo ref để điều khiển thẻ dialog
@@ -16,6 +43,9 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Per-item selected warehouse for pricing display.
+  const [selectedWarehouseByItemId, setSelectedWarehouseByItemId] = useState({});
 
   // Effect này bắt sự kiện khi prop 'open' thay đổi để mở/đóng Modal chính giữa màn hình
   useEffect(() => {
@@ -50,8 +80,11 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
         // Nếu có categoryCode thì truyền vào params tìm kiếm
         const params = { page, size, search };
         if (categoryCode) params.categoryCode = categoryCode;
-        const res = await searchWarehouseCatalogItems(params, token);
-        const payload = res?.data ?? res;
+        const res = await searchWarehouseCatalogItemsDetail(params, token);
+        // New API returns: { success, ..., data: { content, totalElements, ... } }
+        // Keep backward-compat: if data wrapper is absent, use response directly.
+        const envelope = res?.data ?? res;
+        const payload = envelope?.data ?? envelope;
         const content = Array.isArray(payload?.content) ? payload.content : Array.isArray(payload) ? payload : [];
         if (cancelled) return;
         setResults(content);
@@ -73,6 +106,22 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
 
   const handlePick = (item) => {
     onPick?.(item);
+  };
+
+  const handlePickWithWarehouse = (item, warehouseIdRaw) => {
+    const itemId = item?.itemId ?? item?.id ?? null;
+    const details = Array.isArray(item?.warehouseDetails) ? item.warehouseDetails : [];
+    const warehouseIdNum = typeof warehouseIdRaw === 'number' ? warehouseIdRaw : Number(warehouseIdRaw);
+    const selectedDetail = details.find((d) => Number(d?.warehouseId) === warehouseIdNum) || null;
+
+    if (itemId != null) {
+      setSelectedWarehouseByItemId((prev) => ({
+        ...prev,
+        [String(itemId)]: Number.isFinite(warehouseIdNum) ? warehouseIdNum : warehouseIdRaw,
+      }));
+    }
+
+    handlePick(buildPickedCatalogItem(item, selectedDetail));
   };
 
   // Chỉ render dialog khi `open` = true để tránh reflow/jitter khi không hiển thị
@@ -138,6 +187,14 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                 <tbody>
                   {(Array.isArray(results) && results.length > 0) ? (
                     results.map((it, i) => (
+                      (() => {
+                        const itemKeyRaw = it?.itemId ?? it?.id ?? `res-${i}`;
+                        const itemKey = String(itemKeyRaw);
+                        const details = Array.isArray(it?.warehouseDetails) ? it.warehouseDetails : [];
+                        const selectedWarehouseId = selectedWarehouseByItemId[itemKey] ?? '';
+                        const selectedDetail = details.find((d) => String(d?.warehouseId) === String(selectedWarehouseId)) || null;
+                        const displayPrice = selectedDetail?.sellingPrice;
+                        return (
                       <tr key={String(it?.itemId ?? it?.id ?? `res-${i}`)}>
                         <td>{it?.itemId ?? '-'}</td>
                         <td>{it?.itemName || it?.name || '-'}</td>
@@ -145,18 +202,41 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                         <td>{it?.brand || '-'}</td>
                         <td>{it?.color || '-'}</td>
                         <td>{it?.madeIn || '-'}</td>
-                        <td className={styles.tdNumber}>{formatCurrencyVnd(it?.price ?? it?.unitPrice)}</td>
+                        <td className={styles.tdNumber}>{displayPrice == null ? '-' : formatCurrencyVnd(displayPrice)}</td>
                         <td>{it?.unit || '-'}</td>
                         <td>
-                          <button  type="button" className="ui-btn ui-btn--primary" onClick={() => handlePick(it)}>
-                            Chọn
-                          </button>
+                          {details.length > 0 ? (
+                            <select
+                              className={styles.warehouseSelect}
+                              value={selectedWarehouseId}
+                              onChange={(e) => handlePickWithWarehouse(it, e.target.value)}
+                            >
+                              <option value="" disabled>Chọn kho...</option>
+                              {details.map((d, idx2) => {
+                                const wid = d?.warehouseId;
+                                const name = getWarehouseDisplayName(d);
+                                const qty = getWarehouseAvailableQty(d);
+                                const label = qty == null ? name : `${name} (SL: ${qty})`;
+                                return (
+                                  <option key={String(wid ?? `w-${idx2}`)} value={String(wid ?? '')}>
+                                    {label}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          ) : (
+                            <button type="button" className="ui-btn ui-btn--primary" onClick={() => handlePick(it)}>
+                              Chọn
+                            </button>
+                          )}
                         </td>
                       </tr>
+                        );
+                      })()
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className={styles.emptyRow}>
+                      <td colSpan={9} className={styles.emptyRow}>
                         Không có kết quả.
                       </td>
                     </tr>

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { fetchAvailableSlotStaff } from '../../../services/bookingService.js';
+import { validateTextInput } from '../../../components/inputValidation.js';
 import styles from './ServiceTicketDetail.module.css';
 
 function splitDateTimeLocal(value) {
@@ -58,52 +59,62 @@ export default function MaintenanceBookingPopup({
     initialDateTime,
     initialNote,
     durationMinutes,
+    submitting,
     onClose,
     onSubmit,
 }) {
-    const [date, setDate] = useState('');
-    const [timeSlot, setTimeSlot] = useState('');
-    const [note, setNote] = useState('');
+    const initialParts = splitDateTimeLocal(initialDateTime);
+    const [date, setDate] = useState(() => initialParts.date);
+    const [timeSlot, setTimeSlot] = useState(() => initialParts.time);
+    const [note, setNote] = useState(() => String(initialNote || ''));
     const [slotOptions, setSlotOptions] = useState([]);
     const [slotsLoading, setSlotsLoading] = useState(false);
     const [slotsError, setSlotsError] = useState('');
 
-    useEffect(() => {
-        if (!open) return;
-        const parts = splitDateTimeLocal(initialDateTime);
-        const timer = setTimeout(() => {
-            setDate(parts.date);
-            setTimeSlot(parts.time);
-            setNote(String(initialNote || ''));
-        }, 0);
-        return () => clearTimeout(timer);
-    }, [open, initialDateTime, initialNote]);
+    const NOTE_MAX_LENGTH = 255;
+    const noteValidation = useMemo(() => {
+        return validateTextInput(note, {
+            fieldLabel: 'Ghi chú',
+            required: false,
+            trim: false,
+            maxLength: NOTE_MAX_LENGTH,
+        });
+    }, [note]);
+    const noteHasError = Boolean(noteValidation?.error);
+    const NoteRemaining = NOTE_MAX_LENGTH - String(note ?? '').length;
+
+    const effectiveTimeSlot = useMemo(() => {
+        if (!timeSlot) return '';
+        if (!Array.isArray(slotOptions) || slotOptions.length === 0) return timeSlot;
+        const matched = slotOptions.find((s) => s.value === timeSlot);
+        return matched?.isAvailable ? timeSlot : '';
+    }, [slotOptions, timeSlot]);
 
     useEffect(() => {
-        if (!open || !date) {
-            const timer = setTimeout(() => {
-                setSlotOptions([]);
-                setSlotsError('');
-                setSlotsLoading(false);
-            }, 0);
-            return () => clearTimeout(timer);
-        }
+        let active = true;
+        if (!date) return () => {
+            active = false;
+        };
 
         const token = localStorage.getItem('authToken');
         if (!token) {
-            const timer = setTimeout(() => {
+            Promise.resolve().then(() => {
+                if (!active) return;
                 setSlotOptions([]);
                 setSlotsError('Vui lòng đăng nhập để xem slot khả dụng.');
                 setSlotsLoading(false);
-            }, 0);
-            return () => clearTimeout(timer);
+            });
+            return () => {
+                active = false;
+            };
         }
 
-        let active = true;
-        const timer = setTimeout(() => {
+        Promise.resolve().then(() => {
+            if (!active) return;
             setSlotsLoading(true);
             setSlotsError('');
-        }, 0);
+            setSlotOptions([]);
+        });
 
         fetchAvailableSlotStaff(date, token, durationMinutes)
             .then((res) => {
@@ -124,19 +135,7 @@ export default function MaintenanceBookingPopup({
             clearTimeout(timer);
             active = false;
         };
-    }, [date, durationMinutes, open]);
-
-    useEffect(() => {
-        if (!timeSlot) return;
-        if (!Array.isArray(slotOptions) || slotOptions.length === 0) return;
-        const matched = slotOptions.find((s) => s.value === timeSlot);
-        if (!matched?.isAvailable) {
-            const timer = setTimeout(() => {
-                setTimeSlot('');
-            }, 0);
-            return () => clearTimeout(timer);
-        }
-    }, [slotOptions, timeSlot]);
+    }, [date, durationMinutes]);
 
     if (!open) return null;
 
@@ -167,6 +166,7 @@ export default function MaintenanceBookingPopup({
                             type="date"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
+                            disabled={submitting}
                         />
                     </div>
 
@@ -174,9 +174,9 @@ export default function MaintenanceBookingPopup({
                         <label htmlFor="maintenance-next-slot">Giờ hẹn (theo slot cửa hàng)</label>
                         <select
                             id="maintenance-next-slot"
-                            value={timeSlot}
+                            value={effectiveTimeSlot}
                             onChange={(e) => setTimeSlot(e.target.value)}
-                            disabled={!date || slotsLoading || Boolean(slotsError)}
+                            disabled={!date || slotsLoading || Boolean(slotsError) || submitting}
                         >
                             <option value="">-- Chọn slot giờ --</option>
                             {slotOptions.map((s) => (
@@ -203,8 +203,18 @@ export default function MaintenanceBookingPopup({
                             placeholder="Nhập ghi chú..."
                             value={note}
                             onChange={(e) => setNote(e.target.value)}
+                            disabled={submitting}
                         />
+                        {noteHasError ? (
+                            <div className={styles.maintenanceSlotError}>{noteValidation.error}</div>
+                        ) : null}
+                    <span>
+                        {NoteRemaining >= 0
+                            ? `Còn ${NoteRemaining} ký tự`
+                            : `Vượt ${Math.abs(NoteRemaining)} ký tự`}
+                    </span>
                     </div>
+
 
                     <div className="ui-actions ui-actions--end" style={{ marginTop: 12 }}>
                         <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose}>
@@ -213,10 +223,10 @@ export default function MaintenanceBookingPopup({
                         <button
                             type="button"
                             className="ui-btn ui-btn--primary"
-                            onClick={() => onSubmit?.({ scheduledAt: joinDateAndTime(date, timeSlot), note })}
-                            disabled={!date || !timeSlot || slotsLoading || Boolean(slotsError)}
+                            onClick={() => onSubmit?.({ scheduledAt: joinDateAndTime(date, effectiveTimeSlot), note })}
+                            disabled={!date || !effectiveTimeSlot || slotsLoading || Boolean(slotsError) || submitting || noteHasError}
                         >
-                            Xác nhận
+                            {submitting ? 'Đang lưu...' : 'Xác nhận'}
                         </button>
                     </div>
                 </div>
@@ -230,10 +240,12 @@ MaintenanceBookingPopup.propTypes = {
     initialDateTime: PropTypes.string,
     initialNote: PropTypes.string,
     durationMinutes: PropTypes.number,
+    submitting: PropTypes.bool,
     onClose: PropTypes.func,
     onSubmit: PropTypes.func,
 };
 
 MaintenanceBookingPopup.defaultProps = {
     durationMinutes: 60,
+    submitting: false,
 };

@@ -188,6 +188,26 @@ export const searchWarehouseCatalogItems = (params, token) => {
   });
 };
 
+// Search catalog items with warehouse details (supports pagination and filters)
+// GET: /api/warehouse/search/catalog-items-detail
+// Request params are kept identical to /api/warehouse/search/catalog-items
+export const searchWarehouseCatalogItemsDetail = (params, token) => {
+  const qp = new URLSearchParams();
+  const safeParams = params || {};
+  Object.entries(safeParams).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    const s = String(v);
+    if (s === '') return;
+    qp.append(k, s);
+  });
+  const qs = qp.toString();
+  const path = '/api/warehouse/search/catalog-items-detail' + (qs ? `?${qs}` : '');
+  return request(path, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
 // GET: /api/warehouse/search/catalog-items/detail/{catalogItemId}
 export const fetchWarehouseCatalogItemDetail = (catalogItemId, token) => {
   const idNum = typeof catalogItemId === 'number' ? catalogItemId : Number(catalogItemId);

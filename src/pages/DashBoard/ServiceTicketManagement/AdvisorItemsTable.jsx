@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
+import { validateTaxName, validateTaxRatePercent, validateTextInput } from '../../../components/inputValidation.js';
 import {
     formatCurrencyVnd,
     isDraftRowEmpty,
@@ -50,6 +51,10 @@ function TaxRuleQuickAdd({
     stopAddNewTaxRule,
     handleCreateTaxRule,
 }) {
+    const taxNameValidation = validateTaxName(taxName, { required: true });
+    const taxRateValidation = validateTaxRatePercent(taxRate, { required: true });
+    const taxHasError = Boolean(taxNameValidation.error || taxRateValidation.error);
+
     if (!show) return null;
 
     return (
@@ -62,7 +67,7 @@ function TaxRuleQuickAdd({
                             type="button"
                             className="ui-btn ui-btn--primary"
                             onClick={handleCreateTaxRule}
-                            disabled={isCreatingTaxRule || isSaving}
+                            disabled={isCreatingTaxRule || isSaving || taxHasError}
                         >
                             {isCreatingTaxRule ? 'Đang thêm...' : 'Xác nhận thêm thuế'}
                         </button>
@@ -72,13 +77,13 @@ function TaxRuleQuickAdd({
                             onClick={stopAddNewTaxRule}
                             disabled={isCreatingTaxRule || isSaving}
                         >
-                            Chọn từ danh sách
+                            Hủy
                         </button>
                     </div>
                 ) : (
                     <button
                         type="button"
-                        className="ui-btn ui-btn--primary"
+                        className="ui-btn ui-btn--ghost"
                         onClick={startAddNewTaxRule}
                         disabled={taxRulesLoading || isSaving}
                     >
@@ -99,6 +104,9 @@ function TaxRuleQuickAdd({
                             autoComplete="off"
                             disabled={isCreatingTaxRule || isSaving}
                         />
+                        {taxNameValidation.error ? (
+                            <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>{taxNameValidation.error}</div>
+                        ) : null}
                     </div>
                     <div className="ui-field" style={{ marginBottom: 0 }}>
                         <label htmlFor="estimate-tax-rate">Thuế suất</label>
@@ -111,6 +119,9 @@ function TaxRuleQuickAdd({
                             placeholder="0"
                             disabled={isCreatingTaxRule || isSaving}
                         />
+                        {taxRateValidation.error ? (
+                            <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>{taxRateValidation.error}</div>
+                        ) : null}
                     </div>
                 </div>
             ) : null}
@@ -152,6 +163,10 @@ function EstimateItemRow({
     const isLocked = Boolean(row?.isLockedFromPreviousVersion);
     const allowInputs = showInputs && !isLocked;
 
+    const categoryFilled =
+        Boolean(String(row?.newCategoryName ?? row?.categoryName ?? '').trim()) || Boolean(toIdOrNull(row?.workCategoryId));
+    const allowItemActions = allowInputs && categoryFilled;
+
     const stt = String(idx + 1).padStart(2, '0');
     const manualTaxRuleId = toIdOrNull(row?.taxRuleId);
     const itemTaxRuleId = toIdOrNull(row?.itemTaxRuleId);
@@ -166,6 +181,13 @@ function EstimateItemRow({
     const isPredefinedCategory = Boolean(toIdOrNull(row?.workCategoryId));
     const subTotalValue = effectiveTaxRuleId ? (row?.subTotalWithVat ?? row?.subTotal) : row?.subTotal;
     const shouldShowTaxDropdown = allowInputs && !itemTaxRuleId && !categoryTaxRuleId;
+
+    let itemPlaceholder = 'Diễn giải';
+    if (categoryFilled) {
+        if (isPredefinedCategory) itemPlaceholder = 'Chọn sản phẩm ';
+    } else {
+        itemPlaceholder = 'Nhập hạng mục trước';
+    }
 
     return (
         <tr key={`advisor-row-${stt}-${row.key}`}>
@@ -190,16 +212,20 @@ function EstimateItemRow({
                         <input
                             className={styles.tableInput}
                             value={row.itemName ?? ''}
-                            placeholder={isPredefinedCategory ? "Chọn sản phẩm từ danh mục" : "Diễn giải"}
+                            placeholder={itemPlaceholder}
                             readOnly={isPredefinedCategory}
-                            onChange={isPredefinedCategory ? undefined : (e) => onChange(idx, 'itemName', e.target.value)}
-                            disabled={isSaving}
+                            onChange={
+                                !allowItemActions || isPredefinedCategory
+                                    ? undefined
+                                    : (e) => onChange(idx, 'itemName', e.target.value)
+                            }
+                            disabled={isSaving || !allowItemActions}
                         />
                         <button
                             type="button"
-                            className="ui-btn ui-btn--ghost"
+                            className={`ui-btn ui-btn--ghost ${styles.pickButtonNoWrap}`}
                             onClick={() => openCatalogPicker(idx, row)}
-                            disabled={isSaving}
+                            disabled={isSaving || !allowItemActions}
                         >
                             Chọn
                         </button>
@@ -289,9 +315,8 @@ function EstimateItemRow({
                 ) : (
                     <input
                         type="checkbox"
-                        checked={Boolean(row.confirmed)}
-                        onChange={(e) => toggleChecked(row.sourceIndex, e.target.checked)}
-                        disabled={!canToggleChecked || Boolean(row.confirmed)}
+                        checked={true}
+                        disabled={true}
                     />
                 )}
             </td>
@@ -531,6 +556,10 @@ export default function AdvisorItemsTable({
         isEditing,
         isAppendOnlyEdit,
         isSaving,
+        loadError,
+        taxRulesError,
+        workCategoriesError,
+        saveError,
         estimateCostText,
         statusLine,
         footerTotalText,
@@ -551,6 +580,22 @@ export default function AdvisorItemsTable({
         inventory,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange, refreshToken });
+
+    const RECOMMEND_MAX_LENGTH = 255;
+    const recommendationValidation = useMemo(
+        () =>
+            validateTextInput(recommendation, {
+                fieldLabel: 'Khuyến nghị',
+                required: false,
+                trim: false,
+                maxLength: RECOMMEND_MAX_LENGTH,
+            }),
+        [recommendation],
+    );
+    const recommendationRemaining = RECOMMEND_MAX_LENGTH - String(recommendation ?? '').length;
+    const recommendationHasError = Boolean(recommendationValidation?.error);
+
+    const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
 
     // Let parent know whether estimate is currently being created/edited/saved.
     // Used to hide actions like "Xác nhận báo giá" until user presses Save successfully.
@@ -700,6 +745,12 @@ export default function AdvisorItemsTable({
     const [pickerInitQuery, setPickerInitQuery] = useState("");
 
     const openCatalogPicker = (rowIndex, rowObj) => {
+        const hasCategory =
+            Boolean(String(rowObj?.newCategoryName ?? rowObj?.categoryName ?? '').trim()) || Boolean(toIdOrNull(rowObj?.workCategoryId));
+        if (!hasCategory) {
+            notify('Vui lòng nhập/chọn hạng mục trước khi thao tác diễn giải hoặc chọn sản phẩm.');
+            return;
+        }
         setActiveRowIndex(rowIndex);
         // Lấy categoryCode từ dòng (đã map từ workCategory)
         const code = String(rowObj?.workCategoryCode ?? '').trim();
@@ -719,11 +770,29 @@ export default function AdvisorItemsTable({
         if (activeRowIndex == null) return;
         const id = item?.itemId ?? item?.id ?? null;
         const name = item?.itemName ?? item?.name ?? '';
-        const price = item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
+        const price = item?.sellingPrice ?? item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
+        const warehouseId = item?.warehouseId ?? item?.selectedWarehouse?.warehouseId ?? null;
+        const availableQtyRaw =
+            item?.availableQuantity ??
+            item?.selectedWarehouse?.quantity ??
+            item?.selectedWarehouse?.availableQuantity ??
+            null;
+        const availableQtyNum =
+            typeof availableQtyRaw === 'number' ? availableQtyRaw : Number(String(availableQtyRaw ?? '').trim());
         const rawTaxId = item?.taxRuleId ?? item?.tax_rule_id ?? item?.taxRule?.taxRuleId ?? item?.taxRule?.id ?? '';
         onChange(activeRowIndex, 'itemId', id);
         onChange(activeRowIndex, 'itemName', name);
         onChange(activeRowIndex, 'unitPrice', price);
+        if (warehouseId != null && String(warehouseId).trim() !== '') {
+            onChange(activeRowIndex, 'warehouseId', warehouseId);
+        } else {
+            onChange(activeRowIndex, 'warehouseId', '');
+        }
+        if (Number.isFinite(availableQtyNum) && availableQtyNum >= 0) {
+            onChange(activeRowIndex, 'warehouseAvailableQuantity', availableQtyNum);
+        } else {
+            onChange(activeRowIndex, 'warehouseAvailableQuantity', null);
+        }
         onChange(activeRowIndex, 'itemTaxRuleId', rawTaxId == null ? '' : String(rawTaxId));
 
         // Nếu sản phẩm có thuế thì ưu tiên sản phẩm -> clear chọn thuế thủ công.
@@ -732,7 +801,7 @@ export default function AdvisorItemsTable({
         closeCatalogPicker();
     };
 
-    const showTaxQuickAdd = !isTicketLocked && showInputs && tableRows.some((r) => !isDraftRowEmpty(r) && !toIdOrNull(r?.workCategoryId));
+    const showTaxQuickAdd = !isTicketLocked && showInputs;
 
     const shouldShowInventoryPanel = !isTicketLocked && inventory.isOpen;
 
@@ -804,90 +873,7 @@ export default function AdvisorItemsTable({
                     )}
                 </div>
 
-                <div className={styles.advisorCard}>
-                    <h3 className={styles.advisorTitle}>Phụ tùng cần thiết</h3>
-                    <div className={styles.partRow}>
-                        <div className={styles.partName}>Má phanh trước Toyota</div>
-                        <div className={styles.partMeta}>
-                            <span className={styles.partText}>15 cái</span>
-                            <span className={styles.partText}>500,000đ/bộ</span>
-                            <span className={styles.tag}>In Stock</span>
-                        </div>
-                    </div>
-                    {!isTicketLocked && (
-                        <button
-                            type="button"
-                            className={`ui-btn ui-btn--ghost ${styles.fullWidthBtn}`}
-                            onClick={inventory.toggleOpen}
-                        >
-                            {inventory.isOpen ? 'Đóng kiểm tra tồn kho' : 'Kiểm tra tồn kho'}
-                        </button>
-                    )}
 
-                    {shouldShowInventoryPanel && (
-                        <div className={styles.inventoryPanel}>
-                            <form className={styles.inventorySearchRow} onSubmit={inventory.onSubmit}>
-                                <div className="ui-field" style={{ marginBottom: 0, flex: 1 }}>
-                                    <input
-                                        type="text"
-                                        placeholder="Nhập tên/mã phụ tùng..."
-                                        value={inventory.query}
-                                        onChange={inventory.onQueryChange}
-                                        disabled={inventory.loading}
-                                    />
-                                </div>
-                                <button
-                                    type="submit"
-                                    className="ui-btn ui-btn--primary"
-                                    disabled={inventory.loading}
-                                >
-                                    {inventory.loading ? 'Đang tìm...' : 'Tìm'}
-                                </button>
-                            </form>
-
-                            {inventory.loading ? (
-                                <div className={styles.inventoryHint}>Đang tải dữ liệu kho...</div>
-                            ) : null}
-
-                            {inventory.showResults ? (
-                                <div className={styles.inventoryResults}>
-                                    {inventory.results.map((it, idx) => {
-                                        const itemId = it?.itemId ?? it?.id;
-                                        const stockQtyRaw = it?.stockQuantity ?? it?.stockQty ?? it?.quantity ?? 0;
-                                        const stockQtyNum = typeof stockQtyRaw === 'number' ? stockQtyRaw : Number(stockQtyRaw);
-                                        const inStock = Number.isFinite(stockQtyNum) ? stockQtyNum > 0 : Boolean(stockQtyRaw);
-                                        return (
-                                            <div
-                                                key={String(itemId ?? it?.itemCode ?? it?.itemName ?? `inventory-item-${idx}`)}
-                                                className={styles.inventoryItem}
-                                            >
-                                                <div className={styles.inventoryItemMain}>
-                                                    <div className={styles.inventoryItemName}>{it?.itemName || '-'}</div>
-                                                    <div className={styles.inventoryItemCode}>{it?.itemCode || it?.category || ''}</div>
-                                                </div>
-                                                <div className={styles.inventoryItemMeta}>
-                                                    <span className={styles.partText}>Tồn: {Number.isFinite(stockQtyNum) ? stockQtyNum : stockQtyRaw || 0}</span>
-                                                    <span className={styles.partText}>
-                                                        {formatCurrencyVnd(it?.unitPrice)}{it?.unit ? `/${it.unit}` : ''}
-                                                    </span>
-                                                    <span className={styles.tag}>{inStock ? 'In Stock' : 'Out of Stock'}</span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : null}
-
-                            {inventory.error ? <div className={styles.errorBanner}>{inventory.error}</div> : null}
-
-                            <div className="ui-actions" style={{ marginTop: 0 }}>
-                                <button type="button" className="ui-btn ui-btn--ghost" onClick={inventory.close}>
-                                    Đóng
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
 
                 <div className={styles.advisorCard}>
                     <h3 className={styles.advisorTitle}>Ước tính</h3>
@@ -905,13 +891,12 @@ export default function AdvisorItemsTable({
                         <div className={styles.kvRow}>
                             <span className={styles.kvLabel} />
                             <span className={styles.kvValue} style={{ color: 'var(--ui-muted)' }}>
-                                {statusLine}
+                                {errorLine ? '' : statusLine}
                             </span>
                         </div>
                     </div>
                 </div>
             </div>
-
             <TaxRuleQuickAdd
                 show={showTaxQuickAdd}
                 isAddingNewTaxRule={isAddingNewTaxRule}
@@ -989,6 +974,12 @@ export default function AdvisorItemsTable({
                     </tfoot>
                 </table>
             </div>
+
+            {errorLine ? (
+                <div className={styles.errorBanner} style={{ marginTop: 12, marginBottom: 0, textAlign: 'center' }}>
+                    {errorLine}
+                </div>
+            ) : null}
             {isTicketLocked ? null : (
                 <div style={{ marginTop: 16 }}>
                     <EstimateActions
@@ -1027,6 +1018,27 @@ export default function AdvisorItemsTable({
                     onChange={(e) => setRecommendation(e.target.value)}
                     disabled={Boolean(recommendationSaving) || isTicketLocked}
                 />
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        marginTop: 6,
+                        fontSize: 12,
+                        color: '#6b7280',
+                    }}
+                >
+                    <span>
+                        {recommendationRemaining >= 0
+                            ? `Còn ${recommendationRemaining} ký tự`
+                            : `Vượt ${Math.abs(recommendationRemaining)} ký tự`}
+                    </span>
+                </div>
+                {recommendationHasError ? (
+                    <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>
+                        {recommendationValidation.error}
+                    </div>
+                ) : null}
             </div>
 
                 {isTicketLocked ? null : (
@@ -1035,7 +1047,17 @@ export default function AdvisorItemsTable({
                             type="button"
                             className="ui-btn ui-btn--primary"
                             onClick={() => {
-                                Promise.resolve(saveRecommendation?.())
+							const validated = validateTextInput(recommendation, {
+								fieldLabel: 'Khuyến nghị',
+								required: false,
+								trim: true,
+								maxLength: RECOMMEND_MAX_LENGTH,
+							});
+							if (validated.error) {
+								notify(validated.error);
+								return;
+							}
+							Promise.resolve(saveRecommendation?.(validated.value))
                                     .then((saved) => {
                                         if (saved) notify('Đã lưu khuyến nghị.');
                                     })
@@ -1043,7 +1065,7 @@ export default function AdvisorItemsTable({
                                         notify(err?.message || 'Không thể cập nhật khuyến nghị.');
                                     });
                             }}
-                            disabled={Boolean(recommendationSaving) || Boolean(isSaving)}
+							disabled={Boolean(recommendationSaving) || Boolean(isSaving) || recommendationHasError}
                         >
                             {recommendationSaving ? 'Đang lưu...' : 'Lưu khuyến nghị'}
                         </button>
