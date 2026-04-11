@@ -12,6 +12,7 @@ import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTi
 import { getServiceTicketStatusTextVi } from '../../../components/statusUtils.js';
 import {
     allocateEstimateStock,
+    createServiceTicketReminder,
     updateEstimateStockAllocation,
     fetchServiceTicketDetail,
     fetchServiceTicketEstimate,
@@ -483,8 +484,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const [maintenancePopupOpen, setMaintenancePopupOpen] = useState(false);
     const [maintenanceDraft, setMaintenanceDraft] = useState({ scheduledAt: '', note: '' });
+    const [maintenanceSubmitting, setMaintenanceSubmitting] = useState(false);
     const [estimateTimePopupOpen, setEstimateTimePopupOpen] = useState(false);
     const [estimatedTimeDraft, setEstimatedTimeDraft] = useState('');
+    const handleOpenMaintenancePopup = () => {
+        setMaintenancePopupOpen(true);
+    };
+
 
     // Only for flow: "Tạo bản báo giá mới" (restart from archived).
     // While active, hide other ticket action buttons and only allow confirming estimate after it is saved.
@@ -1126,10 +1132,73 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
-    const handleSubmitMaintenance = ({ scheduledAt, note }) => {
-        setMaintenanceDraft({ scheduledAt: String(scheduledAt || ''), note: String(note || '') });
-        setMaintenancePopupOpen(false);
-        notify('Đã ghi nhận lịch bảo dưỡng (chưa gửi server).');
+    const handleSubmitMaintenance = async ({ scheduledAt, note }) => {
+        if (maintenanceSubmitting) return;
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để đặt lịch bảo dưỡng.');
+            return;
+        }
+
+        if (!serviceTicketIdNum) {
+            notify('Thiếu serviceTicketId hợp lệ để đặt lịch bảo dưỡng.');
+            return;
+        }
+
+        const raw = String(scheduledAt || '').trim();
+        const [reminderDateRaw, reminderTimeRaw] = raw.split('T');
+        const reminderDate = String(reminderDateRaw || '').trim();
+        const reminderTime = String(reminderTimeRaw || '').slice(0, 5);
+
+        const source = ticketRaw ?? ticketFromState ?? ticket ?? {};
+        const vehicleId =
+            toPositiveNumberOrNull(
+                source?.vehicleId ??
+                    source?.vehicleID ??
+                    source?.vehicle?.vehicleId ??
+                    source?.vehicle?.vehicleID ??
+                    source?.vehicle?.id,
+            ) || null;
+        const customerId =
+            toPositiveNumberOrNull(
+                source?.customerId ??
+                    source?.customerID ??
+                    source?.customer?.customerId ??
+                    source?.customer?.customerID ??
+                    source?.customer?.id,
+            ) || null;
+
+        if (!vehicleId) {
+            notify('Thiếu vehicleId hợp lệ để tạo lịch nhắc.');
+            return;
+        }
+        if (!customerId) {
+            notify('Thiếu customerId hợp lệ để tạo lịch nhắc.');
+            return;
+        }
+
+        try {
+            setMaintenanceSubmitting(true);
+            await createServiceTicketReminder(
+                {
+                    serviceTicketId: serviceTicketIdNum,
+                    vehicleId,
+                    customerId,
+                    reminderDate,
+                    reminderTime,
+                    note,
+                },
+                token,
+            );
+            setMaintenanceDraft({ scheduledAt: String(scheduledAt || ''), note: String(note || '') });
+            setMaintenancePopupOpen(false);
+            notify('Đã tạo lịch nhắc bảo dưỡng.');
+        } catch (err) {
+            notify(err?.message || 'Không thể tạo lịch nhắc bảo dưỡng.');
+        } finally {
+            setMaintenanceSubmitting(false);
+        }
     };
 
     return (
@@ -1401,7 +1470,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                 <button
                                                     type="button"
                                                     className="ui-btn ui-btn--ghost"
-                                                    onClick={() => setMaintenancePopupOpen(true)}
+                                                    onClick={handleOpenMaintenancePopup}
                                                     disabled={statusUpdating || receiptApproving}
                                                 >
                                                     Đặt lịch bảo dưỡng
@@ -1425,20 +1494,25 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         )}
                     </div>
 
-                    <MaintenanceBookingPopup
-                        open={maintenancePopupOpen}
-                        initialDateTime={maintenanceDraft.scheduledAt}
-                        initialNote={maintenanceDraft.note}
-                        durationMinutes={60}
-                        onClose={() => setMaintenancePopupOpen(false)}
-                        onSubmit={handleSubmitMaintenance}
-                    />
-                    <EstimateTimePopup
-                        open={estimateTimePopupOpen}
-                        initialDateTime={estimatedTimeDraft}
-                        onClose={() => setEstimateTimePopupOpen(false)}
-                        onSubmit={handleSubmitEstimateTime}
-                    />
+                    {maintenancePopupOpen ? (
+                        <MaintenanceBookingPopup
+                            open
+                            initialDateTime={maintenanceDraft.scheduledAt}
+                            initialNote={maintenanceDraft.note}
+                            durationMinutes={60}
+                            submitting={maintenanceSubmitting}
+                            onClose={() => setMaintenancePopupOpen(false)}
+                            onSubmit={handleSubmitMaintenance}
+                        />
+                    ) : null}
+                    {estimateTimePopupOpen ? (
+                        <EstimateTimePopup
+                            open
+                            initialDateTime={estimatedTimeDraft}
+                            onClose={() => setEstimateTimePopupOpen(false)}
+                            onSubmit={handleSubmitEstimateTime}
+                        />
+                    ) : null}
                     </main>
                 </div>
             </div>

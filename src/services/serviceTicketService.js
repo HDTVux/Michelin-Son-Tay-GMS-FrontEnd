@@ -260,6 +260,65 @@ export const fetchServiceTicketAdvisorRecommend = (serviceTicketId, token) => {
   });
 };
 
+// Tạo nhắc lịch bảo dưỡng (reminder) cho phiếu dịch vụ
+// Endpoint: POST /api/service-ticket/remind/create
+// Request body: { serviceTicketId, vehicleId, customerId, reminderDate: 'YYYY-MM-DD', reminderTime: 'HH:mm', note }
+export const createServiceTicketReminder = (payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để tạo lịch nhắc.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const serviceTicketId = typeof payload?.serviceTicketId === 'number' ? payload.serviceTicketId : Number(payload?.serviceTicketId);
+  const vehicleId = typeof payload?.vehicleId === 'number' ? payload.vehicleId : Number(payload?.vehicleId);
+  const customerId = typeof payload?.customerId === 'number' ? payload.customerId : Number(payload?.customerId);
+
+  if (!Number.isFinite(serviceTicketId) || serviceTicketId <= 0) {
+    const error = new Error('Thiếu serviceTicketId hợp lệ để tạo lịch nhắc.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  if (!Number.isFinite(vehicleId) || vehicleId <= 0) {
+    const error = new Error('Thiếu vehicleId hợp lệ để tạo lịch nhắc.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  if (!Number.isFinite(customerId) || customerId <= 0) {
+    const error = new Error('Thiếu customerId hợp lệ để tạo lịch nhắc.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const reminderDate = String(payload?.reminderDate ?? '').trim();
+  const reminderTime = String(payload?.reminderTime ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(reminderDate)) {
+    const error = new Error('Thiếu reminderDate hợp lệ (YYYY-MM-DD).');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+  if (!/^\d{2}:\d{2}$/.test(reminderTime)) {
+    const error = new Error('Thiếu reminderTime hợp lệ (HH:mm).');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const note = String(payload?.note ?? '').trim();
+
+  return request('/api/service-ticket/remind/create', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      serviceTicketId,
+      vehicleId,
+      customerId,
+      reminderDate,
+      reminderTime,
+      note,
+    }),
+  });
+};
+
 // Safety inspection: lấy khuyến nghị hiện tại của chính phiếu
 // Endpoint: GET /api/safety-inspections/{serviceTicketId}/curent-recommend
 export const fetchSafetyInspectionCurrentRecommend = (serviceTicketId, token) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 
@@ -25,15 +25,9 @@ function joinDateAndTime(date, time) {
 }
 
 export default function EstimateTimePopup({ open, initialDateTime, onClose, onSubmit }) {
-    const [date, setDate] = useState('');
-    const [time, setTime] = useState('');
-
-    useEffect(() => {
-        if (!open) return;
-        const parts = splitDateTimeLocal(initialDateTime);
-        setDate(parts.date);
-        setTime(parts.time);
-    }, [initialDateTime, open]);
+    const initialParts = splitDateTimeLocal(initialDateTime);
+    const [date, setDate] = useState(() => initialParts.date);
+    const [time, setTime] = useState(() => initialParts.time);
 
     if (!open) return null;
 
@@ -79,8 +73,12 @@ export default function EstimateTimePopup({ open, initialDateTime, onClose, onSu
                     </div>
 
                     <div className="ui-actions ui-actions--end" style={{ marginTop: 12 }}>
-                        <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose}>
-                            Hủy
+                        <button
+                            type="button"
+                            className="ui-btn ui-btn--ghost"
+                            onClick={() => onSubmit?.({ estimatedAt: '' })}
+                        >
+                            Bỏ qua
                         </button>
                         <button
                             type="button"
