@@ -153,8 +153,6 @@ function EstimateItemRow({
     taxRulesLoading,
     taxRules,
     taxRuleById,
-    toggleChecked,
-    canToggleChecked,
     isEditing,
     softDeleteEditRow,
     openCatalogPicker,
@@ -346,8 +344,6 @@ EstimateItemRow.propTypes = {
     taxRulesLoading: PropTypes.bool,
     taxRules: PropTypes.array,
     taxRuleById: PropTypes.object,
-    toggleChecked: PropTypes.func,
-    canToggleChecked: PropTypes.bool,
     isEditing: PropTypes.bool,
     softDeleteEditRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
@@ -577,7 +573,6 @@ export default function AdvisorItemsTable({
         canToggleChecked,
         toggleChecked,
         softDeleteEditRow,
-        inventory,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange, refreshToken });
 
@@ -802,8 +797,6 @@ export default function AdvisorItemsTable({
     };
 
     const showTaxQuickAdd = !isTicketLocked && showInputs;
-
-    const shouldShowInventoryPanel = !isTicketLocked && inventory.isOpen;
 
     const [photoPreview, setPhotoPreview] = useState(null);
     const closePhotoPreview = useCallback(() => setPhotoPreview(null), []);

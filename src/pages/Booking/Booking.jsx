@@ -44,6 +44,34 @@ const toCategoryKey = (item) => String(
   ?? 'all',
 ).trim() || 'all';
 
+const toPriceNumber = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const parsed = Number(String(value).replace(/[^\d.-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const getCatalogPrice = (item) => {
+  const candidates = [
+    item?.price,
+    item?.sellingPrice,
+    item?.salePrice,
+    item?.currentPrice,
+    item?.basePrice,
+    item?.unitPrice,
+    item?.listPrice,
+    item?.displayPrice,
+    item?.catalogPrice,
+    item?.data?.price,
+    item?.data?.sellingPrice,
+  ];
+  for (const value of candidates) {
+    const price = toPriceNumber(value);
+    if (price != null) return price;
+  }
+  return null;
+};
+
 export default function Booking() {
   const location = useLocation();
   const prefilledPhone = location.state?.phone || '';
@@ -62,6 +90,9 @@ export default function Booking() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [activeTab, setActiveTab] = useState(preselectedItemType);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [priceSort, setPriceSort] = useState('');
 
   const [schedule, setSchedule] = useState({ date: '', time: '' });
   const [info, setInfo] = useState({ name: '', phone: prefilledPhone, note: '' });
@@ -159,6 +190,7 @@ export default function Booking() {
               desc: String(item?.shortDescription || item?.description || 'Hiện chưa có mô tả ngắn.').trim(),
               category,
               categoryLabel,
+              price: getCatalogPrice(item),
               thumbnail: item?.thumbnailUrl || item?.imageUrl || item?.mediaThumbnail || '',
             };
           })
@@ -242,6 +274,10 @@ export default function Booking() {
   const handleChangeTab = (nextTab) => {
     setActiveTab(toItemType(nextTab));
     setFilter('all');
+    setSearch('');
+    setMinPrice('');
+    setMaxPrice('');
+    setPriceSort('');
   };
 
   const goNextFromService = () => {
@@ -397,6 +433,14 @@ export default function Booking() {
           error={servicesError}
           activeTab={activeTab}
           onChangeTab={handleChangeTab}
+          layoutMode="grid-scroll"
+          showPriceFilter
+          minPrice={minPrice}
+          maxPrice={maxPrice}
+          priceSort={priceSort}
+          onMinPriceChange={setMinPrice}
+          onMaxPriceChange={setMaxPrice}
+          onPriceSortChange={setPriceSort}
           onNext={goNextFromService}
         />
       )}

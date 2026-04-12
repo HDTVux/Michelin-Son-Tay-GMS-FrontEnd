@@ -813,8 +813,7 @@
   background: #fffbeb;
 }
 
-.historyNote span,
-.historyEstimateHeader span {
+.historyNote span {
   color: #6b7280;
   font-size: 12px;
   font-weight: 700;
@@ -828,57 +827,26 @@
   white-space: pre-wrap;
 }
 
-.historyEstimate {
+.historyDetailActions {
+  display: flex;
+  justify-content: flex-end;
   margin-top: 12px;
 }
 
-.historyEstimateHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.historyEstimateHeader strong {
-  color: #111827;
-  font-size: 13px;
-}
-
-.historyItemList {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.historyItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px;
+.historyDetailBtn {
+  padding: 7px 12px;
   border-radius: 8px;
-  background: #f9fafb;
-  color: #111827;
+  border: 1px solid #0f766e;
+  background: #fff;
+  color: #0f766e;
   font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.historyItem span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.historyItem small {
-  flex-shrink: 0;
-  color: #4b5563;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.historyEmptyText {
-  margin: 0;
-  color: #9ca3af;
-  font-size: 13px;
+.historyDetailBtn:hover {
+  background: #0f766e;
+  color: #fff;
 }
 
 .modalFooter {

@@ -28,7 +28,7 @@ EntryField.propTypes = {
   fullRow: PropTypes.bool,
 };
 
-const EntrySummaryCard = ({ entry, statusLabel, statusValue, isDraft, isConfirming, onConfirm }) => (
+const EntrySummaryCard = ({ entry, statusLabel, statusValue }) => (
   <section className={styles.card}>
     <div className={styles.headerRow}>
       <div className={styles.titleBlock}>
@@ -59,9 +59,6 @@ EntrySummaryCard.propTypes = {
   }),
   statusLabel: PropTypes.string.isRequired,
   statusValue: PropTypes.string.isRequired,
-  isDraft: PropTypes.bool,
-  isConfirming: PropTypes.bool,
-  onConfirm: PropTypes.func.isRequired,
 };
 
 const EntryItemsCard = ({ items }) => (
@@ -234,9 +231,6 @@ export default function WarehouseStockEntryDetail() {
           entry={entry}
           statusLabel={statusLabel}
           statusValue={statusValue}
-          isDraft={isDraft}
-          isConfirming={isConfirming}
-          onConfirm={handleConfirm}
         />
         <EntryItemsCard items={entry?.items} />
         <EntryAttachmentsCard attachments={entry?.attachments} />

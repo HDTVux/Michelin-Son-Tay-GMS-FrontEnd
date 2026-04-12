@@ -1,5 +1,5 @@
-﻿import './Services.css';
-import { useEffect, useState, useRef } from 'react';
+import './Services.css';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchHomeProducts } from '../../../services/homeService';
 import serviceFallback from '../../../assets/lop and mam.jpg';
@@ -10,21 +10,60 @@ const toPositiveNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
 };
+const parsePriceNumber = (value) => {
+  if (value == null) return null;
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null;
+
+  const text = String(value).toLowerCase().trim();
+  if (!text || text.includes('liên hệ')) return null;
+
+  const match = text.match(/\d+(?:[.,]\d+)?/);
+  if (!match) return null;
+
+  const rawNumber = match[0];
+  const normalizedNumber = rawNumber.includes(',')
+    ? rawNumber.replace(/\./g, '').replace(',', '.')
+    : rawNumber.replace(/\./g, '');
+  const parsed = Number(normalizedNumber);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+
+  const suffix = text.slice(match.index + rawNumber.length);
+  if (/^\s*k\b/.test(suffix) || suffix.includes('nghìn') || suffix.includes('ngàn')) return parsed * 1000;
+  if (suffix.includes('triệu') || suffix.includes('trieu')) return parsed * 1000000;
+  return parsed;
+};
+const normalizeItemType = (value) => {
+  const text = String(value || '').trim().toUpperCase();
+  if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
+  return 'SERVICE';
+};
+const toDisplayPrice = (item) => {
+  if (item?.showPrice !== true) return 'Liên hệ';
+  const display = String(item?.displayPrice || '').trim();
+  if (display) return display;
+  const numeric = Number(item?.price);
+  return Number.isFinite(numeric) ? `${numeric.toLocaleString('vi-VN')} đ` : 'Liên hệ';
+};
+const extractList = (res) => {
+  const payload = extractPayload(res);
+  return Array.isArray(payload?.content)
+    ? payload.content
+    : Array.isArray(payload)
+      ? payload
+      : [];
+};
+
+const ITEMS_PER_ROW = 4;
+const INITIAL_ROWS = 1;
 
 const Services = () => {
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');
-
-  // Debug log
-  useEffect(() => {
-    console.log('[Services] State updated:', { 
-      servicesCount: services.length, 
-      servicesLoading, 
-      servicesError,
-      services 
-    });
-  }, [services, servicesLoading, servicesError]);
+  const [catalogFilter, setCatalogFilter] = useState('SERVICE');
+  const [gridExpanded, setGridExpanded] = useState(false);
+  const [priceSort, setPriceSort] = useState('DEFAULT');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Gói dịch vụ được tin dùng (commented out - not used currently)
   /*
@@ -84,40 +123,69 @@ const Services = () => {
     let active = true;
     setTimeout(() => { if (active) { setServicesLoading(true); setServicesError(''); }}, 0);
 
-    fetchHomeProducts({
-      page: 0,
-      size: 20,
-      itemType: 'SERVICE',
-    })
-      .then((res) => {
+    Promise.allSettled([
+      fetchHomeProducts({ page: 0, size: 40, itemType: 'SERVICE' }),
+      fetchHomeProducts({ page: 0, size: 40, itemType: 'PART' }),
+      fetchHomeProducts({ page: 0, size: 40, itemType: 'PRODUCT' }),
+    ])
+      .then((results) => {
         if (!active) return;
-        const payload = extractPayload(res);
-        const list = Array.isArray(payload?.content)
-          ? payload.content
-          : Array.isArray(payload)
-            ? payload
-            : [];
-        const mapped = list.map((item) => {
-          const display = String(item?.displayPrice || '').trim();
-          const numeric = Number(item?.price);
-          const formatted = Number.isFinite(numeric) ? numeric.toLocaleString('vi-VN') : '';
-          return {
-            id: toPositiveNumber(item?.catalogItemId ?? item?.serviceId),
-            catalogItemId: toPositiveNumber(item?.catalogItemId),
-            serviceId: toPositiveNumber(item?.serviceId),
-            itemType: String(item?.itemType || 'SERVICE').toUpperCase(),
-            title: String(item?.title || item?.itemName || 'Dịch vụ').trim(),
-            description: String(item?.shortDescription || '').trim(),
-            image: String(item?.thumbnailUrl || item?.imageUrl || item?.mediaThumbnail || '').trim(),
-            price: item?.showPrice ? (display || (formatted ? `${formatted} đ` : 'Liên hệ')) : 'Liên hệ',
-          };
+
+        const [serviceRes, partRes, productRes] = results;
+        const mergedRaw = [
+          ...(serviceRes?.status === 'fulfilled'
+            ? extractList(serviceRes.value).map((item) => ({ ...item, __sourceType: 'SERVICE' }))
+            : []),
+          ...(partRes?.status === 'fulfilled'
+            ? extractList(partRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
+            : []),
+          ...(productRes?.status === 'fulfilled'
+            ? extractList(productRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
+            : []),
+        ];
+
+        const mapped = mergedRaw
+          .map((item) => {
+            const itemType = normalizeItemType(item?.itemType ?? item?.type ?? item?.__sourceType);
+            const catalogItemId = toPositiveNumber(item?.catalogItemId ?? item?.itemId);
+            const serviceId = toPositiveNumber(item?.serviceId);
+            return {
+              id: catalogItemId ?? serviceId,
+              catalogItemId,
+              serviceId,
+              itemType,
+              title: String(item?.title || item?.itemName || (itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ')).trim(),
+              description: String(item?.shortDescription || item?.description || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
+              image: String(item?.thumbnailUrl || item?.imageUrl || item?.mediaThumbnail || '').trim(),
+              price: toDisplayPrice(item),
+              rawPrice: item?.showPrice === true
+                ? (parsePriceNumber(item?.price) ?? parsePriceNumber(item?.displayPrice))
+                : null,
+            };
+          })
+          .filter((item) => item.id || item.title);
+
+        const deduped = new Map();
+        mapped.forEach((item) => {
+          const key = `${item.itemType}:${item.catalogItemId ?? item.serviceId ?? item.title}`;
+          if (!deduped.has(key)) deduped.set(key, item);
         });
-        setServices(mapped);
+
+        setServices(Array.from(deduped.values()));
+
+        if (serviceRes?.status === 'rejected' && partRes?.status === 'rejected' && productRes?.status === 'rejected') {
+          setServicesError(
+            serviceRes?.reason?.message ||
+            partRes?.reason?.message ||
+            productRes?.reason?.message ||
+            'Không thể tải danh sách dịch vụ và phụ tùng.',
+          );
+        }
       })
       .catch((err) => {
         if (!active) return;
         console.error('[Services] Error loading services:', err);
-        setServicesError(err?.message || 'Không thể tải danh sách dịch vụ.');
+        setServicesError(err?.message || 'Không thể tải danh sách dịch vụ và phụ tùng.');
       })
       .finally(() => {
         if (active) setServicesLoading(false);
@@ -128,83 +196,64 @@ const Services = () => {
     };
   }, []);
 
-  // State cho dịch vụ slider
-  const [serviceIndex, setServiceIndex] = useState(0);
-  const [serviceVisible, setServiceVisible] = useState(4);
-  const [isServicePaused, setIsServicePaused] = useState(false);
-  const serviceTrackRef = useRef(null);
-  const servicePointer = useRef({ startX: 0, deltaX: 0, dragging: false });
-
   // Scroll reveal cho 3 phần: dịch vụ, quy trình, combo
   const servicesHeroRef = useRef(null);
   const processHeaderRef = useRef(null);
 
   const [servicesIntroVisible, setServicesIntroVisible] = useState(false);
   const [processIntroVisible, setProcessIntroVisible] = useState(false);
-  
-  useEffect(() => {
-    const calc = () => {
-      const w = window.innerWidth;
-      if (w <= 480) {
-        setServiceVisible(1);
-      } else if (w <= 768) {
-        setServiceVisible(2);
-      } else if (w <= 1024) {
-        setServiceVisible(3);
-      } else {
-        setServiceVisible(4);
-      }
-      setServiceIndex(0);
-    };
-    calc();
-    window.addEventListener('resize', calc);
-    return () => window.removeEventListener('resize', calc);
-  }, []);
+  const visibleServices = useMemo(() => {
+    let filtered = services.filter((item) => item.itemType === catalogFilter);
 
-  useEffect(() => {
-    const t = setTimeout(() => setServiceIndex(0), 0);
-    return () => clearTimeout(t);
-  }, [serviceVisible, services.length]);
-
-  const serviceMaxIndex = Math.max(0, services.length - serviceVisible);
-  const serviceOffset = (serviceIndex * 100) / serviceVisible;
-  const servicePrev = () => setServiceIndex(i => Math.max(0, i - 1));
-  const serviceNext = () => setServiceIndex(i => Math.min(serviceMaxIndex, i + 1));
-
-  // Tự động chuyển slide dịch vụ
-  useEffect(() => {
-    if (serviceMaxIndex === 0 || isServicePaused) return;
-    const id = setInterval(() => {
-      setServiceIndex((current) => (current >= serviceMaxIndex ? 0 : current + 1));
-    }, 4000);
-    return () => clearInterval(id);
-  }, [serviceMaxIndex, isServicePaused]);
-
-  // Handlers cho dịch vụ slider
-  const handleServicePointerDown = (event) => {
-    setIsServicePaused(true);
-    servicePointer.current.dragging = true;
-    servicePointer.current.startX = event.clientX ?? event.touches?.[0]?.clientX;
-  };
-
-  const handleServicePointerMove = (event) => {
-    if (!servicePointer.current.dragging) return;
-    const x = event.clientX ?? event.touches?.[0]?.clientX;
-    servicePointer.current.deltaX = x - servicePointer.current.startX;
-  };
-
-  const handleServicePointerUp = () => {
-    if (!servicePointer.current.dragging) return;
-    servicePointer.current.dragging = false;
-    const dx = servicePointer.current.deltaX;
-    if (Math.abs(dx) > 50) {
-      if (dx < 0) serviceNext();
-      else servicePrev();
+    // Search filter
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      filtered = filtered.filter((item) =>
+        (item.title || '').toLowerCase().includes(q) ||
+        (item.description || '').toLowerCase().includes(q)
+      );
     }
-    servicePointer.current.deltaX = 0;
-    setTimeout(() => setIsServicePaused(false), 300);
-  };
 
+    if (priceSort === 'ASC') {
+      filtered = [...filtered].sort((a, b) => {
+        const pa = a.rawPrice ?? Infinity;
+        const pb = b.rawPrice ?? Infinity;
+        return pa - pb;
+      });
+    } else if (priceSort === 'DESC') {
+      filtered = [...filtered].sort((a, b) => {
+        const pa = a.rawPrice ?? -Infinity;
+        const pb = b.rawPrice ?? -Infinity;
+        return pb - pa;
+      });
+    }
+
+    return filtered;
+  }, [catalogFilter, services, priceSort, searchQuery]);
+
+  const gridItemsToShow = useMemo(() => {
+    if (gridExpanded) return visibleServices;
+    return visibleServices.slice(0, ITEMS_PER_ROW * INITIAL_ROWS);
+  }, [gridExpanded, visibleServices]);
+
+  const hasMoreItems = visibleServices.length > ITEMS_PER_ROW * INITIAL_ROWS;
+
+  // Dynamic title/label/subtitle based on active filter
+  const dynamicLabel = useMemo(() => {
+    if (catalogFilter === 'PART') return 'DANH MỤC PHỤ TÙNG';
+    return 'DANH MỤC DỊCH VỤ';
+  }, [catalogFilter]);
+
+  const dynamicTitlePart1 = useMemo(() => {
+    if (catalogFilter === 'PART') return 'Phụ tùng';
+    return 'Dịch vụ';
+  }, [catalogFilter]);
+
+  const dynamicSubtitle = useMemo(() => {
+    if (catalogFilter === 'PART')
+      return 'Phụ tùng chính hãng, đa dạng chủng loại, đảm bảo chất lượng và giá cả hợp lý.';
+    return 'Các dịch vụ bảo dưỡng, sửa chữa chuyên nghiệp với đội ngũ kỹ thuật viên giàu kinh nghiệm.';
+  }, [catalogFilter]);
   // IntersectionObserver cho tiêu đề các phần
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -237,118 +286,173 @@ const Services = () => {
   }, []);
   return (
     <>
-      {/* Danh sách dịch vụ tiện ích nổi bật */}
+      {/* Hero + Grid Section */}
       <section className="servicesPage">
+        <div className="servicesPage-bg" />
         <div
           ref={servicesHeroRef}
           className={`servicesHero ${servicesIntroVisible ? 'visible' : ''}`}
           style={{ opacity: 1, transform: 'translateX(0)' }}
         >
-          <div className="servicesLabel">DỊCH VỤ NỔI BẬT</div>
+          <div className="servicesLabel">{dynamicLabel}</div>
           <h1 className="servicesTitle">
-            <span className="titlePart1">Dịch vụ</span>
-            <span className="titlePart2">tiện ích chính hãng Michelin Sơn Tây</span>
+            <span className="titlePart1">{dynamicTitlePart1}</span>
+            <span className="titlePart2">chính hãng</span>
           </h1>
-          <p className="servicesSubtitle">
-            Các dịch vụ chuyên nghiệp, chuẩn quy trình – giúp chiếc xe của bạn luôn an toàn và bền bỉ trên mọi hành trình.
-          </p>
+          <p className="servicesSubtitle">{dynamicSubtitle}</p>
         </div>
 
-        <div
-          className="servicesSlider"
-          onMouseEnter={() => setIsServicePaused(true)}
-          onMouseLeave={() => setIsServicePaused(false)}
-        >
-          <button 
-            className="sliderArrow left" 
-            onClick={servicePrev} 
-            aria-label="Previous" 
-            disabled={serviceIndex === 0}
-          >
-            &lt;
-          </button>
-          <div className="sliderViewport">
-            {servicesLoading && (
-              <div className="serviceStatus" style={{ padding: '40px', textAlign: 'center', fontSize: '18px' }}>
-                Đang tải dịch vụ...
-              </div>
-            )}
-            {!servicesLoading && servicesError && (
-              <div className="serviceStatus error" style={{ padding: '40px', textAlign: 'center', fontSize: '18px', color: 'red' }}>
-                {servicesError}
-              </div>
-            )}
-            {!servicesLoading && !servicesError && services.length === 0 && (
-              <div className="serviceStatus" style={{ padding: '40px', textAlign: 'center', fontSize: '18px' }}>
-                Chưa có dịch vụ để hiển thị.
-              </div>
-            )}
-            {services.length > 0 && (
-              <div
-                className="sliderTrack"
-                ref={serviceTrackRef}
-                style={{ 
-                  transform: `translateX(-${serviceOffset}%)`,
-                  display: 'flex',
-                  transition: 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)'
+        {/* Unified Toolbar: filters + sort + search */}
+        <div className="unifiedToolbar">
+          <div className="toolbarLeft">
+            {[
+              { value: 'SERVICE', label: 'Dịch vụ' },
+              { value: 'PART', label: 'Phụ tùng' },
+            ].map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                className={`catalogFilterButton ${catalogFilter === item.value ? 'is-active' : ''}`}
+                onClick={() => {
+                  setCatalogFilter(item.value);
+                  setGridExpanded(false);
                 }}
-                onPointerDown={handleServicePointerDown}
-                onPointerMove={handleServicePointerMove}
-                onPointerUp={handleServicePointerUp}
-                onPointerCancel={handleServicePointerUp}
-                onTouchStart={handleServicePointerDown}
-                onTouchMove={handleServicePointerMove}
-                onTouchEnd={handleServicePointerUp}
               >
-                {services.map((service, idx) => (
-                  <div key={service.id || idx} className="serviceSlide">
-                    <div className="serviceCard">
-                      <div className="serviceCard-imageTop">
-                        <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
+                {item.label}
+                {catalogFilter === item.value && (
+                  <span className="filterCount">{services.filter(s => s.itemType === item.value).length}</span>
+                )}
+              </button>
+            ))}
+
+            <span className="toolbarDivider" />
+
+            <label className="sortSelectWrap" htmlFor="servicesPriceSort">
+              <span>Sắp xếp giá</span>
+              <select
+                id="servicesPriceSort"
+                className="sortSelect"
+                value={priceSort}
+                onChange={(e) => {
+                  setPriceSort(e.target.value);
+                  setGridExpanded(false);
+                }}
+              >
+                <option value="DEFAULT">Mặc định</option>
+                <option value="ASC">Giá tăng dần</option>
+                <option value="DESC">Giá giảm dần</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="toolbarSearch">
+            <svg className="searchIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input
+              type="text"
+              className="searchInput"
+              placeholder="Tìm kiếm dịch vụ, phụ tùng..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setGridExpanded(false);
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="searchClear"
+                onClick={() => {
+                  setSearchQuery('');
+                  setGridExpanded(false);
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Grid layout */}
+        <div className="servicesGridWrapper">
+          {servicesLoading && (
+            <div className="serviceStatus">
+              <div className="loadingSpinner" />
+              <span>Đang tải danh mục...</span>
+            </div>
+          )}
+          {!servicesLoading && servicesError && (
+            <div className="serviceStatus error">
+              {servicesError}
+            </div>
+          )}
+          {!servicesLoading && !servicesError && visibleServices.length === 0 && (
+            <div className="serviceStatus">
+              Chưa có hạng mục phù hợp để hiển thị.
+            </div>
+          )}
+          {gridItemsToShow.length > 0 && (
+            <div className="servicesGrid">
+              {gridItemsToShow.map((service, idx) => (
+                <div key={service.id || idx} className="serviceGridItem">
+                  <div className="serviceCard">
+                    <div className="serviceCard-imageTop">
+                      <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
+                      <div className="serviceCard-overlay">
+                        <Link
+                          to={service.serviceId || service.catalogItemId ? `/services/${service.serviceId || service.catalogItemId}` : '/services'}
+                          state={
+                            service.catalogItemId != null || service.serviceId != null
+                              ? { catalogItemId: service.catalogItemId, serviceId: service.serviceId, itemType: service.itemType || 'SERVICE' }
+                              : undefined
+                          }
+                          className="overlayViewBtn"
+                        >
+                          Xem chi tiết →
+                        </Link>
                       </div>
-                      <div className="serviceCard-content">
-                        <h3 className="serviceTitle">{service.title}</h3>
-                        <p className="serviceDescription">{service.description || 'Hiện chưa có mô tả cho dịch vụ này.'}</p>
-                        <div className="servicePrice">Giá: {service.price || 'Liên hệ'}</div>
-                        <div className="serviceActions">
-                          <Link
-                            to={service.serviceId || service.catalogItemId ? `/services/${service.serviceId || service.catalogItemId}` : '/services'}
-                            state={
-                              service.catalogItemId != null || service.serviceId != null
-                                ? {
-                                    catalogItemId: service.catalogItemId,
-                                    serviceId: service.serviceId,
-                                    itemType: service.itemType || 'SERVICE',
-                                  }
-                                : undefined
-                            }
-                            className="btnViewDetail"
-                          >
-                            Xem chi tiết
-                          </Link>
-                          <Link
-                            to="/booking"
-                            state={service.catalogItemId != null ? { catalogItemId: service.catalogItemId } : undefined}
-                            className="btnBookNow"
-                          >
-                            Đặt lịch
-                          </Link>
-                        </div>
+                      <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
+                    </div>
+                    <div className="serviceCard-content">
+                      <h3 className="serviceTitle">{service.title}</h3>
+                      <p className="serviceDescription">{service.description || 'Hiện chưa có mô tả.'}</p>
+                      <div className="serviceCard-footer">
+                        <div className="servicePrice">{service.price || 'Liên hệ'}</div>
+                        <Link
+                          to="/booking"
+                          state={service.catalogItemId != null ? { catalogItemId: service.catalogItemId, itemType: service.itemType } : undefined}
+                          className="btnBookNow"
+                        >
+                          Đặt lịch
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        </Link>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <button 
-            className="sliderArrow right" 
-            onClick={serviceNext} 
-            aria-label="Next" 
-            disabled={serviceIndex >= serviceMaxIndex}
-          >
-            &gt;
-          </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {hasMoreItems && !servicesLoading && (
+            <div className="gridToggleWrapper">
+              <button
+                type="button"
+                className="gridToggleButton"
+                onClick={() => setGridExpanded((prev) => !prev)}
+              >
+                {gridExpanded ? (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+                    Thu gọn
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                    Xem thêm ({visibleServices.length - ITEMS_PER_ROW * INITIAL_ROWS} sản phẩm)
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

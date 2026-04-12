@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -38,15 +38,6 @@ const normalizeSafetyInspectionStatus = (status) => {
   if (['WAITING', 'REPAIRING'].includes(raw)) return 'PENDING';
   return raw;
 };
-
-const NUMERIC_TIRE_FIELDS = new Set([
-  'size1',
-  'size2',
-  'size3',
-  'mm',
-  'pressure',
-  'recommendedPressure',
-]);
 
 const INTEGER_TIRE_FIELDS = new Set(['size1', 'size2', 'size3']);
 
@@ -200,9 +191,6 @@ export const ServiceTicket = ({
   // Error state cho advisor note (keyed by itemId)
   const [advisorNoteErrors, setAdvisorNoteErrors] = useState({});
 
-  // Error state cho mm lốp (keyed by position)
-  const [tireMmErrors, setTireMmErrors] = useState({});
-
   // Ref chống spam toast khi validate 500 ký tự
   const toast500LastFired = useRef({});
 
@@ -238,6 +226,26 @@ export const ServiceTicket = ({
     toast.info(serviceTicketLockMessage);
     return false;
   };
+
+  const resolveServiceTicketId = useCallback(() => {
+    const parsedServiceTicketId = Number(resolvedTicketCode);
+    return serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
+  }, [resolvedTicketCode, serviceTicketId]);
+
+  const syncServiceTicketStatus = useCallback(async (nextStatus, token, fallbackMessage) => {
+    const finalServiceTicketId = resolveServiceTicketId();
+    if (!finalServiceTicketId) return false;
+    try {
+      await manageServiceTicketStatus(finalServiceTicketId, nextStatus, token);
+      setServiceTicketStatus(nextStatus);
+      return true;
+    } catch (error) {
+      if (fallbackMessage) {
+        toast.warn(`${fallbackMessage}: ${error?.message || 'Lỗi không xác định'}`);
+      }
+      return false;
+    }
+  }, [resolveServiceTicketId]);
 
   const mergedSafetyChecks = useMemo(() => (
     [...safetyChecks].sort((a, b) => {
@@ -324,7 +332,6 @@ export const ServiceTicket = ({
 
         setHasSafetyInspectionEnabled(safetyEnabledFromTicket);
         setTireData(defaultTireData);
-        setTireMmErrors({});
         setRecommendedTireSize('');
         setRecommendedTireSizeError('');
 
@@ -385,7 +392,6 @@ export const ServiceTicket = ({
                 }
               });
               setTireData(newTireData);
-              setTireMmErrors({});
               setRecommendedTireSize(loadedRecommendedTireSize || '');
               setRecommendedTireSizeError(getRecommendedTireSizeError(loadedRecommendedTireSize || ''));
             }
@@ -471,28 +477,11 @@ export const ServiceTicket = ({
     };
 
     fetchData();
-  }, [resolvedTicketCode, defaultTireData, embedded, refreshKey, isAdvisorMode]);
+  }, [resolvedTicketCode, defaultTireData, embedded, refreshKey, isAdvisorMode, syncServiceTicketStatus]);
 
   const handleTireDataChange = (position, field, value) => {
     if (!canEditTechnicalFields || isFormLocked) return;
-    const key = `${position}_${field}`;
     const raw = String(value);
-
-    if (NUMERIC_TIRE_FIELDS.has(field)) {
-      const error = getTireInputError(position, field, raw);
-      setTireMmErrors((prev) => {
-        const next = { ...prev };
-        if (error) next[key] = error;
-        else delete next[key];
-        return next;
-      });
-    } else {
-      setTireMmErrors((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
-    }
 
     // Validate 500 ký tự cho các trường khác
     if (raw.length > TEXT_FIELD_CHAR_LIMIT) {
@@ -567,12 +556,7 @@ export const ServiceTicket = ({
     navigate(backPath);
   };
 
-  const resolveServiceTicketId = () => {
-    const parsedServiceTicketId = Number(resolvedTicketCode);
-    return serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
-  };
-
-  async function syncServiceTicketStatus(nextStatus, token, fallbackMessage) {
+  async function _syncServiceTicketStatusLegacy(nextStatus, token, fallbackMessage) {
     const parsedServiceTicketId = Number(resolvedTicketCode);
     const finalServiceTicketId = serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
     if (!finalServiceTicketId) return false;
@@ -757,11 +741,14 @@ export const ServiceTicket = ({
     if (!guardServiceTicketEditable()) return;
     const currentTireErrors = getTireInputErrorMap(tireData);
     const firstTireError = Object.values(currentTireErrors).find(Boolean);
-    const optionalTirePayloadError = firstTireError || recommendedTireSizeError;
+    const currentRecommendedTireSizeError = getRecommendedTireSizeError(recommendedTireSize);
+    const optionalTirePayloadError = firstTireError || currentRecommendedTireSizeError;
     const shouldSendTirePayload = shouldRequireSafetyInspection || !optionalTirePayloadError;
-    setTireMmErrors(currentTireErrors);
-    if (shouldRequireSafetyInspection && firstTireError) {
-      toast.error(firstTireError);
+    if (currentRecommendedTireSizeError !== recommendedTireSizeError) {
+      setRecommendedTireSizeError(currentRecommendedTireSizeError);
+    }
+    if (shouldRequireSafetyInspection && optionalTirePayloadError) {
+      toast.error(optionalTirePayloadError);
       return;
     }
     if (blockingTextFieldValidationError) {
@@ -944,11 +931,14 @@ export const ServiceTicket = ({
     if (!guardServiceTicketEditable()) return;
     const currentTireErrors = getTireInputErrorMap(tireData);
     const firstTireError = Object.values(currentTireErrors).find(Boolean);
-    const optionalTirePayloadError = firstTireError || recommendedTireSizeError;
+    const currentRecommendedTireSizeError = getRecommendedTireSizeError(recommendedTireSize);
+    const optionalTirePayloadError = firstTireError || currentRecommendedTireSizeError;
     const shouldSendTirePayload = shouldRequireSafetyInspection || !optionalTirePayloadError;
-    setTireMmErrors(currentTireErrors);
-    if (shouldRequireSafetyInspection && firstTireError) {
-      toast.error(firstTireError);
+    if (currentRecommendedTireSizeError !== recommendedTireSizeError) {
+      setRecommendedTireSizeError(currentRecommendedTireSizeError);
+    }
+    if (shouldRequireSafetyInspection && optionalTirePayloadError) {
+      toast.error(optionalTirePayloadError);
       return;
     }
     if (blockingTextFieldValidationError) {
@@ -1148,9 +1138,9 @@ export const ServiceTicket = ({
 
   const technicianCompletionError = !isAdvisorMode ? validateTechnicianCompletion() : null;
   const advisorCompletionError = isAdvisorMode ? validateAdvisorCompletion() : null;
-  const visibleTireInputValidationError = Object.values(tireMmErrors).find(Boolean) || null;
+  const visibleTireMmErrors = useMemo(() => getTireInputErrorMap(tireData), [tireData]);
+  const visibleTireInputValidationError = Object.values(visibleTireMmErrors).find(Boolean) || null;
   const tireInputValidationError = shouldRequireSafetyInspection ? visibleTireInputValidationError : null;
-  const visibleTireMmErrors = tireMmErrors;
 
   if (loading) {
     return (

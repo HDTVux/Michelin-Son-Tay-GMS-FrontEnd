@@ -156,7 +156,7 @@ function ResultModal({ open, onClose, result }) {
       >
         <header className={styles.modalHeader}>
           <h3 id="send-reminder-result-title" className={styles.modalTitle}>
-            Kết quả gửi nhắc
+            Kết quả chiến dịch
           </h3>
           <button type="button" className={styles.modalClose} onClick={onClose} aria-label="Đóng">
             ×
@@ -302,7 +302,7 @@ export default function SendReminder() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Gửi nhắc bảo dưỡng</h1>
+        <h1 className={styles.title}>Chiến dịch thông báo</h1>
       </header>
 
       <div className={styles.sections}>
@@ -432,7 +432,7 @@ export default function SendReminder() {
 
         <section className={`ui-card ${styles.sectionCard}`}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Nội dung nhắc</h2>
+            <h2 className={styles.sectionTitle}>Nội dung thông báo</h2>
           </div>
 
           <div className={styles.templateFull}>
@@ -564,7 +564,7 @@ export default function SendReminder() {
               onClick={handleSendBulk}
               disabled={selectedIds.size === 0}
             >
-              Gửi hàng loạt
+              Gửi chiến dịch
             </button>
           </div>
 

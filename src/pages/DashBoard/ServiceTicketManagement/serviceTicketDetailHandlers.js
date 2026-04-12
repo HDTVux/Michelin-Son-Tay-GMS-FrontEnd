@@ -146,7 +146,7 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 		} finally {
 			setIsSaving(false);
 		}
-	}, [isSaving, ticketCodeParam, isImmutable, editForm.customerRequest, ticketRaw, ticket, setError, setTicketRaw, notify]);
+	}, [isSaving, ticketCodeParam, isImmutable, editForm.customerRequest, setError, setTicketRaw, notify]);
 
 	return {
 		isEditing,

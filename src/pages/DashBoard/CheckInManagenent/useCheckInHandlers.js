@@ -112,7 +112,15 @@ export const mapLookupPayload = (payload) => {
         customerName: payload.customerName ?? customer?.fullName ?? payload.fullName ?? '',
         customerPhone: payload.customerPhone ?? customer?.phone ?? payload.phone ?? '',
         customerEmail: payload.customerEmail ?? customer?.email ?? payload.email ?? null,
-        services: Array.isArray(payload.services) ? payload.services : [],
+        serviceCategory: payload.serviceCategory ?? payload.category ?? '',
+        items: Array.isArray(payload.items) ? payload.items : [],
+        parts: Array.isArray(payload.parts) ? payload.parts : [],
+        partItems: Array.isArray(payload.partItems) ? payload.partItems : [],
+        services: Array.isArray(payload.services)
+            ? payload.services
+            : Array.isArray(payload.items)
+                ? payload.items
+                : [],
     };
 };
 

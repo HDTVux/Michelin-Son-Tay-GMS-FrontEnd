@@ -132,7 +132,6 @@ export default function MaintenanceBookingPopup({
             });
 
         return () => {
-            clearTimeout(timer);
             active = false;
         };
     }, [date, durationMinutes]);

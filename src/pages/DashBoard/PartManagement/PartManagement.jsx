@@ -7,7 +7,6 @@ import { searchWarehouseCatalogItems } from '../../../services/warehouseService.
 import { fetchHomeProducts, fetchHomeServices } from '../../../services/homeService.js';
 import {
   formatCurrencyVnd,
-  formatItemTypeLabel,
   getItemColorText,
   getItemOriginText,
 } from './itemFormatters.js';

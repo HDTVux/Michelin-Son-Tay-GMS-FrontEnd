@@ -13,8 +13,8 @@ import {
   fetchTechniciansWorkload,
   fetchTicketAssignments,
   swapServiceTicketQueue,
-  fetchServiceTicketAdvisorRecommend,
   fetchAdvisorTicketRepairHistory,
+  fetchSafetyInspectionCurrentRecommend,
 } from '../../../services/serviceTicketService';
 import { fetchCheckInAdvisors } from '../../../services/checkInService';
 import { formatTimeHHmm, parseBackendDateTime } from '../../../components/timeUtils.js';
@@ -176,7 +176,7 @@ const getTicketVehicleId = (ticket) => {
   }
   return null;
 };
-const getTicketStatus = (ticket) => ticket?.status || ticket?.ticketStatus || '';
+const getTicketStatus = (ticket) => ticket?.status || ticket?.ticketStatus || ticket?.statusCode || '';
 const getTicketCustomerPhone = (ticket) =>
   ticket?.customerPhone
   || ticket?.phone
@@ -343,6 +343,31 @@ const extractRepairHistoryRows = (response) => {
   if (payload && typeof payload === 'object') return [payload];
   return [];
 };
+const extractRecommendationText = (response) => {
+  const payload = unwrapApiPayload(response);
+  if (payload == null) return '';
+
+  if (typeof payload === 'string') {
+    const text = payload.trim();
+    return ['SUCCESS', 'OK', 'FAILED', 'FAILURE', 'ERROR'].includes(text.toUpperCase()) ? '' : text;
+  }
+
+  if (typeof payload === 'object') {
+    const value =
+      payload?.recommend
+      ?? payload?.recommendation
+      ?? payload?.recommendationText
+      ?? payload?.currentRecommend
+      ?? payload?.advisorRecommendation
+      ?? payload?.data?.recommend
+      ?? payload?.data?.recommendation
+      ?? payload?.data?.recommendationText
+      ?? payload?.data?.currentRecommend;
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  return '';
+};
 const getHistoryTicketCode = (row) =>
   compactText(row?.ticketCode || row?.serviceTicketCode || row?.code || row?.serviceTicket?.ticketCode || row?.ticket?.ticketCode);
 const getHistoryDateTime = (row) =>
@@ -382,13 +407,24 @@ const getRepairHistoryCompareDateTime = (row) => {
     || row?.date
     || '';
 };
-const getRepairHistoryTimestamp = (row) => {
-  const raw = String(getRepairHistoryCompareDateTime(row) || '').trim();
+const hasTimeComponent = (value) => /(?:T|\s)\d{1,2}:\d{2}/.test(String(value || '').trim());
+const getRepairHistoryTimestampFromRaw = (value) => {
+  const raw = String(value || '').trim();
   if (!raw) return null;
   const parsed = parseBackendDateTime(raw);
   if (parsed) return parsed.getTime();
   const fallback = Date.parse(raw);
   return Number.isFinite(fallback) ? fallback : null;
+};
+const getRepairHistoryTimestamp = (row) => getRepairHistoryTimestampFromRaw(getRepairHistoryCompareDateTime(row));
+const getRepairHistoryBestTimestamp = (...rows) => {
+  const candidates = rows
+    .map((row) => getRepairHistoryCompareDateTime(row))
+    .map((raw) => ({ raw, timestamp: getRepairHistoryTimestampFromRaw(raw) }))
+    .filter((item) => item.timestamp != null);
+
+  const timedCandidate = candidates.find((item) => hasTimeComponent(item.raw));
+  return timedCandidate?.timestamp ?? candidates[0]?.timestamp ?? null;
 };
 const formatHistoryDateTime = (value) => {
   const raw = String(value || '').trim();
@@ -404,11 +440,6 @@ const formatHistoryDateTime = (value) => {
     hour12: false,
   });
 };
-const formatMoneyVnd = (value) => {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return '-';
-  return `${number.toLocaleString('vi-VN')} đ`;
-};
 const getRepairHistoryRecommendation = (row) =>
   compactText(
     row?.recommend
@@ -420,26 +451,8 @@ const getRepairHistoryRecommendation = (row) =>
     || row?.safetyInspection?.recommendation,
     '',
   );
-const getRepairHistoryEstimateItems = (row) => {
-  const sources = [
-    row?.estimateItems,
-    row?.items,
-    row?.quotedItems,
-    row?.quotationItems,
-    row?.estimate?.items,
-    row?.latestEstimate?.items,
-    row?.serviceTicketEstimate?.items,
-  ];
-  for (const source of sources) {
-    if (Array.isArray(source)) return source;
-  }
-  if (Array.isArray(row?.estimates)) {
-    return row.estimates.flatMap((estimate) => (
-      Array.isArray(estimate?.items) ? estimate.items : []
-    ));
-  }
-  return [];
-};
+const getRepairHistoryRowKey = (row, index) =>
+  String(getTicketId(row) || getHistoryTicketCode(row) || index);
 const getSwappedTicketOrder = (rows, sourceTicketId, targetTicketId) => {
   const list = Array.isArray(rows) ? rows : [];
   const fromIndex = list.findIndex((t) => Number(getTicketId(t)) === Number(sourceTicketId));
@@ -619,13 +632,6 @@ export default function AdvisorInspection() {
   const [transferredOutTicketCodes, setTransferredOutTicketCodes] = useState(() => new Set());
   const [dragTicketId, setDragTicketId] = useState(null);
   const [swapping, setSwapping] = useState(false);
-
-  // Khuyến nghị modal
-  const [showRecommendModal, setShowRecommendModal] = useState(false);
-  const [recommendTicket, setRecommendTicket] = useState(null);
-  const [recommendData, setRecommendData] = useState(null);
-  const [recommendLoading, setRecommendLoading] = useState(false);
-  const [_recommendError, setRecommendError] = useState('');
 
   // Lịch sử sửa chữa modal
   const [showRepairHistoryModal, setShowRepairHistoryModal] = useState(false);
@@ -973,7 +979,6 @@ export default function AdvisorInspection() {
     let historyTicket = { ...ticket, ticketCode: code, ticketId };
     let customerId = getTicketCustomerId(ticket);
     let vehicleId = getTicketVehicleId(ticket);
-    let licensePlate = compactText(ticket?.licensePlate || ticket?.vehicle?.licensePlate, '');
 
     setRepairHistoryTicket(historyTicket);
     setRepairHistoryRows([]);
@@ -996,7 +1001,6 @@ export default function AdvisorInspection() {
             historyTicket = { ...historyTicket, ...detail, ticketCode: code, ticketId };
             customerId = getTicketCustomerId(detail) || customerId;
             vehicleId = getTicketVehicleId(detail) || vehicleId;
-            licensePlate = compactText(detail?.vehicle?.licensePlate || detail?.licensePlate || licensePlate, '');
             setRepairHistoryTicket(historyTicket);
           }
         } catch {
@@ -1015,9 +1019,11 @@ export default function AdvisorInspection() {
         vehicleId,
       }, token);
       const currentCode = String(code || '').trim();
-      const currentTimestamp = getRepairHistoryTimestamp(historyTicket) ?? getRepairHistoryTimestamp(ticket);
+      const currentTimestamp = getRepairHistoryBestTimestamp(historyTicket, ticket);
       const rows = extractRepairHistoryRows(response)
         .filter((row) => {
+          if (normalizeServiceTicketStatus(row) !== 'PAID') return false;
+
           const rowTicketId = getTicketId(row);
           const rowCode = String(getTicketCode(row) || '').trim();
           if (ticketId && rowTicketId && Number(rowTicketId) === Number(ticketId)) return false;
@@ -1039,7 +1045,24 @@ export default function AdvisorInspection() {
           return true;
         })
         .sort((a, b) => (getRepairHistoryTimestamp(b) ?? 0) - (getRepairHistoryTimestamp(a) ?? 0));
-      setRepairHistoryRows(rows);
+
+      const rowsWithRecommendations = await Promise.all(rows.map(async (row) => {
+        const rowTicketId = getTicketId(row);
+        if (!rowTicketId) return row;
+        try {
+          const recommendRes = await fetchSafetyInspectionCurrentRecommend(rowTicketId, token);
+          return {
+            ...row,
+            currentRecommend: extractRecommendationText(recommendRes),
+          };
+        } catch {
+          return {
+            ...row,
+            currentRecommend: getRepairHistoryRecommendation(row),
+          };
+        }
+      }));
+      setRepairHistoryRows(rowsWithRecommendations);
     } catch (err) {
       setRepairHistoryRows([]);
       setRepairHistoryError(err?.message || 'Không tải được lịch sử sửa chữa.');
@@ -1681,37 +1704,6 @@ export default function AdvisorInspection() {
                 Mở
               </button>
               <button
-                className={`${styles.actionBtn} ${styles.recommendBtn}`}
-                onClick={async () => {
-                  if (!code) return;
-                  const ticketId = getTicketId(ticket);
-                  setRecommendTicket({ ...ticket, ticketCode: code, ticketId });
-                  setRecommendData(null);
-                  setRecommendError('');
-                  setRecommendLoading(true);
-                  setShowRecommendModal(true);
-                  const token = getToken();
-                  if (!ticketId || !token) {
-                    setRecommendError('Không tìm thấy thông tin phiếu.');
-                    setRecommendLoading(false);
-                    return;
-                  }
-                  try {
-                    const res = await fetchServiceTicketAdvisorRecommend(ticketId, token);
-                    const value = res?.data?.data ?? res?.data ?? res;
-                    setRecommendData(typeof value === 'string' ? value.trim() : '');
-                  } catch {
-                    setRecommendData('');
-                  } finally {
-                    setRecommendLoading(false);
-                  }
-                }}
-                disabled={!code || swapping}
-                title="Xem khuyến nghị của phiếu"
-              >
-                Xem khuyến nghị
-              </button>
-              <button
                 className={`${styles.actionBtn} ${styles.historyBtn}`}
                 onClick={() => handleOpenRepairHistory(ticket)}
                 disabled={swapping || (!code && !ticketId)}
@@ -2103,25 +2095,19 @@ export default function AdvisorInspection() {
 
               {!repairHistoryLoading && !repairHistoryError && repairHistoryRows.length === 0 && (
                 <div className={styles.emptyState}>
-                  <p>Chưa có phiếu sửa chữa trước đó cho xe này.</p>
+                  <p>Chưa có phiếu sửa chữa đã thanh toán trước đó cho xe này.</p>
                 </div>
               )}
 
               {!repairHistoryLoading && !repairHistoryError && repairHistoryRows.length > 0 && (
                 <div className={styles.historyList}>
                   {repairHistoryRows.map((row, index) => {
-                    const estimateItems = getRepairHistoryEstimateItems(row);
                     const recommendation = getRepairHistoryRecommendation(row);
-                    const totalAmount =
-                      row?.totalAmount
-                      ?? row?.estimateTotal
-                      ?? row?.totalPrice
-                      ?? row?.grandTotal
-                      ?? row?.estimate?.totalAmount
-                      ?? row?.latestEstimate?.totalAmount;
+                    const rowKey = getRepairHistoryRowKey(row, index);
+                    const detailCode = getTicketCode(row);
 
                     return (
-                      <div key={`${getHistoryTicketCode(row)}-${index}`} className={styles.historyCard}>
+                      <div key={rowKey} className={styles.historyCard}>
                         <div className={styles.historyCardHeader}>
                           <div>
                             <strong>{getHistoryTicketCode(row)}</strong>
@@ -2139,38 +2125,20 @@ export default function AdvisorInspection() {
                           </div>
                         ) : null}
 
-                        <div className={styles.historyEstimate}>
-                          <div className={styles.historyEstimateHeader}>
-                            <span>Hạng mục đã báo giá</span>
-                            <strong>{formatMoneyVnd(totalAmount)}</strong>
-                          </div>
-                          {estimateItems.length > 0 ? (
-                            <div className={styles.historyItemList}>
-                              {estimateItems.map((item, itemIndex) => {
-                                const itemName = compactText(
-                                  item?.serviceName
-                                  || item?.itemName
-                                  || item?.catalogName
-                                  || item?.name
-                                  || item?.description,
-                                  `Hạng mục ${itemIndex + 1}`,
-                                );
-                                const quantity = item?.quantity ?? item?.qty ?? item?.amount;
-                                const lineTotal = item?.totalPrice ?? item?.lineTotal ?? item?.totalAmount ?? item?.price ?? item?.priceVnd;
-                                return (
-                                  <div key={`${itemName}-${itemIndex}`} className={styles.historyItem}>
-                                    <span>{itemName}</span>
-                                    <small>
-                                      {quantity != null ? `SL: ${quantity} · ` : ''}
-                                      {formatMoneyVnd(lineTotal)}
-                                    </small>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <p className={styles.historyEmptyText}>Chưa có hạng mục báo giá.</p>
-                          )}
+                        <div className={styles.historyDetailActions}>
+                          <button
+                            type="button"
+                            className={styles.historyDetailBtn}
+                            onClick={() => {
+                              if (!detailCode) return;
+                              setShowRepairHistoryModal(false);
+                              navigate(`/service-ticket-detail/${encodeURIComponent(detailCode)}`, { state: { ticket: row } });
+                            }}
+                            disabled={!detailCode}
+                            title="Mở chi tiết phiếu dịch vụ"
+                          >
+                            Xem chi tiết
+                          </button>
                         </div>
                       </div>
                     );
@@ -2191,79 +2159,6 @@ export default function AdvisorInspection() {
         </div>
       )}
 
-      {/* Modal xem khuyến nghị phiếu cÅ© */}
-      {showRecommendModal && recommendTicket && (
-        <div className={styles.modalOverlay} onClick={() => setShowRecommendModal(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>Khuyến nghị phiếu trước</h3>
-              <button className={styles.modalClose} onClick={() => setShowRecommendModal(false)}>×</button>
-            </div>
-            <div className={styles.modalBody}>
-              {/* Thông tin phiếu */}
-              <div style={{ marginBottom: 16, padding: '10px 14px', background: '#f9fafb', borderRadius: 8, fontSize: 13 }}>
-                <div style={{ display: 'flex', gap: 24 }}>
-                  <div>
-                    <span style={{ color: '#6b7280' }}>Phiếu hiện tại: </span>
-                    <strong>{recommendTicket.ticketCode || '-'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#6b7280' }}>Biển số: </span>
-                    <strong>{recommendTicket.licensePlate || '-'}</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Loading */}
-              {recommendLoading && (
-                <div style={{ textAlign: 'center', padding: '20px 0', color: '#6b7280' }}>
-                  Đang tải khuyến nghị...
-                </div>
-              )}
-
-              {/* Lỗi / không có khuyến nghị */}
-              {!recommendLoading && !recommendData && (
-                <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af' }}>
-                  Không có khuyến nghị từ phiếu trước cho xe này.
-                </div>
-              )}
-
-              {/* Hiển thị khuyến nghị */}
-              {!recommendLoading && recommendData && (
-                <div>
-                  <div style={{ marginBottom: 8, fontWeight: 600, color: '#374151', fontSize: 13 }}>
-                    Khuyến nghị từ phiếu trước (cùng biển số xe)
-                  </div>
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      background: '#fffbeb',
-                      border: '1px solid #fcd34d',
-                      borderRadius: 8,
-                      fontSize: 14,
-                      color: '#92400e',
-                      whiteSpace: 'pre-wrap',
-                      minHeight: 60,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {recommendData}
-                  </div>
-                </div>
-              )}
-
-              <div className={styles.modalFooter}>
-                <button
-                  className={styles.modalActionBtn}
-                  onClick={() => setShowRecommendModal(false)}
-                >
-                  Đóng
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -319,6 +319,79 @@ export const createServiceTicketReminder = (payload, token) => {
   });
 };
 
+// Tìm kiếm danh sách nhắc lịch bảo dưỡng
+// Endpoint: GET /api/service-ticket/remind/service-remind-search
+// Query: { page, size, date: 'YYYY-MM-DD' | 'YYYY-MM-DDTHH:mm:ss', status, search, sortBy: 'asc' | 'desc' }
+export const fetchServiceTicketReminders = (params = {}, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem danh sách nhắc lịch bảo dưỡng.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const query = new URLSearchParams();
+  const page = Number(params?.page ?? 0);
+  const size = Number(params?.size ?? 10);
+  query.set('page', Number.isFinite(page) && page >= 0 ? String(Math.floor(page)) : '0');
+  query.set('size', Number.isFinite(size) && size > 0 ? String(Math.floor(size)) : '10');
+
+  const rawDate = String(params?.date ?? '').trim();
+  if (rawDate) {
+    query.set('date', /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? `${rawDate}T00:00:00` : rawDate);
+  }
+
+  const status = String(params?.status ?? '').trim().toUpperCase();
+  if (status) query.set('status', status);
+
+  const search = String(params?.search ?? '').trim();
+  if (search) query.set('search', search);
+
+  const sortBy = String(params?.sortBy ?? '').trim().toLowerCase();
+  if (sortBy === 'asc' || sortBy === 'desc') query.set('sortBy', sortBy);
+
+  return request(`/api/service-ticket/remind/service-remind-search?${query.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Cập nhật trạng thái nhắc lịch bảo dưỡng
+// Endpoint: PATCH /api/service-ticket/remind/{remindId}/{skipped|notified|confirmed|cancelled}
+export const updateServiceTicketReminderStatus = (remindId, status, reason = '', token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật nhắc lịch bảo dưỡng.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof remindId === 'number' ? remindId : Number(remindId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu remindId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const endpointByStatus = {
+    SKIPPED: 'skipped',
+    NOTIFIED: 'notified',
+    CONFIRMED: 'confirmed',
+    CANCELLED: 'cancelled',
+  };
+  const statusKey = String(status ?? '').trim().toUpperCase();
+  const endpoint = endpointByStatus[statusKey];
+  if (!endpoint) {
+    const error = new Error('Trạng thái nhắc lịch không hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/remind/${encodeURIComponent(String(idNum))}/${endpoint}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ reason: String(reason ?? '') }),
+  });
+};
+
 // Safety inspection: lấy khuyến nghị hiện tại của chính phiếu
 // Endpoint: GET /api/safety-inspections/{serviceTicketId}/curent-recommend
 export const fetchSafetyInspectionCurrentRecommend = (serviceTicketId, token) => {

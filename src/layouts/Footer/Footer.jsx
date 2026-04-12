@@ -53,7 +53,7 @@ const Footer = () => {
         </div>
 
         <div className="footerSection">
-          <h4 className="footerSubtitle">Dịch vụ</h4>
+          <h4 className="footerSubtitle">Dịch vụ & phụ tùng</h4>
           <div className="footerLinks">
             <a href="/services">Lốp xe</a>
             <a href="/services">Dầu nhớt</a>

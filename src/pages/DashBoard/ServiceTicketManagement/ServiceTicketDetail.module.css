@@ -320,6 +320,19 @@
   line-height: 1.4;
 }
 
+.selectedItemGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.selectedItemTitle {
+  margin: 0 0 8px;
+  color: #1a1a1a;
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .serviceRow {
   display: flex;
   align-items: baseline;

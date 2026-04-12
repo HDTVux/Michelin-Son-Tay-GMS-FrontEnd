@@ -67,6 +67,7 @@ const pickNextSlotByRounding30m = (now) => {
 
 export function useCreateBookingHandlers({
 	baseSlots,
+	selectedItems,
 	selectedIds,
 	schedule,
 	scheduleMode,
@@ -170,8 +171,24 @@ export function useCreateBookingHandlers({
 			const bookingCode = String(bookingCodeRaw ?? '').trim();
 			const msg = bookingCode ? `Tạo booking thành công. Mã: ${bookingCode}` : 'Tạo booking thành công.';
 
-			// Chỉ truyền ID (bookingCode) sang Check-in để phiếu tự lookup thông tin khách/booking từ backend.
-			setCreatedBookingForCheckIn(bookingCode ? { bookingCode } : null);
+			const selectedSnapshot = Array.isArray(selectedItems) ? selectedItems : [];
+			const serviceItems = selectedSnapshot.filter((item) => String(item?.itemType || '').toUpperCase() === 'SERVICE');
+			const partItems = selectedSnapshot.filter((item) => String(item?.itemType || '').toUpperCase() === 'PART');
+
+			setCreatedBookingForCheckIn(bookingCode ? {
+				bookingCode,
+				booking: {
+					bookingCode,
+					scheduledDate: schedule?.date || '',
+					scheduledTime: schedule?.time || '',
+					customerName: String(info?.name ?? '').trim(),
+					customerPhone: String(info?.phone ?? '').trim(),
+					selectedItems: selectedSnapshot,
+					services: serviceItems,
+					parts: partItems,
+					partItems,
+				},
+			} : null);
 
 			setSubmitSuccess(msg);
 			toast(msg, { containerId: 'app-toast' });
@@ -187,6 +204,7 @@ export function useCreateBookingHandlers({
 		info?.phone,
 		schedule?.date,
 		schedule?.time,
+		selectedItems,
 		selectedIds,
 		setCreatedBookingForCheckIn,
 		setSubmitError,
@@ -197,11 +215,11 @@ export function useCreateBookingHandlers({
 	const handleGoToCheckIn = useCallback(() => {
 		const code = String(createdBookingForCheckIn?.bookingCode ?? '').trim();
 		if (code) {
-			navigate('/check-in', { state: { bookingCode: code } });
+			navigate('/check-in', { state: { bookingCode: code, booking: createdBookingForCheckIn?.booking || null } });
 			return;
 		}
 		navigate('/check-in');
-	}, [createdBookingForCheckIn?.bookingCode, navigate]);
+	}, [createdBookingForCheckIn?.booking, createdBookingForCheckIn?.bookingCode, navigate]);
 
 	const handleReset = useCallback(() => {
 		setSelectedIds([]);

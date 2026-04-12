@@ -16,6 +16,161 @@ const CONDITION_PHOTO_KEYS = [
 ];
 const DESCRIPTION_MAX_LENGTH = 255;
 
+const getItemTypeText = (item) => {
+    return String(
+        item?.__forcedType
+        ?? item?.itemType
+        ?? item?.type
+        ?? item?.catalogItemType
+        ?? item?.productType
+        ?? item?.categoryType
+        ?? item?.itemCategoryType
+        ?? item?.catalogItem?.itemType
+        ?? item?.itemCategory?.categoryType
+        ?? item?.itemCategory?.itemType
+        ?? item?.category?.categoryType
+        ?? item?.category?.itemType
+        ?? '',
+    ).trim();
+};
+
+const hasPartText = (value) => {
+    const text = String(value || '').trim().toLowerCase();
+    if (!text) return false;
+    return (
+        text.includes('part')
+        || text.includes('product')
+        || text.includes('spare')
+        || text.includes('phụ tùng')
+        || text.includes('phu tung')
+    );
+};
+
+const normalizeSearchText = (value) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replaceAll('đ', 'd')
+    .normalize('NFD')
+    .replaceAll(/[\u0300-\u036f]/g, '');
+
+const hasPartNameSignal = (value) => {
+    const text = normalizeSearchText(value);
+    if (!text || text.includes('dich vu')) return false;
+
+    return (
+        text.includes('phu tung')
+        || text.includes('gat mua')
+        || text.includes('can gat')
+        || text.includes('dau nhot')
+        || text.includes('nhot')
+        || text.includes('dau may')
+        || text.includes('ac quy')
+        || text.includes('loc dau')
+        || text.includes('loc gio')
+        || text.includes('loc dieu hoa')
+        || text.includes('bugi')
+        || text.includes('bong den')
+        || text.includes('nuoc lam mat')
+        || text.includes('ma phanh')
+        || /\b\d{1,2}w[-\s]?\d{2}\b/.test(text)
+    );
+};
+
+const hasPartSignal = (item) => {
+    return Boolean(
+        item?.partId
+        || item?.productId
+        || item?.sparePartId
+        || hasPartText(item?.itemCategoryName)
+        || hasPartText(item?.categoryName)
+        || hasPartText(item?.categoryCode)
+        || hasPartText(item?.itemCategoryCode)
+        || hasPartText(item?.catalogItem?.itemCategoryName)
+        || hasPartText(item?.itemCategory?.categoryName)
+        || hasPartText(item?.category?.categoryName)
+        || hasPartNameSignal(getBookingItemName(item))
+    );
+};
+
+const normalizeBookingItemType = (item) => {
+    const text = getItemTypeText(item).toUpperCase();
+    if (text === 'SERVICE') return 'SERVICE';
+    if (
+        text === 'PART'
+        || text === 'PRODUCT'
+        || text === 'SPARE_PART'
+        || text === 'SPAREPART'
+        || text === 'ACCESSORY'
+        || text === 'EQUIPMENT'
+        || hasPartText(text)
+    ) {
+        return 'PART';
+    }
+    if (hasPartSignal(item)) return 'PART';
+    return 'SERVICE';
+};
+
+const getBookingItemName = (item) => {
+    return String(
+        item?.serviceName
+        ?? item?.itemName
+        ?? item?.name
+        ?? item?.title
+        ?? item?.catalogItemName
+        ?? item?.partName
+        ?? item?.productName
+        ?? '',
+    ).trim();
+};
+
+const collectBookingItems = (booking) => {
+    const sources = [
+        { list: booking?.services },
+        { list: booking?.items },
+        { list: booking?.bookingItems },
+        { list: booking?.selectedItems },
+        { list: booking?.serviceItems, forcedType: 'SERVICE' },
+        { list: booking?.parts, forcedType: 'PART' },
+        { list: booking?.partItems, forcedType: 'PART' },
+    ];
+
+    const map = new Map();
+    sources.forEach(({ list, forcedType }) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((item) => {
+            if (!item) return;
+            const normalized = forcedType ? { ...item, __forcedType: forcedType } : item;
+            const name = getBookingItemName(normalized);
+            if (!name) return;
+            const id = normalized?.itemId ?? normalized?.catalogItemId ?? normalized?.serviceId ?? normalized?.partId ?? normalized?.id ?? '';
+            const key = String(id || name).trim();
+            const existing = map.get(key);
+            if (!existing || normalizeBookingItemType(existing) !== 'PART') {
+                map.set(key, normalized);
+            }
+        });
+    });
+
+    return Array.from(map.values());
+};
+
+const mergeBookingSnapshotForDisplay = (booking, snapshot) => {
+    if (!snapshot) return booking;
+    return {
+        ...(booking || {}),
+        selectedItems: Array.isArray(snapshot?.selectedItems)
+            ? snapshot.selectedItems
+            : booking?.selectedItems,
+        serviceItems: Array.isArray(snapshot?.serviceItems)
+            ? snapshot.serviceItems
+            : Array.isArray(snapshot?.services)
+                ? snapshot.services
+                : booking?.serviceItems,
+        parts: Array.isArray(snapshot?.parts) ? snapshot.parts : booking?.parts,
+        partItems: Array.isArray(snapshot?.partItems) ? snapshot.partItems : booking?.partItems,
+    };
+};
+
 export default function CheckIn() {
     useScrollToTop(); // Hook tự động cuộn lên đầu trang khi component mount
     const navigate = useNavigate();
@@ -44,6 +199,7 @@ export default function CheckIn() {
 
     // State lưu trữ thông tin booking sau khi lookup từ hệ thống
     const [booking, setBooking] = useState(() => location?.state?.booking ?? null);
+    const bookingSnapshot = useMemo(() => location?.state?.booking ?? null, [location?.state?.booking]);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false); // Trạng thái khi đang tạo phiếu dịch vụ
     const [isCreatingVehicle, setIsCreatingVehicle] = useState(false); // Trạng thái khi đang tạo xe mới
@@ -94,11 +250,26 @@ export default function CheckIn() {
         return 'Không có tư vấn viên';
     }, [advisors.length, isAdvisorsLoading]);
 
-    const servicesDisplay = useMemo(() => {
-        const services = Array.isArray(booking?.services) ? booking.services : [];
-        const names = services.map((s) => s?.serviceName).filter(Boolean);
-        return names.length ? names.join(', ') : '-';
-    }, [booking?.services]);
+    const bookingItems = useMemo(() => {
+        return collectBookingItems(mergeBookingSnapshotForDisplay(booking, bookingSnapshot));
+    }, [booking, bookingSnapshot]);
+
+    const serviceItemNames = useMemo(() => {
+        return bookingItems
+            .filter((item) => normalizeBookingItemType(item) === 'SERVICE')
+            .map(getBookingItemName)
+            .filter(Boolean);
+    }, [bookingItems]);
+
+    const partItemNames = useMemo(() => {
+        return bookingItems
+            .filter((item) => normalizeBookingItemType(item) === 'PART')
+            .map(getBookingItemName)
+            .filter(Boolean);
+    }, [bookingItems]);
+
+    const servicesDisplay = serviceItemNames.length ? serviceItemNames.join(', ') : (booking?.serviceCategory || '-');
+    const partsDisplay = partItemNames.join(', ');
 
     // Xử lý logic số Odometer: Chuyển đổi chuỗi nhập liệu thành số nguyên an toàn
     const odometerNumber = useMemo(() => {
@@ -432,13 +603,17 @@ export default function CheckIn() {
                         <span className={styles.infoLabel}>Số điện thoại:</span>
                         <span className={styles.infoValue}>{booking?.customerPhone || '-'}</span>
                     </div>
-                    <div className={styles.infoRow}>
+                    <div className={`${styles.infoRow} ${styles.infoRowCatalog}`}>
                         <span className={styles.infoLabel}>Dịch vụ:</span>
-                        <span className={styles.infoValue}>{servicesDisplay}</span>
+                        <span className={`${styles.infoValue} ${styles.infoValueList}`}>{servicesDisplay}</span>
                     </div>
                     <div className={styles.infoRow}>
                         <span className={styles.infoLabel}>Giờ hẹn:</span>
                         <span className={styles.infoValue}>{scheduledTimeDisplay}</span>
+                    </div>
+                    <div className={`${styles.infoRow} ${styles.infoRowCatalog} ${styles.infoRowFull}`}>
+                        <span className={styles.infoLabel}>Phụ tùng:</span>
+                        <span className={`${styles.infoValue} ${styles.infoValueList}`}>{partsDisplay || '-'}</span>
                     </div>
                 </div>
             </div>

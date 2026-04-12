@@ -73,6 +73,150 @@ function toPositiveNumberOrNull(value) {
     return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function getTicketItemName(item) {
+    return String(
+        item?.serviceName ??
+        item?.itemName ??
+        item?.name ??
+        item?.title ??
+        item?.catalogItemName ??
+        item?.partName ??
+        item?.productName ??
+        '',
+    ).trim();
+}
+
+function hasPartText(value) {
+    const text = String(value || '').trim().toLowerCase();
+    if (!text) return false;
+    return (
+        text.includes('part') ||
+        text.includes('product') ||
+        text.includes('spare') ||
+        text.includes('phụ tùng') ||
+        text.includes('phu tung')
+    );
+}
+
+function normalizeSearchText(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replaceAll('đ', 'd')
+        .normalize('NFD')
+        .replaceAll(/[\u0300-\u036f]/g, '');
+}
+
+function hasPartNameSignal(value) {
+    const text = normalizeSearchText(value);
+    if (!text || text.includes('dich vu')) return false;
+
+    return (
+        text.includes('phu tung') ||
+        text.includes('gat mua') ||
+        text.includes('can gat') ||
+        text.includes('dau nhot') ||
+        text.includes('nhot') ||
+        text.includes('dau may') ||
+        text.includes('ac quy') ||
+        text.includes('loc dau') ||
+        text.includes('loc gio') ||
+        text.includes('loc dieu hoa') ||
+        text.includes('bugi') ||
+        text.includes('bong den') ||
+        text.includes('nuoc lam mat') ||
+        text.includes('ma phanh') ||
+        /\b\d{1,2}w[-\s]?\d{2}\b/.test(text)
+    );
+}
+
+function getTicketItemTypeText(item) {
+    return String(
+        item?.__forcedType ??
+        item?.itemType ??
+        item?.type ??
+        item?.catalogItemType ??
+        item?.productType ??
+        item?.categoryType ??
+        item?.itemCategoryType ??
+        item?.catalogItem?.itemType ??
+        item?.itemCategory?.categoryType ??
+        item?.itemCategory?.itemType ??
+        item?.category?.categoryType ??
+        item?.category?.itemType ??
+        '',
+    ).trim();
+}
+
+function normalizeTicketItemType(item) {
+    const typeText = getTicketItemTypeText(item).toUpperCase();
+    if (typeText === 'SERVICE') return 'SERVICE';
+    if (
+        typeText === 'PART' ||
+        typeText === 'PRODUCT' ||
+        typeText === 'SPARE_PART' ||
+        typeText === 'SPAREPART' ||
+        typeText === 'ACCESSORY' ||
+        typeText === 'EQUIPMENT' ||
+        hasPartText(typeText)
+    ) {
+        return 'PART';
+    }
+
+    const name = getTicketItemName(item).toLowerCase();
+    if (
+        item?.partId ||
+        item?.productId ||
+        item?.sparePartId ||
+        hasPartText(item?.itemCategoryName) ||
+        hasPartText(item?.categoryName) ||
+        hasPartText(item?.categoryCode) ||
+        hasPartText(item?.itemCategoryCode) ||
+        hasPartText(item?.catalogItem?.itemCategoryName) ||
+        hasPartText(item?.itemCategory?.categoryName) ||
+        hasPartText(item?.category?.categoryName) ||
+        hasPartNameSignal(name)
+    ) {
+        return 'PART';
+    }
+
+    return 'SERVICE';
+}
+
+function collectTicketItems(input) {
+    const sources = [
+        { list: input?.services },
+        { list: input?.items },
+        { list: input?.bookingItems },
+        { list: input?.selectedItems },
+        { list: input?.serviceItems, forcedType: 'SERVICE' },
+        { list: input?.parts, forcedType: 'PART' },
+        { list: input?.partItems, forcedType: 'PART' },
+        { list: input?.booking?.services },
+        { list: input?.booking?.items },
+        { list: input?.booking?.parts, forcedType: 'PART' },
+    ];
+
+    const map = new Map();
+    sources.forEach(({ list, forcedType }) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((item) => {
+            if (!item) return;
+            const normalized = forcedType ? { ...item, __forcedType: forcedType } : item;
+            const name = getTicketItemName(normalized);
+            if (!name) return;
+            const id = normalized?.itemId ?? normalized?.catalogItemId ?? normalized?.serviceId ?? normalized?.partId ?? normalized?.id ?? '';
+            const key = String(id || name).trim();
+            const existing = map.get(key);
+            if (!existing || normalizeTicketItemType(existing) !== 'PART') {
+                map.set(key, normalized);
+            }
+        });
+    });
+
+    return Array.from(map.values());
+}
+
 function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estimateItems }) {
     const estId = toPositiveNumberOrNull(estimateId);
     const ticketId = toPositiveNumberOrNull(serviceTicketId);
@@ -379,8 +523,7 @@ function normalizeTicket(input, codeFallback) {
             input?.checkInNotes ||
             input?.note ||
             '',
-        services:
-            Array.isArray(input?.services) ? input.services : [],
+        services: collectTicketItems(input),
         photos,
         externalDependency: Boolean(input?.externalDependency || input?.isExternalDependency),
         timelineStatus: input?.timelineStatus || statusCode || statusLabelRaw,
@@ -1044,6 +1187,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const canCompleteRepair = ticketStatus === 'REPAIRING';
 
     const advisorItems = useMemo(() => Array.isArray(latestEstimate?.items) ? latestEstimate.items.filter(it => !it?.isRemoved) : [], [latestEstimate]);
+    const selectedServiceItems = useMemo(
+        () => (Array.isArray(ticket.services) ? ticket.services : []).filter((item) => normalizeTicketItemType(item) === 'SERVICE'),
+        [ticket.services],
+    );
+    const selectedPartItems = useMemo(
+        () => (Array.isArray(ticket.services) ? ticket.services : []).filter((item) => normalizeTicketItemType(item) === 'PART'),
+        [ticket.services],
+    );
     const hasAnyAdvisorItem = advisorItems.length > 0;
     const isEstimatePersisted = Boolean(latestEstimate?.createdAt || latestEstimate?.estimateId || latestEstimate?.id);
     const canConfirmEstimate = Boolean(estimateIdNum)
@@ -1349,18 +1500,39 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                             </section>
 
                             <section className={styles.block}>
-                                <h2 className={styles.blockTitle}>Dịch vụ đã chọn</h2>
-                                <div className={styles.servicesList}>
-                                    {(Array.isArray(ticket.services) ? ticket.services : []).map((s, idx) => {
-                                        const price = s?.priceVnd ?? s?.price;
-                                        return (
-                                            <div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
-                                                <span className={styles.serviceName}>{s?.serviceName || s?.label || s?.name || '-'}</span>
-                                                <span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
-                                            </div>
-                                        );
-                                    })}
-                                    {(!Array.isArray(ticket.services) || ticket.services.length === 0) && <div className={styles.noteBox}>-</div>}
+                                <h2 className={styles.blockTitle}>Hạng mục đã chọn</h2>
+                                <div className={styles.selectedItemGroups}>
+                                    <div>
+                                        <h3 className={styles.selectedItemTitle}>Dịch vụ đã chọn</h3>
+                                        <div className={styles.servicesList}>
+                                            {selectedServiceItems.map((s, idx) => {
+                                                const price = s?.priceVnd ?? s?.price;
+                                                return (
+                                                    <div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
+                                                        <span className={styles.serviceName}>{getTicketItemName(s) || s?.label || '-'}</span>
+                                                        <span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                            {selectedServiceItems.length === 0 && <div className={styles.noteBox}>-</div>}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h3 className={styles.selectedItemTitle}>Phụ tùng đã chọn</h3>
+                                        <div className={styles.servicesList}>
+                                            {selectedPartItems.map((s, idx) => {
+                                                const price = s?.priceVnd ?? s?.price;
+                                                return (
+                                                    <div key={`${s?.id ?? s?.name ?? 'part'}-${idx}`} className={styles.serviceRow}>
+                                                        <span className={styles.serviceName}>{getTicketItemName(s) || s?.label || '-'}</span>
+                                                        <span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                            {selectedPartItems.length === 0 && <div className={styles.noteBox}>-</div>}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {ticket.externalDependency && (

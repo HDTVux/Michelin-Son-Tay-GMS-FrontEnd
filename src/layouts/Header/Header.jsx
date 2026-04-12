@@ -124,18 +124,11 @@ const Header = () => {
           </Link>
           <Link
             to="/services"
-            className={isActive('/services') ? 'active' : ''}
+            className={isActive('/services') || isActive('/parts') ? 'active' : ''}
             onClick={() => { closeMenu(); scrollToTop(); }}
             preventScrollReset={true}
           >
-            Dịch vụ
-          </Link>
-          <Link
-            to="/parts"
-            className={isActive('/parts') ? 'active' : ''}
-            onClick={() => { closeMenu(); scrollToTop(); }}
-          >
-            Phụ tùng
+            Dịch vụ & phụ tùng
           </Link>
           <Link
             to="/"
