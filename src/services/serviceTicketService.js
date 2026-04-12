@@ -238,6 +238,58 @@ export const fetchServiceTicketDetail = (ticketCode, token) => {
   });
 };
 
+// Cập nhật thời gian dự kiến giao xe (estimated delivery) theo ticketCode
+// Endpoint: PUT /api/service-ticket/manage/tickets/{ticketCode}/estimated-delivery?estimatedDeliveryAt=2026-04-13T15:30:00
+export const updateServiceTicketEstimatedDelivery = (ticketCode, estimatedDeliveryAt, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để cập nhật thời gian dự kiến giao xe.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const code = encodeURIComponent(String(ticketCode ?? '').trim());
+  if (!code) {
+    const error = new Error('Thiếu ticketCode.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const estimated = String(estimatedDeliveryAt ?? '').trim();
+  if (!estimated) {
+    const error = new Error('Thiếu estimatedDeliveryAt hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const qs = new URLSearchParams({ estimatedDeliveryAt: estimated }).toString();
+  return request(`/api/service-ticket/manage/tickets/${code}/estimated-delivery?${qs}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Xác nhận bàn giao xe theo ticketCode
+// Endpoint: POST /api/service-ticket/manage/tickets/{ticketCode}/confirm-delivered
+export const confirmServiceTicketDelivered = (ticketCode, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xác nhận bàn giao xe.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const code = encodeURIComponent(String(ticketCode ?? '').trim());
+  if (!code) {
+    const error = new Error('Thiếu ticketCode.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/manage/tickets/${code}/confirm-delivered`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Advisor: lấy khuyến nghị theo serviceTicketId
 // Endpoint: GET /api/service-ticket/advisor/recommend/{serviceTicketId}
 export const fetchServiceTicketAdvisorRecommend = (serviceTicketId, token) => {
@@ -255,6 +307,29 @@ export const fetchServiceTicketAdvisorRecommend = (serviceTicketId, token) => {
   }
 
   return request(`/api/service-ticket/advisor/recommend/${encodeURIComponent(String(idNum))}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Advisor: lấy lịch sử sửa chữa theo customerId (từ booking)
+// Endpoint: GET /api/service-ticket/advisor/booking/history?customerId={customerId}
+export const fetchServiceTicketBookingHistoryByCustomerId = (customerId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem lịch sử sửa chữa.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof customerId === 'number' ? customerId : Number(customerId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu customerId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const qs = new URLSearchParams({ customerId: String(idNum) }).toString();
+  return request(`/api/service-ticket/advisor/booking/history?${qs}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -765,17 +840,19 @@ export const fetchAdvisorMyTickets = (params, token) => {
 
 // Lấy lịch sử sửa chữa của xe/phiếu cho advisor
 // Endpoint: GET /api/service-ticket/advisor/tickets/history
-export const fetchAdvisorTicketRepairHistory = (params = {}, token) => {
+export const fetchAdvisorTicketRepairHistory = (params, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để xem lịch sử sửa chữa.');
     error.status = 401;
     return Promise.reject(error);
   }
 
+  const safeParams = params ?? {};
+
   const searchParams = new URLSearchParams();
   Object.entries({
-    customerId: params?.customerId,
-    vehicleId: params?.vehicleId,
+    customerId: safeParams?.customerId,
+    vehicleId: safeParams?.vehicleId,
   }).forEach(([key, value]) => {
     const raw = String(value ?? '').trim();
     if (raw) searchParams.set(key, raw);
@@ -822,28 +899,7 @@ export const swapServiceTicketQueue = (serviceTicketId1, serviceTicketId2, token
 // Lấy danh sách tất cả KTV (dù đang bận hay rảnh) kèm số ticket đang làm
 // Backend hiện tại: GET /api/staff-workload?role=TECHNICIAN
 export const fetchTechniciansWithWorkload = (token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-  return request('/api/staff-workload?role=TECHNICIAN', {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  }).then((res) => {
-    const rows = Array.isArray(res?.data) ? res.data : [];
-    const normalized = rows.map((row) => ({
-      staffId: row?.staffId,
-      fullName: row?.fullName || '',
-      phone: row?.phone || '',
-      roles: Array.isArray(row?.roles) ? row.roles : [],
-      currentTicketCount: Number.isFinite(row?.totalWorkload)
-        ? row.totalWorkload
-        : Number(row?.activeAssignments || 0) + Number(row?.pendingAssignments || 0),
-      isBusy: row?.isAvailable === false,
-    }));
-    return { ...res, data: normalized };
-  });
+  return fetchTechniciansWorkload(token);
 };
 
 // Lấy workload của tất cả Advisor để hiển thị trong modal đổi advisor

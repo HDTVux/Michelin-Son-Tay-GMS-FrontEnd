@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { buildDateOptions, formatDateTimeViNoSeconds, formatLocalDateYYYYMMDD, formatTimeHHmm } from '../../../components/timeUtils.js';
+import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
 import { fetchAllSlots, fetchQueueBySlot, setQueueAuto, swapQueueBookings } from '../../../services/bookingService.js';
 import styles from './QueueManagement.module.css';
 
@@ -33,6 +34,19 @@ const pickCurrentSlotStartTime = (options, now = new Date()) => {
 	}
 	return picked;
 };
+const getQueueBookingTargetId = (item) => {
+	const code = String(item?.bookingCode || item?.booking_code || '').trim();
+	if (code) return code;
+	const id = item?.bookingId ?? item?.id ?? null;
+	return id == null ? '' : String(id);
+};
+
+const isQueueBookingConfirmed = (item) => String(item?.status || '').trim().toUpperCase() === 'CONFIRMED';
+
+const getQueueBookingStatusLabel = (item) => {
+	const status = normalizeStatusCode(item?.status);
+	return getBookingStatusTextVi(status, '-');
+};
 
 export default function QueueManagement() {
 	useScrollToTop();
@@ -51,6 +65,7 @@ export default function QueueManagement() {
 	const [queueError, setQueueError] = useState('');
 	const [dragBookingId, setDragBookingId] = useState(null);
 	const didAutoLoadRef = useRef(false);
+	const isDraggingRef = useRef(false);
 
 	const dateOptions = useMemo(() => buildDateOptions(10), []);
 
@@ -227,10 +242,18 @@ export default function QueueManagement() {
 		}
 	};
 
+	const handleOpenBookingDetail = useCallback((item) => {
+		const targetId = getQueueBookingTargetId(item);
+		if (!targetId) {
+			notify('Không tìm thấy mã booking để xem chi tiết.');
+			return;
+		}
+		navigate(`/booking-management/${encodeURIComponent(String(targetId))}`);
+	}, [navigate, notify]);
+
 	const handleCheckIn = (item) => {
 		const bookingId = item?.bookingId ?? item?.id ?? null;
 		const bookingCode = item?.bookingCode ?? '';
-		const customerName = item?.customer?.fullName || item?.customer?.name || item?.fullName || item?.name || '-';
 		const customerPhone = item?.customer?.phone || item?.phone || '-';
 		const appointmentAt = item?.appointmentAt || ((item?.scheduledDate && item?.scheduledTime) ? `${String(item.scheduledDate).trim()}T${String(item.scheduledTime).trim()}` : null);
 
@@ -241,7 +264,6 @@ export default function QueueManagement() {
 				booking: {
 					bookingId,
 					bookingCode,
-					customerName,
 					customerPhone,
 					appointmentAt,
 				},
@@ -330,9 +352,13 @@ export default function QueueManagement() {
 								draggable
 								onDragStart={(e) => {
 									const id = item?.bookingId;
+									isDraggingRef.current = true;
 									setDragBookingId(id ?? null);
 									e.dataTransfer.effectAllowed = 'move';
 									e.dataTransfer.setData('text/plain', String(id ?? ''));
+								}}
+								onDragEnd={() => {
+									isDraggingRef.current = false;
 								}}
 								onDragOver={(e) => {
 									e.preventDefault();
@@ -343,6 +369,7 @@ export default function QueueManagement() {
 									const fromRaw = e.dataTransfer.getData('text/plain') || String(dragBookingId ?? '');
 									const fromId = Number(fromRaw);
 									const toId = Number(item?.bookingId);
+									isDraggingRef.current = false;
 									setDragBookingId(null);
 									if (!Number.isFinite(fromId) || !Number.isFinite(toId)) return;
 									handleSwap(fromId, toId);
@@ -352,7 +379,7 @@ export default function QueueManagement() {
 									<div className={styles.plate}>
 										#{item?.queueOrder ?? '-'} · {item?.bookingCode || `Booking #${item?.bookingId ?? '-'}`}
 									</div>
-									<span className={styles.sourcePill}>{item?.status || '-'}</span>
+									<span className={styles.sourcePill}>{getQueueBookingStatusLabel(item)}</span>
 								</div>
 
 								<div className={styles.cardBody}>
@@ -365,7 +392,10 @@ export default function QueueManagement() {
 											<span className={styles.label}>Tạo lúc:</span> {formatDateTimeViNoSeconds(item?.createdAt)}
 										</div>
 										<div className={styles.infoItem}>
-											<span className={styles.label}>Khách:</span> {item?.customer?.fullName || item?.customer?.name || '-'}
+											<span className={styles.label}>Khách:</span> {item?.customer?.fullName || item?.fullName || item?.name || '-'}
+										</div>
+										<div className={styles.infoItem}>
+											<span className={styles.label}>SĐT:</span> {item?.customer?.phone || item?.phone || '-'}
 										</div>
 										<div className={styles.infoItem}>
 											<span className={styles.label}>Ghi chú:</span> {item?.description || '-'}
@@ -376,10 +406,23 @@ export default function QueueManagement() {
 										<button
 											type="button"
 											className={styles.secondaryButton}
-											onClick={() => handleCheckIn(item)}
+											onClick={() => handleOpenBookingDetail(item)}
+										>
+											Chi tiết
+										</button>
+
+										{isQueueBookingConfirmed(item) ? (
+										<button
+											type="button"
+											className={styles.secondaryButton}
+											onClick={(e) => {
+											e.stopPropagation();
+											handleCheckIn(item);
+										}}
 										>
 											Check-in
 										</button>
+										) : null}
 									</div>
 								</div>
 							</article>

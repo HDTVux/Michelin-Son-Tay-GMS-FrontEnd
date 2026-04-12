@@ -95,6 +95,7 @@ export default function CreateBooking() {
 	const [submitError, setSubmitError] = useState('');
 	const [submitSuccess, setSubmitSuccess] = useState('');
 	const [createdBookingForCheckIn, setCreatedBookingForCheckIn] = useState(null);
+	const [submitLocked, setSubmitLocked] = useState(false);
 
 	useEffect(() => {
 		let active = true;
@@ -198,11 +199,12 @@ export default function CreateBooking() {
 			schedule.date &&
 			schedule.time &&
 			(!schedule.date || (!slotsLoading && !slotsError)) &&
-			!submitting
+			!submitting &&
+			!submitLocked
 		);
-	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting]);
+	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked]);
 
-	const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset } =
+	const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
 		useCreateBookingHandlers({
 			baseSlots,
 			selectedIds,
@@ -210,6 +212,7 @@ export default function CreateBooking() {
 			scheduleMode,
 			info,
 			canSubmit,
+			submitLocked,
 			slotsLoading,
 			slotsError,
 			createdBookingForCheckIn,
@@ -229,7 +232,15 @@ export default function CreateBooking() {
 			setSubmitError,
 			setSubmitSuccess,
 			setCreatedBookingForCheckIn,
+			setSubmitLocked,
 		});
+
+	const handleReset = () => {
+		setCheckingCustomer(false);
+		setCustomerChecked(null);
+		setCustomerCheckError('');
+		resetForm();
+	};
 
 	const handleChangeTab = (nextTab) => {
 		setActiveTab(toItemType(nextTab));

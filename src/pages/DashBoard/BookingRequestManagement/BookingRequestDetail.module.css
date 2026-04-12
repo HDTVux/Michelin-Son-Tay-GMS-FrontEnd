@@ -122,6 +122,18 @@
   gap: 10px;
 }
 
+/* Lịch sử sửa chữa: hiển thị 2 cột x 2 hàng, phần còn lại cuộn */
+.historyGrid {
+  height: 230px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+}
+
+.historyBox {
+  height: 110px;
+}
+
 .infoBox {
   background: white;
   border: 1px solid #e5e7eb;

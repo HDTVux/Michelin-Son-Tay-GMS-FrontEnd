@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import { fetchServiceTicketDetail, fetchServiceTicketEstimate, manageServiceTicketEstimateStatus, manageServiceTicketStatus } from '../../../services/serviceTicketService.js';
+import {
+    confirmServiceTicketDelivered,
+    fetchServiceTicketDetail,
+    fetchServiceTicketEstimate,
+    manageServiceTicketEstimateStatus,
+    manageServiceTicketStatus,
+} from '../../../services/serviceTicketService.js';
 import { createPayment, payBill } from '../../../services/paymentService.js';
 import { getSafetyInspectionByTicketCode, getDefaultSafetyInspectionCategories } from '../../../services/safetyInspectionService.js';
 
@@ -88,9 +94,55 @@ function normalizePaymentMethod(method) {
     return method;
 }
 
+function normalizeServiceTicketStatus(raw) {
+    const value = String(raw || '')
+        .trim()
+        .toUpperCase()
+        .replaceAll(/\s+/g, '_');
+    if (!value) return '';
+
+    if (value === 'CREATED' || value === 'DRAFT') return 'CREATED';
+    if (value === 'INSPECTION' || value === 'INSPECTING' || value === 'DIAGNOSIS') return 'INSPECTING';
+    if (value === 'INSPECTED' || value === 'INSPECTED_DIAGNOSTIC') return 'INSPECTED';
+    if (value === 'PENDING' || value === 'WAITING') return 'PENDING';
+    if (value === 'ESTIMATED' || value === 'ESTIMATE') return 'ESTIMATED';
+    if (value === 'IN_PROGRESS' || value === 'INPROGRESS' || value === 'PROCESSING' || value === 'REPAIRING') return 'REPAIRING';
+    if (value === 'COMPLETED' || value === 'DONE' || value === 'FINISHED') return 'COMPLETED';
+    if (value === 'PAID' || value === 'PAYED') return 'PAID';
+    if (value === 'CANCELLED' || value === 'CANCELED' || value === 'CANCEL') return 'CANCELLED';
+
+    return value;
+}
+
+function normalizeEstimateStatus(raw) {
+    const value = String(raw || '')
+        .trim()
+        .toUpperCase()
+        .replaceAll(/\s+/g, '_');
+    if (value === 'CONFIRMED') return 'APPROVED';
+    return value;
+}
+
 function normalizeTicketForReceipt(input, ticketCodeFallback) {
     const ticketCode = String(input?.ticketCode || ticketCodeFallback || '').trim();
     const serviceTicketId = input?.serviceTicketId ?? input?.serviceTicketID ?? input?.id ?? input?.ticketId ?? null;
+
+    const statusRaw =
+        input?.ticketStatus?.code ??
+        input?.ticketStatus?.name ??
+        input?.ticketStatus ??
+        input?.status?.code ??
+        input?.status?.name ??
+        input?.status ??
+        input?.serviceTicketStatusCode ??
+        input?.serviceTicketStatus?.code ??
+        input?.serviceTicketStatus?.name ??
+        input?.serviceTicketStatus ??
+        input?.serviceTicket?.status?.code ??
+        input?.serviceTicket?.status?.name ??
+        input?.serviceTicket?.status ??
+        null;
+    const statusCode = normalizeServiceTicketStatus(statusRaw);
 
     const receivedAt =
         input?.receivedAt ??
@@ -126,6 +178,7 @@ function normalizeTicketForReceipt(input, ticketCodeFallback) {
     return {
         serviceTicketId,
         ticketCode,
+        statusCode,
         receivedAt,
         handoverAt,
         safetyInspectionEnabled: input?.safetyInspectionEnabled,
@@ -257,6 +310,8 @@ export default function ReceiptConfirm() {
     const [billCreating, setBillCreating] = useState(false);
     const [billId, setBillId] = useState(null);
 
+    const [delivering, setDelivering] = useState(false);
+
     const notify = (message) => toast(message, { containerId: 'app-toast' });
 
     useEffect(() => {
@@ -293,6 +348,15 @@ export default function ReceiptConfirm() {
     }, [ticketRaw, ticketCodeParam]);
 
     const ticket = useMemo(() => normalizeTicketForReceipt(ticketRaw ?? {}, ticketCodeParam), [ticketRaw, ticketCodeParam]);
+
+    const ticketStatus = useMemo(() => normalizeServiceTicketStatus(ticket?.statusCode), [ticket?.statusCode]);
+    const estimateStatus = useMemo(
+        () => normalizeEstimateStatus(estimate?.estimateStatus ?? estimate?.status ?? estimate?.estimate_status),
+        [estimate?.estimateStatus, estimate?.estimate_status, estimate?.status],
+    );
+
+    const canPay = estimateStatus === 'ARCHIVED' && ticketStatus === 'COMPLETED';
+    const canConfirmDelivered = ticketStatus === 'PAID';
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
@@ -519,7 +583,6 @@ export default function ReceiptConfirm() {
 
     // Remove bill creation from print, only change ticket status to ARCHIVE
     const [archiving, setArchiving] = useState(false);
-    const [archived, setArchived] = useState(false);
 
     const handleArchiveAndPrint = async () => {
         if (archiving || ticketLoading || estimateLoading) return;
@@ -536,7 +599,7 @@ export default function ReceiptConfirm() {
         try {
             setArchiving(true);
             await manageServiceTicketEstimateStatus(estimateId, 'ARCHIVED', token);
-            setArchived(true);
+            setEstimate((prev) => (prev ? { ...prev, estimateStatus: 'ARCHIVED', status: 'ARCHIVED' } : prev));
             globalThis.window?.print?.();
         } catch (err) {
             notify(err?.message || 'Chuyển trạng thái thất bại.');
@@ -550,7 +613,7 @@ export default function ReceiptConfirm() {
 
     // Only allow payment after archive
     const handleConfirm = async () => {
-        if (!archived) return;
+        if (!canPay) return;
 
         const token = localStorage.getItem('authToken');
         if (!token) {
@@ -654,6 +717,27 @@ export default function ReceiptConfirm() {
             await payBill(payPayload, token);
 
             await manageServiceTicketStatus(serviceTicketId, 'PAID', token);
+
+            setTicketRaw((prev) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    status: 'PAID',
+                    ticketStatus: 'PAID',
+                    serviceTicketStatus: 'PAID',
+                    serviceTicketStatusCode: 'PAID',
+                };
+            });
+
+            try {
+                const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
+                if (ticketCode) {
+                    const detailRes = await fetchServiceTicketDetail(ticketCode, token);
+                    setTicketRaw(detailRes?.data ?? null);
+                }
+            } catch {
+                // ignore
+            }
             notify('Thanh toán thành công');
             setPaymentOpen(false);
         } catch (err) {
@@ -663,6 +747,50 @@ export default function ReceiptConfirm() {
             setPaymentSubmitting(false);
         }
     };
+
+    const handleConfirmDelivered = async () => {
+        if (delivering) return;
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để xác nhận bàn giao xe.');
+            return;
+        }
+
+        const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
+        if (!ticketCode) {
+            notify('Thiếu ticketCode để xác nhận bàn giao xe.');
+            return;
+        }
+
+        try {
+            setDelivering(true);
+            await confirmServiceTicketDelivered(ticketCode, token);
+            const detailRes = await fetchServiceTicketDetail(ticketCode, token);
+            setTicketRaw(detailRes?.data ?? null);
+            notify('Đã xác nhận bàn giao xe.');
+            navigate('/service-ticket-management', { replace: true });
+        } catch (err) {
+            notify(err?.message || 'Không thể xác nhận bàn giao xe.');
+        } finally {
+            setDelivering(false);
+        }
+    };
+
+    let primaryAction = null;
+    if (canConfirmDelivered) {
+        primaryAction = (
+            <button type="button" className="ui-btn ui-btn--primary" onClick={handleConfirmDelivered} disabled={delivering}>
+                {delivering ? 'Đang xác nhận...' : 'Xác nhận bàn giao xe'}
+            </button>
+        );
+    } else if (canPay) {
+        primaryAction = (
+            <button type="button" className="ui-btn ui-btn--primary" onClick={handleConfirm} disabled={billCreating}>
+                {billCreating ? 'Đang tạo hoá đơn...' : 'Thanh toán'}
+            </button>
+        );
+    }
 
     return (
         <div className={styles.page}>
@@ -813,14 +941,7 @@ export default function ReceiptConfirm() {
                         >
                             {archiving ? 'Đang lưu...' : 'In hóa đơn'}
                         </button>
-                        <button
-                            type="button"
-                            className="ui-btn ui-btn--primary"
-                            onClick={handleConfirm}
-                            disabled={!archived || billCreating}
-                        >
-                            {billCreating ? 'Đang tạo hoá đơn...' : 'Thanh toán'}
-                        </button>
+                        {primaryAction}
                     </div>
                 </div>
 
