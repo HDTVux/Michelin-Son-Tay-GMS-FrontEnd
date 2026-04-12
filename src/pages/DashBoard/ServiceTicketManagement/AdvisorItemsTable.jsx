@@ -180,6 +180,8 @@ function EstimateItemRow({
     const subTotalValue = effectiveTaxRuleId ? (row?.subTotalWithVat ?? row?.subTotal) : row?.subTotal;
     const shouldShowTaxDropdown = allowInputs && !itemTaxRuleId && !categoryTaxRuleId;
 
+    const unitText = String(row?.unit ?? '').trim();
+
     let itemPlaceholder = 'Diễn giải';
     if (categoryFilled) {
         if (isPredefinedCategory) itemPlaceholder = 'Chọn sản phẩm ';
@@ -234,16 +236,26 @@ function EstimateItemRow({
             </td>
             <td className={styles.tdNumber}>
                 {allowInputs ? (
-                    <input
-                        className={`${styles.tableInput} ${styles.tableInputNumber}`}
-                        type="text"
-                        value={row.quantity}
-                        onChange={(e) => onChange(idx, 'quantity', String(e.target.value || '').replaceAll(/\D/g, ''))}
-                        placeholder="0"
-                        disabled={isSaving}
-                    />
+                    <div className={styles.qtyWithUnit}>
+                        <input
+                            className={`${styles.tableInput} ${styles.tableInputNumber}`}
+                            type="text"
+                            value={row.quantity}
+                            onChange={(e) => onChange(idx, 'quantity', String(e.target.value || '').replaceAll(/\D/g, ''))}
+                            placeholder="0"
+                            disabled={isSaving}
+                        />
+                        {unitText ? (
+                            <span className={styles.qtyUnit}>{unitText}</span>
+                        ) : null}
+                    </div>
                 ) : (
-                    (row.quantity ?? '')
+                    <div className={styles.qtyWithUnit}>
+                        <span>{row.quantity ?? ''}</span>
+                        {unitText ? (
+                            <span className={styles.qtyUnit}>{unitText}</span>
+                        ) : null}
+                    </div>
                 )}
             </td>
             <td className={styles.tdNumber}>
@@ -570,8 +582,6 @@ export default function AdvisorItemsTable({
         cancelEdit,
         saveEstimate,
         saveEdit,
-        canToggleChecked,
-        toggleChecked,
         softDeleteEditRow,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange, refreshToken });
@@ -766,6 +776,7 @@ export default function AdvisorItemsTable({
         const id = item?.itemId ?? item?.id ?? null;
         const name = item?.itemName ?? item?.name ?? '';
         const price = item?.sellingPrice ?? item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
+        const unit = String(item?.unit ?? '').trim();
         const warehouseId = item?.warehouseId ?? item?.selectedWarehouse?.warehouseId ?? null;
         const availableQtyRaw =
             item?.availableQuantity ??
@@ -778,6 +789,7 @@ export default function AdvisorItemsTable({
         onChange(activeRowIndex, 'itemId', id);
         onChange(activeRowIndex, 'itemName', name);
         onChange(activeRowIndex, 'unitPrice', price);
+        onChange(activeRowIndex, 'unit', unit);
         if (warehouseId != null && String(warehouseId).trim() !== '') {
             onChange(activeRowIndex, 'warehouseId', warehouseId);
         } else {
@@ -948,8 +960,6 @@ export default function AdvisorItemsTable({
                                 taxRulesLoading={taxRulesLoading}
                                 taxRules={taxRules}
                                 taxRuleById={taxRuleById}
-                                toggleChecked={toggleChecked}
-                                canToggleChecked={canToggleChecked}
                                 isEditing={isEditing}
                                 softDeleteEditRow={softDeleteEditRow}
                                 openCatalogPicker={openCatalogPicker}

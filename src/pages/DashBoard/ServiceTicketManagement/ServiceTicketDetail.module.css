@@ -550,6 +550,30 @@
   white-space: nowrap;
 }
 
+.qtyWithUnit {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.qtyWithUnit .tableInput {
+  width: auto;
+  flex: 1 1 64px;
+  min-width: 44px;
+}
+
+.qtyUnit {
+  flex: 0 0 auto;
+  flex-basis: 100%;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0.75;
+  font-size: 12px;
+}
+
 .tdCenter {
   text-align: center;
 }

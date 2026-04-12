@@ -18,6 +18,7 @@ import {
     manageServiceTicketEstimateStatus,
     manageServiceTicketStatus,
     fetchTicketAssignments,
+    updateServiceTicketEstimatedDelivery,
 } from '../../../services/serviceTicketService.js';
 import { ServiceTicket as TechnicianServiceTicket } from '../../Technician/ServiceTicket/ServiceTicket.jsx';
 import styles from './ServiceTicketDetail.module.css';
@@ -59,6 +60,34 @@ function formatCurrencyVnd(value) {
     const n = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(n)) return '-';
     return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
+}
+
+function formatEstimatedDeliveryAtForApi(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    let datePart = '';
+    let timePart = '';
+
+    if (raw.includes('T')) {
+        const [d, t] = raw.split('T');
+        datePart = String(d || '').trim();
+        timePart = String(t || '').trim();
+    } else if (raw.includes(' ')) {
+        const [d, t] = raw.split(' ');
+        datePart = String(d || '').trim();
+        timePart = String(t || '').trim();
+    } else {
+        return '';
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return '';
+
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timePart)) return `${datePart}T${timePart}`;
+
+    const hhmm = String(timePart).slice(0, 5);
+    if (!/^\d{2}:\d{2}$/.test(hhmm)) return '';
+    return `${datePart}T${hhmm}:00`;
 }
 
 function normalizeOdometerKm(value) {
@@ -255,6 +284,12 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
                 it?.warehouse?.id ??
                 undefined;
 
+            // Stock allocation only applies to rows tied to a warehouse (parts/materials).
+            // Service-only rows typically have no warehouseId and must be skipped,
+            // otherwise backend validation can fail (warehouseId must not be null).
+            const warehouseIdNum = toPositiveNumberOrNull(warehouseId);
+            if (!warehouseIdNum) return null;
+
             const allocationId =
                 it?.allocationId ??
                 it?.stockAllocationId ??
@@ -269,7 +304,7 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
                 ...(allocationId == null ? {} : { allocationId }),
                 serviceTicketId: ticketId,
                 estimateItemId: Number(estimateItemId),
-                ...(warehouseId == null ? {} : { warehouseId }),
+                warehouseId: Number(warehouseIdNum),
                 itemId: Number(itemId),
                 estimateId: estId,
                 quantity: Number(quantity),
@@ -477,6 +512,14 @@ function normalizeTicket(input, codeFallback) {
         'releaseAt',
     ]);
 
+    const estimatedDeliveryAt = pickFirstDefined(input, [
+        'estimatedDeliveryAt',
+        'estimated_delivery_at',
+        'estimatedDelivery',
+        'estimatedAt',
+        'estimated_delivery',
+    ]);
+
     const odometerKm = normalizeOdometerKm(
         input?.odometerReading ??
         input?.vehicle?.lastOdometerReading ??
@@ -498,6 +541,7 @@ function normalizeTicket(input, codeFallback) {
         statusLabel,
         receivedAt,
         handoverAt,
+        estimatedDeliveryAt,
         timelineEvents,
         customer: {
             name: input?.customer?.fullName || input?.customerName || input?.customer?.name || '',
@@ -658,6 +702,21 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const ticket = useMemo(
         () => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam),
         [ticketRaw, ticketFromState, ticketCodeParam],
+    );
+
+    useEffect(() => {
+        if (estimatedTimeDraft) return;
+        const fromBackend = ticket?.estimatedDeliveryAt;
+        if (fromBackend) setEstimatedTimeDraft(fromBackend);
+    }, [estimatedTimeDraft, ticket?.estimatedDeliveryAt]);
+
+    const estimatedTimeValue = useMemo(
+        () => String(estimatedTimeDraft || ticket?.estimatedDeliveryAt || '').trim(),
+        [estimatedTimeDraft, ticket?.estimatedDeliveryAt],
+    );
+    const estimatedTimeDisplay = useMemo(
+        () => (estimatedTimeValue ? formatDateTimeViNoSeconds(estimatedTimeValue, '-') : '-'),
+        [estimatedTimeValue],
     );
     const ticketStatus = useMemo(
         () => normalizeTicketStatus(ticket?.statusCode || ticket?.timelineStatus || ticket?.statusLabel),
@@ -1116,6 +1175,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             return;
         }
 
+
+        const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
+        if (!ticketCode) {
+            notify('Thiếu mã phiếu dịch vụ.');
+            return;
+        }
+
         const rawItems = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
         const activeItems = rawItems.filter((it) => !it?.isRemoved);
         const uncheckedActiveItems = activeItems.filter((it) => !getEstimateItemCheckedFlag(it));
@@ -1132,6 +1198,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                     `Còn ${uncheckedActiveItems.length} hạng mục chưa được tích xác nhận. Vui lòng tích xác nhận hoặc xóa hẳn các dòng đó trước khi xác nhận báo giá.`,
                 );
                 return;
+            }
+
+            if (estimatedAt) {
+                const estimatedDeliveryAt = formatEstimatedDeliveryAtForApi(estimatedAt);
+                if (!estimatedDeliveryAt) {
+                    notify('Thời gian ước tính không hợp lệ.');
+                    return;
+                }
+                await updateServiceTicketEstimatedDelivery(ticketCode, estimatedDeliveryAt, token);
+                setEstimatedTimeDraft(estimatedAt);
             }
 
             await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
@@ -1151,11 +1227,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 snapshotPrevStatus === 'APPROVED';
             await ensureStockAllocationAfterConfirm({ token, isAppendOnlyConfirm });
 
-            if (estimatedAt) {
-                setEstimatedTimeDraft(estimatedAt);
-            }
-
-            const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
             if (detailRes?.data) setTicketRaw(detailRes.data);
 
@@ -1458,6 +1529,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                 <span className={styles.kvValue}>{handoverAtDisplay}</span>
                                             </div>
                                             <div className={styles.kvRow}>
+                                                <span className={styles.kvLabel}>Thời gian ước tính:</span>
+                                                <span className={styles.kvValue}>{estimatedTimeDisplay}</span>
+                                            </div>
+                                            <div className={styles.kvRow}>
                                                 <span className={styles.kvLabel}>Kiểm tra an toàn:</span>
                                                 {ticketRaw?.safetyInspectionEnabled === true ? (
                                                     <span className={`${styles.safetyBadge} ${styles['safetyBadge--yes']}`}>Có</span>
@@ -1585,7 +1660,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         ticketStatus={ticketStatus}
                                         ticketPhotos={ticketPhotos}
                                         refreshToken={refreshTick}
-                                        estimatedTimeDisplay={estimatedTimeDraft ? formatDateTimeViNoSeconds(estimatedTimeDraft, '-') : '-'}
+                                        estimatedTimeDisplay={estimatedTimeDisplay}
                                         onEstimateStatusChange={handleEstimateStatusChange}
                                         onRestartWorkflow={handleRestartFromArchived}
                                         onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
@@ -1696,7 +1771,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                     {estimateTimePopupOpen ? (
                         <EstimateTimePopup
                             open
-                            initialDateTime={estimatedTimeDraft}
+                            initialDateTime={estimatedTimeValue}
                             onClose={() => setEstimateTimePopupOpen(false)}
                             onSubmit={handleSubmitEstimateTime}
                         />

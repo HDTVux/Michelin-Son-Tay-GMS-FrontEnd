@@ -126,6 +126,7 @@ export default function CreateBooking() {
 	const [submitError, setSubmitError] = useState('');
 	const [submitSuccess, setSubmitSuccess] = useState('');
 	const [createdBookingForCheckIn, setCreatedBookingForCheckIn] = useState(null);
+	const [submitLocked, setSubmitLocked] = useState(false);
 
 	useEffect(() => {
 		let active = true;
@@ -230,44 +231,52 @@ export default function CreateBooking() {
 			schedule.date &&
 			schedule.time &&
 			(!schedule.date || (!slotsLoading && !slotsError)) &&
-			!submitting
+			!submitting &&
+			!submitLocked
 		);
-	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting]);
+	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked]);
 
-	const selectedItems = useMemo(() => {
-		const selectedSet = new Set((Array.isArray(selectedIds) ? selectedIds : []).map(String));
-		return services.filter((item) => selectedSet.has(String(item.id)));
-	}, [selectedIds, services]);
+	    const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
+        useCreateBookingHandlers({
+            baseSlots,
+            selectedIds,
+            schedule,
+            scheduleMode,
+            info,
+            canSubmit,
+            submitLocked,
+            slotsLoading,
+            slotsError,
+            createdBookingForCheckIn,
+            navigate,
 
-	const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset } =
-		useCreateBookingHandlers({
-			baseSlots,
-			selectedItems,
-			selectedIds,
-			schedule,
-			scheduleMode,
-			info,
-			canSubmit,
-			slotsLoading,
-			slotsError,
-			createdBookingForCheckIn,
-			navigate,
 
-			setSelectedIds,
-			setSearch,
-			setFilter,
-			setSchedule,
-			setScheduleMode,
-			setShowSchedulePicker,
-			setInfo,
-			setAvailableSlots,
-			setSlotsLoading,
-			setSlotsError,
-			setSubmitting,
-			setSubmitError,
-			setSubmitSuccess,
-			setCreatedBookingForCheckIn,
-		});
+            setSelectedIds,
+            setSearch,
+            setFilter,
+            setSchedule,
+            setScheduleMode,
+            setShowSchedulePicker,
+            setInfo,
+            setAvailableSlots,
+            setSlotsLoading,
+            setSlotsError,
+            setSubmitting,
+            setSubmitError,
+            setSubmitSuccess,
+            setCreatedBookingForCheckIn,
+            setSubmitLocked,
+        });
+
+
+    const handleReset = () => {
+        setCheckingCustomer(false);
+        setCustomerChecked(null);
+        setCustomerCheckError('');
+        resetForm();
+    };
+
+
 
 	const handleChangeTab = (nextTab) => {
 		setActiveTab(toItemType(nextTab));

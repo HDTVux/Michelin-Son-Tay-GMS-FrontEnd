@@ -172,16 +172,16 @@ function mapBooking(apiData) {
     code: apiData.requestCode?.toString() || '',
     name: apiData.fullName || apiData.customer?.fullName || '',
     phone: apiData.phone || apiData.customer?.phone || '',
-    email: apiData.customer?.email || '',
+
     customerType: apiData.isGuest ? 'Khách vãng lai' : 'Khách có tài khoản',
-    history: apiData.customer?.firstBookingAt ? 'Đã có lịch sử' : 'Chưa có lịch sử',
     services,
     servicesDisplay: services.length ? services.join(', ') : (apiData.serviceCategory || 'Không có dịch vụ'),
     status,
     statusTone,
     desiredDate: apiData.scheduledDate || '',
     desiredTime: formatTimeHHmm(apiData.scheduledTime),
-    note: apiData.note || apiData.description || apiData.rejectionReason || '',
+    description: apiData.description || '',
+    note: apiData.note || apiData.rejectionReason || '',
     slotData: {},
   };
 }
@@ -429,8 +429,6 @@ export default function BookingRequestDetail() {
                   extraAction={booking.phone ? <a className={styles.callButton} href={`tel:${booking.phone}`}>Gọi ngay</a> : null}
                 />
 
-                <InfoRow label="Email" value={booking.email || '-'} link type="mailto" />
-                <InfoRow label="Lịch sử" value={booking.history || '-'} link />
                 <InfoRow label="Dịch vụ đã chọn" value={booking.servicesDisplay} full />
               </div>
             </section>
@@ -450,7 +448,12 @@ export default function BookingRequestDetail() {
 
               <div className={styles.noteBlock}>
                 <div className={styles.label}>Yêu cầu thêm</div>
-                <div className={styles.noteBox}>{booking.note || 'Không có yêu cầu thêm'}</div>
+                <div className={styles.noteBox}>{booking.description || 'Không có yêu cầu thêm'}</div>
+              </div>
+
+              <div className={styles.noteBlock}>
+                <div className={styles.label}>Ghi chú</div>
+                <div className={styles.noteBox}>{booking.note || 'Không có ghi chú'}</div>
               </div>
             </section>
 

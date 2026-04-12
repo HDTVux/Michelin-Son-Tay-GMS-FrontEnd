@@ -5,8 +5,9 @@ import styles from '../BookingRequestManagement/BookingRequestDetail.module.css'
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import SchedulePanel from '../BookingRequestManagement/SchedulePanel.jsx';
 import { fetchManagedBookingDetail, fetchManagedBookingsPaged } from '../../../services/bookingService.js';
-import { formatTimeHHmm } from '../../../components/timeUtils.js';
+import { formatDateTimeVi, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
+import { fetchServiceTicketBookingHistoryByCustomerId } from '../../../services/serviceTicketService.js';
 
 const DEFAULT_SLOT_CAPACITY = 6;
 
@@ -150,6 +151,9 @@ function mapBooking(apiData) {
   if (!apiData) return null;
 
   const customer = apiData.customer || apiData.customerInfo || apiData.customerProfile || {};
+  const customerIdRaw = customer?.customerId ?? customer?.id ?? apiData.customerId ?? apiData.customer_id;
+  const customerIdNum = typeof customerIdRaw === 'number' ? customerIdRaw : Number(customerIdRaw);
+  const customerId = Number.isFinite(customerIdNum) && customerIdNum > 0 ? customerIdNum : null;
   const customerName = customer?.fullName || apiData.fullName || apiData.customerName || apiData.name || '';
   const customerPhone = customer?.phone || apiData.phone || apiData.customerPhone || '';
   const firstBookingAt = customer?.firstBookingAt || apiData.firstBookingAt || apiData.customerFirstBookingAt;
@@ -163,6 +167,7 @@ function mapBooking(apiData) {
 
   return {
     bookingId: apiData.bookingId?.toString() || '',
+    customerId,
     name: customerName,
     phone: customerPhone,
     customerType: apiData.isGuest ? 'Khách vãng lai' : 'Khách có tài khoản',
@@ -192,6 +197,10 @@ export default function ConfirmedBookingDetail() {
   const [booking, setBooking] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [repairHistory, setRepairHistory] = useState([]);
+  const [repairHistoryLoading, setRepairHistoryLoading] = useState(false);
+  const [repairHistoryError, setRepairHistoryError] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -257,10 +266,48 @@ export default function ConfirmedBookingDetail() {
     loadDetail();
   }, [bookingCode, fallbackCustomerName, fallbackCustomerPhone]);
 
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    const customerId = booking?.customerId;
+
+    if (!token || !customerId) {
+      setRepairHistory([]);
+      setRepairHistoryError('');
+      setRepairHistoryLoading(false);
+      return;
+    }
+
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active) return;
+      setRepairHistoryLoading(true);
+      setRepairHistoryError('');
+    });
+
+    fetchServiceTicketBookingHistoryByCustomerId(customerId, token)
+      .then((res) => {
+        if (!active) return;
+        const list = Array.isArray(res?.data) ? res.data : [];
+        setRepairHistory(list);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setRepairHistory([]);
+        setRepairHistoryError(err?.message || 'Không thể tải lịch sử sửa chữa.');
+      })
+      .finally(() => {
+        if (active) setRepairHistoryLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [booking?.customerId]);
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <button className={styles.backButton} onClick={() => navigate('/booking-management')}>
+        <button className={styles.backButton} onClick={() => navigate(-1)}>
           ← Quay lại
         </button>
         <div className={styles.headerTitle}>Chi tiết lịch hẹn</div>
@@ -303,9 +350,35 @@ export default function ConfirmedBookingDetail() {
                     ) : null
                   }
                 />               
-                <InfoRow label="Lịch sử" value={booking.history || '-'} link />
                 <InfoRow label="Dịch vụ đã chọn" value={booking.servicesDisplay} full />
               </div>
+            </section>
+
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Lịch sử sửa chữa</h3>
+
+              {repairHistoryError ? <div className={styles.errorBanner}>{repairHistoryError}</div> : null}
+              {repairHistoryLoading ? <div className={styles.value}>Đang tải lịch sử sửa chữa...</div> : null}
+
+              {!repairHistoryLoading && !repairHistoryError && repairHistory.length === 0 ? (
+                <div className={styles.value}>Chưa có lịch sử sửa chữa.</div>
+              ) : null}
+
+              {!repairHistoryLoading && !repairHistoryError && repairHistory.length > 0 ? (
+                <div className={`${styles.infoGrid} ${styles.historyGrid}`}>
+                  {repairHistory.map((t, idx) => (
+                    <div
+                      key={t?.serviceTicketId ?? t?.ticketCode ?? String(idx)}
+                      className={`${styles.infoBox} ${styles.historyBox}`}
+                    >
+                      <div className={styles.label}>Mã phiếu</div>
+                      <div className={styles.value}>{t?.ticketCode || '-'}</div>
+                      <div className={styles.label}>Ngày tạo</div>
+                      <div className={styles.value}>{formatDateTimeVi(t?.createdAt, '-')}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </section>
 
             <section className={styles.section}>

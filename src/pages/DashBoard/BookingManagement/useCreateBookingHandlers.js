@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 
 import { staffCreateBooking } from '../../../services/bookingService.js';
@@ -73,6 +73,7 @@ export function useCreateBookingHandlers({
 	scheduleMode,
 	info,
 	canSubmit,
+	submitLocked,
 	slotsLoading,
 	slotsError,
 	createdBookingForCheckIn,
@@ -92,7 +93,9 @@ export function useCreateBookingHandlers({
 	setSubmitError,
 	setSubmitSuccess,
 	setCreatedBookingForCheckIn,
+	setSubmitLocked,
 }) {
+	const submitInFlightRef = useRef(false);
 	const toggle = useCallback(
 		(id) => {
 			setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -133,7 +136,15 @@ export function useCreateBookingHandlers({
 	);
 
 	const handleSubmit = useCallback(async () => {
+		// Guard: block spamming submits.
+		if (submitLocked) {
+			setSubmitError('Vui lòng bấm Làm mới để tạo lịch mới.');
+			return;
+		}
+		if (submitInFlightRef.current) return;
 		if (!canSubmit) return;
+
+		submitInFlightRef.current = true;
 
 		setSubmitError('');
 		setSubmitSuccess('');
@@ -191,11 +202,13 @@ export function useCreateBookingHandlers({
 			} : null);
 
 			setSubmitSuccess(msg);
+			setSubmitLocked(true);
 			toast(msg, { containerId: 'app-toast' });
 		} catch (err) {
 			setSubmitError(err?.message || 'Không thể tạo lịch hẹn.');
 		} finally {
 			setSubmitting(false);
+			submitInFlightRef.current = false;
 		}
 	}, [
 		canSubmit,
@@ -206,9 +219,11 @@ export function useCreateBookingHandlers({
 		schedule?.time,
 		selectedItems,
 		selectedIds,
+		submitLocked,
 		setCreatedBookingForCheckIn,
 		setSubmitError,
 		setSubmitSuccess,
+		setSubmitLocked,
 		setSubmitting,
 	]);
 
@@ -222,6 +237,7 @@ export function useCreateBookingHandlers({
 	}, [createdBookingForCheckIn?.booking, createdBookingForCheckIn?.bookingCode, navigate]);
 
 	const handleReset = useCallback(() => {
+		submitInFlightRef.current = false;
 		setSelectedIds([]);
 		setSearch('');
 		setFilter('all');
@@ -236,6 +252,7 @@ export function useCreateBookingHandlers({
 		setSubmitError('');
 		setSubmitSuccess('');
 		setCreatedBookingForCheckIn(null);
+		setSubmitLocked(false);
 	}, [
 		setAvailableSlots,
 		setCreatedBookingForCheckIn,
@@ -250,6 +267,7 @@ export function useCreateBookingHandlers({
 		setSlotsLoading,
 		setSubmitError,
 		setSubmitSuccess,
+		setSubmitLocked,
 		setSubmitting,
 	]);
 

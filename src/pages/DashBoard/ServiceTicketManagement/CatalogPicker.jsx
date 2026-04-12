@@ -6,15 +6,28 @@ import styles from './CatalogPicker.module.css';
 import { searchWarehouseCatalogItemsDetail } from '../../../services/warehouseService.js';
 import { formatCurrencyVnd } from './useAdvisorItemsTableHandlers.js';
 
+function toFiniteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const num = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
 function getWarehouseDisplayName(detail) {
   return String(detail?.warehouseName || detail?.warehouseCode || detail?.warehouseId || '').trim() || '-';
 }
 
 function getWarehouseAvailableQty(detail) {
   // UX requirement: show remaining quantity by `quantity` (not `availableQuantity`).
-  if (Number.isFinite(detail?.quantity)) return detail.quantity;
-  if (Number.isFinite(detail?.availableQuantity)) return detail.availableQuantity;
+  const qty = toFiniteNumber(detail?.quantity);
+  if (qty != null) return qty;
+  const availableQty = toFiniteNumber(detail?.availableQuantity);
+  if (availableQty != null) return availableQty;
   return null;
+}
+
+function isOutOfStock(detail) {
+  const qty = toFiniteNumber(getWarehouseAvailableQty(detail));
+  return qty != null && qty <= 0;
 }
 
 function buildPickedCatalogItem(item, warehouseDetail) {
@@ -46,6 +59,11 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
 
   // Per-item selected warehouse for pricing display.
   const [selectedWarehouseByItemId, setSelectedWarehouseByItemId] = useState({});
+
+  // Mỗi lần mở modal: reset lại lựa chọn kho (không giữ state lần trước).
+  useEffect(() => {
+    if (open) setSelectedWarehouseByItemId({});
+  }, [open]);
 
   // Effect này bắt sự kiện khi prop 'open' thay đổi để mở/đóng Modal chính giữa màn hình
   useEffect(() => {
@@ -85,7 +103,9 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
         // Keep backward-compat: if data wrapper is absent, use response directly.
         const envelope = res?.data ?? res;
         const payload = envelope?.data ?? envelope;
-        const content = Array.isArray(payload?.content) ? payload.content : Array.isArray(payload) ? payload : [];
+        let content = [];
+        if (Array.isArray(payload?.content)) content = payload.content;
+        else if (Array.isArray(payload)) content = payload;
         if (cancelled) return;
         setResults(content);
         setTotalElements(Number(payload?.totalElements ?? content.length));
@@ -108,11 +128,14 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
     onPick?.(item);
   };
 
-  const handlePickWithWarehouse = (item, warehouseIdRaw) => {
+  const handleWarehouseChange = (item, warehouseIdRaw) => {
     const itemId = item?.itemId ?? item?.id ?? null;
     const details = Array.isArray(item?.warehouseDetails) ? item.warehouseDetails : [];
     const warehouseIdNum = typeof warehouseIdRaw === 'number' ? warehouseIdRaw : Number(warehouseIdRaw);
     const selectedDetail = details.find((d) => Number(d?.warehouseId) === warehouseIdNum) || null;
+
+    // Không cho trỏ tới kho đã hết hàng.
+    if (selectedDetail && isOutOfStock(selectedDetail)) return;
 
     if (itemId != null) {
       setSelectedWarehouseByItemId((prev) => ({
@@ -121,6 +144,23 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
       }));
     }
 
+    // UX: dropdown chỉ để chọn kho + cập nhật hiển thị, chưa pick ngay.
+  };
+
+  const handlePickItem = (item) => {
+    const details = Array.isArray(item?.warehouseDetails) ? item.warehouseDetails : [];
+    if (details.length === 0) {
+      handlePick(item);
+      return;
+    }
+
+    const itemKey = String(item?.itemId ?? item?.id ?? '');
+    const selectedWarehouseIdRaw = selectedWarehouseByItemId[itemKey];
+    const selectedWarehouseIdNum = typeof selectedWarehouseIdRaw === 'number'
+      ? selectedWarehouseIdRaw
+      : Number(selectedWarehouseIdRaw);
+    const selectedDetail = details.find((d) => Number(d?.warehouseId) === selectedWarehouseIdNum) || null;
+    if (!selectedDetail || isOutOfStock(selectedDetail)) return;
     handlePick(buildPickedCatalogItem(item, selectedDetail));
   };
 
@@ -135,12 +175,6 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
       onCancel={(e) => {
         // Ngăn ESC đóng modal; chỉ đóng qua nút 'Đóng' hoặc '×'
         e.preventDefault();
-      }}
-      onClick={(e) => {
-        // Ngăn click vào backdrop vô tình đóng hoặc gây reflow
-        if (e.target === dialogRef.current) {
-          e.stopPropagation();
-        }
       }}
     >
       <div className={styles.modalHeader}>
@@ -193,7 +227,94 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                         const details = Array.isArray(it?.warehouseDetails) ? it.warehouseDetails : [];
                         const selectedWarehouseId = selectedWarehouseByItemId[itemKey] ?? '';
                         const selectedDetail = details.find((d) => String(d?.warehouseId) === String(selectedWarehouseId)) || null;
-                        const displayPrice = selectedDetail?.sellingPrice;
+                        const hasAnyPrice = (
+                          toFiniteNumber(it?.price) != null
+                          || toFiniteNumber(it?.unitPrice) != null
+                          || details.some((d) => toFiniteNumber(d?.sellingPrice) != null)
+                        );
+
+                        let displayPrice = null;
+                        if (details.length > 0) {
+                          // Khi có kho: chỉ hiển thị giá theo kho đang chọn (nếu có).
+                          displayPrice = toFiniteNumber(selectedDetail?.sellingPrice);
+                        } else {
+                          // Khi không có kho: dùng giá của item.
+                          displayPrice = toFiniteNumber(it?.price) ?? toFiniteNumber(it?.unitPrice);
+                        }
+
+                        const canPickAnyWarehouse = details.some((d) => {
+                          const qty = toFiniteNumber(getWarehouseAvailableQty(d));
+                          return qty == null || qty > 0;
+                        });
+
+                        const hasWarehouses = details.length > 0;
+                        let pickDisabled = false;
+                        if (hasWarehouses) {
+                          const hasSelectedWarehouse = Boolean(selectedWarehouseId);
+                          const hasSelectedDetail = Boolean(selectedDetail);
+                          const selectedOutOfStock = selectedDetail ? isOutOfStock(selectedDetail) : false;
+                          const pickEnabled = hasSelectedWarehouse && hasSelectedDetail && selectedOutOfStock === false;
+                          pickDisabled = pickEnabled === false;
+                        }
+
+                        let priceCellText = '-';
+                        if (hasAnyPrice) {
+                          if (displayPrice != null) priceCellText = formatCurrencyVnd(displayPrice);
+                        } else {
+                          priceCellText = 'Không có dữ liệu về giá';
+                        }
+
+                        let actionControl = null;
+                        if (hasWarehouses) {
+                          const selectControl = (
+                            <select
+                              className={styles.warehouseSelect}
+                              value={selectedWarehouseId}
+                              onChange={(e) => handleWarehouseChange(it, e.target.value)}
+                            >
+                              <option value="" disabled>Chọn kho...</option>
+                              {details.map((d, idx2) => {
+                                const wid = d?.warehouseId;
+                                const name = getWarehouseDisplayName(d);
+                                const qty = toFiniteNumber(getWarehouseAvailableQty(d));
+                                const outOfStock = qty != null && qty <= 0;
+                                let label = name;
+                                if (qty != null) {
+                                  if (outOfStock) label = `${name} (Hết hàng)`;
+                                  else label = `${name} (SL: ${qty})`;
+                                }
+                                return (
+                                  <option key={String(wid ?? `w-${idx2}`)} value={String(wid ?? '')} disabled={outOfStock}>
+                                    {label}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          );
+
+                          const isPickDisabled = pickDisabled || canPickAnyWarehouse === false;
+
+                          actionControl = (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {selectControl}
+                              {canPickAnyWarehouse ? null : <span>Hết hàng</span>}
+                              <button
+                                type="button"
+                                className="ui-btn ui-btn--primary"
+                                onClick={() => handlePickItem(it)}
+                                disabled={isPickDisabled}
+                              >
+                                Chọn
+                              </button>
+                            </div>
+                          );
+                        } else {
+                          actionControl = (
+                            <button type="button" className="ui-btn ui-btn--primary" onClick={() => handlePickItem(it)}>
+                              Chọn
+                            </button>
+                          );
+                        }
                         return (
                       <tr key={String(it?.itemId ?? it?.id ?? `res-${i}`)}>
                         <td>{it?.itemId ?? '-'}</td>
@@ -202,33 +323,10 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                         <td>{it?.brand || '-'}</td>
                         <td>{it?.color || '-'}</td>
                         <td>{it?.madeIn || '-'}</td>
-                        <td className={styles.tdNumber}>{displayPrice == null ? '-' : formatCurrencyVnd(displayPrice)}</td>
+                        <td className={styles.tdNumber}>{priceCellText}</td>
                         <td>{it?.unit || '-'}</td>
                         <td>
-                          {details.length > 0 ? (
-                            <select
-                              className={styles.warehouseSelect}
-                              value={selectedWarehouseId}
-                              onChange={(e) => handlePickWithWarehouse(it, e.target.value)}
-                            >
-                              <option value="" disabled>Chọn kho...</option>
-                              {details.map((d, idx2) => {
-                                const wid = d?.warehouseId;
-                                const name = getWarehouseDisplayName(d);
-                                const qty = getWarehouseAvailableQty(d);
-                                const label = qty == null ? name : `${name} (SL: ${qty})`;
-                                return (
-                                  <option key={String(wid ?? `w-${idx2}`)} value={String(wid ?? '')}>
-                                    {label}
-                                  </option>
-                                );
-                              })}
-                            </select>
-                          ) : (
-                            <button type="button" className="ui-btn ui-btn--primary" onClick={() => handlePick(it)}>
-                              Chọn
-                            </button>
-                          )}
+                          {actionControl}
                         </td>
                       </tr>
                         );

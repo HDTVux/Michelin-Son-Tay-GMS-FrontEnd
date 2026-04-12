@@ -4,7 +4,18 @@ import styles from './BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchBookingRequests } from '../../../services/bookingService.js';
 import { combineDateTime, formatDateTimeVi, formatTimeHHmm } from '../../../components/timeUtils.js';
-import { getBookingStatusTextVi, getBookingStatusTone } from '../../../components/statusUtils.js';
+import { getBookingStatusTextVi, getBookingStatusTone, normalizeStatusCode } from '../../../components/statusUtils.js';
+
+const getBookingRequestStatusTextVi = (status) => {
+    const code = normalizeStatusCode(status);
+    if (!code) return '-';
+
+    // Booking request PENDING means waiting for approval.
+    if (code === 'PENDING') return 'Chờ duyệt';
+    if (code === 'EXPIRED') return 'Hết hạn';
+
+    return getBookingStatusTextVi(code, '-');
+};
 
 export default function BookingManagement() {
     // Tự động cuộn trang lên đầu khi component này được mount
@@ -237,12 +248,12 @@ function PendingPanel({
                     <input type="date" value={date} onChange={(e) => onChangeDate?.(e.target.value)} />
                     <select value={status} onChange={(e) => onChangeStatus?.(e.target.value)}>
                         <option value="">Tất cả</option>
-                        <option value="PENDING">Chờ duyệt</option>
-                        <option value="CONFIRMED">Đã xác nhận</option>
-                        <option value="REJECTED">Từ chối</option>
-                        <option value="EXPIRED">Hết hạn</option>
-                        <option value="CONTACTED">Đã liên hệ</option>
-                        <option value="SPAM">Spam</option>
+                        <option value="PENDING">{getBookingRequestStatusTextVi('PENDING')}</option>
+                        <option value="CONFIRMED">{getBookingRequestStatusTextVi('CONFIRMED')}</option>
+                        <option value="REJECTED">{getBookingRequestStatusTextVi('REJECTED')}</option>
+                        <option value="EXPIRED">{getBookingRequestStatusTextVi('EXPIRED')}</option>
+                        <option value="CONTACTED">{getBookingRequestStatusTextVi('CONTACTED')}</option>
+                        <option value="SPAM">{getBookingRequestStatusTextVi('SPAM')}</option>
                     </select>
                 </div>
                 <div className={styles['filter-card__actions']}>
@@ -297,7 +308,7 @@ function PendingPanel({
                                     <td>{item.phone || '-'}</td>
                                     <td>
                                         <span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>
-                                            {getBookingStatusTextVi(item?.status)}
+                                            {getBookingRequestStatusTextVi(item?.status)}
                                         </span>
                                     </td>
                                     <td>{formatDateTimeVi(item?.createdAt, '-') }</td>
