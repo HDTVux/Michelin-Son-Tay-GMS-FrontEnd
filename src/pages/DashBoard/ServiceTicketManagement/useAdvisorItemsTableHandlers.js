@@ -54,6 +54,7 @@ function createEmptyDraftRow() {
 		workCategoryCode: '',
 		workCategoryTaxRuleId: '',
 		itemId: null,
+		unit: '',
 		warehouseId: '',
 		warehouseAvailableQuantity: null,
 		itemTaxRuleId: '',
@@ -85,6 +86,18 @@ function getItemTaxRuleIdFromEstimateItem(it) {
 			it?.service?.taxRuleId ??
 			''
 	);
+}
+
+function getItemUnitFromEstimateItem(it) {
+	return String(
+		it?.unit ??
+			it?.item?.unit ??
+			it?.catalogItem?.unit ??
+			it?.serviceItem?.unit ??
+			it?.product?.unit ??
+			it?.service?.unit ??
+			''
+	).trim();
 }
 
 function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCategory) {
@@ -179,6 +192,7 @@ function mapEstimateItemToLockedRow(it, idx) {
 	const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
 	const itemTaxRuleId =
 		getItemTaxRuleIdFromEstimateItem(it);
+	const unit = getItemUnitFromEstimateItem(it);
 	const warehouseId = it?.warehouseId ?? it?.warehouse_id ?? it?.warehouse?.warehouseId ?? '';
 	const newCategoryName = String(
 		it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
@@ -191,6 +205,7 @@ function mapEstimateItemToLockedRow(it, idx) {
 		workCategoryCode,
 		workCategoryTaxRuleId,
 		itemId,
+		unit,
 		warehouseId,
 		warehouseAvailableQuantity: null,
 		itemTaxRuleId,
@@ -853,6 +868,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const subTotal = it?.subTotal ?? '';
 				const unitPriceWithVat = it?.unitPriceWithVat ?? it?.unitPriceWithVAT ?? '';
 				const subTotalWithVat = it?.subTotalWithVat ?? it?.subTotalWithVAT ?? '';
+				const unit = getItemUnitFromEstimateItem(it);
 				const categoryName =
 					it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
 				const confirmed = getItemCheckedFlag(it);
@@ -878,6 +894,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					workCategoryCode,
 					workCategoryTaxRuleId,
 					itemId,
+					unit,
 					itemTaxRuleId,
 					categoryName,
 					itemName: it?.itemName || '',
@@ -953,6 +970,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				workCategoryCode,
 				workCategoryTaxRuleId: nextWorkCategoryTaxRuleId,
 				itemId: null,
+				unit: '',
 				itemName: '',
 				itemTaxRuleId: '',
 				newCategoryName: found?.categoryName || found?.categoryCode || label,
@@ -1197,6 +1215,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					workCategoryCode: String(it?.workCategory?.categoryCode ?? '').trim(),
 					workCategoryTaxRuleId,
 					itemId: it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null,
+					unit: getItemUnitFromEstimateItem(it),
 					itemTaxRuleId,
 					newCategoryName: String(
 						it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
@@ -1261,6 +1280,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					String(it?.newCategoryName || it?.workCategory?.categoryName || it?.workCategory?.categoryCode || '').trim() ||
 					null;
 				const itemName = String(it?.itemName ?? '').trim() || null;
+				const unit = getItemUnitFromEstimateItem(it) || null;
 				const quantity = toNumberOrZero(it?.quantity);
 				const unitPrice = toNumberOrZero(it?.unitPrice);
 				const taxRuleId = it?.taxRuleId ?? null;
@@ -1271,6 +1291,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					newCategoryName,
 					itemId: itemId ?? null,
 					itemName,
+					unit,
 					quantity,
 					unitPrice,
 					taxRuleId,
@@ -1367,6 +1388,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					newCategoryName: workCategoryId ? null : categoryNameValidated.value || null,
 					itemId: itemId ?? null,
 					itemName: itemNameValidated.value || null,
+					unit: String(r?.unit ?? '').trim() || null,
 					quantity: qtyValidated.value ?? 0,
 					unitPrice: priceValidated.value ?? 0,
 					isChecked: Boolean(r?.confirmed),
@@ -1472,6 +1494,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					newCategoryName: workCategoryId ? null : categoryNameValidated.value || null,
 					itemId: itemId ?? null,
 					itemName: itemNameValidated.value || null,
+					unit: String(r?.unit ?? '').trim() || null,
 					quantity: qtyValidated.value ?? 0,
 					unitPrice: priceValidated.value ?? 0,
 					isChecked: Boolean(r?.confirmed),
@@ -1541,6 +1564,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 							: String(row?.newCategoryName ?? '').trim() || null,
 						itemId: toIdOrNull(row?.itemId),
 						itemName: String(row?.itemName ?? '').trim() || null,
+						unit: String(row?.unit ?? '').trim() || null,
 						quantity: toNumberOrZero(row?.quantity),
 						unitPrice: toNumberOrZero(row?.unitPrice),
 						taxRuleId: toIdOrNull(row?.taxRuleId),

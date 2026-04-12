@@ -473,7 +473,7 @@ export const fetchServiceTicketEstimate = (serviceTicketId, token) => {
 
 // Tạo mới bảng báo giá cho phiếu dịch vụ
 // Endpoint: POST /api/service-ticket/estimate/
-// Payload: { serviceTicketId, estimateType, items: [{ workCategoryId, newCategoryName, itemId, itemName, quantity, unitPrice }] }
+// Payload: { serviceTicketId, estimateType, items: [{ workCategoryId, newCategoryName, itemId, itemName, unit, quantity, unitPrice }] }
 export const createServiceTicketEstimate = (payload, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để tạo báo giá.');
@@ -508,7 +508,7 @@ export const createServiceTicketEstimate = (payload, token) => {
 
 // Cập nhật bảng báo giá theo estimateId (thêm/sửa/xóa items bằng cách gửi lại toàn bộ danh sách)
 // Endpoint: PUT /api/service-ticket/estimate/{estimateId}
-// Payload: { serviceTicketId, estimateType, items: [{ workCategoryId, newCategoryName, itemId, itemName, quantity, unitPrice }] }
+// Payload: { serviceTicketId, estimateType, items: [{ workCategoryId, newCategoryName, itemId, itemName, unit, quantity, unitPrice }] }
 export const updateServiceTicketEstimate = (estimateId, payload, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để cập nhật báo giá.');
@@ -550,7 +550,7 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
 
 // Cập nhật 1 dòng item trong bảng báo giá theo estimateItemId (bao gồm xóa mềm)
 // Endpoint: PUT /api/service-ticket/estimate/{estimateItemId}/item
-// Payload: { workCategoryId, newCategoryName, itemId, itemName, quantity, unitPrice, taxRuleId, isChecked, isRemoved }
+// Payload: { workCategoryId, newCategoryName, itemId, itemName, unit, quantity, unitPrice, taxRuleId, isChecked, isRemoved }
 export const updateServiceTicketEstimateItem = (estimateItemId, payload, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để cập nhật hạng mục báo giá.');

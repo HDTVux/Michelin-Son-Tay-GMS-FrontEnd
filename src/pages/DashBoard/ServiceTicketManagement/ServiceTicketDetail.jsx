@@ -111,6 +111,12 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
                 it?.warehouse?.id ??
                 undefined;
 
+            // Stock allocation only applies to rows tied to a warehouse (parts/materials).
+            // Service-only rows typically have no warehouseId and must be skipped,
+            // otherwise backend validation can fail (warehouseId must not be null).
+            const warehouseIdNum = toPositiveNumberOrNull(warehouseId);
+            if (!warehouseIdNum) return null;
+
             const allocationId =
                 it?.allocationId ??
                 it?.stockAllocationId ??
@@ -125,7 +131,7 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
                 ...(allocationId == null ? {} : { allocationId }),
                 serviceTicketId: ticketId,
                 estimateItemId: Number(estimateItemId),
-                ...(warehouseId == null ? {} : { warehouseId }),
+                warehouseId: Number(warehouseIdNum),
                 itemId: Number(itemId),
                 estimateId: estId,
                 quantity: Number(quantity),
