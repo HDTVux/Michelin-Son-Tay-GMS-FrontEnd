@@ -187,10 +187,53 @@ const getTicketCustomerPhone = (ticket) =>
 const toDateKey = (value) => {
   const raw = String(value || '').trim();
   if (!raw) return '';
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  const viMatch = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(raw);
+  if (viMatch) {
+    const day = String(viMatch[1]).padStart(2, '0');
+    const month = String(viMatch[2]).padStart(2, '0');
+    return `${viMatch[3]}-${month}-${day}`;
+  }
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return raw.slice(0, 10);
   const offsetMs = parsed.getTimezoneOffset() * 60000;
   return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+const getTicketAppointmentDateRaw = (ticket) =>
+  ticket?.appointmentDate
+  || ticket?.bookingDate
+  || ticket?.scheduledDate
+  || ticket?.booking?.scheduledDate
+  || ticket?.serviceTicket?.appointmentDate
+  || ticket?.serviceTicket?.bookingDate
+  || ticket?.serviceTicket?.scheduledDate
+  || ticket?.serviceTicket?.booking?.scheduledDate
+  || '';
+const getTicketAppointmentTimeRaw = (ticket) =>
+  ticket?.appointmentTime
+  || ticket?.bookingTime
+  || ticket?.scheduledTime
+  || ticket?.booking?.scheduledTime
+  || ticket?.serviceTicket?.appointmentTime
+  || ticket?.serviceTicket?.bookingTime
+  || ticket?.serviceTicket?.scheduledTime
+  || ticket?.serviceTicket?.booking?.scheduledTime
+  || '';
+const getTicketAppointmentDateKey = (ticket) => toDateKey(getTicketAppointmentDateRaw(ticket));
+const filterTicketsByAppointmentDate = (rows, fromDate, toDate) => {
+  const list = Array.isArray(rows) ? rows : [];
+  const startKey = toDateKey(fromDate);
+  const endKey = toDateKey(toDate || fromDate);
+  if (!startKey && !endKey) return list;
+
+  return list.filter((ticket) => {
+    const appointmentKey = getTicketAppointmentDateKey(ticket);
+    if (!appointmentKey) return false;
+    if (startKey && appointmentKey < startKey) return false;
+    if (endKey && appointmentKey > endKey) return false;
+    return true;
+  });
 };
 const getTicketCreateDateKey = (ticket) =>
   toDateKey(
@@ -703,13 +746,15 @@ export default function AdvisorInspection() {
         });
         const currentAdvisorId = getCurrentStaffId(token);
         const visibleList = await filterTicketsByCurrentAdvisor(sessionVisibleList, token, currentAdvisorId);
+        const appointmentVisibleList = filterTicketsByAppointmentDate(visibleList, dateFrom, dateTo);
         if (ignore) return;
-        const sortedList = sortTicketsByQueueOrder(visibleList);
+        const sortedList = sortTicketsByQueueOrder(appointmentVisibleList);
         setTickets(sortedList);
+        const hiddenCount = list.length - appointmentVisibleList.length;
         setTotalPages(Math.max(1, Number(pageData?.totalPages) || 1));
-        setTotalElements(Math.max(0, (Number(pageData?.totalElements) || 0) - (list.length - visibleList.length)));
+        setTotalElements(Math.max(0, (Number(pageData?.totalElements) || 0) - hiddenCount));
         cacheStaffNames(
-          visibleList.map((t) => ({
+          appointmentVisibleList.map((t) => ({
             staffId: t?.advisorId || t?.assignedAdvisorId,
             fullName: t?.advisorName || t?.assignedAdvisorName || t?.advisor?.fullName,
           })),
@@ -808,7 +853,7 @@ export default function AdvisorInspection() {
 
     run();
     return () => { ignore = true; };
-  }, [filters, reloadKey, transferredOutTicketCodes]);
+  }, [filters, reloadKey, transferredOutTicketCodes, dateFrom, dateTo]);
 
   // Load page-level assignments (for "has technician" check)
   useEffect(() => {
@@ -910,12 +955,8 @@ export default function AdvisorInspection() {
   };
 
   const formatAppointmentDateTime = (ticket) => {
-    const dateRaw = String(
-      ticket?.appointmentDate || ticket?.bookingDate || ticket?.scheduledDate || '',
-    ).trim();
-    const timeRaw = formatTimeHHmm(
-      ticket?.appointmentTime || ticket?.bookingTime || ticket?.scheduledTime || '',
-    );
+    const dateRaw = String(getTicketAppointmentDateRaw(ticket)).trim();
+    const timeRaw = formatTimeHHmm(getTicketAppointmentTimeRaw(ticket));
 
     if (!dateRaw && !timeRaw) return '-';
 

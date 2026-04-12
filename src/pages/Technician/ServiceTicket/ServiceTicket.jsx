@@ -14,6 +14,7 @@ import {
   deleteCustomCategory,
   enableSafetyInspection,
   updateAdvisorNotes,
+  upsertSafetyInspectionItems,
   reopenSafetyInspection,
 } from '../../../services/safetyInspectionService';
 import styles from './ServiceTicket.module.css';
@@ -21,6 +22,7 @@ import carImage from '../../../assets/oto_4.jpg';
 
 const LOCKED_SERVICE_TICKET_STATUSES = new Set(['PAID', 'COMPLETED']);
 const TEXT_FIELD_CHAR_LIMIT = 500;
+const CATEGORY_NAME_CHAR_LIMIT = 100;
 
 const normalizeServiceTicketStatus = (status) => String(status ?? '')
   .trim()
@@ -147,6 +149,35 @@ const getRecommendedTireSizeError = (value) => {
   return '';
 };
 
+const normalizeCategoryNameForCompare = (value) => String(value ?? '')
+  .trim()
+  .toLowerCase()
+  .replaceAll(/\s+/g, ' ');
+
+const getNewCategoryNameError = (value, existingChecks = []) => {
+  const raw = String(value ?? '');
+  const name = raw.trim();
+  if (!name) return 'Vui lòng nhập tên hạng mục kiểm tra.';
+  if (name.length < 2) return 'Tên hạng mục kiểm tra phải có ít nhất 2 ký tự.';
+  if (name.length > CATEGORY_NAME_CHAR_LIMIT) {
+    return `Tên hạng mục kiểm tra tối đa ${CATEGORY_NAME_CHAR_LIMIT} ký tự.`;
+  }
+  if (/[<>{}]/.test(name)) {
+    return 'Tên hạng mục kiểm tra không được chứa ký tự <, >, {, }.';
+  }
+  if (/^\d+$/.test(name)) {
+    return 'Tên hạng mục kiểm tra không được chỉ gồm chữ số.';
+  }
+
+  const normalizedName = normalizeCategoryNameForCompare(name);
+  const isDuplicated = (Array.isArray(existingChecks) ? existingChecks : []).some((item) => {
+    return normalizeCategoryNameForCompare(item?.name || item?.categoryName) === normalizedName;
+  });
+  if (isDuplicated) return 'Hạng mục kiểm tra này đã tồn tại.';
+
+  return '';
+};
+
 export const ServiceTicket = ({
   ticketCode,
   embedded = false,
@@ -163,6 +194,7 @@ export const ServiceTicket = ({
   const [recommendedTireSize, setRecommendedTireSize] = useState('');
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryNameError, setNewCategoryNameError] = useState('');
 
   const defaultTireData = useMemo(() => ({
     frontLeft: { size1: '', size2: '', size3: '', mm: '', pressure: '', recommendedPressure: '' },
@@ -445,8 +477,9 @@ export const ServiceTicket = ({
         }
 
         if (!isAdvisorMode && safetyEnabledFromTicket && !isLockedByTicketStatus) {
-          const latestInspectionStatus = String(loadedInspectionStatus || '').trim().toUpperCase();
+          const latestInspectionStatus = normalizeSafetyInspectionStatus(loadedInspectionStatus);
           const shouldMoveToInspecting = latestInspectionStatus !== 'COMPLETED'
+            && latestInspectionStatus !== 'SKIPPED'
             && normalizedTicketStatus !== 'INSPECTING'
             && normalizedTicketStatus !== 'INSPECTED';
 
@@ -575,8 +608,11 @@ export const ServiceTicket = ({
 
   const handleAddCategory = async () => {
     if (!guardServiceTicketEditable()) return;
-    if (!newCategoryName.trim()) {
-      toast.error('Vui lòng nhập tên hạng mục');
+    const categoryName = newCategoryName.trim();
+    const categoryNameError = getNewCategoryNameError(categoryName, safetyChecks);
+    setNewCategoryNameError(categoryNameError);
+    if (categoryNameError) {
+      toast.error(categoryNameError);
       return;
     }
 
@@ -625,7 +661,7 @@ export const ServiceTicket = ({
         : 0;
 
       const payload = {
-        categoryName: newCategoryName.trim(),
+        categoryName,
         displayOrder: maxOrder + 1
       };
 
@@ -635,7 +671,7 @@ export const ServiceTicket = ({
       } catch (createErr) {
         response = await createWorkCategory(
           currentInspectionId,
-          { categoryName: newCategoryName.trim() },
+          { categoryName },
           token,
         );
         void createErr;
@@ -659,6 +695,7 @@ export const ServiceTicket = ({
         toast.success('Đã thêm hạng mục mới thành công');
         setShowAddCategoryModal(false);
         setNewCategoryName('');
+        setNewCategoryNameError('');
       }
     } catch (error) {
       console.error('Lỗi khi tạo hạng mục:', error);
@@ -763,6 +800,56 @@ export const ServiceTicket = ({
         return;
       }
 
+      if (!shouldRequireSafetyInspection) {
+        let currentInspectionId = inspectionId;
+        if (!currentInspectionId) {
+          try {
+            const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
+            currentInspectionId = inspectionResponse?.data?.inspectionId || null;
+          } catch {
+            currentInspectionId = null;
+          }
+        }
+        if (!currentInspectionId) {
+          try {
+            const skipResponse = await skipSafetyInspection(resolvedTicketCode, 'Bỏ qua kiểm tra an toàn', token);
+            currentInspectionId = skipResponse?.data?.inspectionId || null;
+          } catch {
+            const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
+            currentInspectionId = inspectionResponse?.data?.inspectionId || null;
+          }
+        }
+        if (!currentInspectionId) {
+          throw new Error('Không lấy được inspectionId để lưu nháp phiếu đã bỏ qua kiểm tra an toàn.');
+        }
+
+        const skippedItemsPayload = safetyChecks
+          .map((check) => ({
+            workCategoryId: check.workCategoryId || null,
+            customCategoryId: check.customCategoryId || null,
+            itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null,
+          }))
+          .filter((check) => check.workCategoryId || check.customCategoryId);
+        const skippedAdvisorItems = safetyChecks
+          .filter((item) => item.workCategoryId || item.customCategoryId)
+          .map((item) => ({
+            workCategoryId: item.workCategoryId ?? null,
+            customCategoryId: item.customCategoryId ?? null,
+            advisorNote: String(item.advisorNote ?? item.note ?? ''),
+          }));
+
+        if (skippedItemsPayload.length > 0) {
+          await upsertSafetyInspectionItems(currentInspectionId, skippedItemsPayload, token);
+        }
+        if (skippedAdvisorItems.length > 0) {
+          await updateAdvisorNotes(currentInspectionId, skippedAdvisorItems, token);
+        }
+        setInspectionId(currentInspectionId);
+        setInspectionStatus('SKIPPED');
+        toast.success('Đã lưu nháp phiếu kiểm tra an toàn. Bạn vẫn có thể tiếp tục chỉnh sửa.');
+        return;
+      }
+
       let currentInspectionId = inspectionId;
       if (!currentInspectionId) {
         try {
@@ -861,6 +948,7 @@ export const ServiceTicket = ({
         technicianNotes: notes || null,
         tires: tiresPayload,
         items: itemsPayload,
+        inspectionStatus: 'PENDING',
       };
 
       if (currentInspectionId) {
@@ -895,6 +983,7 @@ export const ServiceTicket = ({
           await reopenSafetyInspection(resolvedTicketCode, token);
         } catch (reopenErr) {
           console.warn('Không reopen được phiếu sau lưu nháp:', reopenErr);
+          throw new Error('Đã lưu dữ liệu nhưng chưa mở lại được phiếu kiểm tra. Vui lòng thử lại để tránh phiếu bị khóa.');
         }
 
         // Sau reopen, backend đặt service ticket về CREATED → sync lại INSPECTING
@@ -910,13 +999,6 @@ export const ServiceTicket = ({
 
         // Đặt local state về PENDING để form không bị khóa
         setInspectionStatus('PENDING');
-      } else {
-        try {
-          await skipSafetyInspection(resolvedTicketCode, 'Bỏ qua kiểm tra an toàn', token);
-        } catch (skipErr) {
-          console.warn('Không giữ được trạng thái SKIPPED sau lưu nháp:', skipErr);
-        }
-        setInspectionStatus('SKIPPED');
       }
 
       // Không gọi setRefreshKey để tránh reload từ API ghi đè lại trạng thái
@@ -1083,38 +1165,13 @@ export const ServiceTicket = ({
         }
       }
 
-      // Khi cố vấn viên hoàn thành phiếu an toàn: đồng bộ trạng thái công việc KTV ngay,
-      // không chờ kỹ thuật viên bấm "Bắt đầu làm việc".
-      if (isAdvisorMode) {
-        const finalServiceTicketId = resolveServiceTicketId();
-        let syncedTechnicianStatus = false;
-        let syncError = null;
-
-        try {
-          await startInspection(resolvedTicketCode, token);
-          syncedTechnicianStatus = true;
-        } catch (error) {
-          syncError = error;
-        }
-
-        if (!syncedTechnicianStatus && finalServiceTicketId) {
-          try {
-            await manageServiceTicketStatus(finalServiceTicketId, 'INSPECTING', token);
-            syncedTechnicianStatus = true;
-          } catch (error) {
-            syncError = error;
-          }
-        }
-
-        if (!syncedTechnicianStatus && syncError) {
-          toast.warn(
-            `Phiếu đã hoàn thành nhưng chưa đồng bộ trạng thái KTV: ${syncError.message || 'Lỗi không xác định'}`,
-          );
-        }
-      }
-
-      if (shouldRequireSafetyInspection) {
-        await syncServiceTicketStatus('INSPECTED', token, 'Phiếu đã hoàn thành nhưng chưa đồng bộ được trạng thái phiếu dịch vụ sang Hoàn tất kiểm tra');
+      const syncedServiceTicketStatus = await syncServiceTicketStatus(
+        'INSPECTED',
+        token,
+        'Phiếu đã hoàn thành nhưng chưa đồng bộ được trạng thái phiếu dịch vụ sang Hoàn tất kiểm tra',
+      );
+      if (!syncedServiceTicketStatus) {
+        throw new Error('Chưa đồng bộ được trạng thái phiếu dịch vụ sang Hoàn tất kiểm tra.');
       }
 
       if (currentInspectionId) {
@@ -1127,7 +1184,7 @@ export const ServiceTicket = ({
         await onInspectionCompleted({
           inspectionId: currentInspectionId,
           inspectionStatus: completionInspectionStatus,
-          serviceTicketStatus: shouldRequireSafetyInspection ? 'INSPECTED' : serviceTicketStatus,
+          serviceTicketStatus: 'INSPECTED',
         });
       }
     } catch (error) {
@@ -1384,7 +1441,14 @@ export const ServiceTicket = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h2 className={styles.sectionTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</h2>
           {canEditTechnicalFields && (
-            <button className={styles.addCategoryButton} onClick={() => setShowAddCategoryModal(true)}>
+            <button
+              className={styles.addCategoryButton}
+              onClick={() => {
+                setNewCategoryName('');
+                setNewCategoryNameError('');
+                setShowAddCategoryModal(true);
+              }}
+            >
               + Thêm hạng mục kiểm tra mới
             </button>
           )}
@@ -1551,21 +1615,75 @@ export const ServiceTicket = ({
       )}
       {/* Modal thêm hạng mục */}
       {showAddCategoryModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAddCategoryModal(false)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => {
+            setShowAddCategoryModal(false);
+            setNewCategoryName('');
+            setNewCategoryNameError('');
+          }}
+        >
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>Thêm hạng mục kiểm tra mới</h3>
-              <button className={styles.modalClose} onClick={() => setShowAddCategoryModal(false)}>✖</button>
+              <button
+                className={styles.modalClose}
+                onClick={() => {
+                  setShowAddCategoryModal(false);
+                  setNewCategoryName('');
+                  setNewCategoryNameError('');
+                }}
+              >
+                ✖
+              </button>
             </div>
             <div className={styles.modalBody}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Tên hạng mục:</label>
-                <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className={styles.formInput} placeholder="Nhập tên hạng mục kiểm tra..." autoFocus />
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewCategoryName(value);
+                    setNewCategoryNameError(getNewCategoryNameError(value, safetyChecks));
+                  }}
+                  onBlur={() => {
+                    const trimmed = newCategoryName.trim();
+                    setNewCategoryName(trimmed);
+                    setNewCategoryNameError(getNewCategoryNameError(trimmed, safetyChecks));
+                  }}
+                  className={`${styles.formInput} ${newCategoryNameError ? styles.inputError : ''}`}
+                  placeholder="Nhập tên hạng mục kiểm tra..."
+                  maxLength={CATEGORY_NAME_CHAR_LIMIT + 1}
+                  autoFocus
+                />
+                <div className={styles.fieldMetaRow}>
+                  <span className={newCategoryNameError ? styles.fieldError : styles.fieldHint}>
+                    {newCategoryNameError || 'Tên hạng mục sẽ được thêm vào bảng kiểm tra an toàn.'}
+                  </span>
+                  <span className={styles.charCounter}>{newCategoryName.trim().length}/{CATEGORY_NAME_CHAR_LIMIT} ký tự</span>
+                </div>
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <button className={styles.modalCancelBtn} onClick={() => { setShowAddCategoryModal(false); setNewCategoryName(''); }}>Hủy</button>
-              <button className={styles.modalActionBtn} onClick={handleAddCategory}>Thêm</button>
+              <button
+                className={styles.modalCancelBtn}
+                onClick={() => {
+                  setShowAddCategoryModal(false);
+                  setNewCategoryName('');
+                  setNewCategoryNameError('');
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                className={styles.modalActionBtn}
+                onClick={handleAddCategory}
+                disabled={Boolean(newCategoryNameError) || !newCategoryName.trim()}
+              >
+                Thêm
+              </button>
             </div>
           </div>
         </div>
