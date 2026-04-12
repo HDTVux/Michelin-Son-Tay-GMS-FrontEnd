@@ -14,6 +14,7 @@ import {
   fetchTicketAssignments,
   swapServiceTicketQueue,
   fetchServiceTicketAdvisorRecommend,
+  fetchAdvisorTicketRepairHistory,
 } from '../../../services/serviceTicketService';
 import { fetchCheckInAdvisors } from '../../../services/checkInService';
 import { formatTimeHHmm, parseBackendDateTime } from '../../../components/timeUtils.js';
@@ -133,6 +134,46 @@ const getTicketId = (ticket) => {
   if (ticket?.serviceTicket?.id != null) return Number(ticket.serviceTicket.id);
   if (ticket?.ticket?.serviceTicketId != null) return Number(ticket.ticket.serviceTicketId);
   if (ticket?.ticket?.id != null) return Number(ticket.ticket.id);
+  return null;
+};
+const getTicketCustomerId = (ticket) => {
+  const candidates = [
+    ticket?.customerId,
+    ticket?.customerID,
+    ticket?.customer_id,
+    ticket?.customer?.customerId,
+    ticket?.customer?.id,
+    ticket?.serviceTicket?.customerId,
+    ticket?.serviceTicket?.customer?.customerId,
+    ticket?.serviceTicket?.customer?.id,
+    ticket?.ticket?.customerId,
+    ticket?.ticket?.customer?.customerId,
+    ticket?.ticket?.customer?.id,
+  ];
+  for (const value of candidates) {
+    const id = Number(value);
+    if (Number.isFinite(id) && id > 0) return id;
+  }
+  return null;
+};
+const getTicketVehicleId = (ticket) => {
+  const candidates = [
+    ticket?.vehicleId,
+    ticket?.vehicleID,
+    ticket?.vehicle_id,
+    ticket?.vehicle?.vehicleId,
+    ticket?.vehicle?.id,
+    ticket?.serviceTicket?.vehicleId,
+    ticket?.serviceTicket?.vehicle?.vehicleId,
+    ticket?.serviceTicket?.vehicle?.id,
+    ticket?.ticket?.vehicleId,
+    ticket?.ticket?.vehicle?.vehicleId,
+    ticket?.ticket?.vehicle?.id,
+  ];
+  for (const value of candidates) {
+    const id = Number(value);
+    if (Number.isFinite(id) && id > 0) return id;
+  }
   return null;
 };
 const getTicketStatus = (ticket) => ticket?.status || ticket?.ticketStatus || '';
@@ -284,6 +325,120 @@ const sortTicketsByQueueOrder = (rows) => {
     const bid = Number(getTicketId(b) || 0);
     return aid - bid;
   });
+};
+const compactText = (value, fallback = '-') => {
+  const text = String(value ?? '').trim();
+  return text || fallback;
+};
+const unwrapApiPayload = (response) => response?.data?.data ?? response?.data ?? response;
+const extractRepairHistoryRows = (response) => {
+  const payload = unwrapApiPayload(response);
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.content)) return payload.content;
+  if (Array.isArray(payload?.records)) return payload.records;
+  if (Array.isArray(payload?.history)) return payload.history;
+  if (Array.isArray(payload?.histories)) return payload.histories;
+  if (Array.isArray(payload?.tickets)) return payload.tickets;
+  if (Array.isArray(payload?.serviceTickets)) return payload.serviceTickets;
+  if (payload && typeof payload === 'object') return [payload];
+  return [];
+};
+const getHistoryTicketCode = (row) =>
+  compactText(row?.ticketCode || row?.serviceTicketCode || row?.code || row?.serviceTicket?.ticketCode || row?.ticket?.ticketCode);
+const getHistoryDateTime = (row) =>
+  row?.completedAt
+  || row?.handoverAt
+  || row?.receivedAt
+  || row?.createdAt
+  || row?.serviceDate
+  || row?.date
+  || row?.serviceTicket?.completedAt
+  || row?.serviceTicket?.receivedAt
+  || '';
+const getRepairHistoryCompareDateTime = (row) => {
+  const scheduledDate = String(
+    row?.scheduledDate
+    || row?.appointmentDate
+    || row?.bookingDate
+    || row?.booking?.scheduledDate
+    || '',
+  ).trim();
+  const scheduledTime = formatTimeHHmm(
+    row?.scheduledTime
+    || row?.appointmentTime
+    || row?.bookingTime
+    || row?.booking?.scheduledTime
+    || '',
+  );
+  const scheduledRaw = scheduledDate ? `${scheduledDate} ${scheduledTime || ''}`.trim() : '';
+
+  return row?.receivedAt
+    || row?.createdAt
+    || row?.serviceTicket?.receivedAt
+    || row?.serviceTicket?.createdAt
+    || scheduledRaw
+    || row?.completedAt
+    || row?.handoverAt
+    || row?.date
+    || '';
+};
+const getRepairHistoryTimestamp = (row) => {
+  const raw = String(getRepairHistoryCompareDateTime(row) || '').trim();
+  if (!raw) return null;
+  const parsed = parseBackendDateTime(raw);
+  if (parsed) return parsed.getTime();
+  const fallback = Date.parse(raw);
+  return Number.isFinite(fallback) ? fallback : null;
+};
+const formatHistoryDateTime = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  const parsed = parseBackendDateTime(raw);
+  if (!parsed) return raw;
+  return parsed.toLocaleString('vi-VN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+};
+const formatMoneyVnd = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '-';
+  return `${number.toLocaleString('vi-VN')} đ`;
+};
+const getRepairHistoryRecommendation = (row) =>
+  compactText(
+    row?.recommend
+    || row?.recommendation
+    || row?.recommendationText
+    || row?.currentRecommend
+    || row?.advisorRecommendation
+    || row?.safetyInspection?.recommend
+    || row?.safetyInspection?.recommendation,
+    '',
+  );
+const getRepairHistoryEstimateItems = (row) => {
+  const sources = [
+    row?.estimateItems,
+    row?.items,
+    row?.quotedItems,
+    row?.quotationItems,
+    row?.estimate?.items,
+    row?.latestEstimate?.items,
+    row?.serviceTicketEstimate?.items,
+  ];
+  for (const source of sources) {
+    if (Array.isArray(source)) return source;
+  }
+  if (Array.isArray(row?.estimates)) {
+    return row.estimates.flatMap((estimate) => (
+      Array.isArray(estimate?.items) ? estimate.items : []
+    ));
+  }
+  return [];
 };
 const getSwappedTicketOrder = (rows, sourceTicketId, targetTicketId) => {
   const list = Array.isArray(rows) ? rows : [];
@@ -471,6 +626,13 @@ export default function AdvisorInspection() {
   const [recommendData, setRecommendData] = useState(null);
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [_recommendError, setRecommendError] = useState('');
+
+  // Lịch sử sửa chữa modal
+  const [showRepairHistoryModal, setShowRepairHistoryModal] = useState(false);
+  const [repairHistoryTicket, setRepairHistoryTicket] = useState(null);
+  const [repairHistoryRows, setRepairHistoryRows] = useState([]);
+  const [repairHistoryLoading, setRepairHistoryLoading] = useState(false);
+  const [repairHistoryError, setRepairHistoryError] = useState('');
 
   // Workload map
   const [workloadMap, setWorkloadMap] = useState({});
@@ -802,6 +964,88 @@ export default function AdvisorInspection() {
       }
       return changed ? next : prev;
     });
+  };
+
+  const handleOpenRepairHistory = async (ticket) => {
+    const token = getToken();
+    const code = getTicketCode(ticket);
+    const ticketId = getTicketId(ticket);
+    let historyTicket = { ...ticket, ticketCode: code, ticketId };
+    let customerId = getTicketCustomerId(ticket);
+    let vehicleId = getTicketVehicleId(ticket);
+    let licensePlate = compactText(ticket?.licensePlate || ticket?.vehicle?.licensePlate, '');
+
+    setRepairHistoryTicket(historyTicket);
+    setRepairHistoryRows([]);
+    setRepairHistoryError('');
+    setRepairHistoryLoading(true);
+    setShowRepairHistoryModal(true);
+
+    if (!token) {
+      setRepairHistoryError('Vui lòng đăng nhập để xem lịch sử sửa chữa.');
+      setRepairHistoryLoading(false);
+      return;
+    }
+
+    try {
+      if ((!customerId || !vehicleId) && code) {
+        try {
+          const detailRes = await fetchServiceTicketDetail(code, token);
+          const detail = unwrapApiPayload(detailRes);
+          if (detail && typeof detail === 'object') {
+            historyTicket = { ...historyTicket, ...detail, ticketCode: code, ticketId };
+            customerId = getTicketCustomerId(detail) || customerId;
+            vehicleId = getTicketVehicleId(detail) || vehicleId;
+            licensePlate = compactText(detail?.vehicle?.licensePlate || detail?.licensePlate || licensePlate, '');
+            setRepairHistoryTicket(historyTicket);
+          }
+        } catch {
+          // Vẫn thử gọi history bằng ticketCode/serviceTicketId nếu detail không tải được.
+        }
+      }
+
+      if (!customerId || !vehicleId) {
+        setRepairHistoryRows([]);
+        setRepairHistoryError('Không đủ customerId hoặc vehicleId để tải lịch sử sửa chữa.');
+        return;
+      }
+
+      const response = await fetchAdvisorTicketRepairHistory({
+        customerId,
+        vehicleId,
+      }, token);
+      const currentCode = String(code || '').trim();
+      const currentTimestamp = getRepairHistoryTimestamp(historyTicket) ?? getRepairHistoryTimestamp(ticket);
+      const rows = extractRepairHistoryRows(response)
+        .filter((row) => {
+          const rowTicketId = getTicketId(row);
+          const rowCode = String(getTicketCode(row) || '').trim();
+          if (ticketId && rowTicketId && Number(rowTicketId) === Number(ticketId)) return false;
+          if (currentCode && rowCode && rowCode === currentCode) return false;
+
+          const rowTimestamp = getRepairHistoryTimestamp(row);
+          if (currentTimestamp != null && rowTimestamp != null) {
+            if (rowTimestamp > currentTimestamp) return false;
+            if (
+              rowTimestamp === currentTimestamp
+              && ticketId
+              && rowTicketId
+              && Number(rowTicketId) >= Number(ticketId)
+            ) {
+              return false;
+            }
+          }
+
+          return true;
+        })
+        .sort((a, b) => (getRepairHistoryTimestamp(b) ?? 0) - (getRepairHistoryTimestamp(a) ?? 0));
+      setRepairHistoryRows(rows);
+    } catch (err) {
+      setRepairHistoryRows([]);
+      setRepairHistoryError(err?.message || 'Không tải được lịch sử sửa chữa.');
+    } finally {
+      setRepairHistoryLoading(false);
+    }
   };
 
   // Open modal
@@ -1467,6 +1711,14 @@ export default function AdvisorInspection() {
               >
                 Xem khuyến nghị
               </button>
+              <button
+                className={`${styles.actionBtn} ${styles.historyBtn}`}
+                onClick={() => handleOpenRepairHistory(ticket)}
+                disabled={swapping || (!code && !ticketId)}
+                title="Xem lịch sử sửa chữa của xe"
+              >
+                Lịch sử sửa chữa
+              </button>
               {hasTech ? (
                 <button
                   className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
@@ -1808,6 +2060,130 @@ export default function AdvisorInspection() {
                   disabled={loadingModal}
                 >
                   Lưu & đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal xem lịch sử sửa chữa */}
+      {showRepairHistoryModal && repairHistoryTicket && (
+        <div className={styles.modalOverlay} onClick={() => setShowRepairHistoryModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Lịch sử sửa chữa</h3>
+              <button className={styles.modalClose} onClick={() => setShowRepairHistoryModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.historySummary}>
+                <div>
+                  <span>Phiếu hiện tại</span>
+                  <strong>{repairHistoryTicket.ticketCode || getTicketCode(repairHistoryTicket) || '-'}</strong>
+                </div>
+                <div>
+                  <span>Biển số</span>
+                  <strong>{repairHistoryTicket.licensePlate || repairHistoryTicket.vehicle?.licensePlate || '-'}</strong>
+                </div>
+                <div>
+                  <span>Vehicle ID</span>
+                  <strong>{getTicketVehicleId(repairHistoryTicket) || '-'}</strong>
+                </div>
+              </div>
+
+              {repairHistoryLoading && (
+                <div className={styles.emptyState}>
+                  <p>Đang tải lịch sử sửa chữa...</p>
+                </div>
+              )}
+
+              {!repairHistoryLoading && repairHistoryError && (
+                <div className={styles.errorBanner}>{repairHistoryError}</div>
+              )}
+
+              {!repairHistoryLoading && !repairHistoryError && repairHistoryRows.length === 0 && (
+                <div className={styles.emptyState}>
+                  <p>Chưa có phiếu sửa chữa trước đó cho xe này.</p>
+                </div>
+              )}
+
+              {!repairHistoryLoading && !repairHistoryError && repairHistoryRows.length > 0 && (
+                <div className={styles.historyList}>
+                  {repairHistoryRows.map((row, index) => {
+                    const estimateItems = getRepairHistoryEstimateItems(row);
+                    const recommendation = getRepairHistoryRecommendation(row);
+                    const totalAmount =
+                      row?.totalAmount
+                      ?? row?.estimateTotal
+                      ?? row?.totalPrice
+                      ?? row?.grandTotal
+                      ?? row?.estimate?.totalAmount
+                      ?? row?.latestEstimate?.totalAmount;
+
+                    return (
+                      <div key={`${getHistoryTicketCode(row)}-${index}`} className={styles.historyCard}>
+                        <div className={styles.historyCardHeader}>
+                          <div>
+                            <strong>{getHistoryTicketCode(row)}</strong>
+                            <span>{formatHistoryDateTime(getHistoryDateTime(row))}</span>
+                          </div>
+                          <span className={styles.historyStatus}>
+                            {getServiceTicketStatusTextVi(row?.status || row?.ticketStatus || row?.statusCode, row?.statusLabel || row?.status || '-')}
+                          </span>
+                        </div>
+
+                        {recommendation ? (
+                          <div className={styles.historyNote}>
+                            <span>Khuyến nghị</span>
+                            <p>{recommendation}</p>
+                          </div>
+                        ) : null}
+
+                        <div className={styles.historyEstimate}>
+                          <div className={styles.historyEstimateHeader}>
+                            <span>Hạng mục đã báo giá</span>
+                            <strong>{formatMoneyVnd(totalAmount)}</strong>
+                          </div>
+                          {estimateItems.length > 0 ? (
+                            <div className={styles.historyItemList}>
+                              {estimateItems.map((item, itemIndex) => {
+                                const itemName = compactText(
+                                  item?.serviceName
+                                  || item?.itemName
+                                  || item?.catalogName
+                                  || item?.name
+                                  || item?.description,
+                                  `Hạng mục ${itemIndex + 1}`,
+                                );
+                                const quantity = item?.quantity ?? item?.qty ?? item?.amount;
+                                const lineTotal = item?.totalPrice ?? item?.lineTotal ?? item?.totalAmount ?? item?.price ?? item?.priceVnd;
+                                return (
+                                  <div key={`${itemName}-${itemIndex}`} className={styles.historyItem}>
+                                    <span>{itemName}</span>
+                                    <small>
+                                      {quantity != null ? `SL: ${quantity} · ` : ''}
+                                      {formatMoneyVnd(lineTotal)}
+                                    </small>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className={styles.historyEmptyText}>Chưa có hạng mục báo giá.</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className={styles.modalFooter}>
+                <button
+                  className={styles.modalActionBtn}
+                  onClick={() => setShowRepairHistoryModal(false)}
+                >
+                  Đóng
                 </button>
               </div>
             </div>

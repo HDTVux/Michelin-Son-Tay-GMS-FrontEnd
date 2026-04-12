@@ -763,6 +763,35 @@ export const fetchAdvisorMyTickets = (params, token) => {
   });
 };
 
+// Lấy lịch sử sửa chữa của xe/phiếu cho advisor
+// Endpoint: GET /api/service-ticket/advisor/tickets/history
+export const fetchAdvisorTicketRepairHistory = (params = {}, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem lịch sử sửa chữa.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const searchParams = new URLSearchParams();
+  Object.entries({
+    customerId: params?.customerId,
+    vehicleId: params?.vehicleId,
+  }).forEach(([key, value]) => {
+    const raw = String(value ?? '').trim();
+    if (raw) searchParams.set(key, raw);
+  });
+
+  const qs = searchParams.toString();
+  const path = qs
+    ? `/api/service-ticket/advisor/tickets/history?${qs}`
+    : '/api/service-ticket/advisor/tickets/history';
+
+  return request(path, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Đổi vị trí 2 service ticket trong hàng đợi
 // Endpoint: PUT /api/service-ticket/manage/swap?serviceTicketId1={id1}&serviceTicketId2={id2}
 export const swapServiceTicketQueue = (serviceTicketId1, serviceTicketId2, token) => {

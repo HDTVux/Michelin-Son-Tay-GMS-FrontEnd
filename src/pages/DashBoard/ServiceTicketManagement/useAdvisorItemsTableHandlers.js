@@ -498,6 +498,12 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	// recommendationLastSavedRef tracks what was last confirmed from backend
 
 	const extractRecommendValue = useCallback((res) => {
+		const normalizeRecommendationString = (value) => {
+			const raw = String(value ?? '').trim();
+			const apiStatusValues = new Set(['SUCCESS', 'OK', 'FAILED', 'FAILURE', 'ERROR', 'TRUE', 'FALSE']);
+			return apiStatusValues.has(raw.toUpperCase()) ? '' : raw;
+		};
+
 		const payload = res?.data?.data ?? res?.data ?? res;
 		if (payload == null) return '';
 
@@ -511,28 +517,22 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					// fall back to raw
 				}
 			}
-			return raw;
+			return normalizeRecommendationString(raw);
 		}
 		if (typeof payload === 'object') {
-			if (typeof payload?.recommend === 'string') return payload.recommend;
-			if (typeof payload?.recommendation === 'string') return payload.recommendation;
-			if (typeof payload?.recommendationText === 'string') return payload.recommendationText;
-			if (typeof payload?.currentRecommend === 'string') return payload.currentRecommend;
+			if (typeof payload?.recommend === 'string') return normalizeRecommendationString(payload.recommend);
+			if (typeof payload?.recommendation === 'string') return normalizeRecommendationString(payload.recommendation);
+			if (typeof payload?.recommendationText === 'string') return normalizeRecommendationString(payload.recommendationText);
+			if (typeof payload?.currentRecommend === 'string') return normalizeRecommendationString(payload.currentRecommend);
 
-			if (typeof payload?.data === 'string') return payload.data;
+			if (typeof payload?.data === 'string') return normalizeRecommendationString(payload.data);
 
 			if (typeof payload?.data === 'object' && payload?.data != null) {
 				const nested = payload.data;
-				if (typeof nested?.recommend === 'string') return nested.recommend;
-				if (typeof nested?.recommendation === 'string') return nested.recommendation;
-				if (typeof nested?.recommendationText === 'string') return nested.recommendationText;
-				if (typeof nested?.currentRecommend === 'string') return nested.currentRecommend;
-			}
-
-			for (const [, v] of Object.entries(payload)) {
-				if (typeof v === 'string' && v.trim() !== '' && !v.match(/^\d{4}-\d{2}-\d{2}/)) {
-					return v;
-				}
+				if (typeof nested?.recommend === 'string') return normalizeRecommendationString(nested.recommend);
+				if (typeof nested?.recommendation === 'string') return normalizeRecommendationString(nested.recommendation);
+				if (typeof nested?.recommendationText === 'string') return normalizeRecommendationString(nested.recommendationText);
+				if (typeof nested?.currentRecommend === 'string') return normalizeRecommendationString(nested.currentRecommend);
 			}
 		}
 		return '';
@@ -595,18 +595,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setRecommendation(savedValue);
 				try {
 					const refreshed = await fetchSafetyInspectionCurrentRecommend(idNum, token);
-					const confirmed = (() => {
-							const payload = refreshed?.data?.data ?? refreshed?.data ?? refreshed;
-							if (payload == null) return '';
-							if (typeof payload === 'string') {
-								const raw = payload.trim();
-								if (raw.startsWith('{') || raw.startsWith('[')) {
-									try { const p = JSON.parse(raw); return typeof p === 'string' ? p : ''; } catch { return ''; }
-								}
-								return raw;
-							}
-							return '';
-						})();
+					const confirmed = extractRecommendValue(refreshed);
 					if (String(confirmed).trim() !== '') {
 						recommendationLastSavedRef.current = confirmed;
 						setRecommendation(confirmed);
@@ -619,7 +608,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setRecommendationSaving(false);
 			}
 		},
-		[serviceTicketId, recommendation, recommendationSaving],
+		[serviceTicketId, recommendation, recommendationSaving, extractRecommendValue],
 	);
 
 	useEffect(() => {
