@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import styles from './Receipt.module.css';
-import logo from '../../../assets/Logo.png';
+import logo from '../../../assets/logo1.png';
 import CarIcon from '../../../assets/car.jpg';
 
 const SERVICE_LINE_KEYS = Array.from({ length: 15 }).map((_, i) => `service-line-${String(i + 1).padStart(2, '0')}`);
@@ -27,6 +27,56 @@ function CarDiagram({ src }) {
 
 function CheckboxCell() {
 	return <span className={styles.checkbox} aria-hidden="true" />;
+}
+
+function CheckedCell() {
+    return <span className={styles.checkMark} aria-hidden="true">✓</span>;
+}
+
+function normalizeCategoryName(value) {
+    return String(value ?? '').trim().toLowerCase();
+}
+
+function getSafetyItemKey(item) {
+    const workCategoryId =
+        item?.workCategoryId ??
+        item?.workCategory?.workCategoryId ??
+        item?.workCategory?.id ??
+        null;
+    if (workCategoryId != null && String(workCategoryId).trim() !== '') return `work:${workCategoryId}`;
+
+    const customCategoryId = item?.customCategoryId ?? null;
+    if (customCategoryId != null && String(customCategoryId).trim() !== '') return `custom:${customCategoryId}`;
+
+    const fallbackCategoryId = item?.id ?? null;
+    if (fallbackCategoryId != null && item?.itemStatus == null && item?.status == null) return `work:${fallbackCategoryId}`;
+
+    const categoryName = normalizeCategoryName(item?.categoryName || item?.newCategoryName || item?.displayName);
+    return categoryName ? `name:${categoryName}` : '';
+}
+
+function getSafetyItemName(item) {
+    return safeText(
+        item?.categoryName ||
+        item?.newCategoryName ||
+        item?.workCategory?.categoryName ||
+        item?.workCategory?.categoryCode ||
+        item?.displayName ||
+        '',
+    );
+}
+
+function getSafetyAdvisorNote(item) {
+    return safeText(item?.advisorNote || item?.note || item?.advisor_note || '');
+}
+
+function hasPrintValue(value) {
+    return value != null && String(value).trim() !== '';
+}
+
+function firstPrintValue(...values) {
+    const found = values.find(hasPrintValue);
+    return found == null ? '' : String(found);
 }
 
 export default function Receipt({ ticket, carDiagramSrc }) {
@@ -71,7 +121,6 @@ export default function Receipt({ ticket, carDiagramSrc }) {
         Boolean(safetyInspection?.items?.length)
     );
 
-    const recommendedTireSize = safeText(safetyInspection?.recommendedTireSize || '');
     const technicianNotes = safeText(safetyInspection?.technicianNotes || '');
 
     // Tire data - normalize from API
@@ -98,10 +147,31 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     const tireRearRight = tireDataMap['rearRight'] || {};
     const tireSpare = tireDataMap['spare'] || {};
 
-    // Áp suất khuyến cáo cho từng vị trí lốp (dùng recommendedPressure trong tire object)
-    const frontRecommendedPressure = tireFrontRight?.recommendedPressure != null ? String(tireFrontRight.recommendedPressure) : '';
-    const rearRecommendedPressure = tireRearRight?.recommendedPressure != null ? String(tireRearRight.recommendedPressure) : '';
-    const spareRecommendedPressure = tireSpare?.recommendedPressure != null ? String(tireSpare.recommendedPressure) : '';
+    const recommendedTireSize = firstPrintValue(
+        safetyInspection?.recommendedTireSize,
+        tireFrontLeft?.recommendedTireSize,
+        tireFrontRight?.recommendedTireSize,
+        tireRearLeft?.recommendedTireSize,
+        tireRearRight?.recommendedTireSize,
+        tireSpare?.recommendedTireSize,
+    );
+
+    // Áp suất khuyến cáo cho từng vị trí lốp.
+    const frontRecommendedPressure = firstPrintValue(
+        tireFrontRight?.recommendedPressure,
+        safetyInspection?.frontRecommendedPressure,
+        safetyInspection?.frontTireRecommendedPressure,
+    );
+    const rearRecommendedPressure = firstPrintValue(
+        tireRearRight?.recommendedPressure,
+        safetyInspection?.rearRecommendedPressure,
+        safetyInspection?.rearTireRecommendedPressure,
+    );
+    const spareRecommendedPressure = firstPrintValue(
+        tireSpare?.recommendedPressure,
+        safetyInspection?.spareRecommendedPressure,
+        safetyInspection?.spareTireRecommendedPressure,
+    );
 
     // Build tire specification strings
     const buildTireSpec = (t) => {
@@ -110,21 +180,31 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     };
 
     // Safety items from inspection - lookup by workCategoryId
-    const safetyItemsMap = {};
+    const safetyItemsMap = new Map();
     if (Array.isArray(safetyInspection?.items)) {
         safetyInspection.items.forEach(item => {
-            const key = item?.workCategoryId || item?.customCategoryId || '';
-            if (key) safetyItemsMap[key] = item;
+            const key = getSafetyItemKey(item);
+            if (key) safetyItemsMap.set(key, item);
+
+            const nameKey = `name:${normalizeCategoryName(getSafetyItemName(item))}`;
+            if (nameKey !== 'name:') safetyItemsMap.set(nameKey, item);
         });
     }
 
     // Danh sách hạng mục kiểm tra: dùng defaultCategories từ API
     const defaultCategories = ticket?.defaultCategories || [];
-    const displayItems = Array.isArray(defaultCategories) && defaultCategories.length > 0
-        ? defaultCategories
-        : (Array.isArray(safetyInspection?.items)
-            ? safetyInspection.items.filter(it => it?.categoryName).map(it => ({ categoryName: it.categoryName }))
-            : []);
+    const displayItems = [];
+    const displayItemKeys = new Set();
+    const addDisplayItem = (item) => {
+        const label = getSafetyItemName(item);
+        const key = getSafetyItemKey(item) || `name:${normalizeCategoryName(label)}`;
+        if (!label || displayItemKeys.has(key)) return;
+        displayItemKeys.add(key);
+        displayItems.push(item);
+    };
+
+    if (Array.isArray(defaultCategories)) defaultCategories.forEach(addDisplayItem);
+    if (Array.isArray(safetyInspection?.items)) safetyInspection.items.forEach(addDisplayItem);
 
     return (
     <section className={styles.sheet}>
@@ -167,10 +247,10 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                     <div className={styles.infoLabel}>Kiểm tra an toàn:</div>
                     <div className={styles.inlineChecks}>
                         <span className={styles.checkItem}>
-                            <span className={styles.checkBoxSmall} style={hasSafetyEnabled ? { background: '#000' } : {}} /> Có
+                            <span className={styles.checkBoxSmall}>{hasSafetyEnabled ? '✓' : ''}</span> Có
                         </span>
                         <span className={styles.checkItem}>
-                            <span className={styles.checkBoxSmall} style={!hasSafetyEnabled ? { background: '#000' } : {}} /> Không
+                            <span className={styles.checkBoxSmall}>{!hasSafetyEnabled ? '✓' : ''}</span> Không
                         </span>
                     </div>
                 </div>
@@ -262,8 +342,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         </div>
                         <div className={styles.pressureClusterRow}>
                             <div className={styles.pressureUnit}>kg/cm²</div>
-                            <div className={styles.pressureValue}>{frontRecommendedPressure}</div>
+                            <div className={styles.pressureValue}>{tireFrontRight?.pressure != null ? tireFrontRight.pressure : ''}</div>
                         </div>
+                        <div className={styles.recommendedPressureValue}>{frontRecommendedPressure}</div>
                     </div>
                     <div className={styles.pressureCluster}>
                         <div className={styles.pressureClusterUnit}>Sau</div>
@@ -273,8 +354,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         </div>
                         <div className={styles.pressureClusterRow}>
                             <div className={styles.pressureUnit}>kg/cm²</div>
-                            <div className={styles.pressureValue}>{rearRecommendedPressure}</div>
+                            <div className={styles.pressureValue}>{tireRearRight?.pressure != null ? tireRearRight.pressure : ''}</div>
                         </div>
+                        <div className={styles.recommendedPressureValue}>{rearRecommendedPressure}</div>
                     </div>
                     <div className={styles.pressureCluster}>
                         <div className={styles.pressureClusterUnit}>Dự phòng</div>
@@ -284,8 +366,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         </div>
                         <div className={styles.pressureClusterRow}>
                             <div className={styles.pressureUnit}>kg/cm²</div>
-                            <div className={styles.pressureValue}>{spareRecommendedPressure}</div>
+                            <div className={styles.pressureValue}>{tireSpare?.pressure != null ? tireSpare.pressure : ''}</div>
                         </div>
+                        <div className={styles.recommendedPressureValue}>{spareRecommendedPressure}</div>
                     </div>
                 </div>
                 {/* Chữ xoay 90° nằm sát mép phải bên ngoài */}
@@ -304,20 +387,24 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                     </div>
                 <div className={styles.safetyBody}>
                     {displayItems.length > 0 ? displayItems.map((cat) => {
-                        const key = cat?.id || cat?.workCategoryId || cat?.categoryName || '';
-                        const item = safetyItemsMap[key];
-                        const label = cat?.categoryName || cat?.displayName || '';
+                        const key = getSafetyItemKey(cat) || `name:${normalizeCategoryName(getSafetyItemName(cat))}`;
+                        const label = getSafetyItemName(cat);
+                        const item = safetyItemsMap.get(key) || safetyItemsMap.get(`name:${normalizeCategoryName(label)}`);
                         const status = item?.itemStatus;
                         const isGood = status === 'GOOD';
                         const isWarning = status === 'WARNING';
                         const isReplace = status === 'REPLACE';
+                        const advisorNote = getSafetyAdvisorNote(item);
                         return (
                             <div key={key || label} className={styles.safetyRow}>
-                                <div className={styles.safetyItem}>{label}</div>
+                                <div className={styles.safetyItem}>
+                                    {label}
+                                    {advisorNote ? <span className={styles.safetyInlineNote}> ({advisorNote})</span> : null}
+                                </div>
                                 <div className={styles.safetyChecks}>
-                                    {isGood ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
-                                    {isWarning ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
-                                    {isReplace ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
+                                    {isGood ? <CheckedCell /> : <CheckboxCell />}
+                                    {isWarning ? <CheckedCell /> : <CheckboxCell />}
+                                    {isReplace ? <CheckedCell /> : <CheckboxCell />}
                                 </div>
                             </div>
                         );
@@ -328,13 +415,17 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                             const isGood = status === 'GOOD';
                             const isWarning = status === 'WARNING';
                             const isReplace = status === 'REPLACE';
+                            const advisorNote = getSafetyAdvisorNote(item);
                             return (
                                 <div key={item?.itemId || item?.id || idx} className={styles.safetyRow}>
-                                    <div className={styles.safetyItem}>{label}</div>
+                                    <div className={styles.safetyItem}>
+                                        {label}
+                                        {advisorNote ? <span className={styles.safetyInlineNote}> ({advisorNote})</span> : null}
+                                    </div>
                                     <div className={styles.safetyChecks}>
-                                        {isGood ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
-                                        {isWarning ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
-                                        {isReplace ? <span style={{ fontWeight: 'bold', fontSize: '14px' }}>✓</span> : <CheckboxCell />}
+                                        {isGood ? <CheckedCell /> : <CheckboxCell />}
+                                        {isWarning ? <CheckedCell /> : <CheckboxCell />}
+                                        {isReplace ? <CheckedCell /> : <CheckboxCell />}
                                     </div>
                                 </div>
                             );

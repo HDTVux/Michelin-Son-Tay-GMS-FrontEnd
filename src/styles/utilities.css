@@ -130,6 +130,13 @@
   }
 }
 
+@media print {
+  .global-request-loading {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+
 .ui-btn--primary {
   background: #1E90FF;
   color: #fff;

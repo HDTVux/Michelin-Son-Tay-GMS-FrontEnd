@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
-import { fetchServiceTicketDetail, manageServiceTicketStatus } from '../../../services/serviceTicketService';
+import { fetchSafetyInspectionCurrentRecommend, fetchServiceTicketDetail, manageServiceTicketStatus } from '../../../services/serviceTicketService';
 import {
   getSafetyInspectionByTicketCode,
   saveSafetyInspectionData,
@@ -23,6 +23,7 @@ import carImage from '../../../assets/oto_4.jpg';
 const LOCKED_SERVICE_TICKET_STATUSES = new Set(['PAID', 'COMPLETED']);
 const TEXT_FIELD_CHAR_LIMIT = 500;
 const CATEGORY_NAME_CHAR_LIMIT = 100;
+const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
 
 const normalizeServiceTicketStatus = (status) => String(status ?? '')
   .trim()
@@ -73,6 +74,19 @@ const RECOMMENDED_TIRE_SIZE_EXAMPLE = '205/55R16';
 const RECOMMENDED_TIRE_SIZE_PATTERN = /^\d{2,3}\/\d{2,3}R\d{1,2}$/i;
 
 const normalizeRecommendedTireSizeValue = (value) => String(value ?? '').replaceAll(/\s+/g, '').toUpperCase();
+
+const extractRecommendationValue = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? response;
+  if (typeof payload === 'string') return payload.trim();
+  if (!payload || typeof payload !== 'object') return '';
+  return String(
+    payload?.recommend
+    ?? payload?.recommendation
+    ?? payload?.recommendationText
+    ?? payload?.currentRecommend
+    ?? '',
+  ).trim();
+};
 
 const getTireFieldLabel = (position, field) => {
   const positionLabel = TIRE_POSITION_LABELS[position] || 'Lốp';
@@ -941,10 +955,18 @@ export const ServiceTicket = ({
       if (!finalServiceTicketId) {
         throw new Error('Thiếu serviceTicketId để lưu phiếu kiểm tra.');
       }
+      let currentRecommendation = localStorage.getItem(getRecommendationStorageKey(finalServiceTicketId)) || '';
+      try {
+        const recommendationRes = await fetchSafetyInspectionCurrentRecommend(finalServiceTicketId, token);
+        currentRecommendation = extractRecommendationValue(recommendationRes) || currentRecommendation;
+      } catch {
+        // Preserve local recommendation fallback when backend cannot load it.
+      }
 
       // Backend luôn cứng COMPLETED khi save/update, nên gửi payload bình thường
       const safetyPayload = {
         serviceTicketId: finalServiceTicketId,
+        generalNotes: currentRecommendation || null,
         technicianNotes: notes || null,
         tires: tiresPayload,
         items: itemsPayload,
@@ -1130,9 +1152,17 @@ export const ServiceTicket = ({
       if (!finalServiceTicketId) {
         throw new Error('Thiếu serviceTicketId để lưu phiếu kiểm tra.');
       }
+      let currentRecommendation = localStorage.getItem(getRecommendationStorageKey(finalServiceTicketId)) || '';
+      try {
+        const recommendationRes = await fetchSafetyInspectionCurrentRecommend(finalServiceTicketId, token);
+        currentRecommendation = extractRecommendationValue(recommendationRes) || currentRecommendation;
+      } catch {
+        // Preserve local recommendation fallback when backend cannot load it.
+      }
 
       const safetyPayload = {
         serviceTicketId: finalServiceTicketId,
+        generalNotes: currentRecommendation || null,
         technicianNotes: notes || null,
         tires: tiresPayload,
         items: itemsPayload,

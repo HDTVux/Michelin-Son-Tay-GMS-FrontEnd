@@ -19,6 +19,7 @@ import {
 	validateTextInput,
 } from '../../../components/inputValidation.js';
 const PLACEHOLDER_ROW_COUNT = 15;
+const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
 
 export function formatCurrencyVnd(value) {
 	const n = typeof value === 'number' ? value : Number(value);
@@ -566,7 +567,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setRecommendationLoading(true);
 				const res = await fetchSafetyInspectionCurrentRecommend(idNum, token);
 				if (cancelled) return;
-				const value = extractRecommendValue(res);
+				const value = extractRecommendValue(res) || localStorage.getItem(getRecommendationStorageKey(idNum)) || '';
 				recommendationLastSavedRef.current = value;
 				setRecommendation(value);
 			} catch {
@@ -606,12 +607,18 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setRecommendationSaving(true);
 				const savedValue = nextValue;
 				await updateSafetyInspectionRecommend(idNum, savedValue, token);
+				if (String(savedValue).trim()) {
+					localStorage.setItem(getRecommendationStorageKey(idNum), savedValue);
+				} else {
+					localStorage.removeItem(getRecommendationStorageKey(idNum));
+				}
 				recommendationLastSavedRef.current = savedValue;
 				setRecommendation(savedValue);
 				try {
 					const refreshed = await fetchSafetyInspectionCurrentRecommend(idNum, token);
 					const confirmed = extractRecommendValue(refreshed);
 					if (String(confirmed).trim() !== '') {
+						localStorage.setItem(getRecommendationStorageKey(idNum), confirmed);
 						recommendationLastSavedRef.current = confirmed;
 						setRecommendation(confirmed);
 					}
