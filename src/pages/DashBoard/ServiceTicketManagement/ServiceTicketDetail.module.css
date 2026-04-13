@@ -292,6 +292,9 @@
   font-size: 14px;
   color: #374151;
   line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Services */

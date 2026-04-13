@@ -189,6 +189,15 @@ function EstimateItemRow({
         itemPlaceholder = 'Nhập hạng mục trước';
     }
 
+    // View-mode: show tick reliably without requiring reload.
+    // Some UIs can render disabled checkboxes without a visible checkmark.
+    const viewConfirmed = Boolean(
+        row?.confirmed ||
+            toIdOrNull(row?.estimateItemId) ||
+            toIdOrNull(row?.itemId) ||
+            String(row?.itemName ?? '').trim(),
+    );
+
     return (
         <tr key={`advisor-row-${stt}-${row.key}`}>
             <td>{stt}</td>
@@ -325,8 +334,10 @@ function EstimateItemRow({
                 ) : (
                     <input
                         type="checkbox"
-                        checked={true}
-                        disabled={true}
+                        checked={viewConfirmed}
+                        readOnly
+                        style={{ pointerEvents: 'none' }}
+                        tabIndex={-1}
                     />
                 )}
             </td>
@@ -610,6 +621,14 @@ export default function AdvisorItemsTable({
         } catch {
             // ignore
         }
+
+        return () => {
+            try {
+                onEstimateEditingChange?.(false);
+            } catch {
+                // ignore
+            }
+        };
     }, [isCreating, isEditing, isSaving, onEstimateEditingChange]);
 
     const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
@@ -744,6 +763,31 @@ export default function AdvisorItemsTable({
 
     const [pickerOpen, setPickerOpen] = useState(false);
     const [activeRowIndex, setActiveRowIndex] = useState(null);
+
+    const selectedProductWarehouseKeys = useMemo(() => {
+        const keys = new Set();
+        const rows = Array.isArray(tableRows) ? tableRows : [];
+        for (const r of rows) {
+            // Only count rows that are actually editable in current mode.
+            // Locked rows (seeded from previous estimate version) should not lock selection.
+            if (r?.isLockedFromPreviousVersion) continue;
+            const itemId = toIdOrNull(r?.itemId);
+            if (!itemId) continue;
+            const warehouseId = toIdOrNull(r?.warehouseId);
+            const key = `${itemId}|${warehouseId ?? ''}`;
+            keys.add(key);
+        }
+        return keys;
+    }, [tableRows]);
+
+    const activeRowSelectionKey = useMemo(() => {
+        if (activeRowIndex == null) return null;
+        const row = Array.isArray(tableRows) ? tableRows[activeRowIndex] : null;
+        const itemId = toIdOrNull(row?.itemId);
+        if (!itemId) return null;
+        const warehouseId = toIdOrNull(row?.warehouseId);
+        return `${itemId}|${warehouseId ?? ''}`;
+    }, [activeRowIndex, tableRows]);
 
     // Lưu categoryCode để truyền vào CatalogPicker
     const [pickerCategoryCode, setPickerCategoryCode] = useState("");
@@ -1084,6 +1128,8 @@ export default function AdvisorItemsTable({
                 onPick={handlePickCatalogItem}
                 initQuery={pickerInitQuery}
                 categoryCode={pickerCategoryCode}
+                existingSelectionKeys={selectedProductWarehouseKeys}
+                excludeSelectionKey={activeRowSelectionKey}
             />
 
             {photoPreview?.url ? (
