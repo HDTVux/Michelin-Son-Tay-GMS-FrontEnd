@@ -1,8 +1,9 @@
 .layoutRoot { 
     min-height: 100vh; display: flex; flex-direction: column; 
-    background: #ffffff; 
+    background: var(--ui-bg, #ffffff);
 }
 .layoutMain { 
     flex: 1;
     padding: 0;                    /* Bỏ padding để không có viền xám */
+    background: var(--ui-bg, #ffffff);
 }

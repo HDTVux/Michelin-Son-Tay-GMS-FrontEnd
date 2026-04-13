@@ -1,6 +1,27 @@
 /* Utility Classes - Dùng chung cho toàn dự án */
 /* Dựa trên cấu trúc Booking/Step */
 
+/* ===== Layout/Page Primitives ===== */
+.ui-page {
+  min-height: 100%;
+  padding: 24px;
+  color: var(--ui-text, var(--text-primary, #0a0f1c));
+}
+
+.ui-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.ui-pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
 /* ===== Card Pattern ===== */
 .ui-card {
   background: var(--ui-bg-card, #ffffff);

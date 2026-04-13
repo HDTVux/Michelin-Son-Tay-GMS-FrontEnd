@@ -19,6 +19,28 @@ function appendSafeCatalogSearchParam(qp, key, value) {
 
   qp.append(key, text);
 }
+const toSafeInt = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(num)) return null;
+  return Math.trunc(num);
+};
+
+const normalizePagingParams = (params) => {
+  const safe = params && typeof params === 'object' ? { ...params } : {};
+
+  if (Object.hasOwn(safe, 'page')) {
+    const rawPage = toSafeInt(safe.page);
+    safe.page = Math.max(0, rawPage ?? 0);
+  }
+
+  if (Object.hasOwn(safe, 'size')) {
+    const rawSize = toSafeInt(safe.size);
+    safe.size = Math.max(1, rawSize ?? 1);
+  }
+
+  return safe;
+};
 
 // Warehouse brand APIs
 // GET: /api/warehouse/brand/all
@@ -27,6 +49,100 @@ export const fetchWarehouseBrands = (token) => {
     method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+};
+
+// Warehouse (master data) APIs
+// GET: /api/warehouse/warehouse/all
+export const fetchWarehousesAll = (token) => {
+  return request('/api/warehouse/warehouse/all', {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+const parseFilenameFromContentDisposition = (contentDisposition) => {
+  const raw = String(contentDisposition ?? '');
+  const utf8Re = /filename\*=UTF-8''([^;\n]+)/i;
+  const utf8Match = utf8Re.exec(raw);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+  const plainRe = /filename="?([^";\n]+)"?/i;
+  const plainMatch = plainRe.exec(raw);
+  if (plainMatch?.[1]) return plainMatch[1];
+  return null;
+};
+
+// Inventory Excel sync/template
+// GET: /api/warehouse/inventory/{warehouseId}/excel/sync-template
+export const fetchWarehouseInventorySyncTemplate = async (warehouseId, token) => {
+  const idNum = typeof warehouseId === 'number' ? warehouseId : Number(warehouseId);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/warehouse/inventory/${encodeURIComponent(String(safeId))}/excel/sync-template`,
+    {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    },
+  );
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok) {
+    if (contentType.includes('application/json')) {
+      const data = await response.json();
+      throw new Error(data?.message || data?.data?.message || 'Request failed');
+    }
+    const text = await response.text();
+    throw new Error(text || 'Request failed');
+  }
+
+  const blob = await response.blob();
+  const filename = parseFilenameFromContentDisposition(response.headers.get('content-disposition'));
+  return { blob, filename };
+};
+
+// POST: /api/warehouse/inventory/{warehouseId}/excel/sync
+// multipart: file
+export const syncWarehouseInventoryExcel = async (warehouseId, file, token) => {
+  const idNum = typeof warehouseId === 'number' ? warehouseId : Number(warehouseId);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+  const uploadFile = file ?? null;
+  if (!uploadFile) throw new Error('Thiếu file Excel.');
+
+  const formData = new FormData();
+  formData.append('file', uploadFile, uploadFile?.name || 'inventory.xlsx');
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/warehouse/inventory/${encodeURIComponent(String(safeId))}/excel/sync`,
+    {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    },
+  );
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json') ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof data === 'string' ? data : data?.message || data?.data?.message || 'Request failed';
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  if (data?.success === false) {
+    const error = new Error(data?.message || data?.data?.message || 'Request failed');
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
 };
 
 // POST: /api/warehouse/brand/create
@@ -193,7 +309,7 @@ export const createWarehouseSpecificationValue = (payload, token) => {
 // params: { page, size, search, itemType, isActive, brand, productLine, categoryCode, minPrice, maxPrice, sortBy }
 export const searchWarehouseCatalogItems = (params, token) => {
   const qp = new URLSearchParams();
-  const safeParams = params || {};
+  const safeParams = normalizePagingParams(params || {});
   Object.entries(safeParams).forEach(([k, v]) => {
     appendSafeCatalogSearchParam(qp, k, v);
   });
@@ -210,7 +326,7 @@ export const searchWarehouseCatalogItems = (params, token) => {
 // Request params are kept identical to /api/warehouse/search/catalog-items
 export const searchWarehouseCatalogItemsDetail = (params, token) => {
   const qp = new URLSearchParams();
-  const safeParams = params || {};
+  const safeParams = normalizePagingParams(params || {});
   Object.entries(safeParams).forEach(([k, v]) => {
     appendSafeCatalogSearchParam(qp, k, v);
   });

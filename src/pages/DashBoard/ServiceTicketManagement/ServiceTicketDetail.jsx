@@ -795,7 +795,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
             if (estimateLoadSeqRef.current !== seq) return;
             const latest = pickLatestEstimate(estimateRes?.data);
-            setLatestEstimate(latest ?? null);
+            setLatestEstimate((prev) => {
+                if (!latest) return null;
+                const next = prev ? { ...prev, ...latest } : { ...latest };
+                // Some APIs/paths may return estimate meta without `items`.
+                // Keep previous items to avoid flicker/hiding actions like "Xác nhận báo giá".
+                if (!Array.isArray(latest?.items) && Array.isArray(prev?.items)) {
+                    next.items = prev.items;
+                }
+                return next;
+            });
         } catch {
             if (estimateLoadSeqRef.current !== seq) return;
             setLatestEstimate(null);
@@ -1270,14 +1279,18 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const isEstimatePersisted = Boolean(latestEstimate?.createdAt || latestEstimate?.estimateId || latestEstimate?.id);
     const canConfirmEstimate = Boolean(estimateIdNum)
         && estimateStatus === 'DRAFT'
-        && (ticketStatus === 'CREATED' || ticketStatus === 'INSPECTED' || ticketStatus === 'ESTIMATED')
+        && (ticketStatus === 'CREATED'
+            || ticketStatus === 'INSPECTING'
+            || ticketStatus === 'INSPECTED'
+            || ticketStatus === 'ESTIMATED'
+            || ticketStatus === 'PENDING')
         && hasAnyAdvisorItem
         && isEstimatePersisted
         && !isEstimateEditing;
     const handleEstimateStatusChange = useCallback((est) => {
         setLatestEstimate((prev) => {
             if (!est) return null;
-            const next = { ...(prev || {}), ...(est || {}) };
+            const next = prev ? { ...prev, ...est } : { ...est };
             // Some update APIs may return estimate meta without items.
             // Keep previous items temporarily to avoid disabling confirm button,
             // then trigger a refetch to sync the real latest estimate.
@@ -1525,12 +1538,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                 </span>
                                             </div>
                                             <div className={styles.kvRow}>
-                                                <span className={styles.kvLabel}>Ngày bàn giao:</span>
-                                                <span className={styles.kvValue}>{handoverAtDisplay}</span>
+                                                <span className={styles.kvLabel}>Thời gian ước tính hoàn tất:</span>
+                                                <span className={styles.kvValue}>{estimatedTimeDisplay}</span>
                                             </div>
                                             <div className={styles.kvRow}>
-                                                <span className={styles.kvLabel}>Thời gian ước tính:</span>
-                                                <span className={styles.kvValue}>{estimatedTimeDisplay}</span>
+                                                <span className={styles.kvLabel}>Ngày bàn giao:</span>
+                                                <span className={styles.kvValue}>{handoverAtDisplay}</span>
                                             </div>
                                             <div className={styles.kvRow}>
                                                 <span className={styles.kvLabel}>Kiểm tra an toàn:</span>
