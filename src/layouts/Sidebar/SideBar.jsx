@@ -76,6 +76,7 @@ const NAV_GROUPS = [
 			{ id: 'feedback-management', label: 'Quản lý feedback', path: '/feedback-management', icon: <IconBell />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN], },
 			{ id: 'vehicle-management', label: 'Quản lý phương tiện', path: '/vehicle-management', icon: <IconVehicle />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.RECEPTIONIST], },
 			{ id: 'system-log-management', label: 'Quản lý nhật ký hệ thống', path: '/system-log-management', icon: <IconHistory />, roles: [STAFF_ROLE.ADMIN], },
+			{ id: 'warehouse-management', label: 'Quản lý kho', path: '/warehouse-management', icon: <IconBox />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER], },
 		],
 	},
 	{

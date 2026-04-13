@@ -884,7 +884,7 @@ export default function AdvisorItemsTable({
                     <h3 className={styles.advisorTitle}>Ước tính</h3>
                     <div className={styles.kvList}>
                         <div className={styles.kvRow}>
-                            <span className={styles.kvLabel}>Thời gian</span>
+                            <span className={styles.kvLabel}>Thời gian ước tính hoàn tất:</span>
                             <span className={styles.kvValue}>{estimatedTimeDisplay || '-'}</span>
                         </div>
                         <div className={styles.kvRow}>

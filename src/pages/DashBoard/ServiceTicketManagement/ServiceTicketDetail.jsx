@@ -1525,12 +1525,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                 </span>
                                             </div>
                                             <div className={styles.kvRow}>
-                                                <span className={styles.kvLabel}>Ngày bàn giao:</span>
-                                                <span className={styles.kvValue}>{handoverAtDisplay}</span>
+                                                <span className={styles.kvLabel}>Thời gian ước tính hoàn tất:</span>
+                                                <span className={styles.kvValue}>{estimatedTimeDisplay}</span>
                                             </div>
                                             <div className={styles.kvRow}>
-                                                <span className={styles.kvLabel}>Thời gian ước tính:</span>
-                                                <span className={styles.kvValue}>{estimatedTimeDisplay}</span>
+                                                <span className={styles.kvLabel}>Ngày bàn giao:</span>
+                                                <span className={styles.kvValue}>{handoverAtDisplay}</span>
                                             </div>
                                             <div className={styles.kvRow}>
                                                 <span className={styles.kvLabel}>Kiểm tra an toàn:</span>
