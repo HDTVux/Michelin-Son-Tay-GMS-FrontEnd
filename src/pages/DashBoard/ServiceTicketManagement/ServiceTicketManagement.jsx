@@ -13,6 +13,70 @@ import {
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getServiceTicketStatusTextVi, getServiceTicketStatusTone, getStatusTextVi, normalizeServiceTicketStatusCode } from '../../../components/statusUtils.js';
 
+function getTicketScheduledDate(ticket) {
+	return String(
+		ticket?.booking?.scheduledDate
+		?? ticket?.scheduledDate
+		?? ticket?.appointmentDate
+		?? ticket?.bookingDate
+		?? '',
+	).trim();
+}
+
+function getTicketScheduledTime(ticket) {
+	return String(
+		ticket?.booking?.scheduledTime
+		?? ticket?.scheduledTime
+		?? ticket?.appointmentTime
+		?? ticket?.startTime
+		?? '',
+	).trim();
+}
+
+function parseDateOnlyLocal(value) {
+	const raw = String(value || '').trim();
+	const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+	if (!match) return null;
+
+	const year = Number(match[1]);
+	const monthIndex = Number(match[2]) - 1;
+	const day = Number(match[3]);
+	const parsed = new Date(year, monthIndex, day);
+	if (
+		parsed.getFullYear() !== year
+		|| parsed.getMonth() !== monthIndex
+		|| parsed.getDate() !== day
+	) {
+		return null;
+	}
+
+	return parsed;
+}
+
+function getTodayLocalStart() {
+	const now = new Date();
+	return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function isFutureScheduledTicket(ticket) {
+	const scheduledDate = parseDateOnlyLocal(getTicketScheduledDate(ticket));
+	if (!scheduledDate) return false;
+	return scheduledDate.getTime() > getTodayLocalStart().getTime();
+}
+
+function getScheduledDateTimeLabel(ticket) {
+	const date = getTicketScheduledDate(ticket);
+	const time = formatTimeHHmm(getTicketScheduledTime(ticket));
+	return date ? `${date} ${time || ''}`.trim() : '-';
+}
+
+function getFutureTicketMessage(ticket) {
+	const code = String(ticket?.ticketCode || '').trim();
+	const prefix = code ? `Phiếu ${code} ` : 'Phiếu này ';
+	const scheduledLabel = getScheduledDateTimeLabel(ticket);
+	return `${prefix}có lịch hẹn ${scheduledLabel}. Đến đúng ngày hẹn mới được thao tác phiếu này.`;
+}
+
 function ServiceTicketManagement() {
 	useScrollToTop();
 
@@ -313,11 +377,21 @@ function ServiceTicketManagement() {
 						onExport={handleExport}
 						isExporting={isExporting}
 						onViewDetail={(ticket) => {
+							if (isFutureScheduledTicket(ticket)) {
+								setError(getFutureTicketMessage(ticket));
+								return;
+							}
 							const code = String(ticket?.ticketCode || '').trim();
 							if (!code) { setError('Phiếu này chưa có ticketCode.'); return; }
 							navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
 						}}
-						onOpenAssign={(ticket) => openModal(ticket)}
+						onOpenAssign={(ticket) => {
+							if (isFutureScheduledTicket(ticket)) {
+								setError(getFutureTicketMessage(ticket));
+								return;
+							}
+							openModal(ticket);
+						}}
 						actionLabel={`${totalElements} phiếu`}
 					/>
 				</div>
@@ -534,8 +608,13 @@ function TicketPanel({
 							const statusCode = item?.ticketStatus ?? item?.status;
 							const tone = getServiceTicketStatusTone(statusCode, 'info');
 							const displayStatus = getServiceTicketStatusTextVi(statusCode, String(statusCode || '-'));
+							const isFutureTicket = isFutureScheduledTicket(item);
+							const scheduledLabel = getScheduledDateTimeLabel(item);
 							return (
-								<tr key={item?.serviceTicketId ?? item?.ticketCode ?? idx}>
+								<tr
+									key={item?.serviceTicketId ?? item?.ticketCode ?? idx}
+									className={isFutureTicket ? styles['future-ticket-row'] : undefined}
+								>
 									<td>{idx + 1}</td>
 									<td className={styles['ticket-code-cell']}>{item?.ticketCode || '-'}</td>
 									<td>{item?.customerName || '-'}</td>
@@ -549,16 +628,27 @@ function TicketPanel({
 										<span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>{displayStatus}</span>
 									</td>
 									<td>
-										{item?.booking?.scheduledDate
-											? `${item.booking.scheduledDate} ${formatTimeHHmm(item?.booking?.scheduledTime)}`.trim()
-											: (item?.scheduledDate
-												? `${item.scheduledDate} ${formatTimeHHmm(item?.scheduledTime)}`.trim()
-												: '-')}
+										<span>{scheduledLabel}</span>
+										{isFutureTicket && (
+											<span className={styles['future-ticket-note']}>Chờ đến ngày hẹn</span>
+										)}
 									</td>
 									<td>
 										<div className={styles['action-buttons']}>
-											<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
-											<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
+											{isFutureTicket ? (
+												<button
+													className={`${styles['primary-button']} ${styles['future-action-button']}`}
+													onClick={() => onViewDetail?.(item)}
+													title={getFutureTicketMessage(item)}
+												>
+													Chưa đến ngày
+												</button>
+											) : (
+												<>
+													<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
+													<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
+												</>
+											)}
 										</div>
 									</td>
 								</tr>

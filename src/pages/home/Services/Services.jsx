@@ -2,6 +2,7 @@ import './Services.css';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchHomeProducts } from '../../../services/homeService';
+import { fetchWarehouseItemCategories } from '../../../services/warehouseService';
 import serviceFallback from '../../../assets/lop and mam.jpg';
 import processImg from '../../../assets/Quy trình 7 bước (1).png';
 
@@ -37,6 +38,109 @@ const normalizeItemType = (value) => {
   if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
   return 'SERVICE';
 };
+const normalizeCategoryType = (value) => {
+  const text = String(value || '').trim().toUpperCase();
+  if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
+  if (text === 'SERVICE') return 'SERVICE';
+  return '';
+};
+const normalizeCategoryToken = (value) => String(value ?? '')
+  .trim()
+  .toLowerCase()
+  .normalize('NFD')
+  .replaceAll(/[\u0300-\u036f]/g, '')
+  .replaceAll(/\s+/g, ' ');
+const getCategoryId = (item) => toPositiveNumber(
+  item?.workCategoryId
+  ?? item?.itemCategoryId
+  ?? item?.categoryId
+  ?? item?.category?.id
+  ?? item?.category?.categoryId
+  ?? item?.category?.workCategoryId
+  ?? item?.category?.itemCategoryId
+  ?? item?.itemCategory?.id
+  ?? item?.itemCategory?.categoryId
+  ?? item?.itemCategory?.workCategoryId
+  ?? item?.itemCategory?.itemCategoryId
+  ?? item?.workCategory?.id
+  ?? item?.workCategory?.categoryId
+  ?? item?.workCategory?.workCategoryId
+  ?? item?.workCategory?.itemCategoryId,
+);
+const firstNonEmptyString = (...values) => {
+  for (const value of values) {
+    if (value == null || typeof value === 'object') continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return '';
+};
+const getCategoryCode = (item) => firstNonEmptyString(
+  item?.categoryCode,
+  item?.itemCategoryCode,
+  item?.workCategoryCode,
+  item?.code,
+  item?.category?.code,
+  item?.category?.categoryCode,
+  item?.category?.itemCategoryCode,
+  item?.category?.workCategoryCode,
+  item?.itemCategory?.code,
+  item?.itemCategory?.categoryCode,
+  item?.itemCategory?.itemCategoryCode,
+  item?.workCategory?.code,
+  item?.workCategory?.categoryCode,
+  item?.workCategory?.workCategoryCode,
+);
+const getCategoryName = (item) => firstNonEmptyString(
+  item?.categoryName,
+  item?.itemCategoryName,
+  item?.workCategoryName,
+  item?.name,
+  typeof item?.category === 'string' ? item.category : undefined,
+  typeof item?.itemCategory === 'string' ? item.itemCategory : undefined,
+  typeof item?.workCategory === 'string' ? item.workCategory : undefined,
+  item?.category?.name,
+  item?.category?.categoryName,
+  item?.category?.itemCategoryName,
+  item?.category?.workCategoryName,
+  item?.itemCategory?.name,
+  item?.itemCategory?.categoryName,
+  item?.itemCategory?.itemCategoryName,
+  item?.workCategory?.name,
+  item?.workCategory?.categoryName,
+  item?.workCategory?.workCategoryName,
+);
+const getCategoryKey = (item) => {
+  const id = getCategoryId(item);
+  if (id != null) return `id:${id}`;
+  const code = normalizeCategoryToken(getCategoryCode(item));
+  if (code) return `code:${code}`;
+  const name = getCategoryName(item);
+  const normalizedName = normalizeCategoryToken(name);
+  return normalizedName ? `name:${normalizedName}` : '';
+};
+const getCategoryMatchKeys = (item) => {
+  const keys = new Set();
+  const id = getCategoryId(item);
+  const code = normalizeCategoryToken(getCategoryCode(item));
+  const name = normalizeCategoryToken(getCategoryName(item));
+  if (id != null) keys.add(`id:${id}`);
+  if (code) keys.add(`code:${code}`);
+  if (name) keys.add(`name:${name}`);
+  return Array.from(keys);
+};
+const hasCategoryMatch = (left = [], right = []) => {
+  const rightSet = new Set(right);
+  return left.some((key) => rightSet.has(key));
+};
+const isCategoryActive = (value) => {
+  if (value === false || value === 0) return false;
+  if (typeof value === 'string') {
+    const text = value.trim().toLowerCase();
+    if (text === 'false' || text === '0' || text === 'inactive') return false;
+  }
+  return true;
+};
 const toDisplayPrice = (item) => {
   if (item?.showPrice !== true) return 'Liên hệ';
   const display = String(item?.displayPrice || '').trim();
@@ -46,11 +150,12 @@ const toDisplayPrice = (item) => {
 };
 const extractList = (res) => {
   const payload = extractPayload(res);
-  return Array.isArray(payload?.content)
-    ? payload.content
-    : Array.isArray(payload)
-      ? payload
-      : [];
+  if (Array.isArray(payload?.content)) return payload.content;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.list)) return payload.list;
+  if (Array.isArray(payload?.categories)) return payload.categories;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return Array.isArray(payload) ? payload : [];
 };
 
 const ITEMS_PER_ROW = 4;
@@ -60,7 +165,10 @@ const Services = () => {
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [catalogFilter, setCatalogFilter] = useState('SERVICE');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [gridExpanded, setGridExpanded] = useState(false);
   const [priceSort, setPriceSort] = useState('DEFAULT');
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,9 +232,9 @@ const Services = () => {
     setTimeout(() => { if (active) { setServicesLoading(true); setServicesError(''); }}, 0);
 
     Promise.allSettled([
-      fetchHomeProducts({ page: 0, size: 40, itemType: 'SERVICE' }),
-      fetchHomeProducts({ page: 0, size: 40, itemType: 'PART' }),
-      fetchHomeProducts({ page: 0, size: 40, itemType: 'PRODUCT' }),
+      fetchHomeProducts({ page: 0, size: 500, itemType: 'SERVICE' }),
+      fetchHomeProducts({ page: 0, size: 500, itemType: 'PART' }),
+      fetchHomeProducts({ page: 0, size: 500, itemType: 'PRODUCT' }),
     ])
       .then((results) => {
         if (!active) return;
@@ -149,11 +257,21 @@ const Services = () => {
             const itemType = normalizeItemType(item?.itemType ?? item?.type ?? item?.__sourceType);
             const catalogItemId = toPositiveNumber(item?.catalogItemId ?? item?.itemId);
             const serviceId = toPositiveNumber(item?.serviceId);
+            const categoryId = getCategoryId(item);
+            const categoryCode = getCategoryCode(item);
+            const categoryName = getCategoryName(item);
+            const categoryKey = getCategoryKey(item);
+            const categoryMatchKeys = getCategoryMatchKeys(item);
             return {
               id: catalogItemId ?? serviceId,
               catalogItemId,
               serviceId,
               itemType,
+              categoryId,
+              categoryCode,
+              categoryName,
+              categoryKey,
+              categoryMatchKeys,
               title: String(item?.title || item?.itemName || (itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ')).trim(),
               description: String(item?.shortDescription || item?.description || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
               image: String(item?.thumbnailUrl || item?.imageUrl || item?.mediaThumbnail || '').trim(),
@@ -196,14 +314,131 @@ const Services = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    setCategoriesLoading(true);
+
+    fetchWarehouseItemCategories()
+      .then((res) => {
+        if (!active) return;
+        const normalized = extractList(res)
+          .map((item) => {
+            const categoryType = normalizeCategoryType(item?.categoryType ?? item?.itemType ?? item?.type);
+            const categoryId = getCategoryId(item) ?? toPositiveNumber(item?.id);
+            const categoryCode = getCategoryCode(item);
+            const categoryName = getCategoryName(item);
+            const categoryKey = getCategoryKey(item) || (categoryId != null ? `id:${categoryId}` : '');
+            const categoryMatchKeys = getCategoryMatchKeys(item);
+            if (!categoryKey || !isCategoryActive(item?.isActive ?? item?.status)) return null;
+            return {
+              categoryId,
+              categoryCode,
+              categoryName,
+              categoryType,
+              categoryKey,
+              categoryMatchKeys,
+              label: categoryName || categoryCode || `Nhóm #${categoryId}`,
+            };
+          })
+          .filter(Boolean);
+
+        const deduped = new Map();
+        normalized.forEach((item) => {
+          const key = `${item.categoryType}:${item.categoryKey}`;
+          if (!deduped.has(key)) deduped.set(key, item);
+        });
+        setCategories(Array.from(deduped.values()));
+      })
+      .catch((err) => {
+        console.error('[Services] Error loading categories:', err);
+        if (active) setCategories([]);
+      })
+      .finally(() => {
+        if (active) setCategoriesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Scroll reveal cho 3 phần: dịch vụ, quy trình, combo
   const servicesHeroRef = useRef(null);
   const processHeaderRef = useRef(null);
 
   const [servicesIntroVisible, setServicesIntroVisible] = useState(false);
   const [processIntroVisible, setProcessIntroVisible] = useState(false);
+  const categoryOptions = useMemo(() => {
+    const derived = new Map();
+    const typedServices = services.filter((item) => item.itemType === catalogFilter);
+
+    typedServices
+      .forEach((item) => {
+        if (!item.categoryKey) return;
+        if (!derived.has(item.categoryKey)) {
+          derived.set(item.categoryKey, {
+            categoryKey: item.categoryKey,
+            categoryMatchKeys: item.categoryMatchKeys?.length ? item.categoryMatchKeys : [item.categoryKey],
+            categoryCode: item.categoryCode,
+            categoryName: item.categoryName,
+            categoryType: item.itemType,
+            label: item.categoryName || item.categoryCode || 'Khác',
+          });
+        }
+      });
+
+    const options = categories
+      .filter((item) => !item.categoryType || item.categoryType === catalogFilter)
+      .map((item) => {
+        const matchKeys = item.categoryMatchKeys?.length ? item.categoryMatchKeys : [item.categoryKey];
+        return {
+          ...item,
+          count: typedServices.filter((service) => hasCategoryMatch(service.categoryMatchKeys || [], matchKeys)).length,
+        };
+      });
+
+    derived.forEach((item, key) => {
+      const matchKeys = item.categoryMatchKeys?.length ? item.categoryMatchKeys : [key];
+      if (!options.some((opt) => {
+        const optionMatchKeys = opt.categoryMatchKeys?.length ? opt.categoryMatchKeys : [opt.categoryKey];
+        return hasCategoryMatch(optionMatchKeys, matchKeys);
+      })) {
+        options.push({
+          ...item,
+          count: typedServices.filter((service) => hasCategoryMatch(service.categoryMatchKeys || [], matchKeys)).length,
+        });
+      }
+    });
+
+    return options.sort((a, b) => {
+      const countDiff = (b.count || 0) - (a.count || 0);
+      if (countDiff !== 0) return countDiff;
+      return String(a.label || '').localeCompare(String(b.label || ''), 'vi');
+    });
+  }, [catalogFilter, categories, services]);
+
+  useEffect(() => {
+    setCategoryFilter('ALL');
+    setGridExpanded(false);
+  }, [catalogFilter]);
+
+  useEffect(() => {
+    if (categoryFilter === 'ALL') return;
+    if (!categoryOptions.some((item) => item.categoryKey === categoryFilter)) {
+      setCategoryFilter('ALL');
+    }
+  }, [categoryFilter, categoryOptions]);
+
   const visibleServices = useMemo(() => {
     let filtered = services.filter((item) => item.itemType === catalogFilter);
+
+    if (categoryFilter !== 'ALL') {
+      const selectedCategory = categoryOptions.find((item) => item.categoryKey === categoryFilter);
+      const matchKeys = selectedCategory?.categoryMatchKeys?.length
+        ? selectedCategory.categoryMatchKeys
+        : [categoryFilter];
+      filtered = filtered.filter((item) => hasCategoryMatch(item.categoryMatchKeys || [], matchKeys));
+    }
 
     // Search filter
     const q = searchQuery.trim().toLowerCase();
@@ -229,7 +464,7 @@ const Services = () => {
     }
 
     return filtered;
-  }, [catalogFilter, services, priceSort, searchQuery]);
+  }, [catalogFilter, categoryFilter, categoryOptions, services, priceSort, searchQuery]);
 
   const gridItemsToShow = useMemo(() => {
     if (gridExpanded) return visibleServices;
@@ -373,7 +608,45 @@ const Services = () => {
         </div>
 
         {/* Grid layout */}
-        <div className="servicesGridWrapper">
+        <div className="servicesCatalogLayout">
+          <aside className="categorySidebar" aria-label="Lọc theo danh mục">
+            <div className="categorySidebarTitle">Danh mục</div>
+            <div className="categorySidebarList">
+              <button
+                type="button"
+                className={`categorySidebarItem ${categoryFilter === 'ALL' ? 'is-active' : ''}`}
+                onClick={() => {
+                  setCategoryFilter('ALL');
+                  setGridExpanded(false);
+                }}
+              >
+                <span>Tất cả</span>
+                <span className="categoryCount">{services.filter((item) => item.itemType === catalogFilter).length}</span>
+              </button>
+              {categoryOptions.map((item) => (
+                <button
+                  key={item.categoryKey}
+                  type="button"
+                  className={`categorySidebarItem ${categoryFilter === item.categoryKey ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setCategoryFilter(item.categoryKey);
+                    setGridExpanded(false);
+                  }}
+                >
+                  <span>{item.label}</span>
+                  <span className="categoryCount">{item.count}</span>
+                </button>
+              ))}
+              {categoriesLoading && categoryOptions.length === 0 && (
+                <div className="categorySidebarHint">Đang tải danh mục...</div>
+              )}
+              {!categoriesLoading && categoryOptions.length === 0 && (
+                <div className="categorySidebarHint">Chưa có danh mục.</div>
+              )}
+            </div>
+          </aside>
+
+          <div className="servicesGridWrapper">
           {servicesLoading && (
             <div className="serviceStatus">
               <div className="loadingSpinner" />
@@ -453,6 +726,7 @@ const Services = () => {
               </button>
             </div>
           )}
+          </div>
         </div>
       </section>
 

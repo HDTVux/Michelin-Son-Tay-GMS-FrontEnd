@@ -50,8 +50,14 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
   const dialogRef = useRef(null); // Tạo ref để điều khiển thẻ dialog
 
   const [search, setSearch] = useState(initialSearch || initQuery);
-  const [page, setPage] = useState(initialPage);
-  const [size] = useState(pageSize);
+  const [page, setPage] = useState(() => {
+    const parsed = Number(initialPage);
+    return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+  });
+  const [size] = useState(() => {
+    const parsed = Number(pageSize);
+    return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 10;
+  });
   const [results, setResults] = useState([]);
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(false);

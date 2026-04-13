@@ -314,11 +314,110 @@
 }
 
 /* ====== Grid Layout ====== */
+.servicesCatalogLayout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.categorySidebar {
+  position: sticky;
+  top: 88px;
+  padding: 16px;
+  border: 1px solid rgba(0, 90, 169, 0.14);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+
+.categorySidebarTitle {
+  margin-bottom: 12px;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.categorySidebarList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.categorySidebarList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.categorySidebarList::-webkit-scrollbar-thumb {
+  background: rgba(0, 90, 169, 0.28);
+  border-radius: 8px;
+}
+
+.categorySidebarItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 90, 169, 0.12);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.categorySidebarItem:hover,
+.categorySidebarItem.is-active {
+  border-color: #005aa9;
+  background: rgba(0, 90, 169, 0.08);
+  color: #005aa9;
+}
+
+.categorySidebarItem.is-active {
+  box-shadow: inset 3px 0 0 #ffd100;
+}
+
+.categoryCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 8px;
+  background: rgba(0, 90, 169, 0.1);
+  color: #005aa9;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.categorySidebarHint {
+  padding: 10px 12px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .servicesGridWrapper {
   position: relative;
   z-index: 1;
-  max-width: 1400px;
-  margin: 0 auto;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
 }
 
 .servicesGrid {
@@ -849,8 +948,13 @@
     font-size: 38px;
   }
 
+  .servicesCatalogLayout {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 18px;
+  }
+
   .servicesGrid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 20px;
   }
 }
@@ -898,6 +1002,18 @@
 
   .sortSelect {
     min-width: 132px;
+  }
+
+  .servicesCatalogLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .categorySidebar {
+    position: static;
+  }
+
+  .categorySidebarList {
+    max-height: 260px;
   }
 
   .servicesGrid {

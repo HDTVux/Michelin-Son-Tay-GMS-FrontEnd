@@ -1,5 +1,25 @@
 import { API_BASE_URL, request } from './apiClient.js';
 
+function appendSafeCatalogSearchParam(qp, key, value) {
+  if (value === undefined || value === null) return;
+  const text = String(value).trim();
+  if (!text) return;
+
+  if (key === 'page') {
+    const page = Number(text);
+    qp.append(key, String(Number.isFinite(page) && page >= 0 ? Math.floor(page) : 0));
+    return;
+  }
+
+  if (key === 'size') {
+    const size = Number(text);
+    qp.append(key, String(Number.isFinite(size) && size >= 1 ? Math.floor(size) : 10));
+    return;
+  }
+
+  qp.append(key, text);
+}
+
 // Warehouse brand APIs
 // GET: /api/warehouse/brand/all
 export const fetchWarehouseBrands = (token) => {
@@ -39,19 +59,19 @@ export const createTaxRule = (payload, token) => {
 };
 
 // Warehouse item category APIs
-// GET: /api/warehouse/item-category/all (some envs may expose /item-categpry/all)
+// GET: /api/warehouse/item-categoy/all (some envs expose corrected/older variants)
 export const fetchWarehouseItemCategories = async (token) => {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  // Prefer the correct endpoint
+  // Prefer the endpoint currently exposed by the backend.
   try {
-    return await request('/api/warehouse/item-category/all', {
+    return await request('/api/warehouse/item-categoy/all', {
       method: 'GET',
       headers,
     });
   } catch {
-    // Fallbacks for older/typo endpoints in some envs
+    // Fallbacks for corrected/other typo endpoints in some envs
     try {
-      return await request('/api/warehouse/item-categoy/all', {
+      return await request('/api/warehouse/item-category/all', {
         method: 'GET',
         headers,
       });
@@ -175,10 +195,7 @@ export const searchWarehouseCatalogItems = (params, token) => {
   const qp = new URLSearchParams();
   const safeParams = params || {};
   Object.entries(safeParams).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    const s = String(v);
-    if (s === '') return;
-    qp.append(k, s);
+    appendSafeCatalogSearchParam(qp, k, v);
   });
   const qs = qp.toString();
   const path = '/api/warehouse/search/catalog-items' + (qs ? `?${qs}` : '');
@@ -195,10 +212,7 @@ export const searchWarehouseCatalogItemsDetail = (params, token) => {
   const qp = new URLSearchParams();
   const safeParams = params || {};
   Object.entries(safeParams).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    const s = String(v);
-    if (s === '') return;
-    qp.append(k, s);
+    appendSafeCatalogSearchParam(qp, k, v);
   });
   const qs = qp.toString();
   const path = '/api/warehouse/search/catalog-items-detail' + (qs ? `?${qs}` : '');
