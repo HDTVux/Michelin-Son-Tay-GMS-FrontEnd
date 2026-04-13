@@ -11,7 +11,7 @@ import {
 	fetchAdvisorsWithWorkload,
 } from '../../../services/serviceTicketService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
-import { getServiceTicketStatusTextVi, getServiceTicketStatusTone, getStatusTextVi } from '../../../components/statusUtils.js';
+import { getServiceTicketStatusTextVi, getServiceTicketStatusTone, getStatusTextVi, normalizeServiceTicketStatusCode } from '../../../components/statusUtils.js';
 
 function ServiceTicketManagement() {
 	useScrollToTop();
@@ -216,9 +216,36 @@ function ServiceTicketManagement() {
 
 	const currentAdvisorName =
 		currentAdvisor?.fullName || currentAdvisor?.staffName || modal.ticket?.advisorName || modal.ticket?.advisor?.fullName || '-';
-	const isTicketCREATEDForReception = String(modal.ticket?.ticketStatus || '').toUpperCase() === 'CREATED';
+	const modalTicketStatus = normalizeServiceTicketStatusCode(modal.ticket?.ticketStatus || modal.ticket?.status || '');
+	const isTicketFinalizedForAdvisorChange = ['COMPLETED', 'PAID', 'CANCELLED'].includes(modalTicketStatus);
 	const isAdvisorPendingForReception = String(currentAdvisor?.status || '').toUpperCase() === 'PENDING';
-	const canReceptionistChangeAdvisor = isTicketCREATEDForReception && isAdvisorPendingForReception;
+	const canReceptionistChangeAdvisor = isAdvisorPendingForReception && !isTicketFinalizedForAdvisorChange;
+	const advisorOptionsForChange = useMemo(() => {
+		const getAdvisorWorkload = (advisor) => {
+			const direct = Number(advisor?.currentTicketCount);
+			if (Number.isFinite(direct)) return direct;
+
+			const total = Number(advisor?.totalWorkload);
+			if (Number.isFinite(total)) return total;
+
+			const active = Number(advisor?.activeAssignments || 0);
+			const pending = Number(advisor?.pendingAssignments || 0);
+			return active + pending;
+		};
+
+		const rows = [...advisorOptions].sort((a, b) => {
+			const workloadA = getAdvisorWorkload(a);
+			const workloadB = getAdvisorWorkload(b);
+			if (workloadFilter === 'least') return workloadA - workloadB;
+			if (workloadFilter === 'most') return workloadB - workloadA;
+			return String(a?.fullName || a?.staffName || '').localeCompare(String(b?.fullName || b?.staffName || ''), 'vi');
+		});
+
+		return rows.map((advisor) => ({
+			...advisor,
+			currentTicketCount: getAdvisorWorkload(advisor),
+		}));
+	}, [advisorOptions, workloadFilter]);
 
 	const handleChangeAdvisorFromReception = async (newAdvisorId) => {
 		const token = getToken();
@@ -232,7 +259,7 @@ function ServiceTicketManagement() {
 		if (!Number.isFinite(ticketId) || ticketId <= 0) return;
 		if (nextAdvisorId === currentAdvisorId) return;
 		if (!canReceptionistChangeAdvisor) {
-			setModalError('Chỉ lễ tân được đổi advisor khi phiếu đang ở trạng thái Nháp và advisor hiện tại đang ở trạng thái Chờ duyệt.');
+			setModalError('Chỉ đổi được khi cố vấn viên hiện tại đang ở trạng thái Chờ duyệt và phiếu chưa hoàn tất / thanh toán / hủy.');
 			return;
 		}
 
@@ -327,30 +354,26 @@ function ServiceTicketManagement() {
 										</div>
 									</div>
 
-									{canReceptionistChangeAdvisor && advisorOptions.length > 0 && (
+									{canReceptionistChangeAdvisor && advisorOptionsForChange.length > 0 && (
 										<div className={styles['advisor-change-section']}>
+											<div className={styles['advisor-change-header']}>
+												<h5>Đổi cố vấn viên</h5>
+												<p>Chọn cố vấn viên mới. Workload là số phiếu đang phụ trách.</p>
+											</div>
 											<div className={styles['workload-filter']}>
-												<label>Lọc theo số phiếu:</label>
+												<label>Sắp xếp workload:</label>
 												<select
 													value={workloadFilter}
 													onChange={(e) => setWorkloadFilter(e.target.value)}
 												>
 													<option value="all">Tất cả</option>
-													<option value="least">Ít phiếu nhất</option>
-													<option value="most">Nhiều phiếu nhất</option>
+													<option value="least">Ít phiếu trước</option>
+													<option value="most">Nhiều phiếu trước</option>
 												</select>
 											</div>
 
 											<div className={styles['advisor-list']}>
-												{(() => {
-													let filtered = [...advisorOptions];
-													if (workloadFilter === 'least') {
-														filtered.sort((a, b) => a.currentTicketCount - b.currentTicketCount);
-													} else if (workloadFilter === 'most') {
-														filtered.sort((a, b) => b.currentTicketCount - a.currentTicketCount);
-													}
-
-													return filtered.map((advisor) => {
+												{advisorOptionsForChange.map((advisor) => {
 														const isCurrent = Number(advisor.staffId) === Number(currentAdvisor?.staffId || 0);
 														return (
 															<div
@@ -380,14 +403,25 @@ function ServiceTicketManagement() {
 																</button>
 															</div>
 														);
-													});
-												})()}
+													})}
 											</div>
 										</div>
 									)}
 
-									{canReceptionistChangeAdvisor && advisorOptions.length === 0 && (
+									{canReceptionistChangeAdvisor && advisorOptionsForChange.length === 0 && (
 										<div className={styles['empty-text']}>Không có cố vấn viên nào.</div>
+									)}
+
+									{!canReceptionistChangeAdvisor && currentAdvisor && !isTicketFinalizedForAdvisorChange && (
+										<div className={styles['advisor-change-note']}>
+											Chỉ đổi cố vấn viên khi assignment hiện tại đang ở trạng thái Chờ duyệt.
+										</div>
+									)}
+
+									{isTicketFinalizedForAdvisorChange && (
+										<div className={styles['advisor-change-note']}>
+											Phiếu đã hoàn tất, thanh toán hoặc hủy nên không thể đổi cố vấn viên.
+										</div>
 									)}
 								</div>
 							)}
@@ -449,7 +483,7 @@ function TicketPanel({
 					<input type="date" value={endDate} onChange={e => onChangeEndDate?.(e.target.value)} />
 					<select value={status} onChange={e => onChangeStatus?.(e.target.value)}>
 						<option value="">Tất cả</option>
-						<option value="CREATED">Tạo mới</option>
+						<option value="CREATED">Khởi tạo phiếu</option>
 						<option value="INSPECTING">Đang kiểm tra</option>
 						<option value="PENDING">Chờ duyệt</option>
 						<option value="REPAIRING">Đang sửa chữa</option>
@@ -597,5 +631,3 @@ function SearchIcon() {
 		</svg>
 	);
 }
-
-

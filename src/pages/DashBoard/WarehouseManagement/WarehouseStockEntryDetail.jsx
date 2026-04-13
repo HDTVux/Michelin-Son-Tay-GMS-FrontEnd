@@ -28,23 +28,13 @@ EntryField.propTypes = {
   fullRow: PropTypes.bool,
 };
 
-const EntrySummaryCard = ({ entry, statusLabel, statusValue, isDraft, isConfirming, onConfirm }) => (
+const EntrySummaryCard = ({ entry, statusLabel, statusValue }) => (
   <section className={styles.card}>
     <div className={styles.headerRow}>
       <div className={styles.titleBlock}>
         <div className={styles.entryCode}>{entry?.entryCode || `#${entry?.entryId || '-'}`}</div>
         <span className={`${commonStyles.badge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
       </div>
-      {isDraft ? (
-        <button
-          type="button"
-          className="ui-btn ui-btn--primary"
-          onClick={onConfirm}
-          disabled={isConfirming}
-        >
-          {isConfirming ? 'Đang xác nhận...' : 'Xác nhận phiếu nhập'}
-        </button>
-      ) : null}
     </div>
 
     <div className={styles.detailGrid}>
@@ -69,9 +59,6 @@ EntrySummaryCard.propTypes = {
   }),
   statusLabel: PropTypes.string.isRequired,
   statusValue: PropTypes.string.isRequired,
-  isDraft: PropTypes.bool,
-  isConfirming: PropTypes.bool,
-  onConfirm: PropTypes.func.isRequired,
 };
 
 const EntryItemsCard = ({ items }) => (
@@ -244,9 +231,6 @@ export default function WarehouseStockEntryDetail() {
           entry={entry}
           statusLabel={statusLabel}
           statusValue={statusValue}
-          isDraft={isDraft}
-          isConfirming={isConfirming}
-          onConfirm={handleConfirm}
         />
         <EntryItemsCard items={entry?.items} />
         <EntryAttachmentsCard attachments={entry?.attachments} />
@@ -274,6 +258,16 @@ export default function WarehouseStockEntryDetail() {
         </header>
 
         {bodyContent}
+              {isDraft ? (
+        <button
+          type="button"
+          className="ui-btn ui-btn--primary"
+          onClick={handleConfirm}
+          disabled={isConfirming}
+        >
+          {isConfirming ? 'Đang xác nhận...' : 'Xác nhận phiếu nhập'}
+        </button>
+      ) : null}
       </div>
     </div>
   );

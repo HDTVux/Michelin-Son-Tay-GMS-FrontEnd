@@ -19,6 +19,7 @@ import {
 	validateTextInput,
 } from '../../../components/inputValidation.js';
 const PLACEHOLDER_ROW_COUNT = 15;
+const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
 
 export function formatCurrencyVnd(value) {
 	const n = typeof value === 'number' ? value : Number(value);
@@ -54,6 +55,9 @@ function createEmptyDraftRow() {
 		workCategoryCode: '',
 		workCategoryTaxRuleId: '',
 		itemId: null,
+		unit: '',
+		warehouseId: '',
+		warehouseAvailableQuantity: null,
 		itemTaxRuleId: '',
 		newCategoryName: '',
 		itemName: '',
@@ -85,9 +89,22 @@ function getItemTaxRuleIdFromEstimateItem(it) {
 	);
 }
 
+function getItemUnitFromEstimateItem(it) {
+	return String(
+		it?.unit ??
+			it?.item?.unit ??
+			it?.catalogItem?.unit ??
+			it?.serviceItem?.unit ??
+			it?.product?.unit ??
+			it?.service?.unit ??
+			''
+	).trim();
+}
+
 function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCategory) {
 	const rowNo = rowIndex + 1;
 	const workCategoryId = toIdOrNull(row?.workCategoryId);
+	const isLocked = Boolean(row?.isLockedFromPreviousVersion);
 
 	if (!workCategoryId) {
 		const categoryValidated = validateTextInput(row?.newCategoryName, {
@@ -99,7 +116,7 @@ function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCa
 		if (categoryValidated.error) return `Dòng ${rowNo}: ${categoryValidated.error}`;
 	}
 
-	if (workCategoryId && requireItemForPredefinedCategory && !toIdOrNull(row?.itemId)) {
+	if (workCategoryId && requireItemForPredefinedCategory && !isLocked && !toIdOrNull(row?.itemId)) {
 		return `Dòng ${rowNo}: Vui lòng chọn sản phẩm/dịch vụ.`;
 	}
 
@@ -119,6 +136,22 @@ function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCa
 		integer: true,
 	});
 	if (qtyValidated.error) return `Dòng ${rowNo}: ${qtyValidated.error}`;
+
+	// Nếu đã chọn kho và có số lượng tồn kho của kho đó thì không cho vượt quá.
+	const warehouseId = toIdOrNull(row?.warehouseId ?? row?.warehouse_id);
+	const maxQtyRaw = row?.warehouseAvailableQuantity ?? row?.availableQuantity;
+	let maxQty = Number.NaN;
+	if (typeof maxQtyRaw === 'number') {
+		maxQty = maxQtyRaw;
+	} else {
+		const maxQtyText = String(maxQtyRaw ?? '').trim();
+		maxQty = maxQtyText ? Number(maxQtyText) : Number.NaN;
+	}
+	if (!isLocked && warehouseId && Number.isFinite(maxQty) && maxQty >= 0 && Number.isFinite(qtyValidated.value)) {
+		if (qtyValidated.value > maxQty) {
+			return `Dòng ${rowNo}: Số lượng không được vượt quá tồn kho (${maxQty}) của kho đã chọn.`;
+		}
+	}
 
 	const priceValidated = validateNonNegativeNumber(row?.unitPrice, {
 		fieldLabel: 'Đơn giá',
@@ -160,6 +193,8 @@ function mapEstimateItemToLockedRow(it, idx) {
 	const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
 	const itemTaxRuleId =
 		getItemTaxRuleIdFromEstimateItem(it);
+	const unit = getItemUnitFromEstimateItem(it);
+	const warehouseId = it?.warehouseId ?? it?.warehouse_id ?? it?.warehouse?.warehouseId ?? '';
 	const newCategoryName = String(
 		it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
 	).trim();
@@ -171,6 +206,9 @@ function mapEstimateItemToLockedRow(it, idx) {
 		workCategoryCode,
 		workCategoryTaxRuleId,
 		itemId,
+		unit,
+		warehouseId,
+		warehouseAvailableQuantity: null,
 		itemTaxRuleId,
 		categoryName: newCategoryName,
 		newCategoryName,
@@ -476,12 +514,15 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	// recommendationLastSavedRef tracks what was last confirmed from backend
 
 	const extractRecommendValue = useCallback((res) => {
+		const normalizeRecommendationString = (value) => {
+			const raw = String(value ?? '').trim();
+			const apiStatusValues = new Set(['SUCCESS', 'OK', 'FAILED', 'FAILURE', 'ERROR', 'TRUE', 'FALSE']);
+			return apiStatusValues.has(raw.toUpperCase()) ? '' : raw;
+		};
+
 		const payload = res?.data?.data ?? res?.data ?? res;
-		console.log('[DEBUG recommend] extractRecommendValue raw payload:', JSON.stringify(payload), '| type:', typeof payload);
-		if (payload == null) {
-			console.log('[DEBUG recommend] payload is null/undefined, returning empty');
-			return '';
-		}
+		if (payload == null) return '';
+
 		if (typeof payload === 'string') {
 			const raw = payload.trim();
 			if (raw.startsWith('{') || raw.startsWith('[')) {
@@ -492,46 +533,24 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					// fall back to raw
 				}
 			}
-			console.log('[DEBUG recommend] string payload:', payload);
-			return payload;
+			return normalizeRecommendationString(raw);
 		}
 		if (typeof payload === 'object') {
-			// 1. Explicit recommend/recommendation field
-			if (typeof payload?.recommend === 'string') {
-				console.log('[DEBUG recommend] found payload.recommend:', payload.recommend);
-				return payload.recommend;
-			}
-			if (typeof payload?.recommendation === 'string') {
-				console.log('[DEBUG recommend] found payload.recommendation:', payload.recommendation);
-				return payload.recommendation;
-			}
-			// 2. Explicit data field (could be a string or an object)
-			if (typeof payload?.data === 'string') {
-				console.log('[DEBUG recommend] found payload.data string:', payload.data);
-				return payload.data;
-			}
+			if (typeof payload?.recommend === 'string') return normalizeRecommendationString(payload.recommend);
+			if (typeof payload?.recommendation === 'string') return normalizeRecommendationString(payload.recommendation);
+			if (typeof payload?.recommendationText === 'string') return normalizeRecommendationString(payload.recommendationText);
+			if (typeof payload?.currentRecommend === 'string') return normalizeRecommendationString(payload.currentRecommend);
+
+			if (typeof payload?.data === 'string') return normalizeRecommendationString(payload.data);
+
 			if (typeof payload?.data === 'object' && payload?.data != null) {
 				const nested = payload.data;
-				if (typeof nested?.recommend === 'string') return nested.recommend;
-				if (typeof nested?.recommendation === 'string') return nested.recommendation;
-				// 3. Backend stores recommendation as a simple key-value pair
-				// e.g. {"recommendationText": "some text"} — extract first string value found
-				for (const [k, v] of Object.entries(nested)) {
-					if (typeof v === 'string' && v.trim() !== '') {
-						console.log('[DEBUG recommend] found nested string key:', k, 'value:', v);
-						return v;
-					}
-				}
-			}
-			// 4. No known field — try first non-empty string value in the object
-			for (const [k, v] of Object.entries(payload)) {
-				if (typeof v === 'string' && v.trim() !== '' && !v.match(/^\d{4}-\d{2}-\d{2}/)) {
-					console.log('[DEBUG recommend] fallback string key:', k, 'value:', v);
-					return v;
-				}
+				if (typeof nested?.recommend === 'string') return normalizeRecommendationString(nested.recommend);
+				if (typeof nested?.recommendation === 'string') return normalizeRecommendationString(nested.recommendation);
+				if (typeof nested?.recommendationText === 'string') return normalizeRecommendationString(nested.recommendationText);
+				if (typeof nested?.currentRecommend === 'string') return normalizeRecommendationString(nested.currentRecommend);
 			}
 		}
-		console.log('[DEBUG recommend] extractRecommendValue returning empty');
 		return '';
 	}, []);
 
@@ -540,7 +559,6 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
 		const idNum = toIdOrNull(serviceTicketId);
-		console.log('[DEBUG recommend] effect, serviceTicketId=', serviceTicketId, '→ idNum=', idNum);
 		if (!token || !idNum) return;
 
 		let cancelled = false;
@@ -549,13 +567,11 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setRecommendationLoading(true);
 				const res = await fetchSafetyInspectionCurrentRecommend(idNum, token);
 				if (cancelled) return;
-				console.log('[DEBUG recommend] API response:', JSON.stringify(res));
-				const value = extractRecommendValue(res);
-				console.log('[DEBUG recommend] extracted value:', JSON.stringify(value));
+				const value = extractRecommendValue(res) || localStorage.getItem(getRecommendationStorageKey(idNum)) || '';
 				recommendationLastSavedRef.current = value;
 				setRecommendation(value);
-			} catch (err) {
-				console.warn('[DEBUG recommend] load failed:', err?.message);
+			} catch {
+				// load failed — keep current state
 			} finally {
 				if (!cancelled) setRecommendationLoading(false);
 			}
@@ -585,51 +601,36 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			}
 
 			const nextValue = valueOverride == null ? String(recommendation ?? '') : String(valueOverride);
-			console.log('[DEBUG recommend] save called, nextValue:', JSON.stringify(nextValue), 'ref.current:', JSON.stringify(recommendationLastSavedRef.current));
-			if (nextValue === recommendationLastSavedRef.current) {
-				console.log('[DEBUG recommend] skipped - same as last saved');
-				return false;
-			}
-			console.log('[DEBUG recommend] calling updateSafetyInspectionRecommend, idNum:', idNum, 'value:', nextValue);
+			if (nextValue === recommendationLastSavedRef.current) return false;
 
 			try {
 				setRecommendationSaving(true);
-				const savedValue = nextValue; // capture here so re-fetch doesn't override wrongly
+				const savedValue = nextValue;
 				await updateSafetyInspectionRecommend(idNum, savedValue, token);
+				if (String(savedValue).trim()) {
+					localStorage.setItem(getRecommendationStorageKey(idNum), savedValue);
+				} else {
+					localStorage.removeItem(getRecommendationStorageKey(idNum));
+				}
 				recommendationLastSavedRef.current = savedValue;
-				// Update local state immediately — do NOT wait for re-fetch to fix UI
 				setRecommendation(savedValue);
-				// Re-fetch from backend to sync with actual stored value.
 				try {
 					const refreshed = await fetchSafetyInspectionCurrentRecommend(idNum, token);
-					const confirmed = (() => {
-							const payload = refreshed?.data?.data ?? refreshed?.data ?? refreshed;
-							if (payload == null) return '';
-							if (typeof payload === 'string') {
-								const raw = payload.trim();
-								if (raw.startsWith('{') || raw.startsWith('[')) {
-									try { const p = JSON.parse(raw); return typeof p === 'string' ? p : ''; } catch { return ''; }
-								}
-								return raw;
-							}
-							return '';
-						})();
-					console.log('[DEBUG recommend] after-save fetched value:', JSON.stringify(confirmed));
-					// Only update if backend confirms a value (avoid overriding with stale empty string)
+					const confirmed = extractRecommendValue(refreshed);
 					if (String(confirmed).trim() !== '') {
+						localStorage.setItem(getRecommendationStorageKey(idNum), confirmed);
 						recommendationLastSavedRef.current = confirmed;
 						setRecommendation(confirmed);
 					}
-				} catch (err) {
-					// Save succeeded — re-fetch failure is non-critical.
-					console.warn('[DEBUG recommend] re-fetch failed:', err?.message);
+				} catch {
+					// Save succeeded — re-fetch failure is non-critical
 				}
 				return true;
 			} finally {
 				setRecommendationSaving(false);
 			}
 		},
-		[serviceTicketId, recommendation, recommendationSaving],
+		[serviceTicketId, recommendation, recommendationSaving, extractRecommendValue],
 	);
 
 	useEffect(() => {
@@ -874,6 +875,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const subTotal = it?.subTotal ?? '';
 				const unitPriceWithVat = it?.unitPriceWithVat ?? it?.unitPriceWithVAT ?? '';
 				const subTotalWithVat = it?.subTotalWithVat ?? it?.subTotalWithVAT ?? '';
+				const unit = getItemUnitFromEstimateItem(it);
 				const categoryName =
 					it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
 				const confirmed = getItemCheckedFlag(it);
@@ -899,6 +901,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					workCategoryCode,
 					workCategoryTaxRuleId,
 					itemId,
+					unit,
 					itemTaxRuleId,
 					categoryName,
 					itemName: it?.itemName || '',
@@ -974,6 +977,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				workCategoryCode,
 				workCategoryTaxRuleId: nextWorkCategoryTaxRuleId,
 				itemId: null,
+				unit: '',
 				itemName: '',
 				itemTaxRuleId: '',
 				newCategoryName: found?.categoryName || found?.categoryCode || label,
@@ -1218,6 +1222,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					workCategoryCode: String(it?.workCategory?.categoryCode ?? '').trim(),
 					workCategoryTaxRuleId,
 					itemId: it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null,
+					unit: getItemUnitFromEstimateItem(it),
 					itemTaxRuleId,
 					newCategoryName: String(
 						it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
@@ -1282,6 +1287,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					String(it?.newCategoryName || it?.workCategory?.categoryName || it?.workCategory?.categoryCode || '').trim() ||
 					null;
 				const itemName = String(it?.itemName ?? '').trim() || null;
+				const unit = getItemUnitFromEstimateItem(it) || null;
 				const quantity = toNumberOrZero(it?.quantity);
 				const unitPrice = toNumberOrZero(it?.unitPrice);
 				const taxRuleId = it?.taxRuleId ?? null;
@@ -1292,6 +1298,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					newCategoryName,
 					itemId: itemId ?? null,
 					itemName,
+					unit,
 					quantity,
 					unitPrice,
 					taxRuleId,
@@ -1358,6 +1365,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			.map((r) => {
 				const workCategoryId = toIdOrNull(r?.workCategoryId);
 				const itemId = toIdOrNull(r?.itemId);
+				const warehouseId = toIdOrNull(r?.warehouseId ?? r?.warehouse_id);
 				const taxRuleId = toIdOrNull(getEffectiveTaxRuleId(r));
 				const categoryNameValidated = validateTextInput(r?.newCategoryName, {
 					fieldLabel: 'Hạng mục',
@@ -1387,11 +1395,13 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					newCategoryName: workCategoryId ? null : categoryNameValidated.value || null,
 					itemId: itemId ?? null,
 					itemName: itemNameValidated.value || null,
+					unit: String(r?.unit ?? '').trim() || null,
 					quantity: qtyValidated.value ?? 0,
 					unitPrice: priceValidated.value ?? 0,
 					isChecked: Boolean(r?.confirmed),
 					isRemoved: false,
 				};
+				if (warehouseId) payload.warehouseId = warehouseId;
 				if (taxRuleId) payload.taxRuleId = taxRuleId;
 				return payload;
 			});
@@ -1461,6 +1471,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			.map((r) => {
 				const workCategoryId = toIdOrNull(r?.workCategoryId);
 				const itemId = toIdOrNull(r?.itemId);
+				const warehouseId = toIdOrNull(r?.warehouseId ?? r?.warehouse_id);
 				const taxRuleId = toIdOrNull(getEffectiveTaxRuleId(r));
 				const categoryNameValidated = validateTextInput(r?.newCategoryName, {
 					fieldLabel: 'Hạng mục',
@@ -1490,11 +1501,13 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					newCategoryName: workCategoryId ? null : categoryNameValidated.value || null,
 					itemId: itemId ?? null,
 					itemName: itemNameValidated.value || null,
+					unit: String(r?.unit ?? '').trim() || null,
 					quantity: qtyValidated.value ?? 0,
 					unitPrice: priceValidated.value ?? 0,
 					isChecked: Boolean(r?.confirmed),
 					isRemoved: false,
 				};
+				if (warehouseId) payload.warehouseId = warehouseId;
 				if (taxRuleId) payload.taxRuleId = taxRuleId;
 				return payload;
 			});
@@ -1558,6 +1571,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 							: String(row?.newCategoryName ?? '').trim() || null,
 						itemId: toIdOrNull(row?.itemId),
 						itemName: String(row?.itemName ?? '').trim() || null,
+						unit: String(row?.unit ?? '').trim() || null,
 						quantity: toNumberOrZero(row?.quantity),
 						unitPrice: toNumberOrZero(row?.unitPrice),
 						taxRuleId: toIdOrNull(row?.taxRuleId),

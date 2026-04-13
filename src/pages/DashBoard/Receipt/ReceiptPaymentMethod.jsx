@@ -88,7 +88,6 @@ export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, pr
     const [cashEvidencePreview, setCashEvidencePreview] = useState('');
     const [cashError, setCashError] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const navigate = useNavigate();
 
     const ticketCodeSafe = String(ticketCode || '').trim();
     const totalSafe = useMemo(() => toMoneyNumber(total), [total]);
@@ -149,8 +148,7 @@ export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, pr
             }
         }
         
-        // Chuyển trang ngay sau khi xác nhận thanh toán
-        navigate('/service-ticket-management', { replace: true });
+        // Giữ nguyên trang hiện tại sau khi xác nhận thanh toán
         onClose?.();
     };
 

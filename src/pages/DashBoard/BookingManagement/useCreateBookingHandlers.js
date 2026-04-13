@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 
 import { staffCreateBooking } from '../../../services/bookingService.js';
@@ -67,11 +67,13 @@ const pickNextSlotByRounding30m = (now) => {
 
 export function useCreateBookingHandlers({
 	baseSlots,
+	selectedItems,
 	selectedIds,
 	schedule,
 	scheduleMode,
 	info,
 	canSubmit,
+	submitLocked,
 	slotsLoading,
 	slotsError,
 	createdBookingForCheckIn,
@@ -91,7 +93,9 @@ export function useCreateBookingHandlers({
 	setSubmitError,
 	setSubmitSuccess,
 	setCreatedBookingForCheckIn,
+	setSubmitLocked,
 }) {
+	const submitInFlightRef = useRef(false);
 	const toggle = useCallback(
 		(id) => {
 			setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -132,7 +136,15 @@ export function useCreateBookingHandlers({
 	);
 
 	const handleSubmit = useCallback(async () => {
+		// Guard: block spamming submits.
+		if (submitLocked) {
+			setSubmitError('Vui lòng bấm Làm mới để tạo lịch mới.');
+			return;
+		}
+		if (submitInFlightRef.current) return;
 		if (!canSubmit) return;
+
+		submitInFlightRef.current = true;
 
 		setSubmitError('');
 		setSubmitSuccess('');
@@ -170,15 +182,33 @@ export function useCreateBookingHandlers({
 			const bookingCode = String(bookingCodeRaw ?? '').trim();
 			const msg = bookingCode ? `Tạo booking thành công. Mã: ${bookingCode}` : 'Tạo booking thành công.';
 
-			// Chỉ truyền ID (bookingCode) sang Check-in để phiếu tự lookup thông tin khách/booking từ backend.
-			setCreatedBookingForCheckIn(bookingCode ? { bookingCode } : null);
+			const selectedSnapshot = Array.isArray(selectedItems) ? selectedItems : [];
+			const serviceItems = selectedSnapshot.filter((item) => String(item?.itemType || '').toUpperCase() === 'SERVICE');
+			const partItems = selectedSnapshot.filter((item) => String(item?.itemType || '').toUpperCase() === 'PART');
+
+			setCreatedBookingForCheckIn(bookingCode ? {
+				bookingCode,
+				booking: {
+					bookingCode,
+					scheduledDate: schedule?.date || '',
+					scheduledTime: schedule?.time || '',
+					customerName: String(info?.name ?? '').trim(),
+					customerPhone: String(info?.phone ?? '').trim(),
+					selectedItems: selectedSnapshot,
+					services: serviceItems,
+					parts: partItems,
+					partItems,
+				},
+			} : null);
 
 			setSubmitSuccess(msg);
+			setSubmitLocked(true);
 			toast(msg, { containerId: 'app-toast' });
 		} catch (err) {
 			setSubmitError(err?.message || 'Không thể tạo lịch hẹn.');
 		} finally {
 			setSubmitting(false);
+			submitInFlightRef.current = false;
 		}
 	}, [
 		canSubmit,
@@ -187,23 +217,27 @@ export function useCreateBookingHandlers({
 		info?.phone,
 		schedule?.date,
 		schedule?.time,
+		selectedItems,
 		selectedIds,
+		submitLocked,
 		setCreatedBookingForCheckIn,
 		setSubmitError,
 		setSubmitSuccess,
+		setSubmitLocked,
 		setSubmitting,
 	]);
 
 	const handleGoToCheckIn = useCallback(() => {
 		const code = String(createdBookingForCheckIn?.bookingCode ?? '').trim();
 		if (code) {
-			navigate('/check-in', { state: { bookingCode: code } });
+			navigate('/check-in', { state: { bookingCode: code, booking: createdBookingForCheckIn?.booking || null } });
 			return;
 		}
 		navigate('/check-in');
-	}, [createdBookingForCheckIn?.bookingCode, navigate]);
+	}, [createdBookingForCheckIn?.booking, createdBookingForCheckIn?.bookingCode, navigate]);
 
 	const handleReset = useCallback(() => {
+		submitInFlightRef.current = false;
 		setSelectedIds([]);
 		setSearch('');
 		setFilter('all');
@@ -218,6 +252,7 @@ export function useCreateBookingHandlers({
 		setSubmitError('');
 		setSubmitSuccess('');
 		setCreatedBookingForCheckIn(null);
+		setSubmitLocked(false);
 	}, [
 		setAvailableSlots,
 		setCreatedBookingForCheckIn,
@@ -232,6 +267,7 @@ export function useCreateBookingHandlers({
 		setSlotsLoading,
 		setSubmitError,
 		setSubmitSuccess,
+		setSubmitLocked,
 		setSubmitting,
 	]);
 

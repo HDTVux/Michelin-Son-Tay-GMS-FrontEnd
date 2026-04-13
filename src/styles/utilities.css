@@ -82,6 +82,61 @@
   cursor: not-allowed;
 }
 
+.global-request-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(3px);
+}
+
+.global-request-loading__panel {
+  min-width: 168px;
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.24);
+}
+
+.global-request-loading__spinner {
+  width: 42px;
+  height: 42px;
+  border: 4px solid #dbeafe;
+  border-top-color: #1e90ff;
+  border-right-color: #1e90ff;
+  border-radius: 50%;
+  animation: global-request-loading-spin 0.72s linear infinite;
+}
+
+.global-request-loading__text {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+@keyframes global-request-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media print {
+  .global-request-loading {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+
 .ui-btn--primary {
   background: #1E90FF;
   color: #fff;

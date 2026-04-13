@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 
@@ -25,15 +25,23 @@ function joinDateAndTime(date, time) {
 }
 
 export default function EstimateTimePopup({ open, initialDateTime, onClose, onSubmit }) {
-    const [date, setDate] = useState('');
-    const [time, setTime] = useState('');
+    const initialParts = useMemo(() => splitDateTimeLocal(initialDateTime), [initialDateTime]);
+    const [date, setDate] = useState(() => initialParts.date);
+    const [hour, setHour] = useState(() => (initialParts.time ? String(initialParts.time).slice(0, 2) : ''));
+    const [minute, setMinute] = useState(() => (initialParts.time ? String(initialParts.time).slice(3, 5) : ''));
 
-    useEffect(() => {
-        if (!open) return;
-        const parts = splitDateTimeLocal(initialDateTime);
-        setDate(parts.date);
-        setTime(parts.time);
-    }, [initialDateTime, open]);
+    const hourOptions = useMemo(() => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')), []);
+    const minuteOptions = useMemo(() => Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')), []);
+
+    const timeNormalized = useMemo(() => {
+        const hh = String(hour || '').trim();
+        const mm = String(minute || '').trim();
+        if (!/^([01]\d|2[0-3])$/.test(hh)) return '';
+        if (!/^[0-5]\d$/.test(mm)) return '';
+        return `${hh}:${mm}`;
+    }, [hour, minute]);
+
+    const canConfirm = Boolean(date) && Boolean(timeNormalized);
 
     if (!open) return null;
 
@@ -69,24 +77,50 @@ export default function EstimateTimePopup({ open, initialDateTime, onClose, onSu
 
                     <div className="ui-field">
                         <label htmlFor="estimate-time-clock">Giờ ước tính</label>
-                        <input
-                            id="estimate-time-clock"
-                            type="time"
-                            value={time}
-                            onChange={(e) => setTime(e.target.value)}
-                        />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div>
+                                <label htmlFor="estimate-time-hour" className={styles.srOnly}>Giờ</label>
+                                <select
+                                    id="estimate-time-hour"
+                                    value={hour}
+                                    onChange={(e) => setHour(e.target.value)}
+                                >
+                                    <option value="">Giờ</option>
+                                    {hourOptions.map((h) => (
+                                        <option key={h} value={h}>{h}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="estimate-time-minute" className={styles.srOnly}>Phút</label>
+                                <select
+                                    id="estimate-time-minute"
+                                    value={minute}
+                                    onChange={(e) => setMinute(e.target.value)}
+                                >
+                                    <option value="">Phút</option>
+                                    {minuteOptions.map((m) => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
                         <div className={styles.maintenanceSlotHint}>Chọn ngày và giờ dự kiến hoàn tất sửa chữa.</div>
                     </div>
 
                     <div className="ui-actions ui-actions--end" style={{ marginTop: 12 }}>
-                        <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose}>
-                            Hủy
+                        <button
+                            type="button"
+                            className="ui-btn ui-btn--ghost"
+                            onClick={() => onSubmit?.({ estimatedAt: '' })}
+                        >
+                            Bỏ qua
                         </button>
                         <button
                             type="button"
                             className="ui-btn ui-btn--primary"
-                            onClick={() => onSubmit?.({ estimatedAt: joinDateAndTime(date, time) })}
-                            disabled={!date || !time}
+                            onClick={() => onSubmit?.({ estimatedAt: joinDateAndTime(date, timeNormalized) })}
+                            disabled={!canConfirm}
                         >
                             Xác nhận báo giá
                         </button>

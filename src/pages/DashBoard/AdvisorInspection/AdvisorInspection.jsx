@@ -13,17 +13,39 @@ import {
   fetchTechniciansWorkload,
   fetchTicketAssignments,
   swapServiceTicketQueue,
-  fetchServiceTicketAdvisorRecommend,
+  fetchAdvisorTicketRepairHistory,
+  fetchSafetyInspectionCurrentRecommend,
 } from '../../../services/serviceTicketService';
 import { fetchCheckInAdvisors } from '../../../services/checkInService';
 import { formatTimeHHmm, parseBackendDateTime } from '../../../components/timeUtils.js';
 import { getServiceTicketStatusTextVi, normalizeServiceTicketStatusCode } from '../../../components/statusUtils.js';
+import { tryGetJwtPayload } from '../../../services/tokenUtils';
 import styles from './AdvisorInspection.module.css';
 
 const STAFF_ROLE = { ADVISOR: 'ADVISOR' };
 const ADVISOR_INSPECTION_DAY_STORAGE_KEY = 'advisorInspection.activeDay';
 
 const getToken = () => localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+const toPositiveStaffId = (value) => {
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? Math.trunc(id) : null;
+};
+const getCurrentStaffId = (tokenArg) => {
+  let profileId = null;
+  try {
+    const raw = localStorage.getItem('staffProfile');
+    if (raw) {
+      const profile = JSON.parse(raw);
+      profileId = toPositiveStaffId(profile?.staffId ?? profile?.id);
+    }
+  } catch {
+    profileId = null;
+  }
+  if (profileId != null) return profileId;
+
+  const payload = tryGetJwtPayload(tokenArg || getToken());
+  return toPositiveStaffId(payload?.staffId ?? payload?.staff_id ?? payload?.id);
+};
 const getAuthFingerprint = () => {
   const token = getToken();
   if (!token) return '';
@@ -102,11 +124,59 @@ const readStaffRolesFromStorage = () => {
 const getTicketCode = (ticket) => ticket?.ticketCode || ticket?.code || '';
 const getTicketId = (ticket) => {
   if (ticket?.serviceTicketId != null) return Number(ticket.serviceTicketId);
+  if (ticket?.serviceTicketID != null) return Number(ticket.serviceTicketID);
+  if (ticket?.service_ticket_id != null) return Number(ticket.service_ticket_id);
   if (ticket?.ticketId != null) return Number(ticket.ticketId);
+  if (ticket?.ticketID != null) return Number(ticket.ticketID);
+  if (ticket?.ticket_id != null) return Number(ticket.ticket_id);
   if (ticket?.id != null) return Number(ticket.id);
+  if (ticket?.serviceTicket?.serviceTicketId != null) return Number(ticket.serviceTicket.serviceTicketId);
+  if (ticket?.serviceTicket?.id != null) return Number(ticket.serviceTicket.id);
+  if (ticket?.ticket?.serviceTicketId != null) return Number(ticket.ticket.serviceTicketId);
+  if (ticket?.ticket?.id != null) return Number(ticket.ticket.id);
   return null;
 };
-const getTicketStatus = (ticket) => ticket?.status || ticket?.ticketStatus || '';
+const getTicketCustomerId = (ticket) => {
+  const candidates = [
+    ticket?.customerId,
+    ticket?.customerID,
+    ticket?.customer_id,
+    ticket?.customer?.customerId,
+    ticket?.customer?.id,
+    ticket?.serviceTicket?.customerId,
+    ticket?.serviceTicket?.customer?.customerId,
+    ticket?.serviceTicket?.customer?.id,
+    ticket?.ticket?.customerId,
+    ticket?.ticket?.customer?.customerId,
+    ticket?.ticket?.customer?.id,
+  ];
+  for (const value of candidates) {
+    const id = Number(value);
+    if (Number.isFinite(id) && id > 0) return id;
+  }
+  return null;
+};
+const getTicketVehicleId = (ticket) => {
+  const candidates = [
+    ticket?.vehicleId,
+    ticket?.vehicleID,
+    ticket?.vehicle_id,
+    ticket?.vehicle?.vehicleId,
+    ticket?.vehicle?.id,
+    ticket?.serviceTicket?.vehicleId,
+    ticket?.serviceTicket?.vehicle?.vehicleId,
+    ticket?.serviceTicket?.vehicle?.id,
+    ticket?.ticket?.vehicleId,
+    ticket?.ticket?.vehicle?.vehicleId,
+    ticket?.ticket?.vehicle?.id,
+  ];
+  for (const value of candidates) {
+    const id = Number(value);
+    if (Number.isFinite(id) && id > 0) return id;
+  }
+  return null;
+};
+const getTicketStatus = (ticket) => ticket?.status || ticket?.ticketStatus || ticket?.statusCode || '';
 const getTicketCustomerPhone = (ticket) =>
   ticket?.customerPhone
   || ticket?.phone
@@ -117,10 +187,53 @@ const getTicketCustomerPhone = (ticket) =>
 const toDateKey = (value) => {
   const raw = String(value || '').trim();
   if (!raw) return '';
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  const viMatch = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(raw);
+  if (viMatch) {
+    const day = String(viMatch[1]).padStart(2, '0');
+    const month = String(viMatch[2]).padStart(2, '0');
+    return `${viMatch[3]}-${month}-${day}`;
+  }
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return raw.slice(0, 10);
   const offsetMs = parsed.getTimezoneOffset() * 60000;
   return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+const getTicketAppointmentDateRaw = (ticket) =>
+  ticket?.appointmentDate
+  || ticket?.bookingDate
+  || ticket?.scheduledDate
+  || ticket?.booking?.scheduledDate
+  || ticket?.serviceTicket?.appointmentDate
+  || ticket?.serviceTicket?.bookingDate
+  || ticket?.serviceTicket?.scheduledDate
+  || ticket?.serviceTicket?.booking?.scheduledDate
+  || '';
+const getTicketAppointmentTimeRaw = (ticket) =>
+  ticket?.appointmentTime
+  || ticket?.bookingTime
+  || ticket?.scheduledTime
+  || ticket?.booking?.scheduledTime
+  || ticket?.serviceTicket?.appointmentTime
+  || ticket?.serviceTicket?.bookingTime
+  || ticket?.serviceTicket?.scheduledTime
+  || ticket?.serviceTicket?.booking?.scheduledTime
+  || '';
+const getTicketAppointmentDateKey = (ticket) => toDateKey(getTicketAppointmentDateRaw(ticket));
+const filterTicketsByAppointmentDate = (rows, fromDate, toDate) => {
+  const list = Array.isArray(rows) ? rows : [];
+  const startKey = toDateKey(fromDate);
+  const endKey = toDateKey(toDate || fromDate);
+  if (!startKey && !endKey) return list;
+
+  return list.filter((ticket) => {
+    const appointmentKey = getTicketAppointmentDateKey(ticket);
+    if (!appointmentKey) return false;
+    if (startKey && appointmentKey < startKey) return false;
+    if (endKey && appointmentKey > endKey) return false;
+    return true;
+  });
 };
 const getTicketCreateDateKey = (ticket) =>
   toDateKey(
@@ -256,6 +369,133 @@ const sortTicketsByQueueOrder = (rows) => {
     return aid - bid;
   });
 };
+const compactText = (value, fallback = '-') => {
+  const text = String(value ?? '').trim();
+  return text || fallback;
+};
+const unwrapApiPayload = (response) => response?.data?.data ?? response?.data ?? response;
+const extractRepairHistoryRows = (response) => {
+  const payload = unwrapApiPayload(response);
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.content)) return payload.content;
+  if (Array.isArray(payload?.records)) return payload.records;
+  if (Array.isArray(payload?.history)) return payload.history;
+  if (Array.isArray(payload?.histories)) return payload.histories;
+  if (Array.isArray(payload?.tickets)) return payload.tickets;
+  if (Array.isArray(payload?.serviceTickets)) return payload.serviceTickets;
+  if (payload && typeof payload === 'object') return [payload];
+  return [];
+};
+const extractRecommendationText = (response) => {
+  const payload = unwrapApiPayload(response);
+  if (payload == null) return '';
+
+  if (typeof payload === 'string') {
+    const text = payload.trim();
+    return ['SUCCESS', 'OK', 'FAILED', 'FAILURE', 'ERROR'].includes(text.toUpperCase()) ? '' : text;
+  }
+
+  if (typeof payload === 'object') {
+    const value =
+      payload?.recommend
+      ?? payload?.recommendation
+      ?? payload?.recommendationText
+      ?? payload?.currentRecommend
+      ?? payload?.advisorRecommendation
+      ?? payload?.data?.recommend
+      ?? payload?.data?.recommendation
+      ?? payload?.data?.recommendationText
+      ?? payload?.data?.currentRecommend;
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  return '';
+};
+const getHistoryTicketCode = (row) =>
+  compactText(row?.ticketCode || row?.serviceTicketCode || row?.code || row?.serviceTicket?.ticketCode || row?.ticket?.ticketCode);
+const getHistoryDateTime = (row) =>
+  row?.completedAt
+  || row?.handoverAt
+  || row?.receivedAt
+  || row?.createdAt
+  || row?.serviceDate
+  || row?.date
+  || row?.serviceTicket?.completedAt
+  || row?.serviceTicket?.receivedAt
+  || '';
+const getRepairHistoryCompareDateTime = (row) => {
+  const scheduledDate = String(
+    row?.scheduledDate
+    || row?.appointmentDate
+    || row?.bookingDate
+    || row?.booking?.scheduledDate
+    || '',
+  ).trim();
+  const scheduledTime = formatTimeHHmm(
+    row?.scheduledTime
+    || row?.appointmentTime
+    || row?.bookingTime
+    || row?.booking?.scheduledTime
+    || '',
+  );
+  const scheduledRaw = scheduledDate ? `${scheduledDate} ${scheduledTime || ''}`.trim() : '';
+
+  return row?.receivedAt
+    || row?.createdAt
+    || row?.serviceTicket?.receivedAt
+    || row?.serviceTicket?.createdAt
+    || scheduledRaw
+    || row?.completedAt
+    || row?.handoverAt
+    || row?.date
+    || '';
+};
+const hasTimeComponent = (value) => /(?:T|\s)\d{1,2}:\d{2}/.test(String(value || '').trim());
+const getRepairHistoryTimestampFromRaw = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const parsed = parseBackendDateTime(raw);
+  if (parsed) return parsed.getTime();
+  const fallback = Date.parse(raw);
+  return Number.isFinite(fallback) ? fallback : null;
+};
+const getRepairHistoryTimestamp = (row) => getRepairHistoryTimestampFromRaw(getRepairHistoryCompareDateTime(row));
+const getRepairHistoryBestTimestamp = (...rows) => {
+  const candidates = rows
+    .map((row) => getRepairHistoryCompareDateTime(row))
+    .map((raw) => ({ raw, timestamp: getRepairHistoryTimestampFromRaw(raw) }))
+    .filter((item) => item.timestamp != null);
+
+  const timedCandidate = candidates.find((item) => hasTimeComponent(item.raw));
+  return timedCandidate?.timestamp ?? candidates[0]?.timestamp ?? null;
+};
+const formatHistoryDateTime = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  const parsed = parseBackendDateTime(raw);
+  if (!parsed) return raw;
+  return parsed.toLocaleString('vi-VN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+};
+const getRepairHistoryRecommendation = (row) =>
+  compactText(
+    row?.recommend
+    || row?.recommendation
+    || row?.recommendationText
+    || row?.currentRecommend
+    || row?.advisorRecommendation
+    || row?.safetyInspection?.recommend
+    || row?.safetyInspection?.recommendation,
+    '',
+  );
+const getRepairHistoryRowKey = (row, index) =>
+  String(getTicketId(row) || getHistoryTicketCode(row) || index);
 const getSwappedTicketOrder = (rows, sourceTicketId, targetTicketId) => {
   const list = Array.isArray(rows) ? rows : [];
   const fromIndex = list.findIndex((t) => Number(getTicketId(t)) === Number(sourceTicketId));
@@ -365,6 +605,51 @@ const isActiveTechnicianAssignment = (assignment) =>
   String(assignment?.roleInTicket || assignment?.role || '').trim().toUpperCase() === 'TECHNICIAN'
   && String(assignment?.status || '').trim().toUpperCase() !== 'CANCELLED';
 
+const isActiveAdvisorAssignment = (assignment) =>
+  String(assignment?.roleInTicket || assignment?.role || '').trim().toUpperCase() === 'ADVISOR'
+  && String(assignment?.status || '').trim().toUpperCase() !== 'CANCELLED';
+
+const getTicketAdvisorId = (ticket) => toPositiveStaffId(
+  ticket?.advisorId
+  ?? ticket?.assignedAdvisorId
+  ?? ticket?.advisor?.staffId
+  ?? ticket?.advisor?.id
+  ?? ticket?.assignedAdvisor?.staffId
+  ?? ticket?.assignedAdvisor?.id,
+);
+
+const filterTicketsByCurrentAdvisor = async (list, token, currentAdvisorId) => {
+  if (!currentAdvisorId) return Array.isArray(list) ? list : [];
+
+  const rows = await Promise.allSettled(
+    (Array.isArray(list) ? list : []).map(async (ticket) => {
+      const ticketId = getTicketId(ticket);
+      if (!Number.isFinite(ticketId) || ticketId <= 0) {
+        const directAdvisorId = getTicketAdvisorId(ticket);
+        return { ticket, keep: directAdvisorId == null || directAdvisorId === currentAdvisorId };
+      }
+
+      const res = await fetchTicketAssignments(ticketId, token);
+      const assignments = (Array.isArray(res?.data) ? res.data : [])
+        .map(normalizeAssignment)
+        .filter(Boolean);
+      const activeAdvisor = assignments.find(isActiveAdvisorAssignment);
+
+      if (!activeAdvisor) {
+        const directAdvisorId = getTicketAdvisorId(ticket);
+        return { ticket, keep: directAdvisorId == null || directAdvisorId === currentAdvisorId };
+      }
+
+      return { ticket, keep: Number(activeAdvisor.staffId) === Number(currentAdvisorId) };
+    }),
+  );
+
+  return rows
+    .map((row, index) => (row.status === 'fulfilled' ? row.value : { ticket: list[index], keep: true }))
+    .filter((row) => row.keep)
+    .map((row) => row.ticket);
+};
+
 export default function AdvisorInspection() {
   const navigate = useNavigate();
   const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
@@ -387,15 +672,16 @@ export default function AdvisorInspection() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
+  const [transferredOutTicketCodes, setTransferredOutTicketCodes] = useState(() => new Set());
   const [dragTicketId, setDragTicketId] = useState(null);
   const [swapping, setSwapping] = useState(false);
 
-  // Khuyến nghị modal
-  const [showRecommendModal, setShowRecommendModal] = useState(false);
-  const [recommendTicket, setRecommendTicket] = useState(null);
-  const [recommendData, setRecommendData] = useState(null);
-  const [recommendLoading, setRecommendLoading] = useState(false);
-  const [_recommendError, setRecommendError] = useState('');
+  // Lịch sử sửa chữa modal
+  const [showRepairHistoryModal, setShowRepairHistoryModal] = useState(false);
+  const [repairHistoryTicket, setRepairHistoryTicket] = useState(null);
+  const [repairHistoryRows, setRepairHistoryRows] = useState([]);
+  const [repairHistoryLoading, setRepairHistoryLoading] = useState(false);
+  const [repairHistoryError, setRepairHistoryError] = useState('');
 
   // Workload map
   const [workloadMap, setWorkloadMap] = useState({});
@@ -454,12 +740,21 @@ export default function AdvisorInspection() {
           : Array.isArray(response?.data)
             ? response.data
             : [];
-        const sortedList = sortTicketsByQueueOrder(list);
+        const sessionVisibleList = list.filter((ticket) => {
+          const code = String(getTicketCode(ticket) || '').trim();
+          return !code || !transferredOutTicketCodes.has(code);
+        });
+        const currentAdvisorId = getCurrentStaffId(token);
+        const visibleList = await filterTicketsByCurrentAdvisor(sessionVisibleList, token, currentAdvisorId);
+        const appointmentVisibleList = filterTicketsByAppointmentDate(visibleList, dateFrom, dateTo);
+        if (ignore) return;
+        const sortedList = sortTicketsByQueueOrder(appointmentVisibleList);
         setTickets(sortedList);
+        const hiddenCount = list.length - appointmentVisibleList.length;
         setTotalPages(Math.max(1, Number(pageData?.totalPages) || 1));
-        setTotalElements(Math.max(0, Number(pageData?.totalElements) || 0));
+        setTotalElements(Math.max(0, (Number(pageData?.totalElements) || 0) - hiddenCount));
         cacheStaffNames(
-          list.map((t) => ({
+          appointmentVisibleList.map((t) => ({
             staffId: t?.advisorId || t?.assignedAdvisorId,
             fullName: t?.advisorName || t?.assignedAdvisorName || t?.advisor?.fullName,
           })),
@@ -558,7 +853,7 @@ export default function AdvisorInspection() {
 
     run();
     return () => { ignore = true; };
-  }, [filters, reloadKey]);
+  }, [filters, reloadKey, transferredOutTicketCodes, dateFrom, dateTo]);
 
   // Load page-level assignments (for "has technician" check)
   useEffect(() => {
@@ -660,12 +955,8 @@ export default function AdvisorInspection() {
   };
 
   const formatAppointmentDateTime = (ticket) => {
-    const dateRaw = String(
-      ticket?.appointmentDate || ticket?.bookingDate || ticket?.scheduledDate || '',
-    ).trim();
-    const timeRaw = formatTimeHHmm(
-      ticket?.appointmentTime || ticket?.bookingTime || ticket?.scheduledTime || '',
-    );
+    const dateRaw = String(getTicketAppointmentDateRaw(ticket)).trim();
+    const timeRaw = formatTimeHHmm(getTicketAppointmentTimeRaw(ticket));
 
     if (!dateRaw && !timeRaw) return '-';
 
@@ -720,6 +1011,105 @@ export default function AdvisorInspection() {
       }
       return changed ? next : prev;
     });
+  };
+
+  const handleOpenRepairHistory = async (ticket) => {
+    const token = getToken();
+    const code = getTicketCode(ticket);
+    const ticketId = getTicketId(ticket);
+    let historyTicket = { ...ticket, ticketCode: code, ticketId };
+    let customerId = getTicketCustomerId(ticket);
+    let vehicleId = getTicketVehicleId(ticket);
+
+    setRepairHistoryTicket(historyTicket);
+    setRepairHistoryRows([]);
+    setRepairHistoryError('');
+    setRepairHistoryLoading(true);
+    setShowRepairHistoryModal(true);
+
+    if (!token) {
+      setRepairHistoryError('Vui lòng đăng nhập để xem lịch sử sửa chữa.');
+      setRepairHistoryLoading(false);
+      return;
+    }
+
+    try {
+      if ((!customerId || !vehicleId) && code) {
+        try {
+          const detailRes = await fetchServiceTicketDetail(code, token);
+          const detail = unwrapApiPayload(detailRes);
+          if (detail && typeof detail === 'object') {
+            historyTicket = { ...historyTicket, ...detail, ticketCode: code, ticketId };
+            customerId = getTicketCustomerId(detail) || customerId;
+            vehicleId = getTicketVehicleId(detail) || vehicleId;
+            setRepairHistoryTicket(historyTicket);
+          }
+        } catch {
+          // Vẫn thử gọi history bằng ticketCode/serviceTicketId nếu detail không tải được.
+        }
+      }
+
+      if (!customerId || !vehicleId) {
+        setRepairHistoryRows([]);
+        setRepairHistoryError('Không đủ customerId hoặc vehicleId để tải lịch sử sửa chữa.');
+        return;
+      }
+
+      const response = await fetchAdvisorTicketRepairHistory({
+        customerId,
+        vehicleId,
+      }, token);
+      const currentCode = String(code || '').trim();
+      const currentTimestamp = getRepairHistoryBestTimestamp(historyTicket, ticket);
+      const rows = extractRepairHistoryRows(response)
+        .filter((row) => {
+          if (normalizeServiceTicketStatus(row) !== 'PAID') return false;
+
+          const rowTicketId = getTicketId(row);
+          const rowCode = String(getTicketCode(row) || '').trim();
+          if (ticketId && rowTicketId && Number(rowTicketId) === Number(ticketId)) return false;
+          if (currentCode && rowCode && rowCode === currentCode) return false;
+
+          const rowTimestamp = getRepairHistoryTimestamp(row);
+          if (currentTimestamp != null && rowTimestamp != null) {
+            if (rowTimestamp > currentTimestamp) return false;
+            if (
+              rowTimestamp === currentTimestamp
+              && ticketId
+              && rowTicketId
+              && Number(rowTicketId) >= Number(ticketId)
+            ) {
+              return false;
+            }
+          }
+
+          return true;
+        })
+        .sort((a, b) => (getRepairHistoryTimestamp(b) ?? 0) - (getRepairHistoryTimestamp(a) ?? 0));
+
+      const rowsWithRecommendations = await Promise.all(rows.map(async (row) => {
+        const rowTicketId = getTicketId(row);
+        if (!rowTicketId) return row;
+        try {
+          const recommendRes = await fetchSafetyInspectionCurrentRecommend(rowTicketId, token);
+          return {
+            ...row,
+            currentRecommend: extractRecommendationText(recommendRes),
+          };
+        } catch {
+          return {
+            ...row,
+            currentRecommend: getRepairHistoryRecommendation(row),
+          };
+        }
+      }));
+      setRepairHistoryRows(rowsWithRecommendations);
+    } catch (err) {
+      setRepairHistoryRows([]);
+      setRepairHistoryError(err?.message || 'Không tải được lịch sử sửa chữa.');
+    } finally {
+      setRepairHistoryLoading(false);
+    }
   };
 
   // Open modal
@@ -806,10 +1196,11 @@ export default function AdvisorInspection() {
   const handleChangeAdvisor = async () => {
     const token = getToken();
     const ticketCode = getTicketCode(selectedTicket);
+    const normalizedTicketCode = String(ticketCode || '').trim();
     const currentAdvisorId = Number(modalAdvisor?.staffId);
     const newAdvisorId = Number(selectedNewAdvisorId);
 
-    if (!token || !ticketCode || !Number.isFinite(currentAdvisorId) || currentAdvisorId <= 0) {
+    if (!token || !normalizedTicketCode || !Number.isFinite(currentAdvisorId) || currentAdvisorId <= 0) {
       setModalError('Không đủ dữ liệu để đổi cố vấn viên.');
       return;
     }
@@ -833,11 +1224,30 @@ export default function AdvisorInspection() {
 
     setLoadingModal(true);
     try {
-      await changeAdvisorByAdvisor(ticketCode, newAdvisorId, 'đổi advisor từ trang advisor', token);
+      await changeAdvisorByAdvisor(normalizedTicketCode, newAdvisorId, 'đổi advisor từ trang advisor', token);
       const selectedTicketId = getTicketId(selectedTicket);
+      setTransferredOutTicketCodes((prev) => {
+        const next = new Set(prev);
+        next.add(normalizedTicketCode);
+        return next;
+      });
+      setTickets((prev) => prev.filter((ticketItem) => {
+        const sameCode = String(getTicketCode(ticketItem) || '').trim() === normalizedTicketCode;
+        const ticketItemId = getTicketId(ticketItem);
+        const sameId = Number.isFinite(selectedTicketId)
+          && Number.isFinite(ticketItemId)
+          && Number(ticketItemId) === Number(selectedTicketId);
+        return !(sameCode || sameId);
+      }));
+      setTotalElements((prev) => Math.max(0, Number(prev || 0) - 1));
       if (Number.isFinite(selectedTicketId)) {
-        setTickets((prev) => prev.filter((ticketItem) => Number(getTicketId(ticketItem)) !== Number(selectedTicketId)));
+        setModalPageAssignments((prev) => {
+          const next = new Map(prev);
+          next.delete(Number(selectedTicketId));
+          return next;
+        });
       }
+      setReloadKey((prev) => prev + 1);
       toast.success('Đã đổi cố vấn viên. Phiếu đã được chuyển sang cố vấn viên mới.');
       handleCloseModal();
     } catch (err) {
@@ -1212,7 +1622,7 @@ export default function AdvisorInspection() {
                 onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
               >
                 <option value="">Tất cả</option>
-                <option value="CREATED">Tạo mới</option>
+                <option value="CREATED">Khởi tạo phiếu</option>
                 <option value="INSPECTING">Đang kiểm tra</option>
                 <option value="INSPECTED">Đã kiểm tra</option>
                 <option value="PENDING">Chờ xử lý</option>
@@ -1335,35 +1745,12 @@ export default function AdvisorInspection() {
                 Mở
               </button>
               <button
-                className={`${styles.actionBtn} ${styles.recommendBtn}`}
-                onClick={async () => {
-                  if (!code) return;
-                  const ticketId = getTicketId(ticket);
-                  setRecommendTicket({ ...ticket, ticketCode: code, ticketId });
-                  setRecommendData(null);
-                  setRecommendError('');
-                  setRecommendLoading(true);
-                  setShowRecommendModal(true);
-                  const token = getToken();
-                  if (!ticketId || !token) {
-                    setRecommendError('Không tìm thấy thông tin phiếu.');
-                    setRecommendLoading(false);
-                    return;
-                  }
-                  try {
-                    const res = await fetchServiceTicketAdvisorRecommend(ticketId, token);
-                    const value = res?.data?.data ?? res?.data ?? res;
-                    setRecommendData(typeof value === 'string' ? value.trim() : '');
-                  } catch {
-                    setRecommendData('');
-                  } finally {
-                    setRecommendLoading(false);
-                  }
-                }}
-                disabled={!code || swapping}
-                title="Xem khuyến nghị của phiếu"
+                className={`${styles.actionBtn} ${styles.historyBtn}`}
+                onClick={() => handleOpenRepairHistory(ticket)}
+                disabled={swapping || (!code && !ticketId)}
+                title="Xem lịch sử sửa chữa của xe"
               >
-                Xem khuyến nghị
+                Lịch sử sửa chữa
               </button>
               {hasTech ? (
                 <button
@@ -1713,71 +2100,97 @@ export default function AdvisorInspection() {
         </div>
       )}
 
-      {/* Modal xem khuyến nghị phiếu cÅ© */}
-      {showRecommendModal && recommendTicket && (
-        <div className={styles.modalOverlay} onClick={() => setShowRecommendModal(false)}>
+      {/* Modal xem lịch sử sửa chữa */}
+      {showRepairHistoryModal && repairHistoryTicket && (
+        <div className={styles.modalOverlay} onClick={() => setShowRepairHistoryModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>Khuyến nghị phiếu trước</h3>
-              <button className={styles.modalClose} onClick={() => setShowRecommendModal(false)}>×</button>
+              <h3 className={styles.modalTitle}>Lịch sử sửa chữa</h3>
+              <button className={styles.modalClose} onClick={() => setShowRepairHistoryModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {/* Thông tin phiếu */}
-              <div style={{ marginBottom: 16, padding: '10px 14px', background: '#f9fafb', borderRadius: 8, fontSize: 13 }}>
-                <div style={{ display: 'flex', gap: 24 }}>
-                  <div>
-                    <span style={{ color: '#6b7280' }}>Phiếu hiện tại: </span>
-                    <strong>{recommendTicket.ticketCode || '-'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#6b7280' }}>Biển số: </span>
-                    <strong>{recommendTicket.licensePlate || '-'}</strong>
-                  </div>
+              <div className={styles.historySummary}>
+                <div>
+                  <span>Phiếu hiện tại</span>
+                  <strong>{repairHistoryTicket.ticketCode || getTicketCode(repairHistoryTicket) || '-'}</strong>
+                </div>
+                <div>
+                  <span>Biển số</span>
+                  <strong>{repairHistoryTicket.licensePlate || repairHistoryTicket.vehicle?.licensePlate || '-'}</strong>
+                </div>
+                <div>
+                  <span>Vehicle ID</span>
+                  <strong>{getTicketVehicleId(repairHistoryTicket) || '-'}</strong>
                 </div>
               </div>
 
-              {/* Loading */}
-              {recommendLoading && (
-                <div style={{ textAlign: 'center', padding: '20px 0', color: '#6b7280' }}>
-                  Đang tải khuyến nghị...
+              {repairHistoryLoading && (
+                <div className={styles.emptyState}>
+                  <p>Đang tải lịch sử sửa chữa...</p>
                 </div>
               )}
 
-              {/* Lỗi / không có khuyến nghị */}
-              {!recommendLoading && !recommendData && (
-                <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af' }}>
-                  Không có khuyến nghị từ phiếu trước cho xe này.
+              {!repairHistoryLoading && repairHistoryError && (
+                <div className={styles.errorBanner}>{repairHistoryError}</div>
+              )}
+
+              {!repairHistoryLoading && !repairHistoryError && repairHistoryRows.length === 0 && (
+                <div className={styles.emptyState}>
+                  <p>Chưa có phiếu sửa chữa đã thanh toán trước đó cho xe này.</p>
                 </div>
               )}
 
-              {/* Hiển thị khuyến nghị */}
-              {!recommendLoading && recommendData && (
-                <div>
-                  <div style={{ marginBottom: 8, fontWeight: 600, color: '#374151', fontSize: 13 }}>
-                    Khuyến nghị từ phiếu trước (cùng biển số xe)
-                  </div>
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      background: '#fffbeb',
-                      border: '1px solid #fcd34d',
-                      borderRadius: 8,
-                      fontSize: 14,
-                      color: '#92400e',
-                      whiteSpace: 'pre-wrap',
-                      minHeight: 60,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {recommendData}
-                  </div>
+              {!repairHistoryLoading && !repairHistoryError && repairHistoryRows.length > 0 && (
+                <div className={styles.historyList}>
+                  {repairHistoryRows.map((row, index) => {
+                    const recommendation = getRepairHistoryRecommendation(row);
+                    const rowKey = getRepairHistoryRowKey(row, index);
+                    const detailCode = getTicketCode(row);
+
+                    return (
+                      <div key={rowKey} className={styles.historyCard}>
+                        <div className={styles.historyCardHeader}>
+                          <div>
+                            <strong>{getHistoryTicketCode(row)}</strong>
+                            <span>{formatHistoryDateTime(getHistoryDateTime(row))}</span>
+                          </div>
+                          <span className={styles.historyStatus}>
+                            {getServiceTicketStatusTextVi(row?.status || row?.ticketStatus || row?.statusCode, row?.statusLabel || row?.status || '-')}
+                          </span>
+                        </div>
+
+                        {recommendation ? (
+                          <div className={styles.historyNote}>
+                            <span>Khuyến nghị</span>
+                            <p>{recommendation}</p>
+                          </div>
+                        ) : null}
+
+                        <div className={styles.historyDetailActions}>
+                          <button
+                            type="button"
+                            className={styles.historyDetailBtn}
+                            onClick={() => {
+                              if (!detailCode) return;
+                              setShowRepairHistoryModal(false);
+                              navigate(`/service-ticket-detail/${encodeURIComponent(detailCode)}`, { state: { ticket: row } });
+                            }}
+                            disabled={!detailCode}
+                            title="Mở chi tiết phiếu dịch vụ"
+                          >
+                            Xem chi tiết
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
               <div className={styles.modalFooter}>
                 <button
                   className={styles.modalActionBtn}
-                  onClick={() => setShowRecommendModal(false)}
+                  onClick={() => setShowRepairHistoryModal(false)}
                 >
                   Đóng
                 </button>
@@ -1786,6 +2199,7 @@ export default function AdvisorInspection() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

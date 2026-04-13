@@ -1,4 +1,4 @@
-﻿import { request } from './apiClient';
+import { request } from './apiClient';
 
 const authHeaders = (token) => (token ? { Authorization: `Bearer ${token}` } : {});
 

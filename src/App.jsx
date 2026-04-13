@@ -3,11 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { ToastContainer } from 'react-toastify';
 import MainLayout from './layouts/MainLayout.jsx';
 import RouteSessionPersistence from './components/RouteSessionPersistence.jsx';
+import GlobalRequestButtonLoading from './components/GlobalRequestButtonLoading.jsx';
 
 //Home page and common pages
 import Home from './pages/home/Home.jsx';
 import Services from './pages/home/Services/Services.jsx';
-import Parts from './pages/home/Parts/Parts.jsx';
 import About from './pages/About/About.jsx';
 import Booking from './pages/Booking/Booking.jsx';
 import ToastBox from './components/Toast/ToastBox.jsx';
@@ -63,6 +63,7 @@ import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 //Receptionist pages
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
 import SendReminder from './pages/DashBoard/SendReminder/SendReminder.jsx';
+import MaintenanceReminder from './pages/DashBoard/MaintenanceReminder/MaintenanceReminder.jsx';
 import ReceiptConfirm from './pages/DashBoard/Receipt/ReceiptConfirm.jsx';
 import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.jsx';
 import ConfirmedBookingDetail from './pages/DashBoard/BookingManagement/ConfirmedBookingDetail.jsx';
@@ -105,8 +106,8 @@ function TitleUpdater() {
     const titles = {
       '/': 'Michelin Sơn Tây - Trung tâm dịch vụ lốp xe uy tín',
       '/about': 'Giới thiệu - Michelin Sơn Tây',
-      '/services': 'Dịch vụ - Michelin Sơn Tây',
-      '/parts': 'Phụ tùng - Michelin Sơn Tây',
+      '/services': 'Dịch vụ & phụ tùng - Michelin Sơn Tây',
+      '/parts': 'Dịch vụ & phụ tùng - Michelin Sơn Tây',
       '/booking': 'Đặt lịch - Michelin Sơn Tây',
       '/user-profile': 'Tài khoản - Michelin Sơn Tây',
       '/my-bookings': 'Đặt lịch của tôi - Michelin Sơn Tây',
@@ -140,6 +141,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <RouteSessionPersistence />
+      <GlobalRequestButtonLoading />
       <ToastBox />
       <ToastContainer
         position="top-center"
@@ -156,7 +158,7 @@ export default function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="services" element={<Services />} />
-          <Route path="parts" element={<Parts />} />
+          <Route path="parts" element={<Navigate to="/services" replace />} />
           <Route path="services/:serviceId" element={<ServiceDetail />} />
           <Route path="about" element={<About />} />
           <Route path="customer-login" element={<CustomerLogin />} />
@@ -227,7 +229,9 @@ export default function App() {
           <Route path="employee-manager" element={<EmployeeManager />} />
           <Route path="employee-manager/:staffId" element={<EmployeeProfilePage />} />
           <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
-          <Route path="send-reminder" element={<SendReminder />} />
+          <Route path="announcement_campaign" element={<SendReminder />} />
+          <Route path="send-reminder" element={<Navigate to="/announcement_campaign" replace />} />
+          <Route path="maintenance-reminders" element={<MaintenanceReminder />} />
           <Route path="feedback-management" element={<FeedbackManagement />} />
           <Route path="vehicle-management" element={<VehicleManagement />} />
           <Route path="system-log-management" element={<SystemLogManagement />} />

@@ -153,8 +153,6 @@ function EstimateItemRow({
     taxRulesLoading,
     taxRules,
     taxRuleById,
-    toggleChecked,
-    canToggleChecked,
     isEditing,
     softDeleteEditRow,
     openCatalogPicker,
@@ -162,6 +160,10 @@ function EstimateItemRow({
 }) {
     const isLocked = Boolean(row?.isLockedFromPreviousVersion);
     const allowInputs = showInputs && !isLocked;
+
+    const categoryFilled =
+        Boolean(String(row?.newCategoryName ?? row?.categoryName ?? '').trim()) || Boolean(toIdOrNull(row?.workCategoryId));
+    const allowItemActions = allowInputs && categoryFilled;
 
     const stt = String(idx + 1).padStart(2, '0');
     const manualTaxRuleId = toIdOrNull(row?.taxRuleId);
@@ -177,6 +179,15 @@ function EstimateItemRow({
     const isPredefinedCategory = Boolean(toIdOrNull(row?.workCategoryId));
     const subTotalValue = effectiveTaxRuleId ? (row?.subTotalWithVat ?? row?.subTotal) : row?.subTotal;
     const shouldShowTaxDropdown = allowInputs && !itemTaxRuleId && !categoryTaxRuleId;
+
+    const unitText = String(row?.unit ?? '').trim();
+
+    let itemPlaceholder = 'Diễn giải';
+    if (categoryFilled) {
+        if (isPredefinedCategory) itemPlaceholder = 'Chọn sản phẩm ';
+    } else {
+        itemPlaceholder = 'Nhập hạng mục trước';
+    }
 
     return (
         <tr key={`advisor-row-${stt}-${row.key}`}>
@@ -201,16 +212,20 @@ function EstimateItemRow({
                         <input
                             className={styles.tableInput}
                             value={row.itemName ?? ''}
-                            placeholder={isPredefinedCategory ? "Chọn sản phẩm từ danh mục" : "Diễn giải"}
+                            placeholder={itemPlaceholder}
                             readOnly={isPredefinedCategory}
-                            onChange={isPredefinedCategory ? undefined : (e) => onChange(idx, 'itemName', e.target.value)}
-                            disabled={isSaving}
+                            onChange={
+                                !allowItemActions || isPredefinedCategory
+                                    ? undefined
+                                    : (e) => onChange(idx, 'itemName', e.target.value)
+                            }
+                            disabled={isSaving || !allowItemActions}
                         />
                         <button
                             type="button"
-                            className="ui-btn ui-btn--ghost"
+                            className={`ui-btn ui-btn--ghost ${styles.pickButtonNoWrap}`}
                             onClick={() => openCatalogPicker(idx, row)}
-                            disabled={isSaving}
+                            disabled={isSaving || !allowItemActions}
                         >
                             Chọn
                         </button>
@@ -221,16 +236,26 @@ function EstimateItemRow({
             </td>
             <td className={styles.tdNumber}>
                 {allowInputs ? (
-                    <input
-                        className={`${styles.tableInput} ${styles.tableInputNumber}`}
-                        type="text"
-                        value={row.quantity}
-                        onChange={(e) => onChange(idx, 'quantity', String(e.target.value || '').replaceAll(/\D/g, ''))}
-                        placeholder="0"
-                        disabled={isSaving}
-                    />
+                    <div className={styles.qtyWithUnit}>
+                        <input
+                            className={`${styles.tableInput} ${styles.tableInputNumber}`}
+                            type="text"
+                            value={row.quantity}
+                            onChange={(e) => onChange(idx, 'quantity', String(e.target.value || '').replaceAll(/\D/g, ''))}
+                            placeholder="0"
+                            disabled={isSaving}
+                        />
+                        {unitText ? (
+                            <span className={styles.qtyUnit}>{unitText}</span>
+                        ) : null}
+                    </div>
                 ) : (
-                    (row.quantity ?? '')
+                    <div className={styles.qtyWithUnit}>
+                        <span>{row.quantity ?? ''}</span>
+                        {unitText ? (
+                            <span className={styles.qtyUnit}>{unitText}</span>
+                        ) : null}
+                    </div>
                 )}
             </td>
             <td className={styles.tdNumber}>
@@ -300,9 +325,8 @@ function EstimateItemRow({
                 ) : (
                     <input
                         type="checkbox"
-                        checked={Boolean(row.confirmed)}
-                        onChange={(e) => toggleChecked(row.sourceIndex, e.target.checked)}
-                        disabled={!canToggleChecked || Boolean(row.confirmed)}
+                        checked={true}
+                        disabled={true}
                     />
                 )}
             </td>
@@ -332,8 +356,6 @@ EstimateItemRow.propTypes = {
     taxRulesLoading: PropTypes.bool,
     taxRules: PropTypes.array,
     taxRuleById: PropTypes.object,
-    toggleChecked: PropTypes.func,
-    canToggleChecked: PropTypes.bool,
     isEditing: PropTypes.bool,
     softDeleteEditRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
@@ -542,6 +564,10 @@ export default function AdvisorItemsTable({
         isEditing,
         isAppendOnlyEdit,
         isSaving,
+        loadError,
+        taxRulesError,
+        workCategoriesError,
+        saveError,
         estimateCostText,
         statusLine,
         footerTotalText,
@@ -556,10 +582,7 @@ export default function AdvisorItemsTable({
         cancelEdit,
         saveEstimate,
         saveEdit,
-        canToggleChecked,
-        toggleChecked,
         softDeleteEditRow,
-        inventory,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange, refreshToken });
 
@@ -576,6 +599,8 @@ export default function AdvisorItemsTable({
     );
     const recommendationRemaining = RECOMMEND_MAX_LENGTH - String(recommendation ?? '').length;
     const recommendationHasError = Boolean(recommendationValidation?.error);
+
+    const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
 
     // Let parent know whether estimate is currently being created/edited/saved.
     // Used to hide actions like "Xác nhận báo giá" until user presses Save successfully.
@@ -725,6 +750,12 @@ export default function AdvisorItemsTable({
     const [pickerInitQuery, setPickerInitQuery] = useState("");
 
     const openCatalogPicker = (rowIndex, rowObj) => {
+        const hasCategory =
+            Boolean(String(rowObj?.newCategoryName ?? rowObj?.categoryName ?? '').trim()) || Boolean(toIdOrNull(rowObj?.workCategoryId));
+        if (!hasCategory) {
+            notify('Vui lòng nhập/chọn hạng mục trước khi thao tác diễn giải hoặc chọn sản phẩm.');
+            return;
+        }
         setActiveRowIndex(rowIndex);
         // Lấy categoryCode từ dòng (đã map từ workCategory)
         const code = String(rowObj?.workCategoryCode ?? '').trim();
@@ -744,11 +775,31 @@ export default function AdvisorItemsTable({
         if (activeRowIndex == null) return;
         const id = item?.itemId ?? item?.id ?? null;
         const name = item?.itemName ?? item?.name ?? '';
-        const price = item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
+        const price = item?.sellingPrice ?? item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
+        const unit = String(item?.unit ?? '').trim();
+        const warehouseId = item?.warehouseId ?? item?.selectedWarehouse?.warehouseId ?? null;
+        const availableQtyRaw =
+            item?.availableQuantity ??
+            item?.selectedWarehouse?.quantity ??
+            item?.selectedWarehouse?.availableQuantity ??
+            null;
+        const availableQtyNum =
+            typeof availableQtyRaw === 'number' ? availableQtyRaw : Number(String(availableQtyRaw ?? '').trim());
         const rawTaxId = item?.taxRuleId ?? item?.tax_rule_id ?? item?.taxRule?.taxRuleId ?? item?.taxRule?.id ?? '';
         onChange(activeRowIndex, 'itemId', id);
         onChange(activeRowIndex, 'itemName', name);
         onChange(activeRowIndex, 'unitPrice', price);
+        onChange(activeRowIndex, 'unit', unit);
+        if (warehouseId != null && String(warehouseId).trim() !== '') {
+            onChange(activeRowIndex, 'warehouseId', warehouseId);
+        } else {
+            onChange(activeRowIndex, 'warehouseId', '');
+        }
+        if (Number.isFinite(availableQtyNum) && availableQtyNum >= 0) {
+            onChange(activeRowIndex, 'warehouseAvailableQuantity', availableQtyNum);
+        } else {
+            onChange(activeRowIndex, 'warehouseAvailableQuantity', null);
+        }
         onChange(activeRowIndex, 'itemTaxRuleId', rawTaxId == null ? '' : String(rawTaxId));
 
         // Nếu sản phẩm có thuế thì ưu tiên sản phẩm -> clear chọn thuế thủ công.
@@ -758,8 +809,6 @@ export default function AdvisorItemsTable({
     };
 
     const showTaxQuickAdd = !isTicketLocked && showInputs;
-
-    const shouldShowInventoryPanel = !isTicketLocked && inventory.isOpen;
 
     const [photoPreview, setPhotoPreview] = useState(null);
     const closePhotoPreview = useCallback(() => setPhotoPreview(null), []);
@@ -829,90 +878,7 @@ export default function AdvisorItemsTable({
                     )}
                 </div>
 
-                <div className={styles.advisorCard}>
-                    <h3 className={styles.advisorTitle}>Phụ tùng cần thiết</h3>
-                    <div className={styles.partRow}>
-                        <div className={styles.partName}>Má phanh trước Toyota</div>
-                        <div className={styles.partMeta}>
-                            <span className={styles.partText}>15 cái</span>
-                            <span className={styles.partText}>500,000đ/bộ</span>
-                            <span className={styles.tag}>In Stock</span>
-                        </div>
-                    </div>
-                    {!isTicketLocked && (
-                        <button
-                            type="button"
-                            className={`ui-btn ui-btn--ghost ${styles.fullWidthBtn}`}
-                            onClick={inventory.toggleOpen}
-                        >
-                            {inventory.isOpen ? 'Đóng kiểm tra tồn kho' : 'Kiểm tra tồn kho'}
-                        </button>
-                    )}
 
-                    {shouldShowInventoryPanel && (
-                        <div className={styles.inventoryPanel}>
-                            <form className={styles.inventorySearchRow} onSubmit={inventory.onSubmit}>
-                                <div className="ui-field" style={{ marginBottom: 0, flex: 1 }}>
-                                    <input
-                                        type="text"
-                                        placeholder="Nhập tên/mã phụ tùng..."
-                                        value={inventory.query}
-                                        onChange={inventory.onQueryChange}
-                                        disabled={inventory.loading}
-                                    />
-                                </div>
-                                <button
-                                    type="submit"
-                                    className="ui-btn ui-btn--primary"
-                                    disabled={inventory.loading}
-                                >
-                                    {inventory.loading ? 'Đang tìm...' : 'Tìm'}
-                                </button>
-                            </form>
-
-                            {inventory.loading ? (
-                                <div className={styles.inventoryHint}>Đang tải dữ liệu kho...</div>
-                            ) : null}
-
-                            {inventory.showResults ? (
-                                <div className={styles.inventoryResults}>
-                                    {inventory.results.map((it, idx) => {
-                                        const itemId = it?.itemId ?? it?.id;
-                                        const stockQtyRaw = it?.stockQuantity ?? it?.stockQty ?? it?.quantity ?? 0;
-                                        const stockQtyNum = typeof stockQtyRaw === 'number' ? stockQtyRaw : Number(stockQtyRaw);
-                                        const inStock = Number.isFinite(stockQtyNum) ? stockQtyNum > 0 : Boolean(stockQtyRaw);
-                                        return (
-                                            <div
-                                                key={String(itemId ?? it?.itemCode ?? it?.itemName ?? `inventory-item-${idx}`)}
-                                                className={styles.inventoryItem}
-                                            >
-                                                <div className={styles.inventoryItemMain}>
-                                                    <div className={styles.inventoryItemName}>{it?.itemName || '-'}</div>
-                                                    <div className={styles.inventoryItemCode}>{it?.itemCode || it?.category || ''}</div>
-                                                </div>
-                                                <div className={styles.inventoryItemMeta}>
-                                                    <span className={styles.partText}>Tồn: {Number.isFinite(stockQtyNum) ? stockQtyNum : stockQtyRaw || 0}</span>
-                                                    <span className={styles.partText}>
-                                                        {formatCurrencyVnd(it?.unitPrice)}{it?.unit ? `/${it.unit}` : ''}
-                                                    </span>
-                                                    <span className={styles.tag}>{inStock ? 'In Stock' : 'Out of Stock'}</span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : null}
-
-                            {inventory.error ? <div className={styles.errorBanner}>{inventory.error}</div> : null}
-
-                            <div className="ui-actions" style={{ marginTop: 0 }}>
-                                <button type="button" className="ui-btn ui-btn--ghost" onClick={inventory.close}>
-                                    Đóng
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
 
                 <div className={styles.advisorCard}>
                     <h3 className={styles.advisorTitle}>Ước tính</h3>
@@ -930,13 +896,12 @@ export default function AdvisorItemsTable({
                         <div className={styles.kvRow}>
                             <span className={styles.kvLabel} />
                             <span className={styles.kvValue} style={{ color: 'var(--ui-muted)' }}>
-                                {statusLine}
+                                {errorLine ? '' : statusLine}
                             </span>
                         </div>
                     </div>
                 </div>
             </div>
-
             <TaxRuleQuickAdd
                 show={showTaxQuickAdd}
                 isAddingNewTaxRule={isAddingNewTaxRule}
@@ -995,8 +960,6 @@ export default function AdvisorItemsTable({
                                 taxRulesLoading={taxRulesLoading}
                                 taxRules={taxRules}
                                 taxRuleById={taxRuleById}
-                                toggleChecked={toggleChecked}
-                                canToggleChecked={canToggleChecked}
                                 isEditing={isEditing}
                                 softDeleteEditRow={softDeleteEditRow}
                                 openCatalogPicker={openCatalogPicker}
@@ -1014,6 +977,12 @@ export default function AdvisorItemsTable({
                     </tfoot>
                 </table>
             </div>
+
+            {errorLine ? (
+                <div className={styles.errorBanner} style={{ marginTop: 12, marginBottom: 0, textAlign: 'center' }}>
+                    {errorLine}
+                </div>
+            ) : null}
             {isTicketLocked ? null : (
                 <div style={{ marginTop: 16 }}>
                     <EstimateActions

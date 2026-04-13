@@ -11,6 +11,20 @@ const normalizeItemType = (value) => {
   return 'SERVICE';
 };
 
+const toPriceNumber = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const normalized = String(value).replace(/[^\d.-]/g, '');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatPrice = (value) => {
+  const price = toPriceNumber(value);
+  if (price == null) return '';
+  return `${new Intl.NumberFormat('vi-VN').format(price)}đ`;
+};
+
 // Chọn dịch vụ/phụ tùng với slider + tìm kiếm + lọc
 export default function StepService({
   services,
@@ -30,9 +44,18 @@ export default function StepService({
   activeTab = 'SERVICE',
   onChangeTab,
   allowPartTab = true,
+  layoutMode = 'carousel',
+  showPriceFilter = false,
+  minPrice = '',
+  maxPrice = '',
+  priceSort = '',
+  onMinPriceChange,
+  onMaxPriceChange,
+  onPriceSortChange,
 }) {
   const [visible, setVisible] = useState(3);
   const [index, setIndex] = useState(0);
+  const [gridExpanded, setGridExpanded] = useState(false);
 
   useEffect(() => {
     const handle = () => {
@@ -51,6 +74,21 @@ export default function StepService({
   const incomingTab = normalizeItemType(activeTab);
   const currentTab = allowPartTab ? incomingTab : 'SERVICE';
   const allItems = useMemo(() => (Array.isArray(services) ? services : []), [services]);
+
+  const selectedItems = useMemo(() => {
+    const selectedSet = new Set((Array.isArray(selectedIds) ? selectedIds : []).map((id) => String(id)));
+    return allItems.filter((item) => selectedSet.has(String(item?.id)));
+  }, [allItems, selectedIds]);
+
+  const selectedServiceItems = useMemo(
+    () => selectedItems.filter((item) => normalizeItemType(item?.itemType) === 'SERVICE'),
+    [selectedItems],
+  );
+
+  const selectedPartItems = useMemo(
+    () => selectedItems.filter((item) => normalizeItemType(item?.itemType) === 'PART'),
+    [selectedItems],
+  );
 
   const scopedByType = useMemo(
     () => allItems.filter((item) => normalizeItemType(item?.itemType) === currentTab),
@@ -77,13 +115,30 @@ export default function StepService({
 
   const filtered = useMemo(() => {
     const cleaned = (search || '').toLowerCase();
-    return scopedByType.filter((item) => {
+    const min = toPriceNumber(minPrice);
+    const max = toPriceNumber(maxPrice);
+    const sort = String(priceSort || '').trim().toLowerCase();
+    const hasPriceFilter = min != null || max != null;
+    const nextItems = scopedByType.filter((item) => {
       const name = (item.name || '').toLowerCase();
       const matchSearch = name.includes(cleaned);
       const matchFilter = filter === 'all' || !filter || (item.category || 'all') === filter;
-      return matchSearch && matchFilter;
+      const price = toPriceNumber(item?.price);
+      const matchMin = min == null || (price != null && price >= min);
+      const matchMax = max == null || (price != null && price <= max);
+      const matchPrice = !hasPriceFilter || (matchMin && matchMax);
+      return matchSearch && matchFilter && matchPrice;
     });
-  }, [filter, scopedByType, search]);
+    if (sort !== 'asc' && sort !== 'desc') return nextItems;
+    return [...nextItems].sort((a, b) => {
+      const priceA = toPriceNumber(a?.price);
+      const priceB = toPriceNumber(b?.price);
+      if (priceA == null && priceB == null) return 0;
+      if (priceA == null) return 1;
+      if (priceB == null) return -1;
+      return sort === 'asc' ? priceA - priceB : priceB - priceA;
+    });
+  }, [filter, maxPrice, minPrice, priceSort, scopedByType, search]);
 
   const maxIndex = Math.max(0, filtered.length - visible);
 
@@ -98,6 +153,11 @@ export default function StepService({
     onChangeTab?.('SERVICE');
   }, [allowPartTab, incomingTab, onChangeTab]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setGridExpanded(false), 0);
+    return () => clearTimeout(t);
+  }, [currentTab, filter, maxPrice, minPrice, priceSort, search]);
+
   const offset = (index * 100) / visible;
   const prev = () => setIndex((i) => Math.max(0, i - 1));
   const next = () => setIndex((i) => Math.min(maxIndex, i + 1));
@@ -105,6 +165,56 @@ export default function StepService({
   const sectionLabel = currentTab === 'PART' ? 'Chọn phụ tùng' : 'Chọn dịch vụ';
   const searchPlaceholder = currentTab === 'PART' ? 'Tìm kiếm phụ tùng...' : 'Tìm kiếm dịch vụ...';
   const emptyLabel = currentTab === 'PART' ? 'Chưa có phụ tùng phù hợp.' : 'Chưa có dịch vụ phù hợp.';
+
+  const isGridScroll = layoutMode === 'grid-scroll';
+  const gridCollapsedCount = Math.max(1, visible);
+  const gridItems = isGridScroll && !gridExpanded ? filtered.slice(0, gridCollapsedCount) : filtered;
+  const canToggleGrid = isGridScroll && filtered.length > gridCollapsedCount;
+
+  const renderServiceCard = (item) => {
+    const active = selectedIds.includes(item.id);
+    const thumbStyle = item.thumbnail
+      ? { backgroundImage: `url(${item.thumbnail})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+      : undefined;
+    const priceText = formatPrice(item.price);
+
+    return (
+      <div className={styles['service-card']}>
+        <div className={styles.thumb} style={thumbStyle} />
+        <button
+          type="button"
+          className={[styles.check, active ? styles.checked : ''].filter(Boolean).join(' ')}
+          onClick={() => onToggle(item.id)}
+        >
+          {active ? '✓' : ''}
+        </button>
+        <div className={styles.name}>{item.name}</div>
+        <div className={styles.desc}>{item.desc}</div>
+        {priceText ? <div className={styles.price}>{priceText}</div> : null}
+      </div>
+    );
+  };
+
+  const renderSelectedGroup = (title, items, emptyLabel) => (
+    <div className={styles['selected-group']}>
+      <div className={styles['selected-subtitle']}>{title} ({items.length})</div>
+      {items.length > 0 ? (
+        <div className={styles['chip-row']}>
+          {items.map((item) => (
+            <span key={item.id} className={styles.chip}>
+              <span className="chip-icon">🔧</span>
+              {item.name}
+              <button className={styles['chip-remove']} onClick={() => onToggle(item.id)} aria-label="Remove">
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className={styles['selected-empty']}>{emptyLabel}</div>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -143,6 +253,31 @@ export default function StepService({
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
+            {showPriceFilter && (
+              <div className={styles['price-filter']}>
+                <input
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  placeholder="Giá từ"
+                  value={minPrice}
+                  onChange={(e) => onMinPriceChange?.(e.target.value)}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  placeholder="Giá đến"
+                  value={maxPrice}
+                  onChange={(e) => onMaxPriceChange?.(e.target.value)}
+                />
+                <select value={priceSort} onChange={(e) => onPriceSortChange?.(e.target.value)}>
+                  <option value="">Sắp xếp giá</option>
+                  <option value="asc">Giá thấp đến cao</option>
+                  <option value="desc">Giá cao đến thấp</option>
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -152,7 +287,26 @@ export default function StepService({
           <div className={styles['service-status']}>{emptyLabel}</div>
         )}
 
-        {!loading && !error && filtered.length > 0 && (
+        {!loading && !error && filtered.length > 0 && isGridScroll && (
+          <>
+          <div className={`${styles['grid-scroll']} ${gridExpanded ? styles['grid-scroll-expanded'] : styles['grid-scroll-collapsed']}`}>
+            {gridItems.map((item) => (
+              <div key={item.id} className={styles['grid-item']}>
+                {renderServiceCard(item)}
+              </div>
+            ))}
+          </div>
+          {canToggleGrid && (
+            <div className={styles['expand-row']}>
+              <button type="button" className={styles['expand-btn']} onClick={() => setGridExpanded((prev) => !prev)}>
+                {gridExpanded ? 'Thu gọn' : `Xem thêm ${filtered.length - gridCollapsedCount} mục`}
+              </button>
+            </div>
+          )}
+          </>
+        )}
+
+        {!loading && !error && filtered.length > 0 && !isGridScroll && (
           <div className={styles['carousel-shell']}>
             {!isMobileSlider && (
               <button className={styles['nav-btn']} aria-label="Prev" onClick={prev} disabled={index === 0}>
@@ -172,6 +326,7 @@ export default function StepService({
                   const thumbStyle = item.thumbnail
                     ? { backgroundImage: `url(${item.thumbnail})`, backgroundSize: 'cover', backgroundPosition: 'center' }
                     : undefined;
+                  const priceText = formatPrice(item.price);
                   return (
                     <div
                       key={item.id}
@@ -189,6 +344,7 @@ export default function StepService({
                         </button>
                         <div className={styles.name}>{item.name}</div>
                         <div className={styles.desc}>{item.desc}</div>
+                        {priceText ? <div className={styles.price}>{priceText}</div> : null}
                       </div>
                     </div>
                   );
@@ -205,21 +361,8 @@ export default function StepService({
 
         <div className={styles['selected-box']}>
           <div className={styles['selected-title']}>Hạng mục đã chọn ({selectedIds.length} mục)</div>
-          <div className={styles['chip-row']}>
-            {selectedIds.map((id) => {
-              const item = allItems.find((s) => s.id === id);
-              if (!item) return null;
-              return (
-                <span key={id} className={styles.chip}>
-                  <span className="chip-icon">🔧</span>
-                  {item.name}
-                  <button className={styles['chip-remove']} onClick={() => onToggle(id)} aria-label="Remove">
-                    ×
-                  </button>
-                </span>
-              );
-            })}
-          </div>
+          {renderSelectedGroup('Dịch vụ đã chọn', selectedServiceItems, 'Chưa chọn dịch vụ.')}
+          {renderSelectedGroup('Phụ tùng đã chọn', selectedPartItems, 'Chưa chọn phụ tùng.')}
         </div>
 
         {showActions && (

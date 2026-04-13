@@ -96,11 +96,32 @@ const parseTimeParts = (timeStr) => {
   return { hour, minute, second };
 };
 const getCurrentTechnicianId = (tokenArg) => {
+  try {
+    const profileRaw = localStorage.getItem('staffProfile');
+    if (profileRaw) {
+      const profile = JSON.parse(profileRaw);
+      const profileStaffId = toPositiveNumber(
+        profile?.staffId
+        ?? profile?.staffID
+        ?? profile?.staff_id
+        ?? profile?.id,
+      );
+      if (profileStaffId != null) return Math.trunc(profileStaffId);
+    }
+  } catch {
+    // Fall back to token payload below.
+  }
+
   const token = tokenArg || getToken();
   if (!token) return null;
   const payload = tryGetJwtPayload(token);
-  const staffId = Number(payload?.staffId ?? payload?.staff_id ?? null);
-  return Number.isFinite(staffId) && staffId > 0 ? Math.trunc(staffId) : null;
+  const tokenStaffId = toPositiveNumber(
+    payload?.staffId
+    ?? payload?.staffID
+    ?? payload?.staff_id
+    ?? payload?.id,
+  );
+  return tokenStaffId != null ? Math.trunc(tokenStaffId) : null;
 };
 const parseFlexibleDateTime = (dateValue, timeValue) => {
   const rawDate = String(dateValue || '').trim();
@@ -199,15 +220,54 @@ const isCancelledAssignmentStatus = (value) => {
   const status = normalizeAssignmentStatus(value);
   return status === 'CANCELLED' || status === 'CANCELED' || status === 'REMOVED' || status === 'DELETED';
 };
-const getTicketIdRaw = (ticket) => toPositiveNumber(ticket?.serviceTicketId ?? ticket?.ticketId ?? ticket?.id);
+const getTicketIdRaw = (ticket) => toPositiveNumber(
+  ticket?.serviceTicketId
+  ?? ticket?.serviceTicketID
+  ?? ticket?.service_ticket_id
+  ?? ticket?.ticketId
+  ?? ticket?.ticketID
+  ?? ticket?.ticket_id
+  ?? ticket?.id
+  ?? ticket?.serviceTicket?.serviceTicketId
+  ?? ticket?.serviceTicket?.serviceTicketID
+  ?? ticket?.serviceTicket?.id
+  ?? ticket?.ticket?.serviceTicketId
+  ?? ticket?.ticket?.serviceTicketID
+  ?? ticket?.ticket?.id,
+);
 const getDirectTechnicianIdsFromTicket = (ticket) => {
   const ids = new Set();
   const directCandidates = [
     ticket?.technicianId,
+    ticket?.technicianID,
+    ticket?.technician_id,
     ticket?.assignedTechnicianId,
+    ticket?.assignedTechnicianID,
+    ticket?.assigned_technician_id,
     ticket?.primaryTechnicianId,
+    ticket?.primaryTechnicianID,
+    ticket?.primary_technician_id,
     ticket?.technician?.staffId,
+    ticket?.technician?.staffID,
+    ticket?.technician?.id,
+    ticket?.assignedTechnician?.staffId,
+    ticket?.assignedTechnician?.staffID,
+    ticket?.assignedTechnician?.id,
     ticket?.primaryTechnician?.staffId,
+    ticket?.primaryTechnician?.staffID,
+    ticket?.primaryTechnician?.id,
+    ticket?.serviceTicket?.technicianId,
+    ticket?.serviceTicket?.technicianID,
+    ticket?.serviceTicket?.assignedTechnicianId,
+    ticket?.serviceTicket?.assignedTechnicianID,
+    ticket?.serviceTicket?.primaryTechnicianId,
+    ticket?.serviceTicket?.primaryTechnicianID,
+    ticket?.ticket?.technicianId,
+    ticket?.ticket?.technicianID,
+    ticket?.ticket?.assignedTechnicianId,
+    ticket?.ticket?.assignedTechnicianID,
+    ticket?.ticket?.primaryTechnicianId,
+    ticket?.ticket?.primaryTechnicianID,
   ];
   directCandidates.forEach((candidate) => {
     const parsed = toPositiveNumber(candidate);
@@ -226,7 +286,16 @@ const getDirectTechnicianIdsFromTicket = (ticket) => {
       const role = String(item?.roleInTicket || item?.role || '').trim().toUpperCase();
       if (role !== 'TECHNICIAN') return;
       if (isCancelledAssignmentStatus(item?.status || item?.assignmentStatus)) return;
-      const parsed = toPositiveNumber(item?.staffId);
+      const parsed = toPositiveNumber(
+        item?.staffId
+        ?? item?.staffID
+        ?? item?.staff_id
+        ?? item?.technicianId
+        ?? item?.technicianID
+        ?? item?.technician?.staffId
+        ?? item?.technician?.staffID
+        ?? item?.technician?.id,
+      );
       if (parsed != null) ids.add(parsed);
     });
   });
@@ -240,7 +309,17 @@ const hasCurrentTechnicianAssignment = (assignments, technicianId) => {
     const role = String(assignment?.roleInTicket || assignment?.role || '').trim().toUpperCase();
     if (role !== 'TECHNICIAN') return false;
     if (isCancelledAssignmentStatus(assignment?.status || assignment?.assignmentStatus)) return false;
-    return toPositiveNumber(assignment?.staffId) === currentTechId;
+    const assignmentStaffId = toPositiveNumber(
+      assignment?.staffId
+      ?? assignment?.staffID
+      ?? assignment?.staff_id
+      ?? assignment?.technicianId
+      ?? assignment?.technicianID
+      ?? assignment?.technician?.staffId
+      ?? assignment?.technician?.staffID
+      ?? assignment?.technician?.id,
+    );
+    return assignmentStaffId === currentTechId;
   });
 };
 const hasAnyActiveTechnicianAssignment = (assignments) => {
@@ -774,7 +853,7 @@ function MyTasks() {
               onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
             >
             <option value="">Tất cả</option>
-            <option value="CREATED">Tạo mới</option>
+            <option value="CREATED">Khởi tạo phiếu</option>
             <option value="INSPECTING">Đang kiểm tra</option>
             <option value="INSPECTED">Đã kiểm tra</option>
             <option value="PENDING">Chờ xử lý</option>

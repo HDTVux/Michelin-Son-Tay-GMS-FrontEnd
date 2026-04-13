@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
-import { fetchServiceTicketDetail, manageServiceTicketStatus } from '../../../services/serviceTicketService';
+import { fetchSafetyInspectionCurrentRecommend, fetchServiceTicketDetail, manageServiceTicketStatus } from '../../../services/serviceTicketService';
 import {
   getSafetyInspectionByTicketCode,
   saveSafetyInspectionData,
@@ -14,39 +14,181 @@ import {
   deleteCustomCategory,
   enableSafetyInspection,
   updateAdvisorNotes,
+  upsertSafetyInspectionItems,
+  reopenSafetyInspection,
 } from '../../../services/safetyInspectionService';
 import styles from './ServiceTicket.module.css';
 import carImage from '../../../assets/oto_4.jpg';
 
 const LOCKED_SERVICE_TICKET_STATUSES = new Set(['PAID', 'COMPLETED']);
-const INSPECTION_EDITABLE_STATUSES = new Set(['PENDING', 'SKIPPED', 'INSPECTING', '']);
+const TEXT_FIELD_CHAR_LIMIT = 500;
+const CATEGORY_NAME_CHAR_LIMIT = 100;
+const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
 
 const normalizeServiceTicketStatus = (status) => String(status ?? '')
   .trim()
   .toUpperCase()
   .replaceAll(/\s+/g, '_');
 
-const NUMERIC_TIRE_FIELDS = new Set([
-  'size1',
-  'size2',
-  'size3',
-  'mm',
-  'pressure',
-  'recommendedPressure',
-]);
+const normalizeSafetyInspectionStatus = (status) => {
+  const raw = String(status ?? '')
+    .trim()
+    .toUpperCase()
+    .replaceAll(/[\s-]+/g, '_');
+  if (!raw) return '';
+  if (['SKIP', 'SKIPPED', 'DISABLED', 'NOT_REQUIRED', 'NO_SAFETY_INSPECTION'].includes(raw)) return 'SKIPPED';
+  if (['DONE', 'FINISHED', 'PASSED'].includes(raw)) return 'COMPLETED';
+  if (['WAITING', 'REPAIRING'].includes(raw)) return 'PENDING';
+  return raw;
+};
 
-const INVALID_NUMBER_MESSAGE = 'Loi: O nay chi duoc phep nhap so, khong duoc chua chu cai hoac ky tu dac biet (@, #, $...).';
-const NEGATIVE_NUMBER_MESSAGE = 'Loi: Thong so lop khong the la so am. Vui long nhap lai gia tri duong.';
+const INTEGER_TIRE_FIELDS = new Set(['size1', 'size2', 'size3']);
 
-const getNumericTireFieldError = (rawValue) => {
+const TIRE_POSITION_LABELS = {
+  frontLeft: 'Lốp trước trái',
+  frontRight: 'Lốp trước phải',
+  rearLeft: 'Lốp sau trái',
+  rearRight: 'Lốp sau phải',
+  spare: 'Lốp dự phòng',
+};
+
+const TIRE_FIELD_LABELS = {
+  size1: 'bề rộng lốp',
+  size2: 'tỷ lệ hông lốp',
+  size3: 'đường kính mâm',
+  mm: 'độ sâu gai lốp',
+  pressure: 'áp suất thực tế',
+  recommendedPressure: 'áp suất khuyến cáo',
+};
+
+const TIRE_FIELD_RANGES = {
+  size1: { min: 100, max: 405, unit: 'mm' },
+  size2: { min: 20, max: 100, unit: '%' },
+  size3: { min: 10, max: 30, unit: 'inch' },
+  mm: { min: 0, max: 25, unit: 'mm' },
+  pressure: { min: 0.5, max: 6, unit: 'kg/cm2' },
+  recommendedPressure: { min: 0.5, max: 6, unit: 'kg/cm2' },
+};
+
+const RECOMMENDED_TIRE_SIZE_EXAMPLE = '205/55R16';
+const RECOMMENDED_TIRE_SIZE_PATTERN = /^\d{2,3}\/\d{2,3}R\d{1,2}$/i;
+
+const normalizeRecommendedTireSizeValue = (value) => String(value ?? '').replaceAll(/\s+/g, '').toUpperCase();
+
+const extractRecommendationValue = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? response;
+  if (typeof payload === 'string') return payload.trim();
+  if (!payload || typeof payload !== 'object') return '';
+  return String(
+    payload?.recommend
+    ?? payload?.recommendation
+    ?? payload?.recommendationText
+    ?? payload?.currentRecommend
+    ?? '',
+  ).trim();
+};
+
+const getTireFieldLabel = (position, field) => {
+  const positionLabel = TIRE_POSITION_LABELS[position] || 'Lốp';
+  const fieldLabel = TIRE_FIELD_LABELS[field] || 'thông số';
+  return `${positionLabel} - ${fieldLabel}`;
+};
+
+const getRangeError = (value, label, range) => {
+  if (!range) return '';
+  if (value < range.min || value > range.max) {
+    return `${label} phải nằm trong khoảng ${range.min}-${range.max} ${range.unit}.`;
+  }
+  return '';
+};
+
+const getNumericTireFieldError = (rawValue, fieldLabel, options = {}) => {
   const raw = String(rawValue ?? '').trim();
   if (!raw) return '';
-  if (raw.startsWith('-')) return NEGATIVE_NUMBER_MESSAGE;
-  if (!/^\d*\.?\d*$/.test(raw)) return INVALID_NUMBER_MESSAGE;
-  if (raw === '.') return INVALID_NUMBER_MESSAGE;
+  if (raw.startsWith('-')) return `${fieldLabel} không được nhập số âm.`;
+  const numberPattern = options.integer ? /^\d+$/ : /^\d*\.?\d*$/;
+  if (!numberPattern.test(raw) || raw === '.') {
+    return options.integer
+      ? `${fieldLabel} chỉ được nhập số nguyên dương.`
+      : `${fieldLabel} chỉ được nhập số dương, không nhập chữ hoặc ký tự đặc biệt.`;
+  }
   const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return INVALID_NUMBER_MESSAGE;
-  if (parsed < 0) return NEGATIVE_NUMBER_MESSAGE;
+  if (!Number.isFinite(parsed)) return `${fieldLabel} không hợp lệ.`;
+  if (parsed < 0) return `${fieldLabel} không được nhập số âm.`;
+  const rangeError = getRangeError(parsed, fieldLabel, options.range);
+  if (rangeError) return rangeError;
+  return '';
+};
+
+const getTireInputError = (position, field, value) => {
+  const label = getTireFieldLabel(position, field);
+  return getNumericTireFieldError(value, label, {
+    integer: INTEGER_TIRE_FIELDS.has(field),
+    range: TIRE_FIELD_RANGES[field],
+  });
+};
+
+const getTireInputErrorMap = (tireData) => {
+  const errors = {};
+  Object.keys(TIRE_POSITION_LABELS).forEach((position) => {
+    Object.keys(TIRE_FIELD_RANGES).forEach((field) => {
+      const error = getTireInputError(position, field, tireData?.[position]?.[field]);
+      if (error) errors[`${position}_${field}`] = error;
+    });
+  });
+  return errors;
+};
+
+const getRecommendedTireSizeError = (value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  if (raw.length > TEXT_FIELD_CHAR_LIMIT) return `Size lốp khuyến cáo tối đa ${TEXT_FIELD_CHAR_LIMIT} ký tự.`;
+  if (raw.includes('-')) return 'Size lốp khuyến cáo không được nhập số âm.';
+  const normalized = normalizeRecommendedTireSizeValue(raw);
+  if (!RECOMMENDED_TIRE_SIZE_PATTERN.test(normalized)) {
+    return `Size lốp khuyến cáo phải đúng định dạng ${RECOMMENDED_TIRE_SIZE_EXAMPLE}.`;
+  }
+
+  const match = /^(\d{2,3})\/(\d{2,3})R(\d{1,2})$/i.exec(normalized);
+  const rangeChecks = [
+    { label: 'Size lốp khuyến cáo - bề rộng lốp', value: Number(match?.[1]), range: TIRE_FIELD_RANGES.size1 },
+    { label: 'Size lốp khuyến cáo - tỷ lệ hông lốp', value: Number(match?.[2]), range: TIRE_FIELD_RANGES.size2 },
+    { label: 'Size lốp khuyến cáo - đường kính mâm', value: Number(match?.[3]), range: TIRE_FIELD_RANGES.size3 },
+  ];
+  const rangeError = rangeChecks
+    .map((item) => getRangeError(item.value, item.label, item.range))
+    .find(Boolean);
+  if (rangeError) return rangeError;
+
+  return '';
+};
+
+const normalizeCategoryNameForCompare = (value) => String(value ?? '')
+  .trim()
+  .toLowerCase()
+  .replaceAll(/\s+/g, ' ');
+
+const getNewCategoryNameError = (value, existingChecks = []) => {
+  const raw = String(value ?? '');
+  const name = raw.trim();
+  if (!name) return 'Vui lòng nhập tên hạng mục kiểm tra.';
+  if (name.length < 2) return 'Tên hạng mục kiểm tra phải có ít nhất 2 ký tự.';
+  if (name.length > CATEGORY_NAME_CHAR_LIMIT) {
+    return `Tên hạng mục kiểm tra tối đa ${CATEGORY_NAME_CHAR_LIMIT} ký tự.`;
+  }
+  if (/[<>{}]/.test(name)) {
+    return 'Tên hạng mục kiểm tra không được chứa ký tự <, >, {, }.';
+  }
+  if (/^\d+$/.test(name)) {
+    return 'Tên hạng mục kiểm tra không được chỉ gồm chữ số.';
+  }
+
+  const normalizedName = normalizeCategoryNameForCompare(name);
+  const isDuplicated = (Array.isArray(existingChecks) ? existingChecks : []).some((item) => {
+    return normalizeCategoryNameForCompare(item?.name || item?.categoryName) === normalizedName;
+  });
+  if (isDuplicated) return 'Hạng mục kiểm tra này đã tồn tại.';
+
   return '';
 };
 
@@ -56,6 +198,7 @@ export const ServiceTicket = ({
   mode = 'technician',
   backPath = '/technician/my-tasks',
   onClose = null,
+  onInspectionCompleted = null,
 }) => {
   const { id: idParam } = useParams();
   const resolvedTicketCode = String(ticketCode || idParam || '').trim();
@@ -65,6 +208,7 @@ export const ServiceTicket = ({
   const [recommendedTireSize, setRecommendedTireSize] = useState('');
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryNameError, setNewCategoryNameError] = useState('');
 
   const defaultTireData = useMemo(() => ({
     frontLeft: { size1: '', size2: '', size3: '', mm: '', pressure: '', recommendedPressure: '' },
@@ -81,7 +225,6 @@ export const ServiceTicket = ({
   const [skipReason, setSkipReason] = useState('');
   const [inspectionStatus, setInspectionStatus] = useState('PENDING');
   const [hasSafetyInspectionEnabled, setHasSafetyInspectionEnabled] = useState(true);
-  const [isEditable, setIsEditable] = useState(true);
   const [serviceTicketId, setServiceTicketId] = useState(null);
   const [serviceTicketStatus, setServiceTicketStatus] = useState('');
   const [inspectionId, setInspectionId] = useState(null);
@@ -94,10 +237,7 @@ export const ServiceTicket = ({
   // Error state cho advisor note (keyed by itemId)
   const [advisorNoteErrors, setAdvisorNoteErrors] = useState({});
 
-  // Error state cho mm lốp (keyed by position)
-  const [tireMmErrors, setTireMmErrors] = useState({});
-
-  // Ref chá»‘ng spam toast khi validate 500 kÃ½ tá»±
+  // Ref chống spam toast khi validate 500 ký tự
   const toast500LastFired = useRef({});
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -105,16 +245,53 @@ export const ServiceTicket = ({
     () => normalizeServiceTicketStatus(serviceTicketStatus),
     [serviceTicketStatus],
   );
+  const normalizedInspectionStatus = useMemo(
+    () => normalizeSafetyInspectionStatus(inspectionStatus),
+    [inspectionStatus],
+  );
+  const shouldRequireSafetyInspection = hasSafetyInspectionEnabled && normalizedInspectionStatus !== 'SKIPPED';
   const isServiceTicketLocked = LOCKED_SERVICE_TICKET_STATUSES.has(normalizedServiceTicketStatus);
-  const serviceTicketLockMessage = 'Phiếu dịch vụ đã thanh toÃ¡n/hoàn tất. Không thể chỉnh sửa phiếu kiểm tra an toàn.';
-  const canEditTechnicalFields = isEditable;
-  const canEditAdvisorNotes = isEditable;
+  const isInspectionCompleted = normalizedInspectionStatus === 'COMPLETED';
+  const isFormLocked = isServiceTicketLocked || isInspectionCompleted;
+  const serviceTicketLockMessage = 'Phiếu dịch vụ hoặc phiếu kiểm tra an toàn đã hoàn thành, không thể chỉnh sửa.';
+  const canEditTechnicalFields = !isFormLocked;
+  const canEditAdvisorNotes = !isFormLocked;
+  const advisorNoteHasErrors = Object.keys(advisorNoteErrors).length > 0;
+  const textFieldValidationError = (shouldRequireSafetyInspection ? recommendedTireSizeError : '')
+    || notesError
+    || (advisorNoteHasErrors ? 'Vui lòng rút gọn nội dung ghi chú vượt quá giới hạn.' : '');
+  const blockingTextFieldValidationError = shouldRequireSafetyInspection ? textFieldValidationError : '';
+
+  useEffect(() => {
+    const nextError = getRecommendedTireSizeError(recommendedTireSize);
+    setRecommendedTireSizeError((prev) => (prev === nextError ? prev : nextError));
+  }, [recommendedTireSize]);
 
   const guardServiceTicketEditable = () => {
-    if (!isServiceTicketLocked) return true;
+    if (!isFormLocked) return true;
     toast.info(serviceTicketLockMessage);
     return false;
   };
+
+  const resolveServiceTicketId = useCallback(() => {
+    const parsedServiceTicketId = Number(resolvedTicketCode);
+    return serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
+  }, [resolvedTicketCode, serviceTicketId]);
+
+  const syncServiceTicketStatus = useCallback(async (nextStatus, token, fallbackMessage) => {
+    const finalServiceTicketId = resolveServiceTicketId();
+    if (!finalServiceTicketId) return false;
+    try {
+      await manageServiceTicketStatus(finalServiceTicketId, nextStatus, token);
+      setServiceTicketStatus(nextStatus);
+      return true;
+    } catch (error) {
+      if (fallbackMessage) {
+        toast.warn(`${fallbackMessage}: ${error?.message || 'Lỗi không xác định'}`);
+      }
+      return false;
+    }
+  }, [resolveServiceTicketId]);
 
   const mergedSafetyChecks = useMemo(() => (
     [...safetyChecks].sort((a, b) => {
@@ -201,8 +378,8 @@ export const ServiceTicket = ({
 
         setHasSafetyInspectionEnabled(safetyEnabledFromTicket);
         setTireData(defaultTireData);
-        setTireMmErrors({});
         setRecommendedTireSize('');
+        setRecommendedTireSizeError('');
 
         try {
 
@@ -220,8 +397,6 @@ export const ServiceTicket = ({
             const status = inspection.inspectionStatus || (safetyEnabledFromTicket ? 'PENDING' : 'SKIPPED');
             loadedInspectionStatus = status;
             setInspectionStatus(status);
-            const canEdit = INSPECTION_EDITABLE_STATUSES.has(String(status || '').trim().toUpperCase());
-            setIsEditable(canEdit && !isLockedByTicketStatus);
 
             if (inspection.tires && inspection.tires.length > 0) {
               const newTireData = { ...defaultTireData };
@@ -263,8 +438,8 @@ export const ServiceTicket = ({
                 }
               });
               setTireData(newTireData);
-              setTireMmErrors({});
               setRecommendedTireSize(loadedRecommendedTireSize || '');
+              setRecommendedTireSizeError(getRecommendedTireSizeError(loadedRecommendedTireSize || ''));
             }
 
             const inspectionItems = Array.isArray(inspection.items) ? inspection.items : [];
@@ -311,14 +486,14 @@ export const ServiceTicket = ({
             }
           }
         } catch {
-          console.log('Không tÃ¬m tháº¥y phiếu kiểm tra, sử dụng mẫu mặc định');
-          setIsEditable(!isLockedByTicketStatus);
+          console.log('Không tìm thấy phiếu kiểm tra, sử dụng mẫu mặc định');
           setInspectionStatus(loadedInspectionStatus);
         }
 
         if (!isAdvisorMode && safetyEnabledFromTicket && !isLockedByTicketStatus) {
-          const latestInspectionStatus = String(loadedInspectionStatus || '').trim().toUpperCase();
+          const latestInspectionStatus = normalizeSafetyInspectionStatus(loadedInspectionStatus);
           const shouldMoveToInspecting = latestInspectionStatus !== 'COMPLETED'
+            && latestInspectionStatus !== 'SKIPPED'
             && normalizedTicketStatus !== 'INSPECTING'
             && normalizedTicketStatus !== 'INSPECTED';
 
@@ -328,17 +503,16 @@ export const ServiceTicket = ({
               await startInspection(resolvedTicketCode, token);
               synced = true;
             } catch (startError) {
-              console.warn('KhÃƒÂ´ng start-inspection Ã„â€˜Ã†Â°Ã¡Â»Â£c khi mÃ¡Â»Å¸ phiÃ¡ÂºÂ¿u:', startError);
+              console.warn('Không start-inspection được khi mở phiếu:', startError);
             }
 
             if (!synced) {
-              await syncServiceTicketStatus('INSPECTING', token, 'ChÃ†Â°a Ã„â€˜Ã¡Â»â€œng bÃ¡Â»â„¢ Ã„â€˜Ã†Â°Ã¡Â»Â£c trÃ¡ÂºÂ¡ng thÃƒÂ¡i phiÃ¡ÂºÂ¿u dÃ¡Â»â€¹ch vÃ¡Â»Â¥ sang Ã„Âang kiÃ¡Â»Æ’m tra');
+              await syncServiceTicketStatus('INSPECTING', token, 'Chưa đồng bộ được trạng thái phiếu dịch vụ sang Đang kiểm tra');
             } else {
               setServiceTicketStatus('INSPECTING');
             }
 
             setInspectionStatus('INSPECTING');
-            setIsEditable(true);
           }
         }
       } catch (error) {
@@ -350,34 +524,17 @@ export const ServiceTicket = ({
     };
 
     fetchData();
-  }, [resolvedTicketCode, defaultTireData, embedded, refreshKey, isAdvisorMode]);
+  }, [resolvedTicketCode, defaultTireData, embedded, refreshKey, isAdvisorMode, syncServiceTicketStatus]);
 
   const handleTireDataChange = (position, field, value) => {
-    if (!canEditTechnicalFields || isServiceTicketLocked) return;
-    const key = `${position}_${field}`;
+    if (!canEditTechnicalFields || isFormLocked) return;
     const raw = String(value);
 
-    if (NUMERIC_TIRE_FIELDS.has(field)) {
-      const error = getNumericTireFieldError(raw);
-      setTireMmErrors((prev) => {
-        const next = { ...prev };
-        if (error) next[key] = error;
-        else delete next[key];
-        return next;
-      });
-    } else {
-      setTireMmErrors((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
-    }
-
-    // Validate 500 k? t? cho c?c tr??ng kh?c
-    if (raw.length > 500) {
+    // Validate 500 ký tự cho các trường khác
+    if (raw.length > TEXT_FIELD_CHAR_LIMIT) {
       setTireData(prev => ({
         ...prev,
-        [position]: { ...prev[position], [field]: raw.slice(0, 500) }
+        [position]: { ...prev[position], [field]: raw.slice(0, TEXT_FIELD_CHAR_LIMIT) }
       }));
       return;
     }
@@ -388,8 +545,26 @@ export const ServiceTicket = ({
     }));
   };
 
+  const handleRecommendedTireSizeChange = (value) => {
+    if (!canEditTechnicalFields || isFormLocked) return;
+    const raw = String(value);
+    const nextValue = raw.length > TEXT_FIELD_CHAR_LIMIT
+      ? raw.slice(0, TEXT_FIELD_CHAR_LIMIT)
+      : raw;
+    setRecommendedTireSize(nextValue);
+    setRecommendedTireSizeError(getRecommendedTireSizeError(nextValue));
+
+    if (raw.length > TEXT_FIELD_CHAR_LIMIT) {
+      const now = Date.now();
+      if (!toast500LastFired.current['recommendedTireSize'] || now - toast500LastFired.current['recommendedTireSize'] > 2000) {
+        toast(`Size lốp khuyến cáo tối đa ${TEXT_FIELD_CHAR_LIMIT} ký tự.`, { containerId: 'app-toast', autoClose: 2000 });
+        toast500LastFired.current['recommendedTireSize'] = now;
+      }
+    }
+  };
+
   const handleSafetyCheck = (itemId, type) => {
-    if (!canEditTechnicalFields || isServiceTicketLocked) return;
+    if (!canEditTechnicalFields || isFormLocked) return;
     setSafetyChecks(prev =>
       prev.map(item =>
         item.id !== itemId
@@ -402,19 +577,19 @@ export const ServiceTicket = ({
   };
 
   const handleAdvisorNoteChange = (itemId, value) => {
-    if (!canEditAdvisorNotes || isServiceTicketLocked) return;
+    if (!canEditAdvisorNotes || isFormLocked) return;
     const raw = String(value);
-    if (raw.length > 500) {
+    if (raw.length > TEXT_FIELD_CHAR_LIMIT) {
       const now = Date.now();
       if (!toast500LastFired.current[`note_${itemId}`] || now - toast500LastFired.current[`note_${itemId}`] > 2000) {
         toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
         toast500LastFired.current[`note_${itemId}`] = now;
       }
-      setAdvisorNoteErrors(prev => ({ ...prev, [itemId]: 'Tối đa 500 ký tự.' }));
+      setAdvisorNoteErrors(prev => ({ ...prev, [itemId]: `Tối đa ${TEXT_FIELD_CHAR_LIMIT} ký tự.` }));
     } else {
       setAdvisorNoteErrors(prev => { const n = { ...prev }; delete n[itemId]; return n; });
     }
-    // Váº«n cáº­p nháº­t giÃ¡ trá»‹ để user tháº¥y lỗi
+    // Vẫn cập nhật giá trị để user thấy lỗi
     setSafetyChecks(prev => prev.map(item =>
       item.id === itemId ? { ...item, advisorNote: raw, note: raw } : item
     ));
@@ -428,13 +603,9 @@ export const ServiceTicket = ({
     navigate(backPath);
   };
 
-  const resolveServiceTicketId = () => {
+  async function _syncServiceTicketStatusLegacy(nextStatus, token, fallbackMessage) {
     const parsedServiceTicketId = Number(resolvedTicketCode);
-    return serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
-  };
-
-  const syncServiceTicketStatus = async (nextStatus, token, fallbackMessage) => {
-    const finalServiceTicketId = resolveServiceTicketId();
+    const finalServiceTicketId = serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
     if (!finalServiceTicketId) return false;
     try {
       await manageServiceTicketStatus(finalServiceTicketId, nextStatus, token);
@@ -446,13 +617,16 @@ export const ServiceTicket = ({
       }
       return false;
     }
-  };
+  }
 
 
   const handleAddCategory = async () => {
     if (!guardServiceTicketEditable()) return;
-    if (!newCategoryName.trim()) {
-      toast.error('Vui lòng nhập tên hạng mục');
+    const categoryName = newCategoryName.trim();
+    const categoryNameError = getNewCategoryNameError(categoryName, safetyChecks);
+    setNewCategoryNameError(categoryNameError);
+    if (categoryNameError) {
+      toast.error(categoryNameError);
       return;
     }
 
@@ -495,17 +669,13 @@ export const ServiceTicket = ({
         setInspectionId(currentInspectionId);
       }
 
-      if (inspectionStatus === 'COMPLETED') {
-        toast.info('Phiếu kiểm tra an toàn đã hoàn thành, không thể chỉnh sửa lại.');
-        return;
-      }
 
       const maxOrder = safetyChecks.length > 0
         ? Math.max(...safetyChecks.map(c => c.displayOrder || 0))
         : 0;
 
       const payload = {
-        categoryName: newCategoryName.trim(),
+        categoryName,
         displayOrder: maxOrder + 1
       };
 
@@ -515,7 +685,7 @@ export const ServiceTicket = ({
       } catch (createErr) {
         response = await createWorkCategory(
           currentInspectionId,
-          { categoryName: newCategoryName.trim() },
+          { categoryName },
           token,
         );
         void createErr;
@@ -539,6 +709,7 @@ export const ServiceTicket = ({
         toast.success('Đã thêm hạng mục mới thành công');
         setShowAddCategoryModal(false);
         setNewCategoryName('');
+        setNewCategoryNameError('');
       }
     } catch (error) {
       console.error('Lỗi khi tạo hạng mục:', error);
@@ -550,12 +721,12 @@ export const ServiceTicket = ({
     if (!item?.isCustom) return;
     if (!guardServiceTicketEditable()) return;
 
-    const ok = window.confirm('Bạn có cháº¯c muốn xÃ³a hạng mục thêm mới này?');
+    const ok = window.confirm('Bạn có chắc muốn xóa hạng mục thêm mới này?');
     if (!ok) return;
 
     if (!inspectionId || !item.customCategoryId) {
       setSafetyChecks((prev) => prev.filter((check) => check.id !== item.id));
-      toast.success('Đã xÃ³a hạng mục thêm mới.');
+      toast.success('Đã xóa hạng mục thêm mới.');
       return;
     }
 
@@ -563,15 +734,19 @@ export const ServiceTicket = ({
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       await deleteCustomCategory(inspectionId, item.customCategoryId, token);
       setSafetyChecks((prev) => prev.filter((check) => check.id !== item.id));
-      toast.success('Đã xÃ³a hạng mục thêm mới.');
+      toast.success('Đã xóa hạng mục thêm mới.');
     } catch (error) {
-      console.error('Lỗi khi xÃ³a hạng mục tÃ¹y chỉnh:', error);
-      toast.error(error.message || 'Không thể xÃ³a hạng mục thêm mới');
+      console.error('Lỗi khi xóa hạng mục tùy chỉnh:', error);
+      toast.error(error.message || 'Không thể xóa hạng mục thêm mới');
     }
   };
 
   const confirmSkip = async () => {
     if (!guardServiceTicketEditable()) return;
+    if (skipReasonError) {
+      toast.error(skipReasonError);
+      return;
+    }
     try {
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       await skipSafetyInspection(resolvedTicketCode, skipReason || 'Bỏ qua kiểm tra an toàn', token);
@@ -587,8 +762,8 @@ export const ServiceTicket = ({
   };
 
   const validateSafetyChecklistCompletion = () => {
-    // Nếu ticket không bật kiểm tra an toàn từ lúc check-in thì không bắt buộc tick hạng mục.
-    if (!hasSafetyInspectionEnabled) return null;
+    // Phiếu không bật kiểm tra an toàn hoặc đã SKIPPED thì không bắt buộc tick hạng mục.
+    if (!shouldRequireSafetyInspection) return null;
 
     const checklistItems = Array.isArray(safetyChecks)
       ? safetyChecks.filter((item) => item?.workCategoryId || item?.customCategoryId)
@@ -603,7 +778,7 @@ export const ServiceTicket = ({
     ).length;
 
     if (uncheckedCount > 0) {
-      return `CÃ²n ${uncheckedCount} hạng mục chưa được tích trạng thái. Vui lòng tích đầy Ä‘ủ trước khi hoàn thành.`;
+      return `Còn ${uncheckedCount} hạng mục chưa được tích trạng thái. Vui lòng tích đầy đủ trước khi hoàn thành.`;
     }
 
     return null;
@@ -613,11 +788,22 @@ export const ServiceTicket = ({
 
   const validateAdvisorCompletion = () => validateSafetyChecklistCompletion();
 
-  const handleSaveAdvisorNotes = async () => {
-    if (!isAdvisorMode) return;
+  const handleSaveDraft = async () => {
     if (!guardServiceTicketEditable()) return;
-    if (Object.keys(tireMmErrors).length > 0) {
-      toast.error('Vui lòng sửa lỗi nhập liệu lốp trước khi lưu.');
+    const currentTireErrors = getTireInputErrorMap(tireData);
+    const firstTireError = Object.values(currentTireErrors).find(Boolean);
+    const currentRecommendedTireSizeError = getRecommendedTireSizeError(recommendedTireSize);
+    const optionalTirePayloadError = firstTireError || currentRecommendedTireSizeError;
+    const shouldSendTirePayload = shouldRequireSafetyInspection || !optionalTirePayloadError;
+    if (currentRecommendedTireSizeError !== recommendedTireSizeError) {
+      setRecommendedTireSizeError(currentRecommendedTireSizeError);
+    }
+    if (shouldRequireSafetyInspection && optionalTirePayloadError) {
+      toast.error(optionalTirePayloadError);
+      return;
+    }
+    if (blockingTextFieldValidationError) {
+      toast.error(blockingTextFieldValidationError);
       return;
     }
 
@@ -625,6 +811,56 @@ export const ServiceTicket = ({
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       if (!token) {
         toast.error('Vui lòng đăng nhập');
+        return;
+      }
+
+      if (!shouldRequireSafetyInspection) {
+        let currentInspectionId = inspectionId;
+        if (!currentInspectionId) {
+          try {
+            const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
+            currentInspectionId = inspectionResponse?.data?.inspectionId || null;
+          } catch {
+            currentInspectionId = null;
+          }
+        }
+        if (!currentInspectionId) {
+          try {
+            const skipResponse = await skipSafetyInspection(resolvedTicketCode, 'Bỏ qua kiểm tra an toàn', token);
+            currentInspectionId = skipResponse?.data?.inspectionId || null;
+          } catch {
+            const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
+            currentInspectionId = inspectionResponse?.data?.inspectionId || null;
+          }
+        }
+        if (!currentInspectionId) {
+          throw new Error('Không lấy được inspectionId để lưu nháp phiếu đã bỏ qua kiểm tra an toàn.');
+        }
+
+        const skippedItemsPayload = safetyChecks
+          .map((check) => ({
+            workCategoryId: check.workCategoryId || null,
+            customCategoryId: check.customCategoryId || null,
+            itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null,
+          }))
+          .filter((check) => check.workCategoryId || check.customCategoryId);
+        const skippedAdvisorItems = safetyChecks
+          .filter((item) => item.workCategoryId || item.customCategoryId)
+          .map((item) => ({
+            workCategoryId: item.workCategoryId ?? null,
+            customCategoryId: item.customCategoryId ?? null,
+            advisorNote: String(item.advisorNote ?? item.note ?? ''),
+          }));
+
+        if (skippedItemsPayload.length > 0) {
+          await upsertSafetyInspectionItems(currentInspectionId, skippedItemsPayload, token);
+        }
+        if (skippedAdvisorItems.length > 0) {
+          await updateAdvisorNotes(currentInspectionId, skippedAdvisorItems, token);
+        }
+        setInspectionId(currentInspectionId);
+        setInspectionStatus('SKIPPED');
+        toast.success('Đã lưu nháp phiếu kiểm tra an toàn. Bạn vẫn có thể tiếp tục chỉnh sửa.');
         return;
       }
 
@@ -638,7 +874,7 @@ export const ServiceTicket = ({
         }
       }
 
-      if (!currentInspectionId && hasSafetyInspectionEnabled) {
+      if (!currentInspectionId && shouldRequireSafetyInspection) {
         try {
           const enableResponse = await enableSafetyInspection(resolvedTicketCode, token);
           currentInspectionId = enableResponse?.data?.inspectionId || null;
@@ -681,10 +917,10 @@ export const ServiceTicket = ({
         ? parseFloat(tireData.spare.recommendedPressure)
         : null;
 
-      const tiresPayload = {
+      const tiresPayload = shouldSendTirePayload ? {
         frontTireSpecification: frontSpec,
         rearTireSpecification: rearSpec,
-        recommendedTireSize: recommendedTireSize || null,
+        recommendedTireSize: recommendedTireSize ? normalizeRecommendedTireSizeValue(recommendedTireSize) : null,
         frontLeft: getActualData(tireData.frontLeft),
         frontRight: getActualData(tireData.frontRight),
         rearLeft: getActualData(tireData.rearLeft),
@@ -693,6 +929,18 @@ export const ServiceTicket = ({
         frontRecommendedPressure,
         rearRecommendedPressure,
         spareRecommendedPressure,
+      } : {
+        frontTireSpecification: null,
+        rearTireSpecification: null,
+        recommendedTireSize: null,
+        frontLeft: null,
+        frontRight: null,
+        rearLeft: null,
+        rearRight: null,
+        spare: null,
+        frontRecommendedPressure: null,
+        rearRecommendedPressure: null,
+        spareRecommendedPressure: null,
       };
 
       const itemsPayload = safetyChecks
@@ -707,12 +955,22 @@ export const ServiceTicket = ({
       if (!finalServiceTicketId) {
         throw new Error('Thiếu serviceTicketId để lưu phiếu kiểm tra.');
       }
+      let currentRecommendation = localStorage.getItem(getRecommendationStorageKey(finalServiceTicketId)) || '';
+      try {
+        const recommendationRes = await fetchSafetyInspectionCurrentRecommend(finalServiceTicketId, token);
+        currentRecommendation = extractRecommendationValue(recommendationRes) || currentRecommendation;
+      } catch {
+        // Preserve local recommendation fallback when backend cannot load it.
+      }
 
+      // Backend luôn cứng COMPLETED khi save/update, nên gửi payload bình thường
       const safetyPayload = {
         serviceTicketId: finalServiceTicketId,
+        generalNotes: currentRecommendation || null,
         technicianNotes: notes || null,
         tires: tiresPayload,
         items: itemsPayload,
+        inspectionStatus: 'PENDING',
       };
 
       if (currentInspectionId) {
@@ -727,29 +985,68 @@ export const ServiceTicket = ({
         throw new Error('Không lấy được inspectionId sau khi lưu phiếu.');
       }
 
-      const advisorItems = safetyChecks
-        .filter((item) => item.workCategoryId || item.customCategoryId)
-        .map((item) => ({
-          workCategoryId: item.workCategoryId ?? null,
-          customCategoryId: item.customCategoryId ?? null,
-          advisorNote: String(item.advisorNote ?? item.note ?? ''),
-        }));
+      if (isAdvisorMode) {
+        const advisorItems = safetyChecks
+          .filter((item) => item.workCategoryId || item.customCategoryId)
+          .map((item) => ({
+            workCategoryId: item.workCategoryId ?? null,
+            customCategoryId: item.customCategoryId ?? null,
+            advisorNote: String(item.advisorNote ?? item.note ?? ''),
+          }));
 
-      await updateAdvisorNotes(currentInspectionId, advisorItems, token);
+        await updateAdvisorNotes(currentInspectionId, advisorItems, token);
+      }
       setInspectionId(currentInspectionId);
-      setIsEditable(true);
-      setRefreshKey((prev) => prev + 1);
-      toast.success('Đã lưu dữ liệu phiếu kiểm tra an toàn.');
+
+      if (shouldRequireSafetyInspection) {
+        // Backend đã tự đặt COMPLETED → gọi /reopen ngay để đưa phiếu về PENDING
+        // Đây là workaround frontend-only: không cần sửa backend
+        try {
+          await reopenSafetyInspection(resolvedTicketCode, token);
+        } catch (reopenErr) {
+          console.warn('Không reopen được phiếu sau lưu nháp:', reopenErr);
+          throw new Error('Đã lưu dữ liệu nhưng chưa mở lại được phiếu kiểm tra. Vui lòng thử lại để tránh phiếu bị khóa.');
+        }
+
+        // Sau reopen, backend đặt service ticket về CREATED → sync lại INSPECTING
+        try {
+          const finalServiceTicketId2 = resolveServiceTicketId();
+          if (finalServiceTicketId2 && token) {
+            await manageServiceTicketStatus(finalServiceTicketId2, 'INSPECTING', token);
+            setServiceTicketStatus('INSPECTING');
+          }
+        } catch (error) {
+          console.log('Lưu nháp: Chưa sync trạng thái service ticket sang INSPECTING', error);
+        }
+
+        // Đặt local state về PENDING để form không bị khóa
+        setInspectionStatus('PENDING');
+      }
+
+      // Không gọi setRefreshKey để tránh reload từ API ghi đè lại trạng thái
+      toast.success('Đã lưu nháp phiếu kiểm tra an toàn. Bạn vẫn có thể tiếp tục chỉnh sửa.');
     } catch (error) {
-      console.error('Lỗi khi lưu dữ liệu phiếu (advisor):', error);
+      console.error('Lỗi khi lưu dữ liệu phiếu:', error);
       toast.error('Không thể lưu phiếu: ' + (error.message || 'Lỗi không xác định'));
     }
   };
 
   const handleSave = async () => {
     if (!guardServiceTicketEditable()) return;
-    if (Object.keys(tireMmErrors).length > 0) {
-      toast.error('Vui lòng sửa lỗi nhập liệu lốp trước khi hoàn thành.');
+    const currentTireErrors = getTireInputErrorMap(tireData);
+    const firstTireError = Object.values(currentTireErrors).find(Boolean);
+    const currentRecommendedTireSizeError = getRecommendedTireSizeError(recommendedTireSize);
+    const optionalTirePayloadError = firstTireError || currentRecommendedTireSizeError;
+    const shouldSendTirePayload = shouldRequireSafetyInspection || !optionalTirePayloadError;
+    if (currentRecommendedTireSizeError !== recommendedTireSizeError) {
+      setRecommendedTireSizeError(currentRecommendedTireSizeError);
+    }
+    if (shouldRequireSafetyInspection && optionalTirePayloadError) {
+      toast.error(optionalTirePayloadError);
+      return;
+    }
+    if (blockingTextFieldValidationError) {
+      toast.error(blockingTextFieldValidationError);
       return;
     }
     try {
@@ -770,7 +1067,7 @@ export const ServiceTicket = ({
         }
       }
 
-      if (!inspectionId && hasSafetyInspectionEnabled) {
+      if (!inspectionId && shouldRequireSafetyInspection) {
         try {
           const enableResponse = await enableSafetyInspection(resolvedTicketCode, token);
           if (enableResponse?.data?.inspectionId) {
@@ -781,7 +1078,7 @@ export const ServiceTicket = ({
         }
       }
 
-      const tiresPayload = (() => {
+      const tiresPayload = shouldSendTirePayload ? (() => {
         const getActualData = (data) => {
           if (!data || (!data.mm && !data.pressure)) return null;
           const mmRaw = data.mm ? parseFloat(data.mm) : NaN;
@@ -819,7 +1116,7 @@ export const ServiceTicket = ({
         return {
           frontTireSpecification: frontSpec,
           rearTireSpecification: rearSpec,
-          recommendedTireSize: recommendedTireSize || null,
+          recommendedTireSize: recommendedTireSize ? normalizeRecommendedTireSizeValue(recommendedTireSize) : null,
           frontLeft: getActualData(tireData.frontLeft),
           frontRight: getActualData(tireData.frontRight),
           rearLeft: getActualData(tireData.rearLeft),
@@ -829,7 +1126,19 @@ export const ServiceTicket = ({
           rearRecommendedPressure: rearRecommendedPressure,
           spareRecommendedPressure: spareRecommendedPressure
         };
-      })();
+      })() : {
+        frontTireSpecification: null,
+        rearTireSpecification: null,
+        recommendedTireSize: null,
+        frontLeft: null,
+        frontRight: null,
+        rearLeft: null,
+        rearRight: null,
+        spare: null,
+        frontRecommendedPressure: null,
+        rearRecommendedPressure: null,
+        spareRecommendedPressure: null,
+      };
 
       const itemsPayload = safetyChecks
         .map(check => ({
@@ -843,9 +1152,17 @@ export const ServiceTicket = ({
       if (!finalServiceTicketId) {
         throw new Error('Thiếu serviceTicketId để lưu phiếu kiểm tra.');
       }
+      let currentRecommendation = localStorage.getItem(getRecommendationStorageKey(finalServiceTicketId)) || '';
+      try {
+        const recommendationRes = await fetchSafetyInspectionCurrentRecommend(finalServiceTicketId, token);
+        currentRecommendation = extractRecommendationValue(recommendationRes) || currentRecommendation;
+      } catch {
+        // Preserve local recommendation fallback when backend cannot load it.
+      }
 
       const safetyPayload = {
         serviceTicketId: finalServiceTicketId,
+        generalNotes: currentRecommendation || null,
         technicianNotes: notes || null,
         tires: tiresPayload,
         items: itemsPayload,
@@ -878,38 +1195,13 @@ export const ServiceTicket = ({
         }
       }
 
-      // Khi cố vấn viên hoàn thành phiếu an toàn: đồng bộ trạng thái công việc KTV ngay,
-      // không chá» kỹ thuật viên báº¥m "Bắt đầu làm việc".
-      if (isAdvisorMode) {
-        const finalServiceTicketId = resolveServiceTicketId();
-        let syncedTechnicianStatus = false;
-        let syncError = null;
-
-        try {
-          await startInspection(resolvedTicketCode, token);
-          syncedTechnicianStatus = true;
-        } catch (error) {
-          syncError = error;
-        }
-
-        if (!syncedTechnicianStatus && finalServiceTicketId) {
-          try {
-            await manageServiceTicketStatus(finalServiceTicketId, 'INSPECTION', token);
-            syncedTechnicianStatus = true;
-          } catch (error) {
-            syncError = error;
-          }
-        }
-
-        if (!syncedTechnicianStatus && syncError) {
-          toast.warn(
-            `Phiếu đã hoàn thành nhưng chưa đồng bộ trạng thái KTV: ${syncError.message || 'Lỗi không xác định'}`,
-          );
-        }
-      }
-
-      if (hasSafetyInspectionEnabled) {
-        await syncServiceTicketStatus('INSPECTED', token, 'Phiếu đã hoàn thành nhưng chưa đồng bộ được trạng thái phiếu dịch vụ sang Hoàn tất kiểm tra');
+      const syncedServiceTicketStatus = await syncServiceTicketStatus(
+        'INSPECTED',
+        token,
+        'Phiếu đã hoàn thành nhưng chưa đồng bộ được trạng thái phiếu dịch vụ sang Hoàn tất kiểm tra',
+      );
+      if (!syncedServiceTicketStatus) {
+        throw new Error('Chưa đồng bộ được trạng thái phiếu dịch vụ sang Hoàn tất kiểm tra.');
       }
 
       if (currentInspectionId) {
@@ -917,32 +1209,25 @@ export const ServiceTicket = ({
       }
 
       toast.success('Đã hoàn thành phiếu kiểm tra an toàn.');
-      setIsEditable(false);
       setRefreshKey(prev => prev + 1); // reload để dữ liệu advisor/technician map đồng bộ qua API
+      if (typeof onInspectionCompleted === 'function') {
+        await onInspectionCompleted({
+          inspectionId: currentInspectionId,
+          inspectionStatus: completionInspectionStatus,
+          serviceTicketStatus: 'INSPECTED',
+        });
+      }
     } catch (error) {
       console.error('Lỗi khi lưu dữ liệu:', error);
       toast.error('Lỗi khi lưu dữ liệu: ' + (error.message || 'Lỗi không xác định'));
     }
   };
 
-  const shouldShowEnableEditButton = false;
-
-  const isTechnicianLockedAfterSaveNoSafety =
-    !isAdvisorMode &&
-    !hasSafetyInspectionEnabled &&
-    inspectionStatus === 'COMPLETED' &&
-    !isEditable;
-
-  const isTechnicianLockedAfterSave =
-    !isAdvisorMode &&
-    inspectionStatus === 'COMPLETED' &&
-    !isEditable;
-
   const technicianCompletionError = !isAdvisorMode ? validateTechnicianCompletion() : null;
   const advisorCompletionError = isAdvisorMode ? validateAdvisorCompletion() : null;
-  const tireInputValidationError = Object.keys(tireMmErrors).length > 0
-    ? 'Vui long sua loi nhap lieu lop.'
-    : null;
+  const visibleTireMmErrors = useMemo(() => getTireInputErrorMap(tireData), [tireData]);
+  const visibleTireInputValidationError = Object.values(visibleTireMmErrors).find(Boolean) || null;
+  const tireInputValidationError = shouldRequireSafetyInspection ? visibleTireInputValidationError : null;
 
   if (loading) {
     return (
@@ -970,7 +1255,20 @@ export const ServiceTicket = ({
               fontSize: '13px',
               fontWeight: 600,
             }}>
-              Phieu dich vu da o trang thai PAID/COMPLETED. Phieu kiem tra an toan dang bi khoa chinh sua.
+              Phiếu dịch vụ đã ở trạng thái PAID/COMPLETED. Phiếu kiểm tra an toàn đang bị khóa chỉnh sửa.
+            </div>
+          )}
+          {isInspectionCompleted && !isServiceTicketLocked && (
+            <div style={{
+              marginTop: '8px',
+              padding: '8px 10px',
+              borderRadius: '8px',
+              background: '#d1fae5',
+              color: '#065f46',
+              fontSize: '13px',
+              fontWeight: 600,
+            }}>
+              ✅ Phiếu kiểm tra an toàn đã hoàn thành. Không thể chỉnh sửa.
             </div>
           )}
         </div>
@@ -985,23 +1283,9 @@ export const ServiceTicket = ({
               <input
                 type="text"
                 value={recommendedTireSize}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val.length > 500) {
-                    const now = Date.now();
-                    if (!toast500LastFired.current['recommendedTireSize'] || now - toast500LastFired.current['recommendedTireSize'] > 2000) {
-                      toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
-                      toast500LastFired.current['recommendedTireSize'] = now;
-                    }
-                    setRecommendedTireSizeError('Tối đa 500 ký tự.');
-                    setRecommendedTireSize(val);
-                  } else {
-                    setRecommendedTireSize(val);
-                    setRecommendedTireSizeError('');
-                  }
-                }}
+                onChange={(e) => handleRecommendedTireSizeChange(e.target.value)}
                 className={styles.tireSizeInput}
-                placeholder="Nháº­p size lốp..."
+                placeholder={RECOMMENDED_TIRE_SIZE_EXAMPLE}
                 disabled={!canEditTechnicalFields}
               />
               {recommendedTireSizeError && (
@@ -1012,7 +1296,7 @@ export const ServiceTicket = ({
         </div>
 
         <div style={{ position: 'relative', height: '520px', marginTop: '20px' }}>
-          {/* BÊN TRÁI - FRONT LEFT (trÃªn-trÃ¡i) + REAR LEFT (dÆ°á»›i-trÃ¡i) */}
+          {/* BÊN TRÁI - FRONT LEFT (trên-trái) + REAR LEFT (dưới-trái) */}
           <div style={{ position: 'absolute', left: '10px', top: '50px', display: 'flex', flexDirection: 'column', gap: '100px' }}>
             {/* FRONT LEFT */}
             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
@@ -1024,23 +1308,23 @@ export const ServiceTicket = ({
                   <span className={styles.tireRLabel}>R</span>
                   <input type="text" value={tireData.frontLeft.size3} onChange={(e) => handleTireDataChange('frontLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
-                {(tireMmErrors['frontLeft_size1'] || tireMmErrors['frontLeft_size2'] || tireMmErrors['frontLeft_size3']) && (
-                  <span style={{ color: '#dc2626', fontSize: '10px' }}>
-                    {tireMmErrors['frontLeft_size1'] || tireMmErrors['frontLeft_size2'] || tireMmErrors['frontLeft_size3']}
-                  </span>
-                )}
+                {['frontLeft_size1', 'frontLeft_size2', 'frontLeft_size3'].map((errorKey) => (
+                  visibleTireMmErrors[errorKey]
+                    ? <span key={errorKey} style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors[errorKey]}</span>
+                    : null
+                ))}
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <input type="text" value={tireData.frontLeft.mm} onChange={(e) => handleTireDataChange('frontLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
-                    {tireMmErrors['frontLeft_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['frontLeft_mm']}</span>}
+                    {visibleTireMmErrors['frontLeft_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['frontLeft_mm']}</span>}
                   </div>
                 </div>
                 <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <input type="text" value={tireData.frontLeft.pressure} onChange={(e) => handleTireDataChange('frontLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
-                    {tireMmErrors['frontLeft_pressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['frontLeft_pressure']}</span>}
+                    {visibleTireMmErrors['frontLeft_pressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['frontLeft_pressure']}</span>}
                   </div>
                 </div>
               </div>
@@ -1056,35 +1340,35 @@ export const ServiceTicket = ({
                   <span className={styles.tireRLabel}>R</span>
                   <input type="text" value={tireData.rearLeft.size3} onChange={(e) => handleTireDataChange('rearLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
-                {(tireMmErrors['rearLeft_size1'] || tireMmErrors['rearLeft_size2'] || tireMmErrors['rearLeft_size3']) && (
-                  <span style={{ color: '#dc2626', fontSize: '10px' }}>
-                    {tireMmErrors['rearLeft_size1'] || tireMmErrors['rearLeft_size2'] || tireMmErrors['rearLeft_size3']}
-                  </span>
-                )}
+                {['rearLeft_size1', 'rearLeft_size2', 'rearLeft_size3'].map((errorKey) => (
+                  visibleTireMmErrors[errorKey]
+                    ? <span key={errorKey} style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors[errorKey]}</span>
+                    : null
+                ))}
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <input type="text" value={tireData.rearLeft.mm} onChange={(e) => handleTireDataChange('rearLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
-                    {tireMmErrors['rearLeft_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['rearLeft_mm']}</span>}
+                    {visibleTireMmErrors['rearLeft_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['rearLeft_mm']}</span>}
                   </div>
                 </div>
                 <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <input type="text" value={tireData.rearLeft.pressure} onChange={(e) => handleTireDataChange('rearLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
-                    {tireMmErrors['rearLeft_pressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['rearLeft_pressure']}</span>}
+                    {visibleTireMmErrors['rearLeft_pressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['rearLeft_pressure']}</span>}
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* THÃ‚N XE - Giữa */}
+          {/* THÂN XE - Giữa */}
           <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
             <img src={carImage} alt="Car" style={{ width: '260px', height: 'auto', objectFit: 'contain' }} />
           </div>
 
-          {/* BÁNH XE - 4 vị trí hiá»ƒn thá»‹ */}
+          {/* BÁNH XE - 4 vị trí hiển thị */}
           <div className={styles.wheel} style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-120px)' }}>
             <div className={styles.wheelRim}></div>
           </div>
@@ -1110,14 +1394,14 @@ export const ServiceTicket = ({
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <input type="text" value={tireData.frontRight.mm} onChange={(e) => handleTireDataChange('frontRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
-                    {tireMmErrors['frontRight_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['frontRight_mm']}</span>}
+                    {visibleTireMmErrors['frontRight_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['frontRight_mm']}</span>}
                   </div>
                 </div>
                 <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <input type="text" value={tireData.frontRight.pressure} onChange={(e) => handleTireDataChange('frontRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
-                    {tireMmErrors['frontRight_pressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['frontRight_pressure']}</span>}
+                    {visibleTireMmErrors['frontRight_pressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['frontRight_pressure']}</span>}
                   </div>
                 </div>
               </div>
@@ -1125,7 +1409,7 @@ export const ServiceTicket = ({
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
                 <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
                 <input type="text" value={tireData.frontRight.recommendedPressure} onChange={(e) => handleTireDataChange('frontRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
-                {tireMmErrors['frontRight_recommendedPressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['frontRight_recommendedPressure']}</span>}
+                {visibleTireMmErrors['frontRight_recommendedPressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['frontRight_recommendedPressure']}</span>}
               </div>
             </div>
 
@@ -1136,21 +1420,21 @@ export const ServiceTicket = ({
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <input type="text" value={tireData.rearRight.mm} onChange={(e) => handleTireDataChange('rearRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
-                    {tireMmErrors['rearRight_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['rearRight_mm']}</span>}
+                    {visibleTireMmErrors['rearRight_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['rearRight_mm']}</span>}
                   </div>
                 </div>
                 <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <input type="text" value={tireData.rearRight.pressure} onChange={(e) => handleTireDataChange('rearRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
-                    {tireMmErrors['rearRight_pressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['rearRight_pressure']}</span>}
+                    {visibleTireMmErrors['rearRight_pressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['rearRight_pressure']}</span>}
                   </div>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
                 <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
                 <input type="text" value={tireData.rearRight.recommendedPressure} onChange={(e) => handleTireDataChange('rearRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
-                {tireMmErrors['rearRight_recommendedPressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['rearRight_recommendedPressure']}</span>}
+                {visibleTireMmErrors['rearRight_recommendedPressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['rearRight_recommendedPressure']}</span>}
               </div>
             </div>
 
@@ -1161,34 +1445,41 @@ export const ServiceTicket = ({
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <input type="text" value={tireData.spare.mm} onChange={(e) => handleTireDataChange('spare', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
-                    {tireMmErrors['spare_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['spare_mm']}</span>}
+                    {visibleTireMmErrors['spare_mm'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['spare_mm']}</span>}
                   </div>
                 </div>
                 <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <input type="text" value={tireData.spare.pressure} onChange={(e) => handleTireDataChange('spare', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" disabled={!canEditTechnicalFields} />
-                    {tireMmErrors['spare_pressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['spare_pressure']}</span>}
+                    {visibleTireMmErrors['spare_pressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['spare_pressure']}</span>}
                   </div>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
                 <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
                 <input type="text" value={tireData.spare.recommendedPressure} onChange={(e) => handleTireDataChange('spare', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
-                {tireMmErrors['spare_recommendedPressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{tireMmErrors['spare_recommendedPressure']}</span>}
+                {visibleTireMmErrors['spare_recommendedPressure'] && <span style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors['spare_recommendedPressure']}</span>}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Báº£ng kiểm tra an toàn - 13 hạng mục mặc định */}
+      {/* Bảng kiểm tra an toàn - 13 hạng mục mặc định */}
       <div className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h2 className={styles.sectionTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</h2>
-          {canEditTechnicalFields && inspectionStatus !== 'COMPLETED' && (
-            <button className={styles.addCategoryButton} onClick={() => setShowAddCategoryModal(true)}>
-              + Thêm hạng mục mới
+          {canEditTechnicalFields && (
+            <button
+              className={styles.addCategoryButton}
+              onClick={() => {
+                setNewCategoryName('');
+                setNewCategoryNameError('');
+                setShowAddCategoryModal(true);
+              }}
+            >
+              + Thêm hạng mục kiểm tra mới
             </button>
           )}
         </div>
@@ -1209,7 +1500,7 @@ export const ServiceTicket = ({
                   <td className={styles.itemName}>
                     <span className={styles.itemNameText}>{item.name}</span>
                     {item.isCustom && <span className={styles.customBadge}>Thêm mới</span>}
-                    {item.isCustom && canEditTechnicalFields && inspectionStatus !== 'COMPLETED' && (
+                    {item.isCustom && canEditTechnicalFields && (
                       <button
                         type="button"
                         className={styles.deleteCustomButton}
@@ -1254,9 +1545,12 @@ export const ServiceTicket = ({
                           className={styles.noteInput}
                           value={item.advisorNote || ''}
                           onChange={(e) => handleAdvisorNoteChange(item.id, e.target.value)}
-                          placeholder="Nháº­p ghi chú cá»‘ váº¥n..."
+                          placeholder="Nhập ghi chú cố vấn..."
                           disabled={!canEditAdvisorNotes}
                         />
+                        <div className={styles.noteMetaRow}>
+                          <span className={styles.charCounter}>{String(item.advisorNote || '').length}/500 ký tự</span>
+                        </div>
                         {advisorNoteErrors[item.id] && (
                           <span style={{ color: '#dc2626', fontSize: '11px' }}>{advisorNoteErrors[item.id]}</span>
                         )}
@@ -1280,7 +1574,10 @@ export const ServiceTicket = ({
 
       {/* Phần ghi chú kỹ thuật viên */}
       <div className={styles.card}>
-        <h2 className={styles.sectionTitle}>Lưu ý:</h2>
+        <div className={styles.notesHeader}>
+          <h2 className={styles.sectionTitle}>Lưu ý:</h2>
+          <span className={styles.charCounter}>{String(notes).length}/500 ký tự</span>
+        </div>
         <textarea
           className={styles.notesTextarea}
           value={notes}
@@ -1314,23 +1611,22 @@ export const ServiceTicket = ({
             {!(isAdvisorMode && embedded) && (
               <button className={styles.closeButton} onClick={handleCloseTicket}>Đóng</button>
             )}
-            {isAdvisorMode && !shouldShowEnableEditButton && (
-              <button
+            <button
                 className={styles.completeButton}
-                onClick={handleSaveAdvisorNotes}
-                disabled={!isEditable || isServiceTicketLocked || Boolean(tireInputValidationError)}
+                onClick={handleSaveDraft}
+                disabled={isFormLocked || Boolean(tireInputValidationError) || Boolean(blockingTextFieldValidationError)}
+                title={isFormLocked ? serviceTicketLockMessage : (blockingTextFieldValidationError || tireInputValidationError || '')}
               >
-                Lưu
+                Lưu nháp
               </button>
-            )}
           </div>
           <div className={styles.actionRight}>
             {isAdvisorMode ? (
               <button
                 className={styles.completeButton}
                 onClick={handleSave}
-                disabled={!isEditable || isServiceTicketLocked || Boolean(advisorCompletionError) || Boolean(tireInputValidationError)}
-                title={isServiceTicketLocked ? serviceTicketLockMessage : (advisorCompletionError || tireInputValidationError || '')}
+                disabled={isFormLocked || Boolean(advisorCompletionError) || Boolean(tireInputValidationError) || Boolean(blockingTextFieldValidationError)}
+                title={isFormLocked ? serviceTicketLockMessage : (advisorCompletionError || blockingTextFieldValidationError || tireInputValidationError || '')}
               >
                 Hoàn thành
               </button>
@@ -1338,8 +1634,8 @@ export const ServiceTicket = ({
               <button
                 className={styles.completeButton}
                 onClick={handleSave}
-                disabled={isServiceTicketLocked || !isEditable || isTechnicianLockedAfterSaveNoSafety || isTechnicianLockedAfterSave || Boolean(technicianCompletionError) || Boolean(tireInputValidationError)}
-                title={isServiceTicketLocked ? serviceTicketLockMessage : (technicianCompletionError || tireInputValidationError || '')}
+                disabled={isFormLocked || Boolean(technicianCompletionError) || Boolean(tireInputValidationError) || Boolean(blockingTextFieldValidationError)}
+                title={isFormLocked ? serviceTicketLockMessage : (technicianCompletionError || blockingTextFieldValidationError || tireInputValidationError || '')}
               >
                 Hoàn thành
               </button>
@@ -1349,21 +1645,75 @@ export const ServiceTicket = ({
       )}
       {/* Modal thêm hạng mục */}
       {showAddCategoryModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAddCategoryModal(false)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => {
+            setShowAddCategoryModal(false);
+            setNewCategoryName('');
+            setNewCategoryNameError('');
+          }}
+        >
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>Thêm hạng mục kiểm tra mới</h3>
-              <button className={styles.modalClose} onClick={() => setShowAddCategoryModal(false)}>✕</button>
+              <button
+                className={styles.modalClose}
+                onClick={() => {
+                  setShowAddCategoryModal(false);
+                  setNewCategoryName('');
+                  setNewCategoryNameError('');
+                }}
+              >
+                ✖
+              </button>
             </div>
             <div className={styles.modalBody}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Tên hạng mục:</label>
-                <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className={styles.formInput} placeholder="Nhập tên hạng mục kiểm tra..." autoFocus />
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewCategoryName(value);
+                    setNewCategoryNameError(getNewCategoryNameError(value, safetyChecks));
+                  }}
+                  onBlur={() => {
+                    const trimmed = newCategoryName.trim();
+                    setNewCategoryName(trimmed);
+                    setNewCategoryNameError(getNewCategoryNameError(trimmed, safetyChecks));
+                  }}
+                  className={`${styles.formInput} ${newCategoryNameError ? styles.inputError : ''}`}
+                  placeholder="Nhập tên hạng mục kiểm tra..."
+                  maxLength={CATEGORY_NAME_CHAR_LIMIT + 1}
+                  autoFocus
+                />
+                <div className={styles.fieldMetaRow}>
+                  <span className={newCategoryNameError ? styles.fieldError : styles.fieldHint}>
+                    {newCategoryNameError || 'Tên hạng mục sẽ được thêm vào bảng kiểm tra an toàn.'}
+                  </span>
+                  <span className={styles.charCounter}>{newCategoryName.trim().length}/{CATEGORY_NAME_CHAR_LIMIT} ký tự</span>
+                </div>
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <button className={styles.modalCancelBtn} onClick={() => { setShowAddCategoryModal(false); setNewCategoryName(''); }}>Hủy</button>
-              <button className={styles.modalActionBtn} onClick={handleAddCategory}>Thêm</button>
+              <button
+                className={styles.modalCancelBtn}
+                onClick={() => {
+                  setShowAddCategoryModal(false);
+                  setNewCategoryName('');
+                  setNewCategoryNameError('');
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                className={styles.modalActionBtn}
+                onClick={handleAddCategory}
+                disabled={Boolean(newCategoryNameError) || !newCategoryName.trim()}
+              >
+                Thêm
+              </button>
             </div>
           </div>
         </div>
@@ -1375,7 +1725,7 @@ export const ServiceTicket = ({
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>Xác nhận bỏ qua kiểm tra an toàn</h3>
-              <button className={styles.modalClose} onClick={() => setSkipModalOpen(false)}>✕</button>
+              <button className={styles.modalClose} onClick={() => setSkipModalOpen(false)}>✖</button>
             </div>
             <div className={styles.modalBody}>
               <p style={{ marginBottom: '16px', color: '#374151' }}>Bạn có chắc chắn muốn bỏ qua kiểm tra an toàn cho phiếu dịch vụ này không?</p>
@@ -1424,6 +1774,7 @@ ServiceTicket.propTypes = {
   mode: PropTypes.oneOf(['technician', 'advisor']),
   backPath: PropTypes.string,
   onClose: PropTypes.func,
+  onInspectionCompleted: PropTypes.func,
 };
 
 export default ServiceTicket;

@@ -1,10 +1,28 @@
+/* ============================================
+   SERVICES PAGE – Premium Michelin Design
+   Colors: #005aa9 (Michelin Blue), #ffd100 (Michelin Yellow), #0a0f1c (Dark)
+   ============================================ */
+
+/* ====== Page Section ====== */
 .servicesPage {
-  min-height: auto;
-  padding: 80px 5%;
-  background: #ffffff;
-  color: #0a0f1c;
   position: relative;
+  min-height: auto;
+  padding: 80px 5% 60px;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 40%, #f0f4f8 100%);
+  color: #0a0f1c;
   overflow: hidden;
+}
+
+.servicesPage-bg {
+  position: absolute;
+  top: -200px;
+  right: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(0, 90, 169, 0.06) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .servicesPage::before {
@@ -14,47 +32,25 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #10b981, #34d399, #10b981);
+  background: linear-gradient(90deg, #005aa9, #ffd100, #005aa9);
   background-size: 200% 100%;
-  animation: shimmer 3s linear infinite;
+  animation: shimmer 4s linear infinite;
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: 0% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
 }
 
-.combosPage {
-  min-height: auto;
-  padding: 80px 5%;
-  background: #fafafa;
-  color: #0a0f1c;
-  position: relative;
-  overflow: hidden;
-}
-
-.combosPage::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b);
-  background-size: 200% 100%;
-  animation: shimmer 3s linear infinite;
-}
-
+/* ====== Hero Section ====== */
 .servicesHero {
+  position: relative;
+  z-index: 1;
   text-align: left;
-  margin-bottom: 60px;
+  margin-bottom: 48px;
   padding-left: 0;
   opacity: 0;
-  transform: translateX(100px);
+  transform: translateX(80px);
   transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -63,27 +59,20 @@
   transform: translateX(0);
 }
 
-/* Scroll reveal cho slider */
-.servicesSlider.reveal {
-  opacity: 0;
-  transform: translateY(60px);
-  transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1), transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.servicesSlider.reveal.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
 .servicesLabel {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 2px;
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 3px;
   color: #005aa9;
   text-transform: uppercase;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  padding: 6px 16px;
+  background: rgba(0, 90, 169, 0.08);
+  border-radius: 6px;
+  border-left: 3px solid #ffd100;
   opacity: 0;
-  transform: translateX(50px);
+  transform: translateX(40px);
   transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
 }
 
@@ -93,46 +82,684 @@
 }
 
 .servicesTitle {
-  font-size: 64px;
-  font-weight: 700;
+  font-size: 56px;
+  font-weight: 800;
   margin-bottom: 20px;
-  line-height: 1.1;
+  line-height: 1.12;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
   align-items: baseline;
-  letter-spacing: 1px;
+  letter-spacing: -0.5px;
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .titlePart1 {
   color: #0a0f1c;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .titlePart2 {
-  color: #005aa9;
-  font-weight: 700;
+  background: linear-gradient(135deg, #005aa9 0%, #003d73 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 800;
 }
 
 .servicesSubtitle {
-  font-size: 20px;
+  font-size: 18px;
   color: #64748b;
-  max-width: 700px;
+  max-width: 640px;
   margin: 0;
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.7;
   opacity: 0;
-  transform: translateX(50px);
+  transform: translateX(40px);
   transition: opacity 0.6s ease-out 0.4s, transform 0.6s ease-out 0.4s;
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
-  letter-spacing: 0.3px;
 }
 
 .servicesHero.visible .servicesSubtitle {
   opacity: 1;
   transform: translateX(0);
 }
+
+/* ====== Unified Toolbar ====== */
+.unifiedToolbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbarDivider {
+  display: inline-block;
+  width: 1px;
+  height: 28px;
+  background: rgba(0, 0, 0, 0.12);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+.catalogFilterButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 140px;
+  min-height: 48px;
+  padding: 0 28px;
+  border: 1.5px solid rgba(0, 90, 169, 0.15);
+  border-radius: 50px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  letter-spacing: 0.2px;
+}
+
+.catalogFilterButton:hover {
+  border-color: #005aa9;
+  color: #005aa9;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 12px rgba(0, 90, 169, 0.12);
+}
+
+.catalogFilterButton.is-active {
+  background: linear-gradient(135deg, #005aa9 0%, #003d73 100%);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 3px 14px rgba(0, 90, 169, 0.35);
+}
+
+.filterIcon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.filterCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.sortSelectWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 16px 0 18px;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.sortSelectWrap:hover,
+.sortSelectWrap:focus-within {
+  border-color: #005aa9;
+  color: #005aa9;
+  background: rgba(0, 90, 169, 0.04);
+  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.08);
+}
+
+.sortSelect {
+  min-width: 150px;
+  height: 34px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* ====== Search Bar ====== */
+.toolbarSearch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 260px;
+  max-width: 340px;
+  flex: 1;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  color: #94a3b8;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.searchInput {
+  width: 100%;
+  height: 42px;
+  padding: 0 40px 0 42px;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50px;
+  background: #ffffff;
+  color: #0a0f1c;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+.searchInput::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.searchInput:focus {
+  border-color: #005aa9;
+  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.1);
+}
+
+.searchInput:focus ~ .searchIcon,
+.toolbarSearch:focus-within .searchIcon {
+  color: #005aa9;
+}
+
+.searchClear {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.searchClear:hover {
+  background: rgba(0, 90, 169, 0.1);
+  color: #005aa9;
+}
+
+/* ====== Grid Layout ====== */
+.servicesGridWrapper {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.servicesGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  animation: gridFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes gridFadeIn {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.serviceGridItem {
+  display: flex;
+}
+
+.serviceGridItem .serviceCard {
+  width: 100%;
+}
+
+/* ====== Service Status ====== */
+.serviceStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px 20px;
+  text-align: center;
+  font-size: 16px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.serviceStatus.error {
+  color: #ef4444;
+}
+
+.loadingSpinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(0, 90, 169, 0.15);
+  border-top-color: #005aa9;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ====== Service Card ====== */
+.serviceCard {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  position: relative;
+}
+
+.serviceCard:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 48px rgba(0, 90, 169, 0.15);
+  border-color: rgba(0, 90, 169, 0.12);
+}
+
+/* Card Image */
+.serviceCard-imageTop {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.serviceCard-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.serviceCard:hover .serviceCard-image {
+  transform: scale(1.1);
+}
+
+/* Image Overlay */
+.serviceCard-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(0, 40, 80, 0.85) 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 20px;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.serviceCard:hover .serviceCard-overlay {
+  opacity: 1;
+}
+
+.overlayViewBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 24px;
+  border: 2px solid #ffffff;
+  border-radius: 50px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(4px);
+  letter-spacing: 0.3px;
+  transform: translateY(10px);
+}
+
+.serviceCard:hover .overlayViewBtn {
+  transform: translateY(0);
+}
+
+.overlayViewBtn:hover {
+  background: #ffffff;
+  color: #005aa9;
+  border-color: #ffffff;
+}
+
+/* Type Badge */
+.catalogTypeBadge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 5px 12px;
+  border-radius: 50px;
+  background: rgba(0, 90, 169, 0.9);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+}
+
+/* Card Content */
+.serviceCard-content {
+  padding: 20px 18px 18px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.serviceTitle {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #0a0f1c;
+  line-height: 1.35;
+  min-height: 44px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.serviceDescription {
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.55;
+  margin-bottom: 16px;
+  flex: 1;
+  min-height: 40px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Card Footer */
+.serviceCard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.servicePrice {
+  font-size: 14px;
+  font-weight: 800;
+  color: #005aa9;
+  white-space: nowrap;
+}
+
+.btnBookNow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffd100 0%, #f5c400 100%);
+  color: #0a0f1c;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(255, 209, 0, 0.3);
+}
+
+.btnBookNow:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(255, 209, 0, 0.45);
+  background: linear-gradient(135deg, #ffe033 0%, #ffd100 100%);
+}
+
+.btnBookNow svg {
+  transition: transform 0.25s ease;
+}
+
+.btnBookNow:hover svg {
+  transform: translateX(3px);
+}
+
+/* ====== Grid Toggle Button ====== */
+.gridToggleWrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+.gridToggleButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 40px;
+  border: 2px solid rgba(0, 90, 169, 0.2);
+  border-radius: 50px;
+  background: #ffffff;
+  color: #005aa9;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.gridToggleButton:hover {
+  background: linear-gradient(135deg, #005aa9 0%, #003d73 100%);
+  color: #ffffff;
+  border-color: transparent;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 90, 169, 0.3);
+}
+
+.gridToggleButton svg {
+  transition: transform 0.3s ease;
+}
+
+.gridToggleButton:hover svg {
+  transform: translateY(2px);
+}
+
+/* ====== Process Section ====== */
+.processSection {
+  background: linear-gradient(180deg, #0a1628 0%, #0d2040 100%);
+  color: #ffffff;
+  padding: 100px 5%;
+  position: relative;
+  overflow: hidden;
+}
+
+.processSection::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #ffd100, #005aa9, #ffd100);
+  background-size: 200% 100%;
+  animation: shimmer 4s linear infinite;
+}
+
+.processInner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.processHeader {
+  text-align: center;
+  margin-bottom: 60px;
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.processHeader.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.processTitle {
+  font-size: 48px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  line-height: 1.15;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: center;
+  letter-spacing: -0.3px;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.processSection .titlePart1 {
+  color: #ffffff;
+}
+
+.processSection .titlePart2 {
+  background: linear-gradient(135deg, #ffd100 0%, #f5a623 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.processSub {
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+.processDiagram {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+.processImageWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.processImageCenter {
+  max-width: 600px;
+  width: 100%;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.processStepBubble {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+  flex: 1 1 calc(50% - 20px);
+  min-width: 260px;
+  max-width: 500px;
+  transition: all 0.3s ease;
+}
+
+.processStepBubble:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 209, 0, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.processNo {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ffd100 0%, #f5a623 100%);
+  color: #0a0f1c;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 900;
+  box-shadow: 0 4px 12px rgba(255, 209, 0, 0.3);
+}
+
+.processText {
+  flex: 1;
+}
+
+.processStepTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.processStepDesc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.55;
+}
+
+/* ====== Combos Page (if re-enabled) ====== */
+.combosPage {
+  min-height: auto;
+  padding: 80px 5%;
+  background: #fafafa;
+  color: #0a0f1c;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ====== Legacy slider (kept for backward compat) ====== */
 .servicesSlider {
   position: relative;
   margin-bottom: 40px;
@@ -150,12 +777,11 @@
 
 .sliderTrack {
   display: flex;
-  gap: 0; 
+  gap: 0;
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
   cursor: grab;
   touch-action: pan-y pinch-zoom;
-  -webkit-overflow-scrolling: touch;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -167,463 +793,296 @@
   display: flex;
 }
 
-.serviceSlide .serviceCard {
-  width: 100%;
-}
-
 .sliderArrow {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-  border: 1px solid rgba(0,90,169,0.18);
-  background: rgba(0,90,169,0.08);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,90,169,0.18);
+  background: rgba(255,255,255,0.95);
   color: #005aa9;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 10;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
-  transition: transform 0.18s ease, background 0.18s ease;
-  font-size: 24px;
-  font-weight: bold;
-}
-
-.sliderArrow:hover { 
-  transform: translateY(-50%) scale(1.04); 
-  background: rgba(0,90,169,0.14); 
-}
-
-.sliderArrow:disabled { 
-  opacity: 0.35; 
-  cursor: default; 
-}
-
-.sliderArrow.left { 
-  left: -50px; 
-}
-
-.sliderArrow.right {
-  right: -50px;
-}
-
-@media (max-width: 900px) {
-  .serviceSlide {
-    flex: 0 0 calc(100% / 2);
-  }
-}
-
-@media (max-width: 480px) {
-  .serviceSlide {
-    flex: 0 0 100%;
-  }
-  .sliderArrow.left { left: 6px; }
-  .sliderArrow.right { right: 6px; }
-}
-
-.serviceCard {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 0;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  height: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  position: relative;
-}
-
-.serviceCard:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  border-color: rgba(0, 90, 169, 0.2);
-}
-
-.serviceCard-imageTop {
-  width: 100%;
-  height: 240px;
-  overflow: hidden;
-  position: relative;
-}
-
-
-.serviceCard-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.serviceCard:hover .serviceCard-image {
-  transform: scale(1.08);
-}
-
-.serviceCard-content {
-  padding: 20px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  justify-content: space-between;
-}
-
-.serviceTitle {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
   font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 12px;
-  color: #0a0f1c;
-  line-height: 1.3;
-  text-align: center;
-}
-
-.serviceDescription {
-  font-size: 14px;
-  color: #475569;
-  line-height: 1.6;
-  margin-bottom: 16px;
-  flex: 0 0 auto;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  text-align: center;
-}
-
-.comboDescription{
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  margin-bottom: 14px;
-}
-
-.serviceFeatures {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 16px 0;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.serviceFeatures li {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  color: #475569;
-  margin-bottom: 8px;
-  padding: 4px 0;
-  line-height: 1.35;
-  overflow: hidden;
-}
-
-.serviceFeatures li > :not(.checkIcon) {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  overflow: hidden;
-}
-
-.checkIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
-  color: white;
-  border-radius: 50%;
-  font-size: 11px;
   font-weight: bold;
-  margin-right: 10px;
-  flex-shrink: 0;
 }
 
-.servicePrice {
-  font-size: 16px;
-  font-weight: 600;
-  color: #005aa9;
-  margin-bottom: 8px;
-}
-
-.serviceActions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  margin-top: auto;
-  margin-bottom: 6px;
-  width: 100%;
-}
-
-.btnViewDetail,
-.btnBookNow {
-  width: 100%;
-  height: 48px;
-  padding: 0 26px;
-  border-radius: 10px;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-  white-space: nowrap;
-}
-
-.btnViewDetail,
-.btnBookNow {
+.sliderArrow:hover {
   background: #005aa9;
   color: #ffffff;
   border-color: #005aa9;
-  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.3);
 }
 
-.btnViewDetail:hover,
-.btnBookNow:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 90, 169, 0.4);
-  background: #005aa9;
+.sliderArrow:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
+.sliderArrow.left  { left: -24px; }
+.sliderArrow.right { right: -24px; }
+
+/* ====== Animations ====== */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ====== Responsive – Tablet ====== */
 @media (max-width: 1024px) {
-  .serviceSlide {
-    flex: 0 0 calc(100% / 2);
-  }
-}
-
-@media (max-width: 768px) {
-  .servicesPage,
-  .combosPage {
-    padding: 40px 4%;
-  }
-
-  .servicesHero {
-    margin-bottom: 40px;
-  }
-
   .servicesTitle {
     font-size: 44px;
   }
 
+  .processTitle {
+    font-size: 38px;
+  }
+
+  .servicesGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .servicesPage {
+    padding: 50px 4% 40px;
+  }
+
+  .servicesHero {
+    margin-bottom: 36px;
+  }
+
+  .servicesTitle {
+    font-size: 36px;
+    gap: 8px;
+  }
+
   .servicesLabel {
-    font-size: 12px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 5px 12px;
   }
 
   .servicesSubtitle {
-    font-size: 17px;
+    font-size: 15px;
   }
 
-  .servicesSlider {
-    margin-bottom: 30px;
+  .catalogFilterBar {
+    margin-bottom: 28px;
+    gap: 8px;
   }
 
-  .serviceCard {
-    height: auto;
+  .catalogFilterButton {
+    min-width: 128px;
+    padding: 0 20px;
+    min-height: 44px;
+    font-size: 14px;
   }
 
-  .serviceCard-content {
-    padding: 18px;
+  .sortSelectWrap {
+    min-height: 44px;
+    padding: 0 14px 0 16px;
   }
 
-  .serviceTitle {
-    font-size: 17px;
-    margin-bottom: 10px;
+  .sortSelect {
+    min-width: 132px;
   }
 
-  .serviceDescription {
-    font-size: 13px;
-    margin-bottom: 12px;
+  .servicesGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 
   .serviceCard-imageTop {
-    height: 180px;
+    height: 160px;
   }
 
-  .serviceFeatures {
-    margin-bottom: 12px;
+  .serviceTitle {
+    font-size: 14px;
   }
 
-  .serviceFeatures li {
+  .serviceDescription {
     font-size: 12px;
-    margin-bottom: 6px;
+    margin-bottom: 10px;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  .serviceCard-content {
+    padding: 14px 12px 12px;
   }
 
   .servicePrice {
-    font-size: 15px;
-    margin-bottom: 12px;
+    font-size: 13px;
+  }
+
+  .btnBookNow {
+    padding: 7px 12px;
+    font-size: 11px;
+  }
+
+  .processSection {
+    padding: 60px 4%;
+  }
+
+  .processTitle {
+    font-size: 30px;
+  }
+
+  .processStepBubble {
+    flex: 1 1 100%;
+    padding: 16px 18px;
+  }
+
+  .gridToggleButton {
+    padding: 12px 28px;
+    font-size: 13px;
+  }
+
+  .overlayViewBtn {
+    padding: 8px 18px;
+    font-size: 12px;
   }
 
   .sliderArrow {
     display: none;
-  }
-
-  .sliderViewport {
-    overflow-x: auto;
-    overflow-y: visible;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .sliderViewport::-webkit-scrollbar {
-    display: none;
-  }
-
-  .sliderTrack {
-    scroll-snap-type: x mandatory;
-  }
-
-  .serviceSlide {
-    scroll-snap-align: start;
   }
 }
 
 @media (max-width: 480px) {
-  .servicesPage,
-  .combosPage {
-    padding: 30px 3% 24px;
-  }
-
-  .servicesHero {
-    margin-bottom: 30px;
+  .servicesPage {
+    padding: 36px 3% 28px;
   }
 
   .servicesTitle {
-    font-size: 32px;
-    margin-bottom: 12px;
-  }
-
-  .servicesLabel {
-    font-size: 11px;
-    letter-spacing: 1.5px;
+    font-size: 28px;
+    gap: 6px;
   }
 
   .servicesSubtitle {
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.55;
   }
 
-  .servicesSlider {
-    margin-bottom: 20px;
-    padding: 0 8px;
+  .catalogFilterBar {
+    gap: 6px;
   }
 
-  .serviceSlide {
-    flex: 0 0 100%;
-    padding: 0 8px;
+  .catalogFilterButton {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0 12px;
+    font-size: 13px;
+    border-radius: 10px;
+  }
+
+  .toolbarDivider {
+    display: none;
+  }
+
+  .sortSelectWrap {
+    width: 100%;
+    justify-content: space-between;
+    border-radius: 10px;
+  }
+
+  .sortSelect {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+  }
+
+  .servicesGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   .serviceCard {
-    border-radius: 16px;
-    height: auto;
-  }
-
-  .serviceCard-content {
-    padding: 16px;
-  }
-
-  .serviceTitle {
-    font-size: 15px;
-    margin-bottom: 8px;
-    line-height: 1.4;
-  }
-
-  .serviceDescription {
-    font-size: 12px;
-    margin-bottom: 10px;
-    line-height: 1.5;
+    border-radius: 12px;
   }
 
   .serviceCard-imageTop {
-    height: 150px;
+    height: 130px;
   }
 
-  .serviceFeatures {
-    margin-bottom: 10px;
-  }
-
-  .serviceFeatures li {
-    font-size: 11px;
-    margin-bottom: 5px;
-    padding: 3px 0;
-    line-height: 1.4;
-  }
-
-  .checkIcon {
-    width: 16px;
-    height: 16px;
-    font-size: 10px;
-    margin-right: 8px;
-  }
-
-  .servicePrice {
+  .serviceTitle {
     font-size: 13px;
-    margin-bottom: 12px;
-    font-weight: 700;
+    margin-bottom: 4px;
   }
 
-  .sliderArrow {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
-    border-radius: 6px;
-    display: none;
+  .serviceDescription {
+    font-size: 11px;
+    margin-bottom: 8px;
   }
 
-  .sliderViewport {
-    overflow-x: auto;
-    overflow-y: visible;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+  .serviceCard-content {
+    padding: 10px 10px 10px;
   }
 
-  .sliderViewport::-webkit-scrollbar {
-    display: none;
+  .serviceCard-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 
-  .sliderTrack {
-    scroll-snap-type: x mandatory;
+  .btnBookNow {
+    width: 100%;
+    justify-content: center;
+    padding: 8px 14px;
   }
 
-  .serviceSlide {
-    scroll-snap-align: start;
+  .catalogTypeBadge {
+    font-size: 9px;
+    padding: 3px 8px;
+    top: 8px;
+    left: 8px;
   }
 
-  .sliderViewport {
-    margin: 0 -8px;
+  .gridToggleButton {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 20px;
+    border-radius: 12px;
+  }
+
+  .processSection {
+    padding: 48px 3%;
+  }
+
+  .processTitle {
+    font-size: 24px;
+  }
+
+  .processSub {
+    font-size: 14px;
+  }
+
+  .processNo {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+
+  .processStepTitle {
+    font-size: 13px;
+  }
+
+  .processStepDesc {
+    font-size: 12px;
   }
 }

@@ -27,7 +27,7 @@ const UpdateProgress = () => {
   const [technicianNotes, setTechnicianNotes] = useState('');
   const [additionalIssues, setAdditionalIssues] = useState('');
   const [needAdditionalService, setNeedAdditionalService] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('In Progress');
+  const [selectedStatus, setSelectedStatus] = useState('REPAIRING');
   const [uploadedImages, setUploadedImages] = useState([]);
 
   useEffect(() => {
@@ -80,12 +80,17 @@ const UpdateProgress = () => {
         // Map ticket status
         if (ticketData?.status) {
           const statusMap = {
-            'DRAFT': 'Check-in',
-            'CREATED': 'Diagnosis',
-            'IN_PROGRESS': 'In Progress',
-            'COMPLETED': 'Completed'
+            'CANCELLED': 'Đã hủy',
+            'COMPLETED': 'Hoàn tất',
+            'CREATED': 'Khởi tạo phiếu',
+            'ESTIMATED': 'Đã báo giá',
+            'INSPECTED': 'Đã kiểm tra',
+            'INSPECTING': 'Đang kiểm tra',
+            'PAID': 'Đã thanh toán',
+            'PENDING': 'Chờ xử lý',
+            'REPAIRING': 'Đang sửa chữa'
           };
-          setSelectedStatus(statusMap[ticketData.status] || 'In Progress');
+          setSelectedStatus(statusMap[ticketData.status] || ticketData.status);
         }
       } catch (error) {
         console.error('Error fetching ticket data:', error);
@@ -330,7 +335,7 @@ const UpdateProgress = () => {
                 <div className={styles.serviceHeader}>
                   <span className={styles.serviceNumber}>{index + 1}.</span>
                   <span className={styles.serviceName}>{item.name || 'Chưa đặt tên'}</span>
-                  {item.confirmed && <span className={styles.confirmedBadge}>Da xac nhan</span>}
+                  {item.confirmed && <span className={styles.confirmedBadge}>Đã xác nhận</span>}
                 </div>
                 {item.description && (
                   <div className={styles.serviceDescription}>{item.description}</div>
@@ -426,10 +431,15 @@ const UpdateProgress = () => {
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
           >
-            <option value="DRAFT">Nháp</option>
-            <option value="INSPECTION">Đang kiểm tra</option>
-            <option value="IN_PROGRESS">Đang sửa chữa</option>
+            <option value="CANCELLED">Đã hủy</option>
             <option value="COMPLETED">Hoàn tất</option>
+            <option value="CREATED">Khởi tạo phiếu</option>
+            <option value="ESTIMATED">Đã báo giá</option>
+            <option value="INSPECTED">Đã kiểm tra</option>
+            <option value="INSPECTING">Đang kiểm tra</option>
+            <option value="PAID">Đã thanh toán</option>
+            <option value="PENDING">Chờ xử lý</option>
+            <option value="REPAIRING">Đang sửa chữa</option>
           </select>
         </div>
 

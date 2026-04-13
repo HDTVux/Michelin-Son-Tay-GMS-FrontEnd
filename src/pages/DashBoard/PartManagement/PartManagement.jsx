@@ -7,7 +7,6 @@ import { searchWarehouseCatalogItems } from '../../../services/warehouseService.
 import { fetchHomeProducts, fetchHomeServices } from '../../../services/homeService.js';
 import {
   formatCurrencyVnd,
-  formatItemTypeLabel,
   getItemColorText,
   getItemOriginText,
 } from './itemFormatters.js';
@@ -116,29 +115,6 @@ const writeServiceLinkCache = (catalogItemId, serviceId) => {
 
 const hasBlog = (item) => {
   return getServiceServiceId(item) != null;
-};
-
-const parseIsActive = (item) => {
-  if (item == null || typeof item !== 'object') return null;
-  const candidates = [
-    item.isActive,
-    item.is_active,
-    item.isactive,
-    item.active,
-    item.status,
-    item.is_enabled,
-    item.enabled,
-  ];
-  for (const raw of candidates) {
-    if (raw === true) return true;
-    if (raw === false) return false;
-    if (raw === 1 || raw === '1') return true;
-    if (raw === 0 || raw === '0') return false;
-    const text = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
-    if (['true', 'active', 'enabled', 'published', 'visible'].includes(text)) return true;
-    if (['false', 'inactive', 'disabled', 'unpublished'].includes(text)) return false;
-  }
-  return null;
 };
 
 export default function PartManagement() {

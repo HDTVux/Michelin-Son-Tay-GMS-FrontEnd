@@ -29,6 +29,34 @@ const extractHomeProductsList = (res) => {
 	return [];
 };
 
+const toPriceNumber = (value) => {
+	if (value === undefined || value === null || value === '') return null;
+	if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+	const parsed = Number(String(value).replace(/[^\d.-]/g, ''));
+	return Number.isFinite(parsed) ? parsed : null;
+};
+
+const getCatalogPrice = (item) => {
+	const candidates = [
+		item?.price,
+		item?.sellingPrice,
+		item?.salePrice,
+		item?.currentPrice,
+		item?.basePrice,
+		item?.unitPrice,
+		item?.listPrice,
+		item?.displayPrice,
+		item?.catalogPrice,
+		item?.data?.price,
+		item?.data?.sellingPrice,
+	];
+	for (const value of candidates) {
+		const price = toPriceNumber(value);
+		if (price != null) return price;
+	}
+	return null;
+};
+
 
 export default function CreateBooking() {
 	useScrollToTop();
@@ -78,6 +106,9 @@ export default function CreateBooking() {
 	const [search, setSearch] = useState('');
 	const [filter, setFilter] = useState('all');
 	const [activeTab, setActiveTab] = useState('SERVICE');
+	const [minPrice, setMinPrice] = useState('');
+	const [maxPrice, setMaxPrice] = useState('');
+	const [priceSort, setPriceSort] = useState('');
 
 	const [schedule, setSchedule] = useState({ date: '', time: '' });
 	const [scheduleMode, setScheduleMode] = useState('manual'); // 'manual' | 'now'
@@ -95,6 +126,7 @@ export default function CreateBooking() {
 	const [submitError, setSubmitError] = useState('');
 	const [submitSuccess, setSubmitSuccess] = useState('');
 	const [createdBookingForCheckIn, setCreatedBookingForCheckIn] = useState(null);
+	const [submitLocked, setSubmitLocked] = useState(false);
 
 	useEffect(() => {
 		let active = true;
@@ -154,6 +186,7 @@ export default function CreateBooking() {
 							desc: String(item?.shortDescription || item?.description || 'Hien chua co mo ta ngan.').trim(),
 							category,
 							categoryLabel,
+							price: getCatalogPrice(item),
 							thumbnail: item?.thumbnailUrl || item?.imageUrl || item?.mediaThumbnail || '',
 						};
 					})
@@ -198,43 +231,67 @@ export default function CreateBooking() {
 			schedule.date &&
 			schedule.time &&
 			(!schedule.date || (!slotsLoading && !slotsError)) &&
-			!submitting
+			!submitting &&
+			!submitLocked
 		);
-	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting]);
+	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked]);
 
-	const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset } =
-		useCreateBookingHandlers({
-			baseSlots,
-			selectedIds,
-			schedule,
-			scheduleMode,
-			info,
-			canSubmit,
-			slotsLoading,
-			slotsError,
-			createdBookingForCheckIn,
-			navigate,
+	    const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
+        useCreateBookingHandlers({
+            baseSlots,
+            selectedIds,
+            schedule,
+            scheduleMode,
+            info,
+            canSubmit,
+            submitLocked,
+            slotsLoading,
+            slotsError,
+            createdBookingForCheckIn,
+            navigate,
 
-			setSelectedIds,
-			setSearch,
-			setFilter,
-			setSchedule,
-			setScheduleMode,
-			setShowSchedulePicker,
-			setInfo,
-			setAvailableSlots,
-			setSlotsLoading,
-			setSlotsError,
-			setSubmitting,
-			setSubmitError,
-			setSubmitSuccess,
-			setCreatedBookingForCheckIn,
-		});
+
+            setSelectedIds,
+            setSearch,
+            setFilter,
+            setSchedule,
+            setScheduleMode,
+            setShowSchedulePicker,
+            setInfo,
+            setAvailableSlots,
+            setSlotsLoading,
+            setSlotsError,
+            setSubmitting,
+            setSubmitError,
+            setSubmitSuccess,
+            setCreatedBookingForCheckIn,
+            setSubmitLocked,
+        });
+
+
+    const handleReset = () => {
+        setCheckingCustomer(false);
+        setCustomerChecked(null);
+        setCustomerCheckError('');
+        resetForm();
+    };
+
+
 
 	const handleChangeTab = (nextTab) => {
 		setActiveTab(toItemType(nextTab));
 		setFilter('all');
 		setSearch('');
+		setMinPrice('');
+		setMaxPrice('');
+		setPriceSort('');
+	};
+
+	const handleResetWithPriceFilter = () => {
+		setMinPrice('');
+		setMaxPrice('');
+		setPriceSort('');
+		handleReset();
 	};
 
 	const dateOptions = useMemo(() => buildDateOptions(DATE_RANGE_DAYS), []);
@@ -377,6 +434,14 @@ export default function CreateBooking() {
 				error={servicesError}
 				activeTab={activeTab}
 				onChangeTab={handleChangeTab}
+				layoutMode="grid-scroll"
+				showPriceFilter
+				minPrice={minPrice}
+				maxPrice={maxPrice}
+				priceSort={priceSort}
+				onMinPriceChange={setMinPrice}
+				onMaxPriceChange={setMaxPrice}
+				onPriceSortChange={setPriceSort}
 				showActions={false}
 			/>
 
@@ -603,7 +668,7 @@ export default function CreateBooking() {
 				<button
 					type="button"
 					className={bookingStyles.btn}
-					onClick={handleReset}
+					onClick={handleResetWithPriceFilter}
 					disabled={submitting}
 				>
 					Làm mới
