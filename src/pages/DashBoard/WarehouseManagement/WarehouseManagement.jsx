@@ -89,6 +89,28 @@ const getWarehouseSellingPrice = (detail) => {
   return price;
 };
 
+const getItemIsActive = (item) => {
+  if (!item || typeof item !== 'object') return null;
+
+  const raw = item?.isActive ?? item?.is_active ?? item?.active;
+  if (raw === true || raw === false) return raw;
+  if (typeof raw === 'number') return raw === 1;
+  if (typeof raw === 'string') {
+    const s = raw.trim().toLowerCase();
+    if (s === 'true' || s === '1' || s === 'active') return true;
+    if (s === 'false' || s === '0' || s === 'inactive') return false;
+  }
+
+  const status = item?.status ?? item?.itemStatus ?? item?.item_status;
+  if (typeof status === 'string') {
+    const s = status.trim().toLowerCase();
+    if (s === 'active' || s === 'available' || s === 'enabled') return true;
+    if (s === 'inactive' || s === 'disabled') return false;
+  }
+
+  return null;
+};
+
 const getServiceServiceId = (item) => {
   if (!item || typeof item !== 'object') return null;
   const candidates = [
@@ -211,6 +233,10 @@ export default function PartManagement() {
   const [totalElementsServer, setTotalElementsServer] = useState(0);
   const [totalPagesServer, setTotalPagesServer] = useState(1);
 
+  const hasClientOnlyFilters = Boolean(originFilter || colorFilter);
+  const pageForFetch = hasClientOnlyFilters ? 0 : page;
+  const sizeForFetch = hasClientOnlyFilters ? 500 : size;
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
     return () => clearTimeout(timer);
@@ -254,10 +280,9 @@ export default function PartManagement() {
         setIsLoading(true);
         setError('');
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-        const hasClientOnlyFilters = Boolean(originFilter || colorFilter);
         const params = {
-          page: hasClientOnlyFilters ? 0 : page,
-          size: hasClientOnlyFilters ? 500 : size,
+          page: pageForFetch,
+          size: sizeForFetch,
           itemType: 'PART',
         };
         if (debouncedSearch) params.search = debouncedSearch;
@@ -301,7 +326,7 @@ export default function PartManagement() {
         setItems(withStatus);
         setTotalElementsServer(Number(payload?.totalElements ?? content.length));
         setTotalPagesServer(
-          Number(payload?.totalPages ?? Math.max(1, Math.ceil((payload?.totalElements ?? content.length) / Math.max(1, size)))),
+          Number(payload?.totalPages ?? Math.max(1, Math.ceil((payload?.totalElements ?? content.length) / Math.max(1, sizeForFetch)))),
         );
       } catch (err) {
         if (cancelled) return;
@@ -316,7 +341,7 @@ export default function PartManagement() {
     return () => {
       cancelled = true;
     };
-  }, [page, size, debouncedSearch, statusFilter, originFilter, colorFilter, refreshKey]);
+  }, [debouncedSearch, statusFilter, originFilter, colorFilter, refreshKey, pageForFetch, sizeForFetch]);
   const originOptions = useMemo(() => {
     const set = new Set();
     items.forEach((item) => {
@@ -344,7 +369,6 @@ export default function PartManagement() {
     });
   }, [colorFilter, items, originFilter]);
 
-  const hasClientOnlyFilters = Boolean(originFilter || colorFilter);
   const itemsLengthFallback = Array.isArray(items) ? items.length : 0;
   const totalElements = hasClientOnlyFilters
     ? filteredItems.length
@@ -373,6 +397,7 @@ export default function PartManagement() {
     setPage(0);
     setSize(10);
     setSearch('');
+    setDebouncedSearch('');
     setStatusFilter('');
     setOriginFilter('');
     setColorFilter('');
@@ -561,7 +586,7 @@ export default function PartManagement() {
             disabled={isDownloadingTemplate || isSyncingExcel}
             title="Xuất file mẫu Excel theo kho"
           >
-            {isDownloadingTemplate ? 'Dang tai mau...' : 'Xuất file Excel'}
+            {isDownloadingTemplate ? 'Đang tải mẫu...' : 'Xuất file Excel'}
           </button>
 
           <button
@@ -571,7 +596,7 @@ export default function PartManagement() {
             disabled={isDownloadingTemplate || isSyncingExcel}
             title="Nhập kho bằng file Excel"
           >
-            {isSyncingExcel ? 'Dang nhap...' : 'Nhập file Excel'}
+            {isSyncingExcel ? 'Đang nhập...' : 'Nhập file Excel'}
           </button>
 
           <input
@@ -598,12 +623,9 @@ export default function PartManagement() {
              <th>ID</th>
                 <th>TÊN</th>
                 <th>SKU</th>
-                <th>HÃNG</th>
-                <th>DÒNG SP</th>
                 <th>KHO</th>
                 <th>SỐ LƯỢNG</th>
-                <th>ĐANG GIỮ</th>
-                  <th>ĐANG GIỮ</th>
+                <th>KHÁCH GIỮ HÀNG</th>
                 <th>GIÁ (KHO)</th>
                 <th>ĐƠN VỊ</th>
                 <th>XUẤT XỨ</th>
@@ -614,12 +636,12 @@ export default function PartManagement() {
             <tbody>
               {isLoading && (
                 <tr>
-                    <td colSpan="13" className={styles['empty-row']}>Dang tai du lieu...</td>
+                    <td colSpan="12" className={styles['empty-row']}>Đang tải dữ liệu...</td>
                 </tr>
               )}
               {!isLoading && totalElements === 0 && (
                 <tr>
-                    <td colSpan="13" className={styles['empty-row']}>Khong co phu tung nao.</td>
+                    <td colSpan="12" className={styles['empty-row']}>Không có phụ tùng nào.</td>
                 </tr>
               )}
               {!isLoading &&
@@ -631,8 +653,6 @@ export default function PartManagement() {
                       <td>{item.itemId ?? '-'}</td>
                       <td style={{ textAlign: 'left', fontWeight: 500 }}>{item.itemName ?? '-'}</td>
                       <td>{item.sku || '-'}</td>
-                      <td>{item.brand || '-'}</td>
-                      <td>{item.productLine || '-'}</td>
                       <td className={styles['warehouse-cell']}>
                         {renderWarehouseLines(item, (d) => (
                           <span>{getWarehouseDisplayName(d)}</span>
@@ -650,12 +670,6 @@ export default function PartManagement() {
                             return <span>{reservedQty == null ? '-' : new Intl.NumberFormat('vi-VN').format(reservedQty)}</span>;
                           })}
                         </td>
-                      <td className={`${styles['warehouse-cell']} ${styles['td-number']}`}>
-                        {renderWarehouseLines(item, (d) => {
-                          const reservedQty = getWarehouseReservedQty(d);
-                          return <span>{reservedQty == null ? '-' : new Intl.NumberFormat('vi-VN').format(reservedQty)}</span>;
-                        })}
-                      </td>
                       <td className={`${styles['warehouse-cell']} ${styles['td-number']}`}>
                         {renderWarehouseLines(
                           item,
@@ -691,7 +705,7 @@ export default function PartManagement() {
 
         <div className={styles['service-footer']}>
           <div className={styles['page-size']}>
-            <span>Hien thi:</span>
+            <span>Hiển thị:</span>
             <select
               value={String(size)}
               onChange={(e) => {
@@ -710,7 +724,7 @@ export default function PartManagement() {
               disabled={safePage <= 0 || isLoading}
               onClick={() => setPage(safePage - 1)}
             >
-              Truoc
+              Trước
             </button>
             {pageButtons.map((p) => (
               <button

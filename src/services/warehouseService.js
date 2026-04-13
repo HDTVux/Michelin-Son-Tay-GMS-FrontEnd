@@ -1,5 +1,28 @@
 import { API_BASE_URL, request } from './apiClient.js';
 
+const toSafeInt = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(num)) return null;
+  return Math.trunc(num);
+};
+
+const normalizePagingParams = (params) => {
+  const safe = params && typeof params === 'object' ? { ...params } : {};
+
+  if (Object.hasOwn(safe, 'page')) {
+    const rawPage = toSafeInt(safe.page);
+    safe.page = Math.max(0, rawPage ?? 0);
+  }
+
+  if (Object.hasOwn(safe, 'size')) {
+    const rawSize = toSafeInt(safe.size);
+    safe.size = Math.max(1, rawSize ?? 1);
+  }
+
+  return safe;
+};
+
 // Warehouse brand APIs
 // GET: /api/warehouse/brand/all
 export const fetchWarehouseBrands = (token) => {
@@ -267,7 +290,7 @@ export const createWarehouseSpecificationValue = (payload, token) => {
 // params: { page, size, search, itemType, isActive, brand, productLine, categoryCode, minPrice, maxPrice, sortBy }
 export const searchWarehouseCatalogItems = (params, token) => {
   const qp = new URLSearchParams();
-  const safeParams = params || {};
+  const safeParams = normalizePagingParams(params || {});
   Object.entries(safeParams).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
     const s = String(v);
@@ -287,7 +310,7 @@ export const searchWarehouseCatalogItems = (params, token) => {
 // Request params are kept identical to /api/warehouse/search/catalog-items
 export const searchWarehouseCatalogItemsDetail = (params, token) => {
   const qp = new URLSearchParams();
-  const safeParams = params || {};
+  const safeParams = normalizePagingParams(params || {});
   Object.entries(safeParams).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
     const s = String(v);

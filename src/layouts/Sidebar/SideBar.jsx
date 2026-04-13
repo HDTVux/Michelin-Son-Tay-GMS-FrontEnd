@@ -9,6 +9,13 @@ const STAFF_ROLE = {
     TECHNICIAN: 'TECHNICIAN',
     ADMIN: 'ADMIN',
     WAREHOUSE_KEEPER: 'WAREHOUSE_KEEPER',
+    ACCOUNTANT: 'ACCOUNTANT', 
+};
+
+const normalizeRoleName = (value) => {
+    const raw = String(value ?? '').trim().toUpperCase();
+    if (!raw) return '';
+    return raw.startsWith('ROLE_') ? raw.slice('ROLE_'.length) : raw;
 };
 
 const readStaffRolesFromStorage = () => {
@@ -19,7 +26,7 @@ const readStaffRolesFromStorage = () => {
         if (!Array.isArray(parsed)) return [];
         return parsed
             .filter((r) => typeof r === 'string')
-            .map((r) => r.trim().toUpperCase())
+            .map((r) => normalizeRoleName(r))
             .filter(Boolean);
     } catch {
         return [];
@@ -73,7 +80,7 @@ const NAV_GROUPS = [
                 label: 'Dịch vụ & Xưởng',
                 items: [
                     { id: 'advisor-inspection', label: 'Điều phối phiếu dịch vụ', path: '/advisor/inspection', icon: <IconTask />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.MANAGER, STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.TECHNICIAN, STAFF_ROLE.ADMIN] },
-                    { id: 'service-ticket-management', label: 'Phiếu dịch vụ', path: '/service-ticket-management', icon: <IconPost />, roles: 'ALL' },
+                    { id: 'service-ticket-management', label: 'Phiếu dịch vụ', path: '/service-ticket-management', icon: <IconPost />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ACCOUNTANT] },
                     { id: 'my-tasks', label: 'Công việc hôm nay', path: '/technician/my-tasks', icon: <IconTask />, roles: 'ALL' },
                     { id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                 ]
@@ -131,8 +138,10 @@ const NAV_GROUPS = [
 const hasAnyRole = (allowedRoles, staffRoles) => {
     if (allowedRoles === 'ALL') return true;
     if (!Array.isArray(allowedRoles) || allowedRoles.length === 0) return false;
-    const roleSet = Array.isArray(staffRoles) ? new Set(staffRoles.map((r) => String(r).toUpperCase())) : new Set();
-    return allowedRoles.some((r) => roleSet.has(String(r).toUpperCase()));
+    const roleSet = Array.isArray(staffRoles)
+        ? new Set(staffRoles.map((r) => normalizeRoleName(r)).filter(Boolean))
+        : new Set();
+    return allowedRoles.some((r) => roleSet.has(normalizeRoleName(r)));
 };
 
 const filterItemsByRoles = (items, staffRoles) => {
@@ -175,8 +184,14 @@ const SideBar = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
-    const staffProfile = useMemo(() => readStaffProfileFromStorage(), []);
+    // NOTE: roles/profile may be written to localStorage after the first render (e.g. SSO flow).
+    // This component re-renders on route changes (useLocation), so reading on render keeps UI in sync.
+    const staffProfile = readStaffProfileFromStorage();
+    const staffRolesFromStorage = readStaffRolesFromStorage();
+    const staffProfileRoles = Array.isArray(staffProfile?.role)
+        ? staffProfile.role.map(normalizeRoleName).filter(Boolean)
+        : [];
+    const staffRoles = staffRolesFromStorage.length > 0 ? staffRolesFromStorage : staffProfileRoles;
     const staffFullName = staffProfile?.fullName || 'Nhân viên';
     const staffAvatarUrl = staffProfile?.avatarUrl || '';
 
@@ -195,8 +210,9 @@ const SideBar = () => {
         setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
     };
 
-    const toggleSubGroup = (subGroupId) => {
-        setOpenSubGroups((prev) => ({ ...prev, [subGroupId]: !prev[subGroupId] }));
+    // Hàm mở thư mục con được cập nhật để ghi nhận trạng thái thực tế
+    const toggleSubGroup = (subGroupId, currentOpenState) => {
+        setOpenSubGroups((prev) => ({ ...prev, [subGroupId]: !currentOpenState }));
     };
 
     const handleLogout = () => {
@@ -270,13 +286,18 @@ const SideBar = () => {
                                 <div className="navGroup__items">
                                     {group.subGroups ? (
                                         group.subGroups.map((subGroup) => {
-                                            const isSubGroupOpen = Boolean(openSubGroups[subGroup.id]);
+                                            // LOGIC UX MỚI: Tự động sổ xuống nếu mục con chỉ có đúng 1 item (trừ khi user cố tình bấm đóng)
+                                            const hasStoredOpenState = Object.hasOwn(openSubGroups, subGroup.id);
+                                            const isSubGroupOpen = hasStoredOpenState
+                                                ? openSubGroups[subGroup.id]
+                                                : subGroup.items.length === 1;
+
                                             return (
                                                 <div key={subGroup.id} className="navGroup__subGroup">
                                                     <button
                                                         className="navGroup__subHeader"
                                                         type="button"
-                                                        onClick={() => toggleSubGroup(subGroup.id)}
+                                                        onClick={() => toggleSubGroup(subGroup.id, isSubGroupOpen)}
                                                         aria-expanded={isSubGroupOpen}
                                                     >
                                                         <span className="navGroup__subHeaderLabel">{subGroup.label}</span>

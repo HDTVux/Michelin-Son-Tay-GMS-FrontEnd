@@ -1,7 +1,7 @@
 .staffLayout {
   display: flex;
   min-height: 100vh;
-  background: white;
+  background: var(--ui-surface-2, #f9fafb);
 }
 
 .staffLayout__content {
@@ -9,7 +9,8 @@
   padding: 0;
   min-height: 100vh;
   overflow: auto;
-  background: white;
+  background: var(--ui-surface-2, #f9fafb);
+  color: var(--ui-text, #0a0f1c);
 }
 
 @media print {
