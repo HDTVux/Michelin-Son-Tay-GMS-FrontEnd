@@ -17,11 +17,21 @@ function getWarehouseDisplayName(detail) {
 }
 
 function getWarehouseAvailableQty(detail) {
-  // UX requirement: show remaining quantity by `quantity` (not `availableQuantity`).
-  const qty = toFiniteNumber(detail?.quantity);
+  // Remaining quantity should prefer `availableStockLevel` (API-calculated).
+  const availableStockLevel = toFiniteNumber(
+    detail?.availableStockLevel
+      ?? detail?.available_stock_level
+      ?? detail?.availableStock
+      ?? detail?.available_stock,
+  );
+  if (availableStockLevel != null) return availableStockLevel;
+
+  const qty = toFiniteNumber(detail?.quantity ?? detail?.stockQuantity ?? detail?.stock_quantity);
   if (qty != null) return qty;
-  const availableQty = toFiniteNumber(detail?.availableQuantity);
+
+  const availableQty = toFiniteNumber(detail?.availableQuantity ?? detail?.available_quantity);
   if (availableQty != null) return availableQty;
+
   return null;
 }
 

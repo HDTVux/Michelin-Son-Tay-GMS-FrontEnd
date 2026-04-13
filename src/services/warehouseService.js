@@ -9,6 +9,100 @@ export const fetchWarehouseBrands = (token) => {
   });
 };
 
+// Warehouse (master data) APIs
+// GET: /api/warehouse/warehouse/all
+export const fetchWarehousesAll = (token) => {
+  return request('/api/warehouse/warehouse/all', {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+const parseFilenameFromContentDisposition = (contentDisposition) => {
+  const raw = String(contentDisposition ?? '');
+  const utf8Re = /filename\*=UTF-8''([^;\n]+)/i;
+  const utf8Match = utf8Re.exec(raw);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+  const plainRe = /filename="?([^";\n]+)"?/i;
+  const plainMatch = plainRe.exec(raw);
+  if (plainMatch?.[1]) return plainMatch[1];
+  return null;
+};
+
+// Inventory Excel sync/template
+// GET: /api/warehouse/inventory/{warehouseId}/excel/sync-template
+export const fetchWarehouseInventorySyncTemplate = async (warehouseId, token) => {
+  const idNum = typeof warehouseId === 'number' ? warehouseId : Number(warehouseId);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/warehouse/inventory/${encodeURIComponent(String(safeId))}/excel/sync-template`,
+    {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    },
+  );
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok) {
+    if (contentType.includes('application/json')) {
+      const data = await response.json();
+      throw new Error(data?.message || data?.data?.message || 'Request failed');
+    }
+    const text = await response.text();
+    throw new Error(text || 'Request failed');
+  }
+
+  const blob = await response.blob();
+  const filename = parseFilenameFromContentDisposition(response.headers.get('content-disposition'));
+  return { blob, filename };
+};
+
+// POST: /api/warehouse/inventory/{warehouseId}/excel/sync
+// multipart: file
+export const syncWarehouseInventoryExcel = async (warehouseId, file, token) => {
+  const idNum = typeof warehouseId === 'number' ? warehouseId : Number(warehouseId);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+  const uploadFile = file ?? null;
+  if (!uploadFile) throw new Error('Thiếu file Excel.');
+
+  const formData = new FormData();
+  formData.append('file', uploadFile, uploadFile?.name || 'inventory.xlsx');
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/warehouse/inventory/${encodeURIComponent(String(safeId))}/excel/sync`,
+    {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    },
+  );
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json') ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof data === 'string' ? data : data?.message || data?.data?.message || 'Request failed';
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  if (data?.success === false) {
+    const error = new Error(data?.message || data?.data?.message || 'Request failed');
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+};
+
 // POST: /api/warehouse/brand/create
 // Request: { brandId: null, brandName: string, logoUrl: null, isActive: '0'|'1' }
 export const createWarehouseBrand = (payload, token) => {

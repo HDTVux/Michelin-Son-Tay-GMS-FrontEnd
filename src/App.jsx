@@ -25,7 +25,7 @@ import DailySchedule from './pages/DashBoard/DailySchedule/DailySchedule.jsx';
 import StaffDashboard from './pages/DashBoard/StaffDashboard/StaffDashboard.jsx';
 import StaffAttendance from './pages/DashBoard/StaffAttendance/StaffAttendance.jsx';
 
-//Admin/Manager/Advisor pages
+//Admin/Manager/Advisor/Warehouse pages
 import ServiceDetail from './pages/ServiceDetail/ServiceDetail.jsx';
 import EditCustomerProfile from './pages/DashBoard/CustomerManager/EditCustomerProfile.jsx';
 import TechnicianTasks from './pages/DashBoard/TechnicianTasks/TechnicianTasks.jsx';
@@ -51,6 +51,7 @@ import PromotionManagement from './pages/DashBoard/PromotionManagement/Promotion
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
 import VehicleManagement from './pages/DashBoard/VehicleManagement/VehicleManagement.jsx';
+import WarehouseManagement from './pages/DashBoard/WarehouseManagement/WarehouseManagement.jsx';
 
 //Customer pages
 import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
@@ -235,6 +236,7 @@ export default function App() {
           <Route path="feedback-management" element={<FeedbackManagement />} />
           <Route path="vehicle-management" element={<VehicleManagement />} />
           <Route path="system-log-management" element={<SystemLogManagement />} />
+          <Route path="warehouse-management" element={<WarehouseManagement />} />
           
           {/* Technician pages */}
           <Route path="technician/my-tasks" element={<MyTasks />} />
