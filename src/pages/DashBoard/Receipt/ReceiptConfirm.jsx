@@ -6,6 +6,7 @@ import {
     confirmServiceTicketDelivered,
     fetchServiceTicketDetail,
     fetchServiceTicketEstimate,
+    fetchSafetyInspectionCurrentRecommend,
     manageServiceTicketEstimateStatus,
     manageServiceTicketStatus,
 } from '../../../services/serviceTicketService.js';
@@ -92,6 +93,33 @@ function normalizePaymentMethod(method) {
     if (m === 'cash') return 'CASH';
     if (m === 'transfer') return 'TRANSFER';
     return method;
+}
+
+const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
+
+function extractRecommendValue(res) {
+    const normalizeRecommendationString = (value) => {
+        const raw = String(value ?? '').trim();
+        if (!raw) return '';
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') return extractRecommendValue({ data: parsed });
+        } catch {
+            // Keep plain text as-is.
+        }
+        return raw;
+    };
+
+    const payload = res?.data ?? res;
+    if (typeof payload === 'string') return normalizeRecommendationString(payload);
+    if (payload && typeof payload === 'object') {
+        if (typeof payload.recommend === 'string') return normalizeRecommendationString(payload.recommend);
+        if (typeof payload.recommendation === 'string') return normalizeRecommendationString(payload.recommendation);
+        if (typeof payload.recommendationText === 'string') return normalizeRecommendationString(payload.recommendationText);
+        if (typeof payload.currentRecommend === 'string') return normalizeRecommendationString(payload.currentRecommend);
+        if (payload.data != null) return extractRecommendValue({ data: payload.data });
+    }
+    return '';
 }
 
 function normalizeServiceTicketStatus(raw) {
@@ -292,6 +320,7 @@ export default function ReceiptConfirm() {
     const [estimateError, setEstimateError] = useState('');
 
     const [safetyInspection, setSafetyInspection] = useState(null);
+    const [recommendation, setRecommendation] = useState('');
 
     const [defaultCategories, setDefaultCategories] = useState([]);
 
@@ -433,6 +462,31 @@ export default function ReceiptConfirm() {
         return () => { ignore = true; };
     }, [ticketCodeParam]);
 
+    useEffect(() => {
+        const token = localStorage.getItem('authToken');
+        const serviceTicketId = ticket?.serviceTicketId;
+        if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') {
+            setRecommendation('');
+            return;
+        }
+
+        let ignore = false;
+        const run = async () => {
+            const storageKey = getRecommendationStorageKey(serviceTicketId);
+            try {
+                const res = await fetchSafetyInspectionCurrentRecommend(serviceTicketId, token);
+                if (ignore) return;
+                const value = extractRecommendValue(res) || localStorage.getItem(storageKey) || '';
+                setRecommendation(value);
+                if (value) localStorage.setItem(storageKey, value);
+            } catch {
+                if (!ignore) setRecommendation(localStorage.getItem(storageKey) || '');
+            }
+        };
+        run();
+        return () => { ignore = true; };
+    }, [ticket?.serviceTicketId]);
+
     // Fetch danh mục kiểm tra an toàn mặc định
     useEffect(() => {
         const token = localStorage.getItem('authToken');
@@ -566,6 +620,7 @@ export default function ReceiptConfirm() {
             ...ticket,
             receivedAtDisplay,
             handoverAtDisplay,
+            recommendation,
             safetyInspectionEnabled: ticketRaw?.safetyInspectionEnabled,
             invoice: {
                 items: invoiceItems,
@@ -579,7 +634,7 @@ export default function ReceiptConfirm() {
             safetyInspection,
             defaultCategories,
         };
-    }, [ticket, ticketRaw, receivedAtDisplay, handoverAtDisplay, payItems, subtotal, discountAmount, total, appliedPromotion, safetyInspection, defaultCategories]);
+    }, [ticket, ticketRaw, receivedAtDisplay, handoverAtDisplay, recommendation, payItems, subtotal, discountAmount, total, appliedPromotion, safetyInspection, defaultCategories]);
 
     // Remove bill creation from print, only change ticket status to ARCHIVE
     const [archiving, setArchiving] = useState(false);
@@ -936,6 +991,7 @@ export default function ReceiptConfirm() {
                         <button
                             type="button"
                             className="ui-btn ui-btn--ghost"
+                            data-gms-no-global-loading="true"
                             onClick={handleArchiveAndPrint}
                             disabled={ticketLoading || estimateLoading || !!ticketError || archiving}
                         >
