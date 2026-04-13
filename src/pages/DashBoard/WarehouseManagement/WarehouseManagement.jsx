@@ -63,6 +63,20 @@ const getWarehouseAvailableQty = (detail) => {
   if (availableQty != null) return availableQty;
   return null;
 };
+const getWarehouseReservedQty = (detail) => {
+  const reserved = toFiniteNumber(
+    detail?.reservedQuantity,
+  );
+  if (reserved != null) return reserved;
+
+  const reservedStockLevel = toFiniteNumber(
+    detail?.reservedStockLevel
+      ?? detail?.reserved_stock_level,
+  );
+  if (reservedStockLevel != null) return reservedStockLevel;
+
+  return null;
+};
 
 const getWarehouseSellingPrice = (detail) => {
   const price = toFiniteNumber(
@@ -588,6 +602,8 @@ export default function PartManagement() {
                 <th>DÒNG SP</th>
                 <th>KHO</th>
                 <th>SỐ LƯỢNG</th>
+                <th>ĐANG GIỮ</th>
+                  <th>ĐANG GIỮ</th>
                 <th>GIÁ (KHO)</th>
                 <th>ĐƠN VỊ</th>
                 <th>XUẤT XỨ</th>
@@ -598,12 +614,12 @@ export default function PartManagement() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan="12" className={styles['empty-row']}>Dang tai du lieu...</td>
+                    <td colSpan="13" className={styles['empty-row']}>Dang tai du lieu...</td>
                 </tr>
               )}
               {!isLoading && totalElements === 0 && (
                 <tr>
-                  <td colSpan="12" className={styles['empty-row']}>Khong co phu tung nao.</td>
+                    <td colSpan="13" className={styles['empty-row']}>Khong co phu tung nao.</td>
                 </tr>
               )}
               {!isLoading &&
@@ -628,6 +644,18 @@ export default function PartManagement() {
                           return <span>{qty == null ? '-' : new Intl.NumberFormat('vi-VN').format(qty)}</span>;
                         })}
                       </td>
+                        <td className={`${styles['warehouse-cell']} ${styles['td-number']}`}>
+                          {renderWarehouseLines(item, (d) => {
+                            const reservedQty = getWarehouseReservedQty(d);
+                            return <span>{reservedQty == null ? '-' : new Intl.NumberFormat('vi-VN').format(reservedQty)}</span>;
+                          })}
+                        </td>
+                      <td className={`${styles['warehouse-cell']} ${styles['td-number']}`}>
+                        {renderWarehouseLines(item, (d) => {
+                          const reservedQty = getWarehouseReservedQty(d);
+                          return <span>{reservedQty == null ? '-' : new Intl.NumberFormat('vi-VN').format(reservedQty)}</span>;
+                        })}
+                      </td>
                       <td className={`${styles['warehouse-cell']} ${styles['td-number']}`}>
                         {renderWarehouseLines(
                           item,
@@ -650,7 +678,7 @@ export default function PartManagement() {
                             onClick={() => setSelectedItem(item)}
                             title="Xem chi tiet"
                           >
-                            Chi tiet
+                            Xem chi tiết
                           </button>
                         </div>
                       </td>
