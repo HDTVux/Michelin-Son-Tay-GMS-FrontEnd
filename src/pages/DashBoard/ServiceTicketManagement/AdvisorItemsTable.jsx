@@ -149,6 +149,7 @@ function EstimateItemRow({
     idx,
     showInputs,
     onChange,
+    onClearRow,
     isSaving,
     taxRulesLoading,
     taxRules,
@@ -157,6 +158,7 @@ function EstimateItemRow({
     softDeleteEditRow,
     openCatalogPicker,
     showTaxColumn,
+    showConfirmColumn,
 }) {
     const isLocked = Boolean(row?.isLockedFromPreviousVersion);
     const allowInputs = showInputs && !isLocked;
@@ -188,15 +190,6 @@ function EstimateItemRow({
     } else {
         itemPlaceholder = 'Nhập hạng mục trước';
     }
-
-    // View-mode: show tick reliably without requiring reload.
-    // Some UIs can render disabled checkboxes without a visible checkmark.
-    const viewConfirmed = Boolean(
-        row?.confirmed ||
-            toIdOrNull(row?.estimateItemId) ||
-            toIdOrNull(row?.itemId) ||
-            String(row?.itemName ?? '').trim(),
-    );
 
     return (
         <tr key={`advisor-row-${stt}-${row.key}`}>
@@ -323,35 +316,43 @@ function EstimateItemRow({
             ) : null}
 
             <td />
-            <td className={styles.tdCenter}>
-                {showInputs ? (
+            {showConfirmColumn ? (
+                <td className={styles.tdCenter}>
                     <input
                         type="checkbox"
                         checked={Boolean(row.confirmed)}
                         onChange={(e) => onChange(idx, 'confirmed', e.target.checked)}
                         disabled={isSaving || isLocked}
                     />
-                ) : (
-                    <input
-                        type="checkbox"
-                        checked={viewConfirmed}
-                        readOnly
-                        style={{ pointerEvents: 'none' }}
-                        tabIndex={-1}
-                    />
-                )}
-            </td>
-            {isEditing ? (
+                </td>
+            ) : null}
+            {showInputs ? (
                 <td className={styles.tdCenter}>
-                    <button
-                        type="button"
-                        className="ui-btn ui-btn--ghost"
-                        onClick={() => softDeleteEditRow(idx)}
-                        disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row) || isLocked}
-                        title="Xóa dòng này"
-                    >
-                        Xóa
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                        {allowInputs ? (
+                            Boolean(row?.confirmed) && isEditing ? (
+                                <button
+                                    type="button"
+                                    className="ui-btn ui-btn--ghost"
+                                    onClick={() => softDeleteEditRow(idx)}
+                                    disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row) || isLocked}
+                                    title="Xóa dòng này"
+                                >
+                                    Xóa
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="ui-btn ui-btn--ghost"
+                                    onClick={() => onClearRow?.(idx)}
+                                    disabled={isSaving}
+                                    title="Xóa các ô đã nhập của dòng này"
+                                >
+                                    Xóa 
+                                </button>
+                            )
+                        ) : null}
+                    </div>
                 </td>
             ) : null}
         </tr>
@@ -363,6 +364,7 @@ EstimateItemRow.propTypes = {
     idx: PropTypes.number,
     showInputs: PropTypes.bool,
     onChange: PropTypes.func,
+    onClearRow: PropTypes.func,
     isSaving: PropTypes.bool,
     taxRulesLoading: PropTypes.bool,
     taxRules: PropTypes.array,
@@ -371,6 +373,7 @@ EstimateItemRow.propTypes = {
     softDeleteEditRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
     showTaxColumn: PropTypes.bool,
+    showConfirmColumn: PropTypes.bool,
 };
 
 function EstimateActions({
@@ -597,6 +600,15 @@ export default function AdvisorItemsTable({
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange, refreshToken });
 
+    const showTaxColumn = isCreating || isEditing;
+    const showConfirmColumn = Boolean(showInputs);
+
+    const footerSpacerColSpan =
+        (showTaxColumn ? 1 : 0) +
+        1 +
+        (showConfirmColumn ? 1 : 0) +
+        (showInputs ? 1 : 0);
+
     const RECOMMEND_MAX_LENGTH = 255;
     const recommendationValidation = useMemo(
         () =>
@@ -815,6 +827,39 @@ export default function AdvisorItemsTable({
         setPickerInitQuery("");
     };
 
+    const handleClearRowInputs = useCallback((rowIndex) => {
+        if (!showInputs) return;
+        if (rowIndex == null) return;
+
+        const row = Array.isArray(tableRows) ? tableRows[rowIndex] : null;
+        if (!row || row?.isLockedFromPreviousVersion) return;
+
+        if (activeRowIndex === rowIndex) {
+            setPickerOpen(false);
+            setActiveRowIndex(null);
+            setPickerInitQuery("");
+        }
+
+        onChange(rowIndex, 'newCategoryName', '');
+        onChange(rowIndex, 'workCategoryId', '');
+        onChange(rowIndex, 'workCategoryCode', '');
+
+        onChange(rowIndex, 'itemId', '');
+        onChange(rowIndex, 'itemName', '');
+        onChange(rowIndex, 'unit', '');
+
+        onChange(rowIndex, 'quantity', '');
+        onChange(rowIndex, 'unitPrice', '');
+
+        onChange(rowIndex, 'warehouseId', '');
+        onChange(rowIndex, 'warehouseAvailableQuantity', null);
+
+        onChange(rowIndex, 'taxRuleId', '');
+        onChange(rowIndex, 'itemTaxRuleId', '');
+
+        onChange(rowIndex, 'confirmed', false);
+    }, [activeRowIndex, onChange, showInputs, tableRows]);
+
     const handlePickCatalogItem = (item) => {
         if (activeRowIndex == null) return;
         const id = item?.itemId ?? item?.id ?? null;
@@ -985,10 +1030,10 @@ export default function AdvisorItemsTable({
                             <th scope="col">SL</th>
                             <th scope="col">ĐƠN GIÁ</th>
                             <th scope="col">THÀNH TIỀN</th>
-                            {isCreating || isEditing ? <th scope="col">THUẾ </th> : null}
+                            {showTaxColumn ? <th scope="col">THUẾ </th> : null}
                             <th scope="col">KHO</th>
-                            <th scope="col">XÁC NHẬN</th>
-                            {isEditing ? <th scope="col">XÓA</th> : null}
+                            {showConfirmColumn ? <th scope="col">XÁC NHẬN</th> : null}
+                            {showInputs ? <th scope="col">THAO TÁC</th> : null}
                         </tr>
                     </thead>
                     <tbody>
@@ -998,8 +1043,10 @@ export default function AdvisorItemsTable({
                                 row={row}
                                 idx={idx}
                                 showInputs={showInputs}
-                                showTaxColumn={isCreating || isEditing}
+                                showTaxColumn={showTaxColumn}
+                                showConfirmColumn={showConfirmColumn}
                                 onChange={onChange}
+                                onClearRow={handleClearRowInputs}
                                 isSaving={isSaving}
                                 taxRulesLoading={taxRulesLoading}
                                 taxRules={taxRules}
@@ -1016,7 +1063,7 @@ export default function AdvisorItemsTable({
                                 TỔNG CỘNG
                             </td>
                             <td className={styles.tdNumber}>{footerTotalText}</td>
-                            <td colSpan={isCreating || isEditing ? (isEditing ? 4 : 3) : 2} />
+                            <td colSpan={footerSpacerColSpan} />
                         </tr>
                     </tfoot>
                 </table>

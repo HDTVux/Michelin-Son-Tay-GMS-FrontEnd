@@ -130,6 +130,9 @@
 	font-size: 14px;
 	line-height: 1.5;
 	min-width: 0;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	word-break: break-word;
 }
 
 @media (max-width: 720px) {
