@@ -20,6 +20,7 @@ import {
     fetchTicketAssignments,
     updateServiceTicketEstimatedDelivery,
 } from '../../../services/serviceTicketService.js';
+import { finishWork } from '../../../services/technicianService.js';
 import { requestWarehouseStockIssue } from '../../../services/warehouseService.js';
 import { ServiceTicket as TechnicianServiceTicket } from '../../Technician/ServiceTicket/ServiceTicket.jsx';
 import styles from './ServiceTicketDetail.module.css';
@@ -89,6 +90,12 @@ function formatEstimatedDeliveryAtForApi(value) {
     const hhmm = String(timePart).slice(0, 5);
     if (!/^\d{2}:\d{2}$/.test(hhmm)) return '';
     return `${datePart}T${hhmm}:00`;
+}
+
+function getFinishWorkErrorMessage(err, fallback) {
+    // Intentionally do not surface backend error messages in the UI.
+    // Keep the helper for consistent call-sites.
+    return fallback || 'Không thể báo hoàn thành sửa chữa.';
 }
 
 function normalizeOdometerKm(value) {
@@ -673,7 +680,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const params = useParams();
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
-    const isReceptionist = staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
 
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -712,9 +718,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
     const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
-    const openedSource = String(location?.state?.source || '').trim();
-    const openedFromAdvisorInspection = openedSource === 'advisor-inspection';
-    const openedFromServiceTicketManagement = openedSource === 'service-ticket-management';
 
     const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
         ticketCodeParam,
@@ -871,19 +874,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         );
     }, [assignments, assignmentsLoading]);
 
-    const isAdvisorReadOnlyWithoutTechnician = hasAdvisorRole && !assignmentsLoading && !hasTechnician;
-    const isReceptionistServiceTicketManagementView = isReceptionist && openedFromServiceTicketManagement;
-    const isInspectionSectionReadOnly = isReceptionistServiceTicketManagementView || isAdvisorReadOnlyWithoutTechnician;
-    const inspectionSectionMessage = isReceptionistServiceTicketManagementView
-        ? 'Lễ tân chỉ được xem phần phiếu kiểm tra an toàn và báo giá.'
-        : isAdvisorReadOnlyWithoutTechnician
-            ? 'Phiếu chưa được phân công kỹ thuật viên, hiện chỉ có thể xem phần bên dưới.'
-            : '';
-    const canEditReceptionSection = isReceptionist
-        && !openedFromAdvisorInspection
-        && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT');
-    const canShowInspectionSection = hasAdvisorRole || isReceptionist;
-
     const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading;
     const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED';
 
@@ -963,7 +953,35 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         navigate('/advisor/inspection');
     };
 
-    const handleCompleteRepair = () => handleUpdateTicketStatus('COMPLETED', 'Đã chuyển sang trạng thái "Hoàn tất sửa chữa".');
+    const handleCompleteRepair = async () => {
+        if (statusUpdating) return;
+
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để báo hoàn thành.');
+            return;
+        }
+
+        const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
+        if (!ticketCode) {
+            notify('Thiếu mã phiếu dịch vụ.');
+            return;
+        }
+
+        try {
+            setStatusUpdating(true);
+            await finishWork(ticketCode, token);
+
+            const detailRes = await fetchServiceTicketDetail(ticketCode, token);
+            setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
+            triggerRefresh();
+            notify('Đã chuyển sang trạng thái "Hoàn tất sửa chữa".');
+        } catch (err) {
+            notify(getFinishWorkErrorMessage(err, 'Không thể báo hoàn thành sửa chữa.'));
+        } finally {
+            setStatusUpdating(false);
+        }
+    };
 
     const handleAddService = async () => {
         if (statusUpdating) return;
@@ -1539,16 +1557,48 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    // Chặn toàn bộ trang nếu chưa phân công kỹ thuật viên
+    if (!assignmentsLoading && !hasTechnician) {
+        return (
+            <div className={styles.page}>
+                <div className={styles.screenOnly}>
+                    <div className={styles.layout}>
+                        <main className={styles.main}>
+                            <header className={styles.header}>
+                                <div className={styles.headerLeft}>
+                                    <div className={styles.titleRow}>
+                                        <h1 className={styles.title}>Phiếu dịch vụ #{ticketCodeParam || '-'}</h1>
+                                    </div>
+                                </div>
+                            </header>
+                            <div className={`ui-card ${styles.card}`} style={{ textAlign: 'center', padding: '48px 24px' }}>
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+                                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', marginBottom: '12px' }}>
+                                    Chưa phân công kỹ thuật viên
+                                </h2>
+                                <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', maxWidth: '440px', margin: '0 auto 32px' }}>
+                                    Phiếu dịch vụ này chưa được phân công kỹ thuật viên. Vui lòng phân công kỹ thuật viên trước khi mở phiếu.
+                                </p>
+                                <button
+                                    type="button"
+                                    className="ui-btn ui-btn--ghost"
+                                    onClick={() => navigate(-1)}
+                                >
+                                    Quay lại
+                                </button>
+                            </div>
+                        </main>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={styles.page}>
             <div className={styles.screenOnly}>
                 <div className={styles.layout}>
                     <main className={styles.main}>
-                        {inspectionSectionMessage ? (
-                            <div className={styles.noteBox} style={{ marginBottom: 16 }}>
-                                {inspectionSectionMessage}
-                            </div>
-                        ) : null}
                         <header className={styles.header}>
                             <div className={styles.headerLeft}>
                                 <div className={styles.titleRow}>
@@ -1556,7 +1606,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                                 </div>
                             </div>
-                            {canEditReceptionSection && (
+                            {staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT') && (
                                 <button
                                     type="button"
                                     className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
@@ -1729,15 +1779,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 )}
                             </section>
 
-                            {canShowInspectionSection && (
+                            {hasAdvisorRole && (
                                 <>
                                     <TechnicianServiceTicket
                                         key={`tech-${ticket.ticketCode || ticketCodeParam}-${ticketStatus}-${estimateStatus}`}
                                         ticketCode={ticket.ticketCode || ticketCodeParam}
                                         embedded
                                         mode="advisor"
-                                        readOnly={isInspectionSectionReadOnly}
-                                        readOnlyMessage={inspectionSectionMessage}
                                         onInspectionCompleted={handleInspectionCompleted}
                                     />
 
@@ -1753,8 +1801,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
                                         onCancelAppendOnly={handleCancelAppendOnly}
                                         onEstimateEditingChange={setIsEstimateEditing}
-                                        readOnly={isInspectionSectionReadOnly}
-                                        readOnlyMessage={inspectionSectionMessage}
                                     />
                                 </>
                             )}
@@ -1765,8 +1811,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
-                                        {isInspectionSectionReadOnly ? null : (
-                                            <>
                                         {isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                             <button
                                                 type="button"
@@ -1852,8 +1896,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                     </span>
                                                 )}
                                             </>
-                                        )}
-                                        </>
                                         )}
                                     </div>
                                 </div>
