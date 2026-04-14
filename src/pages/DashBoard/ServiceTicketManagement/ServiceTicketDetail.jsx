@@ -1166,10 +1166,31 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
         try {
             if (isAppendOnlyConfirm) {
+                // Backend expects the full snapshot of allocations; missing rows can be treated as deleted.
+                // Refetch the estimate to ensure we include all existing allocations (old + new).
+                let estimateItemsForAllocation = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+                try {
+                    const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
+                    const list = Array.isArray(estimateRes?.data) ? estimateRes.data : [];
+                    const found =
+                        list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
+                        pickLatestEstimate(list);
+                    if (Array.isArray(found?.items)) {
+                        estimateItemsForAllocation = found.items;
+                        setLatestEstimate((prev) => {
+                            if (!prev) return prev;
+                            const next = { ...prev, ...found };
+                            next.items = found.items;
+                            return next;
+                        });
+                    }
+                } catch {
+                    // keep fallback to latestEstimate.items
+                }
                 const payload = buildStockAllocationUpdatePayload({
                     estimateId: estimateIdNum,
                     serviceTicketId: serviceTicketIdNum,
-                    estimateItems: latestEstimate?.items,
+                    estimateItems: estimateItemsForAllocation,
                 });
                 // Nếu không có dòng vật tư cần giữ chỗ (toàn dịch vụ), bỏ qua update.
                 if (payload.length > 0) {
@@ -1798,7 +1819,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
                                                     </button>
                                                 )}
-                                                {canRequestStockIssue && (
+                                                {canRequestStockIssue && !canConfirmEstimate && (
                                                     <button
                                                         type="button"
                                                         className="ui-btn ui-btn--ghost"
