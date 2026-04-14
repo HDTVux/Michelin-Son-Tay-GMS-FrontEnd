@@ -405,7 +405,9 @@ function ServiceTicketManagement() {
 						onViewDetail={(ticket) => {
 							const code = String(ticket?.ticketCode || '').trim();
 							if (!code) { setError('Phiếu này chưa có ticketCode.'); return; }
-							navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
+							navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, {
+								state: { ticket, source: 'service-ticket-management' },
+							});
 						}}
 						onOpenAssign={(ticket) => {
 							openModal(ticket);

@@ -712,6 +712,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
     const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
+    const openedSource = String(location?.state?.source || '').trim();
+    const openedFromAdvisorInspection = openedSource === 'advisor-inspection';
+    const openedFromServiceTicketManagement = openedSource === 'service-ticket-management';
 
     const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
         ticketCodeParam,
@@ -868,17 +871,18 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         );
     }, [assignments, assignmentsLoading]);
 
-    const isViewOnlyWithoutTechnician = !assignmentsLoading && !hasTechnician;
-    const isReadOnlyTicketView = isViewOnlyWithoutTechnician || isReceptionist;
-    const readOnlyTicketMessage = isViewOnlyWithoutTechnician
-        ? 'Phiếu chưa được phân công kỹ thuật viên, hiện chỉ có thể xem thông tin.'
-        : isReceptionist
-            ? 'Lễ tân chỉ có quyền xem phiếu, không được chỉnh sửa.'
+    const isAdvisorReadOnlyWithoutTechnician = hasAdvisorRole && !assignmentsLoading && !hasTechnician;
+    const isReceptionistServiceTicketManagementView = isReceptionist && openedFromServiceTicketManagement;
+    const isInspectionSectionReadOnly = isReceptionistServiceTicketManagementView || isAdvisorReadOnlyWithoutTechnician;
+    const inspectionSectionMessage = isReceptionistServiceTicketManagementView
+        ? 'Lễ tân chỉ được xem phần phiếu kiểm tra an toàn và báo giá.'
+        : isAdvisorReadOnlyWithoutTechnician
+            ? 'Phiếu chưa được phân công kỹ thuật viên, hiện chỉ có thể xem phần bên dưới.'
             : '';
-    const canEditReceptionSection = !isReadOnlyTicketView
-        && isReceptionist
+    const canEditReceptionSection = isReceptionist
+        && !openedFromAdvisorInspection
         && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT');
-    const canShowInspectionSection = hasAdvisorRole || isReadOnlyTicketView;
+    const canShowInspectionSection = hasAdvisorRole || isReceptionist;
 
     const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading;
     const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED';
@@ -1519,6 +1523,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             <div className={styles.screenOnly}>
                 <div className={styles.layout}>
                     <main className={styles.main}>
+                        {inspectionSectionMessage ? (
+                            <div className={styles.noteBox} style={{ marginBottom: 16 }}>
+                                {inspectionSectionMessage}
+                            </div>
+                        ) : null}
                         <header className={styles.header}>
                             <div className={styles.headerLeft}>
                                 <div className={styles.titleRow}>
@@ -1539,11 +1548,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         </header>
 
                         {error && <div className={styles.errorBanner}>{error}</div>}
-                        {readOnlyTicketMessage ? (
-                            <div className={styles.noteBox} style={{ marginBottom: 16 }}>
-                                {readOnlyTicketMessage}
-                            </div>
-                        ) : null}
 
                         <div className={`ui-card ${styles.card}`}>
                             <div className={styles.topInfoGrid}>
@@ -1711,8 +1715,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         ticketCode={ticket.ticketCode || ticketCodeParam}
                                         embedded
                                         mode="advisor"
-                                        readOnly={isReadOnlyTicketView}
-                                        readOnlyMessage={readOnlyTicketMessage}
+                                        readOnly={isInspectionSectionReadOnly}
+                                        readOnlyMessage={inspectionSectionMessage}
                                         onInspectionCompleted={handleInspectionCompleted}
                                     />
 
@@ -1728,8 +1732,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
                                         onCancelAppendOnly={handleCancelAppendOnly}
                                         onEstimateEditingChange={setIsEstimateEditing}
-                                        readOnly={isReadOnlyTicketView}
-                                        readOnlyMessage={readOnlyTicketMessage}
+                                        readOnly={isInspectionSectionReadOnly}
+                                        readOnlyMessage={inspectionSectionMessage}
                                     />
                                 </>
                             )}
@@ -1740,7 +1744,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
-                                        {isReadOnlyTicketView ? null : (
+                                        {isInspectionSectionReadOnly ? null : (
                                             <>
                                         {isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                             <button

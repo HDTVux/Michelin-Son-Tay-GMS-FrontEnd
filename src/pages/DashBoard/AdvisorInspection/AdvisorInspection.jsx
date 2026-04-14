@@ -4,7 +4,6 @@ import { toast } from 'react-toastify';
 import {
   fetchAdvisorMyTickets,
   fetchServiceTicketDetail,
-  fetchServiceTicketsPaged,
   fetchAvailableStaff,
   assignStaff,
   cancelAssignmentById,
@@ -318,48 +317,6 @@ const toPositiveQueueNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
 };
-const isQueueLikeKey = (rawKey) => {
-  const key = String(rawKey || '').toLowerCase();
-  if (!key) return false;
-  if (key === 'stt') return true;
-  if (key.includes('queue') && (key.includes('number') || key.includes('order') || key.endsWith('no'))) {
-    return true;
-  }
-  if (key.includes('queue') && (key === 'queue' || key.endsWith('_queue'))) return true;
-  return false;
-};
-const findQueueNumberDeep = (input, maxDepth = 3) => {
-  if (!input || typeof input !== 'object') return null;
-  const visited = new Set();
-  const stack = [{ node: input, depth: 0 }];
-
-  while (stack.length > 0) {
-    const { node, depth } = stack.pop();
-    if (!node || typeof node !== 'object') continue;
-    if (visited.has(node)) continue;
-    visited.add(node);
-
-    for (const [rawKey, rawValue] of Object.entries(node)) {
-      if (isQueueLikeKey(rawKey)) {
-        if (rawValue && typeof rawValue === 'object') {
-          const inner = toPositiveQueueNumber(
-            rawValue?.number ?? rawValue?.order ?? rawValue?.no,
-          );
-          if (inner != null) return inner;
-        } else {
-          const direct = toPositiveQueueNumber(rawValue);
-          if (direct != null) return direct;
-        }
-      }
-
-      if (depth < maxDepth && rawValue && typeof rawValue === 'object') {
-        stack.push({ node: rawValue, depth: depth + 1 });
-      }
-    }
-  }
-
-  return null;
-};
 const getTicketQueueNumber = (ticket) => {
   const keys = [
     'queueNumber',
@@ -370,7 +327,6 @@ const getTicketQueueNumber = (ticket) => {
     'queue_order',
     'orderInQueue',
     'order_in_queue',
-    'stt',
   ];
 
   for (const key of keys) {
@@ -395,16 +351,7 @@ const getTicketQueueNumber = (ticket) => {
       if (nestedValue != null) return nestedValue;
     }
   }
-
-  if (ticket && typeof ticket === 'object') {
-    for (const [rawKey, rawValue] of Object.entries(ticket)) {
-      if (!isQueueLikeKey(rawKey)) continue;
-      const value = toPositiveQueueNumber(rawValue);
-      if (value != null) return value;
-    }
-  }
-
-  return findQueueNumberDeep(ticket);
+  return null;
 };
 const getTicketQueueTime = (ticket) => {
   const raw =
@@ -589,7 +536,6 @@ const withQueueNumber = (ticket, queueNumber) => {
       queue_order: null,
       orderInQueue: null,
       order_in_queue: null,
-      stt: null,
     };
   }
   return {
@@ -602,7 +548,6 @@ const withQueueNumber = (ticket, queueNumber) => {
     queue_order: num,
     orderInQueue: num,
     order_in_queue: num,
-    stt: num,
   };
 };
 
@@ -827,7 +772,6 @@ export default function AdvisorInspection() {
   const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
   const canChangeAdvisorByRole = staffRoles.includes(STAFF_ROLE.ADVISOR);
   const initialDate = useMemo(() => readPersistedActiveDay() || getTodayLocalISO(), []);
-  const queueCacheRef = useRef(new Map());
   const dayPickerRef = useRef(null);
 
   // Ticket list state
@@ -941,88 +885,6 @@ export default function AdvisorInspection() {
           })),
         );
 
-        const missingQueueCodes = sortedList
-          .filter((ticket) => getTicketQueueNumber(ticket) == null)
-          .map((ticket) => String(getTicketCode(ticket) || '').trim())
-          .filter(Boolean);
-
-        if (missingQueueCodes.length > 0) {
-          const queueByCode = new Map();
-          for (const code of missingQueueCodes) {
-            const cached = queueCacheRef.current.get(code);
-            if (cached != null) queueByCode.set(code, cached);
-          }
-
-          const unresolvedCodes = missingQueueCodes.filter((code) => !queueByCode.has(code));
-          if (unresolvedCodes.length > 0) {
-            const detailRows = await Promise.allSettled(
-              unresolvedCodes.map((code) => fetchServiceTicketDetail(code, token)),
-            );
-            if (ignore) return;
-
-            const stillUnresolved = [];
-            detailRows.forEach((row, idx) => {
-              const code = unresolvedCodes[idx];
-              if (row.status !== 'fulfilled') {
-                stillUnresolved.push(code);
-                return;
-              }
-              const detailCandidate = row?.value?.data?.data ?? row?.value?.data ?? row?.value;
-              const queueNumber = getTicketQueueNumber(detailCandidate);
-              if (queueNumber != null) {
-                queueByCode.set(code, queueNumber);
-                queueCacheRef.current.set(code, queueNumber);
-              } else {
-                stillUnresolved.push(code);
-              }
-            });
-
-            if (stillUnresolved.length > 0) {
-              const manageRows = await Promise.allSettled(
-                stillUnresolved.map((code) =>
-                  fetchServiceTicketsPaged({ page: 0, size: 20, search: code }, token),
-                ),
-              );
-              if (ignore) return;
-
-              manageRows.forEach((row, idx) => {
-                if (row.status !== 'fulfilled') return;
-                const code = stillUnresolved[idx];
-                const pageData = row?.value?.data;
-                const list = Array.isArray(pageData?.content)
-                  ? pageData.content
-                  : Array.isArray(pageData?.data)
-                    ? pageData.data
-                    : Array.isArray(pageData)
-                      ? pageData
-                      : [];
-                if (list.length === 0) return;
-                const matched = list.find((item) => String(getTicketCode(item) || '').trim() === code) || list[0];
-                const queueNumber = getTicketQueueNumber(matched);
-                if (queueNumber == null) return;
-                queueByCode.set(code, queueNumber);
-                queueCacheRef.current.set(code, queueNumber);
-              });
-            }
-          }
-
-          if (queueByCode.size > 0) {
-            setTickets((prev) => sortTicketsByQueueOrder(
-              prev.map((ticket) => {
-                const code = String(getTicketCode(ticket) || '').trim();
-                const queueNumber = queueByCode.get(code);
-                if (queueNumber == null) return ticket;
-                return {
-                  ...ticket,
-                  queueNumber,
-                  queue_number: queueNumber,
-                  queueOrder: queueNumber,
-                  queue_order: queueNumber,
-                };
-              }),
-            ));
-          }
-        }
       } catch (err) {
         if (ignore) return;
         setError(err?.message || 'Không thể tải danh sách phiếu.');
@@ -1922,7 +1784,9 @@ export default function AdvisorInspection() {
                     className={styles.actionBtn}
                     onClick={() => {
                       if (!code) return;
-                      navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
+                      navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, {
+                        state: { ticket, source: 'advisor-inspection' },
+                      });
                     }}
                     disabled={!code || swapping}
                     title="Mở chi tiết phiếu dịch vụ"
@@ -2360,7 +2224,9 @@ export default function AdvisorInspection() {
                             onClick={() => {
                               if (!detailCode) return;
                               setShowRepairHistoryModal(false);
-                              navigate(`/service-ticket-detail/${encodeURIComponent(detailCode)}`, { state: { ticket: row } });
+                              navigate(`/service-ticket-detail/${encodeURIComponent(detailCode)}`, {
+                                state: { ticket: row, source: 'advisor-inspection' },
+                              });
                             }}
                             disabled={!detailCode}
                             title="Mở chi tiết phiếu dịch vụ"
