@@ -254,11 +254,16 @@ export function toIdOrNull(value) {
 export function isDraftRowEmpty(row) {
 	const newCategoryName = String(row?.newCategoryName || '').trim();
 	const itemName = String(row?.itemName || '').trim();
-	const quantity = String(row?.quantity ?? '').trim();
-	const unitPrice = String(row?.unitPrice ?? '').trim();
+	const quantityText = String(row?.quantity ?? '').trim();
+	const unitPriceText = String(row?.unitPrice ?? '').trim();
+
+	const qtyNumber = quantityText ? Number(quantityText) : Number.NaN;
+	const priceNumber = unitPriceText ? Number(unitPriceText) : Number.NaN;
+	const hasMeaningfulQty = Number.isFinite(qtyNumber) ? qtyNumber > 0 : Boolean(quantityText);
+	const hasMeaningfulPrice = Number.isFinite(priceNumber) ? priceNumber > 0 : Boolean(unitPriceText);
 	const taxRuleId = String(row?.taxRuleId ?? '').trim();
 	const confirmed = Boolean(row?.confirmed);
-	return !newCategoryName && !itemName && !quantity && !unitPrice && !taxRuleId && !confirmed;
+	return !newCategoryName && !itemName && !hasMeaningfulQty && !hasMeaningfulPrice && !taxRuleId && !confirmed;
 }
 
 function normalizeDraftRows(rows, maxRows) {
