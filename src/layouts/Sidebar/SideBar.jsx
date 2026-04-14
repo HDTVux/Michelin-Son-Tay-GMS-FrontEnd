@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './SideBar.css';
+
+const SIDEBAR_GROUPS_STORAGE_KEY = 'sidebarOpenGroups';
+const SIDEBAR_SUBGROUPS_STORAGE_KEY = 'sidebarOpenSubGroups';
 
 const STAFF_ROLE = {
     MANAGER: 'MANAGER',
@@ -92,6 +95,7 @@ const NAV_GROUPS = [
                     { id: 'warehouse-management', label: 'Quản lý kho', path: '/warehouse-management', icon: <IconBox />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
                     { id: 'part-management', label: 'Quản lý phụ tùng', path: '/part-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER] },
                     { id: 'warehouse-stock-entries', label: 'Quản lý phiếu nhập', path: '/warehouse-stock-entries', icon: <IconDownload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, STAFF_ROLE.WAREHOUSE_KEEPER] },
+                    { id: 'warehouse-stock-issues', label: 'Quản lý phiếu xuất', path: '/warehouse-stock-issues', icon: <IconUpload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, STAFF_ROLE.WAREHOUSE_KEEPER] },
                     { id: 'warehouse-return-entries', label: 'Quản lý phiếu trả hàng', path: '/warehouse-return-entries', icon: <IconUpload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, STAFF_ROLE.WAREHOUSE_KEEPER] },
                 ]
             },
@@ -174,12 +178,29 @@ const buildVisibleGroups = (navGroups, staffRoles) => {
     return result;
 };
 
+const readSidebarState = (storageKey, fallbackValue) => {
+    try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return fallbackValue;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return fallbackValue;
+        return parsed;
+    } catch {
+        return fallbackValue;
+    }
+};
+
 const SideBar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [openGroups, setOpenGroups] = useState(() =>
-        Object.fromEntries(NAV_GROUPS.map((g) => [g.id, Boolean(g.defaultOpen)]))
+        ({
+            ...Object.fromEntries(NAV_GROUPS.map((g) => [g.id, Boolean(g.defaultOpen)])),
+            ...readSidebarState(SIDEBAR_GROUPS_STORAGE_KEY, {}),
+        })
     );
-    const [openSubGroups, setOpenSubGroups] = useState({});
+    const [openSubGroups, setOpenSubGroups] = useState(() =>
+        readSidebarState(SIDEBAR_SUBGROUPS_STORAGE_KEY, {})
+    );
     
     const navigate = useNavigate();
     const location = useLocation();
@@ -198,6 +219,22 @@ const SideBar = () => {
     const visibleGroups = useMemo(() => {
         return buildVisibleGroups(NAV_GROUPS, staffRoles);
     }, [staffRoles]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(SIDEBAR_GROUPS_STORAGE_KEY, JSON.stringify(openGroups));
+        } catch {
+            // ignore storage errors
+        }
+    }, [openGroups]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(SIDEBAR_SUBGROUPS_STORAGE_KEY, JSON.stringify(openSubGroups));
+        } catch {
+            // ignore storage errors
+        }
+    }, [openSubGroups]);
 
     const toggleMenu = () => setIsOpen((prev) => !prev);
     

@@ -20,6 +20,7 @@ import {
     fetchTicketAssignments,
     updateServiceTicketEstimatedDelivery,
 } from '../../../services/serviceTicketService.js';
+import { requestWarehouseStockIssue } from '../../../services/warehouseService.js';
 import { ServiceTicket as TechnicianServiceTicket } from '../../Technician/ServiceTicket/ServiceTicket.jsx';
 import styles from './ServiceTicketDetail.module.css';
 
@@ -547,6 +548,11 @@ function normalizeTicket(input, codeFallback) {
     return {
         serviceTicketId,
         immutable: Boolean(input?.immutable),
+        hasDraftStockIssue: Boolean(input?.hasDraftStockIssue),
+        hasConfirmedStockIssue: Boolean(input?.hasConfirmedStockIssue),
+        reservedAllocationCount: input?.reservedAllocationCount ?? null,
+        committedAllocationCount: input?.committedAllocationCount ?? null,
+        warehouseReadyForRepair: input?.warehouseReadyForRepair ?? null,
         ticketCode,
         statusCode,
         statusLabel,
@@ -667,7 +673,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const params = useParams();
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
-    const isAccountant = staffRoles.includes(STAFF_ROLE.ACCOUNTANT);
+    const isReceptionist = staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
 
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -676,6 +682,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const estimateLoadSeqRef = useRef(0);
     const [assignments, setAssignments] = useState([]);
     const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+
+    const [stockIssueRequesting, setStockIssueRequesting] = useState(false);
 
     const [isEstimateEditing, setIsEstimateEditing] = useState(false);
 
@@ -695,7 +703,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const createNewEstimateRevertRef = useRef(null);
 
     const [refreshTick, setRefreshTick] = useState(0);
-    const triggerRefresh = () => setRefreshTick(prev => prev + 1);
+    const triggerRefresh = useCallback(() => setRefreshTick((prev) => prev + 1), []);
 
     // When using "Thêm dịch vụ" we temporarily force Estimate to DRAFT.
     // Cancel in append-only mode must revert statuses back.
@@ -704,6 +712,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const ticketCodeParam = String(ticketCodeOverride || params?.ticketCode || '').trim();
     const ticketFromState = location?.state?.ticket ?? location?.state?.serviceTicket ?? null;
+    const openedSource = String(location?.state?.source || '').trim();
+    const openedFromAdvisorInspection = openedSource === 'advisor-inspection';
+    const openedFromServiceTicketManagement = openedSource === 'service-ticket-management';
 
     const { ticketRaw, setTicketRaw, isLoading, error, setError } = useServiceTicketDetailData(
         ticketCodeParam,
@@ -859,6 +870,19 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 && String(a?.status || '').toUpperCase() !== 'CANCELLED',
         );
     }, [assignments, assignmentsLoading]);
+
+    const isAdvisorReadOnlyWithoutTechnician = hasAdvisorRole && !assignmentsLoading && !hasTechnician;
+    const isReceptionistServiceTicketManagementView = isReceptionist && openedFromServiceTicketManagement;
+    const isInspectionSectionReadOnly = isReceptionistServiceTicketManagementView || isAdvisorReadOnlyWithoutTechnician;
+    const inspectionSectionMessage = isReceptionistServiceTicketManagementView
+        ? 'Lễ tân chỉ được xem phần phiếu kiểm tra an toàn và báo giá.'
+        : isAdvisorReadOnlyWithoutTechnician
+            ? 'Phiếu chưa được phân công kỹ thuật viên, hiện chỉ có thể xem phần bên dưới.'
+            : '';
+    const canEditReceptionSection = isReceptionist
+        && !openedFromAdvisorInspection
+        && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT');
+    const canShowInspectionSection = hasAdvisorRole || isReceptionist;
 
     const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading;
     const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED';
@@ -1049,7 +1073,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setAddServiceReverting(false);
             triggerRefresh();
         }
-    }, [addServiceReverting, notify, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw]);
+    }, [addServiceReverting, notify, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw, triggerRefresh]);
 
     const handleRestartFromArchived = async () => {
         if (statusUpdating) return;
@@ -1138,7 +1162,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setIsCreatingNewEstimateVersion(false);
             setStatusUpdating(false);
         }
-    }, [notify, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw]);
+    }, [notify, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw, triggerRefresh]);
 
     const handleOpenEstimateTimePopup = () => {
         setEstimateTimePopupOpen(true);
@@ -1159,10 +1183,31 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
         try {
             if (isAppendOnlyConfirm) {
+                // Backend expects the full snapshot of allocations; missing rows can be treated as deleted.
+                // Refetch the estimate to ensure we include all existing allocations (old + new).
+                let estimateItemsForAllocation = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+                try {
+                    const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
+                    const list = Array.isArray(estimateRes?.data) ? estimateRes.data : [];
+                    const found =
+                        list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
+                        pickLatestEstimate(list);
+                    if (Array.isArray(found?.items)) {
+                        estimateItemsForAllocation = found.items;
+                        setLatestEstimate((prev) => {
+                            if (!prev) return prev;
+                            const next = { ...prev, ...found };
+                            next.items = found.items;
+                            return next;
+                        });
+                    }
+                } catch {
+                    // keep fallback to latestEstimate.items
+                }
                 const payload = buildStockAllocationUpdatePayload({
                     estimateId: estimateIdNum,
                     serviceTicketId: serviceTicketIdNum,
-                    estimateItems: latestEstimate?.items,
+                    estimateItems: estimateItemsForAllocation,
                 });
                 // Nếu không có dòng vật tư cần giữ chỗ (toàn dịch vụ), bỏ qua update.
                 if (payload.length > 0) {
@@ -1274,8 +1319,56 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const canCancel = ['CREATED', 'INSPECTING', 'PENDING', 'INSPECTED', 'ESTIMATED', 'REPAIRING'].includes(ticketStatus);
     const canSetPending = ticketStatus === 'ESTIMATED';
     const canAddService = (ticketStatus === 'ESTIMATED' || ticketStatus === 'REPAIRING');
-    const canStartRepair = (ticketStatus === 'ESTIMATED' || ticketStatus === 'PENDING');
+    const canStartRepair = (ticketStatus === 'ESTIMATED' || ticketStatus === 'PENDING') && ticket?.warehouseReadyForRepair === true;
     const canCompleteRepair = ticketStatus === 'REPAIRING';
+
+    const canRequestStockIssue = useMemo(() => {
+        if (ticketStatus !== 'ESTIMATED') return false;
+        const hasDraftStockIssue = ticket?.hasDraftStockIssue;
+        const reserved = Number(ticket?.reservedAllocationCount ?? 0);
+        const committed = Number(ticket?.committedAllocationCount ?? 0);
+        const committedLessThanReserved = Number.isFinite(reserved) && Number.isFinite(committed) && committed < reserved;
+        return hasDraftStockIssue === false || committedLessThanReserved;
+    }, [ticketStatus, ticket?.hasDraftStockIssue, ticket?.reservedAllocationCount, ticket?.committedAllocationCount]);
+
+    const handleRequestStockIssue = useCallback(async () => {
+        if (stockIssueRequesting) return;
+        if (!serviceTicketIdNum) {
+            notify('Thiếu serviceTicketId để yêu cầu xuất kho.');
+            return;
+        }
+
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để yêu cầu xuất kho.');
+            return;
+        }
+
+        setStockIssueRequesting(true);
+        try {
+            const response = await requestWarehouseStockIssue(serviceTicketIdNum, token);
+            notify(response?.message || 'Đã tạo yêu cầu xuất kho.');
+
+            const ticketCode = String(ticket?.ticketCode || ticketCodeParam || '').trim();
+            if (ticketCode) {
+                const detailRes = await fetchServiceTicketDetail(ticketCode, token);
+                if (detailRes?.data) setTicketRaw(detailRes.data);
+            }
+            triggerRefresh();
+        } catch (err) {
+            notify(err?.message || 'Không thể tạo yêu cầu xuất kho.');
+        } finally {
+            setStockIssueRequesting(false);
+        }
+    }, [
+        notify,
+        serviceTicketIdNum,
+        stockIssueRequesting,
+        ticket?.ticketCode,
+        ticketCodeParam,
+        triggerRefresh,
+        setTicketRaw,
+    ]);
 
     const advisorItems = useMemo(() => Array.isArray(latestEstimate?.items) ? latestEstimate.items.filter(it => !it?.isRemoved) : [], [latestEstimate]);
     const selectedServiceItems = useMemo(
@@ -1446,48 +1539,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
-    // Chặn toàn bộ trang nếu chưa phân công kỹ thuật viên
-    if (!assignmentsLoading && !hasTechnician) {
-        return (
-            <div className={styles.page}>
-                <div className={styles.screenOnly}>
-                    <div className={styles.layout}>
-                        <main className={styles.main}>
-                            <header className={styles.header}>
-                                <div className={styles.headerLeft}>
-                                    <div className={styles.titleRow}>
-                                        <h1 className={styles.title}>Phiếu dịch vụ #{ticketCodeParam || '-'}</h1>
-                                    </div>
-                                </div>
-                            </header>
-                            <div className={`ui-card ${styles.card}`} style={{ textAlign: 'center', padding: '48px 24px' }}>
-                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
-                                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', marginBottom: '12px' }}>
-                                    Chưa phân công kỹ thuật viên
-                                </h2>
-                                <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', maxWidth: '440px', margin: '0 auto 32px' }}>
-                                    Phiếu dịch vụ này chưa được phân công kỹ thuật viên. Vui lòng phân công kỹ thuật viên trước khi mở phiếu.
-                                </p>
-                                <button
-                                    type="button"
-                                    className="ui-btn ui-btn--ghost"
-                                    onClick={() => navigate(-1)}
-                                >
-                                    Quay lại
-                                </button>
-                            </div>
-                        </main>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className={styles.page}>
             <div className={styles.screenOnly}>
                 <div className={styles.layout}>
                     <main className={styles.main}>
+                        {inspectionSectionMessage ? (
+                            <div className={styles.noteBox} style={{ marginBottom: 16 }}>
+                                {inspectionSectionMessage}
+                            </div>
+                        ) : null}
                         <header className={styles.header}>
                             <div className={styles.headerLeft}>
                                 <div className={styles.titleRow}>
@@ -1495,7 +1556,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                                 </div>
                             </div>
-                            {staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT') && (
+                            {canEditReceptionSection && (
                                 <button
                                     type="button"
                                     className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
@@ -1668,13 +1729,15 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 )}
                             </section>
 
-                            {hasAdvisorRole && (
+                            {canShowInspectionSection && (
                                 <>
                                     <TechnicianServiceTicket
                                         key={`tech-${ticket.ticketCode || ticketCodeParam}-${ticketStatus}-${estimateStatus}`}
                                         ticketCode={ticket.ticketCode || ticketCodeParam}
                                         embedded
                                         mode="advisor"
+                                        readOnly={isInspectionSectionReadOnly}
+                                        readOnlyMessage={inspectionSectionMessage}
                                         onInspectionCompleted={handleInspectionCompleted}
                                     />
 
@@ -1690,6 +1753,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
                                         onCancelAppendOnly={handleCancelAppendOnly}
                                         onEstimateEditingChange={setIsEstimateEditing}
+                                        readOnly={isInspectionSectionReadOnly}
+                                        readOnlyMessage={inspectionSectionMessage}
                                     />
                                 </>
                             )}
@@ -1700,6 +1765,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
+                                        {isInspectionSectionReadOnly ? null : (
+                                            <>
                                         {isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                             <button
                                                 type="button"
@@ -1743,6 +1810,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
                                                     </button>
                                                 )}
+                                                {canRequestStockIssue && !canConfirmEstimate && (
+                                                    <button
+                                                        type="button"
+                                                        className="ui-btn ui-btn--ghost"
+                                                        onClick={handleRequestStockIssue}
+                                                        disabled={receiptApproving || statusUpdating || stockIssueRequesting}
+                                                    >
+                                                        {stockIssueRequesting ? 'Đang tạo yêu cầu...' : 'Yêu cầu xuất kho'}
+                                                    </button>
+                                                )}
                                                 {canStartRepair && (
                                                     <button type="button" className="ui-btn ui-btn--primary" onClick={handleStartRepair} disabled={receiptApproving || statusUpdating}>
                                                         Tiến hành sửa chữa
@@ -1775,6 +1852,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                     </span>
                                                 )}
                                             </>
+                                        )}
+                                        </>
                                         )}
                                     </div>
                                 </div>
