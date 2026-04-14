@@ -546,3 +546,57 @@ export const confirmWarehouseReturnEntry = (id, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// GET: /api/warehouse/stock-issues/{id}
+export const fetchWarehouseStockIssueDetail = (id, token) => {
+  const idNum = typeof id === 'number' ? id : Number(id);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  return request(`/api/warehouse/stock-issues/${encodeURIComponent(String(safeId))}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/stock-issues/{id}/confirm
+export const confirmWarehouseStockIssue = (id, token) => {
+  const idNum = typeof id === 'number' ? id : Number(id);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  return request(`/api/warehouse/stock-issues/${encodeURIComponent(String(safeId))}/confirm`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/allocations/{ticketId}/request-issue
+// Parameters: ticketId (serviceTicketId)
+export const requestWarehouseStockIssue = (ticketId, token) => {
+  const idNum = typeof ticketId === 'number' ? ticketId : Number(ticketId);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  return request(`/api/warehouse/allocations/${encodeURIComponent(String(safeId))}/request-issue`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// GET: /api/warehouse/stock-issues?warehouseId=...&status=...
+export const fetchWarehouseStockIssues = (params, token) => {
+  const query = new URLSearchParams();
+  const safeParams = params && typeof params === 'object' ? params : {};
+
+  Object.entries(safeParams).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    const text = String(value).trim();
+    if (text) query.append(key, text);
+  });
+
+  const qs = query.toString();
+  const url = qs ? `/api/warehouse/stock-issues?${qs}` : '/api/warehouse/stock-issues';
+
+  return request(url, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
