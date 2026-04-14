@@ -1752,9 +1752,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         Đặt lịch bảo dưỡng
                                                     </button>
                                                 )}
-                                                {canCreateReceipt && isAccountant && (
+                                                {canCreateReceipt && (
                                                     <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-                                                        Tạo hoá đơn
+                                                        Tạo phiếu dịch vụ
                                                     </button>
                                                 )}
 

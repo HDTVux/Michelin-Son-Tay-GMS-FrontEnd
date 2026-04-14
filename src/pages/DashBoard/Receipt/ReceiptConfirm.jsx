@@ -302,6 +302,205 @@ function normalizePromotion(promo) {
     return promotionId ? { ...promo, promotionId } : promo;
 }
 
+const STAFF_ROLE = {
+    ACCOUNTANT: 'ACCOUNTANT',
+};
+
+function readStaffRolesFromStorage() {
+    try {
+        const raw = localStorage.getItem('staffRoles');
+        const parsed = JSON.parse(raw || '[]');
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map((r) => String(r || '').trim().toUpperCase()).filter(Boolean);
+    } catch {
+        return [];
+    }
+}
+
+function runFetchTicketEffect({ ticketRaw, ticketCodeParam, setTicketError, setTicketLoading, setTicketRaw }) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        setTicketError('Vui lòng đăng nhập để tạo hoá đơn.');
+        return undefined;
+    }
+    if (ticketRaw) return undefined;
+    if (!ticketCodeParam) {
+        setTicketError('Thiếu ticketCode để tạo hoá đơn.');
+        return undefined;
+    }
+
+    let ignore = false;
+    const run = async () => {
+        try {
+            setTicketLoading(true);
+            setTicketError('');
+            const res = await fetchServiceTicketDetail(ticketCodeParam, token);
+            if (ignore) return;
+            setTicketRaw(res?.data ?? null);
+        } catch (err) {
+            if (ignore) return;
+            setTicketError(err?.message || 'Không thể tải chi tiết phiếu dịch vụ.');
+        } finally {
+            if (!ignore) setTicketLoading(false);
+        }
+    };
+    run();
+
+    return () => {
+        ignore = true;
+    };
+}
+
+function runFetchEstimateEffect({ serviceTicketId, setEstimateLoading, setEstimateError, setEstimate }) {
+    const token = localStorage.getItem('authToken');
+    if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') return undefined;
+
+    let ignore = false;
+    const run = async () => {
+        try {
+            setEstimateLoading(true);
+            setEstimateError('');
+            const res = await fetchServiceTicketEstimate(serviceTicketId, token);
+            if (ignore) return;
+            setEstimate(pickLatestEstimate(res?.data) ?? null);
+        } catch (err) {
+            if (ignore) return;
+            setEstimate(null);
+            setEstimateError(err?.message || 'Không thể tải báo giá.');
+        } finally {
+            if (!ignore) setEstimateLoading(false);
+        }
+    };
+    run();
+
+    return () => {
+        ignore = true;
+    };
+}
+
+function runFetchPromotionsEffect({ setPromotionsLoading, setPromotionsError, setAvailablePromotions }) {
+    const token = localStorage.getItem('authToken');
+    if (!token) return undefined;
+
+    let ignore = false;
+    const run = async () => {
+        try {
+            setPromotionsLoading(true);
+            setPromotionsError('');
+            const res = await fetchAvailablePromotions(token);
+            if (ignore) return;
+            setAvailablePromotions(Array.isArray(res?.data) ? res.data : []);
+        } catch (err) {
+            if (ignore) return;
+            setAvailablePromotions([]);
+            setPromotionsError(err?.message || 'Không thể tải danh sách khuyến mãi.');
+        } finally {
+            if (!ignore) setPromotionsLoading(false);
+        }
+    };
+    run();
+
+    return () => {
+        ignore = true;
+    };
+}
+
+function runFetchSafetyInspectionEffect({ ticketCodeParam, setSafetyInspection }) {
+    const token = localStorage.getItem('authToken');
+    if (!token) return undefined;
+    if (!ticketCodeParam) return undefined;
+
+    let ignore = false;
+    const run = async () => {
+        try {
+            const res = await getSafetyInspectionByTicketCode(ticketCodeParam, token);
+            if (ignore) return;
+            console.log('>>> SAFETY INSPECTION DATA:', JSON.stringify(res?.data, null, 2));
+            setSafetyInspection(res?.data ?? null);
+        } catch {
+            if (ignore) return;
+            setSafetyInspection(null);
+        }
+    };
+    run();
+
+    return () => {
+        ignore = true;
+    };
+}
+
+function runFetchRecommendationEffect({ serviceTicketId, setRecommendation }) {
+    const token = localStorage.getItem('authToken');
+    if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') {
+        setRecommendation('');
+        return undefined;
+    }
+
+    let ignore = false;
+    const run = async () => {
+        const storageKey = getRecommendationStorageKey(serviceTicketId);
+        try {
+            const res = await fetchSafetyInspectionCurrentRecommend(serviceTicketId, token);
+            if (ignore) return;
+            const value = extractRecommendValue(res) || localStorage.getItem(storageKey) || '';
+            setRecommendation(value);
+            if (value) localStorage.setItem(storageKey, value);
+        } catch {
+            if (!ignore) setRecommendation(localStorage.getItem(storageKey) || '');
+        }
+    };
+    run();
+
+    return () => {
+        ignore = true;
+    };
+}
+
+function runFetchDefaultSafetyCategoriesEffect({ setDefaultCategories }) {
+    const token = localStorage.getItem('authToken');
+    if (!token) return undefined;
+
+    let ignore = false;
+    const run = async () => {
+        try {
+            const res = await getDefaultSafetyInspectionCategories(token);
+            if (ignore) return;
+            const cats = Array.isArray(res?.data) ? res.data : [];
+            setDefaultCategories(cats);
+        } catch {
+            if (ignore) return;
+            setDefaultCategories([]);
+        }
+    };
+    run();
+
+    return () => {
+        ignore = true;
+    };
+}
+
+function runAccountantModalGuardEffect({ isAccountant, paymentOpen, setPaymentOpen }) {
+    if (!isAccountant && paymentOpen) setPaymentOpen(false);
+}
+
+function renderPrimaryAction({ canConfirmDelivered, canPay, isAccountant, delivering, billCreating, onConfirmDelivered, onConfirmPay }) {
+    if (canConfirmDelivered) {
+        return (
+            <button type="button" className="ui-btn ui-btn--primary" onClick={onConfirmDelivered} disabled={delivering}>
+                {delivering ? 'Đang xác nhận...' : 'Xác nhận bàn giao xe'}
+            </button>
+        );
+    }
+    if (canPay && isAccountant) {
+        return (
+            <button type="button" className="ui-btn ui-btn--primary" onClick={onConfirmPay} disabled={billCreating}>
+                {billCreating ? 'Đang tạo phiếu dịch vụ...' : 'Thanh toán'}
+            </button>
+        );
+    }
+    return null;
+}
+
 export default function ReceiptConfirm() {
     useScrollToTop();
     const navigate = useNavigate();
@@ -341,39 +540,13 @@ export default function ReceiptConfirm() {
 
     const [delivering, setDelivering] = useState(false);
 
+    const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
+    const isAccountant = staffRoles.includes(STAFF_ROLE.ACCOUNTANT);
+
     const notify = (message) => toast(message, { containerId: 'app-toast' });
 
     useEffect(() => {
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-            setTicketError('Vui lòng đăng nhập để tạo hoá đơn.');
-            return;
-        }
-        if (ticketRaw) return;
-        if (!ticketCodeParam) {
-            setTicketError('Thiếu ticketCode để tạo hoá đơn.');
-            return;
-        }
-
-        let ignore = false;
-        const run = async () => {
-            try {
-                setTicketLoading(true);
-                setTicketError('');
-                const res = await fetchServiceTicketDetail(ticketCodeParam, token);
-                if (ignore) return;
-                setTicketRaw(res?.data ?? null);
-            } catch (err) {
-                if (ignore) return;
-                setTicketError(err?.message || 'Không thể tải chi tiết phiếu dịch vụ.');
-            } finally {
-                if (!ignore) setTicketLoading(false);
-            }
-        };
-        run();
-        return () => {
-            ignore = true;
-        };
+        return runFetchTicketEffect({ ticketRaw, ticketCodeParam, setTicketError, setTicketLoading, setTicketRaw });
     }, [ticketRaw, ticketCodeParam]);
 
     const ticket = useMemo(() => normalizeTicketForReceipt(ticketRaw ?? {}, ticketCodeParam), [ticketRaw, ticketCodeParam]);
@@ -388,124 +561,34 @@ export default function ReceiptConfirm() {
     const canConfirmDelivered = ticketStatus === 'PAID';
 
     useEffect(() => {
-        const token = localStorage.getItem('authToken');
-        const serviceTicketId = ticket?.serviceTicketId;
-        if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') return;
+        return runAccountantModalGuardEffect({ isAccountant, paymentOpen, setPaymentOpen });
+    }, [isAccountant, paymentOpen]);
 
-        let ignore = false;
-        const run = async () => {
-            try {
-                setEstimateLoading(true);
-                setEstimateError('');
-                const res = await fetchServiceTicketEstimate(serviceTicketId, token);
-                if (ignore) return;
-                setEstimate(pickLatestEstimate(res?.data) ?? null);
-            } catch (err) {
-                if (ignore) return;
-                setEstimate(null);
-                setEstimateError(err?.message || 'Không thể tải báo giá.');
-            } finally {
-                if (!ignore) setEstimateLoading(false);
-            }
-        };
-        run();
-        return () => {
-            ignore = true;
-        };
+    useEffect(() => {
+        return runFetchEstimateEffect({
+            serviceTicketId: ticket?.serviceTicketId,
+            setEstimateLoading,
+            setEstimateError,
+            setEstimate,
+        });
     }, [ticket?.serviceTicketId]);
 
     useEffect(() => {
-        const token = localStorage.getItem('authToken');
-        if (!token) return;
-
-        let ignore = false;
-        const run = async () => {
-            try {
-                setPromotionsLoading(true);
-                setPromotionsError('');
-                const res = await fetchAvailablePromotions(token);
-                if (ignore) return;
-                setAvailablePromotions(Array.isArray(res?.data) ? res.data : []);
-            } catch (err) {
-                if (ignore) return;
-                setAvailablePromotions([]);
-                setPromotionsError(err?.message || 'Không thể tải danh sách khuyến mãi.');
-            } finally {
-                if (!ignore) setPromotionsLoading(false);
-            }
-        };
-        run();
-        return () => {
-            ignore = true;
-        };
+        return runFetchPromotionsEffect({ setPromotionsLoading, setPromotionsError, setAvailablePromotions });
     }, []);
 
     // Fetch safety inspection data
     useEffect(() => {
-        const token = localStorage.getItem('authToken');
-        if (!token) return;
-        if (!ticketCodeParam) return;
-
-        let ignore = false;
-        const run = async () => {
-            try {
-                const res = await getSafetyInspectionByTicketCode(ticketCodeParam, token);
-                if (ignore) return;
-                console.log('>>> SAFETY INSPECTION DATA:', JSON.stringify(res?.data, null, 2));
-                setSafetyInspection(res?.data ?? null);
-            } catch {
-                if (ignore) return;
-                setSafetyInspection(null);
-            }
-        };
-        run();
-        return () => { ignore = true; };
+        return runFetchSafetyInspectionEffect({ ticketCodeParam, setSafetyInspection });
     }, [ticketCodeParam]);
 
     useEffect(() => {
-        const token = localStorage.getItem('authToken');
-        const serviceTicketId = ticket?.serviceTicketId;
-        if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') {
-            setRecommendation('');
-            return;
-        }
-
-        let ignore = false;
-        const run = async () => {
-            const storageKey = getRecommendationStorageKey(serviceTicketId);
-            try {
-                const res = await fetchSafetyInspectionCurrentRecommend(serviceTicketId, token);
-                if (ignore) return;
-                const value = extractRecommendValue(res) || localStorage.getItem(storageKey) || '';
-                setRecommendation(value);
-                if (value) localStorage.setItem(storageKey, value);
-            } catch {
-                if (!ignore) setRecommendation(localStorage.getItem(storageKey) || '');
-            }
-        };
-        run();
-        return () => { ignore = true; };
+        return runFetchRecommendationEffect({ serviceTicketId: ticket?.serviceTicketId, setRecommendation });
     }, [ticket?.serviceTicketId]);
 
     // Fetch danh mục kiểm tra an toàn mặc định
     useEffect(() => {
-        const token = localStorage.getItem('authToken');
-        if (!token) return;
-
-        let ignore = false;
-        const run = async () => {
-            try {
-                const res = await getDefaultSafetyInspectionCategories(token);
-                if (ignore) return;
-                const cats = Array.isArray(res?.data) ? res.data : [];
-                setDefaultCategories(cats);
-            } catch {
-                if (ignore) return;
-                setDefaultCategories([]);
-            }
-        };
-        run();
-        return () => { ignore = true; };
+        return runFetchDefaultSafetyCategoriesEffect({ setDefaultCategories });
     }, []);
 
     const estimateItems = useMemo(() => {
@@ -670,6 +753,11 @@ export default function ReceiptConfirm() {
     const handleConfirm = async () => {
         if (!canPay) return;
 
+        if (!isAccountant) {
+            notify('Chỉ kế toán mới được phép thanh toán.');
+            return;
+        }
+
         const token = localStorage.getItem('authToken');
         if (!token) {
             notify('Vui lòng đăng nhập để thanh toán.');
@@ -742,6 +830,11 @@ export default function ReceiptConfirm() {
 
     const handleConfirmPayment = async ({ method } = {}) => {
         if (paymentSubmitting) return;
+
+        if (!isAccountant) {
+            notify('Chỉ kế toán mới được phép thanh toán.');
+            throw new Error('Chỉ kế toán mới được phép thanh toán.');
+        }
 
         const token = localStorage.getItem('authToken');
         if (!token) {
@@ -832,27 +925,22 @@ export default function ReceiptConfirm() {
         }
     };
 
-    let primaryAction = null;
-    if (canConfirmDelivered) {
-        primaryAction = (
-            <button type="button" className="ui-btn ui-btn--primary" onClick={handleConfirmDelivered} disabled={delivering}>
-                {delivering ? 'Đang xác nhận...' : 'Xác nhận bàn giao xe'}
-            </button>
-        );
-    } else if (canPay) {
-        primaryAction = (
-            <button type="button" className="ui-btn ui-btn--primary" onClick={handleConfirm} disabled={billCreating}>
-                {billCreating ? 'Đang tạo hoá đơn...' : 'Thanh toán'}
-            </button>
-        );
-    }
+    const primaryAction = renderPrimaryAction({
+        canConfirmDelivered,
+        canPay,
+        isAccountant,
+        delivering,
+        billCreating,
+        onConfirmDelivered: handleConfirmDelivered,
+        onConfirmPay: handleConfirm,
+    });
 
     return (
         <div className={styles.page}>
             <div className={styles.screenOnly}>
                 <header className={styles.header}>
                     <div>
-                        <h1 className={styles.title}>Xác nhận tạo hoá đơn</h1>
+                        <h1 className={styles.title}>Tạo phiếu dịch vụ</h1>
                         <div className={styles.subTitle}>Phiếu dịch vụ #{ticket.ticketCode || ticketCodeParam || '-'}</div>
                     </div>
                 </header>
@@ -995,14 +1083,14 @@ export default function ReceiptConfirm() {
                             onClick={handleArchiveAndPrint}
                             disabled={ticketLoading || estimateLoading || !!ticketError || archiving}
                         >
-                            {archiving ? 'Đang lưu...' : 'In hóa đơn'}
+                            {archiving ? 'Đang lưu...' : 'In phiếu dịch vụ'}
                         </button>
                         {primaryAction}
                     </div>
                 </div>
 
                 <ReceiptPaymentMethodModal
-                    open={paymentOpen}
+                    open={paymentOpen && isAccountant}
                     onClose={() => setPaymentOpen(false)}
                     ticketCode={ticket.ticketCode || ticketCodeParam}
                     total={total}
