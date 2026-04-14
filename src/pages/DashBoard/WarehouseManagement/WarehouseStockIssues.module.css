@@ -1,0 +1,16 @@
+.wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.helper {
+  margin: 0;
+  color: var(--ui-muted, #64748b);
+  font-size: 13px;
+}
+
+.emptyCell {
+  text-align: center;
+  color: #64748b;
+  padding: 18px 12px;
+}

@@ -40,6 +40,8 @@ import CreateProduct from './pages/DashBoard/PartManagement/CreateProduct.jsx';
 import WarehouseStockEntry from './pages/DashBoard/WarehouseManagement/WarehouseStockEntry.jsx';
 import WarehouseStockEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
 import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryDetail.jsx';
+import WarehouseStockIssues from './pages/DashBoard/WarehouseManagement/WarehouseStockIssues.jsx';
+import WarehouseStockIssueDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockIssueDetail.jsx';
 import WarehouseReturnEntry from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntry.jsx';
 import WarehouseReturnEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryManagement.jsx';
 import WarehouseReturnEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryDetail.jsx';
@@ -228,6 +230,8 @@ export default function App() {
           <Route path="warehouse-stock-entries" element={<WarehouseStockEntryManagement />} />
           <Route path="warehouse-stock-entries/:entryId" element={<WarehouseStockEntryDetail />} />
           <Route path="warehouse-stock-entry" element={<WarehouseStockEntry />} />
+          <Route path="warehouse-stock-issues" element={<WarehouseStockIssues />} />
+          <Route path="warehouse-stock-issues/:issueId" element={<WarehouseStockIssueDetail />} />
           <Route path="warehouse-return-entry" element={<WarehouseReturnEntry />} />
           <Route path="warehouse-return-entries" element={<WarehouseReturnEntryManagement />} />
           <Route path="warehouse-return-entries/:returnId" element={<WarehouseReturnEntryDetail />} />
