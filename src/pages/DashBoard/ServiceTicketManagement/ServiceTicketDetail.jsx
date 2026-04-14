@@ -667,6 +667,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const params = useParams();
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
+    const isReceptionist = staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
 
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -858,6 +859,18 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 && String(a?.status || '').toUpperCase() !== 'CANCELLED',
         );
     }, [assignments, assignmentsLoading]);
+
+    const isViewOnlyWithoutTechnician = !assignmentsLoading && !hasTechnician;
+    const isReadOnlyTicketView = isViewOnlyWithoutTechnician || isReceptionist;
+    const readOnlyTicketMessage = isViewOnlyWithoutTechnician
+        ? 'Phiếu chưa được phân công kỹ thuật viên, hiện chỉ có thể xem thông tin.'
+        : isReceptionist
+            ? 'Lễ tân chỉ có quyền xem phiếu, không được chỉnh sửa.'
+            : '';
+    const canEditReceptionSection = !isReadOnlyTicketView
+        && isReceptionist
+        && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT');
+    const canShowInspectionSection = hasAdvisorRole || isReadOnlyTicketView;
 
     const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading;
     const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED';
@@ -1445,43 +1458,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
-    // Chặn toàn bộ trang nếu chưa phân công kỹ thuật viên
-    if (!assignmentsLoading && !hasTechnician) {
-        return (
-            <div className={styles.page}>
-                <div className={styles.screenOnly}>
-                    <div className={styles.layout}>
-                        <main className={styles.main}>
-                            <header className={styles.header}>
-                                <div className={styles.headerLeft}>
-                                    <div className={styles.titleRow}>
-                                        <h1 className={styles.title}>Phiếu dịch vụ #{ticketCodeParam || '-'}</h1>
-                                    </div>
-                                </div>
-                            </header>
-                            <div className={`ui-card ${styles.card}`} style={{ textAlign: 'center', padding: '48px 24px' }}>
-                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
-                                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', marginBottom: '12px' }}>
-                                    Chưa phân công kỹ thuật viên
-                                </h2>
-                                <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', maxWidth: '440px', margin: '0 auto 32px' }}>
-                                    Phiếu dịch vụ này chưa được phân công kỹ thuật viên. Vui lòng phân công kỹ thuật viên trước khi mở phiếu.
-                                </p>
-                                <button
-                                    type="button"
-                                    className="ui-btn ui-btn--ghost"
-                                    onClick={() => navigate(-1)}
-                                >
-                                    Quay lại
-                                </button>
-                            </div>
-                        </main>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className={styles.page}>
             <div className={styles.screenOnly}>
@@ -1494,7 +1470,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                                 </div>
                             </div>
-                            {staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT') && (
+                            {canEditReceptionSection && (
                                 <button
                                     type="button"
                                     className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
@@ -1507,6 +1483,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         </header>
 
                         {error && <div className={styles.errorBanner}>{error}</div>}
+                        {readOnlyTicketMessage ? (
+                            <div className={styles.noteBox} style={{ marginBottom: 16 }}>
+                                {readOnlyTicketMessage}
+                            </div>
+                        ) : null}
 
                         <div className={`ui-card ${styles.card}`}>
                             <div className={styles.topInfoGrid}>
@@ -1667,13 +1648,15 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 )}
                             </section>
 
-                            {hasAdvisorRole && (
+                            {canShowInspectionSection && (
                                 <>
                                     <TechnicianServiceTicket
                                         key={`tech-${ticket.ticketCode || ticketCodeParam}-${ticketStatus}-${estimateStatus}`}
                                         ticketCode={ticket.ticketCode || ticketCodeParam}
                                         embedded
                                         mode="advisor"
+                                        readOnly={isReadOnlyTicketView}
+                                        readOnlyMessage={readOnlyTicketMessage}
                                         onInspectionCompleted={handleInspectionCompleted}
                                     />
 
@@ -1689,6 +1672,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
                                         onCancelAppendOnly={handleCancelAppendOnly}
                                         onEstimateEditingChange={setIsEstimateEditing}
+                                        readOnly={isReadOnlyTicketView}
+                                        readOnlyMessage={readOnlyTicketMessage}
                                     />
                                 </>
                             )}
@@ -1699,6 +1684,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
+                                        {isReadOnlyTicketView ? null : (
+                                            <>
                                         {isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                             <button
                                                 type="button"
@@ -1774,6 +1761,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                     </span>
                                                 )}
                                             </>
+                                        )}
+                                        </>
                                         )}
                                     </div>
                                 </div>

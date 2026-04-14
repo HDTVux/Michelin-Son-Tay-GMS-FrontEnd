@@ -1,7 +1,32 @@
 // Lấy URL cơ sở từ biến môi trường (Environment Variable)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const AUTH_REDIRECT_ERROR_KEY = 'authRedirectError';
+const LOGIN_PATH = '/login';
 
 import { cleanupExpiredTokens } from './tokenUtils.js';
+
+const clearAuthData = () => {
+  ['authToken', 'customerToken', 'staffToken', 'adminToken'].forEach((key) => localStorage.removeItem(key));
+  ['staffRoles', 'staffProfile'].forEach((key) => localStorage.removeItem(key));
+};
+
+const buildErrorMessage = (response, data) => {
+  if (response.status === 403) {
+    return 'Từ chối truy cập';
+  }
+
+  return typeof data === 'string' ? data : data?.message || 'Request failed';
+};
+
+const redirectToLoginWithMessage = (message) => {
+  if (typeof globalThis?.sessionStorage?.setItem === 'function') {
+    globalThis.sessionStorage.setItem(AUTH_REDIRECT_ERROR_KEY, message);
+  }
+
+  if (globalThis?.location?.pathname !== LOGIN_PATH) {
+    globalThis.location.replace(LOGIN_PATH);
+  }
+};
 
 /**
  * @param {string} path - Đường dẫn API (ví dụ: /api/bookings)
@@ -49,11 +74,15 @@ async function request(path, options = {}) {
   if (!response.ok) {
 		// Token hết hạn hoặc không hợp lệ: xóa token
 		if (response.status === 401 || response.status === 403) {
-      ['authToken', 'customerToken', 'staffToken', 'adminToken'].forEach((key) => localStorage.removeItem(key));
-      ['staffRoles', 'staffProfile'].forEach((key) => localStorage.removeItem(key));
+      clearAuthData();
 		}
     // Lấy thông báo lỗi từ dữ liệu trả về hoặc dùng thông báo mặc định
-    const message = typeof data === 'string' ? data : data?.message || 'Request failed';
+    const message = buildErrorMessage(response, data);
+
+    if (response.status === 403) {
+      redirectToLoginWithMessage(message);
+    }
+
     const error = new Error(message);
     error.status = response.status; // Gắn mã lỗi vào đối tượng Error
     throw error;
@@ -71,4 +100,4 @@ async function request(path, options = {}) {
   return data;
 }
 
-export { API_BASE_URL, request };
+export { API_BASE_URL, AUTH_REDIRECT_ERROR_KEY, request };
