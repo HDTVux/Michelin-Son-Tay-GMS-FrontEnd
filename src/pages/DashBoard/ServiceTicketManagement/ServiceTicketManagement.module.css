@@ -60,7 +60,7 @@
 
 .filter-card__labels {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(4, minmax(0, 1fr));
 	gap: 16px;
 	font-weight: 600;
 	font-size: 14px;
@@ -70,8 +70,34 @@
 
 .filter-card__controls {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(4, minmax(0, 1fr));
 	gap: 16px;
+}
+
+.pending-filters .filter-card__controls select,
+.pending-filters .filter-card__controls input[type="date"] {
+	width: 100%;
+	padding: 12px 14px;
+	border-radius: 8px;
+	border: 2px solid #e5e7eb;
+	background: #fff;
+	font-size: 14px;
+	color: #1a1a1a;
+	font-weight: 500;
+	transition: all 0.3s;
+}
+
+.pending-filters .filter-card__controls select:hover,
+.pending-filters .filter-card__controls input[type="date"]:hover {
+	border-color: #cbd5e1;
+	background: #f9fafb;
+}
+
+.pending-filters .filter-card__controls select:focus,
+.pending-filters .filter-card__controls input[type="date"]:focus {
+	outline: none;
+	border-color: #1E90FF;
+	box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.1);
 }
 
 .filter-card select,
@@ -870,4 +896,36 @@
 .workload--busy {
 	background: #fee2e2;
 	color: #991b1b;
+}
+
+@media (max-width: 900px) {
+	.filter-card__labels,
+	.filter-card__controls {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 640px) {
+	.booking-page {
+		padding: 16px;
+	}
+
+	.filter-card__labels,
+	.filter-card__controls,
+	.filter-card__actions,
+	.booking-card__header,
+	.booking-card__footer {
+		grid-template-columns: 1fr;
+	}
+
+	.filter-card__actions,
+	.booking-card__header,
+	.booking-card__footer {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.pagination {
+		flex-wrap: wrap;
+	}
 }

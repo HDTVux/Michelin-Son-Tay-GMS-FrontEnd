@@ -59,6 +59,17 @@ const hasPartNameSignal = (value) => {
 
     return (
         text.includes('phu tung')
+        || text.includes('lop')
+        || text.includes('vo xe')
+        || text.includes('tire')
+        || text.includes('tyre')
+        || text.includes('miche')
+        || text.includes('bridgestone')
+        || text.includes('goodyear')
+        || text.includes('continental')
+        || text.includes('pirelli')
+        || text.includes('yokohama')
+        || text.includes('maxxis')
         || text.includes('gat mua')
         || text.includes('can gat')
         || text.includes('dau nhot')
@@ -154,8 +165,22 @@ const collectBookingItems = (booking) => {
     return Array.from(map.values());
 };
 
+const hasBookingCatalogItems = (booking) => {
+    if (!booking) return false;
+    return [
+        booking?.services,
+        booking?.items,
+        booking?.bookingItems,
+        booking?.selectedItems,
+        booking?.serviceItems,
+        booking?.parts,
+        booking?.partItems,
+    ].some((list) => Array.isArray(list) && list.length > 0);
+};
+
 const mergeBookingSnapshotForDisplay = (booking, snapshot) => {
     if (!snapshot) return booking;
+    if (hasBookingCatalogItems(booking)) return booking;
     return {
         ...(booking || {}),
         selectedItems: Array.isArray(snapshot?.selectedItems)

@@ -142,6 +142,17 @@ function hasPartNameSignal(value) {
 
     return (
         text.includes('phu tung') ||
+        text.includes('lop') ||
+        text.includes('vo xe') ||
+        text.includes('tire') ||
+        text.includes('tyre') ||
+        text.includes('miche') ||
+        text.includes('bridgestone') ||
+        text.includes('goodyear') ||
+        text.includes('continental') ||
+        text.includes('pirelli') ||
+        text.includes('yokohama') ||
+        text.includes('maxxis') ||
         text.includes('gat mua') ||
         text.includes('can gat') ||
         text.includes('dau nhot') ||
@@ -795,7 +806,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
             if (estimateLoadSeqRef.current !== seq) return;
             const latest = pickLatestEstimate(estimateRes?.data);
-            setLatestEstimate(latest ?? null);
+            setLatestEstimate((prev) => {
+                if (!latest) return null;
+                const next = prev ? { ...prev, ...latest } : { ...latest };
+                // Some APIs/paths may return estimate meta without `items`.
+                // Keep previous items to avoid flicker/hiding actions like "Xác nhận báo giá".
+                if (!Array.isArray(latest?.items) && Array.isArray(prev?.items)) {
+                    next.items = prev.items;
+                }
+                return next;
+            });
         } catch {
             if (estimateLoadSeqRef.current !== seq) return;
             setLatestEstimate(null);
@@ -1270,14 +1290,18 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const isEstimatePersisted = Boolean(latestEstimate?.createdAt || latestEstimate?.estimateId || latestEstimate?.id);
     const canConfirmEstimate = Boolean(estimateIdNum)
         && estimateStatus === 'DRAFT'
-        && (ticketStatus === 'CREATED' || ticketStatus === 'INSPECTED' || ticketStatus === 'ESTIMATED')
+        && (ticketStatus === 'CREATED'
+            || ticketStatus === 'INSPECTING'
+            || ticketStatus === 'INSPECTED'
+            || ticketStatus === 'ESTIMATED'
+            || ticketStatus === 'PENDING')
         && hasAnyAdvisorItem
         && isEstimatePersisted
         && !isEstimateEditing;
     const handleEstimateStatusChange = useCallback((est) => {
         setLatestEstimate((prev) => {
             if (!est) return null;
-            const next = { ...(prev || {}), ...(est || {}) };
+            const next = prev ? { ...prev, ...est } : { ...est };
             // Some update APIs may return estimate meta without items.
             // Keep previous items temporarily to avoid disabling confirm button,
             // then trigger a refetch to sync the real latest estimate.
@@ -1739,9 +1763,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         Đặt lịch bảo dưỡng
                                                     </button>
                                                 )}
-                                                {canCreateReceipt && isAccountant && (
+                                                {canCreateReceipt && (
                                                     <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-                                                        Tạo hoá đơn
+                                                        Tạo phiếu dịch vụ
                                                     </button>
                                                 )}
 

@@ -18,7 +18,7 @@ const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => location.pathname === path || (path !== '/' && location.pathname.startsWith(`${path}/`));
 
   const scrollToContact = () => {
     const el = document.getElementById('contact');
@@ -28,7 +28,7 @@ const Header = () => {
   };
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   };
 
   const toggleMenu = () => {
@@ -126,7 +126,6 @@ const Header = () => {
             to="/services"
             className={isActive('/services') || isActive('/parts') ? 'active' : ''}
             onClick={() => { closeMenu(); scrollToTop(); }}
-            preventScrollReset={true}
           >
             Dịch vụ & phụ tùng
           </Link>

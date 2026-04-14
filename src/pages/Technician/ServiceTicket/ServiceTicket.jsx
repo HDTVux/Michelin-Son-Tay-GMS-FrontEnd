@@ -192,6 +192,38 @@ const getNewCategoryNameError = (value, existingChecks = []) => {
   return '';
 };
 
+const getSafetyItemKey = (item) => {
+  const customCategoryId = item?.customCategoryId ?? item?.custom_category_id ?? null;
+  if (customCategoryId != null && String(customCategoryId).trim() !== '') {
+    return `custom:${String(customCategoryId).trim()}`;
+  }
+
+  const workCategoryId = item?.workCategoryId ?? item?.work_category_id ?? null;
+  if (workCategoryId != null && String(workCategoryId).trim() !== '') {
+    return `work:${String(workCategoryId).trim()}`;
+  }
+
+  return '';
+};
+
+const buildAdvisorNotePatchItems = (items) => {
+  const rows = Array.isArray(items) ? items : [];
+  return rows
+    .map((item) => {
+      const advisorNote = String(item?.advisorNote ?? item?.advisor_note ?? item?.note ?? '');
+      if (!advisorNote.trim()) return null;
+      const workCategoryId = item?.workCategoryId ?? item?.work_category_id ?? null;
+      const customCategoryId = item?.customCategoryId ?? item?.custom_category_id ?? null;
+      if (workCategoryId == null && customCategoryId == null) return null;
+      return {
+        workCategoryId,
+        customCategoryId,
+        advisorNote,
+      };
+    })
+    .filter(Boolean);
+};
+
 export const ServiceTicket = ({
   ticketCode,
   embedded = false,
@@ -239,6 +271,7 @@ export const ServiceTicket = ({
 
   // Ref chống spam toast khi validate 500 ký tự
   const toast500LastFired = useRef({});
+  const hasUnsavedLocalEditsRef = useRef(false);
 
   const [refreshKey, setRefreshKey] = useState(0);
   const normalizedServiceTicketStatus = useMemo(
@@ -273,6 +306,14 @@ export const ServiceTicket = ({
     return false;
   };
 
+  const markUnsavedLocalEdit = useCallback(() => {
+    hasUnsavedLocalEditsRef.current = true;
+  }, []);
+
+  const markLocalEditsSaved = useCallback(() => {
+    hasUnsavedLocalEditsRef.current = false;
+  }, []);
+
   const resolveServiceTicketId = useCallback(() => {
     const parsedServiceTicketId = Number(resolvedTicketCode);
     return serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
@@ -293,6 +334,28 @@ export const ServiceTicket = ({
     }
   }, [resolveServiceTicketId]);
 
+  const fetchLatestAdvisorNotePatchItems = useCallback(async (token) => {
+    const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
+    return buildAdvisorNotePatchItems(inspectionResponse?.data?.items);
+  }, [resolvedTicketCode]);
+
+  const applyAdvisorNotesToLocalState = useCallback((advisorItems) => {
+    if (!Array.isArray(advisorItems) || advisorItems.length === 0) return;
+    const noteByKey = new Map();
+    advisorItems.forEach((item) => {
+      const key = getSafetyItemKey(item);
+      if (key) noteByKey.set(key, String(item.advisorNote ?? ''));
+    });
+    if (noteByKey.size === 0) return;
+
+    setSafetyChecks((prev) => prev.map((item) => {
+      const key = getSafetyItemKey(item);
+      if (!key || !noteByKey.has(key)) return item;
+      const advisorNote = noteByKey.get(key);
+      return { ...item, advisorNote, note: advisorNote };
+    }));
+  }, []);
+
   const mergedSafetyChecks = useMemo(() => (
     [...safetyChecks].sort((a, b) => {
       if (Boolean(a.isCustom) !== Boolean(b.isCustom)) {
@@ -301,16 +364,6 @@ export const ServiceTicket = ({
       return (a.displayOrder || 0) - (b.displayOrder || 0);
     })
   ), [safetyChecks]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        setRefreshKey(prev => prev + 1);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -528,6 +581,7 @@ export const ServiceTicket = ({
 
   const handleTireDataChange = (position, field, value) => {
     if (!canEditTechnicalFields || isFormLocked) return;
+    markUnsavedLocalEdit();
     const raw = String(value);
 
     // Validate 500 ký tự cho các trường khác
@@ -547,6 +601,7 @@ export const ServiceTicket = ({
 
   const handleRecommendedTireSizeChange = (value) => {
     if (!canEditTechnicalFields || isFormLocked) return;
+    markUnsavedLocalEdit();
     const raw = String(value);
     const nextValue = raw.length > TEXT_FIELD_CHAR_LIMIT
       ? raw.slice(0, TEXT_FIELD_CHAR_LIMIT)
@@ -565,6 +620,7 @@ export const ServiceTicket = ({
 
   const handleSafetyCheck = (itemId, type) => {
     if (!canEditTechnicalFields || isFormLocked) return;
+    markUnsavedLocalEdit();
     setSafetyChecks(prev =>
       prev.map(item =>
         item.id !== itemId
@@ -578,6 +634,7 @@ export const ServiceTicket = ({
 
   const handleAdvisorNoteChange = (itemId, value) => {
     if (!canEditAdvisorNotes || isFormLocked) return;
+    markUnsavedLocalEdit();
     const raw = String(value);
     if (raw.length > TEXT_FIELD_CHAR_LIMIT) {
       const now = Date.now();
@@ -668,7 +725,6 @@ export const ServiceTicket = ({
         }
         setInspectionId(currentInspectionId);
       }
-
 
       const maxOrder = safetyChecks.length > 0
         ? Math.max(...safetyChecks.map(c => c.displayOrder || 0))
@@ -844,22 +900,28 @@ export const ServiceTicket = ({
             itemStatus: check.good ? 'GOOD' : check.warning ? 'WARNING' : check.replace ? 'REPLACE' : null,
           }))
           .filter((check) => check.workCategoryId || check.customCategoryId);
-        const skippedAdvisorItems = safetyChecks
-          .filter((item) => item.workCategoryId || item.customCategoryId)
-          .map((item) => ({
-            workCategoryId: item.workCategoryId ?? null,
-            customCategoryId: item.customCategoryId ?? null,
-            advisorNote: String(item.advisorNote ?? item.note ?? ''),
-          }));
+        const skippedAdvisorItems = isAdvisorMode
+          ? safetyChecks
+            .filter((item) => item.workCategoryId || item.customCategoryId)
+            .map((item) => ({
+              workCategoryId: item.workCategoryId ?? null,
+              customCategoryId: item.customCategoryId ?? null,
+              advisorNote: String(item.advisorNote ?? item.note ?? ''),
+            }))
+          : await fetchLatestAdvisorNotePatchItems(token);
 
         if (skippedItemsPayload.length > 0) {
           await upsertSafetyInspectionItems(currentInspectionId, skippedItemsPayload, token);
         }
         if (skippedAdvisorItems.length > 0) {
           await updateAdvisorNotes(currentInspectionId, skippedAdvisorItems, token);
+          if (!isAdvisorMode) {
+            applyAdvisorNotesToLocalState(skippedAdvisorItems);
+          }
         }
         setInspectionId(currentInspectionId);
         setInspectionStatus('SKIPPED');
+        markLocalEditsSaved();
         toast.success('Đã lưu nháp phiếu kiểm tra an toàn. Bạn vẫn có thể tiếp tục chỉnh sửa.');
         return;
       }
@@ -964,6 +1026,10 @@ export const ServiceTicket = ({
       }
 
       // Backend luôn cứng COMPLETED khi save/update, nên gửi payload bình thường
+      const advisorItemsToRestore = !isAdvisorMode && currentInspectionId
+        ? await fetchLatestAdvisorNotePatchItems(token)
+        : [];
+
       const safetyPayload = {
         serviceTicketId: finalServiceTicketId,
         generalNotes: currentRecommendation || null,
@@ -995,6 +1061,9 @@ export const ServiceTicket = ({
           }));
 
         await updateAdvisorNotes(currentInspectionId, advisorItems, token);
+      } else if (advisorItemsToRestore.length > 0) {
+        await updateAdvisorNotes(currentInspectionId, advisorItemsToRestore, token);
+        applyAdvisorNotesToLocalState(advisorItemsToRestore);
       }
       setInspectionId(currentInspectionId);
 
@@ -1022,6 +1091,8 @@ export const ServiceTicket = ({
         // Đặt local state về PENDING để form không bị khóa
         setInspectionStatus('PENDING');
       }
+
+      markLocalEditsSaved();
 
       // Không gọi setRefreshKey để tránh reload từ API ghi đè lại trạng thái
       toast.success('Đã lưu nháp phiếu kiểm tra an toàn. Bạn vẫn có thể tiếp tục chỉnh sửa.');
@@ -1170,6 +1241,9 @@ export const ServiceTicket = ({
       };
 
       let currentInspectionId = inspectionId;
+      const advisorItemsToRestore = !isAdvisorMode && currentInspectionId
+        ? await fetchLatestAdvisorNotePatchItems(token)
+        : [];
 
       if (inspectionId) {
         const updateRes = await updateSafetyInspectionData(inspectionId, safetyPayload, token);
@@ -1193,6 +1267,9 @@ export const ServiceTicket = ({
         if (advisorItems.length > 0) {
           await updateAdvisorNotes(currentInspectionId, advisorItems, token);
         }
+      } else if (currentInspectionId && advisorItemsToRestore.length > 0) {
+        await updateAdvisorNotes(currentInspectionId, advisorItemsToRestore, token);
+        applyAdvisorNotesToLocalState(advisorItemsToRestore);
       }
 
       const syncedServiceTicketStatus = await syncServiceTicketStatus(
@@ -1210,6 +1287,7 @@ export const ServiceTicket = ({
 
       toast.success('Đã hoàn thành phiếu kiểm tra an toàn.');
       setRefreshKey(prev => prev + 1); // reload để dữ liệu advisor/technician map đồng bộ qua API
+      markLocalEditsSaved();
       if (typeof onInspectionCompleted === 'function') {
         await onInspectionCompleted({
           inspectionId: currentInspectionId,
@@ -1582,6 +1660,7 @@ export const ServiceTicket = ({
           className={styles.notesTextarea}
           value={notes}
           onChange={(e) => {
+            markUnsavedLocalEdit();
             const val = e.target.value;
             if (val.length > 500) {
               const now = Date.now();

@@ -40,7 +40,7 @@ const CustomerManager = () => {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
 
   // Load customers from API
@@ -96,7 +96,7 @@ const CustomerManager = () => {
         setLoading(false);
       }
     }
-  }, [searchTerm, currentPage, statusFilter]);
+  }, [searchTerm, currentPage, statusFilter, itemsPerPage]);
 
   useEffect(() => {
     loadCustomers();
@@ -207,7 +207,7 @@ const CustomerManager = () => {
     }
   };
 
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil((totalItems || 0) / Math.max(1, itemsPerPage)));
 
   const openCreateModal = () => {
     setShowModal(true);
@@ -319,6 +319,21 @@ const CustomerManager = () => {
         </div>
 
         <div className={styles.pagination}>
+          
+          <select
+            className={styles.filterSelect}
+            value={String(itemsPerPage)}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              setItemsPerPage(Number.isFinite(next) && next > 0 ? next : 10);
+              setCurrentPage(1);
+            }}
+            title="Số dòng hiển thị"
+          >
+            <option value="10">Hiển thị: 10</option>
+            <option value="20">Hiển thị: 20</option>
+            <option value="50">Hiển thị: 50</option>
+          </select>
           <div className={styles.paginationInfo}>
             Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} của {totalItems} khách hàng
           </div>

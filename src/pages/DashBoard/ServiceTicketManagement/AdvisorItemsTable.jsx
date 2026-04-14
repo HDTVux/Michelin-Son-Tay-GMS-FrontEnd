@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
@@ -10,6 +11,109 @@ import {
     useAdvisorItemsTableHandlers,
 } from './useAdvisorItemsTableHandlers.js';
 import CatalogPicker from './CatalogPicker.jsx';
+
+function normalizeSuggestionText(value) {
+    return String(value ?? '')
+        .normalize('NFD')
+        .replaceAll(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+}
+
+function CategorySuggestDropdownPortal({ open, anchorRef, items, disabled, onPick, onClose }) {
+    const dropdownRef = useRef(null);
+    const [pos, setPos] = useState(null);
+
+    useEffect(() => {
+        if (!open) return undefined;
+
+        const update = () => {
+            const el = anchorRef?.current;
+            if (!el) return;
+            const rect = el.getBoundingClientRect();
+            setPos({
+                left: rect.left,
+                top: rect.bottom + 6,
+                width: rect.width,
+            });
+        };
+
+        update();
+        globalThis.addEventListener?.('resize', update);
+        // capture scroll from any scroll container
+        globalThis.addEventListener?.('scroll', update, true);
+
+        return () => {
+            globalThis.removeEventListener?.('resize', update);
+            globalThis.removeEventListener?.('scroll', update, true);
+        };
+    }, [open, anchorRef]);
+
+    useEffect(() => {
+        if (!open) return undefined;
+
+        const onPointerDown = (e) => {
+            const anchor = anchorRef?.current;
+            const dropdown = dropdownRef.current;
+            const target = e?.target;
+            if (anchor && target && anchor.contains(target)) return;
+            if (dropdown && target && dropdown.contains(target)) return;
+            onClose?.();
+        };
+
+        globalThis.document?.addEventListener?.('pointerdown', onPointerDown);
+        return () => {
+            globalThis.document?.removeEventListener?.('pointerdown', onPointerDown);
+        };
+    }, [open, onClose, anchorRef]);
+
+    if (!open) return null;
+    if (!pos) return null;
+    if (!Array.isArray(items) || items.length === 0) return null;
+
+    const portalContainer = globalThis.document?.body;
+    if (!portalContainer) return null;
+
+    return createPortal(
+        <div
+            ref={dropdownRef}
+            className={styles.categorySuggestList}
+            style={{
+                position: 'fixed',
+                left: pos.left,
+                top: pos.top,
+                width: pos.width,
+                zIndex: 9999,
+            }}
+        >
+            {items.map((label) => (
+                <button
+                    key={label}
+                    type="button"
+                    className={styles.categorySuggestItem}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                        if (disabled) return;
+                        onPick?.(label);
+                        onClose?.();
+                    }}
+                    disabled={disabled}
+                >
+                    {label}
+                </button>
+            ))}
+        </div>,
+        portalContainer,
+    );
+}
+
+CategorySuggestDropdownPortal.propTypes = {
+    open: PropTypes.bool,
+    anchorRef: PropTypes.object,
+    items: PropTypes.array,
+    disabled: PropTypes.bool,
+    onPick: PropTypes.func,
+    onClose: PropTypes.func,
+};
 
 function formatTaxRatePercent(rule) {
     const raw = rule?.taxRate ?? rule?.rate;
@@ -149,7 +253,9 @@ function EstimateItemRow({
     idx,
     showInputs,
     onChange,
+    onClearRow,
     isSaving,
+    categorySuggestions,
     taxRulesLoading,
     taxRules,
     taxRuleById,
@@ -157,9 +263,20 @@ function EstimateItemRow({
     softDeleteEditRow,
     openCatalogPicker,
     showTaxColumn,
+    showConfirmColumn,
 }) {
     const isLocked = Boolean(row?.isLockedFromPreviousVersion);
     const allowInputs = showInputs && !isLocked;
+
+    const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+    const categoryInputRef = useRef(null);
+
+    const filteredCategorySuggestions = useMemo(() => {
+        const list = Array.isArray(categorySuggestions) ? categorySuggestions : [];
+        const q = normalizeSuggestionText(row.newCategoryName).trim();
+        if (!q) return list.slice(0, 50);
+        return list.filter((label) => normalizeSuggestionText(label).includes(q)).slice(0, 50);
+    }, [categorySuggestions, row.newCategoryName]);
 
     const categoryFilled =
         Boolean(String(row?.newCategoryName ?? row?.categoryName ?? '').trim()) || Boolean(toIdOrNull(row?.workCategoryId));
@@ -194,14 +311,29 @@ function EstimateItemRow({
             <td>{stt}</td>
             <td>
                 {allowInputs ? (
-                    <input
-                        className={styles.tableInput}
-                        value={row.newCategoryName}
-                        onChange={(e) => onChange(idx, 'newCategoryName', e.target.value)}
-                        placeholder="Hạng mục"
-                        list="estimate-category-suggestions"
-                        disabled={isSaving}
-                    />
+                    <>
+                        <input
+                            ref={categoryInputRef}
+                            className={styles.tableInput}
+                            value={row.newCategoryName}
+                            onChange={(e) => {
+                                onChange(idx, 'newCategoryName', e.target.value);
+                                setCategoryDropdownOpen(true);
+                            }}
+                            onFocus={() => setCategoryDropdownOpen(true)}
+                            placeholder="Hạng mục"
+                            autoComplete="off"
+                            disabled={isSaving}
+                        />
+                        <CategorySuggestDropdownPortal
+                            open={categoryDropdownOpen && !isSaving}
+                            anchorRef={categoryInputRef}
+                            items={filteredCategorySuggestions}
+                            disabled={isSaving}
+                            onPick={(label) => onChange(idx, 'newCategoryName', label)}
+                            onClose={() => setCategoryDropdownOpen(false)}
+                        />
+                    </>
                 ) : (
                     row.categoryName || ''
                 )}
@@ -314,33 +446,43 @@ function EstimateItemRow({
             ) : null}
 
             <td />
-            <td className={styles.tdCenter}>
-                {showInputs ? (
+            {showConfirmColumn ? (
+                <td className={styles.tdCenter}>
                     <input
                         type="checkbox"
                         checked={Boolean(row.confirmed)}
                         onChange={(e) => onChange(idx, 'confirmed', e.target.checked)}
                         disabled={isSaving || isLocked}
                     />
-                ) : (
-                    <input
-                        type="checkbox"
-                        checked={true}
-                        disabled={true}
-                    />
-                )}
-            </td>
-            {isEditing ? (
+                </td>
+            ) : null}
+            {showInputs ? (
                 <td className={styles.tdCenter}>
-                    <button
-                        type="button"
-                        className="ui-btn ui-btn--ghost"
-                        onClick={() => softDeleteEditRow(idx)}
-                        disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row) || isLocked}
-                        title="Xóa dòng này"
-                    >
-                        Xóa
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                        {allowInputs ? (
+                            Boolean(row?.confirmed) && isEditing ? (
+                                <button
+                                    type="button"
+                                    className="ui-btn ui-btn--ghost"
+                                    onClick={() => softDeleteEditRow(idx)}
+                                    disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row) || isLocked}
+                                    title="Xóa dòng này"
+                                >
+                                    Xóa
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="ui-btn ui-btn--ghost"
+                                    onClick={() => onClearRow?.(idx)}
+                                    disabled={isSaving}
+                                    title="Xóa các ô đã nhập của dòng này"
+                                >
+                                    Xóa 
+                                </button>
+                            )
+                        ) : null}
+                    </div>
                 </td>
             ) : null}
         </tr>
@@ -352,7 +494,9 @@ EstimateItemRow.propTypes = {
     idx: PropTypes.number,
     showInputs: PropTypes.bool,
     onChange: PropTypes.func,
+    onClearRow: PropTypes.func,
     isSaving: PropTypes.bool,
+    categorySuggestions: PropTypes.array,
     taxRulesLoading: PropTypes.bool,
     taxRules: PropTypes.array,
     taxRuleById: PropTypes.object,
@@ -360,6 +504,7 @@ EstimateItemRow.propTypes = {
     softDeleteEditRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
     showTaxColumn: PropTypes.bool,
+    showConfirmColumn: PropTypes.bool,
 };
 
 function EstimateActions({
@@ -586,6 +731,15 @@ export default function AdvisorItemsTable({
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange, refreshToken });
 
+    const showTaxColumn = isCreating || isEditing;
+    const showConfirmColumn = Boolean(showInputs);
+
+    const footerSpacerColSpan =
+        (showTaxColumn ? 1 : 0) +
+        1 +
+        (showConfirmColumn ? 1 : 0) +
+        (showInputs ? 1 : 0);
+
     const RECOMMEND_MAX_LENGTH = 255;
     const recommendationValidation = useMemo(
         () =>
@@ -610,6 +764,14 @@ export default function AdvisorItemsTable({
         } catch {
             // ignore
         }
+
+        return () => {
+            try {
+                onEstimateEditingChange?.(false);
+            } catch {
+                // ignore
+            }
+        };
     }, [isCreating, isEditing, isSaving, onEstimateEditingChange]);
 
     const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
@@ -745,6 +907,31 @@ export default function AdvisorItemsTable({
     const [pickerOpen, setPickerOpen] = useState(false);
     const [activeRowIndex, setActiveRowIndex] = useState(null);
 
+    const selectedProductWarehouseKeys = useMemo(() => {
+        const keys = new Set();
+        const rows = Array.isArray(tableRows) ? tableRows : [];
+        for (const r of rows) {
+            // Only count rows that are actually editable in current mode.
+            // Locked rows (seeded from previous estimate version) should not lock selection.
+            if (r?.isLockedFromPreviousVersion) continue;
+            const itemId = toIdOrNull(r?.itemId);
+            if (!itemId) continue;
+            const warehouseId = toIdOrNull(r?.warehouseId);
+            const key = `${itemId}|${warehouseId ?? ''}`;
+            keys.add(key);
+        }
+        return keys;
+    }, [tableRows]);
+
+    const activeRowSelectionKey = useMemo(() => {
+        if (activeRowIndex == null) return null;
+        const row = Array.isArray(tableRows) ? tableRows[activeRowIndex] : null;
+        const itemId = toIdOrNull(row?.itemId);
+        if (!itemId) return null;
+        const warehouseId = toIdOrNull(row?.warehouseId);
+        return `${itemId}|${warehouseId ?? ''}`;
+    }, [activeRowIndex, tableRows]);
+
     // Lưu categoryCode để truyền vào CatalogPicker
     const [pickerCategoryCode, setPickerCategoryCode] = useState("");
     const [pickerInitQuery, setPickerInitQuery] = useState("");
@@ -770,6 +957,39 @@ export default function AdvisorItemsTable({
         setActiveRowIndex(null);
         setPickerInitQuery("");
     };
+
+    const handleClearRowInputs = useCallback((rowIndex) => {
+        if (!showInputs) return;
+        if (rowIndex == null) return;
+
+        const row = Array.isArray(tableRows) ? tableRows[rowIndex] : null;
+        if (!row || row?.isLockedFromPreviousVersion) return;
+
+        if (activeRowIndex === rowIndex) {
+            setPickerOpen(false);
+            setActiveRowIndex(null);
+            setPickerInitQuery("");
+        }
+
+        onChange(rowIndex, 'newCategoryName', '');
+        onChange(rowIndex, 'workCategoryId', '');
+        onChange(rowIndex, 'workCategoryCode', '');
+
+        onChange(rowIndex, 'itemId', '');
+        onChange(rowIndex, 'itemName', '');
+        onChange(rowIndex, 'unit', '');
+
+        onChange(rowIndex, 'quantity', '');
+        onChange(rowIndex, 'unitPrice', '');
+
+        onChange(rowIndex, 'warehouseId', '');
+        onChange(rowIndex, 'warehouseAvailableQuantity', null);
+
+        onChange(rowIndex, 'taxRuleId', '');
+        onChange(rowIndex, 'itemTaxRuleId', '');
+
+        onChange(rowIndex, 'confirmed', false);
+    }, [activeRowIndex, onChange, showInputs, tableRows]);
 
     const handlePickCatalogItem = (item) => {
         if (activeRowIndex == null) return;
@@ -918,14 +1138,6 @@ export default function AdvisorItemsTable({
             />
 
             <div className={styles.tableWrap}>
-                <datalist id="estimate-category-suggestions">
-                    {workCategoriesLoading ? null : (
-                        (Array.isArray(categorySuggestions) ? categorySuggestions : []).map((label) => (
-                            <option key={label} value={label} />
-                        ))
-                    )}
-                </datalist>
-
                 {isTicketPaid ? (
                 <div className={styles.errorBanner} style={{ marginTop: 8 }}>
                     Phiếu dịch vụ đã được thanh toán — không thể tạo báo giá mới.
@@ -941,10 +1153,10 @@ export default function AdvisorItemsTable({
                             <th scope="col">SL</th>
                             <th scope="col">ĐƠN GIÁ</th>
                             <th scope="col">THÀNH TIỀN</th>
-                            {isCreating || isEditing ? <th scope="col">THUẾ </th> : null}
+                            {showTaxColumn ? <th scope="col">THUẾ </th> : null}
                             <th scope="col">KHO</th>
-                            <th scope="col">XÁC NHẬN</th>
-                            {isEditing ? <th scope="col">XÓA</th> : null}
+                            {showConfirmColumn ? <th scope="col">XÁC NHẬN</th> : null}
+                            {showInputs ? <th scope="col">THAO TÁC</th> : null}
                         </tr>
                     </thead>
                     <tbody>
@@ -954,9 +1166,12 @@ export default function AdvisorItemsTable({
                                 row={row}
                                 idx={idx}
                                 showInputs={showInputs}
-                                showTaxColumn={isCreating || isEditing}
+                                showTaxColumn={showTaxColumn}
+                                showConfirmColumn={showConfirmColumn}
                                 onChange={onChange}
+                                onClearRow={handleClearRowInputs}
                                 isSaving={isSaving}
+                                categorySuggestions={workCategoriesLoading ? [] : categorySuggestions}
                                 taxRulesLoading={taxRulesLoading}
                                 taxRules={taxRules}
                                 taxRuleById={taxRuleById}
@@ -972,7 +1187,7 @@ export default function AdvisorItemsTable({
                                 TỔNG CỘNG
                             </td>
                             <td className={styles.tdNumber}>{footerTotalText}</td>
-                            <td colSpan={isCreating || isEditing ? (isEditing ? 4 : 3) : 2} />
+                            <td colSpan={footerSpacerColSpan} />
                         </tr>
                     </tfoot>
                 </table>
@@ -1084,6 +1299,8 @@ export default function AdvisorItemsTable({
                 onPick={handlePickCatalogItem}
                 initQuery={pickerInitQuery}
                 categoryCode={pickerCategoryCode}
+                existingSelectionKeys={selectedProductWarehouseKeys}
+                excludeSelectionKey={activeRowSelectionKey}
             />
 
             {photoPreview?.url ? (

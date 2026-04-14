@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchCustomerByPhone } from '../../../services/customerService.js';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import bookingStyles from '../../Booking/Booking.module.css';
 import scheduleStyles from '../BookingRequestManagement/BookingRequestEdit.module.css';
 import styles from './CreateBooking.module.css';
@@ -61,6 +61,10 @@ const getCatalogPrice = (item) => {
 export default function CreateBooking() {
 	useScrollToTop();
 	const navigate = useNavigate();
+	const location = useLocation();
+	const sourceReminder = location.state?.maintenanceReminder || null;
+	const sourceReminderId = location.state?.reminderId ?? sourceReminder?.reminderId ?? null;
+	const didApplyReminderRef = useRef(false);
 
 	// Trạng thái kiểm tra khách hàng
 	const [checkingCustomer, setCheckingCustomer] = useState(false);
@@ -127,6 +131,32 @@ export default function CreateBooking() {
 	const [submitSuccess, setSubmitSuccess] = useState('');
 	const [createdBookingForCheckIn, setCreatedBookingForCheckIn] = useState(null);
 	const [submitLocked, setSubmitLocked] = useState(false);
+	const selectedItems = useMemo(
+		() => services.filter((item) => selectedIds.includes(item.id)),
+		[services, selectedIds],
+	);
+
+	useEffect(() => {
+		if (didApplyReminderRef.current || !sourceReminderId) return;
+		didApplyReminderRef.current = true;
+
+		const reminderDate = String(sourceReminder?.reminderDate || '').slice(0, 10);
+		const reminderTime = formatTimeHHmm(sourceReminder?.reminderTime || '');
+		setInfo((prev) => ({
+			...prev,
+			name: String(sourceReminder?.customerName || prev.name || '').trim(),
+			phone: String(sourceReminder?.customerPhone || prev.phone || '').trim(),
+			note: String(sourceReminder?.note || prev.note || '').trim(),
+		}));
+		if (reminderDate || reminderTime) {
+			setSchedule((prev) => ({
+				date: reminderDate || prev.date,
+				time: reminderTime || prev.time,
+			}));
+			setScheduleMode('manual');
+			setShowSchedulePicker(true);
+		}
+	}, [sourceReminder, sourceReminderId]);
 
 	useEffect(() => {
 		let active = true;
@@ -239,6 +269,7 @@ export default function CreateBooking() {
 	    const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
         useCreateBookingHandlers({
             baseSlots,
+			selectedItems,
             selectedIds,
             schedule,
             scheduleMode,
@@ -248,6 +279,7 @@ export default function CreateBooking() {
             slotsLoading,
             slotsError,
             createdBookingForCheckIn,
+			sourceReminderId,
             navigate,
 
 
@@ -422,6 +454,11 @@ export default function CreateBooking() {
 	return (
 		<div className={`${bookingStyles['booking-page']} ${styles.page}`}>
 			<h2 className={`${bookingStyles['section-title']} ${styles.title}`}>Tạo lịch cho khách hàng</h2>
+			{sourceReminderId && (
+				<div className={styles.reminderSource}>
+					Đang tạo lịch từ lời nhắc #{sourceReminderId}
+				</div>
+			)}
 			<StepService
 				services={services}
 				selectedIds={selectedIds}

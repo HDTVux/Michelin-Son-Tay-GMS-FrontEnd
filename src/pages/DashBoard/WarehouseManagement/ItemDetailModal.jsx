@@ -19,6 +19,21 @@ const getWarehouseOnHandQty = (detail) => {
     return qty;
 };
 
+const getWarehouseReservedQty = (detail) => {
+    const reserved = toFiniteNumber(
+        detail?.reservedQuantity,
+    );
+    if (reserved != null) return reserved;
+
+    const reservedStockLevel = toFiniteNumber(
+        detail?.reservedStockLevel
+        ?? detail?.reserved_stock_level,
+    );
+    if (reservedStockLevel != null) return reservedStockLevel;
+
+    return null;
+};
+
 const getWarehouseSellingPrice = (detail) => {
     return toFiniteNumber(
         detail?.sellingPrice
@@ -167,21 +182,24 @@ export default function ItemDetailModal({ item, onClose }) {
                                     <tr>
                                         <th>KHO</th>
                                         <th>SỐ LƯỢNG</th>
+                                        <th>ĐANG GIỮ</th>
                                         <th>GIÁ (KHO)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {warehouseDetails.length === 0 ? (
                                         <tr>
-                                            <td colSpan={3} className={styles['empty-row-compact']}>
+                                            <td colSpan={4} className={styles['empty-row-compact']}>
                                                 Không có dữ liệu kho.
                                             </td>
                                         </tr>
                                     ) : (
                                         warehouseDetails.map((w, idx) => {
                                             const qty = getWarehouseOnHandQty(w);
+                                            const reservedQty = getWarehouseReservedQty(w);
                                             const sellingPrice = getWarehouseSellingPrice(w);
                                             const qtyText = qty == null ? '-' : new Intl.NumberFormat('vi-VN').format(qty);
+                                            const reservedText = reservedQty == null ? '-' : new Intl.NumberFormat('vi-VN').format(reservedQty);
                                             let priceTextByWarehouse = '-';
                                             if (!showPriceByPolicy) priceTextByWarehouse = 'Liên hệ';
                                             else if (sellingPrice != null) priceTextByWarehouse = `${formatCurrencyVnd(sellingPrice)} ₫`;
@@ -190,6 +208,7 @@ export default function ItemDetailModal({ item, onClose }) {
                                                 <tr key={String(w?.warehouseId ?? w?.warehouseCode ?? `${idx}`)}>
                                                     <td>{getWarehouseDisplayName(w)}</td>
                                                     <td>{qtyText}</td>
+                                                    <td>{reservedText}</td>
                                                     <td>{priceTextByWarehouse}</td>
                                                 </tr>
                                             );

@@ -1,5 +1,25 @@
 import { request, API_BASE_URL } from './apiClient.js';
 
+function appendSafeCatalogSearchParam(searchParams, key, value) {
+  if (value === undefined || value === null) return;
+  const text = String(value).trim();
+  if (!text) return;
+
+  if (key === 'page') {
+    const page = Number(text);
+    searchParams.set(key, String(Number.isFinite(page) && page >= 0 ? Math.floor(page) : 0));
+    return;
+  }
+
+  if (key === 'size') {
+    const size = Number(text);
+    searchParams.set(key, String(Number.isFinite(size) && size >= 1 ? Math.floor(size) : 10));
+    return;
+  }
+
+  searchParams.set(key, text);
+}
+
 // Lấy danh sách dịch vụ hiển thị trên trang Home (GET /home/)
 export async function fetchHomeServices() {
   return request('/home/');
@@ -32,10 +52,7 @@ export async function fetchHomeProductDetail(catalogItemId) {
 export async function fetchHomeCatalogItems(params = {}) {
   const searchParams = new URLSearchParams();
   Object.entries(params || {}).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
-    const text = String(value).trim();
-    if (!text) return;
-    searchParams.set(key, text);
+    appendSafeCatalogSearchParam(searchParams, key, value);
   });
   const qs = searchParams.toString();
   return request(`/api/warehouse/search/catalog-items${qs ? `?${qs}` : ''}`);

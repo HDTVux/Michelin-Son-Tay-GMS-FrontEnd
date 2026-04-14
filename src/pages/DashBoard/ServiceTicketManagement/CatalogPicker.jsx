@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 // Nếu tách file thì đổi thành import styles from './CatalogPicker.module.css';
 import styles from './CatalogPicker.module.css'; 
 import { searchWarehouseCatalogItemsDetail } from '../../../services/warehouseService.js';
-import { formatCurrencyVnd } from './useAdvisorItemsTableHandlers.js';
+import { formatCurrencyVnd, toIdOrNull } from './useAdvisorItemsTableHandlers.js';
 
 function toFiniteNumber(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -56,12 +56,29 @@ function buildPickedCatalogItem(item, warehouseDetail) {
   };
 }
 
-function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage = 0, pageSize = 10, initQuery = '', categoryCode = '' }) {
+function CatalogPicker({
+  open,
+  onClose,
+  onPick,
+  existingSelectionKeys,
+  excludeSelectionKey,
+  initialSearch = '',
+  initialPage = 0,
+  pageSize = 10,
+  initQuery = '',
+  categoryCode = '',
+}) {
   const dialogRef = useRef(null); // Tạo ref để điều khiển thẻ dialog
 
   const [search, setSearch] = useState(initialSearch || initQuery);
-  const [page, setPage] = useState(initialPage);
-  const [size] = useState(pageSize);
+  const [page, setPage] = useState(() => {
+    const parsed = Number(initialPage);
+    return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+  });
+  const [size] = useState(() => {
+    const parsed = Number(pageSize);
+    return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 10;
+  });
   const [results, setResults] = useState([]);
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -234,6 +251,7 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                       (() => {
                         const itemKeyRaw = it?.itemId ?? it?.id ?? `res-${i}`;
                         const itemKey = String(itemKeyRaw);
+                        const itemIdNum = toIdOrNull(it?.itemId ?? it?.id);
                         const details = Array.isArray(it?.warehouseDetails) ? it.warehouseDetails : [];
                         const selectedWarehouseId = selectedWarehouseByItemId[itemKey] ?? '';
                         const selectedDetail = details.find((d) => String(d?.warehouseId) === String(selectedWarehouseId)) || null;
@@ -266,6 +284,19 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                           const pickEnabled = hasSelectedWarehouse && hasSelectedDetail && selectedOutOfStock === false;
                           pickDisabled = pickEnabled === false;
                         }
+
+                        const selectedWarehouseIdNum = hasWarehouses ? toIdOrNull(selectedWarehouseId) : null;
+                        const candidateWarehouseId = hasWarehouses
+                          ? selectedWarehouseIdNum
+                          : toIdOrNull(it?.warehouseId);
+
+                        const candidateKey = itemIdNum ? `${itemIdNum}|${candidateWarehouseId ?? ''}` : '';
+                        const isDuplicateSelection = Boolean(
+                          itemIdNum
+                          && candidateKey
+                          && existingSelectionKeys?.has?.(candidateKey)
+                          && candidateKey !== (excludeSelectionKey ?? ''),
+                        );
 
                         let priceCellText = '-';
                         if (hasAnyPrice) {
@@ -302,7 +333,7 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                             </select>
                           );
 
-                          const isPickDisabled = pickDisabled || canPickAnyWarehouse === false;
+                          const isPickDisabled = pickDisabled || canPickAnyWarehouse === false || isDuplicateSelection;
 
                           actionControl = (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -320,7 +351,12 @@ function CatalogPicker({ open, onClose, onPick, initialSearch = '', initialPage 
                           );
                         } else {
                           actionControl = (
-                            <button type="button" className="ui-btn ui-btn--primary" onClick={() => handlePickItem(it)}>
+                            <button
+                              type="button"
+                              className="ui-btn ui-btn--primary"
+                              onClick={() => handlePickItem(it)}
+                              disabled={isDuplicateSelection}
+                            >
                               Chọn
                             </button>
                           );
@@ -398,6 +434,10 @@ CatalogPicker.propTypes = {
   open: PropTypes.bool,
   onClose: PropTypes.func,
   onPick: PropTypes.func,
+  existingSelectionKeys: PropTypes.shape({
+    has: PropTypes.func,
+  }),
+  excludeSelectionKey: PropTypes.string,
   initialSearch: PropTypes.string,
   initialPage: PropTypes.number,
   pageSize: PropTypes.number,

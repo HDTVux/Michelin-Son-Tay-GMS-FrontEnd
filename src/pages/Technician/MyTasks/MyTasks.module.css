@@ -763,6 +763,8 @@
   .statsGrid { grid-template-columns: 1fr 1fr; }
   .infoGrid { grid-template-columns: 1fr; }
   .pendingFilters { padding: 12px; }
+  .filterCardLabels,
+  .filterCardControls,
   .filterCardLabelsTwo,
   .filterCardControlsTwo {
     grid-template-columns: 1fr;

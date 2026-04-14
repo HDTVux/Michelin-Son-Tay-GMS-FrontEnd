@@ -116,11 +116,7 @@ export const mapLookupPayload = (payload) => {
         items: Array.isArray(payload.items) ? payload.items : [],
         parts: Array.isArray(payload.parts) ? payload.parts : [],
         partItems: Array.isArray(payload.partItems) ? payload.partItems : [],
-        services: Array.isArray(payload.services)
-            ? payload.services
-            : Array.isArray(payload.items)
-                ? payload.items
-                : [],
+        services: Array.isArray(payload.services) ? payload.services : [],
     };
 };
 

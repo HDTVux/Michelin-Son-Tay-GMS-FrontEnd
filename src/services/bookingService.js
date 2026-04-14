@@ -61,8 +61,10 @@ export const fetchBookingRequests = (params, token) => {
 
   const searchParams = new URLSearchParams();
 
-  const page = Number.isFinite(params?.page) ? params.page : 0;
-  const size = Number.isFinite(params?.size) ? params.size : 10;
+  const rawPage = Number.isFinite(params?.page) ? params.page : 0;
+  const rawSize = Number.isFinite(params?.size) ? params.size : 10;
+  const page = Math.max(0, Math.trunc(rawPage));
+  const size = Math.max(1, Math.trunc(rawSize));
   searchParams.set('page', String(page));
   searchParams.set('size', String(size));
 
@@ -137,8 +139,10 @@ export const fetchManagedBookingsPaged = (params, token) => {
 
   const searchParams = new URLSearchParams();
 
-  const page = Number.isFinite(params?.page) ? params.page : 0;
-  const size = Number.isFinite(params?.size) ? params.size : 10;
+  const rawPage = Number.isFinite(params?.page) ? params.page : 0;
+  const rawSize = Number.isFinite(params?.size) ? params.size : 10;
+  const page = Math.max(0, Math.trunc(rawPage));
+  const size = Math.max(1, Math.trunc(rawSize));
   searchParams.set('page', String(page));
   searchParams.set('size', String(size));
 

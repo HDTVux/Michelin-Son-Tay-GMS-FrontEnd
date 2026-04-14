@@ -24,6 +24,7 @@ import styles from './AdvisorInspection.module.css';
 
 const STAFF_ROLE = { ADVISOR: 'ADVISOR' };
 const ADVISOR_INSPECTION_DAY_STORAGE_KEY = 'advisorInspection.activeDay';
+const ADVISOR_TICKET_LOOKUP_SIZE = 200;
 
 const getToken = () => localStorage.getItem('authToken') || localStorage.getItem('staffToken');
 const toPositiveStaffId = (value) => {
@@ -95,6 +96,50 @@ const shiftLocalISODate = (dateIso, days) => {
   const offsetMs = baseDate.getTimezoneOffset() * 60000;
   return new Date(baseDate.getTime() - offsetMs).toISOString().slice(0, 10);
 };
+const toLocalISODate = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return getTodayLocalISO();
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+const parseLocalISODate = (dateIso) => {
+  const raw = String(dateIso || '').trim();
+  const parsed = raw ? new Date(`${raw}T00:00:00`) : new Date();
+  return Number.isNaN(parsed.getTime()) ? new Date(`${getTodayLocalISO()}T00:00:00`) : parsed;
+};
+const getDateRangeForPeriod = (period, anchorDateIso) => {
+  const baseDate = parseLocalISODate(anchorDateIso);
+  if (period === 'all') {
+    return { from: '', to: '' };
+  }
+  if (period === 'week') {
+    const start = new Date(baseDate);
+    const day = start.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    start.setDate(start.getDate() + mondayOffset);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { from: toLocalISODate(start), to: toLocalISODate(end) };
+  }
+  if (period === 'month') {
+    const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+    const end = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+    return { from: toLocalISODate(start), to: toLocalISODate(end) };
+  }
+  return { from: toLocalISODate(baseDate), to: toLocalISODate(baseDate) };
+};
+const shiftPeriodAnchorDate = (period, anchorDateIso, direction) => {
+  if (period === 'all') return anchorDateIso || getTodayLocalISO();
+  const baseDate = parseLocalISODate(anchorDateIso);
+  if (period === 'week') {
+    baseDate.setDate(baseDate.getDate() + (Number(direction || 0) * 7));
+    return toLocalISODate(baseDate);
+  }
+  if (period === 'month') {
+    baseDate.setMonth(baseDate.getMonth() + Number(direction || 0));
+    return toLocalISODate(baseDate);
+  }
+  return shiftLocalISODate(toLocalISODate(baseDate), Number(direction || 0));
+};
 const formatCalendarDisplay = (dateIso) => {
   const raw = String(dateIso || '').trim();
   if (!raw) return 'Chọn ngày';
@@ -104,6 +149,16 @@ const formatCalendarDisplay = (dateIso) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
+};
+const formatPeriodDisplay = (period, dateFrom, dateTo) => {
+  if (period === 'all') return 'Tất cả';
+  if (period === 'week') return `${formatCalendarDisplay(dateFrom)} - ${formatCalendarDisplay(dateTo)}`;
+  if (period === 'month') {
+    const date = parseLocalISODate(dateFrom || dateTo);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `Tháng ${month}/${date.getFullYear()}`;
+  }
+  return formatCalendarDisplay(dateFrom || dateTo);
 };
 
 const readStaffRolesFromStorage = () => {
@@ -221,6 +276,21 @@ const getTicketAppointmentTimeRaw = (ticket) =>
   || ticket?.serviceTicket?.booking?.scheduledTime
   || '';
 const getTicketAppointmentDateKey = (ticket) => toDateKey(getTicketAppointmentDateRaw(ticket));
+const getTicketAppointmentDateTimeLabel = (ticket) => {
+  const date = String(getTicketAppointmentDateRaw(ticket)).trim();
+  const time = formatTimeHHmm(getTicketAppointmentTimeRaw(ticket));
+  return date ? `${date} ${time || ''}`.trim() : time || '-';
+};
+const isFutureAppointmentTicket = (ticket) => {
+  const appointmentKey = getTicketAppointmentDateKey(ticket);
+  if (!isIsoDate(appointmentKey)) return false;
+  return appointmentKey > getTodayLocalISO();
+};
+const getFutureAppointmentTicketMessage = (ticket) => {
+  const code = String(getTicketCode(ticket) || '').trim();
+  const prefix = code ? `Phiếu ${code} ` : 'Phiếu này ';
+  return `${prefix}có lịch hẹn ${getTicketAppointmentDateTimeLabel(ticket)}. Đến đúng ngày hẹn mới được điều phối phiếu này.`;
+};
 const filterTicketsByAppointmentDate = (rows, fromDate, toDate) => {
   const list = Array.isArray(rows) ? rows : [];
   const startKey = toDateKey(fromDate);
@@ -549,6 +619,43 @@ const toAvailableStaffList = (response) => {
   return rows;
 };
 
+const extractAdvisorTicketRows = (response) => {
+  const pageData = response?.data;
+  if (Array.isArray(pageData?.content)) return pageData.content;
+  if (Array.isArray(pageData?.data)) return pageData.data;
+  if (Array.isArray(pageData)) return pageData;
+  return [];
+};
+
+const getAdvisorTicketTotalPages = (response) => {
+  const totalPages = Number(response?.data?.totalPages);
+  return Number.isFinite(totalPages) && totalPages > 0 ? Math.ceil(totalPages) : 1;
+};
+
+const fetchAdvisorTicketsForAppointmentDate = async (params, token) => {
+  const baseParams = {
+    size: ADVISOR_TICKET_LOOKUP_SIZE,
+    status: params?.status,
+    search: params?.search,
+  };
+  const firstResponse = await fetchAdvisorMyTickets({ ...baseParams, page: 0 }, token);
+  const totalPages = getAdvisorTicketTotalPages(firstResponse);
+  if (totalPages <= 1) return extractAdvisorTicketRows(firstResponse);
+
+  const restResponses = await Promise.allSettled(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      fetchAdvisorMyTickets({ ...baseParams, page: index + 1 }, token),
+    ),
+  );
+
+  return [
+    ...extractAdvisorTicketRows(firstResponse),
+    ...restResponses.flatMap((row) => (
+      row.status === 'fulfilled' ? extractAdvisorTicketRows(row.value) : []
+    )),
+  ];
+};
+
 const STATUS_LABELS = {
   PENDING: 'Chưa bắt đầu',
   ACTIVE: 'Đang làm',
@@ -609,6 +716,55 @@ const isActiveAdvisorAssignment = (assignment) =>
   String(assignment?.roleInTicket || assignment?.role || '').trim().toUpperCase() === 'ADVISOR'
   && String(assignment?.status || '').trim().toUpperCase() !== 'CANCELLED';
 
+const hasTechnicianInfoOnTicket = (ticket) => {
+  if (!ticket || typeof ticket !== 'object') return false;
+
+  const directStaffIdCandidates = [
+    ticket?.technicianId,
+    ticket?.assignedTechnicianId,
+    ticket?.technician?.staffId,
+    ticket?.technician?.id,
+    ticket?.assignedTechnician?.staffId,
+    ticket?.assignedTechnician?.id,
+  ];
+
+  if (directStaffIdCandidates.some((value) => {
+    const id = Number(value);
+    return Number.isFinite(id) && id > 0;
+  })) {
+    return true;
+  }
+
+  const directNameCandidates = [
+    ticket?.technicianName,
+    ticket?.assignedTechnicianName,
+    ticket?.technician?.fullName,
+    ticket?.assignedTechnician?.fullName,
+  ];
+
+  if (directNameCandidates.some((value) => String(value || '').trim())) {
+    return true;
+  }
+
+  const assignmentLists = [
+    ticket?.assignments,
+    ticket?.ticketAssignments,
+    ticket?.staffAssignments,
+  ];
+
+  return assignmentLists.some((list) =>
+    Array.isArray(list) && list.some((assignment) => isActiveTechnicianAssignment(normalizeAssignment(assignment))),
+  );
+};
+
+const getTicketHasTechnician = (ticket, assignmentMap) => {
+  const ticketId = getTicketId(ticket);
+  if (Number.isFinite(ticketId) && assignmentMap instanceof Map && assignmentMap.has(ticketId)) {
+    return Boolean(assignmentMap.get(ticketId));
+  }
+  return hasTechnicianInfoOnTicket(ticket);
+};
+
 const getTicketAdvisorId = (ticket) => toPositiveStaffId(
   ticket?.advisorId
   ?? ticket?.assignedAdvisorId
@@ -626,7 +782,11 @@ const filterTicketsByCurrentAdvisor = async (list, token, currentAdvisorId) => {
       const ticketId = getTicketId(ticket);
       if (!Number.isFinite(ticketId) || ticketId <= 0) {
         const directAdvisorId = getTicketAdvisorId(ticket);
-        return { ticket, keep: directAdvisorId == null || directAdvisorId === currentAdvisorId };
+        return {
+          ticket,
+          keep: directAdvisorId == null || directAdvisorId === currentAdvisorId,
+          hasTech: hasTechnicianInfoOnTicket(ticket),
+        };
       }
 
       const res = await fetchTicketAssignments(ticketId, token);
@@ -634,20 +794,32 @@ const filterTicketsByCurrentAdvisor = async (list, token, currentAdvisorId) => {
         .map(normalizeAssignment)
         .filter(Boolean);
       const activeAdvisor = assignments.find(isActiveAdvisorAssignment);
+      const hasTech = assignments.some(isActiveTechnicianAssignment);
 
       if (!activeAdvisor) {
         const directAdvisorId = getTicketAdvisorId(ticket);
-        return { ticket, keep: directAdvisorId == null || directAdvisorId === currentAdvisorId };
+        return {
+          ticket,
+          keep: directAdvisorId == null || directAdvisorId === currentAdvisorId,
+          hasTech,
+        };
       }
 
-      return { ticket, keep: Number(activeAdvisor.staffId) === Number(currentAdvisorId) };
+      return {
+        ticket,
+        keep: Number(activeAdvisor.staffId) === Number(currentAdvisorId),
+        hasTech,
+      };
     }),
   );
 
   return rows
-    .map((row, index) => (row.status === 'fulfilled' ? row.value : { ticket: list[index], keep: true }))
-    .filter((row) => row.keep)
-    .map((row) => row.ticket);
+    .map((row, index) => (
+      row.status === 'fulfilled'
+        ? row.value
+        : { ticket: list[index], keep: true, hasTech: hasTechnicianInfoOnTicket(list[index]) }
+    ))
+    .filter((row) => row.keep);
 };
 
 export default function AdvisorInspection() {
@@ -667,6 +839,7 @@ export default function AdvisorInspection() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState(initialDate);
   const [dateTo, setDateTo] = useState(initialDate);
+  const [periodFilter, setPeriodFilter] = useState('day');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -709,13 +882,9 @@ export default function AdvisorInspection() {
   }, [search]);
 
   const filters = useMemo(() => ({
-    page,
-    size,
-    date: dateFrom || undefined,
-    dateTo: dateTo || undefined,
     status: statusFilter || undefined,
     search: debouncedSearch || undefined,
-  }), [page, size, dateFrom, dateTo, statusFilter, debouncedSearch]);
+  }), [statusFilter, debouncedSearch]);
 
   // Load ticket list (paginated)
   useEffect(() => {
@@ -731,28 +900,40 @@ export default function AdvisorInspection() {
       try {
         setLoading(true);
         setError('');
-        const response = await fetchAdvisorMyTickets(filters, token);
+        const list = await fetchAdvisorTicketsForAppointmentDate(filters, token);
         if (ignore) return;
 
-        const pageData = response?.data;
-        const list = Array.isArray(pageData?.content)
-          ? pageData.content
-          : Array.isArray(response?.data)
-            ? response.data
-            : [];
         const sessionVisibleList = list.filter((ticket) => {
           const code = String(getTicketCode(ticket) || '').trim();
           return !code || !transferredOutTicketCodes.has(code);
         });
         const currentAdvisorId = getCurrentStaffId(token);
-        const visibleList = await filterTicketsByCurrentAdvisor(sessionVisibleList, token, currentAdvisorId);
+        const visibleRows = await filterTicketsByCurrentAdvisor(sessionVisibleList, token, currentAdvisorId);
+        const visibleList = visibleRows.map((row) => row.ticket);
         const appointmentVisibleList = filterTicketsByAppointmentDate(visibleList, dateFrom, dateTo);
         if (ignore) return;
-        const sortedList = sortTicketsByQueueOrder(appointmentVisibleList);
+        const assignmentMap = new Map();
+        visibleRows.forEach((row) => {
+          const ticketId = getTicketId(row.ticket);
+          if (Number.isFinite(ticketId) && ticketId > 0) {
+            assignmentMap.set(ticketId, Boolean(row.hasTech));
+          }
+        });
+        setModalPageAssignments((prev) => {
+          const next = new Map(prev);
+          assignmentMap.forEach((value, key) => {
+            next.set(key, value);
+          });
+          return next;
+        });
+        const sortedAllRows = sortTicketsByQueueOrder(appointmentVisibleList);
+        const nextTotalPages = Math.max(1, Math.ceil(sortedAllRows.length / size));
+        const safePage = Math.min(page, nextTotalPages - 1);
+        const sortedList = sortedAllRows.slice(safePage * size, (safePage + 1) * size);
+        if (safePage !== page) setPage(safePage);
         setTickets(sortedList);
-        const hiddenCount = list.length - appointmentVisibleList.length;
-        setTotalPages(Math.max(1, Number(pageData?.totalPages) || 1));
-        setTotalElements(Math.max(0, (Number(pageData?.totalElements) || 0) - hiddenCount));
+        setTotalPages(nextTotalPages);
+        setTotalElements(sortedAllRows.length);
         cacheStaffNames(
           appointmentVisibleList.map((t) => ({
             staffId: t?.advisorId || t?.assignedAdvisorId,
@@ -853,49 +1034,7 @@ export default function AdvisorInspection() {
 
     run();
     return () => { ignore = true; };
-  }, [filters, reloadKey, transferredOutTicketCodes, dateFrom, dateTo]);
-
-  // Load page-level assignments (for "has technician" check)
-  useEffect(() => {
-    const token = getToken();
-    if (!token || loading || tickets.length === 0) return;
-
-    const ticketIds = tickets
-      .map((t) => getTicketId(t))
-      .filter((id) => Number.isFinite(id) && id > 0);
-
-    setModalPageAssignments((prev) => {
-      const missing = ticketIds.filter((id) => !prev.has(id));
-      if (missing.length === 0) return prev;
-
-      Promise.all(
-        missing.map(async (ticketId) => {
-          try {
-            const res = await fetchTicketAssignments(ticketId, token);
-            const rawList = Array.isArray(res?.data) ? res.data : [];
-            const hasTech = rawList.some(
-              (a) =>
-                String(a?.roleInTicket || a?.role || '').toUpperCase() === 'TECHNICIAN'
-                && String(a?.status || '').toUpperCase() !== 'CANCELLED',
-            );
-            return { ticketId, hasTech };
-          } catch {
-            return { ticketId, hasTech: false };
-          }
-        }),
-      ).then((rows) => {
-        setModalPageAssignments((current) => {
-          const next = new Map(current);
-          for (const row of rows) next.set(row.ticketId, row.hasTech);
-          return next;
-        });
-      });
-
-      const next = new Map(prev);
-      for (const id of missing) next.set(id, false);
-      return next;
-    });
-  }, [loading, tickets]);
+  }, [filters, reloadKey, transferredOutTicketCodes, dateFrom, dateTo, page, size]);
 
   // Load workload + advisor list
   useEffect(() => {
@@ -1114,6 +1253,10 @@ export default function AdvisorInspection() {
 
   // Open modal
   const handleOpenModal = async (ticket) => {
+    if (isFutureAppointmentTicket(ticket)) {
+      toast.info(getFutureAppointmentTicketMessage(ticket));
+      return;
+    }
     setSelectedTicket(ticket);
     setShowAssignModal(true);
     setModalError('');
@@ -1467,16 +1610,21 @@ export default function AdvisorInspection() {
     persistActiveDay(nextActiveDate);
   }, [dateFrom, dateTo, initialDate]);
 
-  const applySingleDayFilter = (dateIso) => {
+  const applyPeriodFilter = (period, dateIso) => {
     const next = String(dateIso || '').trim();
     if (!next) return;
-    setDateFrom(next);
-    setDateTo(next);
+    const range = getDateRangeForPeriod(period, next);
+    setDateFrom(range.from);
+    setDateTo(range.to);
     setPage(0);
   };
-  const handlePreviousDay = () => applySingleDayFilter(shiftLocalISODate(activeDate, -1));
-  const handleNextDay = () => applySingleDayFilter(shiftLocalISODate(activeDate, 1));
-  const handlePickDay = (value) => applySingleDayFilter(value);
+  const handlePeriodFilterChange = (period) => {
+    setPeriodFilter(period);
+    applyPeriodFilter(period, activeDate);
+  };
+  const handlePreviousDay = () => applyPeriodFilter(periodFilter, shiftPeriodAnchorDate(periodFilter, activeDate, -1));
+  const handleNextDay = () => applyPeriodFilter(periodFilter, shiftPeriodAnchorDate(periodFilter, activeDate, 1));
+  const handlePickDay = (value) => applyPeriodFilter(periodFilter, value);
   const handleOpenCalendar = () => {
     const picker = dayPickerRef.current;
     if (!picker) return;
@@ -1493,6 +1641,7 @@ export default function AdvisorInspection() {
     setSize(10);
     setDateFrom(today);
     setDateTo(today);
+    setPeriodFilter('day');
     setStatusFilter('');
     setSearch('');
     setDebouncedSearch('');
@@ -1510,6 +1659,10 @@ export default function AdvisorInspection() {
 
     const sourceTicket = tickets.find((t) => Number(getTicketId(t)) === Number(sourceTicketId));
     const targetTicket = tickets.find((t) => Number(getTicketId(t)) === Number(targetTicketId));
+    if (isFutureAppointmentTicket(sourceTicket) || isFutureAppointmentTicket(targetTicket)) {
+      toast.info('Đến đúng ngày hẹn mới được đổi thứ tự phiếu này.');
+      return;
+    }
     const sourceQueueNumber = getTicketQueueNumber(sourceTicket);
     const targetQueueNumber = getTicketQueueNumber(targetTicket);
     const sourceCreateDate = getTicketCreateDateKey(sourceTicket);
@@ -1593,17 +1746,28 @@ export default function AdvisorInspection() {
 
           {/* Filters */}
           <div className={styles.pendingFilters}>
-            <div className={`${styles.filterCardLabels} ${styles.filterCardLabelsTwo}`}>
+            <div className={styles.filterCardLabels}>
+              <span>Khoảng lọc</span>
               <span>Lịch ngày</span>
               <span>Trạng thái</span>
             </div>
-            <div className={`${styles.filterCardControls} ${styles.filterCardControlsTwo}`}>
+            <div className={styles.filterCardControls}>
+              <select
+                value={periodFilter}
+                onChange={(e) => handlePeriodFilterChange(e.target.value)}
+                aria-label="Chọn khoảng lọc phiếu"
+              >
+                <option value="day">Theo ngày</option>
+                <option value="all">Tất cả</option>
+                <option value="week">Tuần này</option>
+                <option value="month">Tháng này</option>
+              </select>
               <div className={styles.dayNavigator}>
                 <button type="button" className={styles.dayNavBtn} onClick={handlePreviousDay}>
                   Trước
                 </button>
                 <button type="button" className={styles.dayCenterBtn} onClick={handleOpenCalendar}>
-                  {formatCalendarDisplay(activeDate)}
+                  {formatPeriodDisplay(periodFilter, dateFrom, dateTo)}
                 </button>
                 <button type="button" className={styles.dayNavBtn} onClick={handleNextDay}>
                   Sau
@@ -1679,16 +1843,21 @@ export default function AdvisorInspection() {
     {!loading && tickets.map((ticket, idx) => {
       const code = getTicketCode(ticket);
       const ticketId = getTicketId(ticket);
-      const hasTech = modalPageAssignments.get(ticketId) ?? false;
+      const hasTech = getTicketHasTechnician(ticket, modalPageAssignments);
       const queueInfo = getQueueStatusInfo(ticket);
       const customerPhone = getTicketCustomerPhone(ticket);
-      const rowDraggable = Number.isFinite(ticketId) && ticketId > 0 && !swapping;
+      const isFutureTicket = isFutureAppointmentTicket(ticket);
+      const rowDraggable = Number.isFinite(ticketId) && ticketId > 0 && !swapping && !isFutureTicket;
       const isDraggingSource = rowDraggable && Number(ticketId) === Number(dragTicketId);
+      const rowClassName = [
+        isDraggingSource ? styles.draggingRow : '',
+        isFutureTicket ? styles.futureTicketRow : '',
+      ].filter(Boolean).join(' ');
 
       return (
         <tr
           key={code || ticketId || idx}
-          className={isDraggingSource ? styles.draggingRow : ''}
+          className={rowClassName}
           draggable={rowDraggable}
           onDragStart={(e) => {
             if (!rowDraggable) return;
@@ -1730,44 +1899,62 @@ export default function AdvisorInspection() {
               {getServiceTicketStatusDisplay(ticket)}
             </span>
           </td>
-          <td>{formatAppointmentDateTime(ticket)}</td>
+          <td>
+            <span>{formatAppointmentDateTime(ticket)}</span>
+            {isFutureTicket && (
+              <span className={styles.futureTicketNote}>Chờ đến ngày hẹn</span>
+            )}
+          </td>
           <td>
             <div className={styles.actionButtons}>
-              <button
-                className={styles.actionBtn}
-                onClick={() => {
-                  if (!code) return;
-                  navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
-                }}
-                disabled={!code || swapping}
-                title="Mở chi tiết phiếu dịch vụ"
-              >
-                Mở
-              </button>
-              <button
-                className={`${styles.actionBtn} ${styles.historyBtn}`}
-                onClick={() => handleOpenRepairHistory(ticket)}
-                disabled={swapping || (!code && !ticketId)}
-                title="Xem lịch sử sửa chữa của xe"
-              >
-                Lịch sử sửa chữa
-              </button>
-              {hasTech ? (
+              {isFutureTicket ? (
                 <button
-                  className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
-                  onClick={() => handleOpenModal(ticket)}
-                  disabled={swapping}
+                  className={`${styles.actionBtn} ${styles.futureActionBtn}`}
+                  type="button"
+                  title={getFutureAppointmentTicketMessage(ticket)}
+                  onClick={() => toast.info(getFutureAppointmentTicketMessage(ticket))}
                 >
-                  Xem phân công
+                  Chưa đến ngày
                 </button>
               ) : (
-                <button
-                  className={`${styles.actionBtn} ${styles.assignBtn}`}
-                  onClick={() => handleOpenModal(ticket)}
-                  disabled={!ticketId || swapping}
-                >
-                  Phân công
-                </button>
+                <>
+                  <button
+                    className={styles.actionBtn}
+                    onClick={() => {
+                      if (!code) return;
+                      navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
+                    }}
+                    disabled={!code || swapping}
+                    title="Mở chi tiết phiếu dịch vụ"
+                  >
+                    Mở
+                  </button>
+                  <button
+                    className={`${styles.actionBtn} ${styles.historyBtn}`}
+                    onClick={() => handleOpenRepairHistory(ticket)}
+                    disabled={swapping || (!code && !ticketId)}
+                    title="Xem lịch sử sửa chữa của xe"
+                  >
+                    Lịch sử sửa chữa
+                  </button>
+                  {hasTech ? (
+                    <button
+                      className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
+                      onClick={() => handleOpenModal(ticket)}
+                      disabled={swapping}
+                    >
+                      Xem phân công
+                    </button>
+                  ) : (
+                    <button
+                      className={`${styles.actionBtn} ${styles.assignBtn}`}
+                      onClick={() => handleOpenModal(ticket)}
+                      disabled={!ticketId || swapping}
+                    >
+                      Phân công
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </td>

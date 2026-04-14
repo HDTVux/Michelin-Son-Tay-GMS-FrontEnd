@@ -176,8 +176,12 @@ export default function MaintenanceReminder() {
     setUpdatingStatus(nextStatus);
     try {
       await updateServiceTicketReminderStatus(reminderId, nextStatus, '', token);
+      setRows((prev) => prev.map((item) => (
+        item?.reminderId === reminderId
+          ? { ...item, status: nextStatus, statusReason: item?.statusReason || '' }
+          : item
+      )));
       toast.success(`Đã cập nhật trạng thái: ${getStatusLabel(nextStatus)}.`);
-      await loadReminders();
     } catch (error) {
       toast.error(error?.message || 'Không thể cập nhật trạng thái nhắc lịch.');
     } finally {
@@ -193,6 +197,20 @@ export default function MaintenanceReminder() {
       return;
     }
     navigate(`/service-ticket-detail/${encodeURIComponent(code)}`);
+  };
+
+  const handleCreateBookingFromReminder = (row) => {
+    const reminderId = row?.reminderId;
+    if (!reminderId) {
+      toast.error('Lời nhắc này chưa có ID để tạo lịch.');
+      return;
+    }
+    navigate('/create-booking', {
+      state: {
+        reminderId,
+        maintenanceReminder: row,
+      },
+    });
   };
 
   return (
@@ -309,6 +327,7 @@ export default function MaintenanceReminder() {
                   const currentStatus = normalizeStatus(row?.status);
                   const meta = statusMeta[currentStatus] || { className: styles.statusDefault, label: getStatusLabel(currentStatus) };
                   const rowUpdating = updatingId === row?.reminderId;
+                  const statusLocked = currentStatus && currentStatus !== 'PENDING';
                   return (
                     <tr key={row?.reminderId || `${row?.ticketCode || 'ticket'}-${row?.reminderDate || ''}-${row?.reminderTime || ''}`}>
                       <td className={styles.ticketCode}>{row?.ticketCode || '-'}</td>
@@ -332,6 +351,14 @@ export default function MaintenanceReminder() {
                           >
                             Mở phiếu
                           </button>
+                          <button
+                            type="button"
+                            className={`${styles.smallBtn} ${styles.createBtn}`}
+                            onClick={() => handleCreateBookingFromReminder(row)}
+                            disabled={!row?.reminderId}
+                          >
+                            Tạo lịch
+                          </button>
                           {STATUS_ACTIONS.map((action) => (
                             (() => {
                               const buttonUpdating = rowUpdating && updatingStatus === action.value;
@@ -341,7 +368,7 @@ export default function MaintenanceReminder() {
                                   type="button"
                                   className={styles.smallBtn}
                                   onClick={() => handleStatusChange(row, action.value)}
-                                  disabled={rowUpdating || currentStatus === action.value}
+                                  disabled={rowUpdating || statusLocked || currentStatus === action.value}
                                   data-gms-no-global-loading="true"
                                 >
                                   {buttonUpdating ? <span className={styles.buttonSpinner} aria-hidden="true" /> : null}

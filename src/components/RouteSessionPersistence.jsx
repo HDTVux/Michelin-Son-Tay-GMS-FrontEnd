@@ -115,7 +115,7 @@ const takePageSnapshot = () => {
   };
 };
 
-const restorePageSnapshot = (snapshot) => {
+const restorePageSnapshot = (snapshot, { restoreScroll = true } = {}) => {
   if (!snapshot || typeof snapshot !== 'object') return;
 
   const fields = Array.isArray(snapshot.fields) ? snapshot.fields : [];
@@ -162,9 +162,11 @@ const restorePageSnapshot = (snapshot) => {
     }
   });
 
-  const x = Number(snapshot?.x) || 0;
-  const y = Number(snapshot?.y) || 0;
-  window.scrollTo(x, y);
+  if (restoreScroll) {
+    const x = Number(snapshot?.x) || 0;
+    const y = Number(snapshot?.y) || 0;
+    window.scrollTo(x, y);
+  }
 };
 
 export default function RouteSessionPersistence() {
@@ -173,11 +175,13 @@ export default function RouteSessionPersistence() {
   const isRestoringRef = useRef(false);
   const restoreTimersRef = useRef([]);
   const lastScrollSaveRef = useRef(0);
+  const userScrolledDuringRestoreRef = useRef(false);
 
   useEffect(() => {
     // Some routes (like create forms) should always start from defaults.
     // Disable persistence entirely for those paths.
     const disabledPaths = new Set([
+      '/create-booking',
       '/part-management/create-product',
       '/queue-management',
     ]);
@@ -199,6 +203,7 @@ export default function RouteSessionPersistence() {
 
     const routeKey = `${location.pathname}${location.search}${location.hash || ''}`;
     const storageKey = `${ROUTE_STATE_PREFIX}${routeKey}`;
+    const allowScrollRestore = location.pathname !== '/services';
 
     const save = () => {
       if (isRestoringRef.current) return;
@@ -222,23 +227,39 @@ export default function RouteSessionPersistence() {
       scheduleSave(SAVE_DEBOUNCE_SCROLL_MS);
     };
 
-    const restoreOnce = () => {
+    const restoreOnce = ({ restoreScroll = true } = {}) => {
       try {
         const raw = sessionStorage.getItem(storageKey);
-        if (!raw) return;
+        if (!raw) return null;
         const snapshot = JSON.parse(raw);
-        restorePageSnapshot(snapshot);
+        restorePageSnapshot(snapshot, { restoreScroll });
+        return snapshot;
       } catch {
         // ignore parse/restore failures
+        return null;
       }
     };
 
     const restoreWithRetries = () => {
       isRestoringRef.current = true;
+      userScrolledDuringRestoreRef.current = false;
       restoreTimersRef.current.forEach((timerId) => clearTimeout(timerId));
-      restoreTimersRef.current = RESTORE_RETRY_DELAYS.map((delay) => (
+      let lastRestoredX = window.scrollX;
+      let lastRestoredY = window.scrollY;
+      restoreTimersRef.current = RESTORE_RETRY_DELAYS.map((delay, index) => (
         window.setTimeout(() => {
-          restoreOnce();
+          const currentX = window.scrollX;
+          const currentY = window.scrollY;
+          const userMovedScroll = index > 0 && (
+            Math.abs(currentX - lastRestoredX) > 2 || Math.abs(currentY - lastRestoredY) > 2
+          );
+          if (userMovedScroll) userScrolledDuringRestoreRef.current = true;
+          const shouldRestoreScroll = allowScrollRestore && !userScrolledDuringRestoreRef.current;
+          const snapshot = restoreOnce({ restoreScroll: shouldRestoreScroll });
+          if (shouldRestoreScroll && snapshot) {
+            lastRestoredX = window.scrollX;
+            lastRestoredY = window.scrollY;
+          }
           if (delay === RESTORE_RETRY_DELAYS[RESTORE_RETRY_DELAYS.length - 1]) {
             isRestoringRef.current = false;
           }

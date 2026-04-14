@@ -1,15 +1,32 @@
 import { request } from './apiClient.js';
 
+function appendSafeCatalogSearchParam(qp, key, value) {
+  if (value === undefined || value === null) return;
+  const text = String(value).trim();
+  if (!text) return;
+
+  if (key === 'page') {
+    const page = Number(text);
+    qp.append(key, String(Number.isFinite(page) && page >= 0 ? Math.floor(page) : 0));
+    return;
+  }
+
+  if (key === 'size') {
+    const size = Number(text);
+    qp.append(key, String(Number.isFinite(size) && size >= 1 ? Math.floor(size) : 10));
+    return;
+  }
+
+  qp.append(key, text);
+}
+
 // Fetch catalog list with filters
 // GET /api/warehouse/search/catalog-items
 export const fetchCatalogItems = (params, token) => {
   const qp = new URLSearchParams();
   const safeParams = params || {};
   Object.entries(safeParams).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    const s = String(v);
-    if (s === '') return;
-    qp.append(k, s);
+    appendSafeCatalogSearchParam(qp, k, v);
   });
   const qs = qp.toString();
   const path = '/api/warehouse/search/catalog-items' + (qs ? '?' + qs : '');
