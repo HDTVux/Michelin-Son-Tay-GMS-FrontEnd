@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
-import { fetchWarehouseStockEntries } from '../../../services/warehouseService.js';
+import { fetchWarehousesAll, fetchWarehouseStockEntries } from '../../../services/warehouseService.js';
 import commonStyles from '../common/ManagementCommon.module.css';
 import styles from './WarehouseStockEntryManagement.module.css';
 
@@ -15,8 +15,13 @@ const STATUS_OPTIONS = [
 ];
 
 const extractEntries = (response) => {
-  const payload = response?.data?.data ?? response?.data ?? response;
-  if (Array.isArray(payload)) return payload;
+  // apiClient.request() already returns parsed JSON.
+  // Backend may wrap list payloads as: { success, message, data: { content: [] } }
+  const root = response?.data?.data ?? response?.data ?? response;
+  if (Array.isArray(root)) return root;
+
+  const content = root?.content ?? root?.data?.content ?? root?.data;
+  if (Array.isArray(content)) return content;
   return [];
 };
 
@@ -39,16 +44,21 @@ export default function WarehouseStockEntryManagement() {
   useScrollToTop();
   const navigate = useNavigate();
 
-  const [warehouseIdInput] = useState(String(DEFAULT_WAREHOUSE_ID));
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehouseLoading, setWarehouseLoading] = useState(false);
+  const [warehouseIdInput, setWarehouseIdInput] = useState(String(DEFAULT_WAREHOUSE_ID));
   const [status, setStatus] = useState('ALL');
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const fetchList = async () => {
+  const [warehouseError, setWarehouseError] = useState('');
+
+  const fetchList = async (warehouseIdOverride) => {
     try {
       setLoading(true);
       setError('');
-      const warehouseId = String(warehouseIdInput || '').trim();
+      const warehouseIdSource = warehouseIdOverride ?? warehouseIdInput ?? '';
+      const warehouseId = String(warehouseIdSource).trim();
       const params = {};
       if (warehouseId) params.warehouseId = warehouseId;
       if (status && status !== 'ALL') params.status = status;
@@ -64,7 +74,41 @@ export default function WarehouseStockEntryManagement() {
   };
 
   useEffect(() => {
-    fetchList();
+    let cancelled = false;
+    (async () => {
+      try {
+        setWarehouseLoading(true);
+        setWarehouseError('');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        const res = await fetchWarehousesAll(token);
+        const payload = res?.data?.data ?? res?.data ?? res;
+        const list = Array.isArray(payload) ? payload : [];
+        if (cancelled) return;
+        setWarehouses(list);
+
+        const currentId = Number(String(warehouseIdInput || '').trim());
+        const hasCurrent = Number.isFinite(currentId) && list.some((w) => Number(w?.warehouseId) === currentId);
+        if (hasCurrent) {
+          await fetchList();
+          return;
+        }
+
+        const firstActive = list.find((w) => w?.isActive === true) || list[0] || null;
+        const nextId = firstActive?.warehouseId ?? DEFAULT_WAREHOUSE_ID;
+        setWarehouseIdInput(String(nextId));
+        await fetchList(String(nextId));
+      } catch (err) {
+        if (cancelled) return;
+        setWarehouses([]);
+        setWarehouseError(err?.message || 'Không thể tải danh sách kho.');
+        await fetchList();
+      } finally {
+        if (!cancelled) setWarehouseLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -74,6 +118,14 @@ export default function WarehouseStockEntryManagement() {
     const confirmed = entries.filter((row) => String(row?.status || '').toUpperCase() === 'CONFIRMED').length;
     return { total, draft, confirmed };
   }, [entries]);
+
+  const selectedWarehouseLabel = useMemo(() => {
+    const idNum = Number(String(warehouseIdInput || '').trim());
+    if (!Number.isFinite(idNum)) return String(warehouseIdInput || '').trim() || '-';
+    const w = warehouses.find((row) => Number(row?.warehouseId) === idNum);
+    if (!w) return String(idNum);
+    return String(w?.warehouseName || w?.warehouseCode || w?.warehouseId || idNum).trim() || String(idNum);
+  }, [warehouseIdInput, warehouses]);
 
   return (
     <div className={commonStyles.page}>
@@ -106,7 +158,7 @@ export default function WarehouseStockEntryManagement() {
           </article>
           <article className={commonStyles.statCard}>
             <p className={commonStyles.statLabel}>Kho đang lọc</p>
-            <p className={commonStyles.statValue}>{String(warehouseIdInput || '').trim() || '-'}</p>
+            <p className={commonStyles.statValue}>{selectedWarehouseLabel}</p>
           </article>
         </section>
 
@@ -117,9 +169,18 @@ export default function WarehouseStockEntryManagement() {
               id="stock-entry-warehouse"
               className={commonStyles.select}
               value={warehouseIdInput}
-              disabled
+              onChange={(e) => setWarehouseIdInput(e.target.value)}
+              disabled={warehouseLoading}
             >
-              <option value="1">Kho Michelin Son Tay</option>
+              {warehouses.length > 0 ? (
+                warehouses.map((w) => (
+                  <option key={String(w?.warehouseId ?? '')} value={String(w?.warehouseId ?? '')}>
+                    {String(w?.warehouseName || w?.warehouseCode || w?.warehouseId || '').trim() || '-'}
+                  </option>
+                ))
+              ) : (
+                <option value={warehouseIdInput}>{warehouseIdInput || '-'}</option>
+              )}
             </select>
           </div>
           <div className={commonStyles.field}>
@@ -138,11 +199,13 @@ export default function WarehouseStockEntryManagement() {
             </select>
           </div>
           <div className={commonStyles.actions}>
-            <button type="button" className="ui-btn ui-btn--primary" onClick={fetchList} disabled={loading}>
+            <button type="button" className="ui-btn ui-btn--primary" onClick={() => fetchList()} disabled={loading}>
               {loading ? 'Đang tải...' : 'Lọc dữ liệu'}
             </button>
           </div>
         </section>
+
+        {warehouseError ? <div className={commonStyles.error}>{warehouseError}</div> : null}
 
         {error ? <div className={commonStyles.error}>{error}</div> : null}
 
