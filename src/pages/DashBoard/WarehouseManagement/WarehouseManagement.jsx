@@ -89,28 +89,6 @@ const getWarehouseSellingPrice = (detail) => {
   return price;
 };
 
-const getItemIsActive = (item) => {
-  if (!item || typeof item !== 'object') return null;
-
-  const raw = item?.isActive ?? item?.is_active ?? item?.active;
-  if (raw === true || raw === false) return raw;
-  if (typeof raw === 'number') return raw === 1;
-  if (typeof raw === 'string') {
-    const s = raw.trim().toLowerCase();
-    if (s === 'true' || s === '1' || s === 'active') return true;
-    if (s === 'false' || s === '0' || s === 'inactive') return false;
-  }
-
-  const status = item?.status ?? item?.itemStatus ?? item?.item_status;
-  if (typeof status === 'string') {
-    const s = status.trim().toLowerCase();
-    if (s === 'active' || s === 'available' || s === 'enabled') return true;
-    if (s === 'inactive' || s === 'disabled') return false;
-  }
-
-  return null;
-};
-
 const getServiceServiceId = (item) => {
   if (!item || typeof item !== 'object') return null;
   const candidates = [

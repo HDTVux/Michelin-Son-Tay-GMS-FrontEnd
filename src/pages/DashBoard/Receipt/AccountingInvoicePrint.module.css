@@ -1,0 +1,154 @@
+.sheet {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 15mm 12mm 12mm;
+    box-sizing: border-box;
+    background: #fff;
+    color: #111;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 14px;
+    line-height: 1.3;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+}
+
+@page {
+    size: A4;
+    margin: 0;
+}
+
+@media print {
+    .sheet {
+        width: auto;
+        min-height: auto;
+        margin: 0;
+        padding: 15mm 12mm 12mm;
+        box-shadow: none;
+    }
+}
+
+.header {
+    margin-bottom: 14px;
+}
+
+.storeInfo {
+    margin-bottom: 8px;
+}
+
+.storeName {
+    font-size: 18px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.storeLine {
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.title {
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.customerSection {
+    margin-bottom: 10px;
+}
+
+.formRow,
+.wordsRow {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.label {
+    white-space: nowrap;
+}
+
+.fillLine {
+    flex: 1;
+    min-height: 24px;
+    border-bottom: 1px dotted #111;
+    padding: 0 2px 2px;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    margin-bottom: 10px;
+}
+
+.table th,
+.table td {
+    border: 1px solid #111;
+    padding: 6px 8px;
+    height: 30px;
+    vertical-align: middle;
+}
+
+.table th {
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.colIndex {
+    width: 42px;
+}
+
+.colQty {
+    width: 100px;
+}
+
+.colPrice,
+.colAmount {
+    width: 130px;
+}
+
+.center {
+    text-align: center;
+}
+
+.right {
+    text-align: right;
+}
+
+.totalRow td {
+    font-weight: 700;
+}
+
+.totalLabel {
+    text-align: center;
+}
+
+.footer {
+    margin-top: 18px;
+}
+
+.dateText {
+    text-align: right;
+    margin-bottom: 38px;
+}
+
+.signatureRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+}
+
+.signatureCol {
+    text-align: center;
+    min-height: 110px;
+}
+
+.signatureTitle {
+    font-weight: 700;
+}
