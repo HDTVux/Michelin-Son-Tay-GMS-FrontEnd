@@ -21,6 +21,56 @@ export const normalizePeriodLabel = (raw) => {
 
 export const timeKey = (t) => formatTimeHHmm(t || '');
 
+const isPartLikeBookingItem = (item) => {
+	const typeText = String(
+		item?.itemType
+		?? item?.type
+		?? item?.catalogItemType
+		?? item?.productType
+		?? item?.categoryType
+		?? item?.itemCategoryType
+		?? '',
+	).trim().toUpperCase();
+
+	if (
+		typeText === 'PART'
+		|| typeText === 'PRODUCT'
+		|| typeText === 'SPARE_PART'
+		|| typeText === 'SPAREPART'
+		|| typeText === 'ACCESSORY'
+		|| typeText === 'EQUIPMENT'
+	) {
+		return true;
+	}
+
+	const nameText = String(
+		item?.itemName
+		?? item?.name
+		?? item?.title
+		?? item?.serviceName
+		?? item?.productName
+		?? item?.partName
+		?? '',
+	).trim().toLowerCase();
+
+	return (
+		Boolean(item?.partId || item?.productId || item?.sparePartId)
+		|| nameText.includes('lốp')
+		|| nameText.includes('lop')
+		|| nameText.includes('vỏ xe')
+		|| nameText.includes('vo xe')
+		|| nameText.includes('tire')
+		|| nameText.includes('tyre')
+		|| nameText.includes('michelin')
+		|| nameText.includes('bridgestone')
+		|| nameText.includes('goodyear')
+		|| nameText.includes('continental')
+		|| nameText.includes('pirelli')
+		|| nameText.includes('yokohama')
+		|| nameText.includes('maxxis')
+	);
+};
+
 const pickNextSlotFromBaseSlots = (baseSlots, now) => {
 	const list = Array.isArray(baseSlots) ? baseSlots : [];
 	if (!list.length) return null;
@@ -185,8 +235,8 @@ export function useCreateBookingHandlers({
 			const msg = bookingCode ? `Tạo booking thành công. Mã: ${bookingCode}` : 'Tạo booking thành công.';
 
 			const selectedSnapshot = Array.isArray(selectedItems) ? selectedItems : [];
-			const serviceItems = selectedSnapshot.filter((item) => String(item?.itemType || '').toUpperCase() === 'SERVICE');
-			const partItems = selectedSnapshot.filter((item) => String(item?.itemType || '').toUpperCase() === 'PART');
+			const serviceItems = selectedSnapshot.filter((item) => !isPartLikeBookingItem(item));
+			const partItems = selectedSnapshot.filter((item) => isPartLikeBookingItem(item));
 
 			setCreatedBookingForCheckIn(bookingCode ? {
 				bookingCode,

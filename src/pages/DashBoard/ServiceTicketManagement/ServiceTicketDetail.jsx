@@ -142,6 +142,17 @@ function hasPartNameSignal(value) {
 
     return (
         text.includes('phu tung') ||
+        text.includes('lop') ||
+        text.includes('vo xe') ||
+        text.includes('tire') ||
+        text.includes('tyre') ||
+        text.includes('miche') ||
+        text.includes('bridgestone') ||
+        text.includes('goodyear') ||
+        text.includes('continental') ||
+        text.includes('pirelli') ||
+        text.includes('yokohama') ||
+        text.includes('maxxis') ||
         text.includes('gat mua') ||
         text.includes('can gat') ||
         text.includes('dau nhot') ||
