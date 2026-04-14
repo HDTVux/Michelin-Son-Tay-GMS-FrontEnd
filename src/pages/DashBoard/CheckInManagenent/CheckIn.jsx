@@ -154,8 +154,22 @@ const collectBookingItems = (booking) => {
     return Array.from(map.values());
 };
 
+const hasBookingCatalogItems = (booking) => {
+    if (!booking) return false;
+    return [
+        booking?.services,
+        booking?.items,
+        booking?.bookingItems,
+        booking?.selectedItems,
+        booking?.serviceItems,
+        booking?.parts,
+        booking?.partItems,
+    ].some((list) => Array.isArray(list) && list.length > 0);
+};
+
 const mergeBookingSnapshotForDisplay = (booking, snapshot) => {
     if (!snapshot) return booking;
+    if (hasBookingCatalogItems(booking)) return booking;
     return {
         ...(booking || {}),
         selectedItems: Array.isArray(snapshot?.selectedItems)

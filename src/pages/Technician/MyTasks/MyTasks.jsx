@@ -51,6 +51,50 @@ const shiftLocalISODate = (dateIso, days) => {
   const offsetMs = baseDate.getTimezoneOffset() * 60000;
   return new Date(baseDate.getTime() - offsetMs).toISOString().slice(0, 10);
 };
+const toLocalISODate = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return getTodayLocalISO();
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+const parseLocalISODate = (dateIso) => {
+  const raw = String(dateIso || '').trim();
+  const parsed = raw ? new Date(`${raw}T00:00:00`) : new Date();
+  return Number.isNaN(parsed.getTime()) ? new Date(`${getTodayLocalISO()}T00:00:00`) : parsed;
+};
+const getDateRangeForPeriod = (period, anchorDateIso) => {
+  const baseDate = parseLocalISODate(anchorDateIso);
+  if (period === 'all') {
+    return { from: '', to: '' };
+  }
+  if (period === 'week') {
+    const start = new Date(baseDate);
+    const day = start.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    start.setDate(start.getDate() + mondayOffset);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { from: toLocalISODate(start), to: toLocalISODate(end) };
+  }
+  if (period === 'month') {
+    const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+    const end = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+    return { from: toLocalISODate(start), to: toLocalISODate(end) };
+  }
+  return { from: toLocalISODate(baseDate), to: toLocalISODate(baseDate) };
+};
+const shiftPeriodAnchorDate = (period, anchorDateIso, direction) => {
+  if (period === 'all') return anchorDateIso || getTodayLocalISO();
+  const baseDate = parseLocalISODate(anchorDateIso);
+  if (period === 'week') {
+    baseDate.setDate(baseDate.getDate() + (Number(direction || 0) * 7));
+    return toLocalISODate(baseDate);
+  }
+  if (period === 'month') {
+    baseDate.setMonth(baseDate.getMonth() + Number(direction || 0));
+    return toLocalISODate(baseDate);
+  }
+  return shiftLocalISODate(toLocalISODate(baseDate), Number(direction || 0));
+};
 const formatCalendarDisplay = (dateIso) => {
   const raw = String(dateIso || '').trim();
   if (!raw) return 'Chọn ngày';
@@ -60,6 +104,16 @@ const formatCalendarDisplay = (dateIso) => {
   const day = String(date.getDate()).padStart(2, '0');
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
+};
+const formatPeriodDisplay = (period, dateFrom, dateTo) => {
+  if (period === 'all') return 'Tất cả';
+  if (period === 'week') return `${formatCalendarDisplay(dateFrom)} - ${formatCalendarDisplay(dateTo)}`;
+  if (period === 'month') {
+    const date = parseLocalISODate(dateFrom || dateTo);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `Tháng ${month}/${date.getFullYear()}`;
+  }
+  return formatCalendarDisplay(dateFrom || dateTo);
 };
 
 const normalizeTicketStatus = (raw) => {
@@ -407,6 +461,7 @@ function MyTasks() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState(initialDate);
   const [dateTo, setDateTo] = useState(initialDate);
+  const [periodFilter, setPeriodFilter] = useState('today');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
 
@@ -622,16 +677,22 @@ function MyTasks() {
   }, [safePage, computedTotalPages]);
 
   const activeDate = dateFrom || dateTo || initialDate;
-  const applySingleDayFilter = (dateIso) => {
+  const applyPeriodFilter = (period, dateIso) => {
     const next = String(dateIso || '').trim();
     if (!next) return;
-    setDateFrom(next);
-    setDateTo(next);
+    const range = getDateRangeForPeriod(period, next);
+    setDateFrom(range.from);
+    setDateTo(range.to);
     setPage(0);
   };
-  const handlePreviousDay = () => applySingleDayFilter(shiftLocalISODate(activeDate, -1));
-  const handleNextDay = () => applySingleDayFilter(shiftLocalISODate(activeDate, 1));
-  const handlePickDay = (value) => applySingleDayFilter(value);
+  const handlePeriodFilterChange = (period) => {
+    setPeriodFilter(period);
+    if (period === 'custom') return;
+    applyPeriodFilter(period, activeDate);
+  };
+  const handlePreviousDay = () => applyPeriodFilter(periodFilter, shiftPeriodAnchorDate(periodFilter, activeDate, -1));
+  const handleNextDay = () => applyPeriodFilter(periodFilter, shiftPeriodAnchorDate(periodFilter, activeDate, 1));
+  const handlePickDay = (value) => applyPeriodFilter(periodFilter, value);
   const handleOpenCalendar = () => {
     const picker = dayPickerRef.current;
     if (!picker) return;
@@ -648,6 +709,7 @@ function MyTasks() {
     setSize(10);
     setDateFrom(today);
     setDateTo(today);
+    setPeriodFilter('today');
     setStatusFilter('');
     setSearch('');
     setDebouncedSearch('');
@@ -824,17 +886,29 @@ function MyTasks() {
 
       {/* Filters */}
         <div className={styles.pendingFilters}>
-          <div className={`${styles.filterCardLabels} ${styles.filterCardLabelsTwo}`}>
+          <div className={styles.filterCardLabels}>
+            <span>Khoảng lọc</span>
             <span>Lịch ngày</span>
             <span>Trạng thái</span>
           </div>
-          <div className={`${styles.filterCardControls} ${styles.filterCardControlsTwo}`}>
+          <div className={styles.filterCardControls}>
+            <select
+              value={periodFilter}
+              onChange={(e) => handlePeriodFilterChange(e.target.value)}
+              aria-label="Chọn khoảng lọc công việc"
+            >
+              <option value="all">Tất cả</option>
+              <option value="today">Hôm nay</option>
+              <option value="week">Tuần này</option>
+              <option value="month">Tháng này</option>
+              <option value="custom">Tùy chọn</option>
+            </select>
             <div className={styles.dayNavigator}>
               <button type="button" className={styles.dayNavBtn} onClick={handlePreviousDay}>
                 Trước
               </button>
               <button type="button" className={styles.dayCenterBtn} onClick={handleOpenCalendar}>
-                {formatCalendarDisplay(activeDate)}
+                {formatPeriodDisplay(periodFilter, dateFrom, dateTo)}
               </button>
               <button type="button" className={styles.dayNavBtn} onClick={handleNextDay}>
                 Sau

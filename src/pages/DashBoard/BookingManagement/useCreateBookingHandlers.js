@@ -77,6 +77,7 @@ export function useCreateBookingHandlers({
 	slotsLoading,
 	slotsError,
 	createdBookingForCheckIn,
+	sourceReminderId,
 	navigate,
 
 	setSelectedIds,
@@ -169,6 +170,7 @@ export function useCreateBookingHandlers({
 
 		try {
 			const res = await staffCreateBooking({
+				reminderId: sourceReminderId ? Number(sourceReminderId) : undefined,
 				appointmentDate: schedule?.date,
 				appointmentTime: normalizeBackendTime(schedule?.time),
 				userNote: trimmedNote,
@@ -219,6 +221,7 @@ export function useCreateBookingHandlers({
 		schedule?.time,
 		selectedItems,
 		selectedIds,
+		sourceReminderId,
 		submitLocked,
 		setCreatedBookingForCheckIn,
 		setSubmitError,

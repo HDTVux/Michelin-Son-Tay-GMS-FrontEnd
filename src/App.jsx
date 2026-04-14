@@ -122,6 +122,18 @@ function TitleUpdater() {
       return;
     }
 
+    if (location.pathname === '/services') {
+      const type = new URLSearchParams(location.search).get('type')?.toUpperCase();
+      if (type === 'PART') {
+        document.title = 'Phụ tùng - Michelin Sơn Tây';
+        return;
+      }
+      if (type === 'SERVICE') {
+        document.title = 'Dịch vụ - Michelin Sơn Tây';
+        return;
+      }
+    }
+
     const base = 'Michelin Sơn Tây';
     const title =
       titles[location.pathname] ||

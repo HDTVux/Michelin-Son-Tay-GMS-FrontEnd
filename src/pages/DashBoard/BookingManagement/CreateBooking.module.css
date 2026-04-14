@@ -30,6 +30,15 @@
   white-space: nowrap;
 }
 
+.reminderSource {
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
 @media (max-width: 640px) {
   .successRow {
     flex-direction: column;

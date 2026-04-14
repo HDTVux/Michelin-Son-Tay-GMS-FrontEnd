@@ -1,6 +1,6 @@
 import './Services.css';
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { fetchHomeProducts } from '../../../services/homeService';
 import { fetchWarehouseItemCategories } from '../../../services/warehouseService';
 import serviceFallback from '../../../assets/lop and mam.jpg';
@@ -32,6 +32,13 @@ const parsePriceNumber = (value) => {
   if (/^\s*k\b/.test(suffix) || suffix.includes('nghìn') || suffix.includes('ngàn')) return parsed * 1000;
   if (suffix.includes('triệu') || suffix.includes('trieu')) return parsed * 1000000;
   return parsed;
+};
+const sanitizePriceInput = (value) => String(value || '').replace(/[^\d]/g, '');
+const parsePriceFilterValue = (value) => {
+  const text = sanitizePriceInput(value);
+  if (!text) return null;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 const normalizeItemType = (value) => {
   const text = String(value || '').trim().toUpperCase();
@@ -160,8 +167,12 @@ const extractList = (res) => {
 
 const ITEMS_PER_ROW = 4;
 const INITIAL_ROWS = 1;
+const HOME_ROW_LIMIT = 5;
 
-const Services = () => {
+const Services = ({ homeRows = false }) => {
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const routeCatalogType = String(searchParams.get('type') || '').trim().toUpperCase();
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');
@@ -172,6 +183,10 @@ const Services = () => {
   const [gridExpanded, setGridExpanded] = useState(false);
   const [priceSort, setPriceSort] = useState('DEFAULT');
   const [searchQuery, setSearchQuery] = useState('');
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+  const [categoryCollapsed, setCategoryCollapsed] = useState(true);
+  const didResetCatalogScrollRef = useRef(false);
 
   // Gói dịch vụ được tin dùng (commented out - not used currently)
   /*
@@ -226,6 +241,76 @@ const Services = () => {
     }
   ];
   */
+
+  const partItems = useMemo(() => services.filter((item) => item.itemType === 'PART'), [services]);
+  const serviceItems = useMemo(() => services.filter((item) => item.itemType === 'SERVICE'), [services]);
+  const homePartItems = useMemo(() => partItems.slice(0, HOME_ROW_LIMIT), [partItems]);
+  const homeServiceItems = useMemo(() => serviceItems.slice(0, HOME_ROW_LIMIT), [serviceItems]);
+
+  const renderCatalogCard = (service, idx) => (
+    <div key={service.id || `${service.itemType}-${idx}`} className="serviceGridItem">
+      <div className="serviceCard">
+        <div className="serviceCard-imageTop">
+          <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
+          <div className="serviceCard-overlay">
+            <Link
+              to={service.serviceId || service.catalogItemId ? `/services/${service.serviceId || service.catalogItemId}` : '/services'}
+              state={
+                service.catalogItemId != null || service.serviceId != null
+                  ? { catalogItemId: service.catalogItemId, serviceId: service.serviceId, itemType: service.itemType || 'SERVICE' }
+                  : undefined
+              }
+              className="overlayViewBtn"
+            >
+              Xem chi tiết →
+            </Link>
+          </div>
+          <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
+        </div>
+        <div className="serviceCard-content">
+          <h3 className="serviceTitle">{service.title}</h3>
+          <p className="serviceDescription">{service.description || 'Hiện chưa có mô tả.'}</p>
+          <div className="serviceCard-footer">
+            <div className="servicePrice">{service.price || 'Liên hệ'}</div>
+            <Link
+              to="/booking"
+              state={service.catalogItemId != null ? { catalogItemId: service.catalogItemId, itemType: service.itemType } : undefined}
+              className="btnBookNow"
+            >
+              Đặt lịch
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCatalogRow = (title, subtitle, items, moreTo) => (
+    <section className="servicesTypeSection" aria-label={title}>
+      <div className="servicesTypeHeader">
+        <div>
+          <h2 className="servicesTypeTitle">{title}</h2>
+          <p className="servicesTypeSubtitle">{subtitle}</p>
+        </div>
+        <div className="servicesTypeActions">
+          <Link to={moreTo} state={{ resetCatalogScroll: true }} className="servicesTypeMore">
+            Xem thêm
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </Link>
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <div className="serviceStatus serviceStatusInline">Chưa có hạng mục để hiển thị.</div>
+      ) : (
+        <div className="servicesRowScroller">
+          <div className="servicesRowGrid">
+            {items.map(renderCatalogCard)}
+          </div>
+        </div>
+      )}
+    </section>
+  );
 
   useEffect(() => {
     let active = true;
@@ -363,11 +448,32 @@ const Services = () => {
   }, []);
 
   // Scroll reveal cho 3 phần: dịch vụ, quy trình, combo
+
+  useEffect(() => {
+    if (homeRows) return;
+    if (routeCatalogType !== 'PART' && routeCatalogType !== 'SERVICE') return;
+    setCatalogFilter(routeCatalogType);
+    setCategoryFilter('ALL');
+    setGridExpanded(false);
+    if (location.state?.resetCatalogScroll && !didResetCatalogScrollRef.current) {
+      didResetCatalogScrollRef.current = true;
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+  }, [homeRows, location.state?.resetCatalogScroll, routeCatalogType]);
+
+  useEffect(() => {
+    if (homeRows) return;
+    document.title = catalogFilter === 'PART'
+      ? 'Phụ tùng - Michelin Sơn Tây'
+      : 'Dịch vụ - Michelin Sơn Tây';
+  }, [catalogFilter, homeRows]);
+
   const servicesHeroRef = useRef(null);
   const processHeaderRef = useRef(null);
 
   const [servicesIntroVisible, setServicesIntroVisible] = useState(false);
   const [processIntroVisible, setProcessIntroVisible] = useState(false);
+
   const categoryOptions = useMemo(() => {
     const derived = new Map();
     const typedServices = services.filter((item) => item.itemType === catalogFilter);
@@ -417,26 +523,29 @@ const Services = () => {
     });
   }, [catalogFilter, categories, services]);
 
-  useEffect(() => {
+  const activeCategoryFilter = categoryFilter === 'ALL'
+    || categoryOptions.some((item) => item.categoryKey === categoryFilter)
+    ? categoryFilter
+    : 'ALL';
+  const activeCategoryLabel = activeCategoryFilter === 'ALL'
+    ? 'Tất cả'
+    : (categoryOptions.find((item) => item.categoryKey === activeCategoryFilter)?.label || 'Tất cả');
+
+  const handleCatalogFilterChange = (nextType) => {
+    setCatalogFilter(nextType);
     setCategoryFilter('ALL');
     setGridExpanded(false);
-  }, [catalogFilter]);
-
-  useEffect(() => {
-    if (categoryFilter === 'ALL') return;
-    if (!categoryOptions.some((item) => item.categoryKey === categoryFilter)) {
-      setCategoryFilter('ALL');
-    }
-  }, [categoryFilter, categoryOptions]);
+    setSearchParams({ type: nextType }, { replace: true });
+  };
 
   const visibleServices = useMemo(() => {
     let filtered = services.filter((item) => item.itemType === catalogFilter);
 
-    if (categoryFilter !== 'ALL') {
-      const selectedCategory = categoryOptions.find((item) => item.categoryKey === categoryFilter);
+    if (activeCategoryFilter !== 'ALL') {
+      const selectedCategory = categoryOptions.find((item) => item.categoryKey === activeCategoryFilter);
       const matchKeys = selectedCategory?.categoryMatchKeys?.length
         ? selectedCategory.categoryMatchKeys
-        : [categoryFilter];
+        : [activeCategoryFilter];
       filtered = filtered.filter((item) => hasCategoryMatch(item.categoryMatchKeys || [], matchKeys));
     }
 
@@ -447,6 +556,17 @@ const Services = () => {
         (item.title || '').toLowerCase().includes(q) ||
         (item.description || '').toLowerCase().includes(q)
       );
+    }
+
+    const minPrice = parsePriceFilterValue(priceMin);
+    const maxPrice = parsePriceFilterValue(priceMax);
+    if (minPrice != null || maxPrice != null) {
+      filtered = filtered.filter((item) => {
+        if (item.rawPrice == null) return false;
+        if (minPrice != null && item.rawPrice < minPrice) return false;
+        if (maxPrice != null && item.rawPrice > maxPrice) return false;
+        return true;
+      });
     }
 
     if (priceSort === 'ASC') {
@@ -464,7 +584,7 @@ const Services = () => {
     }
 
     return filtered;
-  }, [catalogFilter, categoryFilter, categoryOptions, services, priceSort, searchQuery]);
+  }, [activeCategoryFilter, catalogFilter, categoryOptions, services, priceSort, searchQuery, priceMin, priceMax]);
 
   const gridItemsToShow = useMemo(() => {
     if (gridExpanded) return visibleServices;
@@ -490,6 +610,7 @@ const Services = () => {
     return 'Các dịch vụ bảo dưỡng, sửa chữa chuyên nghiệp với đội ngũ kỹ thuật viên giàu kinh nghiệm.';
   }, [catalogFilter]);
   // IntersectionObserver cho tiêu đề các phần
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -524,19 +645,29 @@ const Services = () => {
       {/* Hero + Grid Section */}
       <section className="servicesPage">
         <div className="servicesPage-bg" />
+        {!homeRows && (
+          <Link to="/" className="servicesBackHome">
+            ← Về trang chủ
+          </Link>
+        )}
         <div
           ref={servicesHeroRef}
           className={`servicesHero ${servicesIntroVisible ? 'visible' : ''}`}
-          style={{ opacity: 1, transform: 'translateX(0)' }}
         >
-          <div className="servicesLabel">{dynamicLabel}</div>
+          <div className="servicesLabel">{homeRows ? 'DANH MỤC' : dynamicLabel}</div>
           <h1 className="servicesTitle">
-            <span className="titlePart1">{dynamicTitlePart1}</span>
+            <span className="titlePart1">{homeRows ? 'Dịch vụ & phụ tùng' : dynamicTitlePart1}</span>
             <span className="titlePart2">chính hãng</span>
           </h1>
-          <p className="servicesSubtitle">{dynamicSubtitle}</p>
+          <p className="servicesSubtitle">
+            {homeRows
+              ? 'Phụ tùng chính hãng và dịch vụ bảo dưỡng, sửa chữa chuyên nghiệp.'
+              : dynamicSubtitle}
+          </p>
         </div>
 
+        {!homeRows && (
+        <>
         {/* Unified Toolbar: filters + sort + search */}
         <div className="unifiedToolbar">
           <div className="toolbarLeft">
@@ -548,10 +679,7 @@ const Services = () => {
                 key={item.value}
                 type="button"
                 className={`catalogFilterButton ${catalogFilter === item.value ? 'is-active' : ''}`}
-                onClick={() => {
-                  setCatalogFilter(item.value);
-                  setGridExpanded(false);
-                }}
+                onClick={() => handleCatalogFilterChange(item.value)}
               >
                 {item.label}
                 {catalogFilter === item.value && (
@@ -578,6 +706,48 @@ const Services = () => {
                 <option value="DESC">Giá giảm dần</option>
               </select>
             </label>
+            <div className="priceRangeFilter">
+              <div className="priceRangeTitle">Khoảng giá</div>
+              <label className="priceRangeField">
+                <span>Từ</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={priceMin}
+                  placeholder="0"
+                  onChange={(e) => {
+                    setPriceMin(sanitizePriceInput(e.target.value));
+                    setGridExpanded(false);
+                  }}
+                />
+              </label>
+              <label className="priceRangeField">
+                <span>Đến</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={priceMax}
+                  placeholder="VD: 500000"
+                  onChange={(e) => {
+                    setPriceMax(sanitizePriceInput(e.target.value));
+                    setGridExpanded(false);
+                  }}
+                />
+              </label>
+              {(priceMin || priceMax) && (
+                <button
+                  type="button"
+                  className="priceRangeClear"
+                  onClick={() => {
+                    setPriceMin('');
+                    setPriceMax('');
+                    setGridExpanded(false);
+                  }}
+                >
+                  Xóa
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="toolbarSearch">
@@ -609,12 +779,24 @@ const Services = () => {
 
         {/* Grid layout */}
         <div className="servicesCatalogLayout">
-          <aside className="categorySidebar" aria-label="Lọc theo danh mục">
-            <div className="categorySidebarTitle">Danh mục</div>
+          <aside className={`categorySidebar ${categoryCollapsed ? 'is-collapsed' : ''}`} aria-label="Lọc theo danh mục">
+            <button
+              type="button"
+              className="categorySidebarHeader"
+              onClick={() => setCategoryCollapsed((prev) => !prev)}
+              aria-expanded={!categoryCollapsed}
+            >
+              <span>Danh mục</span>
+              <span className="categorySidebarToggle">{categoryCollapsed ? 'Mở rộng' : 'Thu gọn'}</span>
+            </button>
+            {categoryCollapsed && (
+              <div className="categorySidebarSummary">{activeCategoryLabel}</div>
+            )}
+            {!categoryCollapsed && (
             <div className="categorySidebarList">
               <button
                 type="button"
-                className={`categorySidebarItem ${categoryFilter === 'ALL' ? 'is-active' : ''}`}
+                className={`categorySidebarItem ${activeCategoryFilter === 'ALL' ? 'is-active' : ''}`}
                 onClick={() => {
                   setCategoryFilter('ALL');
                   setGridExpanded(false);
@@ -627,7 +809,7 @@ const Services = () => {
                 <button
                   key={item.categoryKey}
                   type="button"
-                  className={`categorySidebarItem ${categoryFilter === item.categoryKey ? 'is-active' : ''}`}
+                  className={`categorySidebarItem ${activeCategoryFilter === item.categoryKey ? 'is-active' : ''}`}
                   onClick={() => {
                     setCategoryFilter(item.categoryKey);
                     setGridExpanded(false);
@@ -644,6 +826,7 @@ const Services = () => {
                 <div className="categorySidebarHint">Chưa có danh mục.</div>
               )}
             </div>
+            )}
           </aside>
 
           <div className="servicesGridWrapper">
@@ -728,6 +911,30 @@ const Services = () => {
           )}
           </div>
         </div>
+        </>
+        )}
+
+        {homeRows && (
+        <div className="servicesRowsWrapper">
+          {servicesLoading && (
+            <div className="serviceStatus">
+              <div className="loadingSpinner" />
+              <span>Đang tải danh mục...</span>
+            </div>
+          )}
+          {!servicesLoading && servicesError && (
+            <div className="serviceStatus error">
+              {servicesError}
+            </div>
+          )}
+          {!servicesLoading && !servicesError && (
+            <>
+              {renderCatalogRow('Phụ tùng', 'Phụ tùng chính hãng, đa dạng chủng loại.', homePartItems, '/services?type=PART')}
+              {renderCatalogRow('Dịch vụ', 'Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp.', homeServiceItems, '/services?type=SERVICE')}
+            </>
+          )}
+        </div>
+        )}
       </section>
 
       {/* Quy trình dịch vụ */}

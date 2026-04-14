@@ -366,29 +366,6 @@ export const ServiceTicket = ({
   ), [safetyChecks]);
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        if (hasUnsavedLocalEditsRef.current) return;
-        setRefreshKey(prev => prev + 1);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
-
-  useEffect(() => {
-    if (!resolvedTicketCode || isFormLocked) return undefined;
-
-    const timer = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      if (hasUnsavedLocalEditsRef.current) return;
-      setRefreshKey((prev) => prev + 1);
-    }, 5000);
-
-    return () => window.clearInterval(timer);
-  }, [resolvedTicketCode, isFormLocked]);
-
-  useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');

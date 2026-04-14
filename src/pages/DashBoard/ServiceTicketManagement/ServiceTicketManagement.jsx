@@ -33,48 +33,48 @@ function getTicketScheduledTime(ticket) {
 	).trim();
 }
 
-function parseDateOnlyLocal(value) {
-	const raw = String(value || '').trim();
-	const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
-	if (!match) return null;
-
-	const year = Number(match[1]);
-	const monthIndex = Number(match[2]) - 1;
-	const day = Number(match[3]);
-	const parsed = new Date(year, monthIndex, day);
-	if (
-		parsed.getFullYear() !== year
-		|| parsed.getMonth() !== monthIndex
-		|| parsed.getDate() !== day
-	) {
-		return null;
-	}
-
-	return parsed;
-}
-
 function getTodayLocalStart() {
 	const now = new Date();
 	return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-function isFutureScheduledTicket(ticket) {
-	const scheduledDate = parseDateOnlyLocal(getTicketScheduledDate(ticket));
-	if (!scheduledDate) return false;
-	return scheduledDate.getTime() > getTodayLocalStart().getTime();
+function toLocalISODate(date) {
+	if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+	const offsetMs = date.getTimezoneOffset() * 60000;
+	return new Date(date.getTime() - offsetMs).toISOString().slice(0, 10);
+}
+
+function getTodayLocalISO() {
+	return toLocalISODate(new Date());
+}
+
+function getDateRangeForPeriod(period) {
+	const today = getTodayLocalStart();
+	if (period === 'week') {
+		const start = new Date(today);
+		const day = start.getDay();
+		const mondayOffset = day === 0 ? -6 : 1 - day;
+		start.setDate(start.getDate() + mondayOffset);
+		const end = new Date(start);
+		end.setDate(start.getDate() + 6);
+		return { startDate: toLocalISODate(start), endDate: toLocalISODate(end) };
+	}
+	if (period === 'month') {
+		const start = new Date(today.getFullYear(), today.getMonth(), 1);
+		const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+		return { startDate: toLocalISODate(start), endDate: toLocalISODate(end) };
+	}
+	if (period === 'today') {
+		const todayISO = getTodayLocalISO();
+		return { startDate: todayISO, endDate: todayISO };
+	}
+	return { startDate: '', endDate: '' };
 }
 
 function getScheduledDateTimeLabel(ticket) {
 	const date = getTicketScheduledDate(ticket);
 	const time = formatTimeHHmm(getTicketScheduledTime(ticket));
 	return date ? `${date} ${time || ''}`.trim() : '-';
-}
-
-function getFutureTicketMessage(ticket) {
-	const code = String(ticket?.ticketCode || '').trim();
-	const prefix = code ? `Phiếu ${code} ` : 'Phiếu này ';
-	const scheduledLabel = getScheduledDateTimeLabel(ticket);
-	return `${prefix}có lịch hẹn ${scheduledLabel}. Đến đúng ngày hẹn mới được thao tác phiếu này.`;
 }
 
 function ServiceTicketManagement() {
@@ -89,6 +89,7 @@ function ServiceTicketManagement() {
 	const [size, setSize] = useState(10);
 	const [date, setDate] = useState('');
 	const [endDate, setEndDate] = useState('');
+	const [periodFilter, setPeriodFilter] = useState('all');
 	const [status, setStatus] = useState('');
 	const [search, setSearch] = useState('');
 	const [totalPages, setTotalPages] = useState(1);
@@ -116,9 +117,10 @@ function ServiceTicketManagement() {
 		page,
 		size,
 		date: date || undefined,
+		dateTo: endDate || undefined,
 		status: status || undefined,
 		search: debouncedSearch || undefined,
-	}), [page, size, date, status, debouncedSearch]);
+	}), [page, size, date, endDate, status, debouncedSearch]);
 
 	const loadData = useCallback(async () => {
 		const token = localStorage.getItem('authToken');
@@ -187,7 +189,7 @@ function ServiceTicketManagement() {
 				return next;
 			});
 		});
-	}, [tickets, page, size, date, status, debouncedSearch]);
+	}, [tickets, page, size, date, endDate, status, debouncedSearch]);
 
 	// Load advisors with workload for the change-advisor modal
 	useEffect(() => {
@@ -236,8 +238,30 @@ function ServiceTicketManagement() {
 		setSize(10);
 		setDate('');
 		setEndDate('');
+		setPeriodFilter('all');
 		setStatus('');
 		setSearch('');
+	};
+
+	const handlePeriodFilterChange = (nextPeriod) => {
+		setPeriodFilter(nextPeriod);
+		setPage(0);
+		if (nextPeriod === 'custom') return;
+		const range = getDateRangeForPeriod(nextPeriod);
+		setDate(range.startDate);
+		setEndDate(range.endDate);
+	};
+
+	const handleDateChange = (nextDate) => {
+		setDate(nextDate);
+		setPeriodFilter(nextDate || endDate ? 'custom' : 'all');
+		setPage(0);
+	};
+
+	const handleEndDateChange = (nextEndDate) => {
+		setEndDate(nextEndDate);
+		setPeriodFilter(date || nextEndDate ? 'custom' : 'all');
+		setPage(0);
 	};
 
 	const handleExport = useCallback(async () => {
@@ -365,31 +389,25 @@ function ServiceTicketManagement() {
 						totalElements={totalElements}
 						date={date}
 						endDate={endDate}
+						periodFilter={periodFilter}
 						status={status}
 						search={search}
 						onChangePage={setPage}
 						onChangeSize={(next) => { setSize(next); setPage(0); }}
-						onChangeDate={(next) => { setDate(next); setPage(0); }}
-						onChangeEndDate={(next) => { setEndDate(next); }}
+						onChangePeriodFilter={handlePeriodFilterChange}
+						onChangeDate={handleDateChange}
+						onChangeEndDate={handleEndDateChange}
 						onChangeStatus={(next) => { setStatus(next); setPage(0); }}
 						onChangeSearch={(next) => { setSearch(next); setPage(0); }}
 						onResetFilters={handleResetFilters}
 						onExport={handleExport}
 						isExporting={isExporting}
 						onViewDetail={(ticket) => {
-							if (isFutureScheduledTicket(ticket)) {
-								setError(getFutureTicketMessage(ticket));
-								return;
-							}
 							const code = String(ticket?.ticketCode || '').trim();
 							if (!code) { setError('Phiếu này chưa có ticketCode.'); return; }
 							navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, { state: { ticket } });
 						}}
 						onOpenAssign={(ticket) => {
-							if (isFutureScheduledTicket(ticket)) {
-								setError(getFutureTicketMessage(ticket));
-								return;
-							}
 							openModal(ticket);
 						}}
 						actionLabel={`${totalElements} phiếu`}
@@ -518,9 +536,9 @@ function TicketPanel({
 	onViewDetail, onOpenAssign,
 	isLoading, error,
 	page, size, totalPages,
-	date, endDate, status, search,
+	date, endDate, periodFilter, status, search,
 	onChangePage, onChangeSize,
-	onChangeDate, onChangeEndDate, onChangeStatus,
+	onChangePeriodFilter, onChangeDate, onChangeEndDate, onChangeStatus,
 	onChangeSearch, onResetFilters,
 	onExport, isExporting,
 }) {
@@ -548,11 +566,19 @@ function TicketPanel({
 
 			<div className={styles['pending-filters']}>
 				<div className={styles['filter-card__labels']}>
+					<span>Khoảng lọc</span>
 					<span>Từ ngày</span>
 					<span>Đến ngày</span>
 					<span>Trạng thái</span>
 				</div>
 				<div className={styles['filter-card__controls']}>
+					<select value={periodFilter} onChange={e => onChangePeriodFilter?.(e.target.value)}>
+						<option value="all">Tất cả</option>
+						<option value="today">Hôm nay</option>
+						<option value="week">Tuần này</option>
+						<option value="month">Tháng này</option>
+						<option value="custom">Tùy chọn</option>
+					</select>
 					<input type="date" value={date} onChange={e => onChangeDate?.(e.target.value)} />
 					<input type="date" value={endDate} onChange={e => onChangeEndDate?.(e.target.value)} />
 					<select value={status} onChange={e => onChangeStatus?.(e.target.value)}>
@@ -565,7 +591,6 @@ function TicketPanel({
 						<option value="PAID">Đã thanh toán</option>
 						<option value="CANCELLED">Đã hủy</option>
 					</select>
-					<div aria-hidden="true" />
 				</div>
 				<div className={styles['filter-card__actions']}>
 					<div className={styles['search-box']}>
@@ -608,12 +633,10 @@ function TicketPanel({
 							const statusCode = item?.ticketStatus ?? item?.status;
 							const tone = getServiceTicketStatusTone(statusCode, 'info');
 							const displayStatus = getServiceTicketStatusTextVi(statusCode, String(statusCode || '-'));
-							const isFutureTicket = isFutureScheduledTicket(item);
 							const scheduledLabel = getScheduledDateTimeLabel(item);
 							return (
 								<tr
 									key={item?.serviceTicketId ?? item?.ticketCode ?? idx}
-									className={isFutureTicket ? styles['future-ticket-row'] : undefined}
 								>
 									<td>{idx + 1}</td>
 									<td className={styles['ticket-code-cell']}>{item?.ticketCode || '-'}</td>
@@ -629,26 +652,11 @@ function TicketPanel({
 									</td>
 									<td>
 										<span>{scheduledLabel}</span>
-										{isFutureTicket && (
-											<span className={styles['future-ticket-note']}>Chờ đến ngày hẹn</span>
-										)}
 									</td>
 									<td>
 										<div className={styles['action-buttons']}>
-											{isFutureTicket ? (
-												<button
-													className={`${styles['primary-button']} ${styles['future-action-button']}`}
-													onClick={() => onViewDetail?.(item)}
-													title={getFutureTicketMessage(item)}
-												>
-													Chưa đến ngày
-												</button>
-											) : (
-												<>
-													<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
-													<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
-												</>
-											)}
+											<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
+											<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
 										</div>
 									</td>
 								</tr>
@@ -692,8 +700,10 @@ TicketPanel.propTypes = {
 	page: PropTypes.number, size: PropTypes.number, totalPages: PropTypes.number,
 	date: PropTypes.string,
 	endDate: PropTypes.string,
+	periodFilter: PropTypes.string,
 	status: PropTypes.string, search: PropTypes.string,
 	onChangePage: PropTypes.func, onChangeSize: PropTypes.func,
+	onChangePeriodFilter: PropTypes.func,
 	onChangeDate: PropTypes.func,
 	onChangeEndDate: PropTypes.func,
 	onChangeStatus: PropTypes.func,

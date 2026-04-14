@@ -166,7 +166,7 @@ export const updateEstimateStockAllocation = (estimateId, allocations, token) =>
 };
 
 // Lấy danh sách phiếu dịch vụ (có phân trang / tìm kiếm / lọc)
-// Params backend: page, size, date (yyyy-mm-dd), status, search
+// Params backend: page, size, date (yyyy-mm-dd), dateTo (yyyy-mm-dd), status, search
 export const fetchServiceTicketsPaged = (params, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để xem danh sách phiếu dịch vụ.');
@@ -182,6 +182,7 @@ export const fetchServiceTicketsPaged = (params, token) => {
   searchParams.set('size', String(size));
 
   if (params?.date) searchParams.set('date', params.date);
+  if (params?.dateTo) searchParams.set('dateTo', params.dateTo);
   if (params?.status) searchParams.set('status', params.status);
   if (params?.search) searchParams.set('search', params.search);
 
@@ -883,7 +884,7 @@ export const cancelAssignmentById = (ticketId, assignmentId, token) => {
 };
 
 // Lấy danh sách phiếu cho advisor
-// Endpoint: GET /api/service-ticket/advisor/tickets?page=0&size=10&date=yyyy-mm-dd&status=DRAFT&search=...&technicianSearch=...&ticketCode=...
+// Endpoint: GET /api/service-ticket/advisor/tickets?page=0&size=10&date=yyyy-mm-dd&dateTo=yyyy-mm-dd&status=DRAFT&search=...&technicianSearch=...&ticketCode=...
 export const fetchAdvisorMyTickets = (params, token) => {
   if (!token) {
     const error = new Error('Vui lòng đăng nhập để xem danh sách phiếu.');
@@ -897,6 +898,7 @@ export const fetchAdvisorMyTickets = (params, token) => {
   searchParams.set('page', String(page));
   searchParams.set('size', String(size));
   if (params?.date) searchParams.set('date', params.date);
+  if (params?.dateTo) searchParams.set('dateTo', params.dateTo);
   if (params?.status) searchParams.set('status', params.status);
   if (params?.search) searchParams.set('search', params.search);
   if (params?.technicianSearch) searchParams.set('technicianSearch', params.technicianSearch);
