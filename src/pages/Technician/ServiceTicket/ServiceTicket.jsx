@@ -231,6 +231,8 @@ export const ServiceTicket = ({
   backPath = '/technician/my-tasks',
   onClose = null,
   onInspectionCompleted = null,
+  readOnly = false,
+  readOnlyMessage = '',
 }) => {
   const { id: idParam } = useParams();
   const resolvedTicketCode = String(ticketCode || idParam || '').trim();
@@ -285,8 +287,8 @@ export const ServiceTicket = ({
   const shouldRequireSafetyInspection = hasSafetyInspectionEnabled && normalizedInspectionStatus !== 'SKIPPED';
   const isServiceTicketLocked = LOCKED_SERVICE_TICKET_STATUSES.has(normalizedServiceTicketStatus);
   const isInspectionCompleted = normalizedInspectionStatus === 'COMPLETED';
-  const isFormLocked = isServiceTicketLocked || isInspectionCompleted;
-  const serviceTicketLockMessage = 'Phiếu dịch vụ hoặc phiếu kiểm tra an toàn đã hoàn thành, không thể chỉnh sửa.';
+  const isFormLocked = Boolean(readOnly) || isServiceTicketLocked || isInspectionCompleted;
+  const serviceTicketLockMessage = readOnlyMessage || 'Phiếu dịch vụ hoặc phiếu kiểm tra an toàn đã hoàn thành, không thể chỉnh sửa.';
   const canEditTechnicalFields = !isFormLocked;
   const canEditAdvisorNotes = !isFormLocked;
   const advisorNoteHasErrors = Object.keys(advisorNoteErrors).length > 0;
@@ -1684,7 +1686,7 @@ export const ServiceTicket = ({
         )}
       </div>
 
-      {(isAdvisorMode || !embedded) && (
+      {!readOnly && (isAdvisorMode || !embedded) && (
         <div className={styles.actionButtons}>
           <div className={styles.actionLeft}>
             {!(isAdvisorMode && embedded) && (
@@ -1854,6 +1856,8 @@ ServiceTicket.propTypes = {
   backPath: PropTypes.string,
   onClose: PropTypes.func,
   onInspectionCompleted: PropTypes.func,
+  readOnly: PropTypes.bool,
+  readOnlyMessage: PropTypes.string,
 };
 
 export default ServiceTicket;

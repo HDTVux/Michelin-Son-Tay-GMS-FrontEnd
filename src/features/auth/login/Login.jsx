@@ -3,6 +3,7 @@ import styles from './Login.module.css';
 import Mascot from '../../../assets/Mascot.jpg';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginStaff, getStaffGoogleOAuthUrl } from '../../../services/authService';
+import { AUTH_REDIRECT_ERROR_KEY } from '../../../services/apiClient';
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -17,6 +18,16 @@ export default function Login() {
 
   // Nếu đã có token (login trước đó hoặc sau khi Google callback) thì vào BookingManagement
   useEffect(() => {
+    const redirectError =
+      typeof globalThis?.sessionStorage?.getItem === 'function'
+        ? globalThis.sessionStorage.getItem(AUTH_REDIRECT_ERROR_KEY)
+        : '';
+
+    if (redirectError) {
+      setErrors((prev) => ({ ...prev, api: redirectError }));
+      globalThis.sessionStorage.removeItem(AUTH_REDIRECT_ERROR_KEY);
+    }
+
     const token = localStorage.getItem('authToken');
     if (token) {
       navigate('/booking-management', { replace: true });

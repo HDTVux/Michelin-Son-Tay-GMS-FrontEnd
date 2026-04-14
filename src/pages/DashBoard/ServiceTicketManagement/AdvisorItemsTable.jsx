@@ -683,6 +683,8 @@ export default function AdvisorItemsTable({
     onCancelCreateNewVersion,
     onCancelAppendOnly,
     onEstimateEditingChange,
+    readOnly = false,
+    readOnlyMessage = '',
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
@@ -733,6 +735,7 @@ export default function AdvisorItemsTable({
 
     const showTaxColumn = isCreating || isEditing;
     const showConfirmColumn = Boolean(showInputs);
+    const isReadOnly = Boolean(readOnly);
 
     const footerSpacerColSpan =
         (showTaxColumn ? 1 : 0) +
@@ -785,10 +788,10 @@ export default function AdvisorItemsTable({
     const isTicketCancelled = ['CANCELLED', 'CANCELED', 'CANCEL'].includes(ticketStatusUpper);
     const isTicketLocked = isTicketPaid || isTicketCancelled;
     // "Tạo báo giá mới" chỉ dành cho trường hợp chưa có bất kì báo giá nào.
-    const canCreateNew = !isCreating && !isEditing && showAddEstimate && !isTicketLocked;
+    const canCreateNew = !isReadOnly && !isCreating && !isEditing && showAddEstimate && !isTicketLocked;
 
     // "Tạo version báo giá mới" chỉ dành cho trường hợp báo giá hiện tại là ARCHIVED.
-    const canCreateNewVersion = !isCreating && !isEditing && Boolean(estimate) && isArchived && !isTicketLocked;
+    const canCreateNewVersion = !isReadOnly && !isCreating && !isEditing && Boolean(estimate) && isArchived && !isTicketLocked;
 
     const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
@@ -796,6 +799,10 @@ export default function AdvisorItemsTable({
 
     const handleStartCreate = async () => {
         if (isStartingCreate) return;
+        if (isReadOnly) {
+            notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
+            return;
+        }
         if (isTicketLocked) {
             notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
             return;
@@ -807,6 +814,10 @@ export default function AdvisorItemsTable({
 
     const handleStartCreateNewVersion = async () => {
         if (isStartingCreate) return;
+        if (isReadOnly) {
+            notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
+            return;
+        }
         if (isTicketLocked) {
             notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
             return;
@@ -841,6 +852,7 @@ export default function AdvisorItemsTable({
     // Ensure create mode can be opened automatically after the ticket is restarted/refreshed.
     useEffect(() => {
         const handler = () => {
+            if (isReadOnly) return;
             if (isTicketLocked) {
                 notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
                 return;
@@ -862,12 +874,13 @@ export default function AdvisorItemsTable({
                 // ignore
             }
         };
-    }, [isTicketLocked, isCreating, isEditing, notify, startCreate]);
+    }, [isReadOnly, isTicketLocked, isCreating, isEditing, notify, startCreate]);
 
     // Ensure append-only edit mode can be opened automatically (add service: keep current estimate version,
     // lock existing rows, only allow adding new rows).
     useEffect(() => {
         const handler = () => {
+            if (isReadOnly) return;
             if (isTicketLocked) {
                 notify('Không thể sửa báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
                 return;
@@ -897,12 +910,16 @@ export default function AdvisorItemsTable({
                 // ignore
             }
         };
-    }, [estimate, isTicketLocked, isCreating, isEditing, notify, startCreate, startEdit]);
+    }, [estimate, isReadOnly, isTicketLocked, isCreating, isEditing, notify, startCreate, startEdit]);
 
     const handleStartEdit = useCallback(() => {
+        if (isReadOnly) {
+            notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
+            return;
+        }
         setRevertOnCancel(false);
         startEdit?.();
-    }, [startEdit]);
+    }, [isReadOnly, notify, readOnlyMessage, startEdit]);
 
     const [pickerOpen, setPickerOpen] = useState(false);
     const [activeRowIndex, setActiveRowIndex] = useState(null);
@@ -1204,7 +1221,7 @@ export default function AdvisorItemsTable({
                         canCreateNew={canCreateNew}
                         canCreateNewVersion={canCreateNewVersion}
                         createBusy={isStartingCreate}
-                        canEdit={canEdit}
+                        canEdit={canEdit && !isReadOnly}
                         isCreating={isCreating}
                         isEditing={isEditing}
                         isSaving={isSaving}
@@ -1234,7 +1251,7 @@ export default function AdvisorItemsTable({
                     placeholder="Nhập khuyến nghị..."
                     value={recommendation}
                     onChange={(e) => setRecommendation(e.target.value)}
-                    disabled={Boolean(recommendationSaving) || isTicketLocked}
+                    disabled={isReadOnly || Boolean(recommendationSaving) || isTicketLocked}
                 />
                 <div
                     style={{
@@ -1259,7 +1276,7 @@ export default function AdvisorItemsTable({
                 ) : null}
             </div>
 
-                {isTicketLocked ? null : (
+                {isTicketLocked || isReadOnly ? null : (
                     <div className="ui-actions" style={{ marginTop: 8 }}>
                         <button
                             type="button"
@@ -1345,4 +1362,6 @@ AdvisorItemsTable.propTypes = {
     onRestartWorkflow: PropTypes.func,
     onCancelCreateNewVersion: PropTypes.func,
     onCancelAppendOnly: PropTypes.func,
+    readOnly: PropTypes.bool,
+    readOnlyMessage: PropTypes.string,
 };
