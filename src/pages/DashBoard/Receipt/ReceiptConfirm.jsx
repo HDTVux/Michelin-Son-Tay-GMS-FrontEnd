@@ -214,6 +214,12 @@ function normalizeTicketForReceipt(input, ticketCodeFallback) {
             name: input?.customer?.fullName || input?.customerName || input?.customer?.name || '',
             phone: input?.customer?.phone || input?.customerPhone || input?.phone || '',
             email: input?.customer?.email || input?.customerEmail || input?.email || '',
+            address:
+                input?.customer?.address ||
+                input?.customerAddress ||
+                input?.address ||
+                input?.customer?.fullAddress ||
+                '',
         },
         vehicle: {
             licensePlate: input?.vehicle?.licensePlate || input?.licensePlate || '',

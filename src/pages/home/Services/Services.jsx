@@ -401,11 +401,11 @@ const Services = ({ homeRows = false }) => {
 
   useEffect(() => {
     let active = true;
-    setCategoriesLoading(true);
 
     fetchWarehouseItemCategories()
       .then((res) => {
         if (!active) return;
+        setCategoriesLoading(true);
         const normalized = extractList(res)
           .map((item) => {
             const categoryType = normalizeCategoryType(item?.categoryType ?? item?.itemType ?? item?.type);
@@ -452,9 +452,15 @@ const Services = ({ homeRows = false }) => {
   useEffect(() => {
     if (homeRows) return;
     if (routeCatalogType !== 'PART' && routeCatalogType !== 'SERVICE') return;
-    setCatalogFilter(routeCatalogType);
-    setCategoryFilter('ALL');
-    setGridExpanded(false);
+    
+    const updateFilters = () => {
+      setCatalogFilter(routeCatalogType);
+      setCategoryFilter('ALL');
+      setGridExpanded(false);
+    };
+    
+    updateFilters();
+    
     if (location.state?.resetCatalogScroll && !didResetCatalogScrollRef.current) {
       didResetCatalogScrollRef.current = true;
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
