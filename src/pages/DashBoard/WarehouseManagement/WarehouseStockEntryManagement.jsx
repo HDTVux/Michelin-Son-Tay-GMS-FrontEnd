@@ -215,6 +215,7 @@ export default function WarehouseStockEntryManagement() {
               <tr>
                 <th>STT</th>
                 <th>Mã phiếu</th>
+                <th>Kho nhập</th>
                 <th>Ngày nhập</th>
                 <th>Trạng thái</th>
                 <th>Hành động</th>
@@ -223,7 +224,7 @@ export default function WarehouseStockEntryManagement() {
             <tbody>
               {!loading && entries.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className={styles.emptyCell}>
+                  <td colSpan={6} className={styles.emptyCell}>
                     Không có dữ liệu phiếu nhập.
                   </td>
                 </tr>
@@ -236,6 +237,7 @@ export default function WarehouseStockEntryManagement() {
                     <tr key={String(id)}>
                       <td>{id || '-'}</td>
                       <td>{entry?.entryCode || '-'}</td>
+                      <td>{entry?.warehouseName || '-'}</td>
                       <td>{formatDate(entry?.entryDate)}</td>
                       <td>
                         <span className={`${commonStyles.badge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>

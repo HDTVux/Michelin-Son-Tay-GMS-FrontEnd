@@ -40,7 +40,7 @@ import CreateProduct from './pages/DashBoard/PartManagement/CreateProduct.jsx';
 import WarehouseStockEntry from './pages/DashBoard/WarehouseManagement/WarehouseStockEntry.jsx';
 import WarehouseStockEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
 import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryDetail.jsx';
-import WarehouseStockIssues from './pages/DashBoard/WarehouseManagement/WarehouseStockIssues.jsx';
+import WarehouseStockIssues from './pages/DashBoard/WarehouseManagement/WarehouseStockIssuesManagement.jsx';
 import WarehouseStockIssueDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockIssueDetail.jsx';
 import WarehouseReturnEntry from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntry.jsx';
 import WarehouseReturnEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryManagement.jsx';

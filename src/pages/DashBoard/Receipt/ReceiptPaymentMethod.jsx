@@ -1,21 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import PropTypes from 'prop-types';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import styles from './ReceiptPaymentMethod.module.css';
 import { getVietQrUrl } from '../../../services/paymentQrService.js'; 
 import { toast } from 'react-toastify';
-
-// --- Utility Functions ---
-
-function safeRevokeObjectUrl(url) {
-    if (!url) return;
-    try {
-        URL.revokeObjectURL(url);
-    } catch {
-        // ignore
-    }
-}
+import { fetchPaymentByServiceTicketId, payBill } from '../../../services/paymentService.js';
+import { fetchServiceTicketDetail, fetchServiceTicketEstimate, manageServiceTicketStatus } from '../../../services/serviceTicketService.js';
 
 function toMoneyNumber(value) {
     const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
@@ -27,275 +17,60 @@ function formatCurrencyVnd(value) {
     return `${new Intl.NumberFormat('vi-VN').format(Math.round(n))} VND`;
 }
 
-// --- Sub-components ---
+function pickLatestEstimate(list) {
+    const arr = Array.isArray(list) ? list : [];
+    if (arr.length === 0) return null;
 
-function CashEvidenceSection({ file, previewUrl, error, onPick, onRemove }) {
-    return (
-        <div className={styles.cashSection}>
-            <div className={styles.cashTitle}>Xác nhận thanh toán tiền mặt</div>
-            <div className={styles.cashHint}>Upload ảnh hoá đơn có chữ ký (dùng để đối soát/ghi nhận đã thanh toán).</div>
+    const archivedEstimates = arr.filter((e) => {
+        const status = normalizeEstimateStatus(e?.estimateStatus ?? e?.status ?? e?.estimate_status);
+        return status === 'ARCHIVED';
+    });
 
-            <div className={styles.evidenceBlock}>
-                <input
-                    id="cash-evidence"
-                    type="file"
-                    accept="image/*"
-                    onChange={onPick}
-                    className={styles.fileInput}
-                />
+    const approvedEstimates = arr.filter((e) => {
+        const status = normalizeEstimateStatus(e?.estimateStatus ?? e?.status ?? e?.estimate_status);
+        return status === 'APPROVED';
+    });
 
-                {previewUrl ? (
-                    <>
-                        <div className={styles.previewWrap}>
-                            <img className={styles.previewImg} src={previewUrl} alt="Ảnh hoá đơn" />
-                            {file?.name ? <div className={styles.fileName}>{file.name}</div> : null}
-                        </div>
-                        <div className={styles.evidenceActions}>
-                            <label htmlFor="cash-evidence" className={`ui-btn ui-btn--ghost ${styles.evidenceBtn}`}>
-                                Chọn ảnh khác
-                            </label>
-                            <button type="button" className={`ui-btn ui-btn--ghost ${styles.evidenceBtn}`} onClick={onRemove}>
-                                Xóa ảnh
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    <label htmlFor="cash-evidence" className={styles.uploadLabel}>
-                        <div className={styles.uploadText}>Click để chọn ảnh hoá đơn</div>
-                        <div className={styles.uploadSubtext}>Hỗ trợ: JPG/PNG. Chỉ chọn 1 ảnh.</div>
-                    </label>
-                )}
-            </div>
+    const listToSearch = archivedEstimates.length > 0 ? archivedEstimates : approvedEstimates.length > 0 ? approvedEstimates : arr;
+    return listToSearch.reduce((prev, current) => {
+        const prevId = Number(prev?.estimateId ?? prev?.id ?? prev?.serviceTicketEstimateId ?? 0);
+        const currentId = Number(current?.estimateId ?? current?.id ?? current?.serviceTicketEstimateId ?? 0);
+        return currentId > prevId ? current : prev;
+    }, listToSearch[0]);
+}
 
-            {error ? <div className={styles.error}>{error}</div> : null}
-        </div>
+function getItemConfirmedFlag(it) {
+    return Boolean(
+        it?.isChecked ??
+            it?.confirmed ??
+            it?.isConfirmed ??
+            it?.approved ??
+            it?.isApproved ??
+            it?.customerConfirmed ??
+            it?.isCustomerConfirmed,
     );
 }
 
-CashEvidenceSection.propTypes = {
-    file: PropTypes.any,
-    previewUrl: PropTypes.string,
-    error: PropTypes.string,
-    onPick: PropTypes.func,
-    onRemove: PropTypes.func,
-};
+function normalizeEstimateStatus(raw) {
+    const extracted =
+        raw && typeof raw === 'object'
+            ? raw?.code ?? raw?.name ?? raw?.status ?? raw?.estimateStatus ?? raw?.estimate_status ?? ''
+            : raw;
 
-// --- Main Modal Component ---
-
-export function ReceiptPaymentMethodModal({ open, onClose, ticketCode, total, printTicket, onConfirmPayment }) {
-    const [method, setMethod] = useState('transfer');
-    const [cashEvidenceFile, setCashEvidenceFile] = useState(null);
-    const [cashEvidencePreview, setCashEvidencePreview] = useState('');
-    const [cashError, setCashError] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-
-    const ticketCodeSafe = String(ticketCode || '').trim();
-    const totalSafe = useMemo(() => toMoneyNumber(total), [total]);
-    const hasRequiredState = Boolean(printTicket);
-
-    const transferContent = useMemo(() => {
-        const code = ticketCodeSafe || 'SERVICE_TICKET';
-        return `Thanh toan hoa don ${code}`; 
-    }, [ticketCodeSafe]);
-
-    useEffect(() => {
-        if (!open) return;
-        return () => safeRevokeObjectUrl(cashEvidencePreview);
-    }, [open, cashEvidencePreview]);
-
-    const handlePickCashEvidence = (e) => {
-        setCashError('');
-        const nextFile = e?.target?.files?.[0] ?? null;
-        setCashEvidenceFile(nextFile);
-        safeRevokeObjectUrl(cashEvidencePreview);
-        setCashEvidencePreview(nextFile ? URL.createObjectURL(nextFile) : '');
-    };
-
-    const handleRemoveCashEvidence = () => {
-        setCashError('');
-        setCashEvidenceFile(null);
-        safeRevokeObjectUrl(cashEvidencePreview);
-        setCashEvidencePreview('');
-    };
-
-    const handleConfirm = async () => {
-        setCashError('');
-        if (submitting) return;
-
-        if (method === 'cash') {
-            if (!cashEvidenceFile) {
-                setCashError('Vui lòng upload ảnh hoá đơn để xác nhận.');
-                return;
-            }
-            try {
-                setSubmitting(true);
-                await Promise.resolve(onConfirmPayment?.({ method, evidenceFile: cashEvidenceFile }));
-            } catch (error) {
-                toast.error(error?.message || 'Thanh toán thất bại.');
-                return;
-            } finally {
-                setSubmitting(false);
-            }
-        } else if (method === 'transfer') {
-            try {
-                setSubmitting(true);
-                await Promise.resolve(onConfirmPayment?.({ method, evidenceFile: null }));
-            } catch (error) {
-                toast.error(error?.message || 'Thanh toán thất bại.');
-                return;
-            } finally {
-                setSubmitting(false);
-            }
-        }
-        
-        // Giữ nguyên trang hiện tại sau khi xác nhận thanh toán
-        onClose?.();
-    };
-
-    let sectionContent = null;
-    if (method === 'cash') {
-        sectionContent = (
-            <CashEvidenceSection
-                file={cashEvidenceFile}
-                previewUrl={cashEvidencePreview}
-                error={cashError}
-                onPick={handlePickCashEvidence}
-                onRemove={handleRemoveCashEvidence}
-            />
-        );
-    } else if (method === 'transfer') {
-        const qrImgSrc = getVietQrUrl({ amountVnd: totalSafe, description: transferContent });
-
-        sectionContent = (
-            <div className={styles.qrSection}>
-                <div className={styles.qrTitle}>Quét mã VietQR để thanh toán</div>
-                <div className={styles.qrMeta}>
-                    <div className={styles.qrMetaRow}>
-                        <span>Số tiền:</span>
-                        <strong>{formatCurrencyVnd(totalSafe)}</strong>
-                    </div>
-                    <div className={styles.qrMetaRow}>
-                        <span>Nội dung:</span>
-                        <strong className={styles.qrMetaText}>{transferContent}</strong>
-                    </div>
-                </div>
-                
-                {/* QR hiện ngay lập tức không cần điều kiện */}
-                <div className={styles.qrImageWrapper}>
-                    <img className={styles.qrImg} src={qrImgSrc} alt="VietQR" loading="lazy" />
-                </div>
-            </div>
-        );
-    }
-
-    if (!open) return null;
-
-    if (!hasRequiredState) {
-        return (
-            <div className={styles.overlay}>
-                <div className={styles.backdrop} aria-hidden="true" />
-                <dialog
-                    open
-                    className={`ui-card ${styles.modal}`}
-                    aria-modal="true"
-                    aria-labelledby="receipt-payment-method-title"
-                    onCancel={(e) => {
-                        e.preventDefault();
-                    }}
-                >
-                    <header className={styles.header}>
-                        <div>
-                            <h2 id="receipt-payment-method-title" className={styles.title}>
-                                Chọn phương thức thanh toán
-                            </h2>
-                            <div className={styles.subTitle}>Phiếu dịch vụ #{ticketCodeSafe || '-'}</div>
-                        </div>
-                    </header>
-                    <div className={styles.error}>Thiếu dữ liệu hoá đơn. Vui lòng quay lại trang xác nhận hoá đơn.</div>
-                    <div className="ui-actions ui-actions--end">
-                        <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose}>
-                            Đóng
-                        </button>
-                    </div>
-                </dialog>
-            </div>
-        );
-    }
-
-    return (
-        <div className={styles.overlay}>
-            <div className={styles.backdrop} aria-hidden="true" />
-            <dialog
-                open
-                className={`ui-card ${styles.modal}`}
-                aria-modal="true"
-                aria-labelledby="receipt-payment-method-title"
-                onCancel={(e) => {
-                    e.preventDefault();
-                }}
-            >
-                <header className={styles.header}>
-                    <div>
-                        <h2 id="receipt-payment-method-title" className={styles.title}>
-                            Chọn phương thức thanh toán
-                        </h2>
-                        <div className={styles.subTitle}>Phiếu dịch vụ #{ticketCodeSafe || '-'}</div>
-                    </div>
-                </header>
-
-                <div className={styles.totalRow}>
-                    <span>Tổng cần thanh toán:</span>
-                    <strong>{formatCurrencyVnd(totalSafe)}</strong>
-                </div>
-
-                <div className={styles.methods}>
-                    <button
-                        type="button"
-                        className={`ui-btn ${method === 'cash' ? 'ui-btn--primary' : 'ui-btn--ghost'} ${styles.methodBtn}`}
-                        onClick={() => setMethod('cash')}
-                    >
-                        Tiền mặt
-                    </button>
-
-                    <button
-                        type="button"
-                        className={`ui-btn ${method === 'transfer' ? 'ui-btn--primary' : 'ui-btn--ghost'} ${styles.methodBtn}`}
-                        onClick={() => setMethod('transfer')}
-                    >
-                        Chuyển khoản
-                    </button>
-                </div>
-
-                {sectionContent}
-
-                <div className="ui-actions ui-actions--end">
-                    <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose}>
-                        Đóng
-                    </button>
-                    <button
-                        type="button"
-                        className="ui-btn ui-btn--primary"
-                        onClick={handleConfirm}
-                        disabled={submitting || (method === 'cash' && !cashEvidenceFile)}
-                    >
-                        {submitting ? 'Đang xử lý...' : 'Xác nhận đã thanh toán'}
-                    </button>
-                </div>
-            </dialog>
-        </div>
-    );
+    const value = String(extracted || '')
+        .trim()
+        .toUpperCase()
+        .replaceAll(/\s+/g, '_');
+    if (value === 'CONFIRMED') return 'APPROVED';
+    return value;
 }
 
-ReceiptPaymentMethodModal.propTypes = {
-    open: PropTypes.bool,
-    onClose: PropTypes.func,
-    ticketCode: PropTypes.string,
-    total: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-    printTicket: PropTypes.any,
-    onConfirmPayment: PropTypes.func,
-};
-
-// --- Main Page Component ---
+function pickMoneyDisplayValue(withVatValue, baseValue) {
+    const withVatNum = toMoneyNumber(withVatValue);
+    if (withVatNum > 0) return withVatNum;
+    const baseNum = toMoneyNumber(baseValue);
+    return Math.max(0, baseNum);
+}
 
 export default function ReceiptPaymentMethod() {
     useScrollToTop();
@@ -304,30 +79,391 @@ export default function ReceiptPaymentMethod() {
     const params = useParams();
 
     const ticketCodeParam = String(params?.ticketCode || '').trim();
-    const totalFromState = location?.state?.total;
-    const total = useMemo(() => toMoneyNumber(totalFromState), [totalFromState]);
-    const printTicket = location?.state?.printTicket ?? null;
+    const ticketFromState = location?.state?.ticket ?? null;
+    const serviceTicketIdFromState = location?.state?.serviceTicketId ?? ticketFromState?.serviceTicketId ?? null;
 
-    const handleConfirmPayment = async ({ method, evidenceFile }) => {
+    const [serviceTicketId, setServiceTicketId] = useState(() => {
+        const raw = serviceTicketIdFromState;
+        const id = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+        return Number.isFinite(id) && id > 0 ? id : null;
+    });
+
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [payment, setPayment] = useState(null);
+
+    const [estimateLoading, setEstimateLoading] = useState(false);
+    const [estimateError, setEstimateError] = useState('');
+    const [estimate, setEstimate] = useState(null);
+
+    const [method, setMethod] = useState('transfer');
+    const [submitting, setSubmitting] = useState(false);
+
+    const token = useMemo(() => localStorage.getItem('staffToken') || localStorage.getItem('authToken'), []);
+
+    useEffect(() => {
+        if (!token) {
+            setError('Vui lòng đăng nhập để thanh toán.');
+            setLoading(false);
+            return;
+        }
+
+        if (serviceTicketId) return;
+        if (!ticketCodeParam) {
+            setError('Thiếu ticketCode để lấy thông tin thanh toán.');
+            setLoading(false);
+            return;
+        }
+
+        let ignore = false;
+        const run = async () => {
+            try {
+                setLoading(true);
+                setError('');
+                const res = await fetchServiceTicketDetail(ticketCodeParam, token);
+                if (ignore) return;
+                const detail = res?.data ?? res;
+                const raw = detail?.serviceTicketId ?? detail?.ticketId ?? detail?.id ?? null;
+                const id = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+                if (!Number.isFinite(id) || id <= 0) throw new Error('Không tìm thấy serviceTicketId hợp lệ.');
+                setServiceTicketId(id);
+            } catch (err) {
+                if (ignore) return;
+                setError(err?.message || 'Không thể lấy serviceTicketId.');
+                setLoading(false);
+            }
+        };
+        run();
+        return () => {
+            ignore = true;
+        };
+    }, [serviceTicketId, ticketCodeParam, token]);
+
+    useEffect(() => {
+        if (!token) return;
+        if (!serviceTicketId) return;
+
+        let ignore = false;
+        const run = async () => {
+            try {
+                setLoading(true);
+                setError('');
+                const res = await fetchPaymentByServiceTicketId(serviceTicketId, token);
+                if (ignore) return;
+                const payload = res?.data?.data ?? res?.data ?? res;
+                setPayment(payload && typeof payload === 'object' ? payload : null);
+            } catch (err) {
+                if (ignore) return;
+                setPayment(null);
+                setError(err?.message || 'Không thể tải thông tin thanh toán.');
+            } finally {
+                if (!ignore) setLoading(false);
+            }
+        };
+
+        run();
+        return () => {
+            ignore = true;
+        };
+    }, [serviceTicketId, token]);
+
+    useEffect(() => {
+        if (!token) return;
+        if (!serviceTicketId) return;
+
+        let ignore = false;
+        const run = async () => {
+            try {
+                setEstimateLoading(true);
+                setEstimateError('');
+                const res = await fetchServiceTicketEstimate(serviceTicketId, token);
+                if (ignore) return;
+                setEstimate(pickLatestEstimate(res?.data) ?? null);
+            } catch (err) {
+                if (ignore) return;
+                setEstimate(null);
+				setEstimateError(err?.message || 'Không thể tải báo giá.');
+            } finally {
+                if (!ignore) setEstimateLoading(false);
+            }
+        };
+        run();
+
+        return () => {
+            ignore = true;
+        };
+    }, [serviceTicketId, token]);
+
+    const billId = useMemo(() => {
+        const raw = payment?.billId ?? payment?.billID ?? payment?.data?.billId ?? null;
+        const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+        return Number.isFinite(n) && n > 0 ? n : null;
+    }, [payment]);
+
+    const totalSafe = useMemo(() => toMoneyNumber(payment?.finalAmount), [payment]);
+    const paymentStatus = String(payment?.paymentStatus || '').trim().toUpperCase();
+    const isPaid = paymentStatus === 'PAID';
+
+    const estimateId = useMemo(() => {
+        const raw = estimate?.estimateId ?? estimate?.id ?? estimate?.serviceTicketEstimateId ?? null;
+        const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+        return Number.isFinite(n) && n > 0 ? n : null;
+    }, [estimate]);
+
+    const estimateVersion = useMemo(() => {
+        const raw = estimate?.version ?? estimate?.estimateVersion ?? estimate?.estimateNo ?? estimate?.versionNo ?? null;
+        const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+        return Number.isFinite(n) && n > 0 ? n : null;
+    }, [estimate]);
+
+    const estimateStatus = useMemo(
+        () => normalizeEstimateStatus(estimate?.estimateStatus ?? estimate?.status ?? estimate?.estimate_status),
+        [estimate?.estimateStatus, estimate?.status, estimate?.estimate_status],
+    );
+
+    const estimateItems = useMemo(() => {
+        const items = Array.isArray(estimate?.items) ? estimate.items : [];
+        return items
+            .filter((it) => !it?.isRemoved)
+            .map((it, idx) => {
+                const quantity = toMoneyNumber(it?.quantity);
+                const unitPrice = toMoneyNumber(it?.unitPrice);
+                const subTotal = toMoneyNumber(it?.subTotal);
+                const unitPriceWithVat = it?.unitPriceWithVat ?? it?.unitPriceWithVAT ?? 0;
+                const subTotalWithVat = it?.subTotalWithVat ?? it?.subTotalWithVAT ?? 0;
+                const unitPriceDisplay = pickMoneyDisplayValue(unitPriceWithVat, unitPrice);
+                const subTotalDisplay = pickMoneyDisplayValue(subTotalWithVat, subTotal);
+                const categoryName = it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
+                return {
+                    key: String(it?.estimateItemId ?? it?.itemId ?? `${idx}`),
+                    categoryName,
+                    itemName: String(it?.itemName || '').trim(),
+                    quantity,
+                    unitPriceDisplay,
+                    subTotalDisplay,
+                    confirmed: getItemConfirmedFlag(it),
+                };
+            })
+            .filter((r) => r.itemName || r.categoryName || r.quantity > 0 || r.unitPriceDisplay > 0 || r.subTotalDisplay > 0);
+    }, [estimate]);
+
+    const payItems = useMemo(() => estimateItems.filter((it) => it.confirmed), [estimateItems]);
+
+    const transferContent = useMemo(() => {
+        const code = ticketCodeParam || ticketFromState?.ticketCode || 'SERVICE_TICKET';
+        return `Thanh toan hoa don ${code}`;
+    }, [ticketCodeParam, ticketFromState?.ticketCode]);
+
+    const qrImgSrc = useMemo(() => {
+        if (method !== 'transfer') return '';
+        return getVietQrUrl({ amountVnd: totalSafe, description: transferContent });
+    }, [method, totalSafe, transferContent]);
+
+    const handleConfirm = async () => {
+        if (!token) {
+            toast.error('Vui lòng đăng nhập để thanh toán.');
+            return;
+        }
+        if (!billId) {
+            toast.error('Chưa có hoá đơn (billId). Vui lòng tạo hoá đơn trước.');
+            return;
+        }
+        if (!serviceTicketId) {
+            toast.error('Không xác định được serviceTicketId.');
+            return;
+        }
+        if (submitting || isPaid) return;
+
         try {
-            // Xử lý gọi API update database ở đây (nếu có)
-            console.log("Dữ liệu thanh toán chuẩn bị gửi đi:", { method, evidenceFile });
-        } catch (error) {
-            console.error("Lỗi khi gọi API xác nhận thanh toán:", error);
-            toast.error("Đã xảy ra lỗi khi lưu thông tin thanh toán.");
+            setSubmitting(true);
+            const payPayload = {
+                billId,
+                amount: toMoneyNumber(totalSafe),
+                method: method === 'cash' ? 'CASH' : 'TRANSFER',
+            };
+            await payBill(payPayload, token);
+            await manageServiceTicketStatus(serviceTicketId, 'PAID', token);
+            toast.success('Thanh toán thành công');
+
+            try {
+                const res = await fetchPaymentByServiceTicketId(serviceTicketId, token);
+                const payload = res?.data?.data ?? res?.data ?? res;
+                setPayment(payload && typeof payload === 'object' ? payload : null);
+            } catch {
+                // ignore
+            }
+        } catch (err) {
+            toast.error(err?.message || 'Thanh toán thất bại.');
+        } finally {
+            setSubmitting(false);
         }
     };
 
     return (
         <div className={styles.page}>
-            <ReceiptPaymentMethodModal
-                open
-                onClose={() => navigate(-1)}
-                ticketCode={ticketCodeParam}
-                total={total}
-                printTicket={printTicket}
-                onConfirmPayment={handleConfirmPayment}
-            />
+            <header className={styles.header}>
+                <div>
+                    <h1 className={styles.title}>Thanh toán</h1>
+                    <div className={styles.subTitle}>Phiếu dịch vụ #{ticketCodeParam || ticketFromState?.ticketCode || '-'}</div>
+                </div>
+                <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate(-1)}>
+                    Quay lại
+                </button>
+            </header>
+
+            <section className={`ui-card ${styles.modal}`}>
+                {loading ? (
+                    <div className={styles.error}>Đang tải thông tin thanh toán...</div>
+                ) : null}
+
+                {!loading && error ? (
+                    <div className={styles.error}>{error}</div>
+                ) : null}
+
+                {!loading && !error && payment ? (
+                    <>
+                        <div className={styles.section}>
+                            <div className={styles.sectionTitle}>Báo giá mới nhất</div>
+                            {estimateLoading ? <div className={styles.muted}>Đang tải báo giá...</div> : null}
+                            {!estimateLoading && estimateError ? <div className={styles.error}>{estimateError}</div> : null}
+
+                            {!estimateLoading && !estimateError ? (
+                                <div className={styles.qrMeta}>
+                                    <div className={styles.qrMetaRow}>
+                                        <span>Estimate ID:</span>
+                                        <strong>{estimateId ?? '-'}</strong>
+                                    </div>
+                                    <div className={styles.qrMetaRow}>
+                                        <span>Version:</span>
+                                        <strong>{estimateVersion ?? '-'}</strong>
+                                    </div>
+                                    <div className={styles.qrMetaRow}>
+                                        <span>Trạng thái:</span>
+                                        <strong>{estimateStatus || '-'}</strong>
+                                    </div>
+                                </div>
+                            ) : null}
+
+
+                            {payItems.length ? (
+                                <div className={styles.tableWrap}>
+                                    <table className={styles.table}>
+                                        <colgroup>
+                                            <col style={{ width: 160 }} />
+                                            <col />
+                                            <col style={{ width: 70 }} />
+                                            <col style={{ width: 140 }} />
+                                            <col style={{ width: 140 }} />
+                                        </colgroup>
+                                        <thead>
+                                            <tr>
+                                                <th>Hạng mục</th>
+                                                <th>Diễn giải</th>
+                                                <th className={styles.thQty}>SL</th>
+                                                <th className={styles.thNumber}>Đơn giá</th>
+                                                <th className={styles.thNumber}>Thành tiền</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {payItems.map((it) => (
+                                                <tr key={it.key}>
+                                                    <td className={styles.tdText}>{it.categoryName}</td>
+                                                    <td className={styles.tdText}>{it.itemName}</td>
+                                                    <td className={styles.tdQty}>{it.quantity ? String(it.quantity) : ''}</td>
+                                                    <td className={styles.tdNumber}>{formatCurrencyVnd(it.unitPriceDisplay)}</td>
+                                                    <td className={styles.tdNumber}>{formatCurrencyVnd(it.subTotalDisplay)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                !estimateLoading && !estimateError ? <div className={styles.muted}>Chưa có hạng mục nào được xác nhận.</div> : null
+                            )}
+                        </div>
+
+                        <div className={styles.qrMeta}>
+
+                            <div className={styles.qrMetaRow}>
+                                <span>Trạng thái:</span>
+                                <strong>{paymentStatus || '-'}</strong>
+                            </div>
+                            <div className={styles.qrMetaRow}>
+                                <span>Giá gốc:</span>
+                                <strong>{formatCurrencyVnd(payment?.subTotal)}</strong>
+                            </div>
+                            <div className={styles.qrMetaRow}>
+                                <span>Giảm giá:</span>
+                                <strong>{formatCurrencyVnd(payment?.discountAmount)}</strong>
+                            </div>
+                            <div className={styles.qrMetaRow}>
+                            <span>Tổng cần thanh toán:</span>
+                            <strong>{formatCurrencyVnd(totalSafe)}</strong>
+                            </div>
+
+                        </div>
+
+                        <div className={styles.methods}>
+                            <button
+                                type="button"
+                                className={`ui-btn ${method === 'cash' ? 'ui-btn--primary' : 'ui-btn--ghost'} ${styles.methodBtn}`}
+                                onClick={() => setMethod('cash')}
+                                disabled={isPaid || submitting}
+                            >
+                                Tiền mặt
+                            </button>
+                            <button
+                                type="button"
+                                className={`ui-btn ${method === 'transfer' ? 'ui-btn--primary' : 'ui-btn--ghost'} ${styles.methodBtn}`}
+                                onClick={() => setMethod('transfer')}
+                                disabled={isPaid || submitting}
+                            >
+                                Chuyển khoản
+                            </button>
+                        </div>
+
+                        {method === 'transfer' ? (
+                            <div className={styles.qrSection}>
+                                <div className={styles.qrTitle}>Quét mã VietQR để thanh toán</div>
+                                <div className={styles.qrMeta}>
+                                    <div className={styles.qrMetaRow}>
+                                        <span>Số tiền:</span>
+                                        <strong>{formatCurrencyVnd(totalSafe)}</strong>
+                                    </div>
+                                    <div className={styles.qrMetaRow}>
+                                        <span>Nội dung:</span>
+                                        <strong className={styles.qrMetaText}>{transferContent}</strong>
+                                    </div>
+                                </div>
+                                {qrImgSrc ? (
+                                    <div className={styles.qrImgWrap}>
+                                        <img className={styles.qrImg} src={qrImgSrc} alt="VietQR" loading="lazy" />
+                                    </div>
+                                ) : null}
+                            </div>
+                        ) : (
+                            <div className={styles.cashSection}>
+                                <div className={styles.cashTitle}>Thanh toán tiền mặt</div>
+                                <div className={styles.cashHint}>Nhận tiền mặt và xác nhận để hoàn tất thanh toán.</div>
+                            </div>
+                        )}
+
+                        <div className="ui-actions ui-actions--end">
+                            <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate(-1)}>
+                                Đóng
+                            </button>
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn--primary"
+                                onClick={handleConfirm}
+                                disabled={submitting || isPaid}
+                            >
+                                {isPaid ? 'Đã thanh toán' : (submitting ? 'Đang xử lý...' : 'Xác nhận đã thanh toán')}
+                            </button>
+                        </div>
+                    </>
+                ) : null}
+            </section>
         </div>
     );
 }

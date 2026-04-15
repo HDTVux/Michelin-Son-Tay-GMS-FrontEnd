@@ -4,7 +4,7 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
 import { fetchWarehousesAll, fetchWarehouseStockIssues } from '../../../services/warehouseService.js';
 import commonStyles from '../common/ManagementCommon.module.css';
-import styles from './WarehouseStockIssues.module.css';
+import styles from './WarehouseStockIssuesManagement.module.css';
 
 const DEFAULT_WAREHOUSE_ID = 1;
 
@@ -206,7 +206,7 @@ export default function WarehouseStockIssues() {
 							<tr>
 								<th>STT</th>
 								<th>Mã phiếu</th>
-								<th>Loại</th>
+								<th>Kho xuất</th>
 								<th>Phiếu dịch vụ</th>
 								<th>Ngày tạo</th>
 								<th>Trạng thái</th>
@@ -229,8 +229,8 @@ export default function WarehouseStockIssues() {
 										<tr key={String(id)}>
 											<td>{id || '-'}</td>
 											<td>{row?.issueCode || '-'}</td>
-											<td>{row?.issueType || '-'}</td>
-											<td>{row?.serviceTicketId ?? '-'}</td>
+											<td>{row?.warehouseName || '-'}</td>
+											<td>{row?.serviceTicketCode ?? '-'}</td>
 											<td>{row?.createdAt || '-'}</td>
 											<td>
 												<span className={`${commonStyles.badge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
