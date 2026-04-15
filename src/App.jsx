@@ -75,6 +75,7 @@ import BookingManagement from './pages/DashBoard/BookingRequestManagement/Bookin
 import ConfirmedBookingManagement from './pages/DashBoard/BookingManagement/ConfirmedBookingManagement.jsx';
 import BookingRequestEdit from './pages/DashBoard/BookingRequestManagement/BookingRequestEdit.jsx';
 import ReceiptPaymentMethod from './pages/DashBoard/Receipt/ReceiptPaymentMethod.jsx';
+import AccountingInvoicePrint from './pages/DashBoard/Receipt/AccountingInvoicePrint.jsx';
 import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 
 // Import Work History pages
@@ -222,6 +223,7 @@ export default function App() {
           <Route path="service-ticket/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket/:ticketCode/receipt-confirm" element={<ReceiptConfirm />} />
           <Route path="service-ticket/:ticketCode/receipt-payment-method" element={<ReceiptPaymentMethod />} />
+          <Route path="service-ticket/:ticketCode/accounting-invoice-print" element={<AccountingInvoicePrint />} />
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="part-management" element={<PartManagement />} />
