@@ -3,7 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import { confirmWarehouseStockIssue, fetchWarehouseStockIssueDetail } from '../../../services/warehouseService.js';
+import {
+  confirmWarehouseStockIssue,
+  fetchWarehouseStockIssueDetail,
+  uploadWarehouseStockIssueAttachment,
+} from '../../../services/warehouseService.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
 import { formatCurrencyVnd } from '../PartManagement/itemFormatters.js';
 import commonStyles from '../common/ManagementCommon.module.css';
@@ -41,38 +45,27 @@ EntryField.propTypes = {
   fullRow: PropTypes.bool,
 };
 
-const IssueSummaryCard = ({ issue, statusLabel, statusValue, isDraft, isConfirming, onConfirm }) => (
+const IssueSummaryCard = ({ issue, statusLabel, statusValue }) => (
   <section className={styles.card}>
     <div className={styles.headerRow}>
       <div className={styles.titleBlock}>
         <div className={styles.entryCode}>{issue?.issueCode || `#${issue?.issueId || '-'}`}</div>
         <span className={`${commonStyles.badge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
       </div>
-      {isDraft ? (
-        <button
-          type="button"
-          className="ui-btn ui-btn--primary"
-          onClick={onConfirm}
-          disabled={isConfirming}
-        >
-          {isConfirming ? 'Đang xác nhận...' : 'Xác nhận phiếu xuất'}
-        </button>
-      ) : null}
     </div>
 
     <div className={styles.detailGrid}>
       <EntryField label="Mã phiếu xuất" value={issue?.issueCode || '-'} />
-      <EntryField label="Kho" value={issue?.warehouseId ?? '-'} />
-      <EntryField label="Loại phiếu" value={String(issue?.issueType || '').trim() || '-'} />
+      <EntryField label="Kho" value={issue?.warehouseName ?? '-'} />
       <EntryField label="Trạng thái" value={getStatusTextVi(issue?.status, issue?.status || '-')} />
       <EntryField label="Lý do" value={issue?.issueReason || '-'} fullRow />
 
-      <EntryField label="Mã phiếu dịch vụ" value={issue?.serviceTicketId ?? '-'} />
+      <EntryField label="Mã phiếu dịch vụ" value={issue?.serviceTicketCode ?? '-'} />
       <EntryField label="Chiết khấu" value={formatPercent(issue?.discountRate)} />
 
-      <EntryField label="Người tạo" value={issue?.createdBy ?? '-'} />
+      <EntryField label="Người tạo" value={issue?.createdByName ?? '-'} />
       <EntryField label="Ngày tạo" value={issue?.createdAt || '-'} />
-      <EntryField label="Người xác nhận" value={issue?.confirmedBy ?? '-'} />
+      <EntryField label="Người xác nhận" value={issue?.confirmedByName ?? '-'} />
       <EntryField label="Ngày xác nhận" value={issue?.confirmedAt || '-'} />
     </div>
   </section>
@@ -83,21 +76,22 @@ IssueSummaryCard.propTypes = {
     issueId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     issueCode: PropTypes.string,
     warehouseId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    warehouseName: PropTypes.string,
     issueType: PropTypes.string,
     issueReason: PropTypes.string,
     serviceTicketId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    serviceTicketCode: PropTypes.string,
     discountRate: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     status: PropTypes.string,
     confirmedBy: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    confirmedByName: PropTypes.string,
     confirmedAt: PropTypes.string,
     createdBy: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    createdByName: PropTypes.string,
     createdAt: PropTypes.string,
   }),
   statusLabel: PropTypes.string.isRequired,
   statusValue: PropTypes.string.isRequired,
-  isDraft: PropTypes.bool,
-  isConfirming: PropTypes.bool,
-  onConfirm: PropTypes.func,
 };
 
 const IssueItemsCard = ({ items }) => (
@@ -110,12 +104,12 @@ const IssueItemsCard = ({ items }) => (
         <thead>
           <tr>
             <th>STT</th>
-            <th>Mã dòng</th>
             <th>Mã sản phẩm</th>
+            <th>Tên sản phẩm</th>
             <th>Mã lô nhập</th>
             <th>Số lượng</th>
-            <th>Giá xuất</th>
             <th>Giá nhập</th>
+            <th>Giá xuất</th>
             <th>CK (%)</th>
             <th>Thành tiền</th>
             <th>Lợi nhuận gộp</th>
@@ -128,12 +122,12 @@ const IssueItemsCard = ({ items }) => (
               return (
                 <tr key={String(key)}>
                   <td>{idx + 1}</td>
-                  <td>{row?.issueItemId ?? '-'}</td>
                   <td>{row?.itemId ?? '-'}</td>
-                  <td>{row?.entryItemId ?? '-'}</td>
+                  <td>{row?.itemName ?? '-'}</td>
+                  <td>{row?.entryLotCode ?? '-'}</td>
                   <td>{row?.quantity ?? '-'}</td>
-                  <td>{formatVnd(row?.exportPrice)}</td>
                   <td>{formatVnd(row?.importPrice)}</td>
+                  <td>{formatVnd(row?.exportPrice)}</td>
                   <td>{row?.discountRate ?? '-'}</td>
                   <td>{formatVnd(row?.finalPrice)}</td>
                   <td>{formatVnd(row?.grossProfit)}</td>
@@ -155,6 +149,29 @@ IssueItemsCard.propTypes = {
   items: PropTypes.arrayOf(PropTypes.shape({})),
 };
 
+const getAttachmentCount = (issue) => {
+  const candidates = [
+    issue?.attachments,
+    issue?.attachmentUrls,
+    issue?.attachmentURLS,
+    issue?.evidences,
+    issue?.evidenceFiles,
+    issue?.documents,
+  ];
+  for (const value of candidates) {
+    if (Array.isArray(value) && value.length > 0) return value.length;
+  }
+  return 0;
+};
+
+const getAttachmentUrls = (issue) => {
+  const raw = issue?.attachmentUrls ?? issue?.attachmentURLS ?? issue?.attachments ?? null;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((u) => String(u ?? '').trim())
+    .filter(Boolean);
+};
+
 export default function WarehouseStockIssueDetail() {
   useScrollToTop();
   const navigate = useNavigate();
@@ -164,6 +181,12 @@ export default function WarehouseStockIssueDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isConfirming, setIsConfirming] = useState(false);
+
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [hasUploadedEvidence, setHasUploadedEvidence] = useState(false);
+
+  const [previewUrl, setPreviewUrl] = useState('');
 
   const issueId = Number(params.issueId);
   const hasValidIssueId = Number.isFinite(issueId) && issueId > 0;
@@ -207,6 +230,31 @@ export default function WarehouseStockIssueDetail() {
   const isDraft = statusValue === 'DRAFT';
   const statusLabel = getStatusTextVi(statusValue, statusValue || '-');
 
+  const attachmentCount = getAttachmentCount(issue);
+  const attachmentUrls = getAttachmentUrls(issue);
+  const evidenceSatisfied = attachmentCount > 0 || hasUploadedEvidence;
+
+  useEffect(() => {
+    if (!previewUrl) return undefined;
+
+    const prevOverflow = globalThis?.document?.body?.style?.overflow;
+    if (globalThis?.document?.body?.style) {
+      globalThis.document.body.style.overflow = 'hidden';
+    }
+
+    const onKeyDown = (e) => {
+      if (e?.key === 'Escape') setPreviewUrl('');
+    };
+
+    globalThis?.window?.addEventListener?.('keydown', onKeyDown);
+    return () => {
+      globalThis?.window?.removeEventListener?.('keydown', onKeyDown);
+      if (globalThis?.document?.body?.style) {
+        globalThis.document.body.style.overflow = prevOverflow || '';
+      }
+    };
+  }, [previewUrl]);
+
   const fetchDetail = async (targetIssueId) => {
     const safeIssueId = Number(targetIssueId ?? issue?.issueId ?? params.issueId);
     if (!Number.isFinite(safeIssueId) || safeIssueId <= 0) {
@@ -219,10 +267,71 @@ export default function WarehouseStockIssueDetail() {
     setIssue(data && typeof data === 'object' ? data : null);
   };
 
+  const handleSelectFiles = (e) => {
+    const files = Array.from(e?.target?.files ?? []).filter((f) => f && typeof f === 'object');
+    setSelectedFiles(files);
+  };
+
+  const handleUploadEvidence = async () => {
+    const safeIssueId = Number(issue?.issueId ?? params.issueId);
+    if (!Number.isFinite(safeIssueId) || safeIssueId <= 0) {
+      toast.error('Không xác định được mã phiếu xuất kho.');
+      return;
+    }
+
+    if (uploading) return;
+
+    const files = Array.isArray(selectedFiles) ? selectedFiles : [];
+    if (files.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 ảnh chứng từ.');
+      return;
+    }
+
+    const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+    if (!token) {
+      toast.error('Vui lòng đăng nhập để tải ảnh chứng từ.');
+      return;
+    }
+
+    setUploading(true);
+    let successCount = 0;
+    try {
+      for (const file of files) {
+        // only allow images
+        const type = String(file?.type || '').toLowerCase();
+        if (type && !type.startsWith('image/')) {
+          throw new Error('Chỉ hỗ trợ upload ảnh (jpg/png/webp...).');
+        }
+        await uploadWarehouseStockIssueAttachment(safeIssueId, file, token);
+        successCount += 1;
+      }
+
+      if (successCount > 0) {
+        toast.success(`Đã tải lên ${successCount} ảnh chứng từ.`);
+        setHasUploadedEvidence(true);
+        setSelectedFiles([]);
+        try {
+          await fetchDetail(safeIssueId);
+        } catch {
+          // ignore
+        }
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Không thể tải ảnh chứng từ.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleConfirm = async () => {
     const safeIssueId = Number(issue?.issueId ?? params.issueId);
     if (!Number.isFinite(safeIssueId) || safeIssueId <= 0) {
       toast.error('Không xác định được mã phiếu xuất kho.');
+      return;
+    }
+
+    if (!evidenceSatisfied) {
+      toast.error('Vui lòng tải lên ít nhất 1 ảnh chứng từ trước khi xác nhận.');
       return;
     }
 
@@ -264,11 +373,72 @@ export default function WarehouseStockIssueDetail() {
           issue={issue}
           statusLabel={statusLabel}
           statusValue={statusValue}
-          isDraft={isDraft}
-          isConfirming={isConfirming}
-          onConfirm={handleConfirm}
         />
         <IssueItemsCard items={issue?.items} />
+
+        {isDraft || attachmentUrls.length > 0 ? (
+          <section className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Chứng từ</h2>
+            </div>
+
+            {isDraft ? (
+              <div className={styles.uploadRow}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleSelectFiles}
+                  disabled={uploading || isConfirming}
+                />
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--primary"
+                  onClick={handleUploadEvidence}
+                  disabled={uploading || isConfirming}
+                >
+                  {uploading ? 'Đang tải lên...' : 'Tải ảnh lên'}
+                </button>
+              </div>
+            ) : null}
+
+            <div className={styles.uploadHint}>
+              {attachmentCount > 0 ? (
+                <span>Đã có {attachmentCount} ảnh chứng từ.</span>
+              ) : evidenceSatisfied ? (
+                <span>Đã tải ảnh chứng từ (chưa đồng bộ danh sách từ backend).</span>
+              ) : (
+                <span className={styles.requiredHint}>Bắt buộc: tải lên ít nhất 1 ảnh trước khi xác nhận.</span>
+              )}
+            </div>
+
+            {attachmentUrls.length > 0 ? (
+              <div className={styles.gallery}>
+                {attachmentUrls.map((url, idx) => (
+                  <button
+                    key={`${url}-${idx}`}
+                    type="button"
+                    className={styles.thumb}
+                    onClick={() => setPreviewUrl(url)}
+                    title="Xem ảnh"
+                  >
+                    <img className={styles.thumbImg} src={url} alt={`Chứng từ ${idx + 1}`} loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {selectedFiles.length > 0 ? (
+              <div className={styles.fileList}>
+                {selectedFiles.map((f) => (
+                  <div key={`${f?.name || 'file'}-${f?.lastModified || ''}`} className={styles.fileItem}>
+                    {f?.name || 'Ảnh'}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
       </>
     );
   } else {
@@ -293,7 +463,35 @@ export default function WarehouseStockIssueDetail() {
         </header>
 
         {bodyContent}
+
+        {issue && isDraft ? (
+          <button
+            type="button"
+            className={`ui-btn ui-btn--primary ${styles.confirmButton}`}
+            onClick={handleConfirm}
+            disabled={isConfirming || uploading || !evidenceSatisfied}
+          >
+            {isConfirming ? 'Đang xác nhận...' : 'Xác nhận phiếu xuất'}
+          </button>
+        ) : null}
       </div>
+
+      {previewUrl ? (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true">
+          <button type="button" className={styles.modalBackdrop} onClick={() => setPreviewUrl('')} aria-label="Đóng" />
+          <div className={styles.modalBox}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Ảnh chứng từ</h3>
+              <button type="button" className={styles.modalClose} onClick={() => setPreviewUrl('')} aria-label="Đóng">
+                ×
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <img className={styles.previewImg} src={previewUrl} alt="Chứng từ" />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

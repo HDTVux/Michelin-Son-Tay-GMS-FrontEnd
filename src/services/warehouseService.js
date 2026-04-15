@@ -569,6 +569,45 @@ export const confirmWarehouseStockIssue = (id, token) => {
   });
 };
 
+// POST: /api/warehouse/stock-issues/{id}/attachments
+// multipart: file
+export const uploadWarehouseStockIssueAttachment = async (id, file, token) => {
+  const idNum = typeof id === 'number' ? id : Number(id);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+  const uploadFile = file ?? null;
+  if (!uploadFile) throw new Error('Thiếu ảnh chứng từ.');
+
+  const formData = new FormData();
+  formData.append('file', uploadFile, uploadFile?.name || 'attachment');
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/warehouse/stock-issues/${encodeURIComponent(String(safeId))}/attachments`,
+    {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    },
+  );
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json') ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof data === 'string' ? data : data?.message || data?.data?.message || 'Request failed';
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  if (data?.success === false) {
+    const error = new Error(data?.message || data?.data?.message || 'Request failed');
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+};
+
 // POST: /api/warehouse/allocations/{ticketId}/request-issue
 // Parameters: ticketId (serviceTicketId)
 export const requestWarehouseStockIssue = (ticketId, token) => {

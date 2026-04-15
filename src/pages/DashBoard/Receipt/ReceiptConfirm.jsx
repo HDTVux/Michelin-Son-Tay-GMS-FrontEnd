@@ -8,16 +8,14 @@ import {
     fetchServiceTicketEstimate,
     fetchSafetyInspectionCurrentRecommend,
     manageServiceTicketEstimateStatus,
-    manageServiceTicketStatus,
 } from '../../../services/serviceTicketService.js';
-import { createPayment, payBill } from '../../../services/paymentService.js';
+import { createPayment, fetchPaymentByServiceTicketId } from '../../../services/paymentService.js';
 import { getSafetyInspectionByTicketCode, getDefaultSafetyInspectionCategories } from '../../../services/safetyInspectionService.js';
 
 // (merged into above import)
 import { fetchAvailablePromotions, fetchPromotionByCode } from '../../../services/promotionService.js';
 import { formatDateTimeViNoSeconds } from '../../../components/timeUtils.js';
 import Receipt from './Receipt.jsx';
-import { ReceiptPaymentMethodModal } from './ReceiptPaymentMethod.jsx';
 import styles from './ReceiptConfirm.module.css';
 
 function toMoneyNumber(value) {
@@ -42,14 +40,18 @@ function pickLatestEstimate(list) {
     const arr = Array.isArray(list) ? list : [];
     if (arr.length === 0) return null;
 
-    // 1. Lọc ra danh sách CHỈ chứa các báo giá đã APPROVED
-    const approvedEstimates = arr.filter(e => {
-        const status = String(e?.estimateStatus || e?.status || '').toUpperCase();
-        return status === 'APPROVED' || status === 'CONFIRMED';
+    const archivedEstimates = arr.filter((e) => {
+        const status = normalizeEstimateStatus(e?.estimateStatus ?? e?.status ?? e?.estimate_status);
+        return status === 'ARCHIVED';
     });
 
-    // Nếu tìm thấy các báo giá APPROVED, ta chỉ làm việc trên danh sách này
-    const listToSearch = approvedEstimates.length > 0 ? approvedEstimates : arr;
+    // Nếu chưa ARCHIVED thì ưu tiên báo giá đã APPROVED/CONFIRMED, nếu không có thì lấy mới nhất theo id
+    const approvedEstimates = arr.filter((e) => {
+        const status = normalizeEstimateStatus(e?.estimateStatus ?? e?.status ?? e?.estimate_status);
+        return status === 'APPROVED';
+    });
+
+    const listToSearch = archivedEstimates.length > 0 ? archivedEstimates : approvedEstimates.length > 0 ? approvedEstimates : arr;
 
     // 2. Tìm ID lớn nhất (mới nhất) trong danh sách đó
     const latest = listToSearch.reduce((prev, current) => {
@@ -60,17 +62,6 @@ function pickLatestEstimate(list) {
 
     console.log("=> BÁO GIÁ ĐƯỢC CHỌN ĐỂ IN:", latest);
     return latest;
-}
-
-function pickNewestEstimateById(list) {
-    const arr = Array.isArray(list) ? list : [];
-    if (arr.length === 0) return null;
-
-    return arr.reduce((prev, current) => {
-        const prevId = Number(prev?.estimateId ?? prev?.id ?? prev?.serviceTicketEstimateId ?? 0);
-        const currentId = Number(current?.estimateId ?? current?.id ?? current?.serviceTicketEstimateId ?? 0);
-        return currentId > prevId ? current : prev;
-    }, arr[0]);
 }
 
 function normalizeBillId(input) {
@@ -86,13 +77,6 @@ function normalizeBillId(input) {
     if (raw == null) return null;
     const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
     return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function normalizePaymentMethod(method) {
-    const m = String(method || '').trim().toLowerCase();
-    if (m === 'cash') return 'CASH';
-    if (m === 'transfer') return 'TRANSFER';
-    return method;
 }
 
 const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
@@ -143,7 +127,12 @@ function normalizeServiceTicketStatus(raw) {
 }
 
 function normalizeEstimateStatus(raw) {
-    const value = String(raw || '')
+    const extracted =
+        raw && typeof raw === 'object'
+            ? raw?.code ?? raw?.name ?? raw?.status ?? raw?.estimateStatus ?? raw?.estimate_status ?? ''
+            : raw;
+
+    const value = String(extracted || '')
         .trim()
         .toUpperCase()
         .replaceAll(/\s+/g, '_');
@@ -324,7 +313,7 @@ function readStaffRolesFromStorage() {
 }
 
 function runFetchTicketEffect({ ticketRaw, ticketCodeParam, setTicketError, setTicketLoading, setTicketRaw }) {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
     if (!token) {
         setTicketError('Vui lòng đăng nhập để tạo hoá đơn.');
         return undefined;
@@ -358,7 +347,7 @@ function runFetchTicketEffect({ ticketRaw, ticketCodeParam, setTicketError, setT
 }
 
 function runFetchEstimateEffect({ serviceTicketId, setEstimateLoading, setEstimateError, setEstimate }) {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
     if (!token || serviceTicketId == null || String(serviceTicketId).trim() === '') return undefined;
 
     let ignore = false;
@@ -485,11 +474,7 @@ function runFetchDefaultSafetyCategoriesEffect({ setDefaultCategories }) {
     };
 }
 
-function runAccountantModalGuardEffect({ isAccountant, paymentOpen, setPaymentOpen }) {
-    if (!isAccountant && paymentOpen) setPaymentOpen(false);
-}
-
-function renderPrimaryAction({ canConfirmDelivered, canPay, isAccountant, delivering, billCreating, onConfirmDelivered, onConfirmPay }) {
+function renderPrimaryAction({ canConfirmDelivered, canPay, isAccountant, delivering, onConfirmDelivered, onConfirmPay }) {
     if (canConfirmDelivered) {
         return (
             <button type="button" className="ui-btn ui-btn--primary" onClick={onConfirmDelivered} disabled={delivering}>
@@ -499,8 +484,8 @@ function renderPrimaryAction({ canConfirmDelivered, canPay, isAccountant, delive
     }
     if (canPay && isAccountant) {
         return (
-            <button type="button" className="ui-btn ui-btn--primary" onClick={onConfirmPay} disabled={billCreating}>
-                {billCreating ? 'Đang tạo phiếu dịch vụ...' : 'Thanh toán'}
+            <button type="button" className="ui-btn ui-btn--primary" onClick={onConfirmPay}>
+                Thanh toán
             </button>
         );
     }
@@ -539,10 +524,12 @@ export default function ReceiptConfirm() {
     const [promoApplying, setPromoApplying] = useState(false);
     const [promoError, setPromoError] = useState('');
     
-    const [paymentOpen, setPaymentOpen] = useState(false);
-    const [paymentSubmitting, setPaymentSubmitting] = useState(false);
     const [billCreating, setBillCreating] = useState(false);
     const [billId, setBillId] = useState(null);
+
+    const [paymentLookupLoading, setPaymentLookupLoading] = useState(false);
+    const [paymentLookupError, setPaymentLookupError] = useState('');
+    const [paymentInfo, setPaymentInfo] = useState(null);
 
     const [delivering, setDelivering] = useState(false);
 
@@ -550,6 +537,8 @@ export default function ReceiptConfirm() {
     const isAccountant = staffRoles.includes(STAFF_ROLE.ACCOUNTANT);
 
     const notify = (message) => toast(message, { containerId: 'app-toast' });
+
+	const getToken = () => localStorage.getItem('staffToken') || localStorage.getItem('authToken');
 
     useEffect(() => {
         return runFetchTicketEffect({ ticketRaw, ticketCodeParam, setTicketError, setTicketLoading, setTicketRaw });
@@ -566,9 +555,10 @@ export default function ReceiptConfirm() {
     const canPay = estimateStatus === 'ARCHIVED' && ticketStatus === 'COMPLETED';
     const canConfirmDelivered = ticketStatus === 'PAID';
 
-    useEffect(() => {
-        return runAccountantModalGuardEffect({ isAccountant, paymentOpen, setPaymentOpen });
-    }, [isAccountant, paymentOpen]);
+    const hasBill = billId != null;
+    const promoLocked = hasBill;
+
+
 
     useEffect(() => {
         return runFetchEstimateEffect({
@@ -578,6 +568,65 @@ export default function ReceiptConfirm() {
             setEstimate,
         });
     }, [ticket?.serviceTicketId]);
+
+    useEffect(() => {
+        const serviceTicketIdRaw = ticket?.serviceTicketId ?? null;
+        const serviceTicketId = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(String(serviceTicketIdRaw ?? '').trim());
+        const token = getToken();
+
+        if (!token) return undefined;
+        if (!Number.isFinite(serviceTicketId) || serviceTicketId <= 0) return undefined;
+
+        let ignore = false;
+        const run = async () => {
+            try {
+                setPaymentLookupLoading(true);
+                setPaymentLookupError('');
+
+                const res = await fetchPaymentByServiceTicketId(serviceTicketId, token);
+                if (ignore) return;
+
+                const payload = res?.data?.data ?? res?.data ?? res;
+                const existingBillId = normalizeBillId(payload);
+                setPaymentInfo(payload && typeof payload === 'object' ? payload : null);
+                setBillId(existingBillId);
+            } catch (err) {
+                if (ignore) return;
+
+                const message = String(err?.message || '');
+                const isNoBill =
+                    err?.status === 404 ||
+                    /bill\s*not\s*found/i.test(message) ||
+                    /bill[_\s-]*not[_\s-]*found/i.test(message) ||
+                    /BILL[_\s-]*NOT[_\s-]*FOUND/i.test(message);
+
+                // Some backends return 500 + "Bill not found" instead of 404
+                if (isNoBill) {
+                    setPaymentInfo(null);
+                    setBillId(null);
+                    setPaymentLookupError('');
+                    return;
+                }
+                setPaymentInfo(null);
+                setBillId(null);
+                setPaymentLookupError(err?.message || 'Không thể kiểm tra hoá đơn hiện có.');
+            } finally {
+                if (!ignore) setPaymentLookupLoading(false);
+            }
+        };
+
+        run();
+        return () => {
+            ignore = true;
+        };
+    }, [ticket?.serviceTicketId]);
+
+    useEffect(() => {
+        if (!hasBill) return;
+        if (appliedPromotion) setAppliedPromotion(null);
+        if (promoCode) setPromoCode('');
+        if (selectedPromotionId) setSelectedPromotionId('');
+    }, [hasBill, appliedPromotion, promoCode, selectedPromotionId]);
 
     useEffect(() => {
         return runFetchPromotionsEffect({ setPromotionsLoading, setPromotionsError, setAvailablePromotions });
@@ -643,10 +692,33 @@ export default function ReceiptConfirm() {
 
     const total = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
 
+    const billSubTotal = useMemo(() => {
+        if (!paymentInfo) return 0;
+        return toMoneyNumber(paymentInfo?.subTotal ?? paymentInfo?.sub_total ?? paymentInfo?.data?.subTotal ?? paymentInfo?.data?.sub_total);
+    }, [paymentInfo]);
+
+    const billDiscountAmount = useMemo(() => {
+        if (!paymentInfo) return 0;
+        return toMoneyNumber(paymentInfo?.discountAmount ?? paymentInfo?.discount_amount ?? paymentInfo?.data?.discountAmount ?? paymentInfo?.data?.discount_amount);
+    }, [paymentInfo]);
+
+    const billFinalAmount = useMemo(() => {
+        if (!paymentInfo) return 0;
+        return toMoneyNumber(paymentInfo?.finalAmount ?? paymentInfo?.final_amount ?? paymentInfo?.data?.finalAmount ?? paymentInfo?.data?.final_amount);
+    }, [paymentInfo]);
+
+    const displaySubtotal = hasBill ? billSubTotal : subtotal;
+    const displayDiscountAmount = hasBill ? billDiscountAmount : discountAmount;
+    const displayTotal = hasBill ? billFinalAmount : total;
+
     const receivedAtDisplay = ticket?.receivedAt ? formatDateTimeViNoSeconds(ticket.receivedAt, '-') : '-';
     const handoverAtDisplay = ticket?.handoverAt ? formatDateTimeViNoSeconds(ticket.handoverAt, '-') : '-';
 
     const applyPromotion = async () => {
+        if (promoLocked) {
+            setPromoError('Phiếu dịch vụ đã có hoá đơn, không thể áp dụng / thay đổi khuyến mãi.');
+            return;
+        }
         if (promoApplying) return;
         setPromoError('');
 
@@ -713,24 +785,24 @@ export default function ReceiptConfirm() {
             safetyInspectionEnabled: ticketRaw?.safetyInspectionEnabled,
             invoice: {
                 items: invoiceItems,
-                subtotal,
-                discountAmount,
+                subtotal: displaySubtotal,
+                discountAmount: displayDiscountAmount,
                 vatRate: '',
                 vatAmount: 0,
-                total,
-                promotionLabel: buildPromotionLabel(appliedPromotion),
+                total: displayTotal,
+                promotionLabel: hasBill ? '' : buildPromotionLabel(appliedPromotion),
             },
             safetyInspection,
             defaultCategories,
         };
-    }, [ticket, ticketRaw, receivedAtDisplay, handoverAtDisplay, recommendation, payItems, subtotal, discountAmount, total, appliedPromotion, safetyInspection, defaultCategories]);
+    }, [ticket, ticketRaw, receivedAtDisplay, handoverAtDisplay, recommendation, payItems, displaySubtotal, displayDiscountAmount, displayTotal, appliedPromotion, hasBill, safetyInspection, defaultCategories]);
 
     // Remove bill creation from print, only change ticket status to ARCHIVE
     const [archiving, setArchiving] = useState(false);
 
     const handleArchiveAndPrint = async () => {
         if (archiving || ticketLoading || estimateLoading) return;
-        const token = localStorage.getItem('authToken');
+        const token = getToken();
         if (!token) {
             notify('Vui lòng đăng nhập để đổi trạng thái báo giá.');
             return;
@@ -742,13 +814,94 @@ export default function ReceiptConfirm() {
         }
         try {
             setArchiving(true);
-            await manageServiceTicketEstimateStatus(estimateId, 'ARCHIVED', token);
-            setEstimate((prev) => (prev ? { ...prev, estimateStatus: 'ARCHIVED', status: 'ARCHIVED' } : prev));
+            if (estimateStatus !== 'ARCHIVED') {
+                await manageServiceTicketEstimateStatus(estimateId, 'ARCHIVED', token);
+                setEstimate((prev) => (prev ? { ...prev, estimateStatus: 'ARCHIVED', status: 'ARCHIVED' } : prev));
+            }
+
             globalThis.window?.print?.();
         } catch (err) {
             notify(err?.message || 'Chuyển trạng thái thất bại.');
         } finally {
             setArchiving(false);
+        }
+    };
+
+    const handleRequestPayment = async () => {
+        if (billCreating) return;
+
+        if (estimateStatus !== 'ARCHIVED') {
+            notify('Vui lòng chuyển báo giá sang ARCHIVED trước khi yêu cầu thanh toán.');
+            return;
+        }
+
+        if (hasBill) {
+            notify('Phiếu dịch vụ đã có hoá đơn.');
+            return;
+        }
+
+        const token = getToken();
+        if (!token) {
+            notify('Vui lòng đăng nhập để tạo hoá đơn.');
+            return;
+        }
+
+        const serviceTicketIdRaw = ticket?.serviceTicketId ?? null;
+        const serviceTicketId = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(String(serviceTicketIdRaw ?? '').trim());
+        if (!Number.isFinite(serviceTicketId) || serviceTicketId <= 0) {
+            notify('Không tìm thấy serviceTicketId hợp lệ để tạo hoá đơn.');
+            return;
+        }
+
+        const estimateIdRaw = estimate?.estimateId ?? estimate?.id ?? estimate?.serviceTicketEstimateId ?? null;
+        const newestEstimateId = typeof estimateIdRaw === 'number' ? estimateIdRaw : Number(String(estimateIdRaw ?? '').trim());
+        if (!Number.isFinite(newestEstimateId) || newestEstimateId <= 0) {
+            notify('Không tìm thấy báo giá hợp lệ để tạo hoá đơn.');
+            return;
+        }
+
+        const versionRaw = estimate?.version ?? estimate?.estimateVersion ?? estimate?.estimateNo ?? estimate?.versionNo ?? null;
+        const versionParsed = typeof versionRaw === 'number' ? versionRaw : Number(String(versionRaw ?? '').trim());
+        const billVersion = Number.isFinite(versionParsed) && versionParsed > 0 ? versionParsed : 1;
+
+        try {
+            setBillCreating(true);
+            const promotionId = getPromotionId(appliedPromotion);
+            const createPayload = {
+                serviceTicketId,
+                estimateId: newestEstimateId,
+                version: billVersion,
+                paymentStatus: 'UNPAID',
+                subTotal: toMoneyNumber(subtotal),
+                discountAmount: toMoneyNumber(discountAmount),
+                finalAmount: toMoneyNumber(total),
+                promotionId: promotionId ?? null,
+                // Backward/alternate field names (some backends use snake_case)
+                discount_amount: toMoneyNumber(discountAmount),
+                final_amount: toMoneyNumber(total),
+                totalAmount: toMoneyNumber(total),
+            };
+
+            const billRes = await createPayment(createPayload, token);
+            const createdBillId = normalizeBillId(billRes);
+            if (!createdBillId) {
+                throw new Error('Tạo bill thất bại (không nhận được billId).');
+            }
+
+            setBillId(createdBillId);
+            notify(`Đã có hoá đơn.`);
+
+            try {
+                const res = await fetchPaymentByServiceTicketId(serviceTicketId, token);
+                const payload = res?.data?.data ?? res?.data ?? res;
+                setPaymentInfo(payload && typeof payload === 'object' ? payload : null);
+            } catch {
+                // ignore
+            }
+        } catch (err) {
+            notify(err?.message || 'Không thể tạo hoá đơn.');
+        } finally {
+            setBillCreating(false);
         }
     };
 
@@ -764,148 +917,33 @@ export default function ReceiptConfirm() {
             return;
         }
 
-        const token = localStorage.getItem('authToken');
+        const token = getToken();
         if (!token) {
             notify('Vui lòng đăng nhập để thanh toán.');
             return;
-        }
-
-        if (billCreating) return;
-        if (billId) {
-            setPaymentOpen(true);
-            return;
-        }
-
-        const serviceTicketIdRaw = ticket?.serviceTicketId ?? null;
-        const serviceTicketId = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(String(serviceTicketIdRaw ?? '').trim());
-        if (!Number.isFinite(serviceTicketId) || serviceTicketId <= 0) {
-            notify('Không tìm thấy serviceTicketId hợp lệ để tạo hoá đơn.');
-            return;
-        }
-
-        try {
-            setBillCreating(true);
-
-            // Always re-fetch to ensure bill is created for newest estimate version
-            const estimateRes = await fetchServiceTicketEstimate(serviceTicketId, token);
-            const newestEstimate = pickNewestEstimateById(estimateRes?.data);
-            const estimateIdRaw = newestEstimate?.estimateId ?? newestEstimate?.id ?? newestEstimate?.serviceTicketEstimateId ?? null;
-            const estimateId = typeof estimateIdRaw === 'number' ? estimateIdRaw : Number(String(estimateIdRaw ?? '').trim());
-            if (!Number.isFinite(estimateId) || estimateId <= 0) {
-                throw new Error('Không tìm thấy báo giá mới nhất để tạo bill.');
-            }
-
-            const versionRaw =
-                newestEstimate?.version ??
-                newestEstimate?.estimateVersion ??
-                newestEstimate?.estimateNo ??
-                newestEstimate?.versionNo ??
-                null;
-            const versionParsed = typeof versionRaw === 'number' ? versionRaw : Number(String(versionRaw ?? '').trim());
-            const billVersion = Number.isFinite(versionParsed) && versionParsed > 0 ? versionParsed : 1;
-
-            const promotionId = getPromotionId(appliedPromotion);
-            const createPayload = {
-                serviceTicketId,
-                estimateId,
-                version: billVersion,
-                paymentStatus: 'UNPAID',
-                subTotal: toMoneyNumber(subtotal),
-                discount_amount: toMoneyNumber(discountAmount),
-                final_amount: toMoneyNumber(total),
-                promotionId: promotionId ?? null,
-                discountAmount: toMoneyNumber(discountAmount),
-                totalAmount: toMoneyNumber(total),
-            };
-
-            const billRes = await createPayment(createPayload, token);
-            const createdBillId = normalizeBillId(billRes);
-            if (!createdBillId) {
-                throw new Error('Tạo bill thất bại (không nhận được billId).');
-            }
-
-            setBillId(createdBillId);
-            notify('Đã tạo hoá đơn. Vui lòng xác nhận thanh toán nếu khách hàng đã thanh toán thành công.');
-            setPaymentOpen(true);
-        } catch (err) {
-            notify(err?.message || 'Tạo hoá đơn thất bại.');
-        } finally {
-            setBillCreating(false);
-        }
-    };
-
-    const handleConfirmPayment = async ({ method } = {}) => {
-        if (paymentSubmitting) return;
-
-        if (!isAccountant) {
-            notify('Chỉ kế toán mới được phép thanh toán.');
-            throw new Error('Chỉ kế toán mới được phép thanh toán.');
-        }
-
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-            notify('Vui lòng đăng nhập để thanh toán.');
-            throw new Error('Vui lòng đăng nhập để thanh toán.');
-        }
-
-        const serviceTicketIdRaw = ticket?.serviceTicketId ?? null;
-        const serviceTicketId = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(String(serviceTicketIdRaw ?? '').trim());
-        if (!Number.isFinite(serviceTicketId) || serviceTicketId <= 0) {
-            notify('Không tìm thấy serviceTicketId hợp lệ để thanh toán.');
-            throw new Error('Không tìm thấy serviceTicketId hợp lệ để thanh toán.');
         }
 
         if (!billId) {
-            notify('Chưa tạo hoá đơn. Vui lòng bấm "Thanh toán" để tạo hoá đơn trước.');
-            throw new Error('Chưa tạo hoá đơn.');
+            notify('Chưa có hoá đơn. Vui lòng bấm "Yêu cầu thanh toán" để tạo hoá đơn trước.');
+            return;
         }
 
-        try {
-            setPaymentSubmitting(true);
-
-            const payPayload = {
-                billId,
-                amount: toMoneyNumber(total),
-                method: normalizePaymentMethod(method),
-            };
-            await payBill(payPayload, token);
-
-            await manageServiceTicketStatus(serviceTicketId, 'PAID', token);
-
-            setTicketRaw((prev) => {
-                if (!prev) return prev;
-                return {
-                    ...prev,
-                    status: 'PAID',
-                    ticketStatus: 'PAID',
-                    serviceTicketStatus: 'PAID',
-                    serviceTicketStatusCode: 'PAID',
-                };
-            });
-
-            try {
-                const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
-                if (ticketCode) {
-                    const detailRes = await fetchServiceTicketDetail(ticketCode, token);
-                    setTicketRaw(detailRes?.data ?? null);
-                }
-            } catch {
-                // ignore
-            }
-            notify('Thanh toán thành công');
-            setPaymentOpen(false);
-        } catch (err) {
-            notify(err?.message || 'Thanh toán thất bại.');
-            throw err;
-        } finally {
-            setPaymentSubmitting(false);
+        const ticketCode = String(ticket?.ticketCode || ticketCodeParam || '').trim();
+        if (!ticketCode) {
+            notify('Thiếu ticketCode để mở màn hình thanh toán.');
+            return;
         }
+        const serviceTicketIdRaw = ticket?.serviceTicketId ?? null;
+        const serviceTicketId = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(String(serviceTicketIdRaw ?? '').trim());
+        navigate(`/service-ticket/${encodeURIComponent(ticketCode)}/receipt-payment-method`, {
+            state: { ticket: ticketRaw ?? ticket, serviceTicketId },
+        });
     };
 
     const handleConfirmDelivered = async () => {
         if (delivering) return;
 
-        const token = localStorage.getItem('authToken');
+        const token = getToken();
         if (!token) {
             notify('Vui lòng đăng nhập để xác nhận bàn giao xe.');
             return;
@@ -936,7 +974,6 @@ export default function ReceiptConfirm() {
         canPay,
         isAccountant,
         delivering,
-        billCreating,
         onConfirmDelivered: handleConfirmDelivered,
         onConfirmPay: handleConfirm,
     });
@@ -953,6 +990,7 @@ export default function ReceiptConfirm() {
 
                 {ticketError ? <div className={styles.errorBanner}>{ticketError}</div> : null}
                 {estimateError ? <div className={styles.errorBanner}>{estimateError}</div> : null}
+                {paymentLookupError ? <div className={styles.errorBanner}>{paymentLookupError}</div> : null}
 
                 <div className={`ui-card ${styles.card}`}>
                     <section className={styles.section}>
@@ -1001,6 +1039,10 @@ export default function ReceiptConfirm() {
                         <h2 className={styles.sectionTitle}>Áp dụng khuyến mãi</h2>
                         <div className={styles.promoTotalBar}></div>
 
+                        {hasBill ? (
+                            <div className={styles.promoError}>Đã có hoá đơn (billId: {billId}). Không thể áp dụng / thay đổi khuyến mãi.</div>
+                        ) : null}
+
                         <div className={styles.promoRow}>
                             <div className={styles.promoField}>
                                 <label htmlFor="promo-code">Nhập mã:</label>
@@ -1009,6 +1051,7 @@ export default function ReceiptConfirm() {
                                         id="promo-code"
                                         className={styles.promoInput}
                                         value={promoCode}
+                                        disabled={promoLocked}
                                         onChange={(e) => {
                                             setPromoCode(e.target.value);
                                             if (selectedPromotionId) setSelectedPromotionId('');
@@ -1025,6 +1068,7 @@ export default function ReceiptConfirm() {
                                 id="promo-list"
                                 className={styles.promoSelect}
                                 value={selectedPromotionId}
+                                disabled={promoLocked}
                                 onChange={(e) => {
                                     setSelectedPromotionId(e.target.value);
                                     if (promoCode) setPromoCode('');
@@ -1051,7 +1095,7 @@ export default function ReceiptConfirm() {
                             type="button"
                             className={`ui-btn ui-btn--primary ${styles.applyBtn}`}
                             onClick={applyPromotion}
-                            disabled={promoApplying}
+                            disabled={promoApplying || promoLocked}
                         >
                             Áp dụng
                         </button>
@@ -1063,15 +1107,15 @@ export default function ReceiptConfirm() {
                         <div className={styles.summaryList}>
                             <div className={styles.summaryRow}>
                                 <span>Giá gốc:</span>
-                                <span>{formatCurrencyVnd(subtotal)}</span>
+                                <span>{formatCurrencyVnd(displaySubtotal)}</span>
                             </div>
                             <div className={styles.summaryRow}>
                                 <span>Giảm giá:</span>
-                                <span>{discountAmount ? `- ${formatCurrencyVnd(discountAmount)}` : '-'}</span>
+                                <span>{displayDiscountAmount ? `- ${formatCurrencyVnd(displayDiscountAmount)}` : '-'}</span>
                             </div>
                             <div className={styles.summaryRow}>
                                 <span>Tổng (đã gồm VAT):</span>
-                                <span>{formatCurrencyVnd(total)}</span>
+                                <span>{formatCurrencyVnd(displayTotal)}</span>
                             </div>
                         </div>
 
@@ -1082,6 +1126,17 @@ export default function ReceiptConfirm() {
                         <button type="button" className="ui-btn ui-btn--ghost" onClick={handleBack} >
                             Hủy
                         </button>
+						{estimateStatus === 'ARCHIVED' && !hasBill ? (
+							<button
+								type="button"
+								className="ui-btn ui-btn--primary"
+								data-gms-no-global-loading="true"
+								onClick={handleRequestPayment}
+								disabled={ticketLoading || estimateLoading || !!ticketError || billCreating || paymentLookupLoading || !!paymentLookupError}
+							>
+								{billCreating ? 'Đang tạo hoá đơn...' : 'Yêu cầu thanh toán'}
+							</button>
+						) : null}
                         <button
                             type="button"
                             className="ui-btn ui-btn--ghost"
@@ -1089,20 +1144,13 @@ export default function ReceiptConfirm() {
                             onClick={handleArchiveAndPrint}
                             disabled={ticketLoading || estimateLoading || !!ticketError || archiving}
                         >
-                            {archiving ? 'Đang lưu...' : 'In phiếu dịch vụ'}
+							{archiving ? 'Đang lưu...' : 'In phiếu dịch vụ'}
                         </button>
                         {primaryAction}
                     </div>
                 </div>
 
-                <ReceiptPaymentMethodModal
-                    open={paymentOpen && isAccountant}
-                    onClose={() => setPaymentOpen(false)}
-                    ticketCode={ticket.ticketCode || ticketCodeParam}
-                    total={total}
-                    printTicket={printTicket}
-                    onConfirmPayment={handleConfirmPayment}
-                />
+
             </div>
 
             <div className={styles.printOnly}>
