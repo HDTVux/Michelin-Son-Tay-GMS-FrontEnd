@@ -102,6 +102,53 @@ import UpdateProgress from './pages/Technician/UpdateProgress/UpdateProgress.jsx
 // Import Advisor Inspection page
 import AdvisorInspection from './pages/DashBoard/AdvisorInspection/AdvisorInspection.jsx';
 
+const STAFF_ROLE = {
+  ADVISOR: 'ADVISOR',
+};
+
+const normalizeRoleName = (value) => {
+  const raw = String(value ?? '').trim().toUpperCase();
+  if (!raw) return '';
+  return raw.startsWith('ROLE_') ? raw.slice('ROLE_'.length) : raw;
+};
+
+const readStaffRolesForRouting = () => {
+  try {
+    const rawRoles = localStorage.getItem('staffRoles');
+    if (rawRoles) {
+      const parsedRoles = JSON.parse(rawRoles);
+      if (Array.isArray(parsedRoles)) {
+        const normalized = parsedRoles
+          .filter((role) => typeof role === 'string')
+          .map((role) => normalizeRoleName(role))
+          .filter(Boolean);
+        if (normalized.length > 0) return normalized;
+      }
+    }
+  } catch {
+    // ignore invalid staffRoles storage
+  }
+
+  try {
+    const rawProfile = localStorage.getItem('staffProfile');
+    if (!rawProfile) return [];
+    const parsedProfile = JSON.parse(rawProfile);
+    const profileRoles = Array.isArray(parsedProfile?.role) ? parsedProfile.role : [];
+    return profileRoles
+      .filter((role) => typeof role === 'string')
+      .map((role) => normalizeRoleName(role))
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+function AdvisorOnlyRoute({ children }) {
+  const staffRoles = readStaffRolesForRouting();
+  const isAdvisor = staffRoles.includes(STAFF_ROLE.ADVISOR);
+  return isAdvisor ? children : <Navigate to="/dashboard" replace />;
+}
+
 // Title updater based on route
 function TitleUpdater() {
   const location = useLocation();
@@ -263,7 +310,14 @@ export default function App() {
 
 
           {/* Advisor pages */}
-          <Route path="advisor/inspection" element={<AdvisorInspection />} />
+          <Route
+            path="advisor/inspection"
+            element={(
+              <AdvisorOnlyRoute>
+                <AdvisorInspection />
+              </AdvisorOnlyRoute>
+            )}
+          />
         </Route>
 
         <Route path="login" element={<Login />} />

@@ -150,7 +150,12 @@ const hasAnyRole = (allowedRoles, staffRoles) => {
 
 const filterItemsByRoles = (items, staffRoles) => {
     if (!Array.isArray(items)) return [];
-    return items.filter((item) => hasAnyRole(item?.roles, staffRoles));
+    return items.filter((item) => {
+        const allowedRoles = item?.id === 'advisor-inspection'
+            ? [STAFF_ROLE.ADVISOR]
+            : item?.roles;
+        return hasAnyRole(allowedRoles, staffRoles);
+    });
 };
 
 const filterSubGroupsByRoles = (subGroups, staffRoles) => {
