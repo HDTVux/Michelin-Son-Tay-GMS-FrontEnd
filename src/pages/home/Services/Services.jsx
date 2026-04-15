@@ -1,5 +1,5 @@
 import './Services.css';
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { fetchHomeProducts } from '../../../services/homeService';
 import { fetchWorkCategoriesAll } from '../../../services/serviceTicketService';
@@ -211,6 +211,9 @@ const buildHomeProductParams = (itemType, categoryCode = '') => {
 };
 
 const getCatalogFetchTypes = (catalogType) => [catalogType];
+const countCatalogItemsByType = (items = [], catalogType = 'SERVICE') => (
+  items.filter((item) => item?.itemType === catalogType).length
+);
 
 const normalizeHomeProductResults = (settledResults, requestedTypes) => {
   const mergedRaw = settledResults.flatMap((result, index) => {
@@ -293,9 +296,9 @@ const Services = ({ homeRows = false }) => {
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');
   const [categories, setCategories] = useState([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [currentCatalogServices, setCurrentCatalogServices] = useState([]);
-  const [currentCatalogLoading, setCurrentCatalogLoading] = useState(false);
+  const [currentCatalogLoading, setCurrentCatalogLoading] = useState(() => !homeRows);
   const [currentCatalogError, setCurrentCatalogError] = useState('');
   const [catalogFilter, setCatalogFilter] = useState('SERVICE');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
@@ -457,7 +460,6 @@ const Services = ({ homeRows = false }) => {
 
   useEffect(() => {
     let active = true;
-    setCategoriesLoading(true);
     const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
 
     fetchWorkCategoriesAll(token)
@@ -594,7 +596,7 @@ const Services = ({ homeRows = false }) => {
         };
       });
 
-    derived.forEach((item, key) => {
+    derived.forEach((item) => {
       if (!options.some((opt) => hasCategoryOptionMatch(item, opt))) {
         options.push({
           categoryKey: item.categoryKey,
@@ -609,12 +611,24 @@ const Services = ({ homeRows = false }) => {
       }
     });
 
-    return options.sort((a, b) => {
+    const sortedOptions = options.sort((a, b) => {
       const countDiff = (b.count || 0) - (a.count || 0);
       if (countDiff !== 0) return countDiff;
       return String(a.label || '').localeCompare(String(b.label || ''), 'vi');
     });
-  }, [catalogFilter, categories, services]);
+
+    const activeCategoryItemCount = !homeRows && categoryFilter !== 'ALL'
+      ? countCatalogItemsByType(currentCatalogServices, catalogFilter)
+      : 0;
+
+    if (activeCategoryItemCount <= 0) return sortedOptions;
+
+    return sortedOptions.map((item) => (
+      item.categoryKey === categoryFilter && (item.count || 0) < activeCategoryItemCount
+        ? { ...item, count: activeCategoryItemCount }
+        : item
+    ));
+  }, [catalogFilter, categories, services, homeRows, categoryFilter, currentCatalogServices]);
 
   const activeCategoryFilter = categoryFilter === 'ALL'
     || categoryOptions.some((item) => item.categoryKey === categoryFilter)
@@ -634,14 +648,7 @@ const Services = ({ homeRows = false }) => {
     ? 'Tất cả'
     : (selectedCategoryOption?.label || 'Tất cả');
 
-  useEffect(() => {
-    if (homeRows) {
-      setCurrentCatalogServices([]);
-      setCurrentCatalogLoading(false);
-      setCurrentCatalogError('');
-      return undefined;
-    }
-
+  const loadCurrentCatalog = useCallback(() => {
     let active = true;
     setCurrentCatalogLoading(true);
     setCurrentCatalogError('');
@@ -650,7 +657,7 @@ const Services = ({ homeRows = false }) => {
       .then(({ items, error }) => {
         if (!active) return;
         setCurrentCatalogServices(items);
-        if (error) setCurrentCatalogError(error);
+        setCurrentCatalogError(error || '');
       })
       .catch((err) => {
         if (!active) return;
@@ -665,7 +672,20 @@ const Services = ({ homeRows = false }) => {
     return () => {
       active = false;
     };
-  }, [activeCategoryCode, catalogFilter, homeRows]);
+  }, [activeCategoryCode, catalogFilter]);
+
+  useEffect(() => {
+    if (homeRows) return undefined;
+    let cleanup = () => {};
+    const timeoutId = window.setTimeout(() => {
+      cleanup = loadCurrentCatalog();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      cleanup();
+    };
+  }, [homeRows, loadCurrentCatalog]);
 
   const catalogItems = homeRows ? services : currentCatalogServices;
   const isCatalogLoading = homeRows ? servicesLoading : currentCatalogLoading;
@@ -690,9 +710,7 @@ const Services = ({ homeRows = false }) => {
     updateCatalogSearchParams(nextType);
   };
 
-  useEffect(() => {
-    if (homeRows) return;
-
+  const syncCategoryFilterFromRoute = useCallback(() => {
     const normalizedRouteCategoryCode = routeCategoryCode.toUpperCase();
     if (!normalizedRouteCategoryCode) {
       if (categoryFilter !== 'ALL') setCategoryFilter('ALL');
@@ -723,7 +741,18 @@ const Services = ({ homeRows = false }) => {
       setCategoryFilter(matchedCategory.categoryKey);
       setGridExpanded(false);
     }
-  }, [categoriesLoading, categoryFilter, categoryOptions, homeRows, routeCategoryCode]);
+  }, [categoriesLoading, categoryFilter, categoryOptions, routeCategoryCode]);
+
+  useEffect(() => {
+    if (homeRows) return;
+    const timeoutId = window.setTimeout(() => {
+      syncCategoryFilterFromRoute();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [homeRows, syncCategoryFilterFromRoute]);
 
   const visibleServices = useMemo(() => {
     let filtered = catalogItems.filter((item) => item.itemType === catalogFilter);
