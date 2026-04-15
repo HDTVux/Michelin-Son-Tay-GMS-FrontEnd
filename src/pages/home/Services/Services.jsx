@@ -1,9 +1,11 @@
-import './Services.css';
+﻿import './Services.css';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { fetchHomeProducts } from '../../../services/homeService';
 import { fetchWorkCategoriesAll } from '../../../services/serviceTicketService';
 import serviceFallback from '../../../assets/lop and mam.jpg';
+import serviceHeroImage from '../../../assets/anh_dich_vu.jpg';
+import partHeroImage from '../../../assets/anh_kho.jpg';
 import processImg from '../../../assets/Quy trình 7 bước (1).png';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
@@ -307,8 +309,9 @@ const Services = ({ homeRows = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
-  const [categoryCollapsed, setCategoryCollapsed] = useState(true);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const didResetCatalogScrollRef = useRef(false);
+  const categoryDropdownRef = useRef(null);
 
   // Gói dịch vụ được tin dùng (commented out - not used currently)
   /*
@@ -647,6 +650,13 @@ const Services = ({ homeRows = false }) => {
   const activeCategoryLabel = activeCategoryFilter === 'ALL'
     ? 'Tất cả'
     : (selectedCategoryOption?.label || 'Tất cả');
+  const totalCatalogItemCount = useMemo(
+    () => services.filter((item) => item.itemType === catalogFilter).length,
+    [catalogFilter, services],
+  );
+  const activeCategoryCount = activeCategoryFilter === 'ALL'
+    ? totalCatalogItemCount
+    : (selectedCategoryOption?.count ?? 0);
 
   const loadCurrentCatalog = useCallback(() => {
     let active = true;
@@ -690,7 +700,7 @@ const Services = ({ homeRows = false }) => {
   const catalogItems = homeRows ? services : currentCatalogServices;
   const isCatalogLoading = homeRows ? servicesLoading : currentCatalogLoading;
   const effectiveCatalogError = homeRows ? servicesError : currentCatalogError;
-  const updateCatalogSearchParams = (nextType, nextCategoryCode = '') => {
+  const updateCatalogSearchParams = useCallback((nextType, nextCategoryCode = '') => {
     const nextParams = new URLSearchParams();
     nextParams.set('type', nextType);
     const safeCategoryCode = String(nextCategoryCode || '').trim();
@@ -701,14 +711,50 @@ const Services = ({ homeRows = false }) => {
       query: nextParams.toString(),
     });
     setSearchParams(nextParams, { replace: true });
-  };
+  }, [setSearchParams]);
 
   const handleCatalogFilterChange = (nextType) => {
     setCatalogFilter(nextType);
     setCategoryFilter('ALL');
+    setCategoryDropdownOpen(false);
     setGridExpanded(false);
     updateCatalogSearchParams(nextType);
   };
+
+  const handleCategorySelect = useCallback((item = null) => {
+    if (!item) {
+      logServicesDebug('categoryClick', {
+        catalogFilter,
+        categoryKey: 'ALL',
+        categoryCode: '',
+        label: 'Tất cả',
+      });
+      setCategoryFilter('ALL');
+      setGridExpanded(false);
+      setCategoryDropdownOpen(false);
+      updateCatalogSearchParams(catalogFilter);
+      return;
+    }
+
+    logServicesDebug('categoryClick', {
+      catalogFilter,
+      categoryKey: item.categoryKey,
+      categoryCode: item.categoryCode || '',
+      publicCategoryCode: resolveHomePublicCategoryCode(
+        item.categoryCode,
+        item.label || item.categoryName || '',
+      ),
+      label: item.label,
+      count: item.count,
+    });
+    setCategoryFilter(item.categoryKey);
+    setGridExpanded(false);
+    setCategoryDropdownOpen(false);
+    updateCatalogSearchParams(
+      catalogFilter,
+      resolveHomePublicCategoryCode(item.categoryCode, item.label || item.categoryName || ''),
+    );
+  }, [catalogFilter, updateCatalogSearchParams]);
 
   const syncCategoryFilterFromRoute = useCallback(() => {
     const normalizedRouteCategoryCode = routeCategoryCode.toUpperCase();
@@ -753,6 +799,23 @@ const Services = ({ homeRows = false }) => {
       window.clearTimeout(timeoutId);
     };
   }, [homeRows, syncCategoryFilterFromRoute]);
+
+  useEffect(() => {
+    if (homeRows || !categoryDropdownOpen) return undefined;
+
+    const handlePointerDownOutside = (event) => {
+      if (categoryDropdownRef.current?.contains(event.target)) return;
+      setCategoryDropdownOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDownOutside);
+    document.addEventListener('touchstart', handlePointerDownOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDownOutside);
+      document.removeEventListener('touchstart', handlePointerDownOutside);
+    };
+  }, [categoryDropdownOpen, homeRows]);
 
   const visibleServices = useMemo(() => {
     let filtered = catalogItems.filter((item) => item.itemType === catalogFilter);
@@ -812,11 +875,17 @@ const Services = ({ homeRows = false }) => {
     return 'Dịch vụ';
   }, [catalogFilter]);
 
-  const dynamicSubtitle = useMemo(() => {
-    if (catalogFilter === 'PART')
-      return 'Phụ tùng chính hãng, đa dạng chủng loại, đảm bảo chất lượng và giá cả hợp lý.';
-    return 'Các dịch vụ bảo dưỡng, sửa chữa chuyên nghiệp với đội ngũ kỹ thuật viên giàu kinh nghiệm.';
+  const heroDescription = useMemo(() => {
+    if (catalogFilter === 'PART') {
+      return 'Michelin Sơn Tây cung cấp đầy đủ các loại phụ tùng chính hãng, đáp ứng đa dạng nhu cầu từ bảo dưỡng đến sửa chữa chuyên sâu. Mỗi sản phẩm đều được kiểm định kỹ lưỡng về chất lượng, đảm bảo độ bền, độ an toàn và khả năng vận hành tối ưu cho xe. Với nguồn gốc rõ ràng cùng sự tư vấn tận tâm từ đội ngũ kỹ thuật viên, khách hàng có thể dễ dàng lựa chọn phụ tùng phù hợp nhất cho chiếc xe của mình. Sử dụng phụ tùng tại Michelin Sơn Tây không chỉ giúp xe hoạt động ổn định mà còn góp phần kéo dài tuổi thọ và nâng cao trải nghiệm lái xe.';
+    }
+
+    return 'Michelin Sơn Tây là điểm đến lý tưởng cho những ai muốn chăm sóc xe theo tiêu chuẩn chuyên nghiệp và đẳng cấp. Với đội ngũ kỹ thuật viên giàu kinh nghiệm, quy trình hiện đại và sản phẩm chính hãng Michelin, mọi dịch vụ đều được thực hiện nhanh chóng, chính xác và tận tâm. Không chỉ là bảo dưỡng, đây còn là nơi mang đến trải nghiệm dịch vụ xịn xò, đáng tin cậy cho mỗi hành trình của bạn.';
   }, [catalogFilter]);
+  const heroImage = catalogFilter === 'PART' ? partHeroImage : serviceHeroImage;
+  const heroImageAlt = catalogFilter === 'PART'
+    ? 'Phụ tùng chính hãng tại Michelin Sơn Tây'
+    : 'Dịch vụ chăm sóc xe Michelin Sơn Tây';
   // IntersectionObserver cho tiêu đề các phần
 
   useEffect(() => {
@@ -862,16 +931,28 @@ const Services = ({ homeRows = false }) => {
           ref={servicesHeroRef}
           className={`servicesHero ${servicesIntroVisible ? 'visible' : ''}`}
         >
-          <div className="servicesLabel">{homeRows ? 'DANH MỤC' : dynamicLabel}</div>
-          <h1 className="servicesTitle">
-            <span className="titlePart1">{homeRows ? 'Dịch vụ & phụ tùng' : dynamicTitlePart1}</span>
-            <span className="titlePart2">chính hãng</span>
-          </h1>
-          <p className="servicesSubtitle">
-            {homeRows
-              ? 'Phụ tùng chính hãng và dịch vụ bảo dưỡng, sửa chữa chuyên nghiệp.'
-              : dynamicSubtitle}
-          </p>
+          <div className="servicesHeroContent">
+            <div className="servicesLabel">{homeRows ? 'DANH MỤC' : dynamicLabel}</div>
+            <h1 className="servicesTitle">
+              <span className="titlePart1">{homeRows ? 'Dịch vụ & phụ tùng' : dynamicTitlePart1}</span>
+              <span className="titlePart2">chính hãng</span>
+            </h1>
+            <p className="servicesSubtitle">
+              {homeRows
+                ? 'Phụ tùng chính hãng và dịch vụ bảo dưỡng, sửa chữa chuyên nghiệp.'
+                : ''}
+            </p>
+          </div>
+          {!homeRows && (
+            <div className="servicesHeroVisual">
+              <div className="servicesHeroDescription">
+                {heroDescription}
+              </div>
+              <div className="servicesHeroImageFrame">
+                <img src={heroImage} alt={heroImageAlt} className="servicesHeroImage" />
+              </div>
+            </div>
+          )}
         </div>
 
         {!homeRows && (
@@ -987,35 +1068,33 @@ const Services = ({ homeRows = false }) => {
 
         {/* Grid layout */}
         <div className="servicesCatalogLayout">
-          <aside className={`categorySidebar ${categoryCollapsed ? 'is-collapsed' : ''}`} aria-label="Lọc theo danh mục">
+          <aside
+            ref={categoryDropdownRef}
+            className={`categorySidebar ${categoryDropdownOpen ? 'is-open' : ''}`}
+            aria-label="Lọc theo danh mục"
+          >
+            <div className="categorySidebarLabel">Danh mục</div>
             <button
               type="button"
-              className="categorySidebarHeader"
-              onClick={() => setCategoryCollapsed((prev) => !prev)}
-              aria-expanded={!categoryCollapsed}
+              className={`categorySidebarTrigger ${categoryDropdownOpen ? 'is-open' : ''}`}
+              onClick={() => setCategoryDropdownOpen((prev) => !prev)}
+              aria-expanded={categoryDropdownOpen}
+              disabled={categoriesLoading && categoryOptions.length === 0}
             >
-              <span>Danh mục</span>
-              <span className="categorySidebarToggle">{categoryCollapsed ? 'Mở rộng' : 'Thu gọn'}</span>
+              <span className="categorySidebarTriggerText">{activeCategoryLabel}</span>
+              <span className="categoryCount categoryCountTrigger">{activeCategoryCount}</span>
+              <span className="categorySidebarTriggerIcon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </span>
             </button>
-            {categoryCollapsed && (
-              <div className="categorySidebarSummary">{activeCategoryLabel}</div>
-            )}
-            {!categoryCollapsed && (
-            <div className="categorySidebarList">
+            {categoryDropdownOpen && (
+            <div className="categorySidebarList" role="listbox" aria-label="Danh mục">
               <button
                 type="button"
                 className={`categorySidebarItem ${activeCategoryFilter === 'ALL' ? 'is-active' : ''}`}
-                onClick={() => {
-                  logServicesDebug('categoryClick', {
-                    catalogFilter,
-                    categoryKey: 'ALL',
-                    categoryCode: '',
-                    label: 'Tất cả',
-                  });
-                  setCategoryFilter('ALL');
-                  setGridExpanded(false);
-                  updateCatalogSearchParams(catalogFilter);
-                }}
+                onClick={() => handleCategorySelect()}
               >
                 <span>Tất cả</span>
                 <span className="categoryCount">{services.filter((item) => item.itemType === catalogFilter).length}</span>
@@ -1025,25 +1104,7 @@ const Services = ({ homeRows = false }) => {
                   key={item.categoryKey}
                   type="button"
                   className={`categorySidebarItem ${activeCategoryFilter === item.categoryKey ? 'is-active' : ''}`}
-                  onClick={() => {
-                    logServicesDebug('categoryClick', {
-                      catalogFilter,
-                      categoryKey: item.categoryKey,
-                      categoryCode: item.categoryCode || '',
-                      publicCategoryCode: resolveHomePublicCategoryCode(
-                        item.categoryCode,
-                        item.label || item.categoryName || '',
-                      ),
-                      label: item.label,
-                      count: item.count,
-                    });
-                    setCategoryFilter(item.categoryKey);
-                    setGridExpanded(false);
-                    updateCatalogSearchParams(
-                      catalogFilter,
-                      resolveHomePublicCategoryCode(item.categoryCode, item.label || item.categoryName || ''),
-                    );
-                  }}
+                  onClick={() => handleCategorySelect(item)}
                 >
                   <span>{item.label}</span>
                   <span className="categoryCount">{item.count}</span>
@@ -1159,8 +1220,8 @@ const Services = ({ homeRows = false }) => {
           )}
           {!servicesLoading && !servicesError && (
             <>
-              {renderCatalogRow('Phụ tùng', 'Phụ tùng chính hãng, đa dạng chủng loại.', homePartItems, '/services?type=PART')}
               {renderCatalogRow('Dịch vụ', 'Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp.', homeServiceItems, '/services?type=SERVICE')}
+              {renderCatalogRow('Phụ tùng', 'Phụ tùng chính hãng, đa dạng chủng loại.', homePartItems, '/services?type=PART')}
             </>
           )}
         </div>
@@ -1325,3 +1386,4 @@ const Services = ({ homeRows = false }) => {
 };
 
 export default Services;
+

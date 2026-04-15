@@ -1,4 +1,6 @@
+import { useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import styles from './AccountingInvoicePrint.module.css';
 
 const DEFAULT_ROW_COUNT = 15;
@@ -10,6 +12,8 @@ const STORE_INFO = {
     address: '674 QL21, Tân Phúc, Sơn Đông, Sơn Tây, Hà Nội',
     businessLine: 'Dịch vụ chăm sóc xe, bảo dưỡng, sửa chữa và phụ tùng ô tô',
 };
+
+const BARCODE_BCID = 'code128';
 
 function safeText(value) {
     if (value == null) return '';
@@ -24,6 +28,11 @@ function toMoneyNumber(value) {
 function formatCurrencyVnd(value) {
     const amount = Math.round(toMoneyNumber(value));
     if (!amount) return '';
+    return new Intl.NumberFormat('vi-VN').format(amount);
+}
+
+function formatCurrencyVndZero(value) {
+    const amount = Math.round(toMoneyNumber(value));
     return new Intl.NumberFormat('vi-VN').format(amount);
 }
 
@@ -117,21 +126,82 @@ function getInvoiceDate(ticket) {
     return parsed;
 }
 
-export default function AccountingInvoicePrint({ ticket }) {
+export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint = true }) {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const params = useParams();
+
+    const ticket = useMemo(() => {
+        return ticketProp ?? location?.state?.ticket ?? null;
+    }, [ticketProp, location?.state?.ticket]);
+
+    useEffect(() => {
+        if (!autoPrint) return;
+        if (!ticket) return;
+        const id = globalThis.setTimeout?.(() => {
+            globalThis.window?.print?.();
+        }, 0);
+        return () => {
+            if (id) globalThis.clearTimeout?.(id);
+        };
+    }, [autoPrint, ticket]);
+
     const invoice = ticket?.invoice || {};
     const invoiceItems = Array.isArray(invoice?.items) ? invoice.items : [];
     const rowCount = Math.max(DEFAULT_ROW_COUNT, invoiceItems.length);
+
+    const computedSubtotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
+    const subtotalAmount = Math.max(0, toMoneyNumber(invoice?.subtotal) || computedSubtotal);
+    const discountAmount = Math.max(0, toMoneyNumber(invoice?.discountAmount));
+
     const totalAmount = Number.isFinite(Number(invoice?.total))
         ? Number(invoice.total)
-        : invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
+        : Math.max(0, subtotalAmount - discountAmount);
+
     const totalInWords = numberToVietnameseWords(totalAmount);
     const customerName = buildCustomerName(ticket?.customer);
     const customerAddress = buildCustomerAddress(ticket);
     const issuedAt = getInvoiceDate(ticket);
 
+    const barcodeUrl = useMemo(() => {
+        const code = safeText(ticket?.ticketCode);
+        if (!code) return '';
+        const bcid = safeText(invoice?.barcodeType) || BARCODE_BCID;
+        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(bcid)}&text=${encodeURIComponent(code)}`;
+    }, [invoice?.barcodeType, ticket?.ticketCode]);
+
+    if (!ticket) {
+        const code = safeText(params?.ticketCode);
+        return (
+            <section className={styles.sheet}>
+                <header className={styles.header}>
+                    <div className={styles.storeInfo}>
+                        <div className={styles.storeName}>{STORE_INFO.name}</div>
+                        <div className={styles.storeLine}>Địa chỉ: {STORE_INFO.address}</div>
+                    </div>
+                    <div className={styles.title}>HÓA ĐƠN BÁN HÀNG</div>
+                </header>
+
+                <div style={{ marginTop: 12, marginBottom: 16 }}>
+                    Thiếu dữ liệu hoá đơn để in{code ? ` (phiếu dịch vụ #${code})` : ''}.
+                </div>
+
+                <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate(-1)}>
+                    Quay lại
+                </button>
+            </section>
+        );
+    }
+
     return (
         <section className={styles.sheet}>
             <header className={styles.header}>
+                {barcodeUrl ? (
+                    <div className={styles.barcodeWrap}>
+                        <img className={styles.barcodeImg} src={barcodeUrl} alt={`Barcode ${safeText(ticket?.ticketCode)}`} />
+                    </div>
+                ) : null}
+
                 <div className={styles.storeInfo}>
                     <div className={styles.storeName}>{STORE_INFO.name}</div>
                     <div className={styles.storeLine}>Địa chỉ: {STORE_INFO.address}</div>
@@ -178,9 +248,23 @@ export default function AccountingInvoicePrint({ ticket }) {
                     })}
                     <tr className={styles.totalRow}>
                         <td colSpan={4} className={styles.totalLabel}>
-                            TỔNG CỘNG
+                            CỘNG TIỀN HÀNG
                         </td>
-                        <td className={styles.right}>{formatCurrencyVnd(totalAmount)}</td>
+                        <td className={styles.right}>{formatCurrencyVndZero(subtotalAmount)}</td>
+                    </tr>
+
+                    <tr className={styles.totalRow}>
+                        <td colSpan={4} className={styles.totalLabel}>
+                            GIẢM GIÁ
+                        </td>
+                        <td className={styles.right}>{discountAmount ? `-${formatCurrencyVndZero(discountAmount)}` : formatCurrencyVndZero(0)}</td>
+                    </tr>
+
+                    <tr className={styles.totalRow}>
+                        <td colSpan={4} className={styles.totalLabel}>
+                            TỔNG THANH TOÁN
+                        </td>
+                        <td className={styles.right}>{formatCurrencyVndZero(totalAmount)}</td>
                     </tr>
                 </tbody>
             </table>
@@ -222,6 +306,9 @@ AccountingInvoicePrint.propTypes = {
             licensePlate: PropTypes.string,
         }),
         invoice: PropTypes.shape({
+            barcodeType: PropTypes.string,
+            subtotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+            discountAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
             total: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
             items: PropTypes.arrayOf(
                 PropTypes.shape({
@@ -235,4 +322,5 @@ AccountingInvoicePrint.propTypes = {
             ),
         }),
     }),
+    autoPrint: PropTypes.bool,
 };

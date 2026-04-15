@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import styles from './ReceiptPaymentMethod.module.css';
@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { fetchPaymentByServiceTicketId, payBill } from '../../../services/paymentService.js';
 import { fetchServiceTicketDetail, fetchServiceTicketEstimate, manageServiceTicketStatus } from '../../../services/serviceTicketService.js';
 import { getStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
+import AccountingInvoicePrint from './AccountingInvoicePrint.jsx';
 
 function toMoneyNumber(value) {
     const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
@@ -99,6 +100,9 @@ export default function ReceiptPaymentMethod() {
 
     const [method, setMethod] = useState('transfer');
     const [submitting, setSubmitting] = useState(false);
+    const [printTicket, setPrintTicket] = useState(null);
+    const [printRequested, setPrintRequested] = useState(false);
+    const printContainerRef = useRef(null);
 
     const token = useMemo(() => localStorage.getItem('staffToken') || localStorage.getItem('authToken'), []);
 
@@ -244,6 +248,133 @@ export default function ReceiptPaymentMethod() {
         return getVietQrUrl({ amountVnd: totalSafe, description: transferContent });
     }, [method, totalSafe, transferContent]);
 
+    useEffect(() => {
+        const onAfterPrint = () => {
+            setPrintRequested(false);
+            setPrintTicket(null);
+        };
+
+        globalThis.window?.addEventListener?.('afterprint', onAfterPrint);
+        return () => {
+            globalThis.window?.removeEventListener?.('afterprint', onAfterPrint);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!printRequested || !printTicket) return;
+
+        let rafId = 0;
+        let timeoutId = 0;
+        let attempts = 0;
+        let didPrint = false;
+
+        const isInvoiceDomReady = () => {
+            const root = printContainerRef.current;
+            if (!root) return false;
+            const hasTable = Boolean(root.querySelector('table'));
+            const textLen = (root.textContent || '').trim().length;
+
+            const barcodeImg = root.querySelector('[data-role="barcode"]');
+            if (barcodeImg && barcodeImg instanceof HTMLImageElement) {
+                if (!barcodeImg.complete) return false;
+                if (!barcodeImg.naturalWidth) return false;
+            }
+
+            return hasTable && textLen > 20;
+        };
+
+        const doPrint = async () => {
+            if (didPrint) return;
+            didPrint = true;
+            if (rafId) globalThis.cancelAnimationFrame?.(rafId);
+            if (timeoutId) globalThis.clearTimeout?.(timeoutId);
+            try {
+                await globalThis.document?.fonts?.ready;
+            } catch {
+                // ignore
+            }
+            globalThis.window?.print?.();
+        };
+
+        const tryPrint = async () => {
+            attempts += 1;
+            if (isInvoiceDomReady() || attempts >= 30) {
+                await doPrint();
+                return;
+            }
+            rafId = globalThis.requestAnimationFrame?.(tryPrint);
+        };
+
+        rafId = globalThis.requestAnimationFrame?.(tryPrint);
+        timeoutId = globalThis.setTimeout?.(() => {
+            void doPrint();
+        }, 1200);
+
+        return () => {
+            if (rafId) globalThis.cancelAnimationFrame?.(rafId);
+            if (timeoutId) globalThis.clearTimeout?.(timeoutId);
+        };
+    }, [printRequested, printTicket]);
+
+    const handlePrintInvoice = () => {
+        const ticketCode = ticketCodeParam || ticketFromState?.ticketCode;
+        if (!ticketCode) {
+            toast.error('Không tìm thấy mã phiếu dịch vụ để in hoá đơn.');
+            return;
+        }
+
+        if (!payItems || payItems.length === 0) {
+            toast.error('Chưa có hạng mục xác nhận để in hoá đơn.');
+            return;
+        }
+
+        const invoiceItems = payItems.map((item, idx) => {
+            const quantity = toMoneyNumber(item?.quantity ?? 1) || 1;
+            const unitPrice = toMoneyNumber(item?.unitPrice ?? item?.unitPriceDisplay ?? 0);
+            const subTotal = toMoneyNumber(item?.subTotal ?? item?.subTotalDisplay ?? 0) || unitPrice * quantity;
+
+            return {
+                key: item?.key ?? String(idx + 1),
+                categoryName: item?.categoryName ?? '',
+                itemName: item?.itemName ?? '',
+                quantity,
+                unitPrice,
+                subTotal,
+            };
+        });
+
+        const computedSubtotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
+        const invoiceSubtotal = Math.max(0, toMoneyNumber(payment?.subTotal) || computedSubtotal);
+        const invoiceDiscountAmount = Math.max(0, toMoneyNumber(payment?.discountAmount));
+
+        const stateCustomer = ticketFromState?.customer || {};
+        const stateVehicle = ticketFromState?.vehicle || {};
+
+        const printTicket = {
+            ...(ticketFromState ?? undefined),
+            ticketCode,
+            customer: {
+                ...stateCustomer,
+                name: stateCustomer?.name || stateCustomer?.fullName || ticketFromState?.customerName || '',
+                phone: stateCustomer?.phone || ticketFromState?.customerPhone || '',
+                address: stateCustomer?.address || ticketFromState?.customerAddress || '',
+            },
+            vehicle: {
+                ...stateVehicle,
+                licensePlate: stateVehicle?.licensePlate || ticketFromState?.licensePlate || '',
+            },
+            invoice: {
+                items: invoiceItems,
+                subtotal: invoiceSubtotal,
+                discountAmount: invoiceDiscountAmount,
+                total: totalSafe,
+            },
+        };
+
+        setPrintTicket(printTicket);
+        setPrintRequested(true);
+    };
+
     const handleConfirm = async () => {
         if (!token) {
             toast.error('Vui lòng đăng nhập để thanh toán.');
@@ -286,150 +417,151 @@ export default function ReceiptPaymentMethod() {
 
     return (
         <div className={styles.page}>
-            <header className={styles.header}>
-                <div>
-                    <h1 className={styles.title}>Thanh toán</h1>
-                    <div className={styles.subTitle}>Phiếu dịch vụ #{ticketCodeParam || ticketFromState?.ticketCode || '-'}</div>
-                </div>
-                <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate(-1)}>
-                    Quay lại
-                </button>
-            </header>
+            <div ref={printContainerRef} className={styles.printOnly}>
+                {printTicket ? <AccountingInvoicePrint ticket={printTicket} autoPrint={false} /> : null}
+            </div>
 
-            <section className={`ui-card ${styles.modal}`}>
-                {loading ? (
-                    <div className={styles.error}>Đang tải thông tin thanh toán...</div>
-                ) : null}
+            <div className={styles.screenOnly}>
+                <header className={styles.header}>
+                    <div>
+                        <h1 className={styles.title}>Thanh toán</h1>
+                        <div className={styles.subTitle}>Phiếu dịch vụ #{ticketCodeParam || ticketFromState?.ticketCode || '-'}</div>
+                    </div>
+                </header>
 
-                {!loading && error ? (
-                    <div className={styles.error}>{error}</div>
-                ) : null}
+                <section className={`ui-card ${styles.modal}`}>
+                    {loading ? <div className={styles.error}>Đang tải thông tin thanh toán...</div> : null}
 
-                {!loading && !error && payment ? (
-                    <>
-                        <div className={styles.section}>
-                            <div className={styles.sectionTitle}>Báo giá được thanh toán</div>
-                            {estimateLoading ? <div className={styles.muted}>Đang tải báo giá...</div> : null}
-                            {!estimateLoading && estimateError ? <div className={styles.error}>{estimateError}</div> : null}
-                            {payItems.length ? (
-                                <div className={styles.tableWrap}>
-                                    <table className={styles.table}>
-                                        <colgroup>
-                                            <col style={{ width: 160 }} />
-                                            <col />
-                                            <col style={{ width: 70 }} />
-                                            <col style={{ width: 140 }} />
-                                            <col style={{ width: 140 }} />
-                                        </colgroup>
-                                        <thead>
-                                            <tr>
-                                                <th>Hạng mục</th>
-                                                <th>Diễn giải</th>
-                                                <th className={styles.thQty}>SL</th>
-                                                <th className={styles.thNumber}>Đơn giá</th>
-                                                <th className={styles.thNumber}>Thành tiền</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {payItems.map((it) => (
-                                                <tr key={it.key}>
-                                                    <td className={styles.tdText}>{it.categoryName}</td>
-                                                    <td className={styles.tdText}>{it.itemName}</td>
-                                                    <td className={styles.tdQty}>{it.quantity ? String(it.quantity) : ''}</td>
-                                                    <td className={styles.tdNumber}>{formatCurrencyVnd(it.unitPriceDisplay)}</td>
-                                                    <td className={styles.tdNumber}>{formatCurrencyVnd(it.subTotalDisplay)}</td>
+                    {!loading && error ? <div className={styles.error}>{error}</div> : null}
+
+                    {!loading && !error && payment ? (
+                        <>
+                            <div className={styles.section}>
+                                <div className={styles.sectionTitle}>Báo giá được thanh toán</div>
+                                {estimateLoading ? <div className={styles.muted}>Đang tải báo giá...</div> : null}
+                                {!estimateLoading && estimateError ? <div className={styles.error}>{estimateError}</div> : null}
+                                {payItems.length ? (
+                                    <div className={styles.tableWrap}>
+                                        <table className={styles.table}>
+                                            <colgroup>
+                                                <col style={{ width: 160 }} />
+                                                <col />
+                                                <col style={{ width: 70 }} />
+                                                <col style={{ width: 140 }} />
+                                                <col style={{ width: 140 }} />
+                                            </colgroup>
+                                            <thead>
+                                                <tr>
+                                                    <th>Hạng mục</th>
+                                                    <th>Diễn giải</th>
+                                                    <th className={styles.thQty}>SL</th>
+                                                    <th className={styles.thNumber}>Đơn giá</th>
+                                                    <th className={styles.thNumber}>Thành tiền</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                !estimateLoading && !estimateError ? <div className={styles.muted}>Chưa có hạng mục nào được xác nhận.</div> : null
-                            )}
-                        </div>
-
-                        <div className={styles.qrMeta}>
-
-                            <div className={styles.qrMetaRow}>
-                                <span>Trạng thái:</span>
-                                <strong>{paymentStatusLabel}</strong>
-                            </div>
-                            <div className={styles.qrMetaRow}>
-                                <span>Giá gốc:</span>
-                                <strong>{formatCurrencyVnd(payment?.subTotal)}</strong>
-                            </div>
-                            <div className={styles.qrMetaRow}>
-                                <span>Giảm giá:</span>
-                                <strong>{formatCurrencyVnd(payment?.discountAmount)}</strong>
-                            </div>
-                            <div className={styles.qrMetaRow}>
-                            <span>Tổng tiền cần thanh toán:</span>
-                            <strong>{formatCurrencyVnd(totalSafe)}</strong>
-                            </div>
-
-                        </div>
-
-                        <div className={styles.methods}>
-                            <button
-                                type="button"
-                                className={`ui-btn ${method === 'cash' ? 'ui-btn--primary' : 'ui-btn--ghost'} ${styles.methodBtn}`}
-                                onClick={() => setMethod('cash')}
-                                disabled={isPaid || submitting}
-                            >
-                                Tiền mặt
-                            </button>
-                            <button
-                                type="button"
-                                className={`ui-btn ${method === 'transfer' ? 'ui-btn--primary' : 'ui-btn--ghost'} ${styles.methodBtn}`}
-                                onClick={() => setMethod('transfer')}
-                                disabled={isPaid || submitting}
-                            >
-                                Chuyển khoản
-                            </button>
-                        </div>
-
-                        {method === 'transfer' ? (
-                            <div className={styles.qrSection}>
-                                <div className={styles.qrTitle}>Quét mã VietQR để thanh toán</div>
-                                <div className={styles.qrMeta}>
-                                    <div className={styles.qrMetaRow}>
-                                        <span>Số tiền:</span>
-                                        <strong>{formatCurrencyVnd(totalSafe)}</strong>
+                                            </thead>
+                                            <tbody>
+                                                {payItems.map((it) => (
+                                                    <tr key={it.key}>
+                                                        <td className={styles.tdText}>{it.categoryName}</td>
+                                                        <td className={styles.tdText}>{it.itemName}</td>
+                                                        <td className={styles.tdQty}>{it.quantity ? String(it.quantity) : ''}</td>
+                                                        <td className={styles.tdNumber}>{formatCurrencyVnd(it.unitPriceDisplay)}</td>
+                                                        <td className={styles.tdNumber}>{formatCurrencyVnd(it.subTotalDisplay)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    <div className={styles.qrMetaRow}>
-                                        <span>Nội dung:</span>
-                                        <strong className={styles.qrMetaText}>{transferContent}</strong>
-                                    </div>
-                                </div>
-                                {qrImgSrc ? (
-                                    <div className={styles.qrImgWrap}>
-                                        <img className={styles.qrImg} src={qrImgSrc} alt="VietQR" loading="lazy" />
-                                    </div>
+                                ) : !estimateLoading && !estimateError ? (
+                                    <div className={styles.muted}>Chưa có hạng mục nào được xác nhận.</div>
                                 ) : null}
                             </div>
-                        ) : (
-                            <div className={styles.cashSection}>
-                                <div className={styles.cashTitle}>Thanh toán tiền mặt</div>
-                                <div className={styles.cashHint}>Nhận tiền mặt và xác nhận để hoàn tất thanh toán.</div>
-                            </div>
-                        )}
 
-                        <div className="ui-actions ui-actions--end">
-                            <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate(-1)}>
-                                Đóng
-                            </button>
-                            <button
-                                type="button"
-                                className="ui-btn ui-btn--primary"
-                                onClick={handleConfirm}
-                                disabled={submitting || isPaid}
-                            >
-                                {isPaid ? 'Đã thanh toán' : (submitting ? 'Đang xử lý...' : 'Xác nhận đã thanh toán')}
-                            </button>
-                        </div>
-                    </>
-                ) : null}
-            </section>
+                            <div className={styles.qrMeta}>
+                                <div className={styles.qrMetaRow}>
+                                    <span>Trạng thái:</span>
+                                    <strong>{paymentStatusLabel}</strong>
+                                </div>
+                                <div className={styles.qrMetaRow}>
+                                    <span>Giá gốc:</span>
+                                    <strong>{formatCurrencyVnd(payment?.subTotal)}</strong>
+                                </div>
+                                <div className={styles.qrMetaRow}>
+                                    <span>Giảm giá:</span>
+                                    <strong>{formatCurrencyVnd(payment?.discountAmount)}</strong>
+                                </div>
+                                <div className={styles.qrMetaRow}>
+                                    <span>Tổng tiền cần thanh toán:</span>
+                                    <strong>{formatCurrencyVnd(totalSafe)}</strong>
+                                </div>
+                            </div>
+
+                            <div className={styles.methods}>
+                                <button
+                                    type="button"
+                                    className={`ui-btn ${method === 'cash' ? 'ui-btn--primary' : 'ui-btn--ghost'} ${styles.methodBtn}`}
+                                    onClick={() => setMethod('cash')}
+                                    disabled={isPaid || submitting}
+                                >
+                                    Tiền mặt
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`ui-btn ${method === 'transfer' ? 'ui-btn--primary' : 'ui-btn--ghost'} ${styles.methodBtn}`}
+                                    onClick={() => setMethod('transfer')}
+                                    disabled={isPaid || submitting}
+                                >
+                                    Chuyển khoản
+                                </button>
+                            </div>
+
+                            {method === 'transfer' ? (
+                                <div className={styles.qrSection}>
+                                    <div className={styles.qrTitle}>Quét mã VietQR để thanh toán</div>
+                                    <div className={styles.qrMeta}>
+                                        <div className={styles.qrMetaRow}>
+                                            <span>Số tiền:</span>
+                                            <strong>{formatCurrencyVnd(totalSafe)}</strong>
+                                        </div>
+                                        <div className={styles.qrMetaRow}>
+                                            <span>Nội dung:</span>
+                                            <strong className={styles.qrMetaText}>{transferContent}</strong>
+                                        </div>
+                                    </div>
+                                    {qrImgSrc ? (
+                                        <div className={styles.qrImgWrap}>
+                                            <img className={styles.qrImg} src={qrImgSrc} alt="VietQR" loading="lazy" />
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ) : (
+                                <div className={styles.cashSection}>
+                                    <div className={styles.cashTitle}>Thanh toán tiền mặt</div>
+                                    <div className={styles.cashHint}>Nhận tiền mặt và xác nhận để hoàn tất thanh toán.</div>
+                                </div>
+                            )}
+
+                            <div className="ui-actions ui-actions--end">
+                                <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate(-1)}>
+                                    Quay lại
+                                </button>
+
+                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handlePrintInvoice} disabled={submitting}>
+                                    In hoá đơn
+                                </button>
+                                <button
+                                    type="button"
+                                    className="ui-btn ui-btn--primary"
+                                    onClick={handleConfirm}
+                                    disabled={submitting || isPaid}
+                                >
+                                    {isPaid ? 'Đã thanh toán' : submitting ? 'Đang xử lý...' : 'Xác nhận đã thanh toán'}
+                                </button>
+                            </div>
+                        </>
+                    ) : null}
+                </section>
+            </div>
         </div>
     );
 }

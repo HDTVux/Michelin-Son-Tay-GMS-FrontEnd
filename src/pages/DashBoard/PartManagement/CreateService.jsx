@@ -284,24 +284,14 @@ export default function CreateService() {
 				const prevBrand = String(selectedBrandIdRef.current || '').trim();
 				const prevLine = String(selectedProductLineIdRef.current || '').trim();
 
-				// Only auto-select if user hasn't picked (selectedCategoryId is empty or not in new list)
-				let newCatId = '';
-				const currentSelectedCategoryId = String(selectedCategoryIdRef.current || '').trim();
-				const userPicked = catsNorm.some((c) => String(c.itemCategoryId) === currentSelectedCategoryId);
-				if (userPicked) {
-					newCatId = currentSelectedCategoryId;
-				} else if (prevCat && catsNorm.some((c) => String(c.itemCategoryId) === prevCat)) {
-					newCatId = prevCat;
-				} else if (catsNorm.length > 0) {
-					newCatId = String(catsNorm[0].itemCategoryId);
-				}
-				setSelectedCategoryId(newCatId);
+				const categoryExists = prevCat && catsNorm.some((c) => String(c.itemCategoryId) === prevCat);
+				setSelectedCategoryId(categoryExists ? prevCat : '');
 
 				const brandExists = prevBrand && brandsNorm.some((b) => String(b.brandId) === prevBrand);
-				setSelectedBrandId(brandExists ? prevBrand : brandsNorm?.[0]?.brandId ? String(brandsNorm[0].brandId) : '');
+				setSelectedBrandId(brandExists ? prevBrand : '');
 
 				const lineExists = prevLine && linesNorm.some((l) => String(l.productLineId) === prevLine);
-				setSelectedProductLineId(lineExists ? prevLine : linesNorm?.[0]?.productLineId ? String(linesNorm[0].productLineId) : '');
+				setSelectedProductLineId(lineExists ? prevLine : '');
 			} catch (err) {
 				if (cancelled) return;
 				setCategories([]);
@@ -363,14 +353,15 @@ export default function CreateService() {
 	}, [productLines, selectedProductLineId]);
 
 	useEffect(() => {
-		// Auto-pick a service line when brand changes.
 		const brandIdNum = Number(selectedBrandId) || null;
 		const list = Array.isArray(filteredProductLines) ? filteredProductLines : [];
 		const current = String(selectedProductLineId || '').trim();
-		if (!brandIdNum) return;
+		if (!brandIdNum) {
+			if (current) setSelectedProductLineId('');
+			return;
+		}
 		if (current && list.some((l) => String(l.productLineId) === current)) return;
-		const firstId = list?.[0]?.productLineId ? String(list[0].productLineId) : '';
-		setSelectedProductLineId(firstId);
+		if (current) setSelectedProductLineId('');
 	}, [filteredProductLines, selectedBrandId, selectedProductLineId]);
 
 	useEffect(() => {
@@ -473,8 +464,7 @@ export default function CreateService() {
 			setSelectedBrandId(restored);
 			return;
 		}
-		const firstId = brands?.[0]?.brandId ? String(brands[0].brandId) : '';
-		setSelectedBrandId(firstId);
+		setSelectedBrandId('');
 	}, [brands]);
 
 	const handleCreateBrand = useCallback(async () => {
@@ -541,8 +531,7 @@ export default function CreateService() {
 			setSelectedCategoryId(restored);
 			return;
 		}
-		const firstId = categories?.[0]?.itemCategoryId ? String(categories[0].itemCategoryId) : '';
-		setSelectedCategoryId(firstId);
+		setSelectedCategoryId('');
 	}, [categories]);
 
 	const handleCreateCategory = useCallback(async () => {
@@ -727,9 +716,8 @@ export default function CreateService() {
 			setSelectedProductLineId(restored);
 			return;
 		}
-		const firstId = filteredProductLines?.[0]?.productLineId ? String(filteredProductLines[0].productLineId) : '';
-		setSelectedProductLineId(firstId);
-	}, [filteredProductLines, productLines]);
+		setSelectedProductLineId('');
+	}, [productLines]);
 
 	const handleCreateProductLine = useCallback(async () => {
 		if (isCreatingProductLine) return;
