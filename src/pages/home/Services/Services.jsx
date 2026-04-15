@@ -700,7 +700,7 @@ const Services = ({ homeRows = false }) => {
   const catalogItems = homeRows ? services : currentCatalogServices;
   const isCatalogLoading = homeRows ? servicesLoading : currentCatalogLoading;
   const effectiveCatalogError = homeRows ? servicesError : currentCatalogError;
-  const updateCatalogSearchParams = (nextType, nextCategoryCode = '') => {
+  const updateCatalogSearchParams = useCallback((nextType, nextCategoryCode = '') => {
     const nextParams = new URLSearchParams();
     nextParams.set('type', nextType);
     const safeCategoryCode = String(nextCategoryCode || '').trim();
@@ -711,7 +711,7 @@ const Services = ({ homeRows = false }) => {
       query: nextParams.toString(),
     });
     setSearchParams(nextParams, { replace: true });
-  };
+  }, [setSearchParams]);
 
   const handleCatalogFilterChange = (nextType) => {
     setCatalogFilter(nextType);
@@ -754,7 +754,7 @@ const Services = ({ homeRows = false }) => {
       catalogFilter,
       resolveHomePublicCategoryCode(item.categoryCode, item.label || item.categoryName || ''),
     );
-  }, [catalogFilter]);
+  }, [catalogFilter, updateCatalogSearchParams]);
 
   const syncCategoryFilterFromRoute = useCallback(() => {
     const normalizedRouteCategoryCode = routeCategoryCode.toUpperCase();
@@ -875,11 +875,6 @@ const Services = ({ homeRows = false }) => {
     return 'Dịch vụ';
   }, [catalogFilter]);
 
-  const dynamicSubtitle = useMemo(() => {
-    if (catalogFilter === 'PART')
-      return 'Phụ tùng chính hãng, đa dạng chủng loại, đảm bảo chất lượng và giá cả hợp lý.';
-    return 'Các dịch vụ bảo dưỡng, sửa chữa chuyên nghiệp với đội ngũ kỹ thuật viên giàu kinh nghiệm.';
-  }, [catalogFilter]);
   const heroDescription = useMemo(() => {
     if (catalogFilter === 'PART') {
       return 'Michelin Sơn Tây cung cấp đầy đủ các loại phụ tùng chính hãng, đáp ứng đa dạng nhu cầu từ bảo dưỡng đến sửa chữa chuyên sâu. Mỗi sản phẩm đều được kiểm định kỹ lưỡng về chất lượng, đảm bảo độ bền, độ an toàn và khả năng vận hành tối ưu cho xe. Với nguồn gốc rõ ràng cùng sự tư vấn tận tâm từ đội ngũ kỹ thuật viên, khách hàng có thể dễ dàng lựa chọn phụ tùng phù hợp nhất cho chiếc xe của mình. Sử dụng phụ tùng tại Michelin Sơn Tây không chỉ giúp xe hoạt động ổn định mà còn góp phần kéo dài tuổi thọ và nâng cao trải nghiệm lái xe.';

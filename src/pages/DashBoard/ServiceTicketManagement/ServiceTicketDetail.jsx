@@ -693,7 +693,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
     const hasReceptionistRole = staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
-    const hasAccountantRole = staffRoles.includes(STAFF_ROLE.ACCOUNTANT);
     const isAdvisorOnlyViewRole = hasAdvisorRole;
     const hasReceptionistEditAccess = hasReceptionistRole && !hasAdvisorRole;
 
@@ -1604,46 +1603,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
-<<<<<<< HEAD
-=======
-    // Chặn toàn bộ trang nếu chưa phân công kỹ thuật viên
-    if (!assignmentsLoading && !hasTechnician) {
-        return (
-            <div className={styles.page}>
-                <div className={styles.screenOnly}>
-                    <div className={styles.layout}>
-                        <main className={styles.main}>
-                            <header className={styles.header}>
-                                <div className={styles.headerLeft}>
-                                    <div className={styles.titleRow}>
-                                        <h1 className={styles.title}>Phiếu dịch vụ #{ticketCodeParam || '-'}</h1>
-                                    </div>
-                                </div>
-                            </header>
-                            <div className={`ui-card ${styles.card}`} style={{ textAlign: 'center', padding: '48px 24px' }}>
-                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
-                                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', marginBottom: '12px' }}>
-                                    Chưa phân công kỹ thuật viên
-                                </h2>
-                                <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', maxWidth: '440px', margin: '0 auto 32px' }}>
-                                    Phiếu dịch vụ này chưa được phân công kỹ thuật viên. Vui lòng phân công kỹ thuật viên trước khi mở phiếu.
-                                </p> 
-                                <button
-                                    type="button"
-                                    className="ui-btn ui-btn--ghost"
-                                    onClick={() => navigate(-1)}
-                                >
-                                    Quay lại
-                                </button>
-                            </div>
-                        </main>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
->>>>>>> 84d5b0098b3267bfe4ba434054a3925ad1b7f0e5
     return (
         <div className={styles.page}>
             <div className={styles.screenOnly}>

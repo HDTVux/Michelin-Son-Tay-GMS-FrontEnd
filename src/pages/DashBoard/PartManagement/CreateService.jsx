@@ -717,7 +717,7 @@ export default function CreateService() {
 			return;
 		}
 		setSelectedProductLineId('');
-	}, [filteredProductLines, productLines]);
+	}, [productLines]);
 
 	const handleCreateProductLine = useCallback(async () => {
 		if (isCreatingProductLine) return;
