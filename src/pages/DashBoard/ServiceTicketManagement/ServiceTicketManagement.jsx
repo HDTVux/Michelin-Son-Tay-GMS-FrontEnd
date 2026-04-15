@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import styles from './ServiceTicketManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import {
@@ -12,6 +13,21 @@ import {
 } from '../../../services/serviceTicketService.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getServiceTicketStatusTextVi, getServiceTicketStatusTone, getStatusTextVi, normalizeServiceTicketStatusCode } from '../../../components/statusUtils.js';
+
+const STAFF_ROLE = {
+	ACCOUNTANT: 'ACCOUNTANT',
+};
+
+function readStaffRolesFromStorage() {
+	try {
+		const raw = localStorage.getItem('staffRoles');
+		const parsed = JSON.parse(raw || '[]');
+		if (!Array.isArray(parsed)) return [];
+		return parsed.map((r) => String(r || '').trim().toUpperCase()).filter(Boolean);
+	} catch {
+		return [];
+	}
+}
 
 function getTicketScheduledDate(ticket) {
 	return String(
@@ -111,7 +127,9 @@ function ServiceTicketManagement() {
 		return () => clearTimeout(timer);
 	}, [search]);
 
-	const getToken = () => localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+	const getToken = useCallback(() => localStorage.getItem('staffToken') || localStorage.getItem('authToken'), []);
+	const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
+	const isAccountant = staffRoles.includes(STAFF_ROLE.ACCOUNTANT);
 
 	const filters = useMemo(() => ({
 		page,
@@ -189,7 +207,7 @@ function ServiceTicketManagement() {
 				return next;
 			});
 		});
-	}, [tickets, page, size, date, endDate, status, debouncedSearch]);
+	}, [getToken, tickets, page, size, date, endDate, status, debouncedSearch]);
 
 	// Load advisors with workload for the change-advisor modal
 	useEffect(() => {
@@ -202,7 +220,7 @@ function ServiceTicketManagement() {
 			.catch(() => {
 				setAdvisorOptions([]);
 			});
-	}, []);
+	}, [getToken]);
 
 	const openModal = async (ticket) => {
 		setModal({ open: true, ticket });
@@ -296,7 +314,33 @@ function ServiceTicketManagement() {
 		} finally {
 			setIsExporting(false);
 		}
-	}, [date, endDate, isExporting]);
+	}, [date, endDate, getToken, isExporting]);
+
+	const handlePayTicket = useCallback(async (ticket) => {
+		if (!isAccountant) return;
+		const token = getToken();
+		if (!token) {
+			toast.error('Vui lòng đăng nhập để thanh toán.');
+			return;
+		}
+
+		const ticketCode = String(ticket?.ticketCode || '').trim();
+		if (!ticketCode) {
+			toast.error('Thiếu ticketCode để mở màn hình thanh toán.');
+			return;
+		}
+
+		const serviceTicketIdRaw = ticket?.serviceTicketId ?? ticket?.ticketId ?? ticket?.id ?? null;
+		const serviceTicketId = typeof serviceTicketIdRaw === 'number' ? serviceTicketIdRaw : Number(String(serviceTicketIdRaw ?? '').trim());
+		if (!Number.isFinite(serviceTicketId) || serviceTicketId <= 0) {
+			toast.error('Không tìm thấy serviceTicketId hợp lệ để thanh toán.');
+			return;
+		}
+
+		navigate(`/service-ticket/${encodeURIComponent(ticketCode)}/receipt-payment-method`, {
+			state: { ticket, serviceTicketId },
+		});
+	}, [getToken, isAccountant, navigate]);
 
 	const currentAdvisor = modalAssignments.find((a) =>
 		String(a?.roleInTicket || a?.role || '').toUpperCase() === 'ADVISOR'
@@ -381,6 +425,7 @@ function ServiceTicketManagement() {
 						icon={<TicketIcon />}
 						tone="warning"
 						data={tickets}
+						isAccountant={isAccountant}
 						isLoading={isLoading}
 						error={error}
 						page={page}
@@ -412,6 +457,7 @@ function ServiceTicketManagement() {
 						onOpenAssign={(ticket) => {
 							openModal(ticket);
 						}}
+						onPayTicket={handlePayTicket}
 						actionLabel={`${totalElements} phiếu`}
 					/>
 				</div>
@@ -536,6 +582,8 @@ export default ServiceTicketManagement;
 function TicketPanel({
 	title, icon, tone, data, actionLabel,
 	onViewDetail, onOpenAssign,
+	onPayTicket,
+	isAccountant,
 	isLoading, error,
 	page, size, totalPages,
 	date, endDate, periodFilter, status, search,
@@ -615,12 +663,12 @@ function TicketPanel({
 					<thead>
 						<tr>
 							<th>STT</th>
-							<th>MÒ PHIẾU</th>
+							<th>Mã PHIẾU</th>
 							<th>TÊN KHÁCH HÀNG</th>
 							<th>SĐT</th>
 							<th>BIỂN SỐ</th>
 							<th>TRẠNG THÁI</th>
-							<th>NGìY HẸN</th>
+							<th>NGày HẸN</th>
 							<th>THAO TÁC</th>
 						</tr>
 					</thead>
@@ -659,6 +707,15 @@ function TicketPanel({
 										<div className={styles['action-buttons']}>
 											<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
 											<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
+											{isAccountant ? (
+												<button
+													className={styles['primary-button']}
+													onClick={() => onPayTicket?.(item)}
+													disabled={isLoading}
+												>
+													Thanh toán
+												</button>
+											) : null}
 										</div>
 									</td>
 								</tr>
@@ -698,6 +755,8 @@ TicketPanel.propTypes = {
 	title: PropTypes.string, icon: PropTypes.node, tone: PropTypes.string,
 	data: PropTypes.arrayOf(PropTypes.object), actionLabel: PropTypes.string,
 	onViewDetail: PropTypes.func, onOpenAssign: PropTypes.func,
+	onPayTicket: PropTypes.func,
+	isAccountant: PropTypes.bool,
 	isLoading: PropTypes.bool, error: PropTypes.string,
 	page: PropTypes.number, size: PropTypes.number, totalPages: PropTypes.number,
 	date: PropTypes.string,

@@ -41,8 +41,12 @@ const EntrySummaryCard = ({ entry, statusLabel, statusValue }) => (
       <EntryField label="Mã phiếu nhập" value={entry?.entryCode || '-'} />
       <EntryField label="Nhà cung cấp" value={entry?.supplierName || '-'} />
       <EntryField label="Ngày nhập" value={entry?.entryDate || '-'} />
+      <EntryField label="Kho nhập" value={entry?.warehouseName || '-'} />
       <EntryField label="Trạng thái" value={getStatusTextVi(entry?.status, entry?.status || '-')} />
       <EntryField label="Ghi chú" value={entry?.notes || '-'} fullRow />
+      <EntryField label="Người tạo" value={entry?.createdByName || '-'} />
+      <EntryField label="Ngày duyệt" value={entry?.confirmedAt || '-'} />
+      <EntryField label="Người duyệt" value={entry?.confirmedByName || '-'} />
     </div>
   </section>
 );
@@ -70,8 +74,8 @@ const EntryItemsCard = ({ items }) => (
       <table className={commonStyles.table}>
         <thead>
           <tr>
-            <th>Mã dòng</th>
             <th>Mã sản phẩm</th>
+            <th>Tên sản phẩm</th>
             <th>Số lượng</th>
             <th>Giá nhập</th>
             <th>Hệ số lợi nhuận</th>
@@ -82,8 +86,8 @@ const EntryItemsCard = ({ items }) => (
           {Array.isArray(items) && items.length > 0 ? (
             items.map((row, idx) => (
               <tr key={String(row?.entryItemId ?? idx)}>
-                <td>{row?.entryItemId ?? '-'}</td>
                 <td>{row?.itemId ?? '-'}</td>
+                <td>{row?.itemName ?? '-'}</td>
                 <td>{row?.quantity ?? '-'}</td>
                 <td>{row?.importPrice ?? '-'}</td>
                 <td>{row?.markupMultiplier ?? '-'}</td>
@@ -105,7 +109,7 @@ EntryItemsCard.propTypes = {
   items: PropTypes.arrayOf(PropTypes.shape({})),
 };
 
-const EntryAttachmentsCard = ({ attachments }) => (
+const EntryAttachmentsCard = ({ attachments, onPreview }) => (
   <section className={styles.card}>
     <div className={styles.sectionHeader}>
       <h2 className={styles.sectionTitle}>Ảnh chứng từ</h2>
@@ -114,12 +118,19 @@ const EntryAttachmentsCard = ({ attachments }) => (
       <div className={styles.attachmentGrid}>
         {attachments.map((url, idx) => (
           <figure key={`${String(url)}-${idx}`} className={styles.attachmentItem}>
-            <img
-              src={url}
-              alt={`Ảnh chứng từ ${idx + 1}`}
-              loading="lazy"
-              className={styles.attachmentImage}
-            />
+            <button
+              type="button"
+              className={styles.attachmentButton}
+              onClick={() => onPreview?.(String(url))}
+              title="Xem ảnh"
+            >
+              <img
+                src={url}
+                alt={`Ảnh chứng từ ${idx + 1}`}
+                loading="lazy"
+                className={styles.attachmentImage}
+              />
+            </button>
             <figcaption>Ảnh {idx + 1}</figcaption>
           </figure>
         ))}
@@ -132,6 +143,7 @@ const EntryAttachmentsCard = ({ attachments }) => (
 
 EntryAttachmentsCard.propTypes = {
   attachments: PropTypes.arrayOf(PropTypes.string),
+  onPreview: PropTypes.func,
 };
 
 export default function WarehouseStockEntryDetail() {
@@ -144,6 +156,7 @@ export default function WarehouseStockEntryDetail() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
   const entryId = Number(params.entryId);
   const hasValidEntryId = Number.isFinite(entryId) && entryId > 0;
 
@@ -181,6 +194,27 @@ export default function WarehouseStockEntryDetail() {
       cancelled = true;
     };
   }, [hasValidEntryId, entryId, params.entryId]);
+
+  useEffect(() => {
+    if (!previewUrl) return undefined;
+
+    const prevOverflow = globalThis?.document?.body?.style?.overflow;
+    if (globalThis?.document?.body?.style) {
+      globalThis.document.body.style.overflow = 'hidden';
+    }
+
+    const onKeyDown = (e) => {
+      if (e?.key === 'Escape') setPreviewUrl('');
+    };
+
+    globalThis?.window?.addEventListener?.('keydown', onKeyDown);
+    return () => {
+      globalThis?.window?.removeEventListener?.('keydown', onKeyDown);
+      if (globalThis?.document?.body?.style) {
+        globalThis.document.body.style.overflow = prevOverflow || '';
+      }
+    };
+  }, [previewUrl]);
 
   const statusValue = String(entry?.status || '').toUpperCase();
   const isDraft = statusValue === 'DRAFT';
@@ -233,7 +267,7 @@ export default function WarehouseStockEntryDetail() {
           statusValue={statusValue}
         />
         <EntryItemsCard items={entry?.items} />
-        <EntryAttachmentsCard attachments={entry?.attachments} />
+        <EntryAttachmentsCard attachments={entry?.attachments} onPreview={setPreviewUrl} />
       </>
     );
   } else {
@@ -258,7 +292,7 @@ export default function WarehouseStockEntryDetail() {
         </header>
 
         {bodyContent}
-              {isDraft ? (
+        {isDraft ? (
         <button
           type="button"
           className="ui-btn ui-btn--primary"
@@ -269,6 +303,23 @@ export default function WarehouseStockEntryDetail() {
         </button>
       ) : null}
       </div>
+
+      {previewUrl ? (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true">
+          <button type="button" className={styles.modalBackdrop} onClick={() => setPreviewUrl('')} aria-label="Đóng" />
+          <div className={styles.modalBox}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Ảnh chứng từ</h3>
+              <button type="button" className={styles.modalClose} onClick={() => setPreviewUrl('')} aria-label="Đóng">
+                ×
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <img className={styles.previewImg} src={previewUrl} alt="Chứng từ" />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

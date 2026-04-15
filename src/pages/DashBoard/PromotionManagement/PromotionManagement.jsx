@@ -63,6 +63,109 @@ const defaultForm = {
   getQuantity: '',
 };
 
+const PROMOTION_CODE_PATTERN = /^[A-Z0-9_-]+$/;
+
+const normalizePromotionCode = (value) => String(value ?? '').trim().toUpperCase();
+
+const isPositiveIntegerValue = (value) => {
+  const num = Number(value);
+  return Number.isInteger(num) && num > 0;
+};
+
+const buildPromotionFormErrors = (rawForm, existingPromotions = [], currentPromotionId = null) => {
+  const nextErrors = {};
+  const code = normalizePromotionCode(rawForm?.code);
+  const name = String(rawForm?.name ?? '').trim();
+  const type = normalizeTypeValue(rawForm?.type);
+  const startDate = String(rawForm?.startDate ?? '').trim();
+  const endDate = String(rawForm?.endDate ?? '').trim();
+  const minOrderValueText = String(rawForm?.minOrderValue ?? '').trim();
+  const usageLimitText = String(rawForm?.usageLimit ?? '').trim();
+
+  if (!code) {
+    nextErrors.code = 'Vui lòng nhập mã khuyến mãi.';
+  } else if (code.length < 3 || code.length > 30) {
+    nextErrors.code = 'Mã khuyến mãi phải dài từ 3 đến 30 ký tự.';
+  } else if (!PROMOTION_CODE_PATTERN.test(code)) {
+    nextErrors.code = 'Mã chỉ được chứa chữ in hoa, số, dấu gạch ngang hoặc gạch dưới.';
+  } else {
+    const duplicatedCode = existingPromotions.some((item) => (
+      normalizePromotionCode(item?.code) === code
+      && Number(item?.promotionId ?? 0) !== Number(currentPromotionId ?? 0)
+    ));
+    if (duplicatedCode) {
+      nextErrors.code = 'Mã khuyến mãi đã tồn tại.';
+    }
+  }
+
+  if (!name) {
+    nextErrors.name = 'Vui lòng nhập tên chương trình.';
+  } else if (name.length < 3) {
+    nextErrors.name = 'Tên chương trình phải có ít nhất 3 ký tự.';
+  } else if (name.length > 120) {
+    nextErrors.name = 'Tên chương trình không được vượt quá 120 ký tự.';
+  }
+
+  if (type === 'PERCENT') {
+    const discountPercent = Number(rawForm?.discountPercent);
+    if (String(rawForm?.discountPercent ?? '').trim() === '') {
+      nextErrors.discountPercent = 'Vui lòng nhập phần trăm giảm.';
+    } else if (!Number.isFinite(discountPercent) || discountPercent <= 0 || discountPercent > 100) {
+      nextErrors.discountPercent = 'Phần trăm giảm phải lớn hơn 0 và không vượt quá 100.';
+    }
+  }
+
+  if (type === 'BUY_X_GET_Y') {
+    if (!isPositiveIntegerValue(rawForm?.buyQuantity)) {
+      nextErrors.buyQuantity = 'Số lượng mua phải là số nguyên lớn hơn 0.';
+    }
+    if (!isPositiveIntegerValue(rawForm?.getQuantity)) {
+      nextErrors.getQuantity = 'Số lượng tặng phải là số nguyên lớn hơn 0.';
+    }
+    if (String(rawForm?.buyItemId ?? '').trim() !== '' && !isPositiveIntegerValue(rawForm?.buyItemId)) {
+      nextErrors.buyItemId = 'Mã sản phẩm mua phải là số nguyên lớn hơn 0.';
+    }
+    if (String(rawForm?.getItemId ?? '').trim() !== '' && !isPositiveIntegerValue(rawForm?.getItemId)) {
+      nextErrors.getItemId = 'Mã sản phẩm tặng phải là số nguyên lớn hơn 0.';
+    }
+  }
+
+  if (startDate && !endDate) {
+    nextErrors.endDate = 'Vui lòng chọn ngày kết thúc.';
+  }
+  if (!startDate && endDate) {
+    nextErrors.startDate = 'Vui lòng chọn ngày bắt đầu.';
+  }
+  if (startDate && endDate && startDate > endDate) {
+    nextErrors.startDate = 'Ngày bắt đầu không được sau ngày kết thúc.';
+    nextErrors.endDate = 'Ngày kết thúc không được trước ngày bắt đầu.';
+  }
+
+  if (minOrderValueText !== '') {
+    const minOrderValue = Number(minOrderValueText);
+    if (!Number.isFinite(minOrderValue) || minOrderValue < 0) {
+      nextErrors.minOrderValue = 'Giá trị đơn tối thiểu phải lớn hơn hoặc bằng 0.';
+    }
+  }
+
+  if (usageLimitText !== '') {
+    const usageLimit = Number(usageLimitText);
+    if (!Number.isInteger(usageLimit) || usageLimit <= 0) {
+      nextErrors.usageLimit = 'Giới hạn lượt dùng phải là số nguyên lớn hơn 0.';
+    }
+  }
+
+  if (!['ALL', 'SPECIFIC'].includes(normalizeApplyToValue(rawForm?.applyTo))) {
+    nextErrors.applyTo = 'Giá trị áp dụng cho không hợp lệ.';
+  }
+
+  if (!['ALL', 'SPECIFIC'].includes(normalizeTargetTypeValue(rawForm?.targetType))) {
+    nextErrors.targetType = 'Đối tượng khách hàng không hợp lệ.';
+  }
+
+  return nextErrors;
+};
+
 const PROMOTION_TYPE_LABELS = {
   PERCENT: 'Giảm theo phần trăm',
   BUY_X_GET_Y: 'Mua X tặng Y',
@@ -78,6 +181,7 @@ export default function PromotionManagement() {
   const [openModal, setOpenModal] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(defaultForm);
+  const [formErrors, setFormErrors] = useState({});
   const normalizedFormType = normalizeTypeValue(form.type);
   const isBuyXGetY = normalizedFormType === 'BUY_X_GET_Y';
   const isPercentType = normalizedFormType === 'PERCENT';
@@ -129,6 +233,7 @@ export default function PromotionManagement() {
   const openCreate = () => {
     setEditing(false);
     setForm(defaultForm);
+    setFormErrors({});
     setOpenModal(true);
   };
 
@@ -152,6 +257,7 @@ export default function PromotionManagement() {
       getItemId: item?.getItemId ?? '',
       getQuantity: item?.getQuantity ?? '',
     });
+    setFormErrors({});
     setOpenModal(true);
   };
 
@@ -159,12 +265,80 @@ export default function PromotionManagement() {
     setOpenModal(false);
     setEditing(false);
     setForm(defaultForm);
+    setFormErrors({});
   };
+
+  const clearFieldErrors = useCallback((fields) => {
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      let hasChanged = false;
+      fields.forEach((field) => {
+        if (field in next) {
+          delete next[field];
+          hasChanged = true;
+        }
+      });
+      return hasChanged ? next : prev;
+    });
+  }, []);
+
+  const updateFormField = useCallback((field, value) => {
+    setForm((prev) => {
+      if (field === 'type') {
+        const nextType = normalizeTypeValue(value);
+        return nextType === 'PERCENT'
+          ? {
+              ...prev,
+              type: nextType,
+              buyItemId: '',
+              buyQuantity: '',
+              getItemId: '',
+              getQuantity: '',
+            }
+          : {
+              ...prev,
+              type: nextType,
+              discountPercent: '',
+            };
+      }
+
+      if (field === 'code') {
+        return {
+          ...prev,
+          code: normalizePromotionCode(value),
+        };
+      }
+
+      return {
+        ...prev,
+        [field]: value,
+      };
+    });
+
+    if (field === 'type') {
+      clearFieldErrors(['type', 'discountPercent', 'buyItemId', 'buyQuantity', 'getItemId', 'getQuantity']);
+      return;
+    }
+
+    if (field === 'startDate' || field === 'endDate') {
+      clearFieldErrors(['startDate', 'endDate']);
+      return;
+    }
+
+    clearFieldErrors([field]);
+  }, [clearFieldErrors]);
 
   const handleSubmit = async () => {
     const token = getAuthToken();
     if (!token) return;
     const submitType = normalizeTypeValue(form.type);
+    const nextErrors = buildPromotionFormErrors(form, promotions, editing ? form.promotionId : null);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors);
+      toast.error('Vui lòng kiểm tra lại các trường dữ liệu.');
+      return;
+    }
 
     if (!form.code || !form.name || !submitType) {
       toast.error('Vui lòng nhập đầy đủ code, tên và loại khuyến mãi.');
@@ -186,7 +360,19 @@ export default function PromotionManagement() {
     }
 
     try {
-      const payload = { ...form, type: submitType };
+      const payload = {
+        ...form,
+        code: normalizePromotionCode(form.code),
+        name: String(form.name ?? '').trim(),
+        type: submitType,
+        applyTo: normalizeApplyToValue(form.applyTo),
+        targetType: normalizeTargetTypeValue(form.targetType),
+        discountPercent: submitType === 'PERCENT' ? form.discountPercent : '',
+        buyItemId: submitType === 'BUY_X_GET_Y' ? form.buyItemId : '',
+        buyQuantity: submitType === 'BUY_X_GET_Y' ? form.buyQuantity : '',
+        getItemId: submitType === 'BUY_X_GET_Y' ? form.getItemId : '',
+        getQuantity: submitType === 'BUY_X_GET_Y' ? form.getQuantity : '',
+      };
       if (editing) {
         await updatePromotion(payload, token);
         toast.success('Cập nhật khuyến mãi thành công.');
@@ -205,6 +391,10 @@ export default function PromotionManagement() {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('vi-VN');
   };
+
+  const getFieldClassName = (field, baseClassName) => (
+    formErrors[field] ? `${baseClassName} ${styles.inputError}` : baseClassName
+  );
 
   return (
     <div className={styles.container}>
@@ -348,148 +538,172 @@ export default function PromotionManagement() {
                   <label className={styles.label}>Mã khuyến mãi <span className={styles.required}>*</span></label>
                   <div className={styles.codeInputRow}>
                     <input
-                      className={styles.input}
+                      className={getFieldClassName('code', styles.input)}
                       placeholder="Ví dụ: SUMMER2026"
                       value={form.code}
-                      onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))}
+                      onChange={(e) => updateFormField('code', e.target.value)}
+                      aria-invalid={Boolean(formErrors.code)}
                     />
                     <button
                       type="button"
                       className={styles.generateBtn}
-                      onClick={() => setForm((p) => ({ ...p, code: generateRandomCode() }))}
+                      onClick={() => updateFormField('code', generateRandomCode())}
                       title="Tạo mã ngẫu nhiên"
                     >
                       🎲 Tạo mã
                     </button>
                   </div>
+                  {formErrors.code && <span className={styles.errorText}>{formErrors.code}</span>}
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Tên chương trình <span className={styles.required}>*</span></label>
                   <input
-                    className={styles.input}
+                    className={getFieldClassName('name', styles.input)}
                     placeholder="Ví dụ: Khuyến mãi mùa hè 2026"
                     value={form.name}
-                    onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                    onChange={(e) => updateFormField('name', e.target.value)}
+                    aria-invalid={Boolean(formErrors.name)}
                   />
+                  {formErrors.name && <span className={styles.errorText}>{formErrors.name}</span>}
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Loại <span className={styles.required}>*</span></label>
                   <select
-                    className={styles.select}
+                    className={getFieldClassName('type', styles.select)}
                     value={form.type}
-                    onChange={(e) => setForm((p) => ({ ...p, type: normalizeTypeValue(e.target.value) }))}
+                    onChange={(e) => updateFormField('type', e.target.value)}
+                    aria-invalid={Boolean(formErrors.type)}
                   >
                     <option value="PERCENT">Giảm theo phần trăm</option>
                     <option value="BUY_X_GET_Y">Mua X tặng Y</option>
                   </select>
+                  {formErrors.type && <span className={styles.errorText}>{formErrors.type}</span>}
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Giảm (%)</label>
                   <input
-                    className={styles.input}
+                    className={getFieldClassName('discountPercent', styles.input)}
                     type="number"
                     min="0"
                     max="100"
                     placeholder="Ví dụ: 15"
                     value={form.discountPercent}
-                    onChange={(e) => setForm((p) => ({ ...p, discountPercent: e.target.value }))}
+                    onChange={(e) => updateFormField('discountPercent', e.target.value)}
                     disabled={!isPercentType}
+                    aria-invalid={Boolean(formErrors.discountPercent)}
                   />
+                  {formErrors.discountPercent && <span className={styles.errorText}>{formErrors.discountPercent}</span>}
                 </div>
                 {isBuyXGetY && (
                   <>
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Mã sản phẩm mua (tuỳ chọn)</label>
                       <input
-                        className={styles.input}
+                        className={getFieldClassName('buyItemId', styles.input)}
                         type="number"
                         min="1"
                         placeholder="Ví dụ: 101"
                         value={form.buyItemId}
-                        onChange={(e) => setForm((p) => ({ ...p, buyItemId: e.target.value }))}
+                        onChange={(e) => updateFormField('buyItemId', e.target.value)}
+                        aria-invalid={Boolean(formErrors.buyItemId)}
                       />
+                      {formErrors.buyItemId && <span className={styles.errorText}>{formErrors.buyItemId}</span>}
                     </div>
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Số lượng mua (X) <span className={styles.required}>*</span></label>
                       <input
-                        className={styles.input}
+                        className={getFieldClassName('buyQuantity', styles.input)}
                         type="number"
                         min="1"
                         placeholder="Ví dụ: 2"
                         value={form.buyQuantity}
-                        onChange={(e) => setForm((p) => ({ ...p, buyQuantity: e.target.value }))}
+                        onChange={(e) => updateFormField('buyQuantity', e.target.value)}
+                        aria-invalid={Boolean(formErrors.buyQuantity)}
                       />
+                      {formErrors.buyQuantity && <span className={styles.errorText}>{formErrors.buyQuantity}</span>}
                     </div>
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Mã sản phẩm tặng (tuỳ chọn)</label>
                       <input
-                        className={styles.input}
+                        className={getFieldClassName('getItemId', styles.input)}
                         type="number"
                         min="1"
                         placeholder="Ví dụ: 102"
                         value={form.getItemId}
-                        onChange={(e) => setForm((p) => ({ ...p, getItemId: e.target.value }))}
+                        onChange={(e) => updateFormField('getItemId', e.target.value)}
+                        aria-invalid={Boolean(formErrors.getItemId)}
                       />
+                      {formErrors.getItemId && <span className={styles.errorText}>{formErrors.getItemId}</span>}
                     </div>
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Số lượng tặng (Y) <span className={styles.required}>*</span></label>
                       <input
-                        className={styles.input}
+                        className={getFieldClassName('getQuantity', styles.input)}
                         type="number"
                         min="1"
                         placeholder="Ví dụ: 1"
                         value={form.getQuantity}
-                        onChange={(e) => setForm((p) => ({ ...p, getQuantity: e.target.value }))}
+                        onChange={(e) => updateFormField('getQuantity', e.target.value)}
+                        aria-invalid={Boolean(formErrors.getQuantity)}
                       />
+                      {formErrors.getQuantity && <span className={styles.errorText}>{formErrors.getQuantity}</span>}
                     </div>
                   </>
                 )}
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Ngày bắt đầu</label>
                   <input
-                    className={styles.input}
+                    className={getFieldClassName('startDate', styles.input)}
                     type="date"
                     value={form.startDate || ''}
-                    onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
+                    onChange={(e) => updateFormField('startDate', e.target.value)}
+                    aria-invalid={Boolean(formErrors.startDate)}
                   />
+                  {formErrors.startDate && <span className={styles.errorText}>{formErrors.startDate}</span>}
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Ngày kết thúc</label>
                   <input
-                    className={styles.input}
+                    className={getFieldClassName('endDate', styles.input)}
                     type="date"
                     value={form.endDate || ''}
-                    onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
+                    onChange={(e) => updateFormField('endDate', e.target.value)}
+                    aria-invalid={Boolean(formErrors.endDate)}
                   />
+                  {formErrors.endDate && <span className={styles.errorText}>{formErrors.endDate}</span>}
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Giá trị đơn tối thiểu</label>
                   <input
-                    className={styles.input}
+                    className={getFieldClassName('minOrderValue', styles.input)}
                     type="number"
                     min="0"
                     placeholder="Ví dụ: 100000"
                     value={form.minOrderValue}
-                    onChange={(e) => setForm((p) => ({ ...p, minOrderValue: e.target.value }))}
+                    onChange={(e) => updateFormField('minOrderValue', e.target.value)}
+                    aria-invalid={Boolean(formErrors.minOrderValue)}
                   />
+                  {formErrors.minOrderValue && <span className={styles.errorText}>{formErrors.minOrderValue}</span>}
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Giới hạn lượt dùng</label>
                   <input
-                    className={styles.input}
+                    className={getFieldClassName('usageLimit', styles.input)}
                     type="number"
                     min="0"
                     placeholder="Ví dụ: 100"
                     value={form.usageLimit}
-                    onChange={(e) => setForm((p) => ({ ...p, usageLimit: e.target.value }))}
+                    onChange={(e) => updateFormField('usageLimit', e.target.value)}
+                    aria-invalid={Boolean(formErrors.usageLimit)}
                   />
+                  {formErrors.usageLimit && <span className={styles.errorText}>{formErrors.usageLimit}</span>}
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Áp dụng cho</label>
                   <select
                     className={styles.select}
                     value={form.applyTo}
-                    onChange={(e) => setForm((p) => ({ ...p, applyTo: e.target.value }))}
+                    onChange={(e) => updateFormField('applyTo', e.target.value)}
                   >
                     <option value="ALL">Toàn bộ</option>
                     <option value="SPECIFIC">Nhóm cụ thể</option>
@@ -500,7 +714,7 @@ export default function PromotionManagement() {
                   <select
                     className={styles.select}
                     value={form.targetType}
-                    onChange={(e) => setForm((p) => ({ ...p, targetType: e.target.value }))}
+                    onChange={(e) => updateFormField('targetType', e.target.value)}
                   >
                     <option value="ALL">Tất cả khách hàng</option>
                     <option value="SPECIFIC">Nhóm khách hàng cụ thể</option>
@@ -511,7 +725,7 @@ export default function PromotionManagement() {
                   <select
                     className={styles.select}
                     value={form.isActive ? 'ACTIVE' : 'INACTIVE'}
-                    onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.value === 'ACTIVE' }))}
+                    onChange={(e) => updateFormField('isActive', e.target.value === 'ACTIVE')}
                   >
                     <option value="ACTIVE">Hoạt động</option>
                     <option value="INACTIVE">Vô hiệu</option>

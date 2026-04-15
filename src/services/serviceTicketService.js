@@ -1023,14 +1023,8 @@ export const fetchTaxRulesAll = (token) => {
 // Backend trả về: ApiResponse<List<WorkCategoryDto>>
 // Endpoint: GET /api/service-ticket/estimate/work-category/all
 export const fetchWorkCategoriesAll = (token) => {
-  if (!token) {
-    const error = new Error('Vui lòng đăng nhập để xem danh sách hạng mục.');
-    error.status = 401;
-    return Promise.reject(error);
-  }
-
   return request('/api/service-ticket/estimate/work-category/all', {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
