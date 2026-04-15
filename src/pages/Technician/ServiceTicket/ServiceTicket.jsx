@@ -397,11 +397,6 @@ export const ServiceTicket = ({
     }
   }, [resolveServiceTicketId]);
 
-  const fetchLatestAdvisorNotePatchItems = useCallback(async (token) => {
-    const inspectionResponse = await getSafetyInspectionByTicketCode(resolvedTicketCode, token);
-    return buildAdvisorNotePatchItems(inspectionResponse?.data?.items);
-  }, [resolvedTicketCode]);
-
   const applyAdvisorNotesToLocalState = useCallback((advisorItems) => {
     if (!Array.isArray(advisorItems) || advisorItems.length === 0) return;
     const noteByKey = new Map();
@@ -678,7 +673,7 @@ export const ServiceTicket = ({
     };
 
     fetchData();
-  }, [resolvedTicketCode, defaultTireData, embedded, refreshKey, isAdvisorMode, syncServiceTicketStatus]);
+  }, [resolvedTicketCode, defaultTireData, embedded, refreshKey, isAdvisorMode, syncServiceTicketStatus, applyAdvisorNotesToLocalState]);
 
   const handleTireDataChange = (position, field, value) => {
     if (!canEditTechnicalFields || isFormLocked) return;
@@ -809,7 +804,7 @@ export const ServiceTicket = ({
 
     event.preventDefault();
     showTextLimitFeedback(toastKey, setError);
-  }, [getTextSelectionRange, showTextLimitFeedback]);
+  }, [getTextSelectionRange, showTextLimitFeedback, markUnsavedLocalEdit]);
 
   const clampEventTargetValue = useCallback((target, nextValue) => {
     if (target && typeof target.value === 'string' && target.value !== nextValue) {
@@ -826,7 +821,7 @@ export const ServiceTicket = ({
     markUnsavedLocalEdit();
     applyValue(nextValue);
     showTextLimitFeedback(toastKey, setError);
-  }, [clampEventTargetValue, showTextLimitFeedback]);
+  }, [clampEventTargetValue, showTextLimitFeedback, markUnsavedLocalEdit]);
 
   const setAdvisorNoteValue = useCallback((itemId, nextValue) => {
     setSafetyChecks(prev => prev.map(item =>
