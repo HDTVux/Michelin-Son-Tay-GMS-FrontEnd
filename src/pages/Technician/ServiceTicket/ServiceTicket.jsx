@@ -2,8 +2,13 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
-import { fetchSafetyInspectionCurrentRecommend, fetchServiceTicketDetail, manageServiceTicketStatus } from '../../../services/serviceTicketService';
+import { fetchTechnicianTicketDetail, startInspection, updateTechnicianNotes } from '../../../services/technicianService';
+import {
+  fetchSafetyInspectionCurrentRecommend,
+  fetchServiceTicketDetail,
+  manageServiceTicketStatus,
+  updateSafetyInspectionRecommend,
+} from '../../../services/serviceTicketService';
 import {
   getSafetyInspectionByTicketCode,
   saveSafetyInspectionData,
@@ -24,6 +29,7 @@ const LOCKED_SERVICE_TICKET_STATUSES = new Set(['PAID', 'COMPLETED']);
 const TEXT_FIELD_CHAR_LIMIT = 500;
 const CATEGORY_NAME_CHAR_LIMIT = 100;
 const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
+const getServiceTicketDraftStorageKey = (ticketCode) => `serviceTicketDraft:${String(ticketCode ?? '').trim()}`;
 
 const normalizeServiceTicketStatus = (status) => String(status ?? '')
   .trim()
@@ -224,6 +230,49 @@ const buildAdvisorNotePatchItems = (items) => {
     .filter(Boolean);
 };
 
+const getTechnicianNotesValue = (payload) => String(
+  payload?.technicianNotes
+  ?? payload?.technicianNote
+  ?? payload?.notes
+  ?? payload?.note
+  ?? '',
+);
+
+const hasTechnicianNotesField = (payload) => (
+  payload != null
+  && (
+    Object.prototype.hasOwnProperty.call(payload, 'technicianNotes')
+    || Object.prototype.hasOwnProperty.call(payload, 'technicianNote')
+    || Object.prototype.hasOwnProperty.call(payload, 'notes')
+    || Object.prototype.hasOwnProperty.call(payload, 'note')
+  )
+);
+
+const readServiceTicketDraft = (ticketCode) => {
+  const storageKey = getServiceTicketDraftStorageKey(ticketCode);
+  if (!storageKey) return null;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeServiceTicketDraft = (ticketCode, payload) => {
+  const storageKey = getServiceTicketDraftStorageKey(ticketCode);
+  if (!storageKey) return;
+  localStorage.setItem(storageKey, JSON.stringify(payload ?? {}));
+};
+
+const clearServiceTicketDraft = (ticketCode) => {
+  const storageKey = getServiceTicketDraftStorageKey(ticketCode);
+  if (!storageKey) return;
+  localStorage.removeItem(storageKey);
+};
+
 export const ServiceTicket = ({
   ticketCode,
   embedded = false,
@@ -302,6 +351,18 @@ export const ServiceTicket = ({
     setRecommendedTireSizeError((prev) => (prev === nextError ? prev : nextError));
   }, [recommendedTireSize]);
 
+  // Update document title based on mode
+  useEffect(() => {
+    const originalTitle = document.title;
+    document.title = isAdvisorMode 
+      ? `Phiếu kiểm tra - Cố vấn viên | Michelin Sơn Tây`
+      : `Phiếu kiểm tra xe | Michelin Sơn Tây`;
+    
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [isAdvisorMode]);
+
   const guardServiceTicketEditable = () => {
     if (!isFormLocked) return true;
     toast.info(serviceTicketLockMessage);
@@ -357,6 +418,21 @@ export const ServiceTicket = ({
       return { ...item, advisorNote, note: advisorNote };
     }));
   }, []);
+
+  const persistCurrentDraft = useCallback((serviceTicketIdValue = null) => {
+    const draftPayload = {
+      notes: String(notes ?? ''),
+      recommendedTireSize: String(recommendedTireSize ?? ''),
+      advisorItems: buildAdvisorNotePatchItems(safetyChecks),
+    };
+
+    const resolvedServiceTicketId = serviceTicketIdValue || resolveServiceTicketId();
+    if (resolvedServiceTicketId) {
+      draftPayload.recommendation = localStorage.getItem(getRecommendationStorageKey(resolvedServiceTicketId)) || '';
+    }
+
+    writeServiceTicketDraft(resolvedTicketCode, draftPayload);
+  }, [notes, recommendedTireSize, safetyChecks, resolveServiceTicketId, resolvedTicketCode]);
 
   const mergedSafetyChecks = useMemo(() => (
     [...safetyChecks].sort((a, b) => {
@@ -435,6 +511,7 @@ export const ServiceTicket = ({
         setTireData(defaultTireData);
         setRecommendedTireSize('');
         setRecommendedTireSizeError('');
+        setNotes(getTechnicianNotesValue(ticketDetail));
 
         try {
 
@@ -511,8 +588,8 @@ export const ServiceTicket = ({
                   good: existingItem.itemStatus === 'GOOD',
                   warning: existingItem.itemStatus === 'WARNING',
                   replace: existingItem.itemStatus === 'REPLACE',
-                  note: existingItem.advisorNote || '',
-                  advisorNote: existingItem.advisorNote || '',
+                  note: existingItem.advisorNote ?? existingItem.advisor_note ?? existingItem.note ?? '',
+                  advisorNote: existingItem.advisorNote ?? existingItem.advisor_note ?? existingItem.note ?? '',
                 };
               });
 
@@ -527,8 +604,8 @@ export const ServiceTicket = ({
                   good: item.itemStatus === 'GOOD',
                   warning: item.itemStatus === 'WARNING',
                   replace: item.itemStatus === 'REPLACE',
-                  note: item.advisorNote || '',
-                  advisorNote: item.advisorNote || '',
+                  note: item.advisorNote ?? item.advisor_note ?? item.note ?? '',
+                  advisorNote: item.advisorNote ?? item.advisor_note ?? item.note ?? '',
                   displayOrder: 9999,
                   isCustom: true,
                 }));
@@ -536,13 +613,35 @@ export const ServiceTicket = ({
               setSafetyChecks([...transformedDefaults, ...transformedCustoms]);
             }
 
-            if (inspection.technicianNotes) {
-              setNotes(inspection.technicianNotes);
+            if (hasTechnicianNotesField(inspection)) {
+              setNotes(getTechnicianNotesValue(inspection));
             }
           }
         } catch {
           console.log('Không tìm thấy phiếu kiểm tra, sử dụng mẫu mặc định');
           setInspectionStatus(loadedInspectionStatus);
+        }
+
+        const localDraft = readServiceTicketDraft(resolvedTicketCode);
+        if (localDraft) {
+          if (typeof localDraft.notes === 'string') {
+            setNotes(localDraft.notes);
+          }
+          if (typeof localDraft.recommendedTireSize === 'string') {
+            setRecommendedTireSize(localDraft.recommendedTireSize);
+            setRecommendedTireSizeError(getRecommendedTireSizeError(localDraft.recommendedTireSize));
+          }
+          if (Array.isArray(localDraft.advisorItems) && localDraft.advisorItems.length > 0) {
+            applyAdvisorNotesToLocalState(localDraft.advisorItems);
+          }
+          const finalServiceTicketId = ticketDetail.serviceTicketId || ticketDetail.id || ticketDetail.ticketId || null;
+          if (finalServiceTicketId && typeof localDraft.recommendation === 'string') {
+            if (localDraft.recommendation.trim()) {
+              localStorage.setItem(getRecommendationStorageKey(finalServiceTicketId), localDraft.recommendation);
+            } else {
+              localStorage.removeItem(getRecommendationStorageKey(finalServiceTicketId));
+            }
+          }
         }
 
         if (!isAdvisorMode && safetyEnabledFromTicket && !isLockedByTicketStatus) {
@@ -620,6 +719,133 @@ export const ServiceTicket = ({
     }
   };
 
+  const showTextLimitFeedback = useCallback((toastKey, setError) => {
+    const now = Date.now();
+    if (!toast500LastFired.current[toastKey] || now - toast500LastFired.current[toastKey] > 2000) {
+      toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
+      toast500LastFired.current[toastKey] = now;
+    }
+    setError(`Tối đa ${TEXT_FIELD_CHAR_LIMIT} ký tự.`);
+  }, []);
+
+  const getTextSelectionRange = useCallback((target, currentValue) => {
+    const fallbackPosition = String(currentValue ?? '').length;
+    return {
+      start: typeof target?.selectionStart === 'number' ? target.selectionStart : fallbackPosition,
+      end: typeof target?.selectionEnd === 'number' ? target.selectionEnd : fallbackPosition,
+    };
+  }, []);
+
+  const handleLimitedTextBeforeInput = useCallback((event, currentValue, toastKey, setError) => {
+    const inputType = String(event.nativeEvent?.inputType ?? '');
+    if (inputType.startsWith('delete')) return;
+
+    const incomingText = String(event.nativeEvent?.data ?? '');
+    if (!incomingText) return;
+
+    const safeCurrentValue = String(currentValue ?? '');
+    if (safeCurrentValue.length < TEXT_FIELD_CHAR_LIMIT) return;
+
+    event.preventDefault();
+    showTextLimitFeedback(toastKey, setError);
+  }, [showTextLimitFeedback]);
+
+  const handleLimitedTextKeyDown = useCallback((event, currentValue, toastKey, setError) => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+    const key = String(event.key ?? '');
+    if ([
+      'Backspace',
+      'Delete',
+      'ArrowLeft',
+      'ArrowRight',
+      'ArrowUp',
+      'ArrowDown',
+      'Home',
+      'End',
+      'PageUp',
+      'PageDown',
+      'Tab',
+      'Escape',
+    ].includes(key)) {
+      return;
+    }
+
+    const isCharacterInput = key.length === 1 || key === 'Enter';
+    if (!isCharacterInput) return;
+
+    const safeCurrentValue = String(currentValue ?? '');
+    if (safeCurrentValue.length < TEXT_FIELD_CHAR_LIMIT) return;
+
+    event.preventDefault();
+    showTextLimitFeedback(toastKey, setError);
+  }, [showTextLimitFeedback]);
+
+  const handleLimitedTextPaste = useCallback((event, currentValue, toastKey, setError, applyValue) => {
+    const pastedText = String(event.clipboardData?.getData('text') ?? '');
+    if (!pastedText) return;
+
+    const safeCurrentValue = String(currentValue ?? '');
+    if (safeCurrentValue.length < TEXT_FIELD_CHAR_LIMIT) {
+      const { start, end } = getTextSelectionRange(event.target, safeCurrentValue);
+      const remainingLength = TEXT_FIELD_CHAR_LIMIT - safeCurrentValue.length;
+      if (remainingLength <= 0) {
+        event.preventDefault();
+        showTextLimitFeedback(toastKey, setError);
+        return;
+      }
+      if (pastedText.length <= remainingLength) return;
+
+      event.preventDefault();
+      const truncatedText = pastedText.slice(0, remainingLength);
+      const nextValue = `${safeCurrentValue.slice(0, start)}${truncatedText}${safeCurrentValue.slice(end)}`;
+      if (nextValue !== safeCurrentValue) {
+        markUnsavedLocalEdit();
+        applyValue(nextValue);
+      }
+      showTextLimitFeedback(toastKey, setError);
+      return;
+    }
+
+    event.preventDefault();
+    showTextLimitFeedback(toastKey, setError);
+  }, [getTextSelectionRange, showTextLimitFeedback]);
+
+  const clampEventTargetValue = useCallback((target, nextValue) => {
+    if (target && typeof target.value === 'string' && target.value !== nextValue) {
+      target.value = nextValue;
+    }
+  }, []);
+
+  const handleLimitedTextCompositionEnd = useCallback((event, toastKey, setError, applyValue) => {
+    const raw = String(event.currentTarget?.value ?? '');
+    if (raw.length <= TEXT_FIELD_CHAR_LIMIT) return;
+
+    const nextValue = raw.slice(0, TEXT_FIELD_CHAR_LIMIT);
+    clampEventTargetValue(event.currentTarget, nextValue);
+    markUnsavedLocalEdit();
+    applyValue(nextValue);
+    showTextLimitFeedback(toastKey, setError);
+  }, [clampEventTargetValue, showTextLimitFeedback]);
+
+  const setAdvisorNoteValue = useCallback((itemId, nextValue) => {
+    setSafetyChecks(prev => prev.map(item =>
+      item.id === itemId ? { ...item, advisorNote: nextValue, note: nextValue } : item
+    ));
+  }, []);
+
+  const setAdvisorNoteError = useCallback((itemId, message) => {
+    setAdvisorNoteErrors(prev => {
+      if (!message) {
+        if (!(itemId in prev)) return prev;
+        const nextErrors = { ...prev };
+        delete nextErrors[itemId];
+        return nextErrors;
+      }
+      return { ...prev, [itemId]: message };
+    });
+  }, []);
+
   const handleSafetyCheck = (itemId, type) => {
     if (!canEditTechnicalFields || isFormLocked) return;
     markUnsavedLocalEdit();
@@ -634,24 +860,32 @@ export const ServiceTicket = ({
     );
   };
 
-  const handleAdvisorNoteChange = (itemId, value) => {
+  const handleAdvisorNoteChange = (itemId, currentValue, event) => {
     if (!canEditAdvisorNotes || isFormLocked) return;
     markUnsavedLocalEdit();
-    const raw = String(value);
+    const previousValue = String(currentValue ?? '');
+    const raw = String(event.target.value);
+    if (previousValue.length >= TEXT_FIELD_CHAR_LIMIT && raw !== previousValue) {
+      clampEventTargetValue(event.target, previousValue);
+      showTextLimitFeedback(`note_${itemId}`, (message) => setAdvisorNoteError(itemId, message));
+      return;
+    }
+    const nextValue = raw.length > TEXT_FIELD_CHAR_LIMIT
+      ? raw.slice(0, TEXT_FIELD_CHAR_LIMIT)
+      : raw;
     if (raw.length > TEXT_FIELD_CHAR_LIMIT) {
+      clampEventTargetValue(event.target, nextValue);
       const now = Date.now();
       if (!toast500LastFired.current[`note_${itemId}`] || now - toast500LastFired.current[`note_${itemId}`] > 2000) {
         toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
         toast500LastFired.current[`note_${itemId}`] = now;
       }
-      setAdvisorNoteErrors(prev => ({ ...prev, [itemId]: `Tối đa ${TEXT_FIELD_CHAR_LIMIT} ký tự.` }));
+      setAdvisorNoteError(itemId, `Tối đa ${TEXT_FIELD_CHAR_LIMIT} ký tự.`);
     } else {
-      setAdvisorNoteErrors(prev => { const n = { ...prev }; delete n[itemId]; return n; });
+      setAdvisorNoteError(itemId, '');
     }
     // Vẫn cập nhật giá trị để user thấy lỗi
-    setSafetyChecks(prev => prev.map(item =>
-      item.id === itemId ? { ...item, advisorNote: raw, note: raw } : item
-    ));
+    setAdvisorNoteValue(itemId, nextValue);
   };
 
   const handleCloseTicket = () => {
@@ -910,7 +1144,7 @@ export const ServiceTicket = ({
               customCategoryId: item.customCategoryId ?? null,
               advisorNote: String(item.advisorNote ?? item.note ?? ''),
             }))
-          : await fetchLatestAdvisorNotePatchItems(token);
+          : buildAdvisorNotePatchItems(safetyChecks);
 
         if (skippedItemsPayload.length > 0) {
           await upsertSafetyInspectionItems(currentInspectionId, skippedItemsPayload, token);
@@ -920,6 +1154,15 @@ export const ServiceTicket = ({
           if (!isAdvisorMode) {
             applyAdvisorNotesToLocalState(skippedAdvisorItems);
           }
+        }
+        if (!isAdvisorMode) {
+          await updateTechnicianNotes(resolvedTicketCode, { technicianNotes: String(notes ?? '') }, token);
+        }
+        const finalServiceTicketId = resolveServiceTicketId();
+        if (finalServiceTicketId) {
+          const currentRecommendation = localStorage.getItem(getRecommendationStorageKey(finalServiceTicketId)) || '';
+          await updateSafetyInspectionRecommend(finalServiceTicketId, currentRecommendation, token);
+          persistCurrentDraft(finalServiceTicketId);
         }
         setInspectionId(currentInspectionId);
         setInspectionStatus('SKIPPED');
@@ -1020,16 +1263,18 @@ export const ServiceTicket = ({
         throw new Error('Thiếu serviceTicketId để lưu phiếu kiểm tra.');
       }
       let currentRecommendation = localStorage.getItem(getRecommendationStorageKey(finalServiceTicketId)) || '';
-      try {
-        const recommendationRes = await fetchSafetyInspectionCurrentRecommend(finalServiceTicketId, token);
-        currentRecommendation = extractRecommendationValue(recommendationRes) || currentRecommendation;
-      } catch {
-        // Preserve local recommendation fallback when backend cannot load it.
+      if (!currentRecommendation) {
+        try {
+          const recommendationRes = await fetchSafetyInspectionCurrentRecommend(finalServiceTicketId, token);
+          currentRecommendation = extractRecommendationValue(recommendationRes) || '';
+        } catch {
+          // Preserve local recommendation fallback when backend cannot load it.
+        }
       }
 
       // Backend luôn cứng COMPLETED khi save/update, nên gửi payload bình thường
-      const advisorItemsToRestore = !isAdvisorMode && currentInspectionId
-        ? await fetchLatestAdvisorNotePatchItems(token)
+      const advisorItemsToRestore = !isAdvisorMode
+        ? buildAdvisorNotePatchItems(safetyChecks)
         : [];
 
       const safetyPayload = {
@@ -1053,6 +1298,11 @@ export const ServiceTicket = ({
         throw new Error('Không lấy được inspectionId sau khi lưu phiếu.');
       }
 
+      if (!isAdvisorMode) {
+        await updateTechnicianNotes(resolvedTicketCode, { technicianNotes: String(notes ?? '') }, token);
+      }
+      await updateSafetyInspectionRecommend(finalServiceTicketId, currentRecommendation, token);
+
       if (isAdvisorMode) {
         const advisorItems = safetyChecks
           .filter((item) => item.workCategoryId || item.customCategoryId)
@@ -1068,6 +1318,7 @@ export const ServiceTicket = ({
         applyAdvisorNotesToLocalState(advisorItemsToRestore);
       }
       setInspectionId(currentInspectionId);
+      persistCurrentDraft(finalServiceTicketId);
 
       if (shouldRequireSafetyInspection) {
         // Backend đã tự đặt COMPLETED → gọi /reopen ngay để đưa phiếu về PENDING
@@ -1099,6 +1350,11 @@ export const ServiceTicket = ({
       // Không gọi setRefreshKey để tránh reload từ API ghi đè lại trạng thái
       toast.success('Đã lưu nháp phiếu kiểm tra an toàn. Bạn vẫn có thể tiếp tục chỉnh sửa.');
     } catch (error) {
+      try {
+        persistCurrentDraft();
+      } catch {
+        // Ignore local draft persistence failure.
+      }
       console.error('Lỗi khi lưu dữ liệu phiếu:', error);
       toast.error('Không thể lưu phiếu: ' + (error.message || 'Lỗi không xác định'));
     }
@@ -1226,11 +1482,13 @@ export const ServiceTicket = ({
         throw new Error('Thiếu serviceTicketId để lưu phiếu kiểm tra.');
       }
       let currentRecommendation = localStorage.getItem(getRecommendationStorageKey(finalServiceTicketId)) || '';
-      try {
-        const recommendationRes = await fetchSafetyInspectionCurrentRecommend(finalServiceTicketId, token);
-        currentRecommendation = extractRecommendationValue(recommendationRes) || currentRecommendation;
-      } catch {
-        // Preserve local recommendation fallback when backend cannot load it.
+      if (!currentRecommendation) {
+        try {
+          const recommendationRes = await fetchSafetyInspectionCurrentRecommend(finalServiceTicketId, token);
+          currentRecommendation = extractRecommendationValue(recommendationRes) || '';
+        } catch {
+          // Preserve local recommendation fallback when backend cannot load it.
+        }
       }
 
       const safetyPayload = {
@@ -1243,8 +1501,8 @@ export const ServiceTicket = ({
       };
 
       let currentInspectionId = inspectionId;
-      const advisorItemsToRestore = !isAdvisorMode && currentInspectionId
-        ? await fetchLatestAdvisorNotePatchItems(token)
+      const advisorItemsToRestore = !isAdvisorMode
+        ? buildAdvisorNotePatchItems(safetyChecks)
         : [];
 
       if (inspectionId) {
@@ -1254,6 +1512,11 @@ export const ServiceTicket = ({
         const saveRes = await saveSafetyInspectionData(safetyPayload, token);
         currentInspectionId = saveRes?.data?.inspectionId || inspectionId;
       }
+
+      if (!isAdvisorMode) {
+        await updateTechnicianNotes(resolvedTicketCode, { technicianNotes: String(notes ?? '') }, token);
+      }
+      await updateSafetyInspectionRecommend(finalServiceTicketId, currentRecommendation, token);
       setInspectionStatus(completionInspectionStatus);
 
       // Advisor note lưu cùng phiếu kỹ thuật viên
@@ -1289,6 +1552,7 @@ export const ServiceTicket = ({
 
       toast.success('Đã hoàn thành phiếu kiểm tra an toàn.');
       setRefreshKey(prev => prev + 1); // reload để dữ liệu advisor/technician map đồng bộ qua API
+      clearServiceTicketDraft(resolvedTicketCode);
       markLocalEditsSaved();
       if (typeof onInspectionCompleted === 'function') {
         await onInspectionCompleted({
@@ -1861,7 +2125,33 @@ export const ServiceTicket = ({
                           type="text"
                           className={styles.noteInput}
                           value={item.advisorNote || ''}
-                          onChange={(e) => handleAdvisorNoteChange(item.id, e.target.value)}
+                          onChange={(e) => handleAdvisorNoteChange(item.id, item.advisorNote || '', e)}
+                          onKeyDown={(e) => handleLimitedTextKeyDown(
+                            e,
+                            item.advisorNote || '',
+                            `note_${item.id}`,
+                            (message) => setAdvisorNoteError(item.id, message),
+                          )}
+                          onBeforeInput={(e) => handleLimitedTextBeforeInput(
+                            e,
+                            item.advisorNote || '',
+                            `note_${item.id}`,
+                            (message) => setAdvisorNoteError(item.id, message),
+                          )}
+                          onPaste={(e) => handleLimitedTextPaste(
+                            e,
+                            item.advisorNote || '',
+                            `note_${item.id}`,
+                            (message) => setAdvisorNoteError(item.id, message),
+                            (nextValue) => setAdvisorNoteValue(item.id, nextValue),
+                          )}
+                          onCompositionEnd={(e) => handleLimitedTextCompositionEnd(
+                            e,
+                            `note_${item.id}`,
+                            (message) => setAdvisorNoteError(item.id, message),
+                            (nextValue) => setAdvisorNoteValue(item.id, nextValue),
+                          )}
+                          maxLength={TEXT_FIELD_CHAR_LIMIT}
                           placeholder="Nhập ghi chú cố vấn..."
                           disabled={!canEditAdvisorNotes}
                         />
@@ -1898,22 +2188,37 @@ export const ServiceTicket = ({
         <textarea
           className={styles.notesTextarea}
           value={notes}
+          onKeyDown={(e) => handleLimitedTextKeyDown(e, notes, 'notes', setNotesError)}
+          onBeforeInput={(e) => handleLimitedTextBeforeInput(e, notes, 'notes', setNotesError)}
           onChange={(e) => {
             markUnsavedLocalEdit();
-            const val = e.target.value;
-            if (val.length > 500) {
+            const previousValue = String(notes ?? '');
+            const raw = e.target.value;
+            if (previousValue.length >= TEXT_FIELD_CHAR_LIMIT && raw !== previousValue) {
+              clampEventTargetValue(e.target, previousValue);
+              showTextLimitFeedback('notes', setNotesError);
+              return;
+            }
+            const nextValue = raw.length > TEXT_FIELD_CHAR_LIMIT
+              ? raw.slice(0, TEXT_FIELD_CHAR_LIMIT)
+              : raw;
+            if (raw.length > TEXT_FIELD_CHAR_LIMIT) {
+              clampEventTargetValue(e.target, nextValue);
               const now = Date.now();
               if (!toast500LastFired.current['notes'] || now - toast500LastFired.current['notes'] > 2000) {
                 toast('Tối đa 500 ký tự cho mỗi ô nhập.', { containerId: 'app-toast', autoClose: 2000 });
                 toast500LastFired.current['notes'] = now;
               }
               setNotesError('Tối đa 500 ký tự.');
-              setNotes(val);
+              setNotes(nextValue);
             } else {
-              setNotes(val);
+              setNotes(nextValue);
               setNotesError('');
             }
           }}
+          onPaste={(e) => handleLimitedTextPaste(e, notes, 'notes', setNotesError, setNotes)}
+          onCompositionEnd={(e) => handleLimitedTextCompositionEnd(e, 'notes', setNotesError, setNotes)}
+          maxLength={TEXT_FIELD_CHAR_LIMIT}
           rows={4}
           placeholder="Nhập ghi chú..."
           disabled={!canEditTechnicalFields}
