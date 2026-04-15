@@ -1040,7 +1040,7 @@ export default function ReceiptConfirm() {
                         <div className={styles.promoTotalBar}></div>
 
                         {hasBill ? (
-                            <div className={styles.promoError}>Đã có hoá đơn (billId: {billId}). Không thể áp dụng / thay đổi khuyến mãi.</div>
+                            <div className={styles.promoError}>Đã có hoá đơn. Không thể áp dụng / thay đổi khuyến mãi nữa!</div>
                         ) : null}
 
                         <div className={styles.promoRow}>

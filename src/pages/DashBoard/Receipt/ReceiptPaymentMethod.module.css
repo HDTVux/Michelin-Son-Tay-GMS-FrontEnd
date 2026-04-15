@@ -15,6 +15,60 @@
 	color: var(--ui-text);
 }
 
+.screenOnly {
+	display: block;
+}
+
+.printOnly {
+	display: none;
+}
+
+@media print {
+	:global(body *) {
+		visibility: hidden !important;
+	}
+
+	.page {
+		padding: 0;
+		min-height: auto;
+		background: #fff;
+		color: #111;
+		visibility: visible !important;
+	}
+
+	.screenOnly {
+		display: none !important;
+	}
+
+	.printOnly {
+		display: block !important;
+		visibility: visible !important;
+		position: absolute;
+		inset: 0 auto auto 0;
+		width: 100%;
+		background: #fff;
+	}
+
+	.printOnly * {
+		visibility: visible !important;
+	}
+
+	:global(html),
+	:global(body),
+	:global(#root) {
+		background: #fff !important;
+	}
+
+	/* Ẩn toast notification khi in */
+	:global(.Toastify),
+	:global(.toast),
+	:global([class*="toastify"]) {
+		display: none !important;
+		visibility: hidden !important;
+		opacity: 0 !important;
+	}
+}
+
 .overlay {
 	position: fixed;
 	inset: 0;

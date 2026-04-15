@@ -29,7 +29,26 @@
 }
 
 .header {
+    position: relative;
     margin-bottom: 14px;
+}
+
+.barcodeWrap {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    pointer-events: none;
+}
+
+.barcodeImg {
+    max-width: 320px;
+    width: 55%;
+    height: auto;
 }
 
 .storeInfo {
