@@ -6,6 +6,7 @@ import { getVietQrUrl } from '../../../services/paymentQrService.js';
 import { toast } from 'react-toastify';
 import { fetchPaymentByServiceTicketId, payBill } from '../../../services/paymentService.js';
 import { fetchServiceTicketDetail, fetchServiceTicketEstimate, manageServiceTicketStatus } from '../../../services/serviceTicketService.js';
+import { getStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
 
 function toMoneyNumber(value) {
     const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
@@ -201,25 +202,9 @@ export default function ReceiptPaymentMethod() {
     }, [payment]);
 
     const totalSafe = useMemo(() => toMoneyNumber(payment?.finalAmount), [payment]);
-    const paymentStatus = String(payment?.paymentStatus || '').trim().toUpperCase();
-    const isPaid = paymentStatus === 'PAID';
-
-    const estimateId = useMemo(() => {
-        const raw = estimate?.estimateId ?? estimate?.id ?? estimate?.serviceTicketEstimateId ?? null;
-        const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
-        return Number.isFinite(n) && n > 0 ? n : null;
-    }, [estimate]);
-
-    const estimateVersion = useMemo(() => {
-        const raw = estimate?.version ?? estimate?.estimateVersion ?? estimate?.estimateNo ?? estimate?.versionNo ?? null;
-        const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
-        return Number.isFinite(n) && n > 0 ? n : null;
-    }, [estimate]);
-
-    const estimateStatus = useMemo(
-        () => normalizeEstimateStatus(estimate?.estimateStatus ?? estimate?.status ?? estimate?.estimate_status),
-        [estimate?.estimateStatus, estimate?.status, estimate?.estimate_status],
-    );
+    const paymentStatusCode = normalizeStatusCode(payment?.paymentStatus);
+    const paymentStatusLabel = getStatusTextVi(paymentStatusCode, paymentStatusCode || '-');
+    const isPaid = paymentStatusCode === 'PAID';
 
     const estimateItems = useMemo(() => {
         const items = Array.isArray(estimate?.items) ? estimate.items : [];
@@ -323,28 +308,9 @@ export default function ReceiptPaymentMethod() {
                 {!loading && !error && payment ? (
                     <>
                         <div className={styles.section}>
-                            <div className={styles.sectionTitle}>Báo giá mới nhất</div>
+                            <div className={styles.sectionTitle}>Báo giá được thanh toán</div>
                             {estimateLoading ? <div className={styles.muted}>Đang tải báo giá...</div> : null}
                             {!estimateLoading && estimateError ? <div className={styles.error}>{estimateError}</div> : null}
-
-                            {!estimateLoading && !estimateError ? (
-                                <div className={styles.qrMeta}>
-                                    <div className={styles.qrMetaRow}>
-                                        <span>Estimate ID:</span>
-                                        <strong>{estimateId ?? '-'}</strong>
-                                    </div>
-                                    <div className={styles.qrMetaRow}>
-                                        <span>Version:</span>
-                                        <strong>{estimateVersion ?? '-'}</strong>
-                                    </div>
-                                    <div className={styles.qrMetaRow}>
-                                        <span>Trạng thái:</span>
-                                        <strong>{estimateStatus || '-'}</strong>
-                                    </div>
-                                </div>
-                            ) : null}
-
-
                             {payItems.length ? (
                                 <div className={styles.tableWrap}>
                                     <table className={styles.table}>
@@ -386,7 +352,7 @@ export default function ReceiptPaymentMethod() {
 
                             <div className={styles.qrMetaRow}>
                                 <span>Trạng thái:</span>
-                                <strong>{paymentStatus || '-'}</strong>
+                                <strong>{paymentStatusLabel}</strong>
                             </div>
                             <div className={styles.qrMetaRow}>
                                 <span>Giá gốc:</span>
@@ -397,7 +363,7 @@ export default function ReceiptPaymentMethod() {
                                 <strong>{formatCurrencyVnd(payment?.discountAmount)}</strong>
                             </div>
                             <div className={styles.qrMetaRow}>
-                            <span>Tổng cần thanh toán:</span>
+                            <span>Tổng tiền cần thanh toán:</span>
                             <strong>{formatCurrencyVnd(totalSafe)}</strong>
                             </div>
 

@@ -1056,6 +1056,18 @@
   margin-bottom: 12px;
 }
 
+.stockWaitBanner {
+  border: 2px solid yellow;
+  border-radius: 10px;
+  background: #F7F589;
+  padding: 14px 16px;
+  font-weight: 700;
+  color: #1E90FF ;
+  font-size: 15px;
+  margin-top: 12px;
+  text-align: center;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .topInfoGrid {

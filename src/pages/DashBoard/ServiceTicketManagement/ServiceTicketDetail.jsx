@@ -1578,7 +1578,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 </h2>
                                 <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', maxWidth: '440px', margin: '0 auto 32px' }}>
                                     Phiếu dịch vụ này chưa được phân công kỹ thuật viên. Vui lòng phân công kỹ thuật viên trước khi mở phiếu.
-                                </p>
+                                </p> 
                                 <button
                                     type="button"
                                     className="ui-btn ui-btn--ghost"
@@ -1802,7 +1802,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         onCancelAppendOnly={handleCancelAppendOnly}
                                         onEstimateEditingChange={setIsEstimateEditing}
                                     />
-                                </>
+                                    {ticket.hasDraftStockIssue ? (
+                                        <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
+                                    ) : null}
+                                </>                               
                             )}
 
                             {isTicketCancelled ? null : (
@@ -1889,7 +1892,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         Tạo phiếu dịch vụ
                                                     </button>
                                                 )}
-
                                                 {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
                                                     <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
                                                         Cần phân công KTV trước khi tạo hóa đơn.

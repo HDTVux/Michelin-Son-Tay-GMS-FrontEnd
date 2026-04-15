@@ -155,9 +155,6 @@ export default function ConfirmedBookingManagement() {
             actionLabel={`${totalElements} booking`}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-            <button className={styles['ghost-button']} onClick={() => navigate('/queue-management')}>
-              Quản lý hàng chờ đặt lịch
-            </button>
           </div>
         </div>
       </div>
