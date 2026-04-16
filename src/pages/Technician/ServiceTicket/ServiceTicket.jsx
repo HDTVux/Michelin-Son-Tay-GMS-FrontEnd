@@ -145,6 +145,63 @@ const getTireInputErrorMap = (tireData) => {
   return errors;
 };
 
+const canIntegerPrefixReachRange = (rawValue, range) => {
+  const raw = String(rawValue ?? '');
+  if (!raw) return true;
+  if (!/^\d+$/.test(raw) || !range) return false;
+
+  const min = Number(range.min);
+  const max = Number(range.max);
+  const minDigits = String(Math.trunc(min)).length;
+  const maxDigits = String(Math.trunc(max)).length;
+
+  if (raw.length > maxDigits) return false;
+
+  for (let totalLength = raw.length; totalLength <= maxDigits; totalLength += 1) {
+    const paddedLow = raw.padEnd(totalLength, '0');
+    const paddedHigh = raw.padEnd(totalLength, '9');
+    const low = Number(paddedLow);
+    const high = Number(paddedHigh);
+    const effectiveLow = totalLength < minDigits ? Math.max(low, min) : low;
+    const effectiveHigh = totalLength < minDigits ? Math.max(high, min) : high;
+
+    if (effectiveLow <= max && effectiveHigh >= min) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const getNextTireFieldValue = (field, value) => {
+  const raw = String(value ?? '');
+  if (!raw) return '';
+  if (raw.length > TEXT_FIELD_CHAR_LIMIT) return raw.slice(0, TEXT_FIELD_CHAR_LIMIT);
+
+  const range = TIRE_FIELD_RANGES[field];
+  if (INTEGER_TIRE_FIELDS.has(field)) {
+    if (!/^\d+$/.test(raw)) return null;
+    return canIntegerPrefixReachRange(raw, range) ? raw : null;
+  }
+
+  if (!/^\d+(\.\d{0,2})?$/.test(raw)) return null;
+
+  const [wholePart = '', decimalPart = ''] = raw.split('.');
+  const maxWhole = Math.trunc(Number(range?.max ?? 0));
+  const maxWholeLength = String(Math.max(maxWhole, 0)).length;
+  if (!wholePart || wholePart.length > maxWholeLength || decimalPart.length > 2) return null;
+
+  const wholeValue = Number(wholePart);
+  if (!Number.isFinite(wholeValue) || wholeValue > maxWhole) return null;
+
+  if (!raw.endsWith('.')) {
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || (range && parsed > range.max)) return null;
+  }
+
+  return raw;
+};
+
 const getRecommendedTireSizeError = (value) => {
   const raw = String(value ?? '').trim();
   if (!raw) return '';
@@ -167,6 +224,28 @@ const getRecommendedTireSizeError = (value) => {
   if (rangeError) return rangeError;
 
   return '';
+};
+
+const RECOMMENDED_TIRE_SIZE_PARTIAL_PATTERN = /^\d{0,3}(?:\/\d{0,3}(?:R\d{0,2})?)?$/i;
+
+const getNextRecommendedTireSizeValue = (value) => {
+  const raw = String(value ?? '');
+  if (!raw) return '';
+
+  const normalized = normalizeRecommendedTireSizeValue(raw);
+  if (!normalized) return '';
+  if (normalized.length > TEXT_FIELD_CHAR_LIMIT) return normalized.slice(0, TEXT_FIELD_CHAR_LIMIT);
+  if (normalized.includes('-')) return null;
+  if (!RECOMMENDED_TIRE_SIZE_PARTIAL_PATTERN.test(normalized)) return null;
+
+  const [widthPart = '', rest = ''] = normalized.split('/');
+  const [ratioPart = '', rimPart = ''] = rest ? rest.split(/R/i) : ['', ''];
+
+  if (widthPart && !canIntegerPrefixReachRange(widthPart, TIRE_FIELD_RANGES.size1)) return null;
+  if (ratioPart && !canIntegerPrefixReachRange(ratioPart, TIRE_FIELD_RANGES.size2)) return null;
+  if (rimPart && !canIntegerPrefixReachRange(rimPart, TIRE_FIELD_RANGES.size3)) return null;
+
+  return normalized;
 };
 
 const normalizeCategoryNameForCompare = (value) => String(value ?? '')
@@ -341,10 +420,10 @@ export const ServiceTicket = ({
   const canEditTechnicalFields = !isFormLocked;
   const canEditAdvisorNotes = !isFormLocked;
   const advisorNoteHasErrors = Object.keys(advisorNoteErrors).length > 0;
-  const textFieldValidationError = (shouldRequireSafetyInspection ? recommendedTireSizeError : '')
+  const textFieldValidationError = recommendedTireSizeError
     || notesError
     || (advisorNoteHasErrors ? 'Vui lòng rút gọn nội dung ghi chú vượt quá giới hạn.' : '');
-  const blockingTextFieldValidationError = shouldRequireSafetyInspection ? textFieldValidationError : '';
+  const blockingTextFieldValidationError = textFieldValidationError;
 
   useEffect(() => {
     const nextError = getRecommendedTireSizeError(recommendedTireSize);
@@ -677,41 +756,22 @@ export const ServiceTicket = ({
 
   const handleTireDataChange = (position, field, value) => {
     if (!canEditTechnicalFields || isFormLocked) return;
+    const nextValue = getNextTireFieldValue(field, value);
+    if (nextValue == null) return;
     markUnsavedLocalEdit();
-    const raw = String(value);
-
-    // Validate 500 ký tự cho các trường khác
-    if (raw.length > TEXT_FIELD_CHAR_LIMIT) {
-      setTireData(prev => ({
-        ...prev,
-        [position]: { ...prev[position], [field]: raw.slice(0, TEXT_FIELD_CHAR_LIMIT) }
-      }));
-      return;
-    }
-
     setTireData(prev => ({
       ...prev,
-      [position]: { ...prev[position], [field]: raw }
+      [position]: { ...prev[position], [field]: nextValue }
     }));
   };
 
   const handleRecommendedTireSizeChange = (value) => {
     if (!canEditTechnicalFields || isFormLocked) return;
+    const nextValue = getNextRecommendedTireSizeValue(value);
+    if (nextValue == null) return;
     markUnsavedLocalEdit();
-    const raw = String(value);
-    const nextValue = raw.length > TEXT_FIELD_CHAR_LIMIT
-      ? raw.slice(0, TEXT_FIELD_CHAR_LIMIT)
-      : raw;
     setRecommendedTireSize(nextValue);
     setRecommendedTireSizeError(getRecommendedTireSizeError(nextValue));
-
-    if (raw.length > TEXT_FIELD_CHAR_LIMIT) {
-      const now = Date.now();
-      if (!toast500LastFired.current['recommendedTireSize'] || now - toast500LastFired.current['recommendedTireSize'] > 2000) {
-        toast(`Size lốp khuyến cáo tối đa ${TEXT_FIELD_CHAR_LIMIT} ký tự.`, { containerId: 'app-toast', autoClose: 2000 });
-        toast500LastFired.current['recommendedTireSize'] = now;
-      }
-    }
   };
 
   const showTextLimitFeedback = useCallback((toastKey, setError) => {
@@ -1085,7 +1145,7 @@ export const ServiceTicket = ({
     if (currentRecommendedTireSizeError !== recommendedTireSizeError) {
       setRecommendedTireSizeError(currentRecommendedTireSizeError);
     }
-    if (shouldRequireSafetyInspection && optionalTirePayloadError) {
+    if (optionalTirePayloadError) {
       toast.error(optionalTirePayloadError);
       return;
     }
@@ -1365,7 +1425,7 @@ export const ServiceTicket = ({
     if (currentRecommendedTireSizeError !== recommendedTireSizeError) {
       setRecommendedTireSizeError(currentRecommendedTireSizeError);
     }
-    if (shouldRequireSafetyInspection && optionalTirePayloadError) {
+    if (optionalTirePayloadError) {
       toast.error(optionalTirePayloadError);
       return;
     }
@@ -1566,7 +1626,7 @@ export const ServiceTicket = ({
   const advisorCompletionError = isAdvisorMode ? validateAdvisorCompletion() : null;
   const visibleTireMmErrors = useMemo(() => getTireInputErrorMap(tireData), [tireData]);
   const visibleTireInputValidationError = Object.values(visibleTireMmErrors).find(Boolean) || null;
-  const tireInputValidationError = shouldRequireSafetyInspection ? visibleTireInputValidationError : null;
+  const tireInputValidationError = visibleTireInputValidationError;
 
   if (loading) {
     return (
