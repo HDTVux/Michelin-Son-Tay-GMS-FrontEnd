@@ -13,6 +13,7 @@ import {
     allocateEstimateStock,
     createServiceTicketReminder,
     updateEstimateStockAllocation,
+    fetchEstimateStockAllocations,
     fetchServiceTicketDetail,
     fetchServiceTicketEstimate,
     manageServiceTicketEstimateStatus,
@@ -1202,36 +1203,123 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         try {
             if (isAppendOnlyConfirm) {
                 // Backend expects the full snapshot of allocations; missing rows can be treated as deleted.
-                // Refetch the estimate to ensure we include all existing allocations (old + new).
-                let estimateItemsForAllocation = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+                // New API: GET stock-allocation-get returns rows in shape { estimateItemDto, stockAllocationDto }.
+                // We must send all warehouse-related items back; items without allocation send allocationId: null.
                 try {
-                    const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
-                    const list = Array.isArray(estimateRes?.data) ? estimateRes.data : [];
-                    const found =
-                        list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
-                        pickLatestEstimate(list);
-                    if (Array.isArray(found?.items)) {
-                        estimateItemsForAllocation = found.items;
-                        setLatestEstimate((prev) => {
-                            if (!prev) return prev;
-                            const next = { ...prev, ...found };
-                            next.items = found.items;
-                            return next;
-                        });
+                    const allocationRes = await fetchEstimateStockAllocations(estimateIdNum, token);
+                    const rows = Array.isArray(allocationRes?.data) ? allocationRes.data : [];
+
+                    const fallbackItems = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+                    const fallbackByEstimateItemId = new Map(
+                        fallbackItems
+                            .map((it) => {
+                                const id = toPositiveNumberOrNull(it?.estimateItemId ?? it?.estimateItemID ?? it?.id);
+                                return id ? [id, it] : null;
+                            })
+                            .filter(Boolean),
+                    );
+
+                    const payload = rows
+                        .map((row) => {
+                            const estimateItem = row?.estimateItemDto ?? null;
+                            const stockAlloc = row?.stockAllocationDto ?? null;
+
+                            const estimateItemId = toPositiveNumberOrNull(
+                                estimateItem?.estimateItemId ?? estimateItem?.estimateItemID ?? estimateItem?.id,
+                            );
+
+                            const revisedFromItemId = toPositiveNumberOrNull(estimateItem?.revisedFromItemId);
+                            const fallbackItem =
+                                (estimateItemId ? fallbackByEstimateItemId.get(estimateItemId) : null) ||
+                                (revisedFromItemId ? fallbackByEstimateItemId.get(revisedFromItemId) : null) ||
+                                null;
+
+                            const warehouseId = toPositiveNumberOrNull(
+                                stockAlloc?.warehouseId ??
+                                    estimateItem?.warehouseId ??
+                                    estimateItem?.warehouseID ??
+                                    estimateItem?.warehouse_id ??
+                                    fallbackItem?.warehouseId ??
+                                    fallbackItem?.warehouseID ??
+                                    fallbackItem?.warehouse_id ??
+                                    fallbackItem?.warehouse?.warehouseId ??
+                                    fallbackItem?.warehouse?.id,
+                            );
+
+                            // Rows without a warehouse cannot be allocated (typically service lines).
+                            if (!estimateItemId || !warehouseId) return null;
+
+                            const itemId = toPositiveNumberOrNull(
+                                stockAlloc?.itemId ??
+                                    estimateItem?.itemId ??
+                                    estimateItem?.catalogItemId ??
+                                    estimateItem?.serviceItemId ??
+                                    estimateItem?.productId ??
+                                    fallbackItem?.itemId ??
+                                    fallbackItem?.catalogItemId ??
+                                    fallbackItem?.serviceItemId ??
+                                    fallbackItem?.productId,
+                            );
+                            const quantity = toPositiveNumberOrNull(
+                                estimateItem?.quantity ?? stockAlloc?.quantity ?? fallbackItem?.quantity,
+                            );
+                            if (!itemId || !quantity) return null;
+
+                            const allocationIdRaw = stockAlloc?.allocationId ?? stockAlloc?.stockAllocationId ?? null;
+                            const allocationId = toPositiveNumberOrNull(allocationIdRaw);
+
+                            const createdBy = stockAlloc?.createdBy ?? null;
+
+                            return {
+                                allocationId: allocationId ?? null,
+                                serviceTicketId: serviceTicketIdNum,
+                                estimateItemId,
+                                warehouseId,
+                                itemId,
+                                estimateId: estimateIdNum,
+                                quantity,
+                                status: 'COMMITTED',
+                                ...(createdBy == null ? {} : { createdBy }),
+                            };
+                        })
+                        .filter(Boolean);
+
+                    if (payload.length > 0) {
+                        await updateEstimateStockAllocation(estimateIdNum, payload, token);
                     }
+                    return;
                 } catch {
-                    // keep fallback to latestEstimate.items
+                    // Fallback to legacy mapping from estimate items if the allocation snapshot endpoint fails.
+                    // Refetch the estimate to ensure we include all existing allocations (old + new).
+                    let estimateItemsForAllocation = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+                    try {
+                        const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
+                        const list = Array.isArray(estimateRes?.data) ? estimateRes.data : [];
+                        const found =
+                            list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
+                            pickLatestEstimate(list);
+                        if (Array.isArray(found?.items)) {
+                            estimateItemsForAllocation = found.items;
+                            setLatestEstimate((prev) => {
+                                if (!prev) return prev;
+                                const next = { ...prev, ...found };
+                                next.items = found.items;
+                                return next;
+                            });
+                        }
+                    } catch {
+                        // keep fallback to latestEstimate.items
+                    }
+                    const payload = buildStockAllocationUpdatePayload({
+                        estimateId: estimateIdNum,
+                        serviceTicketId: serviceTicketIdNum,
+                        estimateItems: estimateItemsForAllocation,
+                    });
+                    if (payload.length > 0) {
+                        await updateEstimateStockAllocation(estimateIdNum, payload, token);
+                    }
+                    return;
                 }
-                const payload = buildStockAllocationUpdatePayload({
-                    estimateId: estimateIdNum,
-                    serviceTicketId: serviceTicketIdNum,
-                    estimateItems: estimateItemsForAllocation,
-                });
-                // Nếu không có dòng vật tư cần giữ chỗ (toàn dịch vụ), bỏ qua update.
-                if (payload.length > 0) {
-                    await updateEstimateStockAllocation(estimateIdNum, payload, token);
-                }
-                return;
             }
 
             await allocateEstimateStock(estimateIdNum, token);

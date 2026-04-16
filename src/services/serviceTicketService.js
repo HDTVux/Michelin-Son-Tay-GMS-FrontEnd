@@ -132,6 +132,28 @@ export const allocateEstimateStock = (estimateId, token) => {
   });
 };
 
+// Lấy danh sách giữ chỗ vật tư theo estimateId (để map allocationId khi gọi update)
+// Endpoint: GET /api/service-ticket/estimate/{estimateId}/stock-allocation-get
+export const fetchEstimateStockAllocations = (estimateId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem danh sách giữ chỗ vật tư.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ để lấy giữ chỗ vật tư.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/stock-allocation-get`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Cập nhật giữ chỗ vật tư trong kho theo báo giá (dùng khi thêm dịch vụ rồi xác nhận lại báo giá)
 // Endpoint: PUT /api/service-ticket/estimate/{estimateId}/stock-allocation/update
 // Request body: Array<{

@@ -405,10 +405,17 @@ export const createWarehouseStockEntryWithAttachment = async (payload, file, tok
 
 // GET: /api/warehouse/stock-entries?warehouseId=...&status=...
 export const fetchWarehouseStockEntries = (params, token) => {
-  const qp = new URLSearchParams();
   const safeParams = params && typeof params === 'object' ? params : {};
+  const warehouseIdNum = toSafeInt(safeParams.warehouseId);
+  if (!warehouseIdNum || warehouseIdNum <= 0) {
+    throw new Error('Thiếu kho (warehouseId).');
+  }
+
+  const qp = new URLSearchParams();
+  qp.append('warehouseId', String(warehouseIdNum));
 
   Object.entries(safeParams).forEach(([key, value]) => {
+    if (key === 'warehouseId') return;
     if (value === undefined || value === null) return;
     const text = String(value).trim();
     if (!text) return;
@@ -507,10 +514,17 @@ export const createWarehouseReturnEntryWithAttachments = async (payload, files, 
 // GET: /api/warehouse/return-entries
 // Params: { warehouseId: number, status?: string, ... }
 export const fetchWarehouseReturnEntries = (params, token) => {
-  const query = new URLSearchParams();
   const safeParams = params && typeof params === 'object' ? params : {};
-  
+  const warehouseIdNum = toSafeInt(safeParams.warehouseId);
+  if (!warehouseIdNum || warehouseIdNum <= 0) {
+    throw new Error('Thiếu kho (warehouseId).');
+  }
+
+  const query = new URLSearchParams();
+  query.append('warehouseId', String(warehouseIdNum));
+
   Object.entries(safeParams).forEach(([key, value]) => {
+    if (key === 'warehouseId') return;
     if (value === undefined || value === null) return;
     const text = String(value).trim();
     if (text) query.append(key, text);
@@ -622,10 +636,17 @@ export const requestWarehouseStockIssue = (ticketId, token) => {
 
 // GET: /api/warehouse/stock-issues?warehouseId=...&status=...
 export const fetchWarehouseStockIssues = (params, token) => {
-  const query = new URLSearchParams();
   const safeParams = params && typeof params === 'object' ? params : {};
+  const warehouseIdNum = toSafeInt(safeParams.warehouseId);
+  if (!warehouseIdNum || warehouseIdNum <= 0) {
+    throw new Error('Thiếu kho (warehouseId).');
+  }
+
+  const query = new URLSearchParams();
+  query.append('warehouseId', String(warehouseIdNum));
 
   Object.entries(safeParams).forEach(([key, value]) => {
+    if (key === 'warehouseId') return;
     if (value === undefined || value === null) return;
     const text = String(value).trim();
     if (text) query.append(key, text);
