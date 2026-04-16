@@ -406,18 +406,6 @@ function normalizeEstimateStatus(raw) {
     return value;
 }
 
-function normalizeSafetyInspectionStatus(raw) {
-    const value = String(raw || '')
-        .trim()
-        .toUpperCase()
-        .replaceAll(/[\s-]+/g, '_');
-    if (!value) return '';
-    if (['SKIP', 'SKIPPED', 'DISABLED', 'NOT_REQUIRED', 'NO_SAFETY_INSPECTION'].includes(value)) return 'SKIPPED';
-    if (['DONE', 'FINISHED', 'PASSED'].includes(value)) return 'COMPLETED';
-    if (['WAITING', 'REPAIRING'].includes(value)) return 'PENDING';
-    return value;
-}
-
 function buildTimelineEvents(input, receivedAt, handoverAt) {
     const createdAt = pickFirstDefined(input, [
         'createdAt',
@@ -693,9 +681,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const params = useParams();
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
-    const hasReceptionistRole = staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
-    const isAdvisorOnlyViewRole = hasAdvisorRole;
-    const hasReceptionistEditAccess = hasReceptionistRole && !hasAdvisorRole;
 
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -763,35 +748,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => normalizeTicketStatus(ticket?.statusCode || ticket?.timelineStatus || ticket?.statusLabel),
         [ticket?.statusCode, ticket?.timelineStatus, ticket?.statusLabel],
     );
-    const isSafetyInspectionEnabled = useMemo(
-        () => ticketRaw?.safetyInspectionEnabled === true || ticketFromState?.safetyInspectionEnabled === true,
-        [ticketFromState?.safetyInspectionEnabled, ticketRaw?.safetyInspectionEnabled],
-    );
-    const safetyInspectionStatus = useMemo(() => normalizeSafetyInspectionStatus(
-        ticketRaw?.safetyInspection?.inspectionStatus
-        ?? ticketRaw?.safetyInspectionStatus
-        ?? ticketRaw?.inspectionStatus
-        ?? ticketRaw?.inspection?.inspectionStatus
-        ?? ticketFromState?.safetyInspection?.inspectionStatus
-        ?? ticketFromState?.safetyInspectionStatus
-        ?? ticketFromState?.inspectionStatus
-        ?? ticketFromState?.inspection?.inspectionStatus,
-    ), [
-        ticketFromState?.inspection?.inspectionStatus,
-        ticketFromState?.inspectionStatus,
-        ticketFromState?.safetyInspection?.inspectionStatus,
-        ticketFromState?.safetyInspectionStatus,
-        ticketRaw?.inspection?.inspectionStatus,
-        ticketRaw?.inspectionStatus,
-        ticketRaw?.safetyInspection?.inspectionStatus,
-        ticketRaw?.safetyInspectionStatus,
-    ]);
-    const isSafetyInspectionCompleted = useMemo(() => {
-        if (!isSafetyInspectionEnabled) return true;
-        if (safetyInspectionStatus === 'COMPLETED') return true;
-        return ['INSPECTED', 'ESTIMATED', 'PENDING', 'REPAIRING', 'COMPLETED', 'PAID'].includes(ticketStatus);
-    }, [isSafetyInspectionEnabled, safetyInspectionStatus, ticketStatus]);
-    const shouldHideEstimateUntilSafetyDone = isSafetyInspectionEnabled && !isSafetyInspectionCompleted;
 
     const isTicketCancelled = ticketStatus === 'CANCELLED';
 
@@ -918,7 +874,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 && String(a?.status || '').toUpperCase() !== 'CANCELLED',
         );
     }, [assignments, assignmentsLoading]);
-    const advisorReadOnlyWithoutTechnician = isAdvisorOnlyViewRole && !assignmentsLoading && !hasTechnician;
 
     const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading;
     const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED';
@@ -1541,7 +1496,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             || ticketStatus === 'PENDING')
         && hasAnyAdvisorItem
         && isEstimatePersisted
-        && !shouldHideEstimateUntilSafetyDone
         && !isEstimateEditing;
     const handleEstimateStatusChange = useCallback((est) => {
         setLatestEstimate((prev) => {
@@ -1691,6 +1645,43 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    // Chặn toàn bộ trang nếu chưa phân công kỹ thuật viên
+    if (!assignmentsLoading && !hasTechnician) {
+        return (
+            <div className={styles.page}>
+                <div className={styles.screenOnly}>
+                    <div className={styles.layout}>
+                        <main className={styles.main}>
+                            <header className={styles.header}>
+                                <div className={styles.headerLeft}>
+                                    <div className={styles.titleRow}>
+                                        <h1 className={styles.title}>Phiếu dịch vụ #{ticketCodeParam || '-'}</h1>
+                                    </div>
+                                </div>
+                            </header>
+                            <div className={`ui-card ${styles.card}`} style={{ textAlign: 'center', padding: '48px 24px' }}>
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+                                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', marginBottom: '12px' }}>
+                                    Chưa phân công kỹ thuật viên
+                                </h2>
+                                <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', maxWidth: '440px', margin: '0 auto 32px' }}>
+                                    Phiếu dịch vụ này chưa được phân công kỹ thuật viên. Vui lòng phân công kỹ thuật viên trước khi mở phiếu.
+                                </p> 
+                                <button
+                                    type="button"
+                                    className="ui-btn ui-btn--ghost"
+                                    onClick={() => navigate(-1)}
+                                >
+                                    Quay lại
+                                </button>
+                            </div>
+                        </main>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={styles.page}>
             <div className={styles.screenOnly}>
@@ -1703,7 +1694,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                                 </div>
                             </div>
-                            {hasReceptionistEditAccess && ticketStatus === 'CREATED' && (
+                            {staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT') && (
                                 <button
                                     type="button"
                                     className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
@@ -1876,16 +1867,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 )}
                             </section>
 
-                            {advisorReadOnlyWithoutTechnician ? (
-                                <section className={styles.block}>
-                                    <h2 className={styles.blockTitle}>Trạng thái xử lý</h2>
-                                    <div className={styles.noteBox}>
-                                        Phiếu này chưa được phân công kỹ thuật viên. Cố vấn viên hiện chỉ có thể xem thông tin phiếu cho đến khi có phân công kỹ thuật viên.
-                                    </div>
-                                </section>
-                            ) : null}
-
-                            {hasAdvisorRole && !advisorReadOnlyWithoutTechnician && (
+                            {hasAdvisorRole && (
                                 <>
                                     <TechnicianServiceTicket
                                         key={`tech-${ticket.ticketCode || ticketCodeParam}-${ticketStatus}-${estimateStatus}`}
@@ -1895,29 +1877,23 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         onInspectionCompleted={handleInspectionCompleted}
                                     />
 
-                                    {shouldHideEstimateUntilSafetyDone ? (
-                                        <section className={styles.block}>
-                                            <h2 className={styles.blockTitle}>Báo giá</h2>
-                                            <div className={styles.noteBox}>
-                                                Phiếu này có kiểm tra an toàn. Vui lòng hoàn thành kiểm tra an toàn trước khi hiển thị phần báo giá.
-                                            </div>
-                                        </section>
-                                    ) : (
-                                        <AdvisorItemsTable
-                                            key={`advisor-${ticket?.serviceTicketId}`}
-                                            serviceTicketId={ticket?.serviceTicketId}
-                                            ticketStatus={ticketStatus}
-                                            ticketPhotos={ticketPhotos}
-                                            refreshToken={refreshTick}
-                                            estimatedTimeDisplay={estimatedTimeDisplay}
-                                            onEstimateStatusChange={handleEstimateStatusChange}
-                                            onRestartWorkflow={handleRestartFromArchived}
-                                            onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
-                                            onCancelAppendOnly={handleCancelAppendOnly}
-                                            onEstimateEditingChange={setIsEstimateEditing}
-                                        />
-                                    )}
-                                </>
+                                    <AdvisorItemsTable
+                                        key={`advisor-${ticket?.serviceTicketId}`}
+                                        serviceTicketId={ticket?.serviceTicketId}
+                                        ticketStatus={ticketStatus}
+                                        ticketPhotos={ticketPhotos}
+                                        refreshToken={refreshTick}
+                                        estimatedTimeDisplay={estimatedTimeDisplay}
+                                        onEstimateStatusChange={handleEstimateStatusChange}
+                                        onRestartWorkflow={handleRestartFromArchived}
+                                        onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
+                                        onCancelAppendOnly={handleCancelAppendOnly}
+                                        onEstimateEditingChange={setIsEstimateEditing}
+                                    />
+                                    {ticket.hasDraftStockIssue ? (
+                                        <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
+                                    ) : null}
+                                </>                               
                             )}
 
                             {isTicketCancelled ? null : (
@@ -1926,7 +1902,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
-                                        {advisorReadOnlyWithoutTechnician ? null : isCreatingNewEstimateVersion && canConfirmEstimate ? (
+                                        {isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                             <button
                                                 type="button"
                                                 className="ui-btn ui-btn--primary"
@@ -1937,7 +1913,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             </button>
                                         ) : null}
 
-                                        {advisorReadOnlyWithoutTechnician || isCreatingNewEstimateVersion ? null : (
+                                        {isCreatingNewEstimateVersion ? null : (
                                             <>
                                                 {canCancel && (
                                                     <button
