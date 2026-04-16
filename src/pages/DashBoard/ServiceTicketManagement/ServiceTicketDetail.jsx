@@ -1917,6 +1917,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             onEstimateEditingChange={setIsEstimateEditing}
                                         />
                                     )}
+
+                                    {ticket.hasDraftStockIssue ? (
+                                        <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
+                                    ) : null}
                                 </>
                             )}
 
