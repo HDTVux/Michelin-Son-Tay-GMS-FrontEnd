@@ -13,6 +13,7 @@ import {
     allocateEstimateStock,
     createServiceTicketReminder,
     updateEstimateStockAllocation,
+    fetchEstimateStockAllocations,
     fetchServiceTicketDetail,
     fetchServiceTicketEstimate,
     manageServiceTicketEstimateStatus,
@@ -405,18 +406,6 @@ function normalizeEstimateStatus(raw) {
     return value;
 }
 
-function normalizeSafetyInspectionStatus(raw) {
-    const value = String(raw || '')
-        .trim()
-        .toUpperCase()
-        .replaceAll(/[\s-]+/g, '_');
-    if (!value) return '';
-    if (['SKIP', 'SKIPPED', 'DISABLED', 'NOT_REQUIRED', 'NO_SAFETY_INSPECTION'].includes(value)) return 'SKIPPED';
-    if (['DONE', 'FINISHED', 'PASSED'].includes(value)) return 'COMPLETED';
-    if (['WAITING', 'REPAIRING'].includes(value)) return 'PENDING';
-    return value;
-}
-
 function buildTimelineEvents(input, receivedAt, handoverAt) {
     const createdAt = pickFirstDefined(input, [
         'createdAt',
@@ -692,9 +681,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const params = useParams();
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
-    const hasReceptionistRole = staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
-    const isAdvisorOnlyViewRole = hasAdvisorRole;
-    const hasReceptionistEditAccess = hasReceptionistRole && !hasAdvisorRole;
 
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -762,35 +748,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => normalizeTicketStatus(ticket?.statusCode || ticket?.timelineStatus || ticket?.statusLabel),
         [ticket?.statusCode, ticket?.timelineStatus, ticket?.statusLabel],
     );
-    const isSafetyInspectionEnabled = useMemo(
-        () => ticketRaw?.safetyInspectionEnabled === true || ticketFromState?.safetyInspectionEnabled === true,
-        [ticketFromState?.safetyInspectionEnabled, ticketRaw?.safetyInspectionEnabled],
-    );
-    const safetyInspectionStatus = useMemo(() => normalizeSafetyInspectionStatus(
-        ticketRaw?.safetyInspection?.inspectionStatus
-        ?? ticketRaw?.safetyInspectionStatus
-        ?? ticketRaw?.inspectionStatus
-        ?? ticketRaw?.inspection?.inspectionStatus
-        ?? ticketFromState?.safetyInspection?.inspectionStatus
-        ?? ticketFromState?.safetyInspectionStatus
-        ?? ticketFromState?.inspectionStatus
-        ?? ticketFromState?.inspection?.inspectionStatus,
-    ), [
-        ticketFromState?.inspection?.inspectionStatus,
-        ticketFromState?.inspectionStatus,
-        ticketFromState?.safetyInspection?.inspectionStatus,
-        ticketFromState?.safetyInspectionStatus,
-        ticketRaw?.inspection?.inspectionStatus,
-        ticketRaw?.inspectionStatus,
-        ticketRaw?.safetyInspection?.inspectionStatus,
-        ticketRaw?.safetyInspectionStatus,
-    ]);
-    const isSafetyInspectionCompleted = useMemo(() => {
-        if (!isSafetyInspectionEnabled) return true;
-        if (safetyInspectionStatus === 'COMPLETED') return true;
-        return ['INSPECTED', 'ESTIMATED', 'PENDING', 'REPAIRING', 'COMPLETED', 'PAID'].includes(ticketStatus);
-    }, [isSafetyInspectionEnabled, safetyInspectionStatus, ticketStatus]);
-    const shouldHideEstimateUntilSafetyDone = isSafetyInspectionEnabled && !isSafetyInspectionCompleted;
 
     const isTicketCancelled = ticketStatus === 'CANCELLED';
 
@@ -917,7 +874,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 && String(a?.status || '').toUpperCase() !== 'CANCELLED',
         );
     }, [assignments, assignmentsLoading]);
-    const advisorReadOnlyWithoutTechnician = isAdvisorOnlyViewRole && !assignmentsLoading && !hasTechnician;
 
     const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading;
     const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED';
@@ -1247,36 +1203,123 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         try {
             if (isAppendOnlyConfirm) {
                 // Backend expects the full snapshot of allocations; missing rows can be treated as deleted.
-                // Refetch the estimate to ensure we include all existing allocations (old + new).
-                let estimateItemsForAllocation = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+                // New API: GET stock-allocation-get returns rows in shape { estimateItemDto, stockAllocationDto }.
+                // We must send all warehouse-related items back; items without allocation send allocationId: null.
                 try {
-                    const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
-                    const list = Array.isArray(estimateRes?.data) ? estimateRes.data : [];
-                    const found =
-                        list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
-                        pickLatestEstimate(list);
-                    if (Array.isArray(found?.items)) {
-                        estimateItemsForAllocation = found.items;
-                        setLatestEstimate((prev) => {
-                            if (!prev) return prev;
-                            const next = { ...prev, ...found };
-                            next.items = found.items;
-                            return next;
-                        });
+                    const allocationRes = await fetchEstimateStockAllocations(estimateIdNum, token);
+                    const rows = Array.isArray(allocationRes?.data) ? allocationRes.data : [];
+
+                    const fallbackItems = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+                    const fallbackByEstimateItemId = new Map(
+                        fallbackItems
+                            .map((it) => {
+                                const id = toPositiveNumberOrNull(it?.estimateItemId ?? it?.estimateItemID ?? it?.id);
+                                return id ? [id, it] : null;
+                            })
+                            .filter(Boolean),
+                    );
+
+                    const payload = rows
+                        .map((row) => {
+                            const estimateItem = row?.estimateItemDto ?? null;
+                            const stockAlloc = row?.stockAllocationDto ?? null;
+
+                            const estimateItemId = toPositiveNumberOrNull(
+                                estimateItem?.estimateItemId ?? estimateItem?.estimateItemID ?? estimateItem?.id,
+                            );
+
+                            const revisedFromItemId = toPositiveNumberOrNull(estimateItem?.revisedFromItemId);
+                            const fallbackItem =
+                                (estimateItemId ? fallbackByEstimateItemId.get(estimateItemId) : null) ||
+                                (revisedFromItemId ? fallbackByEstimateItemId.get(revisedFromItemId) : null) ||
+                                null;
+
+                            const warehouseId = toPositiveNumberOrNull(
+                                stockAlloc?.warehouseId ??
+                                    estimateItem?.warehouseId ??
+                                    estimateItem?.warehouseID ??
+                                    estimateItem?.warehouse_id ??
+                                    fallbackItem?.warehouseId ??
+                                    fallbackItem?.warehouseID ??
+                                    fallbackItem?.warehouse_id ??
+                                    fallbackItem?.warehouse?.warehouseId ??
+                                    fallbackItem?.warehouse?.id,
+                            );
+
+                            // Rows without a warehouse cannot be allocated (typically service lines).
+                            if (!estimateItemId || !warehouseId) return null;
+
+                            const itemId = toPositiveNumberOrNull(
+                                stockAlloc?.itemId ??
+                                    estimateItem?.itemId ??
+                                    estimateItem?.catalogItemId ??
+                                    estimateItem?.serviceItemId ??
+                                    estimateItem?.productId ??
+                                    fallbackItem?.itemId ??
+                                    fallbackItem?.catalogItemId ??
+                                    fallbackItem?.serviceItemId ??
+                                    fallbackItem?.productId,
+                            );
+                            const quantity = toPositiveNumberOrNull(
+                                estimateItem?.quantity ?? stockAlloc?.quantity ?? fallbackItem?.quantity,
+                            );
+                            if (!itemId || !quantity) return null;
+
+                            const allocationIdRaw = stockAlloc?.allocationId ?? stockAlloc?.stockAllocationId ?? null;
+                            const allocationId = toPositiveNumberOrNull(allocationIdRaw);
+
+                            const createdBy = stockAlloc?.createdBy ?? null;
+
+                            return {
+                                allocationId: allocationId ?? null,
+                                serviceTicketId: serviceTicketIdNum,
+                                estimateItemId,
+                                warehouseId,
+                                itemId,
+                                estimateId: estimateIdNum,
+                                quantity,
+                                status: 'COMMITTED',
+                                ...(createdBy == null ? {} : { createdBy }),
+                            };
+                        })
+                        .filter(Boolean);
+
+                    if (payload.length > 0) {
+                        await updateEstimateStockAllocation(estimateIdNum, payload, token);
                     }
+                    return;
                 } catch {
-                    // keep fallback to latestEstimate.items
+                    // Fallback to legacy mapping from estimate items if the allocation snapshot endpoint fails.
+                    // Refetch the estimate to ensure we include all existing allocations (old + new).
+                    let estimateItemsForAllocation = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+                    try {
+                        const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
+                        const list = Array.isArray(estimateRes?.data) ? estimateRes.data : [];
+                        const found =
+                            list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
+                            pickLatestEstimate(list);
+                        if (Array.isArray(found?.items)) {
+                            estimateItemsForAllocation = found.items;
+                            setLatestEstimate((prev) => {
+                                if (!prev) return prev;
+                                const next = { ...prev, ...found };
+                                next.items = found.items;
+                                return next;
+                            });
+                        }
+                    } catch {
+                        // keep fallback to latestEstimate.items
+                    }
+                    const payload = buildStockAllocationUpdatePayload({
+                        estimateId: estimateIdNum,
+                        serviceTicketId: serviceTicketIdNum,
+                        estimateItems: estimateItemsForAllocation,
+                    });
+                    if (payload.length > 0) {
+                        await updateEstimateStockAllocation(estimateIdNum, payload, token);
+                    }
+                    return;
                 }
-                const payload = buildStockAllocationUpdatePayload({
-                    estimateId: estimateIdNum,
-                    serviceTicketId: serviceTicketIdNum,
-                    estimateItems: estimateItemsForAllocation,
-                });
-                // Nếu không có dòng vật tư cần giữ chỗ (toàn dịch vụ), bỏ qua update.
-                if (payload.length > 0) {
-                    await updateEstimateStockAllocation(estimateIdNum, payload, token);
-                }
-                return;
             }
 
             await allocateEstimateStock(estimateIdNum, token);
@@ -1453,7 +1496,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             || ticketStatus === 'PENDING')
         && hasAnyAdvisorItem
         && isEstimatePersisted
-        && !shouldHideEstimateUntilSafetyDone
         && !isEstimateEditing;
     const handleEstimateStatusChange = useCallback((est) => {
         setLatestEstimate((prev) => {
@@ -1603,6 +1645,43 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    // Chặn toàn bộ trang nếu chưa phân công kỹ thuật viên
+    if (!assignmentsLoading && !hasTechnician) {
+        return (
+            <div className={styles.page}>
+                <div className={styles.screenOnly}>
+                    <div className={styles.layout}>
+                        <main className={styles.main}>
+                            <header className={styles.header}>
+                                <div className={styles.headerLeft}>
+                                    <div className={styles.titleRow}>
+                                        <h1 className={styles.title}>Phiếu dịch vụ #{ticketCodeParam || '-'}</h1>
+                                    </div>
+                                </div>
+                            </header>
+                            <div className={`ui-card ${styles.card}`} style={{ textAlign: 'center', padding: '48px 24px' }}>
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+                                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', marginBottom: '12px' }}>
+                                    Chưa phân công kỹ thuật viên
+                                </h2>
+                                <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', maxWidth: '440px', margin: '0 auto 32px' }}>
+                                    Phiếu dịch vụ này chưa được phân công kỹ thuật viên. Vui lòng phân công kỹ thuật viên trước khi mở phiếu.
+                                </p> 
+                                <button
+                                    type="button"
+                                    className="ui-btn ui-btn--ghost"
+                                    onClick={() => navigate(-1)}
+                                >
+                                    Quay lại
+                                </button>
+                            </div>
+                        </main>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={styles.page}>
             <div className={styles.screenOnly}>
@@ -1615,7 +1694,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                                 </div>
                             </div>
-                            {hasReceptionistEditAccess && ticketStatus === 'CREATED' && (
+                            {staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT') && (
                                 <button
                                     type="button"
                                     className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
@@ -1788,16 +1867,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 )}
                             </section>
 
-                            {advisorReadOnlyWithoutTechnician ? (
-                                <section className={styles.block}>
-                                    <h2 className={styles.blockTitle}>Trạng thái xử lý</h2>
-                                    <div className={styles.noteBox}>
-                                        Phiếu này chưa được phân công kỹ thuật viên. Cố vấn viên hiện chỉ có thể xem thông tin phiếu cho đến khi có phân công kỹ thuật viên.
-                                    </div>
-                                </section>
-                            ) : null}
-
-                            {hasAdvisorRole && !advisorReadOnlyWithoutTechnician && (
+                            {hasAdvisorRole && (
                                 <>
                                     <TechnicianServiceTicket
                                         key={`tech-${ticket.ticketCode || ticketCodeParam}-${ticketStatus}-${estimateStatus}`}
@@ -1807,6 +1877,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         onInspectionCompleted={handleInspectionCompleted}
                                     />
 
+<<<<<<< HEAD
                                     {shouldHideEstimateUntilSafetyDone ? (
                                         <section className={styles.block}>
                                             <h2 className={styles.blockTitle}>Báo giá</h2>
@@ -1829,7 +1900,30 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             onEstimateEditingChange={setIsEstimateEditing}
                                         />
                                     )}
+
+                                    {ticket.hasDraftStockIssue ? (
+                                        <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
+                                    ) : null}
                                 </>
+=======
+                                    <AdvisorItemsTable
+                                        key={`advisor-${ticket?.serviceTicketId}`}
+                                        serviceTicketId={ticket?.serviceTicketId}
+                                        ticketStatus={ticketStatus}
+                                        ticketPhotos={ticketPhotos}
+                                        refreshToken={refreshTick}
+                                        estimatedTimeDisplay={estimatedTimeDisplay}
+                                        onEstimateStatusChange={handleEstimateStatusChange}
+                                        onRestartWorkflow={handleRestartFromArchived}
+                                        onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
+                                        onCancelAppendOnly={handleCancelAppendOnly}
+                                        onEstimateEditingChange={setIsEstimateEditing}
+                                    />
+                                    {ticket.hasDraftStockIssue ? (
+                                        <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
+                                    ) : null}
+                                </>                               
+>>>>>>> cf9f6c392dd851fba55e7a873f985ba20b8ecaa9
                             )}
 
                             {isTicketCancelled ? null : (
@@ -1838,7 +1932,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
-                                        {advisorReadOnlyWithoutTechnician ? null : isCreatingNewEstimateVersion && canConfirmEstimate ? (
+                                        {isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                             <button
                                                 type="button"
                                                 className="ui-btn ui-btn--primary"
@@ -1849,7 +1943,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             </button>
                                         ) : null}
 
-                                        {advisorReadOnlyWithoutTechnician || isCreatingNewEstimateVersion ? null : (
+                                        {isCreatingNewEstimateVersion ? null : (
                                             <>
                                                 {canCancel && (
                                                     <button

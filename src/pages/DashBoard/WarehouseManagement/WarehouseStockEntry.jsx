@@ -4,12 +4,35 @@ import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import {
   createWarehouseStockEntryWithAttachment,
+  fetchWarehousesAll,
   searchWarehouseCatalog,
 } from '../../../services/warehouseService.js';
 import styles from './WarehouseStockEntry.module.css';
 
 const DEFAULT_WAREHOUSE_ID = 1;
 const DRAFT_STORAGE_KEY = 'warehouse-stock-entry-draft-v1';
+
+const toWarehouseIdText = (value) => {
+  const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+  return Number.isFinite(n) && n > 0 ? String(Math.trunc(n)) : '';
+};
+
+const getWarehouseIdText = (warehouse) =>
+  toWarehouseIdText(warehouse?.warehouseId ?? warehouse?.warehouseID ?? warehouse?.id);
+
+const getWarehouseLabel = (warehouse, fallbackIdText = '') => {
+  const raw = String(
+    warehouse?.warehouseName ||
+      warehouse?.warehouseCode ||
+      warehouse?.name ||
+      warehouse?.warehouseId ||
+      warehouse?.warehouseID ||
+      warehouse?.id ||
+      fallbackIdText ||
+      '',
+  ).trim();
+  return raw || (fallbackIdText ? `KHO #${fallbackIdText}` : '-');
+};
 
 const formatCurrency = (value) => {
   const num = typeof value === 'number' ? value : Number(String(value ?? '').trim());
@@ -59,7 +82,11 @@ export default function WarehouseStockEntry() {
 
   const notify = (message) => toast(message, { containerId: 'app-toast' });
 
-  const [warehouseId] = useState(DEFAULT_WAREHOUSE_ID);
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehouseLoading, setWarehouseLoading] = useState(false);
+  const [warehouseError, setWarehouseError] = useState('');
+  const [warehouseId, setWarehouseId] = useState(String(DEFAULT_WAREHOUSE_ID));
+
   const [supplierName, setSupplierName] = useState('');
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
@@ -78,6 +105,7 @@ export default function WarehouseStockEntry() {
       if (!raw) return;
       const draft = JSON.parse(raw);
       if (!draft || typeof draft !== 'object') return;
+      if (draft.warehouseId != null) setWarehouseId(toWarehouseIdText(draft.warehouseId) || String(DEFAULT_WAREHOUSE_ID));
       if (typeof draft.supplierName === 'string') setSupplierName(draft.supplierName);
       if (typeof draft.notes === 'string') setNotes(draft.notes);
       if (Array.isArray(draft.selectedItems)) {
@@ -96,6 +124,51 @@ export default function WarehouseStockEntry() {
       // Ignore malformed draft data.
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        setWarehouseLoading(true);
+        setWarehouseError('');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        const res = await fetchWarehousesAll(token);
+        const payload = res?.data?.data ?? res?.data ?? res;
+        const list = Array.isArray(payload) ? payload : [];
+        if (cancelled) return;
+        setWarehouses(list);
+      } catch (err) {
+        if (cancelled) return;
+        setWarehouses([]);
+        setWarehouseError(err?.message || 'Không thể tải danh sách kho.');
+      } finally {
+        if (!cancelled) setWarehouseLoading(false);
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!Array.isArray(warehouses) || warehouses.length === 0) return;
+
+    const currentIdText = toWarehouseIdText(warehouseId);
+    const hasCurrent = Boolean(currentIdText) && warehouses.some((w) => getWarehouseIdText(w) === currentIdText);
+    if (hasCurrent) return;
+
+    const firstActive =
+      warehouses.find((w) => w?.isActive === true && getWarehouseIdText(w)) ||
+      warehouses.find((w) => getWarehouseIdText(w)) ||
+      null;
+
+    const nextIdText = getWarehouseIdText(firstActive) || String(DEFAULT_WAREHOUSE_ID);
+    if (nextIdText && nextIdText !== currentIdText) setWarehouseId(nextIdText);
+  }, [warehouses, warehouseId]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -232,6 +305,22 @@ export default function WarehouseStockEntry() {
 
 
   const handleSubmit = async () => {
+    const warehouseIdText = toWarehouseIdText(warehouseId);
+    if (!warehouseIdText) {
+      notify('Vui lòng chọn kho.');
+      return;
+    }
+
+    if (attachmentFile) {
+      const mime = String(attachmentFile?.type || '').toLowerCase();
+      const name = String(attachmentFile?.name || '').toLowerCase();
+      const looksLikeImage = mime.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(name);
+      if (!looksLikeImage) {
+        notify('Chứng từ chỉ chấp nhận ảnh.');
+        return;
+      }
+    }
+
     const supplier = String(supplierName || '').trim();
     if (!supplier) {
       notify('Vui lòng nhập nhà cung cấp.');
@@ -263,7 +352,7 @@ export default function WarehouseStockEntry() {
     setIsSubmitting(true);
 
     try {
-      const payload = buildDraftPayload(warehouseId, supplierName, notes, selectedItems);
+      const payload = buildDraftPayload(warehouseIdText, supplierName, notes, selectedItems);
       const response = await createWarehouseStockEntryWithAttachment(payload, attachmentFile, token);
       localStorage.removeItem(DRAFT_STORAGE_KEY);
       notify(response?.message || 'Xác nhận nhập kho thành công.');
@@ -300,7 +389,13 @@ export default function WarehouseStockEntry() {
           <div className={styles.heroMeta}>
             <div className={styles.metaBox}>
               <span className={styles.metaLabel}>Kho hiện tại</span>
-              <strong>KHO #{warehouseId}</strong>
+              <strong>
+                {(() => {
+                  const idText = toWarehouseIdText(warehouseId);
+                  const w = warehouses.find((row) => getWarehouseIdText(row) === idText) || null;
+                  return getWarehouseLabel(w, idText);
+                })()}
+              </strong>
             </div>
             <div className={styles.metaBox}>
               <span className={styles.metaLabel}>Ngày nhập</span>
@@ -326,9 +421,28 @@ export default function WarehouseStockEntry() {
               <div className={styles.formGrid}>
                 <label className={styles.field}>
                   <span>Kho</span>
-                  <select value={warehouseId} disabled>
-                    <option value={DEFAULT_WAREHOUSE_ID}>Kho chính</option>
+                  <select
+                    value={warehouseId}
+                    onChange={(e) => setWarehouseId(e.target.value)}
+                    disabled={warehouseLoading || isSubmitting}
+                  >
+                    {warehouses.length > 0 ? (
+                      warehouses
+                        .map((w) => {
+                          const idText = getWarehouseIdText(w);
+                          if (!idText) return null;
+                          return (
+                            <option key={idText} value={idText}>
+                              {getWarehouseLabel(w, idText)}
+                            </option>
+                          );
+                        })
+                        .filter(Boolean)
+                    ) : (
+                      <option value={warehouseId}>{warehouseId || String(DEFAULT_WAREHOUSE_ID)}</option>
+                    )}
                   </select>
+                  {warehouseError ? <div className={styles.errorBanner}>{warehouseError}</div> : null}
                 </label>
 
                 <label className={styles.field}>
@@ -508,9 +622,26 @@ export default function WarehouseStockEntry() {
               <label className={styles.uploadBox}>
                 <input
                   type="file"
-                  onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    if (!file) {
+                      setAttachmentFile(null);
+                      return;
+                    }
+                    const mime = String(file?.type || '').toLowerCase();
+                    const name = String(file?.name || '').toLowerCase();
+                    const looksLikeImage = mime.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(name);
+                    if (!looksLikeImage) {
+                      notify('Chứng từ chỉ chấp nhận ảnh.');
+                      e.target.value = '';
+                      setAttachmentFile(null);
+                      return;
+                    }
+                    setAttachmentFile(file);
+                  }}
                 />
-                <span>Chọn file ảnh hoặc tài liệu</span>
+                <span>Chọn ảnh chứng từ</span>
                 <strong>{attachmentFile ? attachmentFile.name : 'Kéo thả hoặc bấm để chọn'}</strong>
               </label>
 

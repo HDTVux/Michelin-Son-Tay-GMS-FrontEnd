@@ -1298,7 +1298,9 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const taxRuleId = it?.taxRuleId ?? null;
 				const isChecked = idx === sourceIndex ? Boolean(nextChecked) : getItemCheckedFlag(it);
 				const isRemoved = Boolean(it?.isRemoved);
-				return {
+				const estimateItemId = toIdOrNull(it?.estimateItemId ?? it?.estimateItemID ?? it?.id);
+
+				const payload = {
 					workCategoryId: workCategoryId ?? null,
 					newCategoryName,
 					itemId: itemId ?? null,
@@ -1310,6 +1312,13 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					isChecked,
 					isRemoved,
 				};
+
+				if (estimateItemId) {
+					payload.estimateItemId = estimateItemId;
+					payload.revisedFromItemId = estimateItemId;
+				}
+
+				return payload;
 			});
 
 			try {
@@ -1514,6 +1523,13 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				};
 				if (warehouseId) payload.warehouseId = warehouseId;
 				if (taxRuleId) payload.taxRuleId = taxRuleId;
+
+				const estimateItemId = toIdOrNull(r?.estimateItemId);
+				if (estimateItemId) {
+					payload.estimateItemId = estimateItemId;
+					payload.revisedFromItemId = estimateItemId;
+				}
+
 				return payload;
 			});
 

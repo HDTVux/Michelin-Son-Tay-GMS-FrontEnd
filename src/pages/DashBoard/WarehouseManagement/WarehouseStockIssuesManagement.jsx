@@ -8,6 +8,14 @@ import styles from './WarehouseStockIssuesManagement.module.css';
 
 const DEFAULT_WAREHOUSE_ID = 1;
 
+const toWarehouseIdText = (value) => {
+	const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+	return Number.isFinite(n) && n > 0 ? String(Math.trunc(n)) : '';
+};
+
+const getWarehouseIdText = (warehouse) =>
+	toWarehouseIdText(warehouse?.warehouseId ?? warehouse?.warehouseID ?? warehouse?.id);
+
 const STATUS_OPTIONS = [
 	{ value: 'ALL', label: 'Tất cả' },
 	{ value: 'DRAFT', label: getStatusTextVi('DRAFT') },
@@ -53,9 +61,13 @@ export default function WarehouseStockIssues() {
 			setLoading(true);
 			setError('');
 			const warehouseIdSource = warehouseIdOverride ?? warehouseIdInput ?? '';
-			const warehouseId = String(warehouseIdSource).trim();
-			const params = {};
-			if (warehouseId) params.warehouseId = warehouseId;
+			const warehouseId = toWarehouseIdText(warehouseIdSource);
+			if (!warehouseId) {
+				setIssues([]);
+				setError('Vui lòng chọn kho.');
+				return;
+			}
+			const params = { warehouseId };
 			if (status && status !== 'ALL') params.status = status;
 			const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
 			const res = await fetchWarehouseStockIssues(params, token);
@@ -81,15 +93,18 @@ export default function WarehouseStockIssues() {
 				if (cancelled) return;
 				setWarehouses(list);
 
-				const currentId = Number(String(warehouseIdInput || '').trim());
-				const hasCurrent = Number.isFinite(currentId) && list.some((w) => Number(w?.warehouseId) === currentId);
+				const currentIdText = toWarehouseIdText(warehouseIdInput);
+				const hasCurrent = Boolean(currentIdText) && list.some((w) => getWarehouseIdText(w) === currentIdText);
 				if (hasCurrent) {
-					await fetchList();
+					await fetchList(currentIdText);
 					return;
 				}
 
-				const firstActive = list.find((w) => w?.isActive === true) || list[0] || null;
-				const nextId = firstActive?.warehouseId ?? DEFAULT_WAREHOUSE_ID;
+				const firstActive =
+					list.find((w) => w?.isActive === true && getWarehouseIdText(w)) ||
+					list.find((w) => getWarehouseIdText(w)) ||
+					null;
+				const nextId = getWarehouseIdText(firstActive) || String(DEFAULT_WAREHOUSE_ID);
 				setWarehouseIdInput(String(nextId));
 				await fetchList(String(nextId));
 			} catch (err) {
@@ -115,11 +130,14 @@ export default function WarehouseStockIssues() {
 	}, [issues]);
 
 	const selectedWarehouseLabel = useMemo(() => {
-		const idNum = Number(String(warehouseIdInput || '').trim());
-		if (!Number.isFinite(idNum)) return String(warehouseIdInput || '').trim() || '-';
-		const w = warehouses.find((row) => Number(row?.warehouseId) === idNum);
-		if (!w) return String(idNum);
-		return String(w?.warehouseName || w?.warehouseCode || w?.warehouseId || idNum).trim() || String(idNum);
+		const idText = toWarehouseIdText(warehouseIdInput);
+		if (!idText) return '-';
+		const w = warehouses.find((row) => getWarehouseIdText(row) === idText);
+		if (!w) return idText;
+		return (
+			String(w?.warehouseName || w?.warehouseCode || w?.warehouseId || w?.warehouseID || w?.id || idText).trim() ||
+			idText
+		);
 	}, [warehouseIdInput, warehouses]);
 
 	return (
@@ -162,11 +180,25 @@ export default function WarehouseStockIssues() {
 							disabled={warehouseLoading}
 						>
 							{warehouses.length > 0 ? (
-								warehouses.map((w) => (
-									<option key={String(w?.warehouseId ?? '')} value={String(w?.warehouseId ?? '')}>
-										{String(w?.warehouseName || w?.warehouseCode || w?.warehouseId || '').trim() || '-'}
-									</option>
-								))
+								warehouses
+									.map((w) => {
+										const idText = getWarehouseIdText(w);
+										if (!idText) return null;
+										return (
+											<option key={idText} value={idText}>
+												{String(
+													w?.warehouseName ||
+														w?.warehouseCode ||
+														w?.name ||
+														w?.warehouseId ||
+														w?.warehouseID ||
+														w?.id ||
+														'',
+												).trim() || '-'}
+											</option>
+										);
+									})
+									.filter(Boolean)
 							) : (
 								<option value={warehouseIdInput}>{warehouseIdInput || '-'}</option>
 							)}
