@@ -61,7 +61,6 @@ const IssueSummaryCard = ({ issue, statusLabel, statusValue }) => (
       <EntryField label="Lý do" value={issue?.issueReason || '-'} fullRow />
 
       <EntryField label="Mã phiếu dịch vụ" value={issue?.serviceTicketCode ?? '-'} />
-      <EntryField label="Chiết khấu" value={formatPercent(issue?.discountRate)} />
 
       <EntryField label="Người tạo" value={issue?.createdByName ?? '-'} />
       <EntryField label="Ngày tạo" value={issue?.createdAt || '-'} />
@@ -110,9 +109,6 @@ const IssueItemsCard = ({ items }) => (
             <th>Số lượng</th>
             <th>Giá nhập</th>
             <th>Giá xuất</th>
-            <th>CK (%)</th>
-            <th>Thành tiền</th>
-            <th>Lợi nhuận gộp</th>
           </tr>
         </thead>
         <tbody>
@@ -128,15 +124,12 @@ const IssueItemsCard = ({ items }) => (
                   <td>{row?.quantity ?? '-'}</td>
                   <td>{formatVnd(row?.importPrice)}</td>
                   <td>{formatVnd(row?.exportPrice)}</td>
-                  <td>{row?.discountRate ?? '-'}</td>
-                  <td>{formatVnd(row?.finalPrice)}</td>
-                  <td>{formatVnd(row?.grossProfit)}</td>
                 </tr>
               );
             })
           ) : (
             <tr>
-              <td colSpan={10} className={styles.emptyCell}>Không có sản phẩm.</td>
+              <td colSpan={7} className={styles.emptyCell}>Không có sản phẩm.</td>
             </tr>
           )}
         </tbody>

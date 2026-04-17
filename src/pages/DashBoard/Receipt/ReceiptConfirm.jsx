@@ -40,28 +40,38 @@ function pickLatestEstimate(list) {
     const arr = Array.isArray(list) ? list : [];
     if (arr.length === 0) return null;
 
-    const archivedEstimates = arr.filter((e) => {
-        const status = normalizeEstimateStatus(e?.estimateStatus ?? e?.status ?? e?.estimate_status);
-        return status === 'ARCHIVED';
-    });
+    const getEstimateIdNum = (e) => {
+        const raw = e?.estimateId ?? e?.id ?? e?.serviceTicketEstimateId ?? 0;
+        const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+        return Number.isFinite(n) ? n : 0;
+    };
 
-    // Nếu chưa ARCHIVED thì ưu tiên báo giá đã APPROVED/CONFIRMED, nếu không có thì lấy mới nhất theo id
-    const approvedEstimates = arr.filter((e) => {
-        const status = normalizeEstimateStatus(e?.estimateStatus ?? e?.status ?? e?.estimate_status);
-        return status === 'APPROVED';
-    });
+    const getEstimateVersionNum = (e) => {
+        const raw = e?.version ?? e?.estimateVersion ?? e?.estimateNo ?? e?.versionNo ?? null;
+        if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0;
+        const digits = /\d+/.exec(String(raw ?? ''))?.[0] ?? '';
+        const n = Number(digits);
+        return Number.isFinite(n) ? n : 0;
+    };
 
-    const listToSearch = archivedEstimates.length > 0 ? archivedEstimates : approvedEstimates.length > 0 ? approvedEstimates : arr;
+    const getEstimateCreatedAtMs = (e) => {
+        const t = new Date(e?.createdAt || e?.approvedAt || e?.createdDate || 0).getTime();
+        return Number.isFinite(t) ? t : 0;
+    };
 
-    // 2. Tìm ID lớn nhất (mới nhất) trong danh sách đó
-    const latest = listToSearch.reduce((prev, current) => {
-        const prevId = Number(prev?.estimateId ?? prev?.id ?? prev?.serviceTicketEstimateId ?? 0);
-        const currentId = Number(current?.estimateId ?? current?.id ?? current?.serviceTicketEstimateId ?? 0);
-        return currentId > prevId ? current : prev;
-    }, listToSearch[0]);
+    return [...arr].sort((a, b) => {
+        const va = getEstimateVersionNum(a);
+        const vb = getEstimateVersionNum(b);
+        if (va > 0 && vb > 0 && va !== vb) return vb - va;
+        if (va > 0 && vb === 0) return -1;
+        if (vb > 0 && va === 0) return 1;
 
-    console.log("=> BÁO GIÁ ĐƯỢC CHỌN ĐỂ IN:", latest);
-    return latest;
+        const idA = getEstimateIdNum(a);
+        const idB = getEstimateIdNum(b);
+        if (idA !== idB) return idB - idA;
+
+        return getEstimateCreatedAtMs(b) - getEstimateCreatedAtMs(a);
+    })[0];
 }
 
 function normalizeBillId(input) {
@@ -807,7 +817,7 @@ export default function ReceiptConfirm() {
             notify('Vui lòng đăng nhập để đổi trạng thái báo giá.');
             return;
         }
-        const estimateId = estimate?.estimateId ?? estimate?.id;
+        const estimateId = estimate?.estimateId ?? estimate?.id ?? estimate?.serviceTicketEstimateId;
         if (!estimateId) {
             notify('Không tìm thấy báo giá.');
             return;
@@ -861,7 +871,10 @@ export default function ReceiptConfirm() {
         }
 
         const versionRaw = estimate?.version ?? estimate?.estimateVersion ?? estimate?.estimateNo ?? estimate?.versionNo ?? null;
-        const versionParsed = typeof versionRaw === 'number' ? versionRaw : Number(String(versionRaw ?? '').trim());
+        const versionParsed =
+            typeof versionRaw === 'number'
+                ? versionRaw
+                : Number(/\d+/.exec(String(versionRaw ?? ''))?.[0] ?? '');
         const billVersion = Number.isFinite(versionParsed) && versionParsed > 0 ? versionParsed : 1;
 
         try {
