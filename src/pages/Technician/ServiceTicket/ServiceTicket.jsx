@@ -28,8 +28,9 @@ import carImage from '../../../assets/oto_4.jpg';
 const LOCKED_SERVICE_TICKET_STATUSES = new Set(['PAID', 'COMPLETED']);
 const TEXT_FIELD_CHAR_LIMIT = 500;
 const CATEGORY_NAME_CHAR_LIMIT = 100;
+const RECOMMENDED_TIRE_SIZE_MAX_LENGTH = 10;
 const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
-const getServiceTicketDraftStorageKey = (ticketCode) => `serviceTicketDraft:${String(ticketCode ?? '').trim()}`;
+const getServiceTicketDraftStorageKey = (ticketCode, draftScope = 'default') => `serviceTicketDraft:${String(draftScope ?? 'default').trim()}:${String(ticketCode ?? '').trim()}`;
 
 const normalizeServiceTicketStatus = (status) => String(status ?? '')
   .trim()
@@ -226,6 +227,18 @@ const getRecommendedTireSizeError = (value) => {
   return '';
 };
 
+const validateRecommendedTireSizeValue = (value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+
+  const normalized = normalizeRecommendedTireSizeValue(raw);
+  if (normalized.length > RECOMMENDED_TIRE_SIZE_MAX_LENGTH) {
+    return `Size lốp khuyến cáo phải đúng định dạng ${RECOMMENDED_TIRE_SIZE_EXAMPLE}.`;
+  }
+
+  return getRecommendedTireSizeError(value);
+};
+
 const RECOMMENDED_TIRE_SIZE_PARTIAL_PATTERN = /^\d{0,3}(?:\/\d{0,3}(?:R\d{0,2})?)?$/i;
 
 const getNextRecommendedTireSizeValue = (value) => {
@@ -234,7 +247,7 @@ const getNextRecommendedTireSizeValue = (value) => {
 
   const normalized = normalizeRecommendedTireSizeValue(raw);
   if (!normalized) return '';
-  if (normalized.length > TEXT_FIELD_CHAR_LIMIT) return normalized.slice(0, TEXT_FIELD_CHAR_LIMIT);
+  if (normalized.length > RECOMMENDED_TIRE_SIZE_MAX_LENGTH) return null;
   if (normalized.includes('-')) return null;
   if (!RECOMMENDED_TIRE_SIZE_PARTIAL_PATTERN.test(normalized)) return null;
 
@@ -291,12 +304,12 @@ const getSafetyItemKey = (item) => {
   return '';
 };
 
-const buildAdvisorNotePatchItems = (items) => {
+const buildAdvisorNotePatchItems = (items, { includeEmpty = false } = {}) => {
   const rows = Array.isArray(items) ? items : [];
   return rows
     .map((item) => {
       const advisorNote = String(item?.advisorNote ?? item?.advisor_note ?? item?.note ?? '');
-      if (!advisorNote.trim()) return null;
+      if (!includeEmpty && !advisorNote.trim()) return null;
       const workCategoryId = item?.workCategoryId ?? item?.work_category_id ?? null;
       const customCategoryId = item?.customCategoryId ?? item?.custom_category_id ?? null;
       if (workCategoryId == null && customCategoryId == null) return null;
@@ -327,8 +340,8 @@ const hasTechnicianNotesField = (payload) => (
   )
 );
 
-const readServiceTicketDraft = (ticketCode) => {
-  const storageKey = getServiceTicketDraftStorageKey(ticketCode);
+const readServiceTicketDraft = (ticketCode, draftScope = 'default') => {
+  const storageKey = getServiceTicketDraftStorageKey(ticketCode, draftScope);
   if (!storageKey) return null;
   try {
     const raw = localStorage.getItem(storageKey);
@@ -340,14 +353,14 @@ const readServiceTicketDraft = (ticketCode) => {
   }
 };
 
-const writeServiceTicketDraft = (ticketCode, payload) => {
-  const storageKey = getServiceTicketDraftStorageKey(ticketCode);
+const writeServiceTicketDraft = (ticketCode, payload, draftScope = 'default') => {
+  const storageKey = getServiceTicketDraftStorageKey(ticketCode, draftScope);
   if (!storageKey) return;
   localStorage.setItem(storageKey, JSON.stringify(payload ?? {}));
 };
 
-const clearServiceTicketDraft = (ticketCode) => {
-  const storageKey = getServiceTicketDraftStorageKey(ticketCode);
+const clearServiceTicketDraft = (ticketCode, draftScope = 'default') => {
+  const storageKey = getServiceTicketDraftStorageKey(ticketCode, draftScope);
   if (!storageKey) return;
   localStorage.removeItem(storageKey);
 };
@@ -364,6 +377,7 @@ export const ServiceTicket = ({
 }) => {
   const { id: idParam } = useParams();
   const resolvedTicketCode = String(ticketCode || idParam || '').trim();
+  const draftScope = mode;
   const navigate = useNavigate();
   const isAdvisorMode = mode === 'advisor';
   const [loading, setLoading] = useState(true);
@@ -426,7 +440,7 @@ export const ServiceTicket = ({
   const blockingTextFieldValidationError = textFieldValidationError;
 
   useEffect(() => {
-    const nextError = getRecommendedTireSizeError(recommendedTireSize);
+    const nextError = validateRecommendedTireSizeValue(recommendedTireSize);
     setRecommendedTireSizeError((prev) => (prev === nextError ? prev : nextError));
   }, [recommendedTireSize]);
 
@@ -460,6 +474,101 @@ export const ServiceTicket = ({
     const parsedServiceTicketId = Number(resolvedTicketCode);
     return serviceTicketId || (Number.isFinite(parsedServiceTicketId) ? parsedServiceTicketId : null);
   }, [resolvedTicketCode, serviceTicketId]);
+
+  const createEmptyTireState = useCallback(() => (
+    Object.fromEntries(
+      Object.entries(defaultTireData).map(([position, value]) => [position, { ...value }]),
+    )
+  ), [defaultTireData]);
+
+  const mergeStoredTireData = useCallback((storedTireData) => {
+    const nextTireData = createEmptyTireState();
+    if (!storedTireData || typeof storedTireData !== 'object') return nextTireData;
+
+    Object.keys(nextTireData).forEach((position) => {
+      const source = storedTireData?.[position];
+      if (!source || typeof source !== 'object') return;
+      Object.keys(nextTireData[position]).forEach((field) => {
+        nextTireData[position][field] = String(source?.[field] ?? '');
+      });
+    });
+
+    return nextTireData;
+  }, [createEmptyTireState]);
+
+  const mapInspectionTireState = useCallback((inspection) => {
+    const nextTireData = createEmptyTireState();
+    let nextRecommendedTireSize = String(inspection?.recommendedTireSize ?? '').trim();
+    const tires = Array.isArray(inspection?.tires) ? inspection.tires : [];
+    const parseSpecification = (value) => {
+      const match = String(value ?? '').match(/(\d+)\/(\d+)R(\d+)/i);
+      return match
+        ? { size1: match[1], size2: match[2], size3: match[3] }
+        : { size1: '', size2: '', size3: '' };
+    };
+
+    if (tires.length > 0) {
+      tires.forEach((tire) => {
+        const positionMap = {
+          FRONT_LEFT: 'frontLeft',
+          FRONT_RIGHT: 'frontRight',
+          REAR_LEFT: 'rearLeft',
+          REAR_RIGHT: 'rearRight',
+          SPARE: 'spare',
+        };
+        const position = positionMap[tire?.tirePosition];
+        if (!position) return;
+
+        nextTireData[position] = {
+          ...nextTireData[position],
+          ...parseSpecification(tire?.tireSpecification),
+          mm: tire?.treadDepth != null ? String(tire.treadDepth) : '',
+          pressure: tire?.pressure != null ? String(tire.pressure) : '',
+          recommendedPressure: tire?.recommendedPressure != null ? String(tire.recommendedPressure) : '',
+        };
+
+        if (!nextRecommendedTireSize && tire?.recommendedTireSize) {
+          nextRecommendedTireSize = String(tire.recommendedTireSize).trim();
+        }
+      });
+    }
+
+    if (inspection?.tireData && typeof inspection.tireData === 'object') {
+      Object.keys(nextTireData).forEach((position) => {
+        const source = inspection.tireData?.[position];
+        if (!source || typeof source !== 'object') return;
+        Object.keys(nextTireData[position]).forEach((field) => {
+          if (source?.[field] != null && String(source[field]).trim() !== '') {
+            nextTireData[position][field] = String(source[field]);
+          }
+        });
+      });
+    }
+
+    const frontSpec = parseSpecification(inspection?.frontTireSpecification);
+    const rearSpec = parseSpecification(inspection?.rearTireSpecification);
+    if (!nextTireData.frontLeft.size1 && frontSpec.size1) {
+      nextTireData.frontLeft = { ...nextTireData.frontLeft, ...frontSpec };
+    }
+    if (!nextTireData.rearLeft.size1 && rearSpec.size1) {
+      nextTireData.rearLeft = { ...nextTireData.rearLeft, ...rearSpec };
+    }
+
+    if (!nextTireData.frontRight.recommendedPressure && inspection?.frontRecommendedPressure != null) {
+      nextTireData.frontRight.recommendedPressure = String(inspection.frontRecommendedPressure);
+    }
+    if (!nextTireData.rearRight.recommendedPressure && inspection?.rearRecommendedPressure != null) {
+      nextTireData.rearRight.recommendedPressure = String(inspection.rearRecommendedPressure);
+    }
+    if (!nextTireData.spare.recommendedPressure && inspection?.spareRecommendedPressure != null) {
+      nextTireData.spare.recommendedPressure = String(inspection.spareRecommendedPressure);
+    }
+
+    return {
+      tireData: nextTireData,
+      recommendedTireSize: nextRecommendedTireSize,
+    };
+  }, [createEmptyTireState]);
 
   const syncServiceTicketStatus = useCallback(async (nextStatus, token, fallbackMessage) => {
     const finalServiceTicketId = resolveServiceTicketId();
@@ -497,7 +606,8 @@ export const ServiceTicket = ({
     const draftPayload = {
       notes: String(notes ?? ''),
       recommendedTireSize: String(recommendedTireSize ?? ''),
-      advisorItems: buildAdvisorNotePatchItems(safetyChecks),
+      tireData,
+      advisorItems: buildAdvisorNotePatchItems(safetyChecks, { includeEmpty: isAdvisorMode }),
     };
 
     const resolvedServiceTicketId = serviceTicketIdValue || resolveServiceTicketId();
@@ -505,8 +615,8 @@ export const ServiceTicket = ({
       draftPayload.recommendation = localStorage.getItem(getRecommendationStorageKey(resolvedServiceTicketId)) || '';
     }
 
-    writeServiceTicketDraft(resolvedTicketCode, draftPayload);
-  }, [notes, recommendedTireSize, safetyChecks, resolveServiceTicketId, resolvedTicketCode]);
+    writeServiceTicketDraft(resolvedTicketCode, draftPayload, draftScope);
+  }, [notes, recommendedTireSize, tireData, safetyChecks, resolveServiceTicketId, resolvedTicketCode, draftScope, isAdvisorMode]);
 
   const mergedSafetyChecks = useMemo(() => (
     [...safetyChecks].sort((a, b) => {
@@ -582,7 +692,7 @@ export const ServiceTicket = ({
         }
 
         setHasSafetyInspectionEnabled(safetyEnabledFromTicket);
-        setTireData(defaultTireData);
+        setTireData(createEmptyTireState());
         setRecommendedTireSize('');
         setRecommendedTireSizeError('');
         setNotes(getTechnicianNotesValue(ticketDetail));
@@ -604,49 +714,10 @@ export const ServiceTicket = ({
             loadedInspectionStatus = status;
             setInspectionStatus(status);
 
-            if (inspection.tires && inspection.tires.length > 0) {
-              const newTireData = { ...defaultTireData };
-              let loadedRecommendedTireSize = '';
-              inspection.tires.forEach(tire => {
-                const positionMap = {
-                  'FRONT_LEFT': 'frontLeft',
-                  'FRONT_RIGHT': 'frontRight',
-                  'REAR_LEFT': 'rearLeft',
-                  'REAR_RIGHT': 'rearRight',
-                  'SPARE': 'spare'
-                };
-                const position = positionMap[tire.tirePosition];
-                if (position) {
-                  let size1 = '', size2 = '', size3 = '';
-                  if (tire.tireSpecification) {
-                    const match = tire.tireSpecification.match(/(\d+)\/(\d+)R(\d+)/);
-                    if (match) {
-                      size1 = match[1];
-                      size2 = match[2];
-                      size3 = match[3];
-                    }
-                  }
-
-                  const baseData = {
-                    size1,
-                    size2,
-                    size3,
-                    mm: tire.treadDepth?.toString() || '',
-                    pressure: tire.pressure?.toString() || '',
-                    recommendedPressure: tire.recommendedPressure?.toString() || ''
-                  };
-
-                  newTireData[position] = baseData;
-
-                  if (!loadedRecommendedTireSize && tire.recommendedTireSize) {
-                    loadedRecommendedTireSize = tire.recommendedTireSize;
-                  }
-                }
-              });
-              setTireData(newTireData);
-              setRecommendedTireSize(loadedRecommendedTireSize || '');
-              setRecommendedTireSizeError(getRecommendedTireSizeError(loadedRecommendedTireSize || ''));
-            }
+            const mappedInspectionTires = mapInspectionTireState(inspection);
+            setTireData(mappedInspectionTires.tireData);
+            setRecommendedTireSize(mappedInspectionTires.recommendedTireSize || '');
+            setRecommendedTireSizeError(validateRecommendedTireSizeValue(mappedInspectionTires.recommendedTireSize || ''));
 
             const inspectionItems = Array.isArray(inspection.items) ? inspection.items : [];
             if (inspectionItems.length > 0) {
@@ -696,14 +767,17 @@ export const ServiceTicket = ({
           setInspectionStatus(loadedInspectionStatus);
         }
 
-        const localDraft = readServiceTicketDraft(resolvedTicketCode);
+        const localDraft = readServiceTicketDraft(resolvedTicketCode, draftScope);
         if (localDraft) {
           if (typeof localDraft.notes === 'string') {
             setNotes(localDraft.notes);
           }
           if (typeof localDraft.recommendedTireSize === 'string') {
             setRecommendedTireSize(localDraft.recommendedTireSize);
-            setRecommendedTireSizeError(getRecommendedTireSizeError(localDraft.recommendedTireSize));
+            setRecommendedTireSizeError(validateRecommendedTireSizeValue(localDraft.recommendedTireSize));
+          }
+          if (localDraft.tireData && typeof localDraft.tireData === 'object') {
+            setTireData(mergeStoredTireData(localDraft.tireData));
           }
           if (Array.isArray(localDraft.advisorItems) && localDraft.advisorItems.length > 0) {
             applyAdvisorNotesToLocalState(localDraft.advisorItems);
@@ -752,7 +826,7 @@ export const ServiceTicket = ({
     };
 
     fetchData();
-  }, [resolvedTicketCode, defaultTireData, embedded, refreshKey, isAdvisorMode, syncServiceTicketStatus, applyAdvisorNotesToLocalState]);
+  }, [resolvedTicketCode, embedded, refreshKey, isAdvisorMode, syncServiceTicketStatus, applyAdvisorNotesToLocalState, createEmptyTireState, mapInspectionTireState, draftScope, mergeStoredTireData]);
 
   const handleTireDataChange = (position, field, value) => {
     if (!canEditTechnicalFields || isFormLocked) return;
@@ -771,7 +845,7 @@ export const ServiceTicket = ({
     if (nextValue == null) return;
     markUnsavedLocalEdit();
     setRecommendedTireSize(nextValue);
-    setRecommendedTireSizeError(getRecommendedTireSizeError(nextValue));
+    setRecommendedTireSizeError(validateRecommendedTireSizeValue(nextValue));
   };
 
   const showTextLimitFeedback = useCallback((toastKey, setError) => {
@@ -790,6 +864,39 @@ export const ServiceTicket = ({
       end: typeof target?.selectionEnd === 'number' ? target.selectionEnd : fallbackPosition,
     };
   }, []);
+
+  const getNextInputValueFromEvent = useCallback((event, currentValue) => {
+    const safeCurrentValue = String(currentValue ?? '');
+    const { start, end } = getTextSelectionRange(event.currentTarget, safeCurrentValue);
+    const incomingText = String(event.nativeEvent?.data ?? '');
+    return `${safeCurrentValue.slice(0, start)}${incomingText}${safeCurrentValue.slice(end)}`;
+  }, [getTextSelectionRange]);
+
+  const handleTireFieldBeforeInput = useCallback((field, currentValue, event) => {
+    const inputType = String(event.nativeEvent?.inputType ?? '');
+    if (inputType.startsWith('delete')) return;
+
+    const incomingText = String(event.nativeEvent?.data ?? '');
+    if (!incomingText) return;
+
+    const nextValue = getNextInputValueFromEvent(event, currentValue);
+    if (getNextTireFieldValue(field, nextValue) == null) {
+      event.preventDefault();
+    }
+  }, [getNextInputValueFromEvent]);
+
+  const handleRecommendedTireSizeBeforeInput = useCallback((currentValue, event) => {
+    const inputType = String(event.nativeEvent?.inputType ?? '');
+    if (inputType.startsWith('delete')) return;
+
+    const incomingText = String(event.nativeEvent?.data ?? '');
+    if (!incomingText) return;
+
+    const nextValue = getNextInputValueFromEvent(event, currentValue);
+    if (getNextRecommendedTireSizeValue(nextValue) == null) {
+      event.preventDefault();
+    }
+  }, [getNextInputValueFromEvent]);
 
   const handleLimitedTextBeforeInput = useCallback((event, currentValue, toastKey, setError) => {
     const inputType = String(event.nativeEvent?.inputType ?? '');
@@ -918,13 +1025,7 @@ export const ServiceTicket = ({
   const handleAdvisorNoteChange = (itemId, currentValue, event) => {
     if (!canEditAdvisorNotes || isFormLocked) return;
     markUnsavedLocalEdit();
-    const previousValue = String(currentValue ?? '');
     const raw = String(event.target.value);
-    if (previousValue.length >= TEXT_FIELD_CHAR_LIMIT && raw !== previousValue) {
-      clampEventTargetValue(event.target, previousValue);
-      showTextLimitFeedback(`note_${itemId}`, (message) => setAdvisorNoteError(itemId, message));
-      return;
-    }
     const nextValue = raw.length > TEXT_FIELD_CHAR_LIMIT
       ? raw.slice(0, TEXT_FIELD_CHAR_LIMIT)
       : raw;
@@ -1139,7 +1240,7 @@ export const ServiceTicket = ({
     if (!guardServiceTicketEditable()) return;
     const currentTireErrors = getTireInputErrorMap(tireData);
     const firstTireError = Object.values(currentTireErrors).find(Boolean);
-    const currentRecommendedTireSizeError = getRecommendedTireSizeError(recommendedTireSize);
+    const currentRecommendedTireSizeError = validateRecommendedTireSizeValue(recommendedTireSize);
     const optionalTirePayloadError = firstTireError || currentRecommendedTireSizeError;
     const shouldSendTirePayload = shouldRequireSafetyInspection || !optionalTirePayloadError;
     if (currentRecommendedTireSizeError !== recommendedTireSizeError) {
@@ -1419,7 +1520,7 @@ export const ServiceTicket = ({
     if (!guardServiceTicketEditable()) return;
     const currentTireErrors = getTireInputErrorMap(tireData);
     const firstTireError = Object.values(currentTireErrors).find(Boolean);
-    const currentRecommendedTireSizeError = getRecommendedTireSizeError(recommendedTireSize);
+    const currentRecommendedTireSizeError = validateRecommendedTireSizeValue(recommendedTireSize);
     const optionalTirePayloadError = firstTireError || currentRecommendedTireSizeError;
     const shouldSendTirePayload = shouldRequireSafetyInspection || !optionalTirePayloadError;
     if (currentRecommendedTireSizeError !== recommendedTireSizeError) {
@@ -1577,11 +1678,11 @@ export const ServiceTicket = ({
       // Advisor note lưu cùng phiếu kỹ thuật viên
       if (isAdvisorMode && currentInspectionId) {
         const advisorItems = safetyChecks
-          .filter((item) => String(item.advisorNote || item.note || '').trim() !== '')
+          .filter((item) => item.workCategoryId || item.customCategoryId)
           .map((item) => ({
             workCategoryId: item.workCategoryId ?? null,
             customCategoryId: item.customCategoryId ?? null,
-            advisorNote: item.advisorNote ?? item.note ?? '',
+            advisorNote: String(item.advisorNote ?? item.note ?? ''),
           }));
 
         if (advisorItems.length > 0) {
@@ -1607,7 +1708,7 @@ export const ServiceTicket = ({
 
       toast.success('Đã hoàn thành phiếu kiểm tra an toàn.');
       setRefreshKey(prev => prev + 1); // reload để dữ liệu advisor/technician map đồng bộ qua API
-      clearServiceTicketDraft(resolvedTicketCode);
+      clearServiceTicketDraft(resolvedTicketCode, draftScope);
       markLocalEditsSaved();
       if (typeof onInspectionCompleted === 'function') {
         await onInspectionCompleted({
@@ -1682,6 +1783,7 @@ export const ServiceTicket = ({
               <input
                 type="text"
                 value={recommendedTireSize}
+                onBeforeInput={(e) => handleRecommendedTireSizeBeforeInput(recommendedTireSize, e)}
                 onChange={(e) => handleRecommendedTireSizeChange(e.target.value)}
                 className={styles.tireSizeInput}
                 placeholder={RECOMMENDED_TIRE_SIZE_EXAMPLE}
@@ -1701,11 +1803,11 @@ export const ServiceTicket = ({
             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div className={styles.tireBoxRow}>
-                  <input type="text" value={tireData.frontLeft.size1} onChange={(e) => handleTireDataChange('frontLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.frontLeft.size1} onBeforeInput={(e) => handleTireFieldBeforeInput('size1', tireData.frontLeft.size1, e)} onChange={(e) => handleTireDataChange('frontLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireSlash}>/</span>
-                  <input type="text" value={tireData.frontLeft.size2} onChange={(e) => handleTireDataChange('frontLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.frontLeft.size2} onBeforeInput={(e) => handleTireFieldBeforeInput('size2', tireData.frontLeft.size2, e)} onChange={(e) => handleTireDataChange('frontLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireRLabel}>R</span>
-                  <input type="text" value={tireData.frontLeft.size3} onChange={(e) => handleTireDataChange('frontLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.frontLeft.size3} onBeforeInput={(e) => handleTireFieldBeforeInput('size3', tireData.frontLeft.size3, e)} onChange={(e) => handleTireDataChange('frontLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
                 {['frontLeft_size1', 'frontLeft_size2', 'frontLeft_size3'].map((errorKey) => (
                   visibleTireMmErrors[errorKey]
@@ -1769,11 +1871,11 @@ export const ServiceTicket = ({
             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div className={styles.tireBoxRow}>
-                  <input type="text" value={tireData.rearLeft.size1} onChange={(e) => handleTireDataChange('rearLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.rearLeft.size1} onBeforeInput={(e) => handleTireFieldBeforeInput('size1', tireData.rearLeft.size1, e)} onChange={(e) => handleTireDataChange('rearLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireSlash}>/</span>
-                  <input type="text" value={tireData.rearLeft.size2} onChange={(e) => handleTireDataChange('rearLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.rearLeft.size2} onBeforeInput={(e) => handleTireFieldBeforeInput('size2', tireData.rearLeft.size2, e)} onChange={(e) => handleTireDataChange('rearLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireRLabel}>R</span>
-                  <input type="text" value={tireData.rearLeft.size3} onChange={(e) => handleTireDataChange('rearLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.rearLeft.size3} onBeforeInput={(e) => handleTireFieldBeforeInput('size3', tireData.rearLeft.size3, e)} onChange={(e) => handleTireDataChange('rearLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" disabled={!canEditTechnicalFields} />
                 </div>
                 {['rearLeft_size1', 'rearLeft_size2', 'rearLeft_size3'].map((errorKey) => (
                   visibleTireMmErrors[errorKey]
@@ -2247,13 +2349,7 @@ export const ServiceTicket = ({
           onBeforeInput={(e) => handleLimitedTextBeforeInput(e, notes, 'notes', setNotesError)}
           onChange={(e) => {
             markUnsavedLocalEdit();
-            const previousValue = String(notes ?? '');
             const raw = e.target.value;
-            if (previousValue.length >= TEXT_FIELD_CHAR_LIMIT && raw !== previousValue) {
-              clampEventTargetValue(e.target, previousValue);
-              showTextLimitFeedback('notes', setNotesError);
-              return;
-            }
             const nextValue = raw.length > TEXT_FIELD_CHAR_LIMIT
               ? raw.slice(0, TEXT_FIELD_CHAR_LIMIT)
               : raw;

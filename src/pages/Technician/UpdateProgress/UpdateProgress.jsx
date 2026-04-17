@@ -30,6 +30,53 @@ const UpdateProgress = () => {
   const [selectedStatus, setSelectedStatus] = useState('REPAIRING');
   const [uploadedImages, setUploadedImages] = useState([]);
 
+  const mapInspectionTireData = (inspection) => {
+    const nextTireData = {
+      frontLeft: { mm: '', pressure: '' },
+      frontRight: { mm: '', pressure: '' },
+      rearLeft: { mm: '', pressure: '' },
+      rearRight: { mm: '', pressure: '' }
+    };
+    let nextRecommendedTireSize = String(inspection?.recommendedTireSize ?? '').trim();
+
+    if (Array.isArray(inspection?.tires)) {
+      const positionMap = {
+        FRONT_LEFT: 'frontLeft',
+        FRONT_RIGHT: 'frontRight',
+        REAR_LEFT: 'rearLeft',
+        REAR_RIGHT: 'rearRight'
+      };
+
+      inspection.tires.forEach((tire) => {
+        const position = positionMap[tire?.tirePosition];
+        if (!position) return;
+        nextTireData[position] = {
+          mm: tire?.treadDepth != null ? String(tire.treadDepth) : '',
+          pressure: tire?.pressure != null ? String(tire.pressure) : ''
+        };
+        if (!nextRecommendedTireSize && tire?.recommendedTireSize) {
+          nextRecommendedTireSize = String(tire.recommendedTireSize).trim();
+        }
+      });
+    }
+
+    if (inspection?.tireData && typeof inspection.tireData === 'object') {
+      Object.keys(nextTireData).forEach((position) => {
+        const source = inspection.tireData?.[position];
+        if (!source || typeof source !== 'object') return;
+        nextTireData[position] = {
+          mm: source?.mm != null ? String(source.mm) : nextTireData[position].mm,
+          pressure: source?.pressure != null ? String(source.pressure) : nextTireData[position].pressure
+        };
+      });
+    }
+
+    return {
+      tireData: nextTireData,
+      recommendedTireSize: nextRecommendedTireSize
+    };
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -49,20 +96,17 @@ const UpdateProgress = () => {
           const inspectionResponse = await getSafetyInspectionByTicketCode(id, token);
           if (inspectionResponse?.data) {
             const inspection = inspectionResponse.data;
-            if (inspection.tireData) {
-              setTireData(inspection.tireData);
-            }
-            if (inspection.recommendedTireSize) {
-              setRecommendedTireSize(inspection.recommendedTireSize);
-            }
+            const mappedInspection = mapInspectionTireData(inspection);
+            setTireData(mappedInspection.tireData);
+            setRecommendedTireSize(mappedInspection.recommendedTireSize || '');
             if (inspection.items && inspection.items.length > 0) {
               const transformedChecks = inspection.items.map((item, index) => ({
                 id: index + 1,
                 name: item.categoryName || item.workCategoryName || '',
-                good: item.condition === 'GOOD',
-                warning: item.condition === 'WARNING',
-                replace: item.condition === 'REPLACE',
-                note: item.note || ''
+                good: (item.itemStatus || item.condition) === 'GOOD',
+                warning: (item.itemStatus || item.condition) === 'WARNING',
+                replace: (item.itemStatus || item.condition) === 'REPLACE',
+                note: item.advisorNote || item.advisor_note || item.note || ''
               }));
               setSafetyChecks(transformedChecks);
             }
