@@ -8,13 +8,15 @@ import StepService from '../../Booking/steps/StepService.jsx';
 import infoStyles from '../../Booking/steps/StepInfo.module.css';
 import { fetchHomeProducts } from '../../../services/homeService.js';
 import { fetchAllSlots, fetchAvailableSlotStaff } from '../../../services/bookingService.js';
-import { buildDateOptions, formatTimeHHmm, isPastSlot } from '../../../components/timeUtils.js';
+import { buildDateOptions, formatLocalDateYYYYMMDD, formatTimeHHmm, isPastSlot } from '../../../components/timeUtils.js';
 import { normalizePeriodLabel, timeKey, useCreateBookingHandlers } from './useCreateBookingHandlers.js';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 
 const DURATION_MINUTES = 60;
 const DATE_RANGE_DAYS = 10;
 const NOTE_MAX_LENGTH = 255;
+
+const normalizeReminderStatus = (value) => String(value ?? '').trim().toUpperCase();
 
 const toItemType = (value) => {
 	const text = String(value || '').trim().toUpperCase();
@@ -64,6 +66,8 @@ export default function CreateBooking() {
 	const location = useLocation();
 	const sourceReminder = location.state?.maintenanceReminder || null;
 	const sourceReminderId = location.state?.reminderId ?? sourceReminder?.reminderId ?? null;
+	const sourceReminderStatus = normalizeReminderStatus(sourceReminder?.status);
+	const sourceReminderBlocksBooking = Boolean(sourceReminderId && sourceReminderStatus && sourceReminderStatus !== 'CONFIRMED');
 	const didApplyReminderRef = useRef(false);
 
 	// Trạng thái kiểm tra khách hàng
@@ -135,6 +139,11 @@ export default function CreateBooking() {
 		() => services.filter((item) => selectedIds.includes(item.id)),
 		[services, selectedIds],
 	);
+
+	useEffect(() => {
+		if (!sourceReminderBlocksBooking) return;
+		setSubmitError('Chỉ có thể tạo lịch từ lời nhắc đã xác nhận.');
+	}, [sourceReminderBlocksBooking]);
 
 	useEffect(() => {
 		if (didApplyReminderRef.current || !sourceReminderId) return;
@@ -262,9 +271,10 @@ export default function CreateBooking() {
 			schedule.time &&
 			(!schedule.date || (!slotsLoading && !slotsError)) &&
 			!submitting &&
-			!submitLocked
+			!submitLocked &&
+			!sourceReminderBlocksBooking
 		);
-	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked]);
+	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked, sourceReminderBlocksBooking]);
 
 	    const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
         useCreateBookingHandlers({
@@ -329,6 +339,11 @@ export default function CreateBooking() {
 	const dateOptions = useMemo(() => buildDateOptions(DATE_RANGE_DAYS), []);
 	const allowedDateSet = useMemo(() => new Set(dateOptions.map((o) => o.value)), [dateOptions]);
 	const isDateOutOfRange = !!schedule.date && !allowedDateSet.has(schedule.date);
+	const todayISO = useMemo(() => formatLocalDateYYYYMMDD(new Date()), []);
+	const createdBookingDateISO = String(
+		createdBookingForCheckIn?.booking?.scheduledDate || schedule.date || '',
+	).slice(0, 10);
+	const canGoToCheckIn = Boolean(createdBookingForCheckIn?.bookingCode && createdBookingDateISO === todayISO);
 
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
@@ -459,6 +474,11 @@ export default function CreateBooking() {
 					Đang tạo lịch từ lời nhắc #{sourceReminderId}
 				</div>
 			)}
+			{sourceReminderBlocksBooking && (
+				<div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>
+					Chỉ có thể tạo lịch khi lời nhắc đã xác nhận.
+				</div>
+			)}
 			<StepService
 				services={services}
 				selectedIds={selectedIds}
@@ -491,7 +511,7 @@ export default function CreateBooking() {
 						type="button"
 						className={bookingStyles.btn}
 						onClick={handleShowManualSchedule}
-						disabled={submitting}
+						disabled={submitting || sourceReminderBlocksBooking}
 					>
 						Chọn lịch
 					</button>
@@ -499,7 +519,7 @@ export default function CreateBooking() {
 						type="button"
 						className={`${bookingStyles.btn} ${bookingStyles.primary}`}
 						onClick={handleUseNow}
-						disabled={submitting}
+						disabled={submitting || sourceReminderBlocksBooking}
 					>
 						Dùng ngày giờ hiện tại
 					</button>
@@ -694,6 +714,8 @@ export default function CreateBooking() {
 							type="button"
 							className={`${bookingStyles.btn} ${bookingStyles.primary} ${styles.successBtn}`}
 							onClick={handleGoToCheckIn}
+							disabled={!canGoToCheckIn}
+							title={canGoToCheckIn ? 'Chuyển sang Check-in' : 'Chỉ có thể check-in lịch hẹn trong ngày hôm nay'}
 						>
 							Chuyển sang Check-in
 						</button>

@@ -2,7 +2,23 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchServiceTicketsPaged } from '../../../services/serviceTicketService';
+import { getServiceTicketStatusTextVi, normalizeServiceTicketStatusCode } from '../../../components/statusUtils';
 import styles from './AdvisorInspection.module.css';
+
+const SERVICE_TICKET_STATUS_FILTER_OPTIONS = [
+  'CREATED',
+  'INSPECTING',
+  'PENDING',
+  'INSPECTED',
+  'ESTIMATED',
+  'REPAIRING',
+  'CANCELLED',
+  'COMPLETED',
+  'PAID',
+].map((status) => ({
+  value: status,
+  label: getServiceTicketStatusTextVi(status, status),
+}));
 
 const AdvisorInspectionList = () => {
   const navigate = useNavigate();
@@ -10,7 +26,7 @@ const AdvisorInspectionList = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [totalItems, setTotalItems] = useState(0);
@@ -31,7 +47,7 @@ const AdvisorInspectionList = () => {
           page: currentPage - 1,
           size: itemsPerPage,
           search: searchTerm || undefined,
-          status: statusFilter !== 'ALL' ? statusFilter : undefined
+          status: statusFilter || undefined
         };
 
         const response = await fetchServiceTicketsPaged(params, token);
@@ -57,26 +73,25 @@ const AdvisorInspectionList = () => {
 
   // Get status display
   const getStatusDisplay = (status) => {
-    const statusMap = {
-      'PENDING_CHECKIN': 'Chờ check-in',
-      'CHECKED_IN': 'Đã check-in',
-      'IN_PROGRESS': 'Đang xử lý',
-      'COMPLETED': 'Hoàn thành',
-      'CANCELLED': 'Đã hủy'
-    };
-    return statusMap[status] || status;
+    const normalizedStatus = normalizeServiceTicketStatusCode(status);
+    return getServiceTicketStatusTextVi(normalizedStatus, normalizedStatus || '-');
   };
 
   // Get status class
   const getStatusClass = (status) => {
-    const classMap = {
-      'PENDING_CHECKIN': styles.statusPending,
-      'CHECKED_IN': styles.statusActive,
-      'IN_PROGRESS': styles.statusActive,
-      'COMPLETED': styles.statusCompleted,
-      'CANCELLED': styles.statusInactive
-    };
-    return classMap[status] || styles.statusInactive;
+    const normalizedStatus = normalizeServiceTicketStatusCode(status);
+    if (normalizedStatus === 'CREATED' || normalizedStatus === 'PENDING') return styles.statusPending;
+    if (
+      normalizedStatus === 'INSPECTING'
+      || normalizedStatus === 'INSPECTED'
+      || normalizedStatus === 'ESTIMATED'
+      || normalizedStatus === 'REPAIRING'
+    ) {
+      return styles.statusInspection;
+    }
+    if (normalizedStatus === 'COMPLETED' || normalizedStatus === 'PAID') return styles.statusActive;
+    if (normalizedStatus === 'CANCELLED') return styles.statusInactive;
+    return styles.statusPending;
   };
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -121,8 +136,8 @@ const AdvisorInspectionList = () => {
                 <td>{ticket.serviceName || ticket.service || '-'}</td>
                 <td>{ticket.appointmentDate || ticket.bookingDate || '-'}</td>
                 <td>
-                  <span className={`${styles.statusBadge} ${getStatusClass(ticket.status)}`}>
-                    {getStatusDisplay(ticket.status)}
+                  <span className={`${styles.statusBadge} ${getStatusClass(ticket.ticketStatus || ticket.status)}`}>
+                    {getStatusDisplay(ticket.ticketStatus || ticket.status)}
                   </span>
                 </td>
                 <td>
@@ -170,11 +185,12 @@ const AdvisorInspectionList = () => {
               setCurrentPage(1);
             }}
           >
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="PENDING_CHECKIN">Chờ check-in</option>
-            <option value="CHECKED_IN">Đã check-in</option>
-            <option value="IN_PROGRESS">Đang thực hiện</option>
-            <option value="COMPLETED">Hoàn tất</option>
+            <option value="">Tất cả trạng thái</option>
+            {SERVICE_TICKET_STATUS_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>

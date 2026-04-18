@@ -3,7 +3,7 @@ import styles from './Receipt.module.css';
 import logo from '../../../assets/logo1.png';
 import CarIcon from '../../../assets/car.jpg';
 
-const SERVICE_LINE_KEYS = Array.from({ length: 15 }).map((_, i) => `service-line-${String(i + 1).padStart(2, '0')}`);
+const MIN_SERVICE_LINE_COUNT = 15;
 
 function safeText(value) {
 	if (value == null) return '';
@@ -111,6 +111,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     const discountAmount = toMoneyNumber(invoice?.discountAmount);
     const vatAmount = toMoneyNumber(invoice?.vatAmount);
     const total = Number.isFinite(Number(invoice?.total)) ? Number(invoice.total) : Math.max(0, subtotal - discountAmount) + vatAmount;
+    const serviceLineKeys = Array.from({ length: Math.max(MIN_SERVICE_LINE_COUNT, invoiceItems.length) }).map(
+        (_, i) => `service-line-${String(i + 1).padStart(2, '0')}`,
+    );
 
     // Safety inspection data
     // Kiểm tra an toàn: dựa vào có dữ liệu safety inspection hay không
@@ -451,7 +454,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                     </tr>
                 </thead>
                 <tbody>
-                    {SERVICE_LINE_KEYS.map((rowKey, idx) => {
+                    {serviceLineKeys.map((rowKey, idx) => {
                         const it = invoiceItems[idx] ?? null;
                         const label = it?.categoryName || '';
                         const desc = it?.itemName || '';

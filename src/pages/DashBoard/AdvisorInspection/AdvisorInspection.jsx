@@ -602,16 +602,37 @@ const fetchAdvisorTicketsForAppointmentDate = async (params, token) => {
 };
 
 const STATUS_LABELS = {
-  PENDING: 'Chưa bắt đầu',
+  CREATED: getServiceTicketStatusTextVi('CREATED'),
+  INSPECTING: getServiceTicketStatusTextVi('INSPECTING'),
+  PENDING: getServiceTicketStatusTextVi('PENDING'),
+  INSPECTED: getServiceTicketStatusTextVi('INSPECTED'),
+  ESTIMATED: getServiceTicketStatusTextVi('ESTIMATED'),
+  REPAIRING: getServiceTicketStatusTextVi('REPAIRING'),
+  CANCELLED: getServiceTicketStatusTextVi('CANCELLED'),
+  COMPLETED: getServiceTicketStatusTextVi('COMPLETED'),
+  PAID: getServiceTicketStatusTextVi('PAID'),
   ACTIVE: 'Đang làm',
   DONE: 'Hoàn thành',
-  INSPECTING: 'Đang kiểm tra',
-  INSPECTED: 'Đã kiểm tra',
-  REPAIRING: 'Đang sửa chữa',
-  COMPLETED: 'Hoàn thành',
-  PAID: 'Đã thanh toán',
-  CANCELLED: 'Đã hủy',
 };
+
+const SERVICE_TICKET_STATUS_FILTER_OPTIONS = [
+  'CREATED',
+  'INSPECTING',
+  'PENDING',
+  'INSPECTED',
+  'ESTIMATED',
+  'REPAIRING',
+  'CANCELLED',
+  'COMPLETED',
+  'PAID',
+].map((status) => ({
+  value: status,
+  label: getServiceTicketStatusTextVi(status, status),
+}));
+
+const SERVICE_TICKET_STATUS_FILTER_VALUES = new Set(
+  SERVICE_TICKET_STATUS_FILTER_OPTIONS.map((option) => option.value),
+);
 
 const normalizeAssignmentDisplayStatus = (value) => {
   const raw = String(value || '').trim().toUpperCase();
@@ -624,12 +645,7 @@ const normalizeAssignmentDisplayStatus = (value) => {
 
 const computeDisplayStatus = (assignmentStatus, ticketStatus) => {
   const tStatus = normalizeServiceTicketStatus({ status: ticketStatus });
-  if (tStatus === 'INSPECTING') return 'INSPECTING';
-  if (tStatus === 'INSPECTED') return 'INSPECTED';
-  if (tStatus === 'REPAIRING') return 'REPAIRING';
-  if (tStatus === 'COMPLETED') return 'COMPLETED';
-  if (tStatus === 'PAID') return 'PAID';
-  if (tStatus === 'CANCELLED') return 'CANCELLED';
+  if (SERVICE_TICKET_STATUS_FILTER_VALUES.has(tStatus)) return tStatus;
   return normalizeAssignmentDisplayStatus(assignmentStatus) || 'PENDING';
 };
 
@@ -937,10 +953,10 @@ export default function AdvisorInspection() {
 
   const getServiceTicketStatusClass = (ticket) => {
     const status = normalizeServiceTicketStatus(ticket);
-    if (status === 'CREATED') return styles.statusPending;
-    if (status === 'INSPECTING') return styles.statusInspection;
-    if (status === 'PENDING') return styles.statusPending;
-    if (status === 'REPAIRING') return styles.statusInspection;
+    if (status === 'CREATED' || status === 'PENDING') return styles.statusPending;
+    if (status === 'INSPECTING' || status === 'INSPECTED' || status === 'ESTIMATED' || status === 'REPAIRING') {
+      return styles.statusInspection;
+    }
     if (status === 'COMPLETED' || status === 'PAID') return styles.statusActive;
     if (status === 'CANCELLED') return styles.statusInactive;
     return styles.statusPending;
@@ -1648,15 +1664,11 @@ export default function AdvisorInspection() {
                 onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
               >
                 <option value="">Tất cả</option>
-                <option value="CREATED">Khởi tạo phiếu</option>
-                <option value="INSPECTING">Đang kiểm tra</option>
-                <option value="INSPECTED">Đã kiểm tra</option>
-                <option value="PENDING">Chờ xử lý</option>
-                <option value="ESTIMATED">Đã báo giá</option>
-                <option value="REPAIRING">Đang sửa chữa</option>
-                <option value="COMPLETED">Hoàn tất</option>
-                <option value="PAID">Đã thanh toán</option>
-                <option value="CANCELLED">Đã hủy</option>
+                {SERVICE_TICKET_STATUS_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div className={styles.filterCardActions}>

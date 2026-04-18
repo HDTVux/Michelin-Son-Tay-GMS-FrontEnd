@@ -34,6 +34,7 @@ const statusMeta = {
 };
 
 const normalizeStatus = (value) => String(value ?? '').trim().toUpperCase();
+const canCreateBookingFromStatus = (value) => normalizeStatus(value) === 'CONFIRMED';
 
 const getStatusLabel = (value) => {
   const key = normalizeStatus(value);
@@ -205,6 +206,10 @@ export default function MaintenanceReminder() {
       toast.error('Lời nhắc này chưa có ID để tạo lịch.');
       return;
     }
+    if (!canCreateBookingFromStatus(row?.status)) {
+      toast.error('Chỉ có thể tạo lịch khi lời nhắc đã xác nhận.');
+      return;
+    }
     navigate('/create-booking', {
       state: {
         reminderId,
@@ -328,6 +333,7 @@ export default function MaintenanceReminder() {
                   const meta = statusMeta[currentStatus] || { className: styles.statusDefault, label: getStatusLabel(currentStatus) };
                   const rowUpdating = updatingId === row?.reminderId;
                   const statusLocked = currentStatus && currentStatus !== 'PENDING';
+                  const canCreateBooking = Boolean(row?.reminderId) && canCreateBookingFromStatus(currentStatus);
                   return (
                     <tr key={row?.reminderId || `${row?.ticketCode || 'ticket'}-${row?.reminderDate || ''}-${row?.reminderTime || ''}`}>
                       <td className={styles.ticketCode}>{row?.ticketCode || '-'}</td>
@@ -355,7 +361,8 @@ export default function MaintenanceReminder() {
                             type="button"
                             className={`${styles.smallBtn} ${styles.createBtn}`}
                             onClick={() => handleCreateBookingFromReminder(row)}
-                            disabled={!row?.reminderId}
+                            disabled={!canCreateBooking}
+                            title={canCreateBooking ? 'Tạo lịch từ lời nhắc đã xác nhận' : 'Chỉ tạo lịch khi lời nhắc đã xác nhận'}
                           >
                             Tạo lịch
                           </button>

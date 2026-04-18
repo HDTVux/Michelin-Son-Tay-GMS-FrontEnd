@@ -1153,6 +1153,16 @@
   color: #92400e;
 }
 
+.attendanceCheckinNotice {
+  padding: 4px 8px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .attendanceCheckinForm {
   display: flex;
   align-items: flex-end;
@@ -1196,6 +1206,13 @@
   color: #9ca3af;
 }
 
+.attendanceCheckinInput:disabled,
+.attendanceCheckinSelect:disabled {
+  cursor: not-allowed;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
 .attendanceCheckinSelect {
   padding: 9px 12px;
   border: 1.5px solid #e2e8f0;
@@ -1236,6 +1253,13 @@
 .attendanceCheckinBtn:hover {
   background: #047857;
   transform: translateY(-1px);
+}
+
+.attendanceCheckinBtn:disabled {
+  cursor: not-allowed;
+  background: #94a3b8;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Table */

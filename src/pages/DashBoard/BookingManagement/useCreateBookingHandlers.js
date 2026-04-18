@@ -282,12 +282,18 @@ export function useCreateBookingHandlers({
 
 	const handleGoToCheckIn = useCallback(() => {
 		const code = String(createdBookingForCheckIn?.bookingCode ?? '').trim();
+		const bookingDate = String(createdBookingForCheckIn?.booking?.scheduledDate || schedule?.date || '').slice(0, 10);
+		const today = formatLocalDateYYYYMMDD(new Date());
+		if (bookingDate !== today) {
+			toast('Chỉ có thể chuyển sang Check-in với lịch hẹn trong ngày hôm nay.', { containerId: 'app-toast' });
+			return;
+		}
 		if (code) {
 			navigate('/check-in', { state: { bookingCode: code, booking: createdBookingForCheckIn?.booking || null } });
 			return;
 		}
 		navigate('/check-in');
-	}, [createdBookingForCheckIn?.booking, createdBookingForCheckIn?.bookingCode, navigate]);
+	}, [createdBookingForCheckIn?.booking, createdBookingForCheckIn?.bookingCode, navigate, schedule?.date]);
 
 	const handleReset = useCallback(() => {
 		submitInFlightRef.current = false;

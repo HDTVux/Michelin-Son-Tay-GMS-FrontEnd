@@ -18,7 +18,6 @@ import {
 	validateTaxRatePercent,
 	validateTextInput,
 } from '../../../components/inputValidation.js';
-const PLACEHOLDER_ROW_COUNT = 15;
 const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
 
 export function formatCurrencyVnd(value) {
@@ -266,9 +265,8 @@ export function isDraftRowEmpty(row) {
 	return !newCategoryName && !itemName && !hasMeaningfulQty && !hasMeaningfulPrice && !taxRuleId && !confirmed;
 }
 
-function normalizeDraftRows(rows, maxRows) {
-	const max = Number.isFinite(maxRows) && maxRows > 0 ? maxRows : 15;
-	let next = Array.isArray(rows) ? rows.slice(0, max) : [];
+function normalizeDraftRows(rows) {
+	let next = Array.isArray(rows) ? rows : [];
 	if (next.length === 0) return [createEmptyDraftRow()];
 
 	if (next.every((r) => isDraftRowEmpty(r))) return [createEmptyDraftRow()];
@@ -277,7 +275,7 @@ function normalizeDraftRows(rows, maxRows) {
 		next = next.slice(0, -1);
 	}
 
-	if (!isDraftRowEmpty(next.at(-1)) && next.length < max) {
+	if (!isDraftRowEmpty(next.at(-1))) {
 		next = [...next, createEmptyDraftRow()];
 	}
 
@@ -1132,7 +1130,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				}
 				return { ...r, [field]: value };
 			});
-			return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
+			return normalizeDraftRows(next);
 		});
 	}, [applyCategorySelection]);
 
@@ -1157,7 +1155,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				}
 				return { ...r, [field]: value };
 			});
-			return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
+			return normalizeDraftRows(next);
 		});
 	}, [applyCategorySelection]);
 
@@ -1173,7 +1171,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		if (seedFromPreviousEstimate) {
 			const items = Array.isArray(estimate?.items) ? estimate.items : [];
 			const locked = items.filter((it) => !it?.isRemoved).map(mapEstimateItemToLockedRow);
-			const seeded = normalizeDraftRows([...locked, createEmptyDraftRow()], PLACEHOLDER_ROW_COUNT);
+			const seeded = normalizeDraftRows([...locked, createEmptyDraftRow()]);
 			setDraftRows(seeded);
 			// Enrich tax for seeded locked rows if estimate API didn't embed item tax.
 			enrichRowsWithItemTaxes(seeded, setDraftRows);
@@ -1197,7 +1195,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		if (appendOnly) {
 			// Append-only: keep current estimate version, lock existing rows and allow only adding new rows.
 			const locked = items.filter((it) => !it?.isRemoved).map(mapEstimateItemToAppendLockedRow);
-			const seeded = normalizeDraftRows([...locked, createEmptyDraftRow()], PLACEHOLDER_ROW_COUNT);
+			const seeded = normalizeDraftRows([...locked, createEmptyDraftRow()]);
 			setEditRows(seeded);
 			setIsEditing(true);
 			setIsAppendOnlyEdit(true);
@@ -1240,7 +1238,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					isRemoved: Boolean(it?.isRemoved),
 				};
 			});
-		const normalized = normalizeDraftRows(mapped, PLACEHOLDER_ROW_COUNT);
+		const normalized = normalizeDraftRows(mapped);
 		setEditRows(normalized);
 		setIsEditing(true);
 		setSaveError('');
@@ -1605,7 +1603,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setEditRows((prev) => {
 					const base = Array.isArray(prev) ? prev : [];
 					const next = base.filter((_, idx) => idx !== rowIndex);
-					return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
+					return normalizeDraftRows(next);
 				});
 
 				setEstimate((prev) => {
@@ -1639,7 +1637,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			setDraftRows((prev) => {
 				const base = Array.isArray(prev) ? prev : [];
 				const next = base.filter((_, idx) => idx !== rowIndex);
-				return normalizeDraftRows(next, PLACEHOLDER_ROW_COUNT);
+				return normalizeDraftRows(next);
 			});
 		},
 		[isCreating, isSaving],
