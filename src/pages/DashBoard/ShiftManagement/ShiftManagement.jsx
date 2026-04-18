@@ -29,26 +29,6 @@ const getTodayLocalISO = () => {
   return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
 };
 
-const shiftLocalISODate = (dateIso, days) => {
-  const raw = String(dateIso || '').trim();
-  const baseDate = raw ? new Date(`${raw}T00:00:00`) : new Date();
-  if (Number.isNaN(baseDate.getTime())) return getTodayLocalISO();
-  baseDate.setDate(baseDate.getDate() + Number(days || 0));
-  const offsetMs = baseDate.getTimezoneOffset() * 60000;
-  return new Date(baseDate.getTime() - offsetMs).toISOString().slice(0, 10);
-};
-
-const formatCalendarDisplay = (dateIso) => {
-  const raw = String(dateIso || '').trim();
-  if (!raw) return 'Chọn ngày';
-  const date = new Date(`${raw}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return raw;
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-};
-
 const toDateKey = (value) => {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -142,6 +122,8 @@ const normalizeShiftRecord = (record) => ({
   isActive: record?.isActive ?? record?.is_active ?? true,
 });
 
+const isShiftActive = (shift) => shift?.isActive !== false;
+
 const extractArrayPayload = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
@@ -193,17 +175,16 @@ const normalizeAttendanceRecord = (record) => ({
 
 const readPersistedFilters = () => {
   try {
-    if (typeof window === 'undefined') return { search: '', statusFilter: '', createdDateFilter: '' };
+    if (typeof window === 'undefined') return { search: '', statusFilter: '' };
     const raw = sessionStorage.getItem(SHIFT_FILTER_STORAGE_KEY);
-    if (!raw) return { search: '', statusFilter: '', createdDateFilter: '' };
+    if (!raw) return { search: '', statusFilter: '' };
     const parsed = JSON.parse(raw);
     return {
       search: String(parsed?.search || ''),
       statusFilter: String(parsed?.statusFilter || ''),
-      createdDateFilter: String(parsed?.createdDateFilter || ''),
     };
   } catch {
-    return { search: '', statusFilter: '', createdDateFilter: '' };
+    return { search: '', statusFilter: '' };
   }
 };
 
@@ -249,16 +230,12 @@ export default function ShiftManagement() {
   const initialRuntimeState = useMemo(() => readPersistedRuntimeState(), []);
   const runtimeSnapshotRef = useRef(initialRuntimeState);
   const hasRestoredRuntimeRef = useRef(false);
-  const dayPickerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [shifts, setShifts] = useState([]);
   const [search, setSearch] = useState(initialFilters.search || '');
   const [statusFilter, setStatusFilter] = useState(initialFilters.statusFilter || '');
-  const [createdDateFilter, setCreatedDateFilter] = useState(
-    initialFilters.createdDateFilter || getTodayLocalISO(),
-  );
 
   const [openModal, setOpenModal] = useState(false);
   const [editingShift, setEditingShift] = useState(null);
@@ -342,9 +319,8 @@ export default function ShiftManagement() {
     persistFilters({
       search,
       statusFilter,
-      createdDateFilter,
     });
-  }, [search, statusFilter, createdDateFilter]);
+  }, [search, statusFilter]);
 
   useEffect(() => {
     if (!hasRestoredRuntimeRef.current && runtimeSnapshotRef.current) return;
@@ -382,12 +358,10 @@ export default function ShiftManagement() {
       const isActive = shift?.isActive !== false;
       const matchesStatus = !statusFilter
         || (statusFilter === 'ACTIVE' ? isActive : !isActive);
-      const createdDate = toDateKey(shift?.createdAt);
-      const matchesCreatedDate = !createdDateFilter || createdDate === createdDateFilter;
 
-      return matchesSearch && matchesStatus && matchesCreatedDate;
+      return matchesSearch && matchesStatus;
     });
-  }, [shifts, deferredSearch, statusFilter, createdDateFilter]);
+  }, [shifts, deferredSearch, statusFilter]);
 
   const stats = useMemo(() => {
     const total = shifts.length;
@@ -403,34 +377,6 @@ export default function ShiftManagement() {
       .filter((shift) => `${shift?.shiftId ?? ''} ${shift?.shiftName ?? ''}`.toLowerCase().includes(query))
       .slice(0, 8);
   }, [modalShiftSearch, shifts]);
-
-  const handlePickDay = (nextDate) => {
-    const value = String(nextDate || '').trim();
-    if (!value) return;
-    setCreatedDateFilter(value);
-  };
-
-  const handlePreviousDay = () => {
-    setCreatedDateFilter((prev) => shiftLocalISODate(prev || getTodayLocalISO(), -1));
-  };
-
-  const handleNextDay = () => {
-    setCreatedDateFilter((prev) => shiftLocalISODate(prev || getTodayLocalISO(), 1));
-  };
-
-  const handleOpenCalendar = () => {
-    const picker = dayPickerRef.current;
-    if (!picker) return;
-    if (typeof picker.showPicker === 'function') {
-      picker.showPicker();
-      return;
-    }
-    picker.focus();
-  };
-
-  const handleBackToToday = () => {
-    setCreatedDateFilter(getTodayLocalISO());
-  };
 
   const resetModal = () => {
     setOpenModal(false);
@@ -512,6 +458,7 @@ export default function ShiftManagement() {
 
   const handleViewShift = async (shift) => {
     const today = new Date().toISOString().slice(0, 10);
+    const shiftActive = isShiftActive(shift);
     setViewShiftModal(shift);
     setShiftAttendances([]);
     setLoadingShiftAttendances(true);
@@ -519,7 +466,7 @@ export default function ShiftManagement() {
     setViewToDate(today);
     setViewStaffIdFilter('');
     setCheckoutTarget(null);
-    setCheckInForm({ staffId: '', shiftId: shift?.shiftId || '', attendanceDate: today, checkInTime: '', notes: '' });
+    setCheckInForm({ staffId: '', shiftId: shiftActive ? shift?.shiftId || '' : '', attendanceDate: today, checkInTime: '', notes: '' });
 
     const token = getAuthToken();
     if (!token) return;
@@ -720,6 +667,11 @@ export default function ShiftManagement() {
       toast.error('Vui lòng nhập Staff ID và chọn ca làm.');
       return;
     }
+    const selectedShift = shifts.find((shift) => Number(shift?.shiftId) === Number(checkInForm.shiftId));
+    if (!selectedShift || !isShiftActive(selectedShift)) {
+      toast.error('Ca làm đã vô hiệu hóa, không thể điểm danh.');
+      return;
+    }
     try {
       await managerCheckIn(checkInForm, token);
       toast.success('Check-in thành công.');
@@ -775,6 +727,9 @@ export default function ShiftManagement() {
     return { total, checkedOut, present };
   }, [shiftAttendances]);
 
+  const activeShifts = useMemo(() => shifts.filter(isShiftActive), [shifts]);
+  const isViewingInactiveShift = Boolean(viewShiftModal && !isShiftActive(viewShiftModal));
+
 
   return (
     <div className={styles.container}>
@@ -804,43 +759,11 @@ export default function ShiftManagement() {
 
       <div className={styles.pendingFilters}>
         <div className={`${styles.filterCardLabels} ${styles.filterCardLabelsTwo}`}>
-          <span>Lịch ngày</span>
+          <span>Tìm kiếm</span>
           <span>Trạng thái</span>
         </div>
 
         <div className={`${styles.filterCardControls} ${styles.filterCardControlsTwo}`}>
-          <div className={styles.dayNavigator}>
-            <button type="button" className={styles.dayNavBtn} onClick={handlePreviousDay}>
-              Trước
-            </button>
-            <button type="button" className={styles.dayCenterBtn} onClick={handleOpenCalendar}>
-              {formatCalendarDisplay(createdDateFilter)}
-            </button>
-            <button type="button" className={styles.dayNavBtn} onClick={handleNextDay}>
-              Sau
-            </button>
-            <input
-              ref={dayPickerRef}
-              type="date"
-              value={createdDateFilter}
-              onChange={(e) => handlePickDay(e.target.value)}
-              className={styles.hiddenDateInput}
-              aria-label="Chọn ngày tạo ca"
-            />
-          </div>
-
-          <select
-            className={styles.filterSelect}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">Tất cả</option>
-            <option value="ACTIVE">Hoạt động</option>
-            <option value="INACTIVE">Vô hiệu</option>
-          </select>
-        </div>
-
-        <div className={styles.filterCardActions}>
           <div className={styles.searchBox}>
             <svg
               width="16"
@@ -872,9 +795,16 @@ export default function ShiftManagement() {
               </button>
             )}
           </div>
-          <button type="button" className={styles.filterGhostBtn} onClick={handleBackToToday}>
-            Về hôm nay
-          </button>
+
+          <select
+            className={styles.filterSelect}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">Tất cả</option>
+            <option value="ACTIVE">Hoạt động</option>
+            <option value="INACTIVE">Vô hiệu</option>
+          </select>
         </div>
       </div>
 
@@ -1207,34 +1137,39 @@ export default function ShiftManagement() {
               <div className={styles.attendanceCheckin}>
                 <div className={styles.attendanceCheckinHeader}>
                   <h4 className={styles.attendanceCheckinTitle}>📌 Check-in nhanh</h4>
+                  {isViewingInactiveShift && (
+                    <span className={styles.attendanceCheckinNotice}>
+                      Ca này đã vô hiệu hóa nên không thể điểm danh thêm.
+                    </span>
+                  )}
                 </div>
                 <div className={styles.attendanceCheckinForm}>
                   <div className={styles.attendanceCheckinField}>
                     <label className={styles.attendanceCheckinLabel}>Staff ID</label>
-                    <input className={styles.attendanceCheckinInput} type="number" value={checkInForm.staffId} onChange={(e) => setCheckInForm((p) => ({ ...p, staffId: e.target.value }))} placeholder="Nhập ID nhân viên" />
+                    <input className={styles.attendanceCheckinInput} type="number" value={checkInForm.staffId} onChange={(e) => setCheckInForm((p) => ({ ...p, staffId: e.target.value }))} placeholder="Nhập ID nhân viên" disabled={isViewingInactiveShift} />
                   </div>
                   <div className={styles.attendanceCheckinField}>
                     <label className={styles.attendanceCheckinLabel}>Ca làm</label>
-                    <select className={styles.attendanceCheckinSelect} value={checkInForm.shiftId} onChange={(e) => setCheckInForm((p) => ({ ...p, shiftId: e.target.value }))}>
+                    <select className={styles.attendanceCheckinSelect} value={checkInForm.shiftId} onChange={(e) => setCheckInForm((p) => ({ ...p, shiftId: e.target.value }))} disabled={isViewingInactiveShift}>
                       <option value="">Chọn ca</option>
-                      {shifts.map((s) => (
+                      {activeShifts.map((s) => (
                         <option key={s.shiftId} value={s.shiftId}>{s.shiftName} ({String(s.startTime || '').slice(0, 5)}-{String(s.endTime || '').slice(0, 5)})</option>
                       ))}
                     </select>
                   </div>
                   <div className={styles.attendanceCheckinField}>
                     <label className={styles.attendanceCheckinLabel}>Ngày chấm công</label>
-                    <input className={styles.attendanceCheckinInput} type="date" value={checkInForm.attendanceDate} onChange={(e) => setCheckInForm((p) => ({ ...p, attendanceDate: e.target.value }))} />
+                    <input className={styles.attendanceCheckinInput} type="date" value={checkInForm.attendanceDate} onChange={(e) => setCheckInForm((p) => ({ ...p, attendanceDate: e.target.value }))} disabled={isViewingInactiveShift} />
                   </div>
                   <div className={styles.attendanceCheckinField}>
                     <label className={styles.attendanceCheckinLabel}>Giờ vào (tùy chọn)</label>
-                    <input className={styles.attendanceCheckinInput} type="time" value={checkInForm.checkInTime} onChange={(e) => setCheckInForm((p) => ({ ...p, checkInTime: e.target.value }))} />
+                    <input className={styles.attendanceCheckinInput} type="time" value={checkInForm.checkInTime} onChange={(e) => setCheckInForm((p) => ({ ...p, checkInTime: e.target.value }))} disabled={isViewingInactiveShift} />
                   </div>
                   <div className={styles.attendanceCheckinField}>
                     <label className={styles.attendanceCheckinLabel}>Ghi chú</label>
-                    <input className={styles.attendanceCheckinInput} value={checkInForm.notes} onChange={(e) => setCheckInForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Ghi chú nếu có" />
+                    <input className={styles.attendanceCheckinInput} value={checkInForm.notes} onChange={(e) => setCheckInForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Ghi chú nếu có" disabled={isViewingInactiveShift} />
                   </div>
-                  <button type="button" className={styles.attendanceCheckinBtn} onClick={handleViewCheckIn}>✓ Check-in</button>
+                  <button type="button" className={styles.attendanceCheckinBtn} onClick={handleViewCheckIn} disabled={isViewingInactiveShift}>✓ Check-in</button>
                 </div>
               </div>
 

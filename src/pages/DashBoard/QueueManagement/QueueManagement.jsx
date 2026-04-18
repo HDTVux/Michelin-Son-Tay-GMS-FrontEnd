@@ -45,6 +45,35 @@ const isQueueBookingConfirmed = (item) => String(item?.status || '').trim().toUp
 
 const isBookingConfirmed = (status) => String(status || '').trim().toUpperCase() === 'CONFIRMED';
 
+const getQueueBookingDateISO = (item) => {
+	const directDate = String(
+		item?.scheduledDate
+		|| item?.appointmentDate
+		|| item?.bookingDate
+		|| item?.booking?.scheduledDate
+		|| '',
+	).trim();
+	const directMatch = directDate.match(/\d{4}-\d{2}-\d{2}/);
+	if (directMatch) return directMatch[0];
+
+	const dateTimeRaw = String(
+		item?.appointmentAt
+		|| item?.scheduledAt
+		|| item?.booking?.appointmentAt
+		|| item?.booking?.scheduledAt
+		|| '',
+	).trim();
+	if (!dateTimeRaw) return '';
+
+	const dateTimeMatch = dateTimeRaw.match(/\d{4}-\d{2}-\d{2}/);
+	if (dateTimeMatch) return dateTimeMatch[0];
+
+	const parsed = new Date(dateTimeRaw);
+	return Number.isFinite(parsed.getTime()) ? formatLocalDateYYYYMMDD(parsed) : '';
+};
+
+const isQueueBookingToday = (item, todayISO) => getQueueBookingDateISO(item) === todayISO;
+
 const DEFAULT_SLOT_CAPACITY = 6;
 
 const getScheduleStateLabel = (state) => {
@@ -315,6 +344,7 @@ export default function QueueManagement() {
 
 	const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
+	const todayISO = useMemo(() => formatLocalDateYYYYMMDD(new Date()), []);
 	const [dateISO, setDateISO] = useState(() => formatLocalDateYYYYMMDD(new Date()));
 	const [slot, setSlot] = useState('');
 	const { slots, slotsLoading, slotsError } = useSlotsData();
@@ -496,6 +526,11 @@ export default function QueueManagement() {
 	}, [navigate, notify]);
 
 	const handleCheckIn = (item) => {
+		if (!isQueueBookingToday(item, todayISO)) {
+			notify('Chỉ có thể check-in booking có lịch hẹn trong ngày hôm nay.');
+			return;
+		}
+
 		const bookingId = item?.bookingId ?? item?.id ?? null;
 		const bookingCode = item?.bookingCode ?? '';
 		const customerPhone = item?.customer?.phone || item?.phone || '-';
@@ -671,17 +706,17 @@ export default function QueueManagement() {
 											Chi tiết
 										</button>
 
-										{isQueueBookingConfirmed(item) ? (
-										<button
-											type="button"
-											className={styles.secondaryButton}
-											onClick={(e) => {
-											e.stopPropagation();
-											handleCheckIn(item);
-										}}
-										>
-											Check-in
-										</button>
+										{isQueueBookingConfirmed(item) && isQueueBookingToday(item, todayISO) ? (
+											<button
+												type="button"
+												className={styles.secondaryButton}
+												onClick={(e) => {
+													e.stopPropagation();
+													handleCheckIn(item);
+												}}
+											>
+												Check-in
+											</button>
 										) : null}
 									</div>
 								</div>

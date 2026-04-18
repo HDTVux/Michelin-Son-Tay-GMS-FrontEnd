@@ -31,24 +31,29 @@
 .header {
     position: relative;
     margin-bottom: 14px;
+    min-height: 68px;
+    padding-right: 48mm;
 }
 
 .barcodeWrap {
     position: absolute;
     top: 0;
-    left: 50%;
-    transform: translateX(-50%);
+    right: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
+    width: 42mm;
+    height: 18mm;
     pointer-events: none;
 }
 
 .barcodeImg {
-    max-width: 320px;
-    width: 55%;
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
     height: auto;
+    object-fit: contain;
 }
 
 .storeInfo {
