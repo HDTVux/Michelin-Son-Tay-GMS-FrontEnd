@@ -1579,7 +1579,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const canRequestStockIssue = useMemo(() => {
         if (isActionLocked) return false;
-        if (ticketStatus !== 'ESTIMATED') return false;
+        if (ticketStatus !== 'ESTIMATED' && ticketStatus !== 'REPAIRING' && ticketStatus !== 'PENDING') return false;
+        if (!Number.isFinite(reservedAllocationCount) || reservedAllocationCount <= 0) return false;
         const hasDraftStockIssue = ticket?.hasDraftStockIssue;
         const committedLessThanReserved =
             Number.isFinite(reservedAllocationCount)
