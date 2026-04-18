@@ -45,6 +45,7 @@ import WarehouseStockIssueDetail from './pages/DashBoard/WarehouseManagement/War
 import WarehouseReturnEntry from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntry.jsx';
 import WarehouseReturnEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryManagement.jsx';
 import WarehouseReturnEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryDetail.jsx';
+import WarehousePricing from './pages/DashBoard/WarehouseManagement/WarehousePricing.jsx';
 import BlogManagement from './pages/DashBoard/PartManagement/ServiceManagement.jsx';
 import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx';
 import CreateService from './pages/DashBoard/PartManagement/CreateService.jsx';
@@ -302,6 +303,7 @@ export default function App() {
           <Route path="vehicle-management" element={<VehicleManagement />} />
           <Route path="system-log-management" element={<SystemLogManagement />} />
           <Route path="warehouse-management" element={<WarehouseManagement />} />
+          <Route path="warehouse-pricing" element={<WarehousePricing />} />
           
           {/* Technician pages */}
           <Route path="technician/my-tasks" element={<MyTasks />} />

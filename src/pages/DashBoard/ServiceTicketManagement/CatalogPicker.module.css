@@ -131,6 +131,23 @@
   font-weight: 500;
 }
 
+/* Notify row under each product row (per selected warehouse) */
+.notifyRow {
+  background-color: #f9fafb;
+}
+
+.notifyRow:hover {
+  background-color: #f9fafb;
+}
+
+.notifyCell {
+  text-align: left;
+  font-size: 0.85rem;
+  color: #555555;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
 /* Dropdown chọn kho */
 .warehouseSelect {
   width: 100%;
