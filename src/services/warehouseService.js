@@ -358,6 +358,53 @@ export const searchWarehouseCatalog = (keyword, token) => {
   });
 };
 
+// Warehouse pricing APIs
+// GET: /api/warehouse/pricing?warehouseId=...&isActive=true&search=...&page=0&size=10
+export const fetchWarehousePricing = (params, token) => {
+  const safeParams = normalizePagingParams(params || {});
+  const warehouseIdNum = toSafeInt(safeParams.warehouseId);
+  if (!warehouseIdNum || warehouseIdNum <= 0) {
+    throw new Error('Thiếu kho (warehouseId).');
+  }
+
+  const qp = new URLSearchParams();
+  qp.append('warehouseId', String(warehouseIdNum));
+
+  Object.entries(safeParams).forEach(([key, value]) => {
+    if (key === 'warehouseId') return;
+    appendSafeCatalogSearchParam(qp, key, value);
+  });
+
+  const qs = qp.toString();
+  const path = '/api/warehouse/pricing' + (qs ? `?${qs}` : '');
+  return request(path, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+export const createWarehousePricing = (payload, token) => {
+  return request('/api/warehouse/pricing', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload ?? {}),
+  });
+};
+
+// DELETE: /api/warehouse/pricing/{pricingId}
+export const deleteWarehousePricing = (pricingId, token) => {
+  const idNum = typeof pricingId === 'number' ? pricingId : Number(pricingId);
+  const safeId = Number.isFinite(idNum) ? Math.trunc(idNum) : 0;
+  if (!safeId || safeId <= 0) {
+    throw new Error('Thiếu pricingId.');
+  }
+
+  return request(`/api/warehouse/pricing/${encodeURIComponent(String(safeId))}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
 // POST: /api/warehouse/stock-entries/with-attachment
 export const createWarehouseStockEntryWithAttachment = async (payload, file, token) => {
   const formData = new FormData();

@@ -1159,6 +1159,10 @@ export default function AdvisorItemsTable({
                 <div className={styles.errorBanner} style={{ marginTop: 8 }}>
                     Phiếu dịch vụ đã được thanh toán — không thể tạo báo giá mới.
                 </div>
+            ) : isReadOnly ? (
+                <div className={styles.errorBanner} style={{ marginTop: 8 }}>
+                    {readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.'}
+                </div>
             ) : null}
 
                 <table className={styles.table}>

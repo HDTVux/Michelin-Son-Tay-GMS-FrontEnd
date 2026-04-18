@@ -184,34 +184,65 @@
 	font-weight: 700;
 }
 
+/* Container bao quanh bảng để bo góc */
 .tableWrap {
-	border: 1px solid var(--ui-line);
-	border-radius: 12px;
-	overflow: auto;
-	background: var(--ui-surface);
+    border: 1px solid var(--ui-line);
+    border-radius: 12px;
+    overflow: hidden; /* Quan trọng để đường kẻ không đè lên góc bo */
+    background: var(--ui-surface);
 }
 
 .table {
-	width: 100%;
-	border-collapse: collapse;
-	min-width: 680px;
+    width: 100%;
+    border-collapse: collapse; /* Gộp các đường kẻ lại thành một */
+    min-width: 820px;
+    /* Bỏ border bên ngoài table vì đã có tableWrap */
+    border: none; 
 }
 
+/* Kẻ dọc và ngang cho tất cả các ô */
 .table th,
 .table td {
-	padding: 10px 12px;
-	border-bottom: 1px solid var(--ui-line);
-	vertical-align: top;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--ui-line); /* Đường kẻ ngang */
+    border-right: 1px solid var(--ui-line);  /* Đường kẻ dọc */
+    vertical-align: middle;
+}
+
+/* Loại bỏ đường kẻ dọc ở cột cuối cùng để không bị thừa */
+.table th:last-child,
+.table td:last-child {
+    border-right: none;
 }
 
 .table thead th {
-	text-align: left;
-	font-weight: 900;
-	background: var(--ui-subtle-bg);
+    text-align: left;
+    font-weight: 900;
+    background: var(--ui-subtle-bg);
+    /* Đường kẻ ngang đậm hơn cho phần header */
+    border-bottom: 2px solid var(--ui-line); 
 }
 
-.thNumber {
-	text-align: right;
+/* Loại bỏ đường kẻ ngang ở dòng cuối cùng của bảng */
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Căn chỉnh nội dung trong các ô đặc thù */
+.thNumber, .tdNumber,
+.thQty, .tdQty {
+    text-align: center;
+}
+
+/* Đảm bảo khi in ra giấy các đường kẻ vẫn hiển thị rõ */
+@media print {
+    .table, .table th, .table td {
+        border: 1px solid #333 !important; /* Dùng màu đậm hơn khi in */
+    }
+    .table thead th {
+        background-color: #f0f0f0 !important;
+        -webkit-print-color-adjust: exact;
+    }
 }
 
 .thQty {
@@ -227,7 +258,7 @@
 }
 
 .tdNumber {
-	text-align: right;
+	text-align: center;
 	white-space: nowrap;
 }
 
@@ -240,7 +271,7 @@
 }
 
 .qrMetaText {
-	text-align: right;
+	text-align: center;
 	word-break: break-word;
 }
 

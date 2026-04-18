@@ -1056,6 +1056,20 @@
   margin-bottom: 12px;
 }
 
+.fieldError {
+  margin-top: 6px;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fieldHint {
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .stockWaitBanner {
   border: 2px solid yellow;
   border-radius: 10px;

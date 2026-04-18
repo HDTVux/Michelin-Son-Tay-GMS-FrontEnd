@@ -450,7 +450,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		const cache = itemTaxRuleCacheRef.current;
 		if (cache.has(idNum)) return cache.get(idNum);
 
-		const token = localStorage.getItem('authToken');
+		const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
 		if (!token) return '';
 		try {
 			const res = await fetchWarehouseCatalogItemDetail(idNum, token);
@@ -591,7 +591,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const saveRecommendation = useCallback(
 		async (valueOverride) => {
 			if (recommendationSaving) return false;
-			const token = localStorage.getItem('authToken');
+			const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
 			if (!token) {
 				const error = new Error('Vui lòng đăng nhập để cập nhật khuyến nghị.');
 				error.status = 401;

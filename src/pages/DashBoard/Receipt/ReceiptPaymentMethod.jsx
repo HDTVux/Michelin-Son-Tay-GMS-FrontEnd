@@ -23,22 +23,25 @@ function pickLatestEstimate(list) {
     const arr = Array.isArray(list) ? list : [];
     if (arr.length === 0) return null;
 
-    const archivedEstimates = arr.filter((e) => {
-        const status = normalizeEstimateStatus(e?.estimateStatus ?? e?.status ?? e?.estimate_status);
-        return status === 'ARCHIVED';
-    });
+    return [...arr].sort((a, b) => {
+        const rawA = a?.version ?? a?.estimateVersion ?? a?.estimateNo ?? a?.versionNo;
+        const rawB = b?.version ?? b?.estimateVersion ?? b?.estimateNo ?? b?.versionNo;
+        const versionA = typeof rawA === 'number' ? rawA : Number(/\d+/.exec(String(rawA ?? ''))?.[0] ?? '');
+        const versionB = typeof rawB === 'number' ? rawB : Number(/\d+/.exec(String(rawB ?? ''))?.[0] ?? '');
+        const hasVersionA = Number.isFinite(versionA) && versionA > 0;
+        const hasVersionB = Number.isFinite(versionB) && versionB > 0;
+        if (hasVersionA && hasVersionB && versionA !== versionB) return versionB - versionA;
+        if (hasVersionA && !hasVersionB) return -1;
+        if (!hasVersionA && hasVersionB) return 1;
 
-    const approvedEstimates = arr.filter((e) => {
-        const status = normalizeEstimateStatus(e?.estimateStatus ?? e?.status ?? e?.estimate_status);
-        return status === 'APPROVED';
-    });
+        const idA = Number(a?.estimateId ?? a?.id ?? a?.serviceTicketEstimateId ?? 0);
+        const idB = Number(b?.estimateId ?? b?.id ?? b?.serviceTicketEstimateId ?? 0);
+        if (idA > 0 && idB > 0 && idA !== idB) return idB - idA;
 
-    const listToSearch = archivedEstimates.length > 0 ? archivedEstimates : approvedEstimates.length > 0 ? approvedEstimates : arr;
-    return listToSearch.reduce((prev, current) => {
-        const prevId = Number(prev?.estimateId ?? prev?.id ?? prev?.serviceTicketEstimateId ?? 0);
-        const currentId = Number(current?.estimateId ?? current?.id ?? current?.serviceTicketEstimateId ?? 0);
-        return currentId > prevId ? current : prev;
-    }, listToSearch[0]);
+        const ta = new Date(a?.createdAt || a?.approvedAt || a?.createdDate || 0).getTime();
+        const tb = new Date(b?.createdAt || b?.approvedAt || b?.createdDate || 0).getTime();
+        return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+    })[0];
 }
 
 function getItemConfirmedFlag(it) {
@@ -53,25 +56,41 @@ function getItemConfirmedFlag(it) {
     );
 }
 
-function normalizeEstimateStatus(raw) {
-    const extracted =
-        raw && typeof raw === 'object'
-            ? raw?.code ?? raw?.name ?? raw?.status ?? raw?.estimateStatus ?? raw?.estimate_status ?? ''
-            : raw;
-
-    const value = String(extracted || '')
-        .trim()
-        .toUpperCase()
-        .replaceAll(/\s+/g, '_');
-    if (value === 'CONFIRMED') return 'APPROVED';
-    return value;
-}
-
 function pickMoneyDisplayValue(withVatValue, baseValue) {
     const withVatNum = toMoneyNumber(withVatValue);
     if (withVatNum > 0) return withVatNum;
     const baseNum = toMoneyNumber(baseValue);
     return Math.max(0, baseNum);
+}
+
+function normalizeTaxRatePercentText(rawRate) {
+    const n = typeof rawRate === 'number' ? rawRate : Number(String(rawRate ?? '').trim());
+    if (!Number.isFinite(n)) return '';
+    let rate = n;
+    if (rate > 1) rate = rate / 100;
+    if (rate < 0) rate = 0;
+    const pct = rate * 100;
+    const text = pct.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+    return `${text}%`;
+}
+
+function extractPaymentEstimates(paymentPayload) {
+    const root = paymentPayload?.data ?? paymentPayload;
+    const list = root?.estimate ?? root?.estimates ?? root?.estimateList ?? root?.estimate_list;
+    return Array.isArray(list) ? list : [];
+}
+
+function pickEstimateFromPayment(paymentPayload) {
+    const list = extractPaymentEstimates(paymentPayload);
+    if (!list.length) return null;
+
+    const rawId = paymentPayload?.estimateId ?? paymentPayload?.estimate_id;
+    const idNum = typeof rawId === 'number' ? rawId : Number(String(rawId ?? '').trim());
+    if (Number.isFinite(idNum) && idNum > 0) {
+        const matched = list.find((e) => Number(e?.estimateId ?? e?.id ?? 0) === idNum);
+        if (matched) return matched;
+    }
+    return pickLatestEstimate(list);
 }
 
 export default function ReceiptPaymentMethod() {
@@ -156,7 +175,12 @@ export default function ReceiptPaymentMethod() {
                 const res = await fetchPaymentByServiceTicketId(serviceTicketId, token);
                 if (ignore) return;
                 const payload = res?.data?.data ?? res?.data ?? res;
-                setPayment(payload && typeof payload === 'object' ? payload : null);
+                const safePayload = payload && typeof payload === 'object' ? payload : null;
+                setPayment(safePayload);
+
+                // Payment API already returns estimate + items + appliedTaxRate.
+                setEstimate(pickEstimateFromPayment(safePayload) ?? null);
+                setEstimateError('');
             } catch (err) {
                 if (ignore) return;
                 setPayment(null);
@@ -175,6 +199,15 @@ export default function ReceiptPaymentMethod() {
     useEffect(() => {
         if (!token) return;
         if (!serviceTicketId) return;
+
+        // Prefer estimate returned by payment API.
+        const paymentEstimates = extractPaymentEstimates(payment);
+        if (paymentEstimates.length > 0) {
+            setEstimate(pickEstimateFromPayment(payment) ?? null);
+            setEstimateLoading(false);
+            setEstimateError('');
+            return;
+        }
 
         let ignore = false;
         const run = async () => {
@@ -197,7 +230,7 @@ export default function ReceiptPaymentMethod() {
         return () => {
             ignore = true;
         };
-    }, [serviceTicketId, token]);
+    }, [payment, serviceTicketId, token]);
 
     const billId = useMemo(() => {
         const raw = payment?.billId ?? payment?.billID ?? payment?.data?.billId ?? null;
@@ -216,12 +249,40 @@ export default function ReceiptPaymentMethod() {
             .filter((it) => !it?.isRemoved)
             .map((it, idx) => {
                 const quantity = toMoneyNumber(it?.quantity);
-                const unitPrice = toMoneyNumber(it?.unitPrice);
-                const subTotal = toMoneyNumber(it?.subTotal);
+                const unitPriceBase = toMoneyNumber(it?.unitPrice);
+                const subTotalBase = toMoneyNumber(it?.subTotal);
                 const unitPriceWithVat = it?.unitPriceWithVat ?? it?.unitPriceWithVAT ?? 0;
                 const subTotalWithVat = it?.subTotalWithVat ?? it?.subTotalWithVAT ?? 0;
-                const unitPriceDisplay = pickMoneyDisplayValue(unitPriceWithVat, unitPrice);
-                const subTotalDisplay = pickMoneyDisplayValue(subTotalWithVat, subTotal);
+                const unitPriceWithVatNum = toMoneyNumber(unitPriceWithVat);
+                const subTotalWithVatNum = toMoneyNumber(subTotalWithVat);
+                const unitPriceDisplay = pickMoneyDisplayValue(unitPriceWithVatNum, unitPriceBase);
+                const subTotalDisplay = pickMoneyDisplayValue(subTotalWithVatNum, subTotalBase);
+
+                const appliedTaxRate = it?.appliedTaxRate ?? it?.applied_tax_rate ?? null;
+                const appliedTaxRateText = normalizeTaxRatePercentText(appliedTaxRate);
+                const hasAnyTaxRate = Boolean(appliedTaxRateText);
+                const workCategoryTaxRuleId = it?.workCategory?.taxRuleId ?? it?.workCategory?.tax_rule_id ?? null;
+                const taxCode = String(it?.taxCode ?? it?.tax_code ?? '').trim();
+                const taxAmount = toMoneyNumber(it?.taxAmount ?? it?.tax_amount);
+
+                let taxRateText = '0%';
+                if (hasAnyTaxRate) {
+                    taxRateText = appliedTaxRateText;
+                } else if (taxAmount > 0) {
+                    taxRateText = '--';
+                }
+
+                const taxTitleParts = [];
+                if (taxCode) taxTitleParts.push(`Tax: ${taxCode}`);
+                if (workCategoryTaxRuleId != null && String(workCategoryTaxRuleId).trim() !== '') {
+                    taxTitleParts.push(`TaxRule #${workCategoryTaxRuleId}`);
+                }
+                const taxTitle = taxTitleParts.join(' • ');
+
+                // Display rule:
+                // - If appliedTaxRate is present => show it (this is the correct rate applied by backend).
+                // - Else if there is any tax amount => show '--' (rate missing but tax applied).
+                // - Else show 0%.
                 const categoryName = it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
                 return {
                     key: String(it?.estimateItemId ?? it?.itemId ?? `${idx}`),
@@ -229,11 +290,22 @@ export default function ReceiptPaymentMethod() {
                     itemName: String(it?.itemName || '').trim(),
                     quantity,
                     unitPriceDisplay,
+                    taxRateText,
+                    taxCode,
+                    workCategoryTaxRuleId,
+                    taxTitle,
                     subTotalDisplay,
                     confirmed: getItemConfirmedFlag(it),
                 };
             })
-            .filter((r) => r.itemName || r.categoryName || r.quantity > 0 || r.unitPriceDisplay > 0 || r.subTotalDisplay > 0);
+            .filter(
+                (r) =>
+                    r.itemName ||
+                    r.categoryName ||
+                    r.quantity > 0 ||
+                    r.unitPriceDisplay > 0 ||
+                    r.subTotalDisplay > 0,
+            );
     }, [estimate]);
 
     const payItems = useMemo(() => estimateItems.filter((it) => it.confirmed), [estimateItems]);
@@ -449,6 +521,7 @@ export default function ReceiptPaymentMethod() {
                                                 <col style={{ width: 70 }} />
                                                 <col style={{ width: 140 }} />
                                                 <col style={{ width: 140 }} />
+                                                <col style={{ width: 140 }} />
                                             </colgroup>
                                             <thead>
                                                 <tr>
@@ -456,6 +529,7 @@ export default function ReceiptPaymentMethod() {
                                                     <th>Diễn giải</th>
                                                     <th className={styles.thQty}>SL</th>
                                                     <th className={styles.thNumber}>Đơn giá</th>
+                                                    <th className={styles.thNumber}>Thuế (%)</th>
                                                     <th className={styles.thNumber}>Thành tiền</th>
                                                 </tr>
                                             </thead>
@@ -466,6 +540,12 @@ export default function ReceiptPaymentMethod() {
                                                         <td className={styles.tdText}>{it.itemName}</td>
                                                         <td className={styles.tdQty}>{it.quantity ? String(it.quantity) : ''}</td>
                                                         <td className={styles.tdNumber}>{formatCurrencyVnd(it.unitPriceDisplay)}</td>
+                                                        <td
+                                                            className={styles.tdNumber}
+                                                            title={it.taxTitle || ''}
+                                                        >
+                                                            {it.taxRateText}
+                                                        </td>
                                                         <td className={styles.tdNumber}>{formatCurrencyVnd(it.subTotalDisplay)}</td>
                                                     </tr>
                                                 ))}

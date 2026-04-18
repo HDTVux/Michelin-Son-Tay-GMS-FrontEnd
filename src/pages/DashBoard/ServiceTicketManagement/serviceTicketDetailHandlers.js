@@ -72,6 +72,7 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [editForm, setEditForm] = useState({ customerRequest: '' });
+	const [fieldErrors, setFieldErrors] = useState({ customerRequest: '' });
 
 	const CUSTOMER_REQUEST_MAX_LENGTH = 255;
 
@@ -88,6 +89,7 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 		}
 
 		setError('');
+		setFieldErrors({ customerRequest: '' });
 		setIsEditing((prev) => {
 			const next = !prev;
 			if (next) {
@@ -98,6 +100,11 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 	}, [isSaving, isEditing, isImmutable, setError, initialEditState]);
 
 	const cancelEdit = useCallback(() => setIsEditing(false), []);
+
+	const setCustomerRequest = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, customerRequest: nextValue }));
+		setFieldErrors((prev) => (prev.customerRequest ? { ...prev, customerRequest: '' } : prev));
+	}, []);
 
 	const saveEdit = useCallback(async () => {
 		if (isSaving) return;
@@ -116,12 +123,13 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 
 		const validated = validateTextInput(editForm.customerRequest, {
 			fieldLabel: 'Nội dung yêu cầu',
-			required: false,
+			required: true,
 			trim: true,
 			maxLength: CUSTOMER_REQUEST_MAX_LENGTH,
 		});
 		if (validated.error) {
-			setError(validated.error);
+			setError('');
+			setFieldErrors({ customerRequest: validated.error });
 			return;
 		}
 
@@ -130,6 +138,7 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 		try {
 			setIsSaving(true);
 			setError('');
+			setFieldErrors({ customerRequest: '' });
 			const res = await updateServiceTicket(
 				ticketCodeParam,
 				{
@@ -153,6 +162,8 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 		isSaving,
 		editForm,
 		setEditForm,
+		fieldErrors,
+		setCustomerRequest,
 		toggleEdit,
 		cancelEdit,
 		saveEdit,

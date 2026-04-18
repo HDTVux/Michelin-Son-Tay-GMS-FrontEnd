@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { Fragment, useEffect, useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 // Lưu ý: Nếu bạn để CSS chung thì giữ nguyên dòng này. 
 // Nếu tách file thì đổi thành import styles from './CatalogPicker.module.css';
@@ -255,6 +255,7 @@ function CatalogPicker({
                         const details = Array.isArray(it?.warehouseDetails) ? it.warehouseDetails : [];
                         const selectedWarehouseId = selectedWarehouseByItemId[itemKey] ?? '';
                         const selectedDetail = details.find((d) => String(d?.warehouseId) === String(selectedWarehouseId)) || null;
+                        const notifyText = String(selectedDetail?.notify ?? '').trim();
                         const hasAnyPrice = (
                           toFiniteNumber(it?.price) != null
                           || toFiniteNumber(it?.unitPrice) != null
@@ -361,20 +362,30 @@ function CatalogPicker({
                             </button>
                           );
                         }
+                        const rowKey = String(it?.itemId ?? it?.id ?? `res-${i}`);
                         return (
-                      <tr key={String(it?.itemId ?? it?.id ?? `res-${i}`)}>
-                        <td>{it?.itemId ?? '-'}</td>
-                        <td>{it?.itemName || it?.name || '-'}</td>
-                        <td>{it?.sku || '-'}</td>
-                        <td>{it?.brand || '-'}</td>
-                        <td>{it?.color || '-'}</td>
-                        <td>{it?.madeIn || '-'}</td>
-                        <td className={styles.tdNumber}>{priceCellText}</td>
-                        <td>{it?.unit || '-'}</td>
-                        <td>
-                          {actionControl}
-                        </td>
-                      </tr>
+                          <Fragment key={rowKey}>
+                            <tr>
+                              <td>{it?.itemId ?? '-'}</td>
+                              <td>{it?.itemName || it?.name || '-'}</td>
+                              <td>{it?.sku || '-'}</td>
+                              <td>{it?.brand || '-'}</td>
+                              <td>{it?.color || '-'}</td>
+                              <td>{it?.madeIn || '-'}</td>
+                              <td className={styles.tdNumber}>{priceCellText}</td>
+                              <td>{it?.unit || '-'}</td>
+                              <td>
+                                {actionControl}
+                              </td>
+                            </tr>
+                            {notifyText ? (
+                              <tr className={styles.notifyRow}>
+                                <td className={styles.notifyCell} colSpan={9}>
+                                  {notifyText}
+                                </td>
+                              </tr>
+                            ) : null}
+                          </Fragment>
                         );
                       })()
                     ))

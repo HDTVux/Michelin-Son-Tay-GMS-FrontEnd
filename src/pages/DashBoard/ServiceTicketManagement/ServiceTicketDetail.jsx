@@ -23,6 +23,7 @@ import {
 } from '../../../services/serviceTicketService.js';
 import { finishWork } from '../../../services/technicianService.js';
 import { requestWarehouseStockIssue } from '../../../services/warehouseService.js';
+import { fetchPaymentByServiceTicketId } from '../../../services/paymentService.js';
 import { ServiceTicket as TechnicianServiceTicket } from '../../Technician/ServiceTicket/ServiceTicket.jsx';
 import styles from './ServiceTicketDetail.module.css';
 
@@ -406,6 +407,18 @@ function normalizeEstimateStatus(raw) {
     return value;
 }
 
+function normalizeSafetyInspectionStatus(raw) {
+    const value = String(raw || '')
+        .trim()
+        .toUpperCase()
+        .replaceAll(/[\s-]+/g, '_');
+    if (!value) return '';
+    if (['SKIP', 'SKIPPED', 'DISABLED', 'NOT_REQUIRED', 'NO_SAFETY_INSPECTION'].includes(value)) return 'SKIPPED';
+    if (['DONE', 'FINISHED', 'PASSED'].includes(value)) return 'COMPLETED';
+    if (['WAITING', 'REPAIRING'].includes(value)) return 'PENDING';
+    return value;
+}
+
 function buildTimelineEvents(input, receivedAt, handoverAt) {
     const createdAt = pickFirstDefined(input, [
         'createdAt',
@@ -674,6 +687,22 @@ RoleBasedSections.propTypes = {
     onEstimateStatusChange: PropTypes.func,
 };
 
+function normalizeBillId(payment) {
+    if (!payment || typeof payment !== 'object') return null;
+    const candidates = [
+        payment.billId,
+        payment.billID,
+        payment.invoiceId,
+        payment.invoiceID,
+        payment.id,
+    ];
+    const raw = candidates.find((v) => v !== null && v !== undefined && String(v).trim() !== '');
+    if (raw === undefined) return null;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return String(n);
+    return String(raw).trim() || null;
+}
+
 export default function ServiceTicketDetail({ ticketCodeOverride }) {
     useScrollToTop();
     const navigate = useNavigate();
@@ -681,6 +710,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const params = useParams();
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
+    const hasReceptionistRole = staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
+    const isAdvisorOnlyViewRole = hasAdvisorRole;
+    const hasReceptionistEditAccess = hasReceptionistRole;
 
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -748,6 +780,35 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => normalizeTicketStatus(ticket?.statusCode || ticket?.timelineStatus || ticket?.statusLabel),
         [ticket?.statusCode, ticket?.timelineStatus, ticket?.statusLabel],
     );
+    const isSafetyInspectionEnabled = useMemo(
+        () => ticketRaw?.safetyInspectionEnabled === true || ticketFromState?.safetyInspectionEnabled === true,
+        [ticketFromState?.safetyInspectionEnabled, ticketRaw?.safetyInspectionEnabled],
+    );
+    const safetyInspectionStatus = useMemo(() => normalizeSafetyInspectionStatus(
+        ticketRaw?.safetyInspection?.inspectionStatus
+        ?? ticketRaw?.safetyInspectionStatus
+        ?? ticketRaw?.inspectionStatus
+        ?? ticketRaw?.inspection?.inspectionStatus
+        ?? ticketFromState?.safetyInspection?.inspectionStatus
+        ?? ticketFromState?.safetyInspectionStatus
+        ?? ticketFromState?.inspectionStatus
+        ?? ticketFromState?.inspection?.inspectionStatus,
+    ), [
+        ticketFromState?.inspection?.inspectionStatus,
+        ticketFromState?.inspectionStatus,
+        ticketFromState?.safetyInspection?.inspectionStatus,
+        ticketFromState?.safetyInspectionStatus,
+        ticketRaw?.inspection?.inspectionStatus,
+        ticketRaw?.inspectionStatus,
+        ticketRaw?.safetyInspection?.inspectionStatus,
+        ticketRaw?.safetyInspectionStatus,
+    ]);
+    const isSafetyInspectionCompleted = useMemo(() => {
+        if (!isSafetyInspectionEnabled) return true;
+        if (safetyInspectionStatus === 'COMPLETED') return true;
+        return ['INSPECTED', 'ESTIMATED', 'PENDING', 'REPAIRING', 'COMPLETED', 'PAID'].includes(ticketStatus);
+    }, [isSafetyInspectionEnabled, safetyInspectionStatus, ticketStatus]);
+    const shouldHideEstimateUntilSafetyDone = isSafetyInspectionEnabled && !isSafetyInspectionCompleted;
 
     const isTicketCancelled = ticketStatus === 'CANCELLED';
 
@@ -765,6 +826,57 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         setIsCreatingNewEstimateVersion(false);
     }, [serviceTicketIdNum]);
 
+    const [billPayment, setBillPayment] = useState(null);
+    const [billLookupError, setBillLookupError] = useState('');
+
+    useEffect(() => {
+        let cancelled = false;
+
+        if (!serviceTicketIdNum) {
+            setBillPayment(null);
+            setBillLookupError('');
+            return () => { cancelled = true; };
+        }
+
+        (async () => {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                if (!cancelled) {
+                    setBillPayment(null);
+                    setBillLookupError('');
+                }
+                return;
+            }
+
+            try {
+                if (!cancelled) {
+                    setBillLookupError('');
+                }
+                const res = await fetchPaymentByServiceTicketId(serviceTicketIdNum, token);
+                if (cancelled) return;
+                setBillPayment(res?.data ?? res ?? null);
+            } catch (err) {
+                if (cancelled) return;
+                const message = String(err?.message || '').toLowerCase();
+                const isNotFound = message.includes('not found')
+                    || message.includes('404')
+                    || message.includes('không tìm thấy')
+                    || message.includes('khong tim thay');
+                if (isNotFound) {
+                    setBillPayment(null);
+                    setBillLookupError('');
+                } else {
+                    setBillPayment(null);
+                    setBillLookupError(err?.message || 'Không thể kiểm tra hóa đơn của phiếu dịch vụ.');
+                }
+            } finally {
+                // no-op
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [serviceTicketIdNum]);
+
     const estimateStatus = useMemo(() => {
         return normalizeEstimateStatus(
             latestEstimate?.estimateStatus ?? latestEstimate?.status ?? latestEstimate?.estimate_status,
@@ -778,13 +890,17 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     }, [latestEstimate]);
 
     const isEstimateApproved = estimateStatus === 'APPROVED';
-    const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable);
+    const billId = useMemo(() => normalizeBillId(billPayment), [billPayment]);
+    const hasBill = Boolean(billId);
+    const isActionLocked = ticketStatus === 'PAID' || hasBill;
+    const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable) || isActionLocked;
 
     const {
         isEditing,
         isSaving,
         editForm,
-        setEditForm,
+        fieldErrors,
+        setCustomerRequest,
         toggleEdit,
         cancelEdit,
         saveEdit,
@@ -874,14 +990,20 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 && String(a?.status || '').toUpperCase() !== 'CANCELLED',
         );
     }, [assignments, assignmentsLoading]);
+    const advisorReadOnlyWithoutTechnician = isAdvisorOnlyViewRole && !assignmentsLoading && !hasTechnician;
 
-    const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading;
-    const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED';
+    const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading && !isActionLocked;
+    const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED' && !isActionLocked;
 
     const handleBack = () => navigate(-1);
 
     const handleUpdateTicketStatus = async (nextStatus, fallbackSuccessMessage) => {
         if (statusUpdating) return;
+
+        if (isActionLocked) {
+            notify('Phiếu dịch vụ đã có hóa đơn, không thể thay đổi trạng thái hoặc thao tác thêm.');
+            return;
+        }
 
         const token = localStorage.getItem('authToken');
         if (!token) {
@@ -1422,23 +1544,56 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         await executeConfirmEstimate(estimatedAt);
     };
 
-    const canCancel = ['CREATED', 'INSPECTING', 'PENDING', 'INSPECTED', 'ESTIMATED', 'REPAIRING'].includes(ticketStatus);
-    const canSetPending = ticketStatus === 'ESTIMATED';
-    const canAddService = (ticketStatus === 'ESTIMATED' || ticketStatus === 'REPAIRING');
-    const canStartRepair = (ticketStatus === 'ESTIMATED' || ticketStatus === 'PENDING') && ticket?.warehouseReadyForRepair === true;
-    const canCompleteRepair = ticketStatus === 'REPAIRING';
+    const reservedAllocationCount = Number(ticket?.reservedAllocationCount ?? 0);
+    const committedAllocationCount = Number(ticket?.committedAllocationCount ?? 0);
+    const hasAnyStockAllocation = reservedAllocationCount > 0 || committedAllocationCount > 0;
+
+    const hasAnyWarehouseDependentItem = useMemo(() => {
+        const items = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+        return items
+            .filter((it) => !it?.isRemoved)
+            .some((it) => {
+                const warehouseId =
+                    it?.warehouseId ??
+                    it?.warehouseID ??
+                    it?.warehouse_id ??
+                    it?.warehouse?.warehouseId ??
+                    it?.warehouse?.id ??
+                    null;
+                return toPositiveNumberOrNull(warehouseId) != null;
+            });
+    }, [latestEstimate?.items]);
+
+    const canCancel =
+        ['CREATED', 'INSPECTING', 'PENDING', 'INSPECTED', 'ESTIMATED', 'REPAIRING'].includes(ticketStatus)
+        && !hasAnyStockAllocation
+        && !isActionLocked;
+    const canSetPending = ticketStatus === 'ESTIMATED' && !isActionLocked;
+    const canAddService = (ticketStatus === 'ESTIMATED' || ticketStatus === 'REPAIRING') && !isActionLocked;
+    const canStartRepair = (ticketStatus === 'ESTIMATED' || ticketStatus === 'PENDING')
+        && Boolean(estimateIdNum)
+        && isEstimateApproved
+        && (ticket?.warehouseReadyForRepair === true || !hasAnyWarehouseDependentItem)
+        && !isActionLocked;
+    const canCompleteRepair = ticketStatus === 'REPAIRING' && !isActionLocked;
 
     const canRequestStockIssue = useMemo(() => {
+        if (isActionLocked) return false;
         if (ticketStatus !== 'ESTIMATED') return false;
         const hasDraftStockIssue = ticket?.hasDraftStockIssue;
-        const reserved = Number(ticket?.reservedAllocationCount ?? 0);
-        const committed = Number(ticket?.committedAllocationCount ?? 0);
-        const committedLessThanReserved = Number.isFinite(reserved) && Number.isFinite(committed) && committed < reserved;
+        const committedLessThanReserved =
+            Number.isFinite(reservedAllocationCount)
+            && Number.isFinite(committedAllocationCount)
+            && committedAllocationCount < reservedAllocationCount;
         return hasDraftStockIssue === false || committedLessThanReserved;
-    }, [ticketStatus, ticket?.hasDraftStockIssue, ticket?.reservedAllocationCount, ticket?.committedAllocationCount]);
+    }, [isActionLocked, ticketStatus, ticket?.hasDraftStockIssue, reservedAllocationCount, committedAllocationCount]);
 
     const handleRequestStockIssue = useCallback(async () => {
         if (stockIssueRequesting) return;
+        if (isActionLocked) {
+            notify('Phiếu dịch vụ đã có hóa đơn, không thể yêu cầu xuất kho.');
+            return;
+        }
         if (!serviceTicketIdNum) {
             notify('Thiếu serviceTicketId để yêu cầu xuất kho.');
             return;
@@ -1467,6 +1622,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setStockIssueRequesting(false);
         }
     }, [
+        isActionLocked,
         notify,
         serviceTicketIdNum,
         stockIssueRequesting,
@@ -1496,7 +1652,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             || ticketStatus === 'PENDING')
         && hasAnyAdvisorItem
         && isEstimatePersisted
-        && !isEstimateEditing;
+        && !shouldHideEstimateUntilSafetyDone
+        && !isEstimateEditing
+        && !isActionLocked;
     const handleEstimateStatusChange = useCallback((est) => {
         setLatestEstimate((prev) => {
             if (!est) return null;
@@ -1645,43 +1803,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
-    // Chặn toàn bộ trang nếu chưa phân công kỹ thuật viên
-    if (!assignmentsLoading && !hasTechnician) {
-        return (
-            <div className={styles.page}>
-                <div className={styles.screenOnly}>
-                    <div className={styles.layout}>
-                        <main className={styles.main}>
-                            <header className={styles.header}>
-                                <div className={styles.headerLeft}>
-                                    <div className={styles.titleRow}>
-                                        <h1 className={styles.title}>Phiếu dịch vụ #{ticketCodeParam || '-'}</h1>
-                                    </div>
-                                </div>
-                            </header>
-                            <div className={`ui-card ${styles.card}`} style={{ textAlign: 'center', padding: '48px 24px' }}>
-                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
-                                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', marginBottom: '12px' }}>
-                                    Chưa phân công kỹ thuật viên
-                                </h2>
-                                <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', maxWidth: '440px', margin: '0 auto 32px' }}>
-                                    Phiếu dịch vụ này chưa được phân công kỹ thuật viên. Vui lòng phân công kỹ thuật viên trước khi mở phiếu.
-                                </p> 
-                                <button
-                                    type="button"
-                                    className="ui-btn ui-btn--ghost"
-                                    onClick={() => navigate(-1)}
-                                >
-                                    Quay lại
-                                </button>
-                            </div>
-                        </main>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className={styles.page}>
             <div className={styles.screenOnly}>
@@ -1694,7 +1815,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                                 </div>
                             </div>
-                            {staffRoles.includes(STAFF_ROLE.RECEPTIONIST) && (ticket.statusCode === 'CREATED' || ticket.statusCode === 'DRAFT') && (
+                            {hasReceptionistEditAccess && ticketStatus === 'CREATED' && !isActionLocked && (
                                 <button
                                     type="button"
                                     className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
@@ -1707,6 +1828,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         </header>
 
                         {error && <div className={styles.errorBanner}>{error}</div>}
+
+                        {!hasBill && billLookupError ? (
+                            <div className={styles.errorBanner}>{billLookupError}</div>
+                        ) : null}
 
                         <div className={`ui-card ${styles.card}`}>
                             <div className={styles.topInfoGrid}>
@@ -1849,9 +1974,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             <textarea
                                                 id="service-ticket-customer-request"
                                                 value={editForm.customerRequest}
-                                                onChange={(e) => setEditForm((prev) => ({ ...prev, customerRequest: e.target.value }))}
+                                                onChange={(e) => setCustomerRequest(e.target.value)}
+                                                maxLength={255}
                                                 disabled={isSaving}
                                             />
+                                            {fieldErrors?.customerRequest ? (
+                                                <div className={styles.fieldError}>{fieldErrors.customerRequest}</div>
+                                            ) : null}
+										<div className={styles.fieldHint}>
+											Còn lại {Math.max(0, 255 - String(editForm.customerRequest || '').length)} ký tự
+										</div>
                                         </div>
                                         <div className="ui-actions ui-actions--end">
                                             <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
@@ -1867,7 +1999,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 )}
                             </section>
 
-                            {hasAdvisorRole && (
+                            {advisorReadOnlyWithoutTechnician ? (
+                                <section className={styles.block}>
+                                    <h2 className={styles.blockTitle}>Trạng thái xử lý</h2>
+                                    <div className={styles.noteBox}>
+                                        Phiếu này chưa được phân công kỹ thuật viên. Cố vấn viên hiện chỉ có thể xem thông tin phiếu cho đến khi có phân công kỹ thuật viên.
+                                    </div>
+                                </section>
+                            ) : null}
+
+                            {hasAdvisorRole && !advisorReadOnlyWithoutTechnician && (
                                 <>
                                     <TechnicianServiceTicket
                                         key={`tech-${ticket.ticketCode || ticketCodeParam}-${ticketStatus}-${estimateStatus}`}
@@ -1875,9 +2016,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         embedded
                                         mode="advisor"
                                         onInspectionCompleted={handleInspectionCompleted}
+                                        readOnly={isActionLocked}
+                                        readOnlyMessage={ticketStatus === 'PAID'
+                                            ? 'Phiếu dịch vụ đã được thanh toán, không thể chỉnh sửa.'
+                                            : 'Phiếu dịch vụ đã có hóa đơn chờ thanh toán, không thể chỉnh sửa.'}
                                     />
 
-<<<<<<< HEAD
                                     {shouldHideEstimateUntilSafetyDone ? (
                                         <section className={styles.block}>
                                             <h2 className={styles.blockTitle}>Báo giá</h2>
@@ -1898,32 +2042,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
                                             onCancelAppendOnly={handleCancelAppendOnly}
                                             onEstimateEditingChange={setIsEstimateEditing}
+                                            readOnly={isActionLocked}
+                                            readOnlyMessage={ticketStatus === 'PAID'
+                                                ? 'Phiếu dịch vụ đã được thanh toán — không thể tạo báo giá mới.'
+                                                : 'Phiếu dịch vụ đã có hóa đơn chờ thanh toán — không thể tạo báo giá mới.'}
                                         />
                                     )}
-
                                     {ticket.hasDraftStockIssue ? (
-                                        <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
+                                    <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
                                     ) : null}
                                 </>
-=======
-                                    <AdvisorItemsTable
-                                        key={`advisor-${ticket?.serviceTicketId}`}
-                                        serviceTicketId={ticket?.serviceTicketId}
-                                        ticketStatus={ticketStatus}
-                                        ticketPhotos={ticketPhotos}
-                                        refreshToken={refreshTick}
-                                        estimatedTimeDisplay={estimatedTimeDisplay}
-                                        onEstimateStatusChange={handleEstimateStatusChange}
-                                        onRestartWorkflow={handleRestartFromArchived}
-                                        onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
-                                        onCancelAppendOnly={handleCancelAppendOnly}
-                                        onEstimateEditingChange={setIsEstimateEditing}
-                                    />
-                                    {ticket.hasDraftStockIssue ? (
-                                        <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
-                                    ) : null}
-                                </>                               
->>>>>>> cf9f6c392dd851fba55e7a873f985ba20b8ecaa9
                             )}
 
                             {isTicketCancelled ? null : (
@@ -1932,7 +2060,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
-                                        {isCreatingNewEstimateVersion && canConfirmEstimate ? (
+                                        {advisorReadOnlyWithoutTechnician ? null : isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                             <button
                                                 type="button"
                                                 className="ui-btn ui-btn--primary"
@@ -1943,7 +2071,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             </button>
                                         ) : null}
 
-                                        {isCreatingNewEstimateVersion ? null : (
+                                        {advisorReadOnlyWithoutTechnician || isCreatingNewEstimateVersion ? null : (
                                             <>
                                                 {canCancel && (
                                                     <button
@@ -2010,7 +2138,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         Tạo phiếu dịch vụ
                                                     </button>
                                                 )}
-                                                {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && (
+                                                {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && !isActionLocked && (
                                                     <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
                                                         Cần phân công KTV trước khi tạo hóa đơn.
                                                     </span>

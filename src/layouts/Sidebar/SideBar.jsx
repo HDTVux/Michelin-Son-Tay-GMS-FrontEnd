@@ -94,6 +94,7 @@ const NAV_GROUPS = [
                 label: 'Kho & Phụ tùng',
                 items: [
                     { id: 'warehouse-management', label: 'Quản lý kho', path: '/warehouse-management', icon: <IconBox />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT] },
+                    { id: 'warehouse-pricing', label: 'Giá theo kho', path: '/warehouse-pricing', icon: <IconBox />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT] },
                     { id: 'part-management', label: 'Quản lý phụ tùng', path: '/part-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT] },
                     { id: 'warehouse-stock-entries', label: 'Quản lý phiếu nhập', path: '/warehouse-stock-entries', icon: <IconDownload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, STAFF_ROLE.ACCOUNTANT] },
                     { id: 'warehouse-stock-issues', label: 'Quản lý phiếu xuất', path: '/warehouse-stock-issues', icon: <IconUpload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, STAFF_ROLE.ACCOUNTANT] },

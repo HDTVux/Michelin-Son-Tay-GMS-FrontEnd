@@ -216,6 +216,25 @@
   padding: 18px;
 }
 
+.modalDialog {
+  margin: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.modalDialog[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: none;
+}
+
+.modalDialog::backdrop {
+  background: rgba(2, 6, 23, 0.45);
+}
+
 .modal {
   width: min(640px, 100%);
   max-height: calc(100vh - 36px);
@@ -224,6 +243,10 @@
   border-radius: var(--ui-radius-lg, 16px);
   border: 1px solid var(--ui-border, #e5e7eb);
   box-shadow: var(--ui-shadow-2, 0 12px 30px rgba(15, 23, 42, 0.12));
+}
+
+.modalWide {
+  width: min(1100px, calc(100vw - 36px));
 }
 
 .modalHeader {
