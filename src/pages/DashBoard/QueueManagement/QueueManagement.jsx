@@ -43,7 +43,10 @@ const getQueueBookingTargetId = (item) => {
 
 const isQueueBookingConfirmed = (item) => String(item?.status || '').trim().toUpperCase() === 'CONFIRMED';
 
-const isBookingConfirmed = (status) => String(status || '').trim().toUpperCase() === 'CONFIRMED';
+const isBookingConfirmed = (status) => {
+	const s = String(status || '').trim().toUpperCase();
+	return s === 'CONFIRMED' || s === 'COMPLETED';
+};
 
 const getQueueBookingDateISO = (item) => {
 	const directDate = String(
@@ -136,7 +139,12 @@ function groupConfirmedBookingsByTime(bookings) {
 	const map = new Map();
 	for (const item of list) {
 		if (!isBookingConfirmed(item?.status)) continue;
-		const key = formatTimeHHmm(item?.scheduledTime);
+		// Luôn chuẩn hóa về HH:mm để đồng bộ với slot startTime
+		let key = '';
+		if (item?.scheduledTime) {
+			const m = String(item.scheduledTime).match(/^(\d{2}:\d{2})/);
+			key = m ? m[1] : '';
+		}
 		if (!key) continue;
 		const entry = map.get(key) || [];
 		entry.push({
