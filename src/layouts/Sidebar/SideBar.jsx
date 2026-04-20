@@ -86,7 +86,7 @@ const NAV_GROUPS = [
                     { id: 'advisor-inspection', label: 'Điều phối phiếu dịch vụ', path: '/advisor/inspection', icon: <IconClipboard />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.MANAGER, STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.TECHNICIAN, STAFF_ROLE.ADMIN] },
                     { id: 'service-ticket-management', label: 'Phiếu dịch vụ', path: '/service-ticket-management', icon: <IconPost />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ACCOUNTANT] },
                     { id: 'my-tasks', label: 'Công việc hôm nay', path: '/technician/my-tasks', icon: <IconTask />, roles: [STAFF_ROLE.TECHNICIAN] },
-                    { id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconWrench />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                    { id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconWrench />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT] },
                 ]
             },
             {

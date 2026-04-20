@@ -707,7 +707,8 @@ function TicketPanel({
 										<div className={styles['action-buttons']}>
 											<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
 											<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
-											{isAccountant ? (
+											{/* Hiện nút Thanh toán nếu isAccountant, có bill và trạng thái khác PAID */}
+											{isAccountant && item?.hasBill && (String(item?.ticketStatus ?? item?.status).toUpperCase() !== 'PAID') ? (
 												<button
 													className={styles['primary-button']}
 													onClick={() => onPayTicket?.(item)}

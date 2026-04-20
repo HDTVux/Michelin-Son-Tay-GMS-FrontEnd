@@ -8,7 +8,7 @@ import {
   searchWarehouseCatalogItemsDetail,
   syncWarehouseInventoryExcel,
 } from '../../../services/warehouseService.js';
-import { fetchHomeProducts, fetchHomeServices } from '../../../services/homeService.js';
+// ...existing code...
 import {
   formatCurrencyVnd,
   getItemColorText,
@@ -17,12 +17,11 @@ import {
 import styles from './WarehouseManagement.module.css';
 
 const buildRowKeyWithIndex = (baseKey, idx) => `${String(baseKey ?? '')}-${idx}`;
-const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
 const toNullablePositiveNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
 };
-const SERVICE_LINK_CACHE_KEY = 'gms_service_link_cache_v3';
+// ...existing code...
 
 const toFiniteNumber = (value) => {
   if (value === null || value === undefined || value === '') return null;
@@ -89,98 +88,12 @@ const getWarehouseSellingPrice = (detail) => {
   return price;
 };
 
-const getServiceServiceId = (item) => {
-  if (!item || typeof item !== 'object') return null;
-  const candidates = [
-    item?.serviceServiceId,
-    item?.service_service_id,
-    item?.service_serviceId,
-    item?.serviceServiceID,
-    item?.serviceId,
-    item?.service_id,
-    item?.data?.serviceId,
-    item?.data?.service_service_id,
-    item?.data?.serviceServiceId,
-    item?.service?.serviceId,
-    item?.service?.service_service_id,
-    item?.service?.serviceServiceId,
-    item?.service?.serviceServiceID,
-    item?.serviceInfo?.serviceId,
-    item?.serviceInfo?.service_service_id,
-    item?.serviceInfo?.serviceServiceId,
-  ];
-  for (const value of candidates) {
-    const parsed = toNullablePositiveNumber(value);
-    if (parsed != null) return parsed;
-  }
-  return null;
-};
 
-const buildHomeServiceMap = (homeRes) => {
-  const payload = extractPayload(homeRes);
-  let list = [];
-  if (Array.isArray(payload)) list = payload;
-  else if (Array.isArray(payload?.content)) list = payload.content;
-  const serviceIdByCatalogId = new Map();
-  list.forEach((entry) => {
-    const catalogItemId = toNullablePositiveNumber(
-      entry?.catalogItemId ?? entry?.catalog_item_id ?? entry?.catalogId ?? entry?.itemId,
-    );
-    const serviceId = toNullablePositiveNumber(
-      entry?.serviceId
-      ?? entry?.service_id
-      ?? entry?.serviceServiceId
-      ?? entry?.service_service_id
-      ?? entry?.service?.serviceId
-      ?? entry?.service?.service_id
-      ?? entry?.service?.serviceServiceId
-      ?? entry?.service?.service_service_id,
-    );
-    if (catalogItemId != null && serviceId != null) {
-      serviceIdByCatalogId.set(catalogItemId, serviceId);
-    }
-  });
-  return serviceIdByCatalogId;
-};
+// ...existing code...
 
-const readServiceLinkCache = () => {
-  const storage = globalThis?.localStorage;
-  if (!storage) return new Map();
-  try {
-    const raw = storage.getItem(SERVICE_LINK_CACHE_KEY);
-    if (!raw) return new Map();
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return new Map();
-    const map = new Map();
-    Object.entries(parsed).forEach(([rawCatalogId, rawServiceId]) => {
-      const catalogItemId = toNullablePositiveNumber(rawCatalogId);
-      const serviceId = toNullablePositiveNumber(rawServiceId);
-      if (catalogItemId != null && serviceId != null) {
-        map.set(catalogItemId, serviceId);
-      }
-    });
-    return map;
-  } catch {
-    return new Map();
-  }
-};
+// ...existing code...
 
-const writeServiceLinkCache = (catalogItemId, serviceId) => {
-  const storage = globalThis?.localStorage;
-  if (!storage) return;
-  const safeCatalogItemId = toNullablePositiveNumber(catalogItemId);
-  const safeServiceId = toNullablePositiveNumber(serviceId);
-  if (safeCatalogItemId == null || safeServiceId == null) return;
-  try {
-    const raw = storage.getItem(SERVICE_LINK_CACHE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    const next = parsed && typeof parsed === 'object' ? parsed : {};
-    next[String(safeCatalogItemId)] = safeServiceId;
-    storage.setItem(SERVICE_LINK_CACHE_KEY, JSON.stringify(next));
-  } catch {
-    // Ignore cache errors (private mode/quota).
-  }
-};
+// ...existing code...
 
 
 
@@ -266,42 +179,11 @@ export default function PartManagement() {
         if (debouncedSearch) params.search = debouncedSearch;
         if (statusFilter) params.isActive = statusFilter === 'true' ? 1 : 0;
 
-        const [res, homeRes, homeProductsRes] = await Promise.all([
-          searchWarehouseCatalogItemsDetail(params, token),
-          fetchHomeServices().catch(() => null),
-          fetchHomeProducts({ page: 0, size: 500, itemType: 'PART' }).catch(() => null),
-        ]);
-        const homeServiceIdByCatalogId = new Map([
-          ...buildHomeServiceMap(homeRes),
-          ...buildHomeServiceMap(homeProductsRes),
-        ]);
-        const cachedServiceIdByCatalogId = readServiceLinkCache();
+        const res = await searchWarehouseCatalogItemsDetail(params, token);
         const payload = res?.data ?? res;
         const content = Array.isArray(payload?.content) ? payload.content : [];
-
-        const withStatus = content.map((item) => {
-          if (item?.itemId == null) return item;
-          const itemId = toNullablePositiveNumber(item.itemId);
-          let homeServiceId = null;
-          let cachedServiceId = null;
-          if (itemId != null) {
-            homeServiceId = homeServiceIdByCatalogId.get(itemId) ?? null;
-            cachedServiceId = cachedServiceIdByCatalogId.get(itemId) ?? null;
-          }
-          const itemServiceId = getServiceServiceId(item);
-          const resolvedServiceId = itemServiceId ?? homeServiceId ?? cachedServiceId;
-          if (itemId != null && itemServiceId != null) {
-            writeServiceLinkCache(itemId, itemServiceId);
-          }
-          return {
-            ...item,
-            serviceServiceId: resolvedServiceId ?? null,
-            service_service_id: resolvedServiceId ?? null,
-          };
-        });
-
         if (cancelled) return;
-        setItems(withStatus);
+        setItems(content);
         setTotalElementsServer(Number(payload?.totalElements ?? content.length));
         setTotalPagesServer(
           Number(payload?.totalPages ?? Math.max(1, Math.ceil((payload?.totalElements ?? content.length) / Math.max(1, sizeForFetch)))),
@@ -383,9 +265,8 @@ export default function PartManagement() {
 
 
   const formatPrice = (item) => {
-    const show = item?.showPrice;
     const price = item?.price;
-    return show ? `${formatCurrencyVnd(price)} ₫` : 'Liên hệ';
+    return price != null && price !== '' ? `${formatCurrencyVnd(price)} ₫` : 'Liên hệ';
   };
 
   const renderWarehouseLines = (item, renderLine, emptyContent = '-') => {
@@ -625,7 +506,6 @@ export default function PartManagement() {
               {!isLoading &&
                 paged.map((item, idx) => {
                   const key = buildRowKeyWithIndex(item.itemId, idx);
-                  const showPrice = Boolean(item?.showPrice);
                   return (
                     <tr key={String(key)}>
                       <td>{item.itemId ?? '-'}</td>
@@ -652,9 +532,7 @@ export default function PartManagement() {
                         {renderWarehouseLines(
                           item,
                           (d) => {
-                            if (!showPrice) return <span>Liên hệ</span>;
                             const sellingPrice = getWarehouseSellingPrice(d);
-                            if (sellingPrice == null) return <span>-</span>;
                             return <span>{formatCurrencyVnd(sellingPrice)} ₫</span>;
                           },
                           formatPrice(item),
