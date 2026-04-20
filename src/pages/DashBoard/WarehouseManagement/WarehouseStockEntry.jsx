@@ -1,3 +1,4 @@
+import { validatePositiveNumber, validateNonNegativeNumber } from '../../../components/inputValidation.js';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -290,10 +291,25 @@ export default function WarehouseStockEntry() {
     });
   };
 
+  const [rowErrors, setRowErrors] = useState({});
+
   const updateSelectedItem = (itemId, field, value) => {
     setSelectedItems((prev) =>
       prev.map((row) => {
         if (Number(row.itemId) !== Number(itemId)) return row;
+        // Validate ngay khi nhập
+        let error = '';
+        if (field === 'quantity') {
+          const res = validatePositiveNumber(value, { fieldLabel: 'Số lượng', required: true, integer: true });
+          error = res.error;
+        } else if (field === 'importPrice') {
+          const res = validateNonNegativeNumber(value, { fieldLabel: 'Giá nhập', required: true, integer: false });
+          error = res.error;
+        } else if (field === 'markupMultiplier') {
+          const res = validateNonNegativeNumber(value, { fieldLabel: 'Mức lợi nhuận', required: true, integer: false });
+          error = res.error;
+        }
+        setRowErrors((prevErrs) => ({ ...prevErrs, [`${itemId}_${field}`]: error }));
         return { ...row, [field]: value };
       }),
     );
@@ -555,8 +571,15 @@ export default function WarehouseStockEntry() {
                                 min="1"
                                 step="1"
                                 value={row.quantity}
-                                onChange={(e) => updateSelectedItem(row.itemId, 'quantity', e.target.value)}
+                                onChange={(e) => {
+                                  // Chặn số âm
+                                  const val = e.target.value;
+                                  if (val === '' || Number(val) >= 0) updateSelectedItem(row.itemId, 'quantity', val);
+                                }}
                               />
+                              {rowErrors[`${row.itemId}_quantity`] && (
+                                <div className={styles.errorBanner}>{rowErrors[`${row.itemId}_quantity`]}</div>
+                              )}
                             </td>
                             <td>
                               <input
@@ -565,9 +588,15 @@ export default function WarehouseStockEntry() {
                                 min="0"
                                 step="1"
                                 value={row.importPrice}
-                                onChange={(e) => updateSelectedItem(row.itemId, 'importPrice', e.target.value)}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === '' || Number(val) >= 0) updateSelectedItem(row.itemId, 'importPrice', val);
+                                }}
                                 placeholder="0"
                               />
+                              {rowErrors[`${row.itemId}_importPrice`] && (
+                                <div className={styles.errorBanner}>{rowErrors[`${row.itemId}_importPrice`]}</div>
+                              )}
                             </td>
                             <td>
                               <input
@@ -576,9 +605,15 @@ export default function WarehouseStockEntry() {
                                 min="0"
                                 step="0.01"
                                 value={row.markupMultiplier}
-                                onChange={(e) => updateSelectedItem(row.itemId, 'markupMultiplier', e.target.value)}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === '' || Number(val) >= 0) updateSelectedItem(row.itemId, 'markupMultiplier', val);
+                                }}
                                 placeholder="1.0"
                               />
+                              {rowErrors[`${row.itemId}_markupMultiplier`] && (
+                                <div className={styles.errorBanner}>{rowErrors[`${row.itemId}_markupMultiplier`]}</div>
+                              )}
                             </td>
                             <td>
                               <button type="button" className={styles.removeButton} onClick={() => removeSelectedItem(row.itemId)}>

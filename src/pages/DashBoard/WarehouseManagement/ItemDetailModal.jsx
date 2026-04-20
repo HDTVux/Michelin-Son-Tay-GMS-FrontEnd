@@ -112,7 +112,6 @@ export default function ItemDetailModal({ item, onClose }) {
     if (!item) return null;
 
     const display = detail ?? item;
-    const priceText = display?.showPrice ? `${formatCurrencyVnd(display?.price)} ₫` : 'Liên hệ';
     const tax = display?.taxRule ?? display?.tax ?? null;
     const taxName = tax?.taxName || '-';
     const taxRateText = formatTaxRatePercent(tax?.taxRate);
@@ -129,7 +128,6 @@ export default function ItemDetailModal({ item, onClose }) {
     const originText = getItemOriginText(display);
     const colorText = getItemColorText(display);
     const warehouseDetails = Array.isArray(display?.warehouseDetails) ? display.warehouseDetails : [];
-    const showPriceByPolicy = Boolean(display?.showPrice);
 
     return (
         <div className={styles['modal-overlay']}>
@@ -165,7 +163,6 @@ export default function ItemDetailModal({ item, onClose }) {
                                 <tr><th>SKU</th><td>{display?.sku || '-'}</td></tr>
                                 <tr><th>Hãng</th><td>{brandText}</td></tr>
                                 <tr><th>Dòng sản phẩm</th><td>{productLineText}</td></tr>
-                                <tr><th>Giá</th><td>{priceText}</td></tr>
                                 <tr><th>Thuế</th><td>{taxText}</td></tr>
                                 <tr><th>Đơn vị</th><td>{display?.unit || '-'}</td></tr>
                                 <tr><th>Xuất xứ</th><td>{originText}</td></tr>
@@ -201,8 +198,7 @@ export default function ItemDetailModal({ item, onClose }) {
                                             const qtyText = qty == null ? '-' : new Intl.NumberFormat('vi-VN').format(qty);
                                             const reservedText = reservedQty == null ? '-' : new Intl.NumberFormat('vi-VN').format(reservedQty);
                                             let priceTextByWarehouse = '-';
-                                            if (!showPriceByPolicy) priceTextByWarehouse = 'Liên hệ';
-                                            else if (sellingPrice != null) priceTextByWarehouse = `${formatCurrencyVnd(sellingPrice)} ₫`;
+                                            if (sellingPrice != null) priceTextByWarehouse = `${formatCurrencyVnd(sellingPrice)} ₫`;
 
                                             return (
                                                 <tr key={String(w?.warehouseId ?? w?.warehouseCode ?? `${idx}`)}>

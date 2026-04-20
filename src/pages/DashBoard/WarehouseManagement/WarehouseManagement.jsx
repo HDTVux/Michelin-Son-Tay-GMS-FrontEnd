@@ -265,9 +265,8 @@ export default function PartManagement() {
 
 
   const formatPrice = (item) => {
-    const show = item?.showPrice;
     const price = item?.price;
-    return show ? `${formatCurrencyVnd(price)} ₫` : 'Liên hệ';
+    return price != null && price !== '' ? `${formatCurrencyVnd(price)} ₫` : 'Liên hệ';
   };
 
   const renderWarehouseLines = (item, renderLine, emptyContent = '-') => {
@@ -507,7 +506,6 @@ export default function PartManagement() {
               {!isLoading &&
                 paged.map((item, idx) => {
                   const key = buildRowKeyWithIndex(item.itemId, idx);
-                  const showPrice = Boolean(item?.showPrice);
                   return (
                     <tr key={String(key)}>
                       <td>{item.itemId ?? '-'}</td>
@@ -534,9 +532,7 @@ export default function PartManagement() {
                         {renderWarehouseLines(
                           item,
                           (d) => {
-                            if (!showPrice) return <span>Liên hệ</span>;
                             const sellingPrice = getWarehouseSellingPrice(d);
-                            if (sellingPrice == null) return <span>-</span>;
                             return <span>{formatCurrencyVnd(sellingPrice)} ₫</span>;
                           },
                           formatPrice(item),
