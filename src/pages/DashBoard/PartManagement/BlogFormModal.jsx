@@ -30,6 +30,32 @@ const toNullableBoolean = (value) => {
   }
   return null;
 };
+const pickFirstPresent = (...values) => {
+  for (const value of values) {
+    if (value == null) continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+    return value;
+  }
+  return undefined;
+};
+const pickPriceValue = (...items) => {
+  for (const item of items) {
+    const value = pickFirstPresent(
+      item?.price,
+      item?.displayPrice,
+      item?.servicePrice,
+      item?.sellingPrice,
+      item?.unitPrice,
+      item?.listPrice,
+    );
+    if (value !== undefined) return value;
+  }
+  return '';
+};
+const isPersistedMediaUrl = (value) => {
+  const text = String(value || '').trim();
+  return Boolean(text) && !text.startsWith('blob:') && !text.startsWith('data:');
+};
 const mergeWithMeaningfulServiceData = (catalogDetail, serviceDetail) => {
   const base = { ...(catalogDetail || {}) };
   if (!serviceDetail || typeof serviceDetail !== 'object') return base;
@@ -152,7 +178,24 @@ const composeDescriptionHtml = (introText, detailHtml) => {
   return sections.join('');
 };
 
-const pickPriceMode = (showPrice) => (showPrice ? 'fixed' : 'contact');
+const pickPriceMode = (showPrice, fallback = true) => ((toNullableBoolean(showPrice) ?? fallback) ? 'fixed' : 'contact');
+
+const pickEstimateTimeValue = (...items) => {
+  for (const item of items) {
+    const value = pickFirstPresent(
+      item?.estimateTime,
+      item?.estimate_time,
+      item?.estimatedTime,
+      item?.estimated_time,
+      item?.durationMinutes,
+      item?.duration_minutes,
+      item?.warrantyDurationMonths,
+    );
+    if (value !== undefined) return value;
+  }
+  return '';
+};
+
 const pickTemplateByContext = (itemName, sku, fileName) => {
   const contextKey = toSearchKey(`${itemName || ''} ${sku || ''} ${fileName || ''}`);
   const SERVICE_TEMPLATES = [
@@ -333,6 +376,8 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   const itemTypeLabel = normalizedItemType === 'SERVICE' ? 'Dịch vụ' : 'Phụ tùng';
   const itemCodeLabel = normalizedItemType === 'SERVICE' ? 'Mã dịch vụ' : 'Mã phụ tùng';
   const itemPriceLabel = normalizedItemType === 'SERVICE' ? 'Giá dịch vụ' : 'Giá phụ tùng';
+  const itemToastLabel = normalizedItemType === 'SERVICE' ? 'dich vu' : 'phu tung';
+  const isCatalogLinked = Boolean(baseItem?.itemId);
   const initialDescription = useMemo(() => splitDescriptionSections(baseItem.description || ''), [baseItem.description]);
 
   const [itemName, setItemName] = useState(baseItem.itemName || '');
@@ -342,9 +387,10 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   const [introText, setIntroText] = useState(initialDescription.introText);
   const [detailHtml, setDetailHtml] = useState(initialDescription.detailHtml);
   const [unit, setUnit] = useState(baseItem.unit || '');
-  const [warrantyMonths, setWarrantyMonths] = useState(
-    baseItem.warrantyDurationMonths != null ? String(baseItem.warrantyDurationMonths) : '',
-  );
+  const [warrantyMonths, setWarrantyMonths] = useState(() => {
+    const value = pickEstimateTimeValue(baseItem);
+    return value !== '' ? String(value) : '';
+  });
   const [isActive, setIsActive] = useState(isEdit ? (baseItem.isActive ?? true) : true);
   const [brandId, setBrandId] = useState(
     baseItem.brandId != null ? String(baseItem.brandId) : '',
@@ -461,18 +507,15 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
 
       setItemName(detail.title || detail.itemName || '');
       setSku(detail.sku || '');
-      setPriceMode(pickPriceMode(detail.showPrice ?? true));
-      setPrice(detail.price != null ? String(detail.price) : '');
+      const resolvedShowPrice = pickFirstPresent(baseItem.showPrice, catalogDetail.showPrice, true);
+      const resolvedPrice = pickPriceValue(baseItem, catalogDetail);
+      setPriceMode(pickPriceMode(resolvedShowPrice, true));
+      setPrice(resolvedPrice !== '' ? String(resolvedPrice) : '');
       setIntroText(splitSections.introText || String(detail.shortDescription || '').trim());
       setDetailHtml(splitSections.detailHtml || normalizeEditorHtml(detail.fullDescription || detail.descriptionHtml || ''));
       setUnit(detail.unit || '');
-      setWarrantyMonths(
-        detail.warrantyDurationMonths != null
-          ? String(detail.warrantyDurationMonths)
-          : detail.estimateTime != null
-            ? String(detail.estimateTime)
-            : '',
-      );
+      const resolvedEstimateTime = pickEstimateTimeValue(detail, serviceDetail, catalogDetail, baseItem);
+      setWarrantyMonths(resolvedEstimateTime !== '' ? String(resolvedEstimateTime) : '');
       const parsedIsActive = toNullableBoolean(detail.isActive ?? detail.status);
       setIsActive(isEdit ? (parsedIsActive ?? true) : true);
       setBrandId(detail.brandId != null ? String(detail.brandId) : '');
@@ -493,12 +536,10 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       if (draft) {
         if (typeof draft.itemName === 'string') setItemName(draft.itemName);
         if (typeof draft.sku === 'string') setSku(draft.sku);
-        if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
-        if (typeof draft.price === 'string') setPrice(draft.price);
         if (typeof draft.introText === 'string') setIntroText(draft.introText);
         if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
         if (typeof draft.unit === 'string') setUnit(draft.unit);
-        if (typeof draft.warrantyMonths === 'string') setWarrantyMonths(draft.warrantyMonths);
+        if (typeof draft.warrantyMonths === 'string' && draft.warrantyMonths.trim()) setWarrantyMonths(draft.warrantyMonths);
         if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
         if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
         if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
@@ -636,7 +677,6 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     if (!file) {
       setThumbnailFile(null);
       setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || '');
-      setAutoGenHint('');
       return;
     }
     const objectUrl = URL.createObjectURL(file);
@@ -644,8 +684,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     setThumbnailFile(file);
     setThumbnailPreview(objectUrl);
     setAutoGenHint('Đã nhận ảnh. Bạn có thể bấm "Tạo lại từ ảnh" để cập nhật nội dung.');
-    void autoGenerateContentFromImage(file, { force: false });
-  }, [autoGenerateContentFromImage, baseItem.imageUrl, baseItem.thumbnailUrl]);
+  }, [baseItem.imageUrl, baseItem.thumbnailUrl]);
 
   const handleMediaChange = useCallback((e) => {
     const files = Array.from(e?.target?.files ?? []);
@@ -724,7 +763,8 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     setIntroText(initialDescription.introText);
     setDetailHtml(initialDescription.detailHtml);
     setUnit(baseItem.unit || '');
-    setWarrantyMonths(baseItem.warrantyDurationMonths != null ? String(baseItem.warrantyDurationMonths) : '');
+    const baseEstimateTime = pickEstimateTimeValue(baseItem);
+    setWarrantyMonths(baseEstimateTime !== '' ? String(baseEstimateTime) : '');
     setIsActive(isEdit ? (baseItem.isActive ?? true) : true);
     setBrandId(baseItem.brandId != null ? String(baseItem.brandId) : '');
     setProductLineId(baseItem.productLineId != null ? String(baseItem.productLineId) : '');
@@ -745,7 +785,8 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     const showPrice = priceMode === 'fixed';
     const priceNum = Number(String(price || '').trim());
     const resolvedPrice = showPrice && Number.isFinite(priceNum) && priceNum >= 0 ? priceNum : 0;
-    const warrantyNum = Number(String(warrantyMonths || '').trim());
+    const warrantySource = String(warrantyMonths || '').trim() || String(pickEstimateTimeValue(baseItem) || '').trim();
+    const warrantyNum = Number(warrantySource);
     const serviceStatus = isActive ? 'ACTIVE' : 'INACTIVE';
     const fullDescription = buildDescriptionHtml();
     const shortDescription = String(introText || '').trim();
@@ -758,10 +799,22 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     formData.append('displayPrice', String(resolvedPrice));
     formData.append('status', serviceStatus);
     if (Number.isFinite(warrantyNum) && warrantyNum >= 0) formData.append('estimateTime', String(Math.trunc(warrantyNum)));
-    if (thumbnailFile) formData.append('thumbnailFile', thumbnailFile);
+    if (thumbnailFile) {
+      formData.append('thumbnailFile', thumbnailFile);
+    } else if (isPersistedMediaUrl(thumbnailPreview)) {
+      formData.append('thumbnailUrl', thumbnailPreview);
+      formData.append('imageUrl', thumbnailPreview);
+      formData.append('mediaThumbnail', thumbnailPreview);
+    }
     mediaFiles.forEach((entry) => { if (entry?.file) formData.append('mediaFiles', entry.file); });
+    const existingMediaUrls = existingMedia
+      .map((entry) => entry?.mediaUrl)
+      .filter(isPersistedMediaUrl);
+    if (existingMediaUrls.length > 0) {
+      formData.append('existingMediaUrls', JSON.stringify(existingMediaUrls));
+    }
     return formData;
-  }, [buildDescriptionHtml, introText, isActive, itemName, mediaFiles, price, priceMode, thumbnailFile, warrantyMonths]);
+  }, [buildDescriptionHtml, existingMedia, introText, isActive, itemName, mediaFiles, price, priceMode, thumbnailFile, thumbnailPreview, warrantyMonths]);
 
   const buildCatalogPayload = useCallback(() => {
     const priceNum = Number(String(price || '').trim());
@@ -872,6 +925,8 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     }
     try {
       setIsSubmitting(true);
+      const submittedItemName = String(itemName || baseItem.itemName || '').trim();
+      const successName = submittedItemName ? ` "${submittedItemName}"` : '';
       if (isEdit) {
         const catalogItemId = toNullablePositiveNumber(baseItem.itemId);
         const serviceId = getServiceServiceId(baseItem);
@@ -880,7 +935,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
           return;
         }
         await updateServiceById(serviceId, buildServiceFormData(), token);
-        notify('Cap nhat Blog thanh cong!', 'success');
+        notify(`Cap nhat bai viet ${itemToastLabel}${successName} thanh cong!`, 'success');
         clearDraft();
         onSaved({ catalogItemId: catalogItemId ?? baseItem.itemId, serviceServiceId: serviceId });
         return;
@@ -902,7 +957,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       if (isCreateFromCatalog && !serviceServiceId) {
         throw new Error('Da tao blog nhung chua nhan duoc serviceId.');
       }
-      notify('Tao Blog thanh cong!', 'success');
+      notify(`Tao bai viet ${itemToastLabel}${successName} thanh cong!`, 'success');
       clearDraft();
       onSaved({ catalogItemId, serviceServiceId });
     } catch (err) {
@@ -910,7 +965,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     } finally {
       setIsSubmitting(false);
     }
-  }, [baseItem, buildCatalogPayload, buildServiceFormData, clearDraft, isCreateFromCatalog, isCreateNew, isEdit, notify, onSaved, validateBeforeSubmit]);
+  }, [baseItem, buildCatalogPayload, buildServiceFormData, clearDraft, isCreateFromCatalog, isCreateNew, isEdit, itemName, itemToastLabel, notify, onSaved, validateBeforeSubmit]);
 
   return (
     <div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -979,11 +1034,11 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
               <label>Loại giá</label>
               <div className={styles['price-mode-row']}>
                 <label className={styles['price-choice']}>
-                  <input type="radio" name="price-mode" value="contact" checked={priceMode === 'contact'} onChange={() => setPriceMode('contact')} disabled={isSubmitting} />
+                  <input type="radio" name="price-mode" value="contact" checked={priceMode === 'contact'} onChange={() => setPriceMode('contact')} disabled={isSubmitting || isCatalogLinked} />
                   Liên hệ
                 </label>
                 <label className={styles['price-choice']}>
-                  <input type="radio" name="price-mode" value="fixed" checked={priceMode === 'fixed'} onChange={() => setPriceMode('fixed')} disabled={isSubmitting} />
+                  <input type="radio" name="price-mode" value="fixed" checked={priceMode === 'fixed'} onChange={() => setPriceMode('fixed')} disabled={isSubmitting || isCatalogLinked} />
                   Nhập giá
                 </label>
               </div>
@@ -999,7 +1054,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="VD: 450000"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isCatalogLinked}
                   />
                   {errors.price && <span className={styles['field-error']}>{errors.price}</span>}
                 </>
@@ -1025,7 +1080,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
             )}
           </div>
 
-          <div className={styles['auto-gen-row']}>
+          <div className={styles['auto-gen-row']} style={{ display: 'none' }}>
             <button
               type="button"
               className={styles['auto-gen-button']}
@@ -1218,14 +1273,16 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
               {errors.unit && <span className={styles['field-error']}>{errors.unit}</span>}
             </div>
             <div className={styles.field}>
-              <label htmlFor="item-warranty">Bảo hành (tháng)</label>
+              <label htmlFor="item-warranty">
+                {normalizedItemType === 'SERVICE' ? 'Thời gian dự kiến (phút)' : 'Bảo hành (tháng)'}
+              </label>
               <input
                 id="item-warranty"
                 type="number"
                 min="0"
                 value={warrantyMonths}
                 onChange={(e) => setWarrantyMonths(e.target.value)}
-                placeholder="VD: 12"
+                placeholder={normalizedItemType === 'SERVICE' ? 'VD: 60' : 'VD: 12'}
                 disabled={isSubmitting}
               />
             </div>

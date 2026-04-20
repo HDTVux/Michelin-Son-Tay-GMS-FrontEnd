@@ -8,18 +8,75 @@ import infoStyles from './UserProfile.personalInfo.module.css';
 import statsStyles from './UserProfile.stats.module.css';
 import actionsStyles from './UserProfile.quickActions.module.css';
 
+const CUSTOMER_PROFILE_CACHE_KEY = 'customerProfile';
+
+const getCustomerToken = () => localStorage.getItem('customerToken') || localStorage.getItem('authToken');
+
+const emptyCustomerProfile = {
+  fullName: '',
+  phone: '',
+  email: '',
+  dob: '',
+  gender: '',
+  avatar: null
+};
+
+const firstText = (...values) => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (value != null && typeof value !== 'object') return String(value);
+  }
+  return '';
+};
+
+const readStoredProfile = (token) => {
+  try {
+    return JSON.parse(localStorage.getItem(getProfileCacheKey(token)) || '{}');
+  } catch {
+    return {};
+  }
+};
+
+const saveStoredProfile = (profile, token) => {
+  localStorage.setItem(getProfileCacheKey(token), JSON.stringify(profile));
+};
+
+const decodeCustomerTokenProfile = (token) => {
+  try {
+    const payload = token.split('.')[1];
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(normalizedPayload));
+    return {
+      fullName: firstText(json?.fullName, json?.name),
+      phone: firstText(json?.phone, json?.sub),
+      email: firstText(json?.email),
+      customerId: json?.customerId
+    };
+  } catch {
+    return {};
+  }
+};
+
+const getProfileCacheKey = (token) => {
+  const tokenProfile = decodeCustomerTokenProfile(token || '');
+  const owner = tokenProfile.customerId || tokenProfile.phone || 'default';
+  return `${CUSTOMER_PROFILE_CACHE_KEY}:${owner}`;
+};
+
+const normalizeProfile = (...sources) => ({
+  fullName: firstText(...sources.map(source => source?.fullName ?? source?.name)),
+  phone: firstText(...sources.map(source => source?.phone ?? source?.phoneNumber)),
+  email: firstText(...sources.map(source => source?.email)),
+  dob: firstText(...sources.map(source => source?.dob ?? source?.dateOfBirth)),
+  gender: firstText(...sources.map(source => source?.gender)),
+  avatar: firstText(...sources.map(source => source?.avatar ?? source?.avatarUrl)) || null
+});
+
 const UserProfile = () => {
   useScrollToTop();
   const fileInputRef = useRef(null);
 
-  const [customerProfile, setCustomerProfile] = useState({
-    fullName: '',
-    phone: '',
-    email: '',
-    dob: '',
-    gender: 'Nam',
-    avatar: null
-  });
+  const [customerProfile, setCustomerProfile] = useState(emptyCustomerProfile);
 
   const [stats] = useState({
     totalServices: 15,
@@ -63,30 +120,30 @@ const UserProfile = () => {
   // Load profile data
   useEffect(() => {
     const loadProfile = async () => {
+      const token = getCustomerToken();
+      const tokenProfile = decodeCustomerTokenProfile(token || '');
+
       try {
-        const token = localStorage.getItem('customerToken');
         if (!token) {
           setLoadingProfile(false);
           return;
         }
 
         const response = await fetchCustomerProfile(token);
-        const profile = response.data;
-
-        const profileData = {
-          fullName: profile.fullName || '',
-          phone: profile.phone || '',
-          email: profile.email || '',
-          dob: profile.dob || '',
-          gender: profile.gender || 'Nam',
-          avatar: profile.avatarUrl || null
-        };
+        const profile = response?.data || {};
+        const profileData = normalizeProfile(profile, tokenProfile);
 
         setCustomerProfile(profileData);
         setUpdateFormData(profileData);
         setAvatarPreview(profileData.avatar);
+        saveStoredProfile(profileData, token);
       } catch (error) {
         console.error('Error loading profile:', error);
+        const cachedProfile = readStoredProfile(token);
+        const fallbackProfile = normalizeProfile(cachedProfile, tokenProfile);
+        setCustomerProfile(fallbackProfile);
+        setUpdateFormData(fallbackProfile);
+        setAvatarPreview(fallbackProfile.avatar);
       } finally {
         setLoadingProfile(false);
       }
@@ -212,30 +269,41 @@ const UserProfile = () => {
     if (validateUpdateForm()) {
       setUpdateLoading(true);
       try {
-        const token = localStorage.getItem('customerToken');
+        const token = getCustomerToken();
         if (!token) {
           alert('Vui lòng đăng nhập');
           return;
         }
 
+        let nextAvatar = avatarPreview;
+
         // Upload avatar first if changed
         if (avatarFile) {
-          await uploadAvatar(avatarFile, token);
+          const avatarResponse = await uploadAvatar(avatarFile, token);
+          nextAvatar = avatarResponse?.data?.avatarUrl || avatarResponse?.avatarUrl || nextAvatar;
         }
 
-        // Update profile
+        // Chỉ gửi các field mà API profile hiện có.
         const payload = {
-          fullName: updateFormData.fullName,
           email: updateFormData.email,
           gender: updateFormData.gender,
-          phone: updateFormData.phone,
-          dob: updateFormData.dob
+          avatar: nextAvatar || undefined
         };
 
-        await updateCustomerProfile(payload, token);
+        const response = await updateCustomerProfile(payload, token);
+        const savedProfile = normalizeProfile(
+          { ...updateFormData, avatar: nextAvatar },
+          response?.data || {},
+          readStoredProfile(token),
+          decodeCustomerTokenProfile(token)
+        );
 
         // Update local state
-        setCustomerProfile({ ...updateFormData, avatar: avatarPreview });
+        setCustomerProfile(savedProfile);
+        setUpdateFormData(savedProfile);
+        setAvatarPreview(savedProfile.avatar);
+        setAvatarFile(null);
+        saveStoredProfile(savedProfile, token);
         alert('Cập nhật thông tin thành công!');
         setShowUpdateModal(false);
       } catch (error) {
@@ -339,7 +407,7 @@ const UserProfile = () => {
       case 'MALE': return 'Nam';
       case 'FEMALE': return 'Nữ';
       case 'OTHER': return 'Khác';
-      default: return gender || 'Nam';
+      default: return gender || 'Chưa cập nhật';
     }
   };
 
@@ -517,7 +585,7 @@ const UserProfile = () => {
                   <select
                     id='gender'
                     name='gender'
-                    value={updateFormData.gender || 'Nam'}
+                    value={updateFormData.gender || 'MALE'}
                     onChange={handleUpdateInputChange}
                     className={styles.select}
                   >

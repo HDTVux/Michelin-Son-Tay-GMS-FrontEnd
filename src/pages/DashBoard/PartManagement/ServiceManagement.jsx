@@ -327,7 +327,7 @@ export default function ServiceManagement() {
   }, []);
 
   const formatPrice = (item) => {
-    if (item?.showPrice) {
+    if (toNullableBoolean(item?.showPrice) === true) {
       return item.price != null ? `${Number(item.price).toLocaleString('vi-VN')} ₫` : '-';
     }
     return 'Liên hệ';

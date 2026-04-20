@@ -15,11 +15,14 @@ const toPriceNumber = (value) => {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   const normalized = String(value).replace(/[^\d.-]/g, '');
+  if (!normalized || normalized === '-' || normalized === '.' || normalized === '-.') return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const formatPrice = (value) => {
+const formatPrice = (value, displayText = '') => {
+  const label = typeof displayText === 'string' ? displayText.trim() : '';
+  if (label) return label;
   const price = toPriceNumber(value);
   if (price == null) return '';
   return `${new Intl.NumberFormat('vi-VN').format(price)}đ`;
@@ -176,7 +179,7 @@ export default function StepService({
     const thumbStyle = item.thumbnail
       ? { backgroundImage: `url(${item.thumbnail})`, backgroundSize: 'cover', backgroundPosition: 'center' }
       : undefined;
-    const priceText = formatPrice(item.price);
+    const priceText = formatPrice(item.price, item.priceText);
 
     return (
       <div className={styles['service-card']}>
@@ -326,7 +329,7 @@ export default function StepService({
                   const thumbStyle = item.thumbnail
                     ? { backgroundImage: `url(${item.thumbnail})`, backgroundSize: 'cover', backgroundPosition: 'center' }
                     : undefined;
-                  const priceText = formatPrice(item.price);
+                  const priceText = formatPrice(item.price, item.priceText);
                   return (
                     <div
                       key={item.id}

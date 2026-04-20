@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import { fetchBookingDetail, modifyCustomerBooking, fetchAvailableSlots } from '../../services/bookingService.js';
+import { fetchBookingDetail, modifyCustomerBooking, fetchAvailableSlots, fetchMyBookings } from '../../services/bookingService.js';
 import { fetchHomeServices } from '../../services/homeService.js';
 import './EditBooking.css';
 
@@ -17,6 +17,9 @@ const EditBooking = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [editBlockedMessage, setEditBlockedMessage] = useState('');
+  const [bookingId, setBookingId] = useState(null);
+  const [bookingCode, setBookingCode] = useState('');
   const [allServices, setAllServices] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
 
@@ -28,11 +31,47 @@ const EditBooking = () => {
   });
 
   const [canEditTime] = useState(true);
+  const detailIdentifier = bookingCode || id;
+
+  const getCustomerToken = () => localStorage.getItem('customerToken') || localStorage.getItem('authToken');
+
+  const normalizeStatus = (status) => String(status || '').trim().toUpperCase();
+
+  const canModifyBooking = (bookingData) => {
+    const bookingStatus = normalizeStatus(bookingData?.status);
+    const ticketStatus = normalizeStatus(bookingData?.ticketStatus);
+    return !ticketStatus && ['PENDING', 'CONFIRMED'].includes(bookingStatus);
+  };
+
+  const getSelectedServiceIds = (bookingData) => {
+    const ids = Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0
+      ? bookingData.serviceIds
+      : bookingData?.services?.map(service => service.itemId ?? service.id).filter(Boolean) || [];
+
+    return ids.map(serviceId => String(serviceId));
+  };
+
+  const loadBookingDetail = async (identifier, token) => {
+    try {
+      return await fetchBookingDetail(identifier, token);
+    } catch (err) {
+      const numericId = Number(identifier);
+      if (!Number.isFinite(numericId)) throw err;
+
+      const bookingsResponse = await fetchMyBookings(token);
+      const fallbackBooking = bookingsResponse?.data?.find(booking => (
+        Number(booking.bookingId) === numericId || String(booking.bookingCode) === String(identifier)
+      ));
+
+      if (!fallbackBooking) throw err;
+      return { data: fallbackBooking };
+    }
+  };
 
   // Load booking detail, services, and slots
   useEffect(() => {
     const loadData = async () => {
-      const token = localStorage.getItem('authToken');
+      const token = getCustomerToken();
       
       if (!token) {
         setError('Vui lòng đăng nhập để chỉnh sửa lịch hẹn.');
@@ -51,15 +90,21 @@ const EditBooking = () => {
         
         // Load booking detail and services in parallel
         const [bookingResponse, servicesResponse] = await Promise.all([
-          fetchBookingDetail(id, token),
+          loadBookingDetail(id, token),
           fetchHomeServices()
         ]);
 
         // Map booking data
         const bookingData = bookingResponse?.data;
         if (bookingData) {
+          setBookingId(bookingData.bookingId || null);
+          setBookingCode(bookingData.bookingCode || id);
+          setEditBlockedMessage(canModifyBooking(bookingData)
+            ? ''
+            : 'Lịch hẹn này đã được tiếp nhận hoặc đã có phiếu dịch vụ, nên không thể chỉnh sửa nữa.'
+          );
           setFormData({
-            selectedServices: bookingData.serviceIds?.map(id => id.toString()) || [],
+            selectedServices: getSelectedServiceIds(bookingData),
             date: bookingData.scheduledDate || '',
             time: bookingData.scheduledTime || '',
             note: bookingData.description || ''
@@ -93,7 +138,7 @@ const EditBooking = () => {
     if (!formData.date) return;
 
     const loadSlots = async () => {
-      const token = localStorage.getItem('authToken');
+      const token = getCustomerToken();
       if (!token) return;
 
       try {
@@ -195,6 +240,11 @@ const EditBooking = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
+
+    if (editBlockedMessage) {
+      alert(editBlockedMessage);
+      return;
+    }
     
     // Validate
     if (formData.selectedServices.length === 0) {
@@ -207,9 +257,15 @@ const EditBooking = () => {
       return;
     }
 
-    const token = localStorage.getItem('authToken');
+    const token = getCustomerToken();
     if (!token) {
       alert('Vui lòng đăng nhập để lưu thay đổi');
+      return;
+    }
+
+    const targetBookingId = bookingId || Number(id);
+    if (!Number.isFinite(Number(targetBookingId))) {
+      alert('Không tìm thấy mã lịch hẹn để lưu thay đổi');
       return;
     }
 
@@ -218,13 +274,13 @@ const EditBooking = () => {
       
       // Prepare payload for backend
       const payload = {
-        serviceIds: formData.selectedServices.map(id => parseInt(id)),
-        scheduledDate: formData.date,
-        scheduledTime: formData.time,
-        description: formData.note
+        newServiceIds: formData.selectedServices.map(serviceId => parseInt(serviceId, 10)),
+        newAppointmentDate: formData.date,
+        newAppointmentTime: formData.time,
+        newUserNote: formData.note
       };
 
-      await modifyCustomerBooking(id, payload, token);
+      await modifyCustomerBooking(targetBookingId, payload, token);
       setShowSuccess(true);
     } catch (err) {
       alert(err?.message || 'Không thể lưu thay đổi. Vui lòng thử lại.');
@@ -234,11 +290,11 @@ const EditBooking = () => {
   };
 
   const handleCancel = () => {
-    navigate(`/booking-detail/${id}`);
+    navigate(`/booking-detail/${detailIdentifier}`);
   };
 
   const handleBackToDetail = () => {
-    navigate(`/booking-detail/${id}`);
+    navigate(`/booking-detail/${detailIdentifier}`);
   };
 
   return (
@@ -246,7 +302,7 @@ const EditBooking = () => {
       <div className="editContainer">
         {/* Header */}
         <div className="editHeader">
-          <Link to={`/booking-detail/${id}`} className="backButton">
+          <Link to={`/booking-detail/${detailIdentifier}`} className="backButton">
             ← Quay lại
           </Link>
           <h1 className="pageTitle">Sửa lịch hẹn</h1>
@@ -277,8 +333,21 @@ const EditBooking = () => {
           </div>
         )}
 
+        {!isLoading && editBlockedMessage && (
+          <div className="errorBanner" style={{
+            padding: '12px 16px',
+            marginBottom: '16px',
+            backgroundColor: '#fff7ed',
+            color: '#9a3412',
+            borderRadius: '8px',
+            border: '1px solid #fed7aa'
+          }}>
+            {editBlockedMessage}
+          </div>
+        )}
+
         {/* Form - Only show when not loading */}
-        {!isLoading && (
+        {!isLoading && !error && !editBlockedMessage && (
           <form onSubmit={handleSave}>
           {/* Chọn lại dịch vụ */}
           <section className="editSection">

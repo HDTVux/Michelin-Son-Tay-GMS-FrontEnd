@@ -207,7 +207,7 @@ export default function MaintenanceReminder() {
       return;
     }
     if (!canCreateBookingFromStatus(row?.status)) {
-      toast.error('Chỉ có thể tạo lịch khi lời nhắc đã xác nhận.');
+      toast.error('Chỉ có thể hẹn lịch khi lời nhắc đã xác nhận.');
       return;
     }
     navigate('/create-booking', {
@@ -362,28 +362,26 @@ export default function MaintenanceReminder() {
                             className={`${styles.smallBtn} ${styles.createBtn}`}
                             onClick={() => handleCreateBookingFromReminder(row)}
                             disabled={!canCreateBooking}
-                            title={canCreateBooking ? 'Tạo lịch từ lời nhắc đã xác nhận' : 'Chỉ tạo lịch khi lời nhắc đã xác nhận'}
+                            title={canCreateBooking ? 'Hẹn lịch từ lời nhắc đã xác nhận' : 'Chỉ hẹn lịch khi lời nhắc đã xác nhận'}
                           >
-                            Tạo lịch
+                            Hẹn lịch
                           </button>
-                          {STATUS_ACTIONS.map((action) => (
-                            (() => {
-                              const buttonUpdating = rowUpdating && updatingStatus === action.value;
-                              return (
-                                <button
-                                  key={action.value}
-                                  type="button"
-                                  className={styles.smallBtn}
-                                  onClick={() => handleStatusChange(row, action.value)}
-                                  disabled={rowUpdating || statusLocked || currentStatus === action.value}
-                                  data-gms-no-global-loading="true"
-                                >
-                                  {buttonUpdating ? <span className={styles.buttonSpinner} aria-hidden="true" /> : null}
-                                  {buttonUpdating ? 'Đang lưu...' : action.label}
-                                </button>
-                              );
-                            })()
-                          ))}
+                          {STATUS_ACTIONS.map((action) => {
+                            const buttonUpdating = rowUpdating && updatingStatus === action.value;
+                            return (
+                              <button
+                                key={action.value}
+                                type="button"
+                                className={styles.smallBtn}
+                                onClick={() => handleStatusChange(row, action.value)}
+                                disabled={rowUpdating || statusLocked || currentStatus === action.value}
+                                data-gms-no-global-loading="true"
+                              >
+                                {buttonUpdating ? <span className={styles.buttonSpinner} aria-hidden="true" /> : null}
+                                {buttonUpdating ? 'Đang lưu...' : action.label}
+                              </button>
+                            );
+                          })}
                         </div>
                       </td>
                     </tr>

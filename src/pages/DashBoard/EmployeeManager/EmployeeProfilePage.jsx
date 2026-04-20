@@ -1,5 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { fetchStaffDetail } from '../../../services/adminService.js';
 import { fetchManagerEmployeeDetail } from '../../../services/managerService.js';
 import styles from './EmployeeProfilePage.module.css';
 
@@ -16,6 +17,39 @@ const pickValue = (...values) => {
     if (text) return text;
   }
   return '';
+};
+
+const normalizeRoleName = (value) => {
+  if (!value) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'object') {
+    return pickValue(
+      value.roleName,
+      value.name,
+      value.label,
+      value.roleCode,
+      value.code,
+      value.position,
+    );
+  }
+  return '';
+};
+
+const getRoleText = (profile) => {
+  const roleList = Array.isArray(profile?.roles)
+    ? profile.roles.map(normalizeRoleName).filter(Boolean)
+    : [];
+  const uniqueRoles = Array.from(new Set(roleList));
+  if (uniqueRoles.length > 0) return uniqueRoles.join(', ');
+
+  return pickValue(
+    profile?.roleName,
+    profile?.role,
+    profile?.staffRole,
+    profile?.staffRoleName,
+    profile?.position,
+    '-',
+  );
 };
 
 const extractPayload = (response) => {
@@ -87,7 +121,24 @@ export default function EmployeeProfilePage() {
 
     try {
       const response = await fetchManagerEmployeeDetail(staffId, token);
-      const payload = extractPayload(response);
+      let payload = extractPayload(response);
+
+      if (!getRoleText(payload)) {
+        try {
+          const adminResponse = await fetchStaffDetail(staffId, token);
+          const adminPayload = extractPayload(adminResponse);
+          if (adminPayload && typeof adminPayload === 'object') {
+            payload = {
+              ...adminPayload,
+              ...payload,
+              roles: Array.isArray(payload?.roles) && payload.roles.length > 0 ? payload.roles : adminPayload?.roles,
+            };
+          }
+        } catch {
+          // Ignore fallback failure.
+        }
+      }
+
       setProfile(payload);
     } catch (err) {
       setProfile(null);
@@ -109,7 +160,7 @@ export default function EmployeeProfilePage() {
       staffId: pickValue(profile?.staffId, staffId, '-'),
       fullName,
       phone: pickValue(profile?.phone, profile?.phoneNumber, '-'),
-      position: pickValue(profile?.position, profile?.roleName, '-'),
+      role: getRoleText(profile),
       gender: formatGenderLabel(profile?.gender),
       dob: formatDateVi(profile?.dob || profile?.dateOfBirth),
       avatar: pickValue(profile?.avatar, profile?.avatarUrl, ''),
@@ -183,8 +234,8 @@ export default function EmployeeProfilePage() {
               <p className={styles.statValue}>{summary.tickets}</p>
             </article>
             <article className={styles.statCard}>
-              <p className={styles.statLabel}>Vị trí</p>
-              <p className={styles.statValue}>{summary.position}</p>
+              <p className={styles.statLabel}>Vai trò</p>
+              <p className={styles.statValue}>{summary.role}</p>
             </article>
           </section>
 

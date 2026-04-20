@@ -14,6 +14,29 @@ const BookingDetail = () => {
   const [error, setError] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
 
+  const defaultTimelineSteps = [
+    { key: 'scheduled', label: 'Đã đặt lịch' },
+    { key: 'confirmed', label: 'Đã xác nhận' },
+    { key: 'processing', label: 'Đang thực hiện' },
+    { key: 'completed', label: 'Hoàn thành' },
+  ];
+
+  const normalizeStatus = (status) => String(status || '').trim().toUpperCase();
+  const isTicketCompletedStatus = (status) => (
+    ['COMPLETED', 'PAID', 'FINISHED'].includes(normalizeStatus(status))
+  );
+  const isBookingCompletedStatus = (status) => (
+    ['COMPLETED', 'FINISHED'].includes(normalizeStatus(status))
+  );
+  const isCancelledStatus = (status) => (
+    ['CANCELLED', 'CANCELED', 'CANCEL'].includes(normalizeStatus(status))
+  );
+  const hasCompletedWorkflow = (bookingData) => (
+    bookingData?.ticketStatus
+      ? isTicketCompletedStatus(bookingData.ticketStatus)
+      : isBookingCompletedStatus(bookingData?.rawStatus || bookingData?.status)
+  );
+
   // Load booking detail from API
   useEffect(() => {
     const loadBookingDetail = async () => {
@@ -47,8 +70,8 @@ const BookingDetail = () => {
           bookingId: bookingData.bookingId,
           date: bookingData.scheduledDate ? new Date(bookingData.scheduledDate).toLocaleDateString('vi-VN') : '',
           time: bookingData.scheduledTime || '',
-          status: mapStatus(bookingData.status),
-          statusText: getStatusText(bookingData.status),
+          status: mapDisplayStatus(bookingData.status, bookingData.ticketStatus),
+          statusText: getDisplayStatusText(bookingData.status, bookingData.ticketStatus),
           services: bookingData.services?.map(svc => ({
             id: svc.itemId?.toString() || svc.id?.toString() || '',
             name: svc.itemName || svc.name || 'Dịch vụ',
@@ -96,12 +119,25 @@ const BookingDetail = () => {
       'PENDING': 'pending',
       'CONFIRMED': 'confirmed',
       'CANCELLED': 'cancelled',
+      'CANCELED': 'cancelled',
+      'CANCEL': 'cancelled',
       'COMPLETED': 'completed',
       'IN_PROGRESS': 'processing',
-      'DONE': 'completed',  // DONE = Hoàn thành
+      'DONE': 'processing',
+      'FINISHED': 'completed',
+      'PAID': 'completed',
+      'CREATED': 'processing',
+      'INSPECTING': 'processing',
+      'INSPECTED': 'processing',
+      'ESTIMATED': 'processing',
+      'REPAIRING': 'processing',
     };
-    return statusMap[backendStatus?.toUpperCase()] || 'pending';
+    return statusMap[normalizeStatus(backendStatus)] || 'pending';
   };
+
+  const mapDisplayStatus = (bookingStatus, ticketStatus) => (
+    ticketStatus ? mapStatus(ticketStatus) : mapStatus(bookingStatus)
+  );
 
   // Get status text in Vietnamese
   const getStatusText = (backendStatus) => {
@@ -109,64 +145,86 @@ const BookingDetail = () => {
       'PENDING': 'Đang chờ',
       'CONFIRMED': 'Đã xác nhận',
       'CANCELLED': 'Đã hủy',
+      'CANCELED': 'Đã hủy',
+      'CANCEL': 'Đã hủy',
       'COMPLETED': 'Hoàn tất',
       'IN_PROGRESS': 'Đang xử lý',
-      'DONE': 'Hoàn thành',  // DONE = Hoàn thành
+      'DONE': 'Đang thực hiện',
+      'FINISHED': 'Hoàn thành',
+      'PAID': 'Hoàn thành',
+      'CREATED': 'Đã tạo phiếu',
+      'INSPECTING': 'Đang kiểm tra',
+      'INSPECTED': 'Đã kiểm tra',
+      'ESTIMATED': 'Đã báo giá',
+      'REPAIRING': 'Đang sửa chữa',
     };
-    return textMap[backendStatus?.toUpperCase()] || 'Đang chờ';
+    return textMap[normalizeStatus(backendStatus)] || 'Đang chờ';
   };
 
+  const getDisplayStatusText = (bookingStatus, ticketStatus) => (
+    ticketStatus ? getStatusText(ticketStatus) : getStatusText(bookingStatus)
+  );
+
   // Timeline steps - ưu tiên dùng API nếu có, không thì dùng mặc định
-  const timelineSteps = booking?.progressSteps?.map((step, index) => ({
+  const baseTimelineSteps = Array.isArray(booking?.progressSteps) && booking.progressSteps.length > 0
+    ? booking.progressSteps.map((step, index) => ({
     key: step.label?.toLowerCase().replace(/\s+/g, '_') || `step_${index}`,
     label: step.label,
     status: step.status // COMPLETED, ACTIVE, PENDING
-  })) || [
-    { key: 'scheduled', label: 'Đã đặt lịch' },
-    { key: 'confirmed', label: 'Đã xác nhận' },
-    { key: 'processing', label: 'Đang thực hiện' },
-    { key: 'completed', label: 'Hoàn thành' },
-  ];
+  }))
+    : defaultTimelineSteps;
+
+  const timelineSteps = hasCompletedWorkflow(booking)
+    ? baseTimelineSteps.map(step => ({ ...step, status: 'COMPLETED' }))
+    : baseTimelineSteps;
 
   // Get current step index - ưu tiên dùng progressSteps từ API
   const getCurrentStep = () => {
+    if (hasCompletedWorkflow(booking)) {
+      return Math.max(0, timelineSteps.length - 1);
+    }
+
     // Nếu có progressSteps từ API, tìm step đang ACTIVE
     if (booking?.progressSteps && booking.progressSteps.length > 0) {
-      const activeIndex = booking.progressSteps.findIndex(step => step.status === 'ACTIVE');
+      const activeIndex = booking.progressSteps.findIndex(step => normalizeStatus(step.status) === 'ACTIVE');
       if (activeIndex >= 0) return activeIndex;
       // Nếu không có ACTIVE, tìm step cuối cùng COMPLETED
-      const completedIndex = booking.progressSteps.findIndex(step => step.status === 'PENDING');
-      if (completedIndex >= 0) return completedIndex - 1;
+      const completedIndex = booking.progressSteps.findIndex(step => normalizeStatus(step.status) === 'PENDING');
+      if (completedIndex >= 0) return Math.max(0, completedIndex - 1);
       // Tất cả đã hoàn thành
-      if (booking.progressSteps.every(step => step.status === 'COMPLETED')) {
+      if (booking.progressSteps.every(step => normalizeStatus(step.status) === 'COMPLETED')) {
         return booking.progressSteps.length - 1;
       }
     }
 
     // Fallback: dùng rawStatus
-    const rawStatus = booking?.rawStatus || booking?.status;
+    const rawStatus = normalizeStatus(booking?.rawStatus || booking?.status);
     const stepMap = {
       'PENDING': 0,
       'CONFIRMED': 1,
+      'CONFIRM': 1,
       'IN_PROGRESS': 2,
-      'DONE': 3,
+      'PROCESSING': 2,
+      'DONE': 2,
       'COMPLETED': 3,
       'CANCELLED': -1,
-      'pending': 0,
-      'confirmed': 1,
-      'processing': 2,
-      'completed': 3,
     };
-    return stepMap[rawStatus?.toUpperCase()] ?? stepMap[rawStatus] ?? 0;
+    return stepMap[rawStatus] ?? 0;
   };
 
   const currentStep = getCurrentStep();
 
   // Chỉ cho phép sửa nếu lịch chưa hoàn tất và chưa bị hủy
   const statusToCheck = booking?.rawStatus || booking?.status;
-  const isCompleted = statusToCheck === 'COMPLETED' || statusToCheck === 'DONE' || statusToCheck === 'completed';
-  const isCancelled = statusToCheck === 'CANCELLED' || statusToCheck === 'CANCELED' || statusToCheck === 'cancelled';
-  const canEdit = booking && !isCompleted && !isCancelled;
+  const isCompleted = hasCompletedWorkflow(booking);
+  const isCancelled = isCancelledStatus(statusToCheck);
+  const bookingStatus = normalizeStatus(statusToCheck);
+  const hasServiceTicket = Boolean(booking?.ticketStatus);
+  const canEdit = booking
+    && !isCompleted
+    && !isCancelled
+    && !hasServiceTicket
+    && ['PENDING', 'CONFIRMED'].includes(bookingStatus);
 
   const handleCancel = () => {
     setShowCancelConfirm(true);
@@ -233,7 +291,7 @@ const BookingDetail = () => {
             }}>
               {timelineSteps.map((step, index) => {
                 // Ưu tiên dùng status từ API
-                const stepStatus = step.status?.toUpperCase();
+                const stepStatus = normalizeStatus(step.status);
                 const isCompleted = stepStatus === 'COMPLETED' || index < currentStep;
                 const isCurrent = stepStatus === 'ACTIVE' || index === currentStep;
                 const isLast = index === timelineSteps.length - 1;
@@ -398,13 +456,11 @@ const BookingDetail = () => {
                   display: 'inline-block',
                   padding: '8px 16px',
                   borderRadius: '8px',
-                  backgroundColor: booking.ticketStatus === 'COMPLETED' ? '#dcfce7' : '#fef3c7',
-                  color: booking.ticketStatus === 'COMPLETED' ? '#166534' : '#92400e',
+                  backgroundColor: isTicketCompletedStatus(booking.ticketStatus) ? '#dcfce7' : '#fef3c7',
+                  color: isTicketCompletedStatus(booking.ticketStatus) ? '#166534' : '#92400e',
                   fontWeight: '500'
                 }}>
-                  {booking.ticketStatus === 'COMPLETED' ? '✓ Đã hoàn thành' :
-                   booking.ticketStatus === 'IN_PROGRESS' ? 'Đang xử lý' :
-                   booking.ticketStatus === 'PENDING' ? 'Chờ xử lý' : booking.ticketStatus}
+                  {isTicketCompletedStatus(booking.ticketStatus) ? '✓ Hoàn thành' : getStatusText(booking.ticketStatus)}
                 </div>
               </section>
             )}
@@ -421,7 +477,7 @@ const BookingDetail = () => {
               {canEdit ? (
                 <>
                   <Link
-                    to={`/edit-booking/${booking.bookingId || booking.id}`}
+                    to={`/edit-booking/${booking.id || booking.bookingId}`}
                     style={{
                       padding: '12px 32px',
                       backgroundColor: '#0066FF',

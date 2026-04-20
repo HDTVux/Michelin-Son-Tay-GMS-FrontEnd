@@ -37,6 +37,53 @@ const toNullableBoolean = (value) => {
   return null;
 };
 
+const pickFirstPresent = (...values) => {
+  for (const value of values) {
+    if (value == null) continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+    return value;
+  }
+  return undefined;
+};
+
+const pickPriceValue = (...items) => {
+  for (const item of items) {
+    const value = pickFirstPresent(
+      item?.price,
+      item?.displayPrice,
+      item?.servicePrice,
+      item?.sellingPrice,
+      item?.unitPrice,
+      item?.listPrice,
+    );
+    if (value !== undefined) return value;
+  }
+  return '';
+};
+
+const isPersistedMediaUrl = (value) => {
+  const text = String(value || '').trim();
+  return Boolean(text) && !text.startsWith('blob:') && !text.startsWith('data:');
+};
+
+const pickPriceMode = (showPrice, fallback = true) => ((toNullableBoolean(showPrice) ?? fallback) ? 'fixed' : 'contact');
+
+const pickEstimateTimeValue = (...items) => {
+  for (const item of items) {
+    const value = pickFirstPresent(
+      item?.estimateTime,
+      item?.estimate_time,
+      item?.estimatedTime,
+      item?.estimated_time,
+      item?.durationMinutes,
+      item?.duration_minutes,
+      item?.warrantyDurationMonths,
+    );
+    if (value !== undefined) return value;
+  }
+  return '';
+};
+
 const mergeWithMeaningfulServiceData = (catalogDetail, serviceDetail) => {
   const base = { ...(catalogDetail || {}) };
   if (!serviceDetail || typeof serviceDetail !== 'object') return base;
@@ -314,6 +361,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
   const isEdit = mode === 'edit' && Boolean(baseItem?.itemId);
   const isCreateFromCatalog = mode === 'createFromCatalog' && Boolean(baseItem?.itemId);
   const isCreateNew = !isEdit && !isCreateFromCatalog;
+  const isCatalogLinked = Boolean(baseItem?.itemId);
 
   const initialDescription = useMemo(
     () => splitDescriptionSections(baseItem.description || ''),
@@ -322,18 +370,15 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
   const [itemName, setItemName] = useState(baseItem.itemName || '');
   const [sku, setSku] = useState(baseItem.sku || '');
-  const [priceMode, setPriceMode] = useState(baseItem.showPrice !== false ? 'fixed' : 'contact');
+  const [priceMode, setPriceMode] = useState(pickPriceMode(baseItem.showPrice, true));
   const [price, setPrice] = useState(baseItem.price != null ? String(baseItem.price) : '');
   const [introText, setIntroText] = useState(initialDescription.introText);
   const [detailHtml, setDetailHtml] = useState(initialDescription.detailHtml);
   const [unit, setUnit] = useState(baseItem.unit || '');
-  const [estimateTime, setEstimateTime] = useState(
-    baseItem.estimateTime != null
-      ? String(baseItem.estimateTime)
-      : baseItem.warrantyDurationMonths != null
-        ? String(baseItem.warrantyDurationMonths)
-        : '',
-  );
+  const [estimateTime, setEstimateTime] = useState(() => {
+    const value = pickEstimateTimeValue(baseItem);
+    return value !== '' ? String(value) : '';
+  });
   const [isActive, setIsActive] = useState(isEdit ? baseItem.isActive !== false : true);
   const [brandId, setBrandId] = useState(baseItem.brandId != null ? String(baseItem.brandId) : '');
   const [productLineId, setProductLineId] = useState(
@@ -451,18 +496,15 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
       setItemName(detail.title || detail.itemName || '');
       setSku(detail.sku || '');
-      setPriceMode(detail.showPrice !== false ? 'fixed' : 'contact');
-      setPrice(detail.price != null ? String(detail.price) : '');
+      const resolvedShowPrice = pickFirstPresent(baseItem.showPrice, catalogDetail.showPrice, true);
+      const resolvedPrice = pickPriceValue(baseItem, catalogDetail);
+      setPriceMode(pickPriceMode(resolvedShowPrice, true));
+      setPrice(resolvedPrice !== '' ? String(resolvedPrice) : '');
       setIntroText(splitSections.introText || String(detail.shortDescription || '').trim());
       setDetailHtml(splitSections.detailHtml || normalizeEditorHtml(detail.fullDescription || detail.descriptionHtml || ''));
       setUnit(detail.unit || '');
-      setEstimateTime(
-        detail.estimateTime != null
-          ? String(detail.estimateTime)
-          : detail.warrantyDurationMonths != null
-            ? String(detail.warrantyDurationMonths)
-            : '',
-      );
+      const resolvedEstimateTime = pickEstimateTimeValue(detail, serviceDetail, catalogDetail, baseItem);
+      setEstimateTime(resolvedEstimateTime !== '' ? String(resolvedEstimateTime) : '');
       const parsedIsActive = toNullableBoolean(detail.isActive ?? detail.status);
       setIsActive(isEdit ? (parsedIsActive ?? true) : true);
       setBrandId(detail.brandId != null ? String(detail.brandId) : '');
@@ -483,13 +525,11 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       if (draft) {
         if (typeof draft.itemName === 'string') setItemName(draft.itemName);
         if (typeof draft.sku === 'string') setSku(draft.sku);
-        if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
-        if (typeof draft.price === 'string') setPrice(draft.price);
         if (typeof draft.introText === 'string') setIntroText(draft.introText);
         if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
         if (typeof draft.unit === 'string') setUnit(draft.unit);
-        if (typeof draft.estimateTime === 'string') setEstimateTime(draft.estimateTime);
-        else if (typeof draft.warrantyMonths === 'string') setEstimateTime(draft.warrantyMonths);
+        if (typeof draft.estimateTime === 'string' && draft.estimateTime.trim()) setEstimateTime(draft.estimateTime);
+        else if (typeof draft.warrantyMonths === 'string' && draft.warrantyMonths.trim()) setEstimateTime(draft.warrantyMonths);
         if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
         if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
         if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
@@ -635,17 +675,15 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       if (!file) {
         setThumbnailFile(null);
         setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || '');
-        setAutoGenHint('');
-        return;
+      return;
       }
       const objectUrl = URL.createObjectURL(file);
       thumbnailPreviewRef.current = objectUrl;
       setThumbnailFile(file);
       setThumbnailPreview(objectUrl);
-      setAutoGenHint('Đã nhận ảnh. Bạn có thể bấm "Tạo lại từ ảnh" để cập nhật nội dung.');
-      void autoGenerateContentFromImage(file, { force: false });
+      setAutoGenHint('');
     },
-    [autoGenerateContentFromImage, baseItem.imageUrl, baseItem.thumbnailUrl],
+    [baseItem.imageUrl, baseItem.thumbnailUrl],
   );
 
   const handleMediaChange = useCallback((e) => {
@@ -720,18 +758,13 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     }
     setItemName(baseItem.itemName || '');
     setSku(baseItem.sku || '');
-    setPriceMode(baseItem.showPrice !== false ? 'fixed' : 'contact');
+    setPriceMode(pickPriceMode(baseItem.showPrice, true));
     setPrice(baseItem.price != null ? String(baseItem.price) : '');
     setIntroText(initialDescription.introText);
     setDetailHtml(initialDescription.detailHtml);
     setUnit(baseItem.unit || '');
-    setEstimateTime(
-      baseItem.estimateTime != null
-        ? String(baseItem.estimateTime)
-        : baseItem.warrantyDurationMonths != null
-          ? String(baseItem.warrantyDurationMonths)
-          : '',
-    );
+    const baseEstimateTime = pickEstimateTimeValue(baseItem);
+    setEstimateTime(baseEstimateTime !== '' ? String(baseEstimateTime) : '');
     setIsActive(isEdit ? baseItem.isActive !== false : true);
     setBrandId(baseItem.brandId != null ? String(baseItem.brandId) : '');
     setProductLineId(baseItem.productLineId != null ? String(baseItem.productLineId) : '');
@@ -756,7 +789,8 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     const priceNum = Number(String(price || '').trim());
     const resolvedPrice =
       showPrice && Number.isFinite(priceNum) && priceNum >= 0 ? priceNum : 0;
-    const estimateTimeNum = Number(String(estimateTime || '').trim());
+    const estimateTimeSource = String(estimateTime || '').trim() || String(pickEstimateTimeValue(baseItem) || '').trim();
+    const estimateTimeNum = Number(estimateTimeSource);
     const serviceStatus = isActive ? 'ACTIVE' : 'INACTIVE';
     const fullDescription = buildDescriptionHtml();
     const shortDescription = String(introText || '').trim();
@@ -771,13 +805,26 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     if (Number.isFinite(estimateTimeNum) && estimateTimeNum >= 0) {
       formData.append('estimateTime', String(Math.trunc(estimateTimeNum)));
     }
-    if (thumbnailFile) formData.append('thumbnailFile', thumbnailFile);
+    if (thumbnailFile) {
+      formData.append('thumbnailFile', thumbnailFile);
+    } else if (isPersistedMediaUrl(thumbnailPreview)) {
+      formData.append('thumbnailUrl', thumbnailPreview);
+      formData.append('imageUrl', thumbnailPreview);
+      formData.append('mediaThumbnail', thumbnailPreview);
+    }
     mediaFiles.forEach((entry) => {
       if (entry?.file) formData.append('mediaFiles', entry.file);
     });
+    const existingMediaUrls = existingMedia
+      .map((entry) => entry?.mediaUrl)
+      .filter(isPersistedMediaUrl);
+    if (existingMediaUrls.length > 0) {
+      formData.append('existingMediaUrls', JSON.stringify(existingMediaUrls));
+    }
     return formData;
   }, [
     buildDescriptionHtml,
+    existingMedia,
     introText,
     isActive,
     itemName,
@@ -785,6 +832,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     price,
     priceMode,
     thumbnailFile,
+    thumbnailPreview,
     estimateTime,
   ]);
 
@@ -885,6 +933,8 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     if (!token) { notify('Vui lòng đăng nhập.', 'error'); return; }
     try {
       setIsSubmitting(true);
+      const submittedItemName = String(itemName || baseItem.itemName || '').trim();
+      const successName = submittedItemName ? ` "${submittedItemName}"` : '';
       if (isEdit) {
         const catalogItemId = toNullablePositiveNumber(baseItem.itemId);
         const serviceId = getServiceServiceId(baseItem);
@@ -893,7 +943,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
           return;
         }
         await updateServiceById(serviceId, buildServiceFormData(), token);
-        notify('Cập nhật dịch vụ thành công!', 'success');
+        notify(`Cap nhat bai viet dich vu${successName} thanh cong!`, 'success');
         clearDraft();
         onSaved({ catalogItemId: catalogItemId ?? baseItem.itemId, serviceServiceId: serviceId });
         return;
@@ -916,7 +966,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       if (isCreateFromCatalog && !serviceServiceId) {
         throw new Error('Đã tạo dịch vụ nhưng chưa nhận được serviceId.');
       }
-      notify('Tạo dịch vụ thành công!', 'success');
+      notify(`Tao bai viet dich vu${successName} thanh cong!`, 'success');
       clearDraft();
       onSaved({ catalogItemId, serviceServiceId });
     } catch (err) {
@@ -931,6 +981,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     isCreateFromCatalog,
     isCreateNew,
     isEdit,
+    itemName,
     notify,
     onSaved,
     validateBeforeSubmit,
@@ -997,7 +1048,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                     value="contact"
                     checked={priceMode === 'contact'}
                     onChange={() => setPriceMode('contact')}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isCatalogLinked}
                   />
                   Liên hệ
                 </label>
@@ -1008,7 +1059,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                     value="fixed"
                     checked={priceMode === 'fixed'}
                     onChange={() => setPriceMode('fixed')}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isCatalogLinked}
                   />
                   Nhập giá
                 </label>
@@ -1025,7 +1076,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="VD: 450000"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isCatalogLinked}
                   />
                   {errors.price && <span className={styles['field-error']}>{errors.price}</span>}
                 </>
@@ -1096,7 +1147,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
             )}
           </div>
 
-          <div className={styles['auto-gen-row']}>
+          <div className={styles['auto-gen-row']} style={{ display: 'none' }}>
             <button
               type="button"
               className={styles['auto-gen-button']}

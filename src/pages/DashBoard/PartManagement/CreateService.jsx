@@ -823,9 +823,9 @@ export default function CreateService() {
 			notify('Vui lòng nhập đủ thông tin để tạo tên dịch vụ (nhóm/thương hiệu/dòng).');
 			return;
 		}
-		const priceNum = Number(String(price || '').trim());
-		if (!Number.isFinite(priceNum)) {
-			notify('Vui lòng nhập giá hợp lệ.');
+		const priceNum = showPrice ? Number(String(price || '').trim()) : 0;
+		if (showPrice && (!Number.isFinite(priceNum) || priceNum <= 0)) {
+			notify('Giá dịch vụ phải lớn hơn 0.');
 			return;
 		}
 		const warrantyNum = String(warrantyDurationMonths || '').trim() === '' ? 0 : Number(warrantyDurationMonths);
@@ -845,7 +845,7 @@ export default function CreateService() {
 					warrantyDurationMonths: Math.trunc(warrantyNum),
 					serviceServiceId: 0,
 					sku: skuTrim,
-					price: priceNum,
+					price: showPrice ? priceNum : 0,
 					showPrice,
 					description: String(description || '').trim(),
 					// imageUrl: String(imageUrl || '').trim(),
@@ -1287,7 +1287,7 @@ export default function CreateService() {
 							</div>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="price">Giá</label>
-								<input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
+								<input id="price" type="number" min="1" value={price} onChange={(e) => setPrice(e.target.value)} disabled={Boolean(createdCatalogItemId) || !showPrice} />
 							</div>
 						</div>
 						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>

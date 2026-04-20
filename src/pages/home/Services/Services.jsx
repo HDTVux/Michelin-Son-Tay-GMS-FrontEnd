@@ -20,17 +20,24 @@ const parsePriceNumber = (value) => {
   const text = String(value).toLowerCase().trim();
   if (!text || text.includes('liên hệ')) return null;
 
-  const match = text.match(/\d+(?:[.,]\d+)?/);
+  const match = text.match(/\d[\d.,]*/);
   if (!match) return null;
 
   const rawNumber = match[0];
-  const normalizedNumber = rawNumber.includes(',')
-    ? rawNumber.replace(/\./g, '').replace(',', '.')
-    : rawNumber.replace(/\./g, '');
+  const suffix = text.slice(match.index + rawNumber.length);
+  const hasScaleSuffix = /^\s*k\b/.test(suffix)
+    || suffix.includes('nghìn')
+    || suffix.includes('ngàn')
+    || suffix.includes('triệu')
+    || suffix.includes('trieu');
+  const normalizedNumber = hasScaleSuffix
+    ? (rawNumber.includes(',')
+        ? rawNumber.replace(/\./g, '').replace(',', '.')
+        : rawNumber)
+    : rawNumber.replace(/[.,]/g, '');
   const parsed = Number(normalizedNumber);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
 
-  const suffix = text.slice(match.index + rawNumber.length);
   if (/^\s*k\b/.test(suffix) || suffix.includes('nghìn') || suffix.includes('ngàn')) return parsed * 1000;
   if (suffix.includes('triệu') || suffix.includes('trieu')) return parsed * 1000000;
   return parsed;
@@ -181,11 +188,16 @@ const isCategoryActive = (value) => {
   return true;
 };
 const toDisplayPrice = (item) => {
-  if (item?.showPrice !== true) return 'Liên hệ';
+  if (item?.showPrice !== true) return 'Giá: Liên hệ';
   const display = String(item?.displayPrice || '').trim();
-  if (display) return display;
-  const numeric = Number(item?.price);
-  return Number.isFinite(numeric) ? `${numeric.toLocaleString('vi-VN')} đ` : 'Liên hệ';
+  if (display) {
+    if (/liên hệ|lien he/i.test(display)) return 'Giá: Liên hệ';
+    const formatted = parsePriceNumber(display);
+    if (formatted != null) return `Giá: ${formatted.toLocaleString('vi-VN')} VND`;
+    return `Giá: ${/vnd/i.test(display) ? display : `${display} VND`}`;
+  }
+  const numeric = parsePriceNumber(item?.price);
+  return numeric != null ? `Giá: ${numeric.toLocaleString('vi-VN')} VND` : 'Giá: Liên hệ';
 };
 const extractList = (res) => {
   const payload = extractPayload(res);

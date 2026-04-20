@@ -18,6 +18,16 @@ const toNullablePositiveNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
 };
+const toBoolean = (value, fallback = false) => {
+  if (value === true || value === false) return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const text = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'active'].includes(text)) return true;
+    if (['false', '0', 'no', 'inactive'].includes(text)) return false;
+  }
+  return fallback;
+};
 const SERVICE_LINK_CACHE_KEY = 'gms_service_link_cache_v3';
 
 const getServiceServiceId = (item) => {
@@ -296,7 +306,7 @@ export default function PartManagement() {
   };
 
   const formatPrice = (item) => {
-    const show = item?.showPrice;
+    const show = toBoolean(item?.showPrice, false);
     const price = item?.price;
     return show ? `${formatCurrencyVnd(price)} ₫` : 'Liên hệ';
   };
