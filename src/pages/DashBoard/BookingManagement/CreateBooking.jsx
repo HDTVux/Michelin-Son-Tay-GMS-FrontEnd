@@ -4,64 +4,24 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import bookingStyles from '../../Booking/Booking.module.css';
 import scheduleStyles from '../BookingRequestManagement/BookingRequestEdit.module.css';
 import styles from './CreateBooking.module.css';
-import StepService from '../../Booking/steps/StepService.jsx';
 import infoStyles from '../../Booking/steps/StepInfo.module.css';
-import { fetchHomeProducts } from '../../../services/homeService.js';
 import { fetchAllSlots, fetchAvailableSlotStaff } from '../../../services/bookingService.js';
 import { buildDateOptions, formatLocalDateYYYYMMDD, formatTimeHHmm, isPastSlot } from '../../../components/timeUtils.js';
 import { normalizePeriodLabel, timeKey, useCreateBookingHandlers } from './useCreateBookingHandlers.js';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import AdvisorItemsTable from '../ServiceTicketManagement/AdvisorItemsTable.jsx';
 
 const DURATION_MINUTES = 60;
 const DATE_RANGE_DAYS = 10;
 const NOTE_MAX_LENGTH = 255;
 
 const normalizeReminderStatus = (value) => String(value ?? '').trim().toUpperCase();
-
-const toItemType = (value) => {
-	const text = String(value || '').trim().toUpperCase();
-	if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
-	return 'SERVICE';
-};
-
-const extractHomeProductsList = (res) => {
-	const payload = res?.data?.data ?? res?.data ?? res;
-	if (Array.isArray(payload)) return payload;
-	if (Array.isArray(payload?.content)) return payload.content;
-	return [];
-};
-
-const toPriceNumber = (value) => {
-	if (value === undefined || value === null || value === '') return null;
-	if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-	const parsed = Number(String(value).replace(/[^\d.-]/g, ''));
-	return Number.isFinite(parsed) ? parsed : null;
-};
-
-const getCatalogPrice = (item) => {
-	const candidates = [
-		item?.price,
-		item?.sellingPrice,
-		item?.salePrice,
-		item?.currentPrice,
-		item?.basePrice,
-		item?.unitPrice,
-		item?.listPrice,
-		item?.displayPrice,
-		item?.catalogPrice,
-		item?.data?.price,
-		item?.data?.sellingPrice,
-	];
-	for (const value of candidates) {
-		const price = toPriceNumber(value);
-		if (price != null) return price;
-	}
-	return null;
-};
+const CREATE_BOOKING_ESTIMATE_STORAGE_KEY = 'create-booking:draft-estimate';
 
 
 export default function CreateBooking() {
 	useScrollToTop();
+	const noop = () => {};
 	const navigate = useNavigate();
 	const location = useLocation();
 	const sourceReminder = location.state?.maintenanceReminder || null;
@@ -75,6 +35,8 @@ export default function CreateBooking() {
 	const [customerChecked, setCustomerChecked] = useState(null); // null | { exists, fullName, ... }
 	const [customerCheckError, setCustomerCheckError] = useState('');
 	const [info, setInfo] = useState({ name: '', phone: '', note: '' });
+	const [selectedEstimate, setSelectedEstimate] = useState(null);
+	const [, setIsEstimateEditing] = useState(false);
 	const noteLength = useMemo(() => String(info.note || '').length, [info.note]);
 	const noteRemaining = useMemo(() => Math.max(0, NOTE_MAX_LENGTH - noteLength), [noteLength]);
 
@@ -106,17 +68,15 @@ export default function CreateBooking() {
 		}
 	};
 
-	const [services, setServices] = useState([]);
-	const [servicesLoading, setServicesLoading] = useState(false);
-	const [servicesError, setServicesError] = useState('');
-
-	const [selectedIds, setSelectedIds] = useState([]);
-	const [search, setSearch] = useState('');
-	const [filter, setFilter] = useState('all');
-	const [activeTab, setActiveTab] = useState('SERVICE');
-	const [minPrice, setMinPrice] = useState('');
-	const [maxPrice, setMaxPrice] = useState('');
-	const [priceSort, setPriceSort] = useState('');
+	const estimateId = useMemo(() => {
+		const raw = selectedEstimate?.estimateId ?? selectedEstimate?.id ?? null;
+		const num = typeof raw === 'number' ? raw : Number(raw);
+		return Number.isFinite(num) && num > 0 ? num : null;
+	}, [selectedEstimate]);
+	const selectedEstimateItems = useMemo(() => {
+		const items = Array.isArray(selectedEstimate?.items) ? selectedEstimate.items : [];
+		return items.filter((item) => !item?.isRemoved);
+	}, [selectedEstimate]);
 
 	const [schedule, setSchedule] = useState({ date: '', time: '' });
 	const [scheduleMode, setScheduleMode] = useState('manual'); // 'manual' | 'now'
@@ -135,15 +95,20 @@ export default function CreateBooking() {
 	const [submitSuccess, setSubmitSuccess] = useState('');
 	const [createdBookingForCheckIn, setCreatedBookingForCheckIn] = useState(null);
 	const [submitLocked, setSubmitLocked] = useState(false);
-	const selectedItems = useMemo(
-		() => services.filter((item) => selectedIds.includes(item.id)),
-		[services, selectedIds],
-	);
 
 	useEffect(() => {
 		if (!sourceReminderBlocksBooking) return;
 		setSubmitError('Chỉ có thể tạo lịch từ lời nhắc đã xác nhận.');
 	}, [sourceReminderBlocksBooking]);
+
+	useEffect(() => {
+		if (!submitSuccess) return;
+		try {
+			localStorage.removeItem(CREATE_BOOKING_ESTIMATE_STORAGE_KEY);
+		} catch {
+			// ignore storage failures
+		}
+	}, [submitSuccess]);
 
 	useEffect(() => {
 		if (didApplyReminderRef.current || !sourceReminderId) return;
@@ -167,102 +132,6 @@ export default function CreateBooking() {
 		}
 	}, [sourceReminder, sourceReminderId]);
 
-	useEffect(() => {
-		let active = true;
-		Promise.resolve().then(() => {
-			if (!active) return;
-			setServicesLoading(true);
-			setServicesError('');
-		});
-
-		Promise.allSettled([
-			fetchHomeProducts({ page: 0, size: 500, itemType: 'SERVICE' }),
-			fetchHomeProducts({ page: 0, size: 500, itemType: 'PART' }),
-			fetchHomeProducts({ page: 0, size: 500, itemType: 'PRODUCT' }),
-		])
-			.then((results) => {
-				if (!active) return;
-
-				const [serviceRes, partRes, productRes] = results;
-				const mergedRaw = [
-					...(serviceRes?.status === 'fulfilled'
-						? extractHomeProductsList(serviceRes.value).map((item) => ({ ...item, __sourceType: 'SERVICE' }))
-						: []),
-					...(partRes?.status === 'fulfilled'
-						? extractHomeProductsList(partRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
-						: []),
-					...(productRes?.status === 'fulfilled'
-						? extractHomeProductsList(productRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
-						: []),
-				];
-
-				const mapped = mergedRaw
-					.map((item) => {
-						const catalogItemId = Number(item?.catalogItemId ?? item?.catalog_item_id ?? item?.itemId);
-						if (!Number.isFinite(catalogItemId) || catalogItemId <= 0) return null;
-
-						const itemType = toItemType(item?.itemType ?? item?.type ?? item?.__sourceType);
-						const category = String(
-							item?.itemCategoryCode
-							?? item?.categoryCode
-							?? item?.itemCategoryName
-							?? item?.categoryName
-							?? 'all',
-						).trim() || 'all';
-						const categoryLabel = String(
-							item?.itemCategoryName
-							?? item?.categoryName
-							?? item?.itemCategoryCode
-							?? item?.categoryCode
-							?? 'Khac',
-						).trim() || 'Khac';
-
-						return {
-							id: String(catalogItemId),
-							serviceId: Number(item?.serviceId ?? item?.service_id),
-							itemType,
-							name: String(item?.title || item?.itemName || (itemType === 'PART' ? 'Phu tung' : 'Dich vu')).trim(),
-							desc: String(item?.shortDescription || item?.description || 'Hien chua co mo ta ngan.').trim(),
-							category,
-							categoryLabel,
-							price: getCatalogPrice(item),
-							thumbnail: item?.thumbnailUrl || item?.imageUrl || item?.mediaThumbnail || '',
-						};
-					})
-					.filter(Boolean);
-
-				const deduped = new Map();
-				mapped.forEach((item) => {
-					if (!deduped.has(item.id)) deduped.set(item.id, item);
-				});
-				setServices(Array.from(deduped.values()));
-
-				const serviceFailed = serviceRes?.status === 'rejected';
-				const partFailed = partRes?.status === 'rejected';
-				const productFailed = productRes?.status === 'rejected';
-				if (serviceFailed && partFailed && productFailed) {
-					setServicesError(
-						serviceRes?.reason?.message
-						|| partRes?.reason?.message
-						|| productRes?.reason?.message
-						|| 'Khong the tai danh sach dich vu/phu tung.',
-					);
-				}
-			})
-			.catch((err) => {
-				if (!active) return;
-				setServicesError(err?.message || 'Khong the tai danh sach dich vu/phu tung.');
-				setServices([]);
-			})
-			.finally(() => {
-				if (active) setServicesLoading(false);
-			});
-
-		return () => {
-			active = false;
-		};
-	}, []);
-
 	const canSubmit = useMemo(() => {
 		return (
 			info.name.trim() &&
@@ -276,11 +145,12 @@ export default function CreateBooking() {
 		);
 	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked, sourceReminderBlocksBooking]);
 
-	    const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
+	    const { handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
         useCreateBookingHandlers({
             baseSlots,
-			selectedItems,
-            selectedIds,
+			selectedItems: selectedEstimateItems,
+            selectedIds: [],
+			estimateId,
             schedule,
             scheduleMode,
             info,
@@ -293,9 +163,7 @@ export default function CreateBooking() {
             navigate,
 
 
-            setSelectedIds,
-            setSearch,
-            setFilter,
+            setSelectedIds: noop,
             setSchedule,
             setScheduleMode,
             setShowSchedulePicker,
@@ -315,26 +183,15 @@ export default function CreateBooking() {
         setCheckingCustomer(false);
         setCustomerChecked(null);
         setCustomerCheckError('');
+		setSelectedEstimate(null);
+		setIsEstimateEditing(false);
+		try {
+			localStorage.removeItem(CREATE_BOOKING_ESTIMATE_STORAGE_KEY);
+		} catch {
+			// ignore storage failures
+		}
         resetForm();
     };
-
-
-
-	const handleChangeTab = (nextTab) => {
-		setActiveTab(toItemType(nextTab));
-		setFilter('all');
-		setSearch('');
-		setMinPrice('');
-		setMaxPrice('');
-		setPriceSort('');
-	};
-
-	const handleResetWithPriceFilter = () => {
-		setMinPrice('');
-		setMaxPrice('');
-		setPriceSort('');
-		handleReset();
-	};
 
 	const dateOptions = useMemo(() => buildDateOptions(DATE_RANGE_DAYS), []);
 	const allowedDateSet = useMemo(() => new Set(dateOptions.map((o) => o.value)), [dateOptions]);
@@ -479,27 +336,18 @@ export default function CreateBooking() {
 					Chỉ có thể tạo lịch khi lời nhắc đã xác nhận.
 				</div>
 			)}
-			<StepService
-				services={services}
-				selectedIds={selectedIds}
-				onToggle={toggle}
-				search={search}
-				onSearch={setSearch}
-				filter={filter}
-				onFilter={setFilter}
-				loading={servicesLoading}
-				error={servicesError}
-				activeTab={activeTab}
-				onChangeTab={handleChangeTab}
-				layoutMode="grid-scroll"
-				showPriceFilter
-				minPrice={minPrice}
-				maxPrice={maxPrice}
-				priceSort={priceSort}
-				onMinPriceChange={setMinPrice}
-				onMaxPriceChange={setMaxPrice}
-				onPriceSortChange={setPriceSort}
-				showActions={false}
+			<AdvisorItemsTable
+				serviceTicketId={null}
+				ticketStatus=""
+				ticketPhotos={[]}
+				estimatedTimeDisplay=""
+				title="Bảng báo giá dự kiến"
+				draftStorageKey={CREATE_BOOKING_ESTIMATE_STORAGE_KEY}
+				autoStartCreate
+				hideVehiclePhotos
+				hideRecommendation
+				onEstimateStatusChange={setSelectedEstimate}
+				onEstimateEditingChange={setIsEstimateEditing}
 			/>
 
 			<div style={{ height: 16 }} />
@@ -727,7 +575,7 @@ export default function CreateBooking() {
 				<button
 					type="button"
 					className={bookingStyles.btn}
-					onClick={handleResetWithPriceFilter}
+					onClick={handleReset}
 					disabled={submitting}
 				>
 					Làm mới

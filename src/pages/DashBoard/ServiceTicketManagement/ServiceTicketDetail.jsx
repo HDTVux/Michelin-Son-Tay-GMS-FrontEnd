@@ -797,8 +797,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const hasReceptionistRole = staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
     const isAdvisorOnlyViewRole = hasAdvisorRole;
     const hasReceptionistEditAccess = hasReceptionistRole;
-    const canViewInspectionAndEstimate = hasAdvisorRole || hasReceptionistRole;
-    const isReceptionistInspectionReadOnly = hasReceptionistRole && !hasAdvisorRole;
+    const canViewInspectionAndEstimate = true;
 
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -979,9 +978,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const hasBill = Boolean(billId);
     const isActionLocked = ticketStatus === 'PAID' || hasBill;
     const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable) || isActionLocked;
-    const isInspectionAndEstimateReadOnly = isActionLocked || isReceptionistInspectionReadOnly;
-    const inspectionAndEstimateReadOnlyMessage = isReceptionistInspectionReadOnly
-        ? 'Lễ tân chỉ được xem từ phần Phiếu kiểm tra an toàn trở xuống, không được chỉnh sửa.'
+    const isInspectionAndEstimateReadOnly = isActionLocked || !hasAdvisorRole;
+    const inspectionAndEstimateReadOnlyMessage = !hasAdvisorRole
+        ? 'Chỉ tư vấn viên mới được chỉnh sửa phần phiếu kiểm tra và báo giá. '
         : ticketStatus === 'PAID'
             ? 'Phiếu dịch vụ đã được thanh toán, không thể chỉnh sửa.'
             : 'Phiếu dịch vụ đã có hóa đơn chờ thanh toán, không thể chỉnh sửa.';
@@ -2185,7 +2184,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         onInspectionCompleted={handleInspectionCompleted}
                                         readOnly={isInspectionAndEstimateReadOnly}
                                         readOnlyMessage={inspectionAndEstimateReadOnlyMessage}
-                                        hideReadOnlyNotice={isReceptionistInspectionReadOnly}
+                                        hideReadOnlyNotice={false}
                                     />
 
                                     {shouldHideEstimateUntilInspectionDone ? (
@@ -2212,7 +2211,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             onEstimateEditingChange={setIsEstimateEditing}
                                             readOnly={isInspectionAndEstimateReadOnly}
                                             readOnlyMessage={inspectionAndEstimateReadOnlyMessage}
-                                            hideReadOnlyNotice={isReceptionistInspectionReadOnly}
+                                            hideReadOnlyNotice={false}
                                         />
                                     )}
                                     {ticket.hasDraftStockIssue ? (
@@ -2227,7 +2226,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
-                                        {advisorReadOnlyWithoutTechnician || isReceptionistInspectionReadOnly ? null : isCreatingNewEstimateVersion && canConfirmEstimate ? (
+                                        {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly ? null : isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                             <button
                                                 type="button"
                                                 className="ui-btn ui-btn--primary"
@@ -2238,7 +2237,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             </button>
                                         ) : null}
 
-                                        {advisorReadOnlyWithoutTechnician || isReceptionistInspectionReadOnly || isCreatingNewEstimateVersion ? null : (
+                                        {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly || isCreatingNewEstimateVersion ? null : (
                                             <>
                                                 {canCancel && (
                                                     <button

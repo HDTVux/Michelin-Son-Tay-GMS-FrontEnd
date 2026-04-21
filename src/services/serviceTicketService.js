@@ -653,8 +653,14 @@ export const createServiceTicketEstimate = (payload, token) => {
   }
 
   const serviceTicketId = payload?.serviceTicketId;
-  const idNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
-  if (!Number.isFinite(idNum) || idNum <= 0) {
+  const hasServiceTicketId =
+    serviceTicketId !== undefined &&
+    serviceTicketId !== null &&
+    String(serviceTicketId).trim() !== '';
+  const idNum = hasServiceTicketId
+    ? (typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId))
+    : null;
+  if (hasServiceTicketId && (!Number.isFinite(idNum) || idNum <= 0)) {
     const error = new Error('Thiếu serviceTicketId hợp lệ.');
     error.status = 400;
     return Promise.reject(error);
@@ -672,7 +678,7 @@ export const createServiceTicketEstimate = (payload, token) => {
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({
       ...payload,
-      serviceTicketId: idNum,
+      serviceTicketId: hasServiceTicketId ? idNum : null,
     }),
   });
 };
@@ -695,8 +701,14 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
   }
 
   const serviceTicketId = payload?.serviceTicketId;
-  const ticketNum = typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId);
-  if (!Number.isFinite(ticketNum) || ticketNum <= 0) {
+  const hasServiceTicketId =
+    serviceTicketId !== undefined &&
+    serviceTicketId !== null &&
+    String(serviceTicketId).trim() !== '';
+  const ticketNum = hasServiceTicketId
+    ? (typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId))
+    : null;
+  if (hasServiceTicketId && (!Number.isFinite(ticketNum) || ticketNum <= 0)) {
     const error = new Error('Thiếu serviceTicketId hợp lệ.');
     error.status = 400;
     return Promise.reject(error);
@@ -714,7 +726,7 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({
       ...payload,
-      serviceTicketId: ticketNum,
+      serviceTicketId: hasServiceTicketId ? ticketNum : null,
     }),
   });
 };
