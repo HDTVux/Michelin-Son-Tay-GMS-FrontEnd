@@ -1048,7 +1048,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                     value="contact"
                     checked={priceMode === 'contact'}
                     onChange={() => setPriceMode('contact')}
-                    disabled={isSubmitting || isCatalogLinked}
+                    disabled={isSubmitting}
                   />
                   Liên hệ
                 </label>
@@ -1059,7 +1059,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                     value="fixed"
                     checked={priceMode === 'fixed'}
                     onChange={() => setPriceMode('fixed')}
-                    disabled={isSubmitting || isCatalogLinked}
+                    disabled={isSubmitting}
                   />
                   Nhập giá
                 </label>
@@ -1076,7 +1076,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="VD: 450000"
-                    disabled={isSubmitting || isCatalogLinked}
+                    disabled={isSubmitting}
                   />
                   {errors.price && <span className={styles['field-error']}>{errors.price}</span>}
                 </>

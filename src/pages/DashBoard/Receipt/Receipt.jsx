@@ -4,6 +4,8 @@ import logo from '../../../assets/logo1.png';
 import CarIcon from '../../../assets/car.jpg';
 
 const MIN_SERVICE_LINE_COUNT = 15;
+const FIRST_PAGE_SERVICE_LINE_COUNT = 15;
+const CONTINUATION_PAGE_SERVICE_LINE_COUNT = 30;
 
 function safeText(value) {
 	if (value == null) return '';
@@ -89,6 +91,12 @@ export default function Receipt({ ticket, carDiagramSrc }) {
 	const handoverAt = safeText(ticket?.handoverAtDisplay || ticket?.handoverAt || '');
 	const model = safeText(vehicle?.model || '');
 	const licensePlate = safeText(vehicle?.licensePlate || '');
+    const ticketCode = firstPrintValue(
+        ticket?.ticketCode,
+        ticket?.serviceTicketCode,
+        ticket?.code,
+        ticket?.serviceTicket?.ticketCode,
+    );
     const odometer = vehicle?.odometerKm == null ? '' : `${Number(vehicle.odometerKm).toLocaleString('vi-VN')}`;
 
     const invoiceItemsRaw = Array.isArray(invoice?.items) ? invoice.items : [];
@@ -114,6 +122,20 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     const serviceLineKeys = Array.from({ length: Math.max(MIN_SERVICE_LINE_COUNT, invoiceItems.length) }).map(
         (_, i) => `service-line-${String(i + 1).padStart(2, '0')}`,
     );
+    const hasOverflowServicePage = serviceLineKeys.length > FIRST_PAGE_SERVICE_LINE_COUNT;
+    const firstPageServiceLineKeys = hasOverflowServicePage
+        ? serviceLineKeys.slice(0, FIRST_PAGE_SERVICE_LINE_COUNT)
+        : serviceLineKeys;
+    const overflowServiceLineKeys = hasOverflowServicePage
+        ? serviceLineKeys.slice(FIRST_PAGE_SERVICE_LINE_COUNT)
+        : [];
+    const overflowServiceLinePages = [];
+    for (let startIndex = FIRST_PAGE_SERVICE_LINE_COUNT; startIndex < serviceLineKeys.length; startIndex += CONTINUATION_PAGE_SERVICE_LINE_COUNT) {
+        overflowServiceLinePages.push({
+            startIndex,
+            rowKeys: serviceLineKeys.slice(startIndex, startIndex + CONTINUATION_PAGE_SERVICE_LINE_COUNT),
+        });
+    }
 
     // Safety inspection data
     // Kiểm tra an toàn: dựa vào có dữ liệu safety inspection hay không
@@ -209,14 +231,101 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     if (Array.isArray(defaultCategories)) defaultCategories.forEach(addDisplayItem);
     if (Array.isArray(safetyInspection?.items)) safetyInspection.items.forEach(addDisplayItem);
 
+    const renderServiceTable = (rowKeys, startIndex = 0, showTotal = true) => (
+        <div className={styles.serviceTableWrap}>
+            <table className={styles.serviceTable}>
+                <thead>
+                    <tr>
+                        <th className={styles.thStt}>STT</th>
+                        <th className={styles.thItem}>HẠNG MỤC</th>
+                        <th className={styles.thDesc}>DIỄN GIẢI</th>
+                        <th className={styles.thQty}>SL</th>
+                        <th className={styles.thPrice}>ĐƠN GIÁ</th>
+                        <th className={styles.thAmount}>THÀNH TIỀN</th>
+                        <th className={styles.thKho}>KHO</th>
+                        <th className={styles.thConfirm}>XÁC NHẬN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rowKeys.map((rowKey, rowIndex) => {
+                        const idx = startIndex + rowIndex;
+                        const it = invoiceItems[idx] ?? null;
+                        const label = it?.categoryName || '';
+                        const desc = it?.itemName || '';
+                        const qty = it?.quantity ? String(it.quantity) : '';
+                        const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
+                        const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
+                        const confirmMark = it?.confirmed ? '✓' : '';
+                        return (
+                            <tr key={rowKey}>
+                                <td className={styles.tdCenter}>{String(idx + 1).padStart(2, '0')}</td>
+                                <td>{label}</td>
+                                <td>{desc}</td>
+                                <td className={styles.tdCenter}>{qty}</td>
+                                <td className={styles.tdRight}>{price}</td>
+                                <td className={styles.tdRight}>{amount}</td>
+                                <td className={styles.tdCenter} />
+                                <td className={styles.tdCenter}>{confirmMark}</td>
+                            </tr>
+                        );
+                    })}
+                    {showTotal ? (
+                        <tr>
+                            <td colSpan={5} className={styles.totalLabel}>TỔNG CỘNG</td>
+                            <td className={`${styles.tdRight} ${styles.tdTotalValue}`}>{formatCurrencyVnd(total)}</td>
+                            <td colSpan={2} />
+                        </tr>
+                    ) : null}
+                </tbody>
+            </table>
+        </div>
+    );
+
+    const renderFooter = () => (
+        <div className={styles.footer}>
+            <div className={`${styles.recommendation} ${styles.recommendationLine}`}>
+                <div className={styles.footerTitle}>Khuyến nghị:</div>
+                <div className={styles.legalText}>
+                    {safeText(ticket?.recommendation || '')}
+                </div>
+            </div>
+
+            <div className={`${styles.recommendation} ${styles.privacyNotice}`}>
+                <div className={styles.legalText}>
+                    <span className={styles.checkBoxSmall} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                    {' '}
+                    Tôi đồng ý rằng bất kỳ dữ liệu cá nhân nào được cung cấp theo mẫu này có thể được thu thập và xử lý bởi Michelin Việt Nam (Công Ty) và bất kỳ công ty nào thuộc tập đoàn Michelin (có thể nằm ngoài Việt Nam), nhằm mục đích cải thiện chất lượng dịch vụ và tiếp thị. Tôi đồng ý thêm rằng Công Ty có thể liên hệ với tôi (i) để nhận phản hồi về chất lượng dịch vụ cũng như (ii) cung cấp cho tôi về các sản phẩm, dịch vụ và khuyến mại của Michelin. Tôi cũng đồng ý rằng Công Ty chỉ chuyển dữ liệu cá nhân cho các nhà cung cấp dịch vụ và / hoặc chi nhánh của Michelin tại Việt Nam hoặc bên ngoài Việt Nam.
+                    Công Ty sẽ xử lý dữ liệu cá nhân của bạn theo Chính sách bảo mật của Michelin (https://www.michelin.vn/privacy-policy). Vui lòng liên hệ với công ty theo số hotline + 84 28 3942 1111 nếu bạn muốn giới hạn việc chúng tôi xử lý, truy cập hoặc chỉnh sửa dữ liệu của bạn"
+                </div>
+            </div>
+
+            <div className={styles.signRow}>
+                <div className={styles.signCol}>
+                    <div className={styles.signTitle}>Đại lý</div>
+                    <div className={styles.signHint}>(Ký tên)</div>
+                    <div className={styles.signLine} />
+                </div>
+                <div className={styles.signCol}>
+                    <div className={styles.signTitle}>Khách hàng</div>
+                    <div className={styles.signHint}>(Ký tên)</div>
+                    <div className={styles.signLine} />
+                </div>
+            </div>
+        </div>
+    );
+
     return (
-    <section className={styles.sheet}>
+    <>
+    <section className={`${styles.sheet} ${hasOverflowServicePage ? styles.hasContinuation : ''}`}>
 
         {/* ===== HEADER ===== */}
         <header className={styles.topHeader}>
             <div className={styles.topHeaderLeft} />
             <div className={styles.topHeaderCenter}>
-                <div className={styles.sheetTitle}>PHIẾU KIỂM TRA XE</div>
+                <div className={styles.titleStack}>
+                    <div className={styles.sheetTitle}>PHIẾU KIỂM TRA XE</div>
+                    {ticketCode ? <div className={styles.ticketCodeLine}>MÃ PHIẾU: {ticketCode}</div> : null}
+                </div>
             </div>
             <div className={styles.topHeaderRight}>
                 <img className={styles.logo} src={logo} alt="Michelin" />
@@ -454,7 +563,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                     </tr>
                 </thead>
                 <tbody>
-                    {serviceLineKeys.map((rowKey, idx) => {
+                    {firstPageServiceLineKeys.map((rowKey, idx) => {
                         const it = invoiceItems[idx] ?? null;
                         const label = it?.categoryName || '';
                         const desc = it?.itemName || '';
@@ -487,15 +596,14 @@ export default function Receipt({ ticket, carDiagramSrc }) {
 
         {/* ===== 4. FOOTER ===== */}
         <div className={styles.footer}>
-            <div className={styles.recommendation}>
+            <div className={`${styles.recommendation} ${styles.recommendationLine}`}>
                 <div className={styles.footerTitle}>Khuyến nghị:</div>
                 <div className={styles.legalText}>
                     {safeText(ticket?.recommendation || '')}
                 </div>
             </div>
 
-            <div className={styles.recommendation}>
-                <div className={styles.footerTitle}>Quyền riêng tư:</div>
+            <div className={`${styles.recommendation} ${styles.privacyNotice}`}>
                 <div className={styles.legalText}>
                     <span className={styles.checkBoxSmall} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                     {' '}
@@ -508,7 +616,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
             <div className={styles.signRow}>
                 <div className={styles.signCol}>
                     <div className={styles.signTitle}>Đại lý</div>
-                    <div className={styles.signHint}>(Ký tên &amp; đóng dấu)</div>
+                    <div className={styles.signHint}>(Ký tên)</div>
                     <div className={styles.signLine} />
                 </div>
                 <div className={styles.signCol}>
@@ -520,6 +628,17 @@ export default function Receipt({ ticket, carDiagramSrc }) {
         </div>
 
     </section>
+    {hasOverflowServicePage ? (
+        <section className={`${styles.sheet} ${styles.continuationSheet}`}>
+            <header className={styles.continuationHeader}>
+                <div className={styles.continuationTitle}>PHIẾU KIỂM TRA XE - TIẾP THEO</div>
+                {ticketCode ? <div className={styles.continuationCode}>MÃ PHIẾU: {ticketCode}</div> : null}
+            </header>
+            {renderServiceTable(overflowServiceLineKeys, FIRST_PAGE_SERVICE_LINE_COUNT, true)}
+            {renderFooter()}
+        </section>
+    ) : null}
+    </>
     );
 }
 
