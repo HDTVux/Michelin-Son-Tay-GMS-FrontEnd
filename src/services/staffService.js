@@ -1,5 +1,5 @@
 import { request } from './apiClient';
-
+import {API_BASE_URL} from './apiClient.js';
 // ============ STAFF ATTENDANCE APIs ============
 
 /**
@@ -53,7 +53,7 @@ export const uploadStaffAvatar = (file, token) => {
   const formData = new FormData();
   formData.append('avatar', file);
 
-  return fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/staff-profile/avatar`, {
+  return fetch(`${API_BASE_URL}/api/staff-profile/avatar`, {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${token}`,
