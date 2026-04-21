@@ -135,17 +135,6 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
         return ticketProp ?? location?.state?.ticket ?? null;
     }, [ticketProp, location?.state?.ticket]);
 
-    useEffect(() => {
-        if (!autoPrint) return;
-        if (!ticket) return;
-        const id = globalThis.setTimeout?.(() => {
-            globalThis.window?.print?.();
-        }, 0);
-        return () => {
-            if (id) globalThis.clearTimeout?.(id);
-        };
-    }, [autoPrint, ticket]);
-
     const invoice = ticket?.invoice || {};
     const invoiceItems = Array.isArray(invoice?.items) ? invoice.items : [];
     const rowCount = Math.max(DEFAULT_ROW_COUNT, invoiceItems.length);
@@ -168,11 +157,22 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
     const issuedAt = getInvoiceDate(ticket);
 
     const barcodeUrl = useMemo(() => {
-        const code = safeText(ticket?.ticketCode);
+        const code = safeText(ticket?.ticketCode || ticket?.serviceTicketCode || ticket?.code);
         if (!code) return '';
         const bcid = safeText(invoice?.barcodeType) || BARCODE_BCID;
         return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(bcid)}&text=${encodeURIComponent(code)}`;
-    }, [invoice?.barcodeType, ticket?.ticketCode]);
+    }, [invoice?.barcodeType, ticket?.code, ticket?.serviceTicketCode, ticket?.ticketCode]);
+
+    useEffect(() => {
+        if (!autoPrint) return;
+        if (!ticket) return;
+        const id = globalThis.setTimeout?.(() => {
+            globalThis.window?.print?.();
+        }, barcodeUrl ? 900 : 100);
+        return () => {
+            if (id) globalThis.clearTimeout?.(id);
+        };
+    }, [autoPrint, barcodeUrl, ticket]);
 
     if (!ticket) {
         const code = safeText(params?.ticketCode);
@@ -216,6 +216,11 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                             <span>Ngày lập</span>
                             <strong>{issuedAt.getDate()}/{issuedAt.getMonth() + 1}/{issuedAt.getFullYear()}</strong>
                         </div>
+                        {barcodeUrl ? (
+                            <div className={styles.barcodeWrap}>
+                                <img className={styles.barcodeImg} src={barcodeUrl} alt={`Barcode ${ticketCode}`} />
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 

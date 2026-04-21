@@ -45,14 +45,14 @@
 }
 
 .barcodeWrap {
-    position: absolute;
-    top: 0;
-    right: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 42mm;
-    height: 18mm;
+    width: 100%;
+    height: 13mm;
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px solid #111;
     pointer-events: none;
 }
 
@@ -60,7 +60,7 @@
     display: block;
     max-width: 100%;
     max-height: 100%;
-    width: 100%;
+    width: 36mm;
     height: auto;
     object-fit: contain;
 }

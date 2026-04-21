@@ -6,7 +6,7 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import {
   createWarehouseStockEntryWithAttachment,
   fetchWarehousesAll,
-  searchWarehouseCatalog,
+  searchWarehouseCatalogItems,
 } from '../../../services/warehouseService.js';
 import styles from './WarehouseStockEntry.module.css';
 
@@ -56,7 +56,7 @@ const extractCatalogItems = (response) => {
 const mapCatalogItem = (item) => ({
   itemId: Number(item?.itemId ?? item?.id ?? 0) || 0,
   itemName: String(item?.itemName ?? item?.name ?? '').trim(),
-  itemType: String(item?.itemType ?? '').trim(),
+  itemType: String(item?.itemType ?? item?.item_type ?? item?.type ?? item?.categoryType ?? '').trim(),
   sku: String(item?.sku ?? '').trim(),
   partNumber: String(item?.partNumber ?? '').trim(),
   barcode: String(item?.barcode ?? '').trim(),
@@ -64,6 +64,11 @@ const mapCatalogItem = (item) => ({
   brandId: item?.brandId ?? null,
   productLineId: item?.productLineId ?? null,
 });
+
+const isPartCatalogItem = (item) => {
+  const typeText = String(item?.itemType ?? item?.item_type ?? item?.type ?? item?.categoryType ?? '').trim().toLowerCase();
+  return typeText === 'part' || typeText === 'parts';
+};
 
 const buildDraftPayload = (warehouseId, supplierName, notes, selectedItems) => ({
   warehouseId: Number(warehouseId) || DEFAULT_WAREHOUSE_ID,
@@ -197,14 +202,25 @@ export default function WarehouseStockEntry() {
         setSearchLoading(true);
         setSearchError('');
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-        const res = await searchWarehouseCatalog(keywordValue, token);
-        const list = extractCatalogItems(res).map(mapCatalogItem).filter((item) => item.itemId);
+        const res = await searchWarehouseCatalogItems(
+          {
+            search: keywordValue,
+            itemType: 'PART',
+            isActive: true,
+            page: 0,
+            size: 30,
+          },
+          token,
+        );
+        const list = extractCatalogItems(res)
+          .map(mapCatalogItem)
+          .filter((item) => item.itemId && isPartCatalogItem(item));
         if (cancelled) return;
         setCatalogItems(list);
       } catch (err) {
         if (cancelled) return;
         setCatalogItems([]);
-        setSearchError(err?.message || 'Không thể tìm hạng mục.');
+        setSearchError(err?.message || 'Không thể tìm phụ tùng.');
       } finally {
         if (!cancelled) setSearchLoading(false);
       }
@@ -399,7 +415,7 @@ export default function WarehouseStockEntry() {
           <div className={styles.headerMain}>
             <div>
               <h1 className={styles.title}>Phiếu nhập kho</h1>
-              <p className={styles.subtitle}>Chọn hạng mục theo keyword, thêm vào bảng nhập và xác nhận bằng file đính kèm.</p>
+              <p className={styles.subtitle}>Chọn phụ tùng theo keyword, thêm vào bảng nhập và xác nhận bằng file đính kèm.</p>
             </div>
           </div>
           <div className={styles.heroMeta}>
@@ -491,7 +507,7 @@ export default function WarehouseStockEntry() {
             <div className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h2 className={styles.cardTitle}>Tìm hạng mục</h2>
+                  <h2 className={styles.cardTitle}>Tìm phụ tùng</h2>
                 </div>
                 <span className={styles.badge}>{searchLoading ? 'Đang tìm...' : `${catalogItems.length} kết quả`}</span>
               </div>
@@ -503,7 +519,7 @@ export default function WarehouseStockEntry() {
                   const nextKeyword = keyword.trim();
                   if (!nextKeyword) {
                     setCatalogItems([]);
-                    setSearchError('Vui lòng nhập keyword để tìm hạng mục.');
+                    setSearchError('Vui lòng nhập keyword để tìm phụ tùng.');
                     return;
                   }
                   setSubmittedKeyword(nextKeyword);
@@ -513,7 +529,7 @@ export default function WarehouseStockEntry() {
                   type="text"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="Nhập keyword để tìm mã, tên, SKU..."
+                  placeholder="Nhập keyword để tìm mã, tên, SKU phụ tùng..."
                 />
                 <button type="submit" className={styles.primaryButton} disabled={searchLoading}>
                   Tìm
@@ -551,7 +567,7 @@ export default function WarehouseStockEntry() {
                     {selectedItems.length === 0 ? (
                       <tr>
                         <td colSpan={6} className={styles.tableEmpty}>
-                          Chưa có hạng mục nào.
+                          Chưa có phụ tùng nào.
                         </td>
                       </tr>
                     ) : (
