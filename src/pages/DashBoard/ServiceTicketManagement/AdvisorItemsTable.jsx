@@ -685,6 +685,7 @@ export default function AdvisorItemsTable({
     onEstimateEditingChange,
     readOnly = false,
     readOnlyMessage = '',
+    hideReadOnlyNotice = false,
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
@@ -1155,11 +1156,11 @@ export default function AdvisorItemsTable({
             />
 
             <div className={styles.tableWrap}>
-                {isTicketPaid ? (
+                {!hideReadOnlyNotice && isTicketPaid ? (
                 <div className={styles.errorBanner} style={{ marginTop: 8 }}>
                     Phiếu dịch vụ đã được thanh toán — không thể tạo báo giá mới.
                 </div>
-            ) : isReadOnly ? (
+            ) : !hideReadOnlyNotice && isReadOnly ? (
                 <div className={styles.errorBanner} style={{ marginTop: 8 }}>
                     {readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.'}
                 </div>
@@ -1368,4 +1369,5 @@ AdvisorItemsTable.propTypes = {
     onCancelAppendOnly: PropTypes.func,
     readOnly: PropTypes.bool,
     readOnlyMessage: PropTypes.string,
+    hideReadOnlyNotice: PropTypes.bool,
 };

@@ -18,6 +18,42 @@
     -webkit-print-color-adjust: exact;
     box-sizing: border-box;
 }
+.sheet {
+    break-after: page;
+    page-break-after: always;
+}
+.sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+}
+.hasContinuation .serviceTable tbody tr:last-child,
+.hasContinuation .footer {
+    display: none;
+}
+.continuationSheet {
+    display: flex;
+    flex-direction: column;
+}
+.continuationHeader {
+    border-bottom: 2px solid var(--bar);
+    margin-bottom: 5mm;
+    padding-bottom: 3mm;
+    text-align: center;
+}
+.continuationTitle {
+    color: var(--bar);
+    font-size: 18px;
+    font-weight: 900;
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+.continuationCode {
+    margin-top: 1mm;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
 
 @page {
     size: A4;
@@ -75,6 +111,12 @@
 }
 .topHeaderLeft { height: 1px; }
 .topHeaderCenter { display: flex; justify-content: center; }
+.titleStack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1mm;
+}
 .sheetTitle {
     color: var(--bar);
     font-style: italic;
@@ -82,6 +124,14 @@
     font-size: 22px;
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+.ticketCodeLine {
+    color: #111;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    white-space: nowrap;
 }
 .topHeaderRight {
     display: flex;
@@ -259,6 +309,7 @@
     margin-top: 1.2mm;
     border-top: none;
     align-items: stretch;
+    position: relative;
 }
 .tireClusterRow:first-of-type {
     border-top: none;
@@ -374,15 +425,7 @@
     height: 13.6mm;
     box-sizing: border-box;
     border: 1px dashed var(--soft);
-    border-left: none;
-    background:
-        linear-gradient(
-            to bottom,
-            transparent calc(50% - 0.5px),
-            var(--soft) calc(50% - 0.5px),
-            var(--soft) calc(50% + 0.5px),
-            transparent calc(50% + 0.5px)
-        );
+    background: #fff;
     pointer-events: none;
 }
 .pressureClusterUnit {
@@ -390,7 +433,7 @@
 }
 .pressureClusterRow {
     display: grid;
-    grid-template-columns: 10.5mm 1fr;
+    grid-template-columns: 1fr 10.5mm;
     min-height: 6.2mm;
     margin-top: 1.2mm;
     border-top: none;
@@ -400,6 +443,8 @@
     border-top: none;
 }
 .pressureUnit {
+    grid-column: 2;
+    grid-row: 1;
     font-size: 7.5px;
     font-weight: 900;
     padding: 1mm 1mm;
@@ -412,6 +457,8 @@
     white-space: nowrap;
 }
 .pressureValue {
+    grid-column: 1;
+    grid-row: 1;
     background: #fff;
     min-height: 6.2mm;
     padding: 0 1.5mm;
@@ -420,57 +467,145 @@
     font-size: 10px;
     font-weight: 700;
     border: 1px solid #bfc7d3;
-    border-left: none;
+    border-right: none;
 }
 
 /* Chữ xoay 90° nằm sát mép phải bên ngoài */
 .recommendedPressureValue {
     position: absolute;
     left: 100%;
-    top: 7.4mm;
+    top: 1.2mm;
     width: 14mm;
-    height: 7.4mm;
+    height: 13.6mm;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 1mm;
-    font-size: 9px;
+    padding: 0 0.8mm;
+    font-size: 8px;
+    line-height: 1.15;
     font-weight: 700;
     color: #111;
     z-index: 3;
-    white-space: nowrap;
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
     overflow: hidden;
     text-overflow: ellipsis;
     pointer-events: none;
 }
+.recommendedPressureValue::before {
+    content: "Áp suất khuyến cáo";
+    display: block;
+    width: 100%;
+    font-size: 5.5px;
+    line-height: 1.05;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #333;
+}
 
 .pressureVerticalLabel {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    position: relative;
-    z-index: 1;
-    width: 14mm;
-    height: 100%;
-    box-sizing: border-box;
-    font-weight: 900;
+    display: none;
+}
+
+/* Compact print mode for long service lists, especially 18-20 rows. */
+.denseServiceList {
+    padding-top: 6mm;
+    padding-bottom: 6mm;
+}
+.denseServiceList .topHeader {
+    margin-bottom: 2mm;
+    padding-bottom: 2mm;
+}
+.denseServiceList .infoSection {
+    margin-bottom: 3px;
+}
+.denseServiceList .infoColumn {
+    gap: 1px;
+    padding: 2mm 3mm;
+}
+.denseServiceList .infoLabel,
+.denseServiceList .inlineChecks {
+    font-size: 10px;
+}
+.denseServiceList .infoDotted {
+    min-height: 3.8mm;
+    font-size: 10px;
+}
+.denseServiceList .middleSplit {
+    margin-top: 2mm;
+    margin-bottom: 2mm;
+}
+.denseServiceList .serviceTableWrap {
+    margin-bottom: 2px;
+}
+.denseServiceList .serviceTable {
+    font-size: 8.4px;
+}
+.denseServiceList .serviceTable thead th {
+    padding: 1.1mm 0.9mm;
     font-size: 8px;
-    color: #333;
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-end;
-    padding: 0 0 7mm 0.6mm;
+}
+.denseServiceList .serviceTable td {
+    height: 4.25mm;
+    padding: 0.45mm 0.9mm;
+    font-size: 8.4px;
+    line-height: 1.05;
     white-space: nowrap;
-    letter-spacing: 0.5px;
-    background:
-        linear-gradient(to bottom, transparent calc(16.666% - 0.5px), var(--soft) calc(16.666% - 0.5px), var(--soft) calc(16.666% + 0.5px), transparent calc(16.666% + 0.5px)),
-        linear-gradient(to bottom, transparent calc(33.333% - 0.5px), var(--soft) calc(33.333% - 0.5px), var(--soft) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px)),
-        linear-gradient(to bottom, transparent calc(50% - 0.5px), var(--soft) calc(50% - 0.5px), var(--soft) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
-        linear-gradient(to bottom, transparent calc(66.666% - 0.5px), var(--soft) calc(66.666% - 0.5px), var(--soft) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)),
-        linear-gradient(to bottom, transparent calc(83.333% - 0.5px), var(--soft) calc(83.333% - 0.5px), var(--soft) calc(83.333% + 0.5px), transparent calc(83.333% + 0.5px)),
-        #fff;
-    border: 1px dashed var(--soft);
-    border-left: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.denseServiceList .totalLabel {
+    font-size: 8.8px;
+}
+.denseServiceList .tdTotalValue {
+    font-size: 9px;
+}
+.denseServiceList .footer {
+    margin-top: 1mm;
+    padding-top: 1mm;
+}
+.denseServiceList .recommendationLine {
+    min-height: 4.5mm;
+    padding-bottom: 0.5mm;
+}
+.denseServiceList .legalText {
+    font-size: 7px;
+    line-height: 1.18;
+}
+.denseServiceList .recommendationLine .legalText {
+    font-size: 8.4px;
+    line-height: 1.15;
+}
+.denseServiceList .signRow {
+    margin-top: 1.5mm;
+}
+.denseServiceList .signLine {
+    margin-top: 7mm;
+}
+
+.recommendedPressureValue::before {
+    content: "\0000C1p su\001EA5t\A khuy\001EBFn c\0000E1o";
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    padding: 0.3mm;
+    font-size: 4.2px;
+    line-height: 1.05;
+    font-weight: 800;
+    white-space: pre-line;
+    overflow: hidden;
+}
+
+/* Keep the label readable inside the narrow handwritten pressure box. */
+.recommendedPressureValue::before {
+    content: "Áp suất\A khuyến cáo";
+    white-space: pre-line;
+    padding: 0.4mm 0.3mm;
+    font-size: 4.6px;
+    line-height: 1.08;
+    font-weight: 800;
     overflow: hidden;
 }
 .pressureVerticalLabel::before,
@@ -660,35 +795,50 @@
    4. FOOTER
 ========================================= */
 .footer {
-    margin-top: 3mm;
-    padding-top: 3mm;
+    margin-top: 2mm;
+    padding-top: 2mm;
     border-top: 1.5px solid var(--line);
 }
 .recommendation {
-    margin-bottom: 6mm;
-    background: #fffbf0;
-    border: 1px solid #e0cc60;
-    border-left: 4px solid #d48800;
-    padding: 3mm 4mm;
+    margin-bottom: 0;
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
+.recommendationLine {
+    display: flex;
+    align-items: baseline;
+    gap: 2mm;
+    min-height: 6mm;
+    padding: 0 0 1mm;
+}
+.recommendationLine .legalText {
+    font-size: 9px;
+    line-height: 1.25;
+}
+.privacyNotice {
+    margin-top: 0;
+    padding-top: 0;
 }
 .footerTitle {
     font-weight: 900;
     font-size: 11px;
-    margin-bottom: 3px;
+    margin-bottom: 0;
     font-style: italic;
     color: var(--bar);
+    white-space: nowrap;
 }
 .legalText {
-    font-size: 7px;
+    font-size: 7.8px;
     color: #444;
     text-align: justify;
-    line-height: 1.35;
+    line-height: 1.32;
 }
 .signRow {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12mm;
-    margin-top: 4mm;
+    margin-top: 2.5mm;
 }
 .signCol {
     text-align: center;
@@ -708,5 +858,79 @@
     width: 55mm;
     height: 1px;
     background: #111;
-    margin: 14mm auto 2mm;
+    margin: 11mm auto 1mm;
+}
+
+/* Right tire pressure layout aligned with the printed Michelin form. */
+.recommendedPressureValue::before {
+    content: none;
+    display: none;
+}
+.pressureVerticalLabel {
+    position: absolute;
+    left: 20mm;
+    top: 1.2mm;
+    z-index: 4;
+    width: 14mm;
+    height: 31mm;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 0;
+    line-height: 1;
+    font-weight: 900;
+    color: #333;
+    letter-spacing: 0.2px;
+    pointer-events: none;
+}
+.pressureVerticalLabel::before {
+    content: "Áp suất khuyến cáo";
+    display: block;
+    position: static;
+    border: 0;
+    font-size: 9px;
+}
+.pressureVerticalLabel::after {
+    display: none;
+}
+
+/* Split each recommended pressure box into label and writable rows. */
+.pressureCluster::after {
+    background:
+        linear-gradient(
+            to bottom,
+            transparent calc(50% - 0.5px),
+            var(--soft) calc(50% - 0.5px),
+            var(--soft) calc(50% + 0.5px),
+            transparent calc(50% + 0.5px)
+        ),
+        #fff;
+}
+.recommendedPressureValue {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    align-items: stretch;
+    justify-items: stretch;
+    padding: 0;
+    font-size: 0;
+}
+.recommendedPressureValue::before {
+    content: "Áp suất khuyến cáo";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.8mm;
+    border: 0;
+    font-size: 5.8px;
+    line-height: 1.05;
+    font-weight: 900;
+    text-align: center;
+    text-transform: none;
+    color: #333;
+}
+.pressureVerticalLabel {
+    display: none;
 }

@@ -35,6 +35,8 @@ const statusMeta = {
 
 const normalizeStatus = (value) => String(value ?? '').trim().toUpperCase();
 const canCreateBookingFromStatus = (value) => normalizeStatus(value) === 'CONFIRMED';
+const FINAL_STATUSES = new Set(['CONFIRMED', 'SKIPPED', 'CANCELLED']);
+const REASON_REQUIRED_STATUSES = new Set(['SKIPPED', 'CANCELLED']);
 
 const getStatusLabel = (value) => {
   const key = normalizeStatus(value);
@@ -65,6 +67,9 @@ const formatReminderDateTime = (date, time) => {
   return `${timeText} ${dateText}`;
 };
 
+const getReminderReason = (row) =>
+  String(row?.reason ?? row?.statusReason ?? row?.status_reason ?? '').trim();
+
 const getPageData = (response) => {
   const data = response?.data ?? response;
   const content = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : [];
@@ -92,6 +97,9 @@ export default function MaintenanceReminder() {
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState('');
+  const [reasonDialog, setReasonDialog] = useState(null);
+  const [reasonText, setReasonText] = useState('');
+  const [reasonError, setReasonError] = useState('');
 
   const canGoPrev = page > 0;
   const canGoNext = page + 1 < totalPages;
@@ -162,7 +170,7 @@ export default function MaintenanceReminder() {
     setAppliedFilters(next);
   };
 
-  const handleStatusChange = async (row, status) => {
+  const updateReminderStatus = async (row, status, reason = '') => {
     const reminderId = row?.reminderId;
     const nextStatus = normalizeStatus(status);
     if (!reminderId || !nextStatus || normalizeStatus(row?.status) === nextStatus) return;
@@ -176,10 +184,11 @@ export default function MaintenanceReminder() {
     setUpdatingId(reminderId);
     setUpdatingStatus(nextStatus);
     try {
-      await updateServiceTicketReminderStatus(reminderId, nextStatus, '', token);
+      const cleanReason = String(reason ?? '').trim();
+      await updateServiceTicketReminderStatus(reminderId, nextStatus, cleanReason, token);
       setRows((prev) => prev.map((item) => (
         item?.reminderId === reminderId
-          ? { ...item, status: nextStatus, statusReason: item?.statusReason || '' }
+          ? { ...item, status: nextStatus, reason: cleanReason, statusReason: cleanReason }
           : item
       )));
       toast.success(`Đã cập nhật trạng thái: ${getStatusLabel(nextStatus)}.`);
@@ -189,6 +198,40 @@ export default function MaintenanceReminder() {
       setUpdatingId(null);
       setUpdatingStatus('');
     }
+  };
+
+  const handleStatusChange = async (row, status) => {
+    const nextStatus = normalizeStatus(status);
+    if (REASON_REQUIRED_STATUSES.has(nextStatus)) {
+      setReasonDialog({ row, status: nextStatus });
+      setReasonText(getReminderReason(row));
+      setReasonError('');
+      return;
+    }
+    await updateReminderStatus(row, nextStatus);
+  };
+
+  const closeReasonDialog = () => {
+    if (updatingId) return;
+    setReasonDialog(null);
+    setReasonText('');
+    setReasonError('');
+  };
+
+  const handleConfirmReasonStatus = async () => {
+    const reason = String(reasonText || '').trim();
+    if (!reason) {
+      setReasonError('Vui lòng nhập lý do.');
+      return;
+    }
+    if (reason.length > 500) {
+      setReasonError('Lý do tối đa 500 ký tự.');
+      return;
+    }
+    await updateReminderStatus(reasonDialog?.row, reasonDialog?.status, reason);
+    setReasonDialog(null);
+    setReasonText('');
+    setReasonError('');
   };
 
   const handleOpenTicket = (ticketCode) => {
@@ -332,7 +375,7 @@ export default function MaintenanceReminder() {
                   const currentStatus = normalizeStatus(row?.status);
                   const meta = statusMeta[currentStatus] || { className: styles.statusDefault, label: getStatusLabel(currentStatus) };
                   const rowUpdating = updatingId === row?.reminderId;
-                  const statusLocked = currentStatus && currentStatus !== 'PENDING';
+                  const statusLocked = FINAL_STATUSES.has(currentStatus);
                   const canCreateBooking = Boolean(row?.reminderId) && canCreateBookingFromStatus(currentStatus);
                   return (
                     <tr key={row?.reminderId || `${row?.ticketCode || 'ticket'}-${row?.reminderDate || ''}-${row?.reminderTime || ''}`}>
@@ -345,7 +388,7 @@ export default function MaintenanceReminder() {
                       <td>
                         <span className={`${styles.statusBadge} ${meta.className}`}>{meta.label}</span>
                       </td>
-                      <td className={styles.noteCell}>{row?.statusReason || '-'}</td>
+                      <td className={styles.noteCell}>{getReminderReason(row) || '-'}</td>
                       <td>{row?.advisorName || '-'}</td>
                       <td>
                         <div className={styles.actionGroup}>
@@ -419,6 +462,44 @@ export default function MaintenanceReminder() {
           </div>
         </div>
       </section>
+      {reasonDialog ? (
+        <div className={styles.modalOverlay} role="presentation" onMouseDown={closeReasonDialog}>
+          <div className={styles.reasonModal} role="dialog" aria-modal="true" aria-labelledby="maintenance-reason-title" onMouseDown={(event) => event.stopPropagation()}>
+            <h3 id="maintenance-reason-title" className={styles.modalTitle}>
+              {reasonDialog.status === 'SKIPPED' ? 'Lý do bỏ qua' : 'Lý do hủy'}
+            </h3>
+            <p className={styles.modalHint}>
+              Lý do này sẽ được lưu vào cột reason của lịch nhắc bảo dưỡng.
+            </p>
+            <textarea
+              className={styles.reasonInput}
+              value={reasonText}
+              onChange={(event) => {
+                setReasonText(event.target.value);
+                if (reasonError) setReasonError('');
+              }}
+              maxLength={500}
+              rows={4}
+              placeholder={reasonDialog.status === 'SKIPPED' ? 'Nhập lý do bỏ qua...' : 'Nhập lý do hủy...'}
+              autoFocus
+            />
+            <div className={styles.reasonMeta}>
+              <span className={reasonError ? styles.reasonError : styles.reasonHelp}>
+                {reasonError || 'Bắt buộc nhập lý do.'}
+              </span>
+              <span>{String(reasonText || '').length}/500</span>
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" className="ui-btn ui-btn--ghost" onClick={closeReasonDialog} disabled={Boolean(updatingId)}>
+                Hủy
+              </button>
+              <button type="button" className="ui-btn ui-btn--primary" onClick={handleConfirmReasonStatus} disabled={Boolean(updatingId)}>
+                {updatingId ? 'Đang lưu...' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

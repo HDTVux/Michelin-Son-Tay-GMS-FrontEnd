@@ -1034,11 +1034,11 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
               <label>Loại giá</label>
               <div className={styles['price-mode-row']}>
                 <label className={styles['price-choice']}>
-                  <input type="radio" name="price-mode" value="contact" checked={priceMode === 'contact'} onChange={() => setPriceMode('contact')} disabled={isSubmitting || isCatalogLinked} />
+                  <input type="radio" name="price-mode" value="contact" checked={priceMode === 'contact'} onChange={() => setPriceMode('contact')} disabled={isSubmitting} />
                   Liên hệ
                 </label>
                 <label className={styles['price-choice']}>
-                  <input type="radio" name="price-mode" value="fixed" checked={priceMode === 'fixed'} onChange={() => setPriceMode('fixed')} disabled={isSubmitting || isCatalogLinked} />
+                  <input type="radio" name="price-mode" value="fixed" checked={priceMode === 'fixed'} onChange={() => setPriceMode('fixed')} disabled={isSubmitting} />
                   Nhập giá
                 </label>
               </div>
@@ -1054,7 +1054,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="VD: 450000"
-                    disabled={isSubmitting || isCatalogLinked}
+                    disabled={isSubmitting}
                   />
                   {errors.price && <span className={styles['field-error']}>{errors.price}</span>}
                 </>

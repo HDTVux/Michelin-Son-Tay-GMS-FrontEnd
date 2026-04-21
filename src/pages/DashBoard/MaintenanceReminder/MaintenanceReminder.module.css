@@ -348,6 +348,83 @@
   color: var(--ui-text);
 }
 
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.reasonModal {
+  width: min(520px, 100%);
+  padding: 20px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+}
+
+.modalTitle {
+  margin: 0;
+  color: var(--ui-text);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.modalHint {
+  margin: 8px 0 14px;
+  color: var(--ui-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.reasonInput {
+  width: 100%;
+  min-height: 118px;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--ui-text);
+  font: inherit;
+  outline: none;
+}
+
+.reasonInput:focus {
+  border-color: var(--ui-primary);
+  box-shadow: var(--ui-focus-ring);
+}
+
+.reasonMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  color: var(--ui-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reasonError {
+  color: #dc2626;
+}
+
+.reasonHelp {
+  color: var(--ui-muted);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
 @media (max-width: 1180px) {
   .filterGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
