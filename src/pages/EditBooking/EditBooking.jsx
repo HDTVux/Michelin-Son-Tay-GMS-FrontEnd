@@ -5,6 +5,41 @@ import { fetchBookingDetail, modifyCustomerBooking, fetchAvailableSlots, fetchMy
 import { fetchHomeServices } from '../../services/homeService.js';
 import './EditBooking.css';
 
+const getCustomerToken = () => localStorage.getItem('customerToken') || localStorage.getItem('authToken');
+
+const normalizeStatus = (status) => String(status || '').trim().toUpperCase();
+
+const canModifyBooking = (bookingData) => {
+  const bookingStatus = normalizeStatus(bookingData?.status);
+  const ticketStatus = normalizeStatus(bookingData?.ticketStatus);
+  return !ticketStatus && ['PENDING', 'CONFIRMED'].includes(bookingStatus);
+};
+
+const getSelectedServiceIds = (bookingData) => {
+  const ids = Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0
+    ? bookingData.serviceIds
+    : bookingData?.services?.map(service => service.itemId ?? service.id).filter(Boolean) || [];
+
+  return ids.map(serviceId => String(serviceId));
+};
+
+const loadBookingDetail = async (identifier, token) => {
+  try {
+    return await fetchBookingDetail(identifier, token);
+  } catch (err) {
+    const numericId = Number(identifier);
+    if (!Number.isFinite(numericId)) throw err;
+
+    const bookingsResponse = await fetchMyBookings(token);
+    const fallbackBooking = bookingsResponse?.data?.find(booking => (
+      Number(booking.bookingId) === numericId || String(booking.bookingCode) === String(identifier)
+    ));
+
+    if (!fallbackBooking) throw err;
+    return { data: fallbackBooking };
+  }
+};
+
 const EditBooking = () => {
   useScrollToTop();
   const { id } = useParams();
@@ -32,41 +67,6 @@ const EditBooking = () => {
 
   const [canEditTime] = useState(true);
   const detailIdentifier = bookingCode || id;
-
-  const getCustomerToken = () => localStorage.getItem('customerToken') || localStorage.getItem('authToken');
-
-  const normalizeStatus = (status) => String(status || '').trim().toUpperCase();
-
-  const canModifyBooking = (bookingData) => {
-    const bookingStatus = normalizeStatus(bookingData?.status);
-    const ticketStatus = normalizeStatus(bookingData?.ticketStatus);
-    return !ticketStatus && ['PENDING', 'CONFIRMED'].includes(bookingStatus);
-  };
-
-  const getSelectedServiceIds = (bookingData) => {
-    const ids = Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0
-      ? bookingData.serviceIds
-      : bookingData?.services?.map(service => service.itemId ?? service.id).filter(Boolean) || [];
-
-    return ids.map(serviceId => String(serviceId));
-  };
-
-  const loadBookingDetail = async (identifier, token) => {
-    try {
-      return await fetchBookingDetail(identifier, token);
-    } catch (err) {
-      const numericId = Number(identifier);
-      if (!Number.isFinite(numericId)) throw err;
-
-      const bookingsResponse = await fetchMyBookings(token);
-      const fallbackBooking = bookingsResponse?.data?.find(booking => (
-        Number(booking.bookingId) === numericId || String(booking.bookingCode) === String(identifier)
-      ));
-
-      if (!fallbackBooking) throw err;
-      return { data: fallbackBooking };
-    }
-  };
 
   // Load booking detail, services, and slots
   useEffect(() => {

@@ -91,22 +91,6 @@ const BookingDetail = () => {
     { key: 'completed', label: 'Hoàn thành' },
   ];
 
-  const normalizeStatus = (status) => String(status || '').trim().toUpperCase();
-  const isTicketCompletedStatus = (status) => (
-    ['COMPLETED', 'PAID', 'FINISHED'].includes(normalizeStatus(status))
-  );
-  const isBookingCompletedStatus = (status) => (
-    ['COMPLETED', 'FINISHED'].includes(normalizeStatus(status))
-  );
-  const isCancelledStatus = (status) => (
-    ['CANCELLED', 'CANCELED', 'CANCEL'].includes(normalizeStatus(status))
-  );
-  const hasCompletedWorkflow = (bookingData) => (
-    bookingData?.ticketStatus
-      ? isTicketCompletedStatus(bookingData.ticketStatus)
-      : isBookingCompletedStatus(bookingData?.rawStatus || bookingData?.status)
-  );
-
   // Load booking detail from API
   useEffect(() => {
     const loadBookingDetail = async () => {
@@ -183,32 +167,6 @@ const BookingDetail = () => {
     loadBookingDetail();
   }, [id]);
 
-  // Map backend status to frontend status
-  const mapStatus = (backendStatus) => {
-    const statusMap = {
-      'PENDING': 'pending',
-      'CONFIRMED': 'confirmed',
-      'CANCELLED': 'cancelled',
-      'CANCELED': 'cancelled',
-      'CANCEL': 'cancelled',
-      'COMPLETED': 'completed',
-      'IN_PROGRESS': 'processing',
-      'DONE': 'processing',
-      'FINISHED': 'completed',
-      'PAID': 'completed',
-      'CREATED': 'processing',
-      'INSPECTING': 'processing',
-      'INSPECTED': 'processing',
-      'ESTIMATED': 'processing',
-      'REPAIRING': 'processing',
-    };
-    return statusMap[normalizeStatus(backendStatus)] || 'pending';
-  };
-
-  const mapDisplayStatus = (bookingStatus, ticketStatus) => (
-    ticketStatus ? mapStatus(ticketStatus) : mapStatus(bookingStatus)
-  );
-
   // Get status text in Vietnamese
   const getStatusText = (backendStatus) => {
     const textMap = {
@@ -230,10 +188,6 @@ const BookingDetail = () => {
     };
     return textMap[normalizeStatus(backendStatus)] || 'Đang chờ';
   };
-
-  const getDisplayStatusText = (bookingStatus, ticketStatus) => (
-    ticketStatus ? getStatusText(ticketStatus) : getStatusText(bookingStatus)
-  );
 
   // Timeline steps - ưu tiên dùng API nếu có, không thì dùng mặc định
   const baseTimelineSteps = Array.isArray(booking?.progressSteps) && booking.progressSteps.length > 0
