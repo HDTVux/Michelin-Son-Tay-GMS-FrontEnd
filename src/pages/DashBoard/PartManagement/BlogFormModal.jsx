@@ -419,6 +419,8 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [autoGenHint, setAutoGenHint] = useState('');
   const [errors, setErrors] = useState({});
+  const [resolvedServiceId, setResolvedServiceId] = useState(() => getServiceServiceId(baseItem));
+  const [isDraftReady, setIsDraftReady] = useState(false);
 
   const editorRef = useRef(null);
   const thumbnailPreviewRef = useRef('');
@@ -470,6 +472,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
 
   const loadDetail = useCallback(async () => {
     if (!baseItem?.itemId) return;
+    setIsDraftReady(false);
     try {
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       const res = await fetchCatalogItemDetail(baseItem.itemId, token);
@@ -497,6 +500,11 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       }
 
       const detail = mergeWithMeaningfulServiceData(catalogDetail, serviceDetail);
+      const nextResolvedServiceId =
+        serviceId
+        || getServiceServiceId(serviceDetail)
+        || getServiceServiceId(detail);
+      setResolvedServiceId(nextResolvedServiceId ?? null);
 
       const mergedDescription =
         detail.fullDescription
@@ -534,11 +542,11 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
 
       const draft = readDraft();
       if (draft) {
-        if (typeof draft.itemName === 'string') setItemName(draft.itemName);
-        if (typeof draft.sku === 'string') setSku(draft.sku);
-        if (typeof draft.introText === 'string') setIntroText(draft.introText);
-        if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
-        if (typeof draft.unit === 'string') setUnit(draft.unit);
+        if (typeof draft.itemName === 'string' && draft.itemName.trim()) setItemName(draft.itemName);
+        if (typeof draft.sku === 'string' && draft.sku.trim()) setSku(draft.sku);
+        if (typeof draft.introText === 'string' && draft.introText.trim()) setIntroText(draft.introText);
+        if (typeof draft.detailHtml === 'string' && stripHtml(draft.detailHtml)) setDetailHtml(draft.detailHtml);
+        if (typeof draft.unit === 'string' && draft.unit.trim()) setUnit(draft.unit);
         if (typeof draft.warrantyMonths === 'string' && draft.warrantyMonths.trim()) setWarrantyMonths(draft.warrantyMonths);
         if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
         if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
@@ -547,7 +555,10 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       }
     } catch {
       // Keep local values.
+      setResolvedServiceId(getServiceServiceId(baseItem));
       setExistingMedia([]);
+    } finally {
+      setIsDraftReady(true);
     }
   }, [baseItem, isEdit, readDraft]);
 
@@ -580,20 +591,28 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   useEffect(() => {
     if (!isCreateNew) return;
     const draft = readDraft();
-    if (!draft) return;
-    if (typeof draft.itemName === 'string') setItemName(draft.itemName);
-    if (typeof draft.sku === 'string') setSku(draft.sku);
-    if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
-    if (typeof draft.price === 'string') setPrice(draft.price);
-    if (typeof draft.introText === 'string') setIntroText(draft.introText);
-    if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
-    if (typeof draft.unit === 'string') setUnit(draft.unit);
-    if (typeof draft.warrantyMonths === 'string') setWarrantyMonths(draft.warrantyMonths);
-    if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
-    if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
-    if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
-    if (typeof draft.itemCategoryId === 'string') setItemCategoryId(draft.itemCategoryId);
+    if (draft) {
+      if (typeof draft.itemName === 'string') setItemName(draft.itemName);
+      if (typeof draft.sku === 'string') setSku(draft.sku);
+      if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
+      if (typeof draft.price === 'string') setPrice(draft.price);
+      if (typeof draft.introText === 'string') setIntroText(draft.introText);
+      if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
+      if (typeof draft.unit === 'string') setUnit(draft.unit);
+      if (typeof draft.warrantyMonths === 'string') setWarrantyMonths(draft.warrantyMonths);
+      if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
+      if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
+      if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
+      if (typeof draft.itemCategoryId === 'string') setItemCategoryId(draft.itemCategoryId);
+    }
+    setResolvedServiceId(getServiceServiceId(baseItem));
+    setIsDraftReady(true);
   }, [isCreateNew, readDraft]);
+
+  useEffect(() => {
+    if (isCreateNew) return;
+    setResolvedServiceId(getServiceServiceId(baseItem));
+  }, [baseItem, isCreateNew]);
 
   useEffect(() => {
     if (!isCreateNew) return;
@@ -703,6 +722,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (!isDraftReady) return;
     const snapshot = {
       itemName,
       sku,
@@ -727,6 +747,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     detailHtml,
     draftStorageKey,
     introText,
+    isDraftReady,
     isActive,
     itemCategoryId,
     itemName,
@@ -929,7 +950,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       const successName = submittedItemName ? ` "${submittedItemName}"` : '';
       if (isEdit) {
         const catalogItemId = toNullablePositiveNumber(baseItem.itemId);
-        const serviceId = getServiceServiceId(baseItem);
+        const serviceId = resolvedServiceId ?? getServiceServiceId(baseItem);
         if (!serviceId) {
           notify('Khong tim thay serviceId de cap nhat. Vui long tao bai viet truoc.', 'error');
           return;
@@ -937,12 +958,13 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
         await updateServiceById(serviceId, buildServiceFormData(), token);
         notify(`Cap nhat bai viet ${itemToastLabel}${successName} thanh cong!`, 'success');
         clearDraft();
+        setResolvedServiceId(serviceId);
         onSaved({ catalogItemId: catalogItemId ?? baseItem.itemId, serviceServiceId: serviceId });
         return;
       }
 
       let catalogItemId = toNullablePositiveNumber(baseItem.itemId);
-      let serviceServiceId = getServiceServiceId(baseItem);
+      let serviceServiceId = resolvedServiceId ?? getServiceServiceId(baseItem);
       if (isCreateNew) {
         const createCatalogRes = await createWarehouseCatalogItem(buildCatalogPayload(), token);
         const createdCatalog = extractPayload(createCatalogRes);
@@ -959,13 +981,14 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       }
       notify(`Tao bai viet ${itemToastLabel}${successName} thanh cong!`, 'success');
       clearDraft();
+      setResolvedServiceId(serviceServiceId ?? null);
       onSaved({ catalogItemId, serviceServiceId });
     } catch (err) {
       notify(err?.message || 'Thao tac that bai. Vui long thu lai.', 'error');
     } finally {
       setIsSubmitting(false);
     }
-  }, [baseItem, buildCatalogPayload, buildServiceFormData, clearDraft, isCreateFromCatalog, isCreateNew, isEdit, itemName, itemToastLabel, notify, onSaved, validateBeforeSubmit]);
+  }, [baseItem, buildCatalogPayload, buildServiceFormData, clearDraft, isCreateFromCatalog, isCreateNew, isEdit, itemName, itemToastLabel, notify, onSaved, resolvedServiceId, validateBeforeSubmit]);
 
   return (
     <div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
