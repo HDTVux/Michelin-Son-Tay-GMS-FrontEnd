@@ -27,12 +27,6 @@ const formatVnd = (value) => {
   return `${text} ₫`;
 };
 
-const formatPercent = (value) => {
-  const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
-  if (!Number.isFinite(n)) return '-';
-  return `${n}%`;
-};
-
 const EntryField = ({ label, value, fullRow = false }) => (
   <div className={fullRow ? styles.fullRow : undefined}>
     <strong>{label}:</strong> {value}

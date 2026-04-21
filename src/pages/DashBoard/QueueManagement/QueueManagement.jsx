@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { buildDateOptions, formatDateTimeViNoSeconds, formatLocalDateYYYYMMDD, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
-import { fetchAllSlots, fetchManagedBookingsPaged, fetchQueueBySlot, setQueueAuto, swapQueueBookings } from '../../../services/bookingService.js';
+import { fetchAllSlots, fetchManagedBookingsPaged, fetchQueueBySlot, swapQueueBookings } from '../../../services/bookingService.js';
 import styles from './QueueManagement.module.css';
 
 const timeKey = (t) => formatTimeHHmm(t || '');

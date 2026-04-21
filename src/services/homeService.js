@@ -5,6 +5,19 @@ function appendSafeCatalogSearchParam(searchParams, key, value) {
   const text = String(value).trim();
   if (!text) return;
 
+  if (key === 'sortBy') {
+    const [fieldRaw, directionRaw] = text.split(',');
+    const field = String(fieldRaw || '').trim();
+    if (!field) return;
+    const direction = String(directionRaw || '').trim().toLowerCase();
+    if (!direction) {
+      searchParams.set(key, field);
+      return;
+    }
+    searchParams.set(key, `${field},${direction === 'desc' ? 'desc' : 'asc'}`);
+    return;
+  }
+
   if (key === 'page') {
     const page = Number(text);
     searchParams.set(key, String(Number.isFinite(page) && page >= 0 ? Math.floor(page) : 0));
@@ -70,8 +83,9 @@ export async function fetchHomeProducts(params = {}) {
   const searchParams = new URLSearchParams();
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
-    const text = String(value).trim();
+    let text = String(value).trim();
     if (!text) return;
+    if (key === 'itemType' && text.toUpperCase() === 'PRODUCT') text = 'PART';
     searchParams.set(key, text);
   });
   const qs = searchParams.toString();

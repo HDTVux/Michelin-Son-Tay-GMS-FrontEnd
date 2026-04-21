@@ -71,6 +71,7 @@ const StaffDashboard = () => {
   const todayShift = dashboardData?.todayShift;
   const recentAttendance = dashboardData?.recentAttendance || [];
   const notifications = dashboardData?.notifications || [];
+  const todayTasks = dashboardData?.todayTasks || [];
 
   const totalWorkDays = attendanceData.length;
   const presentDays = attendanceData.filter(
@@ -114,6 +115,41 @@ const StaffDashboard = () => {
       REMINDER: '🔔', WARNING: '⚠️', SYSTEM: 'ℹ️',
     };
     return map[type] || '📌';
+  };
+
+  const getTaskTitle = (task) =>
+    task?.ticketCode
+    || task?.serviceTicketCode
+    || task?.bookingCode
+    || task?.title
+    || task?.itemName
+    || 'Công việc';
+
+  const getTaskDescription = (task) =>
+    task?.customerName
+    || task?.vehiclePlate
+    || task?.serviceName
+    || task?.description
+    || task?.status
+    || 'Chưa có thông tin chi tiết';
+
+  const getTaskTime = (task) =>
+    task?.appointmentTime
+    || task?.scheduledTime
+    || task?.createdAt
+    || task?.updatedAt
+    || '';
+
+  const getTaskStatusText = (status) => {
+    const text = String(status || '').trim().toUpperCase();
+    const map = {
+      PENDING: 'Chờ xử lý',
+      IN_PROGRESS: 'Đang làm',
+      COMPLETED: 'Hoàn tất',
+      CANCELLED: 'Đã hủy',
+      CHECKED_IN: 'Da check-in',
+    };
+    return map[text] || status || 'Mới';
   };
 
   const calcHours = (checkIn, checkOut) => {
@@ -478,7 +514,45 @@ const StaffDashboard = () => {
         </div>
       </div>
 
-      {/* ── Quick Actions ── */}
+      {/* Today tasks */}
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Công việc hôm nay</h2>
+        <div className={styles.taskGrid}>
+          {dashboardLoading ? (
+            <div className={styles.emptyState}>Đang tải công việc...</div>
+          ) : todayTasks.length === 0 ? (
+            <div className={styles.emptyState}>Hôm nay chưa có công việc nào.</div>
+          ) : (
+            todayTasks.slice(0, 6).map((task, index) => {
+              const taskTime = getTaskTime(task);
+              const taskDate = taskTime ? new Date(taskTime) : null;
+              const taskTimeText = taskDate && !Number.isNaN(taskDate.getTime())
+                ? taskDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                : '--:--';
+              return (
+                <button
+                  type="button"
+                  key={task?.serviceTicketId || task?.bookingId || task?.id || index}
+                  className={styles.taskCard}
+                  onClick={() => navigate('/technician/my-tasks')}
+                >
+                  <span className={styles.taskIndex}>{String(index + 1).padStart(2, '0')}</span>
+                  <span className={styles.taskContent}>
+                    <strong>{getTaskTitle(task)}</strong>
+                    <small>{getTaskDescription(task)}</small>
+                  </span>
+                  <span className={styles.taskMeta}>
+                    <span>{taskTimeText}</span>
+                    <em>{getTaskStatusText(task?.status)}</em>
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Quick Actions */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Truy cập nhanh</h2>
         <div className={styles.quickActions}>

@@ -168,21 +168,17 @@ export default function Booking() {
     Promise.allSettled([
       fetchHomeProducts({ page: 0, size: 500, itemType: 'SERVICE' }),
       fetchHomeProducts({ page: 0, size: 500, itemType: 'PART' }),
-      fetchHomeProducts({ page: 0, size: 500, itemType: 'PRODUCT' }),
     ])
       .then((results) => {
         if (!active) return;
 
-        const [serviceRes, partRes, productRes] = results;
+        const [serviceRes, partRes] = results;
         const mergedRaw = [
           ...(serviceRes?.status === 'fulfilled'
             ? extractHomeProductsList(serviceRes.value).map((item) => ({ ...item, __sourceType: 'SERVICE' }))
             : []),
           ...(partRes?.status === 'fulfilled'
             ? extractHomeProductsList(partRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
-            : []),
-          ...(productRes?.status === 'fulfilled'
-            ? extractHomeProductsList(productRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
             : []),
         ];
 
@@ -239,11 +235,9 @@ export default function Booking() {
 
         const serviceFailed = serviceRes?.status === 'rejected';
         const partFailed = partRes?.status === 'rejected';
-        const productFailed = productRes?.status === 'rejected';
-        if (serviceFailed && partFailed && productFailed) {
+        if (serviceFailed && partFailed) {
           const msg = serviceRes?.reason?.message
             || partRes?.reason?.message
-            || productRes?.reason?.message
             || 'Không thể tải danh sách dịch vụ/phụ tùng.';
           setServicesError(msg);
         }

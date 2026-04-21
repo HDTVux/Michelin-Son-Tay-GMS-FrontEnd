@@ -120,7 +120,7 @@
 }
 
 /* If you want a compact variant (small screens) */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .headerLogo img,
   .headerLogo #Logo {
     height: 32px;
@@ -388,7 +388,7 @@
 }
 
 /* Responsive: Mobile Menu */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .mainHeader {
     padding: 10px 4%;
   }

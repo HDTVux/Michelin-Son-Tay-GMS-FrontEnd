@@ -209,12 +209,12 @@ export default function App() {
       <ToastBox />
       <ToastContainer
         position="top-center"
-        autoClose={4000}
+        autoClose={9000}
         hideProgressBar
         newestOnTop
         closeOnClick
         draggable={false}
-        pauseOnHover={false}
+        pauseOnHover
         style={{ top: 80, zIndex: 9999 }}
       />
       <Routes>

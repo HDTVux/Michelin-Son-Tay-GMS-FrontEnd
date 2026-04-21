@@ -263,7 +263,6 @@ const ServiceDetail = () => {
 
   useEffect(() => {
     const serviceLookupId = stateServiceId ?? routeId;
-    const catalogLookupId = stateCatalogItemId ?? null;
 
     if (!serviceLookupId) {
       setError('Không tìm thấy nội dung cần xem.');

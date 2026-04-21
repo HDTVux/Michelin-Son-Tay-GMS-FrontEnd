@@ -616,3 +616,358 @@
   color: #9ca3af;
   font-size: 14px;
 }
+
+/* Dashboard polish and mobile UX */
+.container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.header,
+.kpiCard,
+.chartCard,
+.recentBookings,
+.actionCard {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.header {
+  gap: 16px;
+}
+
+.headerContent,
+.chartCard,
+.recentBookings,
+.actionContent {
+  min-width: 0;
+}
+
+.subtitle,
+.kpiLabel,
+.kpiSubtext,
+.actionContent p {
+  overflow-wrap: anywhere;
+}
+
+.headerDate {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.kpiGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.kpiCard {
+  min-height: 118px;
+}
+
+.kpiValue {
+  overflow-wrap: anywhere;
+}
+
+.chartsGrid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.recentBookings {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  min-width: 760px;
+}
+
+.taskGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.taskGrid > .emptyState {
+  grid-column: 1 / -1;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+}
+
+.taskCard {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.taskCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(102, 126, 234, 0.45);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
+}
+
+.taskIndex {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.taskContent {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.taskContent strong {
+  color: #1f2937;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskContent small {
+  color: #64748b;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskMeta {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.taskMeta em {
+  font-style: normal;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 999px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1400px) {
+  .kpiGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .chartsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chartsGrid .chartCard:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1024px) {
+  .container {
+    padding: 14px;
+  }
+
+  .header {
+    align-items: flex-start;
+  }
+
+  .headerDate {
+    white-space: normal;
+  }
+
+  .kpiGrid,
+  .chartsGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .chartsGrid .chartCard:last-child {
+    grid-column: auto;
+  }
+
+  .chartCard {
+    padding: 16px;
+  }
+
+  .pieChartContainer {
+    align-items: stretch;
+  }
+
+  .quickActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 12px;
+    background: #f3f6fb;
+  }
+
+  .header {
+    border-radius: 14px;
+    padding: 18px;
+    text-align: left;
+  }
+
+  .title {
+    font-size: 20px;
+    line-height: 1.2;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .headerDate {
+    width: 100%;
+    justify-content: center;
+    font-size: 12px;
+    padding: 9px 12px;
+  }
+
+  .kpiGrid,
+  .chartsGrid,
+  .quickActions,
+  .taskGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpiCard {
+    min-height: 0;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 12px;
+    align-items: center;
+  }
+
+  .kpiHeader {
+    grid-row: span 3;
+    margin: 0;
+  }
+
+  .kpiIcon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .kpiValue {
+    font-size: 22px;
+    margin: 0;
+  }
+
+  .chartHeader,
+  .sectionHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .chartPeriod {
+    align-self: flex-start;
+  }
+
+  .barChart,
+  .lineChart,
+  .chartEmpty,
+  .chartLoading {
+    height: 150px;
+  }
+
+  .barContainer {
+    width: 28px;
+    height: 96px;
+  }
+
+  .pieChartContainer {
+    flex-direction: row;
+    gap: 14px;
+  }
+
+  .pieChart {
+    width: 112px;
+    height: 112px;
+  }
+
+  .pieCenter {
+    width: 64px;
+    height: 64px;
+  }
+
+  .pieLegendItem {
+    gap: 6px;
+    padding: 4px 0;
+  }
+
+  .recentBookings {
+    border-radius: 12px;
+  }
+
+  .table {
+    min-width: 640px;
+  }
+
+  .taskCard {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .taskMeta {
+    grid-column: 2;
+    justify-items: start;
+    grid-auto-flow: column;
+    justify-content: start;
+  }
+
+  .actionCard {
+    border-radius: 14px;
+    padding: 14px;
+    min-height: 72px;
+  }
+
+  .actionCard:hover {
+    transform: translateY(-2px);
+    border-left-width: 1px;
+  }
+
+  .actionIcon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 380px) {
+  .container {
+    padding: 10px;
+  }
+
+  .pieChartContainer {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pieLegend {
+    width: 100%;
+  }
+}

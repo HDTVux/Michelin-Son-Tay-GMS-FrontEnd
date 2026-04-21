@@ -5,6 +5,19 @@ function appendSafeCatalogSearchParam(qp, key, value) {
   const text = String(value).trim();
   if (!text) return;
 
+  if (key === 'sortBy') {
+    const [fieldRaw, directionRaw] = text.split(',');
+    const field = String(fieldRaw || '').trim();
+    if (!field) return;
+    const direction = String(directionRaw || '').trim().toLowerCase();
+    if (!direction) {
+      qp.append(key, field);
+      return;
+    }
+    qp.append(key, `${field},${direction === 'desc' ? 'desc' : 'asc'}`);
+    return;
+  }
+
   if (key === 'page') {
     const page = Number(text);
     qp.append(key, String(Number.isFinite(page) && page >= 0 ? Math.floor(page) : 0));

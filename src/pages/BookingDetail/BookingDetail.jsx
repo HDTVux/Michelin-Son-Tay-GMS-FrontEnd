@@ -4,6 +4,76 @@ import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import { fetchBookingDetail, cancelCustomerBooking } from '../../services/bookingService.js';
 import './BookingDetail.css';
 
+const normalizeStatus = (status) => String(status || '').trim().toUpperCase();
+
+const isTicketCompletedStatus = (status) => (
+  ['COMPLETED', 'PAID', 'FINISHED'].includes(normalizeStatus(status))
+);
+
+const isBookingCompletedStatus = (status) => (
+  ['COMPLETED', 'FINISHED'].includes(normalizeStatus(status))
+);
+
+const isCancelledStatus = (status) => (
+  ['CANCELLED', 'CANCELED', 'CANCEL'].includes(normalizeStatus(status))
+);
+
+const hasCompletedWorkflow = (bookingData) => (
+  bookingData?.ticketStatus
+    ? isTicketCompletedStatus(bookingData.ticketStatus)
+    : isBookingCompletedStatus(bookingData?.rawStatus || bookingData?.status)
+);
+
+const mapStatus = (backendStatus) => {
+  const statusMap = {
+    PENDING: 'pending',
+    CONFIRMED: 'confirmed',
+    CANCELLED: 'cancelled',
+    CANCELED: 'cancelled',
+    CANCEL: 'cancelled',
+    COMPLETED: 'completed',
+    IN_PROGRESS: 'processing',
+    DONE: 'processing',
+    FINISHED: 'completed',
+    PAID: 'completed',
+    CREATED: 'processing',
+    INSPECTING: 'processing',
+    INSPECTED: 'processing',
+    ESTIMATED: 'processing',
+    REPAIRING: 'processing',
+  };
+  return statusMap[normalizeStatus(backendStatus)] || 'pending';
+};
+
+const mapDisplayStatus = (bookingStatus, ticketStatus) => (
+  ticketStatus ? mapStatus(ticketStatus) : mapStatus(bookingStatus)
+);
+
+const getStatusText = (backendStatus) => {
+  const textMap = {
+    PENDING: 'Đang chờ',
+    CONFIRMED: 'Đã xác nhận',
+    CANCELLED: 'Đã hủy',
+    CANCELED: 'Đã hủy',
+    CANCEL: 'Đã hủy',
+    COMPLETED: 'Hoàn tất',
+    IN_PROGRESS: 'Đang xử lý',
+    DONE: 'Đang thực hiện',
+    FINISHED: 'Hoàn thành',
+    PAID: 'Hoàn thành',
+    CREATED: 'Đã tạo phiếu',
+    INSPECTING: 'Đang kiểm tra',
+    INSPECTED: 'Đã kiểm tra',
+    ESTIMATED: 'Đã báo giá',
+    REPAIRING: 'Đang sửa chữa',
+  };
+  return textMap[normalizeStatus(backendStatus)] || 'Đang chờ';
+};
+
+const getDisplayStatusText = (bookingStatus, ticketStatus) => (
+  ticketStatus ? getStatusText(ticketStatus) : getStatusText(bookingStatus)
+);
+
 const BookingDetail = () => {
   useScrollToTop();
   const { id } = useParams();

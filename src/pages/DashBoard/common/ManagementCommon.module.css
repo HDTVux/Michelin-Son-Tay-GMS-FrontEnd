@@ -281,6 +281,23 @@
   gap: 8px;
 }
 
+.modalPickerHeader,
+.modalPickerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modalPickerFooter {
+  margin-top: 12px;
+}
+
+.modalPickerActions {
+  display: inline-flex;
+  gap: 8px;
+}
+
 .full {
   grid-column: 1 / -1;
 }
@@ -302,5 +319,152 @@
 
   .statsGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: 14px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header > * {
+    min-width: 0;
+  }
+
+  .header :global(.ui-btn),
+  .header button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .field,
+  .actions,
+  .input,
+  .select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .actions {
+    align-items: stretch;
+  }
+
+  .actions :global(.ui-btn),
+  .actions button {
+    flex: 1 1 160px;
+    justify-content: center;
+  }
+
+  .tableWrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table th,
+  .table td {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .modalOverlay,
+  .modalDialog[open] {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .modal,
+  .modalWide {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modalFooter {
+    flex-wrap: wrap;
+  }
+
+  .modalPickerHeader,
+  .modalPickerFooter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .modalPickerActions {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .modalPickerActions button {
+    flex: 1 1 150px;
+    justify-content: center;
+  }
+
+  .modalFooter :global(.ui-btn),
+  .modalFooter button {
+    flex: 1 1 150px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 560px) {
+  .title {
+    font-size: 20px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  .statsGrid,
+  .toolbar,
+  .modalGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statCard,
+  .loading,
+  .empty,
+  .error {
+    padding: 14px;
+  }
+
+  .statValue {
+    font-size: 20px;
+  }
+
+  .table {
+    min-width: 720px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pagination :global(.ui-btn),
+  .pagination button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .modalHeader,
+  .modalBody,
+  .modalFooter {
+    padding-left: 14px;
+    padding-right: 14px;
   }
 }

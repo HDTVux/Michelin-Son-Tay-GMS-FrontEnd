@@ -14,6 +14,7 @@ const toNullablePositiveNumber = (value) => {
 };
 
 const SERVICE_LINK_CACHE_KEY = 'gms_service_link_cache_v3';
+const CLIENT_SORT_FETCH_SIZE = 5000;
 
 const toNullableBoolean = (value) => {
   if (value === true || value === false) return value;
@@ -173,6 +174,23 @@ const parseIsActive = (item) => {
   return null;
 };
 
+const getSortValue = (item, field) => {
+  if (field === 'itemId') return Number(item?.itemId ?? 0);
+  if (field === 'price') return Number(item?.price ?? 0);
+  if (field === 'status') return parseIsActive(item) === true ? 1 : 0;
+  return String(item?.[field] ?? '').trim();
+};
+
+const compareItems = (a, b, field, direction) => {
+  const aValue = getSortValue(a, field);
+  const bValue = getSortValue(b, field);
+  const multiplier = direction === 'desc' ? -1 : 1;
+  if (typeof aValue === 'number' && typeof bValue === 'number') {
+    return (aValue - bValue) * multiplier;
+  }
+  return String(aValue).localeCompare(String(bValue), 'vi', { numeric: true, sensitivity: 'base' }) * multiplier;
+};
+
 export default function ServiceManagement() {
   useScrollToTop();
   const navigate = useNavigate();
@@ -185,6 +203,8 @@ export default function ServiceManagement() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sortField, setSortField] = useState('itemId');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   const [items, setItems] = useState([]);
   const [totalElements, setTotalElements] = useState(0);
@@ -201,6 +221,13 @@ export default function ServiceManagement() {
   }, [search]);
 
   // Fetch catalog items — only services (itemType: SERVICE)
+  const isDefaultSort = sortField === 'itemId' && sortDirection === 'asc';
+  const useClientSortedPaging = !isDefaultSort;
+
+  useEffect(() => {
+    setPage(0);
+  }, [sortDirection, sortField]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -208,9 +235,14 @@ export default function ServiceManagement() {
         setIsLoading(true);
         setError('');
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-        const params = { page, size, itemType: 'SERVICE' };
+        const params = {
+          page: useClientSortedPaging ? 0 : page,
+          size: useClientSortedPaging ? CLIENT_SORT_FETCH_SIZE : size,
+          itemType: 'SERVICE',
+        };
         if (debouncedSearch) params.search = debouncedSearch;
         if (statusFilter) params.isActive = statusFilter === 'true';
+        if (useClientSortedPaging) params.sortBy = `${sortField},${sortDirection}`;
 
         const [res, homeRes, homeProductsRes] = await Promise.all([
           fetchCatalogItems(params, token),
@@ -250,12 +282,17 @@ export default function ServiceManagement() {
 
         if (cancelled) return;
         setItems(withStatus);
-        setTotalElements(Number(payload?.totalElements ?? content.length));
+        const nextTotalElements = useClientSortedPaging
+          ? withStatus.length
+          : Number(payload?.totalElements ?? content.length);
+        setTotalElements(nextTotalElements);
         setTotalPages(
-          Number(
-            payload?.totalPages
-            ?? Math.max(1, Math.ceil((payload?.totalElements ?? withStatus.length) / Math.max(1, size))),
-          ),
+          useClientSortedPaging
+            ? Math.max(1, Math.ceil(nextTotalElements / Math.max(1, size)))
+            : Number(
+                payload?.totalPages
+                ?? Math.max(1, Math.ceil((payload?.totalElements ?? withStatus.length) / Math.max(1, size))),
+              ),
         );
       } catch (err) {
         if (cancelled) return;
@@ -268,9 +305,19 @@ export default function ServiceManagement() {
       }
     })();
     return () => { cancelled = true; };
-  }, [page, size, debouncedSearch, statusFilter]);
+  }, [page, size, debouncedSearch, statusFilter, sortDirection, sortField, useClientSortedPaging]);
 
   const safePage = Math.min(Math.max(0, page), Math.max(0, totalPages - 1));
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => compareItems(a, b, sortField, sortDirection));
+  }, [items, sortDirection, sortField]);
+
+  const displayedItems = useMemo(() => {
+    if (!useClientSortedPaging) return sortedItems;
+    const start = safePage * size;
+    return sortedItems.slice(start, start + size);
+  }, [safePage, size, sortedItems, useClientSortedPaging]);
 
   const pageButtons = useMemo(() => {
     const max = 5;
@@ -286,6 +333,8 @@ export default function ServiceManagement() {
     setSize(10);
     setSearch('');
     setStatusFilter('');
+    setSortField('itemId');
+    setSortDirection('asc');
   };
 
   const handleSaved = useCallback((savedData) => {
@@ -299,6 +348,12 @@ export default function ServiceManagement() {
           item.itemId === savedData.catalogItemId
             ? {
                 ...item,
+                itemName: savedData.itemName ?? item.itemName,
+                sku: savedData.sku ?? item.sku,
+                price: savedData.price ?? item.price,
+                showPrice: savedData.showPrice ?? item.showPrice,
+                unit: savedData.unit ?? item.unit,
+                isActive: savedData.isActive ?? item.isActive,
                 serviceServiceId: savedData.serviceServiceId,
                 service_service_id: savedData.serviceServiceId,
               }
@@ -387,6 +442,25 @@ export default function ServiceManagement() {
             <option value="true">Hoạt động</option>
             <option value="false">Không hoạt động</option>
           </select>
+          <select
+            className={styles['status-filter']}
+            value={sortField}
+            onChange={(e) => { setSortField(e.target.value); setPage(0); }}
+          >
+            <option value="itemId">Sắp xếp: ID</option>
+            <option value="itemName">Sắp xếp: Tên</option>
+            <option value="sku">Sắp xếp: Mã</option>
+            <option value="price">Sắp xếp: Giá</option>
+            <option value="status">Sắp xếp: Trạng thái</option>
+          </select>
+          <select
+            className={styles['status-filter']}
+            value={sortDirection}
+            onChange={(e) => { setSortDirection(e.target.value); setPage(0); }}
+          >
+            <option value="asc">Tăng dần</option>
+            <option value="desc">Giảm dần</option>
+          </select>
           <button className={styles['ghost-button']} onClick={handleResetFilters}>
             Xóa bộ lọc
           </button>
@@ -417,7 +491,7 @@ export default function ServiceManagement() {
               {!isLoading && totalElements === 0 && (
                 <tr><td colSpan="7" className={styles['empty-row']}>Chưa có dịch vụ nào.</td></tr>
               )}
-              {!isLoading && items.map((item) => {
+              {!isLoading && displayedItems.map((item) => {
                 const itemHasService = hasService(item);
                 return (
                   <tr key={item.itemId}>

@@ -8,12 +8,12 @@ export default function ToastBox(){
     <ToastContainer
       containerId="app-toast"
       position="top-center"
-      autoClose={5000}
+      autoClose={9000}
       hideProgressBar
       newestOnTop
       closeOnClick
       draggable={false}
-      pauseOnHover={false}
+      pauseOnHover
       className="appToastContainer"
       toastClassName="appToast"
       bodyClassName="appToastBody"

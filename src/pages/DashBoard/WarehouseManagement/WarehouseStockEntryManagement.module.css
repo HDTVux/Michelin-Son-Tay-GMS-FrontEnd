@@ -50,8 +50,24 @@
   color: #64748b;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
   .detailGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .fullRow {
+    grid-column: auto;
+  }
+
+  .attachmentList a {
+    overflow-wrap: anywhere;
   }
 }

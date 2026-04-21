@@ -1031,8 +1031,9 @@
 
 /* Toolbar */
 .attendanceToolbar {
-  display: flex;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr)) auto;
+  align-items: end;
   gap: 12px;
   padding: 14px 20px;
   border-bottom: 1px solid #e2e8f0;
@@ -1043,6 +1044,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .attendanceToolbarLabel {
@@ -1054,6 +1056,7 @@
 }
 
 .attendanceToolbarInput {
+  width: 100%;
   padding: 8px 12px;
   border: 1.5px solid #e2e8f0;
   border-radius: 8px;
@@ -1062,7 +1065,8 @@
   background: #fff;
   font-family: inherit;
   transition: all 0.2s;
-  min-width: 130px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .attendanceToolbarInput:focus {
@@ -1078,8 +1082,8 @@
 .attendanceToolbarActions {
   display: flex;
   gap: 8px;
-  margin-left: auto;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .attendanceLoadBtn {
@@ -1164,16 +1168,17 @@
 }
 
 .attendanceCheckinForm {
-  display: flex;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: 120px minmax(170px, 1.35fr) 140px 120px minmax(180px, 1.5fr) auto;
+  align-items: end;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
 .attendanceCheckinField {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .attendanceCheckinLabel {
@@ -1185,6 +1190,7 @@
 }
 
 .attendanceCheckinInput {
+  width: 100%;
   padding: 9px 12px;
   border: 1.5px solid #e2e8f0;
   border-radius: 8px;
@@ -1193,7 +1199,8 @@
   background: #fff;
   font-family: inherit;
   transition: all 0.2s;
-  min-width: 120px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .attendanceCheckinInput:focus {
@@ -1214,6 +1221,7 @@
 }
 
 .attendanceCheckinSelect {
+  width: 100%;
   padding: 9px 12px;
   border: 1.5px solid #e2e8f0;
   border-radius: 8px;
@@ -1223,7 +1231,8 @@
   font-family: inherit;
   cursor: pointer;
   transition: all 0.2s;
-  min-width: 160px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .attendanceCheckinSelect:focus {
@@ -1270,13 +1279,16 @@
 .attendanceTableCard {
   border: 1.5px solid #e2e8f0;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .attendanceTable {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  min-width: 920px;
+  table-layout: fixed;
 }
 
 .attendanceTable th {
@@ -1294,18 +1306,55 @@
 .attendanceTable th:first-child,
 .attendanceTable td:first-child {
   text-align: center;
-  width: 48px;
+  width: 54px;
 }
 
-.attendanceTable th:nth-child(2) {
+.attendanceTable th:nth-child(2),
+.attendanceTable td:nth-child(2) {
+  text-align: left;
+  width: 220px;
+}
+
+.attendanceTable th:nth-child(3),
+.attendanceTable td:nth-child(3) {
+  width: 112px;
+  text-align: center;
+}
+
+.attendanceTable th:nth-child(4),
+.attendanceTable td:nth-child(4),
+.attendanceTable th:nth-child(5),
+.attendanceTable td:nth-child(5) {
+  width: 105px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.attendanceTable th:nth-child(6),
+.attendanceTable td:nth-child(6) {
+  width: 118px;
+  text-align: center;
+}
+
+.attendanceTable th:nth-child(7),
+.attendanceTable td:nth-child(7) {
+  width: 170px;
   text-align: left;
 }
 
+.attendanceTable th:nth-child(8),
+.attendanceTable td:nth-child(8) {
+  width: 142px;
+  text-align: center;
+}
+
 .attendanceTable td {
-  padding: 12px 14px;
+  padding: 11px 12px;
   color: #374151;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .attendanceTable tbody tr:last-child td {
@@ -1320,14 +1369,15 @@
   background: #eff6ff;
 }
 
-.attendanceTable td:nth-child(2) {
-  text-align: left;
-}
-
 .attendanceStaffCell {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.attendanceStaffCell > div:last-child {
+  min-width: 0;
 }
 
 .attendanceStaffAvatar {
@@ -1348,11 +1398,15 @@
   font-size: 13px;
   font-weight: 600;
   color: #1f2937;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .attendanceStaffId {
   font-size: 11px;
   color: #9ca3af;
+  white-space: nowrap;
 }
 
 .attendanceStatusBadge {
@@ -1395,6 +1449,7 @@
   align-items: center;
   gap: 6px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .attendanceCheckoutBtn {
@@ -1520,6 +1575,35 @@
   .statsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .attendanceStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .attendanceStatItem {
+    padding: 0;
+    border-right: 0;
+  }
+
+  .attendanceToolbar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .attendanceToolbarActions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .attendanceCheckinForm {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .attendanceCheckinBtn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1590,5 +1674,45 @@
 
   .timeQuickBtn {
     flex: 1 1 100%;
+  }
+
+  .attendanceModalHeader {
+    padding: 16px;
+  }
+
+  .attendanceModalTitle {
+    font-size: 18px;
+  }
+
+  .attendanceStats,
+  .attendanceToolbar,
+  .attendanceCheckin,
+  .attendanceTableWrapper,
+  .attendanceModalFooter {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .attendanceStats,
+  .attendanceToolbar,
+  .attendanceCheckinForm {
+    grid-template-columns: 1fr;
+  }
+
+  .attendanceToolbarActions,
+  .attendanceCheckinHeader {
+    align-items: stretch;
+  }
+
+  .attendanceLoadBtn,
+  .attendanceLoadBtnGhost,
+  .attendanceCheckinBtn,
+  .attendanceModalFooter .cancelBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .attendanceTable {
+    min-width: 880px;
   }
 }
