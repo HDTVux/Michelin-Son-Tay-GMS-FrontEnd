@@ -459,6 +459,14 @@ function clearAddServiceRestoreSnapshot(serviceTicketId) {
     }
 }
 
+function debugEstimateAllocation(tag, payload) {
+    try {
+        console.log(`[estimate-allocation-debug] ${tag}`, payload);
+    } catch {
+        // ignore console failures
+    }
+}
+
 function normalizeTicketStatus(raw) {
     const value = String(raw || '')
         .trim()
@@ -1500,6 +1508,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 try {
                     const allocationRes = await fetchEstimateStockAllocations(estimateIdNum, token);
                     const rows = Array.isArray(allocationRes?.data) ? allocationRes.data : [];
+                    debugEstimateAllocation('stock-allocation-snapshot', {
+                        estimateId: estimateIdNum,
+                        serviceTicketId: serviceTicketIdNum,
+                        rows,
+                    });
 
                     const fallbackItems = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
                     const fallbackByEstimateItemId = new Map(
@@ -1590,6 +1603,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         const found =
                             list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
                             pickLatestEstimate(list);
+                        debugEstimateAllocation('refetched-estimate-before-allocation-fallback', {
+                            estimateId: estimateIdNum,
+                            serviceTicketId: serviceTicketIdNum,
+                            estimate: found ?? null,
+                        });
                         if (Array.isArray(found?.items)) {
                             estimateItemsForAllocation = found.items;
                             setLatestEstimate((prev) => {

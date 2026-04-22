@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchCustomerByPhone } from '../../../services/customerService.js';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useBeforeUnload, useLocation, useNavigate } from 'react-router-dom';
 import bookingStyles from '../../Booking/Booking.module.css';
 import scheduleStyles from '../BookingRequestManagement/BookingRequestEdit.module.css';
 import styles from './CreateBooking.module.css';
@@ -10,6 +10,7 @@ import { buildDateOptions, formatLocalDateYYYYMMDD, formatTimeHHmm, isPastSlot }
 import { normalizePeriodLabel, timeKey, useCreateBookingHandlers } from './useCreateBookingHandlers.js';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import AdvisorItemsTable from '../ServiceTicketManagement/AdvisorItemsTable.jsx';
+import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
 
 const DURATION_MINUTES = 60;
 const DATE_RANGE_DAYS = 10;
@@ -17,6 +18,14 @@ const NOTE_MAX_LENGTH = 255;
 
 const normalizeReminderStatus = (value) => String(value ?? '').trim().toUpperCase();
 const CREATE_BOOKING_ESTIMATE_STORAGE_KEY = 'create-booking:draft-estimate';
+
+function hasStoredEstimateDraft() {
+	try {
+		return Boolean(localStorage.getItem(CREATE_BOOKING_ESTIMATE_STORAGE_KEY));
+	} catch {
+		return false;
+	}
+}
 
 
 export default function CreateBooking() {
@@ -95,6 +104,9 @@ export default function CreateBooking() {
 	const [submitSuccess, setSubmitSuccess] = useState('');
 	const [createdBookingForCheckIn, setCreatedBookingForCheckIn] = useState(null);
 	const [submitLocked, setSubmitLocked] = useState(false);
+	const [cancellingEstimate, setCancellingEstimate] = useState(false);
+	const [estimateTableKey, setEstimateTableKey] = useState(0);
+	const navigationGuardRef = useRef(false);
 
 	useEffect(() => {
 		if (!sourceReminderBlocksBooking) return;
@@ -108,6 +120,9 @@ export default function CreateBooking() {
 		} catch {
 			// ignore storage failures
 		}
+		setSelectedEstimate(null);
+		setIsEstimateEditing(false);
+		setEstimateTableKey((prev) => prev + 1);
 	}, [submitSuccess]);
 
 	useEffect(() => {
@@ -145,6 +160,10 @@ export default function CreateBooking() {
 		);
 	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked, sourceReminderBlocksBooking]);
 
+	const hasActiveEstimateDraft = useMemo(() => {
+		return Boolean(estimateId || selectedEstimateItems.length > 0 || hasStoredEstimateDraft());
+	}, [estimateId, selectedEstimateItems.length]);
+
 	    const { handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
         useCreateBookingHandlers({
             baseSlots,
@@ -178,20 +197,111 @@ export default function CreateBooking() {
             setSubmitLocked,
         });
 
-
-    const handleReset = () => {
-        setCheckingCustomer(false);
-        setCustomerChecked(null);
-        setCustomerCheckError('');
+	const clearEstimateDraftLocalState = useCallback(() => {
 		setSelectedEstimate(null);
 		setIsEstimateEditing(false);
+		setEstimateTableKey((prev) => prev + 1);
 		try {
 			localStorage.removeItem(CREATE_BOOKING_ESTIMATE_STORAGE_KEY);
 		} catch {
 			// ignore storage failures
 		}
+	}, []);
+
+	const cancelEstimateDraft = useCallback(async () => {
+		if (cancellingEstimate) return false;
+		setSubmitError('');
+		setSubmitSuccess('');
+		setCancellingEstimate(true);
+		try {
+			if (estimateId) {
+				const token = localStorage.getItem('authToken');
+				if (!token) {
+					setSubmitError('Vui lòng đăng nhập để hủy báo giá.');
+					return false;
+				}
+				await manageServiceTicketEstimateStatus(estimateId, 'CANCELLED', token);
+			}
+			clearEstimateDraftLocalState();
+			return true;
+		} catch (err) {
+			setSubmitError(err?.message || 'Không thể hủy báo giá.');
+			return false;
+		} finally {
+			setCancellingEstimate(false);
+		}
+	}, [cancellingEstimate, clearEstimateDraftLocalState, estimateId]);
+
+    const handleReset = async () => {
+		if (hasActiveEstimateDraft) {
+			const confirmed = globalThis.confirm(
+				'Thao tác này sẽ hủy báo giá hiện tại và xóa dữ liệu nháp liên quan. Bạn có muốn tiếp tục không?',
+			);
+			if (!confirmed) return;
+			const cancelled = await cancelEstimateDraft();
+			if (!cancelled) return;
+		}
+        setCheckingCustomer(false);
+        setCustomerChecked(null);
+        setCustomerCheckError('');
         resetForm();
     };
+
+	const handleCancelEstimate = useCallback(async () => {
+		if (!hasActiveEstimateDraft) return;
+		const confirmed = globalThis.confirm('Bạn có chắc chắn muốn hủy báo giá dự kiến này không?');
+		if (!confirmed) return;
+		await cancelEstimateDraft();
+	}, [cancelEstimateDraft, hasActiveEstimateDraft]);
+
+	useBeforeUnload(
+		useCallback((event) => {
+			if (!hasActiveEstimateDraft || cancellingEstimate) return;
+			event.preventDefault();
+			event.returnValue = '';
+		}, [cancellingEstimate, hasActiveEstimateDraft]),
+	);
+
+	useEffect(() => {
+		if (!hasActiveEstimateDraft || cancellingEstimate || submitSuccess) return undefined;
+
+		const handleDocumentClick = (event) => {
+			if (navigationGuardRef.current) return;
+			const target = event.target instanceof Element ? event.target.closest('a[href]') : null;
+			if (!target) return;
+			if (target.target && target.target !== '_self') return;
+			if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+			const href = target.getAttribute('href');
+			if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+
+			const nextUrl = new URL(target.href, window.location.href);
+			const currentUrl = new URL(window.location.href);
+			if (nextUrl.origin !== currentUrl.origin) return;
+			if (nextUrl.pathname === currentUrl.pathname && nextUrl.search === currentUrl.search && nextUrl.hash === currentUrl.hash) return;
+
+			event.preventDefault();
+			navigationGuardRef.current = true;
+
+			(async () => {
+				const shouldDiscard = globalThis.confirm(
+					'Bạn đang có báo giá dự kiến chưa hoàn tất. Chọn OK để hủy báo giá và rời trang, hoặc Cancel để ở lại hoàn tất tạo booking.',
+				);
+				if (!shouldDiscard) return;
+
+				const cancelled = await cancelEstimateDraft();
+				if (!cancelled) return;
+				navigate(`${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+			})().finally(() => {
+				navigationGuardRef.current = false;
+			});
+		};
+
+		document.addEventListener('click', handleDocumentClick, true);
+		return () => {
+			document.removeEventListener('click', handleDocumentClick, true);
+		};
+	}, [cancelEstimateDraft, cancellingEstimate, hasActiveEstimateDraft, navigate, submitSuccess]);
 
 	const dateOptions = useMemo(() => buildDateOptions(DATE_RANGE_DAYS), []);
 	const allowedDateSet = useMemo(() => new Set(dateOptions.map((o) => o.value)), [dateOptions]);
@@ -337,18 +447,31 @@ export default function CreateBooking() {
 				</div>
 			)}
 			<AdvisorItemsTable
+				key={estimateTableKey}
 				serviceTicketId={null}
 				ticketStatus=""
 				ticketPhotos={[]}
 				estimatedTimeDisplay=""
 				title="Bảng báo giá dự kiến"
 				draftStorageKey={CREATE_BOOKING_ESTIMATE_STORAGE_KEY}
-				autoStartCreate
 				hideVehiclePhotos
 				hideRecommendation
+				hideEstimateSummary
 				onEstimateStatusChange={setSelectedEstimate}
 				onEstimateEditingChange={setIsEstimateEditing}
 			/>
+			{hasActiveEstimateDraft ? (
+				<div className={bookingStyles['booking-actions']} style={{ padding: 0, marginTop: 8 }}>
+					<button
+						type="button"
+						className={bookingStyles.btn}
+						onClick={handleCancelEstimate}
+						disabled={cancellingEstimate || submitting}
+					>
+						{cancellingEstimate ? 'Đang hủy báo giá...' : 'Hủy báo giá'}
+					</button>
+				</div>
+			) : null}
 
 			<div style={{ height: 16 }} />
 
@@ -576,7 +699,7 @@ export default function CreateBooking() {
 					type="button"
 					className={bookingStyles.btn}
 					onClick={handleReset}
-					disabled={submitting}
+					disabled={submitting || cancellingEstimate}
 				>
 					Làm mới
 				</button>

@@ -274,6 +274,14 @@ export function toIdOrNull(value) {
 	return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function debugEstimateVersion(tag, payload) {
+	try {
+		console.log(`[estimate-version-debug] ${tag}`, payload);
+	} catch {
+		// ignore console failures
+	}
+}
+
 export function isDraftRowEmpty(row) {
 	const newCategoryName = String(row?.newCategoryName || '').trim();
 	const itemName = String(row?.itemName || '').trim();
@@ -1479,6 +1487,12 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				};
 				if (warehouseId) payload.warehouseId = warehouseId;
 				if (taxRuleId) payload.taxRuleId = taxRuleId;
+				if (r?.isLockedFromPreviousVersion) {
+					const revisedFromItemId = toIdOrNull(r?.estimateItemId);
+					if (revisedFromItemId) {
+						payload.revisedFromItemId = revisedFromItemId;
+					}
+				}
 				return payload;
 			});
 
@@ -1493,6 +1507,13 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
         try {
             setIsSaving(true);
             setSaveError('');
+			debugEstimateVersion('create-version-request', {
+				serviceTicketId: standaloneDraftMode ? null : idNum,
+				estimateType: 'INITIAL',
+				status: 'DRAFT',
+				estimateStatus: 'DRAFT',
+				items,
+			});
 			const res = await createServiceTicketEstimate(
                 {
                     serviceTicketId: standaloneDraftMode ? null : idNum,
@@ -1503,6 +1524,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
                 },
                 token,
             );
+			debugEstimateVersion('create-version-response', res?.data ?? null);
             setEstimate(res?.data ?? null);
             onEstimateStatusChangeRef.current?.(res?.data ?? null);
             setIsCreating(false);
