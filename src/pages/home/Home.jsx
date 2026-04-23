@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './Home.css';
-import TVC from '../../assets/video 1.mp4';
+import TVC from '../../assets/Garage Car Service.mp4';
+import welcomePoster from '../../assets/munganh_nen_chao_mung.jpg';
 import Service from './Services/Services.jsx';
 import Banner from './Banner/Banner.jsx';
 import Form from './Form/Form.jsx';
@@ -93,8 +94,8 @@ const Home = () => {
                     <div className={`introTextCol ${introVisible ? 'visible' : ''}`}>
                         <h2 className="introWelcome">Chào mừng đến với</h2>
                         <h1 className="introTitle">
-                            <span className="titlePart1">Michellin</span>
-                            <span className="titlePart2">Sơn Tây</span>
+                            <span className="titlePart1">michelin</span>
+                            <span className="titlePart2">sontay</span>
                         </h1>
                         <div className="introTextList">
                             {introText.map((text, idx) => (
@@ -106,7 +107,7 @@ const Home = () => {
                         </div>
                     </div>
                     <div className="introVideoMedia">
-                        <video autoPlay loop muted playsInline>
+                        <video autoPlay loop muted playsInline poster={welcomePoster} preload="metadata">
                             <source src={TVC} type="video/mp4" />
                         </video>
                         <div className="introVideoOverlay" />

@@ -3,9 +3,9 @@
 	grid-template-columns: 1fr 1fr;
 	gap: 32px;
 	padding: 40px 24px;
-	background-image: url('../../../assets/anh_nen3.jpg');
+	background-image: url('../../../assets/anh_nen.png');
 	background-size: cover;
-	background-position: center;
+	background-position: 82% 76%;
 	background-repeat: no-repeat;
 	background-attachment: fixed;
 	position: relative;
@@ -13,6 +13,7 @@
 	width: 100%;
 	max-width: 100%;
 	margin: 0;
+	background-color: #0f172a;
 }
 
 .businessSection::after {
@@ -22,7 +23,10 @@
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: rgba(0, 0, 0, 0.4);
+	background:
+		linear-gradient(115deg, rgba(18, 25, 21, 0.72) 0%, rgba(24, 29, 27, 0.42) 42%, rgba(24, 29, 27, 0.14) 72%, rgba(24, 29, 27, 0.08) 100%),
+		radial-gradient(circle at 62% 24%, rgba(255, 214, 140, 0.3) 0%, transparent 24%),
+		linear-gradient(180deg, rgba(6, 10, 14, 0.22) 0%, rgba(6, 10, 14, 0.44) 100%);
 	z-index: 0;
 }
 
@@ -33,7 +37,7 @@
 	left: 0;
 	right: 0;
 	height: 4px;
-	background: linear-gradient(90deg, #64748b, #94a3b8, #64748b);
+	background: linear-gradient(90deg, #e3b95b, #fff0bc, #e3b95b);
 	background-size: 200% 100%;
 	animation: shimmer 3s linear infinite;
 }
@@ -49,24 +53,25 @@
 
 .infoCard,
 .mapCard {
-	background: #ffffff;
+	background: linear-gradient(135deg, rgba(255, 252, 245, 0.92) 0%, rgba(255, 248, 235, 0.86) 100%);
 	border-radius: 20px;
 	padding: 28px 26px;
-	box-shadow: 0 20px 60px rgba(100, 116, 139, 0.18), 0 0 0 1px rgba(100, 116, 139, 0.08) inset;
+	box-shadow: 0 20px 60px rgba(15, 23, 42, 0.24), 0 0 0 1px rgba(255, 230, 172, 0.14) inset;
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
-	border: 2px solid rgba(100, 116, 139, 0.12);
+	border: 1px solid rgba(255, 230, 172, 0.2);
 	transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 	position: relative;
 	z-index: 1;
+	backdrop-filter: blur(10px);
 }
 
 .infoCard:hover,
 .mapCard:hover {
 	transform: translateY(-4px);
-	box-shadow: 0 28px 80px rgba(100, 116, 139, 0.22), 0 0 0 1px rgba(100, 116, 139, 0.15) inset;
-	border-color: rgba(100, 116, 139, 0.2);
+	box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(255, 230, 172, 0.18) inset;
+	border-color: rgba(255, 220, 145, 0.28);
 }
 
 .infoCard h2 {
@@ -95,8 +100,8 @@
 	gap: 14px;
 	padding: 16px 18px;
 	border-radius: 16px;
-	background: #f9fafb;
-	border: 1px solid #e5e7eb;
+	background: rgba(255, 255, 255, 0.55);
+	border: 1px solid rgba(229, 204, 146, 0.28);
 }
 
 .contactIconCircle {
@@ -170,11 +175,11 @@
 
 
 .infoCard .hoursCard {
-	background: #f4f6f8;
+	background: rgba(255, 255, 255, 0.52);
 	border-radius: 12px;
 	padding: 16px 18px;
 	margin: 12px 0 22px;
-	border: 1px solid #e8eaee;
+	border: 1px solid rgba(229, 204, 146, 0.24);
 	width: 100%;
 }
 
@@ -353,6 +358,7 @@
 @media (max-width: 960px) {
 	.businessSection {
 		grid-template-columns: 1fr;
+		background-position: 78% 80%;
 	}
 
 	.mapCard {
@@ -363,6 +369,7 @@
 @media (max-width: 640px) {
 	.businessSection {
 		padding: 28px 14px;
+		background-position: 76% 82%;
 	}
 
 	.infoCard h2 {

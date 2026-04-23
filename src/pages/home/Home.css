@@ -15,7 +15,7 @@
 .introVideoSection {
     position: relative;
     padding: 80px 5%;
-    background-image: url('../../assets/anh_nen3.jpg');
+    background-image: url('../../assets/munganh_nen_chao_mung.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -96,7 +96,7 @@
     line-height: 1.1;
     display: flex;
     flex-wrap: nowrap;
-    gap: 16px;
+    gap: 0;
     align-items: baseline;
     font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
     opacity: 0;
@@ -1028,7 +1028,7 @@
     .introTitle {
         font-size: 32px;
         margin-bottom: 24px;
-        gap: 8px;
+        gap: 0;
     }
 
     .introTextItem {
