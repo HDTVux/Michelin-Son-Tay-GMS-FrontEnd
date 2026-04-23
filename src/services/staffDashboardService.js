@@ -1,5 +1,15 @@
 import { request } from './apiClient';
 
+const toSafePage = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.trunc(number) : 0;
+};
+
+const toSafeSize = (value, fallback = 10) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 1 ? Math.trunc(number) : fallback;
+};
+
 // ============ STAFF DASHBOARD APIs ============
 
 /**
@@ -43,3 +53,45 @@ export const fetchStaffAttendanceHistory = (month, year, token) => {
     headers: { Authorization: `Bearer ${token}` },
   });
 };
+
+/**
+ * GET /api/staff/tasks/today
+ * Lấy danh sách công việc hôm nay.
+ */
+export const fetchStaffTodayTasks = (token) =>
+  request('/api/staff/tasks/today', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+/**
+ * GET /api/staff/schedule?from=&to=
+ * Lấy lịch làm việc theo khoảng ngày.
+ */
+export const fetchStaffSchedule = (from, to, token) => {
+  const path = `/api/staff/schedule?from=${from}&to=${to}`;
+  return request(path, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+/**
+ * GET /api/staff/notifications?page=&size=
+ * Lấy danh sách thông báo có phân trang.
+ */
+export const fetchStaffNotifications = (page = 0, size = 10, token) =>
+  request(`/api/staff/notifications?page=${toSafePage(page)}&size=${toSafeSize(size)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+/**
+ * PUT /api/staff/notifications/{notificationId}/read
+ * Đánh dấu một thông báo đã đọc.
+ */
+export const markStaffNotificationAsRead = (notificationId, token) =>
+  request(`/api/staff/notifications/${notificationId}/read`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });

@@ -1,5 +1,15 @@
 import { API_BASE_URL, request } from './apiClient';
 
+const toSafePage = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.trunc(number) : 0;
+};
+
+const toSafeSize = (value, fallback = 10) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 1 ? Math.trunc(number) : fallback;
+};
+
 function parseFilenameFromContentDisposition(headerValue) {
   const raw = String(headerValue || '').trim();
   if (!raw) return null;
@@ -198,8 +208,8 @@ export const fetchServiceTicketsPaged = (params, token) => {
 
   const searchParams = new URLSearchParams();
 
-  const page = Number.isFinite(params?.page) ? params.page : 0;
-  const size = Number.isFinite(params?.size) ? params.size : 10;
+  const page = toSafePage(params?.page);
+  const size = toSafeSize(params?.size);
   searchParams.set('page', String(page));
   searchParams.set('size', String(size));
 
@@ -428,10 +438,8 @@ export const fetchServiceTicketReminders = (params = {}, token) => {
   }
 
   const query = new URLSearchParams();
-  const page = Number(params?.page ?? 0);
-  const size = Number(params?.size ?? 10);
-  query.set('page', Number.isFinite(page) && page >= 0 ? String(Math.floor(page)) : '0');
-  query.set('size', Number.isFinite(size) && size > 0 ? String(Math.floor(size)) : '10');
+  query.set('page', String(toSafePage(params?.page)));
+  query.set('size', String(toSafeSize(params?.size)));
 
   const rawDate = String(params?.date ?? '').trim();
   if (rawDate) {
@@ -927,8 +935,8 @@ export const fetchAdvisorMyTickets = (params, token) => {
   }
 
   const searchParams = new URLSearchParams();
-  const page = Number.isFinite(params?.page) ? params.page : 0;
-  const size = Number.isFinite(params?.size) ? params.size : 10;
+  const page = toSafePage(params?.page);
+  const size = toSafeSize(params?.size);
   searchParams.set('page', String(page));
   searchParams.set('size', String(size));
   if (params?.date) searchParams.set('date', params.date);

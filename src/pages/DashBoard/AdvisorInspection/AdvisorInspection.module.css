@@ -517,6 +517,14 @@
   font-weight: 700;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .futureActionBtn {
   background: #f59e0b;
   color: #fff;

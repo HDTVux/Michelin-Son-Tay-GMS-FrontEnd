@@ -9,6 +9,41 @@
   padding: 18px 12px;
 }
 
+.pageSize {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pageSize select {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  outline: none;
+  color: #334155;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pageSize select:focus {
+  border-color: #005aa9;
+  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.12);
+}
+
+.pageButtons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .detailGrid {
   display: grid;
   gap: 10px;
@@ -69,5 +104,27 @@
 
   .attachmentList a {
     overflow-wrap: anywhere;
+  }
+
+  .pageSize,
+  .pageButtons {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pageButtons :global(.ui-btn) {
+    min-width: 44px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .pageButtons {
+    gap: 6px;
+  }
+
+  .pageButtons :global(.ui-btn) {
+    flex: 1 1 64px;
   }
 }

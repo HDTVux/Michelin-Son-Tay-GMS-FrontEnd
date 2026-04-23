@@ -445,6 +445,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const standaloneDraftMode = Boolean(draftStorageKey);
 	const onEstimateStatusChangeRef = useRef(onEstimateStatusChange);
 	const [estimate, setEstimate] = useState(() => readEstimateDraftSnapshot(draftStorageKey));
+	const estimateRef = useRef(estimate);
 	const [loading, setLoading] = useState(false);
 	const [loadError, setLoadError] = useState('');
 	const [fetched, setFetched] = useState(false);
@@ -544,6 +545,10 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	useEffect(() => {
 		onEstimateStatusChangeRef.current = onEstimateStatusChange;
 	}, [onEstimateStatusChange]);
+
+	useEffect(() => {
+		estimateRef.current = estimate;
+	}, [estimate]);
 
 	useEffect(() => {
 		draftStorageKeyRef.current = draftStorageKey;
@@ -846,7 +851,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			setLoading(false);
 			setLoadError('');
 			setFetched(true);
-			onEstimateStatusChangeRef.current?.(estimate);
+			onEstimateStatusChangeRef.current?.(estimateRef.current);
 			return;
 		}
 		if (!token || !hasValidServiceTicketId) {

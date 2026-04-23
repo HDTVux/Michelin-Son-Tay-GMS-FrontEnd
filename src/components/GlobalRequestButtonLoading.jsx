@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 
 const INTENT_TTL_MS = 1600;
 const MIN_LOADING_MS = 260;
+const MAX_LOADING_MS = 15000;
 
 const findButton = (target) => {
   if (!target || typeof target.closest !== 'function') return null;
@@ -21,6 +22,7 @@ export default function GlobalRequestButtonLoading() {
   const intentRef = useRef({ button: null, at: 0 });
   const loadingCountRef = useRef(0);
   const loadingStartedAtRef = useRef(0);
+  const forceHideTimerRef = useRef(null);
   const mountedRef = useRef(false);
   const [visible, setVisible] = useState(false);
 
@@ -28,6 +30,10 @@ export default function GlobalRequestButtonLoading() {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      if (forceHideTimerRef.current) {
+        window.clearTimeout(forceHideTimerRef.current);
+        forceHideTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -39,12 +45,23 @@ export default function GlobalRequestButtonLoading() {
       if (loadingCountRef.current === 1) {
         loadingStartedAtRef.current = Date.now();
         if (mountedRef.current) setVisible(true);
+        if (forceHideTimerRef.current) window.clearTimeout(forceHideTimerRef.current);
+        forceHideTimerRef.current = window.setTimeout(() => {
+          loadingCountRef.current = 0;
+          forceHideTimerRef.current = null;
+          if (mountedRef.current) setVisible(false);
+        }, MAX_LOADING_MS);
       }
     };
 
     const hideOverlay = () => {
       loadingCountRef.current = Math.max(0, loadingCountRef.current - 1);
       if (loadingCountRef.current > 0) return;
+
+      if (forceHideTimerRef.current) {
+        window.clearTimeout(forceHideTimerRef.current);
+        forceHideTimerRef.current = null;
+      }
 
       const elapsed = Date.now() - loadingStartedAtRef.current;
       const remaining = Number.isFinite(elapsed) ? Math.max(0, MIN_LOADING_MS - elapsed) : 0;
