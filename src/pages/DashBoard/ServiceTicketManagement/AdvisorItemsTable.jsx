@@ -298,6 +298,9 @@ function EstimateItemRow({
     const shouldShowTaxDropdown = allowInputs && !itemTaxRuleId && !categoryTaxRuleId;
 
     const unitText = String(row?.unit ?? '').trim();
+    const warehouseText = String(
+        row?.warehouseName ?? row?.warehouse?.warehouseName ?? row?.warehouse?.name ?? '',
+    ).trim();
 
     let itemPlaceholder = 'Diễn giải';
     if (categoryFilled) {
@@ -445,7 +448,7 @@ function EstimateItemRow({
                 </td>
             ) : null}
 
-            <td />
+            <td>{warehouseText || '-'}</td>
             {showConfirmColumn ? (
                 <td className={styles.tdCenter}>
                     <input
@@ -1022,6 +1025,7 @@ export default function AdvisorItemsTable({
         onChange(rowIndex, 'unitPrice', '');
 
         onChange(rowIndex, 'warehouseId', '');
+        onChange(rowIndex, 'warehouseName', '');
         onChange(rowIndex, 'warehouseAvailableQuantity', null);
 
         onChange(rowIndex, 'taxRuleId', '');
@@ -1037,6 +1041,12 @@ export default function AdvisorItemsTable({
         const price = item?.sellingPrice ?? item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
         const unit = String(item?.unit ?? '').trim();
         const warehouseId = item?.warehouseId ?? item?.selectedWarehouse?.warehouseId ?? null;
+        const warehouseName = String(
+            item?.warehouseName ??
+            item?.selectedWarehouse?.warehouseName ??
+            item?.selectedWarehouse?.name ??
+            '',
+        ).trim();
         const availableQtyRaw =
             item?.availableQuantity ??
             item?.selectedWarehouse?.quantity ??
@@ -1054,6 +1064,7 @@ export default function AdvisorItemsTable({
         } else {
             onChange(activeRowIndex, 'warehouseId', '');
         }
+        onChange(activeRowIndex, 'warehouseName', warehouseName);
         if (Number.isFinite(availableQtyNum) && availableQtyNum >= 0) {
             onChange(activeRowIndex, 'warehouseAvailableQuantity', availableQtyNum);
         } else {

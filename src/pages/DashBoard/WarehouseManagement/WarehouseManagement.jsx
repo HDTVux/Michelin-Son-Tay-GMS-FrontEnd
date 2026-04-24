@@ -487,7 +487,7 @@ export default function PartManagement() {
           <table className={styles['service-table']}>
             <thead>
               <tr>
-             <th>ID</th>
+             <th>STT</th>
                 <th>TÊN</th>
                 <th>SKU</th>
                 <th>KHO</th>
@@ -514,9 +514,10 @@ export default function PartManagement() {
               {!isLoading &&
                 paged.map((item, idx) => {
                   const key = buildRowKeyWithIndex(item.itemId, idx);
+                  const displayIndex = safePage * size + idx + 1;
                   return (
                     <tr key={String(key)}>
-                      <td>{item.itemId ?? '-'}</td>
+                      <td>{displayIndex}</td>
                       <td style={{ textAlign: 'left', fontWeight: 500 }}>{item.itemName ?? '-'}</td>
                       <td>{item.sku || '-'}</td>
                       <td className={styles['warehouse-cell']}>

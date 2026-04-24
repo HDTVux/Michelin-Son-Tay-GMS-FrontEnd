@@ -58,7 +58,7 @@ function CustomerLoginInner({ onClose }){
         {step === 2 && (
           <form onSubmit={handlePinLoginSubmit} className={styles.form}>
             <label className={styles.label}>Mã PIN (6 chữ số)</label>
-            <OTPGrid state={otpLogin} ariaPrefix="PIN" error={!!error} />
+            <OTPGrid state={otpLogin} ariaPrefix="PIN" error={!!error} masked />
             {error && <div className={styles.errorText}>{error}</div>}
             <button className={styles.primaryBtn} type="submit" disabled={isLoading}>
               {isLoading ? 'Đang xác thực...' : 'Đăng nhập'}
@@ -92,9 +92,9 @@ function CustomerLoginInner({ onClose }){
         {step === 4 && (
           <form onSubmit={handlePinSetupSubmit} className={styles.form}>
             <label className={styles.label}>Mã PIN mới (6 chữ số)</label>
-            <OTPGrid state={newPin} ariaPrefix="New PIN" error={!!error} />
+            <OTPGrid state={newPin} ariaPrefix="New PIN" error={!!error} masked />
             <label className={styles.label}>Xác nhận mã PIN mới</label>
-            <OTPGrid state={confirmPin} ariaPrefix="Confirm PIN" error={!!error} />
+            <OTPGrid state={confirmPin} ariaPrefix="Confirm PIN" error={!!error} masked />
             {error && <div className={styles.errorText}>{error}</div>}
             <button className={styles.primaryBtn} type="submit" disabled={isLoading}>
               {isLoading ? 'Đang xác nhận...' : 'Xác nhận'}
