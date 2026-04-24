@@ -12,6 +12,7 @@ import {
   fetchWarehouseItemCategories,
 } from '../../../services/warehouseService.js';
 import { fetchHomeProductDetail, fetchHomeServiceDetail } from '../../../services/homeService.js';
+import { appendPersistedServiceMediaFiles, isPersistedMediaUrl } from './serviceMediaUploadUtils.js';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
 const stripHtml = (value) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -63,11 +64,6 @@ const pickPriceValue = (...items) => {
     if (value !== undefined) return value;
   }
   return '';
-};
-
-const isPersistedMediaUrl = (value) => {
-  const text = String(value || '').trim();
-  return Boolean(text) && !text.startsWith('blob:') && !text.startsWith('data:');
 };
 
 const pickPriceMode = (showPrice, fallback = true) => ((toNullableBoolean(showPrice) ?? fallback) ? 'fixed' : 'contact');
@@ -401,7 +397,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
   const [newWorkCategoryName, setNewWorkCategoryName] = useState('');
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState(
-    baseItem.thumbnailUrl || baseItem.imageUrl || '',
+    baseItem.thumbnailUrl || baseItem.imageUrl || baseItem.mediaThumbnail || '',
   );
   const [existingMedia, setExistingMedia] = useState([]);
   const [mediaFiles, setMediaFiles] = useState([]);
@@ -529,7 +525,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       if (detail.thumbnailUrl || detail.imageUrl || detail.mediaThumbnail) {
         setThumbnailPreview(detail.thumbnailUrl || detail.imageUrl || detail.mediaThumbnail);
       }
-      setExistingMedia(normalizeExistingMedia(detail?.media ?? detail?.mediaList));
+      setExistingMedia(normalizeExistingMedia(detail?.media ?? detail?.mediaList ?? baseItem.media));
 
       const draft = readDraft();
       if (draft) {
@@ -695,7 +691,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       }
       if (!file) {
         setThumbnailFile(null);
-        setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || '');
+        setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || baseItem.mediaThumbnail || '');
       return;
       }
       const objectUrl = URL.createObjectURL(file);
@@ -704,7 +700,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       setThumbnailPreview(objectUrl);
       setAutoGenHint('');
     },
-    [baseItem.imageUrl, baseItem.thumbnailUrl],
+    [baseItem.imageUrl, baseItem.mediaThumbnail, baseItem.thumbnailUrl],
   );
 
   const handleMediaChange = useCallback((e) => {
@@ -798,7 +794,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
           ? String(baseItem.itemCategoryId)
           : '',
     );
-    setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || '');
+    setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || baseItem.mediaThumbnail || '');
   }, [baseItem, clearDraft, initialDescription.detailHtml, initialDescription.introText, isEdit, loadDetail]);
 
   const buildDescriptionHtml = useCallback(
@@ -806,7 +802,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     [detailHtml, introText],
   );
 
-  const buildServiceFormData = useCallback(() => {
+  const buildServiceFormData = useCallback(async () => {
     const formData = new FormData();
     const showPrice = priceMode === 'fixed';
     const priceNum = Number(String(price || '').trim());
@@ -845,6 +841,12 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       formData.append('imageUrl', thumbnailPreview);
       formData.append('mediaThumbnail', thumbnailPreview);
     }
+    await appendPersistedServiceMediaFiles({
+      formData,
+      thumbnailFile,
+      thumbnailPreview,
+      existingMedia,
+    });
     mediaFiles.forEach((entry) => {
       if (entry?.file) formData.append('mediaFiles', entry.file);
     });
@@ -1002,13 +1004,22 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
           notify('Không tìm thấy serviceId để cập nhật. Vui lòng tạo bài viết trước.', 'error');
           return;
         }
-        await updateServiceById(serviceId, buildServiceFormData(), token);
+        const updateRes = await updateServiceById(serviceId, await buildServiceFormData(), token);
+        const updatedService = extractPayload(updateRes) || {};
+        const updatedMediaThumbnail = updatedService.mediaThumbnail || thumbnailPreview;
+        const updatedMedia = normalizeExistingMedia(updatedService.media ?? updatedService.mediaList ?? existingMedia);
+        setThumbnailPreview(updatedMediaThumbnail);
+        setExistingMedia(updatedMedia);
         notify(`Cap nhat bai viet dich vu${successName} thanh cong!`, 'success');
         clearDraft();
         setResolvedServiceId(serviceId);
         onSaved({
           catalogItemId: catalogItemId ?? baseItem.itemId,
           serviceServiceId: serviceId,
+          mediaThumbnail: updatedMediaThumbnail,
+          thumbnailUrl: updatedMediaThumbnail,
+          imageUrl: updatedMediaThumbnail,
+          media: updatedMedia,
           ...buildSavedCatalogSnapshot(serviceId),
         });
         return;
@@ -1026,8 +1037,11 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
         if (!catalogItemId) throw new Error('Không nhận được catalogItemId sau khi tạo catalog.');
       }
 
-      const createRes = await createServiceForCatalog(catalogItemId, buildServiceFormData(), token);
-      serviceServiceId = getServiceServiceId(extractPayload(createRes)) || serviceServiceId;
+      const createRes = await createServiceForCatalog(catalogItemId, await buildServiceFormData(), token);
+      const createdService = extractPayload(createRes) || {};
+      serviceServiceId = getServiceServiceId(createdService) || serviceServiceId;
+      const createdMediaThumbnail = createdService.mediaThumbnail || thumbnailPreview;
+      const createdMedia = normalizeExistingMedia(createdService.media ?? createdService.mediaList ?? existingMedia);
       if (isCreateFromCatalog && !serviceServiceId) {
         throw new Error('Đã tạo dịch vụ nhưng chưa nhận được serviceId.');
       }
@@ -1037,6 +1051,10 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       onSaved({
         catalogItemId,
         serviceServiceId,
+        mediaThumbnail: createdMediaThumbnail,
+        thumbnailUrl: createdMediaThumbnail,
+        imageUrl: createdMediaThumbnail,
+        media: createdMedia,
         ...buildSavedCatalogSnapshot(serviceServiceId),
       });
     } catch (err) {
@@ -1049,6 +1067,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     buildCatalogPayload,
     buildSavedCatalogSnapshot,
     buildServiceFormData,
+    existingMedia,
     isCreateFromCatalog,
     isCreateNew,
     isEdit,
@@ -1056,6 +1075,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     notify,
     onSaved,
     resolvedServiceId,
+    thumbnailPreview,
     validateBeforeSubmit,
     clearDraft,
   ]);

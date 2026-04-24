@@ -8,6 +8,7 @@ import {
   fetchWarehouseItemCategories,
 } from '../../../services/warehouseService.js';
 import { fetchHomeProductDetail, fetchHomeServiceDetail } from '../../../services/homeService.js';
+import { appendPersistedServiceMediaFiles, isPersistedMediaUrl } from './serviceMediaUploadUtils.js';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
 const stripHtml = (value) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -55,10 +56,6 @@ const pickPriceValue = (...items) => {
     if (value !== undefined) return value;
   }
   return '';
-};
-const isPersistedMediaUrl = (value) => {
-  const text = String(value || '').trim();
-  return Boolean(text) && !text.startsWith('blob:') && !text.startsWith('data:');
 };
 const mergeWithMeaningfulServiceData = (catalogDetail, serviceDetail) => {
   const base = { ...(catalogDetail || {}) };
@@ -415,7 +412,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   const [newWorkCategoryCode, setNewWorkCategoryCode] = useState('');
   const [newWorkCategoryName, setNewWorkCategoryName] = useState('');
   const [thumbnailFile, setThumbnailFile] = useState(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState(baseItem.thumbnailUrl || baseItem.imageUrl || '');
+  const [thumbnailPreview, setThumbnailPreview] = useState(baseItem.thumbnailUrl || baseItem.imageUrl || baseItem.mediaThumbnail || '');
   const [existingMedia, setExistingMedia] = useState([]);
   const [mediaFiles, setMediaFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -541,7 +538,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       if (detail.thumbnailUrl || detail.imageUrl || detail.mediaThumbnail) {
         setThumbnailPreview(detail.thumbnailUrl || detail.imageUrl || detail.mediaThumbnail);
       }
-      setExistingMedia(normalizeExistingMedia(detail?.media ?? detail?.mediaList));
+      setExistingMedia(normalizeExistingMedia(detail?.media ?? detail?.mediaList ?? baseItem.media));
 
       const draft = readDraft();
       if (draft) {
@@ -698,7 +695,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     }
     if (!file) {
       setThumbnailFile(null);
-      setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || '');
+      setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || baseItem.mediaThumbnail || '');
       return;
     }
     const objectUrl = URL.createObjectURL(file);
@@ -706,7 +703,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     setThumbnailFile(file);
     setThumbnailPreview(objectUrl);
     setAutoGenHint('Đã nhận ảnh. Bạn có thể bấm "Tạo lại từ ảnh" để cập nhật nội dung.');
-  }, [baseItem.imageUrl, baseItem.thumbnailUrl]);
+  }, [baseItem.imageUrl, baseItem.mediaThumbnail, baseItem.thumbnailUrl]);
 
   const handleMediaChange = useCallback((e) => {
     const files = Array.from(e?.target?.files ?? []);
@@ -799,12 +796,12 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
           ? String(baseItem.itemCategoryId)
           : `${normalizedItemType}_AUTO`,
     );
-    setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || '');
+    setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || baseItem.mediaThumbnail || '');
   }, [baseItem, clearDraft, initialDescription.detailHtml, initialDescription.introText, isEdit, loadDetail, normalizedItemType]);
 
   const buildDescriptionHtml = useCallback(() => composeDescriptionHtml(introText, detailHtml), [detailHtml, introText]);
 
-  const buildServiceFormData = useCallback(() => {
+  const buildServiceFormData = useCallback(async () => {
     const formData = new FormData();
     const showPrice = priceMode === 'fixed';
     const priceNum = Number(String(price || '').trim());
@@ -840,6 +837,12 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       formData.append('imageUrl', thumbnailPreview);
       formData.append('mediaThumbnail', thumbnailPreview);
     }
+    await appendPersistedServiceMediaFiles({
+      formData,
+      thumbnailFile,
+      thumbnailPreview,
+      existingMedia,
+    });
     mediaFiles.forEach((entry) => { if (entry?.file) formData.append('mediaFiles', entry.file); });
     const existingMediaUrls = existingMedia
       .map((entry) => entry?.mediaUrl)
@@ -1008,13 +1011,22 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
           notify('Khong tim thay serviceId de cap nhat. Vui long tao bai viet truoc.', 'error');
           return;
         }
-        await updateServiceById(serviceId, buildServiceFormData(), token);
+        const updateRes = await updateServiceById(serviceId, await buildServiceFormData(), token);
+        const updatedService = extractPayload(updateRes) || {};
+        const updatedMediaThumbnail = updatedService.mediaThumbnail || thumbnailPreview;
+        const updatedMedia = normalizeExistingMedia(updatedService.media ?? updatedService.mediaList ?? existingMedia);
+        setThumbnailPreview(updatedMediaThumbnail);
+        setExistingMedia(updatedMedia);
         notify(`Cap nhat bai viet ${itemToastLabel}${successName} thanh cong!`, 'success');
         clearDraft();
         setResolvedServiceId(serviceId);
         onSaved({
           catalogItemId: catalogItemId ?? baseItem.itemId,
           serviceServiceId: serviceId,
+          mediaThumbnail: updatedMediaThumbnail,
+          thumbnailUrl: updatedMediaThumbnail,
+          imageUrl: updatedMediaThumbnail,
+          media: updatedMedia,
           ...buildSavedCatalogSnapshot(serviceId),
         });
         return;
@@ -1031,8 +1043,11 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
         serviceServiceId = getServiceServiceId(createdCatalog) || serviceServiceId;
         if (!catalogItemId) throw new Error('Khong nhan duoc catalogItemId sau khi tao catalog.');
       }
-      const createRes = await createServiceForCatalog(catalogItemId, buildServiceFormData(), token);
-      serviceServiceId = getServiceServiceId(extractPayload(createRes)) || serviceServiceId;
+      const createRes = await createServiceForCatalog(catalogItemId, await buildServiceFormData(), token);
+      const createdService = extractPayload(createRes) || {};
+      serviceServiceId = getServiceServiceId(createdService) || serviceServiceId;
+      const createdMediaThumbnail = createdService.mediaThumbnail || thumbnailPreview;
+      const createdMedia = normalizeExistingMedia(createdService.media ?? createdService.mediaList ?? existingMedia);
       if (isCreateFromCatalog && !serviceServiceId) {
         throw new Error('Da tao blog nhung chua nhan duoc serviceId.');
       }
@@ -1042,6 +1057,10 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       onSaved({
         catalogItemId,
         serviceServiceId,
+        mediaThumbnail: createdMediaThumbnail,
+        thumbnailUrl: createdMediaThumbnail,
+        imageUrl: createdMediaThumbnail,
+        media: createdMedia,
         ...buildSavedCatalogSnapshot(serviceServiceId),
       });
     } catch (err) {
@@ -1049,7 +1068,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     } finally {
       setIsSubmitting(false);
     }
-  }, [baseItem, buildCatalogPayload, buildSavedCatalogSnapshot, buildServiceFormData, clearDraft, isCreateFromCatalog, isCreateNew, isEdit, itemName, itemToastLabel, notify, onSaved, resolvedServiceId, validateBeforeSubmit]);
+  }, [baseItem, buildCatalogPayload, buildSavedCatalogSnapshot, buildServiceFormData, clearDraft, existingMedia, isCreateFromCatalog, isCreateNew, isEdit, itemName, itemToastLabel, notify, onSaved, resolvedServiceId, thumbnailPreview, validateBeforeSubmit]);
 
   return (
     <div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
