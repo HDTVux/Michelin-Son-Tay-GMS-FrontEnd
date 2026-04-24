@@ -1758,7 +1758,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         && !hasAnyStockAllocation
         && !isActionLocked;
     const canSetPending = ticketStatus === 'ESTIMATED' && !isActionLocked;
-    const canAddService = (ticketStatus === 'ESTIMATED' || ticketStatus === 'REPAIRING') && !isActionLocked;
+    const canAddService =
+        (ticketStatus === 'ESTIMATED' || ticketStatus === 'REPAIRING')
+        && estimateStatus === 'APPROVED'
+        && !isActionLocked;
     const canStartRepair = (ticketStatus === 'ESTIMATED' || ticketStatus === 'PENDING')
         && Boolean(estimateIdNum)
         && isEstimateApproved
@@ -2319,7 +2322,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                 )}
                                                 {canCreateReceipt && (
                                                     <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-                                                        Tạo phiếu dịch vụ
+                                                        <In></In> phiếu dịch vụ
                                                     </button>
                                                 )}
                                                 {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && !isActionLocked && (

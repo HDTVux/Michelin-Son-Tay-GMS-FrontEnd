@@ -74,6 +74,10 @@ function pickLatestEstimate(list) {
     })[0];
 }
 
+function extractApiPayload(response) {
+    return response?.data?.data ?? response?.data ?? response;
+}
+
 function normalizeBillId(input) {
     const raw =
         input?.billId ??
@@ -367,7 +371,7 @@ function runFetchEstimateEffect({ serviceTicketId, setEstimateLoading, setEstima
             setEstimateError('');
             const res = await fetchServiceTicketEstimate(serviceTicketId, token);
             if (ignore) return;
-            setEstimate(pickLatestEstimate(res?.data) ?? null);
+            setEstimate(pickLatestEstimate(extractApiPayload(res)) ?? null);
         } catch (err) {
             if (ignore) return;
             setEstimate(null);
@@ -669,6 +673,9 @@ export default function ReceiptConfirm() {
                 const unitPriceDisplay = pickMoneyDisplayValue(unitPriceWithVat, unitPrice);
                 const subTotalDisplay = pickMoneyDisplayValue(subTotalWithVat, subTotal);
                 const categoryName = it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
+                const warehouseName = String(
+                    it?.warehouseName ?? it?.warehouse?.warehouseName ?? it?.warehouse?.name ?? '',
+                ).trim();
                 return {
                     key: String(it?.estimateItemId ?? it?.itemId ?? `${idx}`),
                     categoryName,
@@ -678,6 +685,7 @@ export default function ReceiptConfirm() {
                     subTotal,
                     unitPriceDisplay,
                     subTotalDisplay,
+                    warehouseName,
                     confirmed: getItemConfirmedFlag(it),
                 };
             })
@@ -996,7 +1004,7 @@ export default function ReceiptConfirm() {
             <div className={styles.screenOnly}>
                 <header className={styles.header}>
                     <div>
-                        <h1 className={styles.title}>Tạo phiếu dịch vụ</h1>
+                        <h1 className={styles.title}>In phiếu dịch vụ</h1>
                         <div className={styles.subTitle}>Phiếu dịch vụ #{ticket.ticketCode || ticketCodeParam || '-'}</div>
                     </div>
                 </header>
@@ -1024,6 +1032,7 @@ export default function ReceiptConfirm() {
                                         <th className={styles.thQty}>SL</th>
                                         <th className={styles.thNumber}>Đơn giá</th>
                                         <th className={styles.thNumber}>Thành tiền</th>
+                                        <th>Kho</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1034,11 +1043,12 @@ export default function ReceiptConfirm() {
                                             <td className={styles.tdQty}>{it.quantity ? String(it.quantity) : ''}</td>
                                             <td className={styles.tdNumber}>{formatCurrencyVnd(it.unitPriceDisplay ?? it.unitPrice)}</td>
                                             <td className={styles.tdNumber}>{formatCurrencyVnd(it.subTotalDisplay ?? it.subTotal)}</td>
+                                            <td className={styles.tdText}>{it.warehouseName}</td>
                                         </tr>
                                     ))}
                                     {payItems.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className={styles.tdEmpty}>
+                                            <td colSpan={6} className={styles.tdEmpty}>
                                                 {estimateLoading ? 'Đang tải...' : 'Chưa có hạng mục nào được xác nhận.'}
                                             </td>
                                         </tr>
