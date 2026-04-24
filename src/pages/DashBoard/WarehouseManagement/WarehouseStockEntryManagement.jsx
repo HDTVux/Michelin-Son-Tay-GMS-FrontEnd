@@ -7,6 +7,7 @@ import commonStyles from '../common/ManagementCommon.module.css';
 import styles from './WarehouseStockEntryManagement.module.css';
 
 const DEFAULT_WAREHOUSE_ID = 1;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 const toWarehouseIdText = (value) => {
   const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
@@ -23,15 +24,31 @@ const STATUS_OPTIONS = [
   { value: 'CANCELLED', label: getStatusTextVi('CANCELLED') },
 ];
 
-const extractEntries = (response) => {
+const extractEntryPage = (response) => {
   // apiClient.request() already returns parsed JSON.
   // Backend may wrap list payloads as: { success, message, data: { content: [] } }
   const root = response?.data?.data ?? response?.data ?? response;
-  if (Array.isArray(root)) return root;
+  if (Array.isArray(root)) {
+    return {
+      content: root,
+      totalElements: root.length,
+      totalPages: 1,
+    };
+  }
 
   const content = root?.content ?? root?.data?.content ?? root?.data;
-  if (Array.isArray(content)) return content;
-  return [];
+  if (Array.isArray(content)) {
+    return {
+      content,
+      totalElements: Number(root?.totalElements ?? root?.data?.totalElements ?? content.length) || content.length,
+      totalPages: Math.max(1, Number(root?.totalPages ?? root?.data?.totalPages ?? 1) || 1),
+    };
+  }
+  return {
+    content: [],
+    totalElements: 0,
+    totalPages: 1,
+  };
 };
 
 const formatDate = (value) => {
@@ -58,11 +75,15 @@ export default function WarehouseStockEntryManagement() {
   const [warehouseIdInput, setWarehouseIdInput] = useState(String(DEFAULT_WAREHOUSE_ID));
   const [status, setStatus] = useState('ALL');
   const [entries, setEntries] = useState([]);
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [warehouseError, setWarehouseError] = useState('');
 
-  const fetchList = async (warehouseIdOverride) => {
+  const fetchList = async ({ warehouseIdOverride, pageOverride, sizeOverride } = {}) => {
     try {
       setLoading(true);
       setError('');
@@ -70,16 +91,25 @@ export default function WarehouseStockEntryManagement() {
       const warehouseId = toWarehouseIdText(warehouseIdSource);
       if (!warehouseId) {
         setEntries([]);
+        setTotalElements(0);
+        setTotalPages(1);
         setError('Vui lòng chọn kho.');
         return;
       }
-      const params = { warehouseId };
+      const nextPage = Number.isFinite(pageOverride) ? pageOverride : page;
+      const nextSize = Number.isFinite(sizeOverride) ? sizeOverride : size;
+      const params = { warehouseId, page: nextPage, size: nextSize };
       if (status && status !== 'ALL') params.status = status;
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       const res = await fetchWarehouseStockEntries(params, token);
-      setEntries(extractEntries(res));
+      const pageData = extractEntryPage(res);
+      setEntries(pageData.content);
+      setTotalElements(pageData.totalElements);
+      setTotalPages(pageData.totalPages);
     } catch (err) {
       setEntries([]);
+      setTotalElements(0);
+      setTotalPages(1);
       setError(err?.message || 'Không thể tải danh sách phiếu nhập.');
     } finally {
       setLoading(false);
@@ -102,7 +132,7 @@ export default function WarehouseStockEntryManagement() {
         const currentIdText = toWarehouseIdText(warehouseIdInput);
         const hasCurrent = Boolean(currentIdText) && list.some((w) => getWarehouseIdText(w) === currentIdText);
         if (hasCurrent) {
-          await fetchList(currentIdText);
+          await fetchList({ warehouseIdOverride: currentIdText, pageOverride: 0 });
           return;
         }
 
@@ -112,12 +142,12 @@ export default function WarehouseStockEntryManagement() {
           null;
         const nextId = getWarehouseIdText(firstActive) || String(DEFAULT_WAREHOUSE_ID);
         setWarehouseIdInput(String(nextId));
-        await fetchList(String(nextId));
+        await fetchList({ warehouseIdOverride: String(nextId), pageOverride: 0 });
       } catch (err) {
         if (cancelled) return;
         setWarehouses([]);
         setWarehouseError(err?.message || 'Không thể tải danh sách kho.');
-        await fetchList();
+        await fetchList({ pageOverride: 0 });
       } finally {
         if (!cancelled) setWarehouseLoading(false);
       }
@@ -129,11 +159,33 @@ export default function WarehouseStockEntryManagement() {
   }, []);
 
   const stats = useMemo(() => {
-    const total = entries.length;
+    const total = totalElements;
     const draft = entries.filter((row) => String(row?.status || '').toUpperCase() === 'DRAFT').length;
     const confirmed = entries.filter((row) => String(row?.status || '').toUpperCase() === 'CONFIRMED').length;
     return { total, draft, confirmed };
-  }, [entries]);
+  }, [entries, totalElements]);
+
+  const safePage = Math.min(Math.max(0, page), Math.max(1, totalPages) - 1);
+  const pageButtons = useMemo(() => {
+    const max = 5;
+    const last = Math.max(1, totalPages) - 1;
+    const start = Math.max(0, Math.min(safePage - 2, last - max + 1));
+    const result = [];
+    for (let i = start; i <= Math.min(last, start + max - 1); i += 1) result.push(i);
+    return result;
+  }, [safePage, totalPages]);
+
+  const goToPage = (nextPage) => {
+    const safeNext = Math.min(Math.max(0, nextPage), Math.max(1, totalPages) - 1);
+    setPage(safeNext);
+    fetchList({ pageOverride: safeNext });
+  };
+
+  const changePageSize = (nextSize) => {
+    setSize(nextSize);
+    setPage(0);
+    fetchList({ pageOverride: 0, sizeOverride: nextSize });
+  };
 
   const selectedWarehouseLabel = useMemo(() => {
     const idText = toWarehouseIdText(warehouseIdInput);
@@ -226,7 +278,15 @@ export default function WarehouseStockEntryManagement() {
             </select>
           </div>
           <div className={commonStyles.actions}>
-            <button type="button" className="ui-btn ui-btn--primary" onClick={() => fetchList()} disabled={loading}>
+            <button
+              type="button"
+              className="ui-btn ui-btn--primary"
+              onClick={() => {
+                setPage(0);
+                fetchList({ pageOverride: 0 });
+              }}
+              disabled={loading}
+            >
               {loading ? 'Đang tải...' : 'Lọc dữ liệu'}
             </button>
           </div>
@@ -284,6 +344,46 @@ export default function WarehouseStockEntryManagement() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className={commonStyles.pagination}>
+          <div className={styles.pageSize}>
+            <span>{'Hi\u1ec3n th\u1ecb:'}</span>
+            <select value={String(size)} onChange={(e) => changePageSize(Number(e.target.value))}>
+              {PAGE_SIZE_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.pageButtons}>
+            <button
+              type="button"
+              className="ui-btn ui-btn--primary"
+              disabled={safePage <= 0 || loading}
+              onClick={() => goToPage(safePage - 1)}
+            >
+              {'Tr\u01b0\u1edbc'}
+            </button>
+            {pageButtons.map((p) => (
+              <button
+                type="button"
+                key={p}
+                className={p === safePage ? 'ui-btn ui-btn--ghost' : 'ui-btn ui-btn--primary'}
+                disabled={p === safePage || loading}
+                onClick={() => goToPage(p)}
+              >
+                {p + 1}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="ui-btn ui-btn--primary"
+              disabled={safePage >= Math.max(1, totalPages) - 1 || loading}
+              onClick={() => goToPage(safePage + 1)}
+            >
+              Sau
+            </button>
+          </div>
         </div>
       </div>
     </div>

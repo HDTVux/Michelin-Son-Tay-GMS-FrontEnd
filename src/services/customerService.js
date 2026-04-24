@@ -1,19 +1,20 @@
-// Tra cứu khách hàng theo số điện thoại (dành cho staff)
+import { API_BASE_URL, request } from './apiClient.js';
+
+// Customer lookup by phone for staff
 export const fetchCustomerByPhone = (phone, token) =>
   request(`/api/booking/staff/customer-lookup?phone=${encodeURIComponent(phone)}`, {
     method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-import { request } from './apiClient';
 
-// Lấy thông tin profile khách hàng
+// Fetch customer profile
 export const fetchCustomerProfile = (token) =>
   request('/api/customer/profile', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
 
-// Cập nhật thông tin profile khách hàng
+// Update customer profile
 export const updateCustomerProfile = (payload, token) =>
   request('/api/customer/profile', {
     method: 'PUT',
@@ -26,7 +27,7 @@ export const uploadAvatar = (file, token) => {
   const formData = new FormData();
   formData.append('avatar', file);
 
-  return fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/customer/profile/avatar`, {
+  return fetch(`${API_BASE_URL}/api/customer/profile/avatar`, {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${token}`,

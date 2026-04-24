@@ -313,3 +313,87 @@
     justify-content: flex-start;
   }
 }
+
+@media (max-width: 720px) {
+  .page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: 12px;
+  }
+
+  .shell {
+    gap: 12px;
+  }
+
+  .header,
+  .card {
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .header,
+  .cardHeader,
+  .searchBar,
+  .footerActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  .formGrid,
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fullRow {
+    grid-column: auto;
+  }
+
+  .field,
+  .field input,
+  .field select,
+  .searchBar input,
+  .table input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .resultRow {
+    align-items: stretch;
+  }
+
+  .resultActions {
+    justify-content: stretch;
+  }
+
+  .resultActions button,
+  .backButton,
+  .searchBar button,
+  .ghostButton,
+  .primaryButton {
+    width: 100%;
+  }
+
+  .card:has(.table) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    min-width: 720px;
+  }
+
+  .table th,
+  .table td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+}

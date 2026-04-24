@@ -6,7 +6,12 @@ import {
   fetchCatalogItemDetail,
   updateServiceById,
 } from '../../../services/blogService.js';
-import { createWarehouseCatalogItem, createWarehouseItemCategory, fetchWarehouseItemCategories } from '../../../services/warehouseService.js';
+import {
+  createWarehouseCatalogItem,
+  createWarehouseItemCategory,
+  fetchWarehouseItemCategories,
+  updateWarehouseCatalogItem,
+} from '../../../services/warehouseService.js';
 import { fetchHomeProductDetail, fetchHomeServiceDetail } from '../../../services/homeService.js';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
@@ -35,6 +40,53 @@ const toNullableBoolean = (value) => {
     if (['false', '0', 'inactive', 'disabled', 'unpublished'].includes(text)) return false;
   }
   return null;
+};
+
+const pickFirstPresent = (...values) => {
+  for (const value of values) {
+    if (value == null) continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+    return value;
+  }
+  return undefined;
+};
+
+const pickPriceValue = (...items) => {
+  for (const item of items) {
+    const value = pickFirstPresent(
+      item?.price,
+      item?.displayPrice,
+      item?.servicePrice,
+      item?.sellingPrice,
+      item?.unitPrice,
+      item?.listPrice,
+    );
+    if (value !== undefined) return value;
+  }
+  return '';
+};
+
+const isPersistedMediaUrl = (value) => {
+  const text = String(value || '').trim();
+  return Boolean(text) && !text.startsWith('blob:') && !text.startsWith('data:');
+};
+
+const pickPriceMode = (showPrice, fallback = true) => ((toNullableBoolean(showPrice) ?? fallback) ? 'fixed' : 'contact');
+
+const pickEstimateTimeValue = (...items) => {
+  for (const item of items) {
+    const value = pickFirstPresent(
+      item?.estimateTime,
+      item?.estimate_time,
+      item?.estimatedTime,
+      item?.estimated_time,
+      item?.durationMinutes,
+      item?.duration_minutes,
+      item?.warrantyDurationMonths,
+    );
+    if (value !== undefined) return value;
+  }
+  return '';
 };
 
 const mergeWithMeaningfulServiceData = (catalogDetail, serviceDetail) => {
@@ -314,7 +366,6 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
   const isEdit = mode === 'edit' && Boolean(baseItem?.itemId);
   const isCreateFromCatalog = mode === 'createFromCatalog' && Boolean(baseItem?.itemId);
   const isCreateNew = !isEdit && !isCreateFromCatalog;
-
   const initialDescription = useMemo(
     () => splitDescriptionSections(baseItem.description || ''),
     [baseItem.description],
@@ -322,18 +373,15 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
   const [itemName, setItemName] = useState(baseItem.itemName || '');
   const [sku, setSku] = useState(baseItem.sku || '');
-  const [priceMode, setPriceMode] = useState(baseItem.showPrice !== false ? 'fixed' : 'contact');
+  const [priceMode, setPriceMode] = useState(pickPriceMode(baseItem.showPrice, true));
   const [price, setPrice] = useState(baseItem.price != null ? String(baseItem.price) : '');
   const [introText, setIntroText] = useState(initialDescription.introText);
   const [detailHtml, setDetailHtml] = useState(initialDescription.detailHtml);
   const [unit, setUnit] = useState(baseItem.unit || '');
-  const [estimateTime, setEstimateTime] = useState(
-    baseItem.estimateTime != null
-      ? String(baseItem.estimateTime)
-      : baseItem.warrantyDurationMonths != null
-        ? String(baseItem.warrantyDurationMonths)
-        : '',
-  );
+  const [estimateTime, setEstimateTime] = useState(() => {
+    const value = pickEstimateTimeValue(baseItem);
+    return value !== '' ? String(value) : '';
+  });
   const [isActive, setIsActive] = useState(isEdit ? baseItem.isActive !== false : true);
   const [brandId, setBrandId] = useState(baseItem.brandId != null ? String(baseItem.brandId) : '');
   const [productLineId, setProductLineId] = useState(
@@ -362,6 +410,8 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [autoGenHint, setAutoGenHint] = useState('');
   const [errors, setErrors] = useState({});
+  const [resolvedServiceId, setResolvedServiceId] = useState(() => getServiceServiceId(baseItem));
+  const [isDraftReady, setIsDraftReady] = useState(false);
 
   const editorRef = useRef(null);
   const thumbnailPreviewRef = useRef('');
@@ -414,6 +464,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
   const loadDetail = useCallback(async () => {
     if (!baseItem?.itemId) return;
+    setIsDraftReady(false);
     try {
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       const res = await fetchCatalogItemDetail(baseItem.itemId, token);
@@ -441,6 +492,11 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       }
 
       const detail = mergeWithMeaningfulServiceData(catalogDetail, serviceDetail);
+      const nextResolvedServiceId =
+        serviceId
+        || getServiceServiceId(serviceDetail)
+        || getServiceServiceId(detail);
+      setResolvedServiceId(nextResolvedServiceId ?? null);
 
       const mergedDescription =
         detail.fullDescription
@@ -451,18 +507,15 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
       setItemName(detail.title || detail.itemName || '');
       setSku(detail.sku || '');
-      setPriceMode(detail.showPrice !== false ? 'fixed' : 'contact');
-      setPrice(detail.price != null ? String(detail.price) : '');
+      const resolvedShowPrice = pickFirstPresent(baseItem.showPrice, catalogDetail.showPrice, true);
+      const resolvedPrice = pickPriceValue(baseItem, catalogDetail);
+      setPriceMode(pickPriceMode(resolvedShowPrice, true));
+      setPrice(resolvedPrice !== '' ? String(resolvedPrice) : '');
       setIntroText(splitSections.introText || String(detail.shortDescription || '').trim());
       setDetailHtml(splitSections.detailHtml || normalizeEditorHtml(detail.fullDescription || detail.descriptionHtml || ''));
       setUnit(detail.unit || '');
-      setEstimateTime(
-        detail.estimateTime != null
-          ? String(detail.estimateTime)
-          : detail.warrantyDurationMonths != null
-            ? String(detail.warrantyDurationMonths)
-            : '',
-      );
+      const resolvedEstimateTime = pickEstimateTimeValue(detail, serviceDetail, catalogDetail, baseItem);
+      setEstimateTime(resolvedEstimateTime !== '' ? String(resolvedEstimateTime) : '');
       const parsedIsActive = toNullableBoolean(detail.isActive ?? detail.status);
       setIsActive(isEdit ? (parsedIsActive ?? true) : true);
       setBrandId(detail.brandId != null ? String(detail.brandId) : '');
@@ -481,15 +534,13 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
       const draft = readDraft();
       if (draft) {
-        if (typeof draft.itemName === 'string') setItemName(draft.itemName);
-        if (typeof draft.sku === 'string') setSku(draft.sku);
-        if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
-        if (typeof draft.price === 'string') setPrice(draft.price);
-        if (typeof draft.introText === 'string') setIntroText(draft.introText);
-        if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
-        if (typeof draft.unit === 'string') setUnit(draft.unit);
-        if (typeof draft.estimateTime === 'string') setEstimateTime(draft.estimateTime);
-        else if (typeof draft.warrantyMonths === 'string') setEstimateTime(draft.warrantyMonths);
+        if (typeof draft.itemName === 'string' && draft.itemName.trim()) setItemName(draft.itemName);
+        if (typeof draft.sku === 'string' && draft.sku.trim()) setSku(draft.sku);
+        if (typeof draft.introText === 'string' && draft.introText.trim()) setIntroText(draft.introText);
+        if (typeof draft.detailHtml === 'string' && stripHtml(draft.detailHtml)) setDetailHtml(draft.detailHtml);
+        if (typeof draft.unit === 'string' && draft.unit.trim()) setUnit(draft.unit);
+        if (typeof draft.estimateTime === 'string' && draft.estimateTime.trim()) setEstimateTime(draft.estimateTime);
+        else if (typeof draft.warrantyMonths === 'string' && draft.warrantyMonths.trim()) setEstimateTime(draft.warrantyMonths);
         if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
         if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
         if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
@@ -497,7 +548,10 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       }
     } catch {
       // Keep local values.
+      setResolvedServiceId(getServiceServiceId(baseItem));
       setExistingMedia([]);
+    } finally {
+      setIsDraftReady(true);
     }
   }, [baseItem, isEdit, readDraft]);
 
@@ -526,21 +580,29 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
   useEffect(() => {
     if (!isCreateNew) return;
     const draft = readDraft();
-    if (!draft) return;
-    if (typeof draft.itemName === 'string') setItemName(draft.itemName);
-    if (typeof draft.sku === 'string') setSku(draft.sku);
-    if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
-    if (typeof draft.price === 'string') setPrice(draft.price);
-    if (typeof draft.introText === 'string') setIntroText(draft.introText);
-    if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
-    if (typeof draft.unit === 'string') setUnit(draft.unit);
-    if (typeof draft.estimateTime === 'string') setEstimateTime(draft.estimateTime);
-    else if (typeof draft.warrantyMonths === 'string') setEstimateTime(draft.warrantyMonths);
-    if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
-    if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
-    if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
-    if (typeof draft.itemCategoryId === 'string') setItemCategoryId(draft.itemCategoryId);
-  }, [isCreateNew, readDraft]);
+    if (draft) {
+      if (typeof draft.itemName === 'string') setItemName(draft.itemName);
+      if (typeof draft.sku === 'string') setSku(draft.sku);
+      if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
+      if (typeof draft.price === 'string') setPrice(draft.price);
+      if (typeof draft.introText === 'string') setIntroText(draft.introText);
+      if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
+      if (typeof draft.unit === 'string') setUnit(draft.unit);
+      if (typeof draft.estimateTime === 'string') setEstimateTime(draft.estimateTime);
+      else if (typeof draft.warrantyMonths === 'string') setEstimateTime(draft.warrantyMonths);
+      if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
+      if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
+      if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
+      if (typeof draft.itemCategoryId === 'string') setItemCategoryId(draft.itemCategoryId);
+    }
+    setResolvedServiceId(getServiceServiceId(baseItem));
+    setIsDraftReady(true);
+  }, [baseItem, isCreateNew, readDraft]);
+
+  useEffect(() => {
+    if (isCreateNew) return;
+    setResolvedServiceId(getServiceServiceId(baseItem));
+  }, [baseItem, isCreateNew]);
 
   useEffect(() => {
     if (!isCreateNew) return;
@@ -635,17 +697,15 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       if (!file) {
         setThumbnailFile(null);
         setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || '');
-        setAutoGenHint('');
-        return;
+      return;
       }
       const objectUrl = URL.createObjectURL(file);
       thumbnailPreviewRef.current = objectUrl;
       setThumbnailFile(file);
       setThumbnailPreview(objectUrl);
-      setAutoGenHint('Đã nhận ảnh. Bạn có thể bấm "Tạo lại từ ảnh" để cập nhật nội dung.');
-      void autoGenerateContentFromImage(file, { force: false });
+      setAutoGenHint('');
     },
-    [autoGenerateContentFromImage, baseItem.imageUrl, baseItem.thumbnailUrl],
+    [baseItem.imageUrl, baseItem.thumbnailUrl],
   );
 
   const handleMediaChange = useCallback((e) => {
@@ -665,6 +725,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (!isDraftReady) return;
     const snapshot = {
       itemName,
       sku,
@@ -689,6 +750,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     detailHtml,
     draftStorageKey,
     introText,
+    isDraftReady,
     isActive,
     itemCategoryId,
     itemName,
@@ -720,18 +782,13 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     }
     setItemName(baseItem.itemName || '');
     setSku(baseItem.sku || '');
-    setPriceMode(baseItem.showPrice !== false ? 'fixed' : 'contact');
+    setPriceMode(pickPriceMode(baseItem.showPrice, true));
     setPrice(baseItem.price != null ? String(baseItem.price) : '');
     setIntroText(initialDescription.introText);
     setDetailHtml(initialDescription.detailHtml);
     setUnit(baseItem.unit || '');
-    setEstimateTime(
-      baseItem.estimateTime != null
-        ? String(baseItem.estimateTime)
-        : baseItem.warrantyDurationMonths != null
-          ? String(baseItem.warrantyDurationMonths)
-          : '',
-    );
+    const baseEstimateTime = pickEstimateTimeValue(baseItem);
+    setEstimateTime(baseEstimateTime !== '' ? String(baseEstimateTime) : '');
     setIsActive(isEdit ? baseItem.isActive !== false : true);
     setBrandId(baseItem.brandId != null ? String(baseItem.brandId) : '');
     setProductLineId(baseItem.productLineId != null ? String(baseItem.productLineId) : '');
@@ -756,45 +813,78 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     const priceNum = Number(String(price || '').trim());
     const resolvedPrice =
       showPrice && Number.isFinite(priceNum) && priceNum >= 0 ? priceNum : 0;
-    const estimateTimeNum = Number(String(estimateTime || '').trim());
+    const estimateTimeSource = String(estimateTime || '').trim() || String(pickEstimateTimeValue(baseItem) || '').trim();
+    const estimateTimeNum = Number(estimateTimeSource);
     const serviceStatus = isActive ? 'ACTIVE' : 'INACTIVE';
     const fullDescription = buildDescriptionHtml();
     const shortDescription = String(introText || '').trim();
     const title = String(itemName || '').trim();
+    const skuText = String(sku || '').trim();
+    const unitText = String(unit || '').trim();
+    const catalogItemId = toNullablePositiveNumber(baseItem.itemId);
 
     formData.append('title', title);
+    formData.append('itemName', title);
+    formData.append('sku', skuText);
+    formData.append('itemCode', skuText);
+    formData.append('serviceCode', skuText);
+    formData.append('unit', unitText);
+    formData.append('price', String(resolvedPrice));
     formData.append('shortDescription', shortDescription);
     formData.append('fullDescription', fullDescription);
     formData.append('showPrice', showPrice ? 'true' : 'false');
     formData.append('displayPrice', String(resolvedPrice));
     formData.append('status', serviceStatus);
+    if (catalogItemId != null) formData.append('catalogItemId', String(catalogItemId));
     if (Number.isFinite(estimateTimeNum) && estimateTimeNum >= 0) {
       formData.append('estimateTime', String(Math.trunc(estimateTimeNum)));
     }
-    if (thumbnailFile) formData.append('thumbnailFile', thumbnailFile);
+    if (thumbnailFile) {
+      formData.append('thumbnailFile', thumbnailFile);
+    } else if (isPersistedMediaUrl(thumbnailPreview)) {
+      formData.append('thumbnailUrl', thumbnailPreview);
+      formData.append('imageUrl', thumbnailPreview);
+      formData.append('mediaThumbnail', thumbnailPreview);
+    }
     mediaFiles.forEach((entry) => {
       if (entry?.file) formData.append('mediaFiles', entry.file);
     });
+    const existingMediaUrls = existingMedia
+      .map((entry) => entry?.mediaUrl)
+      .filter(isPersistedMediaUrl);
+    if (existingMediaUrls.length > 0) {
+      formData.append('existingMediaUrls', JSON.stringify(existingMediaUrls));
+    }
     return formData;
   }, [
     buildDescriptionHtml,
+    existingMedia,
     introText,
     isActive,
     itemName,
+    baseItem,
     mediaFiles,
     price,
     priceMode,
+    sku,
     thumbnailFile,
+    thumbnailPreview,
     estimateTime,
+    unit,
   ]);
 
-  const buildCatalogPayload = useCallback(() => {
+  const buildCatalogPayload = useCallback((catalogItemId = null, serviceServiceId = null) => {
     const priceNum = Number(String(price || '').trim());
     const showPrice = priceMode === 'fixed';
     const resolvedPrice = Number.isFinite(priceNum) ? priceNum : 0;
     const description = stripHtml(buildDescriptionHtml());
     const parsedItemCategoryId = toNullablePositiveNumber(itemCategoryId);
+    const categoryIdForPayload = parsedItemCategoryId ?? (isCreateNew ? 0 : undefined);
+    const safeCatalogItemId = toNullablePositiveNumber(catalogItemId);
+    const safeServiceServiceId = toNullablePositiveNumber(serviceServiceId) ?? getServiceServiceId(baseItem);
     return {
+      itemId: safeCatalogItemId ?? undefined,
+      catalogItemId: safeCatalogItemId ?? undefined,
       itemName: String(itemName || '').trim() || undefined,
       itemType: 'SERVICE',
       sku: String(sku || '').trim(),
@@ -803,15 +893,34 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       unit: String(unit || '').trim(),
       description: description || undefined,
       warrantyDurationMonths: toNullablePositiveNumber(estimateTime) ?? undefined,
-      serviceServiceId: 0,
+      serviceServiceId: safeServiceServiceId ?? 0,
       comboDurationMonths: 0,
       comboDescription: '',
       isRecurring: false,
       isActive,
       is_active: 1,
-      workCategoryId: parsedItemCategoryId ?? 0,
+      brandId: toNullablePositiveNumber(brandId) ?? undefined,
+      productLineId: toNullablePositiveNumber(productLineId) ?? undefined,
+      itemCategoryId: categoryIdForPayload,
+      workCategoryId: categoryIdForPayload,
     };
-  }, [buildDescriptionHtml, estimateTime, isActive, itemCategoryId, itemName, price, priceMode, sku, unit]);
+  }, [baseItem, brandId, buildDescriptionHtml, estimateTime, isActive, isCreateNew, itemCategoryId, itemName, price, priceMode, productLineId, sku, unit]);
+
+  const buildSavedCatalogSnapshot = useCallback((serviceServiceId = null) => {
+    const priceNum = Number(String(price || '').trim());
+    const showPrice = priceMode === 'fixed';
+    return {
+      itemName: String(itemName || '').trim(),
+      sku: String(sku || '').trim(),
+      price: Number.isFinite(priceNum) ? priceNum : 0,
+      showPrice,
+      unit: String(unit || '').trim(),
+      warrantyDurationMonths: toNullablePositiveNumber(estimateTime) ?? undefined,
+      isActive,
+      serviceServiceId: toNullablePositiveNumber(serviceServiceId) ?? undefined,
+      service_service_id: toNullablePositiveNumber(serviceServiceId) ?? undefined,
+    };
+  }, [estimateTime, isActive, itemName, price, priceMode, sku, unit]);
 
   const validateBeforeSubmit = useCallback(() => {
     const nextErrors = {};
@@ -885,22 +994,32 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     if (!token) { notify('Vui lòng đăng nhập.', 'error'); return; }
     try {
       setIsSubmitting(true);
+      const submittedItemName = String(itemName || baseItem.itemName || '').trim();
+      const successName = submittedItemName ? ` "${submittedItemName}"` : '';
       if (isEdit) {
         const catalogItemId = toNullablePositiveNumber(baseItem.itemId);
-        const serviceId = getServiceServiceId(baseItem);
+        const serviceId = resolvedServiceId ?? getServiceServiceId(baseItem);
         if (!serviceId) {
           notify('Không tìm thấy serviceId để cập nhật. Vui lòng tạo bài viết trước.', 'error');
           return;
         }
+        if (catalogItemId) {
+          await updateWarehouseCatalogItem(catalogItemId, buildCatalogPayload(catalogItemId, serviceId), token);
+        }
         await updateServiceById(serviceId, buildServiceFormData(), token);
-        notify('Cập nhật dịch vụ thành công!', 'success');
+        notify(`Cap nhat bai viet dich vu${successName} thanh cong!`, 'success');
         clearDraft();
-        onSaved({ catalogItemId: catalogItemId ?? baseItem.itemId, serviceServiceId: serviceId });
+        setResolvedServiceId(serviceId);
+        onSaved({
+          catalogItemId: catalogItemId ?? baseItem.itemId,
+          serviceServiceId: serviceId,
+          ...buildSavedCatalogSnapshot(serviceId),
+        });
         return;
       }
 
       let catalogItemId = toNullablePositiveNumber(baseItem.itemId);
-      let serviceServiceId = getServiceServiceId(baseItem);
+      let serviceServiceId = resolvedServiceId ?? getServiceServiceId(baseItem);
       if (isCreateNew) {
         const createCatalogRes = await createWarehouseCatalogItem(buildCatalogPayload(), token);
         const createdCatalog = extractPayload(createCatalogRes);
@@ -909,6 +1028,8 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
         );
         serviceServiceId = getServiceServiceId(createdCatalog) || serviceServiceId;
         if (!catalogItemId) throw new Error('Không nhận được catalogItemId sau khi tạo catalog.');
+      } else if (catalogItemId) {
+        await updateWarehouseCatalogItem(catalogItemId, buildCatalogPayload(catalogItemId, serviceServiceId), token);
       }
 
       const createRes = await createServiceForCatalog(catalogItemId, buildServiceFormData(), token);
@@ -916,9 +1037,14 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
       if (isCreateFromCatalog && !serviceServiceId) {
         throw new Error('Đã tạo dịch vụ nhưng chưa nhận được serviceId.');
       }
-      notify('Tạo dịch vụ thành công!', 'success');
+      notify(`Tao bai viet dich vu${successName} thanh cong!`, 'success');
       clearDraft();
-      onSaved({ catalogItemId, serviceServiceId });
+      setResolvedServiceId(serviceServiceId ?? null);
+      onSaved({
+        catalogItemId,
+        serviceServiceId,
+        ...buildSavedCatalogSnapshot(serviceServiceId),
+      });
     } catch (err) {
       notify(err?.message || 'Thao tác thất bại. Vui lòng thử lại.', 'error');
     } finally {
@@ -927,12 +1053,15 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
   }, [
     baseItem,
     buildCatalogPayload,
+    buildSavedCatalogSnapshot,
     buildServiceFormData,
     isCreateFromCatalog,
     isCreateNew,
     isEdit,
+    itemName,
     notify,
     onSaved,
+    resolvedServiceId,
     validateBeforeSubmit,
     clearDraft,
   ]);
@@ -955,7 +1084,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
               placeholder="VD: Chỉnh thước lái (độ chụm)"
-              disabled={isSubmitting || isCreateFromCatalog}
+              disabled={isSubmitting}
             />
             {errors.itemName && <span className={styles['field-error']}>{errors.itemName}</span>}
           </div>
@@ -970,14 +1099,14 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
                   placeholder="VD: DV-CHINH-THUOC-LAI-928"
-                  disabled={isSubmitting || isCreateFromCatalog}
+                  disabled={isSubmitting}
                   style={{ flex: 1 }}
                 />
                 <button
                   type="button"
                   className={styles['auto-gen-button']}
                   onClick={handleRandomServiceCode}
-                  disabled={isSubmitting || isCreateFromCatalog}
+                  disabled={isSubmitting}
                 >
                   Random mã
                 </button>
@@ -1096,7 +1225,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
             )}
           </div>
 
-          <div className={styles['auto-gen-row']}>
+          <div className={styles['auto-gen-row']} style={{ display: 'none' }}>
             <button
               type="button"
               className={styles['auto-gen-button']}

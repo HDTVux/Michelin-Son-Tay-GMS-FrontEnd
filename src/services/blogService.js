@@ -1,9 +1,22 @@
-import { request } from './apiClient.js';
+import { API_BASE_URL, request } from './apiClient.js';
 
 function appendSafeCatalogSearchParam(qp, key, value) {
   if (value === undefined || value === null) return;
   const text = String(value).trim();
   if (!text) return;
+
+  if (key === 'sortBy') {
+    const [fieldRaw, directionRaw] = text.split(',');
+    const field = String(fieldRaw || '').trim();
+    if (!field) return;
+    const direction = String(directionRaw || '').trim().toLowerCase();
+    if (!direction) {
+      qp.append(key, field);
+      return;
+    }
+    qp.append(key, `${field},${direction === 'desc' ? 'desc' : 'asc'}`);
+    return;
+  }
 
   if (key === 'page') {
     const page = Number(text);
@@ -63,7 +76,7 @@ export const fetchCatalogBasicItemById = (itemId, token) => {
 export const createServiceForCatalog = async (catalogId, formData, token) => {
   const id = typeof catalogId === 'number' ? catalogId : Number(catalogId) || 0;
   return fetch(
-    (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080') + '/api/service/create/' + encodeURIComponent(String(id)),
+    API_BASE_URL + '/api/service/create/' + encodeURIComponent(String(id)),
     {
       method: 'POST',
       headers: token ? { Authorization: 'Bearer ' + token } : {},
@@ -81,7 +94,7 @@ export const createServiceForCatalog = async (catalogId, formData, token) => {
 export const updateServiceById = async (serviceId, formData, token) => {
   const id = typeof serviceId === 'number' ? serviceId : Number(serviceId) || 0;
   return fetch(
-    (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080') + '/api/service/update/' + encodeURIComponent(String(id)),
+    API_BASE_URL + '/api/service/update/' + encodeURIComponent(String(id)),
     {
       method: 'PUT',
       headers: token ? { Authorization: 'Bearer ' + token } : {},

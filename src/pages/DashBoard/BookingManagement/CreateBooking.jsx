@@ -1,67 +1,36 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchCustomerByPhone } from '../../../services/customerService.js';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useBeforeUnload, useLocation, useNavigate } from 'react-router-dom';
 import bookingStyles from '../../Booking/Booking.module.css';
 import scheduleStyles from '../BookingRequestManagement/BookingRequestEdit.module.css';
 import styles from './CreateBooking.module.css';
-import StepService from '../../Booking/steps/StepService.jsx';
 import infoStyles from '../../Booking/steps/StepInfo.module.css';
-import { fetchHomeProducts } from '../../../services/homeService.js';
 import { fetchAllSlots, fetchAvailableSlotStaff } from '../../../services/bookingService.js';
 import { buildDateOptions, formatLocalDateYYYYMMDD, formatTimeHHmm, isPastSlot } from '../../../components/timeUtils.js';
 import { normalizePeriodLabel, timeKey, useCreateBookingHandlers } from './useCreateBookingHandlers.js';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import AdvisorItemsTable from '../ServiceTicketManagement/AdvisorItemsTable.jsx';
+import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
 
 const DURATION_MINUTES = 60;
 const DATE_RANGE_DAYS = 10;
 const NOTE_MAX_LENGTH = 255;
 
 const normalizeReminderStatus = (value) => String(value ?? '').trim().toUpperCase();
+const CREATE_BOOKING_ESTIMATE_STORAGE_KEY = 'create-booking:draft-estimate';
 
-const toItemType = (value) => {
-	const text = String(value || '').trim().toUpperCase();
-	if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
-	return 'SERVICE';
-};
-
-const extractHomeProductsList = (res) => {
-	const payload = res?.data?.data ?? res?.data ?? res;
-	if (Array.isArray(payload)) return payload;
-	if (Array.isArray(payload?.content)) return payload.content;
-	return [];
-};
-
-const toPriceNumber = (value) => {
-	if (value === undefined || value === null || value === '') return null;
-	if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-	const parsed = Number(String(value).replace(/[^\d.-]/g, ''));
-	return Number.isFinite(parsed) ? parsed : null;
-};
-
-const getCatalogPrice = (item) => {
-	const candidates = [
-		item?.price,
-		item?.sellingPrice,
-		item?.salePrice,
-		item?.currentPrice,
-		item?.basePrice,
-		item?.unitPrice,
-		item?.listPrice,
-		item?.displayPrice,
-		item?.catalogPrice,
-		item?.data?.price,
-		item?.data?.sellingPrice,
-	];
-	for (const value of candidates) {
-		const price = toPriceNumber(value);
-		if (price != null) return price;
+function hasStoredEstimateDraft() {
+	try {
+		return Boolean(localStorage.getItem(CREATE_BOOKING_ESTIMATE_STORAGE_KEY));
+	} catch {
+		return false;
 	}
-	return null;
-};
+}
 
 
 export default function CreateBooking() {
 	useScrollToTop();
+	const noop = () => {};
 	const navigate = useNavigate();
 	const location = useLocation();
 	const sourceReminder = location.state?.maintenanceReminder || null;
@@ -75,6 +44,8 @@ export default function CreateBooking() {
 	const [customerChecked, setCustomerChecked] = useState(null); // null | { exists, fullName, ... }
 	const [customerCheckError, setCustomerCheckError] = useState('');
 	const [info, setInfo] = useState({ name: '', phone: '', note: '' });
+	const [selectedEstimate, setSelectedEstimate] = useState(null);
+	const [, setIsEstimateEditing] = useState(false);
 	const noteLength = useMemo(() => String(info.note || '').length, [info.note]);
 	const noteRemaining = useMemo(() => Math.max(0, NOTE_MAX_LENGTH - noteLength), [noteLength]);
 
@@ -106,17 +77,15 @@ export default function CreateBooking() {
 		}
 	};
 
-	const [services, setServices] = useState([]);
-	const [servicesLoading, setServicesLoading] = useState(false);
-	const [servicesError, setServicesError] = useState('');
-
-	const [selectedIds, setSelectedIds] = useState([]);
-	const [search, setSearch] = useState('');
-	const [filter, setFilter] = useState('all');
-	const [activeTab, setActiveTab] = useState('SERVICE');
-	const [minPrice, setMinPrice] = useState('');
-	const [maxPrice, setMaxPrice] = useState('');
-	const [priceSort, setPriceSort] = useState('');
+	const estimateId = useMemo(() => {
+		const raw = selectedEstimate?.estimateId ?? selectedEstimate?.id ?? null;
+		const num = typeof raw === 'number' ? raw : Number(raw);
+		return Number.isFinite(num) && num > 0 ? num : null;
+	}, [selectedEstimate]);
+	const selectedEstimateItems = useMemo(() => {
+		const items = Array.isArray(selectedEstimate?.items) ? selectedEstimate.items : [];
+		return items.filter((item) => !item?.isRemoved);
+	}, [selectedEstimate]);
 
 	const [schedule, setSchedule] = useState({ date: '', time: '' });
 	const [scheduleMode, setScheduleMode] = useState('manual'); // 'manual' | 'now'
@@ -135,15 +104,26 @@ export default function CreateBooking() {
 	const [submitSuccess, setSubmitSuccess] = useState('');
 	const [createdBookingForCheckIn, setCreatedBookingForCheckIn] = useState(null);
 	const [submitLocked, setSubmitLocked] = useState(false);
-	const selectedItems = useMemo(
-		() => services.filter((item) => selectedIds.includes(item.id)),
-		[services, selectedIds],
-	);
+	const [cancellingEstimate, setCancellingEstimate] = useState(false);
+	const [estimateTableKey, setEstimateTableKey] = useState(0);
+	const navigationGuardRef = useRef(false);
 
 	useEffect(() => {
 		if (!sourceReminderBlocksBooking) return;
 		setSubmitError('Chỉ có thể tạo lịch từ lời nhắc đã xác nhận.');
 	}, [sourceReminderBlocksBooking]);
+
+	useEffect(() => {
+		if (!submitSuccess) return;
+		try {
+			localStorage.removeItem(CREATE_BOOKING_ESTIMATE_STORAGE_KEY);
+		} catch {
+			// ignore storage failures
+		}
+		setSelectedEstimate(null);
+		setIsEstimateEditing(false);
+		setEstimateTableKey((prev) => prev + 1);
+	}, [submitSuccess]);
 
 	useEffect(() => {
 		if (didApplyReminderRef.current || !sourceReminderId) return;
@@ -167,102 +147,6 @@ export default function CreateBooking() {
 		}
 	}, [sourceReminder, sourceReminderId]);
 
-	useEffect(() => {
-		let active = true;
-		Promise.resolve().then(() => {
-			if (!active) return;
-			setServicesLoading(true);
-			setServicesError('');
-		});
-
-		Promise.allSettled([
-			fetchHomeProducts({ page: 0, size: 500, itemType: 'SERVICE' }),
-			fetchHomeProducts({ page: 0, size: 500, itemType: 'PART' }),
-			fetchHomeProducts({ page: 0, size: 500, itemType: 'PRODUCT' }),
-		])
-			.then((results) => {
-				if (!active) return;
-
-				const [serviceRes, partRes, productRes] = results;
-				const mergedRaw = [
-					...(serviceRes?.status === 'fulfilled'
-						? extractHomeProductsList(serviceRes.value).map((item) => ({ ...item, __sourceType: 'SERVICE' }))
-						: []),
-					...(partRes?.status === 'fulfilled'
-						? extractHomeProductsList(partRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
-						: []),
-					...(productRes?.status === 'fulfilled'
-						? extractHomeProductsList(productRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
-						: []),
-				];
-
-				const mapped = mergedRaw
-					.map((item) => {
-						const catalogItemId = Number(item?.catalogItemId ?? item?.catalog_item_id ?? item?.itemId);
-						if (!Number.isFinite(catalogItemId) || catalogItemId <= 0) return null;
-
-						const itemType = toItemType(item?.itemType ?? item?.type ?? item?.__sourceType);
-						const category = String(
-							item?.itemCategoryCode
-							?? item?.categoryCode
-							?? item?.itemCategoryName
-							?? item?.categoryName
-							?? 'all',
-						).trim() || 'all';
-						const categoryLabel = String(
-							item?.itemCategoryName
-							?? item?.categoryName
-							?? item?.itemCategoryCode
-							?? item?.categoryCode
-							?? 'Khac',
-						).trim() || 'Khac';
-
-						return {
-							id: String(catalogItemId),
-							serviceId: Number(item?.serviceId ?? item?.service_id),
-							itemType,
-							name: String(item?.title || item?.itemName || (itemType === 'PART' ? 'Phu tung' : 'Dich vu')).trim(),
-							desc: String(item?.shortDescription || item?.description || 'Hien chua co mo ta ngan.').trim(),
-							category,
-							categoryLabel,
-							price: getCatalogPrice(item),
-							thumbnail: item?.thumbnailUrl || item?.imageUrl || item?.mediaThumbnail || '',
-						};
-					})
-					.filter(Boolean);
-
-				const deduped = new Map();
-				mapped.forEach((item) => {
-					if (!deduped.has(item.id)) deduped.set(item.id, item);
-				});
-				setServices(Array.from(deduped.values()));
-
-				const serviceFailed = serviceRes?.status === 'rejected';
-				const partFailed = partRes?.status === 'rejected';
-				const productFailed = productRes?.status === 'rejected';
-				if (serviceFailed && partFailed && productFailed) {
-					setServicesError(
-						serviceRes?.reason?.message
-						|| partRes?.reason?.message
-						|| productRes?.reason?.message
-						|| 'Khong the tai danh sach dich vu/phu tung.',
-					);
-				}
-			})
-			.catch((err) => {
-				if (!active) return;
-				setServicesError(err?.message || 'Khong the tai danh sach dich vu/phu tung.');
-				setServices([]);
-			})
-			.finally(() => {
-				if (active) setServicesLoading(false);
-			});
-
-		return () => {
-			active = false;
-		};
-	}, []);
-
 	const canSubmit = useMemo(() => {
 		return (
 			info.name.trim() &&
@@ -276,11 +160,16 @@ export default function CreateBooking() {
 		);
 	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked, sourceReminderBlocksBooking]);
 
-	    const { toggle, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
+	const hasActiveEstimateDraft = useMemo(() => {
+		return Boolean(estimateId || selectedEstimateItems.length > 0 || hasStoredEstimateDraft());
+	}, [estimateId, selectedEstimateItems.length]);
+
+	    const { handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
         useCreateBookingHandlers({
             baseSlots,
-			selectedItems,
-            selectedIds,
+			selectedItems: selectedEstimateItems,
+            selectedIds: [],
+			estimateId,
             schedule,
             scheduleMode,
             info,
@@ -293,9 +182,7 @@ export default function CreateBooking() {
             navigate,
 
 
-            setSelectedIds,
-            setSearch,
-            setFilter,
+            setSelectedIds: noop,
             setSchedule,
             setScheduleMode,
             setShowSchedulePicker,
@@ -310,31 +197,111 @@ export default function CreateBooking() {
             setSubmitLocked,
         });
 
+	const clearEstimateDraftLocalState = useCallback(() => {
+		setSelectedEstimate(null);
+		setIsEstimateEditing(false);
+		setEstimateTableKey((prev) => prev + 1);
+		try {
+			localStorage.removeItem(CREATE_BOOKING_ESTIMATE_STORAGE_KEY);
+		} catch {
+			// ignore storage failures
+		}
+	}, []);
 
-    const handleReset = () => {
+	const cancelEstimateDraft = useCallback(async () => {
+		if (cancellingEstimate) return false;
+		setSubmitError('');
+		setSubmitSuccess('');
+		setCancellingEstimate(true);
+		try {
+			if (estimateId) {
+				const token = localStorage.getItem('authToken');
+				if (!token) {
+					setSubmitError('Vui lòng đăng nhập để hủy báo giá.');
+					return false;
+				}
+				await manageServiceTicketEstimateStatus(estimateId, 'CANCELLED', token);
+			}
+			clearEstimateDraftLocalState();
+			return true;
+		} catch (err) {
+			setSubmitError(err?.message || 'Không thể hủy báo giá.');
+			return false;
+		} finally {
+			setCancellingEstimate(false);
+		}
+	}, [cancellingEstimate, clearEstimateDraftLocalState, estimateId]);
+
+    const handleReset = async () => {
+		if (hasActiveEstimateDraft) {
+			const confirmed = globalThis.confirm(
+				'Thao tác này sẽ hủy báo giá hiện tại và xóa dữ liệu nháp liên quan. Bạn có muốn tiếp tục không?',
+			);
+			if (!confirmed) return;
+			const cancelled = await cancelEstimateDraft();
+			if (!cancelled) return;
+		}
         setCheckingCustomer(false);
         setCustomerChecked(null);
         setCustomerCheckError('');
         resetForm();
     };
 
+	const handleCancelEstimate = useCallback(async () => {
+		if (!hasActiveEstimateDraft) return;
+		const confirmed = globalThis.confirm('Bạn có chắc chắn muốn hủy báo giá dự kiến này không?');
+		if (!confirmed) return;
+		await cancelEstimateDraft();
+	}, [cancelEstimateDraft, hasActiveEstimateDraft]);
 
+	useBeforeUnload(
+		useCallback((event) => {
+			if (!hasActiveEstimateDraft || cancellingEstimate) return;
+			event.preventDefault();
+			event.returnValue = '';
+		}, [cancellingEstimate, hasActiveEstimateDraft]),
+	);
 
-	const handleChangeTab = (nextTab) => {
-		setActiveTab(toItemType(nextTab));
-		setFilter('all');
-		setSearch('');
-		setMinPrice('');
-		setMaxPrice('');
-		setPriceSort('');
-	};
+	useEffect(() => {
+		if (!hasActiveEstimateDraft || cancellingEstimate || submitSuccess) return undefined;
 
-	const handleResetWithPriceFilter = () => {
-		setMinPrice('');
-		setMaxPrice('');
-		setPriceSort('');
-		handleReset();
-	};
+		const handleDocumentClick = (event) => {
+			if (navigationGuardRef.current) return;
+			const target = event.target instanceof Element ? event.target.closest('a[href]') : null;
+			if (!target) return;
+			if (target.target && target.target !== '_self') return;
+			if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+			const href = target.getAttribute('href');
+			if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+
+			const nextUrl = new URL(target.href, window.location.href);
+			const currentUrl = new URL(window.location.href);
+			if (nextUrl.origin !== currentUrl.origin) return;
+			if (nextUrl.pathname === currentUrl.pathname && nextUrl.search === currentUrl.search && nextUrl.hash === currentUrl.hash) return;
+
+			event.preventDefault();
+			navigationGuardRef.current = true;
+
+			(async () => {
+				const shouldDiscard = globalThis.confirm(
+					'Bạn đang có báo giá dự kiến chưa hoàn tất. Chọn OK để hủy báo giá và rời trang, hoặc Cancel để ở lại hoàn tất tạo booking.',
+				);
+				if (!shouldDiscard) return;
+
+				const cancelled = await cancelEstimateDraft();
+				if (!cancelled) return;
+				navigate(`${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+			})().finally(() => {
+				navigationGuardRef.current = false;
+			});
+		};
+
+		document.addEventListener('click', handleDocumentClick, true);
+		return () => {
+			document.removeEventListener('click', handleDocumentClick, true);
+		};
+	}, [cancelEstimateDraft, cancellingEstimate, hasActiveEstimateDraft, navigate, submitSuccess]);
 
 	const dateOptions = useMemo(() => buildDateOptions(DATE_RANGE_DAYS), []);
 	const allowedDateSet = useMemo(() => new Set(dateOptions.map((o) => o.value)), [dateOptions]);
@@ -448,15 +415,6 @@ export default function CreateBooking() {
 		const pickedKey = timeKey(schedule.time);
 		const match = availableSlots.find((s) => timeKey(s.startTime) === pickedKey);
 		if (!match) return;
-
-		const remaining = Number(match?.remainingCapacity);
-		const hasRemaining = Number.isFinite(remaining);
-		const isFull = hasRemaining && remaining <= 0;
-		if (!match.isAvailable || isFull) {
-			Promise.resolve().then(() => {
-				setSchedule((prev) => ({ ...prev, time: '' }));
-			});
-		}
 	}, [availableSlots, schedule.date, schedule.time, scheduleMode, slotsError, slotsLoading]);
 
 	const displaySlots = useMemo(() => {
@@ -465,6 +423,31 @@ export default function CreateBooking() {
 		const slots = !slotsLoading && !slotsError ? availableSlots : baseSlots;
 		return slots.filter((s) => !isPastSlot(schedule.date, s?.startTime));
 	}, [availableSlots, baseSlots, schedule.date, scheduleMode, slotsError, slotsLoading]);
+
+	const selectedSlotStatus = useMemo(() => {
+		if (!schedule.date || !schedule.time) return null;
+		const sourceSlots = scheduleMode === 'manual' && !slotsLoading && !slotsError ? availableSlots : baseSlots;
+		const match = (Array.isArray(sourceSlots) ? sourceSlots : []).find(
+			(slot) => timeKey(slot?.startTime) === timeKey(schedule.time),
+		);
+		if (!match) return null;
+
+		const currentBookingCount = Number(match?.currentBookingCount);
+		const capacity = Number(match?.capacity);
+		const hasCapacity = Number.isFinite(capacity) && capacity > 0;
+		const hasCurrentCount = Number.isFinite(currentBookingCount) && currentBookingCount >= 0;
+		const occupancyText =
+			hasCapacity && hasCurrentCount
+				? `${currentBookingCount}/${capacity} slot`
+				: '';
+
+		return {
+			isOverCapacity: Boolean(match?.isOverCapacity),
+			isUnavailable: match?.isAvailable === false,
+			status: String(match?.status || '').trim(),
+			occupancyText,
+		};
+	}, [availableSlots, baseSlots, schedule.date, schedule.time, scheduleMode, slotsError, slotsLoading]);
 
 	return (
 		<div className={`${bookingStyles['booking-page']} ${styles.page}`}>
@@ -479,32 +462,38 @@ export default function CreateBooking() {
 					Chỉ có thể tạo lịch khi lời nhắc đã xác nhận.
 				</div>
 			)}
-			<StepService
-				services={services}
-				selectedIds={selectedIds}
-				onToggle={toggle}
-				search={search}
-				onSearch={setSearch}
-				filter={filter}
-				onFilter={setFilter}
-				loading={servicesLoading}
-				error={servicesError}
-				activeTab={activeTab}
-				onChangeTab={handleChangeTab}
-				layoutMode="grid-scroll"
-				showPriceFilter
-				minPrice={minPrice}
-				maxPrice={maxPrice}
-				priceSort={priceSort}
-				onMinPriceChange={setMinPrice}
-				onMaxPriceChange={setMaxPrice}
-				onPriceSortChange={setPriceSort}
-				showActions={false}
+			<AdvisorItemsTable
+				key={estimateTableKey}
+				className={styles.estimatePanel}
+				serviceTicketId={null}
+				ticketStatus=""
+				ticketPhotos={[]}
+				estimatedTimeDisplay=""
+				title="Bảng báo giá dự kiến"
+				draftStorageKey={CREATE_BOOKING_ESTIMATE_STORAGE_KEY}
+				hideVehiclePhotos
+				hideRecommendation
+				hideEstimateSummary
+				hideEmptyTableBeforeCreate
+				onEstimateStatusChange={setSelectedEstimate}
+				onEstimateEditingChange={setIsEstimateEditing}
 			/>
+			{hasActiveEstimateDraft ? (
+				<div className={bookingStyles['booking-actions']} style={{ padding: 0, marginTop: 8 }}>
+					<button
+						type="button"
+						className={bookingStyles.btn}
+						onClick={handleCancelEstimate}
+						disabled={cancellingEstimate || submitting}
+					>
+						{cancellingEstimate ? 'Đang hủy báo giá...' : 'Hủy báo giá'}
+					</button>
+				</div>
+			) : null}
 
-			<div style={{ height: 16 }} />
+			<div className={styles.sectionSpacer} />
 
-			<section className={scheduleStyles.section}>
+			<section className={`${scheduleStyles.section} ${styles.fullWidthSection}`}>
 				<h3 className={scheduleStyles.sectionTitle}>Chọn lịch</h3>
 				<div className={bookingStyles['booking-actions']} style={{ padding: 0, marginTop: 8 }}>
 					<button
@@ -583,6 +572,15 @@ export default function CreateBooking() {
 
 							{!!schedule.date && slotsLoading && <div className={scheduleStyles.serviceStatus}>Đang tải trạng thái chỗ trống...</div>}
 							{!!schedule.date && !slotsLoading && slotsError && <div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>{slotsError}</div>}
+							{!!selectedSlotStatus?.status && (
+								<div
+									className={`${scheduleStyles.serviceStatus} ${selectedSlotStatus.isOverCapacity || selectedSlotStatus.isUnavailable ? scheduleStyles.serviceStatusError : ''}`}
+									style={{ marginTop: 8 }}
+								>
+									{selectedSlotStatus.occupancyText ? ` (${selectedSlotStatus.occupancyText})` : ''}
+									{selectedSlotStatus.isOverCapacity ? ' — Đã vượt quá sức chứa! Nhân viên cần xem xét trước khi tạo lịch.' : ''}
+								</div>
+							)}
 
 							<div className={scheduleStyles.slotGrid}>
 								{displaySlots.map((slot) => {
@@ -591,16 +589,20 @@ export default function CreateBooking() {
 
 									const remaining = Number(slot?.remainingCapacity);
 									const hasRemaining = Number.isFinite(remaining);
-									const isFull = hasRemaining && remaining <= 0;
+									const capacity = Number(slot?.capacity);
+									const currentBookingCount = Number(slot?.currentBookingCount);
+									const hasCapacity = Number.isFinite(capacity) && capacity > 0;
+									const hasCurrentCount = Number.isFinite(currentBookingCount) && currentBookingCount >= 0;
+
 
 									const hasCapacityInfo = !!schedule.date && !slotsError && !slotsLoading;
-									const isDisabled = hasCapacityInfo ? (!slot?.isAvailable || isFull) : false;
+									const isDisabled = hasCapacityInfo ? slot?.isActive === false : false;
 									const blockPicking = !schedule.date || slotsLoading || !!slotsError;
 									const active = timeKey(schedule.time) === timeKey(rawTime);
 
 									let capacityText = '';
 									if (hasCapacityInfo) {
-										if (isDisabled) capacityText = ' · Hết chỗ';
+										if (hasCapacity && hasCurrentCount) capacityText = ` · ${currentBookingCount}/${capacity}`;
 										else if (hasRemaining) capacityText = ` · Còn ${remaining}`;
 									}
 
@@ -635,7 +637,7 @@ export default function CreateBooking() {
 			<h3 className={bookingStyles['section-title']}>Thông tin khách hàng</h3>
 			<p className={infoStyles['info-note']}>Vui lòng nhập thông tin để tiếp tục.</p>
 
-			<div className={infoStyles['info-card']}>
+			<div className={`${infoStyles['info-card']} ${styles.fullWidthCard}`}>
 
 						<div className={infoStyles.field}>
 							<label htmlFor="create-booking-phone" >Số điện thoại (<span className={styles.required}>*</span>)</label>
@@ -687,7 +689,7 @@ export default function CreateBooking() {
 
 			{submitError && <div className={infoStyles.error}>{submitError}</div>}
 
-			<div className={infoStyles['section-block']}>
+			<div className={`${infoStyles['section-block']} ${styles.fullWidthNoteBlock}`}>
 				<div className={infoStyles['section-title-row']}>
 					<h4 className={bookingStyles['section-title']}>
 						Yêu cầu đặc biệt (không bắt buộc)
@@ -727,8 +729,8 @@ export default function CreateBooking() {
 				<button
 					type="button"
 					className={bookingStyles.btn}
-					onClick={handleResetWithPriceFilter}
-					disabled={submitting}
+					onClick={handleReset}
+					disabled={submitting || cancellingEstimate}
 				>
 					Làm mới
 				</button>

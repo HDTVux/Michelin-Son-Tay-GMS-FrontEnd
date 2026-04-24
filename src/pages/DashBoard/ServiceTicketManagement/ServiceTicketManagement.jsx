@@ -635,9 +635,11 @@ function TicketPanel({
 						<option value="">Tất cả</option>
 						<option value="CREATED">Khởi tạo phiếu</option>
 						<option value="INSPECTING">Đang kiểm tra</option>
-						<option value="PENDING">Chờ duyệt</option>
+						<option value="INSPECTED">Đã kiểm tra</option>
+						<option value="PENDING">Chờ xử lý</option>
+						<option value="ESTIMATED">Đã báo giá</option>
 						<option value="REPAIRING">Đang sửa chữa</option>
-						<option value="COMPLETED">Hoàn tất</option>
+						<option value="COMPLETED">Hoàn tất sửa chữa</option>
 						<option value="PAID">Đã thanh toán</option>
 						<option value="CANCELLED">Đã hủy</option>
 					</select>
@@ -707,7 +709,8 @@ function TicketPanel({
 										<div className={styles['action-buttons']}>
 											<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
 											<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
-											{isAccountant ? (
+											{/* Hiện nút Thanh toán nếu isAccountant, có bill và trạng thái khác PAID */}
+											{isAccountant && item?.hasBill && (String(item?.ticketStatus ?? item?.status).toUpperCase() !== 'PAID') ? (
 												<button
 													className={styles['primary-button']}
 													onClick={() => onPayTicket?.(item)}

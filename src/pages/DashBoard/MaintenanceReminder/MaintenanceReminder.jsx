@@ -35,6 +35,8 @@ const statusMeta = {
 
 const normalizeStatus = (value) => String(value ?? '').trim().toUpperCase();
 const canCreateBookingFromStatus = (value) => normalizeStatus(value) === 'CONFIRMED';
+const FINAL_STATUSES = new Set(['CONFIRMED', 'SKIPPED', 'CANCELLED']);
+const REASON_REQUIRED_STATUSES = new Set(['SKIPPED', 'CANCELLED']);
 
 const getStatusLabel = (value) => {
   const key = normalizeStatus(value);
@@ -65,6 +67,9 @@ const formatReminderDateTime = (date, time) => {
   return `${timeText} ${dateText}`;
 };
 
+const getReminderReason = (row) =>
+  String(row?.reason ?? row?.statusReason ?? row?.status_reason ?? '').trim();
+
 const getPageData = (response) => {
   const data = response?.data ?? response;
   const content = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : [];
@@ -92,6 +97,9 @@ export default function MaintenanceReminder() {
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState('');
+  const [reasonDialog, setReasonDialog] = useState(null);
+  const [reasonText, setReasonText] = useState('');
+  const [reasonError, setReasonError] = useState('');
 
   const canGoPrev = page > 0;
   const canGoNext = page + 1 < totalPages;
@@ -162,7 +170,7 @@ export default function MaintenanceReminder() {
     setAppliedFilters(next);
   };
 
-  const handleStatusChange = async (row, status) => {
+  const updateReminderStatus = async (row, status, reason = '') => {
     const reminderId = row?.reminderId;
     const nextStatus = normalizeStatus(status);
     if (!reminderId || !nextStatus || normalizeStatus(row?.status) === nextStatus) return;
@@ -176,10 +184,11 @@ export default function MaintenanceReminder() {
     setUpdatingId(reminderId);
     setUpdatingStatus(nextStatus);
     try {
-      await updateServiceTicketReminderStatus(reminderId, nextStatus, '', token);
+      const cleanReason = String(reason ?? '').trim();
+      await updateServiceTicketReminderStatus(reminderId, nextStatus, cleanReason, token);
       setRows((prev) => prev.map((item) => (
         item?.reminderId === reminderId
-          ? { ...item, status: nextStatus, statusReason: item?.statusReason || '' }
+          ? { ...item, status: nextStatus, reason: cleanReason, statusReason: cleanReason }
           : item
       )));
       toast.success(`Đã cập nhật trạng thái: ${getStatusLabel(nextStatus)}.`);
@@ -189,6 +198,40 @@ export default function MaintenanceReminder() {
       setUpdatingId(null);
       setUpdatingStatus('');
     }
+  };
+
+  const handleStatusChange = async (row, status) => {
+    const nextStatus = normalizeStatus(status);
+    if (REASON_REQUIRED_STATUSES.has(nextStatus)) {
+      setReasonDialog({ row, status: nextStatus });
+      setReasonText(getReminderReason(row));
+      setReasonError('');
+      return;
+    }
+    await updateReminderStatus(row, nextStatus);
+  };
+
+  const closeReasonDialog = () => {
+    if (updatingId) return;
+    setReasonDialog(null);
+    setReasonText('');
+    setReasonError('');
+  };
+
+  const handleConfirmReasonStatus = async () => {
+    const reason = String(reasonText || '').trim();
+    if (!reason) {
+      setReasonError('Vui lòng nhập lý do.');
+      return;
+    }
+    if (reason.length > 500) {
+      setReasonError('Lý do tối đa 500 ký tự.');
+      return;
+    }
+    await updateReminderStatus(reasonDialog?.row, reasonDialog?.status, reason);
+    setReasonDialog(null);
+    setReasonText('');
+    setReasonError('');
   };
 
   const handleOpenTicket = (ticketCode) => {
@@ -207,7 +250,7 @@ export default function MaintenanceReminder() {
       return;
     }
     if (!canCreateBookingFromStatus(row?.status)) {
-      toast.error('Chỉ có thể tạo lịch khi lời nhắc đã xác nhận.');
+      toast.error('Chỉ có thể hẹn lịch khi lời nhắc đã xác nhận.');
       return;
     }
     navigate('/create-booking', {
@@ -219,19 +262,30 @@ export default function MaintenanceReminder() {
   };
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Nhắc lịch bảo dưỡng</h1>
-          <p className={styles.subtitle}>Theo dõi lịch hẹn bảo dưỡng, cập nhật trạng thái nhắc và mở phiếu dịch vụ liên quan.</p>
+    <div className={styles.bookingPage}>
+      <header className={styles.bookingHeader}>
+        <div className={styles.bookingHeaderTitle}>
+          <span className={styles.headerIcon} aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <div>
+            <h1>Nhắc lịch bảo dưỡng</h1>
+            <p className={styles.subtitle}>Theo dõi lịch hẹn bảo dưỡng, cập nhật trạng thái nhắc và mở phiếu dịch vụ liên quan.</p>
+          </div>
         </div>
-        <button type="button" className="ui-btn ui-btn--ghost" onClick={loadReminders} disabled={loading} data-gms-no-global-loading="true">
+        <div className={styles.headerActions}>
+          <span className={styles.totalCount}>{totalElements} lịch nhắc</span>
+          <button type="button" className={styles.ghostButton} onClick={loadReminders} disabled={loading} data-gms-no-global-loading="true">
           {loading ? <span className={styles.buttonSpinner} aria-hidden="true" /> : null}
           {loading ? 'Đang tải...' : 'Tải lại'}
-        </button>
+          </button>
+        </div>
       </header>
 
-      <section className={`ui-card ${styles.filterCard}`}>
+      <section className={styles.pendingFilters}>
         <form className={styles.filterGrid} onSubmit={handleSubmitFilters}>
           <div className={styles.field}>
             <label htmlFor="maintenance-reminder-search">Tìm kiếm</label>
@@ -282,10 +336,10 @@ export default function MaintenanceReminder() {
           </div>
 
           <div className={styles.filterActions}>
-            <button type="button" className="ui-btn ui-btn--ghost" onClick={handleResetFilters} disabled={loading}>
+            <button type="button" className={styles.ghostButton} onClick={handleResetFilters} disabled={loading}>
               Xóa lọc
             </button>
-            <button type="submit" className="ui-btn ui-btn--primary" disabled={loading} data-gms-no-global-loading="true">
+            <button type="submit" className={styles.primaryButton} disabled={loading} data-gms-no-global-loading="true">
               {loading ? <span className={styles.buttonSpinner} aria-hidden="true" /> : null}
               {loading ? 'Đang lọc...' : 'Lọc'}
             </button>
@@ -293,13 +347,13 @@ export default function MaintenanceReminder() {
         </form>
       </section>
 
-      <section className={`ui-card ${styles.tableCard}`}>
+      <section className={styles.bookingCard}>
         <div className={styles.tableHeader}>
           <div>
             <h2 className={styles.sectionTitle}>Danh sách nhắc lịch</h2>
             <p className={styles.tableMeta}>{activeFilterText}</p>
           </div>
-          <div className={styles.totalBadge}>{totalElements} lịch nhắc</div>
+          <div className={styles.totalBadge}>{rows.length} / {totalElements} dòng</div>
         </div>
 
         <div className={styles.tableWrap}>
@@ -332,7 +386,7 @@ export default function MaintenanceReminder() {
                   const currentStatus = normalizeStatus(row?.status);
                   const meta = statusMeta[currentStatus] || { className: styles.statusDefault, label: getStatusLabel(currentStatus) };
                   const rowUpdating = updatingId === row?.reminderId;
-                  const statusLocked = currentStatus && currentStatus !== 'PENDING';
+                  const statusLocked = FINAL_STATUSES.has(currentStatus);
                   const canCreateBooking = Boolean(row?.reminderId) && canCreateBookingFromStatus(currentStatus);
                   return (
                     <tr key={row?.reminderId || `${row?.ticketCode || 'ticket'}-${row?.reminderDate || ''}-${row?.reminderTime || ''}`}>
@@ -345,13 +399,13 @@ export default function MaintenanceReminder() {
                       <td>
                         <span className={`${styles.statusBadge} ${meta.className}`}>{meta.label}</span>
                       </td>
-                      <td className={styles.noteCell}>{row?.statusReason || '-'}</td>
+                      <td className={styles.noteCell}>{getReminderReason(row) || '-'}</td>
                       <td>{row?.advisorName || '-'}</td>
                       <td>
                         <div className={styles.actionGroup}>
                           <button
                             type="button"
-                            className={`${styles.smallBtn} ${styles.openBtn}`}
+                            className={`${styles.actionBtn} ${styles.viewBtn}`}
                             onClick={() => handleOpenTicket(row?.ticketCode)}
                             disabled={!row?.ticketCode}
                           >
@@ -359,31 +413,29 @@ export default function MaintenanceReminder() {
                           </button>
                           <button
                             type="button"
-                            className={`${styles.smallBtn} ${styles.createBtn}`}
+                            className={`${styles.actionBtn} ${styles.assignBtn}`}
                             onClick={() => handleCreateBookingFromReminder(row)}
                             disabled={!canCreateBooking}
-                            title={canCreateBooking ? 'Tạo lịch từ lời nhắc đã xác nhận' : 'Chỉ tạo lịch khi lời nhắc đã xác nhận'}
+                            title={canCreateBooking ? 'Hẹn lịch từ lời nhắc đã xác nhận' : 'Chỉ hẹn lịch khi lời nhắc đã xác nhận'}
                           >
-                            Tạo lịch
+                            Hẹn lịch
                           </button>
-                          {STATUS_ACTIONS.map((action) => (
-                            (() => {
-                              const buttonUpdating = rowUpdating && updatingStatus === action.value;
-                              return (
-                                <button
-                                  key={action.value}
-                                  type="button"
-                                  className={styles.smallBtn}
-                                  onClick={() => handleStatusChange(row, action.value)}
-                                  disabled={rowUpdating || statusLocked || currentStatus === action.value}
-                                  data-gms-no-global-loading="true"
-                                >
-                                  {buttonUpdating ? <span className={styles.buttonSpinner} aria-hidden="true" /> : null}
-                                  {buttonUpdating ? 'Đang lưu...' : action.label}
-                                </button>
-                              );
-                            })()
-                          ))}
+                          {STATUS_ACTIONS.map((action) => {
+                            const buttonUpdating = rowUpdating && updatingStatus === action.value;
+                            return (
+                              <button
+                                key={action.value}
+                                type="button"
+                                className={`${styles.actionBtn} ${styles.statusActionBtn}`}
+                                onClick={() => handleStatusChange(row, action.value)}
+                                disabled={rowUpdating || statusLocked || currentStatus === action.value}
+                                data-gms-no-global-loading="true"
+                              >
+                                {buttonUpdating ? <span className={styles.buttonSpinner} aria-hidden="true" /> : null}
+                                {buttonUpdating ? 'Đang lưu...' : action.label}
+                              </button>
+                            );
+                          })}
                         </div>
                       </td>
                     </tr>
@@ -394,7 +446,7 @@ export default function MaintenanceReminder() {
           </table>
         </div>
 
-        <div className={styles.pagination}>
+        <div className={styles.bookingFooter}>
           <div className={styles.pageSize}>
             <span>Hiển thị:</span>
             <select
@@ -411,16 +463,54 @@ export default function MaintenanceReminder() {
           </div>
 
           <div className={styles.pageActions}>
-            <button type="button" className="ui-btn ui-btn--ghost" disabled={!canGoPrev || loading} onClick={() => setPage((prev) => Math.max(0, prev - 1))}>
+            <button type="button" className={styles.ghostButton} disabled={!canGoPrev || loading} onClick={() => setPage((prev) => Math.max(0, prev - 1))}>
               Trước
             </button>
             <span className={styles.pageText}>{page + 1} / {totalPages}</span>
-            <button type="button" className="ui-btn ui-btn--primary" disabled={!canGoNext || loading} onClick={() => setPage((prev) => prev + 1)}>
+            <button type="button" className={styles.primaryButton} disabled={!canGoNext || loading} onClick={() => setPage((prev) => prev + 1)}>
               Sau
             </button>
           </div>
         </div>
       </section>
+      {reasonDialog ? (
+        <div className={styles.modalOverlay} role="presentation" onMouseDown={closeReasonDialog}>
+          <div className={styles.reasonModal} role="dialog" aria-modal="true" aria-labelledby="maintenance-reason-title" onMouseDown={(event) => event.stopPropagation()}>
+            <h3 id="maintenance-reason-title" className={styles.modalTitle}>
+              {reasonDialog.status === 'SKIPPED' ? 'Lý do bỏ qua' : 'Lý do hủy'}
+            </h3>
+            <p className={styles.modalHint}>
+              Lý do này sẽ được lưu vào cột reason của lịch nhắc bảo dưỡng.
+            </p>
+            <textarea
+              className={styles.reasonInput}
+              value={reasonText}
+              onChange={(event) => {
+                setReasonText(event.target.value);
+                if (reasonError) setReasonError('');
+              }}
+              maxLength={500}
+              rows={4}
+              placeholder={reasonDialog.status === 'SKIPPED' ? 'Nhập lý do bỏ qua...' : 'Nhập lý do hủy...'}
+              autoFocus
+            />
+            <div className={styles.reasonMeta}>
+              <span className={reasonError ? styles.reasonError : styles.reasonHelp}>
+                {reasonError || 'Bắt buộc nhập lý do.'}
+              </span>
+              <span>{String(reasonText || '').length}/500</span>
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.ghostButton} onClick={closeReasonDialog} disabled={Boolean(updatingId)}>
+                Hủy
+              </button>
+              <button type="button" className={styles.primaryButton} onClick={handleConfirmReasonStatus} disabled={Boolean(updatingId)}>
+                {updatingId ? 'Đang lưu...' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

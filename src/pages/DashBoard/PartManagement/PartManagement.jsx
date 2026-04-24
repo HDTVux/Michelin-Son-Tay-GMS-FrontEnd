@@ -14,9 +14,20 @@ import styles from './ServiceManagement.module.css';
 
 const buildRowKeyWithIndex = (baseKey, idx) => `${String(baseKey ?? '')}-${idx}`;
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
+const CLIENT_SORT_FETCH_SIZE = 5000;
 const toNullablePositiveNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
+};
+const toBoolean = (value, fallback = false) => {
+  if (value === true || value === false) return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const text = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'active'].includes(text)) return true;
+    if (['false', '0', 'no', 'inactive'].includes(text)) return false;
+  }
+  return fallback;
 };
 const SERVICE_LINK_CACHE_KEY = 'gms_service_link_cache_v3';
 
@@ -117,6 +128,24 @@ const hasBlog = (item) => {
   return getServiceServiceId(item) != null;
 };
 
+const getSortValue = (item, field) => {
+  if (field === 'itemId') return Number(item?.itemId ?? 0);
+  if (field === 'price') return Number(item?.price ?? 0);
+  if (field === 'origin') return getItemOriginText(item);
+  if (field === 'color') return getItemColorText(item);
+  return String(item?.[field] ?? '').trim();
+};
+
+const compareItems = (a, b, field, direction) => {
+  const aValue = getSortValue(a, field);
+  const bValue = getSortValue(b, field);
+  const multiplier = direction === 'desc' ? -1 : 1;
+  if (typeof aValue === 'number' && typeof bValue === 'number') {
+    return (aValue - bValue) * multiplier;
+  }
+  return String(aValue).localeCompare(String(bValue), 'vi', { numeric: true, sensitivity: 'base' }) * multiplier;
+};
+
 export default function PartManagement() {
   useScrollToTop();
   const navigate = useNavigate();
@@ -132,6 +161,8 @@ export default function PartManagement() {
   const [statusFilter, setStatusFilter] = useState('');
   const [originFilter, setOriginFilter] = useState('');
   const [colorFilter, setColorFilter] = useState('');
+  const [sortField, setSortField] = useState('itemId');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItem, setSelectedItem] = useState(null);
   const [blogModalItem, setBlogModalItem] = useState(null);
 
@@ -144,9 +175,12 @@ export default function PartManagement() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const isDefaultSort = sortField === 'itemId' && sortDirection === 'asc';
+  const useClientPaging = Boolean(originFilter || colorFilter || !isDefaultSort);
+
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, originFilter, colorFilter]);
+  }, [statusFilter, originFilter, colorFilter, sortField, sortDirection]);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,14 +189,14 @@ export default function PartManagement() {
         setIsLoading(true);
         setError('');
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-        const hasClientOnlyFilters = Boolean(originFilter || colorFilter);
         const params = {
-          page: hasClientOnlyFilters ? 0 : page,
-          size: hasClientOnlyFilters ? 500 : size,
+          page: useClientPaging ? 0 : page,
+          size: useClientPaging ? CLIENT_SORT_FETCH_SIZE : size,
           itemType: 'PART',
         };
         if (debouncedSearch) params.search = debouncedSearch;
         if (statusFilter) params.isActive = statusFilter === 'true' ? 1 : 0;
+        if (!isDefaultSort) params.sortBy = `${sortField},${sortDirection}`;
 
         const [res, homeRes, homeProductsRes] = await Promise.all([
           searchWarehouseCatalogItems(params, token),
@@ -196,9 +230,11 @@ export default function PartManagement() {
 
         if (cancelled) return;
         setItems(withStatus);
-        setTotalElementsServer(Number(payload?.totalElements ?? content.length));
+        setTotalElementsServer(useClientPaging ? withStatus.length : Number(payload?.totalElements ?? content.length));
         setTotalPagesServer(
-          Number(payload?.totalPages ?? Math.max(1, Math.ceil((payload?.totalElements ?? content.length) / Math.max(1, size)))),
+          useClientPaging
+            ? Math.max(1, Math.ceil(withStatus.length / Math.max(1, size)))
+            : Number(payload?.totalPages ?? Math.max(1, Math.ceil((payload?.totalElements ?? content.length) / Math.max(1, size)))),
         );
       } catch (err) {
         if (cancelled) return;
@@ -213,7 +249,7 @@ export default function PartManagement() {
     return () => {
       cancelled = true;
     };
-  }, [page, size, debouncedSearch, dataVersion, statusFilter, originFilter, colorFilter]);
+  }, [page, size, debouncedSearch, dataVersion, statusFilter, originFilter, colorFilter, isDefaultSort, sortDirection, sortField, useClientPaging]);
   const originOptions = useMemo(() => {
     const set = new Set();
     items.forEach((item) => {
@@ -241,11 +277,18 @@ export default function PartManagement() {
     });
   }, [colorFilter, items, originFilter]);
 
-  const hasClientOnlyFilters = Boolean(originFilter || colorFilter);
-  const totalElements = hasClientOnlyFilters
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => compareItems(a, b, sortField, sortDirection));
+  }, [items, sortDirection, sortField]);
+
+  const sortedFilteredItems = useMemo(() => {
+    return [...filteredItems].sort((a, b) => compareItems(a, b, sortField, sortDirection));
+  }, [filteredItems, sortDirection, sortField]);
+
+  const totalElements = useClientPaging
     ? filteredItems.length
     : Number(totalElementsServer ?? (Array.isArray(items) ? items.length : 0));
-  const totalPages = hasClientOnlyFilters
+  const totalPages = useClientPaging
     ? Math.max(1, Math.ceil(totalElements / Math.max(1, size)))
     : Math.max(1, Number(totalPagesServer ?? Math.max(1, Math.ceil(totalElements / Math.max(1, size)))));
   const safePage = Math.min(Math.max(0, page), totalPages - 1);
@@ -260,10 +303,10 @@ export default function PartManagement() {
   }, [safePage, totalPages]);
 
   const paged = useMemo(() => {
-    if (!hasClientOnlyFilters) return Array.isArray(items) ? items : [];
+    if (!useClientPaging) return sortedItems;
     const start = safePage * size;
-    return filteredItems.slice(start, start + size);
-  }, [filteredItems, hasClientOnlyFilters, items, safePage, size]);
+    return sortedFilteredItems.slice(start, start + size);
+  }, [safePage, size, sortedFilteredItems, sortedItems, useClientPaging]);
 
   const handleResetFilters = () => {
     setPage(0);
@@ -272,6 +315,8 @@ export default function PartManagement() {
     setStatusFilter('');
     setOriginFilter('');
     setColorFilter('');
+    setSortField('itemId');
+    setSortDirection('asc');
   };
 
   const handleBlogSaved = (savedData) => {
@@ -284,6 +329,12 @@ export default function PartManagement() {
           item.itemId === savedItemId
             ? {
                 ...item,
+                itemName: savedData.itemName ?? item.itemName,
+                sku: savedData.sku ?? item.sku,
+                price: savedData.price ?? item.price,
+                showPrice: savedData.showPrice ?? item.showPrice,
+                unit: savedData.unit ?? item.unit,
+                isActive: savedData.isActive ?? item.isActive,
                 serviceServiceId: savedData.serviceServiceId,
                 service_service_id: savedData.serviceServiceId,
               }
@@ -296,7 +347,7 @@ export default function PartManagement() {
   };
 
   const formatPrice = (item) => {
-    const show = item?.showPrice;
+    const show = toBoolean(item?.showPrice, false);
     const price = item?.price;
     return show ? `${formatCurrencyVnd(price)} ₫` : 'Liên hệ';
   };
@@ -378,6 +429,28 @@ export default function PartManagement() {
                 {color}
               </option>
             ))}
+          </select>
+          <select
+            className={styles['status-filter']}
+            value={sortField}
+            onChange={(e) => setSortField(e.target.value)}
+          >
+            <option value="itemId">Sắp xếp: ID</option>
+            <option value="itemName">Sắp xếp: Tên</option>
+            <option value="sku">Sắp xếp: SKU</option>
+            <option value="brand">Sắp xếp: Hãng</option>
+            <option value="productLine">Sắp xếp: Dòng SP</option>
+            <option value="price">Sắp xếp: Giá</option>
+            <option value="origin">Sắp xếp: Xuất xứ</option>
+            <option value="color">Sắp xếp: Màu</option>
+          </select>
+          <select
+            className={styles['status-filter']}
+            value={sortDirection}
+            onChange={(e) => setSortDirection(e.target.value)}
+          >
+            <option value="asc">Tăng dần</option>
+            <option value="desc">Giảm dần</option>
           </select>
           <button className={styles['ghost-button']} onClick={handleResetFilters}>
             Xoa bo loc

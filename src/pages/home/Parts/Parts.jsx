@@ -10,13 +10,27 @@ const toPositiveNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
 };
+const toPriceNumber = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const digits = String(value ?? '').replace(/[^\d]/g, '');
+  if (!digits) return null;
+  const num = Number(digits);
+  return Number.isFinite(num) ? num : null;
+};
+const formatVndPrice = (value) => {
+  const num = toPriceNumber(value);
+  if (num == null) return '';
+  return `${num.toLocaleString('vi-VN')} VND`;
+};
 const toDisplayPrice = (item) => {
   if (item?.showPrice !== true) return 'Liên hệ';
   const display = String(item?.displayPrice || '').trim();
-  if (display) return display;
-  const num = Number(item?.price);
-  if (!Number.isFinite(num)) return 'Liên hệ';
-  return `${num.toLocaleString('vi-VN')} đ`;
+  if (display) {
+    if (/liên hệ|lien he/i.test(display)) return 'Liên hệ';
+    const formatted = formatVndPrice(display);
+    return formatted || (/vnd/i.test(display) ? display : `${display} VND`);
+  }
+  return formatVndPrice(item?.price) || 'Liên hệ';
 };
 
 const dedupeByItemId = (list) => {

@@ -193,7 +193,7 @@ function PickerSection({
     <>
       <hr style={{ margin: '16px 0' }} />
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div className={commonStyles.modalPickerHeader}>
         <strong>Chọn sản phẩm (PART)</strong>
         <div className={styles.searchBox} style={{ maxWidth: 520, width: '100%' }}>
           <svg
@@ -273,21 +273,13 @@ function PickerSection({
           </table>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 12,
-            gap: 12,
-          }}
-        >
+        <div className={commonStyles.modalPickerFooter}>
           <div className={styles.pageSize}>
             <span>
               Trang {page + 1} / {pageCount}
             </span>
           </div>
-          <div style={{ display: 'inline-flex', gap: 8 }}>
+          <div className={commonStyles.modalPickerActions}>
             <button type="button" className={styles.ghostButton} onClick={onPrev} disabled={page <= 0 || loading}>
               ← Trước
             </button>

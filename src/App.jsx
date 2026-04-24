@@ -155,37 +155,38 @@ function TitleUpdater() {
   const location = useLocation();
 
   useEffect(() => {
+    const siteTitle = 'Đại lý garage Sơn Tây - michelinsontay - Trung tâm dịch vụ lốp xe uy tín';
     const titles = {
-      '/': 'Michelin Sơn Tây - Trung tâm dịch vụ lốp xe uy tín',
-      '/about': 'Giới thiệu - Michelin Sơn Tây',
-      '/services': 'Dịch vụ & phụ tùng - Michelin Sơn Tây',
-      '/parts': 'Dịch vụ & phụ tùng - Michelin Sơn Tây',
-      '/booking': 'Đặt lịch - Michelin Sơn Tây',
-      '/user-profile': 'Tài khoản - Michelin Sơn Tây',
-      '/my-bookings': 'Đặt lịch của tôi - Michelin Sơn Tây',
-      '/login': 'Đăng nhập - Michelin Sơn Tây',
-      '/forgot-password': 'Quên mật khẩu - Michelin Sơn Tây',
+      '/': siteTitle,
+      '/about': siteTitle,
+      '/services': siteTitle,
+      '/parts': siteTitle,
+      '/booking': siteTitle,
+      '/user-profile': siteTitle,
+      '/my-bookings': siteTitle,
+      '/login': siteTitle,
+      '/forgot-password': siteTitle,
     };
 
     // Match /services/:id patterns
     if (location.pathname.startsWith('/services/')) {
-      document.title = `Chi tiết dịch vụ - Michelin Sơn Tây`;
+      document.title = siteTitle;
       return;
     }
 
     if (location.pathname === '/services') {
       const type = new URLSearchParams(location.search).get('type')?.toUpperCase();
       if (type === 'PART') {
-        document.title = 'Phụ tùng - Michelin Sơn Tây';
+        document.title = siteTitle;
         return;
       }
       if (type === 'SERVICE') {
-        document.title = 'Dịch vụ - Michelin Sơn Tây';
+        document.title = siteTitle;
         return;
       }
     }
 
-    const base = 'Michelin Sơn Tây';
+    const base = siteTitle;
     const title =
       titles[location.pathname] ||
       titles[Object.keys(titles).find((k) => location.pathname.startsWith(k))] ||
@@ -209,12 +210,12 @@ export default function App() {
       <ToastBox />
       <ToastContainer
         position="top-center"
-        autoClose={4000}
+        autoClose={9000}
         hideProgressBar
         newestOnTop
         closeOnClick
         draggable={false}
-        pauseOnHover={false}
+        pauseOnHover
         style={{ top: 80, zIndex: 9999 }}
       />
       <Routes>

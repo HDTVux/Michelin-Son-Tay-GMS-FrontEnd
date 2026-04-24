@@ -119,6 +119,7 @@ export function useCreateBookingHandlers({
 	baseSlots,
 	selectedItems,
 	selectedIds,
+	estimateId,
 	schedule,
 	scheduleMode,
 	info,
@@ -131,8 +132,6 @@ export function useCreateBookingHandlers({
 	navigate,
 
 	setSelectedIds,
-	setSearch,
-	setFilter,
 	setSchedule,
 	setScheduleMode,
 	setShowSchedulePicker,
@@ -147,12 +146,6 @@ export function useCreateBookingHandlers({
 	setSubmitLocked,
 }) {
 	const submitInFlightRef = useRef(false);
-	const toggle = useCallback(
-		(id) => {
-			setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-		},
-		[setSelectedIds],
-	);
 
 	const handleUseNow = useCallback(() => {
 		const now = new Date();
@@ -217,17 +210,24 @@ export function useCreateBookingHandlers({
 		const catalogItemIds = (Array.isArray(selectedIds) ? selectedIds : [])
 			.map(Number)
 			.filter((n) => Number.isFinite(n) && n >= 0);
+		const estimateIdNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
 
 		try {
-			const res = await staffCreateBooking({
+			const payload = {
 				reminderId: sourceReminderId ? Number(sourceReminderId) : undefined,
 				appointmentDate: schedule?.date,
 				appointmentTime: normalizeBackendTime(schedule?.time),
 				userNote: trimmedNote,
-				selectedServiceIds: catalogItemIds,
 				fullName: String(info?.name ?? '').trim(),
 				phone: String(info?.phone ?? '').trim(),
-			});
+			};
+			if (Number.isFinite(estimateIdNum) && estimateIdNum > 0) {
+				payload.estimateId = estimateIdNum;
+			} else if (catalogItemIds.length > 0) {
+				payload.selectedServiceIds = catalogItemIds;
+			}
+
+			const res = await staffCreateBooking(payload);
 
 			const data = res?.data;
 			const bookingCodeRaw = data?.bookingCode ?? data?.requestId ?? data?.code;
@@ -264,6 +264,7 @@ export function useCreateBookingHandlers({
 		}
 	}, [
 		canSubmit,
+		estimateId,
 		info?.name,
 		info?.note,
 		info?.phone,
@@ -298,8 +299,6 @@ export function useCreateBookingHandlers({
 	const handleReset = useCallback(() => {
 		submitInFlightRef.current = false;
 		setSelectedIds([]);
-		setSearch('');
-		setFilter('all');
 		setSchedule({ date: '', time: '' });
 		setScheduleMode('manual');
 		setShowSchedulePicker(false);
@@ -315,11 +314,9 @@ export function useCreateBookingHandlers({
 	}, [
 		setAvailableSlots,
 		setCreatedBookingForCheckIn,
-		setFilter,
 		setInfo,
 		setSchedule,
 		setScheduleMode,
-		setSearch,
 		setSelectedIds,
 		setShowSchedulePicker,
 		setSlotsError,
@@ -331,7 +328,6 @@ export function useCreateBookingHandlers({
 	]);
 
 	return {
-		toggle,
 		handleUseNow,
 		handleShowManualSchedule,
 		handlePickSlot,

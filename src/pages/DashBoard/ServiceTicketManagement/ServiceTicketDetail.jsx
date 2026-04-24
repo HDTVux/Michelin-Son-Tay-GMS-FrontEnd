@@ -459,6 +459,14 @@ function clearAddServiceRestoreSnapshot(serviceTicketId) {
     }
 }
 
+function debugEstimateAllocation(tag, payload) {
+    try {
+        console.log(`[estimate-allocation-debug] ${tag}`, payload);
+    } catch {
+        // ignore console failures
+    }
+}
+
 function normalizeTicketStatus(raw) {
     const value = String(raw || '')
         .trim()
@@ -797,6 +805,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const hasReceptionistRole = staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
     const isAdvisorOnlyViewRole = hasAdvisorRole;
     const hasReceptionistEditAccess = hasReceptionistRole;
+    const canViewInspectionAndEstimate = true;
 
     const [receiptApproving, setReceiptApproving] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
@@ -977,6 +986,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const hasBill = Boolean(billId);
     const isActionLocked = ticketStatus === 'PAID' || hasBill;
     const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable) || isActionLocked;
+    const isInspectionAndEstimateReadOnly = isActionLocked || !hasAdvisorRole;
+    const inspectionAndEstimateReadOnlyMessage = !hasAdvisorRole
+        ? 'Chỉ tư vấn viên mới được chỉnh sửa phần phiếu kiểm tra và báo giá. '
+        : ticketStatus === 'PAID'
+            ? 'Phiếu dịch vụ đã được thanh toán, không thể chỉnh sửa.'
+            : 'Phiếu dịch vụ đã có hóa đơn chờ thanh toán, không thể chỉnh sửa.';
 
     const {
         isEditing,
@@ -1493,6 +1508,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 try {
                     const allocationRes = await fetchEstimateStockAllocations(estimateIdNum, token);
                     const rows = Array.isArray(allocationRes?.data) ? allocationRes.data : [];
+                    debugEstimateAllocation('stock-allocation-snapshot', {
+                        estimateId: estimateIdNum,
+                        serviceTicketId: serviceTicketIdNum,
+                        rows,
+                    });
 
                     const fallbackItems = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
                     const fallbackByEstimateItemId = new Map(
@@ -1583,6 +1603,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         const found =
                             list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
                             pickLatestEstimate(list);
+                        debugEstimateAllocation('refetched-estimate-before-allocation-fallback', {
+                            estimateId: estimateIdNum,
+                            serviceTicketId: serviceTicketIdNum,
+                            estimate: found ?? null,
+                        });
                         if (Array.isArray(found?.items)) {
                             estimateItemsForAllocation = found.items;
                             setLatestEstimate((prev) => {
@@ -2167,7 +2192,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 </section>
                             ) : null}
 
-                            {hasAdvisorRole && !advisorReadOnlyWithoutTechnician && (
+                            {canViewInspectionAndEstimate && !advisorReadOnlyWithoutTechnician && (
                                 <>
                                     <TechnicianServiceTicket
                                         key={`tech-${ticket.ticketCode || ticketCodeParam}-${ticketStatus}-${estimateStatus}`}
@@ -2175,10 +2200,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         embedded
                                         mode="advisor"
                                         onInspectionCompleted={handleInspectionCompleted}
-                                        readOnly={isActionLocked}
-                                        readOnlyMessage={ticketStatus === 'PAID'
-                                            ? 'Phiếu dịch vụ đã được thanh toán, không thể chỉnh sửa.'
-                                            : 'Phiếu dịch vụ đã có hóa đơn chờ thanh toán, không thể chỉnh sửa.'}
+                                        readOnly={isInspectionAndEstimateReadOnly}
+                                        readOnlyMessage={inspectionAndEstimateReadOnlyMessage}
+                                        hideReadOnlyNotice={false}
                                     />
 
                                     {shouldHideEstimateUntilInspectionDone ? (
@@ -2203,10 +2227,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
                                             onCancelAppendOnly={handleCancelAppendOnly}
                                             onEstimateEditingChange={setIsEstimateEditing}
-                                            readOnly={isActionLocked}
-                                            readOnlyMessage={ticketStatus === 'PAID'
-                                                ? 'Phiếu dịch vụ đã được thanh toán — không thể tạo báo giá mới.'
-                                                : 'Phiếu dịch vụ đã có hóa đơn chờ thanh toán — không thể tạo báo giá mới.'}
+                                            readOnly={isInspectionAndEstimateReadOnly}
+                                            readOnlyMessage={inspectionAndEstimateReadOnlyMessage}
+                                            hideReadOnlyNotice={false}
                                         />
                                     )}
                                     {ticket.hasDraftStockIssue ? (
@@ -2221,7 +2244,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
-                                        {advisorReadOnlyWithoutTechnician ? null : isCreatingNewEstimateVersion && canConfirmEstimate ? (
+                                        {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly ? null : isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                             <button
                                                 type="button"
                                                 className="ui-btn ui-btn--primary"
@@ -2232,7 +2255,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             </button>
                                         ) : null}
 
-                                        {advisorReadOnlyWithoutTechnician || isCreatingNewEstimateVersion ? null : (
+                                        {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly || isCreatingNewEstimateVersion ? null : (
                                             <>
                                                 {canCancel && (
                                                     <button

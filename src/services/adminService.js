@@ -1,5 +1,15 @@
 import { request } from './apiClient';
 
+const toSafePage = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.trunc(number) : 0;
+};
+
+const toSafeSize = (value, fallback = 10) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 1 ? Math.trunc(number) : fallback;
+};
+
 /**
  * Admin Service - Kết nối với Admin/Customer Management APIs
  * Backend Controller: CustomerController.java
@@ -93,8 +103,8 @@ export const fetchAllCustomers = (params, token) => {
 
   const searchParams = new URLSearchParams();
 
-  const page = Number.isFinite(params?.page) ? params.page : 0;
-  const size = Number.isFinite(params?.size) ? params.size : 10;
+  const page = toSafePage(params?.page);
+  const size = toSafeSize(params?.size);
   searchParams.set('page', String(page));
   searchParams.set('size', String(size));
 
@@ -230,8 +240,8 @@ export const fetchAllStaff = (params, token) => {
 
   const searchParams = new URLSearchParams();
 
-  const page = Number.isFinite(params?.page) ? params.page : 0;
-  const size = Number.isFinite(params?.size) ? params.size : 10;
+  const page = toSafePage(params?.page);
+  const size = toSafeSize(params?.size);
   searchParams.set('page', String(page));
   searchParams.set('size', String(size));
 

@@ -5,6 +5,19 @@ function appendSafeCatalogSearchParam(qp, key, value) {
   const text = String(value).trim();
   if (!text) return;
 
+  if (key === 'sortBy') {
+    const [fieldRaw, directionRaw] = text.split(',');
+    const field = String(fieldRaw || '').trim();
+    if (!field) return;
+    const direction = String(directionRaw || '').trim().toLowerCase();
+    if (!direction) {
+      qp.append(key, field);
+      return;
+    }
+    qp.append(key, `${field},${direction === 'desc' ? 'desc' : 'asc'}`);
+    return;
+  }
+
   if (key === 'page') {
     const page = Number(text);
     qp.append(key, String(Number.isFinite(page) && page >= 0 ? Math.floor(page) : 0));
@@ -239,21 +252,63 @@ export const createWarehouseProductLine = (payload, token) => {
   });
 };
 
-// Warehouse catalog item APIs
-// POST: /api/warehouse/catalog-item/create
-export const createWarehouseCatalogItem = (payload, token) => {
+const stripNullishPayload = (payload) => {
   // Strip both null and undefined values to avoid backend crash on findById(null)
-  const clean = (payload ?? {});
+  const clean = payload ?? {};
   const stripped = {};
   Object.entries(clean).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
     stripped[k] = v;
   });
+  return stripped;
+};
+
+// Warehouse catalog item APIs
+// POST: /api/warehouse/catalog-item/create
+export const createWarehouseCatalogItem = (payload, token) => {
   return request('/api/warehouse/catalog-item/create', {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: JSON.stringify(stripped),
+    body: JSON.stringify(stripNullishPayload(payload)),
   });
+};
+
+// Update catalog item metadata used by the blog/service modal.
+// Backend deployments have used a few route shapes, so try the known variants.
+export const updateWarehouseCatalogItem = async (catalogItemId, payload, token) => {
+  const idNum = typeof catalogItemId === 'number' ? catalogItemId : Number(catalogItemId);
+  const safeId = Number.isFinite(idNum) && idNum > 0 ? Math.trunc(idNum) : 0;
+  if (!safeId) throw new Error('Thieu catalogItemId de cap nhat.');
+
+  const body = JSON.stringify(stripNullishPayload({
+    ...(payload ?? {}),
+    itemId: safeId,
+    catalogItemId: safeId,
+  }));
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const attempts = [
+    { method: 'PUT', path: `/api/warehouse/catalog-item/update/${encodeURIComponent(String(safeId))}` },
+    { method: 'PUT', path: `/api/warehouse/catalog-item/${encodeURIComponent(String(safeId))}` },
+    { method: 'PUT', path: '/api/warehouse/catalog-item/update' },
+    { method: 'POST', path: `/api/warehouse/catalog-item/update/${encodeURIComponent(String(safeId))}` },
+    { method: 'POST', path: '/api/warehouse/catalog-item/update' },
+  ];
+
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      return await request(attempt.path, {
+        method: attempt.method,
+        headers,
+        body,
+      });
+    } catch (err) {
+      lastError = err;
+      if (err?.status === 404 || err?.status === 405) continue;
+      throw err;
+    }
+  }
+  throw lastError || new Error('Khong the cap nhat catalog item.');
 };
 
 // Warehouse spec attribute APIs
@@ -452,7 +507,7 @@ export const createWarehouseStockEntryWithAttachment = async (payload, file, tok
 
 // GET: /api/warehouse/stock-entries?warehouseId=...&status=...
 export const fetchWarehouseStockEntries = (params, token) => {
-  const safeParams = params && typeof params === 'object' ? params : {};
+  const safeParams = normalizePagingParams(params);
   const warehouseIdNum = toSafeInt(safeParams.warehouseId);
   if (!warehouseIdNum || warehouseIdNum <= 0) {
     throw new Error('Thiếu kho (warehouseId).');
@@ -561,7 +616,7 @@ export const createWarehouseReturnEntryWithAttachments = async (payload, files, 
 // GET: /api/warehouse/return-entries
 // Params: { warehouseId: number, status?: string, ... }
 export const fetchWarehouseReturnEntries = (params, token) => {
-  const safeParams = params && typeof params === 'object' ? params : {};
+  const safeParams = normalizePagingParams(params);
   const warehouseIdNum = toSafeInt(safeParams.warehouseId);
   if (!warehouseIdNum || warehouseIdNum <= 0) {
     throw new Error('Thiếu kho (warehouseId).');
@@ -683,7 +738,7 @@ export const requestWarehouseStockIssue = (ticketId, token) => {
 
 // GET: /api/warehouse/stock-issues?warehouseId=...&status=...
 export const fetchWarehouseStockIssues = (params, token) => {
-  const safeParams = params && typeof params === 'object' ? params : {};
+  const safeParams = normalizePagingParams(params);
   const warehouseIdNum = toSafeInt(safeParams.warehouseId);
   if (!warehouseIdNum || warehouseIdNum <= 0) {
     throw new Error('Thiếu kho (warehouseId).');

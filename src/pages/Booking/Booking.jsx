@@ -47,7 +47,9 @@ const toCategoryKey = (item) => String(
 const toPriceNumber = (value) => {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  const parsed = Number(String(value).replace(/[^\d.-]/g, ''));
+  const normalized = String(value).replace(/[^\d.-]/g, '');
+  if (!normalized || normalized === '-' || normalized === '.' || normalized === '-.') return null;
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 };
 
@@ -70,6 +72,23 @@ const getCatalogPrice = (item) => {
     if (price != null) return price;
   }
   return null;
+};
+
+const getCatalogPriceText = (item) => {
+  const candidates = [
+    item?.displayPrice,
+    item?.priceLabel,
+    item?.data?.displayPrice,
+    item?.data?.priceLabel,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value !== 'string') continue;
+    const text = value.trim();
+    if (text && toPriceNumber(text) == null) return text;
+  }
+
+  return item?.showPrice === false ? 'Liên hệ' : '';
 };
 
 export default function Booking() {
@@ -149,21 +168,17 @@ export default function Booking() {
     Promise.allSettled([
       fetchHomeProducts({ page: 0, size: 500, itemType: 'SERVICE' }),
       fetchHomeProducts({ page: 0, size: 500, itemType: 'PART' }),
-      fetchHomeProducts({ page: 0, size: 500, itemType: 'PRODUCT' }),
     ])
       .then((results) => {
         if (!active) return;
 
-        const [serviceRes, partRes, productRes] = results;
+        const [serviceRes, partRes] = results;
         const mergedRaw = [
           ...(serviceRes?.status === 'fulfilled'
             ? extractHomeProductsList(serviceRes.value).map((item) => ({ ...item, __sourceType: 'SERVICE' }))
             : []),
           ...(partRes?.status === 'fulfilled'
             ? extractHomeProductsList(partRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
-            : []),
-          ...(productRes?.status === 'fulfilled'
-            ? extractHomeProductsList(productRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
             : []),
         ];
 
@@ -191,6 +206,7 @@ export default function Booking() {
               category,
               categoryLabel,
               price: getCatalogPrice(item),
+              priceText: getCatalogPriceText(item),
               thumbnail: item?.thumbnailUrl || item?.imageUrl || item?.mediaThumbnail || '',
             };
           })
@@ -219,11 +235,9 @@ export default function Booking() {
 
         const serviceFailed = serviceRes?.status === 'rejected';
         const partFailed = partRes?.status === 'rejected';
-        const productFailed = productRes?.status === 'rejected';
-        if (serviceFailed && partFailed && productFailed) {
+        if (serviceFailed && partFailed) {
           const msg = serviceRes?.reason?.message
             || partRes?.reason?.message
-            || productRes?.reason?.message
             || 'Không thể tải danh sách dịch vụ/phụ tùng.';
           setServicesError(msg);
         }

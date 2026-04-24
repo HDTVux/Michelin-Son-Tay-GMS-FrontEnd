@@ -1,16 +1,17 @@
 .sheet {
     width: 210mm;
-    min-height: 297mm;
+    height: 297mm;
     margin: 0 auto;
-    padding: 15mm 12mm 12mm;
+    padding: 10mm 14mm 8mm;
     box-sizing: border-box;
     background: #fff;
     color: #111;
     font-family: 'Times New Roman', Times, serif;
-    font-size: 14px;
-    line-height: 1.3;
+    font-size: 12.5px;
+    line-height: 1.2;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+    overflow: hidden;
 }
 
 @page {
@@ -21,29 +22,37 @@
 @media print {
     .sheet {
         width: auto;
-        min-height: auto;
+        height: 297mm;
         margin: 0;
-        padding: 15mm 12mm 12mm;
+        padding: 10mm 14mm 8mm;
         box-shadow: none;
     }
 }
 
 .header {
     position: relative;
-    margin-bottom: 14px;
-    min-height: 68px;
-    padding-right: 48mm;
+    margin-bottom: 8px;
+    min-height: 0;
+    padding-right: 0;
+}
+
+.headerTop {
+    display: grid;
+    grid-template-columns: 1fr 42mm;
+    gap: 8mm;
+    align-items: start;
+    margin-bottom: 4px;
 }
 
 .barcodeWrap {
-    position: absolute;
-    top: 0;
-    right: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 42mm;
-    height: 18mm;
+    width: 100%;
+    height: 13mm;
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px solid #111;
     pointer-events: none;
 }
 
@@ -51,37 +60,65 @@
     display: block;
     max-width: 100%;
     max-height: 100%;
-    width: 100%;
+    width: 36mm;
     height: auto;
     object-fit: contain;
 }
 
 .storeInfo {
-    margin-bottom: 8px;
+    margin-bottom: 0;
 }
 
 .storeName {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     text-transform: uppercase;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 
 .storeLine {
-    font-size: 14px;
-    margin-bottom: 2px;
+    font-size: 12.5px;
+    margin-bottom: 1px;
+}
+
+.invoiceMeta {
+    border: 1px solid #111;
+    padding: 4px 6px;
+    font-size: 11.5px;
+}
+
+.metaRow {
+    display: grid;
+    grid-template-columns: 16mm 1fr;
+    gap: 4px;
+    align-items: baseline;
+}
+
+.metaRow + .metaRow {
+    margin-top: 3px;
+}
+
+.metaRow span {
+    font-weight: 700;
+}
+
+.metaRow strong {
+    font-weight: 700;
+    text-align: right;
+    overflow-wrap: anywhere;
 }
 
 .title {
     text-align: center;
-    font-size: 28px;
+    font-size: 25px;
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
+    width: 100%;
 }
 
 .customerSection {
-    margin-bottom: 10px;
+    margin-bottom: 6px;
 }
 
 .formRow,
@@ -89,7 +126,14 @@
     display: flex;
     align-items: flex-end;
     gap: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
+}
+
+.twoColRow {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto 38mm;
+    align-items: end;
+    column-gap: 8px;
 }
 
 .label {
@@ -98,43 +142,49 @@
 
 .fillLine {
     flex: 1;
-    min-height: 24px;
+    min-height: 18px;
     border-bottom: 1px dotted #111;
     padding: 0 2px 2px;
+    min-width: 0;
 }
 
 .table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
 }
 
 .table th,
 .table td {
     border: 1px solid #111;
-    padding: 6px 8px;
-    height: 30px;
+    padding: 2px 6px;
+    height: 6mm;
     vertical-align: middle;
+    line-height: 1.12;
 }
 
 .table th {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
     text-align: center;
 }
 
+.table td {
+    font-size: 12px;
+}
+
 .colIndex {
-    width: 42px;
+    width: 32px;
 }
 
 .colQty {
-    width: 100px;
+    width: 72px;
 }
 
 .colPrice,
 .colAmount {
-    width: 130px;
+    width: 104px;
 }
 
 .center {
@@ -154,12 +204,12 @@
 }
 
 .footer {
-    margin-top: 18px;
+    margin-top: 8px;
 }
 
 .dateText {
     text-align: right;
-    margin-bottom: 38px;
+    margin-bottom: 18px;
 }
 
 .signatureRow {
@@ -170,7 +220,7 @@
 
 .signatureCol {
     text-align: center;
-    min-height: 110px;
+    min-height: 54px;
 }
 
 .signatureTitle {

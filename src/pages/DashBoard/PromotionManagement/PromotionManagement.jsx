@@ -177,6 +177,8 @@ export default function PromotionManagement() {
   const [promotions, setPromotions] = useState([]);
   const [mode, setMode] = useState('ADMIN_ALL');
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
 
   const [openModal, setOpenModal] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -216,13 +218,24 @@ export default function PromotionManagement() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return promotions;
-    return promotions.filter((item) =>
-      `${item?.promotionId ?? ''} ${item?.code ?? ''} ${item?.name ?? ''} ${item?.type ?? ''}`
+    return promotions.filter((item) => {
+      const matchesSearch = !q || `${item?.promotionId ?? ''} ${item?.code ?? ''} ${item?.name ?? ''} ${item?.type ?? ''}`
         .toLowerCase()
-        .includes(q),
-    );
-  }, [promotions, search]);
+        .includes(q);
+      const itemStatus = item?.isActive ? 'ACTIVE' : 'INACTIVE';
+      const itemType = normalizeTypeValue(item?.type);
+      const matchesStatus = statusFilter === 'ALL' || statusFilter === itemStatus;
+      const matchesType = typeFilter === 'ALL' || typeFilter === itemType;
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [promotions, search, statusFilter, typeFilter]);
+
+  const resetFilters = () => {
+    setSearch('');
+    setMode('ADMIN_ALL');
+    setStatusFilter('ALL');
+    setTypeFilter('ALL');
+  };
 
   const stats = useMemo(() => {
     const total = promotions.length;
@@ -425,22 +438,55 @@ export default function PromotionManagement() {
 
       {/* Toolbar */}
       <div className={styles.toolbar}>
-        <div className={styles.searchBox}>
-          <input
-            className={styles.searchInput}
-            placeholder="Tìm kiếm theo code, tên, loại..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className={`${styles.filterField} ${styles.filterFieldSearch}`}>
+          <label className={styles.filterLabel}>Tìm kiếm</label>
+          <div className={styles.searchBox}>
+            <input
+              className={styles.searchInput}
+              placeholder="Tìm kiếm theo code, tên, loại..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
-        <select
-          className={styles.filterSelect}
-          value={mode}
-          onChange={(e) => setMode(e.target.value)}
-        >
-          <option value="ADMIN_ALL">Admin - Tất cả</option>
-          <option value="AVAILABLE">Khách hàng - Đang khả dụng</option>
-        </select>
+        <div className={styles.filterField}>
+          <label className={styles.filterLabel}>Dữ liệu</label>
+          <select
+            className={styles.filterSelect}
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+          >
+            <option value="ADMIN_ALL">Admin - Tất cả</option>
+            <option value="AVAILABLE">Khách hàng - Đang khả dụng</option>
+          </select>
+        </div>
+        <div className={styles.filterField}>
+          <label className={styles.filterLabel}>Trạng thái</label>
+          <select
+            className={styles.filterSelect}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="ACTIVE">Hoạt động</option>
+            <option value="INACTIVE">Vô hiệu</option>
+          </select>
+        </div>
+        <div className={styles.filterField}>
+          <label className={styles.filterLabel}>Loại</label>
+          <select
+            className={styles.filterSelect}
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+          >
+            <option value="ALL">Tất cả loại</option>
+            <option value="PERCENT">Giảm theo phần trăm</option>
+            <option value="BUY_X_GET_Y">Mua X tặng Y</option>
+          </select>
+        </div>
+        <button type="button" className={`${styles.ghostBtn} ${styles.filterResetBtn}`} onClick={resetFilters}>
+          Xóa lọc
+        </button>
       </div>
 
       {/* Loading */}

@@ -492,7 +492,7 @@
   }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
   .heroCard {
     flex-direction: column;
   }
@@ -516,6 +516,91 @@
   }
 
   .inlineInput {
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: 12px;
+  }
+
+  .shell {
+    gap: 12px;
+  }
+
+  .heroCard,
+  .card,
+  .actionCard {
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .headerActions,
+  .cardHeader,
+  .footerActions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  .grid,
+  .heroMeta,
+  .formGrid,
+  .summaryRow,
+  .responseBox,
+  .actionCard {
+    grid-template-columns: 1fr;
+  }
+
+  .field,
+  .field input,
+  .field select,
+  .searchBar input,
+  .inlineInput {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .searchBar,
+  .resultRow,
+  .resultMeta {
+    align-items: stretch;
+  }
+
+  .tableWrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    min-width: 720px;
+  }
+
+  .table th,
+  .table td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .ghostButton,
+  .addButton,
+  .removeButton,
+  .backButton,
+  .backBottomButton {
     width: 100%;
   }
 }

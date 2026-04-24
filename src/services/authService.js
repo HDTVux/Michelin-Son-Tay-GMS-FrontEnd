@@ -1,4 +1,4 @@
-import { request } from './apiClient.js';
+import { API_BASE_URL, request } from './apiClient.js';
 
 export async function loginCustomer(phone, pin) {
   const payload = JSON.stringify({ phone, pin });
@@ -18,7 +18,7 @@ export async function loginStaff({ phone, pin }) {
 
 // URL OAuth Google cho staff; backend yêu cầu tài khoản được tạo sẵn
 export function getStaffGoogleOAuthUrl() {
-  return `http://localhost:8080/oauth2/authorization/google`;
+  return `${API_BASE_URL}/oauth2/authorization/google`;
 }
 
 // Kiểm tra trạng thái tài khoản (ACTIVE/INACTIVE/UNVERIFIED...) và flag hasPin nếu backend có trả

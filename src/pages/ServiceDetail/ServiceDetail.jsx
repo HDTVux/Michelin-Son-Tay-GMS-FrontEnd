@@ -1,8 +1,11 @@
 ﻿import styles from './ServiceDetail.module.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { fetchHomeServiceDetail } from '../../services/homeService';
-import { fetchWarehouseSpecificationsByCatalogItemId } from '../../services/warehouseService.js';
+import { fetchHomeProductDetail, fetchHomeServiceDetail } from '../../services/homeService';
+import {
+  fetchWarehouseCatalogItemDetail,
+  fetchWarehouseSpecificationsByCatalogItemId,
+} from '../../services/warehouseService.js';
 import serviceFallback from '../../assets/lop and mam.jpg';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
@@ -10,6 +13,26 @@ const stripHtml = (value) => String(value || '').replace(/<[^>]*>/g, ' ').replac
 const toPositiveNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
+};
+
+const isMeaningfulValue = (value) => {
+  if (value == null) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+};
+
+const mergeWithMeaningfulFallback = (primary, ...fallbacks) => {
+  const base = primary && typeof primary === 'object' ? { ...primary } : {};
+  fallbacks.forEach((item) => {
+    if (!item || typeof item !== 'object') return;
+    Object.entries(item).forEach(([key, value]) => {
+      if (!isMeaningfulValue(value)) return;
+      if (isMeaningfulValue(base[key])) return;
+      base[key] = value;
+    });
+  });
+  return base;
 };
 
 const toBoolean = (value, fallback = false) => {
@@ -27,10 +50,90 @@ const toPriceNumber = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   const text = String(value ?? '').trim();
   if (!text) return null;
-  const normalized = text.replace(/,/g, '').replace(/\s+/g, '');
+  if (/liên hệ|lien he/i.test(text)) return null;
+  const normalized = text.replace(/[^\d]/g, '');
+  if (!normalized) return null;
   const num = Number(normalized);
   return Number.isFinite(num) ? num : null;
 };
+
+const withVndSuffix = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const num = toPriceNumber(text);
+  if (num != null) return `${num.toLocaleString('vi-VN')} VND`;
+  if (/liên hệ|lien he/i.test(text)) return text;
+  return /vnd/i.test(text) ? text : `${text} VND`;
+};
+
+const pickFirstText = (item, keys, fallback = '') => {
+  for (const key of keys) {
+    const value = item?.[key];
+    if (value == null) continue;
+    const text = String(value).trim();
+    if (text && text !== '-') return text;
+  }
+  return fallback;
+};
+
+const getOriginText = (item, fallback = '') => (
+  pickFirstText(item, [
+    'origin',
+    'itemOrigin',
+    'originCountry',
+    'countryOfOrigin',
+    'country_origin',
+    'madeIn',
+  ], fallback)
+);
+
+const getColorText = (item, fallback = '') => (
+  pickFirstText(item, [
+    'color',
+    'itemColor',
+    'colour',
+    'productColor',
+    'catalogColor',
+  ], fallback)
+);
+
+const formatEstimateTimeText = (item) => {
+  const raw = pickFirstText(item, [
+    'estimateTime',
+    'estimatedTime',
+    'estimate_time',
+    'estimated_time',
+    'durationMinutes',
+    'duration_minutes',
+    'serviceDurationMinutes',
+    'service_duration_minutes',
+    'estimatedDurationMinutes',
+    'estimated_duration_minutes',
+    'duration',
+    'serviceDuration',
+    'estimatedDuration',
+    'timeEstimate',
+    'estimatedWorkTime',
+    'warrantyDurationMonths',
+  ]);
+  if (!raw) return 'Đang cập nhật';
+
+  const text = String(raw).trim();
+  if (/[a-zA-ZÀ-ỹ]/.test(text) && !/^\d+$/.test(text)) return text;
+
+  const minutes = Number(text.replace(/[^\d]/g, ''));
+  if (!Number.isFinite(minutes) || minutes <= 0) return 'Đang cập nhật';
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours > 0 && mins > 0) return `${hours} giờ ${mins} phút`;
+  if (hours > 0) return `${hours} giờ`;
+  return `${mins} phút`;
+};
+
+const isVideoMedia = (media = {}) => (
+  /^(VIDEO|video)$/i.test(media?.mediaType || '')
+  || /\.(mp4|webm|ogg)$/i.test(media?.mediaUrl || '')
+);
 
 const normalizeMedia = (item) => {
   const candidates = Array.isArray(item?.media)
@@ -63,7 +166,7 @@ const normalizeSpecsFromList = (list) => {
         || s?.specType
         || s?.name
         || s?.label
-        || `Thong so ${idx + 1}`,
+        || `Thông số ${idx + 1}`,
       ).trim();
       const value = String(
         s?.specValue
@@ -116,7 +219,7 @@ const normalizeDetail = (raw, fallbackCatalogId, stateItemType) => {
   );
   const serviceId = toPositiveNumber(raw?.serviceId ?? raw?.service_id ?? raw?.id);
   const itemType = pickItemType(raw, stateItemType);
-  const displayPriceText = String(raw?.displayPrice || '').trim();
+  const displayPriceText = withVndSuffix(raw?.displayPrice);
   const priceNum = toPriceNumber(raw?.price);
   const originalPriceNum = toPriceNumber(raw?.originalPrice);
 
@@ -125,13 +228,16 @@ const normalizeDetail = (raw, fallbackCatalogId, stateItemType) => {
     catalogItemId,
     serviceId,
     itemType,
-    title: String(raw?.title || raw?.itemName || raw?.name || 'Chi tiet').trim(),
+    title: String(raw?.title || raw?.itemName || raw?.name || 'Chi tiết').trim(),
     shortDescription: String(raw?.shortDescription || raw?.description || '').trim(),
     fullDescription: String(raw?.fullDescription || raw?.descriptionHtml || '').trim(),
     showPrice: toBoolean(raw?.showPrice, true),
     displayPriceText,
     priceNum,
     originalPriceNum,
+    originText: getOriginText(raw),
+    colorText: getColorText(raw),
+    estimateTimeText: formatEstimateTimeText(raw),
     mediaThumbnail: String(raw?.thumbnailUrl || raw?.imageUrl || raw?.mediaThumbnail || '').trim(),
     media: normalizeMedia(raw),
     specifications: normalizeSpecs(raw),
@@ -153,13 +259,13 @@ const ServiceDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeImg, setActiveImg] = useState(serviceFallback);
+  const [activeTab, setActiveTab] = useState('description');
 
   useEffect(() => {
     const serviceLookupId = stateServiceId ?? routeId;
-    const catalogLookupId = stateCatalogItemId ?? null;
 
     if (!serviceLookupId) {
-      setError('Khong tim thay serviceId can xem chi tiet.');
+      setError('Không tìm thấy nội dung cần xem.');
       setLoading(false);
       return;
     }
@@ -175,15 +281,38 @@ const ServiceDetail = () => {
         const raw = extractPayload(serviceRes);
 
         if (!raw || typeof raw !== 'object') {
-          throw new Error('Khong tim thay thong tin chi tiet.');
+          throw new Error('Không tìm thấy thông tin chi tiết.');
         }
 
-        let normalized = normalizeDetail(
+        const rawCatalogItemId = toPositiveNumber(
+          raw?.catalogItemId ?? raw?.catalog_item_id ?? raw?.itemId ?? raw?.catalog?.catalogItemId,
+        );
+        const effectiveCatalogLookupId = stateCatalogItemId ?? rawCatalogItemId ?? null;
+        let homeProductDetail = null;
+
+        if (effectiveCatalogLookupId) {
+          try {
+            const homeProductRes = await fetchHomeProductDetail(effectiveCatalogLookupId);
+            homeProductDetail = extractPayload(homeProductRes);
+          } catch {
+            homeProductDetail = null;
+          }
+        }
+
+        const mergedRaw = mergeWithMeaningfulFallback(
           raw,
-          catalogLookupId,
+          raw?.service,
+          raw?.serviceInfo,
+          raw?.data,
+          homeProductDetail,
+        );
+
+        let normalized = normalizeDetail(
+          mergedRaw,
+          effectiveCatalogLookupId,
           isPartFromState ? 'PART' : (stateItemType || 'SERVICE'),
         );
-        if (!normalized) throw new Error('Du lieu chi tiet khong hop le.');
+        if (!normalized) throw new Error('Dữ liệu chi tiết không hợp lệ.');
 
         // Keep catalogItemId from state for booking/spec flow when /home/service response lacks it.
         if (!normalized.catalogItemId && stateCatalogItemId) {
@@ -197,12 +326,26 @@ const ServiceDetail = () => {
           && effectiveCatalogId
         ) {
           const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-          const specsRes = await fetchWarehouseSpecificationsByCatalogItemId(effectiveCatalogId, token).catch(() => null);
+          const [detailRes, specsRes] = await Promise.all([
+            fetchWarehouseCatalogItemDetail(effectiveCatalogId, token).catch(() => null),
+            fetchWarehouseSpecificationsByCatalogItemId(effectiveCatalogId, token).catch(() => null),
+          ]);
+          const detailPayload = extractPayload(detailRes);
           const specsPayload = extractPayload(specsRes);
           const specs = normalizeSpecsFromList(specsPayload);
-          if (specs.length > 0) {
+          const detailSpecs = normalizeSpecs(detailPayload);
+
+          if (detailPayload && typeof detailPayload === 'object') {
+            normalized = {
+              ...normalized,
+              originText: getOriginText(detailPayload, normalized.originText),
+              colorText: getColorText(detailPayload, normalized.colorText),
+            };
+          }
+
+          if (specs.length > 0 || detailSpecs.length > 0) {
             const existingSpecs = Array.isArray(normalized.specifications) ? normalized.specifications : [];
-            const mergedSpecs = normalizeSpecsFromList([...existingSpecs, ...specs]);
+            const mergedSpecs = normalizeSpecsFromList([...existingSpecs, ...detailSpecs, ...specs]);
             normalized = { ...normalized, specifications: mergedSpecs };
           }
         }
@@ -212,12 +355,12 @@ const ServiceDetail = () => {
 
         const imageCandidates = [
           normalized.mediaThumbnail,
-          ...normalized.media.map((m) => m.mediaUrl),
+          ...normalized.media.filter((m) => !isVideoMedia(m)).map((m) => m.mediaUrl),
         ].filter(Boolean);
         setActiveImg(imageCandidates[0] || serviceFallback);
       } catch (err) {
         if (!active) return;
-        setError(err?.message || 'Khong the tai thong tin chi tiet.');
+        setError(err?.message || 'Không thể tải thông tin chi tiết.');
       } finally {
         if (active) setLoading(false);
       }
@@ -230,7 +373,7 @@ const ServiceDetail = () => {
 
   const isPart = service?.itemType === 'PART';
   const listPath = isPart ? '/parts' : '/services';
-  const listLabel = isPart ? 'Phu tung' : 'Dich vu';
+  const listLabel = isPart ? 'Phụ tùng' : 'Dịch vụ';
 
   const hasDiscount =
     service?.originalPriceNum != null
@@ -243,18 +386,33 @@ const ServiceDetail = () => {
     : 0;
 
   const mediaList = Array.isArray(service?.media) ? service.media : [];
-  const allImages = [service?.mediaThumbnail, ...mediaList.map((m) => m.mediaUrl)].filter(Boolean);
-
+  const mediaImages = mediaList
+    .filter((m) => !isVideoMedia(m))
+    .map((m) => m.mediaUrl)
+    .filter(Boolean);
+  const allImages = Array.from(new Set([service?.mediaThumbnail, ...mediaImages].filter(Boolean)));
+  const partInfoRows = isPart
+    ? [
+      { label: 'Xuất xứ', value: service?.originText || 'Đang cập nhật' },
+      ...(service?.colorText ? [{ label: 'Màu', value: service.colorText }] : []),
+    ]
+    : [];
   const handleBooking = () => {
     const catalogId = service?.catalogItemId || service?.serviceId;
     navigate('/booking', { state: catalogId ? { catalogItemId: catalogId } : undefined });
   };
 
+  const detailTabs = [
+    { key: 'description', label: 'Mô tả' },
+    { key: 'specs', label: 'Thông số' },
+    { key: 'extra', label: 'Bổ sung' },
+  ];
+
   if (loading) {
     return (
       <div className={styles.loadingWrap}>
         <div className={styles.loadingSpinner} />
-        <p>Dang tai thong tin chi tiet...</p>
+        <p>Đang tải thông tin chi tiết...</p>
       </div>
     );
   }
@@ -263,9 +421,9 @@ const ServiceDetail = () => {
     return (
       <div className={styles.errorWrap}>
         <div className={styles.errorIcon}>!</div>
-        <h2>Khong tim thay thong tin</h2>
-        <p>{error || 'Noi dung hien khong kha dung.'}</p>
-        <Link to={listPath} className={styles.backBtn}>Quay lai danh sach</Link>
+        <h2>Không tìm thấy thông tin</h2>
+        <p>{error || 'Nội dung hiện không khả dụng.'}</p>
+        <Link to={listPath} className={styles.backBtn}>Quay lại danh sách</Link>
       </div>
     );
   }
@@ -291,10 +449,10 @@ const ServiceDetail = () => {
                   key={`thumb-${idx}`}
                   className={`${styles.thumbBtn} ${activeImg === img ? styles.thumbActive : ''}`}
                   onClick={() => setActiveImg(img)}
-                  aria-label={`Xem anh ${idx + 1}`}
+                  aria-label={`Xem ảnh ${idx + 1}`}
                   type="button"
                 >
-                  <img src={img} alt={`Anh ${idx + 1}`} />
+                  <img src={img} alt={`Ảnh ${idx + 1}`} />
                 </button>
               ))}
             </div>
@@ -303,125 +461,150 @@ const ServiceDetail = () => {
 
         <div className={styles.infoCol}>
           <div className={styles.infoCard}>
-            <div className={styles.categoryTag}>{isPart ? 'Phu tung' : 'Dich vu'}</div>
+            <div className={styles.categoryTag}>{isPart ? 'Phụ tùng' : 'Dịch vụ'}</div>
             <h1 className={styles.title}>{service.title}</h1>
             <p className={styles.shortDesc}>
-              {stripHtml(service.shortDescription) || 'Mo ta dang duoc cap nhat.'}
+              {stripHtml(service.shortDescription) || 'Mô tả đang được cập nhật.'}
             </p>
 
             <div className={styles.priceRow}>
+              <span className={styles.priceLabel}>Giá:</span>
               {service.showPrice ? (
                 service.displayPriceText ? (
                   <>
                     <span className={styles.priceNew}>{service.displayPriceText}</span>
                     {service.originalPriceNum != null && (
-                      <span className={styles.priceOld}>{service.originalPriceNum.toLocaleString('vi-VN')} đ</span>
+                      <span className={styles.priceOld}>{service.originalPriceNum.toLocaleString('vi-VN')} VND</span>
                     )}
                     {hasDiscount && <span className={styles.discountChip}>-{discountPct}%</span>}
                   </>
                 ) : service.priceNum != null ? (
                   <>
-                    <span className={styles.priceNew}>{service.priceNum.toLocaleString('vi-VN')} đ</span>
+                    <span className={styles.priceNew}>{service.priceNum.toLocaleString('vi-VN')} VND</span>
                     {service.originalPriceNum != null && (
-                      <span className={styles.priceOld}>{service.originalPriceNum.toLocaleString('vi-VN')} đ</span>
+                      <span className={styles.priceOld}>{service.originalPriceNum.toLocaleString('vi-VN')} VND</span>
                     )}
                   </>
                 ) : (
-                  <span className={styles.priceContact}>Lien he bao gia</span>
+                  <span className={styles.priceContact}>Liên hệ báo giá</span>
                 )
               ) : (
-                <span className={styles.priceContact}>Lien he bao gia</span>
+                <span className={styles.priceContact}>Liên hệ báo giá</span>
               )}
             </div>
+
+            <dl className={styles.quickFacts}>
+              <div>
+                <dt>{isPart ? 'Loại hạng mục' : 'Thời gian dự tính'}</dt>
+                <dd>{isPart ? 'Phụ tùng chính hãng' : service.estimateTimeText}</dd>
+              </div>
+            </dl>
 
             <div className={styles.divider} />
 
             <button className={styles.bookingBtn} onClick={handleBooking} type="button">
-              <span className={styles.bookingBtnIcon}>📅</span>
-              <span>Dat lich ngay</span>
+              <span>Đặt lịch ngay</span>
             </button>
 
             <a href="tel:0987545680" className={styles.hotlineLink}>
-              <span>📞</span> Goi tu van: <strong>0987 545 680</strong>
+              Gọi tư vấn: <strong>0987 545 680</strong>
             </a>
           </div>
         </div>
       </div>
 
-      {isPart && (
-        <div className={styles.specSection}>
-          <div className={styles.specCard}>
-            <h2 className={styles.specTitle}>Thong so phu tung</h2>
-            {service.specifications.length > 0 ? (
-              <div className={styles.specTableWrap}>
-                <table className={styles.specTable}>
-                  <thead>
-                    <tr>
-                      <th>Thong so</th>
-                      <th>Gia tri</th>
-                      <th>Don vi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {service.specifications.map((s) => (
-                      <tr key={s.key}>
-                        <td>{s.name}</td>
-                        <td>{s.value}</td>
-                        <td>{s.unit || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      <section className={styles.detailTabsSection} aria-label="Thông tin chi tiết">
+        <div className={styles.tabList} role="tablist">
+          {detailTabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              className={`${styles.tabButton} ${activeTab === tab.key ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className={styles.tabPanel}>
+          {activeTab === 'description' && (
+            service.fullDescription ? (
+              <div className={styles.descContent} dangerouslySetInnerHTML={{ __html: service.fullDescription }} />
             ) : (
-              <div className={styles.specEmpty}>Chua co thong so cho phu tung nay.</div>
-            )}
-          </div>
-        </div>
-      )}
+              <p className={styles.tabEmpty}>Mô tả chi tiết đang được cập nhật.</p>
+            )
+          )}
 
-      {service.fullDescription && (
-        <div className={styles.descSection}>
-          <div className={styles.descCard}>
-            <h2 className={styles.descTitle}>Mo ta chi tiet</h2>
-            <div className={styles.descContent} dangerouslySetInnerHTML={{ __html: service.fullDescription }} />
-          </div>
-        </div>
-      )}
-
-      {mediaList.length > 0 && (
-        <div className={styles.gallerySection}>
-          <h2 className={styles.galleryTitle}>Hinh anh thuc te</h2>
-          <div className={styles.galleryGrid}>
-            {mediaList.map((item, idx) => {
-              const isVideo =
-                item.mediaType === 'VIDEO'
-                || item.mediaType === 'video'
-                || /\.(mp4|webm|ogg)$/i.test(item.mediaUrl || '');
-              return (
-                <div key={`gallery-${item.serviceMediaId ?? idx}`} className={styles.galleryItem}>
-                  {isVideo ? (
-                    <video src={item.mediaUrl} controls preload="metadata" />
-                  ) : (
-                    <img src={item.mediaUrl} alt={item.mediaDescription || `${service.title} ${idx + 1}`} />
-                  )}
-                  {item.mediaDescription && (
-                    <div className={styles.galleryCaption}>{item.mediaDescription}</div>
-                  )}
+          {activeTab === 'specs' && (
+            isPart ? (
+              <>
+                <h3 className={styles.specSubTitle}>Thông số kỹ thuật</h3>
+                <div className={styles.specTableWrap}>
+                  <table className={styles.specTable}>
+                    <thead>
+                      <tr>
+                        <th>Thông số</th>
+                        <th>Giá trị</th>
+                        <th>Đơn vị</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {service.specifications.length > 0 ? (
+                        service.specifications.map((s) => (
+                          <tr key={s.key}>
+                            <td>{s.name}</td>
+                            <td>{s.value}</td>
+                            <td>{s.unit || '-'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className={styles.specEmpty}>Chưa có thông số phụ tùng.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+              </>
+            ) : (
+              <dl className={styles.partMetaList}>
+                <div className={styles.partMetaItem}>
+                  <dt>Thời gian dự tính</dt>
+                  <dd>{service.estimateTimeText}</dd>
+                </div>
+              </dl>
+            )
+          )}
 
-      <div className={styles.bottomCta}>
-        <p>Ban can tu van them ve {isPart ? 'phu tung' : 'dich vu'} nay?</p>
-        <div className={styles.bottomCtaBtns}>
-          <a href="tel:0987545680" className={styles.ctaCall}>📞 Goi tu van</a>
-          <button className={styles.ctaBook} onClick={handleBooking} type="button">📅 Dat lich ngay</button>
+          {activeTab === 'extra' && (
+            <dl className={styles.partMetaList}>
+              {isPart ? (
+                partInfoRows.map((row) => (
+                  <div className={styles.partMetaItem} key={row.label}>
+                    <dt>{row.label}</dt>
+                    <dd>{row.value}</dd>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className={styles.partMetaItem}>
+                    <dt>Loại hạng mục</dt>
+                    <dd>Dịch vụ</dd>
+                  </div>
+                  <div className={styles.partMetaItem}>
+                    <dt>Tư vấn</dt>
+                    <dd>0987 545 680</dd>
+                  </div>
+                </>
+              )}
+            </dl>
+          )}
         </div>
-      </div>
+      </section>
+
     </div>
   );
 };

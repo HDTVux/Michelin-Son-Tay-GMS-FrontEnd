@@ -517,6 +517,14 @@
   font-weight: 700;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .futureActionBtn {
   background: #f59e0b;
   color: #fff;
@@ -1081,7 +1089,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .filterCardLabels,
   .filterCardControls,
   .filterCardLabelsTwo,
@@ -1094,5 +1102,154 @@
   .dayNavBtn,
   .dayCenterBtn {
     width: 100%;
+  }
+}
+
+@media (max-width: 1024px) {
+  .bookingPage {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: 14px;
+  }
+
+  .bookingHeader,
+  .bookingCard,
+  .pendingFilters {
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .bookingHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .bookingHeaderTitle {
+    min-width: 0;
+  }
+
+  .bookingHeaderTitle h1 {
+    font-size: 20px;
+    overflow-wrap: anywhere;
+  }
+
+  .bookingHeader > div:last-child {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .bookingHeader .primaryButton,
+  .bookingHeader .ghostButton {
+    flex: 1 1 180px;
+    justify-content: center;
+  }
+
+  .totalCount {
+    width: 100%;
+    text-align: center;
+  }
+
+  .filterCardActions {
+    flex-wrap: wrap;
+    align-items: stretch;
+    padding-top: 12px;
+  }
+
+  .searchBox {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filterCardActions .primaryButton,
+  .filterCardActions .ghostButton {
+    flex: 1 1 180px;
+  }
+
+  .tableWrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bookingTable th,
+  .bookingTable td {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .bookingFooter {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .pageSize {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .pageSize select {
+    flex: 1;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+  }
+
+  .modalOverlay {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .modalContent {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modalBody {
+    max-height: calc(100vh - 150px);
+  }
+
+  .modalFooter {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .bookingPage {
+    padding: 10px;
+  }
+
+  .bookingHeader,
+  .bookingCard,
+  .pendingFilters {
+    padding: 12px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
+  }
+
+  .bookingTable {
+    min-width: 760px;
+  }
+
+  .bookingHeader .primaryButton,
+  .bookingHeader .ghostButton,
+  .filterCardActions .primaryButton,
+  .filterCardActions .ghostButton,
+  .modalFooter .primaryButton,
+  .modalFooter .ghostButton {
+    width: 100%;
+  }
+
+  .modalHeader,
+  .modalBody,
+  .modalFooter {
+    padding-left: 14px;
+    padding-right: 14px;
   }
 }

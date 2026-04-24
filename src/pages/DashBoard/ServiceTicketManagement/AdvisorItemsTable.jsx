@@ -673,6 +673,7 @@ EstimateActions.propTypes = {
 };
 
 export default function AdvisorItemsTable({
+    className = '',
     serviceTicketId,
     ticketStatus,
     ticketPhotos,
@@ -685,6 +686,14 @@ export default function AdvisorItemsTable({
     onEstimateEditingChange,
     readOnly = false,
     readOnlyMessage = '',
+    hideReadOnlyNotice = false,
+    title = 'Thông tin tư vấn',
+    draftStorageKey,
+    autoStartCreate = false,
+    hideVehiclePhotos = false,
+    hideRecommendation = false,
+    hideEstimateSummary = false,
+    hideEmptyTableBeforeCreate = false,
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
@@ -731,11 +740,26 @@ export default function AdvisorItemsTable({
         saveEdit,
         softDeleteEditRow,
         estimate,
-    } = useAdvisorItemsTableHandlers(serviceTicketId, { onEstimateStatusChange, refreshToken });
+    } = useAdvisorItemsTableHandlers(serviceTicketId, {
+        onEstimateStatusChange,
+        refreshToken,
+        draftStorageKey,
+        autoStartCreate,
+    });
 
     const showTaxColumn = isCreating || isEditing;
     const showConfirmColumn = Boolean(showInputs);
     const isReadOnly = Boolean(readOnly);
+    const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
+    const tableHasRows = Array.isArray(tableRows) && tableRows.length > 0;
+    const shouldShowTable =
+        !hideEmptyTableBeforeCreate ||
+        tableHasRows ||
+        Boolean(estimate) ||
+        isCreating ||
+        isEditing ||
+        isReadOnly ||
+        Boolean(errorLine);
 
     const footerSpacerColSpan =
         (showTaxColumn ? 1 : 0) +
@@ -756,8 +780,6 @@ export default function AdvisorItemsTable({
     );
     const recommendationRemaining = RECOMMEND_MAX_LENGTH - String(recommendation ?? '').length;
     const recommendationHasError = Boolean(recommendationValidation?.error);
-
-    const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
 
     // Let parent know whether estimate is currently being created/edited/saved.
     // Used to hide actions like "Xác nhận báo giá" until user presses Save successfully.
@@ -1076,69 +1098,73 @@ export default function AdvisorItemsTable({
     }, [photoPreview, closePhotoPreview]);
 
     return (
-        <section className={styles.block}>
-            <h2 className={styles.blockTitle}>Thông tin tư vấn </h2>
+        <section className={`${styles.block}${className ? ` ${className}` : ''}`}>
+            <h2 className={styles.blockTitle}>{title}</h2>
 
 
-            <div className={styles.advisorStack}>
-                <div className={styles.advisorCard}>
-                    <h3 className={styles.advisorTitle}>Ảnh tình trạng xe</h3>
-                    {conditionPhotos.length > 0 ? (
-                        <div className={styles.vehiclePhotoGrid}>
-                            {conditionPhotos.map((p, idx) => {
-                                const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
-                                const label = String(p?.label || p?.category || '').trim();
-                                const caption = label || (p?.description ? String(p.description) : `Ảnh ${idx + 1}`);
-                                return (
-                                    <figure key={key} className={styles.vehiclePhotoCard}>
-                                        <button
-                                            type="button"
-                                            className={styles.vehiclePhotoButton}
-                                            onClick={() => setPhotoPreview({ url: p?.url, caption })}
-                                            aria-label={`Phóng to: ${caption}`}
-                                        >
-                                            <img
-                                                className={styles.vehiclePhotoImg}
-                                                src={p.url}
-                                                alt={caption}
-                                                loading="lazy"
-                                                referrerPolicy="no-referrer"
-                                            />
-                                        </button>
-                                        <figcaption className={styles.vehiclePhotoCaption}>{caption}</figcaption>
-                                    </figure>
-                                );
-                            })}
+            {!hideVehiclePhotos || !hideEstimateSummary ? (
+                <div className={styles.advisorStack}>
+                    {!hideVehiclePhotos ? (
+                        <div className={styles.advisorCard}>
+                            <h3 className={styles.advisorTitle}>Ảnh tình trạng xe</h3>
+                            {conditionPhotos.length > 0 ? (
+                                <div className={styles.vehiclePhotoGrid}>
+                                    {conditionPhotos.map((p, idx) => {
+                                        const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
+                                        const label = String(p?.label || p?.category || '').trim();
+                                        const caption = label || (p?.description ? String(p.description) : `Ảnh ${idx + 1}`);
+                                        return (
+                                            <figure key={key} className={styles.vehiclePhotoCard}>
+                                                <button
+                                                    type="button"
+                                                    className={styles.vehiclePhotoButton}
+                                                    onClick={() => setPhotoPreview({ url: p?.url, caption })}
+                                                    aria-label={`Phóng to: ${caption}`}
+                                                >
+                                                    <img
+                                                        className={styles.vehiclePhotoImg}
+                                                        src={p.url}
+                                                        alt={caption}
+                                                        loading="lazy"
+                                                        referrerPolicy="no-referrer"
+                                                    />
+                                                </button>
+                                                <figcaption className={styles.vehiclePhotoCaption}>{caption}</figcaption>
+                                            </figure>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className={styles.noteBox}>-</div>
+                            )}
                         </div>
-                    ) : (
-                        <div className={styles.noteBox}>-</div>
-                    )}
+                    ) : null}
+
+                    {!hideEstimateSummary ? (
+                        <div className={styles.advisorCard}>
+                            <h3 className={styles.advisorTitle}>Ước tính</h3>
+                            <div className={styles.kvList}>
+                                <div className={styles.kvRow}>
+                                    <span className={styles.kvLabel}>Thời gian ước tính hoàn tất:</span>
+                                    <span className={styles.kvValue}>{estimatedTimeDisplay || '-'}</span>
+                                </div>
+                                <div className={styles.kvRow}>
+                                    <span className={styles.kvLabel}>Chi phí dự kiến</span>
+                                    <span className={styles.kvValue} style={{ fontWeight: 900 }}>
+                                        {estimateCostText}
+                                    </span>
+                                </div>
+                                <div className={styles.kvRow}>
+                                    <span className={styles.kvLabel} />
+                                    <span className={styles.kvValue} style={{ color: 'var(--ui-muted)' }}>
+                                        {errorLine ? '' : statusLine}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
-
-
-
-                <div className={styles.advisorCard}>
-                    <h3 className={styles.advisorTitle}>Ước tính</h3>
-                    <div className={styles.kvList}>
-                        <div className={styles.kvRow}>
-                            <span className={styles.kvLabel}>Thời gian ước tính hoàn tất:</span>
-                            <span className={styles.kvValue}>{estimatedTimeDisplay || '-'}</span>
-                        </div>
-                        <div className={styles.kvRow}>
-                            <span className={styles.kvLabel}>Chi phí dự kiến</span>
-                            <span className={styles.kvValue} style={{ fontWeight: 900 }}>
-                                {estimateCostText}
-                            </span>
-                        </div>
-                        <div className={styles.kvRow}>
-                            <span className={styles.kvLabel} />
-                            <span className={styles.kvValue} style={{ color: 'var(--ui-muted)' }}>
-                                {errorLine ? '' : statusLine}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            ) : null}
             <TaxRuleQuickAdd
                 show={showTaxQuickAdd}
                 isAddingNewTaxRule={isAddingNewTaxRule}
@@ -1154,12 +1180,13 @@ export default function AdvisorItemsTable({
                 handleCreateTaxRule={handleCreateTaxRule}
             />
 
+            {shouldShowTable ? (
             <div className={styles.tableWrap}>
-                {isTicketPaid ? (
+                {!hideReadOnlyNotice && isTicketPaid ? (
                 <div className={styles.errorBanner} style={{ marginTop: 8 }}>
                     Phiếu dịch vụ đã được thanh toán — không thể tạo báo giá mới.
                 </div>
-            ) : isReadOnly ? (
+            ) : !hideReadOnlyNotice && isReadOnly ? (
                 <div className={styles.errorBanner} style={{ marginTop: 8 }}>
                     {readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.'}
                 </div>
@@ -1213,6 +1240,7 @@ export default function AdvisorItemsTable({
                     </tfoot>
                 </table>
             </div>
+            ) : null}
 
             {errorLine ? (
                 <div className={styles.errorBanner} style={{ marginTop: 12, marginBottom: 0, textAlign: 'center' }}>
@@ -1248,68 +1276,72 @@ export default function AdvisorItemsTable({
                 </div>
             )}
 
-            <div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
-                <label htmlFor="advisor-recommendation">Khuyến nghị</label>
-                <textarea
-                    id="advisor-recommendation"
-                    placeholder="Nhập khuyến nghị..."
-                    value={recommendation}
-                    onChange={(e) => setRecommendation(e.target.value)}
-                    disabled={isReadOnly || Boolean(recommendationSaving) || isTicketLocked}
-                />
-                <div
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        gap: 12,
-                        marginTop: 6,
-                        fontSize: 12,
-                        color: '#6b7280',
-                    }}
-                >
-                    <span>
-                        {recommendationRemaining >= 0
-                            ? `Còn ${recommendationRemaining} ký tự`
-                            : `Vượt ${Math.abs(recommendationRemaining)} ký tự`}
-                    </span>
-                </div>
-                {recommendationHasError ? (
-                    <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>
-                        {recommendationValidation.error}
-                    </div>
-                ) : null}
-            </div>
-
-                {isTicketLocked || isReadOnly ? null : (
-                    <div className="ui-actions" style={{ marginTop: 8 }}>
-                        <button
-                            type="button"
-                            className="ui-btn ui-btn--primary"
-                            onClick={() => {
-							const validated = validateTextInput(recommendation, {
-								fieldLabel: 'Khuyến nghị',
-								required: false,
-								trim: true,
-								maxLength: RECOMMEND_MAX_LENGTH,
-							});
-							if (validated.error) {
-								notify(validated.error);
-								return;
-							}
-							Promise.resolve(saveRecommendation?.(validated.value))
-                                    .then((saved) => {
-                                        if (saved) notify('Đã lưu khuyến nghị.');
-                                    })
-                                    .catch((err) => {
-                                        notify(err?.message || 'Không thể cập nhật khuyến nghị.');
-                                    });
+            {hideRecommendation ? null : (
+                <>
+                    <div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
+                        <label htmlFor="advisor-recommendation">Khuyến nghị</label>
+                        <textarea
+                            id="advisor-recommendation"
+                            placeholder="Nhập khuyến nghị..."
+                            value={recommendation}
+                            onChange={(e) => setRecommendation(e.target.value)}
+                            disabled={isReadOnly || Boolean(recommendationSaving) || isTicketLocked}
+                        />
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: 12,
+                                marginTop: 6,
+                                fontSize: 12,
+                                color: '#6b7280',
                             }}
-							disabled={Boolean(recommendationSaving) || Boolean(isSaving) || recommendationHasError}
                         >
-                            {recommendationSaving ? 'Đang lưu...' : 'Lưu khuyến nghị'}
-                        </button>
+                            <span>
+                                {recommendationRemaining >= 0
+                                    ? `Còn ${recommendationRemaining} ký tự`
+                                    : `Vượt ${Math.abs(recommendationRemaining)} ký tự`}
+                            </span>
+                        </div>
+                        {recommendationHasError ? (
+                            <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>
+                                {recommendationValidation.error}
+                            </div>
+                        ) : null}
                     </div>
-                )}
+
+                    {isTicketLocked || isReadOnly ? null : (
+                        <div className="ui-actions" style={{ marginTop: 8 }}>
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn--primary"
+                                onClick={() => {
+								const validated = validateTextInput(recommendation, {
+									fieldLabel: 'Khuyến nghị',
+									required: false,
+									trim: true,
+									maxLength: RECOMMEND_MAX_LENGTH,
+								});
+								if (validated.error) {
+									notify(validated.error);
+									return;
+								}
+								Promise.resolve(saveRecommendation?.(validated.value))
+                                        .then((saved) => {
+                                            if (saved) notify('Đã lưu khuyến nghị.');
+                                        })
+                                        .catch((err) => {
+                                            notify(err?.message || 'Không thể cập nhật khuyến nghị.');
+                                        });
+                                }}
+								disabled={Boolean(recommendationSaving) || Boolean(isSaving) || recommendationHasError}
+                            >
+                                {recommendationSaving ? 'Đang lưu...' : 'Lưu khuyến nghị'}
+                            </button>
+                        </div>
+                    )}
+                </>
+            )}
 
 
 
@@ -1356,6 +1388,7 @@ export default function AdvisorItemsTable({
 }
 
 AdvisorItemsTable.propTypes = {
+    className: PropTypes.string,
     serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     ticketStatus: PropTypes.string,
     ticketPhotos: PropTypes.array,
@@ -1368,4 +1401,12 @@ AdvisorItemsTable.propTypes = {
     onCancelAppendOnly: PropTypes.func,
     readOnly: PropTypes.bool,
     readOnlyMessage: PropTypes.string,
+    hideReadOnlyNotice: PropTypes.bool,
+    title: PropTypes.string,
+    draftStorageKey: PropTypes.string,
+    autoStartCreate: PropTypes.bool,
+    hideVehiclePhotos: PropTypes.bool,
+    hideRecommendation: PropTypes.bool,
+    hideEstimateSummary: PropTypes.bool,
+    hideEmptyTableBeforeCreate: PropTypes.bool,
 };

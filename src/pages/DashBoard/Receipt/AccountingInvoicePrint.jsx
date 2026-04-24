@@ -10,7 +10,7 @@ const SCALE_WORDS = ['', 'nghìn', 'triệu', 'tỷ', 'nghìn tỷ', 'triệu t�
 const STORE_INFO = {
     name: 'MICHELIN SƠN TÂY',
     address: '674 QL21, Tân Phúc, Sơn Đông, Sơn Tây, Hà Nội',
-    businessLine: 'Dịch vụ chăm sóc xe, bảo dưỡng, sửa chữa và phụ tùng ô tô',
+    businessLine: 'Dịch vụ chăm sóc xe, bảo dưỡng, sửa chữa, phụ tùng ô tô',
 };
 
 const BARCODE_BCID = 'code128';
@@ -101,22 +101,22 @@ function numberToVietnameseWords(value) {
 }
 
 function buildCustomerName(customer) {
-    const values = [
-        safeText(customer?.name),
-        safeText(customer?.phone) ? `SĐT: ${safeText(customer?.phone)}` : '',
-    ].filter(Boolean);
-    return values.join(' - ');
+    return safeText(customer?.name);
 }
 
 function buildCustomerAddress(ticket) {
-    const customerAddress = safeText(ticket?.customer?.address);
-    const fallbackParts = [
-        safeText(ticket?.vehicle?.licensePlate) ? `Biển số: ${safeText(ticket?.vehicle?.licensePlate)}` : '',
-        safeText(ticket?.ticketCode) ? `Mã phiếu: ${safeText(ticket?.ticketCode)}` : '',
-    ].filter(Boolean);
+    return safeText(ticket?.customer?.address);
+}
 
-    if (customerAddress) return [customerAddress, ...fallbackParts].filter(Boolean).join(' - ');
-    return fallbackParts.join(' - ');
+function buildInvoiceItemName(item) {
+    return safeText(
+        item?.itemName ||
+        item?.description ||
+        item?.productName ||
+        item?.serviceName ||
+        item?.categoryName ||
+        '',
+    );
 }
 
 function getInvoiceDate(ticket) {
@@ -135,17 +135,6 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
         return ticketProp ?? location?.state?.ticket ?? null;
     }, [ticketProp, location?.state?.ticket]);
 
-    useEffect(() => {
-        if (!autoPrint) return;
-        if (!ticket) return;
-        const id = globalThis.setTimeout?.(() => {
-            globalThis.window?.print?.();
-        }, 0);
-        return () => {
-            if (id) globalThis.clearTimeout?.(id);
-        };
-    }, [autoPrint, ticket]);
-
     const invoice = ticket?.invoice || {};
     const invoiceItems = Array.isArray(invoice?.items) ? invoice.items : [];
     const rowCount = Math.max(DEFAULT_ROW_COUNT, invoiceItems.length);
@@ -161,14 +150,29 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
     const totalInWords = numberToVietnameseWords(totalAmount);
     const customerName = buildCustomerName(ticket?.customer);
     const customerAddress = buildCustomerAddress(ticket);
+    const customerPhone = safeText(ticket?.customer?.phone);
+    const ticketCode = safeText(ticket?.ticketCode || ticket?.serviceTicketCode || ticket?.code);
+    const licensePlate = safeText(ticket?.vehicle?.licensePlate);
+    const vehicleModel = safeText(ticket?.vehicle?.model);
     const issuedAt = getInvoiceDate(ticket);
 
     const barcodeUrl = useMemo(() => {
-        const code = safeText(ticket?.ticketCode);
+        const code = safeText(ticket?.ticketCode || ticket?.serviceTicketCode || ticket?.code);
         if (!code) return '';
         const bcid = safeText(invoice?.barcodeType) || BARCODE_BCID;
         return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(bcid)}&text=${encodeURIComponent(code)}`;
-    }, [invoice?.barcodeType, ticket?.ticketCode]);
+    }, [invoice?.barcodeType, ticket?.code, ticket?.serviceTicketCode, ticket?.ticketCode]);
+
+    useEffect(() => {
+        if (!autoPrint) return;
+        if (!ticket) return;
+        const id = globalThis.setTimeout?.(() => {
+            globalThis.window?.print?.();
+        }, barcodeUrl ? 900 : 100);
+        return () => {
+            if (id) globalThis.clearTimeout?.(id);
+        };
+    }, [autoPrint, barcodeUrl, ticket]);
 
     if (!ticket) {
         const code = safeText(params?.ticketCode);
@@ -196,30 +200,51 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
     return (
         <section className={styles.sheet}>
             <header className={styles.header}>
-                {barcodeUrl ? (
-                    <div className={styles.barcodeWrap}>
-                        <img className={styles.barcodeImg} src={barcodeUrl} alt={`Barcode ${safeText(ticket?.ticketCode)}`} />
+                <div className={styles.headerTop}>
+                    <div className={styles.storeInfo}>
+                        <div className={styles.storeName}>{STORE_INFO.name}</div>
+                        <div className={styles.storeLine}>Địa chỉ: {STORE_INFO.address}</div>
+                        <div className={styles.storeLine}>Mặt hàng bán: {STORE_INFO.businessLine}</div>
                     </div>
-                ) : null}
 
-                <div className={styles.storeInfo}>
-                    <div className={styles.storeName}>{STORE_INFO.name}</div>
-                    <div className={styles.storeLine}>Địa chỉ: {STORE_INFO.address}</div>
-                    <div className={styles.storeLine}>Mặt hàng bán: {STORE_INFO.businessLine}</div>
+                    <div className={styles.invoiceMeta}>
+                        <div className={styles.metaRow}>
+                            <span>Mã phiếu</span>
+                            <strong>{ticketCode || '-'}</strong>
+                        </div>
+                        <div className={styles.metaRow}>
+                            <span>Ngày lập</span>
+                            <strong>{issuedAt.getDate()}/{issuedAt.getMonth() + 1}/{issuedAt.getFullYear()}</strong>
+                        </div>
+                        {barcodeUrl ? (
+                            <div className={styles.barcodeWrap}>
+                                <img className={styles.barcodeImg} src={barcodeUrl} alt={`Barcode ${ticketCode}`} />
+                            </div>
+                        ) : null}
+                    </div>
                 </div>
 
                 <div className={styles.title}>HÓA ĐƠN BÁN HÀNG</div>
             </header>
 
             <section className={styles.customerSection}>
-                <div className={styles.formRow}>
+                <div className={`${styles.formRow} ${styles.twoColRow}`}>
                     <span className={styles.label}>Tên khách hàng:</span>
                     <span className={styles.fillLine}>{customerName || ' '}</span>
+                    <span className={styles.label}>Điện thoại:</span>
+                    <span className={styles.fillLine}>{customerPhone || ' '}</span>
                 </div>
 
                 <div className={styles.formRow}>
                     <span className={styles.label}>Địa chỉ:</span>
                     <span className={styles.fillLine}>{customerAddress || ' '}</span>
+                </div>
+
+                <div className={`${styles.formRow} ${styles.twoColRow}`}>
+                    <span className={styles.label}>Biển số:</span>
+                    <span className={styles.fillLine}>{licensePlate || ' '}</span>
+                    <span className={styles.label}>Loại xe:</span>
+                    <span className={styles.fillLine}>{vehicleModel || ' '}</span>
                 </div>
             </section>
 
@@ -239,7 +264,7 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                         return (
                             <tr key={item?.key ?? `invoice-row-${index + 1}`}>
                                 <td className={styles.center}>{index + 1}</td>
-                                <td>{safeText(item?.itemName || item?.categoryName) || ' '}</td>
+                                <td>{buildInvoiceItemName(item) || ' '}</td>
                                 <td className={styles.center}>{item ? safeText(item?.quantity) : ' '}</td>
                                 <td className={styles.right}>{item ? formatCurrencyVnd(item?.unitPrice) : ' '}</td>
                                 <td className={styles.right}>{item ? formatCurrencyVnd(item?.subTotal) : ' '}</td>

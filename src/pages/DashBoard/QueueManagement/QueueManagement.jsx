@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { buildDateOptions, formatDateTimeViNoSeconds, formatLocalDateYYYYMMDD, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
-import { fetchAllSlots, fetchManagedBookingsPaged, fetchQueueBySlot, setQueueAuto, swapQueueBookings } from '../../../services/bookingService.js';
+import { fetchAllSlots, fetchManagedBookingsPaged, fetchQueueBySlot, swapQueueBookings } from '../../../services/bookingService.js';
 import styles from './QueueManagement.module.css';
 
 const timeKey = (t) => formatTimeHHmm(t || '');
@@ -43,7 +43,10 @@ const getQueueBookingTargetId = (item) => {
 
 const isQueueBookingConfirmed = (item) => String(item?.status || '').trim().toUpperCase() === 'CONFIRMED';
 
-const isBookingConfirmed = (status) => String(status || '').trim().toUpperCase() === 'CONFIRMED';
+const isBookingConfirmed = (status) => {
+	const s = String(status || '').trim().toUpperCase();
+	return s === 'CONFIRMED' || s === 'COMPLETED';
+};
 
 const getQueueBookingDateISO = (item) => {
 	const directDate = String(
@@ -136,7 +139,12 @@ function groupConfirmedBookingsByTime(bookings) {
 	const map = new Map();
 	for (const item of list) {
 		if (!isBookingConfirmed(item?.status)) continue;
-		const key = formatTimeHHmm(item?.scheduledTime);
+		// Luôn chuẩn hóa về HH:mm để đồng bộ với slot startTime
+		let key = '';
+		if (item?.scheduledTime) {
+			const m = String(item.scheduledTime).match(/^(\d{2}:\d{2})/);
+			key = m ? m[1] : '';
+		}
 		if (!key) continue;
 		const entry = map.get(key) || [];
 		entry.push({
@@ -405,31 +413,31 @@ export default function QueueManagement() {
 		}
 	}, [dateISO, notify, slot]);
 
-	const handleSetQueueAuto = useCallback(async () => {
-		if (!dateISO || !slot) {
-			notify('Vui lòng chọn ngày và khung giờ.');
-			return;
-		}
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			setQueueError('Vui lòng đăng nhập để thao tác.');
-			return;
-		}
-		try {
-			setQueueLoading(true);
-			setQueueError('');
-			const res = await setQueueAuto(dateISO, slot, token);
-			notify(res?.message || 'Đã tự động xếp hàng.');
-		} catch (err) {
-			const msg = err?.message || 'Không thể tự động xếp hàng.';
-			setQueueError(msg);
-			notify(msg);
-		} finally {
-			setQueueLoading(false);
-			// Always refresh from GET for display.
-			loadQueue({ silent: true });
-		}
-	}, [dateISO, loadQueue, notify, slot]);
+	// const handleSetQueueAuto = useCallback(async () => {
+	// 	if (!dateISO || !slot) {
+	// 		notify('Vui lòng chọn ngày và khung giờ.');
+	// 		return;
+	// 	}
+	// 	const token = localStorage.getItem('authToken');
+	// 	if (!token) {
+	// 		setQueueError('Vui lòng đăng nhập để thao tác.');
+	// 		return;
+	// 	}
+	// 	try {
+	// 		setQueueLoading(true);
+	// 		setQueueError('');
+	// 		const res = await setQueueAuto(dateISO, slot, token);
+	// 		notify(res?.message || 'Đã tự động xếp hàng.');
+	// 	} catch (err) {
+	// 		const msg = err?.message || 'Không thể tự động xếp hàng.';
+	// 		setQueueError(msg);
+	// 		notify(msg);
+	// 	} finally {
+	// 		setQueueLoading(false);
+	// 		// Always refresh from GET for display.
+	// 		loadQueue({ silent: true });
+	// 	}
+	// }, [dateISO, loadQueue, notify, slot]);
 
 	useEffect(() => {
 		if (!scheduleHidden) return;
@@ -605,14 +613,14 @@ export default function QueueManagement() {
 					</div>
 
 					<div className={styles.controlAction}>
-						<button
+						{/* <button
 							type="button"
 							className={styles.assignButton}
 							onClick={handleSetQueueAuto}
 							disabled={queueLoading || !dateISO || !slot}
 						>
 							{queueLoading ? 'Đang xử lý...' : 'Tự động xếp hàng'}
-						</button>
+						</button> */}
 					</div>
 				</div>
 

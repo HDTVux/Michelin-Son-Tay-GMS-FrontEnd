@@ -73,7 +73,7 @@ const NAV_GROUPS = [
                 items: [
                     { id: 'customer-manager', label: 'Quản lý khách hàng', path: '/customer-manager', icon: <IconUser />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ADMIN] },
                     { id: 'vehicle-management', label: 'Quản lý phương tiện', path: '/vehicle-management', icon: <IconVehicle />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.RECEPTIONIST] },
-                    { id: 'create-booking', label: 'Tạo lịch hẹn', path: '/create-booking', icon: <IconEdit />, roles: [STAFF_ROLE.RECEPTIONIST] },
+                    { id: 'create-booking', label: 'Tạo lịch giữ chỗ', path: '/create-booking', icon: <IconEdit />, roles: [STAFF_ROLE.RECEPTIONIST] },
                     { id: 'booking-management', label: 'Quản lý lịch hẹn', path: '/booking-management', icon: <IconCalendar />, roles: [STAFF_ROLE.RECEPTIONIST] },
                     { id: 'booking-request-management', label: 'Yêu cầu đặt lịch', path: '/booking-request-management', icon: <IconClock />, roles: [STAFF_ROLE.RECEPTIONIST] },
                     { id: 'queue-management', label: 'Quản lý hàng chờ đặt lịch', path: '/queue-management', icon: <IconCalendar />, roles: [STAFF_ROLE.RECEPTIONIST] },
@@ -86,7 +86,7 @@ const NAV_GROUPS = [
                     { id: 'advisor-inspection', label: 'Điều phối phiếu dịch vụ', path: '/advisor/inspection', icon: <IconClipboard />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.MANAGER, STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.TECHNICIAN, STAFF_ROLE.ADMIN] },
                     { id: 'service-ticket-management', label: 'Phiếu dịch vụ', path: '/service-ticket-management', icon: <IconPost />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ACCOUNTANT] },
                     { id: 'my-tasks', label: 'Công việc hôm nay', path: '/technician/my-tasks', icon: <IconTask />, roles: [STAFF_ROLE.TECHNICIAN] },
-                    { id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconWrench />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                    { id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <IconWrench />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT] },
                 ]
             },
             {

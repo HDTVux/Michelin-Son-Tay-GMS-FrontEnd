@@ -201,7 +201,7 @@ export default function WarehousePricing() {
           </span>
           <h1>Quản lý giá theo kho</h1>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className={styles.headerActions}>
           <span className={styles.totalCount}>{totalElements} dòng</span>
           <button
             type="button"

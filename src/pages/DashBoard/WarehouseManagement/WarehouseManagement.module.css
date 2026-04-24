@@ -39,6 +39,14 @@
   margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .total-count {
   background: #fef3c7;
   color: #d97706;
@@ -59,6 +67,21 @@
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   margin-bottom: 16px;
+}
+
+.filter-card-labels {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.filter-card-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .filter-card-actions {
@@ -262,6 +285,11 @@
   cursor: pointer;
   transition: all 0.3s;
   min-width: 160px;
+}
+
+.filter-card-controls .status-filter {
+  width: 100%;
+  min-height: 44px;
 }
 
 .status-filter:focus {
@@ -857,7 +885,7 @@
 }
 
 /* ─── Responsive ─── */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .service-header {
     flex-direction: column;
     align-items: flex-start;
@@ -875,5 +903,183 @@
 
   .field-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .service-page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: 14px;
+  }
+
+  .service-header,
+  .service-card {
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .service-header {
+    align-items: stretch;
+    margin-bottom: 14px;
+  }
+
+  .service-header-title {
+    min-width: 0;
+  }
+
+  .service-header-title h1 {
+    font-size: 20px;
+    overflow-wrap: anywhere;
+  }
+
+  .service-header > div:last-child {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .service-header .primary-button,
+  .service-header .ghost-button {
+    flex: 1 1 180px;
+    justify-content: center;
+  }
+
+  .total-count {
+    width: 100%;
+    text-align: center;
+  }
+
+  .pending-filters {
+    padding: 12px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-card-actions {
+    align-items: stretch;
+    padding-top: 12px;
+  }
+
+  .filter-card-labels,
+  .filter-card-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .search-box {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .status-filter,
+  .filter-card-actions .primary-button,
+  .filter-card-actions .ghost-button {
+    flex: 1 1 180px;
+    min-width: 0;
+  }
+
+  .service-card__header,
+  .service-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .table-wrapper,
+  .spec-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .service-table {
+    min-width: 900px;
+  }
+
+  .service-table th,
+  .service-table td {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .action-buttons,
+  .pagination,
+  .price-mode-row,
+  .editor-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .page-size {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .page-size select {
+    flex: 1;
+  }
+
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .modal-box {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modal-header,
+  .modal-body {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+@media (max-width: 560px) {
+  .service-page {
+    padding: 10px;
+  }
+
+  .service-header,
+  .pending-filters,
+  .service-card {
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
+  }
+
+  .service-header .primary-button,
+  .service-header .ghost-button,
+  .filter-card-actions .primary-button,
+  .filter-card-actions .ghost-button,
+  .status-filter,
+  .cancel-btn,
+  .submit-btn,
+  .auto-gen-button {
+    width: 100%;
+  }
+
+  .filter-card-labels,
+  .filter-card-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .service-table {
+    min-width: 760px;
+  }
+
+  .detail-table,
+  .spec-table {
+    min-width: 560px;
+  }
+
+  .thumb-preview-large {
+    max-width: 100%;
+  }
+
+  .media-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

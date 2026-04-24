@@ -300,6 +300,7 @@ export const ServiceTicket = ({
   onInspectionCompleted = null,
   readOnly = false,
   readOnlyMessage = '',
+  hideReadOnlyNotice = false,
 }) => {
   const { id: idParam } = useParams();
   const resolvedTicketCode = String(ticketCode || idParam || '').trim();
@@ -364,6 +365,16 @@ export const ServiceTicket = ({
     || notesError
     || (advisorNoteHasErrors ? 'Vui lòng rút gọn nội dung ghi chú vượt quá giới hạn.' : '');
   const blockingTextFieldValidationError = textFieldValidationError;
+
+  useEffect(() => {
+    if (!readOnly) return;
+    setShowAddCategoryModal(false);
+    setSkipModalOpen(false);
+    setNewCategoryName('');
+    setNewCategoryNameError('');
+    setSkipReason('');
+    setSkipReasonError('');
+  }, [readOnly]);
 
   useEffect(() => {
     const nextError = validateRecommendedTireSizeValue(recommendedTireSize);
@@ -1672,7 +1683,7 @@ export const ServiceTicket = ({
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>{isAdvisorMode ? 'Phiếu kiểm tra - Cố vấn viên' : 'Phiếu kiểm tra xe'}</h1>
-          {isServiceTicketLocked && (
+          {!hideReadOnlyNotice && isServiceTicketLocked && (
             <div style={{
               marginTop: '8px',
               padding: '8px 10px',
@@ -1685,7 +1696,7 @@ export const ServiceTicket = ({
               Phiếu dịch vụ đã ở trạng thái PAID/COMPLETED. Phiếu kiểm tra an toàn đang bị khóa chỉnh sửa.
             </div>
           )}
-          {isInspectionCompleted && !isServiceTicketLocked && (
+          {!hideReadOnlyNotice && isInspectionCompleted && !isServiceTicketLocked && (
             <div style={{
               marginTop: '8px',
               padding: '8px 10px',
@@ -2345,7 +2356,7 @@ export const ServiceTicket = ({
         </div>
       )}
       {/* Modal thêm hạng mục */}
-      {showAddCategoryModal && (
+      {canEditTechnicalFields && showAddCategoryModal && (
         <div
           className={styles.modalOverlay}
           onClick={() => {
@@ -2421,7 +2432,7 @@ export const ServiceTicket = ({
       )}
 
       {/* Modal xác nhận bỏ qua */}
-      {skipModalOpen && (
+      {canEditTechnicalFields && skipModalOpen && (
         <div className={styles.modalOverlay} onClick={() => setSkipModalOpen(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
@@ -2478,6 +2489,7 @@ ServiceTicket.propTypes = {
   onInspectionCompleted: PropTypes.func,
   readOnly: PropTypes.bool,
   readOnlyMessage: PropTypes.string,
+  hideReadOnlyNotice: PropTypes.bool,
 };
 
 export default ServiceTicket;

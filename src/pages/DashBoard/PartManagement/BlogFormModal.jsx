@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import styles from './ServiceManagement.module.css';
 import { createServiceForCatalog, fetchCatalogItemDetail, updateServiceById } from '../../../services/blogService.js';
-import { createWarehouseCatalogItem, createWarehouseItemCategory, fetchWarehouseItemCategories } from '../../../services/warehouseService.js';
+import {
+  createWarehouseCatalogItem,
+  createWarehouseItemCategory,
+  fetchWarehouseItemCategories,
+  updateWarehouseCatalogItem,
+} from '../../../services/warehouseService.js';
 import { fetchHomeProductDetail, fetchHomeServiceDetail } from '../../../services/homeService.js';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
@@ -29,6 +34,32 @@ const toNullableBoolean = (value) => {
     if (['false', '0', 'inactive', 'disabled', 'unpublished'].includes(text)) return false;
   }
   return null;
+};
+const pickFirstPresent = (...values) => {
+  for (const value of values) {
+    if (value == null) continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+    return value;
+  }
+  return undefined;
+};
+const pickPriceValue = (...items) => {
+  for (const item of items) {
+    const value = pickFirstPresent(
+      item?.price,
+      item?.displayPrice,
+      item?.servicePrice,
+      item?.sellingPrice,
+      item?.unitPrice,
+      item?.listPrice,
+    );
+    if (value !== undefined) return value;
+  }
+  return '';
+};
+const isPersistedMediaUrl = (value) => {
+  const text = String(value || '').trim();
+  return Boolean(text) && !text.startsWith('blob:') && !text.startsWith('data:');
 };
 const mergeWithMeaningfulServiceData = (catalogDetail, serviceDetail) => {
   const base = { ...(catalogDetail || {}) };
@@ -152,7 +183,24 @@ const composeDescriptionHtml = (introText, detailHtml) => {
   return sections.join('');
 };
 
-const pickPriceMode = (showPrice) => (showPrice ? 'fixed' : 'contact');
+const pickPriceMode = (showPrice, fallback = true) => ((toNullableBoolean(showPrice) ?? fallback) ? 'fixed' : 'contact');
+
+const pickEstimateTimeValue = (...items) => {
+  for (const item of items) {
+    const value = pickFirstPresent(
+      item?.estimateTime,
+      item?.estimate_time,
+      item?.estimatedTime,
+      item?.estimated_time,
+      item?.durationMinutes,
+      item?.duration_minutes,
+      item?.warrantyDurationMonths,
+    );
+    if (value !== undefined) return value;
+  }
+  return '';
+};
+
 const pickTemplateByContext = (itemName, sku, fileName) => {
   const contextKey = toSearchKey(`${itemName || ''} ${sku || ''} ${fileName || ''}`);
   const SERVICE_TEMPLATES = [
@@ -333,6 +381,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   const itemTypeLabel = normalizedItemType === 'SERVICE' ? 'Dịch vụ' : 'Phụ tùng';
   const itemCodeLabel = normalizedItemType === 'SERVICE' ? 'Mã dịch vụ' : 'Mã phụ tùng';
   const itemPriceLabel = normalizedItemType === 'SERVICE' ? 'Giá dịch vụ' : 'Giá phụ tùng';
+  const itemToastLabel = normalizedItemType === 'SERVICE' ? 'dich vu' : 'phu tung';
   const initialDescription = useMemo(() => splitDescriptionSections(baseItem.description || ''), [baseItem.description]);
 
   const [itemName, setItemName] = useState(baseItem.itemName || '');
@@ -342,9 +391,10 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   const [introText, setIntroText] = useState(initialDescription.introText);
   const [detailHtml, setDetailHtml] = useState(initialDescription.detailHtml);
   const [unit, setUnit] = useState(baseItem.unit || '');
-  const [warrantyMonths, setWarrantyMonths] = useState(
-    baseItem.warrantyDurationMonths != null ? String(baseItem.warrantyDurationMonths) : '',
-  );
+  const [warrantyMonths, setWarrantyMonths] = useState(() => {
+    const value = pickEstimateTimeValue(baseItem);
+    return value !== '' ? String(value) : '';
+  });
   const [isActive, setIsActive] = useState(isEdit ? (baseItem.isActive ?? true) : true);
   const [brandId, setBrandId] = useState(
     baseItem.brandId != null ? String(baseItem.brandId) : '',
@@ -373,6 +423,8 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [autoGenHint, setAutoGenHint] = useState('');
   const [errors, setErrors] = useState({});
+  const [resolvedServiceId, setResolvedServiceId] = useState(() => getServiceServiceId(baseItem));
+  const [isDraftReady, setIsDraftReady] = useState(false);
 
   const editorRef = useRef(null);
   const thumbnailPreviewRef = useRef('');
@@ -424,6 +476,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
 
   const loadDetail = useCallback(async () => {
     if (!baseItem?.itemId) return;
+    setIsDraftReady(false);
     try {
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       const res = await fetchCatalogItemDetail(baseItem.itemId, token);
@@ -451,6 +504,11 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       }
 
       const detail = mergeWithMeaningfulServiceData(catalogDetail, serviceDetail);
+      const nextResolvedServiceId =
+        serviceId
+        || getServiceServiceId(serviceDetail)
+        || getServiceServiceId(detail);
+      setResolvedServiceId(nextResolvedServiceId ?? null);
 
       const mergedDescription =
         detail.fullDescription
@@ -461,18 +519,15 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
 
       setItemName(detail.title || detail.itemName || '');
       setSku(detail.sku || '');
-      setPriceMode(pickPriceMode(detail.showPrice ?? true));
-      setPrice(detail.price != null ? String(detail.price) : '');
+      const resolvedShowPrice = pickFirstPresent(baseItem.showPrice, catalogDetail.showPrice, true);
+      const resolvedPrice = pickPriceValue(baseItem, catalogDetail);
+      setPriceMode(pickPriceMode(resolvedShowPrice, true));
+      setPrice(resolvedPrice !== '' ? String(resolvedPrice) : '');
       setIntroText(splitSections.introText || String(detail.shortDescription || '').trim());
       setDetailHtml(splitSections.detailHtml || normalizeEditorHtml(detail.fullDescription || detail.descriptionHtml || ''));
       setUnit(detail.unit || '');
-      setWarrantyMonths(
-        detail.warrantyDurationMonths != null
-          ? String(detail.warrantyDurationMonths)
-          : detail.estimateTime != null
-            ? String(detail.estimateTime)
-            : '',
-      );
+      const resolvedEstimateTime = pickEstimateTimeValue(detail, serviceDetail, catalogDetail, baseItem);
+      setWarrantyMonths(resolvedEstimateTime !== '' ? String(resolvedEstimateTime) : '');
       const parsedIsActive = toNullableBoolean(detail.isActive ?? detail.status);
       setIsActive(isEdit ? (parsedIsActive ?? true) : true);
       setBrandId(detail.brandId != null ? String(detail.brandId) : '');
@@ -491,14 +546,12 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
 
       const draft = readDraft();
       if (draft) {
-        if (typeof draft.itemName === 'string') setItemName(draft.itemName);
-        if (typeof draft.sku === 'string') setSku(draft.sku);
-        if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
-        if (typeof draft.price === 'string') setPrice(draft.price);
-        if (typeof draft.introText === 'string') setIntroText(draft.introText);
-        if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
-        if (typeof draft.unit === 'string') setUnit(draft.unit);
-        if (typeof draft.warrantyMonths === 'string') setWarrantyMonths(draft.warrantyMonths);
+        if (typeof draft.itemName === 'string' && draft.itemName.trim()) setItemName(draft.itemName);
+        if (typeof draft.sku === 'string' && draft.sku.trim()) setSku(draft.sku);
+        if (typeof draft.introText === 'string' && draft.introText.trim()) setIntroText(draft.introText);
+        if (typeof draft.detailHtml === 'string' && stripHtml(draft.detailHtml)) setDetailHtml(draft.detailHtml);
+        if (typeof draft.unit === 'string' && draft.unit.trim()) setUnit(draft.unit);
+        if (typeof draft.warrantyMonths === 'string' && draft.warrantyMonths.trim()) setWarrantyMonths(draft.warrantyMonths);
         if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
         if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
         if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
@@ -506,7 +559,10 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       }
     } catch {
       // Keep local values.
+      setResolvedServiceId(getServiceServiceId(baseItem));
       setExistingMedia([]);
+    } finally {
+      setIsDraftReady(true);
     }
   }, [baseItem, isEdit, readDraft]);
 
@@ -539,20 +595,28 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   useEffect(() => {
     if (!isCreateNew) return;
     const draft = readDraft();
-    if (!draft) return;
-    if (typeof draft.itemName === 'string') setItemName(draft.itemName);
-    if (typeof draft.sku === 'string') setSku(draft.sku);
-    if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
-    if (typeof draft.price === 'string') setPrice(draft.price);
-    if (typeof draft.introText === 'string') setIntroText(draft.introText);
-    if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
-    if (typeof draft.unit === 'string') setUnit(draft.unit);
-    if (typeof draft.warrantyMonths === 'string') setWarrantyMonths(draft.warrantyMonths);
-    if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
-    if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
-    if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
-    if (typeof draft.itemCategoryId === 'string') setItemCategoryId(draft.itemCategoryId);
-  }, [isCreateNew, readDraft]);
+    if (draft) {
+      if (typeof draft.itemName === 'string') setItemName(draft.itemName);
+      if (typeof draft.sku === 'string') setSku(draft.sku);
+      if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
+      if (typeof draft.price === 'string') setPrice(draft.price);
+      if (typeof draft.introText === 'string') setIntroText(draft.introText);
+      if (typeof draft.detailHtml === 'string') setDetailHtml(draft.detailHtml);
+      if (typeof draft.unit === 'string') setUnit(draft.unit);
+      if (typeof draft.warrantyMonths === 'string') setWarrantyMonths(draft.warrantyMonths);
+      if (typeof draft.isActive === 'boolean') setIsActive(draft.isActive);
+      if (typeof draft.brandId === 'string') setBrandId(draft.brandId);
+      if (typeof draft.productLineId === 'string') setProductLineId(draft.productLineId);
+      if (typeof draft.itemCategoryId === 'string') setItemCategoryId(draft.itemCategoryId);
+    }
+    setResolvedServiceId(getServiceServiceId(baseItem));
+    setIsDraftReady(true);
+  }, [baseItem, isCreateNew, readDraft]);
+
+  useEffect(() => {
+    if (isCreateNew) return;
+    setResolvedServiceId(getServiceServiceId(baseItem));
+  }, [baseItem, isCreateNew]);
 
   useEffect(() => {
     if (!isCreateNew) return;
@@ -636,7 +700,6 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     if (!file) {
       setThumbnailFile(null);
       setThumbnailPreview(baseItem.thumbnailUrl || baseItem.imageUrl || '');
-      setAutoGenHint('');
       return;
     }
     const objectUrl = URL.createObjectURL(file);
@@ -644,8 +707,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     setThumbnailFile(file);
     setThumbnailPreview(objectUrl);
     setAutoGenHint('Đã nhận ảnh. Bạn có thể bấm "Tạo lại từ ảnh" để cập nhật nội dung.');
-    void autoGenerateContentFromImage(file, { force: false });
-  }, [autoGenerateContentFromImage, baseItem.imageUrl, baseItem.thumbnailUrl]);
+  }, [baseItem.imageUrl, baseItem.thumbnailUrl]);
 
   const handleMediaChange = useCallback((e) => {
     const files = Array.from(e?.target?.files ?? []);
@@ -664,6 +726,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (!isDraftReady) return;
     const snapshot = {
       itemName,
       sku,
@@ -688,6 +751,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     detailHtml,
     draftStorageKey,
     introText,
+    isDraftReady,
     isActive,
     itemCategoryId,
     itemName,
@@ -724,7 +788,8 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     setIntroText(initialDescription.introText);
     setDetailHtml(initialDescription.detailHtml);
     setUnit(baseItem.unit || '');
-    setWarrantyMonths(baseItem.warrantyDurationMonths != null ? String(baseItem.warrantyDurationMonths) : '');
+    const baseEstimateTime = pickEstimateTimeValue(baseItem);
+    setWarrantyMonths(baseEstimateTime !== '' ? String(baseEstimateTime) : '');
     setIsActive(isEdit ? (baseItem.isActive ?? true) : true);
     setBrandId(baseItem.brandId != null ? String(baseItem.brandId) : '');
     setProductLineId(baseItem.productLineId != null ? String(baseItem.productLineId) : '');
@@ -745,31 +810,75 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     const showPrice = priceMode === 'fixed';
     const priceNum = Number(String(price || '').trim());
     const resolvedPrice = showPrice && Number.isFinite(priceNum) && priceNum >= 0 ? priceNum : 0;
-    const warrantyNum = Number(String(warrantyMonths || '').trim());
+    const warrantySource = String(warrantyMonths || '').trim() || String(pickEstimateTimeValue(baseItem) || '').trim();
+    const warrantyNum = Number(warrantySource);
     const serviceStatus = isActive ? 'ACTIVE' : 'INACTIVE';
     const fullDescription = buildDescriptionHtml();
     const shortDescription = String(introText || '').trim();
     const title = String(itemName || '').trim();
+    const skuText = String(sku || '').trim();
+    const unitText = String(unit || '').trim();
+    const catalogItemId = toNullablePositiveNumber(baseItem.itemId);
 
     formData.append('title', title);
+    formData.append('itemName', title);
+    formData.append('sku', skuText);
+    formData.append('itemCode', skuText);
+    formData.append(normalizedItemType === 'SERVICE' ? 'serviceCode' : 'partCode', skuText);
+    formData.append('unit', unitText);
+    formData.append('price', String(resolvedPrice));
     formData.append('shortDescription', shortDescription);
     formData.append('fullDescription', fullDescription);
     formData.append('showPrice', showPrice ? 'true' : 'false');
     formData.append('displayPrice', String(resolvedPrice));
     formData.append('status', serviceStatus);
+    if (catalogItemId != null) formData.append('catalogItemId', String(catalogItemId));
     if (Number.isFinite(warrantyNum) && warrantyNum >= 0) formData.append('estimateTime', String(Math.trunc(warrantyNum)));
-    if (thumbnailFile) formData.append('thumbnailFile', thumbnailFile);
+    if (thumbnailFile) {
+      formData.append('thumbnailFile', thumbnailFile);
+    } else if (isPersistedMediaUrl(thumbnailPreview)) {
+      formData.append('thumbnailUrl', thumbnailPreview);
+      formData.append('imageUrl', thumbnailPreview);
+      formData.append('mediaThumbnail', thumbnailPreview);
+    }
     mediaFiles.forEach((entry) => { if (entry?.file) formData.append('mediaFiles', entry.file); });
+    const existingMediaUrls = existingMedia
+      .map((entry) => entry?.mediaUrl)
+      .filter(isPersistedMediaUrl);
+    if (existingMediaUrls.length > 0) {
+      formData.append('existingMediaUrls', JSON.stringify(existingMediaUrls));
+    }
     return formData;
-  }, [buildDescriptionHtml, introText, isActive, itemName, mediaFiles, price, priceMode, thumbnailFile, warrantyMonths]);
+  }, [
+    baseItem,
+    buildDescriptionHtml,
+    existingMedia,
+    introText,
+    isActive,
+    itemName,
+    mediaFiles,
+    normalizedItemType,
+    price,
+    priceMode,
+    sku,
+    thumbnailFile,
+    thumbnailPreview,
+    unit,
+    warrantyMonths,
+  ]);
 
-  const buildCatalogPayload = useCallback(() => {
+  const buildCatalogPayload = useCallback((catalogItemId = null, serviceServiceId = null) => {
     const priceNum = Number(String(price || '').trim());
     const showPrice = priceMode === 'fixed';
     const resolvedPrice = Number.isFinite(priceNum) ? priceNum : 0;
     const description = stripHtml(buildDescriptionHtml());
     const parsedItemCategoryId = toNullablePositiveNumber(itemCategoryId);
+    const categoryIdForPayload = parsedItemCategoryId ?? (isCreateNew ? 0 : undefined);
+    const safeCatalogItemId = toNullablePositiveNumber(catalogItemId);
+    const safeServiceServiceId = toNullablePositiveNumber(serviceServiceId) ?? getServiceServiceId(baseItem);
     return {
+      itemId: safeCatalogItemId ?? undefined,
+      catalogItemId: safeCatalogItemId ?? undefined,
       itemName: String(itemName || '').trim() || undefined,
       itemType: normalizedItemType,
       sku: String(sku || '').trim(),
@@ -778,15 +887,34 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
       unit: String(unit || '').trim(),
       description: description || undefined,
       warrantyDurationMonths: toNullablePositiveNumber(warrantyMonths) ?? undefined,
-      serviceServiceId: 0,
+      serviceServiceId: safeServiceServiceId ?? 0,
       comboDurationMonths: 0,
       comboDescription: '',
       isRecurring: false,
       isActive,
       is_active: 1,
-      workCategoryId: parsedItemCategoryId ?? 0,
+      brandId: toNullablePositiveNumber(brandId) ?? undefined,
+      productLineId: toNullablePositiveNumber(productLineId) ?? undefined,
+      itemCategoryId: categoryIdForPayload,
+      workCategoryId: categoryIdForPayload,
     };
-  }, [buildDescriptionHtml, isActive, itemCategoryId, itemName, normalizedItemType, price, priceMode, sku, unit, warrantyMonths]);
+  }, [baseItem, brandId, buildDescriptionHtml, isActive, isCreateNew, itemCategoryId, itemName, normalizedItemType, price, priceMode, productLineId, sku, unit, warrantyMonths]);
+
+  const buildSavedCatalogSnapshot = useCallback((serviceServiceId = null) => {
+    const priceNum = Number(String(price || '').trim());
+    const showPrice = priceMode === 'fixed';
+    return {
+      itemName: String(itemName || '').trim(),
+      sku: String(sku || '').trim(),
+      price: Number.isFinite(priceNum) ? priceNum : 0,
+      showPrice,
+      unit: String(unit || '').trim(),
+      warrantyDurationMonths: toNullablePositiveNumber(warrantyMonths) ?? undefined,
+      isActive,
+      serviceServiceId: toNullablePositiveNumber(serviceServiceId) ?? undefined,
+      service_service_id: toNullablePositiveNumber(serviceServiceId) ?? undefined,
+    };
+  }, [isActive, itemName, price, priceMode, sku, unit, warrantyMonths]);
 
   const validateBeforeSubmit = useCallback(() => {
     const nextErrors = {};
@@ -872,22 +1000,32 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
     }
     try {
       setIsSubmitting(true);
+      const submittedItemName = String(itemName || baseItem.itemName || '').trim();
+      const successName = submittedItemName ? ` "${submittedItemName}"` : '';
       if (isEdit) {
         const catalogItemId = toNullablePositiveNumber(baseItem.itemId);
-        const serviceId = getServiceServiceId(baseItem);
+        const serviceId = resolvedServiceId ?? getServiceServiceId(baseItem);
         if (!serviceId) {
           notify('Khong tim thay serviceId de cap nhat. Vui long tao bai viet truoc.', 'error');
           return;
         }
+        if (catalogItemId) {
+          await updateWarehouseCatalogItem(catalogItemId, buildCatalogPayload(catalogItemId, serviceId), token);
+        }
         await updateServiceById(serviceId, buildServiceFormData(), token);
-        notify('Cap nhat Blog thanh cong!', 'success');
+        notify(`Cap nhat bai viet ${itemToastLabel}${successName} thanh cong!`, 'success');
         clearDraft();
-        onSaved({ catalogItemId: catalogItemId ?? baseItem.itemId, serviceServiceId: serviceId });
+        setResolvedServiceId(serviceId);
+        onSaved({
+          catalogItemId: catalogItemId ?? baseItem.itemId,
+          serviceServiceId: serviceId,
+          ...buildSavedCatalogSnapshot(serviceId),
+        });
         return;
       }
 
       let catalogItemId = toNullablePositiveNumber(baseItem.itemId);
-      let serviceServiceId = getServiceServiceId(baseItem);
+      let serviceServiceId = resolvedServiceId ?? getServiceServiceId(baseItem);
       if (isCreateNew) {
         const createCatalogRes = await createWarehouseCatalogItem(buildCatalogPayload(), token);
         const createdCatalog = extractPayload(createCatalogRes);
@@ -896,21 +1034,28 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
         );
         serviceServiceId = getServiceServiceId(createdCatalog) || serviceServiceId;
         if (!catalogItemId) throw new Error('Khong nhan duoc catalogItemId sau khi tao catalog.');
+      } else if (catalogItemId) {
+        await updateWarehouseCatalogItem(catalogItemId, buildCatalogPayload(catalogItemId, serviceServiceId), token);
       }
       const createRes = await createServiceForCatalog(catalogItemId, buildServiceFormData(), token);
       serviceServiceId = getServiceServiceId(extractPayload(createRes)) || serviceServiceId;
       if (isCreateFromCatalog && !serviceServiceId) {
         throw new Error('Da tao blog nhung chua nhan duoc serviceId.');
       }
-      notify('Tao Blog thanh cong!', 'success');
+      notify(`Tao bai viet ${itemToastLabel}${successName} thanh cong!`, 'success');
       clearDraft();
-      onSaved({ catalogItemId, serviceServiceId });
+      setResolvedServiceId(serviceServiceId ?? null);
+      onSaved({
+        catalogItemId,
+        serviceServiceId,
+        ...buildSavedCatalogSnapshot(serviceServiceId),
+      });
     } catch (err) {
       notify(err?.message || 'Thao tac that bai. Vui long thu lai.', 'error');
     } finally {
       setIsSubmitting(false);
     }
-  }, [baseItem, buildCatalogPayload, buildServiceFormData, clearDraft, isCreateFromCatalog, isCreateNew, isEdit, notify, onSaved, validateBeforeSubmit]);
+  }, [baseItem, buildCatalogPayload, buildSavedCatalogSnapshot, buildServiceFormData, clearDraft, isCreateFromCatalog, isCreateNew, isEdit, itemName, itemToastLabel, notify, onSaved, resolvedServiceId, validateBeforeSubmit]);
 
   return (
     <div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -933,7 +1078,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
               placeholder="VD: Chỉnh thước lái (độ chụm)"
-              disabled={isSubmitting || isCreateFromCatalog}
+              disabled={isSubmitting}
             />
             {errors.itemName && <span className={styles['field-error']}>{errors.itemName}</span>}
           </div>
@@ -958,14 +1103,14 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
                   placeholder="VD: DV-CHINH-THUOC-LAI-928"
-                  disabled={isSubmitting || isCreateFromCatalog}
+                  disabled={isSubmitting}
                   style={{ flex: 1 }}
                 />
                 <button
                   type="button"
                   className={styles['auto-gen-button']}
                   onClick={handleRandomServiceCode}
-                  disabled={isSubmitting || isCreateFromCatalog}
+                  disabled={isSubmitting}
                 >
                   Random mã
                 </button>
@@ -1025,7 +1170,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
             )}
           </div>
 
-          <div className={styles['auto-gen-row']}>
+          <div className={styles['auto-gen-row']} style={{ display: 'none' }}>
             <button
               type="button"
               className={styles['auto-gen-button']}
@@ -1218,14 +1363,16 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
               {errors.unit && <span className={styles['field-error']}>{errors.unit}</span>}
             </div>
             <div className={styles.field}>
-              <label htmlFor="item-warranty">Bảo hành (tháng)</label>
+              <label htmlFor="item-warranty">
+                {normalizedItemType === 'SERVICE' ? 'Thời gian dự kiến (phút)' : 'Bảo hành (tháng)'}
+              </label>
               <input
                 id="item-warranty"
                 type="number"
                 min="0"
                 value={warrantyMonths}
                 onChange={(e) => setWarrantyMonths(e.target.value)}
-                placeholder="VD: 12"
+                placeholder={normalizedItemType === 'SERVICE' ? 'VD: 60' : 'VD: 12'}
                 disabled={isSubmitting}
               />
             </div>

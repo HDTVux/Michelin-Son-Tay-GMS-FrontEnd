@@ -188,3 +188,77 @@
     flex-direction: column;
   }
 }
+
+@media (max-width: 720px) {
+  .wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    gap: 12px;
+  }
+
+  .card {
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .headerRow,
+  .sectionHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .titleBlock {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .entryCode {
+    font-size: 20px;
+    overflow-wrap: anywhere;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .fullRow {
+    grid-column: auto;
+  }
+
+  .attachmentGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .attachmentImage {
+    height: 130px;
+  }
+
+  .modalOverlay {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .modalBox {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modalHeader,
+  .modalBody {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .previewImg {
+    max-height: calc(100vh - 140px);
+  }
+}
+
+@media (max-width: 420px) {
+  .attachmentGrid {
+    grid-template-columns: 1fr;
+  }
+}
