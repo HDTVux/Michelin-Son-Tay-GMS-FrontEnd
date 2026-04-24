@@ -507,7 +507,7 @@ export const createWarehouseStockEntryWithAttachment = async (payload, file, tok
 
 // GET: /api/warehouse/stock-entries?warehouseId=...&status=...
 export const fetchWarehouseStockEntries = (params, token) => {
-  const safeParams = params && typeof params === 'object' ? params : {};
+  const safeParams = normalizePagingParams(params);
   const warehouseIdNum = toSafeInt(safeParams.warehouseId);
   if (!warehouseIdNum || warehouseIdNum <= 0) {
     throw new Error('Thiếu kho (warehouseId).');
@@ -616,7 +616,7 @@ export const createWarehouseReturnEntryWithAttachments = async (payload, files, 
 // GET: /api/warehouse/return-entries
 // Params: { warehouseId: number, status?: string, ... }
 export const fetchWarehouseReturnEntries = (params, token) => {
-  const safeParams = params && typeof params === 'object' ? params : {};
+  const safeParams = normalizePagingParams(params);
   const warehouseIdNum = toSafeInt(safeParams.warehouseId);
   if (!warehouseIdNum || warehouseIdNum <= 0) {
     throw new Error('Thiếu kho (warehouseId).');
@@ -738,7 +738,7 @@ export const requestWarehouseStockIssue = (ticketId, token) => {
 
 // GET: /api/warehouse/stock-issues?warehouseId=...&status=...
 export const fetchWarehouseStockIssues = (params, token) => {
-  const safeParams = params && typeof params === 'object' ? params : {};
+  const safeParams = normalizePagingParams(params);
   const warehouseIdNum = toSafeInt(safeParams.warehouseId);
   if (!warehouseIdNum || warehouseIdNum <= 0) {
     throw new Error('Thiếu kho (warehouseId).');

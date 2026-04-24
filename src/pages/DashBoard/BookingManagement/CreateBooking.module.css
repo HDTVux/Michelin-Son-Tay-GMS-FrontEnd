@@ -39,12 +39,110 @@
   font-weight: 800;
 }
 
+.estimatePanel {
+  overflow: hidden;
+}
+
+.estimatePanel table {
+  min-width: 840px;
+}
+
+.estimatePanel :global(.ui-actions) {
+  align-items: center;
+}
+
+.sectionSpacer {
+  height: 16px;
+  flex: 0 0 auto;
+}
+
 @media (max-width: 640px) {
+  .page {
+    gap: 12px;
+    padding: 16px 14px 44px;
+  }
+
+  .title {
+    font-size: 20px;
+    line-height: 1.25;
+    margin-bottom: 2px;
+  }
+
+  .estimatePanel {
+    padding: 14px 16px;
+    border-radius: 8px;
+  }
+
+  .estimatePanel h2 {
+    font-size: 17px;
+    line-height: 1.3;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+  }
+
+  .estimatePanel table {
+    min-width: 720px;
+  }
+
+  .estimatePanel th,
+  .estimatePanel td {
+    padding: 9px 8px;
+    font-size: 12px;
+  }
+
+  .estimatePanel th:nth-child(1),
+  .estimatePanel td:nth-child(1) {
+    width: 44px;
+  }
+
+  .estimatePanel th:nth-child(4),
+  .estimatePanel td:nth-child(4) {
+    width: 54px;
+  }
+
+  .estimatePanel th:nth-child(5),
+  .estimatePanel td:nth-child(5),
+  .estimatePanel th:nth-child(6),
+  .estimatePanel td:nth-child(6) {
+    width: 104px;
+  }
+
+  .estimatePanel th:nth-child(8),
+  .estimatePanel td:nth-child(8) {
+    width: 74px;
+  }
+
+  .estimatePanel :global(.ui-actions) {
+    margin-top: 12px !important;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .estimatePanel :global(.ui-btn) {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .sectionSpacer {
+    height: 4px;
+  }
+
   .successRow {
     flex-direction: column;
   }
 
   .successBtn {
     width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .page {
+    padding-inline: 10px;
+  }
+
+  .estimatePanel {
+    padding: 12px;
   }
 }

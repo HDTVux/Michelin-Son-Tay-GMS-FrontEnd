@@ -543,9 +543,7 @@ const Services = ({ homeRows = false }) => {
 
   useEffect(() => {
     if (homeRows) return;
-    document.title = catalogFilter === 'PART'
-      ? 'Phụ tùng - Michelin Sơn Tây'
-      : 'Dịch vụ - Michelin Sơn Tây';
+    document.title = 'Đại lý garage Sơn Tây - michelinsontay - Trung tâm dịch vụ lốp xe uy tín';
   }, [catalogFilter, homeRows]);
 
   const servicesHeroRef = useRef(null);

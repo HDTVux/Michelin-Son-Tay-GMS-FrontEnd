@@ -673,6 +673,7 @@ EstimateActions.propTypes = {
 };
 
 export default function AdvisorItemsTable({
+    className = '',
     serviceTicketId,
     ticketStatus,
     ticketPhotos,
@@ -692,6 +693,7 @@ export default function AdvisorItemsTable({
     hideVehiclePhotos = false,
     hideRecommendation = false,
     hideEstimateSummary = false,
+    hideEmptyTableBeforeCreate = false,
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
@@ -748,6 +750,16 @@ export default function AdvisorItemsTable({
     const showTaxColumn = isCreating || isEditing;
     const showConfirmColumn = Boolean(showInputs);
     const isReadOnly = Boolean(readOnly);
+    const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
+    const tableHasRows = Array.isArray(tableRows) && tableRows.length > 0;
+    const shouldShowTable =
+        !hideEmptyTableBeforeCreate ||
+        tableHasRows ||
+        Boolean(estimate) ||
+        isCreating ||
+        isEditing ||
+        isReadOnly ||
+        Boolean(errorLine);
 
     const footerSpacerColSpan =
         (showTaxColumn ? 1 : 0) +
@@ -768,8 +780,6 @@ export default function AdvisorItemsTable({
     );
     const recommendationRemaining = RECOMMEND_MAX_LENGTH - String(recommendation ?? '').length;
     const recommendationHasError = Boolean(recommendationValidation?.error);
-
-    const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
 
     // Let parent know whether estimate is currently being created/edited/saved.
     // Used to hide actions like "Xác nhận báo giá" until user presses Save successfully.
@@ -1088,7 +1098,7 @@ export default function AdvisorItemsTable({
     }, [photoPreview, closePhotoPreview]);
 
     return (
-        <section className={styles.block}>
+        <section className={`${styles.block}${className ? ` ${className}` : ''}`}>
             <h2 className={styles.blockTitle}>{title}</h2>
 
 
@@ -1170,6 +1180,7 @@ export default function AdvisorItemsTable({
                 handleCreateTaxRule={handleCreateTaxRule}
             />
 
+            {shouldShowTable ? (
             <div className={styles.tableWrap}>
                 {!hideReadOnlyNotice && isTicketPaid ? (
                 <div className={styles.errorBanner} style={{ marginTop: 8 }}>
@@ -1229,6 +1240,7 @@ export default function AdvisorItemsTable({
                     </tfoot>
                 </table>
             </div>
+            ) : null}
 
             {errorLine ? (
                 <div className={styles.errorBanner} style={{ marginTop: 12, marginBottom: 0, textAlign: 'center' }}>
@@ -1376,6 +1388,7 @@ export default function AdvisorItemsTable({
 }
 
 AdvisorItemsTable.propTypes = {
+    className: PropTypes.string,
     serviceTicketId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     ticketStatus: PropTypes.string,
     ticketPhotos: PropTypes.array,
@@ -1395,4 +1408,5 @@ AdvisorItemsTable.propTypes = {
     hideVehiclePhotos: PropTypes.bool,
     hideRecommendation: PropTypes.bool,
     hideEstimateSummary: PropTypes.bool,
+    hideEmptyTableBeforeCreate: PropTypes.bool,
 };

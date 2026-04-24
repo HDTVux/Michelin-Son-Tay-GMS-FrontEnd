@@ -356,7 +356,7 @@ export default function PartManagement() {
           </span>
           <h1>Quản lý kho</h1>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div className={styles['header-actions']}>
           <button className={styles['primary-button']} onClick={() => navigate('/part-management/create-product')}>
             Thêm phụ tùng
           </button>
@@ -365,22 +365,13 @@ export default function PartManagement() {
       </div>
 
       <div className={styles['pending-filters']}>
-        <div className={styles['filter-card-actions']}>
-          <div className={styles['search-box']}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" style={{ flexShrink: 0 }}>
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-           placeholder="Tìm kiếm theo tên, SKU, hãng, dòng sản phẩm..."
-
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
-            />
-          </div>
+        <div className={styles['filter-card-labels']}>
+          <span>Trạng thái</span>
+          <span>Xuất xứ</span>
+          <span>Màu</span>
+          <span>Kho</span>
+        </div>
+        <div className={styles['filter-card-controls']}>
           <select
             className={styles['status-filter']}
             value={statusFilter}
@@ -401,7 +392,7 @@ export default function PartManagement() {
               setPage(0);
             }}
           >
-               <option value="">Tất cả xuất xứ</option>
+            <option value="">Tất cả xuất xứ</option>
             {originOptions.map((origin) => (
               <option key={origin} value={origin}>
                 {origin}
@@ -416,14 +407,13 @@ export default function PartManagement() {
               setPage(0);
             }}
           >
-           <option value="">Tất cả màu</option>
+            <option value="">Tất cả màu</option>
             {colorOptions.map((color) => (
               <option key={color} value={color}>
                 {color}
               </option>
             ))}
           </select>
-
           <select
             className={styles['status-filter']}
             value={String(selectedWarehouseId)}
@@ -437,6 +427,24 @@ export default function PartManagement() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className={styles['filter-card-actions']}>
+          <div className={styles['search-box']}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" style={{ flexShrink: 0 }}>
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+           placeholder="Tìm kiếm theo tên, SKU, hãng, dòng sản phẩm..."
+
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+              }}
+            />
+          </div>
 
           <button
             type="button"

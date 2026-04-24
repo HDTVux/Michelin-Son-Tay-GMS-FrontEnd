@@ -262,19 +262,30 @@ export default function MaintenanceReminder() {
   };
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Nhắc lịch bảo dưỡng</h1>
-          <p className={styles.subtitle}>Theo dõi lịch hẹn bảo dưỡng, cập nhật trạng thái nhắc và mở phiếu dịch vụ liên quan.</p>
+    <div className={styles.bookingPage}>
+      <header className={styles.bookingHeader}>
+        <div className={styles.bookingHeaderTitle}>
+          <span className={styles.headerIcon} aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <div>
+            <h1>Nhắc lịch bảo dưỡng</h1>
+            <p className={styles.subtitle}>Theo dõi lịch hẹn bảo dưỡng, cập nhật trạng thái nhắc và mở phiếu dịch vụ liên quan.</p>
+          </div>
         </div>
-        <button type="button" className="ui-btn ui-btn--ghost" onClick={loadReminders} disabled={loading} data-gms-no-global-loading="true">
+        <div className={styles.headerActions}>
+          <span className={styles.totalCount}>{totalElements} lịch nhắc</span>
+          <button type="button" className={styles.ghostButton} onClick={loadReminders} disabled={loading} data-gms-no-global-loading="true">
           {loading ? <span className={styles.buttonSpinner} aria-hidden="true" /> : null}
           {loading ? 'Đang tải...' : 'Tải lại'}
-        </button>
+          </button>
+        </div>
       </header>
 
-      <section className={`ui-card ${styles.filterCard}`}>
+      <section className={styles.pendingFilters}>
         <form className={styles.filterGrid} onSubmit={handleSubmitFilters}>
           <div className={styles.field}>
             <label htmlFor="maintenance-reminder-search">Tìm kiếm</label>
@@ -325,10 +336,10 @@ export default function MaintenanceReminder() {
           </div>
 
           <div className={styles.filterActions}>
-            <button type="button" className="ui-btn ui-btn--ghost" onClick={handleResetFilters} disabled={loading}>
+            <button type="button" className={styles.ghostButton} onClick={handleResetFilters} disabled={loading}>
               Xóa lọc
             </button>
-            <button type="submit" className="ui-btn ui-btn--primary" disabled={loading} data-gms-no-global-loading="true">
+            <button type="submit" className={styles.primaryButton} disabled={loading} data-gms-no-global-loading="true">
               {loading ? <span className={styles.buttonSpinner} aria-hidden="true" /> : null}
               {loading ? 'Đang lọc...' : 'Lọc'}
             </button>
@@ -336,13 +347,13 @@ export default function MaintenanceReminder() {
         </form>
       </section>
 
-      <section className={`ui-card ${styles.tableCard}`}>
+      <section className={styles.bookingCard}>
         <div className={styles.tableHeader}>
           <div>
             <h2 className={styles.sectionTitle}>Danh sách nhắc lịch</h2>
             <p className={styles.tableMeta}>{activeFilterText}</p>
           </div>
-          <div className={styles.totalBadge}>{totalElements} lịch nhắc</div>
+          <div className={styles.totalBadge}>{rows.length} / {totalElements} dòng</div>
         </div>
 
         <div className={styles.tableWrap}>
@@ -394,7 +405,7 @@ export default function MaintenanceReminder() {
                         <div className={styles.actionGroup}>
                           <button
                             type="button"
-                            className={`${styles.smallBtn} ${styles.openBtn}`}
+                            className={`${styles.actionBtn} ${styles.viewBtn}`}
                             onClick={() => handleOpenTicket(row?.ticketCode)}
                             disabled={!row?.ticketCode}
                           >
@@ -402,7 +413,7 @@ export default function MaintenanceReminder() {
                           </button>
                           <button
                             type="button"
-                            className={`${styles.smallBtn} ${styles.createBtn}`}
+                            className={`${styles.actionBtn} ${styles.assignBtn}`}
                             onClick={() => handleCreateBookingFromReminder(row)}
                             disabled={!canCreateBooking}
                             title={canCreateBooking ? 'Hẹn lịch từ lời nhắc đã xác nhận' : 'Chỉ hẹn lịch khi lời nhắc đã xác nhận'}
@@ -415,7 +426,7 @@ export default function MaintenanceReminder() {
                               <button
                                 key={action.value}
                                 type="button"
-                                className={styles.smallBtn}
+                                className={`${styles.actionBtn} ${styles.statusActionBtn}`}
                                 onClick={() => handleStatusChange(row, action.value)}
                                 disabled={rowUpdating || statusLocked || currentStatus === action.value}
                                 data-gms-no-global-loading="true"
@@ -435,7 +446,7 @@ export default function MaintenanceReminder() {
           </table>
         </div>
 
-        <div className={styles.pagination}>
+        <div className={styles.bookingFooter}>
           <div className={styles.pageSize}>
             <span>Hiển thị:</span>
             <select
@@ -452,11 +463,11 @@ export default function MaintenanceReminder() {
           </div>
 
           <div className={styles.pageActions}>
-            <button type="button" className="ui-btn ui-btn--ghost" disabled={!canGoPrev || loading} onClick={() => setPage((prev) => Math.max(0, prev - 1))}>
+            <button type="button" className={styles.ghostButton} disabled={!canGoPrev || loading} onClick={() => setPage((prev) => Math.max(0, prev - 1))}>
               Trước
             </button>
             <span className={styles.pageText}>{page + 1} / {totalPages}</span>
-            <button type="button" className="ui-btn ui-btn--primary" disabled={!canGoNext || loading} onClick={() => setPage((prev) => prev + 1)}>
+            <button type="button" className={styles.primaryButton} disabled={!canGoNext || loading} onClick={() => setPage((prev) => prev + 1)}>
               Sau
             </button>
           </div>
@@ -490,10 +501,10 @@ export default function MaintenanceReminder() {
               <span>{String(reasonText || '').length}/500</span>
             </div>
             <div className={styles.modalActions}>
-              <button type="button" className="ui-btn ui-btn--ghost" onClick={closeReasonDialog} disabled={Boolean(updatingId)}>
+              <button type="button" className={styles.ghostButton} onClick={closeReasonDialog} disabled={Boolean(updatingId)}>
                 Hủy
               </button>
-              <button type="button" className="ui-btn ui-btn--primary" onClick={handleConfirmReasonStatus} disabled={Boolean(updatingId)}>
+              <button type="button" className={styles.primaryButton} onClick={handleConfirmReasonStatus} disabled={Boolean(updatingId)}>
                 {updatingId ? 'Đang lưu...' : 'Xác nhận'}
               </button>
             </div>

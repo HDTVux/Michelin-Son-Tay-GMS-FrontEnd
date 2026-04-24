@@ -464,6 +464,7 @@ export default function CreateBooking() {
 			)}
 			<AdvisorItemsTable
 				key={estimateTableKey}
+				className={styles.estimatePanel}
 				serviceTicketId={null}
 				ticketStatus=""
 				ticketPhotos={[]}
@@ -473,6 +474,7 @@ export default function CreateBooking() {
 				hideVehiclePhotos
 				hideRecommendation
 				hideEstimateSummary
+				hideEmptyTableBeforeCreate
 				onEstimateStatusChange={setSelectedEstimate}
 				onEstimateEditingChange={setIsEstimateEditing}
 			/>
@@ -489,7 +491,7 @@ export default function CreateBooking() {
 				</div>
 			) : null}
 
-			<div style={{ height: 16 }} />
+			<div className={styles.sectionSpacer} />
 
 			<section className={scheduleStyles.section}>
 				<h3 className={scheduleStyles.sectionTitle}>Chọn lịch</h3>

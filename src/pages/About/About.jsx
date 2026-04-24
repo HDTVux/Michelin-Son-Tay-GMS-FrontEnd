@@ -1,11 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import './About.css';
-import visionImage from '../../assets/anh_tam_nhin.jpg';
+import visionImage from '../../assets/giam_doc_than_thien.png';
 import facilityImg1 from '../../assets/z7501188211493_472143d80204db754b377a67838c33f5.jpg';
 import facilityImg2 from '../../assets/z7501188266461_80cd9d87424adaf8b0a78bd40b3545a1.jpg';
 import facilityImg3 from '../../assets/z7501188266555_1d32eab995cb25311ddb7d0ce6a4172c.jpg';
 import facilityImg4 from '../../assets/z7501188266556_2e19562ee0b89224a3f3ec42d4b9232f.jpg';
+import knowledgeImg1 from '../../assets/anh_kien_thuc_1.jpg';
+import knowledgeImg2 from '../../assets/anh_kien_thuc_2.jpg';
+import knowledgeImg4 from '../../assets/anh_kien_thuc_4.jpg';
+import knowledgeImg5 from '../../assets/anh_kien_thuc_5.jpg';
+import knowledgeImg6 from '../../assets/anh_kien_thuc_6.jpg';
 
 const About = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -35,28 +40,45 @@ const About = () => {
     {
       id: 1,
       title: 'Cách bảo dưỡng lốp xe đúng cách',
-      content: 'Lốp xe là bộ phận quan trọng nhất của xe, tiếp xúc trực tiếp với mặt đường. Việc bảo dưỡng lốp đúng cách sẽ giúp tăng tuổi thọ và đảm bảo an toàn khi lái xe...',
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
-      date: '15/10/2023',
+      content: 'Bảo dưỡng lốp định kỳ giúp xe vận hành ổn định, tăng độ bám đường và giảm nguy cơ nổ lốp khi đi xa. Hãy kiểm tra áp suất, đảo lốp và cân bằng động đúng lịch.',
+      image: knowledgeImg1,
+      date: '15/01/2026',
       author: 'Michelin Sơn Tây'
     },
     {
       id: 2,
       title: 'Dấu hiệu cần thay lốp xe ngay lập tức',
-      content: 'Khi nào cần thay lốp xe? Đây là câu hỏi mà nhiều tài xế thắc mắc. Dưới đây là những dấu hiệu rõ ràng cho thấy bạn cần thay lốp ngay...',
-      image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=800',
-      date: '10/10/2023',
+      content: 'Nếu lốp bị nứt hông, mòn không đều, rung lắc khi chạy tốc độ cao hoặc tuổi lốp đã quá lâu, bạn nên thay mới để đảm bảo an toàn cho mỗi hành trình.',
+      image: knowledgeImg2,
+      date: '22/01/2026',
       author: 'Michelin Sơn Tây'
     },
     {
       id: 3,
-      title: 'Hướng dẫn chọn lốp xe phù hợp',
-      content: 'Việc chọn lốp xe phù hợp không chỉ ảnh hưởng đến hiệu suất vận hành mà còn ảnh hưởng đến độ an toàn và tiết kiệm nhiên liệu...',
-      image: 'https://images.unsplash.com/photo-1601362840469-51e4d8d58785?w=800',
-      date: '05/10/2023',
+      title: 'Lợi ích của việc cân chỉnh góc đặt bánh xe',
+      content: 'Cân chỉnh góc đặt bánh đúng tiêu chuẩn giúp xe chạy thẳng, vô lăng nhẹ và giảm mòn lốp bất thường. Đây là hạng mục nên kiểm tra sau khi thay lốp hoặc va chạm.',
+      image: knowledgeImg4,
+      date: '30/01/2026',
+      author: 'Michelin Sơn Tây'
+    },
+    {
+      id: 4,
+      title: 'Kinh nghiệm lái xe an toàn trong mùa mưa',
+      content: 'Mùa mưa khiến mặt đường trơn và tầm nhìn hạn chế. Hãy kiểm tra gai lốp, hệ thống phanh, gạt mưa và giữ tốc độ phù hợp để hạn chế trượt nước.',
+      image: knowledgeImg5,
+      date: '08/02/2026',
+      author: 'Michelin Sơn Tây'
+    },
+    {
+      id: 5,
+      title: 'Khi nào cần kiểm tra phanh và hệ thống treo?',
+      content: 'Phanh kêu, xe lệch lái hoặc cảm giác dằn xóc tăng lên là dấu hiệu cần kiểm tra ngay. Bảo dưỡng sớm giúp tiết kiệm chi phí và tăng độ an toàn tổng thể.',
+      image: knowledgeImg6,
+      date: '14/02/2026',
       author: 'Michelin Sơn Tây'
     }
   ]);
+  const marqueeBlogs = [...blogs, ...blogs];
   const [testimonials] = useState([
     {
       id: 1,
@@ -409,9 +431,10 @@ const About = () => {
             <h2 className="blogSectionTitle">Kiến thức hữu ích về lốp xe</h2>
           </div>
           
-          <div className="blogList">
-            {blogs.map((blog) => (
-              <div key={blog.id} className="blogCard">
+          <div className="blogCarousel">
+            <div className="blogTrack">
+              {marqueeBlogs.map((blog, index) => (
+              <div key={`${blog.id}-${index}`} className="blogCard">
                 <div className="blogImage">
                   <img src={blog.image} alt={blog.title} />
                 </div>
@@ -425,6 +448,7 @@ const About = () => {
                 </div>
               </div>
             ))}
+            </div>
           </div>
 
           {isStaff && (

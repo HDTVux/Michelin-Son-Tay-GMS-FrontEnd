@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
 import { fetchWarehousesAll, fetchWarehouseStockIssues } from '../../../services/warehouseService.js';
-import commonStyles from '../common/ManagementCommon.module.css';
 import styles from './WarehouseStockIssuesManagement.module.css';
 
 const DEFAULT_WAREHOUSE_ID = 1;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 const toWarehouseIdText = (value) => {
 	const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
@@ -23,24 +23,40 @@ const STATUS_OPTIONS = [
 	{ value: 'CANCELLED', label: getStatusTextVi('CANCELLED') },
 ];
 
-const extractIssues = (response) => {
+const extractIssuePage = (response) => {
 	// apiClient.request() already returns parsed JSON.
 	// Backend may wrap list payloads as: { success, message, data: { content: [] } }
 	const root = response?.data?.data ?? response?.data ?? response;
-	if (Array.isArray(root)) return root;
+	if (Array.isArray(root)) {
+		return {
+			content: root,
+			totalElements: root.length,
+			totalPages: 1,
+		};
+	}
 
 	const content = root?.content ?? root?.data?.content ?? root?.data;
-	if (Array.isArray(content)) return content;
+	if (Array.isArray(content)) {
+		return {
+			content,
+			totalElements: Number(root?.totalElements ?? root?.data?.totalElements ?? content.length) || content.length,
+			totalPages: Math.max(1, Number(root?.totalPages ?? root?.data?.totalPages ?? 1) || 1),
+		};
+	}
 
-	return [];
+	return {
+		content: [],
+		totalElements: 0,
+		totalPages: 1,
+	};
 };
 
 const badgeClassByStatus = (status) => {
 	const tone = getStatusTone(status, 'info');
-	if (tone === 'success') return commonStyles.badgeSuccess;
-	if (tone === 'warning') return commonStyles.badgeWarning;
-	if (tone === 'danger') return commonStyles.badgeDanger;
-	return commonStyles.badgeMuted;
+	if (tone === 'success') return styles.statusSuccess;
+	if (tone === 'warning') return styles.statusWarning;
+	if (tone === 'danger') return styles.statusDanger;
+	return styles.statusMuted;
 };
 
 export default function WarehouseStockIssues() {
@@ -52,11 +68,15 @@ export default function WarehouseStockIssues() {
 	const [warehouseIdInput, setWarehouseIdInput] = useState(String(DEFAULT_WAREHOUSE_ID));
 	const [status, setStatus] = useState('ALL');
 	const [issues, setIssues] = useState([]);
+	const [page, setPage] = useState(0);
+	const [size, setSize] = useState(10);
+	const [totalElements, setTotalElements] = useState(0);
+	const [totalPages, setTotalPages] = useState(1);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 	const [warehouseError, setWarehouseError] = useState('');
 
-	const fetchList = async (warehouseIdOverride) => {
+	const fetchList = async ({ warehouseIdOverride, pageOverride, sizeOverride } = {}) => {
 		try {
 			setLoading(true);
 			setError('');
@@ -64,16 +84,25 @@ export default function WarehouseStockIssues() {
 			const warehouseId = toWarehouseIdText(warehouseIdSource);
 			if (!warehouseId) {
 				setIssues([]);
+				setTotalElements(0);
+				setTotalPages(1);
 				setError('Vui lòng chọn kho.');
 				return;
 			}
-			const params = { warehouseId };
+			const nextPage = Number.isFinite(pageOverride) ? pageOverride : page;
+			const nextSize = Number.isFinite(sizeOverride) ? sizeOverride : size;
+			const params = { warehouseId, page: nextPage, size: nextSize };
 			if (status && status !== 'ALL') params.status = status;
 			const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
 			const res = await fetchWarehouseStockIssues(params, token);
-			setIssues(extractIssues(res));
+			const pageData = extractIssuePage(res);
+			setIssues(pageData.content);
+			setTotalElements(pageData.totalElements);
+			setTotalPages(pageData.totalPages);
 		} catch (err) {
 			setIssues([]);
+			setTotalElements(0);
+			setTotalPages(1);
 			setError(err?.message || 'Không thể tải danh sách phiếu xuất kho.');
 		} finally {
 			setLoading(false);
@@ -96,7 +125,7 @@ export default function WarehouseStockIssues() {
 				const currentIdText = toWarehouseIdText(warehouseIdInput);
 				const hasCurrent = Boolean(currentIdText) && list.some((w) => getWarehouseIdText(w) === currentIdText);
 				if (hasCurrent) {
-					await fetchList(currentIdText);
+					await fetchList({ warehouseIdOverride: currentIdText, pageOverride: 0 });
 					return;
 				}
 
@@ -106,7 +135,7 @@ export default function WarehouseStockIssues() {
 					null;
 				const nextId = getWarehouseIdText(firstActive) || String(DEFAULT_WAREHOUSE_ID);
 				setWarehouseIdInput(String(nextId));
-				await fetchList(String(nextId));
+				await fetchList({ warehouseIdOverride: String(nextId), pageOverride: 0 });
 			} catch (err) {
 				if (cancelled) return;
 				setWarehouses([]);
@@ -123,11 +152,33 @@ export default function WarehouseStockIssues() {
 	}, []);
 
 	const stats = useMemo(() => {
-		const total = issues.length;
+		const total = totalElements;
 		const draft = issues.filter((row) => String(row?.status || '').toUpperCase() === 'DRAFT').length;
 		const confirmed = issues.filter((row) => String(row?.status || '').toUpperCase() === 'CONFIRMED').length;
 		return { total, draft, confirmed };
-	}, [issues]);
+	}, [issues, totalElements]);
+
+	const safePage = Math.min(Math.max(0, page), Math.max(1, totalPages) - 1);
+	const pageButtons = useMemo(() => {
+		const max = 5;
+		const last = Math.max(1, totalPages) - 1;
+		const start = Math.max(0, Math.min(safePage - 2, last - max + 1));
+		const result = [];
+		for (let i = start; i <= Math.min(last, start + max - 1); i += 1) result.push(i);
+		return result;
+	}, [safePage, totalPages]);
+
+	const goToPage = (nextPage) => {
+		const safeNext = Math.min(Math.max(0, nextPage), Math.max(1, totalPages) - 1);
+		setPage(safeNext);
+		fetchList({ pageOverride: safeNext });
+	};
+
+	const changePageSize = (nextSize) => {
+		setSize(nextSize);
+		setPage(0);
+		fetchList({ pageOverride: 0, sizeOverride: nextSize });
+	};
 
 	const selectedWarehouseLabel = useMemo(() => {
 		const idText = toWarehouseIdText(warehouseIdInput);
@@ -141,40 +192,56 @@ export default function WarehouseStockIssues() {
 	}, [warehouseIdInput, warehouses]);
 
 	return (
-		<div className={commonStyles.page}>
+		<div className={styles.bookingPage}>
 			<div className={styles.wrapper}>
-				<header className={commonStyles.header}>
-					<div>
-						<h1 className={commonStyles.title}>Quản lý phiếu xuất kho</h1>
+				<header className={styles.bookingHeader}>
+					<div className={styles.bookingHeaderTitle}>
+						<span className={styles.headerIcon} aria-hidden="true">
+							<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+								<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+								<path d="M3.3 7 12 12l8.7-5M12 22V12" />
+							</svg>
+						</span>
+						<div>
+							<h1>Quản lý phiếu xuất kho</h1>
 						<p className={styles.helper}>Danh sách phiếu xuất kho theo kho và trạng thái.</p>
+						</div>
+					</div>
+					<div className={styles.headerActions}>
+						<span className={styles.totalCount}>{stats.total} phiếu</span>
 					</div>
 				</header>
 
-				<section className={commonStyles.statsGrid}>
-					<article className={commonStyles.statCard}>
-						<p className={commonStyles.statLabel}>Tổng phiếu</p>
-						<p className={commonStyles.statValue}>{stats.total}</p>
+				<section className={styles.statsGrid}>
+					<article className={styles.statCard}>
+						<p className={styles.statLabel}>Tổng phiếu</p>
+						<p className={styles.statValue}>{stats.total}</p>
 					</article>
-					<article className={commonStyles.statCard}>
-						<p className={commonStyles.statLabel}>Nháp</p>
-						<p className={commonStyles.statValue}>{stats.draft}</p>
+					<article className={styles.statCard}>
+						<p className={styles.statLabel}>Nháp</p>
+						<p className={styles.statValue}>{stats.draft}</p>
 					</article>
-					<article className={commonStyles.statCard}>
-						<p className={commonStyles.statLabel}>Đã xác nhận</p>
-						<p className={commonStyles.statValue}>{stats.confirmed}</p>
+					<article className={styles.statCard}>
+						<p className={styles.statLabel}>Đã xác nhận</p>
+						<p className={styles.statValue}>{stats.confirmed}</p>
 					</article>
-					<article className={commonStyles.statCard}>
-						<p className={commonStyles.statLabel}>Kho đang lọc</p>
-						<p className={commonStyles.statValue}>{selectedWarehouseLabel}</p>
+					<article className={styles.statCard}>
+						<p className={styles.statLabel}>Kho đang lọc</p>
+						<p className={styles.statValue}>{selectedWarehouseLabel}</p>
 					</article>
 				</section>
 
-				<section className={commonStyles.toolbar}>
-					<div className={commonStyles.field}>
+				<section className={styles.pendingFilters}>
+					<div className={styles.filterCardLabels}>
+						<span>Kho</span>
+						<span>Trạng thái</span>
+					</div>
+					<div className={styles.filterCardControls}>
+					<div className={styles.field}>
 						<label htmlFor="stock-issue-warehouse">Kho</label>
 						<select
 							id="stock-issue-warehouse"
-							className={commonStyles.select}
+							className={styles.select}
 							value={warehouseIdInput}
 							onChange={(e) => setWarehouseIdInput(e.target.value)}
 							disabled={warehouseLoading}
@@ -205,11 +272,11 @@ export default function WarehouseStockIssues() {
 						</select>
 					</div>
 
-					<div className={commonStyles.field}>
+					<div className={styles.field}>
 						<label htmlFor="stock-issue-status">Trạng thái</label>
 						<select
 							id="stock-issue-status"
-							className={commonStyles.select}
+							className={styles.select}
 							value={status}
 							onChange={(e) => setStatus(e.target.value)}
 						>
@@ -220,20 +287,30 @@ export default function WarehouseStockIssues() {
 							))}
 						</select>
 					</div>
+					</div>
 
-					<div className={commonStyles.actions}>
-						<button type="button" className="ui-btn ui-btn--primary" onClick={() => fetchList()} disabled={loading}>
+					<div className={styles.filterCardActions}>
+						<button
+							type="button"
+							className={styles.primaryButton}
+							onClick={() => {
+								setPage(0);
+								fetchList({ pageOverride: 0 });
+							}}
+							disabled={loading}
+						>
 							{loading ? 'Đang tải...' : 'Lọc dữ liệu'}
 						</button>
 					</div>
 				</section>
 
-				{warehouseError ? <div className={commonStyles.error}>{warehouseError}</div> : null}
+				{warehouseError ? <div className={styles.errorBanner}>{warehouseError}</div> : null}
 
-				{error ? <div className={commonStyles.error}>{error}</div> : null}
+				{error ? <div className={styles.errorBanner}>{error}</div> : null}
 
-				<div className={commonStyles.tableWrap}>
-					<table className={commonStyles.table}>
+				<div className={styles.bookingCard}>
+				<div className={styles.tableWrapper}>
+					<table className={styles.bookingTable}>
 						<thead>
 							<tr>
 								<th>STT</th>
@@ -265,12 +342,12 @@ export default function WarehouseStockIssues() {
 											<td>{row?.serviceTicketCode ?? '-'}</td>
 											<td>{row?.createdAt || '-'}</td>
 											<td>
-												<span className={`${commonStyles.badge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
+												<span className={`${styles.statusBadge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
 											</td>
 											<td>
 												<button
 													type="button"
-													className="ui-btn ui-btn--ghost"
+													className={`${styles.actionBtn} ${styles.viewBtn}`}
 													onClick={() => navigate(`/warehouse-stock-issues/${id}`, { state: { issue: row } })}
 												>
 													Xem chi tiết
@@ -282,6 +359,36 @@ export default function WarehouseStockIssues() {
 							)}
 						</tbody>
 					</table>
+				</div>
+				<div className={styles.bookingFooter}>
+					<div className={styles.pageSize}>
+						<span>Hiển thị:</span>
+						<select value={String(size)} onChange={(e) => changePageSize(Number(e.target.value))}>
+							{PAGE_SIZE_OPTIONS.map((option) => (
+								<option key={option} value={option}>{option}</option>
+							))}
+						</select>
+					</div>
+					<div className={styles.pagination}>
+						<button type="button" className={styles.primaryButton} disabled={safePage <= 0 || loading} onClick={() => goToPage(safePage - 1)}>
+							Trước
+						</button>
+						{pageButtons.map((p) => (
+							<button
+								type="button"
+								key={p}
+								className={p === safePage ? styles.ghostButton : `${styles.primaryButton} ${styles.isGhost}`}
+								disabled={p === safePage || loading}
+								onClick={() => goToPage(p)}
+							>
+								{p + 1}
+							</button>
+						))}
+						<button type="button" className={styles.primaryButton} disabled={safePage >= Math.max(1, totalPages) - 1 || loading} onClick={() => goToPage(safePage + 1)}>
+							Sau
+						</button>
+					</div>
+				</div>
 				</div>
 			</div>
 		</div>
