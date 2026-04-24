@@ -635,9 +635,11 @@ function TicketPanel({
 						<option value="">Tất cả</option>
 						<option value="CREATED">Khởi tạo phiếu</option>
 						<option value="INSPECTING">Đang kiểm tra</option>
-						<option value="PENDING">Chờ duyệt</option>
+						<option value="INSPECTED">Đã kiểm tra</option>
+						<option value="PENDING">Chờ xử lý</option>
+						<option value="ESTIMATED">Đã báo giá</option>
 						<option value="REPAIRING">Đang sửa chữa</option>
-						<option value="COMPLETED">Hoàn tất</option>
+						<option value="COMPLETED">Hoàn tất sửa chữa</option>
 						<option value="PAID">Đã thanh toán</option>
 						<option value="CANCELLED">Đã hủy</option>
 					</select>
