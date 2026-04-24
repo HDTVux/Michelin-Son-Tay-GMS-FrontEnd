@@ -6,7 +6,6 @@ import {
   createWarehouseCatalogItem,
   createWarehouseItemCategory,
   fetchWarehouseItemCategories,
-  updateWarehouseCatalogItem,
 } from '../../../services/warehouseService.js';
 import { fetchHomeProductDetail, fetchHomeServiceDetail } from '../../../services/homeService.js';
 
@@ -1009,9 +1008,6 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
           notify('Khong tim thay serviceId de cap nhat. Vui long tao bai viet truoc.', 'error');
           return;
         }
-        if (catalogItemId) {
-          await updateWarehouseCatalogItem(catalogItemId, buildCatalogPayload(catalogItemId, serviceId), token);
-        }
         await updateServiceById(serviceId, buildServiceFormData(), token);
         notify(`Cap nhat bai viet ${itemToastLabel}${successName} thanh cong!`, 'success');
         clearDraft();
@@ -1034,8 +1030,6 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
         );
         serviceServiceId = getServiceServiceId(createdCatalog) || serviceServiceId;
         if (!catalogItemId) throw new Error('Khong nhan duoc catalogItemId sau khi tao catalog.');
-      } else if (catalogItemId) {
-        await updateWarehouseCatalogItem(catalogItemId, buildCatalogPayload(catalogItemId, serviceServiceId), token);
       }
       const createRes = await createServiceForCatalog(catalogItemId, buildServiceFormData(), token);
       serviceServiceId = getServiceServiceId(extractPayload(createRes)) || serviceServiceId;

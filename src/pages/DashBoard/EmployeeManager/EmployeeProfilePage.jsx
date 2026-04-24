@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchStaffDetail } from '../../../services/adminService.js';
 import { fetchManagerEmployeeDetail } from '../../../services/managerService.js';
+import { getAvatarSrc, handleAvatarError } from '../../../assets/defaultAvatar.js';
 import styles from './EmployeeProfilePage.module.css';
 
 const getAuthToken = () =>
@@ -89,17 +90,6 @@ const toStatusMeta = (status) => {
   return { label: key || '-', className: styles.badgeMuted };
 };
 
-const getInitials = (name) => {
-  const text = String(name || '').trim();
-  if (!text) return 'NV';
-  return text
-    .split(/\s+/)
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
-
 export default function EmployeeProfilePage() {
   const { staffId } = useParams();
   const navigate = useNavigate();
@@ -183,11 +173,12 @@ export default function EmployeeProfilePage() {
       <section className={styles.heroCard}>
         <div className={styles.heroIdentity}>
           <div className={styles.avatarWrap}>
-            {summary.avatar ? (
-              <img src={summary.avatar} alt={summary.fullName} className={styles.avatarImg} />
-            ) : (
-              <span className={styles.avatarFallback}>{getInitials(summary.fullName)}</span>
-            )}
+            <img
+              src={getAvatarSrc(summary.avatar)}
+              alt={summary.fullName}
+              className={styles.avatarImg}
+              onError={handleAvatarError}
+            />
           </div>
           <div>
             <h1 className={styles.title}>Chi tiết hồ sơ nhân viên</h1>

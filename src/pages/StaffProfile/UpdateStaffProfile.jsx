@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
+import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
 import styles from './UpdateStaffProfile.module.css';
 
 const UpdateStaffProfile = () => {
@@ -129,11 +130,7 @@ const UpdateStaffProfile = () => {
           {/* Avatar Section */}
           <div className={styles.avatarSection}>
             <div className={styles.avatarPreview}>
-              {avatarPreview ? (
-                <img src={avatarPreview} alt="Avatar preview" />
-              ) : (
-                <div className={styles.avatarPlaceholder}>👤</div>
-              )}
+              <img src={getAvatarSrc(avatarPreview || formData.avatar)} alt="Avatar preview" onError={handleAvatarError} />
             </div>
             <div className={styles.avatarActions}>
               <button

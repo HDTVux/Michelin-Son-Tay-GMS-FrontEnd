@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import baseStyles from '../BookingRequestManagement/BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import { getAvatarSrc, handleAvatarError } from '../../../assets/defaultAvatar.js';
 import AddStaffAccount from './AddStaffAccount.jsx';
 import styles from './StaffManagement.module.css';
 import {
@@ -604,9 +605,10 @@ function StaffTableRow({ item, index, onView, onLock, onDelete }) {
 			<td>
 				<div className={styles.staffCell}>
 					<img
-						src={item.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'N')}&background=1E90FF&color=fff`}
+						src={getAvatarSrc(item.avatar)}
 						alt={item.fullName || item.name || 'Avatar'}
 						className={styles.staffAvatar}
+						onError={handleAvatarError}
 					/>
 					<span className={baseStyles['link-cell']}>{item.fullName || item.name || '-'}</span>
 				</div>

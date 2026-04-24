@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
 import './SideBar.css';
 
 const SIDEBAR_GROUPS_STORAGE_KEY = 'sidebarOpenGroups';
@@ -221,7 +222,7 @@ const SideBar = () => {
         : [];
     const staffRoles = staffRolesFromStorage.length > 0 ? staffRolesFromStorage : staffProfileRoles;
     const staffFullName = staffProfile?.fullName || 'Nhân viên';
-    const staffAvatarUrl = staffProfile?.avatarUrl || '';
+    const staffAvatarUrl = getAvatarSrc(staffProfile?.avatarUrl);
 
     const visibleGroups = useMemo(() => {
         return buildVisibleGroups(NAV_GROUPS, staffRoles);
@@ -286,11 +287,7 @@ const SideBar = () => {
         <aside className="sidebar">
             <div className="sidebar__profile">
                 <div className="sidebar__avatar">
-                    {staffAvatarUrl ? (
-                        <img src={staffAvatarUrl} alt={staffFullName} />
-                    ) : (
-                        <img src="https://i.pravatar.cc/80?img=64" alt={staffFullName} />
-                    )}
+                    <img src={staffAvatarUrl} alt={staffFullName} onError={handleAvatarError} />
                 </div>
                 <div>
                     <p className="sidebar__greeting">Xin chào,</p>

@@ -5,6 +5,7 @@ import { fetchStaffProfile } from '../../services/staffService.js';
 import { fetchStaffStatistics } from '../../services/staffStatisticsService.js';
 import { getValidToken } from '../../services/tokenUtils.js';
 import { toast } from 'react-toastify';
+import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
 import styles from './StaffProfile.module.css';
 
 const ROLE_LABELS = {
@@ -367,13 +368,12 @@ const StaffProfile = () => {
       <section className={styles.staffInfoSection}>
         <div className={styles.infoCard}>
           <div className={styles.avatarContainer}>
-            {staffInfo.avatar ? (
-              <img src={staffInfo.avatar} alt="Avatar" className={styles.avatarImage} />
-            ) : (
-              <div className={styles.avatarPlaceholder}>
-                <span>👤</span>
-              </div>
-            )}
+            <img
+              src={getAvatarSrc(staffInfo.avatar)}
+              alt="Avatar"
+              className={styles.avatarImage}
+              onError={handleAvatarError}
+            />
           </div>
           <div className={styles.infoDetails}>
             <div className={styles.infoHeader}>
@@ -484,11 +484,7 @@ const StaffProfile = () => {
               {/* Avatar Section */}
               <div className={styles.avatarSection}>
                 <div className={styles.avatarPreview}>
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar preview" />
-                  ) : (
-                    <div className={styles.avatarPlaceholder}>👤</div>
-                  )}
+                  <img src={getAvatarSrc(avatarPreview)} alt="Avatar preview" onError={handleAvatarError} />
                 </div>
                 <div className={styles.avatarActions}>
                   <button

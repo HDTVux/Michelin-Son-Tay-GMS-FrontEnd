@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchAllStaff } from '../../../services/adminService.js';
 import { fetchManagerEmployees } from '../../../services/managerService.js';
+import { getAvatarSrc, handleAvatarError } from '../../../assets/defaultAvatar.js';
 import styles from './EmployeeManager.module.css';
 
 const ITEMS_PER_PAGE = 10;
@@ -153,11 +154,6 @@ export default function EmployeeManager() {
     setPage(1);
   }, [search, roleFilter]);
 
-  const getInitials = (name) => {
-    if (!name) return '?';
-    return name.trim().split(' ').map((word) => word[0]).join('').toUpperCase().slice(0, 2);
-  };
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -251,7 +247,13 @@ export default function EmployeeManager() {
                     <td>{(safePage - 1) * ITEMS_PER_PAGE + idx + 1}</td>
                     <td>
                       <div className={styles.employeeCell}>
-                        <div className={styles.avatar}>{getInitials(employee.fullName)}</div>
+                        <div className={styles.avatar}>
+                          <img
+                            src={getAvatarSrc(employee.avatar || employee.avatarUrl)}
+                            alt={employee.fullName || 'Avatar'}
+                            onError={handleAvatarError}
+                          />
+                        </div>
                         <div className={styles.employeeMeta}>
                           <div className={styles.employeeName}>{employee.fullName || '-'}</div>
                           <div className={styles.employeeSub}>#{employee.staffId}</div>

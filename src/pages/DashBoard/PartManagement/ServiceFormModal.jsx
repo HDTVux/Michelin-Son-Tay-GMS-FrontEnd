@@ -10,7 +10,6 @@ import {
   createWarehouseCatalogItem,
   createWarehouseItemCategory,
   fetchWarehouseItemCategories,
-  updateWarehouseCatalogItem,
 } from '../../../services/warehouseService.js';
 import { fetchHomeProductDetail, fetchHomeServiceDetail } from '../../../services/homeService.js';
 
@@ -1003,9 +1002,6 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
           notify('Không tìm thấy serviceId để cập nhật. Vui lòng tạo bài viết trước.', 'error');
           return;
         }
-        if (catalogItemId) {
-          await updateWarehouseCatalogItem(catalogItemId, buildCatalogPayload(catalogItemId, serviceId), token);
-        }
         await updateServiceById(serviceId, buildServiceFormData(), token);
         notify(`Cap nhat bai viet dich vu${successName} thanh cong!`, 'success');
         clearDraft();
@@ -1028,8 +1024,6 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
         );
         serviceServiceId = getServiceServiceId(createdCatalog) || serviceServiceId;
         if (!catalogItemId) throw new Error('Không nhận được catalogItemId sau khi tạo catalog.');
-      } else if (catalogItemId) {
-        await updateWarehouseCatalogItem(catalogItemId, buildCatalogPayload(catalogItemId, serviceServiceId), token);
       }
 
       const createRes = await createServiceForCatalog(catalogItemId, buildServiceFormData(), token);

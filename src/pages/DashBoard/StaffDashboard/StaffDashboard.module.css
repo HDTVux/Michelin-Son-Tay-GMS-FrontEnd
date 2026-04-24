@@ -58,6 +58,13 @@
   letter-spacing: 0;
 }
 
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
 .hero h1,
 .panel h2 {
   margin: 0;

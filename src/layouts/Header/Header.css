@@ -223,14 +223,12 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #fce500, #fcb900);
-  color: #0a0f1c;
-  font-weight: 800;
+  background: #fff;
+  object-fit: cover;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  text-transform: uppercase;
 }
 
 .userGreeting {
