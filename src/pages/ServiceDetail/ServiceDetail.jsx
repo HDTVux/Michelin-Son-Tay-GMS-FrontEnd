@@ -97,6 +97,24 @@ const getColorText = (item, fallback = '') => (
   ], fallback)
 );
 
+const getUnitText = (item, fallback = '') => (
+  pickFirstText(item, [
+    'unit',
+    'itemUnit',
+    'unitName',
+    'catalogUnit',
+  ], fallback)
+);
+
+const getProductLineText = (item, fallback = '') => (
+  pickFirstText(item, [
+    'productLine',
+    'productLineName',
+    'lineName',
+    'modelLine',
+  ], fallback)
+);
+
 const formatEstimateTimeText = (item) => {
   const raw = pickFirstText(item, [
     'estimateTime',
@@ -155,19 +173,70 @@ const normalizeMedia = (item) => {
     .filter(Boolean);
 };
 
+const normalizeSpecLabelKey = (value) => (
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+);
+
+const isGeneratedSpecLabel = (value) => /^thong so \d+$/.test(normalizeSpecLabelKey(value));
+
+const isRawSourceSpecLabel = (value) => {
+  const key = normalizeSpecLabelKey(value);
+  return [
+    'thong tin nguon',
+    'du lieu nguon',
+    'source',
+    'source info',
+    'source information',
+    'raw source',
+  ].includes(key);
+};
+
+const isInfoSpecLabel = (value) => {
+  const key = normalizeSpecLabelKey(value);
+  return [
+    'ten',
+    'ten san pham',
+    'loai san pham',
+    'loai hang muc',
+    'dong san pham',
+    'product line',
+    'don vi',
+    'unit',
+    'xuat xu',
+    'origin',
+    'made in',
+    'mau',
+    'color',
+    'colour',
+  ].includes(key);
+};
+
+const pickSpecName = (spec) => {
+  const candidates = [
+    spec?.displayName,
+    spec?.attributeName,
+    spec?.attributeCode,
+    spec?.specType,
+    spec?.name,
+    spec?.label,
+  ];
+  for (const candidate of candidates) {
+    const name = String(candidate || '').trim();
+    if (name) return name;
+  }
+  return '';
+};
+
 const normalizeSpecsFromList = (list) => {
   const arr = Array.isArray(list) ? list : [];
   const mapped = arr
     .map((s, idx) => {
-      const name = String(
-        s?.displayName
-        || s?.attributeName
-        || s?.attributeCode
-        || s?.specType
-        || s?.name
-        || s?.label
-        || `Thông số ${idx + 1}`,
-      ).trim();
+      const name = pickSpecName(s);
       const value = String(
         s?.specValue
         ?? s?.value
@@ -176,10 +245,11 @@ const normalizeSpecsFromList = (list) => {
         ?? '',
       ).trim();
       const unit = String(s?.specUnit ?? s?.unit ?? '').trim();
-      if (!name && !value && !unit) return null;
+      if (!name || isGeneratedSpecLabel(name) || isRawSourceSpecLabel(name)) return null;
+      if (!value && !unit) return null;
       return {
         key: String(s?.specId ?? s?.attributeId ?? `${name}-${value}-${idx}`),
-        name: name || '-',
+        name,
         value: value || '-',
         unit,
       };
@@ -189,12 +259,28 @@ const normalizeSpecsFromList = (list) => {
   const unique = [];
   const seen = new Set();
   mapped.forEach((s) => {
-    const sig = `${s.name}|${s.value}|${s.unit}`;
+    const sig = `${normalizeSpecLabelKey(s.name)}|${normalizeSpecLabelKey(s.value)}|${normalizeSpecLabelKey(s.unit)}`;
     if (seen.has(sig)) return;
     seen.add(sig);
     unique.push(s);
   });
   return unique;
+};
+
+const getSpecValueByLabels = (list, labels, fallback = '') => {
+  const wanted = new Set(labels.map(normalizeSpecLabelKey));
+  const specs = Array.isArray(list) ? list : [];
+  for (const spec of specs) {
+    if (!wanted.has(normalizeSpecLabelKey(spec?.name))) continue;
+    const value = String(spec?.value ?? spec?.specValue ?? '').trim();
+    if (value && value !== '-') return value;
+  }
+  return fallback;
+};
+
+const filterTechnicalSpecs = (list) => {
+  const specs = Array.isArray(list) ? list : [];
+  return specs.filter((spec) => !isInfoSpecLabel(spec?.name));
 };
 
 const normalizeSpecs = (item) => {
@@ -237,6 +323,8 @@ const normalizeDetail = (raw, fallbackCatalogId, stateItemType) => {
     originalPriceNum,
     originText: getOriginText(raw),
     colorText: getColorText(raw),
+    unitText: getUnitText(raw),
+    productLineText: getProductLineText(raw),
     estimateTimeText: formatEstimateTimeText(raw),
     mediaThumbnail: String(raw?.thumbnailUrl || raw?.imageUrl || raw?.mediaThumbnail || '').trim(),
     media: normalizeMedia(raw),
@@ -340,6 +428,8 @@ const ServiceDetail = () => {
               ...normalized,
               originText: getOriginText(detailPayload, normalized.originText),
               colorText: getColorText(detailPayload, normalized.colorText),
+              unitText: getUnitText(detailPayload, normalized.unitText),
+              productLineText: getProductLineText(detailPayload, normalized.productLineText),
             };
           }
 
@@ -391,12 +481,24 @@ const ServiceDetail = () => {
     .map((m) => m.mediaUrl)
     .filter(Boolean);
   const allImages = Array.from(new Set([service?.mediaThumbnail, ...mediaImages].filter(Boolean)));
-  const partInfoRows = isPart
+  const technicalSpecs = filterTechnicalSpecs(service?.specifications);
+  const originInfoText = service?.originText || getSpecValueByLabels(service?.specifications, ['Xuất xứ', 'Origin', 'Made in']);
+  const unitInfoText = service?.unitText || getSpecValueByLabels(service?.specifications, ['Đơn vị', 'Unit']);
+  const productLineInfoText = service?.productLineText || getSpecValueByLabels(service?.specifications, ['Dòng sản phẩm', 'Product line']);
+  const colorInfoText = service?.colorText || getSpecValueByLabels(service?.specifications, ['Màu', 'Color', 'Colour']);
+  const infoRows = isPart
     ? [
-      { label: 'Xuất xứ', value: service?.originText || 'Đang cập nhật' },
-      ...(service?.colorText ? [{ label: 'Màu', value: service.colorText }] : []),
+      { label: 'Tên', value: service?.title || 'Đang cập nhật' },
+      { label: 'Dòng sản phẩm', value: productLineInfoText || 'Đang cập nhật' },
+      { label: 'Đơn vị', value: unitInfoText || 'Đang cập nhật' },
+      { label: 'Xuất xứ', value: originInfoText || 'Đang cập nhật' },
+      { label: 'Màu', value: colorInfoText || 'Đang cập nhật' },
     ]
-    : [];
+    : [
+      { label: 'Tên', value: service?.title || 'Đang cập nhật' },
+      { label: 'Loại hạng mục', value: 'Dịch vụ' },
+      { label: 'Thời gian dự tính', value: service?.estimateTimeText || 'Đang cập nhật' },
+    ];
   const handleBooking = () => {
     const catalogId = service?.catalogItemId || service?.serviceId;
     navigate('/booking', { state: catalogId ? { catalogItemId: catalogId } : undefined });
@@ -404,8 +506,8 @@ const ServiceDetail = () => {
 
   const detailTabs = [
     { key: 'description', label: 'Mô tả' },
+    { key: 'info', label: 'Thông tin' },
     { key: 'specs', label: 'Thông số' },
-    { key: 'extra', label: 'Bổ sung' },
   ];
 
   if (loading) {
@@ -538,6 +640,17 @@ const ServiceDetail = () => {
             )
           )}
 
+          {activeTab === 'info' && (
+            <dl className={styles.partMetaList}>
+              {infoRows.map((row) => (
+                <div className={styles.partMetaItem} key={row.label}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+
           {activeTab === 'specs' && (
             isPart ? (
               <>
@@ -552,8 +665,8 @@ const ServiceDetail = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {service.specifications.length > 0 ? (
-                        service.specifications.map((s) => (
+                      {technicalSpecs.length > 0 ? (
+                        technicalSpecs.map((s) => (
                           <tr key={s.key}>
                             <td>{s.name}</td>
                             <td>{s.value}</td>
@@ -570,37 +683,8 @@ const ServiceDetail = () => {
                 </div>
               </>
             ) : (
-              <dl className={styles.partMetaList}>
-                <div className={styles.partMetaItem}>
-                  <dt>Thời gian dự tính</dt>
-                  <dd>{service.estimateTimeText}</dd>
-                </div>
-              </dl>
+              <p className={styles.tabEmpty}>Chưa có thông số dịch vụ.</p>
             )
-          )}
-
-          {activeTab === 'extra' && (
-            <dl className={styles.partMetaList}>
-              {isPart ? (
-                partInfoRows.map((row) => (
-                  <div className={styles.partMetaItem} key={row.label}>
-                    <dt>{row.label}</dt>
-                    <dd>{row.value}</dd>
-                  </div>
-                ))
-              ) : (
-                <>
-                  <div className={styles.partMetaItem}>
-                    <dt>Loại hạng mục</dt>
-                    <dd>Dịch vụ</dd>
-                  </div>
-                  <div className={styles.partMetaItem}>
-                    <dt>Tư vấn</dt>
-                    <dd>0987 545 680</dd>
-                  </div>
-                </>
-              )}
-            </dl>
           )}
         </div>
       </section>
