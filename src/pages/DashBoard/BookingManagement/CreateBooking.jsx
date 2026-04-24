@@ -493,7 +493,7 @@ export default function CreateBooking() {
 
 			<div className={styles.sectionSpacer} />
 
-			<section className={scheduleStyles.section}>
+			<section className={`${scheduleStyles.section} ${styles.fullWidthSection}`}>
 				<h3 className={scheduleStyles.sectionTitle}>Chọn lịch</h3>
 				<div className={bookingStyles['booking-actions']} style={{ padding: 0, marginTop: 8 }}>
 					<button
@@ -637,7 +637,7 @@ export default function CreateBooking() {
 			<h3 className={bookingStyles['section-title']}>Thông tin khách hàng</h3>
 			<p className={infoStyles['info-note']}>Vui lòng nhập thông tin để tiếp tục.</p>
 
-			<div className={infoStyles['info-card']}>
+			<div className={`${infoStyles['info-card']} ${styles.fullWidthCard}`}>
 
 						<div className={infoStyles.field}>
 							<label htmlFor="create-booking-phone" >Số điện thoại (<span className={styles.required}>*</span>)</label>
@@ -689,7 +689,7 @@ export default function CreateBooking() {
 
 			{submitError && <div className={infoStyles.error}>{submitError}</div>}
 
-			<div className={infoStyles['section-block']}>
+			<div className={`${infoStyles['section-block']} ${styles.fullWidthNoteBlock}`}>
 				<div className={infoStyles['section-title-row']}>
 					<h4 className={bookingStyles['section-title']}>
 						Yêu cầu đặc biệt (không bắt buộc)

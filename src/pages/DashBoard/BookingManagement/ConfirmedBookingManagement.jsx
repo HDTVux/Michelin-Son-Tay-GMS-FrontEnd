@@ -152,6 +152,19 @@ export default function ConfirmedBookingManagement() {
               }
               navigate(`/booking-management/${code}`, { state });
             }}
+            onCheckIn={(booking) => {
+              const code = String(booking?.bookingCode ?? '').trim();
+              if (!code) {
+                setError('Booking này chưa có mã bookingCode nên không thể check-in.');
+                return;
+              }
+              navigate('/check-in', {
+                state: {
+                  bookingCode: code,
+                  booking: booking ?? null,
+                },
+              });
+            }}
             actionLabel={`${totalElements} booking`}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
@@ -169,6 +182,7 @@ function BookingPanel({
   data,
   actionLabel,
   onViewDetail,
+  onCheckIn,
   isLoading,
   error,
   page,
@@ -273,6 +287,7 @@ function BookingPanel({
               const rawStatus = item?.status;
               const statusKey = String(normalizeStatusCode(rawStatus) || '').toUpperCase();
               const tone = getBookingStatusTone(statusKey, 'info');
+              const canCheckIn = statusKey === 'CONFIRMED';
               const bookingId = item?.bookingId ?? item?.id;
               const bookingCode = item?.bookingCode;
 
@@ -297,6 +312,15 @@ function BookingPanel({
                   
                   <td>
                     <div className={styles.pagination}>
+                      {canCheckIn ? (
+                        <button
+                          className={`${styles['primary-button']} ${styles['is-ghost']}`}
+                          disabled={!bookingCode}
+                          onClick={() => onCheckIn?.(item)}
+                        >
+                          Check-in
+                        </button>
+                      ) : null}
                       <button
                         className={styles['primary-button']}
                         disabled={!bookingCode}
