@@ -415,15 +415,6 @@ export default function CreateBooking() {
 		const pickedKey = timeKey(schedule.time);
 		const match = availableSlots.find((s) => timeKey(s.startTime) === pickedKey);
 		if (!match) return;
-
-		const remaining = Number(match?.remainingCapacity);
-		const hasRemaining = Number.isFinite(remaining);
-		const isFull = hasRemaining && remaining <= 0;
-		if (!match.isAvailable || isFull) {
-			Promise.resolve().then(() => {
-				setSchedule((prev) => ({ ...prev, time: '' }));
-			});
-		}
 	}, [availableSlots, schedule.date, schedule.time, scheduleMode, slotsError, slotsLoading]);
 
 	const displaySlots = useMemo(() => {
@@ -432,6 +423,31 @@ export default function CreateBooking() {
 		const slots = !slotsLoading && !slotsError ? availableSlots : baseSlots;
 		return slots.filter((s) => !isPastSlot(schedule.date, s?.startTime));
 	}, [availableSlots, baseSlots, schedule.date, scheduleMode, slotsError, slotsLoading]);
+
+	const selectedSlotStatus = useMemo(() => {
+		if (!schedule.date || !schedule.time) return null;
+		const sourceSlots = scheduleMode === 'manual' && !slotsLoading && !slotsError ? availableSlots : baseSlots;
+		const match = (Array.isArray(sourceSlots) ? sourceSlots : []).find(
+			(slot) => timeKey(slot?.startTime) === timeKey(schedule.time),
+		);
+		if (!match) return null;
+
+		const currentBookingCount = Number(match?.currentBookingCount);
+		const capacity = Number(match?.capacity);
+		const hasCapacity = Number.isFinite(capacity) && capacity > 0;
+		const hasCurrentCount = Number.isFinite(currentBookingCount) && currentBookingCount >= 0;
+		const occupancyText =
+			hasCapacity && hasCurrentCount
+				? `${currentBookingCount}/${capacity} slot`
+				: '';
+
+		return {
+			isOverCapacity: Boolean(match?.isOverCapacity),
+			isUnavailable: match?.isAvailable === false,
+			status: String(match?.status || '').trim(),
+			occupancyText,
+		};
+	}, [availableSlots, baseSlots, schedule.date, schedule.time, scheduleMode, slotsError, slotsLoading]);
 
 	return (
 		<div className={`${bookingStyles['booking-page']} ${styles.page}`}>
@@ -554,6 +570,15 @@ export default function CreateBooking() {
 
 							{!!schedule.date && slotsLoading && <div className={scheduleStyles.serviceStatus}>Đang tải trạng thái chỗ trống...</div>}
 							{!!schedule.date && !slotsLoading && slotsError && <div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>{slotsError}</div>}
+							{!!selectedSlotStatus?.status && (
+								<div
+									className={`${scheduleStyles.serviceStatus} ${selectedSlotStatus.isOverCapacity || selectedSlotStatus.isUnavailable ? scheduleStyles.serviceStatusError : ''}`}
+									style={{ marginTop: 8 }}
+								>
+									{selectedSlotStatus.occupancyText ? ` (${selectedSlotStatus.occupancyText})` : ''}
+									{selectedSlotStatus.isOverCapacity ? ' — Đã vượt quá sức chứa! Nhân viên cần xem xét trước khi tạo lịch.' : ''}
+								</div>
+							)}
 
 							<div className={scheduleStyles.slotGrid}>
 								{displaySlots.map((slot) => {
@@ -562,16 +587,20 @@ export default function CreateBooking() {
 
 									const remaining = Number(slot?.remainingCapacity);
 									const hasRemaining = Number.isFinite(remaining);
-									const isFull = hasRemaining && remaining <= 0;
+									const capacity = Number(slot?.capacity);
+									const currentBookingCount = Number(slot?.currentBookingCount);
+									const hasCapacity = Number.isFinite(capacity) && capacity > 0;
+									const hasCurrentCount = Number.isFinite(currentBookingCount) && currentBookingCount >= 0;
+
 
 									const hasCapacityInfo = !!schedule.date && !slotsError && !slotsLoading;
-									const isDisabled = hasCapacityInfo ? (!slot?.isAvailable || isFull) : false;
+									const isDisabled = hasCapacityInfo ? slot?.isActive === false : false;
 									const blockPicking = !schedule.date || slotsLoading || !!slotsError;
 									const active = timeKey(schedule.time) === timeKey(rawTime);
 
 									let capacityText = '';
 									if (hasCapacityInfo) {
-										if (isDisabled) capacityText = ' · Hết chỗ';
+										if (hasCapacity && hasCurrentCount) capacityText = ` · ${currentBookingCount}/${capacity}`;
 										else if (hasRemaining) capacityText = ` · Còn ${remaining}`;
 									}
 
