@@ -619,10 +619,11 @@ export const ServiceTicket = ({
     }));
   }, []);
 
-  const persistCurrentDraft = useCallback((serviceTicketIdValue = null) => {
+  const persistCurrentDraft = useCallback((serviceTicketIdValue = null, options = {}) => {
     const draftPayload = {
       schemaVersion: SERVICE_TICKET_DRAFT_SCHEMA_VERSION,
       savedAt: new Date().toISOString(),
+      restoreTireFields: Boolean(options.restoreTireFields),
       notes: String(notes ?? ''),
       recommendedTireSize: String(recommendedTireSize ?? ''),
       tireData,
@@ -788,7 +789,8 @@ export const ServiceTicket = ({
 
         const localDraft = readServiceTicketDraft(resolvedTicketCode, draftScope);
         if (localDraft) {
-          const canRestoreTireDraft = Number(localDraft?.schemaVersion) >= SERVICE_TICKET_DRAFT_SCHEMA_VERSION;
+          const canRestoreTireDraft = Number(localDraft?.schemaVersion) >= SERVICE_TICKET_DRAFT_SCHEMA_VERSION
+            && localDraft?.restoreTireFields === true;
           if (typeof localDraft.notes === 'string') {
             setNotes(localDraft.notes);
           }
@@ -1499,7 +1501,7 @@ export const ServiceTicket = ({
       toast.success('Đã lưu nháp phiếu kiểm tra an toàn. Bạn vẫn có thể tiếp tục chỉnh sửa.');
     } catch (error) {
       try {
-        persistCurrentDraft();
+        persistCurrentDraft(null, { restoreTireFields: true });
       } catch {
         // Ignore local draft persistence failure.
       }
