@@ -981,6 +981,22 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return Number.isFinite(n) && n > 0 ? n : null;
     }, [latestEstimate]);
 
+    const isAddServicePending = useMemo(() => {
+        if (!serviceTicketIdNum) return false;
+        const snapshot = addServiceRevertRef.current ?? readAddServiceRestoreSnapshot(serviceTicketIdNum);
+        if (!snapshot) return false;
+
+        const snapshotEstimateId = toPositiveNumberOrNull(snapshot?.estimateIdNum);
+        const previousEstimateStatus = normalizeEstimateStatus(snapshot?.prevEstimateStatus);
+        if (previousEstimateStatus !== 'APPROVED') return false;
+
+        if (snapshotEstimateId && estimateIdNum) {
+            return snapshotEstimateId === estimateIdNum;
+        }
+
+        return true;
+    }, [estimateIdNum, serviceTicketIdNum]);
+
     const isEstimateApproved = estimateStatus === 'APPROVED';
     const billId = useMemo(() => normalizeBillId(billPayment), [billPayment]);
     const hasBill = Boolean(billId);
@@ -2233,6 +2249,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             readOnly={isInspectionAndEstimateReadOnly}
                                             readOnlyMessage={inspectionAndEstimateReadOnlyMessage}
                                             hideReadOnlyNotice={false}
+                                            disableFullEdit={isAddServicePending}
                                         />
                                     )}
                                     {ticket.hasDraftStockIssue ? (
@@ -2322,7 +2339,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                 )}
                                                 {canCreateReceipt && (
                                                     <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-                                                        <In></In> phiếu dịch vụ
+                                                        In phiếu dịch vụ
                                                     </button>
                                                 )}
                                                 {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && !isActionLocked && (
