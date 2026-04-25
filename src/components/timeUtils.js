@@ -95,7 +95,7 @@ export const parseBackendDateTime = (value) => {
     return Number.isNaN(isoDate.getTime()) ? null : isoDate;
   }
 
-  // DB-like: YYYY-MM-DD HH:mm:ss (no timezone) => treat as local time
+  // đai đa số trường hợp backend trả về kiểu "2026-03-01 01:26:36" (không timezone, hiểu là giờ local)
   const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(raw);
   if (m) {
     const year = Number(m[1]);
@@ -124,7 +124,7 @@ export const formatDateTimeVi = (value, fallback = '-') => {
   }
 };
 
-// Format date-time in vi-VN without seconds (HH:mm + date)
+// Chuyển đổi và định dạng ngày giờ từ backend sang định dạng Việt Nam, nhưng không hiển thị giây (nếu có) để giao diện gọn hơn. Vẫn giữ nguyên các phần khác của định dạng ngày giờ.
 export const formatDateTimeViNoSeconds = (value, fallback = '-') => {
   const d = parseBackendDateTime(value);
   if (!d) return fallback;

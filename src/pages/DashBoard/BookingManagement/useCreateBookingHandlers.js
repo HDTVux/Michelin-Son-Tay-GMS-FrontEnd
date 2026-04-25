@@ -1,7 +1,9 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 
 import { staffCreateBooking } from '../../../services/bookingService.js';
+import { fetchCustomerByPhone } from '../../../services/customerService.js';
+import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
 import {
 	formatLocalDateYYYYMMDD,
 	formatTimeHHmm,
@@ -10,6 +12,7 @@ import {
 } from '../../../components/timeUtils.js';
 import { validateTextInput } from '../../../components/inputValidation.js';
 
+//Chuẩn hóa nhãn các buổi trong ngày (Sáng, Chiều, Tối) từ dữ liệu Backend
 export const normalizePeriodLabel = (raw) => {
 	if (!raw) return '';
 	const v = String(raw).trim().toLowerCase();
@@ -19,58 +22,10 @@ export const normalizePeriodLabel = (raw) => {
 	return raw;
 };
 
+// Tạo key định dạng HH:mm để so sánh thời gian, loại bỏ sự khác biệt về định dạng thời gian khi so sánh các khung giờ.
 export const timeKey = (t) => formatTimeHHmm(t || '');
 
-const isPartLikeBookingItem = (item) => {
-	const typeText = String(
-		item?.itemType
-		?? item?.type
-		?? item?.catalogItemType
-		?? item?.productType
-		?? item?.categoryType
-		?? item?.itemCategoryType
-		?? '',
-	).trim().toUpperCase();
-
-	if (
-		typeText === 'PART'
-		|| typeText === 'PRODUCT'
-		|| typeText === 'SPARE_PART'
-		|| typeText === 'SPAREPART'
-		|| typeText === 'ACCESSORY'
-		|| typeText === 'EQUIPMENT'
-	) {
-		return true;
-	}
-
-	const nameText = String(
-		item?.itemName
-		?? item?.name
-		?? item?.title
-		?? item?.serviceName
-		?? item?.productName
-		?? item?.partName
-		?? '',
-	).trim().toLowerCase();
-
-	return (
-		Boolean(item?.partId || item?.productId || item?.sparePartId)
-		|| nameText.includes('lốp')
-		|| nameText.includes('lop')
-		|| nameText.includes('vỏ xe')
-		|| nameText.includes('vo xe')
-		|| nameText.includes('tire')
-		|| nameText.includes('tyre')
-		|| nameText.includes('michelin')
-		|| nameText.includes('bridgestone')
-		|| nameText.includes('goodyear')
-		|| nameText.includes('continental')
-		|| nameText.includes('pirelli')
-		|| nameText.includes('yokohama')
-		|| nameText.includes('maxxis')
-	);
-};
-
+//Tìm khung giờ trống tiếp theo khả thi từ danh sách có sẵn, dùng cho tính năng "Đặt ngay" để tự động chọn khung giờ gần nhất sau thời điểm hiện tại, ưu tiên các khung giờ có dữ liệu sức chứa nếu có.
 const pickNextSlotFromBaseSlots = (baseSlots, now) => {
 	const list = Array.isArray(baseSlots) ? baseSlots : [];
 	if (!list.length) return null;
@@ -78,6 +33,7 @@ const pickNextSlotFromBaseSlots = (baseSlots, now) => {
 	const today = formatLocalDateYYYYMMDD(now);
 	const nowTs = now.getTime();
 
+	// Duyệt qua các slot của hôm nay để tìm slot tiếp theo có thời gian bắt đầu sau thời điểm hiện tại. Nếu tìm thấy, trả về ngày hôm nay và thời gian của slot đó.
 	for (const slot of list) {
 		const slotStart = toLocalDateTime(today, slot?.startTime);
 		if (!slotStart) continue;
@@ -95,6 +51,7 @@ const pickNextSlotFromBaseSlots = (baseSlots, now) => {
 	return { date: tomorrowStr, time: formatTimeHHmm(first.startTime) };
 };
 
+// Fallback: nếu không có slot nào phù hợp trong baseSlots, làm tròn thời gian hiện tại lên block 30 phút gần nhất để chọn slot. Ví dụ: nếu bây giờ là 10:10 thì sẽ chọn 10:30; nếu bây giờ là 10:40 thì sẽ chọn 11:00.
 const pickNextSlotByRounding30m = (now) => {
 	// Fallback: làm tròn lên theo block 30 phút, có tính cả seconds/millis.
 	const date = formatLocalDateYYYYMMDD(now);
@@ -115,6 +72,17 @@ const pickNextSlotByRounding30m = (now) => {
 	return { date, time: `${hh}:${mm}` };
 };
 
+// Xóa dữ liệu nháp liên quan đến báo giá dự kiến khỏi localStorage để tránh xung đột với các báo giá mới trong tương lai, đồng thời giải phóng bộ nhớ.
+function clearEstimateDraftStorage(storageKey) {
+	if (!storageKey) return;
+	try {
+		localStorage.removeItem(storageKey);
+	} catch {
+		// ignore storage failures
+	}
+}
+
+// Custom hook để quản lý các handler liên quan đến việc tạo booking, bao gồm kiểm tra khách hàng, chọn lịch hẹn, gửi yêu cầu tạo booking, và xử lý các trạng thái liên quan đến báo giá dự kiến.
 export function useCreateBookingHandlers({
 	baseSlots,
 	selectedItems,
@@ -129,6 +97,10 @@ export function useCreateBookingHandlers({
 	slotsError,
 	createdBookingForCheckIn,
 	sourceReminderId,
+	hasActiveEstimateDraft,
+	cancellingEstimate,
+	submitSuccess,
+	estimateStorageKey,
 	navigate,
 
 	setSelectedIds,
@@ -144,9 +116,74 @@ export function useCreateBookingHandlers({
 	setSubmitSuccess,
 	setCreatedBookingForCheckIn,
 	setSubmitLocked,
+	setCheckingCustomer,
+	setCustomerChecked,
+	setCustomerCheckError,
+	setSelectedEstimate,
+	setIsEstimateEditing,
+	setEstimateTableKey,
+	setCancellingEstimate,
 }) {
-	const submitInFlightRef = useRef(false);
+	const submitInFlightRef = useRef(false);	// Ref chống spam click submit
 
+	//Hàm reset các trạng thái liên quan đến báo giá nháp
+	const clearEstimateDraftLocalState = useCallback(() => {
+		setSelectedEstimate(null);
+		setIsEstimateEditing(false);
+		setEstimateTableKey((prev) => prev + 1);
+		clearEstimateDraftStorage(estimateStorageKey);
+	}, [estimateStorageKey, setEstimateTableKey, setIsEstimateEditing, setSelectedEstimate]);
+
+	// Khi submit thành công, tự động xóa dữ liệu nháp liên quan đến báo giá dự kiến để tránh xung đột với các báo giá mới trong tương lai, đồng thời giải phóng bộ nhớ.
+	useEffect(() => {
+		if (!submitSuccess) return;
+		clearEstimateDraftLocalState();
+	}, [clearEstimateDraftLocalState, submitSuccess]);
+
+	// Khi rời trang tạo booking, tự động xóa localStorage của báo giá nháp thay vì chặn điều hướng.
+	useEffect(() => {
+		const handleClearDraftStorage = () => {
+			clearEstimateDraftStorage(estimateStorageKey);
+		};
+
+		window.addEventListener('pagehide', handleClearDraftStorage);
+		window.addEventListener('beforeunload', handleClearDraftStorage);
+
+		return () => {
+			window.removeEventListener('pagehide', handleClearDraftStorage);
+			window.removeEventListener('beforeunload', handleClearDraftStorage);
+			handleClearDraftStorage();
+		};
+	}, [estimateStorageKey]);
+
+	// Kiểm tra số điện thoại khách hàng xem đã có trong DB chưa
+	const handleCheckCustomer = useCallback(async () => {
+		setCheckingCustomer(true);
+		setCustomerCheckError('');
+		setCustomerChecked(null);
+		const phone = String(info?.phone ?? '').trim();
+		if (!phone) {
+			setCustomerCheckError('Vui lòng nhập số điện thoại.');
+			setCheckingCustomer(false);
+			return;
+		}
+		try {
+			const token = localStorage.getItem('authToken');
+			const res = await fetchCustomerByPhone(phone, token);
+			if (res?.data?.exists) {
+				setInfo((prev) => ({ ...prev, name: res.data.fullName || '' }));
+				setCustomerChecked(res.data);
+			} else {
+				setCustomerChecked({ exists: false });
+			}
+		} catch (err) {
+			setCustomerCheckError(err?.message || 'Không thể kiểm tra khách hàng.');
+		} finally {
+			setCheckingCustomer(false);
+		}
+	}, [info?.phone, setCheckingCustomer, setCustomerCheckError, setCustomerChecked, setInfo]);
+
+	// Handler khi chọn "Đặt ngay" 
 	const handleUseNow = useCallback(() => {
 		const now = new Date();
 		const picked = pickNextSlotFromBaseSlots(baseSlots, now) ?? pickNextSlotByRounding30m(now);
@@ -163,24 +200,28 @@ export function useCreateBookingHandlers({
 		setSlotsLoading(false);
 	}, [baseSlots, setAvailableSlots, setSchedule, setScheduleMode, setShowSchedulePicker, setSlotsError, setSlotsLoading]);
 
+	// Handler khi chọn "Chọn ngày giờ" để hiển thị giao diện chọn lịch hẹn thủ công
 	const handleShowManualSchedule = useCallback(() => {
 		setScheduleMode('manual');
 		setShowSchedulePicker(true);
 	}, [setScheduleMode, setShowSchedulePicker]);
 
+	// Handler khi chọn một slot thời gian cụ thể từ Grid
 	const handlePickSlot = useCallback(
 		(rawTime) => {
 			if (scheduleMode !== 'manual') return;
 			if (!schedule?.date) return;
 			if (slotsLoading || slotsError) return;
 			const hhmm = formatTimeHHmm(rawTime);
+			// Khi người dùng chọn một slot, cập nhật thời gian trong schedule nhưng giữ nguyên ngày đã chọn, đồng thời đảm bảo định dạng thời gian được chuẩn hóa để tránh lỗi khi gửi lên backend.
 			setSchedule((prev) => ({ ...prev, time: hhmm }));
 		},
 		[schedule?.date, scheduleMode, setSchedule, slotsError, slotsLoading],
 	);
 
+	// Handler khi bấm nút "Tạo booking" để gửi yêu cầu tạo booking lên backend, bao gồm các bước validate dữ liệu, chuẩn hóa dữ liệu, gọi API, và xử lý kết quả trả về.
 	const handleSubmit = useCallback(async () => {
-		// Guard: block spamming submits.
+		// CHẶN SUBMIT TRÙNG LẶP: nếu đang trong quá trình submit hoặc đã submit thành công và chưa reset form sẽ không cho phép submit tiếp và hiển thị thông báo yêu cầu làm mới form để tạo lịch mới.
 		if (submitLocked) {
 			setSubmitError('Vui lòng bấm Làm mới để tạo lịch mới.');
 			return;
@@ -195,6 +236,7 @@ export function useCreateBookingHandlers({
 		setCreatedBookingForCheckIn(null);
 		setSubmitting(true);
 
+		// VALIDATE GHI CHÚ
 		const { value: trimmedNote, error: noteError } = validateTextInput(info?.note, {
 			fieldLabel: 'Ghi chú',
 			required: false,
@@ -207,9 +249,11 @@ export function useCreateBookingHandlers({
 			return;
 		}
 
+		// Chuẩn bị Payload gửi lên Server
 		const catalogItemIds = (Array.isArray(selectedIds) ? selectedIds : [])
 			.map(Number)
 			.filter((n) => Number.isFinite(n) && n >= 0);
+		// Nếu có báo giá thì gửi estimateId
 		const estimateIdNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
 
 		try {
@@ -234,10 +278,7 @@ export function useCreateBookingHandlers({
 			const bookingCode = String(bookingCodeRaw ?? '').trim();
 			const msg = bookingCode ? `Tạo booking thành công. Mã: ${bookingCode}` : 'Tạo booking thành công.';
 
-			const selectedSnapshot = Array.isArray(selectedItems) ? selectedItems : [];
-			const serviceItems = selectedSnapshot.filter((item) => !isPartLikeBookingItem(item));
-			const partItems = selectedSnapshot.filter((item) => isPartLikeBookingItem(item));
-
+			// Lưu thông tin lịch đã tạo để phục vụ tính năng "Chuyển sang Check-in"
 			setCreatedBookingForCheckIn(bookingCode ? {
 				bookingCode,
 				booking: {
@@ -246,10 +287,7 @@ export function useCreateBookingHandlers({
 					scheduledTime: schedule?.time || '',
 					customerName: String(info?.name ?? '').trim(),
 					customerPhone: String(info?.phone ?? '').trim(),
-					selectedItems: selectedSnapshot,
-					services: serviceItems,
-					parts: partItems,
-					partItems,
+
 				},
 			} : null);
 
@@ -280,7 +318,8 @@ export function useCreateBookingHandlers({
 		setSubmitLocked,
 		setSubmitting,
 	]);
-
+	
+	// Handler khi bấm nút "Chuyển sang Check-in" sau khi tạo booking thành công, sẽ điều hướng sang trang Check-in với thông tin booking đã tạo để tiếp tục quy trình check-in
 	const handleGoToCheckIn = useCallback(() => {
 		const code = String(createdBookingForCheckIn?.bookingCode ?? '').trim();
 		const bookingDate = String(createdBookingForCheckIn?.booking?.scheduledDate || schedule?.date || '').slice(0, 10);
@@ -296,7 +335,8 @@ export function useCreateBookingHandlers({
 		navigate('/check-in');
 	}, [createdBookingForCheckIn?.booking, createdBookingForCheckIn?.bookingCode, navigate, schedule?.date]);
 
-	const handleReset = useCallback(() => {
+	// Handler khi bấm nút "Làm mới" để reset toàn bộ form về trạng thái ban đầu, bao gồm cả các trạng thái liên quan đến báo giá dự kiến, đồng thời nếu có báo giá dự kiến đang tồn tại sẽ hiển thị cảnh báo xác nhận trước khi reset để tránh mất dữ liệu
+	const resetForm = useCallback(() => {
 		submitInFlightRef.current = false;
 		setSelectedIds([]);
 		setSchedule({ date: '', time: '' });
@@ -327,12 +367,77 @@ export function useCreateBookingHandlers({
 		setSubmitting,
 	]);
 
+	// Hàm hủy báo giá dự kiến
+	const cancelEstimateDraft = useCallback(async () => {
+		if (cancellingEstimate) return false;
+		setSubmitError('');
+		setSubmitSuccess('');
+		setCancellingEstimate(true);
+		try {
+			if (estimateId) {
+				const token = localStorage.getItem('authToken');
+				if (!token) {
+					setSubmitError('Vui lòng đăng nhập để hủy báo giá.');
+					return false;
+				}
+				await manageServiceTicketEstimateStatus(estimateId, 'CANCELLED', token);
+			}
+			clearEstimateDraftLocalState();
+			return true;
+		} catch (err) {
+			setSubmitError(err?.message || 'Không thể hủy báo giá.');
+			return false;
+		} finally {
+			setCancellingEstimate(false);
+		}
+	}, [
+		cancellingEstimate,
+		clearEstimateDraftLocalState,
+		estimateId,
+		setCancellingEstimate,
+		setSubmitError,
+		setSubmitSuccess,
+	]);
+
+	// Handler khi bấm nút "Làm mới" để reset form, nếu có báo giá dự kiến đang tồn tại sẽ hiển thị cảnh báo 
+	const handleReset = useCallback(async () => {
+		if (hasActiveEstimateDraft) {
+			const confirmed = globalThis.confirm(
+				'Thao tác này sẽ hủy báo giá hiện tại và xóa dữ liệu nháp liên quan. Bạn có muốn tiếp tục không?',
+			);
+			if (!confirmed) return;
+			const cancelled = await cancelEstimateDraft();
+			if (!cancelled) return;
+		}
+		setCheckingCustomer(false);
+		setCustomerChecked(null);
+		setCustomerCheckError('');
+		resetForm();
+	}, [
+		cancelEstimateDraft,
+		hasActiveEstimateDraft,
+		resetForm,
+		setCheckingCustomer,
+		setCustomerCheckError,
+		setCustomerChecked,
+	]);
+
+	// Handler khi bấm nút "Hủy báo giá dự kiến" để hủy báo giá hiện tại, sẽ hiển thị cảnh báo xác nhận trước khi hủy để tránh mất dữ liệu, nếu xác nhận sẽ gọi API hủy báo giá và reset form về trạng thái ban đầu.
+	const handleCancelEstimate = useCallback(async () => {
+		if (!hasActiveEstimateDraft) return;
+		const confirmed = globalThis.confirm('Bạn có chắc chắn muốn hủy báo giá dự kiến này không?');
+		if (!confirmed) return;
+		await cancelEstimateDraft();
+	}, [cancelEstimateDraft, hasActiveEstimateDraft]);
+
 	return {
+		handleCheckCustomer,
 		handleUseNow,
 		handleShowManualSchedule,
 		handlePickSlot,
 		handleSubmit,
 		handleGoToCheckIn,
 		handleReset,
+		handleCancelEstimate,
 	};
 }
