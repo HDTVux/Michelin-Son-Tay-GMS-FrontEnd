@@ -129,6 +129,8 @@ function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCa
 	const rowNo = rowIndex + 1;
 	const workCategoryId = toIdOrNull(row?.workCategoryId);
 	const isLocked = Boolean(row?.isLockedFromPreviousVersion);
+	const itemId = toIdOrNull(row?.itemId);
+	const hasManualItemName = Boolean(String(row?.itemName ?? '').trim());
 
 	if (!workCategoryId) {
 		const categoryValidated = validateTextInput(row?.newCategoryName, {
@@ -140,11 +142,11 @@ function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCa
 		if (categoryValidated.error) return `Dòng ${rowNo}: ${categoryValidated.error}`;
 	}
 
-	if (workCategoryId && requireItemForPredefinedCategory && !isLocked && !toIdOrNull(row?.itemId)) {
+	if (workCategoryId && requireItemForPredefinedCategory && !isLocked && !itemId && !hasManualItemName) {
 		return `Dòng ${rowNo}: Vui lòng chọn sản phẩm/dịch vụ.`;
 	}
 
-	if (!workCategoryId) {
+	if (!workCategoryId || (workCategoryId && !itemId)) {
 		const itemNameValidated = validateTextInput(row?.itemName, {
 			fieldLabel: 'Diễn giải',
 			required: true,
