@@ -23,6 +23,7 @@ import styles from './AdvisorInspection.module.css';
 
 const STAFF_ROLE = { ADVISOR: 'ADVISOR' };
 const ADVISOR_INSPECTION_DAY_STORAGE_KEY = 'advisorInspection.activeDay';
+const SOFT_REFRESH_THROTTLE_MS = 15000;
 const ADVISOR_TICKET_LOOKUP_SIZE = 200;
 
 const getToken = () => localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -793,6 +794,7 @@ export default function AdvisorInspection() {
   // Ticket list state
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -834,6 +836,9 @@ export default function AdvisorInspection() {
   const [modalError, setModalError] = useState('');
   const [modalSuccess, setModalSuccess] = useState('');
   const [modalPageAssignments, setModalPageAssignments] = useState(new Map());
+  const hasLoadedTicketsRef = useRef(false);
+  const lastSoftRefreshAtRef = useRef(0);
+  const softRefreshRequestedRef = useRef(false);
 
   // Debounce search
   useEffect(() => {
@@ -857,8 +862,14 @@ export default function AdvisorInspection() {
 
     let ignore = false;
     const run = async () => {
+      const isSoftRefresh = softRefreshRequestedRef.current && hasLoadedTicketsRef.current;
+      softRefreshRequestedRef.current = false;
       try {
-        setLoading(true);
+        if (isSoftRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
         setError('');
         const list = await fetchAdvisorTicketsForAppointmentDate(filters, token);
         if (ignore) return;
@@ -900,19 +911,62 @@ export default function AdvisorInspection() {
             fullName: t?.advisorName || t?.assignedAdvisorName || t?.advisor?.fullName,
           })),
         );
+        hasLoadedTicketsRef.current = true;
 
       } catch (err) {
         if (ignore) return;
-        setError(err?.message || 'Không thể tải danh sách phiếu.');
-        setTickets([]);
+        if (!isSoftRefresh) {
+          setError(err?.message || 'Không thể tải danh sách phiếu.');
+          setTickets([]);
+        }
       } finally {
-        if (!ignore) setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     };
 
     run();
     return () => { ignore = true; };
   }, [filters, reloadKey, transferredOutTicketCodes, dateFrom, dateTo, page, size]);
+
+  useEffect(() => {
+    const requestSoftRefresh = () => {
+      const now = Date.now();
+      if (!hasLoadedTicketsRef.current) return;
+      if (now - lastSoftRefreshAtRef.current < SOFT_REFRESH_THROTTLE_MS) return;
+      if (showAssignModal || showRepairHistoryModal || loadingModal || repairHistoryLoading || swapping || dragTicketId != null) return;
+      if (loading || refreshing) return;
+
+      lastSoftRefreshAtRef.current = now;
+      softRefreshRequestedRef.current = true;
+      setReloadKey((key) => key + 1);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') requestSoftRefresh();
+    };
+
+    window.addEventListener('focus', requestSoftRefresh);
+    window.addEventListener('service-ticket-created', requestSoftRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', requestSoftRefresh);
+      window.removeEventListener('service-ticket-created', requestSoftRefresh);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [
+    dragTicketId,
+    loading,
+    loadingModal,
+    refreshing,
+    repairHistoryLoading,
+    showAssignModal,
+    showRepairHistoryModal,
+    swapping,
+  ]);
 
   // Load workload + advisor list
   useEffect(() => {
@@ -1615,7 +1669,10 @@ export default function AdvisorInspection() {
           </span>
           <h1>Danh sách phiếu dịch vụ</h1>
         </div>
-        <span className={styles.totalCount}>{totalElements} phiếu</span>
+        <div className={styles.headerMeta}>
+          {refreshing ? <span className={styles.refreshingBadge}>Đang cập nhật...</span> : null}
+          <span className={styles.totalCount}>{totalElements} phiếu</span>
+        </div>
       </div>
 
       <div className={styles.splitLayout}>
