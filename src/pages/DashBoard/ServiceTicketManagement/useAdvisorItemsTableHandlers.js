@@ -129,6 +129,8 @@ function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCa
 	const rowNo = rowIndex + 1;
 	const workCategoryId = toIdOrNull(row?.workCategoryId);
 	const isLocked = Boolean(row?.isLockedFromPreviousVersion);
+	const itemId = toIdOrNull(row?.itemId);
+	const hasManualItemName = Boolean(String(row?.itemName ?? '').trim());
 
 	if (!workCategoryId) {
 		const categoryValidated = validateTextInput(row?.newCategoryName, {
@@ -140,11 +142,11 @@ function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCa
 		if (categoryValidated.error) return `Dòng ${rowNo}: ${categoryValidated.error}`;
 	}
 
-	if (workCategoryId && requireItemForPredefinedCategory && !isLocked && !toIdOrNull(row?.itemId)) {
+	if (workCategoryId && requireItemForPredefinedCategory && !isLocked && !itemId && !hasManualItemName) {
 		return `Dòng ${rowNo}: Vui lòng chọn sản phẩm/dịch vụ.`;
 	}
 
-	if (!workCategoryId) {
+	if (!workCategoryId || (workCategoryId && !itemId)) {
 		const itemNameValidated = validateTextInput(row?.itemName, {
 			fieldLabel: 'Diễn giải',
 			required: true,
@@ -203,6 +205,81 @@ function getTaxRuleIdFromCatalogPayload(payload) {
 	);
 }
 
+function getEstimateItemWarehouseName(item) {
+	return String(
+		item?.warehouseName ?? item?.warehouse_name ?? item?.warehouse?.warehouseName ?? item?.warehouse?.name ?? '',
+	).trim();
+}
+
+function getEstimateItemWorkCategoryId(item) {
+	return toIdOrNull(
+		item?.workCategoryId ??
+		item?.workCateId ??
+		item?.workCategory?.workCategoryId ??
+		item?.workCategory?.workCateId ??
+		item?.workCategory?.id,
+	);
+}
+
+function buildEstimateItemMatchKeys(item) {
+	const keys = [];
+	const estimateItemId = toIdOrNull(item?.estimateItemId ?? item?.estimateItemID ?? item?.id);
+	if (estimateItemId) keys.push(`estimate:${estimateItemId}`);
+
+	const revisedFromItemId = toIdOrNull(item?.revisedFromItemId);
+	if (revisedFromItemId) keys.push(`revised:${revisedFromItemId}`);
+
+	const itemId = toIdOrNull(item?.itemId ?? item?.catalogItemId ?? item?.serviceItemId);
+	const workCategoryId = getEstimateItemWorkCategoryId(item);
+	const itemName = String(item?.itemName ?? '').trim().toLowerCase();
+	const warehouseId = toIdOrNull(item?.warehouseId ?? item?.warehouse_id ?? item?.warehouse?.warehouseId);
+	const quantity = toNumberOrZero(item?.quantity);
+	const unitPrice = toNumberOrZero(item?.unitPrice);
+	if (itemId || workCategoryId || itemName || warehouseId || quantity || unitPrice) {
+		keys.push(`combo:${itemId ?? ''}|${workCategoryId ?? ''}|${itemName}|${warehouseId ?? ''}|${quantity}|${unitPrice}`);
+	}
+
+	return keys;
+}
+
+function mergeEstimateWithWarehouseDisplay(nextEstimate, ...fallbackSources) {
+	if (!nextEstimate || typeof nextEstimate !== 'object') return nextEstimate;
+	const nextItems = Array.isArray(nextEstimate?.items) ? nextEstimate.items : [];
+	if (nextItems.length === 0) return nextEstimate;
+
+	const fallbackByKey = new Map();
+	for (const source of fallbackSources) {
+		const items = Array.isArray(source?.items) ? source.items : Array.isArray(source) ? source : [];
+		for (const item of items) {
+			const warehouseName = getEstimateItemWarehouseName(item);
+			const warehouseId = item?.warehouseId ?? item?.warehouse_id ?? item?.warehouse?.warehouseId ?? '';
+			const warehouse = item?.warehouse && typeof item.warehouse === 'object' ? item.warehouse : null;
+			if (!warehouseName && !warehouseId && !warehouse) continue;
+			for (const key of buildEstimateItemMatchKeys(item)) {
+				if (!fallbackByKey.has(key)) {
+					fallbackByKey.set(key, { warehouseName, warehouseId, warehouse });
+				}
+			}
+		}
+	}
+
+	const mergedItems = nextItems.map((item) => {
+		if (getEstimateItemWarehouseName(item)) return item;
+		const fallback = buildEstimateItemMatchKeys(item)
+			.map((key) => fallbackByKey.get(key))
+			.find(Boolean);
+		if (!fallback) return item;
+		return {
+			...item,
+			warehouseId: item?.warehouseId ?? item?.warehouse_id ?? fallback.warehouseId ?? '',
+			warehouseName: fallback.warehouseName || '',
+			warehouse: item?.warehouse ?? fallback.warehouse ?? undefined,
+		};
+	});
+
+	return { ...nextEstimate, items: mergedItems };
+}
+
 function mapEstimateItemToLockedRow(it, idx) {
 	const workCategoryId =
 		it?.workCategoryId ??
@@ -219,9 +296,7 @@ function mapEstimateItemToLockedRow(it, idx) {
 		getItemTaxRuleIdFromEstimateItem(it);
 	const unit = getItemUnitFromEstimateItem(it);
 	const warehouseId = it?.warehouseId ?? it?.warehouse_id ?? it?.warehouse?.warehouseId ?? '';
-	const warehouseName = String(
-		it?.warehouseName ?? it?.warehouse_name ?? it?.warehouse?.warehouseName ?? it?.warehouse?.name ?? '',
-	).trim();
+	const warehouseName = getEstimateItemWarehouseName(it);
 	const newCategoryName = String(
 		it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
 	).trim();
@@ -545,6 +620,19 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			});
 		},
 		[resolveItemTaxRuleId],
+	);
+
+	const refetchLatestEstimate = useCallback(
+		async (serviceTicketIdValue, token, ...fallbackSources) => {
+			const ticketIdNum = toIdOrNull(serviceTicketIdValue);
+			if (!ticketIdNum || !token) return null;
+			const latestRes = await fetchServiceTicketEstimate(ticketIdNum, token);
+			return mergeEstimateWithWarehouseDisplay(
+				pickLatestEstimate(extractApiPayload(latestRes)),
+				...fallbackSources,
+			);
+		},
+		[],
 	);
 
 	useEffect(() => {
@@ -881,7 +969,10 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				setFetched(false);
 				const res = await fetchServiceTicketEstimate(serviceTicketId, token);
 				if (ignore) return;
-				const picked = pickLatestEstimate(extractApiPayload(res));
+				const picked = mergeEstimateWithWarehouseDisplay(
+					pickLatestEstimate(extractApiPayload(res)),
+					estimateRef.current,
+				);
 				setEstimate(picked);
 				onEstimateStatusChangeRef.current?.(picked);
 				setFetched(true);
@@ -968,9 +1059,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const workCategoryTaxRuleId = it?.workCategory?.taxRuleId ?? '';
 				const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
 				const itemTaxRuleId = getItemTaxRuleIdFromEstimateItem(it);
-				const warehouseName = String(
-					it?.warehouseName ?? it?.warehouse_name ?? it?.warehouse?.warehouseName ?? it?.warehouse?.name ?? '',
-				).trim();
+				const warehouseName = getEstimateItemWarehouseName(it);
 				// Nếu sản phẩm có thuế, luôn ưu tiên thuế sản phẩm -> clear chọn thuế thủ công để UI hiển thị đúng.
 				const taxRuleId = toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? '');
 				return {
@@ -1290,9 +1379,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const workCategoryTaxRuleId = it?.workCategory?.taxRuleId ?? '';
 				const itemTaxRuleId = getItemTaxRuleIdFromEstimateItem(it);
 				const warehouseId = it?.warehouseId ?? it?.warehouse_id ?? it?.warehouse?.warehouseId ?? '';
-				const warehouseName = String(
-					it?.warehouseName ?? it?.warehouse_name ?? it?.warehouse?.warehouseName ?? it?.warehouse?.name ?? '',
-				).trim();
+				const warehouseName = getEstimateItemWarehouseName(it);
 				const warehouseAvailableQuantity =
 					it?.warehouseAvailableQuantity ??
 					it?.availableQuantity ??
@@ -1543,7 +1630,14 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
                 },
                 token,
             );
-			const nextEstimate = extractApiPayload(res);
+			let nextEstimate = mergeEstimateWithWarehouseDisplay(
+				extractApiPayload(res),
+				estimateRef.current,
+				draftRows,
+			);
+			if (!standaloneDraftMode && idNum) {
+				nextEstimate = (await refetchLatestEstimate(idNum, token, nextEstimate, estimateRef.current, draftRows)) ?? nextEstimate;
+			}
 			debugEstimateVersion('create-version-response', nextEstimate ?? null);
             setEstimate(nextEstimate ?? null);
             onEstimateStatusChangeRef.current?.(nextEstimate ?? null);
@@ -1553,7 +1647,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
         } finally {
             setIsSaving(false);
         }
-	}, [draftRows, isSaving, serviceTicketId, standaloneDraftMode, validateDraftOrEditRows]);
+	}, [draftRows, isSaving, refetchLatestEstimate, serviceTicketId, standaloneDraftMode, validateDraftOrEditRows]);
 
 	const saveEdit = useCallback(async () => {
 		if (isSaving) return;
@@ -1574,6 +1668,16 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		if (!standaloneDraftMode && !serviceTicketIdNum) {
 			setSaveError('Thiếu serviceTicketId hợp lệ.');
 			return;
+		}
+
+		if (isAppendOnlyEdit) {
+			const newRows = (Array.isArray(editRows) ? editRows : []).filter(
+				(r) => !r?.isLockedFromPreviousVersion && !isDraftRowEmpty(r),
+			);
+			if (newRows.length === 0) {
+				setSaveError('Bạn chưa thêm hạng mục mới nào. Vui lòng thêm ít nhất 1 dòng mới trước khi lưu.');
+				return;
+			}
 		}
 
 		const validation = validateDraftOrEditRows(editRows);
@@ -1655,7 +1759,14 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				},
 				token,
 			);
-			const nextEstimate = extractApiPayload(res);
+			let nextEstimate = mergeEstimateWithWarehouseDisplay(
+				extractApiPayload(res),
+				estimateRef.current,
+				editRows,
+			);
+			if (!standaloneDraftMode && serviceTicketIdNum) {
+				nextEstimate = (await refetchLatestEstimate(serviceTicketIdNum, token, nextEstimate, estimateRef.current, editRows)) ?? nextEstimate;
+			}
 			setEstimate(nextEstimate ?? null);
 			onEstimateStatusChangeRef.current?.(nextEstimate ?? null);
 			setIsEditing(false);
@@ -1665,7 +1776,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		} finally {
 			setIsSaving(false);
 		}
-	}, [editRows, estimate, isSaving, serviceTicketId, standaloneDraftMode, validateDraftOrEditRows]);
+	}, [editRows, estimate, isAppendOnlyEdit, isSaving, refetchLatestEstimate, serviceTicketId, standaloneDraftMode, validateDraftOrEditRows]);
 
 	const softDeleteEditRow = useCallback(
 		async (rowIndex) => {

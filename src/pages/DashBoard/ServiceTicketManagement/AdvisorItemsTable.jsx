@@ -12,11 +12,26 @@ import {
 } from './useAdvisorItemsTableHandlers.js';
 import CatalogPicker from './CatalogPicker.jsx';
 
+const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
+
 function normalizeSuggestionText(value) {
     return String(value ?? '')
         .normalize('NFD')
         .replaceAll(/[\u0300-\u036f]/g, '')
         .toLowerCase();
+}
+
+function readAddServicePendingSnapshot(serviceTicketId) {
+    const id = serviceTicketId == null ? '' : String(serviceTicketId).trim();
+    if (!id) return null;
+    try {
+        const raw = localStorage.getItem(`${ADD_SERVICE_RESTORE_STORAGE_PREFIX}${id}`);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+        return null;
+    }
 }
 
 function CategorySuggestDropdownPortal({ open, anchorRef, items, disabled, onPick, onClose }) {
@@ -697,6 +712,7 @@ export default function AdvisorItemsTable({
     hideRecommendation = false,
     hideEstimateSummary = false,
     hideEmptyTableBeforeCreate = false,
+    disableFullEdit = false,
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
@@ -753,6 +769,11 @@ export default function AdvisorItemsTable({
     const showTaxColumn = isCreating || isEditing;
     const showConfirmColumn = Boolean(showInputs);
     const isReadOnly = Boolean(readOnly);
+    const hasPendingAddServiceSnapshot = useMemo(() => {
+        const snapshot = readAddServicePendingSnapshot(serviceTicketId);
+        const previousEstimateStatus = String(snapshot?.prevEstimateStatus || '').trim().toUpperCase();
+        return previousEstimateStatus === 'APPROVED';
+    }, [serviceTicketId]);
     const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
     const tableHasRows = Array.isArray(tableRows) && tableRows.length > 0;
     const shouldShowTable =
@@ -1264,7 +1285,7 @@ export default function AdvisorItemsTable({
                         canCreateNew={canCreateNew}
                         canCreateNewVersion={canCreateNewVersion}
                         createBusy={isStartingCreate}
-                        canEdit={canEdit && !isReadOnly}
+                        canEdit={canEdit && !isReadOnly && !disableFullEdit && !hasPendingAddServiceSnapshot}
                         isCreating={isCreating}
                         isEditing={isEditing}
                         isSaving={isSaving}
@@ -1420,4 +1441,5 @@ AdvisorItemsTable.propTypes = {
     hideRecommendation: PropTypes.bool,
     hideEstimateSummary: PropTypes.bool,
     hideEmptyTableBeforeCreate: PropTypes.bool,
+    disableFullEdit: PropTypes.bool,
 };
