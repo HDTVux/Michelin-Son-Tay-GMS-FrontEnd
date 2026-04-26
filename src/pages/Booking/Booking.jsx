@@ -16,6 +16,7 @@ import {
 import { getValidToken } from '../../services/tokenUtils.js';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 
+// Định nghĩa các bước của quy trình đặt lịch
 const STEPS = [
   { id: 'service', label: 'Chọn dịch vụ' },
   { id: 'schedule', label: 'Chọn ngày & giờ' },
@@ -23,12 +24,14 @@ const STEPS = [
   { id: 'done', label: 'Hoàn tất' },
 ];
 
+// Chuyển đổi giá trị đầu vào thành loại mục (SERVICE hoặc PART)
 const toItemType = (value) => {
   const text = String(value || '').trim().toUpperCase();
   if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
   return 'SERVICE';
 };
 
+// Xử lý kết quả trả về từ API để trích xuất danh sách sản phẩm/dịch vụ, phân trang,...
 const extractHomeProductsList = (res) => {
   const payload = res?.data?.data ?? res?.data ?? res;
   if (Array.isArray(payload)) return payload;
@@ -36,6 +39,7 @@ const extractHomeProductsList = (res) => {
   return [];
 };
 
+// Chuyển đổi thông tin danh mục của mục thành một khóa duy nhất để lọc/sắp xếp
 const toCategoryKey = (item) => String(
   item?.itemCategoryCode
   ?? item?.categoryCode
@@ -44,6 +48,7 @@ const toCategoryKey = (item) => String(
   ?? 'all',
 ).trim() || 'all';
 
+// Chuyển đổi các giá trị khác nhau có thể chứa thông tin giá thành một số hợp lệ để so sánh/sắp xếp
 const toPriceNumber = (value) => {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -53,6 +58,8 @@ const toPriceNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+// Tìm giá sản phẩm từ nhiều nguồn thuộc tính khác nhau của Backend
+// Ưu tiên các thuộc tính như price, sellingPrice, salePrice,... 
 const getCatalogPrice = (item) => {
   const candidates = [
     item?.price,
@@ -74,6 +81,7 @@ const getCatalogPrice = (item) => {
   return null;
 };
 
+// Xử lý để hiển thị thông tin giá, có thể chứa thông tin dạng text như "Liên hệ"
 const getCatalogPriceText = (item) => {
   const candidates = [
     item?.displayPrice,
@@ -82,6 +90,7 @@ const getCatalogPriceText = (item) => {
     item?.data?.priceLabel,
   ];
 
+  // Nếu có giá trị nào đó không phải là số hợp lệ, coi đó là text hiển thị giá
   for (const value of candidates) {
     if (typeof value !== 'string') continue;
     const text = value.trim();
@@ -91,8 +100,12 @@ const getCatalogPriceText = (item) => {
   return item?.showPrice === false ? 'Liên hệ' : '';
 };
 
+// Component chính của trang đặt lịch
 export default function Booking() {
   const location = useLocation();
+  useScrollToTop([stepIndex], 'smooth');
+
+  // Lấy thông tin được truyền qua state khi điều hướng đến trang này, ví dụ như số điện thoại đã điền sẵn, dịch vụ đã chọn,...
   const prefilledPhone = location.state?.phone || '';
   const preselectedCatalogItemId = location.state?.catalogItemId != null
     ? String(location.state.catalogItemId)
@@ -100,11 +113,13 @@ export default function Booking() {
   const legacyServiceId = location.state?.serviceId != null ? Number(location.state.serviceId) : null;
   const preselectedItemType = toItemType(location.state?.itemType);
 
-  const [stepIndex, setStepIndex] = useState(0);
-  const [services, setServices] = useState([]);
+  // Các state để quản lý bước hiện tại
+  const [stepIndex, setStepIndex] = useState(0); // 0: chọn dịch vụ, 1: chọn lịch, 2: điền thông tin, 3: hoàn tất
+  const [services, setServices] = useState([]);  // Danh sách dịch vụ/phụ tùng được tải về từ API
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');
 
+  // State để quản lý lựa chọn dịch vụ/phụ tùng, thông tin tìm kiếm/lọc, thông tin lịch hẹn và khách hàng
   const [selectedIds, setSelectedIds] = useState(() => (preselectedCatalogItemId ? [preselectedCatalogItemId] : []));
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
@@ -113,14 +128,18 @@ export default function Booking() {
   const [maxPrice, setMaxPrice] = useState('');
   const [priceSort, setPriceSort] = useState('');
 
+  // State để quản lý thông tin lịch hẹn và khách hàng
   const [schedule, setSchedule] = useState({ date: '', time: '' });
   const [info, setInfo] = useState({ name: '', phone: prefilledPhone, note: '' });
+
+  // State để quản lý token khách hàng
   const [customerToken, setCustomerToken] = useState(() => getValidToken('customerToken'));
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [bookingData, setBookingData] = useState(null);
   const [modifyBookingId, setModifyBookingId] = useState(null);
 
+  // Hàm giải mã token để lấy thông tin hồ sơ khách hàng như tên và số điện thoại
   const decodeTokenProfile = (token) => {
     try {
       const payload = token.split('.')[1];
@@ -134,12 +153,14 @@ export default function Booking() {
     }
   };
 
+  // Khi có số điện thoại được truyền vào qua state, tự động điền vào thông tin khách hàng
   useEffect(() => {
     if (!prefilledPhone) return undefined;
     const t = setTimeout(() => setInfo((prev) => ({ ...prev, phone: prefilledPhone })), 0);
     return () => clearTimeout(t);
   }, [prefilledPhone]);
 
+  // Khi có token khách hàng hợp lệ, giải mã để lấy thông tin hồ sơ và điền vào form nếu chưa có
   useEffect(() => {
     if (!customerToken) return;
     const profile = decodeTokenProfile(customerToken);
@@ -150,6 +171,7 @@ export default function Booking() {
     }));
   }, [customerToken]);
 
+  // Lắng nghe sự kiện thay đổi localStorage để cập nhật token khách hàng khi có sự thay đổi từ tab khác
   useEffect(() => {
     const handleStorage = (e) => {
       if (!e.key || e.key === 'customerToken') {
@@ -160,19 +182,22 @@ export default function Booking() {
     return () => globalThis.removeEventListener('storage', handleStorage);
   }, []);
 
+  // Gọi API lấy danh sách Dịch vụ & Phụ tùng cùng lúc
   useEffect(() => {
     let active = true;
     setServicesLoading(true);
     setServicesError('');
 
+    // Sử dụng Promise.allSettled để gọi đồng thời 2 API lấy dịch vụ và phụ tùng, một API lỗi sẽ không ảnh hưởng đến API còn lại
     Promise.allSettled([
-      fetchHomeProducts({ page: 0, size: 500, itemType: 'SERVICE' }),
+      fetchHomeProducts({ page: 0, size: 500, itemType: 'SERVICE' }), 
       fetchHomeProducts({ page: 0, size: 500, itemType: 'PART' }),
     ])
       .then((results) => {
         if (!active) return;
 
         const [serviceRes, partRes] = results;
+        // Kết hợp kết quả từ cả 2 API, đánh dấu nguồn gốc để phân biệt khi xử lý sau này
         const mergedRaw = [
           ...(serviceRes?.status === 'fulfilled'
             ? extractHomeProductsList(serviceRes.value).map((item) => ({ ...item, __sourceType: 'SERVICE' }))
@@ -182,6 +207,7 @@ export default function Booking() {
             : []),
         ];
 
+        // Chuyển đổi dữ liệu thô từ API thành định dạng chuẩn để hiển thị trong UI, đồng thời lọc bỏ các mục không có catalogItemId hợp lệ
         const mapped = mergedRaw
           .map((item) => {
             const catalogItemId = Number(item?.catalogItemId ?? item?.catalog_item_id ?? item?.itemId);
@@ -197,6 +223,7 @@ export default function Booking() {
                 ?? 'Khác',
             ).trim() || 'Khác';
 
+            // Tạo một đối tượng mới với các thuộc tính cần thiết cho UI, đồng thời chuẩn hóa tên trường và xử lý các giá trị khác nhau từ API
             return {
               id: String(catalogItemId),
               serviceId: Number(item?.serviceId ?? item?.service_id),
@@ -212,14 +239,18 @@ export default function Booking() {
           })
           .filter(Boolean);
 
+        // Loại bỏ các mục trùng lặp dựa trên id, ưu tiên giữ lại mục đầu tiên xuất hiện trong danh sách kết hợp
         const dedupedMap = new Map();
+        // Nếu có nhiều mục trùng id, giữ lại mục có itemType là SERVICE nếu có, ưu tiên hơn PART
         mapped.forEach((item) => {
           if (!dedupedMap.has(item.id)) dedupedMap.set(item.id, item);
         });
 
+        // Chuyển Map đã loại bỏ trùng lặp thành mảng để hiển thị trong UI
         const finalList = Array.from(dedupedMap.values());
         setServices(finalList);
 
+        // Nếu có id dịch vụ được truyền vào qua state (legacyServiceId), tự động chọn dịch vụ đó nếu tồn tại trong danh sách kết hợp, chuyển tab tương ứng
         if (!preselectedCatalogItemId && Number.isFinite(legacyServiceId) && legacyServiceId != null) {
           const found = finalList.find((s) => Number(s.serviceId) === legacyServiceId);
           if (found?.id) {
@@ -235,6 +266,7 @@ export default function Booking() {
 
         const serviceFailed = serviceRes?.status === 'rejected';
         const partFailed = partRes?.status === 'rejected';
+        // Nếu cả 2 API đều lỗi, hiển thị thông báo lỗi. Nếu chỉ một API lỗi, vẫn hiển thị dữ liệu từ API còn lại và không hiện lỗi
         if (serviceFailed && partFailed) {
           const msg = serviceRes?.reason?.message
             || partRes?.reason?.message
@@ -255,8 +287,7 @@ export default function Booking() {
     };
   }, [legacyServiceId, preselectedCatalogItemId]);
 
-  useScrollToTop([stepIndex], 'smooth');
-
+  // Khi có dữ liệu lịch hẹn từ API (sau khi tạo hoặc sửa lịch), tự động điền thông tin vào form và cập nhật lựa chọn dịch vụ nếu có
   useEffect(() => {
     if (!bookingData) return;
 
@@ -268,11 +299,13 @@ export default function Booking() {
       }));
     }
 
+    // Xử lý để loại bỏ các ký tự không hợp lệ và giới hạn độ dài của ghi chú
     if (typeof bookingData?.description === 'string') {
       const sanitized = bookingData.description.replaceAll(/[<>{}]/g, '').slice(0, 500);
       setInfo((prev) => ({ ...prev, note: sanitized }));
     }
 
+    // Nếu có danh sách serviceIds trong dữ liệu lịch hẹn, tự động chọn các dịch vụ đó trong form
     if (Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0) {
       const ids = bookingData.serviceIds.map(String).filter(Boolean);
       const idSet = new Set((Array.isArray(services) ? services : []).map((s) => String(s.id)));
@@ -285,6 +318,7 @@ export default function Booking() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
+  // Khi chuyển tab giữa SERVICE và PART, reset các bộ lọc và tìm kiếm 
   const handleChangeTab = (nextTab) => {
     setActiveTab(toItemType(nextTab));
     setFilter('all');
@@ -294,24 +328,27 @@ export default function Booking() {
     setPriceSort('');
   };
 
+  // Các hàm điều hướng giữa các bước của quy trình đặt lịch
   const goNextFromService = () => {
     setStepIndex(1);
   };
 
+  // Từ bước chọn lịch, có thể quay lại bước chọn dịch vụ hoặc tiếp tục đến bước điền thông tin
   const goBackFromSchedule = () => setStepIndex(0);
   const goNextFromSchedule = () => {
     if (!schedule.date || !schedule.time) return;
     setStepIndex(2);
   };
 
+  // Từ bước điền thông tin, có thể quay lại bước chọn lịch hoặc tiếp tục đến bước hoàn tất 
   const goBackFromInfo = () => setStepIndex(1);
-
   const goSubmitInfo = async () => {
     if (!info.name || !info.phone || submitting) return;
 
     setSubmitError('');
     setSubmitting(true);
 
+    // Xử lý để loại bỏ các ký tự không hợp lệ và giới hạn độ dài của ghi chú trước khi gửi lên API
     const rawNote = String(info.note || '');
     const hasForbiddenChars = /[<>{}]/.test(rawNote);
     const trimmedNote = rawNote.trim();
@@ -339,11 +376,13 @@ export default function Booking() {
       selectedServiceIds: catalogItemIds,
     };
 
+    // Cập nhật logic để xác định xem là tạo mới hay sửa lịch dựa trên customerToken và modifyBookingId
     const isModify = !!customerToken && modifyBookingId != null && `${modifyBookingId}` !== '';
 
     try {
       let res;
       if (isModify) {
+        // Nếu có token khách hàng hợp lệ và modifyBookingId đã được thiết lập, gọi API sửa lịch với modifyBookingId
         res = await modifyCustomerBooking(
           modifyBookingId,
           {
@@ -355,8 +394,10 @@ export default function Booking() {
           customerToken,
         );
       } else if (customerToken) {
+        // Nếu chỉ có token khách hàng mà chưa có modifyBookingId, gọi API tạo lịch mới cho khách hàng đã đăng nhập
         res = await createCustomerBooking(basePayload, customerToken);
       } else {
+        // Nếu không có token khách hàng, gọi API tạo lịch mới cho khách chưa đăng nhập
         res = await createGuestBooking({
           ...basePayload,
           fullName: info.name.trim(),
@@ -377,6 +418,7 @@ export default function Booking() {
     }
   };
 
+  // Từ bước hoàn tất, có thể chọn đổi lịch hoặc hủy lịch 
   const goReschedule = () => {
     if (customerToken && bookingData?.bookingId != null) {
       setModifyBookingId(bookingData.bookingId);
@@ -386,6 +428,7 @@ export default function Booking() {
     setStepIndex(1);
   };
 
+  // Hàm xử lý khi người dùng chọn hủy lịch, gọi API hủy lịch và cập nhật trạng thái trên UI
   const goCancel = async () => {
     if (submitting) return;
     const bookingId = bookingData?.bookingId;
@@ -434,6 +477,7 @@ export default function Booking() {
         </div>
       </div>
 
+      {/* HIỂN THỊ COMPONENT THEO TỪNG BƯỚC */}
       {stepIndex === 0 && (
         <StepService
           services={services}
