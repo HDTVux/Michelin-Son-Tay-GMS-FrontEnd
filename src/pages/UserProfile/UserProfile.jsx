@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 import { fetchCustomerProfile, updateCustomerProfile, uploadAvatar } from '../../services/customerService.js';
+import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
 import styles from './UserProfile.module.css';
 import headerStyles from './UserProfile.header.module.css';
 import infoStyles from './UserProfile.personalInfo.module.css';
@@ -426,13 +427,12 @@ const UserProfile = () => {
             <section className={infoStyles['personal-info-section']}>
               <div className={infoStyles['info-card']}>
                 <div className={infoStyles['avatar-container']}>
-                  {customerProfile.avatar ? (
-                    <img src={customerProfile.avatar} alt="Avatar" className={infoStyles['avatar-image']} />
-                  ) : (
-                    <div className={infoStyles['avatar-placeholder']}>
-                      <span className={infoStyles['avatar-icon']}>👤</span>
-                    </div>
-                  )}
+                  <img
+                    src={getAvatarSrc(customerProfile.avatar)}
+                    alt="Avatar"
+                    className={infoStyles['avatar-image']}
+                    onError={handleAvatarError}
+                  />
                 </div>
                 <div className={infoStyles['info-details']}>
                   <div className={infoStyles['info-header']}>
@@ -525,11 +525,7 @@ const UserProfile = () => {
               {/* Avatar Section */}
               <div className={styles.avatarSection}>
                 <div className={styles.avatarPreview}>
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar preview" />
-                  ) : (
-                    <div className={styles.avatarPlaceholder}>👤</div>
-                  )}
+                  <img src={getAvatarSrc(avatarPreview)} alt="Avatar preview" onError={handleAvatarError} />
                 </div>
                 <div className={styles.avatarActions}>
                   <button

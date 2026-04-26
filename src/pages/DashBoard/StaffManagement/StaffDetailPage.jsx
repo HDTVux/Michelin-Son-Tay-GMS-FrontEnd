@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import baseStyles from '../BookingRequestManagement/BookingRequestManagement.module.css';
 import styles from './StaffDetailPage.module.css';
+import { getAvatarSrc, handleAvatarError } from '../../../assets/defaultAvatar.js';
 import { fetchAllStaffRoles, fetchStaffDetail, updateStaff } from '../../../services/adminService.js';
 
 function normalizeStaffStatus(value) {
@@ -99,15 +100,6 @@ function getAuthToken() {
 		localStorage.getItem('staffToken') ||
 		''
 	);
-}
-
-function getInitials(name) {
-	const text = name ? String(name).trim() : '';
-	if (!text) return 'NV';
-	const parts = text.split(/\s+/).filter(Boolean);
-	const first = parts[0]?.[0] || '';
-	const last = parts.length > 1 ? parts.at(-1)?.[0] : parts[0]?.[1] || '';
-	return (first + last).toUpperCase() || 'NV';
 }
 
 export default function StaffDetailPage() {
@@ -342,13 +334,12 @@ export default function StaffDetailPage() {
 						{!isLoading && !error && data && (
 							<div className={styles.content}>
 								<div className={styles.profileRow}>
-									{data.avatar ? (
-										<img className={styles.avatar} src={data.avatar} alt={data.fullName || 'Avatar'} />
-									) : (
-										<div className={styles.avatarFallback} aria-hidden="true">
-											{getInitials(data.fullName)}
-										</div>
-									)}
+									<img
+										className={styles.avatar}
+										src={getAvatarSrc(data.avatar)}
+										alt={data.fullName || 'Avatar'}
+										onError={handleAvatarError}
+									/>
 
 									<div className={styles.profileMeta}>
 										<div className={styles.name}>{data.fullName || '-'}</div>

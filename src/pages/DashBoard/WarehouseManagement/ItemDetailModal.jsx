@@ -59,6 +59,80 @@ const formatTaxRatePercent = (value) => {
     return `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(percent)}%`;
 };
 
+const normalizeSpecLabelKey = (value) => (
+    String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim()
+);
+
+const isInfoSpecLabel = (value) => {
+    const key = normalizeSpecLabelKey(value);
+    return [
+        'ten',
+        'ten san pham',
+        'loai san pham',
+        'loai hang muc',
+        'thong tin nguon',
+        'du lieu nguon',
+        'source',
+        'source info',
+        'source information',
+        'raw source',
+        'dong san pham',
+        'product line',
+        'don vi',
+        'unit',
+        'xuat xu',
+        'origin',
+        'made in',
+        'mau',
+        'color',
+        'colour',
+    ].includes(key) || /^thong so \d+$/.test(key);
+};
+
+const getSpecDisplayName = (spec) => (
+    String(
+        spec?.displayName
+        || spec?.attributeName
+        || spec?.attributeCode
+        || spec?.specType
+        || spec?.name
+        || spec?.label
+        || '',
+    ).trim()
+);
+
+const getSpecValue = (spec) => (
+    String(
+        spec?.specValue
+        ?? spec?.value
+        ?? spec?.attributeValue
+        ?? spec?.specificationValue
+        ?? '',
+    ).trim()
+);
+
+const getTechnicalSpecs = (specifications) => {
+    const specs = Array.isArray(specifications) ? specifications : [];
+    return specs
+        .map((spec, index) => {
+            const name = getSpecDisplayName(spec);
+            const value = getSpecValue(spec);
+            const unit = String(spec?.unit ?? spec?.specUnit ?? '').trim();
+            if (!name || isInfoSpecLabel(name) || (!value && !unit)) return null;
+            return {
+                key: String(spec?.attributeCode ?? spec?.specId ?? spec?.attributeId ?? `${name}-${value}-${index}`),
+                name,
+                value: value || '-',
+                unit: unit || '-',
+            };
+        })
+        .filter(Boolean);
+};
 
 export default function ItemDetailModal({ item, onClose }) {
     const [detail, setDetail] = useState(null);
@@ -124,7 +198,7 @@ export default function ItemDetailModal({ item, onClose }) {
         ? display.productLine
         : (display?.productLine?.lineName || display?.productLineId || '-');
 
-    const specs = Array.isArray(display?.specifications) ? display.specifications : [];
+    const specs = getTechnicalSpecs(display?.specifications);
     const originText = getItemOriginText(display);
     const colorText = getItemColorText(display);
     const warehouseDetails = Array.isArray(display?.warehouseDetails) ? display.warehouseDetails : [];
@@ -240,10 +314,10 @@ export default function ItemDetailModal({ item, onClose }) {
                                         </tr>
                                     ) : (
                                         specs.map((s) => (
-                                            <tr key={String(s?.attributeCode ?? s?.specId ?? `${s?.specType}-${s?.specValue}`)}>
-                                                <td>{s?.displayName || '-'}</td>
-                                                <td>{s?.specValue || s?.value || '-'}</td>
-                                                <td>{s?.unit || '-'}</td>
+                                            <tr key={s.key}>
+                                                <td>{s.name}</td>
+                                                <td>{s.value}</td>
+                                                <td>{s.unit}</td>
                                             </tr>
                                         ))
                                     )}

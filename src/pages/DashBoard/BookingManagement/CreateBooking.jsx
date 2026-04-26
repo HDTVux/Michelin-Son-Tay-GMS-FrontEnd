@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { fetchCustomerByPhone } from '../../../services/customerService.js';
-import { useBeforeUnload, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import bookingStyles from '../../Booking/Booking.module.css';
 import scheduleStyles from '../BookingRequestManagement/BookingRequestEdit.module.css';
 import styles from './CreateBooking.module.css';
@@ -10,15 +9,18 @@ import { buildDateOptions, formatLocalDateYYYYMMDD, formatTimeHHmm, isPastSlot }
 import { normalizePeriodLabel, timeKey, useCreateBookingHandlers } from './useCreateBookingHandlers.js';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import AdvisorItemsTable from '../ServiceTicketManagement/AdvisorItemsTable.jsx';
-import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
 
-const DURATION_MINUTES = 60;
-const DATE_RANGE_DAYS = 10;
-const NOTE_MAX_LENGTH = 255;
+const DURATION_MINUTES = 60;	// Thời lượng mặc định cho 1 slot
+const DATE_RANGE_DAYS = 10;		// Giới hạn chọn lịch trong vòng 10 ngày tới
+const NOTE_MAX_LENGTH = 255;	// Độ dài tối đa của ghi chú
 
+//Chuẩn hóa trạng thái nhắc nhở bảo trì
 const normalizeReminderStatus = (value) => String(value ?? '').trim().toUpperCase();
 const CREATE_BOOKING_ESTIMATE_STORAGE_KEY = 'create-booking:draft-estimate';
 
+/**
+ * Helper: Kiểm tra xem có bản nháp báo giá nào đang lưu trong LocalStorage không
+ */
 function hasStoredEstimateDraft() {
 	try {
 		return Boolean(localStorage.getItem(CREATE_BOOKING_ESTIMATE_STORAGE_KEY));
@@ -33,72 +35,63 @@ export default function CreateBooking() {
 	const noop = () => {};
 	const navigate = useNavigate();
 	const location = useLocation();
+
+	// Xử lý dữ liệu từ Reminder (Nếu có điều hướng từ trang nhắc nhở sang)
 	const sourceReminder = location.state?.maintenanceReminder || null;
 	const sourceReminderId = location.state?.reminderId ?? sourceReminder?.reminderId ?? null;
 	const sourceReminderStatus = normalizeReminderStatus(sourceReminder?.status);
+
+	// Chặn tạo lịch nếu nhắc nhở chưa được khách xác nhận (CONFIRMED)
 	const sourceReminderBlocksBooking = Boolean(sourceReminderId && sourceReminderStatus && sourceReminderStatus !== 'CONFIRMED');
-	const didApplyReminderRef = useRef(false);
+	const initialReminderDate = String(sourceReminder?.reminderDate || '').slice(0, 10);
+	const initialReminderTime = formatTimeHHmm(sourceReminder?.reminderTime || '');
+	const shouldShowInitialSchedulePicker = Boolean(initialReminderDate || initialReminderTime);
 
 	// Trạng thái kiểm tra khách hàng
 	const [checkingCustomer, setCheckingCustomer] = useState(false);
 	const [customerChecked, setCustomerChecked] = useState(null); // null | { exists, fullName, ... }
 	const [customerCheckError, setCustomerCheckError] = useState('');
-	const [info, setInfo] = useState({ name: '', phone: '', note: '' });
+	const [info, setInfo] = useState({
+		name: String(sourceReminder?.customerName || '').trim(),
+		phone: String(sourceReminder?.customerPhone || '').trim(),
+		note: String(sourceReminder?.note || '').trim(),
+	});
+
+	// Quản lý trạng thái báo giá dự kiến
 	const [selectedEstimate, setSelectedEstimate] = useState(null);
 	const [, setIsEstimateEditing] = useState(false);
 	const noteLength = useMemo(() => String(info.note || '').length, [info.note]);
 	const noteRemaining = useMemo(() => Math.max(0, NOTE_MAX_LENGTH - noteLength), [noteLength]);
 
-
-	// Hàm kiểm tra khách hàng theo số điện thoại
-	const handleCheckCustomer = async () => {
-		setCheckingCustomer(true);
-		setCustomerCheckError('');
-		setCustomerChecked(null);
-		const phone = info.phone.trim();
-		if (!phone) {
-			setCustomerCheckError('Vui lòng nhập số điện thoại.');
-			setCheckingCustomer(false);
-			return;
-		}
-		try {
-			const token = localStorage.getItem('authToken');
-			const res = await fetchCustomerByPhone(phone, token);
-			if (res?.data?.exists) {
-				setInfo((prev) => ({ ...prev, name: res.data.fullName || '' }));
-				setCustomerChecked(res.data);
-			} else {
-				setCustomerChecked({ exists: false });
-			}
-		} catch (err) {
-			setCustomerCheckError(err?.message || 'Không thể kiểm tra khách hàng.');
-		} finally {
-			setCheckingCustomer(false);
-		}
-	};
-
+	// Lấy ID báo giá từ selectedEstimate, ưu tiên trường estimateId, fallback sang id nếu estimateId không tồn tại hoặc không hợp lệ
 	const estimateId = useMemo(() => {
 		const raw = selectedEstimate?.estimateId ?? selectedEstimate?.id ?? null;
 		const num = typeof raw === 'number' ? raw : Number(raw);
 		return Number.isFinite(num) && num > 0 ? num : null;
 	}, [selectedEstimate]);
+
+	// Lọc danh sách item trong báo giá (bỏ các item đã đánh dấu xóa)
 	const selectedEstimateItems = useMemo(() => {
 		const items = Array.isArray(selectedEstimate?.items) ? selectedEstimate.items : [];
 		return items.filter((item) => !item?.isRemoved);
 	}, [selectedEstimate]);
 
-	const [schedule, setSchedule] = useState({ date: '', time: '' });
+	// Trạng thái lịch hẹn
+	const [schedule, setSchedule] = useState({ date: initialReminderDate, time: initialReminderTime });
 	const [scheduleMode, setScheduleMode] = useState('manual'); // 'manual' | 'now'
-	const [showSchedulePicker, setShowSchedulePicker] = useState(false);
+	const [showSchedulePicker, setShowSchedulePicker] = useState(shouldShowInitialSchedulePicker);
 
+	// Trạng thái khung giờ
 	const [baseSlots, setBaseSlots] = useState([]);
 	const [baseSlotsLoading, setBaseSlotsLoading] = useState(false);
 	const [baseSlotsError, setBaseSlotsError] = useState('');
 
+	// State cho danh sách khung giờ trống thực tế theo ngày (Available Slots)
 	const [availableSlots, setAvailableSlots] = useState([]);
 	const [slotsLoading, setSlotsLoading] = useState(false);
 	const [slotsError, setSlotsError] = useState('');
 
+	// Trạng thái submit form
 	const [submitting, setSubmitting] = useState(false);
 	const [submitError, setSubmitError] = useState('');
 	const [submitSuccess, setSubmitSuccess] = useState('');
@@ -106,47 +99,12 @@ export default function CreateBooking() {
 	const [submitLocked, setSubmitLocked] = useState(false);
 	const [cancellingEstimate, setCancellingEstimate] = useState(false);
 	const [estimateTableKey, setEstimateTableKey] = useState(0);
-	const navigationGuardRef = useRef(false);
 
-	useEffect(() => {
-		if (!sourceReminderBlocksBooking) return;
-		setSubmitError('Chỉ có thể tạo lịch từ lời nhắc đã xác nhận.');
-	}, [sourceReminderBlocksBooking]);
-
-	useEffect(() => {
-		if (!submitSuccess) return;
-		try {
-			localStorage.removeItem(CREATE_BOOKING_ESTIMATE_STORAGE_KEY);
-		} catch {
-			// ignore storage failures
-		}
-		setSelectedEstimate(null);
-		setIsEstimateEditing(false);
-		setEstimateTableKey((prev) => prev + 1);
-	}, [submitSuccess]);
-
-	useEffect(() => {
-		if (didApplyReminderRef.current || !sourceReminderId) return;
-		didApplyReminderRef.current = true;
-
-		const reminderDate = String(sourceReminder?.reminderDate || '').slice(0, 10);
-		const reminderTime = formatTimeHHmm(sourceReminder?.reminderTime || '');
-		setInfo((prev) => ({
-			...prev,
-			name: String(sourceReminder?.customerName || prev.name || '').trim(),
-			phone: String(sourceReminder?.customerPhone || prev.phone || '').trim(),
-			note: String(sourceReminder?.note || prev.note || '').trim(),
-		}));
-		if (reminderDate || reminderTime) {
-			setSchedule((prev) => ({
-				date: reminderDate || prev.date,
-				time: reminderTime || prev.time,
-			}));
-			setScheduleMode('manual');
-			setShowSchedulePicker(true);
-		}
-	}, [sourceReminder, sourceReminderId]);
-
+	// Logic kiểm tra điều kiện để cho phép bấm nút "Tạo lịch" 
+	// - Lịch hẹn phải có ngày và giờ hợp lệ
+	// - Nếu chọn lịch thủ công, phải có dữ liệu khung giờ (dù là danh sách khung giờ chung hay trạng thái chỗ trống theo ngày) và không có lỗi khi tải dữ liệu
+	// - Không đang trong quá trình submit hoặc bị khóa submit
+	// - Nếu nguồn tạo lịch từ lời nhắc, phải đảm bảo lời nhắc đó không chặn việc tạo lịch (chưa được xác nhận)
 	const canSubmit = useMemo(() => {
 		return (
 			info.name.trim() &&
@@ -160,11 +118,15 @@ export default function CreateBooking() {
 		);
 	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked, sourceReminderBlocksBooking]);
 
+	// Kiểm tra xem có tồn tại một bản nháp báo giá nào đang hoạt động hay không (bao gồm cả bản nháp hiện tại trong state và bản nháp đã lưu trong LocalStorage)
 	const hasActiveEstimateDraft = useMemo(() => {
 		return Boolean(estimateId || selectedEstimateItems.length > 0 || hasStoredEstimateDraft());
 	}, [estimateId, selectedEstimateItems.length]);
 
-	    const { handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset: resetForm } =
+	const displaySubmitError = submitError || (sourceReminderBlocksBooking ? 'Chỉ có thể tạo lịch từ lời nhắc đã xác nhận.' : '');
+
+		// Các handler chính được sử dụng trong component, được tách ra và quản lý trong useCreateBookingHandlers 
+	    const { handleCheckCustomer, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset, handleCancelEstimate } =
         useCreateBookingHandlers({
             baseSlots,
 			selectedItems: selectedEstimateItems,
@@ -179,6 +141,10 @@ export default function CreateBooking() {
             slotsError,
             createdBookingForCheckIn,
 			sourceReminderId,
+			hasActiveEstimateDraft,
+			cancellingEstimate,
+			submitSuccess,
+			estimateStorageKey: CREATE_BOOKING_ESTIMATE_STORAGE_KEY,
             navigate,
 
 
@@ -191,118 +157,20 @@ export default function CreateBooking() {
             setSlotsLoading,
             setSlotsError,
             setSubmitting,
-            setSubmitError,
+			setSubmitError,
             setSubmitSuccess,
             setCreatedBookingForCheckIn,
             setSubmitLocked,
+			setCheckingCustomer,
+			setCustomerChecked,
+			setCustomerCheckError,
+			setSelectedEstimate,
+			setIsEstimateEditing,
+			setEstimateTableKey,
+			setCancellingEstimate,
         });
-
-	const clearEstimateDraftLocalState = useCallback(() => {
-		setSelectedEstimate(null);
-		setIsEstimateEditing(false);
-		setEstimateTableKey((prev) => prev + 1);
-		try {
-			localStorage.removeItem(CREATE_BOOKING_ESTIMATE_STORAGE_KEY);
-		} catch {
-			// ignore storage failures
-		}
-	}, []);
-
-	const cancelEstimateDraft = useCallback(async () => {
-		if (cancellingEstimate) return false;
-		setSubmitError('');
-		setSubmitSuccess('');
-		setCancellingEstimate(true);
-		try {
-			if (estimateId) {
-				const token = localStorage.getItem('authToken');
-				if (!token) {
-					setSubmitError('Vui lòng đăng nhập để hủy báo giá.');
-					return false;
-				}
-				await manageServiceTicketEstimateStatus(estimateId, 'CANCELLED', token);
-			}
-			clearEstimateDraftLocalState();
-			return true;
-		} catch (err) {
-			setSubmitError(err?.message || 'Không thể hủy báo giá.');
-			return false;
-		} finally {
-			setCancellingEstimate(false);
-		}
-	}, [cancellingEstimate, clearEstimateDraftLocalState, estimateId]);
-
-    const handleReset = async () => {
-		if (hasActiveEstimateDraft) {
-			const confirmed = globalThis.confirm(
-				'Thao tác này sẽ hủy báo giá hiện tại và xóa dữ liệu nháp liên quan. Bạn có muốn tiếp tục không?',
-			);
-			if (!confirmed) return;
-			const cancelled = await cancelEstimateDraft();
-			if (!cancelled) return;
-		}
-        setCheckingCustomer(false);
-        setCustomerChecked(null);
-        setCustomerCheckError('');
-        resetForm();
-    };
-
-	const handleCancelEstimate = useCallback(async () => {
-		if (!hasActiveEstimateDraft) return;
-		const confirmed = globalThis.confirm('Bạn có chắc chắn muốn hủy báo giá dự kiến này không?');
-		if (!confirmed) return;
-		await cancelEstimateDraft();
-	}, [cancelEstimateDraft, hasActiveEstimateDraft]);
-
-	useBeforeUnload(
-		useCallback((event) => {
-			if (!hasActiveEstimateDraft || cancellingEstimate) return;
-			event.preventDefault();
-			event.returnValue = '';
-		}, [cancellingEstimate, hasActiveEstimateDraft]),
-	);
-
-	useEffect(() => {
-		if (!hasActiveEstimateDraft || cancellingEstimate || submitSuccess) return undefined;
-
-		const handleDocumentClick = (event) => {
-			if (navigationGuardRef.current) return;
-			const target = event.target instanceof Element ? event.target.closest('a[href]') : null;
-			if (!target) return;
-			if (target.target && target.target !== '_self') return;
-			if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-
-			const href = target.getAttribute('href');
-			if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
-
-			const nextUrl = new URL(target.href, window.location.href);
-			const currentUrl = new URL(window.location.href);
-			if (nextUrl.origin !== currentUrl.origin) return;
-			if (nextUrl.pathname === currentUrl.pathname && nextUrl.search === currentUrl.search && nextUrl.hash === currentUrl.hash) return;
-
-			event.preventDefault();
-			navigationGuardRef.current = true;
-
-			(async () => {
-				const shouldDiscard = globalThis.confirm(
-					'Bạn đang có báo giá dự kiến chưa hoàn tất. Chọn OK để hủy báo giá và rời trang, hoặc Cancel để ở lại hoàn tất tạo booking.',
-				);
-				if (!shouldDiscard) return;
-
-				const cancelled = await cancelEstimateDraft();
-				if (!cancelled) return;
-				navigate(`${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
-			})().finally(() => {
-				navigationGuardRef.current = false;
-			});
-		};
-
-		document.addEventListener('click', handleDocumentClick, true);
-		return () => {
-			document.removeEventListener('click', handleDocumentClick, true);
-		};
-	}, [cancelEstimateDraft, cancellingEstimate, hasActiveEstimateDraft, navigate, submitSuccess]);
-
+	
+	// Xây dựng các options cho dropdown chọn ngày, giới hạn trong vòng 10 ngày tới
 	const dateOptions = useMemo(() => buildDateOptions(DATE_RANGE_DAYS), []);
 	const allowedDateSet = useMemo(() => new Set(dateOptions.map((o) => o.value)), [dateOptions]);
 	const isDateOutOfRange = !!schedule.date && !allowedDateSet.has(schedule.date);
@@ -312,6 +180,7 @@ export default function CreateBooking() {
 	).slice(0, 10);
 	const canGoToCheckIn = Boolean(createdBookingForCheckIn?.bookingCode && createdBookingDateISO === todayISO);
 
+	// Lấy tất cả khung giờ gốc khi component mount
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
 		if (!token) {
@@ -322,13 +191,16 @@ export default function CreateBooking() {
 			return;
 		}
 
+		// Sử dụng biến "active" để tránh cập nhật state sau khi component đã unmount (trường hợp response trả về chậm)
 		let active = true;
+		// Đặt trạng thái loading trước khi gọi API
 		Promise.resolve().then(() => {
 			if (!active) return;
 			setBaseSlotsLoading(true);
 			setBaseSlotsError('');
 		});
 
+		// Gọi API để lấy tất cả khung giờ
 		fetchAllSlots(token)
 			.then((res) => {
 				if (!active) return;
@@ -351,8 +223,10 @@ export default function CreateBooking() {
 		};
 	}, []);
 
+	// Lấy trạng thái chỗ trống (Availability) khi người dùng chọn Ngày
 	useEffect(() => {
 		const token = localStorage.getItem('authToken');
+		// Nếu đang ở chế độ "dùng ngày giờ hiện tại" thì không cần tải trạng thái chỗ trống
 		if (scheduleMode === 'now') {
 			Promise.resolve().then(() => {
 				setAvailableSlots([]);
@@ -361,6 +235,7 @@ export default function CreateBooking() {
 			});
 			return;
 		}
+		// Nếu chưa chọn ngày thì không cần tải trạng thái chỗ trống, đồng thời reset các state liên quan về trạng thái chỗ trống
 		if (!schedule.date) {
 			Promise.resolve().then(() => {
 				setAvailableSlots([]);
@@ -386,6 +261,7 @@ export default function CreateBooking() {
 			setSlotsError('');
 		});
 
+		// Gọi API để lấy trạng thái chỗ trống theo ngày đã chọn
 		fetchAvailableSlotStaff(schedule.date, token, DURATION_MINUTES)
 			.then((res) => {
 				if (!active) return;
@@ -406,27 +282,36 @@ export default function CreateBooking() {
 		};
 	}, [schedule.date, scheduleMode]);
 
+	// Logic hiển thị và đồng bộ khung giờ đã chọn với trạng thái chỗ trống khi người dùng chọn thời gian
 	useEffect(() => {
+		// Nếu không ở chế độ chọn lịch thủ công thì không cần đồng bộ với trạng thái chỗ trống
 		if (scheduleMode !== 'manual') return;
+		// Nếu chưa chọn ngày hoặc giờ thì không cần đồng bộ với trạng thái chỗ trống
 		if (!schedule.date || !schedule.time) return;
 		if (slotsLoading || slotsError) return;
+		// Nếu không có dữ liệu trạng thái chỗ trống thì không thể đồng bộ, nhưng vẫn giữ nguyên khung giờ đã chọn 
 		if (!Array.isArray(availableSlots) || availableSlots.length === 0) return;
 
+		// Tìm khung giờ đã chọn trong danh sách trạng thái chỗ trống
 		const pickedKey = timeKey(schedule.time);
 		const match = availableSlots.find((s) => timeKey(s.startTime) === pickedKey);
 		if (!match) return;
 	}, [availableSlots, schedule.date, schedule.time, scheduleMode, slotsError, slotsLoading]);
 
+	// Xây dựng danh sách khung giờ hiển thị dựa trên chế độ chọn lịch và trạng thái chỗ trống
 	const displaySlots = useMemo(() => {
 		if (scheduleMode !== 'manual') return baseSlots;
 		if (!schedule.date) return baseSlots;
 		const slots = !slotsLoading && !slotsError ? availableSlots : baseSlots;
+		// Lọc bỏ các khung giờ đã qua so với thời điểm hiện tại (chỉ áp dụng khi chọn ngày là ngày hôm nay)
 		return slots.filter((s) => !isPastSlot(schedule.date, s?.startTime));
 	}, [availableSlots, baseSlots, schedule.date, scheduleMode, slotsError, slotsLoading]);
 
+	// Tính toán trạng thái của khung giờ đã chọn để hiển thị thông tin về tình trạng chỗ trống và cảnh báo nếu đã vượt quá sức chứa
 	const selectedSlotStatus = useMemo(() => {
 		if (!schedule.date || !schedule.time) return null;
 		const sourceSlots = scheduleMode === 'manual' && !slotsLoading && !slotsError ? availableSlots : baseSlots;
+		// Tìm khung giờ đã chọn trong danh sách khung giờ nguồn 
 		const match = (Array.isArray(sourceSlots) ? sourceSlots : []).find(
 			(slot) => timeKey(slot?.startTime) === timeKey(schedule.time),
 		);
@@ -436,11 +321,12 @@ export default function CreateBooking() {
 		const capacity = Number(match?.capacity);
 		const hasCapacity = Number.isFinite(capacity) && capacity > 0;
 		const hasCurrentCount = Number.isFinite(currentBookingCount) && currentBookingCount >= 0;
+		// Nếu có cả thông tin sức chứa và số lượng đặt chỗ hiện tại, hiển thị dạng "x/y slot"; nếu chỉ có thông tin còn lại, hiển thị dạng "Còn x"
 		const occupancyText =
 			hasCapacity && hasCurrentCount
 				? `${currentBookingCount}/${capacity} slot`
 				: '';
-
+		// Xác định đã vượt quá sức chứa nếu có thông tin về sức chứa và số lượng đặt chỗ hiện tại, và số lượng đặt chỗ hiện tại đã đạt hoặc vượt quá sức chứa
 		return {
 			isOverCapacity: Boolean(match?.isOverCapacity),
 			isUnavailable: match?.isAvailable === false,
@@ -519,7 +405,8 @@ export default function CreateBooking() {
 						Đang đặt cho slot: {schedule.date} {schedule.time}
 					</div>
 				)}
-
+				
+				{/* Giao diện chọn ngày & giờ thủ công */}
 				{showSchedulePicker && scheduleMode === 'manual' && (
 					<>
 						<div className={scheduleStyles.formRow}>
@@ -687,7 +574,7 @@ export default function CreateBooking() {
 
 			</div>
 
-			{submitError && <div className={infoStyles.error}>{submitError}</div>}
+			{displaySubmitError && <div className={infoStyles.error}>{displaySubmitError}</div>}
 
 			<div className={`${infoStyles['section-block']} ${styles.fullWidthNoteBlock}`}>
 				<div className={infoStyles['section-title-row']}>

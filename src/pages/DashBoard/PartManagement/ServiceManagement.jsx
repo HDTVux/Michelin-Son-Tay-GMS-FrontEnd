@@ -354,6 +354,10 @@ export default function ServiceManagement() {
                 showPrice: savedData.showPrice ?? item.showPrice,
                 unit: savedData.unit ?? item.unit,
                 isActive: savedData.isActive ?? item.isActive,
+                mediaThumbnail: savedData.mediaThumbnail ?? item.mediaThumbnail,
+                thumbnailUrl: savedData.thumbnailUrl ?? item.thumbnailUrl,
+                imageUrl: savedData.imageUrl ?? item.imageUrl,
+                media: savedData.media ?? item.media,
                 serviceServiceId: savedData.serviceServiceId,
                 service_service_id: savedData.serviceServiceId,
               }

@@ -12,11 +12,26 @@ import {
 } from './useAdvisorItemsTableHandlers.js';
 import CatalogPicker from './CatalogPicker.jsx';
 
+const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
+
 function normalizeSuggestionText(value) {
     return String(value ?? '')
         .normalize('NFD')
         .replaceAll(/[\u0300-\u036f]/g, '')
         .toLowerCase();
+}
+
+function readAddServicePendingSnapshot(serviceTicketId) {
+    const id = serviceTicketId == null ? '' : String(serviceTicketId).trim();
+    if (!id) return null;
+    try {
+        const raw = localStorage.getItem(`${ADD_SERVICE_RESTORE_STORAGE_PREFIX}${id}`);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+        return null;
+    }
 }
 
 function CategorySuggestDropdownPortal({ open, anchorRef, items, disabled, onPick, onClose }) {
@@ -298,6 +313,9 @@ function EstimateItemRow({
     const shouldShowTaxDropdown = allowInputs && !itemTaxRuleId && !categoryTaxRuleId;
 
     const unitText = String(row?.unit ?? '').trim();
+    const warehouseText = String(
+        row?.warehouseName ?? row?.warehouse?.warehouseName ?? row?.warehouse?.name ?? '',
+    ).trim();
 
     let itemPlaceholder = 'Diễn giải';
     if (categoryFilled) {
@@ -445,7 +463,7 @@ function EstimateItemRow({
                 </td>
             ) : null}
 
-            <td />
+            <td>{warehouseText || '-'}</td>
             {showConfirmColumn ? (
                 <td className={styles.tdCenter}>
                     <input
@@ -694,6 +712,7 @@ export default function AdvisorItemsTable({
     hideRecommendation = false,
     hideEstimateSummary = false,
     hideEmptyTableBeforeCreate = false,
+    disableFullEdit = false,
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
@@ -750,6 +769,11 @@ export default function AdvisorItemsTable({
     const showTaxColumn = isCreating || isEditing;
     const showConfirmColumn = Boolean(showInputs);
     const isReadOnly = Boolean(readOnly);
+    const hasPendingAddServiceSnapshot = useMemo(() => {
+        const snapshot = readAddServicePendingSnapshot(serviceTicketId);
+        const previousEstimateStatus = String(snapshot?.prevEstimateStatus || '').trim().toUpperCase();
+        return previousEstimateStatus === 'APPROVED';
+    }, [serviceTicketId]);
     const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
     const tableHasRows = Array.isArray(tableRows) && tableRows.length > 0;
     const shouldShowTable =
@@ -1022,6 +1046,7 @@ export default function AdvisorItemsTable({
         onChange(rowIndex, 'unitPrice', '');
 
         onChange(rowIndex, 'warehouseId', '');
+        onChange(rowIndex, 'warehouseName', '');
         onChange(rowIndex, 'warehouseAvailableQuantity', null);
 
         onChange(rowIndex, 'taxRuleId', '');
@@ -1037,6 +1062,12 @@ export default function AdvisorItemsTable({
         const price = item?.sellingPrice ?? item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
         const unit = String(item?.unit ?? '').trim();
         const warehouseId = item?.warehouseId ?? item?.selectedWarehouse?.warehouseId ?? null;
+        const warehouseName = String(
+            item?.warehouseName ??
+            item?.selectedWarehouse?.warehouseName ??
+            item?.selectedWarehouse?.name ??
+            '',
+        ).trim();
         const availableQtyRaw =
             item?.availableQuantity ??
             item?.selectedWarehouse?.quantity ??
@@ -1054,6 +1085,7 @@ export default function AdvisorItemsTable({
         } else {
             onChange(activeRowIndex, 'warehouseId', '');
         }
+        onChange(activeRowIndex, 'warehouseName', warehouseName);
         if (Number.isFinite(availableQtyNum) && availableQtyNum >= 0) {
             onChange(activeRowIndex, 'warehouseAvailableQuantity', availableQtyNum);
         } else {
@@ -1253,7 +1285,7 @@ export default function AdvisorItemsTable({
                         canCreateNew={canCreateNew}
                         canCreateNewVersion={canCreateNewVersion}
                         createBusy={isStartingCreate}
-                        canEdit={canEdit && !isReadOnly}
+                        canEdit={canEdit && !isReadOnly && !disableFullEdit && !hasPendingAddServiceSnapshot}
                         isCreating={isCreating}
                         isEditing={isEditing}
                         isSaving={isSaving}
@@ -1409,4 +1441,5 @@ AdvisorItemsTable.propTypes = {
     hideRecommendation: PropTypes.bool,
     hideEstimateSummary: PropTypes.bool,
     hideEmptyTableBeforeCreate: PropTypes.bool,
+    disableFullEdit: PropTypes.bool,
 };

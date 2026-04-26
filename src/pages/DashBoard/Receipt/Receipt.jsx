@@ -108,6 +108,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
             key: String(it?.key ?? it?.estimateItemId ?? it?.itemId ?? idx),
             categoryName: safeText(it?.categoryName || it?.workCategory?.categoryName || it?.workCategory?.categoryCode || ''),
             itemName: safeText(it?.itemName || it?.description || ''),
+            warehouseName: safeText(it?.warehouseName || it?.warehouse?.warehouseName || it?.warehouse?.name || ''),
             quantity,
             unitPrice,
             subTotal,
@@ -255,6 +256,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         const qty = it?.quantity ? String(it.quantity) : '';
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
                         const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
+                        const warehouseName = it?.warehouseName || '';
                         const confirmMark = it?.confirmed ? '✓' : '';
                         return (
                             <tr key={rowKey}>
@@ -264,7 +266,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                                 <td className={styles.tdCenter}>{qty}</td>
                                 <td className={styles.tdRight}>{price}</td>
                                 <td className={styles.tdRight}>{amount}</td>
-                                <td className={styles.tdCenter} />
+                                <td>{warehouseName}</td>
                                 <td className={styles.tdCenter}>{confirmMark}</td>
                             </tr>
                         );
@@ -570,6 +572,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         const qty = it?.quantity ? String(it.quantity) : '';
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
                         const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
+                        const warehouseName = it?.warehouseName || '';
                         const confirmMark = it?.confirmed ? '✓' : '';
                         return (
                             <tr key={rowKey}>
@@ -579,7 +582,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                                 <td className={styles.tdCenter}>{qty}</td>
                                 <td className={styles.tdRight}>{price}</td>
                                 <td className={styles.tdRight}>{amount}</td>
-                                <td className={styles.tdCenter} />
+                                <td>{warehouseName}</td>
                                 <td className={styles.tdCenter}>{confirmMark}</td>
                             </tr>
                         );
@@ -666,6 +669,7 @@ Receipt.propTypes = {
                     key: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     categoryName: PropTypes.string,
                     itemName: PropTypes.string,
+                    warehouseName: PropTypes.string,
                     quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     unitPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     subTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),

@@ -19,6 +19,7 @@ const formatLocalDateYYYYMMDD = (date) => {
   return `${y}-${m}-${d}`;
 };
 
+// Hàm tạo danh sách các tùy chọn ngày trong vòng 10 ngày tới, định dạng giá trị gửi API là YYYY-MM-DD và hiển thị theo định dạng Thứ... dd/mm
 const buildDateOptions = () => {
   const today = new Date();
   const options = [];
@@ -32,6 +33,7 @@ const buildDateOptions = () => {
   return options;
 };
 
+// Hàm chuẩn hóa nhãn thời gian (period) để hiển thị cho người dùng, hỗ trợ nhiều cách viết khác nhau cho cùng một khung giờ
 const normalizePeriodLabel = (raw) => {
   if (!raw) return '';
   const v = String(raw).trim().toLowerCase();
@@ -45,6 +47,7 @@ const timeKey = (t) => formatTimeHHmm(t || '');
 
 const defer = (fn) => Promise.resolve().then(fn);
 
+// Hàm chuyển đổi từ date (YYYY-MM-DD) và time (HH:mm:ss) sang đối tượng Date theo múi giờ local, để so sánh với thời gian hiện tại
 const toLocalDateTime = (dateYYYYMMDD, timeRaw) => {
   if (!dateYYYYMMDD || !timeRaw) return null;
   const [yStr, mStr, dStr] = String(dateYYYYMMDD).split('-');
@@ -62,12 +65,14 @@ const toLocalDateTime = (dateYYYYMMDD, timeRaw) => {
   return new Date(y, m - 1, d, hh, mm, ss, 0);
 };
 
+// Hàm kiểm tra nếu khung giờ đã qua so với thời điểm hiện tại, dựa trên date và time của slot
 const isPastSlot = (dateYYYYMMDD, timeRaw) => {
   const slotStart = toLocalDateTime(dateYYYYMMDD, timeRaw);
   if (!slotStart) return false;
   return slotStart.getTime() <= Date.now();
 };
 
+// Hàm kiểm tra nếu khung giờ quá gần so với thời điểm hiện tại, dựa trên date và time của slot, và khoảng thời gian lead time yêu cầu ( 120 phút)
 const isTooSoonSlot = (dateYYYYMMDD, timeRaw, leadMinutes) => {
   const slotStart = toLocalDateTime(dateYYYYMMDD, timeRaw);
   if (!slotStart) return false;
@@ -75,6 +80,7 @@ const isTooSoonSlot = (dateYYYYMMDD, timeRaw, leadMinutes) => {
   return slotStart.getTime() < (Date.now() + leadMs);
 };
 
+// Component chính của bước chọn lịch
 export default function StepSchedule({
   value,
   onChange,

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Header.css';
 import CustomerLogin from '../../features/auth/components/CustomerLoginModal.jsx';
 import logo from '../../assets/LogoNonBackground.png';
+import { DEFAULT_AVATAR, handleAvatarError } from '../../assets/defaultAvatar.js';
 
 const Header = () => {
   const STORE_PHONE_TEL = '0987545680';
@@ -164,7 +165,7 @@ const Header = () => {
                   onClick={() => setIsUserDropdownOpen((v) => !v)}
                   aria-label="Tài khoản"
                 >
-                  <span className="avatarCircle">{customerName?.[0]?.toUpperCase() || 'U'}</span>
+                  <img className="avatarCircle" src={DEFAULT_AVATAR} alt={customerName || 'Avatar'} onError={handleAvatarError} />
                   <span className="userGreeting">Xin chào, {customerName}</span>
                 </button>
                 {isUserDropdownOpen && (

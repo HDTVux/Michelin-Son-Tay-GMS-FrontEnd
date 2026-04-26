@@ -80,8 +80,61 @@ const TIRE_FIELD_RANGES = {
 
 const RECOMMENDED_TIRE_SIZE_EXAMPLE = '205/55R16';
 const RECOMMENDED_TIRE_SIZE_PATTERN = /^\d{2,3}\/\d{2,3}R\d{1,2}$/i;
+const INTEGER_TIRE_FIELD_MAX_LENGTHS = {
+  size1: 3,
+  size2: 3,
+  size3: 2,
+};
 
 const normalizeRecommendedTireSizeValue = (value) => String(value ?? '').replaceAll(/\s+/g, '').toUpperCase();
+
+const sanitizeRecommendedTireSizeInputValue = (value) => (
+  normalizeRecommendedTireSizeValue(value)
+    .replace(/[^0-9/R]/g, '')
+    .slice(0, RECOMMENDED_TIRE_SIZE_MAX_LENGTH)
+);
+
+const sanitizeDecimalTireInputValue = (value) => {
+  const raw = String(value ?? '').replace(',', '.').slice(0, TEXT_FIELD_CHAR_LIMIT);
+  let nextValue = '';
+  let hasDecimalPoint = false;
+  let decimalDigits = 0;
+
+  for (const char of raw) {
+    if (char >= '0' && char <= '9') {
+      if (hasDecimalPoint) {
+        if (decimalDigits >= 2) continue;
+        decimalDigits += 1;
+      }
+      nextValue += char;
+      continue;
+    }
+
+    if (char === '.' && !hasDecimalPoint) {
+      hasDecimalPoint = true;
+      nextValue += '.';
+    }
+  }
+
+  return nextValue.startsWith('.') ? `0${nextValue}` : nextValue;
+};
+
+const sanitizeTireInputValue = (field, value) => {
+  const raw = String(value ?? '').slice(0, TEXT_FIELD_CHAR_LIMIT);
+  if (INTEGER_TIRE_FIELDS.has(field)) {
+    return raw.replace(/\D/g, '').slice(0, INTEGER_TIRE_FIELD_MAX_LENGTHS[field] ?? TEXT_FIELD_CHAR_LIMIT);
+  }
+  return sanitizeDecimalTireInputValue(raw);
+};
+
+const isTireInputAboveMax = (field, value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw || raw === '.') return false;
+  const range = TIRE_FIELD_RANGES[field];
+  if (!range) return false;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > range.max;
+};
 
 const extractRecommendationValue = (response) => {
   const payload = response?.data?.data ?? response?.data ?? response;
@@ -566,10 +619,11 @@ export const ServiceTicket = ({
     }));
   }, []);
 
-  const persistCurrentDraft = useCallback((serviceTicketIdValue = null) => {
+  const persistCurrentDraft = useCallback((serviceTicketIdValue = null, options = {}) => {
     const draftPayload = {
       schemaVersion: SERVICE_TICKET_DRAFT_SCHEMA_VERSION,
       savedAt: new Date().toISOString(),
+      restoreTireFields: Boolean(options.restoreTireFields),
       notes: String(notes ?? ''),
       recommendedTireSize: String(recommendedTireSize ?? ''),
       tireData,
@@ -735,7 +789,8 @@ export const ServiceTicket = ({
 
         const localDraft = readServiceTicketDraft(resolvedTicketCode, draftScope);
         if (localDraft) {
-          const canRestoreTireDraft = Number(localDraft?.schemaVersion) >= SERVICE_TICKET_DRAFT_SCHEMA_VERSION;
+          const canRestoreTireDraft = Number(localDraft?.schemaVersion) >= SERVICE_TICKET_DRAFT_SCHEMA_VERSION
+            && localDraft?.restoreTireFields === true;
           if (typeof localDraft.notes === 'string') {
             setNotes(localDraft.notes);
           }
@@ -797,10 +852,14 @@ export const ServiceTicket = ({
 
   const handleTireDataChange = (position, field, value) => {
     if (!canEditTechnicalFields || isFormLocked) return;
-    const raw = String(value ?? '');
-    const nextValue = raw.length > TEXT_FIELD_CHAR_LIMIT
-      ? raw.slice(0, TEXT_FIELD_CHAR_LIMIT)
-      : raw;
+    const nextValue = sanitizeTireInputValue(field, value);
+    const currentValue = String(tireData?.[position]?.[field] ?? '');
+    const isAddingMoreInvalidInput = (
+      nextValue.length > currentValue.length
+      && isTireInputAboveMax(field, currentValue)
+      && isTireInputAboveMax(field, nextValue)
+    );
+    if (nextValue === currentValue || isAddingMoreInvalidInput) return;
     markUnsavedLocalEdit();
     setTireData(prev => ({
       ...prev,
@@ -810,10 +869,7 @@ export const ServiceTicket = ({
 
   const handleRecommendedTireSizeChange = (value) => {
     if (!canEditTechnicalFields || isFormLocked) return;
-    const normalized = normalizeRecommendedTireSizeValue(value);
-    const nextValue = normalized.length > RECOMMENDED_TIRE_SIZE_MAX_LENGTH
-      ? normalized.slice(0, RECOMMENDED_TIRE_SIZE_MAX_LENGTH)
-      : normalized;
+    const nextValue = sanitizeRecommendedTireSizeInputValue(value);
     markUnsavedLocalEdit();
     setRecommendedTireSize(nextValue);
     setRecommendedTireSizeError(validateRecommendedTireSizeValue(nextValue));
@@ -1445,7 +1501,7 @@ export const ServiceTicket = ({
       toast.success('Đã lưu nháp phiếu kiểm tra an toàn. Bạn vẫn có thể tiếp tục chỉnh sửa.');
     } catch (error) {
       try {
-        persistCurrentDraft();
+        persistCurrentDraft(null, { restoreTireFields: true });
       } catch {
         // Ignore local draft persistence failure.
       }

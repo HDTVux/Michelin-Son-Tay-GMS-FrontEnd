@@ -7,6 +7,8 @@ import { getServiceTicketStatusTextVi, normalizeServiceTicketStatusCode } from '
 import { tryGetJwtPayload } from '../../../services/tokenUtils';
 import styles from './MyTasks.module.css';
 
+const SOFT_REFRESH_THROTTLE_MS = 15000;
+
 const getToken = () => {
   const staffToken = localStorage.getItem('staffToken') || '';
   const authToken = localStorage.getItem('authToken') || '';
@@ -453,6 +455,7 @@ function MyTasks() {
   // â”€â”€ List state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   // â”€â”€ Filter + pagination state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -470,6 +473,10 @@ function MyTasks() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
   const dayPickerRef = useRef(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const hasLoadedTicketsRef = useRef(false);
+  const lastSoftRefreshAtRef = useRef(0);
+  const softRefreshRequestedRef = useRef(false);
 
   // â”€â”€ Debounce search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
@@ -495,8 +502,14 @@ function MyTasks() {
 
     let ignore = false;
     const run = async () => {
+      const isSoftRefresh = softRefreshRequestedRef.current && hasLoadedTicketsRef.current;
+      softRefreshRequestedRef.current = false;
       try {
-        setLoading(true);
+        if (isSoftRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
         setError('');
         const technicianId = getCurrentTechnicianId(token);
         const response = await fetchTechnicianTickets({ ...filters, page: 0, size: 200 }, token);
@@ -556,20 +569,56 @@ function MyTasks() {
 
         if (!ignore) {
           setTickets(transformed);
+          hasLoadedTicketsRef.current = true;
         }
       } catch (err) {
         if (!ignore) {
-          setError(err?.message || 'Không thể tải danh sách công việc.');
-          setTickets([]);
+          if (!isSoftRefresh) {
+            setError(err?.message || 'Không thể tải danh sách công việc.');
+            setTickets([]);
+          }
         }
       } finally {
-        if (!ignore) setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     };
 
     run();
     return () => { ignore = true; };
-  }, [filters]);
+  }, [filters, reloadKey]);
+
+  useEffect(() => {
+    const requestSoftRefresh = () => {
+      const now = Date.now();
+      if (!hasLoadedTicketsRef.current) return;
+      if (now - lastSoftRefreshAtRef.current < SOFT_REFRESH_THROTTLE_MS) return;
+      if (showModal || modalLoading) return;
+      if (loading || refreshing) return;
+
+      lastSoftRefreshAtRef.current = now;
+      softRefreshRequestedRef.current = true;
+      setReloadKey((key) => key + 1);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') requestSoftRefresh();
+    };
+
+    window.addEventListener('focus', requestSoftRefresh);
+    window.addEventListener('service-ticket-assigned', requestSoftRefresh);
+    window.addEventListener('service-ticket-created', requestSoftRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', requestSoftRefresh);
+      window.removeEventListener('service-ticket-assigned', requestSoftRefresh);
+      window.removeEventListener('service-ticket-created', requestSoftRefresh);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loading, modalLoading, refreshing, showModal]);
 
   // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const getTicketCode = (ticket) =>
@@ -829,7 +878,10 @@ function MyTasks() {
           </span>
           <h1>Công việc của tôi</h1>
         </div>
-        <span className={styles.totalCount}>{filteredTotalElements} công việc</span>
+        <div className={styles.headerMeta}>
+          {refreshing ? <span className={styles.refreshingBadge}>Đang cập nhật...</span> : null}
+          <span className={styles.totalCount}>{filteredTotalElements} công việc</span>
+        </div>
       </div>
 
       {/* Stats */}

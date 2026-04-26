@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import { getAvatarSrc, handleAvatarError } from '../../../assets/defaultAvatar.js';
 import {
   fetchStaffAttendanceHistory,
   fetchStaffDashboard,
@@ -602,7 +603,11 @@ export default function StaffDashboard() {
       <section className={styles.hero}>
         <div className={styles.heroMain}>
           <div className={styles.avatar}>
-            {String(staff.fullName || 'NV').slice(0, 2).toUpperCase()}
+            <img
+              src={getAvatarSrc(staff.avatar || staff.avatarUrl)}
+              alt={staff.fullName || 'Avatar'}
+              onError={handleAvatarError}
+            />
           </div>
           <div>
             <p className={styles.eyebrow}>Staff dashboard</p>

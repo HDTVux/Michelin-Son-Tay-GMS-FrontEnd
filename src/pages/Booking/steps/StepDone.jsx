@@ -3,6 +3,7 @@ import styles from './StepDone.module.css';
 import bookingStyles from '../Booking.module.css';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 
+// Hàm định dạng ngày theo chuẩn Việt Nam, hiển thị thứ, ngày, tháng, năm. Nếu giá trị không hợp lệ sẽ trả về chuỗi gốc
 const formatDate = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -15,6 +16,7 @@ const formatDate = (value) => {
   }).format(date);
 };
 
+// Hàm chuẩn hóa loại mục (itemType) để hiển thị
 const normalizeItemType = (value) => {
   const text = String(value || '').trim().toUpperCase();
   if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') {
@@ -23,6 +25,7 @@ const normalizeItemType = (value) => {
   return 'SERVICE';
 };
 
+// Component chính của bước hoàn tất
 export default function StepDone({
   schedule,
   info,
@@ -34,6 +37,7 @@ export default function StepDone({
   onCancel,
   onHome,
 }) {
+  // Xác định danh sách ID của các mục đã chọn, ưu tiên lấy từ bookingData nếu có, nếu không thì dùng selectedIds từ state
   const itemIds = useMemo(() => {
     const ids = Array.isArray(bookingData?.serviceIds) && bookingData.serviceIds.length > 0
       ? bookingData.serviceIds
@@ -41,23 +45,25 @@ export default function StepDone({
     return ids.map((id) => String(id)).filter(Boolean);
   }, [bookingData?.serviceIds, selectedIds]);
 
+  // Lọc danh sách dịch vụ để lấy ra các mục đã chọn dựa trên itemIds, so sánh bằng chuỗi để tránh lỗi kiểu dữ liệu
   const selectedItems = useMemo(
     () => services.filter((item) => itemIds.includes(String(item.id))),
     [services, itemIds],
   );
-
+  // Xác định nhãn hiển thị cho nhóm mục đã chọn, nếu tất cả đều cùng loại thì hiển thị tên loại, nếu có nhiều loại thì hiển thị chung là "Hạng mục"
   const selectedItemsLabel = useMemo(() => {
     const typeSet = new Set(selectedItems.map((item) => normalizeItemType(item?.itemType)));
     if (typeSet.size === 1) return typeSet.has('PART') ? 'Phụ tùng' : 'Dịch vụ';
     return 'Hạng mục';
   }, [selectedItems]);
-
+  // Xác định mã lịch hẹn để hiển thị, ưu tiên bookingCode
   const bookingCode = bookingData?.bookingCode
     ? `${bookingData.bookingCode}`
     : bookingData?.requestCode
       ? `${bookingData.requestCode}`
       : bookingData?.code || '';
 
+  // Xác định ngày, giờ, và ghi chú đã xác nhận để hiển thị, ưu tiên lấy từ bookingData nếu có, nếu không thì dùng từ schedule và info
   const confirmedDate = bookingData?.scheduledDate || schedule.date;
   const confirmedTime = bookingData?.scheduledTime || schedule.time;
   const confirmedNote = bookingData?.description || info.note;

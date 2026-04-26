@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import styles from './StepService.module.css';
 import bookingStyles from '../Booking.module.css';
 
+// Hàm chuẩn hóa loại mục (dịch vụ hoặc phụ tùng) 
 const normalizeItemType = (value) => {
   const text = String(value || '').trim().toUpperCase();
   if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') {
@@ -11,6 +12,7 @@ const normalizeItemType = (value) => {
   return 'SERVICE';
 };
 
+// Hàm chuyển đổi giá trị sang số, loại bỏ các ký tự không phải số, dấu chấm hoặc dấu trừ
 const toPriceNumber = (value) => {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -20,6 +22,7 @@ const toPriceNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+// Hàm định dạng giá trị thành chuỗi hiển thị, sử dụng định dạng tiền tệ Việt Nam và thêm đơn vị "đ"
 const formatPrice = (value, displayText = '') => {
   const label = typeof displayText === 'string' ? displayText.trim() : '';
   if (label) return label;
@@ -29,6 +32,8 @@ const formatPrice = (value, displayText = '') => {
 };
 
 // Chọn dịch vụ/phụ tùng với slider + tìm kiếm + lọc
+/* Nhận vào các props như danh sách dịch vụ, danh sách ID đã chọn, hàm toggle chọn, giá trị tìm kiếm, hàm cập nhật tìm kiếm, giá trị lọc, hàm cập nhật lọc, 
+hàm chuyển bước tiếp theo/quay lại, trạng thái loading và lỗi, tab hiện tại và hàm đổi tab, chế độ hiển thị (carousel hoặc grid-scroll), và các props liên quan đến lọc giá*/
 export default function StepService({
   services,
   selectedIds,
@@ -56,16 +61,19 @@ export default function StepService({
   onMaxPriceChange,
   onPriceSortChange,
 }) {
-  const [visible, setVisible] = useState(3);
-  const [index, setIndex] = useState(0);
-  const [gridExpanded, setGridExpanded] = useState(false);
 
+  // State để quản lý số lượng mục hiển thị, chỉ số hiện tại của slider, và trạng thái mở rộng của grid
+  const [visible, setVisible] = useState(3); // Số mục hiển thị cùng lúc trong slider hoặc grid
+  const [index, setIndex] = useState(0); // Vị trí hiện tại của slider 
+  const [gridExpanded, setGridExpanded] = useState(false); // Trạng thái đóng/mở rộng của grid 
+
+  // Effect để cập nhật số lượng mục hiển thị dựa trên kích thước cửa sổ, với các ngưỡng khác nhau cho mobile, tablet và desktop
   useEffect(() => {
     const handle = () => {
       const w = window.innerWidth;
-      if (w <= 520) setVisible(1);
-      else if (w <= 900) setVisible(2);
-      else setVisible(3);
+      if (w <= 520) setVisible(1); // Mobile: hiển thị 1 mục
+      else if (w <= 900) setVisible(2); // Tablet: hiển thị 2 mục
+      else setVisible(3); // Desktop: hiển thị 3 mục
       setIndex(0);
     };
     handle();
@@ -73,16 +81,19 @@ export default function StepService({
     return () => window.removeEventListener('resize', handle);
   }, []);
 
+  // Biến boolean để xác định xem có đang ở chế độ slider trên thiết bị di động hay không, dựa trên số lượng mục hiển thị
   const isMobileSlider = visible === 1;
   const incomingTab = normalizeItemType(activeTab);
   const currentTab = allowPartTab ? incomingTab : 'SERVICE';
   const allItems = useMemo(() => (Array.isArray(services) ? services : []), [services]);
 
+  // Lọc ra các mục đã chọn dựa trên selectedIds
   const selectedItems = useMemo(() => {
     const selectedSet = new Set((Array.isArray(selectedIds) ? selectedIds : []).map((id) => String(id)));
     return allItems.filter((item) => selectedSet.has(String(item?.id)));
   }, [allItems, selectedIds]);
 
+  // Chia nhóm các mục đã chọn thành dịch vụ và phụ tùng dựa trên itemType
   const selectedServiceItems = useMemo(
     () => selectedItems.filter((item) => normalizeItemType(item?.itemType) === 'SERVICE'),
     [selectedItems],
@@ -93,11 +104,13 @@ export default function StepService({
     [selectedItems],
   );
 
+  // Lọc danh sách tất cả mục dựa trên tab hiện tại (dịch vụ hoặc phụ tùng)
   const scopedByType = useMemo(
     () => allItems.filter((item) => normalizeItemType(item?.itemType) === currentTab),
     [allItems, currentTab],
   );
 
+  // Tạo danh sách các tùy chọn phân loại (category) dựa trên scopedByType để hiển thị trong mục đã chọn
   const categoryOptions = useMemo(() => {
     const map = new Map();
     scopedByType.forEach((item) => {
@@ -109,6 +122,7 @@ export default function StepService({
     return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
   }, [scopedByType]);
   
+  // Effect để đảm bảo nếu filter hiện tại không tồn tại trong categoryOptions, nó sẽ được đặt lại về 'all'
   useEffect(() => {
     if (!onFilter) return;
     if (filter === 'all') return;
@@ -116,10 +130,14 @@ export default function StepService({
     if (!exists) onFilter('all');
   }, [categoryOptions, filter, onFilter]);
 
+  // Lọc danh sách mục dựa trên giá trị tìm kiếm, bộ lọc category, bộ lọc giá và sắp xếp giá nếu có
   const filtered = useMemo(() => {
+    // Chuẩn hóa giá trị tìm kiếm, chuyển sang chữ thường để so sánh không phân biệt hoa thường
     const cleaned = (search || '').toLowerCase();
     const min = toPriceNumber(minPrice);
     const max = toPriceNumber(maxPrice);
+
+    // Chuẩn hóa giá trị sắp xếp, chỉ chấp nhận 'asc' hoặc 'desc', nếu không hợp lệ sẽ không áp dụng sắp xếp
     const sort = String(priceSort || '').trim().toLowerCase();
     const hasPriceFilter = min != null || max != null;
     const nextItems = scopedByType.filter((item) => {
@@ -132,6 +150,7 @@ export default function StepService({
       const matchPrice = !hasPriceFilter || (matchMin && matchMax);
       return matchSearch && matchFilter && matchPrice;
     });
+    // Nếu giá trị sắp xếp không hợp lệ, trả về danh sách đã lọc mà không sắp xếp
     if (sort !== 'asc' && sort !== 'desc') return nextItems;
     return [...nextItems].sort((a, b) => {
       const priceA = toPriceNumber(a?.price);
@@ -143,8 +162,10 @@ export default function StepService({
     });
   }, [filter, maxPrice, minPrice, priceSort, scopedByType, search]);
 
+  // Tính toán chỉ số tối đa của slider dựa trên số lượng mục đã lọc và số lượng mục hiển thị cùng lúc
   const maxIndex = Math.max(0, filtered.length - visible);
 
+  // Effect để đảm bảo rằng khi currentTab, filtered.length hoặc maxIndex thay đổi, chỉ số hiện tại của slider sẽ được điều chỉnh nếu vượt quá maxIndex
   useEffect(() => {
     const t = setTimeout(() => setIndex((prev) => Math.min(prev, maxIndex)), 0);
     return () => clearTimeout(t);
@@ -174,6 +195,7 @@ export default function StepService({
   const gridItems = isGridScroll && !gridExpanded ? filtered.slice(0, gridCollapsedCount) : filtered;
   const canToggleGrid = isGridScroll && filtered.length > gridCollapsedCount;
 
+  // Hàm render một thẻ dịch vụ/phụ tùng trong chế độ grid, hiển thị thumbnail, tên, mô tả và giá, cùng với nút chọn/deselect
   const renderServiceCard = (item) => {
     const active = selectedIds.includes(item.id);
     const thumbStyle = item.thumbnail
@@ -198,6 +220,7 @@ export default function StepService({
     );
   };
 
+  // Hàm render nhóm các mục đã chọn, hiển thị tiêu đề nhóm, số lượng mục trong nhóm, và danh sách các mục dưới dạng chip với nút xóa để bỏ chọn
   const renderSelectedGroup = (title, items, emptyLabel) => (
     <div className={styles['selected-group']}>
       <div className={styles['selected-subtitle']}>{title} ({items.length})</div>
