@@ -221,6 +221,7 @@ export default function CheckIn() {
     const [vehicleMake, setVehicleMake] = useState('');
     const [vehicleModel, setVehicleModel] = useState('');
     const [vehicleYear, setVehicleYear] = useState('');
+    const [vehicleMakeError, setVehicleMakeError] = useState('');
 
     // State lưu trữ thông tin booking sau khi lookup từ hệ thống
     const [booking, setBooking] = useState(() => location?.state?.booking ?? null);
@@ -476,6 +477,7 @@ export default function CheckIn() {
         setVehicleMake(String(selectedVehicle.make || '').trim());
         setVehicleModel(String(selectedVehicle.model || '').trim());
         setVehicleYear(selectedVehicle.year ? String(selectedVehicle.year) : '');
+        setVehicleMakeError('');
 
         const lastKm = selectedVehicle.lastOdometerReading;
         setLastOdometerKm(lastKm == null ? null : Number(lastKm) || null);
@@ -732,11 +734,23 @@ export default function CheckIn() {
                                 <label htmlFor="vehicleMake">Hãng xe</label>
                                 <input
                                     id="vehicleMake"
-                                    value={vehicleMake}
-                                    onChange={(e) => setVehicleMake(e.target.value)}
+                                        value={vehicleMake}
+                                        onChange={(e) => {
+                                            const raw = e.target.value || '';
+                                            const filtered = String(raw).replace(/\d/g, '');
+                                            setVehicleMake(filtered);
+                                            if (/\d/.test(raw)) {
+                                                setVehicleMakeError('Tên hãng xe không được chứa chữ số');
+                                            } else {
+                                                setVehicleMakeError('');
+                                            }
+                                        }}
                                     placeholder="Ví dụ: Toyota"
                                     autoComplete="off"
                                 />
+                                    {vehicleMakeError ? (
+                                        <div style={{ color: 'red', fontSize: 13, marginTop: 6 }}>{vehicleMakeError}</div>
+                                    ) : null}
                             </div>
                             <div className="ui-field" style={{ marginBottom: 0 }}>
                                 <label htmlFor="vehicleModel">Dòng xe</label>
