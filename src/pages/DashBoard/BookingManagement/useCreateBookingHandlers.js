@@ -85,7 +85,6 @@ function clearEstimateDraftStorage(storageKey) {
 // Custom hook để quản lý các handler liên quan đến việc tạo booking, bao gồm kiểm tra khách hàng, chọn lịch hẹn, gửi yêu cầu tạo booking, và xử lý các trạng thái liên quan đến báo giá dự kiến.
 export function useCreateBookingHandlers({
 	baseSlots,
-	selectedItems,
 	selectedIds,
 	estimateId,
 	schedule,
@@ -308,7 +307,6 @@ export function useCreateBookingHandlers({
 		info?.phone,
 		schedule?.date,
 		schedule?.time,
-		selectedItems,
 		selectedIds,
 		sourceReminderId,
 		submitLocked,

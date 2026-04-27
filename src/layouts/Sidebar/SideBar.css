@@ -653,7 +653,7 @@
         grid-column: 1 / -1;
         display: none;
         width: 100%;
-        max-height: calc(100vh - 74px);
+        max-height: calc(100vh - 132px);
         padding: 4px 10px 10px;
         overflow-y: auto;
         overflow-x: hidden;
@@ -669,6 +669,7 @@
         display: none;
         grid-column: 1 / -1;
         margin: 0 10px 10px;
+        min-height: 46px;
     }
 
     .sidebar__nav.is-open + .sidebar__logout {

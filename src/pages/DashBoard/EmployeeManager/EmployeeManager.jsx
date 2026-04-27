@@ -55,6 +55,46 @@ const getEmployeeRoleText = (employee) => {
   );
 };
 
+const getEmployeeRoleNames = (employee) => {
+  const roleList = Array.isArray(employee?.roles)
+    ? employee.roles.map(normalizeRoleName).filter(Boolean)
+    : [];
+  const fallbackRoles = getEmployeeRoleText(employee)
+    .split(',')
+    .map((role) => role.trim())
+    .filter(Boolean);
+  return Array.from(new Set(roleList.length > 0 ? roleList : fallbackRoles));
+};
+
+const ROLE_SORT_ORDER = [
+  'Quản trị viên',
+  'Quản lý viên',
+  'Cố vấn viên',
+  'Lễ tân',
+  'Kỹ thuật viên',
+  'Kế toán viên',
+  'Thủ kho',
+  'ADMIN',
+  'MANAGER',
+  'ADVISOR',
+  'RECEPTIONIST',
+  'TECHNICIAN',
+  'ACCOUNTANT',
+  'WAREHOUSE',
+  'STOREKEEPER',
+];
+
+const compareRoleNames = (a, b) => {
+  const aIndex = ROLE_SORT_ORDER.findIndex((role) => role.toLowerCase() === String(a).toLowerCase());
+  const bIndex = ROLE_SORT_ORDER.findIndex((role) => role.toLowerCase() === String(b).toLowerCase());
+  if (aIndex !== -1 || bIndex !== -1) {
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  }
+  return String(a).localeCompare(String(b), 'vi', { sensitivity: 'base' });
+};
+
 const extractStaffList = (response) => {
   const payload = response?.data?.data ?? response?.data ?? response;
   if (Array.isArray(payload?.content)) return payload.content;
@@ -123,14 +163,17 @@ export default function EmployeeManager() {
   }, [loadData]);
 
   const roles = useMemo(() => {
-    const set = new Set(employees.map((e) => String(e?.roleDisplay || '').trim()).filter(Boolean));
-    return ['ALL', ...Array.from(set)];
+    const set = new Set();
+    employees.forEach((employee) => {
+      getEmployeeRoleNames(employee).forEach((role) => set.add(role));
+    });
+    return ['ALL', ...Array.from(set).sort(compareRoleNames)];
   }, [employees]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return employees.filter((employee) => {
-      const roleOk = roleFilter === 'ALL' || String(employee?.roleDisplay || '') === roleFilter;
+      const roleOk = roleFilter === 'ALL' || getEmployeeRoleNames(employee).includes(roleFilter);
       if (!roleOk) return false;
       if (!q) return true;
 
@@ -141,9 +184,17 @@ export default function EmployeeManager() {
 
   const stats = useMemo(() => {
     const total = employees.length;
-    const female = employees.filter((e) => String(e?.gender || '').toUpperCase() === 'FEMALE').length;
-    const male = employees.filter((e) => String(e?.gender || '').toUpperCase() === 'MALE').length;
-    return { total, male, female, other: total - male - female };
+    const roleCounts = new Map();
+    employees.forEach((employee) => {
+      getEmployeeRoleNames(employee).forEach((role) => {
+        roleCounts.set(role, (roleCounts.get(role) || 0) + 1);
+      });
+    });
+    const roleStats = Array.from(roleCounts.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => compareRoleNames(a.label, b.label));
+
+    return { total, roleStats };
   }, [employees]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
@@ -168,18 +219,12 @@ export default function EmployeeManager() {
           <p className={styles.statLabel}>Tổng nhân viên</p>
           <p className={styles.statValue}>{stats.total}</p>
         </div>
-        <div className={`${styles.statCard} ${styles.statMale}`}>
-          <p className={styles.statLabel}>Nam</p>
-          <p className={styles.statValue}>{stats.male}</p>
-        </div>
-        <div className={`${styles.statCard} ${styles.statFemale}`}>
-          <p className={styles.statLabel}>Nữ</p>
-          <p className={styles.statValue}>{stats.female}</p>
-        </div>
-        <div className={`${styles.statCard} ${styles.statOther}`}>
-          <p className={styles.statLabel}>Khác / Chưa khai báo</p>
-          <p className={styles.statValue}>{stats.other}</p>
-        </div>
+        {stats.roleStats.map((role) => (
+          <div key={role.label} className={`${styles.statCard} ${styles.statRole}`}>
+            <p className={styles.statLabel}>{role.label}</p>
+            <p className={styles.statValue}>{role.count}</p>
+          </div>
+        ))}
       </div>
 
       <div className={styles.toolbar}>

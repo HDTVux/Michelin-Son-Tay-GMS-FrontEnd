@@ -32,7 +32,7 @@
 /* ── Stats grid ─────────────────────────────────────────────────────────────── */
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
   margin-bottom: 28px;
 }
@@ -56,14 +56,10 @@
 }
 
 .statTotal   { border-color: #1E90FF; }
-.statMale    { border-color: #0ea5e9; }
-.statFemale  { border-color: #ec4899; }
-.statOther   { border-color: #8b5cf6; }
+.statRole    { border-color: #10b981; }
 
 .statTotal:hover   { box-shadow: 0 8px 24px rgba(30, 144, 255, 0.2); }
-.statMale:hover    { box-shadow: 0 8px 24px rgba(14, 165, 233, 0.2); }
-.statFemale:hover  { box-shadow: 0 8px 24px rgba(236, 72, 153, 0.2); }
-.statOther:hover   { box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); }
+.statRole:hover    { box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2); }
 
 .statValue {
   font-size: 48px;
@@ -76,9 +72,7 @@
   line-height: 1;
 }
 
-.statMale .statValue    { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-.statFemale .statValue   { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-.statOther .statValue    { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.statRole .statValue     { background: linear-gradient(135deg, #10b981 0%, #059669 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
 .statLabel {
   font-size: 14px;
@@ -87,6 +81,10 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   text-align: center;
+}
+
+.statRole .statLabel {
+  font-size: 12px;
 }
 
 /* ── Toolbar ────────────────────────────────────────────────────────────────── */
@@ -395,7 +393,7 @@
 
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 @media (max-width: 1200px) {
-  .statsGrid { grid-template-columns: repeat(3, 1fr); }
+  .statsGrid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 }
 
 @media (max-width: 768px) {
