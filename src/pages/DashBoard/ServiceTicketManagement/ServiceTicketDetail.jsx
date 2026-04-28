@@ -1783,7 +1783,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         && isEstimateApproved
         && (ticket?.warehouseReadyForRepair === true || !hasAnyWarehouseDependentItem)
         && !isActionLocked;
-    const canCompleteRepair = ticketStatus === 'REPAIRING' && !isActionLocked;
+    const canCompleteRepair = ticketStatus === 'REPAIRING' && !isActionLocked && ticket?.hasDraftStockIssue === false;
 
     const canRequestStockIssue = useMemo(() => {
         if (isActionLocked) return false;
