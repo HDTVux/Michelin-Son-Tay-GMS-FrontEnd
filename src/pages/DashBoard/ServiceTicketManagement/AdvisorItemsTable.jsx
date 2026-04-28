@@ -280,6 +280,7 @@ function EstimateItemRow({
     openCatalogPicker,
     showTaxColumn,
     showConfirmColumn,
+    showDiscountColumn,
 }) {
     const isLocked = Boolean(row?.isLockedFromPreviousVersion);
     const allowInputs = showInputs && !isLocked;
@@ -310,6 +311,8 @@ function EstimateItemRow({
     const taxLabel = getTaxRuleDisplayLabel(taxRule);
     const isPredefinedCategory = Boolean(toIdOrNull(row?.workCategoryId));
     const subTotalValue = effectiveTaxRuleId ? (row?.subTotalWithVat ?? row?.subTotal) : row?.subTotal;
+    const amountDisplayValue = showInputs ? subTotalValue : (row?.finalPriceDisplay ?? row?.subTotalDisplay ?? row?.subTotal);
+    const discountAmountValue = Number(row?.discountAmount ?? 0);
     const shouldShowTaxDropdown = allowInputs && !itemTaxRuleId && !categoryTaxRuleId;
 
     const unitText = String(row?.unit ?? '').trim();
@@ -428,8 +431,15 @@ function EstimateItemRow({
                     formatCurrencyVnd(row.unitPriceDisplay ?? row.unitPrice)
                 )}
             </td>
+            {showDiscountColumn ? (
+                <td className={styles.tdNumber}>
+                    {Number.isFinite(discountAmountValue) && discountAmountValue > 0
+                        ? formatCurrencyVnd(discountAmountValue)
+                        : '-'}
+                </td>
+            ) : null}
             <td className={styles.tdNumber}>
-                {showInputs ? formatCurrencyVnd(subTotalValue) : formatCurrencyVnd(row.subTotalDisplay ?? row.subTotal)}
+                {formatCurrencyVnd(amountDisplayValue)}
             </td>
             
             {showTaxColumn ? (
@@ -523,6 +533,7 @@ EstimateItemRow.propTypes = {
     openCatalogPicker: PropTypes.func,
     showTaxColumn: PropTypes.bool,
     showConfirmColumn: PropTypes.bool,
+    showDiscountColumn: PropTypes.bool,
 };
 
 function EstimateActions({
@@ -768,6 +779,7 @@ export default function AdvisorItemsTable({
 
     const showTaxColumn = isCreating || isEditing;
     const showConfirmColumn = Boolean(showInputs);
+    const showDiscountColumn = !showInputs;
     const isReadOnly = Boolean(readOnly);
     const hasPendingAddServiceSnapshot = useMemo(() => {
         const snapshot = readAddServicePendingSnapshot(serviceTicketId);
@@ -824,11 +836,11 @@ export default function AdvisorItemsTable({
     }, [isCreating, isEditing, isSaving, onEstimateEditingChange]);
 
     const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
-    const isArchived = currentEstimateStatus === 'ARCHIVED';
+    const canVersionFromCurrentEstimate = currentEstimateStatus === 'SENT' || currentEstimateStatus === 'APPROVED';
     // Khi đang tạo mới / đang chỉnh sửa, chúng ta không bị hạn chế bởi status của báo giá cũ
     const isRestrictedStatus = !(isCreating || isEditing) && ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
 
-    // Cho phép tạo mới nếu chưa có báo giá hoặc báo giá hiện tại đã ARCHIVED
+    // Cho phép tạo mới nếu chưa có báo giá.
     const ticketStatusUpper = String(ticketStatus || '').trim().toUpperCase();
     const isTicketPaid = ticketStatusUpper === 'PAID';
     const isTicketCancelled = ['CANCELLED', 'CANCELED', 'CANCEL'].includes(ticketStatusUpper);
@@ -836,8 +848,9 @@ export default function AdvisorItemsTable({
     // "Tạo báo giá mới" chỉ dành cho trường hợp chưa có bất kì báo giá nào.
     const canCreateNew = !isReadOnly && !isCreating && !isEditing && showAddEstimate && !isTicketLocked;
 
-    // "Tạo version báo giá mới" chỉ dành cho trường hợp báo giá hiện tại là ARCHIVED.
-    const canCreateNewVersion = !isReadOnly && !isCreating && !isEditing && Boolean(estimate) && isArchived && !isTicketLocked;
+    // "Tạo version báo giá mới" dành cho báo giá đã gửi hoặc đã xác nhận.
+    // ARCHIVED tương ứng đã có bill và bị khóa ở parent, không cho tạo version mới.
+    const canCreateNewVersion = !isReadOnly && !isCreating && !isEditing && Boolean(estimate) && canVersionFromCurrentEstimate && !isTicketLocked;
 
     const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
@@ -1232,6 +1245,7 @@ export default function AdvisorItemsTable({
                             <th scope="col">DIỄN GIẢI</th>
                             <th scope="col">SL</th>
                             <th scope="col">ĐƠN GIÁ</th>
+                            {showDiscountColumn ? <th scope="col">GIẢM GIÁ</th> : null}
                             <th scope="col">THÀNH TIỀN</th>
                             {showTaxColumn ? <th scope="col">THUẾ </th> : null}
                             <th scope="col">KHO</th>
@@ -1248,6 +1262,7 @@ export default function AdvisorItemsTable({
                                 showInputs={showInputs}
                                 showTaxColumn={showTaxColumn}
                                 showConfirmColumn={showConfirmColumn}
+                                showDiscountColumn={showDiscountColumn}
                                 onChange={onChange}
                                 onClearRow={handleClearRowInputs}
                                 isSaving={isSaving}
@@ -1263,7 +1278,7 @@ export default function AdvisorItemsTable({
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td className={styles.tableFooterLabel} colSpan={5}>
+                            <td className={styles.tableFooterLabel} colSpan={showDiscountColumn ? 6 : 5}>
                                 TỔNG CỘNG
                             </td>
                             <td className={styles.tdNumber}>{footerTotalText}</td>

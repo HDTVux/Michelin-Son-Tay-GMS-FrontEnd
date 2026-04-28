@@ -318,6 +318,9 @@ function mapEstimateItemToLockedRow(it, idx) {
 		itemName: String(it?.itemName || '').trim(),
 		quantity: it?.quantity ?? '',
 		unitPrice: it?.unitPrice ?? '',
+		discountAmount: pickDiscountAmountValue(it),
+		finalPrice: it?.finalPrice ?? it?.final_price ?? '',
+		isGift: getEstimateItemGiftFlag(it),
 		// Dòng khóa (seed từ version trước): vẫn ưu tiên thuế sản phẩm nếu có.
 		taxRuleId: toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? ''),
 		// Dòng đã lưu ở version trước: mặc định coi như đã xác nhận để không bị chặn lưu.
@@ -346,6 +349,24 @@ function pickMoneyDisplayValue(withVatValue, baseValue) {
 	if (withVatNum > 0) return withVatNum;
 	const baseNum = toNumberOrZero(baseValue);
 	return baseNum > 0 ? baseNum : '';
+}
+
+function pickDiscountAmountValue(item) {
+	return toNumberOrZero(item?.discountAmount ?? item?.discount_amount);
+}
+
+function getEstimateItemGiftFlag(item) {
+	return item?.isGift === true || String(item?.isGift ?? '').trim().toLowerCase() === 'true';
+}
+
+function getEstimateItemFinalPriceDisplay(item, fallbackValue) {
+	const discountAmount = pickDiscountAmountValue(item);
+	const isGift = getEstimateItemGiftFlag(item);
+	if (!isGift && discountAmount <= 0) return fallbackValue;
+
+	const rawFinalPrice = item?.finalPrice ?? item?.final_price;
+	const finalPrice = typeof rawFinalPrice === 'number' ? rawFinalPrice : Number(String(rawFinalPrice ?? '').trim());
+	return Number.isFinite(finalPrice) ? finalPrice : fallbackValue;
 }
 
 export function toIdOrNull(value) {
@@ -1043,6 +1064,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const subTotal = it?.subTotal ?? '';
 				const unitPriceWithVat = it?.unitPriceWithVat ?? it?.unitPriceWithVAT ?? '';
 				const subTotalWithVat = it?.subTotalWithVat ?? it?.subTotalWithVAT ?? '';
+				const subTotalDisplay = pickMoneyDisplayValue(subTotalWithVat, subTotal);
 				const unit = getItemUnitFromEstimateItem(it);
 				const categoryName =
 					it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
@@ -1079,7 +1101,11 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					unitPrice,
 					subTotal,
 					unitPriceDisplay: pickMoneyDisplayValue(unitPriceWithVat, unitPrice),
-					subTotalDisplay: pickMoneyDisplayValue(subTotalWithVat, subTotal),
+					subTotalDisplay,
+					discountAmount: pickDiscountAmountValue(it),
+					finalPrice: it?.finalPrice ?? it?.final_price ?? '',
+					finalPriceDisplay: getEstimateItemFinalPriceDisplay(it, subTotalDisplay),
+					isGift: getEstimateItemGiftFlag(it),
 					taxRuleId,
 					confirmed,
 					isRemoved: Boolean(it?.isRemoved),

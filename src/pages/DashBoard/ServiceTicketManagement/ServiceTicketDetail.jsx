@@ -20,11 +20,15 @@ import {
     manageServiceTicketStatus,
     fetchTicketAssignments,
     updateServiceTicketEstimatedDelivery,
+    fetchSafetyInspectionCurrentRecommend,
 } from '../../../services/serviceTicketService.js';
 import { finishWork } from '../../../services/technicianService.js';
 import { requestWarehouseStockIssue } from '../../../services/warehouseService.js';
-import { fetchPaymentByServiceTicketId } from '../../../services/paymentService.js';
+import { createPayment, fetchPaymentByServiceTicketId } from '../../../services/paymentService.js';
+import { fetchAvailablePromotions, fetchPromotionByCode } from '../../../services/promotionService.js';
+import { getDefaultSafetyInspectionCategories, getSafetyInspectionByTicketCode } from '../../../services/safetyInspectionService.js';
 import { ServiceTicket as TechnicianServiceTicket } from '../../Technician/ServiceTicket/ServiceTicket.jsx';
+import Receipt from '../Receipt/Receipt.jsx';
 import styles from './ServiceTicketDetail.module.css';
 
 const STAFF_ROLE = {
@@ -65,6 +69,41 @@ function formatCurrencyVnd(value) {
     const n = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(n)) return '-';
     return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
+}
+
+function toMoneyNumber(value) {
+    const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+    return Number.isFinite(n) ? n : 0;
+}
+
+function formatCurrencyVndCompact(value) {
+    const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+    if (!Number.isFinite(n) || n === 0) return '';
+    return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
+}
+
+function pickMoneyDisplayValue(withVatValue, baseValue) {
+    const withVatNum = toMoneyNumber(withVatValue);
+    if (withVatNum > 0) return withVatNum;
+    return Math.max(0, toMoneyNumber(baseValue));
+}
+
+function pickDiscountAmountValue(item) {
+    return toMoneyNumber(item?.discountAmount ?? item?.discount_amount);
+}
+
+function getEstimateItemGiftFlag(item) {
+    return item?.isGift === true || String(item?.isGift ?? '').trim().toLowerCase() === 'true';
+}
+
+function getEstimateItemFinalPriceDisplay(item, fallbackValue) {
+    const discountAmount = pickDiscountAmountValue(item);
+    const isGift = getEstimateItemGiftFlag(item);
+    if (!isGift && discountAmount <= 0) return fallbackValue;
+
+    const rawFinalPrice = item?.finalPrice ?? item?.final_price;
+    const finalPrice = typeof rawFinalPrice === 'number' ? rawFinalPrice : Number(String(rawFinalPrice ?? '').trim());
+    return Number.isFinite(finalPrice) ? finalPrice : fallbackValue;
 }
 
 function formatEstimatedDeliveryAtForApi(value) {
@@ -439,16 +478,6 @@ function readAddServiceRestoreSnapshot(serviceTicketId) {
     }
 }
 
-function writeAddServiceRestoreSnapshot(serviceTicketId, snapshot) {
-    try {
-        const key = getAddServiceRestoreStorageKey(serviceTicketId);
-        if (!key || typeof sessionStorage === 'undefined') return;
-        sessionStorage.setItem(key, JSON.stringify(snapshot));
-    } catch {
-        // ignore storage failures
-    }
-}
-
 function clearAddServiceRestoreSnapshot(serviceTicketId) {
     try {
         const key = getAddServiceRestoreStorageKey(serviceTicketId);
@@ -496,6 +525,62 @@ function normalizeEstimateStatus(raw) {
     if (value === 'CONFIRMED') return 'APPROVED';
     if (value === 'CANCELLED' || value === 'CANCELED' || value === 'CANCEL') return 'CANCELLED';
     return value;
+}
+
+function parsePromotionYmdDate(value, { endOfDay } = {}) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+    const [y, m, d] = raw.split('-').map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+    const dt = new Date(y, m - 1, d, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+    return Number.isFinite(dt.getTime()) ? dt : null;
+}
+
+function getPromotionId(promo) {
+    if (!promo) return null;
+    const raw = promo?.promotionId ?? promo?.promotionID ?? promo?.PromotionId ?? promo?.id ?? promo?.ID ?? null;
+    if (raw == null) return null;
+    const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function normalizePromotion(promo) {
+    if (!promo) return null;
+    if (Array.isArray(promo)) return normalizePromotion(promo[0] ?? null);
+    if (Array.isArray(promo?.data)) return normalizePromotion(promo.data[0] ?? null);
+    const promotionId = getPromotionId(promo);
+    return promotionId ? { ...promo, promotionId } : promo;
+}
+
+function buildPromotionLabel(promo) {
+    if (!promo) return '';
+    const name = String(promo?.name || '').trim();
+    const code = String(promo?.code || '').trim();
+    const discountPercent = toMoneyNumber(promo?.discountPercent);
+    const parts = [name || code].filter(Boolean);
+    if (code && name) parts.push(code);
+    if (discountPercent > 0) parts.push(`-${discountPercent}%`);
+    return parts.join(' • ');
+}
+
+function validatePromotion(promo, subtotal) {
+    if (!promo) return 'Mã không hợp lệ';
+    if (promo?.isActive === false) return 'Khuyến mãi không còn hiệu lực';
+
+    const now = new Date();
+    const start = parsePromotionYmdDate(promo?.startDate, { endOfDay: false });
+    const end = parsePromotionYmdDate(promo?.endDate, { endOfDay: true });
+    if (start && now < start) return 'Khuyến mãi chưa bắt đầu';
+    if (end && now > end) return 'Khuyến mãi đã hết hạn';
+
+    const minOrderValue = toMoneyNumber(promo?.minOrderValue);
+    if (minOrderValue > 0 && subtotal < minOrderValue) {
+        return `Đơn tối thiểu ${new Intl.NumberFormat('vi-VN').format(minOrderValue)}đ để áp dụng`;
+    }
+
+    const discountPercent = toMoneyNumber(promo?.discountPercent);
+    if (discountPercent <= 0) return 'Khuyến mãi này chưa hỗ trợ trên hoá đơn';
+    return '';
 }
 
 function normalizeSafetyInspectionStatus(raw) {
@@ -704,6 +789,50 @@ function normalizeTicket(input, codeFallback) {
     };
 }
 
+function getItemConfirmedFlag(it) {
+    return Boolean(
+        it?.isChecked ??
+        it?.confirmed ??
+        it?.isConfirmed ??
+        it?.approved ??
+        it?.isApproved ??
+        it?.customerConfirmed ??
+        it?.isCustomerConfirmed,
+    );
+}
+
+function mapEstimateItemsForReceipt(estimate) {
+    const items = Array.isArray(estimate?.items) ? estimate.items : [];
+    return items
+        .filter((it) => !it?.isRemoved)
+        .map((it, idx) => {
+            const quantity = toMoneyNumber(it?.quantity);
+            const unitPrice = toMoneyNumber(it?.unitPrice);
+            const subTotal = toMoneyNumber(it?.subTotal);
+            const unitPriceDisplay = pickMoneyDisplayValue(it?.unitPriceWithVat ?? it?.unitPriceWithVAT ?? 0, unitPrice);
+            const subTotalDisplay = pickMoneyDisplayValue(it?.subTotalWithVat ?? it?.subTotalWithVAT ?? 0, subTotal);
+            const finalPriceDisplay = getEstimateItemFinalPriceDisplay(it, subTotalDisplay);
+            return {
+                key: String(it?.estimateItemId ?? it?.itemId ?? `${idx}`),
+                estimateItemId: it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null,
+                categoryName: it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
+                itemName: String(it?.itemName || '').trim(),
+                quantity,
+                unitPrice,
+                unitPriceDisplay,
+                subTotal,
+                subTotalDisplay,
+                discountAmount: pickDiscountAmountValue(it),
+                finalPrice: it?.finalPrice ?? it?.final_price ?? '',
+                finalPriceDisplay,
+                isGift: getEstimateItemGiftFlag(it),
+                warehouseName: String(it?.warehouseName ?? it?.warehouse?.warehouseName ?? it?.warehouse?.name ?? '').trim(),
+                confirmed: getItemConfirmedFlag(it),
+            };
+        })
+        .filter((r) => r.itemName || r.categoryName || r.quantity > 0 || r.unitPrice > 0 || r.subTotal > 0 || r.subTotalDisplay > 0);
+}
+
 function InfoBlock({ title, rows }) {
     return (
         <section className={styles.block}>
@@ -784,9 +913,14 @@ function normalizeBillId(payment) {
     const candidates = [
         payment.billId,
         payment.billID,
+        payment.data?.billId,
+        payment.data?.billID,
         payment.invoiceId,
         payment.invoiceID,
+        payment.data?.invoiceId,
+        payment.data?.invoiceID,
         payment.id,
+        payment.data?.id,
     ];
     const raw = candidates.find((v) => v !== null && v !== undefined && String(v).trim() !== '');
     if (raw === undefined) return null;
@@ -854,6 +988,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => normalizeTicket(ticketRaw ?? ticketFromState, ticketCodeParam),
         [ticketRaw, ticketFromState, ticketCodeParam],
     );
+    const receivedAtDisplay = ticket?.receivedAt ? formatDateTimeViNoSeconds(ticket.receivedAt, '-') : '-';
+    const handoverAtDisplay = ticket?.handoverAt ? formatDateTimeViNoSeconds(ticket.handoverAt, '-') : '-';
 
     useEffect(() => {
         if (estimatedTimeDraft) return;
@@ -920,6 +1056,20 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const [billPayment, setBillPayment] = useState(null);
     const [billLookupError, setBillLookupError] = useState('');
+    const [billCreating, setBillCreating] = useState(false);
+
+    const [availablePromotions, setAvailablePromotions] = useState([]);
+    const [promotionsLoading, setPromotionsLoading] = useState(false);
+    const [promotionsError, setPromotionsError] = useState('');
+    const [promoCode, setPromoCode] = useState('');
+    const [selectedPromotionId, setSelectedPromotionId] = useState('');
+    const [appliedPromotion, setAppliedPromotion] = useState(null);
+    const [promoApplying, setPromoApplying] = useState(false);
+    const [promoError, setPromoError] = useState('');
+
+    const [safetyInspectionForPrint, setSafetyInspectionForPrint] = useState(null);
+    const [defaultSafetyCategories, setDefaultSafetyCategories] = useState([]);
+    const [printRecommendation, setPrintRecommendation] = useState('');
 
     useEffect(() => {
         let cancelled = false;
@@ -969,6 +1119,96 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return () => { cancelled = true; };
     }, [serviceTicketIdNum]);
 
+    useEffect(() => {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) return undefined;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                setPromotionsLoading(true);
+                setPromotionsError('');
+                const res = await fetchAvailablePromotions(token);
+                if (cancelled) return;
+                setAvailablePromotions(Array.isArray(res?.data) ? res.data : []);
+            } catch (err) {
+                if (cancelled) return;
+                setAvailablePromotions([]);
+                setPromotionsError(err?.message || 'Không thể tải danh sách khuyến mãi.');
+            } finally {
+                if (!cancelled) setPromotionsLoading(false);
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, []);
+
+    useEffect(() => {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) return undefined;
+        const code = String(ticket.ticketCode || ticketCodeParam || '').trim();
+        if (!code) return undefined;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await getSafetyInspectionByTicketCode(code, token);
+                if (!cancelled) setSafetyInspectionForPrint(res?.data ?? null);
+            } catch {
+                if (!cancelled) setSafetyInspectionForPrint(null);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [ticket.ticketCode, ticketCodeParam]);
+
+    useEffect(() => {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) return undefined;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await getDefaultSafetyInspectionCategories(token);
+                if (!cancelled) setDefaultSafetyCategories(Array.isArray(res?.data) ? res.data : []);
+            } catch {
+                if (!cancelled) setDefaultSafetyCategories([]);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    useEffect(() => {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token || !serviceTicketIdNum) {
+            setPrintRecommendation('');
+            return undefined;
+        }
+
+        let cancelled = false;
+        (async () => {
+            const storageKey = `serviceTicketRecommendation:${serviceTicketIdNum}`;
+            try {
+                const res = await fetchSafetyInspectionCurrentRecommend(serviceTicketIdNum, token);
+                const value = String(
+                    res?.data?.recommend ??
+                    res?.data?.recommendation ??
+                    res?.data?.recommendationText ??
+                    res?.data?.currentRecommend ??
+                    res?.data ??
+                    '',
+                ).trim();
+                if (cancelled) return;
+                const next = value || localStorage.getItem(storageKey) || '';
+                setPrintRecommendation(next);
+                if (next) localStorage.setItem(storageKey, next);
+            } catch {
+                if (!cancelled) setPrintRecommendation(localStorage.getItem(storageKey) || '');
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [serviceTicketIdNum]);
+
     const estimateStatus = useMemo(() => {
         return normalizeEstimateStatus(
             latestEstimate?.estimateStatus ?? latestEstimate?.status ?? latestEstimate?.estimate_status,
@@ -1001,6 +1241,71 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const billId = useMemo(() => normalizeBillId(billPayment), [billPayment]);
     const hasBill = Boolean(billId);
     const isActionLocked = ticketStatus === 'PAID' || hasBill;
+
+    const receiptItems = useMemo(() => mapEstimateItemsForReceipt(latestEstimate), [latestEstimate]);
+    const confirmedReceiptItems = useMemo(
+        () => receiptItems.filter((it) => it.confirmed),
+        [receiptItems],
+    );
+    const receiptSubtotal = useMemo(
+        () => confirmedReceiptItems.reduce((acc, it) => acc + toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal), 0),
+        [confirmedReceiptItems],
+    );
+    const receiptDiscountAmount = useMemo(() => {
+        if (!appliedPromotion) return 0;
+        const validationMessage = validatePromotion(appliedPromotion, receiptSubtotal);
+        if (validationMessage) return 0;
+        const percent = toMoneyNumber(appliedPromotion?.discountPercent);
+        return Math.min(receiptSubtotal, Math.max(0, receiptSubtotal * (percent / 100)));
+    }, [appliedPromotion, receiptSubtotal]);
+    const receiptTotal = useMemo(
+        () => Math.max(0, receiptSubtotal - receiptDiscountAmount),
+        [receiptDiscountAmount, receiptSubtotal],
+    );
+    const printTicket = useMemo(() => ({
+        ...ticket,
+        receivedAtDisplay,
+        handoverAtDisplay,
+        recommendation: printRecommendation,
+        safetyInspectionEnabled: ticketRaw?.safetyInspectionEnabled,
+        invoice: {
+            items: receiptItems.map((it) => ({
+                ...it,
+                unitPrice: toMoneyNumber(it.unitPriceDisplay ?? it.unitPrice),
+                subTotal: toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal),
+            })),
+            subtotal: receiptSubtotal,
+            discountAmount: receiptDiscountAmount,
+            vatRate: '',
+            vatAmount: 0,
+            total: receiptTotal,
+            promotionLabel: buildPromotionLabel(appliedPromotion),
+        },
+        safetyInspection: safetyInspectionForPrint ?? ticketRaw?.safetyInspection ?? {},
+        defaultCategories: defaultSafetyCategories,
+    }), [
+        appliedPromotion,
+        defaultSafetyCategories,
+        handoverAtDisplay,
+        printRecommendation,
+        receiptItems,
+        receiptDiscountAmount,
+        receiptSubtotal,
+        receiptTotal,
+        receivedAtDisplay,
+        safetyInspectionForPrint,
+        ticket,
+        ticketRaw?.safetyInspection,
+        ticketRaw?.safetyInspectionEnabled,
+    ]);
+
+    useEffect(() => {
+        if (!hasBill) return;
+        if (appliedPromotion) setAppliedPromotion(null);
+        if (promoCode) setPromoCode('');
+        if (selectedPromotionId) setSelectedPromotionId('');
+    }, [hasBill, appliedPromotion, promoCode, selectedPromotionId]);
+
     const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable) || isActionLocked;
     const isInspectionAndEstimateReadOnly = isActionLocked || !hasAdvisorRole;
     const inspectionAndEstimateReadOnlyMessage = !hasAdvisorRole
@@ -1028,8 +1333,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         notify,
     });
 
-    const receivedAtDisplay = ticket?.receivedAt ? formatDateTimeViNoSeconds(ticket.receivedAt, '-') : '-';
-    const handoverAtDisplay = ticket?.handoverAt ? formatDateTimeViNoSeconds(ticket.handoverAt, '-') : '-';
     const odometerKm = ticket?.vehicle?.odometerKm;
     const odometerDisplay =
         odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
@@ -1175,7 +1478,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     }, [assignments, assignmentsLoading]);
     const advisorReadOnlyWithoutTechnician = isAdvisorOnlyViewRole && !assignmentsLoading && !hasTechnician;
 
-    const canCreateReceipt = ticketStatus === 'COMPLETED' && !assignmentsLoading && !isActionLocked;
+    const canRequestPayment = ticketStatus === 'COMPLETED' && !assignmentsLoading && !isActionLocked;
     const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED' && !isActionLocked;
 
     const handleBack = () => navigate(-1);
@@ -1284,76 +1587,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Đã chuyển sang trạng thái "Hoàn tất sửa chữa".');
         } catch (err) {
             notify(getFinishWorkErrorMessage(err, 'Không thể báo hoàn thành sửa chữa.'));
-        } finally {
-            setStatusUpdating(false);
-        }
-    };
-
-    const handleAddService = async () => {
-        if (statusUpdating) return;
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-            notify('Vui lòng đăng nhập để cập nhật trạng thái phiếu dịch vụ.');
-            return;
-        }
-        if (!serviceTicketIdNum) {
-            notify('Thiếu serviceTicketId hợp lệ để cập nhật trạng thái.');
-            return;
-        }
-        const ticketCode = String(ticket.ticketCode || ticketCodeParam || '').trim();
-        if (!ticketCode) {
-            notify('Thiếu mã phiếu dịch vụ để tải lại sau khi cập nhật trạng thái.');
-            return;
-        }
-        try {
-            setStatusUpdating(true);
-            setError('');
-
-            // Capture current statuses so Cancel/reload can revert them.
-            const addServiceSnapshot = {
-                prevTicketStatus: ticketStatus,
-                prevEstimateStatus: estimateStatus,
-                estimateIdNum,
-                ticketCode,
-                activeItemKeys: getActiveEstimateItemKeys(latestEstimate),
-                savedAt: new Date().toISOString(),
-            };
-            addServiceRevertRef.current = addServiceSnapshot;
-            writeAddServiceRestoreSnapshot(serviceTicketIdNum, addServiceSnapshot);
-
-            // Simplified rule: "Thêm dịch vụ" always brings ticket to ESTIMATED.
-            await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
-            let canOpenAppendEdit = true;
-            if (estimateIdNum) {
-                try {
-                    await manageServiceTicketEstimateStatus(estimateIdNum, 'DRAFT', token);
-                    setLatestEstimate((prev) => prev ? { ...prev, status: 'DRAFT', estimateStatus: 'DRAFT' } : prev);
-                } catch (err) {
-                    canOpenAppendEdit = false;
-                    addServiceRevertRef.current = null;
-                    clearAddServiceRestoreSnapshot(serviceTicketIdNum);
-                    notify(err?.message || 'Không thể chuyển trạng thái báo giá về nháp.');
-                }
-            }
-
-            const detailRes = await fetchServiceTicketDetail(ticketCode, token);
-            setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
-
-            // Notify advisor table to open append-only edit mode immediately
-            if (canOpenAppendEdit) {
-                try {
-                    globalThis.dispatchEvent(new CustomEvent('startAppendEstimate'));
-                } catch {
-                    // ignore if unavailable
-                }
-            }
-
-            triggerRefresh();
-            notify(`Đã chuyển về trạng thái để thêm dịch vụ.`);
-        } catch (err) {
-            addServiceRevertRef.current = null;
-            clearAddServiceRestoreSnapshot(serviceTicketIdNum);
-            notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
         } finally {
             setStatusUpdating(false);
         }
@@ -1774,10 +2007,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         && !hasAnyStockAllocation
         && !isActionLocked;
     const canSetPending = ticketStatus === 'ESTIMATED' && !isActionLocked;
-    const canAddService =
-        (ticketStatus === 'ESTIMATED' || ticketStatus === 'REPAIRING')
-        && estimateStatus === 'APPROVED'
-        && !isActionLocked;
     const canStartRepair = (ticketStatus === 'ESTIMATED' || ticketStatus === 'PENDING')
         && Boolean(estimateIdNum)
         && isEstimateApproved
@@ -1846,8 +2075,15 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     );
     const hasAnyAdvisorItem = advisorItems.length > 0;
     const isEstimatePersisted = Boolean(latestEstimate?.createdAt || latestEstimate?.estimateId || latestEstimate?.id);
-    const canConfirmEstimate = Boolean(estimateIdNum)
+    const canPrintServiceReceipt = Boolean(estimateIdNum)
         && estimateStatus === 'DRAFT'
+        && hasAnyAdvisorItem
+        && isEstimatePersisted
+        && !shouldHideEstimateUntilInspectionDone
+        && !isEstimateEditing
+        && !isActionLocked;
+    const canConfirmEstimate = Boolean(estimateIdNum)
+        && estimateStatus === 'SENT'
         && (ticketStatus === 'CREATED'
             || ticketStatus === 'INSPECTING'
             || ticketStatus === 'INSPECTED'
@@ -1859,6 +2095,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         && !isEstimateEditing
         && !isActionLocked;
     const handleEstimateStatusChange = useCallback((est) => {
+        const nextEstimateId = toPositiveNumberOrNull(est?.estimateId ?? est?.id);
+        const nextEstimateStatus = normalizeEstimateStatus(est?.estimateStatus ?? est?.status ?? est?.estimate_status);
+
         setLatestEstimate((prev) => {
             if (!est) return null;
             const next = prev ? { ...prev, ...est } : { ...est };
@@ -1870,6 +2109,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             }
             return next;
         });
+
+        if (nextEstimateId && nextEstimateStatus === 'DRAFT') {
+            createNewEstimateRevertRef.current = null;
+            setIsCreatingNewEstimateVersion(false);
+        }
 
         const hasEstimateId = Boolean(est?.estimateId ?? est?.id);
         const hasItems = Array.isArray(est?.items) && est.items.length > 0;
@@ -1892,48 +2136,170 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     }, [notify, setTicketRaw, ticket.ticketCode, ticketCodeParam]);
 
-    const handleCreateReceipt = async () => {
+    const applyPromotion = async () => {
+        if (hasBill) {
+            notify('Phiếu dịch vụ đã có hoá đơn. Không thể áp dụng khuyến mãi.');
+            return;
+        }
+
+        setPromoError('');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        const code = String(promoCode || '').trim();
+        const selectedId = String(selectedPromotionId || '').trim();
+
+        if (!code && !selectedId) {
+            setAppliedPromotion(null);
+            return;
+        }
+
+        if (code) {
+            try {
+                setPromoApplying(true);
+                const res = await fetchPromotionByCode(code, token);
+                const promo = normalizePromotion(res?.data ?? null);
+                const validationMessage = validatePromotion(promo, receiptSubtotal);
+                if (validationMessage) {
+                    setAppliedPromotion(null);
+                    setPromoError(validationMessage);
+                    return;
+                }
+                setAppliedPromotion(promo);
+                setSelectedPromotionId('');
+            } catch (err) {
+                setAppliedPromotion(null);
+                setPromoError(err?.message || 'Mã không hợp lệ');
+            } finally {
+                setPromoApplying(false);
+            }
+            return;
+        }
+
+        const picked = availablePromotions.find((p) => {
+            const id = getPromotionId(p);
+            return id != null && String(id) === selectedId;
+        }) ?? null;
+        const validationMessage = validatePromotion(picked, receiptSubtotal);
+        if (validationMessage) {
+            setAppliedPromotion(null);
+            setPromoError(validationMessage);
+            return;
+        }
+        setAppliedPromotion(normalizePromotion(picked));
+    };
+
+    const handlePrintServiceReceipt = async () => {
         if (receiptApproving) return;
-        const code = ticket.ticketCode || ticketCodeParam;
-        if (!code) {
-            notify('Thiếu mã phiếu dịch vụ để tạo hoá đơn.');
-            return;
-        }
-
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
         if (!token) {
-            notify('Vui lòng đăng nhập để tạo hoá đơn.');
+            notify('Vui lòng đăng nhập để in phiếu dịch vụ.');
             return;
         }
-
-        if (!serviceTicketIdNum) {
-            notify('Thiếu serviceTicketId hợp lệ để tạo hoá đơn.');
+        if (!estimateIdNum || estimateStatus !== 'DRAFT') {
+            notify('Chỉ có thể in phiếu dịch vụ khi báo giá đang ở trạng thái DRAFT.');
             return;
         }
 
         try {
             setReceiptApproving(true);
-            const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
-            const latest = pickLatestEstimate(estimateRes?.data);
-            const estimateIdRaw = latest?.estimateId ?? latest?.id;
-            const estimateIdNum = typeof estimateIdRaw === 'number' ? estimateIdRaw : Number(estimateIdRaw);
-            if (!Number.isFinite(estimateIdNum) || estimateIdNum <= 0) {
-                notify('Chưa có báo giá hợp lệ để xác nhận trước khi tạo hoá đơn.');
-                return;
-            }
-
-            const latestStatus = normalizeEstimateStatus(latest?.estimateStatus ?? latest?.status);
-            if (latestStatus !== 'APPROVED' && latestStatus !== 'ARCHIVED') {
-                notify('Vui lòng xác nhận báo giá trước khi tạo hoá đơn.');
-                return;
-            }
-            navigate(`/service-ticket/${encodeURIComponent(String(code || '').trim())}/receipt-confirm`, {
-                state: { ticket: ticketRaw ?? ticketFromState ?? null },
-            });
+            await manageServiceTicketEstimateStatus(estimateIdNum, 'SENT', token);
+            setLatestEstimate((prev) => (prev ? { ...prev, status: 'SENT', estimateStatus: 'SENT' } : prev));
+            notify('Đã chuyển báo giá sang trạng thái SENT.');
+            globalThis.setTimeout?.(() => {
+                globalThis.requestAnimationFrame?.(() => globalThis.window?.print?.());
+            }, 120);
         } catch (err) {
-            notify(err?.message || 'Không thể xác nhận báo giá để tạo hoá đơn.');
+            notify(err?.message || 'Không thể in phiếu dịch vụ.');
         } finally {
             setReceiptApproving(false);
+        }
+    };
+
+    const handleRequestPayment = async () => {
+        if (billCreating) return;
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để yêu cầu thanh toán.');
+            return;
+        }
+        if (!serviceTicketIdNum) {
+            notify('Thiếu serviceTicketId hợp lệ để tạo hoá đơn.');
+            return;
+        }
+        if (!estimateIdNum) {
+            notify('Không tìm thấy báo giá hợp lệ để tạo hoá đơn.');
+            return;
+        }
+        if (hasBill) {
+            notify('Phiếu dịch vụ đã có hoá đơn.');
+            return;
+        }
+        if (estimateStatus !== 'APPROVED') {
+            notify('Vui lòng xác nhận báo giá trước khi yêu cầu thanh toán.');
+            return;
+        }
+
+        let archivedBeforeBill = false;
+        try {
+            setBillCreating(true);
+            await manageServiceTicketEstimateStatus(estimateIdNum, 'ARCHIVED', token);
+            archivedBeforeBill = true;
+            setLatestEstimate((prev) => (prev ? { ...prev, status: 'ARCHIVED', estimateStatus: 'ARCHIVED' } : prev));
+
+            const versionRaw = latestEstimate?.version ?? latestEstimate?.estimateVersion ?? latestEstimate?.estimateNo ?? latestEstimate?.versionNo ?? null;
+            const versionParsed =
+                typeof versionRaw === 'number'
+                    ? versionRaw
+                    : Number(/\d+/.exec(String(versionRaw ?? ''))?.[0] ?? '');
+            const billVersion = Number.isFinite(versionParsed) && versionParsed > 0 ? versionParsed : 1;
+            const promotionId = getPromotionId(appliedPromotion);
+            const createPayload = {
+                serviceTicketId: serviceTicketIdNum,
+                estimateId: estimateIdNum,
+                version: billVersion,
+                paymentStatus: 'UNPAID',
+                subTotal: toMoneyNumber(receiptSubtotal),
+                discountAmount: toMoneyNumber(receiptDiscountAmount),
+                finalAmount: toMoneyNumber(receiptTotal),
+                promotionId: promotionId ?? null,
+                discount_amount: toMoneyNumber(receiptDiscountAmount),
+                final_amount: toMoneyNumber(receiptTotal),
+                totalAmount: toMoneyNumber(receiptTotal),
+            };
+
+            const billRes = await createPayment(createPayload, token);
+            const createdBillId = normalizeBillId(billRes);
+            if (!createdBillId) throw new Error('Tạo bill thất bại (không nhận được billId).');
+
+            try {
+                const res = await fetchPaymentByServiceTicketId(serviceTicketIdNum, token);
+                setBillPayment(res?.data ?? res ?? billRes ?? null);
+            } catch {
+                setBillPayment(billRes?.data ?? billRes ?? null);
+            }
+            notify('Đã tạo yêu cầu thanh toán.');
+        } catch (err) {
+            if (archivedBeforeBill) {
+                try {
+                    const lookup = await fetchPaymentByServiceTicketId(serviceTicketIdNum, token);
+                    const existingBillId = normalizeBillId(lookup?.data ?? lookup);
+                    if (existingBillId) {
+                        setBillPayment(lookup?.data ?? lookup ?? null);
+                    } else {
+                        await manageServiceTicketEstimateStatus(estimateIdNum, 'APPROVED', token);
+                        setLatestEstimate((prev) => (prev ? { ...prev, status: 'APPROVED', estimateStatus: 'APPROVED' } : prev));
+                    }
+                } catch {
+                    try {
+                        await manageServiceTicketEstimateStatus(estimateIdNum, 'APPROVED', token);
+                        setLatestEstimate((prev) => (prev ? { ...prev, status: 'APPROVED', estimateStatus: 'APPROVED' } : prev));
+                    } catch {
+                        // If rollback also fails, surface the original error below.
+                    }
+                }
+            }
+            notify(err?.message || 'Không thể tạo yêu cầu thanh toán.');
+        } finally {
+            setBillCreating(false);
         }
     };
 
@@ -2252,6 +2618,78 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             disableFullEdit={isAddServicePending}
                                         />
                                     )}
+                                    {latestEstimate && !isActionLocked ? (
+                                        <section className={styles.block}>
+                                            <h2 className={styles.blockTitle}>Mã giảm giá</h2>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(220px, 320px) auto', gap: 12, alignItems: 'end' }}>
+                                                <div className="ui-field" style={{ marginBottom: 0 }}>
+                                                    <label htmlFor="service-ticket-promo-code">Nhập mã</label>
+                                                    <input
+                                                        id="service-ticket-promo-code"
+                                                        value={promoCode}
+                                                        onChange={(e) => {
+                                                            setPromoCode(e.target.value);
+                                                            if (selectedPromotionId) setSelectedPromotionId('');
+                                                        }}
+                                                        placeholder="Mã khuyến mãi"
+                                                        disabled={billCreating || promoApplying}
+                                                    />
+                                                </div>
+                                                <div className="ui-field" style={{ marginBottom: 0 }}>
+                                                    <label htmlFor="service-ticket-promo-list">Hoặc chọn khuyến mãi</label>
+                                                    <select
+                                                        id="service-ticket-promo-list"
+                                                        value={selectedPromotionId}
+                                                        onChange={(e) => {
+                                                            setSelectedPromotionId(e.target.value);
+                                                            if (promoCode) setPromoCode('');
+                                                        }}
+                                                        disabled={billCreating || promoApplying || promotionsLoading}
+                                                    >
+                                                        <option value="">{promotionsLoading ? 'Đang tải...' : '-'}</option>
+                                                        {availablePromotions.map((p) => {
+                                                            const id = getPromotionId(p);
+                                                            if (!id) return null;
+                                                            return (
+                                                                <option key={String(id)} value={String(id)}>
+                                                                    {buildPromotionLabel(p) || String(id)}
+                                                                </option>
+                                                            );
+                                                        })}
+                                                    </select>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="ui-btn ui-btn--primary"
+                                                    onClick={applyPromotion}
+                                                    disabled={billCreating || promoApplying}
+                                                >
+                                                    {promoApplying ? 'Đang áp dụng...' : 'Áp dụng'}
+                                                </button>
+                                            </div>
+                                            {buildPromotionLabel(appliedPromotion) ? (
+                                                <div className={styles.noteBox} style={{ marginTop: 12 }}>
+                                                    Đã áp dụng: {buildPromotionLabel(appliedPromotion)}
+                                                </div>
+                                            ) : null}
+                                            <div className={styles.kvList} style={{ marginTop: 12 }}>
+                                                <div className={styles.kvRow}>
+                                                    <span className={styles.kvLabel}>Giá gốc:</span>
+                                                    <span className={styles.kvValue}>{formatCurrencyVndCompact(receiptSubtotal) || '-'}</span>
+                                                </div>
+                                                <div className={styles.kvRow}>
+                                                    <span className={styles.kvLabel}>Giảm giá:</span>
+                                                    <span className={styles.kvValue}>{receiptDiscountAmount ? `- ${formatCurrencyVndCompact(receiptDiscountAmount)}` : '-'}</span>
+                                                </div>
+                                                <div className={styles.kvRow}>
+                                                    <span className={styles.kvLabel}>Tổng:</span>
+                                                    <span className={styles.kvValue} style={{ fontWeight: 800 }}>{formatCurrencyVndCompact(receiptTotal) || '-'}</span>
+                                                </div>
+                                            </div>
+                                            {promotionsError ? <div className={styles.errorBanner} style={{ marginTop: 12 }}>{promotionsError}</div> : null}
+                                            {promoError ? <div className={styles.errorBanner} style={{ marginTop: 12 }}>{promoError}</div> : null}
+                                        </section>
+                                    ) : null}
                                     {ticket.hasDraftStockIssue ? (
                                     <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
                                     ) : null}
@@ -2264,7 +2702,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
-                                        {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly ? null : isCreatingNewEstimateVersion && canConfirmEstimate ? (
+                                        {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly ? null : isCreatingNewEstimateVersion && canPrintServiceReceipt ? (
+                                            <button
+                                                type="button"
+                                                className="ui-btn ui-btn--ghost"
+                                                onClick={handlePrintServiceReceipt}
+                                                disabled={receiptApproving || statusUpdating}
+                                            >
+                                                {receiptApproving ? 'Đang in...' : 'In phiếu dịch vụ'}
+                                            </button>
+                                        ) : isCreatingNewEstimateVersion && canConfirmEstimate ? (
                                             <button
                                                 type="button"
                                                 className="ui-btn ui-btn--primary"
@@ -2292,9 +2739,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         Chờ xử lý
                                                     </button>
                                                 )}
-                                                {canAddService && (
-                                                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleAddService} disabled={receiptApproving || statusUpdating}>
-                                                        Thêm dịch vụ
+                                                {canPrintServiceReceipt && (
+                                                    <button
+                                                        type="button"
+                                                        className="ui-btn ui-btn--ghost"
+                                                        onClick={handlePrintServiceReceipt}
+                                                        disabled={receiptApproving || statusUpdating}
+                                                    >
+                                                        {receiptApproving ? 'Đang in...' : 'In phiếu dịch vụ'}
                                                     </button>
                                                 )}
                                                 {canConfirmEstimate && (
@@ -2337,9 +2789,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         Đặt lịch bảo dưỡng
                                                     </button>
                                                 )}
-                                                {canCreateReceipt && (
-                                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleCreateReceipt} disabled={receiptApproving}>
-                                                        In phiếu dịch vụ
+                                                {canRequestPayment && (
+                                                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleRequestPayment} disabled={billCreating}>
+                                                        {billCreating ? 'Đang tạo yêu cầu...' : 'Yêu cầu thanh toán'}
                                                     </button>
                                                 )}
                                                 {!assignmentsLoading && !hasTechnician && ticketStatus === 'COMPLETED' && !isActionLocked && (
@@ -2375,6 +2827,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                     ) : null}
                     </main>
                 </div>
+            </div>
+            <div className={styles.printOnly}>
+                <Receipt ticket={printTicket} />
             </div>
         </div>
     );
