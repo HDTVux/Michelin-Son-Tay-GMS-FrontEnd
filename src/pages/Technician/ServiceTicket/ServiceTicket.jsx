@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -30,6 +30,7 @@ const TEXT_FIELD_CHAR_LIMIT = 500;
 const CATEGORY_NAME_CHAR_LIMIT = 100;
 const RECOMMENDED_TIRE_SIZE_MAX_LENGTH = 10;
 const SERVICE_TICKET_DRAFT_SCHEMA_VERSION = 2;
+const TIRE_FIELD_AUTOCOMPLETE = 'new-password';
 const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
 const getServiceTicketDraftStorageKey = (ticketCode, draftScope = 'default') => `serviceTicketDraft:${String(draftScope ?? 'default').trim()}:${String(ticketCode ?? '').trim()}`;
 
@@ -240,6 +241,46 @@ const validateRecommendedTireSizeValue = (value) => {
   return getRecommendedTireSizeError(value);
 };
 
+const normalizeHydratedRecommendedTireSize = (value) => {
+  const normalized = normalizeRecommendedTireSizeValue(value);
+  if (!normalized) return '';
+  return validateRecommendedTireSizeValue(normalized) ? '' : normalized;
+};
+
+const normalizeHydratedTireFieldValue = (field, value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+
+  let nextValue = '';
+  if (INTEGER_TIRE_FIELDS.has(field)) {
+    if (!/^\d+$/.test(raw)) return '';
+    if (raw.length > (INTEGER_TIRE_FIELD_MAX_LENGTHS[field] ?? TEXT_FIELD_CHAR_LIMIT)) return '';
+    nextValue = raw;
+  } else {
+    const normalizedRaw = raw.replace(',', '.');
+    if (!/^\d*\.?\d*$/.test(normalizedRaw) || normalizedRaw === '.') return '';
+    nextValue = sanitizeDecimalTireInputValue(normalizedRaw);
+  }
+
+  if (!nextValue) return '';
+  const error = getNumericTireFieldError(nextValue, TIRE_FIELD_LABELS[field] || 'thông số lốp', {
+    integer: INTEGER_TIRE_FIELDS.has(field),
+    range: TIRE_FIELD_RANGES[field],
+  });
+  return error ? '' : nextValue;
+};
+
+const parseTireSpecificationValue = (value) => {
+  const normalized = normalizeRecommendedTireSizeValue(value);
+  if (!normalized || validateRecommendedTireSizeValue(normalized)) {
+    return { size1: '', size2: '', size3: '' };
+  }
+  const match = /^(\d{2,3})\/(\d{2,3})R(\d{1,2})$/i.exec(normalized);
+  return match
+    ? { size1: match[1], size2: match[2], size3: match[3] }
+    : { size1: '', size2: '', size3: '' };
+};
+
 const normalizeCategoryNameForCompare = (value) => String(value ?? '')
   .trim()
   .toLowerCase()
@@ -396,6 +437,8 @@ export const ServiceTicket = ({
   // Ref chống spam toast khi validate 500 ký tự
   const toast500LastFired = useRef({});
   const hasUnsavedLocalEditsRef = useRef(false);
+  const tireInputSectionRef = useRef(null);
+  const tireInputValueByNameRef = useRef({});
 
   const [refreshKey, setRefreshKey] = useState(0);
   const normalizedServiceTicketStatus = useMemo(
@@ -418,6 +461,58 @@ export const ServiceTicket = ({
     || notesError
     || (advisorNoteHasErrors ? 'Vui lòng rút gọn nội dung ghi chú vượt quá giới hạn.' : '');
   const blockingTextFieldValidationError = textFieldValidationError;
+
+  const tireInputValueByName = useMemo(() => ({
+    'gms-recommended-tire-size': recommendedTireSize,
+    'gms-front-left-size1': tireData.frontLeft.size1,
+    'gms-front-left-size2': tireData.frontLeft.size2,
+    'gms-front-left-size3': tireData.frontLeft.size3,
+    'gms-front-left-mm': tireData.frontLeft.mm,
+    'gms-front-left-pressure': tireData.frontLeft.pressure,
+    'gms-rear-left-size1': tireData.rearLeft.size1,
+    'gms-rear-left-size2': tireData.rearLeft.size2,
+    'gms-rear-left-size3': tireData.rearLeft.size3,
+    'gms-rear-left-mm': tireData.rearLeft.mm,
+    'gms-rear-left-pressure': tireData.rearLeft.pressure,
+    'gms-front-right-mm': tireData.frontRight.mm,
+    'gms-front-right-pressure': tireData.frontRight.pressure,
+    'gms-front-right-recommended-pressure': tireData.frontRight.recommendedPressure,
+    'gms-rear-right-mm': tireData.rearRight.mm,
+    'gms-rear-right-pressure': tireData.rearRight.pressure,
+    'gms-rear-right-recommended-pressure': tireData.rearRight.recommendedPressure,
+    'gms-spare-mm': tireData.spare.mm,
+    'gms-spare-pressure': tireData.spare.pressure,
+    'gms-spare-recommended-pressure': tireData.spare.recommendedPressure,
+  }), [recommendedTireSize, tireData]);
+
+  useLayoutEffect(() => {
+    tireInputValueByNameRef.current = tireInputValueByName;
+  }, [tireInputValueByName]);
+
+  const syncTireInputDomValues = useCallback(() => {
+    const section = tireInputSectionRef.current;
+    if (!section) return;
+    section.querySelectorAll('input[name^="gms-"]').forEach((input) => {
+      const expectedValue = String(tireInputValueByNameRef.current?.[input.name] ?? '');
+      if (input.value !== expectedValue) {
+        input.value = expectedValue;
+      }
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    syncTireInputDomValues();
+  });
+
+  useEffect(() => {
+    syncTireInputDomValues();
+    const timers = [0, 50, 150, 500, 1000].map((delay) => (
+      window.setTimeout(syncTireInputDomValues, delay)
+    ));
+    return () => {
+      timers.forEach((timerId) => window.clearTimeout(timerId));
+    };
+  }, [resolvedTicketCode, draftScope, syncTireInputDomValues]);
 
   useEffect(() => {
     if (!readOnly) return;
@@ -471,20 +566,11 @@ export const ServiceTicket = ({
     )
   ), [defaultTireData]);
 
-  const mergeStoredTireData = useCallback((storedTireData) => {
-    const nextTireData = createEmptyTireState();
-    if (!storedTireData || typeof storedTireData !== 'object') return nextTireData;
-
-    Object.keys(nextTireData).forEach((position) => {
-      const source = storedTireData?.[position];
-      if (!source || typeof source !== 'object') return;
-      Object.keys(nextTireData[position]).forEach((field) => {
-        nextTireData[position][field] = String(source?.[field] ?? '');
-      });
-    });
-
-    return nextTireData;
-  }, [createEmptyTireState]);
+  useEffect(() => {
+    setTireData(createEmptyTireState());
+    setRecommendedTireSize('');
+    setRecommendedTireSizeError('');
+  }, [resolvedTicketCode, draftScope, createEmptyTireState]);
 
   const mapInspectionTireState = useCallback((inspection) => {
     const nextTireData = createEmptyTireState();
@@ -496,13 +582,8 @@ export const ServiceTicket = ({
       ?? tiresObject?.recommendedTireSize
       ?? '',
     ).trim();
+    nextRecommendedTireSize = normalizeHydratedRecommendedTireSize(nextRecommendedTireSize);
     const tires = Array.isArray(inspection?.tires) ? inspection.tires : [];
-    const parseSpecification = (value) => {
-      const match = String(value ?? '').match(/(\d+)\/(\d+)R(\d+)/i);
-      return match
-        ? { size1: match[1], size2: match[2], size3: match[3] }
-        : { size1: '', size2: '', size3: '' };
-    };
 
     if (tires.length > 0) {
       tires.forEach((tire) => {
@@ -518,14 +599,14 @@ export const ServiceTicket = ({
 
         nextTireData[position] = {
           ...nextTireData[position],
-          ...parseSpecification(tire?.tireSpecification),
-          mm: tire?.treadDepth != null ? String(tire.treadDepth) : '',
-          pressure: tire?.pressure != null ? String(tire.pressure) : '',
-          recommendedPressure: tire?.recommendedPressure != null ? String(tire.recommendedPressure) : '',
+          ...parseTireSpecificationValue(tire?.tireSpecification),
+          mm: normalizeHydratedTireFieldValue('mm', tire?.treadDepth),
+          pressure: normalizeHydratedTireFieldValue('pressure', tire?.pressure),
+          recommendedPressure: normalizeHydratedTireFieldValue('recommendedPressure', tire?.recommendedPressure),
         };
 
         if (!nextRecommendedTireSize && tire?.recommendedTireSize) {
-          nextRecommendedTireSize = String(tire.recommendedTireSize).trim();
+          nextRecommendedTireSize = normalizeHydratedRecommendedTireSize(tire.recommendedTireSize);
         }
       });
     }
@@ -534,15 +615,19 @@ export const ServiceTicket = ({
       Object.keys(nextTireData).forEach((position) => {
         const source = tiresObject?.[position];
         if (!source || typeof source !== 'object') return;
-        const sourceSpec = parseSpecification(source?.tireSpecification ?? source?.specification);
+        const sourceSpec = parseTireSpecificationValue(source?.tireSpecification ?? source?.specification);
         nextTireData[position] = {
           ...nextTireData[position],
           ...(sourceSpec.size1 ? sourceSpec : {}),
-          mm: source?.treadDepth != null ? String(source.treadDepth) : String(source?.mm ?? nextTireData[position].mm ?? ''),
-          pressure: source?.pressure != null ? String(source.pressure) : String(source?.pressureValue ?? nextTireData[position].pressure ?? ''),
+          mm: source?.treadDepth != null
+            ? normalizeHydratedTireFieldValue('mm', source.treadDepth)
+            : normalizeHydratedTireFieldValue('mm', source?.mm ?? nextTireData[position].mm),
+          pressure: source?.pressure != null
+            ? normalizeHydratedTireFieldValue('pressure', source.pressure)
+            : normalizeHydratedTireFieldValue('pressure', source?.pressureValue ?? nextTireData[position].pressure),
           recommendedPressure: source?.recommendedPressure != null
-            ? String(source.recommendedPressure)
-            : String(source?.recommendedPressureValue ?? nextTireData[position].recommendedPressure ?? ''),
+            ? normalizeHydratedTireFieldValue('recommendedPressure', source.recommendedPressure)
+            : normalizeHydratedTireFieldValue('recommendedPressure', source?.recommendedPressureValue ?? nextTireData[position].recommendedPressure),
         };
       });
     }
@@ -553,14 +638,14 @@ export const ServiceTicket = ({
         if (!source || typeof source !== 'object') return;
         Object.keys(nextTireData[position]).forEach((field) => {
           if (source?.[field] != null && String(source[field]).trim() !== '') {
-            nextTireData[position][field] = String(source[field]);
+            nextTireData[position][field] = normalizeHydratedTireFieldValue(field, source[field]);
           }
         });
       });
     }
 
-    const frontSpec = parseSpecification(inspection?.frontTireSpecification ?? tiresObject?.frontTireSpecification);
-    const rearSpec = parseSpecification(inspection?.rearTireSpecification ?? tiresObject?.rearTireSpecification);
+    const frontSpec = parseTireSpecificationValue(inspection?.frontTireSpecification ?? tiresObject?.frontTireSpecification);
+    const rearSpec = parseTireSpecificationValue(inspection?.rearTireSpecification ?? tiresObject?.rearTireSpecification);
     if (!nextTireData.frontLeft.size1 && frontSpec.size1) {
       nextTireData.frontLeft = { ...nextTireData.frontLeft, ...frontSpec };
     }
@@ -571,14 +656,17 @@ export const ServiceTicket = ({
     const frontRecommendedPressure = inspection?.frontRecommendedPressure ?? tiresObject?.frontRecommendedPressure;
     const rearRecommendedPressure = inspection?.rearRecommendedPressure ?? tiresObject?.rearRecommendedPressure;
     const spareRecommendedPressure = inspection?.spareRecommendedPressure ?? tiresObject?.spareRecommendedPressure;
-    if (!nextTireData.frontRight.recommendedPressure && frontRecommendedPressure != null) {
-      nextTireData.frontRight.recommendedPressure = String(frontRecommendedPressure);
+    const normalizedFrontRecommendedPressure = normalizeHydratedTireFieldValue('recommendedPressure', frontRecommendedPressure);
+    const normalizedRearRecommendedPressure = normalizeHydratedTireFieldValue('recommendedPressure', rearRecommendedPressure);
+    const normalizedSpareRecommendedPressure = normalizeHydratedTireFieldValue('recommendedPressure', spareRecommendedPressure);
+    if (!nextTireData.frontRight.recommendedPressure && normalizedFrontRecommendedPressure) {
+      nextTireData.frontRight.recommendedPressure = normalizedFrontRecommendedPressure;
     }
-    if (!nextTireData.rearRight.recommendedPressure && rearRecommendedPressure != null) {
-      nextTireData.rearRight.recommendedPressure = String(rearRecommendedPressure);
+    if (!nextTireData.rearRight.recommendedPressure && normalizedRearRecommendedPressure) {
+      nextTireData.rearRight.recommendedPressure = normalizedRearRecommendedPressure;
     }
-    if (!nextTireData.spare.recommendedPressure && spareRecommendedPressure != null) {
-      nextTireData.spare.recommendedPressure = String(spareRecommendedPressure);
+    if (!nextTireData.spare.recommendedPressure && normalizedSpareRecommendedPressure) {
+      nextTireData.spare.recommendedPressure = normalizedSpareRecommendedPressure;
     }
 
     return {
@@ -789,17 +877,8 @@ export const ServiceTicket = ({
 
         const localDraft = readServiceTicketDraft(resolvedTicketCode, draftScope);
         if (localDraft) {
-          const canRestoreTireDraft = Number(localDraft?.schemaVersion) >= SERVICE_TICKET_DRAFT_SCHEMA_VERSION
-            && localDraft?.restoreTireFields === true;
           if (typeof localDraft.notes === 'string') {
             setNotes(localDraft.notes);
-          }
-          if (canRestoreTireDraft && typeof localDraft.recommendedTireSize === 'string') {
-            setRecommendedTireSize(localDraft.recommendedTireSize);
-            setRecommendedTireSizeError(validateRecommendedTireSizeValue(localDraft.recommendedTireSize));
-          }
-          if (canRestoreTireDraft && localDraft.tireData && typeof localDraft.tireData === 'object') {
-            setTireData(mergeStoredTireData(localDraft.tireData));
           }
           if (Array.isArray(localDraft.advisorItems) && localDraft.advisorItems.length > 0) {
             applyAdvisorNotesToLocalState(localDraft.advisorItems);
@@ -848,7 +927,7 @@ export const ServiceTicket = ({
     };
 
     fetchData();
-  }, [resolvedTicketCode, embedded, refreshKey, isAdvisorMode, syncServiceTicketStatus, applyAdvisorNotesToLocalState, createEmptyTireState, mapInspectionTireState, draftScope, mergeStoredTireData]);
+  }, [resolvedTicketCode, embedded, refreshKey, isAdvisorMode, syncServiceTicketStatus, applyAdvisorNotesToLocalState, createEmptyTireState, mapInspectionTireState, draftScope]);
 
   const handleTireDataChange = (position, field, value) => {
     if (!canEditTechnicalFields || isFormLocked) return;
@@ -859,7 +938,7 @@ export const ServiceTicket = ({
       && isTireInputAboveMax(field, currentValue)
       && isTireInputAboveMax(field, nextValue)
     );
-    if (nextValue === currentValue || isAddingMoreInvalidInput) return;
+    if (nextValue === currentValue || isAddingMoreInvalidInput || isTireInputAboveMax(field, nextValue)) return;
     markUnsavedLocalEdit();
     setTireData(prev => ({
       ...prev,
@@ -1231,6 +1310,10 @@ export const ServiceTicket = ({
   const validateAdvisorCompletion = () => validateSafetyChecklistCompletion();
 
   const handleSaveDraft = async () => {
+    if (isInspectionCompleted) {
+      toast.info('Phiếu kiểm tra an toàn đã hoàn thành, không thể lưu nháp.');
+      return;
+    }
     if (!guardServiceTicketEditable()) return;
     const currentTireErrors = getTireInputErrorMap(tireData);
     const firstTireError = Object.values(currentTireErrors).find(Boolean);
@@ -1769,7 +1852,7 @@ export const ServiceTicket = ({
       </div>
 
       {/* Phần kiểm tra lốp */}
-      <div className={styles.card}>
+      <div className={styles.card} ref={tireInputSectionRef}>
         <div className={styles.tireInspectionHeader}>
           <div>
             <div className={styles.tireSizeRow}>
@@ -1779,7 +1862,7 @@ export const ServiceTicket = ({
                 value={recommendedTireSize}
                 onChange={(e) => handleRecommendedTireSizeChange(e.target.value)}
                 className={styles.tireSizeInput}
-                autoComplete="off"
+                autoComplete={TIRE_FIELD_AUTOCOMPLETE}
                 name="gms-recommended-tire-size"
                 disabled={!canEditTechnicalFields}
               />
@@ -1797,11 +1880,11 @@ export const ServiceTicket = ({
             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div className={styles.tireBoxRow}>
-                  <input type="text" value={tireData.frontLeft.size1} onChange={(e) => handleTireDataChange('frontLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete="off" name="gms-front-left-size1" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.frontLeft.size1} onChange={(e) => handleTireDataChange('frontLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-front-left-size1" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireSlash}>/</span>
-                  <input type="text" value={tireData.frontLeft.size2} onChange={(e) => handleTireDataChange('frontLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete="off" name="gms-front-left-size2" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.frontLeft.size2} onChange={(e) => handleTireDataChange('frontLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-front-left-size2" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireRLabel}>R</span>
-                  <input type="text" value={tireData.frontLeft.size3} onChange={(e) => handleTireDataChange('frontLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete="off" name="gms-front-left-size3" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.frontLeft.size3} onChange={(e) => handleTireDataChange('frontLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-front-left-size3" disabled={!canEditTechnicalFields} />
                 </div>
                 {['frontLeft_size1', 'frontLeft_size2', 'frontLeft_size3'].map((errorKey) => (
                   visibleTireMmErrors[errorKey]
@@ -1811,7 +1894,7 @@ export const ServiceTicket = ({
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.frontLeft.mm} onChange={(e) => handleTireDataChange('frontLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete="off" name="gms-front-left-mm" disabled={!canEditTechnicalFields} />
+                    <input type="text" value={tireData.frontLeft.mm} onChange={(e) => handleTireDataChange('frontLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-front-left-mm" disabled={!canEditTechnicalFields} />
                     {visibleTireMmErrors['frontLeft_mm'] && (
                       <div style={{ 
                         position: 'absolute', 
@@ -1836,7 +1919,7 @@ export const ServiceTicket = ({
                 <div className={styles.tireBoxRow}>
                    <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.frontLeft.pressure} onChange={(e) => handleTireDataChange('frontLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete="off" name="gms-front-left-pressure" disabled={!canEditTechnicalFields} />
+                    <input type="text" value={tireData.frontLeft.pressure} onChange={(e) => handleTireDataChange('frontLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-front-left-pressure" disabled={!canEditTechnicalFields} />
                     {visibleTireMmErrors['frontLeft_pressure'] && (
                       <div style={{ 
                         position: 'absolute', 
@@ -1865,11 +1948,11 @@ export const ServiceTicket = ({
             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div className={styles.tireBoxRow}>
-                  <input type="text" value={tireData.rearLeft.size1} onChange={(e) => handleTireDataChange('rearLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete="off" name="gms-rear-left-size1" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.rearLeft.size1} onChange={(e) => handleTireDataChange('rearLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-rear-left-size1" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireSlash}>/</span>
-                  <input type="text" value={tireData.rearLeft.size2} onChange={(e) => handleTireDataChange('rearLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete="off" name="gms-rear-left-size2" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.rearLeft.size2} onChange={(e) => handleTireDataChange('rearLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-rear-left-size2" disabled={!canEditTechnicalFields} />
                   <span className={styles.tireRLabel}>R</span>
-                  <input type="text" value={tireData.rearLeft.size3} onChange={(e) => handleTireDataChange('rearLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete="off" name="gms-rear-left-size3" disabled={!canEditTechnicalFields} />
+                  <input type="text" value={tireData.rearLeft.size3} onChange={(e) => handleTireDataChange('rearLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-rear-left-size3" disabled={!canEditTechnicalFields} />
                 </div>
                 {['rearLeft_size1', 'rearLeft_size2', 'rearLeft_size3'].map((errorKey) => (
                   visibleTireMmErrors[errorKey]
@@ -1879,7 +1962,7 @@ export const ServiceTicket = ({
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.rearLeft.mm} onChange={(e) => handleTireDataChange('rearLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete="off" name="gms-rear-left-mm" disabled={!canEditTechnicalFields} />
+                    <input type="text" value={tireData.rearLeft.mm} onChange={(e) => handleTireDataChange('rearLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-rear-left-mm" disabled={!canEditTechnicalFields} />
                     {visibleTireMmErrors['rearLeft_mm'] && (
                       <div style={{ 
                         position: 'absolute', 
@@ -1904,7 +1987,7 @@ export const ServiceTicket = ({
                 <div className={styles.tireBoxRow}>
                    <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.rearLeft.pressure} onChange={(e) => handleTireDataChange('rearLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete="off" name="gms-rear-left-pressure" disabled={!canEditTechnicalFields} />
+                    <input type="text" value={tireData.rearLeft.pressure} onChange={(e) => handleTireDataChange('rearLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-rear-left-pressure" disabled={!canEditTechnicalFields} />
                     {visibleTireMmErrors['rearLeft_pressure'] && (
                       <div style={{ 
                         position: 'absolute', 
@@ -1960,7 +2043,7 @@ export const ServiceTicket = ({
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.frontRight.mm} onChange={(e) => handleTireDataChange('frontRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete="off" name="gms-front-right-mm" disabled={!canEditTechnicalFields} />
+                    <input type="text" value={tireData.frontRight.mm} onChange={(e) => handleTireDataChange('frontRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-front-right-mm" disabled={!canEditTechnicalFields} />
                     {visibleTireMmErrors['frontRight_mm'] && (
                       <div style={{ 
                         position: 'absolute', 
@@ -1985,7 +2068,7 @@ export const ServiceTicket = ({
                 <div className={styles.tireBoxRow}>
                    <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.frontRight.pressure} onChange={(e) => handleTireDataChange('frontRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete="off" name="gms-front-right-pressure" disabled={!canEditTechnicalFields} />
+                    <input type="text" value={tireData.frontRight.pressure} onChange={(e) => handleTireDataChange('frontRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-front-right-pressure" disabled={!canEditTechnicalFields} />
                     {visibleTireMmErrors['frontRight_pressure'] && (
                       <div style={{ 
                         position: 'absolute', 
@@ -2011,7 +2094,7 @@ export const ServiceTicket = ({
               {/* [Áp suất khuyến cáo] */}
               <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
                 <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
-                <input type="text" value={tireData.frontRight.recommendedPressure} onChange={(e) => handleTireDataChange('frontRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete="off" name="gms-front-right-recommended-pressure" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
+                <input type="text" value={tireData.frontRight.recommendedPressure} onChange={(e) => handleTireDataChange('frontRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-front-right-recommended-pressure" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
                 {visibleTireMmErrors['frontRight_recommendedPressure'] && (
                   <div style={{ 
                     position: 'absolute', 
@@ -2041,7 +2124,7 @@ export const ServiceTicket = ({
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.rearRight.mm} onChange={(e) => handleTireDataChange('rearRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete="off" name="gms-rear-right-mm" disabled={!canEditTechnicalFields} />
+                    <input type="text" value={tireData.rearRight.mm} onChange={(e) => handleTireDataChange('rearRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-rear-right-mm" disabled={!canEditTechnicalFields} />
                     {visibleTireMmErrors['rearRight_mm'] && (
                       <div style={{ 
                         position: 'absolute', 
@@ -2066,7 +2149,7 @@ export const ServiceTicket = ({
                 <div className={styles.tireBoxRow}>
                    <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.rearRight.pressure} onChange={(e) => handleTireDataChange('rearRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete="off" name="gms-rear-right-pressure" disabled={!canEditTechnicalFields} />
+                    <input type="text" value={tireData.rearRight.pressure} onChange={(e) => handleTireDataChange('rearRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-rear-right-pressure" disabled={!canEditTechnicalFields} />
                     {visibleTireMmErrors['rearRight_pressure'] && (
                       <div style={{ 
                         position: 'absolute', 
@@ -2091,7 +2174,7 @@ export const ServiceTicket = ({
               </div>
               <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
                 <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
-                <input type="text" value={tireData.rearRight.recommendedPressure} onChange={(e) => handleTireDataChange('rearRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete="off" name="gms-rear-right-recommended-pressure" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
+                <input type="text" value={tireData.rearRight.recommendedPressure} onChange={(e) => handleTireDataChange('rearRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-rear-right-recommended-pressure" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
                 {visibleTireMmErrors['rearRight_recommendedPressure'] && (
                   <div style={{ 
                     position: 'absolute', 
@@ -2121,7 +2204,7 @@ export const ServiceTicket = ({
                 <div className={styles.tireBoxRow}>
                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.spare.mm} onChange={(e) => handleTireDataChange('spare', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete="off" name="gms-spare-mm" disabled={!canEditTechnicalFields} />
+                    <input type="text" value={tireData.spare.mm} onChange={(e) => handleTireDataChange('spare', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-spare-mm" disabled={!canEditTechnicalFields} />
                     {visibleTireMmErrors['spare_mm'] && (
                       <div style={{ 
                         position: 'absolute', 
@@ -2146,7 +2229,7 @@ export const ServiceTicket = ({
                 <div className={styles.tireBoxRow}>
                    <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.spare.pressure} onChange={(e) => handleTireDataChange('spare', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete="off" name="gms-spare-pressure" disabled={!canEditTechnicalFields} />
+                    <input type="text" value={tireData.spare.pressure} onChange={(e) => handleTireDataChange('spare', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-spare-pressure" disabled={!canEditTechnicalFields} />
                     {visibleTireMmErrors['spare_pressure'] && (
                       <div style={{ 
                         position: 'absolute', 
@@ -2171,7 +2254,7 @@ export const ServiceTicket = ({
               </div>
               <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
                 <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
-                <input type="text" value={tireData.spare.recommendedPressure} onChange={(e) => handleTireDataChange('spare', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete="off" name="gms-spare-recommended-pressure" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
+                <input type="text" value={tireData.spare.recommendedPressure} onChange={(e) => handleTireDataChange('spare', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name="gms-spare-recommended-pressure" disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
                 {visibleTireMmErrors['spare_recommendedPressure'] && (
                   <div style={{ 
                     position: 'absolute', 
@@ -2203,7 +2286,7 @@ export const ServiceTicket = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h2 className={styles.sectionTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</h2>
           {canEditTechnicalFields && (
-            <button
+              <button
               className={styles.addCategoryButton}
               onClick={() => {
                 setNewCategoryName('');
@@ -2379,14 +2462,16 @@ export const ServiceTicket = ({
             {!(isAdvisorMode && embedded) && (
               <button className={styles.closeButton} onClick={handleCloseTicket}>Đóng</button>
             )}
+            {!isInspectionCompleted && (
             <button
                 className={styles.completeButton}
                 onClick={handleSaveDraft}
-                disabled={isFormLocked || Boolean(tireInputValidationError) || Boolean(blockingTextFieldValidationError)}
-                title={isFormLocked ? serviceTicketLockMessage : (blockingTextFieldValidationError || tireInputValidationError || '')}
+                disabled={isInspectionCompleted || isFormLocked || Boolean(tireInputValidationError) || Boolean(blockingTextFieldValidationError)}
+                title={isInspectionCompleted ? 'Phiếu kiểm tra an toàn đã hoàn thành, không thể lưu nháp.' : (isFormLocked ? serviceTicketLockMessage : (blockingTextFieldValidationError || tireInputValidationError || ''))}
               >
                 Lưu nháp
               </button>
+            )}
           </div>
           <div className={styles.actionRight}>
             {isAdvisorMode ? (
