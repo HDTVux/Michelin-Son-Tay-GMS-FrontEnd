@@ -146,13 +146,14 @@ function getTaxRuleSelectLabel(rule) {
     if (!rule) return '';
     const name = String(rule?.taxName ?? rule?.name ?? '').trim();
     const code = String(rule?.taxCode ?? rule?.code ?? '').trim();
-    return name || code;
+    const label = name || code;
+    const rateText = formatTaxRatePercent(rule);
+    if (label && rateText) return `${label} (${rateText})`;
+    return label || rateText;
 }
 
 function getTaxRuleDisplayLabel(rule) {
     if (!rule) return '';
-    const rateText = formatTaxRatePercent(rule);
-    if (rateText) return rateText;
     return getTaxRuleSelectLabel(rule);
 }
 
@@ -307,7 +308,6 @@ function EstimateItemRow({
     const effectiveTaxRuleId = itemTaxRuleId || categoryTaxRuleId || manualTaxRuleId;
     const taxRule = effectiveTaxRuleId ? taxRuleById.get(effectiveTaxRuleId) : null;
     const taxLabel = getTaxRuleDisplayLabel(taxRule);
-    const taxRateText = formatTaxRatePercent(taxRule);
     const isPredefinedCategory = Boolean(toIdOrNull(row?.workCategoryId));
     const subTotalValue = effectiveTaxRuleId ? (row?.subTotalWithVat ?? row?.subTotal) : row?.subTotal;
     const shouldShowTaxDropdown = allowInputs && !itemTaxRuleId && !categoryTaxRuleId;
@@ -450,8 +450,8 @@ function EstimateItemRow({
                                         </option>
                                     ))}
                                 </select>
-                                {effectiveTaxRuleId && taxRateText ? (
-                                    <span style={{ color: 'var(--ui-muted)', whiteSpace: 'nowrap' }}>{taxRateText}</span>
+                                {effectiveTaxRuleId && taxLabel ? (
+                                    <span style={{ color: 'var(--ui-muted)', whiteSpace: 'nowrap' }}>{taxLabel}</span>
                                 ) : null}
                             </div>
                         ) : (
