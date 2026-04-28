@@ -1546,8 +1546,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         await handleUpdateTicketStatus('CANCELLED', 'Đã hủy phiếu dịch vụ.');
     };
 
-    const handleSetPending = () => handleUpdateTicketStatus('PENDING', 'Đã chuyển sang trạng thái "Chờ xử lý".');
-
     const handleStartRepair = async () => {
         if (!estimateIdNum) {
             notify('Chưa có báo giá hợp lệ. Vui lòng tạo và xác nhận báo giá trước khi tiến hành sửa chữa.');
@@ -2006,7 +2004,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         ['CREATED', 'INSPECTING', 'PENDING', 'INSPECTED', 'ESTIMATED', 'REPAIRING'].includes(ticketStatus)
         && !hasAnyStockAllocation
         && !isActionLocked;
-    const canSetPending = ticketStatus === 'ESTIMATED' && !isActionLocked;
     const canStartRepair = (ticketStatus === 'ESTIMATED' || ticketStatus === 'PENDING')
         && Boolean(estimateIdNum)
         && isEstimateApproved
@@ -2732,11 +2729,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         disabled={statusUpdating}
                                                     >
                                                         Hủy phiếu dịch vụ
-                                                    </button>
-                                                )}
-                                                {canSetPending && (
-                                                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleSetPending} disabled={receiptApproving || statusUpdating}>
-                                                        Chờ xử lý
                                                     </button>
                                                 )}
                                                 {canPrintServiceReceipt && (
