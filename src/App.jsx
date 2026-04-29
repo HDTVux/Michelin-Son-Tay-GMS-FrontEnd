@@ -49,6 +49,7 @@ import WarehousePricing from './pages/DashBoard/WarehouseManagement/WarehousePri
 import BlogManagement from './pages/DashBoard/PartManagement/ServiceManagement.jsx';
 import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx';
 import CreateService from './pages/DashBoard/PartManagement/CreateService.jsx';
+import BlogFormPage from './pages/DashBoard/PartManagement/BlogFormPage.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
@@ -276,6 +277,7 @@ export default function App() {
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
           <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
           <Route path="part-management" element={<PartManagement />} />
+          <Route path="part-management/blog/:itemId" element={<BlogFormPage itemType="PART" />} />
           <Route path="part-management/create-product" element={<CreateProduct />} />
           <Route path="service-management" element={<BlogManagement />} />
           <Route path="warehouse-stock-entries" element={<WarehouseStockEntryManagement />} />
@@ -287,6 +289,7 @@ export default function App() {
           <Route path="warehouse-return-entries" element={<WarehouseReturnEntryManagement />} />
           <Route path="warehouse-return-entries/:returnId" element={<WarehouseReturnEntryDetail />} />
           <Route path="blog-management" element={<Navigate to="/service-management" replace />} />
+          <Route path="service-management/blog/:itemId" element={<BlogFormPage itemType="SERVICE" />} />
           <Route path="service-management/create-service" element={<CreateService />} />
           <Route path="promotion-management" element={<PromotionManagement />} />
           <Route path="shift-management" element={<ShiftManagement />} />

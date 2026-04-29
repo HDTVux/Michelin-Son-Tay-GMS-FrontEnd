@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import ItemDetailModal from './ItemDetailModal.jsx';
-import BlogFormModal from './BlogFormModal.jsx';
 import { searchWarehouseCatalogItems } from '../../../services/warehouseService.js';
 import { fetchHomeProducts, fetchHomeServices } from '../../../services/homeService.js';
 import {
@@ -154,7 +153,6 @@ export default function PartManagement() {
   const [error, setError] = useState('');
 
   const [page, setPage] = useState(0);
-  const [dataVersion, setDataVersion] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -164,7 +162,6 @@ export default function PartManagement() {
   const [sortField, setSortField] = useState('itemId');
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedItem, setSelectedItem] = useState(null);
-  const [blogModalItem, setBlogModalItem] = useState(null);
 
   const [items, setItems] = useState([]);
   const [totalElementsServer, setTotalElementsServer] = useState(0);
@@ -249,7 +246,7 @@ export default function PartManagement() {
     return () => {
       cancelled = true;
     };
-  }, [page, size, debouncedSearch, dataVersion, statusFilter, originFilter, colorFilter, isDefaultSort, sortDirection, sortField, useClientPaging]);
+  }, [page, size, debouncedSearch, statusFilter, originFilter, colorFilter, isDefaultSort, sortDirection, sortField, useClientPaging]);
   const originOptions = useMemo(() => {
     const set = new Set();
     items.forEach((item) => {
@@ -317,37 +314,6 @@ export default function PartManagement() {
     setColorFilter('');
     setSortField('itemId');
     setSortDirection('asc');
-  };
-
-  const handleBlogSaved = (savedData) => {
-    const savedItemId = savedData?.catalogItemId ?? blogModalItem?.itemId;
-    setBlogModalItem(null);
-    if (savedData?.serviceServiceId && savedItemId) {
-      writeServiceLinkCache(savedItemId, savedData.serviceServiceId);
-      setItems((prev) =>
-        prev.map((item) =>
-          item.itemId === savedItemId
-            ? {
-                ...item,
-                itemName: savedData.itemName ?? item.itemName,
-                sku: savedData.sku ?? item.sku,
-                price: savedData.price ?? item.price,
-                showPrice: savedData.showPrice ?? item.showPrice,
-                unit: savedData.unit ?? item.unit,
-                isActive: savedData.isActive ?? item.isActive,
-                mediaThumbnail: savedData.mediaThumbnail ?? item.mediaThumbnail,
-                thumbnailUrl: savedData.thumbnailUrl ?? item.thumbnailUrl,
-                imageUrl: savedData.imageUrl ?? item.imageUrl,
-                media: savedData.media ?? item.media,
-                serviceServiceId: savedData.serviceServiceId,
-                service_service_id: savedData.serviceServiceId,
-              }
-            : item,
-        ),
-      );
-    } else {
-      setDataVersion((v) => v + 1);
-    }
   };
 
   const formatPrice = (item) => {
@@ -518,7 +484,9 @@ export default function PartManagement() {
                           </button>
                           <button
                             className={`${styles['action-btn']} ${itemHasBlog ? styles['edit-btn'] : styles['create-btn']}`}
-                            onClick={() => setBlogModalItem(item)}
+                            onClick={() => navigate(`/part-management/blog/${encodeURIComponent(String(item.itemId))}?mode=${itemHasBlog ? 'edit' : 'createFromCatalog'}`, {
+                              state: { item, mode: itemHasBlog ? 'edit' : 'createFromCatalog' },
+                            })}
                             title={itemHasBlog ? 'Sửa bài viết phụ tùng' : 'Tạo bài viết phụ tùng'}
                           >
                             {itemHasBlog ? 'Sửa bài viết' : 'Tạo bài viết'}
@@ -577,15 +545,6 @@ export default function PartManagement() {
       </div>
 
       <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
-
-      {blogModalItem && (
-        <BlogFormModal
-          item={blogModalItem}
-          mode={hasBlog(blogModalItem) ? 'edit' : 'createFromCatalog'}
-          onClose={() => setBlogModalItem(null)}
-          onSaved={handleBlogSaved}
-        />
-      )}
     </div>
   );
 }

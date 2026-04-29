@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   createPromotion,
@@ -240,6 +241,7 @@ const PROMOTION_TYPE_LABELS = {
 };
 
 export default function PromotionManagement() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [promotions, setPromotions] = useState([]);
@@ -772,6 +774,8 @@ export default function PromotionManagement() {
         <h1 className={styles.title}>Quản lý khuyến mãi</h1>
         <div className={styles.headerActions}>
           <button type="button" className={styles.ghostBtn} onClick={loadData}>↻ Làm mới</button>
+          <button type="button" className={styles.ghostBtn} onClick={() => navigate('/service-management/create-service')}>Thêm dịch vụ</button>
+          <button type="button" className={styles.ghostBtn} onClick={() => navigate('/part-management/create-product')}>Thêm phụ tùng</button>
           <button type="button" className={styles.primaryBtn} onClick={openCreate}>+ Tạo khuyến mãi</button>
         </div>
       </div>

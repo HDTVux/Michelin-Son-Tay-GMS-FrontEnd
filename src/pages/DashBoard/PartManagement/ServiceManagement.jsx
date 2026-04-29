@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import ServiceFormModal from './ServiceFormModal.jsx';
 import { fetchCatalogItems } from '../../../services/blogService.js';
 import { fetchHomeProducts, fetchHomeServices } from '../../../services/homeService.js';
 import styles from './ServiceManagement.module.css';
@@ -210,10 +209,6 @@ export default function ServiceManagement() {
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState(null);
-  const [modalMode, setModalMode] = useState('create');
-
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
@@ -337,53 +332,23 @@ export default function ServiceManagement() {
     setSortDirection('asc');
   };
 
-  const handleSaved = useCallback((savedData) => {
-    setShowModal(false);
-    setEditItem(null);
-    setModalMode('create');
-    if (savedData?.serviceServiceId && savedData?.catalogItemId) {
-      writeServiceLinkCache(savedData.catalogItemId, savedData.serviceServiceId);
-      setItems((prev) =>
-        prev.map((item) =>
-          item.itemId === savedData.catalogItemId
-            ? {
-                ...item,
-                itemName: savedData.itemName ?? item.itemName,
-                sku: savedData.sku ?? item.sku,
-                price: savedData.price ?? item.price,
-                showPrice: savedData.showPrice ?? item.showPrice,
-                unit: savedData.unit ?? item.unit,
-                isActive: savedData.isActive ?? item.isActive,
-                mediaThumbnail: savedData.mediaThumbnail ?? item.mediaThumbnail,
-                thumbnailUrl: savedData.thumbnailUrl ?? item.thumbnailUrl,
-                imageUrl: savedData.imageUrl ?? item.imageUrl,
-                media: savedData.media ?? item.media,
-                serviceServiceId: savedData.serviceServiceId,
-                service_service_id: savedData.serviceServiceId,
-              }
-            : item,
-        ),
-      );
-      return;
-    }
-    if (page !== 0) { setPage(0); return; }
-  }, [page]);
-
   const openCreateService = useCallback(() => {
     navigate('/service-management/create-service');
   }, [navigate]);
 
   const openCreateFromCatalog = useCallback((item) => {
-    setEditItem(item || null);
-    setModalMode('createFromCatalog');
-    setShowModal(true);
-  }, []);
+    if (!item?.itemId) return;
+    navigate(`/service-management/blog/${encodeURIComponent(String(item.itemId))}?mode=createFromCatalog`, {
+      state: { item, mode: 'createFromCatalog' },
+    });
+  }, [navigate]);
 
   const openEditService = useCallback((item) => {
-    setEditItem(item || null);
-    setModalMode('edit');
-    setShowModal(true);
-  }, []);
+    if (!item?.itemId) return;
+    navigate(`/service-management/blog/${encodeURIComponent(String(item.itemId))}?mode=edit`, {
+      state: { item, mode: 'edit' },
+    });
+  }, [navigate]);
 
   const formatPrice = (item) => {
     if (toNullableBoolean(item?.showPrice) === true) {
@@ -585,20 +550,6 @@ export default function ServiceManagement() {
           </div>
         </div>
       </div>
-
-      {/* Service form modal */}
-      {showModal && (
-        <ServiceFormModal
-          item={editItem}
-          mode={modalMode}
-          onClose={() => {
-            setShowModal(false);
-            setEditItem(null);
-            setModalMode('create');
-          }}
-          onSaved={handleSaved}
-        />
-      )}
     </div>
   );
 }

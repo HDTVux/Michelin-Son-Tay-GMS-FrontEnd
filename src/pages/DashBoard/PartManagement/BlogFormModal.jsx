@@ -361,7 +361,7 @@ const getServiceServiceId = (item) => {
   return getServiceIdFromUnknownShape(item);
 };
 
-export default function BlogFormModal({ item, mode = 'create', onClose, onSaved }) {
+export default function BlogFormModal({ item, mode = 'create', onClose, onSaved, pageMode = false }) {
   const notify = useCallback((msg, type = 'error') => {
     toast[type](msg, { containerId: 'app-toast' });
   }, []);
@@ -1071,11 +1071,18 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
   }, [baseItem, buildCatalogPayload, buildSavedCatalogSnapshot, buildServiceFormData, clearDraft, existingMedia, isCreateFromCatalog, isCreateNew, isEdit, itemName, itemToastLabel, notify, onSaved, resolvedServiceId, thumbnailPreview, validateBeforeSubmit]);
 
   return (
-    <div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={styles['modal-box']}>
+    <div
+      className={pageMode ? styles['form-page-shell'] : styles['modal-overlay']}
+      onClick={(e) => {
+        if (!pageMode && e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className={pageMode ? `${styles['modal-box']} ${styles['form-page-box']}` : styles['modal-box']}>
         <div className={styles['modal-header']}>
           <h3>{modalTitle}</h3>
-          <button type="button" className={styles['modal-close']} onClick={onClose} aria-label="Đóng">x</button>
+          <button type="button" className={pageMode ? styles['header-back-btn'] : styles['modal-close']} onClick={onClose} aria-label={pageMode ? 'Quay lại' : 'Đóng'}>
+            {pageMode ? 'Quay lại' : 'x'}
+          </button>
         </div>
         <div className={styles['modal-body']}>
           {/* ── Thông tin dịch vụ ── */}
@@ -1405,6 +1412,11 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved 
         </div>
 
         <div className={styles['modal-body']} style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 0 }}>
+          {pageMode && (
+            <button type="button" className={styles['cancel-btn']} onClick={onClose} disabled={isSubmitting}>
+              Hủy
+            </button>
+          )}
           <button
             type="button"
             className={styles['cancel-btn']}

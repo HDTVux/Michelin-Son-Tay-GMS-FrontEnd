@@ -352,7 +352,7 @@ const normalizeExistingMedia = (input) => {
     .filter(Boolean);
 };
 
-function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
+function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = false }) {
   const notify = useCallback((msg, type = 'error') => {
     toast[type](msg, { containerId: 'app-toast' });
   }, []);
@@ -1080,11 +1080,18 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved }) {
     clearDraft,
   ]);
   return (
-    <div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={styles['modal-box']}>
+    <div
+      className={pageMode ? styles['form-page-shell'] : styles['modal-overlay']}
+      onClick={(e) => {
+        if (!pageMode && e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className={pageMode ? `${styles['modal-box']} ${styles['form-page-box']}` : styles['modal-box']}>
         <div className={styles['modal-header']}>
           <h3>{modalTitle}</h3>
-          <button type="button" className={styles['modal-close']} onClick={onClose} aria-label="Đóng">x</button>
+          <button type="button" className={pageMode ? styles['header-back-btn'] : styles['modal-close']} onClick={onClose} aria-label={pageMode ? 'Quay lại' : 'Đóng'}>
+            {pageMode ? 'Quay lại' : 'x'}
+          </button>
         </div>
         <div className={styles['modal-body']}>
           {/* ── Thông tin dịch vụ ── */}
