@@ -4,8 +4,11 @@ import {
   createPromotion,
   fetchAllPromotions,
   fetchAvailablePromotions,
+  fetchPromotionByCode,
   updatePromotion,
 } from '../../../services/promotionService.js';
+import { searchAdminCustomers } from '../../../services/customerService.js';
+import { searchWarehouseCatalogItems } from '../../../services/warehouseService.js';
 import styles from './PromotionManagement.module.css';
 
 const getAuthToken = () =>
@@ -61,6 +64,8 @@ const defaultForm = {
   buyQuantity: '',
   getItemId: '',
   getQuantity: '',
+  promotionItems: [],
+  promotionCustomers: [],
 };
 
 const PROMOTION_CODE_PATTERN = /^[A-Z0-9_-]+$/;
@@ -70,6 +75,61 @@ const normalizePromotionCode = (value) => String(value ?? '').trim().toUpperCase
 const isPositiveIntegerValue = (value) => {
   const num = Number(value);
   return Number.isInteger(num) && num > 0;
+};
+
+const getDiscountPercentError = (value) => {
+  if (String(value ?? '').trim() === '') return 'Vui lòng nhập phần trăm giảm.';
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0 || num > 100) {
+    return 'Phần trăm giảm phải lớn hơn 0 và không vượt quá 100.';
+  }
+  return '';
+};
+
+const toPositiveId = (value) => {
+  const num = typeof value === 'number' ? value : Number(value);
+  return Number.isInteger(num) && num > 0 ? num : null;
+};
+
+const normalizeIdArray = (value) => {
+  if (!Array.isArray(value)) return [];
+  const ids = value
+    .map((item) => {
+      if (item && typeof item === 'object') {
+        return toPositiveId(item.id ?? item.itemId ?? item.customerId ?? item.value);
+      }
+      return toPositiveId(item);
+    })
+    .filter((id) => id !== null);
+  return [...new Set(ids)];
+};
+
+const extractPageContent = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? response;
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.content)) return payload.content;
+  return [];
+};
+
+const extractPromotionDetail = (response, fallback) => {
+  const payload = response?.data?.data ?? response?.data ?? response;
+  if (Array.isArray(payload)) return payload[0] ?? fallback;
+  return payload && typeof payload === 'object' ? payload : fallback;
+};
+
+const getCatalogItemId = (item) => toPositiveId(item?.itemId ?? item?.id ?? item?.catalogItemId);
+const getCatalogItemName = (item) => String(item?.itemName ?? item?.name ?? item?.title ?? '').trim();
+const getCatalogItemMeta = (item) => String(item?.sku ?? item?.partNumber ?? item?.barcode ?? '').trim();
+
+const getCustomerId = (customer) => toPositiveId(customer?.customerId ?? customer?.id ?? customer?.customerProfileId);
+const getCustomerName = (customer) => String(customer?.fullName ?? customer?.customerName ?? customer?.name ?? '').trim();
+const getCustomerMeta = (customer) => String(customer?.phone ?? customer?.email ?? '').trim();
+
+const mergeSelectedById = (current, nextItem, getId) => {
+  const nextId = getId(nextItem);
+  if (!nextId) return current;
+  if (current.some((item) => getId(item) === nextId)) return current;
+  return [...current, nextItem];
 };
 
 const buildPromotionFormErrors = (rawForm, existingPromotions = [], currentPromotionId = null) => {
@@ -163,6 +223,14 @@ const buildPromotionFormErrors = (rawForm, existingPromotions = [], currentPromo
     nextErrors.targetType = 'Đối tượng khách hàng không hợp lệ.';
   }
 
+  if (normalizeApplyToValue(rawForm?.applyTo) === 'SPECIFIC' && normalizeIdArray(rawForm?.promotionItems).length === 0) {
+    nextErrors.promotionItems = 'Vui lòng chọn ít nhất 1 catalog item.';
+  }
+
+  if (normalizeTargetTypeValue(rawForm?.targetType) === 'SPECIFIC' && normalizeIdArray(rawForm?.promotionCustomers).length === 0) {
+    nextErrors.promotionCustomers = 'Vui lòng chọn ít nhất 1 customer.';
+  }
+
   return nextErrors;
 };
 
@@ -184,9 +252,31 @@ export default function PromotionManagement() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(defaultForm);
   const [formErrors, setFormErrors] = useState({});
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  const [selectedPromotion, setSelectedPromotion] = useState(null);
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogResults, setCatalogResults] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
+  const [selectedCatalogItems, setSelectedCatalogItems] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerResults, setCustomerResults] = useState([]);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerError, setCustomerError] = useState('');
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
   const normalizedFormType = normalizeTypeValue(form.type);
   const isBuyXGetY = normalizedFormType === 'BUY_X_GET_Y';
   const isPercentType = normalizedFormType === 'PERCENT';
+  const detailPromotionItems = useMemo(
+    () => normalizeIdArray(selectedPromotion?.promotionItems),
+    [selectedPromotion],
+  );
+  const detailPromotionCustomers = useMemo(
+    () => normalizeIdArray(selectedPromotion?.promotionCustomers),
+    [selectedPromotion],
+  );
 
   const loadData = useCallback(async () => {
     const token = getAuthToken();
@@ -216,6 +306,90 @@ export default function PromotionManagement() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (!openModal || normalizeApplyToValue(form.applyTo) !== 'SPECIFIC') {
+      setCatalogResults([]);
+      setCatalogLoading(false);
+      setCatalogError('');
+      return undefined;
+    }
+
+    const keyword = catalogSearch.trim();
+    if (!keyword) {
+      setCatalogResults([]);
+      setCatalogLoading(false);
+      setCatalogError('');
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        setCatalogLoading(true);
+        setCatalogError('');
+        const response = await searchWarehouseCatalogItems(
+          { page: 0, size: 10, search: keyword, isActive: true },
+          getAuthToken(),
+        );
+        if (cancelled) return;
+        setCatalogResults(extractPageContent(response));
+      } catch (err) {
+        if (cancelled) return;
+        setCatalogResults([]);
+        setCatalogError(err?.message || 'Khong the tim catalog item.');
+      } finally {
+        if (!cancelled) setCatalogLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [catalogSearch, form.applyTo, openModal]);
+
+  useEffect(() => {
+    if (!openModal || normalizeTargetTypeValue(form.targetType) !== 'SPECIFIC') {
+      setCustomerResults([]);
+      setCustomerLoading(false);
+      setCustomerError('');
+      return undefined;
+    }
+
+    const keyword = customerSearch.trim();
+    if (!keyword) {
+      setCustomerResults([]);
+      setCustomerLoading(false);
+      setCustomerError('');
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        setCustomerLoading(true);
+        setCustomerError('');
+        const response = await searchAdminCustomers(
+          { page: 0, size: 10, search: keyword },
+          getAuthToken(),
+        );
+        if (cancelled) return;
+        setCustomerResults(extractPageContent(response));
+      } catch (err) {
+        if (cancelled) return;
+        setCustomerResults([]);
+        setCustomerError(err?.message || 'Khong the tim customer.');
+      } finally {
+        if (!cancelled) setCustomerLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [customerSearch, form.targetType, openModal]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return promotions.filter((item) => {
@@ -243,41 +417,112 @@ export default function PromotionManagement() {
     return { total, active, inactive: total - active };
   }, [promotions]);
 
+  const resetSpecificSelections = () => {
+    setCatalogSearch('');
+    setCatalogResults([]);
+    setCatalogError('');
+    setCatalogLoading(false);
+    setSelectedCatalogItems([]);
+    setCustomerSearch('');
+    setCustomerResults([]);
+    setCustomerError('');
+    setCustomerLoading(false);
+    setSelectedCustomers([]);
+  };
+
   const openCreate = () => {
     setEditing(false);
     setForm(defaultForm);
+    resetSpecificSelections();
     setFormErrors({});
     setOpenModal(true);
   };
 
-  const openEdit = (item) => {
+  const openDetail = async (item) => {
+    setSelectedPromotion(item);
+    setDetailOpen(true);
+    setDetailError('');
+
+    const token = getAuthToken();
+    if (!item?.code || !token) {
+      setDetailLoading(false);
+      return;
+    }
+
+    setDetailLoading(true);
+    try {
+      const detailResponse = await fetchPromotionByCode(item.code, token);
+      setSelectedPromotion(extractPromotionDetail(detailResponse, item));
+    } catch (err) {
+      setDetailError(err?.message || 'Không tải được chi tiết khuyến mãi.');
+      setSelectedPromotion(item);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const openEdit = async (item) => {
     setEditing(true);
+    resetSpecificSelections();
+    let source = item;
+    const token = getAuthToken();
+    if (item?.code && token) {
+      try {
+        const detailResponse = await fetchPromotionByCode(item.code, token);
+        source = extractPromotionDetail(detailResponse, item);
+      } catch {
+        source = item;
+      }
+    }
+    const promotionItems = normalizeIdArray(source?.promotionItems);
+    const promotionCustomers = normalizeIdArray(source?.promotionCustomers);
+    setSelectedCatalogItems(promotionItems.map((id) => ({ itemId: id, itemName: `Catalog #${id}` })));
+    setSelectedCustomers(promotionCustomers.map((id) => ({ customerId: id, fullName: `Customer #${id}` })));
     setForm({
-      promotionId: item?.promotionId ?? null,
-      code: item?.code || '',
-      name: item?.name || '',
-      type: normalizeTypeValue(item?.type),
-      discountPercent: item?.discountPercent ?? '',
-      isActive: item?.isActive !== false,
-      applyTo: normalizeApplyToValue(item?.applyTo),
-      targetType: normalizeTargetTypeValue(item?.targetType),
-      minOrderValue: item?.minOrderValue ?? '',
-      startDate: item?.startDate || '',
-      endDate: item?.endDate || '',
-      usageLimit: item?.usageLimit ?? '',
-      buyItemId: item?.buyItemId ?? '',
-      buyQuantity: item?.buyQuantity ?? '',
-      getItemId: item?.getItemId ?? '',
-      getQuantity: item?.getQuantity ?? '',
+      promotionId: source?.promotionId ?? null,
+      code: source?.code || '',
+      name: source?.name || '',
+      type: normalizeTypeValue(source?.type),
+      discountPercent: source?.discountPercent ?? '',
+      isActive: source?.isActive !== false,
+      applyTo: normalizeApplyToValue(source?.applyTo),
+      targetType: normalizeTargetTypeValue(source?.targetType),
+      minOrderValue: source?.minOrderValue ?? '',
+      startDate: source?.startDate || '',
+      endDate: source?.endDate || '',
+      usageLimit: source?.usageLimit ?? '',
+      buyItemId: source?.buyItemId ?? '',
+      buyQuantity: source?.buyQuantity ?? '',
+      getItemId: source?.getItemId ?? '',
+      getQuantity: source?.getQuantity ?? '',
+      promotionItems,
+      promotionCustomers,
     });
     setFormErrors({});
     setOpenModal(true);
+  };
+
+  const editSelectedPromotion = () => {
+    if (!selectedPromotion) return;
+    const item = selectedPromotion;
+    setDetailOpen(false);
+    setSelectedPromotion(null);
+    setDetailError('');
+    openEdit(item);
+  };
+
+  const closeDetailModal = () => {
+    setDetailOpen(false);
+    setDetailLoading(false);
+    setDetailError('');
+    setSelectedPromotion(null);
   };
 
   const closeModal = () => {
     setOpenModal(false);
     setEditing(false);
     setForm(defaultForm);
+    resetSpecificSelections();
     setFormErrors({});
   };
 
@@ -295,7 +540,65 @@ export default function PromotionManagement() {
     });
   }, []);
 
+  const selectedPromotionItemIds = useMemo(() => new Set(normalizeIdArray(form.promotionItems)), [form.promotionItems]);
+  const selectedPromotionCustomerIds = useMemo(() => new Set(normalizeIdArray(form.promotionCustomers)), [form.promotionCustomers]);
+
+  const addPromotionItem = useCallback((item) => {
+    const id = getCatalogItemId(item);
+    if (!id) return;
+    setSelectedCatalogItems((prev) => mergeSelectedById(prev, item, getCatalogItemId));
+    setForm((prev) => ({
+      ...prev,
+      promotionItems: normalizeIdArray([...(Array.isArray(prev.promotionItems) ? prev.promotionItems : []), id]),
+    }));
+    clearFieldErrors(['promotionItems']);
+  }, [clearFieldErrors]);
+
+  const removePromotionItem = useCallback((itemId) => {
+    const id = toPositiveId(itemId);
+    if (!id) return;
+    setSelectedCatalogItems((prev) => prev.filter((item) => getCatalogItemId(item) !== id));
+    setForm((prev) => ({
+      ...prev,
+      promotionItems: normalizeIdArray(prev.promotionItems).filter((value) => value !== id),
+    }));
+  }, []);
+
+  const addPromotionCustomer = useCallback((customer) => {
+    const id = getCustomerId(customer);
+    if (!id) return;
+    setSelectedCustomers((prev) => mergeSelectedById(prev, customer, getCustomerId));
+    setForm((prev) => ({
+      ...prev,
+      promotionCustomers: normalizeIdArray([...(Array.isArray(prev.promotionCustomers) ? prev.promotionCustomers : []), id]),
+    }));
+    clearFieldErrors(['promotionCustomers']);
+  }, [clearFieldErrors]);
+
+  const removePromotionCustomer = useCallback((customerId) => {
+    const id = toPositiveId(customerId);
+    if (!id) return;
+    setSelectedCustomers((prev) => prev.filter((customer) => getCustomerId(customer) !== id));
+    setForm((prev) => ({
+      ...prev,
+      promotionCustomers: normalizeIdArray(prev.promotionCustomers).filter((value) => value !== id),
+    }));
+  }, []);
+
   const updateFormField = useCallback((field, value) => {
+    const normalizedApplyTo = field === 'applyTo' ? normalizeApplyToValue(value) : null;
+    const normalizedTargetType = field === 'targetType' ? normalizeTargetTypeValue(value) : null;
+    if (field === 'applyTo' && normalizedApplyTo !== 'SPECIFIC') {
+      setSelectedCatalogItems([]);
+      setCatalogSearch('');
+      setCatalogResults([]);
+    }
+    if (field === 'targetType' && normalizedTargetType !== 'SPECIFIC') {
+      setSelectedCustomers([]);
+      setCustomerSearch('');
+      setCustomerResults([]);
+    }
+
     setForm((prev) => {
       if (field === 'type') {
         const nextType = normalizeTypeValue(value);
@@ -322,11 +625,38 @@ export default function PromotionManagement() {
         };
       }
 
+      if (field === 'applyTo') {
+        return {
+          ...prev,
+          applyTo: normalizedApplyTo,
+          promotionItems: normalizedApplyTo === 'SPECIFIC' ? prev.promotionItems : [],
+        };
+      }
+
+      if (field === 'targetType') {
+        return {
+          ...prev,
+          targetType: normalizedTargetType,
+          promotionCustomers: normalizedTargetType === 'SPECIFIC' ? prev.promotionCustomers : [],
+        };
+      }
+
       return {
         ...prev,
         [field]: value,
       };
     });
+
+    if (field === 'discountPercent') {
+      const error = getDiscountPercentError(value);
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        if (error) next.discountPercent = error;
+        else delete next.discountPercent;
+        return next;
+      });
+      return;
+    }
 
     if (field === 'type') {
       clearFieldErrors(['type', 'discountPercent', 'buyItemId', 'buyQuantity', 'getItemId', 'getQuantity']);
@@ -335,6 +665,16 @@ export default function PromotionManagement() {
 
     if (field === 'startDate' || field === 'endDate') {
       clearFieldErrors(['startDate', 'endDate']);
+      return;
+    }
+
+    if (field === 'applyTo') {
+      clearFieldErrors(['applyTo', 'promotionItems']);
+      return;
+    }
+
+    if (field === 'targetType') {
+      clearFieldErrors(['targetType', 'promotionCustomers']);
       return;
     }
 
@@ -385,6 +725,8 @@ export default function PromotionManagement() {
         buyQuantity: submitType === 'BUY_X_GET_Y' ? form.buyQuantity : '',
         getItemId: submitType === 'BUY_X_GET_Y' ? form.getItemId : '',
         getQuantity: submitType === 'BUY_X_GET_Y' ? form.getQuantity : '',
+        promotionItems: normalizeApplyToValue(form.applyTo) === 'SPECIFIC' ? normalizeIdArray(form.promotionItems) : [],
+        promotionCustomers: normalizeTargetTypeValue(form.targetType) === 'SPECIFIC' ? normalizeIdArray(form.promotionCustomers) : [],
       };
       if (editing) {
         await updatePromotion(payload, token);
@@ -403,6 +745,20 @@ export default function PromotionManagement() {
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('vi-VN');
+  };
+
+  const formatCurrency = (value) => {
+    if (value === '' || value == null) return '-';
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '-';
+    return num.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+  };
+
+  const formatPlainNumber = (value) => {
+    if (value === '' || value == null) return '-';
+    const num = Number(value);
+    if (!Number.isFinite(num)) return String(value);
+    return num.toLocaleString('vi-VN');
   };
 
   const getFieldClassName = (field, baseClassName) => (
@@ -551,14 +907,145 @@ export default function PromotionManagement() {
                     </span>
                   </td>
                   <td>
-                    <button type="button" className={styles.editBtn} onClick={() => openEdit(item)}>
-                      Sửa
-                    </button>
+                    <div className={styles.actionGroup}>
+                      <button type="button" className={styles.viewBtn} onClick={() => openDetail(item)}>
+                        Xem
+                      </button>
+                      <button type="button" className={styles.editBtn} onClick={() => openEdit(item)}>
+                        Sửa
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detailOpen && (
+        <div className={styles.modalOverlay}>
+          <div className={`${styles.modalContent} ${styles.detailModalContent}`}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>Chi tiết khuyến mãi</h3>
+                <p className={styles.modalSubtitle}>
+                  {selectedPromotion?.code ? `Mã ${selectedPromotion.code}` : 'Thông tin chương trình khuyến mãi'}
+                </p>
+              </div>
+              <button type="button" className={styles.modalClose} onClick={closeDetailModal}>✕</button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {detailLoading ? (
+                <div className={styles.detailLoading}>Đang tải chi tiết khuyến mãi...</div>
+              ) : (
+                <>
+                  {detailError && <div className={styles.detailError}>{detailError}</div>}
+                  <div className={styles.detailSummary}>
+                    <div>
+                      <span className={styles.detailLabel}>Mã khuyến mãi</span>
+                      <strong className={styles.detailCode}>{selectedPromotion?.code || '-'}</strong>
+                    </div>
+                    <span className={`${styles.statusBadge} ${selectedPromotion?.isActive ? styles.statusActive : styles.statusInactive}`}>
+                      {selectedPromotion?.isActive ? 'Hoạt động' : 'Vô hiệu'}
+                    </span>
+                  </div>
+
+                  <div className={styles.detailGrid}>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Tên chương trình</span>
+                      <strong className={styles.detailValue}>{selectedPromotion?.name || '-'}</strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Loại</span>
+                      <strong className={styles.detailValue}>
+                        {PROMOTION_TYPE_LABELS[normalizeTypeValue(selectedPromotion?.type)] || selectedPromotion?.type || '-'}
+                      </strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Giảm (%)</span>
+                      <strong className={styles.detailValue}>{selectedPromotion?.discountPercent ?? '-'}</strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Giá trị đơn tối thiểu</span>
+                      <strong className={styles.detailValue}>{formatCurrency(selectedPromotion?.minOrderValue)}</strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Ngày bắt đầu</span>
+                      <strong className={styles.detailValue}>{formatDate(selectedPromotion?.startDate)}</strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Ngày kết thúc</span>
+                      <strong className={styles.detailValue}>{formatDate(selectedPromotion?.endDate)}</strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Giới hạn lượt dùng</span>
+                      <strong className={styles.detailValue}>{formatPlainNumber(selectedPromotion?.usageLimit)}</strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Áp dụng cho</span>
+                      <strong className={styles.detailValue}>
+                        {normalizeApplyToValue(selectedPromotion?.applyTo) === 'SPECIFIC' ? 'Nhóm cụ thể' : 'Toàn bộ'}
+                      </strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Đối tượng khách hàng</span>
+                      <strong className={styles.detailValue}>
+                        {normalizeTargetTypeValue(selectedPromotion?.targetType) === 'SPECIFIC' ? 'Nhóm khách hàng cụ thể' : 'Tất cả khách hàng'}
+                      </strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Số lượng mua (X)</span>
+                      <strong className={styles.detailValue}>{formatPlainNumber(selectedPromotion?.buyQuantity)}</strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Sản phẩm mua</span>
+                      <strong className={styles.detailValue}>{selectedPromotion?.buyItemId || '-'}</strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Số lượng tặng (Y)</span>
+                      <strong className={styles.detailValue}>{formatPlainNumber(selectedPromotion?.getQuantity)}</strong>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Sản phẩm tặng</span>
+                      <strong className={styles.detailValue}>{selectedPromotion?.getItemId || '-'}</strong>
+                    </div>
+                  </div>
+
+                  <div className={styles.detailSection}>
+                    <h4 className={styles.detailSectionTitle}>Catalog item áp dụng</h4>
+                    <div className={styles.detailChips}>
+                      {detailPromotionItems.length === 0 ? (
+                        <span className={styles.selectorHint}>Không giới hạn catalog item.</span>
+                      ) : detailPromotionItems.map((id) => (
+                        <span key={id} className={styles.detailChip}>Catalog #{id}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={styles.detailSection}>
+                    <h4 className={styles.detailSectionTitle}>Customer áp dụng</h4>
+                    <div className={styles.detailChips}>
+                      {detailPromotionCustomers.length === 0 ? (
+                        <span className={styles.selectorHint}>Không giới hạn customer.</span>
+                      ) : detailPromotionCustomers.map((id) => (
+                        <span key={id} className={styles.detailChip}>Customer #{id}</span>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button type="button" className={styles.cancelBtn} onClick={closeDetailModal}>Đóng</button>
+              <button type="button" className={styles.saveBtn} onClick={editSelectedPromotion} disabled={!selectedPromotion || detailLoading}>
+                Sửa
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -766,6 +1253,112 @@ export default function PromotionManagement() {
                     <option value="SPECIFIC">Nhóm khách hàng cụ thể</option>
                   </select>
                 </div>
+                {normalizeApplyToValue(form.applyTo) === 'SPECIFIC' && (
+                  <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                    <label className={styles.label}>Catalog item áp dụng <span className={styles.required}>*</span></label>
+                    <input
+                      className={getFieldClassName('promotionItems', styles.input)}
+                      placeholder="Tìm theo tên, SKU, mã sản phẩm..."
+                      value={catalogSearch}
+                      onChange={(e) => setCatalogSearch(e.target.value)}
+                      aria-invalid={Boolean(formErrors.promotionItems)}
+                    />
+                    {formErrors.promotionItems && <span className={styles.errorText}>{formErrors.promotionItems}</span>}
+                    <div className={styles.selectedChips}>
+                      {selectedCatalogItems.length === 0 ? (
+                        <span className={styles.selectorHint}>Chưa chọn catalog item nào.</span>
+                      ) : selectedCatalogItems.map((item) => {
+                        const id = getCatalogItemId(item);
+                        return (
+                          <span key={id} className={styles.selectedChip}>
+                            {getCatalogItemName(item) || `Catalog #${id}`}
+                            <button type="button" onClick={() => removePromotionItem(id)} aria-label="Remove catalog item">x</button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <div className={styles.selectorResults}>
+                      {catalogLoading && <div className={styles.selectorHint}>Đang tìm catalog item...</div>}
+                      {!catalogLoading && catalogError && <div className={styles.selectorError}>{catalogError}</div>}
+                      {!catalogLoading && !catalogError && catalogSearch.trim() && catalogResults.length === 0 && (
+                        <div className={styles.selectorHint}>Không có catalog item phù hợp.</div>
+                      )}
+                      {!catalogLoading && !catalogError && catalogResults.map((item) => {
+                        const id = getCatalogItemId(item);
+                        if (!id) return null;
+                        const alreadySelected = selectedPromotionItemIds.has(id);
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            className={styles.selectorRow}
+                            onClick={() => addPromotionItem(item)}
+                            disabled={alreadySelected}
+                          >
+                            <span>
+                              <strong>{getCatalogItemName(item) || `Catalog #${id}`}</strong>
+                              <small>ID: {id}{getCatalogItemMeta(item) ? ` - ${getCatalogItemMeta(item)}` : ''}</small>
+                            </span>
+                            <em>{alreadySelected ? 'Đã chọn' : 'Thêm'}</em>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {normalizeTargetTypeValue(form.targetType) === 'SPECIFIC' && (
+                  <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                    <label className={styles.label}>Customer áp dụng <span className={styles.required}>*</span></label>
+                    <input
+                      className={getFieldClassName('promotionCustomers', styles.input)}
+                      placeholder="Tìm theo tên, số điện thoại, email..."
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                      aria-invalid={Boolean(formErrors.promotionCustomers)}
+                    />
+                    {formErrors.promotionCustomers && <span className={styles.errorText}>{formErrors.promotionCustomers}</span>}
+                    <div className={styles.selectedChips}>
+                      {selectedCustomers.length === 0 ? (
+                        <span className={styles.selectorHint}>Chưa chọn customer nào.</span>
+                      ) : selectedCustomers.map((customer) => {
+                        const id = getCustomerId(customer);
+                        return (
+                          <span key={id} className={styles.selectedChip}>
+                            {getCustomerName(customer) || `Customer #${id}`}
+                            <button type="button" onClick={() => removePromotionCustomer(id)} aria-label="Remove customer">x</button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <div className={styles.selectorResults}>
+                      {customerLoading && <div className={styles.selectorHint}>Đang tìm customer...</div>}
+                      {!customerLoading && customerError && <div className={styles.selectorError}>{customerError}</div>}
+                      {!customerLoading && !customerError && customerSearch.trim() && customerResults.length === 0 && (
+                        <div className={styles.selectorHint}>Không có customer phù hợp.</div>
+                      )}
+                      {!customerLoading && !customerError && customerResults.map((customer) => {
+                        const id = getCustomerId(customer);
+                        if (!id) return null;
+                        const alreadySelected = selectedPromotionCustomerIds.has(id);
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            className={styles.selectorRow}
+                            onClick={() => addPromotionCustomer(customer)}
+                            disabled={alreadySelected}
+                          >
+                            <span>
+                              <strong>{getCustomerName(customer) || `Customer #${id}`}</strong>
+                              <small>ID: {id}{getCustomerMeta(customer) ? ` - ${getCustomerMeta(customer)}` : ''}</small>
+                            </span>
+                            <em>{alreadySelected ? 'Đã chọn' : 'Thêm'}</em>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Trạng thái</label>
                   <select
