@@ -282,7 +282,8 @@ function EstimateItemRow({
     showConfirmColumn,
     showDiscountColumn,
 }) {
-    const isLocked = Boolean(row?.isLockedFromPreviousVersion);
+    const isGift = row?.isGift === true || String(row?.isGift ?? '').trim().toLowerCase() === 'true';
+    const isLocked = Boolean(row?.isLockedFromPreviousVersion) || isGift;
     const allowInputs = showInputs && !isLocked;
 
     const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -328,7 +329,7 @@ function EstimateItemRow({
     }
 
     return (
-        <tr key={`advisor-row-${stt}-${row.key}`}>
+        <tr key={`advisor-row-${stt}-${row.key}`} className={isGift ? styles.giftRow : undefined}>
             <td>{stt}</td>
             <td>
                 {allowInputs ? (
@@ -356,7 +357,7 @@ function EstimateItemRow({
                         />
                     </>
                 ) : (
-                    row.categoryName || ''
+                    row.categoryName || row.newCategoryName || ''
                 )}
             </td>
             <td>
@@ -384,7 +385,10 @@ function EstimateItemRow({
                         </button>
                     </div>
                 ) : (
-                    row.itemName || ''
+                    <div className={styles.itemNameCell}>
+                        <span>{row.itemName || ''}</span>
+                        {isGift ? <span className={styles.giftBadge}>Quà tặng</span> : null}
+                    </div>
                 )}
             </td>
             <td className={styles.tdNumber}>
@@ -428,7 +432,7 @@ function EstimateItemRow({
                         disabled={isSaving}
                     />
                 ) : (
-                    formatCurrencyVnd(row.unitPriceDisplay ?? row.unitPrice)
+                    isGift ? <span className={styles.giftAmount}>0đ</span> : formatCurrencyVnd(row.unitPriceDisplay ?? row.unitPrice)
                 )}
             </td>
             {showDiscountColumn ? (
@@ -439,7 +443,11 @@ function EstimateItemRow({
                 </td>
             ) : null}
             <td className={styles.tdNumber}>
-                {formatCurrencyVnd(amountDisplayValue)}
+                {isGift ? (
+                    <span className={styles.giftAmount}>0đ</span>
+                ) : (
+                    formatCurrencyVnd(amountDisplayValue)
+                )}
             </td>
             
             {showTaxColumn ? (
@@ -478,7 +486,7 @@ function EstimateItemRow({
                 <td className={styles.tdCenter}>
                     <input
                         type="checkbox"
-                        checked={Boolean(row.confirmed)}
+                        checked={isGift ? true : Boolean(row.confirmed)}
                         onChange={(e) => onChange(idx, 'confirmed', e.target.checked)}
                         disabled={isSaving || isLocked}
                     />
@@ -713,6 +721,7 @@ export default function AdvisorItemsTable({
     onCancelCreateNewVersion,
     onCancelAppendOnly,
     onEstimateEditingChange,
+    onBeforeEstimateMutate,
     readOnly = false,
     readOnlyMessage = '',
     hideReadOnlyNotice = false,
@@ -768,6 +777,7 @@ export default function AdvisorItemsTable({
         cancelEdit,
         saveEstimate,
         saveEdit,
+        syncEstimate,
         softDeleteEditRow,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, {
@@ -868,6 +878,12 @@ export default function AdvisorItemsTable({
         }
 		setRevertOnCancel(false);
 		setRevertTicketOnCancel(false);
+        try {
+            const cleanEstimate = await onBeforeEstimateMutate?.();
+            if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+        } catch {
+            return;
+        }
         if (startCreate) startCreate();
     };
 
@@ -883,6 +899,13 @@ export default function AdvisorItemsTable({
         }
 		setRevertOnCancel(false);
         setRevertTicketOnCancel(true);
+        try {
+            const cleanEstimate = await onBeforeEstimateMutate?.();
+            if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+        } catch {
+            setRevertTicketOnCancel(false);
+            return;
+        }
 
         // Seed các dòng của version trước sang version mới (read-only)
         startCreate?.({ seedFromPreviousEstimate: true });
@@ -910,13 +933,19 @@ export default function AdvisorItemsTable({
 
     // Ensure create mode can be opened automatically after the ticket is restarted/refreshed.
     useEffect(() => {
-        const handler = () => {
+        const handler = async () => {
             if (isReadOnly) return;
             if (isTicketLocked) {
                 notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
                 return;
             }
             if (isCreating || isEditing) return;
+            try {
+                const cleanEstimate = await onBeforeEstimateMutate?.();
+                if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+            } catch {
+                return;
+            }
             startCreate?.();
         };
 
@@ -933,12 +962,12 @@ export default function AdvisorItemsTable({
                 // ignore
             }
         };
-    }, [isReadOnly, isTicketLocked, isCreating, isEditing, notify, startCreate]);
+    }, [isReadOnly, isTicketLocked, isCreating, isEditing, notify, onBeforeEstimateMutate, startCreate, syncEstimate]);
 
     // Ensure append-only edit mode can be opened automatically (add service: keep current estimate version,
     // lock existing rows, only allow adding new rows).
     useEffect(() => {
-        const handler = () => {
+        const handler = async () => {
             if (isReadOnly) return;
             if (isTicketLocked) {
                 notify('Không thể sửa báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
@@ -949,10 +978,22 @@ export default function AdvisorItemsTable({
 
             // If there is no estimate yet, fall back to create mode.
             if (!estimate) {
+                try {
+                    const cleanEstimate = await onBeforeEstimateMutate?.();
+                    if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+                } catch {
+                    return;
+                }
                 startCreate?.();
                 return;
             }
 
+            try {
+                const cleanEstimate = await onBeforeEstimateMutate?.();
+                if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+            } catch {
+                return;
+            }
             startEdit?.({ appendOnly: true });
         };
 
@@ -969,16 +1010,22 @@ export default function AdvisorItemsTable({
                 // ignore
             }
         };
-    }, [estimate, isReadOnly, isTicketLocked, isCreating, isEditing, notify, startCreate, startEdit]);
+    }, [estimate, isReadOnly, isTicketLocked, isCreating, isEditing, notify, onBeforeEstimateMutate, startCreate, startEdit, syncEstimate]);
 
-    const handleStartEdit = useCallback(() => {
+    const handleStartEdit = useCallback(async () => {
         if (isReadOnly) {
             notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
             return;
         }
         setRevertOnCancel(false);
+        try {
+            const cleanEstimate = await onBeforeEstimateMutate?.();
+            if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+        } catch {
+            return;
+        }
         startEdit?.();
-    }, [isReadOnly, notify, readOnlyMessage, startEdit]);
+    }, [isReadOnly, notify, onBeforeEstimateMutate, readOnlyMessage, startEdit, syncEstimate]);
 
     const [pickerOpen, setPickerOpen] = useState(false);
     const [activeRowIndex, setActiveRowIndex] = useState(null);
@@ -990,6 +1037,7 @@ export default function AdvisorItemsTable({
             // Only count rows that are actually editable in current mode.
             // Locked rows (seeded from previous estimate version) should not lock selection.
             if (r?.isLockedFromPreviousVersion) continue;
+            if (r?.isGift === true || String(r?.isGift ?? '').trim().toLowerCase() === 'true') continue;
             const itemId = toIdOrNull(r?.itemId);
             if (!itemId) continue;
             const warehouseId = toIdOrNull(r?.warehouseId);
@@ -1013,6 +1061,7 @@ export default function AdvisorItemsTable({
     const [pickerInitQuery, setPickerInitQuery] = useState("");
 
     const openCatalogPicker = (rowIndex, rowObj) => {
+        if (rowObj?.isGift === true || String(rowObj?.isGift ?? '').trim().toLowerCase() === 'true') return;
         const hasCategory =
             Boolean(String(rowObj?.newCategoryName ?? rowObj?.categoryName ?? '').trim()) || Boolean(toIdOrNull(rowObj?.workCategoryId));
         if (!hasCategory) {
@@ -1039,7 +1088,7 @@ export default function AdvisorItemsTable({
         if (rowIndex == null) return;
 
         const row = Array.isArray(tableRows) ? tableRows[rowIndex] : null;
-        if (!row || row?.isLockedFromPreviousVersion) return;
+        if (!row || row?.isLockedFromPreviousVersion || row?.isGift === true || String(row?.isGift ?? '').trim().toLowerCase() === 'true') return;
 
         if (activeRowIndex === rowIndex) {
             setPickerOpen(false);
@@ -1443,6 +1492,7 @@ AdvisorItemsTable.propTypes = {
     estimatedTimeDisplay: PropTypes.string,
     onEstimateStatusChange: PropTypes.func,
     onEstimateEditingChange: PropTypes.func,
+    onBeforeEstimateMutate: PropTypes.func,
     onRestartWorkflow: PropTypes.func,
     onCancelCreateNewVersion: PropTypes.func,
     onCancelAppendOnly: PropTypes.func,

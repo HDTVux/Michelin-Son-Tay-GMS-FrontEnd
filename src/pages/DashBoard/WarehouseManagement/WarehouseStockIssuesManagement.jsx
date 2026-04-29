@@ -6,6 +6,7 @@ import { fetchWarehousesAll, fetchWarehouseStockIssues } from '../../../services
 import styles from './WarehouseStockIssuesManagement.module.css';
 
 const DEFAULT_WAREHOUSE_ID = 1;
+const DEFAULT_WAREHOUSE_LABEL = 'Kho Tổng';
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 const toWarehouseIdText = (value) => {
@@ -15,6 +16,31 @@ const toWarehouseIdText = (value) => {
 
 const getWarehouseIdText = (warehouse) =>
 	toWarehouseIdText(warehouse?.warehouseId ?? warehouse?.warehouseID ?? warehouse?.id);
+
+const normalizeSearchText = (value) =>
+	String(value ?? '')
+		.trim()
+		.toLowerCase()
+		.normalize('NFD')
+		.replaceAll(/[\u0300-\u036f]/g, '')
+		.replaceAll('đ', 'd');
+
+const pickDefaultWarehouseId = (list) => {
+	const warehouses = Array.isArray(list) ? list : [];
+	const defaultWarehouse =
+		warehouses.find((w) => {
+			const idText = getWarehouseIdText(w);
+			if (!idText) return false;
+			const name = normalizeSearchText(`${w?.warehouseName ?? ''} ${w?.warehouseCode ?? ''} ${w?.name ?? ''}`);
+			return name.includes('kho tong') || name.includes('tong kho');
+		}) ||
+		warehouses.find((w) => getWarehouseIdText(w) === String(DEFAULT_WAREHOUSE_ID)) ||
+		warehouses.find((w) => w?.isActive === true && getWarehouseIdText(w)) ||
+		warehouses.find((w) => getWarehouseIdText(w)) ||
+		null;
+
+	return getWarehouseIdText(defaultWarehouse) || String(DEFAULT_WAREHOUSE_ID);
+};
 
 const STATUS_OPTIONS = [
 	{ value: 'ALL', label: 'Tất cả' },
@@ -76,18 +102,31 @@ export default function WarehouseStockIssues() {
 	const [error, setError] = useState('');
 	const [warehouseError, setWarehouseError] = useState('');
 
+	const warehouseSelectValue = useMemo(() => {
+		const currentIdText = toWarehouseIdText(warehouseIdInput);
+		if (currentIdText && (!warehouses.length || warehouses.some((w) => getWarehouseIdText(w) === currentIdText))) {
+			return currentIdText;
+		}
+		return pickDefaultWarehouseId(warehouses);
+	}, [warehouseIdInput, warehouses]);
+
 	const fetchList = async ({ warehouseIdOverride, pageOverride, sizeOverride } = {}) => {
 		try {
 			setLoading(true);
 			setError('');
-			const warehouseIdSource = warehouseIdOverride ?? warehouseIdInput ?? '';
-			const warehouseId = toWarehouseIdText(warehouseIdSource);
+			const warehouseId =
+				toWarehouseIdText(warehouseIdOverride) ||
+				toWarehouseIdText(warehouseIdInput) ||
+				pickDefaultWarehouseId(warehouses);
 			if (!warehouseId) {
 				setIssues([]);
 				setTotalElements(0);
 				setTotalPages(1);
 				setError('Vui lòng chọn kho.');
 				return;
+			}
+			if (warehouseId !== toWarehouseIdText(warehouseIdInput)) {
+				setWarehouseIdInput(warehouseId);
 			}
 			const nextPage = Number.isFinite(pageOverride) ? pageOverride : page;
 			const nextSize = Number.isFinite(sizeOverride) ? sizeOverride : size;
@@ -129,18 +168,14 @@ export default function WarehouseStockIssues() {
 					return;
 				}
 
-				const firstActive =
-					list.find((w) => w?.isActive === true && getWarehouseIdText(w)) ||
-					list.find((w) => getWarehouseIdText(w)) ||
-					null;
-				const nextId = getWarehouseIdText(firstActive) || String(DEFAULT_WAREHOUSE_ID);
+				const nextId = pickDefaultWarehouseId(list);
 				setWarehouseIdInput(String(nextId));
 				await fetchList({ warehouseIdOverride: String(nextId), pageOverride: 0 });
 			} catch (err) {
 				if (cancelled) return;
 				setWarehouses([]);
 				setWarehouseError(err?.message || 'Không thể tải danh sách kho.');
-				await fetchList();
+				await fetchList({ warehouseIdOverride: String(DEFAULT_WAREHOUSE_ID), pageOverride: 0 });
 			} finally {
 				if (!cancelled) setWarehouseLoading(false);
 			}
@@ -171,25 +206,26 @@ export default function WarehouseStockIssues() {
 	const goToPage = (nextPage) => {
 		const safeNext = Math.min(Math.max(0, nextPage), Math.max(1, totalPages) - 1);
 		setPage(safeNext);
-		fetchList({ pageOverride: safeNext });
+		fetchList({ warehouseIdOverride: warehouseSelectValue, pageOverride: safeNext });
 	};
 
 	const changePageSize = (nextSize) => {
 		setSize(nextSize);
 		setPage(0);
-		fetchList({ pageOverride: 0, sizeOverride: nextSize });
+		fetchList({ warehouseIdOverride: warehouseSelectValue, pageOverride: 0, sizeOverride: nextSize });
 	};
 
 	const selectedWarehouseLabel = useMemo(() => {
-		const idText = toWarehouseIdText(warehouseIdInput);
+		const idText = warehouseSelectValue;
 		if (!idText) return '-';
 		const w = warehouses.find((row) => getWarehouseIdText(row) === idText);
+		if (!w && idText === String(DEFAULT_WAREHOUSE_ID)) return DEFAULT_WAREHOUSE_LABEL;
 		if (!w) return idText;
 		return (
 			String(w?.warehouseName || w?.warehouseCode || w?.warehouseId || w?.warehouseID || w?.id || idText).trim() ||
 			idText
 		);
-	}, [warehouseIdInput, warehouses]);
+	}, [warehouseSelectValue, warehouses]);
 
 	return (
 		<div className={styles.bookingPage}>
@@ -242,7 +278,7 @@ export default function WarehouseStockIssues() {
 						<select
 							id="stock-issue-warehouse"
 							className={styles.select}
-							value={warehouseIdInput}
+							value={warehouseSelectValue}
 							onChange={(e) => setWarehouseIdInput(e.target.value)}
 							disabled={warehouseLoading}
 						>
@@ -267,7 +303,7 @@ export default function WarehouseStockIssues() {
 									})
 									.filter(Boolean)
 							) : (
-								<option value={warehouseIdInput}>{warehouseIdInput || '-'}</option>
+								<option value={warehouseSelectValue || String(DEFAULT_WAREHOUSE_ID)}>{DEFAULT_WAREHOUSE_LABEL}</option>
 							)}
 						</select>
 					</div>
@@ -294,8 +330,10 @@ export default function WarehouseStockIssues() {
 							type="button"
 							className={styles.primaryButton}
 							onClick={() => {
+								const nextWarehouseId = warehouseSelectValue;
+								setWarehouseIdInput(nextWarehouseId);
 								setPage(0);
-								fetchList({ pageOverride: 0 });
+								fetchList({ warehouseIdOverride: nextWarehouseId, pageOverride: 0 });
 							}}
 							disabled={loading}
 						>

@@ -11,6 +11,7 @@ import { useServiceTicketDetailData, useServiceTicketEditing } from './serviceTi
 import { getServiceTicketStatusTextVi } from '../../../components/statusUtils.js';
 import {
     allocateEstimateStock,
+    applyPromotionToEstimate,
     createServiceTicketReminder,
     updateEstimateStockAllocation,
     fetchEstimateStockAllocations,
@@ -20,6 +21,7 @@ import {
     manageServiceTicketStatus,
     fetchTicketAssignments,
     updateServiceTicketEstimatedDelivery,
+    unapplyPromotionFromEstimate,
     fetchSafetyInspectionCurrentRecommend,
 } from '../../../services/serviceTicketService.js';
 import { finishWork } from '../../../services/technicianService.js';
@@ -37,6 +39,10 @@ const STAFF_ROLE = {
     ACCOUNTANT: 'ACCOUNTANT',
 };
 const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
+const PROMOTION_TYPES = [
+    { type: 'PERCENT', label: 'Giảm theo phần trăm' },
+    { type: 'BUY_X_GET_Y', label: 'Mua X tặng Y' },
+];
 
 function readStaffRolesFromStorage() {
     try {
@@ -538,7 +544,15 @@ function parsePromotionYmdDate(value, { endOfDay } = {}) {
 
 function getPromotionId(promo) {
     if (!promo) return null;
-    const raw = promo?.promotionId ?? promo?.promotionID ?? promo?.PromotionId ?? promo?.id ?? promo?.ID ?? null;
+    const raw = promo?.promotionId ?? promo?.promotionID ?? promo?.PromotionId ?? promo?.promotion_id ?? promo?.id ?? promo?.ID ?? null;
+    if (raw == null) return null;
+    const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function getExplicitPromotionId(promo) {
+    if (!promo) return null;
+    const raw = promo?.promotionId ?? promo?.promotionID ?? promo?.PromotionId ?? promo?.promotion_id ?? null;
     if (raw == null) return null;
     const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
     return Number.isFinite(n) && n > 0 ? n : null;
@@ -556,10 +570,12 @@ function buildPromotionLabel(promo) {
     if (!promo) return '';
     const name = String(promo?.name || '').trim();
     const code = String(promo?.code || '').trim();
+    const type = String(promo?.type ?? promo?.promotionType ?? '').trim().toUpperCase();
     const discountPercent = toMoneyNumber(promo?.discountPercent);
     const parts = [name || code].filter(Boolean);
     if (code && name) parts.push(code);
     if (discountPercent > 0) parts.push(`-${discountPercent}%`);
+    if (type === 'BUY_X_GET_Y' && discountPercent <= 0) parts.push('Quà tặng');
     return parts.join(' • ');
 }
 
@@ -578,9 +594,130 @@ function validatePromotion(promo, subtotal) {
         return `Đơn tối thiểu ${new Intl.NumberFormat('vi-VN').format(minOrderValue)}đ để áp dụng`;
     }
 
+    const type = String(promo?.type ?? promo?.promotionType ?? '').trim().toUpperCase();
     const discountPercent = toMoneyNumber(promo?.discountPercent);
-    if (discountPercent <= 0) return 'Khuyến mãi này chưa hỗ trợ trên hoá đơn';
+    if (type !== 'BUY_X_GET_Y' && discountPercent <= 0) return 'Khuyến mãi này chưa hỗ trợ trên hoá đơn';
     return '';
+}
+
+function getPromotionType(promo) {
+    return String(promo?.type ?? promo?.promotionType ?? '').trim().toUpperCase();
+}
+
+function getPromotionCode(promo) {
+    return String(
+        promo?.code ??
+        promo?.promotionCode ??
+        promo?.promotion_code ??
+        promo?.promoCode ??
+        promo?.promo_code ??
+        promo?.couponCode ??
+        promo?.voucherCode ??
+        '',
+    ).trim();
+}
+
+function buildEstimatePromotionLabels(estimate) {
+    const labels = [];
+    const seen = new Set();
+    const addLabel = (label) => {
+        const text = String(label || '').trim();
+        if (!text || seen.has(text)) return;
+        seen.add(text);
+        labels.push(text);
+    };
+    const addPromo = (promo) => {
+        if (!promo) return;
+        if (Array.isArray(promo)) {
+            promo.forEach(addPromo);
+            return;
+        }
+        if (typeof promo === 'string') {
+            addLabel(promo);
+            return;
+        }
+        const built = buildPromotionLabel(promo);
+        if (built) {
+            addLabel(built);
+            return;
+        }
+        const code = getPromotionCode(promo);
+        if (code) addLabel(code);
+    };
+
+    addPromo(estimate?.promotion);
+    addPromo(estimate?.appliedPromotion);
+    addPromo(estimate?.promotions);
+    addPromo(estimate?.appliedPromotions);
+    addPromo(estimate?.promotionCode);
+    addPromo(estimate?.promoCode);
+
+    const items = Array.isArray(estimate?.items) ? estimate.items.filter((it) => !it?.isRemoved) : [];
+    items.forEach((it) => {
+        addPromo(it?.promotion);
+        addPromo(it?.appliedPromotion);
+        addPromo(it?.promotionCode);
+        addPromo(it?.promoCode);
+    });
+
+    if (labels.length > 0) return labels;
+
+    const discountedCount = items.filter((it) => {
+        const discount = pickDiscountAmountValue(it);
+        const subTotal = pickMoneyDisplayValue(it?.subTotalWithVat ?? it?.subTotalWithVAT ?? 0, it?.subTotal);
+        const finalPrice = getEstimateItemFinalPriceDisplay(it, subTotal);
+        return discount > 0 || toMoneyNumber(finalPrice) < toMoneyNumber(subTotal);
+    }).length;
+    const giftCount = items.filter(getEstimateItemGiftFlag).length;
+
+    if (discountedCount > 0) addLabel(`Giảm giá đã áp dụng trên ${discountedCount} dòng`);
+    if (giftCount > 0) addLabel(`Quà tặng đã áp dụng trên ${giftCount} dòng`);
+    return labels;
+}
+
+function collectAppliedPromotionRefs(estimate, appliedPromotionsByType = {}, availablePromotionsByType = {}) {
+    const refs = [];
+    const seen = new Set();
+    const availablePromotions = Object.values(availablePromotionsByType || {})
+        .flatMap((list) => (Array.isArray(list) ? list : []));
+    const promotionCodeById = new Map();
+    availablePromotions.forEach((promo) => {
+        const id = getPromotionId(promo);
+        const code = getPromotionCode(promo);
+        if (id && code && !promotionCodeById.has(id)) promotionCodeById.set(id, code);
+    });
+
+    const addPromo = (promo, { explicitOnly = false } = {}) => {
+        if (!promo) return;
+        if (Array.isArray(promo)) {
+            promo.forEach((item) => addPromo(item, { explicitOnly }));
+            return;
+        }
+        if (typeof promo !== 'object') return;
+        const promotionId = explicitOnly ? getExplicitPromotionId(promo) : getPromotionId(promo);
+        const promotionCode = getPromotionCode(promo) || (promotionId ? promotionCodeById.get(promotionId) : '');
+        if (!promotionId || !promotionCode) return;
+        const key = `${promotionId}|${promotionCode}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        refs.push({ promotionId, promotionCode });
+    };
+
+    Object.values(appliedPromotionsByType || {}).forEach(addPromo);
+    addPromo(estimate?.promotion);
+    addPromo(estimate?.appliedPromotion);
+    addPromo(estimate?.promotions);
+    addPromo(estimate?.appliedPromotions);
+    addPromo(estimate, { explicitOnly: true });
+
+    const items = Array.isArray(estimate?.items) ? estimate.items : [];
+    items.forEach((it) => {
+        addPromo(it?.promotion);
+        addPromo(it?.appliedPromotion);
+        addPromo(it, { explicitOnly: true });
+    });
+
+    return refs;
 }
 
 function normalizeSafetyInspectionStatus(raw) {
@@ -1058,12 +1195,24 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [billLookupError, setBillLookupError] = useState('');
     const [billCreating, setBillCreating] = useState(false);
 
-    const [availablePromotions, setAvailablePromotions] = useState([]);
+    const [availablePromotions, setAvailablePromotions] = useState({
+        PERCENT: [],
+        BUY_X_GET_Y: [],
+    });
     const [promotionsLoading, setPromotionsLoading] = useState(false);
     const [promotionsError, setPromotionsError] = useState('');
-    const [promoCode, setPromoCode] = useState('');
-    const [selectedPromotionId, setSelectedPromotionId] = useState('');
-    const [appliedPromotion, setAppliedPromotion] = useState(null);
+    const [promoCodes, setPromoCodes] = useState({
+        PERCENT: '',
+        BUY_X_GET_Y: '',
+    });
+    const [selectedPromotions, setSelectedPromotions] = useState({
+        PERCENT: '',
+        BUY_X_GET_Y: '',
+    });
+    const [appliedPromotions, setAppliedPromotions] = useState({
+        PERCENT: null,
+        BUY_X_GET_Y: null,
+    });
     const [promoApplying, setPromoApplying] = useState(false);
     const [promoError, setPromoError] = useState('');
 
@@ -1128,12 +1277,15 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             try {
                 setPromotionsLoading(true);
                 setPromotionsError('');
-                const res = await fetchAvailablePromotions(token);
+                const entries = await Promise.all(PROMOTION_TYPES.map(async ({ type }) => {
+                    const res = await fetchAvailablePromotions(token, type);
+                    return [type, Array.isArray(res?.data) ? res.data : []];
+                }));
                 if (cancelled) return;
-                setAvailablePromotions(Array.isArray(res?.data) ? res.data : []);
+                setAvailablePromotions(Object.fromEntries(entries));
             } catch (err) {
                 if (cancelled) return;
-                setAvailablePromotions([]);
+                setAvailablePromotions({ PERCENT: [], BUY_X_GET_Y: [] });
                 setPromotionsError(err?.message || 'Không thể tải danh sách khuyến mãi.');
             } finally {
                 if (!cancelled) setPromotionsLoading(false);
@@ -1248,20 +1400,46 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         [receiptItems],
     );
     const receiptSubtotal = useMemo(
-        () => confirmedReceiptItems.reduce((acc, it) => acc + toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal), 0),
+        () => confirmedReceiptItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotalDisplay ?? it.subTotal), 0),
         [confirmedReceiptItems],
     );
     const receiptDiscountAmount = useMemo(() => {
-        if (!appliedPromotion) return 0;
-        const validationMessage = validatePromotion(appliedPromotion, receiptSubtotal);
-        if (validationMessage) return 0;
-        const percent = toMoneyNumber(appliedPromotion?.discountPercent);
-        return Math.min(receiptSubtotal, Math.max(0, receiptSubtotal * (percent / 100)));
-    }, [appliedPromotion, receiptSubtotal]);
+        return confirmedReceiptItems.reduce((acc, it) => {
+            const lineSubtotal = toMoneyNumber(it.subTotalDisplay ?? it.subTotal);
+            const lineFinal = toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal);
+            const backendDiscount = toMoneyNumber(it.discountAmount);
+            return acc + Math.max(backendDiscount, lineSubtotal - lineFinal, 0);
+        }, 0);
+    }, [confirmedReceiptItems]);
     const receiptTotal = useMemo(
-        () => Math.max(0, receiptSubtotal - receiptDiscountAmount),
-        [receiptDiscountAmount, receiptSubtotal],
+        () => confirmedReceiptItems.reduce((acc, it) => acc + toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal), 0),
+        [confirmedReceiptItems],
     );
+    const appliedPromotionList = useMemo(
+        () => PROMOTION_TYPES.map(({ type }) => appliedPromotions[type]).filter(Boolean),
+        [appliedPromotions],
+    );
+    const appliedPromotionLabel = useMemo(
+        () => appliedPromotionList.map(buildPromotionLabel).filter(Boolean).join(' / '),
+        [appliedPromotionList],
+    );
+    const estimatePromotionLabels = useMemo(
+        () => buildEstimatePromotionLabels(latestEstimate),
+        [latestEstimate],
+    );
+    const activePromotionLabels = useMemo(() => {
+        const labels = [];
+        const seen = new Set();
+        const add = (label) => {
+            const text = String(label || '').trim();
+            if (!text || seen.has(text)) return;
+            seen.add(text);
+            labels.push(text);
+        };
+        add(appliedPromotionLabel);
+        estimatePromotionLabels.forEach(add);
+        return labels;
+    }, [appliedPromotionLabel, estimatePromotionLabels]);
     const printTicket = useMemo(() => ({
         ...ticket,
         receivedAtDisplay,
@@ -1279,12 +1457,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             vatRate: '',
             vatAmount: 0,
             total: receiptTotal,
-            promotionLabel: buildPromotionLabel(appliedPromotion),
+            promotionLabel: activePromotionLabels.join(' / '),
         },
         safetyInspection: safetyInspectionForPrint ?? ticketRaw?.safetyInspection ?? {},
         defaultCategories: defaultSafetyCategories,
     }), [
-        appliedPromotion,
+        activePromotionLabels,
         defaultSafetyCategories,
         handoverAtDisplay,
         printRecommendation,
@@ -1301,10 +1479,21 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     useEffect(() => {
         if (!hasBill) return;
-        if (appliedPromotion) setAppliedPromotion(null);
-        if (promoCode) setPromoCode('');
-        if (selectedPromotionId) setSelectedPromotionId('');
-    }, [hasBill, appliedPromotion, promoCode, selectedPromotionId]);
+        if (appliedPromotionList.length > 0) setAppliedPromotions({ PERCENT: null, BUY_X_GET_Y: null });
+        if (promoCodes.PERCENT || promoCodes.BUY_X_GET_Y) {
+            setPromoCodes({ PERCENT: '', BUY_X_GET_Y: '' });
+        }
+        if (selectedPromotions.PERCENT || selectedPromotions.BUY_X_GET_Y) {
+            setSelectedPromotions({ PERCENT: '', BUY_X_GET_Y: '' });
+        }
+    }, [
+        hasBill,
+        appliedPromotionList.length,
+        promoCodes.BUY_X_GET_Y,
+        promoCodes.PERCENT,
+        selectedPromotions.BUY_X_GET_Y,
+        selectedPromotions.PERCENT,
+    ]);
 
     const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable) || isActionLocked;
     const isInspectionAndEstimateReadOnly = isActionLocked || !hasAdvisorRole;
@@ -2119,6 +2308,60 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     }, [loadLatestEstimate]);
 
+    const handleBeforeEstimateMutate = useCallback(async () => {
+        if (!estimateIdNum || hasBill) return;
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) return;
+
+        const estimateItems = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+        const hasPromotionIdsOnItems = estimateItems.some((it) => Boolean(getExplicitPromotionId(it)));
+        const hasPromotionEffects = estimateItems.some((it) => getEstimateItemGiftFlag(it) || pickDiscountAmountValue(it) > 0);
+        let promotionLookup = availablePromotions;
+        let refs = collectAppliedPromotionRefs(latestEstimate, appliedPromotions, promotionLookup);
+
+        if (refs.length === 0 && (hasPromotionIdsOnItems || hasPromotionEffects)) {
+            try {
+                const entries = await Promise.all(PROMOTION_TYPES.map(async ({ type }) => {
+                    const res = await fetchAvailablePromotions(token, type);
+                    return [type, Array.isArray(res?.data) ? res.data : []];
+                }));
+                promotionLookup = Object.fromEntries(entries);
+                setAvailablePromotions(promotionLookup);
+                refs = collectAppliedPromotionRefs(latestEstimate, appliedPromotions, promotionLookup);
+            } catch {
+                // Surface the clearer message below if refs still cannot be resolved.
+            }
+        }
+
+        if (refs.length === 0) {
+            if (hasPromotionIdsOnItems || hasPromotionEffects) {
+                notify('Không tìm thấy promotionId/promotionCode để gỡ khuyến mãi khỏi báo giá.');
+            }
+            return;
+        }
+
+        try {
+            setPromoApplying(true);
+            for (const ref of refs) {
+                await unapplyPromotionFromEstimate(ref.promotionId, estimateIdNum, ref.promotionCode, token);
+            }
+            setAppliedPromotions({ PERCENT: null, BUY_X_GET_Y: null });
+            setPromoCodes({ PERCENT: '', BUY_X_GET_Y: '' });
+            setSelectedPromotions({ PERCENT: '', BUY_X_GET_Y: '' });
+            const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
+            const cleanEstimate = pickLatestEstimate(estimateRes?.data);
+            setLatestEstimate(cleanEstimate ?? null);
+            setRefreshTick((prev) => prev + 1);
+            notify('Đã gỡ khuyến mãi khỏi báo giá. Vui lòng áp dụng lại sau khi lưu chỉnh sửa.');
+            return cleanEstimate ?? null;
+        } catch (err) {
+            notify(err?.message || 'Không thể gỡ khuyến mãi khỏi báo giá.');
+            throw err;
+        } finally {
+            setPromoApplying(false);
+        }
+    }, [appliedPromotions, availablePromotions, estimateIdNum, hasBill, latestEstimate, notify, serviceTicketIdNum]);
+
     const handleInspectionCompleted = useCallback(async () => {
         const token = localStorage.getItem('authToken');
         const code = String(ticket.ticketCode || ticketCodeParam || '').trim();
@@ -2133,55 +2376,84 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     }, [notify, setTicketRaw, ticket.ticketCode, ticketCodeParam]);
 
-    const applyPromotion = async () => {
+    const applyPromotion = async (promotionType) => {
         if (hasBill) {
             notify('Phiếu dịch vụ đã có hoá đơn. Không thể áp dụng khuyến mãi.');
+            return;
+        }
+        if (!estimateIdNum) {
+            notify('Không tìm thấy báo giá hợp lệ để áp dụng khuyến mãi.');
             return;
         }
 
         setPromoError('');
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-        const code = String(promoCode || '').trim();
-        const selectedId = String(selectedPromotionId || '').trim();
+        const type = String(promotionType || '').trim().toUpperCase();
+        const code = String(promoCodes[type] || '').trim();
+        const selectedId = String(selectedPromotions[type] || '').trim();
 
         if (!code && !selectedId) {
-            setAppliedPromotion(null);
+            setAppliedPromotions((prev) => ({ ...prev, [type]: null }));
             return;
         }
 
+        const list = Array.isArray(availablePromotions[type]) ? availablePromotions[type] : [];
+        let picked = null;
         if (code) {
             try {
                 setPromoApplying(true);
                 const res = await fetchPromotionByCode(code, token);
-                const promo = normalizePromotion(res?.data ?? null);
-                const validationMessage = validatePromotion(promo, receiptSubtotal);
-                if (validationMessage) {
-                    setAppliedPromotion(null);
-                    setPromoError(validationMessage);
-                    return;
-                }
-                setAppliedPromotion(promo);
-                setSelectedPromotionId('');
+                picked = normalizePromotion(res?.data ?? null);
             } catch (err) {
-                setAppliedPromotion(null);
+                setAppliedPromotions((prev) => ({ ...prev, [type]: null }));
                 setPromoError(err?.message || 'Mã không hợp lệ');
+                return;
             } finally {
                 setPromoApplying(false);
             }
+        } else {
+            picked = list.find((p) => {
+                const id = getPromotionId(p);
+                return id != null && String(id) === selectedId;
+            }) ?? null;
+        }
+
+        const pickedType = getPromotionType(picked);
+        if (pickedType && pickedType !== type) {
+            setAppliedPromotions((prev) => ({ ...prev, [type]: null }));
+            setPromoError(`Mã này thuộc loại ${pickedType}, không áp dụng cho ${type}.`);
             return;
         }
 
-        const picked = availablePromotions.find((p) => {
-            const id = getPromotionId(p);
-            return id != null && String(id) === selectedId;
-        }) ?? null;
         const validationMessage = validatePromotion(picked, receiptSubtotal);
         if (validationMessage) {
-            setAppliedPromotion(null);
+            setAppliedPromotions((prev) => ({ ...prev, [type]: null }));
             setPromoError(validationMessage);
             return;
         }
-        setAppliedPromotion(normalizePromotion(picked));
+
+        const promotionId = getPromotionId(picked);
+        const promotionCode = String(picked?.code ?? '').trim();
+        if (!promotionId || !promotionCode) {
+            setPromoError('Khuyến mãi thiếu promotionId hoặc promotionCode.');
+            return;
+        }
+
+        try {
+            setPromoApplying(true);
+            await applyPromotionToEstimate(promotionId, estimateIdNum, promotionCode, token);
+            setAppliedPromotions((prev) => ({ ...prev, [type]: normalizePromotion(picked) }));
+            setPromoCodes((prev) => ({ ...prev, [type]: '' }));
+            setSelectedPromotions((prev) => ({ ...prev, [type]: '' }));
+            await loadLatestEstimate();
+            setRefreshTick((prev) => prev + 1);
+            notify('Đã áp dụng khuyến mãi vào báo giá.');
+        } catch (err) {
+            setAppliedPromotions((prev) => ({ ...prev, [type]: null }));
+            setPromoError(err?.message || 'Không thể áp dụng khuyến mãi.');
+        } finally {
+            setPromoApplying(false);
+        }
     };
 
     const handlePrintServiceReceipt = async () => {
@@ -2248,7 +2520,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                     ? versionRaw
                     : Number(/\d+/.exec(String(versionRaw ?? ''))?.[0] ?? '');
             const billVersion = Number.isFinite(versionParsed) && versionParsed > 0 ? versionParsed : 1;
-            const promotionId = getPromotionId(appliedPromotion);
+            const promotionId = getPromotionId(appliedPromotionList[0]);
             const createPayload = {
                 serviceTicketId: serviceTicketIdNum,
                 estimateId: estimateIdNum,
@@ -2609,64 +2881,84 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             onCancelCreateNewVersion={handleCancelCreateNewEstimateVersion}
                                             onCancelAppendOnly={handleCancelAppendOnly}
                                             onEstimateEditingChange={setIsEstimateEditing}
+                                            onBeforeEstimateMutate={handleBeforeEstimateMutate}
                                             readOnly={isInspectionAndEstimateReadOnly}
                                             readOnlyMessage={inspectionAndEstimateReadOnlyMessage}
                                             hideReadOnlyNotice={false}
                                             disableFullEdit={isAddServicePending}
                                         />
                                     )}
-                                    {latestEstimate && !isActionLocked ? (
+                                    {latestEstimate && !isActionLocked && !shouldHideEstimateUntilInspectionDone ? (
                                         <section className={styles.block}>
                                             <h2 className={styles.blockTitle}>Mã giảm giá</h2>
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(220px, 320px) auto', gap: 12, alignItems: 'end' }}>
-                                                <div className="ui-field" style={{ marginBottom: 0 }}>
-                                                    <label htmlFor="service-ticket-promo-code">Nhập mã</label>
-                                                    <input
-                                                        id="service-ticket-promo-code"
-                                                        value={promoCode}
-                                                        onChange={(e) => {
-                                                            setPromoCode(e.target.value);
-                                                            if (selectedPromotionId) setSelectedPromotionId('');
-                                                        }}
-                                                        placeholder="Mã khuyến mãi"
-                                                        disabled={billCreating || promoApplying}
-                                                    />
-                                                </div>
-                                                <div className="ui-field" style={{ marginBottom: 0 }}>
-                                                    <label htmlFor="service-ticket-promo-list">Hoặc chọn khuyến mãi</label>
-                                                    <select
-                                                        id="service-ticket-promo-list"
-                                                        value={selectedPromotionId}
-                                                        onChange={(e) => {
-                                                            setSelectedPromotionId(e.target.value);
-                                                            if (promoCode) setPromoCode('');
-                                                        }}
-                                                        disabled={billCreating || promoApplying || promotionsLoading}
-                                                    >
-                                                        <option value="">{promotionsLoading ? 'Đang tải...' : '-'}</option>
-                                                        {availablePromotions.map((p) => {
-                                                            const id = getPromotionId(p);
-                                                            if (!id) return null;
-                                                            return (
-                                                                <option key={String(id)} value={String(id)}>
-                                                                    {buildPromotionLabel(p) || String(id)}
-                                                                </option>
-                                                            );
-                                                        })}
-                                                    </select>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    className="ui-btn ui-btn--primary"
-                                                    onClick={applyPromotion}
-                                                    disabled={billCreating || promoApplying}
-                                                >
-                                                    {promoApplying ? 'Đang áp dụng...' : 'Áp dụng'}
-                                                </button>
+                                            <div className={styles.promotionGrid}>
+                                                {PROMOTION_TYPES.map(({ type, label }) => {
+                                                    const list = Array.isArray(availablePromotions[type]) ? availablePromotions[type] : [];
+                                                    const appliedLabel = buildPromotionLabel(appliedPromotions[type]);
+                                                    return (
+                                                        <div key={type} className={styles.promotionBox}>
+                                                            <div className="ui-field" style={{ marginBottom: 0 }}>
+                                                                <label htmlFor={`service-ticket-promo-code-${type}`}>{label}</label>
+                                                                <input
+                                                                    id={`service-ticket-promo-code-${type}`}
+                                                                    value={promoCodes[type] || ''}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+                                                                        setPromoCodes((prev) => ({ ...prev, [type]: value }));
+                                                                        if (selectedPromotions[type]) {
+                                                                            setSelectedPromotions((prev) => ({ ...prev, [type]: '' }));
+                                                                        }
+                                                                    }}
+                                                                    placeholder="Nhập mã khuyến mãi"
+                                                                    disabled={billCreating || promoApplying}
+                                                                />
+                                                            </div>
+                                                            <div className="ui-field" style={{ marginBottom: 0 }}>
+                                                                <label htmlFor={`service-ticket-promo-${type}`}>Chọn từ danh sách</label>
+                                                                <select
+                                                                    id={`service-ticket-promo-${type}`}
+                                                                    value={selectedPromotions[type] || ''}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+                                                                        setSelectedPromotions((prev) => ({ ...prev, [type]: value }));
+                                                                        if (promoCodes[type]) {
+                                                                            setPromoCodes((prev) => ({ ...prev, [type]: '' }));
+                                                                        }
+                                                                    }}
+                                                                    disabled={billCreating || promoApplying || promotionsLoading}
+                                                                >
+                                                                    <option value="">{promotionsLoading ? 'Đang tải...' : '-'}</option>
+                                                                    {list.map((p) => {
+                                                                        const id = getPromotionId(p);
+                                                                        if (!id) return null;
+                                                                        return (
+                                                                            <option key={String(id)} value={String(id)}>
+                                                                                {buildPromotionLabel(p) || String(id)}
+                                                                            </option>
+                                                                        );
+                                                                    })}
+                                                                </select>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                className="ui-btn ui-btn--primary"
+                                                                onClick={() => applyPromotion(type)}
+                                                                disabled={billCreating || promoApplying || (!promoCodes[type] && !selectedPromotions[type])}
+                                                            >
+                                                                {promoApplying ? 'Đang áp dụng...' : 'Áp dụng'}
+                                                            </button>
+                                                            {appliedLabel ? (
+                                                                <div className={styles.promotionApplied}>
+                                                                    Đã áp dụng: {appliedLabel}
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                            {buildPromotionLabel(appliedPromotion) ? (
-                                                <div className={styles.noteBox} style={{ marginTop: 12 }}>
-                                                    Đã áp dụng: {buildPromotionLabel(appliedPromotion)}
+                                            {activePromotionLabels.length > 0 ? (
+                                                <div className={styles.promotionApplied} style={{ marginTop: 12 }}>
+                                                    Khuyến mãi đang dùng: {activePromotionLabels.join(' / ')}
                                                 </div>
                                             ) : null}
                                             <div className={styles.kvList} style={{ marginTop: 12 }}>

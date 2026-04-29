@@ -254,17 +254,22 @@ function mergeEstimateWithWarehouseDisplay(nextEstimate, ...fallbackSources) {
 			const warehouseName = getEstimateItemWarehouseName(item);
 			const warehouseId = item?.warehouseId ?? item?.warehouse_id ?? item?.warehouse?.warehouseId ?? '';
 			const warehouse = item?.warehouse && typeof item.warehouse === 'object' ? item.warehouse : null;
-			if (!warehouseName && !warehouseId && !warehouse) continue;
+			const promotionFields = buildEstimateItemPromotionPayloadFields(item);
+			const hasPromotionFields =
+				promotionFields.isGift ||
+				promotionFields.triggeredByItemId ||
+				promotionFields.discountAmount != null ||
+				promotionFields.finalPrice != null;
+			if (!warehouseName && !warehouseId && !warehouse && !hasPromotionFields) continue;
 			for (const key of buildEstimateItemMatchKeys(item)) {
 				if (!fallbackByKey.has(key)) {
-					fallbackByKey.set(key, { warehouseName, warehouseId, warehouse });
+					fallbackByKey.set(key, { warehouseName, warehouseId, warehouse, promotionFields });
 				}
 			}
 		}
 	}
 
 	const mergedItems = nextItems.map((item) => {
-		if (getEstimateItemWarehouseName(item)) return item;
 		const fallback = buildEstimateItemMatchKeys(item)
 			.map((key) => fallbackByKey.get(key))
 			.find(Boolean);
@@ -272,8 +277,12 @@ function mergeEstimateWithWarehouseDisplay(nextEstimate, ...fallbackSources) {
 		return {
 			...item,
 			warehouseId: item?.warehouseId ?? item?.warehouse_id ?? fallback.warehouseId ?? '',
-			warehouseName: fallback.warehouseName || '',
+			warehouseName: getEstimateItemWarehouseName(item) || fallback.warehouseName || '',
 			warehouse: item?.warehouse ?? fallback.warehouse ?? undefined,
+			isGift: getEstimateItemGiftFlag(item) || fallback.promotionFields?.isGift,
+			triggeredByItemId: pickTriggeredByItemId(item) ?? fallback.promotionFields?.triggeredByItemId ?? null,
+			discountAmount: item?.discountAmount ?? item?.discount_amount ?? fallback.promotionFields?.discountAmount ?? null,
+			finalPrice: item?.finalPrice ?? item?.final_price ?? fallback.promotionFields?.finalPrice ?? null,
 		};
 	});
 
@@ -321,6 +330,7 @@ function mapEstimateItemToLockedRow(it, idx) {
 		discountAmount: pickDiscountAmountValue(it),
 		finalPrice: it?.finalPrice ?? it?.final_price ?? '',
 		isGift: getEstimateItemGiftFlag(it),
+		triggeredByItemId: pickTriggeredByItemId(it),
 		// Dòng khóa (seed từ version trước): vẫn ưu tiên thuế sản phẩm nếu có.
 		taxRuleId: toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? ''),
 		// Dòng đã lưu ở version trước: mặc định coi như đã xác nhận để không bị chặn lưu.
@@ -357,6 +367,22 @@ function pickDiscountAmountValue(item) {
 
 function getEstimateItemGiftFlag(item) {
 	return item?.isGift === true || String(item?.isGift ?? '').trim().toLowerCase() === 'true';
+}
+
+function pickTriggeredByItemId(item) {
+	return toIdOrNull(item?.triggeredByItemId ?? item?.triggered_by_item_id);
+}
+
+function buildEstimateItemPromotionPayloadFields(item) {
+	const isGift = getEstimateItemGiftFlag(item);
+	const discountAmount = item?.discountAmount ?? item?.discount_amount;
+	const finalPrice = item?.finalPrice ?? item?.final_price;
+	return {
+		isGift,
+		triggeredByItemId: pickTriggeredByItemId(item),
+		discountAmount: isGift ? 0 : (discountAmount == null || String(discountAmount).trim() === '' ? null : toNumberOrZero(discountAmount)),
+		finalPrice: isGift ? 0 : (finalPrice == null || String(finalPrice).trim() === '' ? null : toNumberOrZero(finalPrice)),
+	};
 }
 
 function getEstimateItemFinalPriceDisplay(item, fallbackValue) {
@@ -655,6 +681,13 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		},
 		[],
 	);
+
+	const syncEstimate = useCallback((nextEstimate) => {
+		const next = nextEstimate ?? null;
+		setEstimate(next);
+		estimateRef.current = next;
+		onEstimateStatusChangeRef.current?.(next);
+	}, []);
 
 	useEffect(() => {
 		onEstimateStatusChangeRef.current = onEstimateStatusChange;
@@ -1106,6 +1139,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					finalPrice: it?.finalPrice ?? it?.final_price ?? '',
 					finalPriceDisplay: getEstimateItemFinalPriceDisplay(it, subTotalDisplay),
 					isGift: getEstimateItemGiftFlag(it),
+					triggeredByItemId: pickTriggeredByItemId(it),
 					taxRuleId,
 					confirmed,
 					isRemoved: Boolean(it?.isRemoved),
@@ -1214,6 +1248,16 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	// Tương tự như trên nhưng cho các dòng đang edit (ko chỉ có thể edit một vài trường chứ không phải tất cả như trên)
 	const editComputed = useMemo(() => {
 		return editRows.map((r, idx) => {
+			if (getEstimateItemGiftFlag(r)) {
+				return {
+					key: `edit-${idx + 1}`,
+					...r,
+					subTotal: 0,
+					subTotalWithVat: 0,
+					finalPriceDisplay: 0,
+				};
+			}
+
 			const quantity = toNumberOrZero(r.quantity);
 			const unitPrice = toNumberOrZero(r.unitPrice);
 			const subTotal = quantity * unitPrice;
@@ -1246,6 +1290,12 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 	const editTotal = useMemo(() => {
 		return editComputed.reduce((acc, r) => {
+			if (getEstimateItemGiftFlag(r)) return acc + toNumberOrZero(r?.finalPrice ?? r?.finalPriceDisplay ?? 0);
+			const discountAmount = pickDiscountAmountValue(r);
+			const rawFinalPrice = r?.finalPrice ?? r?.final_price;
+			if (discountAmount > 0 && rawFinalPrice != null && String(rawFinalPrice).trim() !== '') {
+				return acc + toNumberOrZero(rawFinalPrice);
+			}
 			const taxId = getEffectiveTaxRuleId(r);
 			const raw = taxId ? r?.subTotalWithVat : r?.subTotal;
 			return acc + toNumberOrZero(raw);
@@ -1305,7 +1355,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const handleDraftChange = useCallback((index, field, value) => {
 		setDraftRows((prev) => {
 			const base = Array.isArray(prev) ? prev : [];
-			if (base[index]?.isLockedFromPreviousVersion) return base;
+			if (base[index]?.isLockedFromPreviousVersion || getEstimateItemGiftFlag(base[index])) return base;
 			const next = base.map((r, idx) => {
 				if (idx !== index) return r;
 				if (field === 'newCategoryName') return applyCategorySelection(r, value);
@@ -1330,7 +1380,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const handleEditChange = useCallback((index, field, value) => {
 		setEditRows((prev) => {
 			const base = Array.isArray(prev) ? prev : [];
-			if (base[index]?.isLockedFromPreviousVersion) return base;
+			if (base[index]?.isLockedFromPreviousVersion || getEstimateItemGiftFlag(base[index])) return base;
 			const next = base.map((r, idx) => {
 				if (idx !== index) return r;
 				if (field === 'newCategoryName') return applyCategorySelection(r, value);
@@ -1440,6 +1490,10 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					taxRuleId,
 					confirmed: getItemCheckedFlag(it),
 					isRemoved: Boolean(it?.isRemoved),
+					discountAmount: pickDiscountAmountValue(it),
+					finalPrice: it?.finalPrice ?? it?.final_price ?? '',
+					isGift: getEstimateItemGiftFlag(it),
+					triggeredByItemId: pickTriggeredByItemId(it),
 				};
 			});
 		const normalized = normalizeDraftRows(mapped);
@@ -1498,21 +1552,27 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const quantity = toNumberOrZero(it?.quantity);
 				const unitPrice = toNumberOrZero(it?.unitPrice);
 				const taxRuleId = it?.taxRuleId ?? null;
-				const isChecked = idx === sourceIndex ? Boolean(nextChecked) : getItemCheckedFlag(it);
+				const isChecked = getEstimateItemGiftFlag(it)
+					? true
+					: (idx === sourceIndex ? Boolean(nextChecked) : getItemCheckedFlag(it));
 				const isRemoved = Boolean(it?.isRemoved);
 				const estimateItemId = toIdOrNull(it?.estimateItemId ?? it?.estimateItemID ?? it?.id);
+				const warehouseId = toIdOrNull(it?.warehouseId ?? it?.warehouse_id ?? it?.warehouse?.warehouseId);
 
 				const payload = {
 					workCategoryId: workCategoryId ?? null,
 					newCategoryName,
 					itemId: itemId ?? null,
+					warehouseId: warehouseId ?? null,
 					itemName,
 					unit,
 					quantity,
 					unitPrice,
-					taxRuleId,
+					taxRuleId: taxRuleId ?? null,
 					isChecked,
 					isRemoved,
+					revisedFromItemId: null,
+					...buildEstimateItemPromotionPayloadFields(it),
 				};
 
 				if (estimateItemId) {
@@ -1610,15 +1670,17 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					workCategoryId: workCategoryId ?? null,
 					newCategoryName: workCategoryId ? null : categoryNameValidated.value || null,
 					itemId: itemId ?? null,
+					warehouseId: warehouseId ?? null,
 					itemName: itemNameValidated.value || null,
 					unit: String(r?.unit ?? '').trim() || null,
 					quantity: qtyValidated.value ?? 0,
 					unitPrice: priceValidated.value ?? 0,
-					isChecked: Boolean(r?.confirmed),
+					taxRuleId: taxRuleId ?? null,
+					isChecked: getEstimateItemGiftFlag(r) ? true : Boolean(r?.confirmed),
 					isRemoved: false,
+					revisedFromItemId: null,
+					...buildEstimateItemPromotionPayloadFields(r),
 				};
-				if (warehouseId) payload.warehouseId = warehouseId;
-				if (taxRuleId) payload.taxRuleId = taxRuleId;
 				if (r?.isLockedFromPreviousVersion) {
 					const revisedFromItemId = toIdOrNull(r?.estimateItemId);
 					if (revisedFromItemId) {
@@ -1628,7 +1690,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				return payload;
 			});
 
-		const uncheckedCount = items.filter((it) => !it?.isRemoved && !it?.isChecked).length;
+		const uncheckedCount = items.filter((it) => !it?.isRemoved && !it?.isGift && !it?.isChecked).length;
 		if (uncheckedCount > 0) {
 			setSaveError(
 				`Còn ${uncheckedCount} dòng chưa tích xác nhận. Vui lòng tích xác nhận hoặc xóa dòng đó trước khi lưu báo giá.`,
@@ -1698,7 +1760,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 		if (isAppendOnlyEdit) {
 			const newRows = (Array.isArray(editRows) ? editRows : []).filter(
-				(r) => !r?.isLockedFromPreviousVersion && !isDraftRowEmpty(r),
+				(r) => !r?.isLockedFromPreviousVersion && !getEstimateItemGiftFlag(r) && !isDraftRowEmpty(r),
 			);
 			if (newRows.length === 0) {
 				setSaveError('Bạn chưa thêm hạng mục mới nào. Vui lòng thêm ít nhất 1 dòng mới trước khi lưu.');
@@ -1713,30 +1775,40 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		}
 
 		const items = (Array.isArray(editRows) ? editRows : [])
-			.filter((r) => !isDraftRowEmpty(r))
+			.filter((r) => !isDraftRowEmpty(r) && !getEstimateItemGiftFlag(r))
 			.map((r) => {
-				const workCategoryId = toIdOrNull(r?.workCategoryId);
-				const itemId = toIdOrNull(r?.itemId);
-				const warehouseId = toIdOrNull(r?.warehouseId ?? r?.warehouse_id);
-				const taxRuleId = toIdOrNull(getEffectiveTaxRuleId(r));
-				const categoryNameValidated = validateTextInput(r?.newCategoryName, {
+				const estimateItemId = toIdOrNull(r?.estimateItemId);
+				const originalItem = (Array.isArray(estimate?.items) ? estimate.items : []).find((it) => {
+					const id = toIdOrNull(it?.estimateItemId ?? it?.estimateItemID ?? it?.id);
+					return id && estimateItemId && id === estimateItemId;
+				}) ?? null;
+				const sourceRow = originalItem && getEstimateItemGiftFlag(originalItem)
+					? { ...r, ...originalItem }
+					: (originalItem ? { ...originalItem, ...r } : r);
+				const isGiftRow = getEstimateItemGiftFlag(sourceRow);
+				const workCategoryId = toIdOrNull(sourceRow?.workCategoryId);
+				const itemId = toIdOrNull(sourceRow?.itemId);
+				const warehouseId = toIdOrNull(sourceRow?.warehouseId ?? sourceRow?.warehouse_id);
+				const taxRuleId = toIdOrNull(getEffectiveTaxRuleId(sourceRow));
+				const categoryNameValidated = validateTextInput(sourceRow?.newCategoryName, {
 					fieldLabel: 'Hạng mục',
 					required: !workCategoryId,
 					trim: true,
 					maxLength: 255,
 				});
-				const itemNameValidated = validateTextInput(r?.itemName, {
+				const itemNameValidated = validateTextInput(sourceRow?.itemName, {
 					fieldLabel: 'Diễn giải',
 					required: !workCategoryId,
 					trim: true,
 					maxLength: 255,
 				});
-				const qtyValidated = validatePositiveNumber(r?.quantity, {
+				const qtyValidated = validatePositiveNumber(sourceRow?.quantity,
+					{
 					fieldLabel: 'Số lượng',
 					required: true,
 					integer: true,
 				});
-				const priceValidated = validateNonNegativeNumber(r?.unitPrice, {
+				const priceValidated = validateNonNegativeNumber(sourceRow?.unitPrice, {
 					fieldLabel: 'Đơn giá',
 					required: true,
 					integer: false,
@@ -1746,26 +1818,29 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					workCategoryId: workCategoryId ?? null,
 					newCategoryName: workCategoryId ? null : categoryNameValidated.value || null,
 					itemId: itemId ?? null,
+					warehouseId: warehouseId ?? null,
 					itemName: itemNameValidated.value || null,
-					unit: String(r?.unit ?? '').trim() || null,
+					unit: String(sourceRow?.unit ?? '').trim() || null,
 					quantity: qtyValidated.value ?? 0,
 					unitPrice: priceValidated.value ?? 0,
-					isChecked: Boolean(r?.confirmed),
+					taxRuleId: taxRuleId ?? null,
+					isChecked: isGiftRow ? true : Boolean(r?.confirmed),
 					isRemoved: false,
+					revisedFromItemId: null,
+					...buildEstimateItemPromotionPayloadFields(sourceRow),
 				};
-				if (warehouseId) payload.warehouseId = warehouseId;
-				if (taxRuleId) payload.taxRuleId = taxRuleId;
 
-				const estimateItemId = toIdOrNull(r?.estimateItemId);
 				if (estimateItemId) {
 					payload.estimateItemId = estimateItemId;
-					payload.revisedFromItemId = estimateItemId;
+					payload.revisedFromItemId = isGiftRow
+						? (toIdOrNull(sourceRow?.revisedFromItemId) ?? null)
+						: estimateItemId;
 				}
 
 				return payload;
 			});
 
-		const uncheckedCount = items.filter((it) => !it?.isRemoved && !it?.isChecked).length;
+		const uncheckedCount = items.filter((it) => !it?.isRemoved && !it?.isGift && !it?.isChecked).length;
 		if (uncheckedCount > 0) {
 			setSaveError(
 				`Còn ${uncheckedCount} dòng chưa tích xác nhận. Vui lòng tích xác nhận hoặc xóa dòng đó trước khi lưu chỉnh sửa.`,
@@ -1787,11 +1862,9 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			);
 			let nextEstimate = mergeEstimateWithWarehouseDisplay(
 				extractApiPayload(res),
-				estimateRef.current,
-				editRows,
 			);
 			if (!standaloneDraftMode && serviceTicketIdNum) {
-				nextEstimate = (await refetchLatestEstimate(serviceTicketIdNum, token, nextEstimate, estimateRef.current, editRows)) ?? nextEstimate;
+				nextEstimate = (await refetchLatestEstimate(serviceTicketIdNum, token, nextEstimate)) ?? nextEstimate;
 			}
 			setEstimate(nextEstimate ?? null);
 			onEstimateStatusChangeRef.current?.(nextEstimate ?? null);
@@ -1814,6 +1887,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			}
 
 			const row = editComputed[rowIndex];
+			if (getEstimateItemGiftFlag(row)) return;
 			const estimateItemId = toIdOrNull(row?.estimateItemId);
 			if (!estimateItemId) {
 				setSaveError('Không tìm thấy estimateItemId để xóa.');
@@ -1831,13 +1905,16 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 							? null
 							: String(row?.newCategoryName ?? '').trim() || null,
 						itemId: toIdOrNull(row?.itemId),
+						warehouseId: toIdOrNull(row?.warehouseId ?? row?.warehouse_id),
 						itemName: String(row?.itemName ?? '').trim() || null,
 						unit: String(row?.unit ?? '').trim() || null,
 						quantity: toNumberOrZero(row?.quantity),
 						unitPrice: toNumberOrZero(row?.unitPrice),
 						taxRuleId: toIdOrNull(row?.taxRuleId),
-						isChecked: Boolean(row?.confirmed),
+						isChecked: getEstimateItemGiftFlag(row) ? true : Boolean(row?.confirmed),
 						isRemoved: true,
+						revisedFromItemId: toIdOrNull(row?.estimateItemId),
+						...buildEstimateItemPromotionPayloadFields(row),
 					},
 					token,
 				);
@@ -1941,6 +2018,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		toggleChecked,
 		saveEstimate,
 		saveEdit,
+		syncEstimate,
 		softDeleteEditRow,
 		softDeleteDraftRow,
 		inventory,
