@@ -22,6 +22,11 @@ function formatCurrencyVnd(value) {
     return n ? new Intl.NumberFormat('vi-VN').format(Math.round(n)) : '';
 }
 
+function getGiftFlag(item) {
+    const raw = item?.isGift ?? item?.is_gift;
+    return raw === true || String(raw ?? '').trim().toLowerCase() === 'true';
+}
+
 function CarDiagram({ src }) {
 	const resolvedSrc = typeof src === 'string' && src.trim() ? src.trim() : CarIcon;
 	return <img className={styles.carImg} src={resolvedSrc} alt="" />;
@@ -104,15 +109,16 @@ export default function Receipt({ ticket, carDiagramSrc }) {
         const quantity = toMoneyNumber(it?.quantity);
         const unitPrice = toMoneyNumber(it?.unitPrice);
         const subTotal = toMoneyNumber(it?.subTotal) || quantity * unitPrice;
+        const isGift = getGiftFlag(it);
         return {
             key: String(it?.key ?? it?.estimateItemId ?? it?.itemId ?? idx),
             categoryName: safeText(it?.categoryName || it?.workCategory?.categoryName || it?.workCategory?.categoryCode || ''),
             itemName: safeText(it?.itemName || it?.description || ''),
             warehouseName: safeText(it?.warehouseName || it?.warehouse?.warehouseName || it?.warehouse?.name || ''),
             quantity,
-            unitPrice,
-            subTotal,
-            confirmed: Boolean(it?.confirmed),
+            unitPrice: isGift ? 0 : unitPrice,
+            subTotal: isGift ? 0 : subTotal,
+            isGift,
         };
     });
 
@@ -244,7 +250,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         <th className={styles.thPrice}>ĐƠN GIÁ</th>
                         <th className={styles.thAmount}>THÀNH TIỀN</th>
                         <th className={styles.thKho}>KHO</th>
-                        <th className={styles.thConfirm}>XÁC NHẬN</th>
+                        <th className={styles.thGift}>GHI CHÚ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -257,9 +263,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
                         const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
                         const warehouseName = it?.warehouseName || '';
-                        const confirmMark = it?.confirmed ? '✓' : '';
+                        const note = it?.isGift ? 'Quà tặng' : '';
                         return (
-                            <tr key={rowKey}>
+                            <tr key={rowKey} className={it?.isGift ? styles.giftRow : undefined}>
                                 <td className={styles.tdCenter}>{String(idx + 1).padStart(2, '0')}</td>
                                 <td>{label}</td>
                                 <td>{desc}</td>
@@ -267,7 +273,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                                 <td className={styles.tdRight}>{price}</td>
                                 <td className={styles.tdRight}>{amount}</td>
                                 <td>{warehouseName}</td>
-                                <td className={styles.tdCenter}>{confirmMark}</td>
+                                <td className={styles.tdCenter}>{note}</td>
                             </tr>
                         );
                     })}
@@ -561,7 +567,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         <th className={styles.thPrice}>ĐƠN GIÁ</th>
                         <th className={styles.thAmount}>THÀNH TIỀN</th>
                         <th className={styles.thKho}>KHO</th>
-                        <th className={styles.thConfirm}>XÁC NHẬN</th>
+                        <th className={styles.thGift}>GHI CHÚ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -573,9 +579,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
                         const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
                         const warehouseName = it?.warehouseName || '';
-                        const confirmMark = it?.confirmed ? '✓' : '';
+                        const note = it?.isGift ? 'Quà tặng' : '';
                         return (
-                            <tr key={rowKey}>
+                            <tr key={rowKey} className={it?.isGift ? styles.giftRow : undefined}>
                                 <td className={styles.tdCenter}>{String(idx + 1).padStart(2, '0')}</td>
                                 <td>{label}</td>
                                 <td>{desc}</td>
@@ -583,7 +589,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                                 <td className={styles.tdRight}>{price}</td>
                                 <td className={styles.tdRight}>{amount}</td>
                                 <td>{warehouseName}</td>
-                                <td className={styles.tdCenter}>{confirmMark}</td>
+                                <td className={styles.tdCenter}>{note}</td>
                             </tr>
                         );
                     })}
@@ -673,7 +679,8 @@ Receipt.propTypes = {
                     quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     unitPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     subTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-                    confirmed: PropTypes.bool,
+                    isGift: PropTypes.bool,
+                    is_gift: PropTypes.bool,
                 }),
             ),
             subtotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),

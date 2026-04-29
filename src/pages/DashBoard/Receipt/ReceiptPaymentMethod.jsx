@@ -44,18 +44,6 @@ function pickLatestEstimate(list) {
     })[0];
 }
 
-function getItemConfirmedFlag(it) {
-    return Boolean(
-        it?.isChecked ??
-            it?.confirmed ??
-            it?.isConfirmed ??
-            it?.approved ??
-            it?.isApproved ??
-            it?.customerConfirmed ??
-            it?.isCustomerConfirmed,
-    );
-}
-
 function pickMoneyDisplayValue(withVatValue, baseValue) {
     const withVatNum = toMoneyNumber(withVatValue);
     if (withVatNum > 0) return withVatNum;
@@ -257,6 +245,16 @@ export default function ReceiptPaymentMethod() {
                 const subTotalWithVatNum = toMoneyNumber(subTotalWithVat);
                 const unitPriceDisplay = pickMoneyDisplayValue(unitPriceWithVatNum, unitPriceBase);
                 const subTotalDisplay = pickMoneyDisplayValue(subTotalWithVatNum, subTotalBase);
+                const rawFinalPrice = it?.finalPrice ?? it?.final_price;
+                const finalPriceDisplay =
+                    rawFinalPrice == null || String(rawFinalPrice).trim() === ''
+                        ? subTotalDisplay
+                        : toMoneyNumber(rawFinalPrice);
+                const discountAmount = Math.max(
+                    toMoneyNumber(it?.discountAmount ?? it?.discount_amount),
+                    subTotalDisplay - finalPriceDisplay,
+                    0,
+                );
 
                 const appliedTaxRate = it?.appliedTaxRate ?? it?.applied_tax_rate ?? null;
                 const appliedTaxRateText = normalizeTaxRatePercentText(appliedTaxRate);
@@ -284,18 +282,23 @@ export default function ReceiptPaymentMethod() {
                 // - Else if there is any tax amount => show '--' (rate missing but tax applied).
                 // - Else show 0%.
                 const categoryName = it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
+                const giftRaw = it?.isGift ?? it?.is_gift;
+                const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
                 return {
                     key: String(it?.estimateItemId ?? it?.itemId ?? `${idx}`),
                     categoryName,
                     itemName: String(it?.itemName || '').trim(),
                     quantity,
+                    isGift,
+                    warehouseName: String(it?.warehouseName ?? it?.warehouse?.warehouseName ?? it?.warehouse?.name ?? '').trim(),
                     unitPriceDisplay,
+                    discountAmount,
                     taxRateText,
                     taxCode,
                     workCategoryTaxRuleId,
                     taxTitle,
                     subTotalDisplay,
-                    confirmed: getItemConfirmedFlag(it),
+                    finalPriceDisplay,
                 };
             })
             .filter(
@@ -304,11 +307,11 @@ export default function ReceiptPaymentMethod() {
                     r.categoryName ||
                     r.quantity > 0 ||
                     r.unitPriceDisplay > 0 ||
-                    r.subTotalDisplay > 0,
+                    r.finalPriceDisplay > 0,
             );
     }, [estimate]);
 
-    const payItems = useMemo(() => estimateItems.filter((it) => it.confirmed), [estimateItems]);
+    const payItems = estimateItems;
 
     const transferContent = useMemo(() => {
         const code = ticketCodeParam || ticketFromState?.ticketCode || 'SERVICE_TICKET';
@@ -403,15 +406,17 @@ export default function ReceiptPaymentMethod() {
         const invoiceItems = payItems.map((item, idx) => {
             const quantity = toMoneyNumber(item?.quantity ?? 1) || 1;
             const unitPrice = toMoneyNumber(item?.unitPrice ?? item?.unitPriceDisplay ?? 0);
-            const subTotal = toMoneyNumber(item?.subTotal ?? item?.subTotalDisplay ?? 0) || unitPrice * quantity;
+            const subTotal = toMoneyNumber(item?.finalPrice ?? item?.finalPriceDisplay ?? 0);
 
             return {
                 key: item?.key ?? String(idx + 1),
                 categoryName: item?.categoryName ?? '',
                 itemName: item?.itemName ?? '',
+                warehouseName: item?.warehouseName ?? '',
                 quantity,
                 unitPrice,
                 subTotal,
+                isGift: Boolean(item?.isGift),
             };
         });
 
@@ -516,37 +521,41 @@ export default function ReceiptPaymentMethod() {
                                     <div className={styles.tableWrap}>
                                         <table className={styles.table}>
                                             <colgroup>
+                                                <col style={{ width: 64 }} />
                                                 <col style={{ width: 160 }} />
                                                 <col />
                                                 <col style={{ width: 70 }} />
                                                 <col style={{ width: 140 }} />
                                                 <col style={{ width: 140 }} />
                                                 <col style={{ width: 140 }} />
+                                                <col style={{ width: 130 }} />
                                             </colgroup>
                                             <thead>
                                                 <tr>
+                                                    <th>STT</th>
                                                     <th>Hạng mục</th>
                                                     <th>Diễn giải</th>
                                                     <th className={styles.thQty}>SL</th>
                                                     <th className={styles.thNumber}>Đơn giá</th>
-                                                    <th className={styles.thNumber}>Thuế (%)</th>
+                                                    <th className={styles.thNumber}>Giảm giá</th>
                                                     <th className={styles.thNumber}>Thành tiền</th>
+                                                    <th>Kho</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {payItems.map((it) => (
-                                                    <tr key={it.key}>
+                                                {payItems.map((it, index) => (
+                                                    <tr key={it.key} className={it.isGift ? styles.giftRow : undefined}>
+                                                        <td className={styles.tdQty}>{String(index + 1).padStart(2, '0')}</td>
                                                         <td className={styles.tdText}>{it.categoryName}</td>
-                                                        <td className={styles.tdText}>{it.itemName}</td>
+                                                        <td className={styles.tdText}>
+                                                            {it.itemName}
+                                                            {it.isGift ? <span className={styles.giftBadge}>Quà tặng</span> : null}
+                                                        </td>
                                                         <td className={styles.tdQty}>{it.quantity ? String(it.quantity) : ''}</td>
                                                         <td className={styles.tdNumber}>{formatCurrencyVnd(it.unitPriceDisplay)}</td>
-                                                        <td
-                                                            className={styles.tdNumber}
-                                                            title={it.taxTitle || ''}
-                                                        >
-                                                            {it.taxRateText}
-                                                        </td>
-                                                        <td className={styles.tdNumber}>{formatCurrencyVnd(it.subTotalDisplay)}</td>
+                                                        <td className={styles.tdNumber}>{it.discountAmount > 0 ? formatCurrencyVnd(it.discountAmount) : '-'}</td>
+                                                        <td className={styles.tdNumber}>{formatCurrencyVnd(it.finalPriceDisplay)}</td>
+                                                        <td className={styles.tdText}>{it.warehouseName || '-'}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>

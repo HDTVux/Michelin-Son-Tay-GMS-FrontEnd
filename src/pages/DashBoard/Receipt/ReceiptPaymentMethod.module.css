@@ -262,6 +262,24 @@
 	white-space: nowrap;
 }
 
+.giftRow td {
+	background: #eefaf2;
+}
+
+.giftBadge {
+	display: inline-flex;
+	align-items: center;
+	margin-left: 8px;
+	padding: 2px 8px;
+	border-radius: 999px;
+	border: 1px solid #78e3a0;
+	background: #dffbea;
+	color: #067a38;
+	font-size: 12px;
+	font-weight: 900;
+	white-space: nowrap;
+}
+
 .qrMetaRow {
 	display: flex;
 	justify-content: space-between;

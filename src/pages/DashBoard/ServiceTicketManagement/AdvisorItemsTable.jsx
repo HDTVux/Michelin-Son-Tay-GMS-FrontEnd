@@ -157,6 +157,13 @@ function getTaxRuleDisplayLabel(rule) {
     return getTaxRuleSelectLabel(rule);
 }
 
+function getStockAllocationDisplay(status) {
+    const normalized = String(status || '').trim().toUpperCase();
+    if (normalized === 'COMMITTED') return 'Đã xuất hàng';
+    if (normalized === 'RESERVED') return 'Đang giữ hàng';
+    return '-';
+}
+
 function TaxRuleQuickAdd({
     show,
     isAddingNewTaxRule,
@@ -279,10 +286,10 @@ function EstimateItemRow({
     softDeleteEditRow,
     openCatalogPicker,
     showTaxColumn,
-    showConfirmColumn,
     showDiscountColumn,
 }) {
-    const isGift = row?.isGift === true || String(row?.isGift ?? '').trim().toLowerCase() === 'true';
+    const giftRaw = row?.isGift ?? row?.is_gift;
+    const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
     const isLocked = Boolean(row?.isLockedFromPreviousVersion) || isGift;
     const allowInputs = showInputs && !isLocked;
 
@@ -320,6 +327,7 @@ function EstimateItemRow({
     const warehouseText = String(
         row?.warehouseName ?? row?.warehouse?.warehouseName ?? row?.warehouse?.name ?? '',
     ).trim();
+    const stockAllocationText = getStockAllocationDisplay(row?.stockAllocationStatus);
 
     let itemPlaceholder = 'Diễn giải';
     if (categoryFilled) {
@@ -482,21 +490,12 @@ function EstimateItemRow({
             ) : null}
 
             <td>{warehouseText || '-'}</td>
-            {showConfirmColumn ? (
-                <td className={styles.tdCenter}>
-                    <input
-                        type="checkbox"
-                        checked={isGift ? true : Boolean(row.confirmed)}
-                        onChange={(e) => onChange(idx, 'confirmed', e.target.checked)}
-                        disabled={isSaving || isLocked}
-                    />
-                </td>
-            ) : null}
+            {!showInputs ? <td>{stockAllocationText}</td> : null}
             {showInputs ? (
                 <td className={styles.tdCenter}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                         {allowInputs ? (
-                            Boolean(row?.confirmed) && isEditing ? (
+                            isEditing && toIdOrNull(row?.estimateItemId) ? (
                                 <button
                                     type="button"
                                     className="ui-btn ui-btn--ghost"
@@ -540,7 +539,6 @@ EstimateItemRow.propTypes = {
     softDeleteEditRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
     showTaxColumn: PropTypes.bool,
-    showConfirmColumn: PropTypes.bool,
     showDiscountColumn: PropTypes.bool,
 };
 
@@ -788,7 +786,6 @@ export default function AdvisorItemsTable({
     });
 
     const showTaxColumn = isCreating || isEditing;
-    const showConfirmColumn = Boolean(showInputs);
     const showDiscountColumn = !showInputs;
     const isReadOnly = Boolean(readOnly);
     const hasPendingAddServiceSnapshot = useMemo(() => {
@@ -810,7 +807,7 @@ export default function AdvisorItemsTable({
     const footerSpacerColSpan =
         (showTaxColumn ? 1 : 0) +
         1 +
-        (showConfirmColumn ? 1 : 0) +
+        (!showInputs ? 1 : 0) +
         (showInputs ? 1 : 0);
 
     const RECOMMEND_MAX_LENGTH = 255;
@@ -845,7 +842,7 @@ export default function AdvisorItemsTable({
         };
     }, [isCreating, isEditing, isSaving, onEstimateEditingChange]);
 
-    const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
+    const currentEstimateStatus = String(estimate?.estimateStatus || estimate?.status || '').trim().toUpperCase();
     const canVersionFromCurrentEstimate = currentEstimateStatus === 'SENT' || currentEstimateStatus === 'APPROVED';
     // Khi đang tạo mới / đang chỉnh sửa, chúng ta không bị hạn chế bởi status của báo giá cũ
     const isRestrictedStatus = !(isCreating || isEditing) && ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
@@ -881,10 +878,10 @@ export default function AdvisorItemsTable({
         try {
             const cleanEstimate = await onBeforeEstimateMutate?.();
             if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+            if (startCreate) startCreate(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
         } catch {
             return;
         }
-        if (startCreate) startCreate();
     };
 
     const handleStartCreateNewVersion = async () => {
@@ -900,15 +897,20 @@ export default function AdvisorItemsTable({
 		setRevertOnCancel(false);
         setRevertTicketOnCancel(true);
         try {
-            const cleanEstimate = await onBeforeEstimateMutate?.();
-            if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+            const seedEstimate = await onBeforeEstimateMutate?.({
+                skipUnapplyPromotion: true,
+                resetPromotionSelection: true,
+            });
+            if (seedEstimate !== undefined) syncEstimate?.(seedEstimate);
+            startCreate?.(
+                seedEstimate !== undefined
+                    ? { seedFromPreviousEstimate: true, estimateOverride: seedEstimate }
+                    : { seedFromPreviousEstimate: true },
+            );
         } catch {
             setRevertTicketOnCancel(false);
             return;
         }
-
-        // Seed các dòng của version trước sang version mới (read-only)
-        startCreate?.({ seedFromPreviousEstimate: true });
 
         if (!onRestartWorkflow) return;
 
@@ -943,10 +945,10 @@ export default function AdvisorItemsTable({
             try {
                 const cleanEstimate = await onBeforeEstimateMutate?.();
                 if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+                startCreate?.(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
             } catch {
                 return;
             }
-            startCreate?.();
         };
 
         try {
@@ -981,20 +983,24 @@ export default function AdvisorItemsTable({
                 try {
                     const cleanEstimate = await onBeforeEstimateMutate?.();
                     if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+                    startCreate?.(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
                 } catch {
                     return;
                 }
-                startCreate?.();
                 return;
             }
 
             try {
                 const cleanEstimate = await onBeforeEstimateMutate?.();
                 if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+                startEdit?.(
+                    cleanEstimate !== undefined
+                        ? { appendOnly: true, estimateOverride: cleanEstimate }
+                        : { appendOnly: true },
+                );
             } catch {
                 return;
             }
-            startEdit?.({ appendOnly: true });
         };
 
         try {
@@ -1021,10 +1027,10 @@ export default function AdvisorItemsTable({
         try {
             const cleanEstimate = await onBeforeEstimateMutate?.();
             if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+            startEdit?.(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
         } catch {
             return;
         }
-        startEdit?.();
     }, [isReadOnly, notify, onBeforeEstimateMutate, readOnlyMessage, startEdit, syncEstimate]);
 
     const [pickerOpen, setPickerOpen] = useState(false);
@@ -1037,7 +1043,8 @@ export default function AdvisorItemsTable({
             // Only count rows that are actually editable in current mode.
             // Locked rows (seeded from previous estimate version) should not lock selection.
             if (r?.isLockedFromPreviousVersion) continue;
-            if (r?.isGift === true || String(r?.isGift ?? '').trim().toLowerCase() === 'true') continue;
+            const giftRaw = r?.isGift ?? r?.is_gift;
+            if (giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') continue;
             const itemId = toIdOrNull(r?.itemId);
             if (!itemId) continue;
             const warehouseId = toIdOrNull(r?.warehouseId);
@@ -1061,7 +1068,8 @@ export default function AdvisorItemsTable({
     const [pickerInitQuery, setPickerInitQuery] = useState("");
 
     const openCatalogPicker = (rowIndex, rowObj) => {
-        if (rowObj?.isGift === true || String(rowObj?.isGift ?? '').trim().toLowerCase() === 'true') return;
+        const giftRaw = rowObj?.isGift ?? rowObj?.is_gift;
+        if (giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') return;
         const hasCategory =
             Boolean(String(rowObj?.newCategoryName ?? rowObj?.categoryName ?? '').trim()) || Boolean(toIdOrNull(rowObj?.workCategoryId));
         if (!hasCategory) {
@@ -1088,7 +1096,8 @@ export default function AdvisorItemsTable({
         if (rowIndex == null) return;
 
         const row = Array.isArray(tableRows) ? tableRows[rowIndex] : null;
-        if (!row || row?.isLockedFromPreviousVersion || row?.isGift === true || String(row?.isGift ?? '').trim().toLowerCase() === 'true') return;
+        const giftRaw = row?.isGift ?? row?.is_gift;
+        if (!row || row?.isLockedFromPreviousVersion || giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') return;
 
         if (activeRowIndex === rowIndex) {
             setPickerOpen(false);
@@ -1114,7 +1123,6 @@ export default function AdvisorItemsTable({
         onChange(rowIndex, 'taxRuleId', '');
         onChange(rowIndex, 'itemTaxRuleId', '');
 
-        onChange(rowIndex, 'confirmed', false);
     }, [activeRowIndex, onChange, showInputs, tableRows]);
 
     const handlePickCatalogItem = (item) => {
@@ -1298,7 +1306,7 @@ export default function AdvisorItemsTable({
                             <th scope="col">THÀNH TIỀN</th>
                             {showTaxColumn ? <th scope="col">THUẾ </th> : null}
                             <th scope="col">KHO</th>
-                            {showConfirmColumn ? <th scope="col">XÁC NHẬN</th> : null}
+                            {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
                             {showInputs ? <th scope="col">THAO TÁC</th> : null}
                         </tr>
                     </thead>
@@ -1310,7 +1318,6 @@ export default function AdvisorItemsTable({
                                 idx={idx}
                                 showInputs={showInputs}
                                 showTaxColumn={showTaxColumn}
-                                showConfirmColumn={showConfirmColumn}
                                 showDiscountColumn={showDiscountColumn}
                                 onChange={onChange}
                                 onClearRow={handleClearRowInputs}
@@ -1349,7 +1356,7 @@ export default function AdvisorItemsTable({
                         canCreateNew={canCreateNew}
                         canCreateNewVersion={canCreateNewVersion}
                         createBusy={isStartingCreate}
-                        canEdit={canEdit && !isReadOnly && !disableFullEdit && !hasPendingAddServiceSnapshot}
+                        canEdit={canEdit && currentEstimateStatus !== 'SENT' && !isReadOnly && !disableFullEdit && !hasPendingAddServiceSnapshot}
                         isCreating={isCreating}
                         isEditing={isEditing}
                         isSaving={isSaving}
