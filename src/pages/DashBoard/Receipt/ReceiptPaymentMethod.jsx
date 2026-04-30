@@ -407,7 +407,9 @@ export default function ReceiptPaymentMethod() {
         const invoiceItems = payItems.map((item, idx) => {
             const quantity = toMoneyNumber(item?.quantity ?? 1) || 1;
             const unitPrice = toMoneyNumber(item?.unitPrice ?? item?.unitPriceDisplay ?? 0);
-            const subTotal = toMoneyNumber(item?.finalPrice ?? item?.finalPriceDisplay ?? 0);
+            const discountAmount = Math.max(0, toMoneyNumber(item?.discountAmount));
+            const grossAmount = toMoneyNumber(item?.subTotalDisplay) || unitPrice * quantity;
+            const subTotal = toMoneyNumber(item?.finalPrice ?? item?.finalPriceDisplay ?? 0) || Math.max(0, grossAmount - discountAmount);
 
             return {
                 key: item?.key ?? String(idx + 1),
@@ -416,14 +418,17 @@ export default function ReceiptPaymentMethod() {
                 warehouseName: item?.warehouseName ?? '',
                 quantity,
                 unitPrice,
+                discountAmount,
+                grossAmount,
                 subTotal,
                 isGift: Boolean(item?.isGift),
             };
         });
 
-        const computedSubtotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
+        const computedSubtotal = invoiceItems.reduce((sum, item) => sum + (toMoneyNumber(item?.grossAmount) || toMoneyNumber(item?.subTotal)), 0);
         const invoiceSubtotal = Math.max(0, toMoneyNumber(payment?.subTotal) || computedSubtotal);
-        const invoiceDiscountAmount = Math.max(0, toMoneyNumber(payment?.discountAmount));
+        const computedDiscountAmount = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.discountAmount), 0);
+        const invoiceDiscountAmount = Math.max(0, toMoneyNumber(payment?.discountAmount) || computedDiscountAmount);
 
         const stateCustomer = ticketFromState?.customer || {};
         const stateVehicle = ticketFromState?.vehicle || {};
@@ -431,6 +436,7 @@ export default function ReceiptPaymentMethod() {
         const printTicket = {
             ...(ticketFromState ?? undefined),
             ticketCode,
+            serviceTicketId,
             customer: {
                 ...stateCustomer,
                 name: stateCustomer?.name || stateCustomer?.fullName || ticketFromState?.customerName || '',

@@ -136,18 +136,13 @@ function encodeBase64Url(value) {
     return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 }
 
-function buildVatInvoicePayload({ ticket, invoiceItems, subtotalAmount, discountAmount, totalAmount, issuedAt }) {
+function buildVatInvoicePayload({ ticket, subtotalAmount, discountAmount, totalAmount, issuedAt }) {
     return {
+        sid: ticket?.serviceTicketId ?? ticket?.serviceTicketID ?? ticket?.serviceTicket?.serviceTicketId ?? null,
         c: safeText(ticket?.ticketCode || ticket?.serviceTicketCode || ticket?.code),
         d: issuedAt.toISOString().slice(0, 10),
         u: [buildCustomerName(ticket?.customer), safeText(ticket?.customer?.phone), buildCustomerAddress(ticket)],
         v: [safeText(ticket?.vehicle?.licensePlate), safeText(ticket?.vehicle?.model)],
-        i: invoiceItems.map((item) => [
-            buildInvoiceItemName(item),
-            safeText(item?.quantity),
-            toMoneyNumber(item?.unitPrice),
-            toMoneyNumber(item?.subTotal),
-        ]),
         s: subtotalAmount,
         g: discountAmount,
         t: totalAmount,
@@ -170,13 +165,15 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
     );
     const rowCount = Math.max(DEFAULT_ROW_COUNT, invoiceItems.length);
 
-    const computedSubtotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
+    const computedSubtotal = invoiceItems.reduce((sum, item) => sum + (toMoneyNumber(item?.grossAmount) || toMoneyNumber(item?.subTotal)), 0);
     const subtotalAmount = Math.max(0, toMoneyNumber(invoice?.subtotal) || computedSubtotal);
     const discountAmount = Math.max(0, toMoneyNumber(invoice?.discountAmount));
+    const lineDiscountAmount = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.discountAmount ?? item?.discount_amount), 0);
+    const displayDiscountAmount = Math.max(discountAmount, lineDiscountAmount);
 
     const totalAmount = Number.isFinite(Number(invoice?.total))
         ? Number(invoice.total)
-        : Math.max(0, subtotalAmount - discountAmount);
+        : Math.max(0, subtotalAmount - displayDiscountAmount);
 
     const totalInWords = numberToVietnameseWords(totalAmount);
     const customerName = buildCustomerName(ticket?.customer);
@@ -200,14 +197,17 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
         if (!origin) return '';
         const payload = buildVatInvoicePayload({
             ticket,
-            invoiceItems,
             subtotalAmount,
-            discountAmount,
+            discountAmount: displayDiscountAmount,
             totalAmount,
             issuedAt,
         });
-        return `${origin}/vat-invoice?data=${encodeBase64Url(JSON.stringify(payload))}`;
-    }, [discountAmount, invoiceItems, issuedAt, subtotalAmount, ticket, ticketCode, totalAmount]);
+        const serviceTicketId = payload.sid == null ? '' : String(payload.sid).trim();
+        const params = new URLSearchParams();
+        if (serviceTicketId) params.set('serviceTicketId', serviceTicketId);
+        params.set('data', encodeBase64Url(JSON.stringify(payload)));
+        return `${origin}/vat-invoice?${params.toString()}`;
+    }, [displayDiscountAmount, issuedAt, subtotalAmount, ticket, ticketCode, totalAmount]);
 
     const vatQrUrl = useMemo(() => {
         if (!vatInvoiceUrl) return '';
@@ -361,6 +361,7 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                         <th>TÊN HÀNG</th>
                         <th className={styles.colQty}>SỐ LƯỢNG</th>
                         <th className={styles.colPrice}>ĐƠN GIÁ</th>
+                        <th className={styles.colDiscount}>GIẢM GIÁ</th>
                         <th className={styles.colAmount}>THÀNH TIỀN</th>
                     </tr>
                 </thead>
@@ -373,26 +374,27 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                                 <td>{buildInvoiceItemName(item) || ' '}</td>
                                 <td className={styles.center}>{item ? safeText(item?.quantity) : ' '}</td>
                                 <td className={styles.right}>{item ? formatCurrencyVnd(item?.unitPrice) : ' '}</td>
+                                <td className={styles.right}>{item ? formatCurrencyVndZero(item?.discountAmount ?? item?.discount_amount) : ' '}</td>
                                 <td className={styles.right}>{item ? formatCurrencyVnd(item?.subTotal) : ' '}</td>
                             </tr>
                         );
                     })}
                     <tr className={styles.totalRow}>
-                        <td colSpan={4} className={styles.totalLabel}>
+                        <td colSpan={5} className={styles.totalLabel}>
                             CỘNG TIỀN HÀNG
                         </td>
                         <td className={styles.right}>{formatCurrencyVndZero(subtotalAmount)}</td>
                     </tr>
 
                     <tr className={styles.totalRow}>
-                        <td colSpan={4} className={styles.totalLabel}>
+                        <td colSpan={5} className={styles.totalLabel}>
                             GIẢM GIÁ
                         </td>
-                        <td className={styles.right}>{discountAmount ? `-${formatCurrencyVndZero(discountAmount)}` : formatCurrencyVndZero(0)}</td>
+                        <td className={styles.right}>{displayDiscountAmount ? `-${formatCurrencyVndZero(displayDiscountAmount)}` : formatCurrencyVndZero(0)}</td>
                     </tr>
 
                     <tr className={styles.totalRow}>
-                        <td colSpan={4} className={styles.totalLabel}>
+                        <td colSpan={5} className={styles.totalLabel}>
                             TỔNG THANH TOÁN
                         </td>
                         <td className={styles.right}>{formatCurrencyVndZero(totalAmount)}</td>
@@ -426,6 +428,7 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
 AccountingInvoicePrint.propTypes = {
     ticket: PropTypes.shape({
         ticketCode: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        serviceTicketId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         receivedAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
         handoverAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
         customer: PropTypes.shape({
@@ -448,6 +451,8 @@ AccountingInvoicePrint.propTypes = {
                     itemName: PropTypes.string,
                     quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     unitPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    discountAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    grossAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     subTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                 }),
             ),

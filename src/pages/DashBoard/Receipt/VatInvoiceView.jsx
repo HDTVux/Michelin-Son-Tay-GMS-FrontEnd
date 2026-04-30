@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { API_BASE_URL } from '../../../services/apiClient.js';
 import styles from './VatInvoiceView.module.css';
 
 const NUMBER_WORDS = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
@@ -22,6 +23,14 @@ function toMoneyNumber(value) {
 
 function formatCurrencyVndZero(value) {
     return new Intl.NumberFormat('vi-VN').format(Math.round(toMoneyNumber(value)));
+}
+
+function getAuthToken() {
+    return localStorage.getItem('authToken')
+        || localStorage.getItem('staffToken')
+        || localStorage.getItem('adminToken')
+        || localStorage.getItem('customerToken')
+        || '';
 }
 
 function readTripleNumber(value, forceLeadingZeroHundred = false) {
@@ -104,6 +113,7 @@ function normalizePayload(payload) {
 
     return {
         store: STORE_INFO,
+        serviceTicketId: payload.sid ?? null,
         ticketCode: safeText(payload.c),
         issuedAt: safeText(payload.d),
         customer: {
@@ -131,6 +141,63 @@ function normalizePayload(payload) {
     };
 }
 
+function extractPayload(response) {
+    const data = response?.data?.data ?? response?.data ?? response;
+    if (Array.isArray(data)) return data[0] ?? null;
+    return data && typeof data === 'object' ? data : null;
+}
+
+async function fetchEstimateByServiceTicketId(serviceTicketId) {
+    const id = String(serviceTicketId ?? '').trim();
+    if (!id) return null;
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/service-ticket/estimate/${encodeURIComponent(id)}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+    });
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await response.json() : await response.text();
+    if (!response.ok) {
+        const message = typeof data === 'string' ? data : data?.message || data?.data?.message || 'Không thể tải dữ liệu hóa đơn.';
+        throw new Error(message);
+    }
+    return extractPayload(data);
+}
+
+function getEstimateItems(estimate) {
+    const items = estimate?.items ?? estimate?.estimateItems ?? estimate?.data?.items;
+    return Array.isArray(items) ? items : [];
+}
+
+function normalizeEstimateItems(items) {
+    return items.map((item, index) => {
+        const quantity = toMoneyNumber(item?.quantity) || 1;
+        const unitPrice = toMoneyNumber(item?.unitPriceWithVat ?? item?.unitPriceWithVAT ?? item?.unitPrice);
+        const grossAmount = toMoneyNumber(item?.subTotalWithVat ?? item?.subTotalWithVAT ?? item?.subTotal) || unitPrice * quantity;
+        const rawFinalPrice = item?.finalPrice ?? item?.final_price;
+        const finalAmount = rawFinalPrice == null || String(rawFinalPrice).trim() === ''
+            ? grossAmount
+            : toMoneyNumber(rawFinalPrice);
+        const discountAmount = Math.max(
+            toMoneyNumber(item?.discountAmount ?? item?.discount_amount),
+            grossAmount - finalAmount,
+            0,
+        );
+        return {
+            key: String(item?.estimateItemId ?? item?.itemId ?? index),
+            name: safeText(item?.itemName || item?.newCategoryName || item?.workCategory?.categoryName),
+            quantity: safeText(item?.quantity || quantity),
+            unitPrice,
+            discountAmount,
+            grossAmount,
+            subTotal: Math.max(0, finalAmount),
+        };
+    }).filter((item) => item.name || item.unitPrice > 0 || item.subTotal > 0);
+}
+
 function formatDateParts(value) {
     const parsed = new Date(value || Date.now());
     const date = Number.isFinite(parsed.getTime()) ? parsed : new Date();
@@ -143,7 +210,56 @@ function formatDateParts(value) {
 
 export default function VatInvoiceView() {
     const [searchParams] = useSearchParams();
-    const payload = useMemo(() => normalizePayload(parsePayload(searchParams.get('data'))), [searchParams]);
+    const serviceTicketIdParam = safeText(searchParams.get('serviceTicketId'));
+    const payload = useMemo(() => {
+        const parsedPayload = normalizePayload(parsePayload(searchParams.get('data')));
+        if (parsedPayload) return parsedPayload;
+        if (!serviceTicketIdParam) return null;
+        return {
+            store: STORE_INFO,
+            serviceTicketId: serviceTicketIdParam,
+            ticketCode: '',
+            issuedAt: new Date().toISOString(),
+            customer: {},
+            vehicle: {},
+            invoice: { items: [], subtotal: 0, discountAmount: 0, total: 0 },
+        };
+    }, [searchParams, serviceTicketIdParam]);
+    const serviceTicketId = safeText(searchParams.get('serviceTicketId') || payload?.serviceTicketId);
+    const [estimateItems, setEstimateItems] = useState([]);
+    const [estimateError, setEstimateError] = useState('');
+    const [estimateLoading, setEstimateLoading] = useState(false);
+
+    useEffect(() => {
+        if (!serviceTicketId) return undefined;
+        let cancelled = false;
+        const markLoading = () => {
+            if (cancelled) return;
+            setEstimateLoading(true);
+            setEstimateError('');
+        };
+        if (typeof globalThis.queueMicrotask === 'function') {
+            globalThis.queueMicrotask(markLoading);
+        } else {
+            Promise.resolve().then(markLoading);
+        }
+        fetchEstimateByServiceTicketId(serviceTicketId)
+            .then((estimate) => {
+                if (cancelled) return;
+                setEstimateItems(normalizeEstimateItems(getEstimateItems(estimate)));
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                setEstimateItems([]);
+                setEstimateError(err?.message || 'Không thể tải dữ liệu hóa đơn.');
+            })
+            .finally(() => {
+                if (!cancelled) setEstimateLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [serviceTicketId]);
 
     if (!payload) {
         return (
@@ -158,10 +274,17 @@ export default function VatInvoiceView() {
 
     const store = payload.store || STORE_INFO;
     const invoice = payload.invoice || {};
-    const items = Array.isArray(invoice.items) ? invoice.items : [];
-    const subtotal = toMoneyNumber(invoice.subtotal);
-    const discountAmount = toMoneyNumber(invoice.discountAmount);
-    const total = toMoneyNumber(invoice.total) || Math.max(0, subtotal - discountAmount);
+    const fallbackItems = Array.isArray(invoice.items) ? invoice.items : [];
+    const items = estimateItems.length > 0 ? estimateItems : fallbackItems;
+    const subtotal = estimateItems.length > 0
+        ? items.reduce((sum, item) => sum + (toMoneyNumber(item.grossAmount) || toMoneyNumber(item.subTotal)), 0)
+        : toMoneyNumber(invoice.subtotal);
+    const discountAmount = estimateItems.length > 0
+        ? items.reduce((sum, item) => sum + toMoneyNumber(item.discountAmount), 0)
+        : toMoneyNumber(invoice.discountAmount);
+    const total = estimateItems.length > 0
+        ? Math.max(0, subtotal - discountAmount)
+        : (toMoneyNumber(invoice.total) || Math.max(0, subtotal - discountAmount));
     const date = formatDateParts(payload.issuedAt);
 
     return (
@@ -174,7 +297,11 @@ export default function VatInvoiceView() {
                     <h1 className={styles.title}>HÓA ĐƠN GIÁ TRỊ GIA TĂNG</h1>
                     <div className={styles.dateLine}>Ngày {date.day} tháng {date.month} năm {date.year}</div>
                     <div className={styles.lookupLine}>Mã phiếu bán hàng: <strong>{safeText(payload.ticketCode) || '-'}</strong></div>
+                    {serviceTicketId ? <div className={styles.lookupLine}>Service ticket ID: <strong>{serviceTicketId}</strong></div> : null}
                 </header>
+
+                {estimateLoading ? <div className={styles.notice}>Đang tải dữ liệu hạng mục từ báo giá...</div> : null}
+                {estimateError ? <div className={styles.errorNotice}>{estimateError}</div> : null}
 
                 <section className={styles.customerBlock}>
                     <div><strong>Họ tên người mua hàng:</strong> {safeText(payload.customer?.name) || '-'}</div>

@@ -46,6 +46,27 @@
     color: #4b5563;
 }
 
+.notice,
+.errorNotice {
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+}
+
+.notice {
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.errorNotice {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
 .customerBlock {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
