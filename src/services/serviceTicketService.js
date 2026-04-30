@@ -763,6 +763,86 @@ export const updateServiceTicketEstimateItem = (estimateItemId, payload, token) 
   });
 };
 
+// Áp dụng khuyến mãi vào bảng báo giá.
+// Endpoint: PUT /api/service-ticket/estimate/{promotionId}/apply-promotion/{estimateId}?promotionCode={code}
+export const applyPromotionToEstimate = (promotionId, estimateId, promotionCode, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để áp dụng khuyến mãi.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const promotionIdNum = typeof promotionId === 'number' ? promotionId : Number(promotionId);
+  if (!Number.isFinite(promotionIdNum) || promotionIdNum <= 0) {
+    const error = new Error('Thiếu promotionId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const estimateIdNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(estimateIdNum) || estimateIdNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const code = String(promotionCode ?? '').trim();
+  if (!code) {
+    const error = new Error('Thiếu promotionCode hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const qs = new URLSearchParams({ promotionCode: code }).toString();
+  return request(
+    `/api/service-ticket/estimate/${encodeURIComponent(String(promotionIdNum))}/apply-promotion/${encodeURIComponent(String(estimateIdNum))}?${qs}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+};
+
+// Gỡ khuyến mãi khỏi bảng báo giá.
+// Endpoint: PUT /api/service-ticket/estimate/{promotionId}/unapply-promotion/{estimateId}?promotionCode={code}
+export const unapplyPromotionFromEstimate = (promotionId, estimateId, promotionCode, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để gỡ khuyến mãi.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const promotionIdNum = typeof promotionId === 'number' ? promotionId : Number(promotionId);
+  if (!Number.isFinite(promotionIdNum) || promotionIdNum <= 0) {
+    const error = new Error('Thiếu promotionId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const estimateIdNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(estimateIdNum) || estimateIdNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const code = String(promotionCode ?? '').trim();
+  if (!code) {
+    const error = new Error('Thiếu promotionCode hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const qs = new URLSearchParams({ promotionCode: code }).toString();
+  return request(
+    `/api/service-ticket/estimate/${encodeURIComponent(String(promotionIdNum))}/unapply-promotion/${encodeURIComponent(String(estimateIdNum))}?${qs}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+};
+
 // Lấy danh sách phân công của một phiếu
 // Backend trả về: ApiResponse<List<AssignStaffDto>> → response.data là array thuần
 // Fields: assignmentId, serviceTicketId, staffId, roleInTicket, assignedAt, isPrimary, status, note

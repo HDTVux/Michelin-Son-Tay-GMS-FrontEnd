@@ -766,7 +766,11 @@
 .thPrice { width: 68px; }
 .thAmount { width: 75px; }
 .thKho { width: 36px; }
-.thConfirm { width: 50px; }
+.thGift { width: 48px; }
+
+.giftRow td {
+    background: #eefaf2 !important;
+}
 
 .tdCenter { text-align: center; }
 .tdRight { text-align: right; }
