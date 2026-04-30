@@ -50,10 +50,16 @@
 	.printOnly {
 		display: block !important;
 		visibility: visible !important;
-		position: absolute;
-		inset: 0 auto auto 0;
-		width: 100%;
-		background: #fff;
+		position: absolute !important;
+		inset: 0 auto auto 0 !important;
+		left: 0 !important;
+		width: 100% !important;
+		height: auto !important;
+		min-height: 297mm !important;
+		overflow: visible !important;
+		opacity: 1 !important;
+		pointer-events: auto !important;
+		background: #fff !important;
 	}
 
 	.printOnly * {

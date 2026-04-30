@@ -226,7 +226,6 @@ export default function ReceiptPaymentMethod() {
         return Number.isFinite(n) && n > 0 ? n : null;
     }, [payment]);
 
-    const totalSafe = useMemo(() => toMoneyNumber(payment?.finalAmount), [payment]);
     const paymentStatusCode = normalizeStatusCode(payment?.paymentStatus);
     const paymentStatusLabel = getStatusTextVi(paymentStatusCode, paymentStatusCode || '-');
     const isPaid = paymentStatusCode === 'PAID';
@@ -312,6 +311,17 @@ export default function ReceiptPaymentMethod() {
     }, [estimate]);
 
     const payItems = estimateItems;
+    const totalSafe = useMemo(() => {
+        const estimateTotal = payItems.reduce((sum, item) => sum + toMoneyNumber(item?.finalPriceDisplay), 0);
+        if (estimateTotal > 0) return estimateTotal;
+        return toMoneyNumber(
+            payment?.finalAmount ??
+            payment?.final_amount ??
+            payment?.totalAmount ??
+            payment?.total_amount ??
+            payment?.amount,
+        );
+    }, [payItems, payment]);
 
     const transferContent = useMemo(() => {
         const code = ticketCodeParam || ticketFromState?.ticketCode || 'SERVICE_TICKET';
