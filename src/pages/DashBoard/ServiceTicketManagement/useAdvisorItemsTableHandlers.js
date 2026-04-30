@@ -251,17 +251,6 @@ function buildEstimateItemMatchKeys(item) {
 	return keys;
 }
 
-function buildEstimateItemExactMatchKeys(item) {
-	const keys = [];
-	const estimateItemId = toIdOrNull(item?.estimateItemId ?? item?.estimateItemID ?? item?.id);
-	if (estimateItemId) keys.push(`estimate:${estimateItemId}`);
-
-	const revisedFromItemId = toIdOrNull(item?.revisedFromItemId);
-	if (revisedFromItemId) keys.push(`revised:${revisedFromItemId}`);
-
-	return keys;
-}
-
 function pickOwnValue(item, ...keys) {
 	if (!item || typeof item !== 'object') return undefined;
 	for (const key of keys) {
@@ -276,30 +265,16 @@ function mergeEstimateWithWarehouseDisplay(nextEstimate, ...fallbackSources) {
 	if (nextItems.length === 0) return nextEstimate;
 
 	const fallbackByKey = new Map();
-	const promotionFallbackByExactKey = new Map();
 	for (const source of fallbackSources) {
 		const items = Array.isArray(source?.items) ? source.items : Array.isArray(source) ? source : [];
 		for (const item of items) {
 			const warehouseName = getEstimateItemWarehouseName(item);
 			const warehouseId = item?.warehouseId ?? item?.warehouse_id ?? item?.warehouse?.warehouseId ?? '';
 			const warehouse = item?.warehouse && typeof item.warehouse === 'object' ? item.warehouse : null;
-			const promotionFields = buildEstimateItemPromotionPayloadFields(item);
-			const hasPromotionFields =
-				promotionFields.isGift ||
-				promotionFields.triggeredByItemId ||
-				promotionFields.discountAmount != null ||
-				promotionFields.finalPrice != null;
-			if (!warehouseName && !warehouseId && !warehouse && !hasPromotionFields) continue;
+			if (!warehouseName && !warehouseId && !warehouse) continue;
 			for (const key of buildEstimateItemMatchKeys(item)) {
 				if (!fallbackByKey.has(key)) {
-					fallbackByKey.set(key, { warehouseName, warehouseId, warehouse, promotionFields });
-				}
-			}
-			if (hasPromotionFields) {
-				for (const key of buildEstimateItemExactMatchKeys(item)) {
-					if (!promotionFallbackByExactKey.has(key)) {
-						promotionFallbackByExactKey.set(key, promotionFields);
-					}
+					fallbackByKey.set(key, { warehouseName, warehouseId, warehouse });
 				}
 			}
 		}
@@ -309,11 +284,7 @@ function mergeEstimateWithWarehouseDisplay(nextEstimate, ...fallbackSources) {
 		const fallback = buildEstimateItemMatchKeys(item)
 			.map((key) => fallbackByKey.get(key))
 			.find(Boolean);
-		const promotionFallback = buildEstimateItemExactMatchKeys(item)
-			.map((key) => promotionFallbackByExactKey.get(key))
-			.find(Boolean);
 		if (!fallback) return item;
-		const rawIsGift = pickOwnValue(item, 'isGift', 'is_gift');
 		const rawDiscountAmount = pickOwnValue(item, 'discountAmount', 'discount_amount');
 		const rawFinalPrice = pickOwnValue(item, 'finalPrice', 'final_price');
 		return {
@@ -321,10 +292,8 @@ function mergeEstimateWithWarehouseDisplay(nextEstimate, ...fallbackSources) {
 			warehouseId: item?.warehouseId ?? item?.warehouse_id ?? fallback.warehouseId ?? '',
 			warehouseName: getEstimateItemWarehouseName(item) || fallback.warehouseName || '',
 			warehouse: item?.warehouse ?? fallback.warehouse ?? undefined,
-			isGift: rawIsGift === undefined ? Boolean(promotionFallback?.isGift) : getEstimateItemGiftFlag(item),
-			triggeredByItemId: pickTriggeredByItemId(item) ?? promotionFallback?.triggeredByItemId ?? null,
-			discountAmount: rawDiscountAmount ?? promotionFallback?.discountAmount ?? null,
-			finalPrice: rawFinalPrice ?? promotionFallback?.finalPrice ?? null,
+			discountAmount: rawDiscountAmount ?? null,
+			finalPrice: rawFinalPrice ?? null,
 		};
 	});
 

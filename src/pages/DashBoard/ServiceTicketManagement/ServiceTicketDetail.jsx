@@ -37,6 +37,7 @@ const STAFF_ROLE = {
     ADVISOR: 'ADVISOR',
     RECEPTIONIST: 'RECEPTIONIST',
     ACCOUNTANT: 'ACCOUNTANT',
+    WAREHOUSE_KEEPER: 'WAREHOUSE_KEEPER',
 };
 const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
 const PROMOTION_TYPES = [
@@ -637,6 +638,17 @@ function buildPromotionLookupById(availablePromotionsByType = {}) {
     return lookup;
 }
 
+function buildPromotionLookupByCode(availablePromotionsByType = {}) {
+    const lookup = new Map();
+    Object.values(availablePromotionsByType || {})
+        .flatMap((list) => (Array.isArray(list) ? list : []))
+        .forEach((promo) => {
+            const code = getPromotionCode(promo);
+            if (code && !lookup.has(code)) lookup.set(code, promo);
+        });
+    return lookup;
+}
+
 function buildPromotionIdFallbackLabel(promotionId) {
     return promotionId ? `Promotion #${promotionId}` : '';
 }
@@ -1106,6 +1118,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
     const hasAdvisorRole = staffRoles.length === 0 ? true : staffRoles.includes(STAFF_ROLE.ADVISOR);
     const hasReceptionistRole = staffRoles.includes(STAFF_ROLE.RECEPTIONIST);
+    const hasAccountantRole = staffRoles.includes(STAFF_ROLE.ACCOUNTANT);
+    const hasWarehouseKeeperRole = staffRoles.includes(STAFF_ROLE.WAREHOUSE_KEEPER);
     const isAdvisorOnlyViewRole = hasAdvisorRole;
     const hasReceptionistEditAccess = hasReceptionistRole;
     const canViewInspectionAndEstimate = true;
@@ -1506,6 +1520,41 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         estimatePromotionLabels.forEach(add);
         return labels;
     }, [appliedPromotionLabel, estimatePromotionLabels]);
+    const activePromotionRows = useMemo(() => {
+        const rows = [];
+        const seen = new Set();
+        const byId = buildPromotionLookupById(availablePromotions);
+        const byCode = buildPromotionLookupByCode(availablePromotions);
+        const addPromo = (promo, typeHint = '') => {
+            if (!promo) return;
+            const id = getPromotionId(promo);
+            const code = getPromotionCode(promo);
+            const lookupPromo = (id ? byId.get(id) : null) || (code ? byCode.get(code) : null) || promo;
+            const resolvedId = getPromotionId(lookupPromo) || id;
+            const resolvedCode = getPromotionCode(lookupPromo) || code;
+            const key = resolvedId ? `id:${resolvedId}` : resolvedCode ? `code:${resolvedCode}` : '';
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            rows.push({
+                promotionId: resolvedId,
+                promotionCode: resolvedCode,
+                promotionType: getPromotionType(lookupPromo) || typeHint,
+                label: buildPromotionDisplayLabel(lookupPromo) || buildPromotionLabel(lookupPromo) || resolvedCode || buildPromotionIdFallbackLabel(resolvedId),
+            });
+        };
+
+        Object.entries(appliedPromotions || {}).forEach(([type, promo]) => addPromo(promo, type));
+        const estimatePromotions = Array.isArray(latestEstimate?.promotions) ? latestEstimate.promotions : [];
+        estimatePromotions.forEach((promo) => addPromo(promo));
+        addPromo(latestEstimate?.promotion);
+        addPromo(latestEstimate?.appliedPromotion);
+        addPromo(latestEstimate?.promotionCode);
+        addPromo(latestEstimate?.promoCode);
+        return rows.filter((row) => row.label);
+    }, [appliedPromotions, availablePromotions, latestEstimate]);
+    const canUnapplyPromotionFromCurrentEstimate = Boolean(latestEstimate)
+        && (isEstimateDraft || (isNewEstimateVersionPromotionLimited && isEstimateSent))
+        && !isActionLocked;
     const visiblePromotionTypes = useMemo(() => {
         if (isNewEstimateVersionPromotionLimited) {
             return PROMOTION_TYPES.filter(({ type }) => type === 'PERCENT');
@@ -1741,6 +1790,26 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const canBookMaintenance = hasAdvisorRole && ticketStatus === 'COMPLETED' && !isActionLocked;
 
     const handleBack = () => navigate(-1);
+
+    const handleGoToWarehouseIssues = useCallback(() => {
+        navigate('/warehouse-stock-issues', {
+            state: {
+                serviceTicketId: serviceTicketIdNum,
+                ticketCode: ticket?.ticketCode || ticketCodeParam,
+            },
+        });
+    }, [navigate, serviceTicketIdNum, ticket?.ticketCode, ticketCodeParam]);
+
+    const handleGoToReceiptPayment = useCallback(() => {
+        const code = String(ticket?.ticketCode || ticketCodeParam || '').trim();
+        if (!code) {
+            notify('Thiếu mã phiếu dịch vụ để mở màn hình thanh toán.');
+            return;
+        }
+        navigate(`/service-ticket/${encodeURIComponent(code)}/receipt-payment-method`, {
+            state: { ticket: ticketRaw ?? ticket, serviceTicketId: serviceTicketIdNum },
+        });
+    }, [navigate, notify, serviceTicketIdNum, ticket, ticketCodeParam, ticketRaw]);
 
     const handleUpdateTicketStatus = async (nextStatus, fallbackSuccessMessage) => {
         if (statusUpdating) return;
@@ -2301,6 +2370,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         && (ticket?.warehouseReadyForRepair === true || !hasAnyWarehouseDependentItem)
         && !isActionLocked;
     const canCompleteRepair = ticketStatus === 'REPAIRING' && !isActionLocked && ticket?.hasDraftStockIssue === false;
+    const canOpenWarehouseIssues = hasWarehouseKeeperRole && ticket?.hasDraftStockIssue === true;
+    const canOpenReceiptPayment = hasAccountantRole && hasBill;
 
     const canRequestStockIssue = useMemo(() => {
         if (isActionLocked) return false;
@@ -2614,6 +2685,52 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         } catch (err) {
             setAppliedPromotions((prev) => ({ ...prev, [type]: null }));
             setPromoError(err?.message || 'Không thể áp dụng khuyến mãi.');
+        } finally {
+            setPromoApplying(false);
+        }
+    };
+
+    const unapplySinglePromotion = async (promotionRow) => {
+        if (promoApplying) return;
+        if (!estimateIdNum) {
+            notify('Không tìm thấy báo giá hợp lệ để hủy mã giảm giá.');
+            return;
+        }
+        if (!serviceTicketIdNum) {
+            notify('Thiếu serviceTicketId để tải lại báo giá sau khi hủy mã giảm giá.');
+            return;
+        }
+
+        const promotionId = getPromotionId(promotionRow);
+        const promotionCode = getPromotionCode(promotionRow);
+        if (!promotionId || !promotionCode) {
+            notify('Không đủ thông tin promotionId/promotionCode để hủy mã giảm giá.');
+            return;
+        }
+
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để hủy mã giảm giá.');
+            return;
+        }
+
+        try {
+            setPromoApplying(true);
+            setPromoError('');
+            await unapplyPromotionFromEstimate(promotionId, estimateIdNum, promotionCode, token);
+            const type = String(promotionRow?.promotionType || '').trim().toUpperCase();
+            if (type) {
+                setAppliedPromotions((prev) => ({ ...prev, [type]: null }));
+                setPromoCodes((prev) => ({ ...prev, [type]: '' }));
+                setSelectedPromotions((prev) => ({ ...prev, [type]: '' }));
+            }
+            const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
+            const latest = pickLatestEstimate(estimateRes?.data);
+            setLatestEstimate(latest ?? null);
+            triggerRefresh();
+            notify('Đã hủy áp dụng mã giảm giá.');
+        } catch (err) {
+            setPromoError(err?.message || 'Không thể hủy áp dụng mã giảm giá.');
         } finally {
             setPromoApplying(false);
         }
@@ -3053,10 +3170,30 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             disableFullEdit={isAddServicePending}
                                         />
                                     )}
-                                    {canApplyPromotionToCurrentEstimate ? (
-                                        <section className={styles.block}>
-                                            <h2 className={styles.blockTitle}>Mã giảm giá</h2>
-                                            <div className={styles.promotionGrid}>
+                            {canApplyPromotionToCurrentEstimate ? (
+                                <section className={styles.block}>
+                                    <h2 className={styles.blockTitle}>Mã giảm giá</h2>
+                                    {activePromotionRows.length > 0 ? (
+                                        <div className={styles.promotionSummaryList}>
+                                            {activePromotionRows.map((row) => (
+                                                <div key={`${row.promotionId || row.promotionCode}`} className={styles.promotionSummary}>
+                                                    <span className={styles.promotionSummaryLabel}>Đang áp dụng:</span>
+                                                    <span className={styles.promotionSummaryText}>{row.label}</span>
+                                                    {canUnapplyPromotionFromCurrentEstimate ? (
+                                                        <button
+                                                            type="button"
+                                                            className="ui-btn ui-btn--ghost"
+                                                            onClick={() => unapplySinglePromotion(row)}
+                                                            disabled={promoApplying || !row.promotionId || !row.promotionCode}
+                                                        >
+                                                            Hủy áp dụng
+                                                        </button>
+                                                    ) : null}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                    <div className={styles.promotionGrid}>
                                                 {visiblePromotionTypes.map(({ type, label }) => {
                                                     const list = Array.isArray(availablePromotions[type]) ? availablePromotions[type] : [];
                                                     const appliedLabel = buildPromotionDisplayLabel(appliedPromotions[type]);
@@ -3121,10 +3258,32 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                     );
                                                 })}
                                             </div>
-                                            {promotionsError ? <div className={styles.errorBanner} style={{ marginTop: 12 }}>{promotionsError}</div> : null}
-                                            {promoError ? <div className={styles.errorBanner} style={{ marginTop: 12 }}>{promoError}</div> : null}
-                                        </section>
-                                    ) : null}
+                                    {promotionsError ? <div className={styles.errorBanner} style={{ marginTop: 12 }}>{promotionsError}</div> : null}
+                                    {promoError ? <div className={styles.errorBanner} style={{ marginTop: 12 }}>{promoError}</div> : null}
+                                </section>
+                            ) : activePromotionRows.length > 0 ? (
+                                <section className={styles.block}>
+                                    <h2 className={styles.blockTitle}>Mã giảm giá</h2>
+                                    <div className={styles.promotionSummaryList}>
+                                        {activePromotionRows.map((row) => (
+                                            <div key={`${row.promotionId || row.promotionCode}`} className={styles.promotionSummary}>
+                                                <span className={styles.promotionSummaryLabel}>Đang áp dụng:</span>
+                                                <span className={styles.promotionSummaryText}>{row.label}</span>
+                                                {canUnapplyPromotionFromCurrentEstimate ? (
+                                                    <button
+                                                        type="button"
+                                                        className="ui-btn ui-btn--ghost"
+                                                        onClick={() => unapplySinglePromotion(row)}
+                                                        disabled={promoApplying || !row.promotionId || !row.promotionCode}
+                                                    >
+                                                        Hủy áp dụng
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            ) : null}
                                     {ticket.hasDraftStockIssue ? (
                                     <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
                                     ) : null}
@@ -3137,6 +3296,24 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
+                                        {canOpenWarehouseIssues ? (
+                                            <button
+                                                type="button"
+                                                className="ui-btn ui-btn--primary"
+                                                onClick={handleGoToWarehouseIssues}
+                                            >
+                                                Đi đến phiếu xuất kho
+                                            </button>
+                                        ) : null}
+                                        {canOpenReceiptPayment ? (
+                                            <button
+                                                type="button"
+                                                className="ui-btn ui-btn--primary"
+                                                onClick={handleGoToReceiptPayment}
+                                            >
+                                                Thanh toán
+                                            </button>
+                                        ) : null}
                                         {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly ? null : isCreatingNewEstimateVersion ? (
                                             <>
                                                 {canPrintServiceReceipt ? (
