@@ -226,7 +226,6 @@ export default function ReceiptPaymentMethod() {
         return Number.isFinite(n) && n > 0 ? n : null;
     }, [payment]);
 
-    const totalSafe = useMemo(() => toMoneyNumber(payment?.finalAmount), [payment]);
     const paymentStatusCode = normalizeStatusCode(payment?.paymentStatus);
     const paymentStatusLabel = getStatusTextVi(paymentStatusCode, paymentStatusCode || '-');
     const isPaid = paymentStatusCode === 'PAID';
@@ -312,6 +311,17 @@ export default function ReceiptPaymentMethod() {
     }, [estimate]);
 
     const payItems = estimateItems;
+    const totalSafe = useMemo(() => {
+        const estimateTotal = payItems.reduce((sum, item) => sum + toMoneyNumber(item?.finalPriceDisplay), 0);
+        if (estimateTotal > 0) return estimateTotal;
+        return toMoneyNumber(
+            payment?.finalAmount ??
+            payment?.final_amount ??
+            payment?.totalAmount ??
+            payment?.total_amount ??
+            payment?.amount,
+        );
+    }, [payItems, payment]);
 
     const transferContent = useMemo(() => {
         const code = ticketCodeParam || ticketFromState?.ticketCode || 'SERVICE_TICKET';
@@ -350,7 +360,13 @@ export default function ReceiptPaymentMethod() {
             const textLen = (root.textContent || '').trim().length;
             const qrStates = Array.from(root.querySelectorAll('[data-role="vat-qr-state"]'));
             const vatQrReady = qrStates.every((node) => node instanceof HTMLElement && node.dataset.ready === 'true');
-            return hasTable && textLen > 20 && vatQrReady;
+            const codeImages = Array.from(root.querySelectorAll('[data-role="invoice-code-img"]'));
+            const codeImagesReady = codeImages.length === 0 || codeImages.every((image) => (
+                image instanceof HTMLImageElement &&
+                image.complete &&
+                image.naturalWidth > 0
+            ));
+            return hasTable && textLen > 20 && vatQrReady && codeImagesReady;
         };
 
         const doPrint = async () => {
@@ -368,7 +384,7 @@ export default function ReceiptPaymentMethod() {
 
         const tryPrint = async () => {
             attempts += 1;
-            if (isInvoiceDomReady() || attempts >= 60) {
+            if (isInvoiceDomReady() || attempts >= 600) {
                 await doPrint();
                 return;
             }
@@ -378,7 +394,7 @@ export default function ReceiptPaymentMethod() {
         rafId = globalThis.requestAnimationFrame?.(tryPrint);
         timeoutId = globalThis.setTimeout?.(() => {
             void doPrint();
-        }, 1500);
+        }, 10000);
 
         return () => {
             if (rafId) globalThis.cancelAnimationFrame?.(rafId);

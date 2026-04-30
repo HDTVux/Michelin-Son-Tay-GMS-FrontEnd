@@ -204,9 +204,9 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
         });
         const serviceTicketId = payload.sid == null ? '' : String(payload.sid).trim();
         const params = new URLSearchParams();
-        if (serviceTicketId) {
-            params.set('serviceTicketId', serviceTicketId);
-        } else {
+        params.set('ticketCode', ticketCode);
+        if (serviceTicketId) params.set('serviceTicketId', serviceTicketId);
+        if (!serviceTicketId) {
             params.set('data', encodeBase64Url(JSON.stringify(payload)));
         }
         return `${origin}/vat-invoice?${params.toString()}`;
@@ -318,6 +318,8 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                                         src={barcodeUrl}
                                         alt={`Barcode ${ticketCode}`}
                                         loading="eager"
+                                        decoding="sync"
+                                        fetchPriority="high"
                                         data-role="invoice-code-img"
                                     />
                                 </div>
@@ -329,6 +331,8 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                                         src={vatQrUrl}
                                         alt="QR hóa đơn giá trị gia tăng"
                                         loading="eager"
+                                        decoding="sync"
+                                        fetchPriority="high"
                                         data-role="invoice-code-img"
                                     />
                                     <span>QR HĐ GTGT</span>

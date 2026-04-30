@@ -41,7 +41,7 @@
     grid-template-columns: 1fr 82mm;
     gap: 6mm;
     align-items: start;
-    margin-bottom: 4px;
+    margin-bottom: 7px;
 }
 
 .codeWrap {
@@ -50,8 +50,9 @@
     gap: 5mm;
     align-items: center;
     width: 100%;
-    margin-top: 4px;
-    padding-top: 3px;
+    margin-top: -2px;
+    padding-top: 1px;
+    padding-bottom: 1px;
     border-top: 1px solid #111;
     pointer-events: none;
 }
