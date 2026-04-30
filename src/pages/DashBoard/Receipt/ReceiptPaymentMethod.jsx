@@ -571,14 +571,14 @@ export default function ReceiptPaymentMethod() {
                                     <span>Trạng thái:</span>
                                     <strong>{paymentStatusLabel}</strong>
                                 </div>
-                                <div className={styles.qrMetaRow}>
+                                {/* <div className={styles.qrMetaRow}>
                                     <span>Giá gốc:</span>
                                     <strong>{formatCurrencyVnd(payment?.subTotal)}</strong>
                                 </div>
                                 <div className={styles.qrMetaRow}>
                                     <span>Giảm giá:</span>
                                     <strong>{formatCurrencyVnd(payment?.discountAmount)}</strong>
-                                </div>
+                                </div> */}
                                 <div className={styles.qrMetaRow}>
                                     <span>Tổng tiền cần thanh toán:</span>
                                     <strong>{formatCurrencyVnd(totalSafe)}</strong>

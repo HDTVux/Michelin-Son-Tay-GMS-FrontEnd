@@ -524,6 +524,10 @@ function parsePromotionYmdDate(value, { endOfDay } = {}) {
 
 function getPromotionId(promo) {
     if (!promo) return null;
+    if (typeof promo === 'number' || typeof promo === 'string') {
+        const n = typeof promo === 'number' ? promo : Number(String(promo).trim());
+        return Number.isFinite(n) && n > 0 ? n : null;
+    }
     const raw = promo?.promotionId ?? promo?.promotionID ?? promo?.PromotionId ?? promo?.promotion_id ?? promo?.id ?? promo?.ID ?? null;
     if (raw == null) return null;
     const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
@@ -548,6 +552,9 @@ function normalizePromotion(promo) {
 
 function buildPromotionLabel(promo) {
     if (!promo) return '';
+    if (typeof promo === 'number' || typeof promo === 'string') {
+        return buildPromotionIdFallbackLabel(getPromotionId(promo));
+    }
     const name = String(promo?.name || '').trim();
     const code = String(promo?.code || '').trim();
     const type = String(promo?.type ?? promo?.promotionType ?? '').trim().toUpperCase();
@@ -628,8 +635,8 @@ function buildEstimatePromotionLabels(estimate, availablePromotionsByType = {}) 
             promo.forEach(addPromo);
             return;
         }
-        if (typeof promo === 'string') {
-            addLabel(promo);
+        if (typeof promo === 'string' || typeof promo === 'number') {
+            addPromotionId(getPromotionId(promo));
             return;
         }
         const built = buildPromotionLabel(promo);
@@ -682,6 +689,7 @@ function collectAppliedPromotionRefs(estimate, appliedPromotionsByType = {}, ava
     const seen = new Set();
     const availablePromotions = Object.values(availablePromotionsByType || {})
         .flatMap((list) => (Array.isArray(list) ? list : []));
+    const promotionLookupById = buildPromotionLookupById(availablePromotionsByType);
     const promotionCodeById = new Map();
     availablePromotions.forEach((promo) => {
         const id = getPromotionId(promo);
@@ -695,14 +703,27 @@ function collectAppliedPromotionRefs(estimate, appliedPromotionsByType = {}, ava
             promo.forEach((item) => addPromo(item, { explicitOnly }));
             return;
         }
-        if (typeof promo !== 'object') return;
+        if (typeof promo !== 'object') {
+            const promotionId = explicitOnly ? null : getPromotionId(promo);
+            const promotionCode = promotionId ? promotionCodeById.get(promotionId) : '';
+            if (!promotionId || !promotionCode) return;
+            const key = `${promotionId}|${promotionCode}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            refs.push({ promotionId, promotionCode, promotionType: getPromotionType(promotionLookupById.get(promotionId)) });
+            return;
+        }
         const promotionId = explicitOnly ? getExplicitPromotionId(promo) : getPromotionId(promo);
         const promotionCode = getPromotionCode(promo) || (promotionId ? promotionCodeById.get(promotionId) : '');
         if (!promotionId || !promotionCode) return;
         const key = `${promotionId}|${promotionCode}`;
         if (seen.has(key)) return;
         seen.add(key);
-        refs.push({ promotionId, promotionCode });
+        refs.push({
+            promotionId,
+            promotionCode,
+            promotionType: getPromotionType(promo) || getPromotionType(promotionLookupById.get(promotionId)),
+        });
     };
 
     Object.values(appliedPromotionsByType || {}).forEach(addPromo);
@@ -1072,6 +1093,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [estimateLoading, setEstimateLoading] = useState(false);
     const [latestEstimate, setLatestEstimate] = useState(null);
     const estimateLoadSeqRef = useRef(0);
+    const createVersionSyncRef = useRef('');
     const [assignments, setAssignments] = useState([]);
     const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
@@ -1177,6 +1199,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     useEffect(() => {
         addServiceRevertRef.current = null;
         createNewEstimateRevertRef.current = null;
+        createVersionSyncRef.current = '';
         setIsCreatingNewEstimateVersion(false);
     }, [serviceTicketIdNum]);
 
@@ -1379,12 +1402,32 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     }, [estimateIdNum, serviceTicketIdNum]);
 
     const isEstimateDraft = estimateStatus === 'DRAFT';
+    const isEstimateSent = estimateStatus === 'SENT';
     const isEstimateApproved = estimateStatus === 'APPROVED';
     const billId = useMemo(() => normalizeBillId(billPayment), [billPayment]);
     const hasBill = Boolean(billId);
     const isActionLocked = ticketStatus === 'PAID' || hasBill;
+    const isEstimateVersionRevision = useMemo(() => {
+        if (isCreatingNewEstimateVersion) return true;
+        const versionRaw =
+            latestEstimate?.version ??
+            latestEstimate?.estimateVersion ??
+            latestEstimate?.estimateNo ??
+            latestEstimate?.versionNo ??
+            null;
+        const hasVersionValue = versionRaw != null && String(versionRaw).trim() !== '';
+        const versionNumber =
+            typeof versionRaw === 'number'
+                ? versionRaw
+                : Number(/\d+/.exec(String(versionRaw ?? ''))?.[0] ?? '');
+        if (Number.isFinite(versionNumber) && versionNumber > 1) return true;
+        if (hasVersionValue) return false;
+        const items = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+        return items.some((it) => toPositiveNumberOrNull(it?.revisedFromItemId) != null);
+    }, [isCreatingNewEstimateVersion, latestEstimate]);
+    const isNewEstimateVersionPromotionLimited = isEstimateVersionRevision && (isEstimateDraft || isEstimateSent);
     const canApplyPromotionToCurrentEstimate = Boolean(latestEstimate)
-        && isEstimateDraft
+        && (isEstimateDraft || (isNewEstimateVersionPromotionLimited && isEstimateSent))
         && ticketStatus !== 'PAID'
         && !shouldHideEstimateUntilInspectionDone;
 
@@ -1430,6 +1473,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         estimatePromotionLabels.forEach(add);
         return labels;
     }, [appliedPromotionLabel, estimatePromotionLabels]);
+    const visiblePromotionTypes = useMemo(() => {
+        if (isNewEstimateVersionPromotionLimited) {
+            return PROMOTION_TYPES.filter(({ type }) => type === 'PERCENT');
+        }
+        return PROMOTION_TYPES;
+    }, [isNewEstimateVersionPromotionLimited]);
     const printTicket = useMemo(() => ({
         ...ticket,
         receivedAtDisplay,
@@ -1921,15 +1970,33 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         setLatestEstimate((prev) => (prev ? { ...prev, status: 'DRAFT', estimateStatus: 'DRAFT' } : prev));
     }, [estimateIdNum]);
 
-    const ensureStockAllocationAfterConfirm = useCallback(async ({ token, isAppendOnlyConfirm }) => {
+    const ensureStockAllocationAfterConfirm = useCallback(async ({ token, shouldUpdateExistingAllocations }) => {
         if (!estimateIdNum) return;
 
         try {
-            if (isAppendOnlyConfirm) {
+            if (shouldUpdateExistingAllocations) {
                 // Backend expects the full snapshot of allocations; missing rows can be treated as deleted.
                 // New API: GET stock-allocation-get returns rows in shape { estimateItemDto, stockAllocationDto }.
                 // We must send all warehouse-related items back; items without allocation send allocationId: null.
                 try {
+                    let currentEstimateItems = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+                    try {
+                        const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
+                        const list = Array.isArray(estimateRes?.data) ? estimateRes.data : [];
+                        const found =
+                            list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
+                            pickLatestEstimate(list);
+                        if (Array.isArray(found?.items)) {
+                            currentEstimateItems = found.items;
+                            setLatestEstimate((prev) => {
+                                if (!prev) return found;
+                                return { ...prev, ...found, items: found.items };
+                            });
+                        }
+                    } catch {
+                        // keep current estimate items from state
+                    }
+
                     const allocationRes = await fetchEstimateStockAllocations(estimateIdNum, token);
                     const rows = Array.isArray(allocationRes?.data) ? allocationRes.data : [];
                     debugEstimateAllocation('stock-allocation-snapshot', {
@@ -1938,9 +2005,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         rows,
                     });
 
-                    const fallbackItems = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
                     const fallbackByEstimateItemId = new Map(
-                        fallbackItems
+                        currentEstimateItems
                             .map((it) => {
                                 const id = toPositiveNumberOrNull(it?.estimateItemId ?? it?.estimateItemID ?? it?.id);
                                 return id ? [id, it] : null;
@@ -2012,9 +2078,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                             };
                         })
                         .filter(Boolean);
+                    const payloadEstimateItemIds = new Set(payload.map((item) => Number(item.estimateItemId)).filter(Boolean));
+                    const missingWarehouseItemsPayload = buildStockAllocationUpdatePayload({
+                        estimateId: estimateIdNum,
+                        serviceTicketId: serviceTicketIdNum,
+                        estimateItems: currentEstimateItems,
+                    }).filter((item) => !payloadEstimateItemIds.has(Number(item.estimateItemId)));
+                    const fullPayload = [...payload, ...missingWarehouseItemsPayload];
 
-                    if (payload.length > 0) {
-                        await updateEstimateStockAllocation(estimateIdNum, payload, token);
+                    if (fullPayload.length > 0) {
+                        await updateEstimateStockAllocation(estimateIdNum, fullPayload, token);
                     }
                     return;
                 } catch {
@@ -2122,7 +2195,23 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 snapshotEstimateId != null &&
                 snapshotEstimateId === estimateIdNum &&
                 snapshotPrevStatus === 'APPROVED';
-            await ensureStockAllocationAfterConfirm({ token, isAppendOnlyConfirm });
+            const estimateVersionRaw =
+                latestEstimate?.version ??
+                latestEstimate?.estimateVersion ??
+                latestEstimate?.estimateNo ??
+                latestEstimate?.versionNo ??
+                null;
+            const estimateVersionNumber =
+                typeof estimateVersionRaw === 'number'
+                    ? estimateVersionRaw
+                    : Number(/\d+/.exec(String(estimateVersionRaw ?? ''))?.[0] ?? '');
+            const isRevisionEstimateConfirm =
+                (Number.isFinite(estimateVersionNumber) && estimateVersionNumber > 1) ||
+                activeItems.some((it) => toPositiveNumberOrNull(it?.revisedFromItemId) != null);
+            await ensureStockAllocationAfterConfirm({
+                token,
+                shouldUpdateExistingAllocations: isAppendOnlyConfirm || isRevisionEstimateConfirm,
+            });
 
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
             if (detailRes?.data) setTicketRaw(detailRes.data);
@@ -2242,7 +2331,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const hasAnyAdvisorItem = advisorItems.length > 0;
     const isEstimatePersisted = Boolean(latestEstimate?.createdAt || latestEstimate?.estimateId || latestEstimate?.id);
     const canPrintServiceReceipt = Boolean(estimateIdNum)
-        && estimateStatus === 'DRAFT'
+        && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT')
         && hasAnyAdvisorItem
         && isEstimatePersisted
         && !shouldHideEstimateUntilInspectionDone
@@ -2263,10 +2352,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const handleEstimateStatusChange = useCallback((est) => {
         const nextEstimateId = toPositiveNumberOrNull(est?.estimateId ?? est?.id);
         const nextEstimateStatus = normalizeEstimateStatus(est?.estimateStatus ?? est?.status ?? est?.estimate_status);
+        const optimisticEstimateStatus =
+            nextEstimateStatus || (isCreatingNewEstimateVersion && nextEstimateId ? 'DRAFT' : '');
 
         setLatestEstimate((prev) => {
             if (!est) return null;
             const next = prev ? { ...prev, ...est } : { ...est };
+            if (optimisticEstimateStatus) {
+                next.status = normalizeEstimateStatus(next.status) || optimisticEstimateStatus;
+                next.estimateStatus = normalizeEstimateStatus(next.estimateStatus) || optimisticEstimateStatus;
+            }
             // Some update APIs may return estimate meta without items.
             // Keep previous items temporarily to avoid disabling confirm button,
             // then trigger a refetch to sync the real latest estimate.
@@ -2276,7 +2371,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             return next;
         });
 
-        if (nextEstimateId && nextEstimateStatus === 'DRAFT') {
+        if (!isCreatingNewEstimateVersion && nextEstimateId && nextEstimateStatus === 'DRAFT') {
             createNewEstimateRevertRef.current = null;
             setIsCreatingNewEstimateVersion(false);
         }
@@ -2286,10 +2381,25 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         if (hasEstimateId && !hasItems) {
             loadLatestEstimate();
         }
-    }, [loadLatestEstimate]);
+        const shouldSyncCreatedVersion =
+            isCreatingNewEstimateVersion &&
+            hasEstimateId &&
+            optimisticEstimateStatus === 'DRAFT' &&
+            createVersionSyncRef.current !== `${nextEstimateId}:DRAFT`;
+
+        if (shouldSyncCreatedVersion) {
+            createVersionSyncRef.current = `${nextEstimateId}:DRAFT`;
+            globalThis.setTimeout?.(() => {
+                globalThis.location?.reload?.();
+            }, 80);
+        }
+    }, [isCreatingNewEstimateVersion, loadLatestEstimate]);
 
     const handleBeforeEstimateMutate = useCallback(async (options = {}) => {
         if (!estimateIdNum || hasBill) return;
+        const promotionTypesToUnapply = Array.isArray(options?.promotionTypesToUnapply)
+            ? options.promotionTypesToUnapply.map((type) => String(type || '').trim().toUpperCase()).filter(Boolean)
+            : [];
         if (options?.skipUnapplyPromotion) {
             if (options?.resetPromotionSelection) {
                 setAppliedPromotions({ PERCENT: null, BUY_X_GET_Y: null });
@@ -2302,12 +2412,21 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         if (!token) return;
 
         const estimateItems = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
+        const estimatePromotionIds = Array.isArray(latestEstimate?.promotions)
+            ? latestEstimate.promotions.map(getPromotionId).filter(Boolean)
+            : [];
         const hasPromotionIdsOnItems = estimateItems.some((it) => Boolean(getExplicitPromotionId(it)));
+        const hasPromotionIdsOnEstimate = estimatePromotionIds.length > 0 || Boolean(getExplicitPromotionId(latestEstimate));
         const hasPromotionEffects = estimateItems.some((it) => getEstimateItemGiftFlag(it) || pickDiscountAmountValue(it) > 0);
         let promotionLookup = availablePromotions;
         let refs = collectAppliedPromotionRefs(latestEstimate, appliedPromotions, promotionLookup);
 
-        if (refs.length === 0 && (hasPromotionIdsOnItems || hasPromotionEffects)) {
+        const shouldFetchPromotionLookup =
+            refs.length === 0 ||
+            refs.some((ref) => !ref.promotionType) ||
+            promotionTypesToUnapply.length > 0;
+
+        if (shouldFetchPromotionLookup && (hasPromotionIdsOnEstimate || hasPromotionIdsOnItems || hasPromotionEffects)) {
             try {
                 const entries = await Promise.all(PROMOTION_TYPES.map(async ({ type }) => {
                     const res = await fetchAvailablePromotions(token, type);
@@ -2321,11 +2440,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             }
         }
 
+        if (promotionTypesToUnapply.length > 0) {
+            const allowed = new Set(promotionTypesToUnapply);
+            refs = refs.filter((ref) => allowed.has(String(ref?.promotionType || '').trim().toUpperCase()));
+        }
+
         if (refs.length === 0) {
-            if (hasPromotionIdsOnItems || hasPromotionEffects) {
+            if (!promotionTypesToUnapply.length && (hasPromotionIdsOnEstimate || hasPromotionIdsOnItems || hasPromotionEffects)) {
                 notify('Không tìm thấy promotionId/promotionCode để gỡ khuyến mãi khỏi báo giá.');
             }
-            return;
+            return latestEstimate ?? null;
         }
 
         try {
@@ -2333,14 +2457,23 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             for (const ref of refs) {
                 await unapplyPromotionFromEstimate(ref.promotionId, estimateIdNum, ref.promotionCode, token);
             }
-            setAppliedPromotions({ PERCENT: null, BUY_X_GET_Y: null });
+            setAppliedPromotions((prev) => {
+                if (promotionTypesToUnapply.length === 0) return { PERCENT: null, BUY_X_GET_Y: null };
+                const next = { ...prev };
+                promotionTypesToUnapply.forEach((type) => {
+                    next[type] = null;
+                });
+                return next;
+            });
             setPromoCodes({ PERCENT: '', BUY_X_GET_Y: '' });
             setSelectedPromotions({ PERCENT: '', BUY_X_GET_Y: '' });
             const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
             const cleanEstimate = pickLatestEstimate(estimateRes?.data);
             setLatestEstimate(cleanEstimate ?? null);
             setRefreshTick((prev) => prev + 1);
-            notify('Đã gỡ khuyến mãi khỏi báo giá. Vui lòng áp dụng lại sau khi lưu chỉnh sửa.');
+            notify(promotionTypesToUnapply.length > 0
+                ? 'Đã gỡ khuyến mãi phần trăm khỏi báo giá. Vui lòng áp dụng lại sau khi lưu chỉnh sửa.'
+                : 'Đã gỡ khuyến mãi khỏi báo giá. Vui lòng áp dụng lại sau khi lưu chỉnh sửa.');
             return cleanEstimate ?? null;
         } catch (err) {
             notify(err?.message || 'Không thể gỡ khuyến mãi khỏi báo giá.');
@@ -2365,7 +2498,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     }, [notify, setTicketRaw, ticket.ticketCode, ticketCodeParam]);
 
     const applyPromotion = async (promotionType) => {
-        if (!isEstimateDraft) {
+        const type = String(promotionType || '').trim().toUpperCase();
+        if (isNewEstimateVersionPromotionLimited && type !== 'PERCENT') {
+            notify('Version báo giá mới chỉ được áp dụng mã giảm giá phần trăm.');
+            return;
+        }
+        const canApplyForStatus = isEstimateDraft || (isNewEstimateVersionPromotionLimited && isEstimateSent);
+        if (!canApplyForStatus) {
             notify('Chỉ có thể áp dụng khuyến mãi khi báo giá đang ở trạng thái DRAFT.');
             return;
         }
@@ -2380,7 +2519,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
         setPromoError('');
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-        const type = String(promotionType || '').trim().toUpperCase();
         const code = String(promoCodes[type] || '').trim();
         const selectedId = String(selectedPromotions[type] || '').trim();
 
@@ -2455,16 +2593,18 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Vui lòng đăng nhập để in phiếu dịch vụ.');
             return;
         }
-        if (!estimateIdNum || estimateStatus !== 'DRAFT') {
-            notify('Chỉ có thể in phiếu dịch vụ khi báo giá đang ở trạng thái DRAFT.');
+        if (!estimateIdNum || (estimateStatus !== 'DRAFT' && estimateStatus !== 'SENT')) {
+            notify('Chỉ có thể in phiếu dịch vụ khi báo giá đang ở trạng thái DRAFT hoặc SENT.');
             return;
         }
 
         try {
             setReceiptApproving(true);
-            await manageServiceTicketEstimateStatus(estimateIdNum, 'SENT', token);
-            setLatestEstimate((prev) => (prev ? { ...prev, status: 'SENT', estimateStatus: 'SENT' } : prev));
-            notify('Đã chuyển báo giá sang trạng thái SENT.');
+            if (estimateStatus === 'DRAFT') {
+                await manageServiceTicketEstimateStatus(estimateIdNum, 'SENT', token);
+                setLatestEstimate((prev) => (prev ? { ...prev, status: 'SENT', estimateStatus: 'SENT' } : prev));
+                notify('Đã chuyển báo giá sang trạng thái SENT.');
+            }
             globalThis.setTimeout?.(() => {
                 globalThis.requestAnimationFrame?.(() => globalThis.window?.print?.());
             }, 120);
@@ -2884,7 +3024,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         <section className={styles.block}>
                                             <h2 className={styles.blockTitle}>Mã giảm giá</h2>
                                             <div className={styles.promotionGrid}>
-                                                {PROMOTION_TYPES.map(({ type, label }) => {
+                                                {visiblePromotionTypes.map(({ type, label }) => {
                                                     const list = Array.isArray(availablePromotions[type]) ? availablePromotions[type] : [];
                                                     const appliedLabel = buildPromotionLabel(appliedPromotions[type]);
                                                     return (
@@ -2964,24 +3104,29 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                         Quay lại
                                     </button>
                                     <div className={styles.actionsRight}>
-                                        {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly ? null : isCreatingNewEstimateVersion && canPrintServiceReceipt ? (
-                                            <button
-                                                type="button"
-                                                className="ui-btn ui-btn--ghost"
-                                                onClick={handlePrintServiceReceipt}
-                                                disabled={receiptApproving || statusUpdating}
-                                            >
-                                                {receiptApproving ? 'Đang in...' : 'In phiếu dịch vụ'}
-                                            </button>
-                                        ) : isCreatingNewEstimateVersion && canConfirmEstimate ? (
-                                            <button
-                                                type="button"
-                                                className="ui-btn ui-btn--primary"
-                                                onClick={handleOpenEstimateTimePopup}
-                                                disabled={receiptApproving || statusUpdating || estimateLoading}
-                                            >
-                                                {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
-                                            </button>
+                                        {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly ? null : isCreatingNewEstimateVersion ? (
+                                            <>
+                                                {canPrintServiceReceipt ? (
+                                                    <button
+                                                        type="button"
+                                                        className="ui-btn ui-btn--ghost"
+                                                        onClick={handlePrintServiceReceipt}
+                                                        disabled={receiptApproving || statusUpdating}
+                                                    >
+                                                        {receiptApproving ? 'Đang in...' : 'In phiếu dịch vụ'}
+                                                    </button>
+                                                ) : null}
+                                                {canConfirmEstimate ? (
+                                                    <button
+                                                        type="button"
+                                                        className="ui-btn ui-btn--primary"
+                                                        onClick={handleOpenEstimateTimePopup}
+                                                        disabled={receiptApproving || statusUpdating || estimateLoading}
+                                                    >
+                                                        {estimateLoading ? 'Đang xác nhận...' : 'Xác nhận báo giá'}
+                                                    </button>
+                                                ) : null}
+                                            </>
                                         ) : null}
 
                                         {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly || isCreatingNewEstimateVersion ? null : (

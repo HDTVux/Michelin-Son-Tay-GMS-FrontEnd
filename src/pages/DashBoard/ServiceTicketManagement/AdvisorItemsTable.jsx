@@ -898,7 +898,7 @@ export default function AdvisorItemsTable({
         setRevertTicketOnCancel(true);
         try {
             const seedEstimate = await onBeforeEstimateMutate?.({
-                skipUnapplyPromotion: true,
+                promotionTypesToUnapply: ['PERCENT'],
                 resetPromotionSelection: true,
             });
             if (seedEstimate !== undefined) syncEstimate?.(seedEstimate);

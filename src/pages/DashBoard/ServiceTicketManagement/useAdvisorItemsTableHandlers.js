@@ -331,7 +331,8 @@ function mergeEstimateWithWarehouseDisplay(nextEstimate, ...fallbackSources) {
 	return { ...nextEstimate, items: mergedItems };
 }
 
-function mapEstimateItemToLockedRow(it, idx) {
+function mapEstimateItemToLockedRow(it, idx, options = {}) {
+	const resetPromotionPricing = Boolean(options?.resetPromotionPricing);
 	const workCategoryId =
 		it?.workCategoryId ??
 		it?.workCateId ??
@@ -369,8 +370,8 @@ function mapEstimateItemToLockedRow(it, idx) {
 		itemName: String(it?.itemName || '').trim(),
 		quantity: it?.quantity ?? '',
 		unitPrice: it?.unitPrice ?? '',
-		discountAmount: pickDiscountAmountValue(it),
-		finalPrice: it?.finalPrice ?? it?.final_price ?? '',
+		discountAmount: resetPromotionPricing ? 0 : pickDiscountAmountValue(it),
+		finalPrice: resetPromotionPricing ? '' : (it?.finalPrice ?? it?.final_price ?? ''),
 		isGift: getEstimateItemGiftFlag(it),
 		triggeredByItemId: pickTriggeredByItemId(it),
 		// Dòng khóa (seed từ version trước): vẫn ưu tiên thuế sản phẩm nếu có.
@@ -1521,7 +1522,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			const items = Array.isArray(sourceEstimate?.items) ? sourceEstimate.items : [];
 			const locked = items
 				.filter((it) => !it?.isRemoved)
-				.map(mapEstimateItemToLockedRow);
+				.map((it, idx) => mapEstimateItemToLockedRow(it, idx, { resetPromotionPricing: true }));
 			const seeded = normalizeDraftRows([...locked, createEmptyDraftRow()]);
 			setDraftRows(seeded);
 			// Enrich tax for seeded locked rows if estimate API didn't embed item tax.
@@ -1774,7 +1775,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		}
 
 		const items = (Array.isArray(editRows) ? editRows : [])
-			.filter((r) => !isDraftRowEmpty(r) && !getEstimateItemGiftFlag(r))
+			.filter((r) => !isDraftRowEmpty(r))
 			.map((r) => {
 				const estimateItemId = toIdOrNull(r?.estimateItemId);
 				const originalItem = (Array.isArray(estimate?.items) ? estimate.items : []).find((it) => {
