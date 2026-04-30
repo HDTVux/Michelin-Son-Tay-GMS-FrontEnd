@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import QRCode from 'qrcode';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import styles from './AccountingInvoicePrint.module.css';
 
@@ -15,6 +14,7 @@ const STORE_INFO = {
 };
 
 const BARCODE_BCID = 'code128';
+const QR_BCID = 'qrcode';
 
 function safeText(value) {
     if (value == null) return '';
@@ -204,37 +204,17 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
         });
         const serviceTicketId = payload.sid == null ? '' : String(payload.sid).trim();
         const params = new URLSearchParams();
-        if (serviceTicketId) params.set('serviceTicketId', serviceTicketId);
-        params.set('data', encodeBase64Url(JSON.stringify(payload)));
+        if (serviceTicketId) {
+            params.set('serviceTicketId', serviceTicketId);
+        } else {
+            params.set('data', encodeBase64Url(JSON.stringify(payload)));
+        }
         return `${origin}/vat-invoice?${params.toString()}`;
     }, [displayDiscountAmount, issuedAt, subtotalAmount, ticket, ticketCode, totalAmount]);
 
-    const [vatQrUrl, setVatQrUrl] = useState('');
-
-    useEffect(() => {
-        let cancelled = false;
-        Promise.resolve()
-            .then(() => {
-                if (!vatInvoiceUrl) return '';
-                return QRCode.toDataURL(vatInvoiceUrl, {
-                    errorCorrectionLevel: 'M',
-                    margin: 2,
-                    width: 360,
-                    color: {
-                        dark: '#000000',
-                        light: '#ffffff',
-                    },
-                });
-            })
-            .then((url) => {
-                if (!cancelled) setVatQrUrl(url);
-            })
-            .catch(() => {
-                if (!cancelled) setVatQrUrl('');
-            });
-        return () => {
-            cancelled = true;
-        };
+    const vatQrUrl = useMemo(() => {
+        if (!vatInvoiceUrl) return '';
+        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(QR_BCID)}&text=${encodeURIComponent(vatInvoiceUrl)}&scale=8&eclevel=M&paddingwidth=14`;
     }, [vatInvoiceUrl]);
 
     useEffect(() => {
