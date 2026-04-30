@@ -342,6 +342,35 @@
   line-height: 1.4;
 }
 
+.promotionSummaryList {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.promotionSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.promotionSummaryLabel {
+  color: #374151;
+}
+
+.promotionSummaryText {
+  flex: 1 1 220px;
+}
+
 /* Services */
 .servicesList {
   display: flex;
