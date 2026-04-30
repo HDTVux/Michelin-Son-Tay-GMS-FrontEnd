@@ -38,7 +38,7 @@
 
 .headerTop {
     display: grid;
-    grid-template-columns: 1fr 58mm;
+    grid-template-columns: 1fr 82mm;
     gap: 6mm;
     align-items: start;
     margin-bottom: 4px;
@@ -46,8 +46,8 @@
 
 .codeWrap {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 20mm;
-    gap: 2mm;
+    grid-template-columns: 40mm 32mm;
+    gap: 5mm;
     align-items: center;
     width: 100%;
     margin-top: 4px;
@@ -61,14 +61,14 @@
     justify-content: center;
     align-items: center;
     min-width: 0;
-    height: 13mm;
+    height: 17mm;
 }
 
 .barcodeImg {
     display: block;
     max-width: 100%;
     max-height: 100%;
-    width: 31mm;
+    width: 38mm;
     height: auto;
     object-fit: contain;
 }
@@ -77,10 +77,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.8mm;
-    padding: 0.6mm;
+    gap: 1mm;
+    padding: 0 0 0 4mm;
+    border-left: 1px solid #111;
     background: #fff;
-    font-size: 7.5px;
+    font-size: 8.5px;
     font-weight: 700;
     line-height: 1;
     text-align: center;
@@ -88,8 +89,8 @@
 
 .qrImg {
     display: block;
-    width: 19mm;
-    height: 19mm;
+    width: 30mm;
+    height: 30mm;
     object-fit: contain;
     image-rendering: pixelated;
 }

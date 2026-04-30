@@ -211,7 +211,7 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
 
     const vatQrUrl = useMemo(() => {
         if (!vatInvoiceUrl) return '';
-        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(QR_BCID)}&text=${encodeURIComponent(vatInvoiceUrl)}&scale=6&eclevel=M&paddingwidth=10`;
+        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(QR_BCID)}&text=${encodeURIComponent(vatInvoiceUrl)}&scale=8&eclevel=M&paddingwidth=14`;
     }, [vatInvoiceUrl]);
 
     useEffect(() => {
@@ -379,20 +379,6 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                             </tr>
                         );
                     })}
-                    <tr className={styles.totalRow}>
-                        <td colSpan={5} className={styles.totalLabel}>
-                            CỘNG TIỀN HÀNG
-                        </td>
-                        <td className={styles.right}>{formatCurrencyVndZero(subtotalAmount)}</td>
-                    </tr>
-
-                    <tr className={styles.totalRow}>
-                        <td colSpan={5} className={styles.totalLabel}>
-                            GIẢM GIÁ
-                        </td>
-                        <td className={styles.right}>{displayDiscountAmount ? `-${formatCurrencyVndZero(displayDiscountAmount)}` : formatCurrencyVndZero(0)}</td>
-                    </tr>
-
                     <tr className={styles.totalRow}>
                         <td colSpan={5} className={styles.totalLabel}>
                             TỔNG THANH TOÁN
