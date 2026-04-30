@@ -78,6 +78,7 @@ import ConfirmedBookingManagement from './pages/DashBoard/BookingManagement/Conf
 import BookingRequestEdit from './pages/DashBoard/BookingRequestManagement/BookingRequestEdit.jsx';
 import ReceiptPaymentMethod from './pages/DashBoard/Receipt/ReceiptPaymentMethod.jsx';
 import AccountingInvoicePrint from './pages/DashBoard/Receipt/AccountingInvoicePrint.jsx';
+import VatInvoiceView from './pages/DashBoard/Receipt/VatInvoiceView.jsx';
 import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 
 // Import Work History pages
@@ -292,6 +293,7 @@ export default function App() {
           <Route path="service-management/blog/:itemId" element={<BlogFormPage itemType="SERVICE" />} />
           <Route path="service-management/create-service" element={<CreateService />} />
           <Route path="promotion-management" element={<PromotionManagement />} />
+          <Route path="promotion-management/create" element={<PromotionManagement />} />
           <Route path="shift-management" element={<ShiftManagement />} />
           <Route path="queue-management" element={<QueueManagement />} />
           <Route path="create-booking" element={<CreatBooking />} />
@@ -327,6 +329,7 @@ export default function App() {
         </Route>
 
         <Route path="login" element={<Login />} />
+        <Route path="vat-invoice" element={<VatInvoiceView />} />
         <Route path="forgot-password" element={<ForgotPassword />} />
       </Routes>
     </BrowserRouter>

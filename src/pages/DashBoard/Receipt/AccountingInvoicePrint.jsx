@@ -14,6 +14,7 @@ const STORE_INFO = {
 };
 
 const BARCODE_BCID = 'code128';
+const QR_BCID = 'qrcode';
 
 function safeText(value) {
     if (value == null) return '';
@@ -126,6 +127,33 @@ function getInvoiceDate(ticket) {
     return parsed;
 }
 
+function encodeBase64Url(value) {
+    const bytes = new TextEncoder().encode(String(value ?? ''));
+    let binary = '';
+    bytes.forEach((byte) => {
+        binary += String.fromCharCode(byte);
+    });
+    return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+}
+
+function buildVatInvoicePayload({ ticket, invoiceItems, subtotalAmount, discountAmount, totalAmount, issuedAt }) {
+    return {
+        c: safeText(ticket?.ticketCode || ticket?.serviceTicketCode || ticket?.code),
+        d: issuedAt.toISOString().slice(0, 10),
+        u: [buildCustomerName(ticket?.customer), safeText(ticket?.customer?.phone), buildCustomerAddress(ticket)],
+        v: [safeText(ticket?.vehicle?.licensePlate), safeText(ticket?.vehicle?.model)],
+        i: invoiceItems.map((item) => [
+            buildInvoiceItemName(item),
+            safeText(item?.quantity),
+            toMoneyNumber(item?.unitPrice),
+            toMoneyNumber(item?.subTotal),
+        ]),
+        s: subtotalAmount,
+        g: discountAmount,
+        t: totalAmount,
+    };
+}
+
 export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint = true }) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -135,8 +163,11 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
         return ticketProp ?? location?.state?.ticket ?? null;
     }, [ticketProp, location?.state?.ticket]);
 
-    const invoice = ticket?.invoice || {};
-    const invoiceItems = Array.isArray(invoice?.items) ? invoice.items : [];
+    const invoice = useMemo(() => ticket?.invoice || {}, [ticket]);
+    const invoiceItems = useMemo(
+        () => (Array.isArray(invoice?.items) ? invoice.items : []),
+        [invoice],
+    );
     const rowCount = Math.max(DEFAULT_ROW_COUNT, invoiceItems.length);
 
     const computedSubtotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
@@ -160,19 +191,74 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
         const code = safeText(ticket?.ticketCode || ticket?.serviceTicketCode || ticket?.code);
         if (!code) return '';
         const bcid = safeText(invoice?.barcodeType) || BARCODE_BCID;
-        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(bcid)}&text=${encodeURIComponent(code)}`;
+        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(bcid)}&text=${encodeURIComponent(code)}&scale=2&height=12&includetext&textxalign=center&textsize=9&paddingwidth=8`;
     }, [invoice?.barcodeType, ticket?.code, ticket?.serviceTicketCode, ticket?.ticketCode]);
+
+    const vatInvoiceUrl = useMemo(() => {
+        if (!ticketCode) return '';
+        const origin = globalThis.window?.location?.origin || '';
+        if (!origin) return '';
+        const payload = buildVatInvoicePayload({
+            ticket,
+            invoiceItems,
+            subtotalAmount,
+            discountAmount,
+            totalAmount,
+            issuedAt,
+        });
+        return `${origin}/vat-invoice?data=${encodeBase64Url(JSON.stringify(payload))}`;
+    }, [discountAmount, invoiceItems, issuedAt, subtotalAmount, ticket, ticketCode, totalAmount]);
+
+    const vatQrUrl = useMemo(() => {
+        if (!vatInvoiceUrl) return '';
+        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(QR_BCID)}&text=${encodeURIComponent(vatInvoiceUrl)}&scale=6&eclevel=M&paddingwidth=10`;
+    }, [vatInvoiceUrl]);
 
     useEffect(() => {
         if (!autoPrint) return;
         if (!ticket) return;
-        const id = globalThis.setTimeout?.(() => {
-            globalThis.window?.print?.();
-        }, barcodeUrl ? 900 : 100);
-        return () => {
-            if (id) globalThis.clearTimeout?.(id);
+
+        let rafId = 0;
+        let timeoutId = 0;
+        let didPrint = false;
+
+        const areCodeImagesReady = () => {
+            const images = Array.from(globalThis.document?.querySelectorAll?.('[data-role="invoice-code-img"]') || []);
+            if (images.length === 0) return true;
+            return images.every((img) => img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0);
         };
-    }, [autoPrint, barcodeUrl, ticket]);
+
+        const doPrint = async () => {
+            if (didPrint) return;
+            didPrint = true;
+            if (rafId) globalThis.cancelAnimationFrame?.(rafId);
+            if (timeoutId) globalThis.clearTimeout?.(timeoutId);
+            try {
+                await globalThis.document?.fonts?.ready;
+            } catch {
+                // ignore
+            }
+            globalThis.window?.print?.();
+        };
+
+        const waitAndPrint = () => {
+            if (areCodeImagesReady()) {
+                void doPrint();
+                return;
+            }
+            rafId = globalThis.requestAnimationFrame?.(waitAndPrint);
+        };
+
+        rafId = globalThis.requestAnimationFrame?.(waitAndPrint);
+        timeoutId = globalThis.setTimeout?.(() => {
+            void doPrint();
+        }, 8000);
+
+        return () => {
+            if (rafId) globalThis.cancelAnimationFrame?.(rafId);
+            if (timeoutId) globalThis.clearTimeout?.(timeoutId);
+        };
+    }, [autoPrint, barcodeUrl, vatQrUrl, ticket]);
 
     if (!ticket) {
         const code = safeText(params?.ticketCode);
@@ -216,11 +302,31 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                             <span>Ngày lập</span>
                             <strong>{issuedAt.getDate()}/{issuedAt.getMonth() + 1}/{issuedAt.getFullYear()}</strong>
                         </div>
-                        {barcodeUrl ? (
-                            <div className={styles.barcodeWrap}>
-                                <img className={styles.barcodeImg} src={barcodeUrl} alt={`Barcode ${ticketCode}`} />
-                            </div>
-                        ) : null}
+                        <div className={styles.codeWrap}>
+                            {barcodeUrl ? (
+                                <div className={styles.barcodeWrap}>
+                                    <img
+                                        className={styles.barcodeImg}
+                                        src={barcodeUrl}
+                                        alt={`Barcode ${ticketCode}`}
+                                        loading="eager"
+                                        data-role="invoice-code-img"
+                                    />
+                                </div>
+                            ) : null}
+                            {vatQrUrl ? (
+                                <div className={styles.qrWrap}>
+                                    <img
+                                        className={styles.qrImg}
+                                        src={vatQrUrl}
+                                        alt="QR hóa đơn giá trị gia tăng"
+                                        loading="eager"
+                                        data-role="invoice-code-img"
+                                    />
+                                    <span>QR HĐ GTGT</span>
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
 

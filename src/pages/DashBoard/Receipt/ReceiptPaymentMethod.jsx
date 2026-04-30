@@ -346,10 +346,11 @@ export default function ReceiptPaymentMethod() {
             const hasTable = Boolean(root.querySelector('table'));
             const textLen = (root.textContent || '').trim().length;
 
-            const barcodeImg = root.querySelector('[data-role="barcode"]');
-            if (barcodeImg && barcodeImg instanceof HTMLImageElement) {
-                if (!barcodeImg.complete) return false;
-                if (!barcodeImg.naturalWidth) return false;
+            const codeImages = Array.from(root.querySelectorAll('[data-role="invoice-code-img"]'));
+            for (const image of codeImages) {
+                if (!(image instanceof HTMLImageElement)) return false;
+                if (!image.complete) return false;
+                if (!image.naturalWidth) return false;
             }
 
             return hasTable && textLen > 20;
@@ -370,7 +371,7 @@ export default function ReceiptPaymentMethod() {
 
         const tryPrint = async () => {
             attempts += 1;
-            if (isInvoiceDomReady() || attempts >= 30) {
+            if (isInvoiceDomReady() || attempts >= 360) {
                 await doPrint();
                 return;
             }
@@ -380,7 +381,7 @@ export default function ReceiptPaymentMethod() {
         rafId = globalThis.requestAnimationFrame?.(tryPrint);
         timeoutId = globalThis.setTimeout?.(() => {
             void doPrint();
-        }, 1200);
+        }, 8000);
 
         return () => {
             if (rafId) globalThis.cancelAnimationFrame?.(rafId);

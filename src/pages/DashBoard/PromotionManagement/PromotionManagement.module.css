@@ -460,6 +460,21 @@
   animation: slideUp 0.25s ease-out;
 }
 
+.pageFormOverlay {
+  position: static;
+  display: block;
+  padding: 0;
+  background: transparent;
+  animation: none;
+}
+
+.pageFormContent {
+  max-width: 960px;
+  max-height: none;
+  margin: 0 auto;
+  overflow: visible;
+}
+
 .detailModalContent {
   max-width: 860px;
 }
