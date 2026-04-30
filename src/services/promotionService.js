@@ -1,8 +1,12 @@
 import { request } from './apiClient';
 
-export const fetchAvailablePromotions = (token, promotionType = '') => {
+export const fetchAvailablePromotions = (token, promotionType = '', customerId = null) => {
 	const type = String(promotionType ?? '').trim();
-	const qs = type ? `?${new URLSearchParams({ promotionType: type }).toString()}` : '';
+	const params = new URLSearchParams();
+	if (type) params.set('promotionType', type);
+	const customerIdText = String(customerId ?? '').trim();
+	if (customerIdText) params.set('customerId', customerIdText);
+	const qs = params.toString() ? `?${params.toString()}` : '';
 	return request(`/api/promotion/available${qs}`, {
 		method: 'GET',
 		headers: token ? { Authorization: `Bearer ${token}` } : {},

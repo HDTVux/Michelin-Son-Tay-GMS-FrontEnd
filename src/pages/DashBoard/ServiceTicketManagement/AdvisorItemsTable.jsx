@@ -164,6 +164,22 @@ function getStockAllocationDisplay(status) {
     return '-';
 }
 
+function getStockAllocationClassName(status) {
+    const normalized = String(status || '').trim().toUpperCase();
+    if (normalized === 'COMMITTED') return styles.stockStatusCommitted;
+    if (normalized === 'RESERVED') return styles.stockStatusReserved;
+    return styles.stockStatusMissing;
+}
+
+function formatAppliedTaxRate(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    const n = typeof value === 'number' ? value : Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    const percent = n > 1 ? n : n * 100;
+    return percent.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+}
+
 function TaxRuleQuickAdd({
     show,
     isAddingNewTaxRule,
@@ -320,6 +336,7 @@ function EstimateItemRow({
     const isPredefinedCategory = Boolean(toIdOrNull(row?.workCategoryId));
     const subTotalValue = effectiveTaxRuleId ? (row?.subTotalWithVat ?? row?.subTotal) : row?.subTotal;
     const amountDisplayValue = showInputs ? subTotalValue : (row?.finalPriceDisplay ?? row?.subTotalDisplay ?? row?.subTotal);
+    const appliedTaxRateText = !showInputs && !isGift ? formatAppliedTaxRate(row?.appliedTaxRate) : '';
     const discountAmountValue = Number(row?.discountAmount ?? 0);
     const shouldShowTaxDropdown = allowInputs && !itemTaxRuleId && !categoryTaxRuleId;
 
@@ -328,6 +345,7 @@ function EstimateItemRow({
         row?.warehouseName ?? row?.warehouse?.warehouseName ?? row?.warehouse?.name ?? '',
     ).trim();
     const stockAllocationText = getStockAllocationDisplay(row?.stockAllocationStatus);
+    const stockAllocationClassName = getStockAllocationClassName(row?.stockAllocationStatus);
 
     let itemPlaceholder = 'Diễn giải';
     if (categoryFilled) {
@@ -443,21 +461,6 @@ function EstimateItemRow({
                     isGift ? <span className={styles.giftAmount}>0đ</span> : formatCurrencyVnd(row.unitPriceDisplay ?? row.unitPrice)
                 )}
             </td>
-            {showDiscountColumn ? (
-                <td className={styles.tdNumber}>
-                    {Number.isFinite(discountAmountValue) && discountAmountValue > 0
-                        ? formatCurrencyVnd(discountAmountValue)
-                        : '-'}
-                </td>
-            ) : null}
-            <td className={styles.tdNumber}>
-                {isGift ? (
-                    <span className={styles.giftAmount}>0đ</span>
-                ) : (
-                    formatCurrencyVnd(amountDisplayValue)
-                )}
-            </td>
-            
             {showTaxColumn ? (
                 <td>
                     {showInputs ? (
@@ -488,9 +491,30 @@ function EstimateItemRow({
                     )}
                 </td>
             ) : null}
+            {showDiscountColumn ? (
+                <td className={styles.tdNumber}>
+                    {Number.isFinite(discountAmountValue) && discountAmountValue > 0
+                        ? formatCurrencyVnd(discountAmountValue)
+                        : '-'}
+                </td>
+            ) : null}
+            <td className={styles.tdNumber}>
+                {isGift ? (
+                    <span className={styles.giftAmount}>0đ</span>
+                ) : (
+                    <div className={styles.amountWithTax}>
+                        <span>{formatCurrencyVnd(amountDisplayValue)}</span>
+                        {appliedTaxRateText ? (
+                            <span className={styles.appliedTaxNote}>
+                                {`(đã bao gồm thuế ${appliedTaxRateText}%)`}
+                            </span>
+                        ) : null}
+                    </div>
+                )}
+            </td>
 
             <td>{warehouseText || '-'}</td>
-            {!showInputs ? <td>{stockAllocationText}</td> : null}
+            {!showInputs ? <td><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
             {showInputs ? (
                 <td className={styles.tdCenter}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
@@ -1302,9 +1326,9 @@ export default function AdvisorItemsTable({
                             <th scope="col">DIỄN GIẢI</th>
                             <th scope="col">SL</th>
                             <th scope="col">ĐƠN GIÁ</th>
+                            {showTaxColumn ? <th scope="col">THUẾ </th> : null}
                             {showDiscountColumn ? <th scope="col">GIẢM GIÁ</th> : null}
                             <th scope="col">THÀNH TIỀN</th>
-                            {showTaxColumn ? <th scope="col">THUẾ </th> : null}
                             <th scope="col">KHO</th>
                             {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
                             {showInputs ? <th scope="col">THAO TÁC</th> : null}

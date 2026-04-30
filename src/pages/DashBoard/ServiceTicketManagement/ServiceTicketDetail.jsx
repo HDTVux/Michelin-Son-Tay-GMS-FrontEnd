@@ -566,6 +566,28 @@ function buildPromotionLabel(promo) {
     return parts.join(' • ');
 }
 
+function getPromotionUsageRemaining(promo) {
+    const usageLimit = toMoneyNumber(promo?.usageLimit);
+    const usedCount = toMoneyNumber(promo?.usedCount);
+    if (!Number.isFinite(usageLimit) || usageLimit <= 0) return null;
+    const used = Number.isFinite(usedCount) && usedCount > 0 ? usedCount : 0;
+    return Math.max(usageLimit - used, 0);
+}
+
+function buildPromotionDisplayLabel(promo) {
+    const base = buildPromotionLabel(promo);
+    if (!promo || typeof promo === 'number' || typeof promo === 'string') return base;
+    const details = [];
+    const minOrderValue = toMoneyNumber(promo?.minOrderValue);
+    if (Number.isFinite(minOrderValue) && minOrderValue > 0) {
+        details.push(`Đơn tối thiểu ${new Intl.NumberFormat('vi-VN').format(minOrderValue)}đ`);
+    }
+    const remaining = getPromotionUsageRemaining(promo);
+    if (remaining != null) details.push(`Còn ${remaining} lượt`);
+    if (details.length === 0) return base;
+    return [base, details.join(' • ')].filter(Boolean).join(' — ');
+}
+
 function validatePromotion(promo, subtotal) {
     if (!promo) return 'Mã không hợp lệ';
     if (promo?.isActive === false) return 'Khuyến mãi không còn hiệu lực';
@@ -1194,6 +1216,17 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return Number.isFinite(n) && n > 0 ? n : null;
     }, [ticket?.serviceTicketId]);
 
+    const customerIdNum = useMemo(() => {
+        const source = ticketRaw ?? ticketFromState ?? ticket ?? {};
+        return toPositiveNumberOrNull(
+            source?.customerId ??
+                source?.customerID ??
+                source?.customer?.customerId ??
+                source?.customer?.customerID ??
+                source?.customer?.id,
+        );
+    }, [ticket, ticketFromState, ticketRaw]);
+
     // Route param changes often reuse the same component instance.
     // Ensure transient workflow refs don't leak across tickets.
     useEffect(() => {
@@ -1290,7 +1323,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 setPromotionsLoading(true);
                 setPromotionsError('');
                 const entries = await Promise.all(PROMOTION_TYPES.map(async ({ type }) => {
-                    const res = await fetchAvailablePromotions(token, type);
+                    const res = await fetchAvailablePromotions(token, type, customerIdNum);
                     return [type, Array.isArray(res?.data) ? res.data : []];
                 }));
                 if (cancelled) return;
@@ -1305,7 +1338,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         })();
 
         return () => { cancelled = true; };
-    }, []);
+    }, [customerIdNum]);
 
     useEffect(() => {
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -2429,7 +2462,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         if (shouldFetchPromotionLookup && (hasPromotionIdsOnEstimate || hasPromotionIdsOnItems || hasPromotionEffects)) {
             try {
                 const entries = await Promise.all(PROMOTION_TYPES.map(async ({ type }) => {
-                    const res = await fetchAvailablePromotions(token, type);
+                    const res = await fetchAvailablePromotions(token, type, customerIdNum);
                     return [type, Array.isArray(res?.data) ? res.data : []];
                 }));
                 promotionLookup = Object.fromEntries(entries);
@@ -2481,7 +2514,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         } finally {
             setPromoApplying(false);
         }
-    }, [appliedPromotions, availablePromotions, estimateIdNum, hasBill, latestEstimate, notify, serviceTicketIdNum]);
+    }, [appliedPromotions, availablePromotions, customerIdNum, estimateIdNum, hasBill, latestEstimate, notify, serviceTicketIdNum]);
 
     const handleInspectionCompleted = useCallback(async () => {
         const token = localStorage.getItem('authToken');
@@ -3026,7 +3059,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             <div className={styles.promotionGrid}>
                                                 {visiblePromotionTypes.map(({ type, label }) => {
                                                     const list = Array.isArray(availablePromotions[type]) ? availablePromotions[type] : [];
-                                                    const appliedLabel = buildPromotionLabel(appliedPromotions[type]);
+                                                    const appliedLabel = buildPromotionDisplayLabel(appliedPromotions[type]);
                                                     return (
                                                         <div key={type} className={styles.promotionBox}>
                                                             <div className="ui-field" style={{ marginBottom: 0 }}>
@@ -3065,7 +3098,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                                         if (!id) return null;
                                                                         return (
                                                                             <option key={String(id)} value={String(id)}>
-                                                                                {buildPromotionLabel(p) || String(id)}
+                                                                                {buildPromotionDisplayLabel(p) || String(id)}
                                                                             </option>
                                                                         );
                                                                     })}

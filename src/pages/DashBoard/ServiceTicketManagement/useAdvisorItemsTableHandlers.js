@@ -1237,6 +1237,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					discountAmount: pickDiscountAmountValue(it),
 					finalPrice: it?.finalPrice ?? it?.final_price ?? '',
 					finalPriceDisplay: getEstimateItemFinalPriceDisplay(it, subTotalDisplay),
+					appliedTaxRate: it?.appliedTaxRate ?? it?.applied_tax_rate ?? '',
 					isGift: getEstimateItemGiftFlag(it),
 					triggeredByItemId: pickTriggeredByItemId(it),
 					stockAllocationStatus: getEstimateItemStockAllocationStatus(it),

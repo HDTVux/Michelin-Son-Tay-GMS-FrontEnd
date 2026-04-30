@@ -626,6 +626,39 @@
   white-space: nowrap;
 }
 
+.amountWithTax {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.appliedTaxNote {
+  color: var(--ui-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.stockStatusCommitted,
+.stockStatusReserved,
+.stockStatusMissing {
+  font-weight: 700;
+}
+
+.stockStatusCommitted {
+  color: #047857;
+}
+
+.stockStatusReserved {
+  color: #b45309;
+}
+
+.stockStatusMissing {
+  color: #dc2626;
+}
+
 .qtyWithUnit {
   display: flex;
   gap: 8px;
