@@ -216,7 +216,11 @@
 .colPrice,
 .colDiscount,
 .colAmount {
-    width: 90px;
+    width: 80px;
+}
+
+.colTax {
+    width: 54px;
 }
 
 .center {

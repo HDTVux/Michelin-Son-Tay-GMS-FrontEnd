@@ -37,6 +37,20 @@ function formatCurrencyVndZero(value) {
     return new Intl.NumberFormat('vi-VN').format(amount);
 }
 
+function formatTaxRateForPrint(item) {
+    const directText = safeText(item?.taxRateText ?? item?.tax_rate_text);
+    if (directText) return directText;
+
+    const rawRate = item?.appliedTaxRate ?? item?.applied_tax_rate ?? item?.taxRate ?? item?.tax_rate;
+    const rate = typeof rawRate === 'number' ? rawRate : Number(String(rawRate ?? '').trim());
+    if (Number.isFinite(rate) && rate > 0) {
+        const percent = rate > 1 ? rate : rate * 100;
+        return `${percent.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`;
+    }
+
+    return toMoneyNumber(item?.taxAmount ?? item?.tax_amount) > 0 ? '--' : '0%';
+}
+
 function readTripleNumber(value, forceLeadingZeroHundred = false) {
     const number = Math.max(0, Math.min(999, Math.floor(Math.abs(toMoneyNumber(value)))));
     if (number === 0) return forceLeadingZeroHundred ? 'không trăm' : '';
@@ -374,6 +388,7 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                         <th className={styles.colQty}>SỐ LƯỢNG</th>
                         <th className={styles.colPrice}>ĐƠN GIÁ</th>
                         <th className={styles.colDiscount}>GIẢM GIÁ</th>
+                        <th className={styles.colTax}>THUẾ</th>
                         <th className={styles.colAmount}>THÀNH TIỀN</th>
                     </tr>
                 </thead>
@@ -387,12 +402,13 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                                 <td className={styles.center}>{item ? safeText(item?.quantity) : ' '}</td>
                                 <td className={styles.right}>{item ? formatCurrencyVnd(item?.unitPrice) : ' '}</td>
                                 <td className={styles.right}>{item ? formatCurrencyVndZero(item?.discountAmount ?? item?.discount_amount) : ' '}</td>
+                                <td className={styles.center}>{item ? formatTaxRateForPrint(item) : ' '}</td>
                                 <td className={styles.right}>{item ? formatCurrencyVnd(item?.subTotal) : ' '}</td>
                             </tr>
                         );
                     })}
                     <tr className={styles.totalRow}>
-                        <td colSpan={5} className={styles.totalLabel}>
+                        <td colSpan={6} className={styles.totalLabel}>
                             TỔNG THANH TOÁN
                         </td>
                         <td className={styles.right}>{formatCurrencyVndZero(totalAmount)}</td>
@@ -450,6 +466,8 @@ AccountingInvoicePrint.propTypes = {
                     quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     unitPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     discountAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    taxRateText: PropTypes.string,
+                    taxAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     grossAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     subTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                 }),

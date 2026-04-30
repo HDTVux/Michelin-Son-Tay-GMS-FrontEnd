@@ -429,6 +429,8 @@ export default function ReceiptPaymentMethod() {
                 quantity,
                 unitPrice,
                 discountAmount,
+                taxRateText: item?.taxRateText ?? '',
+                taxAmount: toMoneyNumber(item?.taxAmount ?? item?.tax_amount),
                 grossAmount,
                 subTotal,
                 isGift: Boolean(item?.isGift),
