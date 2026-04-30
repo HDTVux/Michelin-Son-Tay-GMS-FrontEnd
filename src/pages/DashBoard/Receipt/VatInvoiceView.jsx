@@ -52,6 +52,13 @@ function parsePositiveNumber(value) {
     return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
+function formatTaxRateText(value) {
+    const rate = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+    if (!Number.isFinite(rate) || rate <= 0) return '0%';
+    const percent = rate > 1 ? rate : rate * 100;
+    return `${percent.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`;
+}
+
 function readTripleNumber(value, forceLeadingZeroHundred = false) {
     const number = Math.max(0, Math.min(999, Math.floor(Math.abs(toMoneyNumber(value)))));
     if (number === 0) return forceLeadingZeroHundred ? 'không trăm' : '';
@@ -269,32 +276,68 @@ function pickLatestEstimate(payload) {
 function normalizeEstimateItems(items) {
     return items.map((item, index) => {
         const quantity = toMoneyNumber(item?.quantity) || 1;
-        const unitPrice = toMoneyNumber(item?.unitPriceWithVat ?? item?.unitPriceWithVAT ?? item?.unitPrice);
-        const grossAmount = toMoneyNumber(item?.subTotalWithVat ?? item?.subTotalWithVAT ?? item?.subTotal) || unitPrice * quantity;
-        const rawFinalPrice = item?.finalPrice ?? item?.final_price;
-        const finalAmount = rawFinalPrice == null || String(rawFinalPrice).trim() === ''
-            ? grossAmount
-            : toMoneyNumber(rawFinalPrice);
-        const discountAmount = Math.max(
-            toMoneyNumber(item?.discountAmount ?? item?.discount_amount),
-            grossAmount - finalAmount,
-            0,
+        const unitPriceBase = toMoneyNumber(item?.unitPrice);
+        const unitPriceWithVat = toMoneyNumber(item?.unitPriceWithVat ?? item?.unitPriceWithVAT);
+        const unitPrice = unitPriceBase || unitPriceWithVat;
+        const baseLineAmount = unitPrice * quantity;
+        const subTotalBase = toMoneyNumber(item?.subTotal);
+        const subTotalWithVat = toMoneyNumber(item?.subTotalWithVat ?? item?.subTotalWithVAT);
+        const rawFinalPrice = item?.finalPrice ?? item?.final_price ?? item?.finalAmount ?? item?.final_amount;
+        const finalAmount = subTotalWithVat ||
+            (rawFinalPrice == null || String(rawFinalPrice).trim() === ''
+                ? (subTotalBase || baseLineAmount)
+                : toMoneyNumber(rawFinalPrice));
+        const explicitDiscount = toMoneyNumber(
+            item?.discountAmount ??
+            item?.discount_amount ??
+            item?.promotionDiscountAmount ??
+            item?.promotion_discount_amount ??
+            item?.discountValue ??
+            item?.discount_value,
         );
-        const taxRateRaw = item?.appliedTaxRate ?? item?.applied_tax_rate ?? item?.taxRate ?? item?.tax_rate;
-        const taxRateNumber = typeof taxRateRaw === 'number' ? taxRateRaw : Number(String(taxRateRaw ?? '').trim());
-        const taxRateText = Number.isFinite(taxRateNumber)
-            ? `${(taxRateNumber > 1 ? taxRateNumber : taxRateNumber * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`
-            : '';
-        const taxAmount = toMoneyNumber(item?.taxAmount ?? item?.tax_amount);
+        const taxRateRaw = firstDefined(
+            item?.appliedTaxRate,
+            item?.applied_tax_rate,
+            item?.taxRate,
+            item?.tax_rate,
+            item?.taxRule?.taxRate,
+            item?.taxRule?.rate,
+            item?.workCategory?.taxRule?.taxRate,
+            item?.workCategory?.taxRule?.rate,
+        );
+        let taxRateNumber = typeof taxRateRaw === 'number' ? taxRateRaw : Number(String(taxRateRaw ?? '').trim());
+        const hasExplicitTaxRate = Number.isFinite(taxRateNumber) && taxRateNumber > 0;
+        if (!hasExplicitTaxRate) {
+            const directTaxAmount = toMoneyNumber(item?.taxAmount ?? item?.tax_amount);
+            if (directTaxAmount > 0 && baseLineAmount > 0) {
+                taxRateNumber = directTaxAmount / baseLineAmount;
+            } else {
+                const inferredRate = baseLineAmount > 0 ? (finalAmount / baseLineAmount) - 1 : 0;
+                taxRateNumber = inferredRate > 0.0001 ? inferredRate : 0;
+            }
+        }
+        const normalizedTaxRate = taxRateNumber > 1 ? taxRateNumber / 100 : taxRateNumber;
+        const netAfterDiscount = hasExplicitTaxRate && normalizedTaxRate > 0
+            ? finalAmount / (1 + normalizedTaxRate)
+            : finalAmount;
+        const inferredDiscount = Math.max(0, baseLineAmount - netAfterDiscount);
+        const discountAmount = Math.max(explicitDiscount, inferredDiscount);
+        const grossAmount = Math.max(baseLineAmount, subTotalBase, finalAmount + explicitDiscount);
+        const taxAmount = toMoneyNumber(item?.taxAmount ?? item?.tax_amount) ||
+            Math.max(0, finalAmount - Math.max(0, grossAmount - discountAmount));
         return {
             key: String(item?.estimateItemId ?? item?.itemId ?? index),
+            categoryName: safeText(item?.workCategory?.categoryName || item?.workCategory?.categoryCode || item?.newCategoryName || item?.categoryName),
+            itemName: safeText(item?.itemName || item?.description || item?.productName || item?.serviceName),
             name: safeText(item?.itemName || item?.newCategoryName || item?.workCategory?.categoryName),
             quantity: safeText(item?.quantity || quantity),
+            unit: safeText(item?.unit),
             unitPrice,
             discountAmount,
-            taxRateText,
+            taxRateText: formatTaxRateText(normalizedTaxRate),
             taxAmount,
             grossAmount,
+            warehouseName: safeText(item?.warehouseName ?? item?.warehouse?.warehouseName ?? item?.warehouse?.name),
             subTotal: Math.max(0, finalAmount),
         };
     }).filter((item) => item.name || item.unitPrice > 0 || item.subTotal > 0);
@@ -465,24 +508,31 @@ export default function VatInvoiceView() {
                     <thead>
                         <tr>
                             <th>STT</th>
-                            <th>Tên hàng hóa, dịch vụ</th>
-                            <th>Số lượng</th>
+                            <th>Hạng mục</th>
+                            <th>Diễn giải</th>
+                            <th>SL</th>
                             <th>Đơn giá</th>
                             <th>Giảm giá</th>
                             <th>Thuế</th>
                             <th>Thành tiền</th>
+                            <th>Kho</th>
                         </tr>
                     </thead>
                     <tbody>
                         {items.map((item, index) => (
                             <tr key={`${safeText(item.name)}-${index}`}>
-                                <td className={styles.center}>{index + 1}</td>
-                                <td>{safeText(item.name) || '-'}</td>
-                                <td className={styles.center}>{safeText(item.quantity) || '-'}</td>
+                                <td className={styles.center}>{String(index + 1).padStart(2, '0')}</td>
+                                <td>{safeText(item.categoryName || item.name) || '-'}</td>
+                                <td>{safeText(item.itemName || item.name) || '-'}</td>
+                                <td className={styles.center}>
+                                    {safeText(item.quantity) || '-'}
+                                    {safeText(item.unit) ? <div className={styles.unitText}>{safeText(item.unit)}</div> : null}
+                                </td>
                                 <td className={styles.right}>{formatCurrencyVndZero(item.unitPrice)}</td>
                                 <td className={styles.right}>{formatCurrencyVndZero(item.discountAmount)}</td>
-                                <td className={styles.center}>{safeText(item.taxRateText) || (item.taxAmount ? formatCurrencyVndZero(item.taxAmount) : '0%')}</td>
+                                <td className={styles.center}>{safeText(item.taxRateText) || '0%'}</td>
                                 <td className={styles.right}>{formatCurrencyVndZero(item.subTotal)}</td>
+                                <td>{safeText(item.warehouseName) || '-'}</td>
                             </tr>
                         ))}
                     </tbody>

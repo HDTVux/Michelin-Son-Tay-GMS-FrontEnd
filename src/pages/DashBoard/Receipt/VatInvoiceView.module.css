@@ -87,7 +87,7 @@
 .table th,
 .table td {
     border: 1px solid #111827;
-    padding: 6px 6px;
+    padding: 5px 5px;
     vertical-align: middle;
     word-break: break-word;
 }
@@ -95,29 +95,44 @@
 .table th {
     text-align: center;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .table td {
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .table th:first-child {
-    width: 42px;
+    width: 34px;
 }
 
+.table th:nth-child(2),
 .table th:nth-child(3) {
-    width: 68px;
+    width: auto;
 }
 
-.table th:nth-child(4),
+.table th:nth-child(4) {
+    width: 48px;
+}
+
 .table th:nth-child(5),
-.table th:nth-child(7) {
-    width: 92px;
+.table th:nth-child(6),
+.table th:nth-child(8) {
+    width: 76px;
 }
 
-.table th:nth-child(6) {
-    width: 66px;
+.table th:nth-child(7) {
+    width: 54px;
+}
+
+.table th:nth-child(9) {
+    width: 72px;
+}
+
+.unitText {
+    margin-top: 2px;
+    color: #4b5563;
+    font-size: 10px;
 }
 
 .center {
