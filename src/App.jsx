@@ -69,7 +69,6 @@ import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
 import SendReminder from './pages/DashBoard/SendReminder/SendReminder.jsx';
 import MaintenanceReminder from './pages/DashBoard/MaintenanceReminder/MaintenanceReminder.jsx';
-import ReceiptConfirm from './pages/DashBoard/Receipt/ReceiptConfirm.jsx';
 import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.jsx';
 import ConfirmedBookingDetail from './pages/DashBoard/BookingManagement/ConfirmedBookingDetail.jsx';
 import BookingRequestDetail from './pages/DashBoard/BookingRequestManagement/BookingRequestDetail.jsx';
@@ -271,7 +270,6 @@ export default function App() {
           <Route path="staff-attendance" element={<StaffAttendance />} />
           <Route path="technician-tasks" element={<TechnicianTasks />} />
           <Route path="service-ticket/:ticketCode" element={<ServiceTicketDetail />} />
-          <Route path="service-ticket/:ticketCode/receipt-confirm" element={<ReceiptConfirm />} />
           <Route path="service-ticket/:ticketCode/receipt-payment-method" element={<ReceiptPaymentMethod />} />
           <Route path="service-ticket/:ticketCode/accounting-invoice-print" element={<AccountingInvoicePrint />} />
           <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
