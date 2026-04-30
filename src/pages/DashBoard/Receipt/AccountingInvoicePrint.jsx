@@ -1,5 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
+import QRCode from 'qrcode';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import styles from './AccountingInvoicePrint.module.css';
 
@@ -14,7 +15,6 @@ const STORE_INFO = {
 };
 
 const BARCODE_BCID = 'code128';
-const QR_BCID = 'qrcode';
 
 function safeText(value) {
     if (value == null) return '';
@@ -209,9 +209,32 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
         return `${origin}/vat-invoice?${params.toString()}`;
     }, [displayDiscountAmount, issuedAt, subtotalAmount, ticket, ticketCode, totalAmount]);
 
-    const vatQrUrl = useMemo(() => {
-        if (!vatInvoiceUrl) return '';
-        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(QR_BCID)}&text=${encodeURIComponent(vatInvoiceUrl)}&scale=8&eclevel=M&paddingwidth=14`;
+    const [vatQrUrl, setVatQrUrl] = useState('');
+
+    useEffect(() => {
+        let cancelled = false;
+        Promise.resolve()
+            .then(() => {
+                if (!vatInvoiceUrl) return '';
+                return QRCode.toDataURL(vatInvoiceUrl, {
+                    errorCorrectionLevel: 'M',
+                    margin: 2,
+                    width: 360,
+                    color: {
+                        dark: '#000000',
+                        light: '#ffffff',
+                    },
+                });
+            })
+            .then((url) => {
+                if (!cancelled) setVatQrUrl(url);
+            })
+            .catch(() => {
+                if (!cancelled) setVatQrUrl('');
+            });
+        return () => {
+            cancelled = true;
+        };
     }, [vatInvoiceUrl]);
 
     useEffect(() => {
@@ -303,6 +326,11 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                             <strong>{issuedAt.getDate()}/{issuedAt.getMonth() + 1}/{issuedAt.getFullYear()}</strong>
                         </div>
                         <div className={styles.codeWrap}>
+                            <span
+                                hidden
+                                data-role="vat-qr-state"
+                                data-ready={vatInvoiceUrl ? String(Boolean(vatQrUrl)) : 'true'}
+                            />
                             {barcodeUrl ? (
                                 <div className={styles.barcodeWrap}>
                                     <img

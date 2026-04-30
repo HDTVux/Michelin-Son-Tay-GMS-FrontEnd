@@ -20,7 +20,14 @@
 }
 
 .printOnly {
-	display: none;
+	position: fixed;
+	top: 0;
+	left: -10000px;
+	width: 210mm;
+	height: 0;
+	overflow: hidden;
+	opacity: 0;
+	pointer-events: none;
 }
 
 @media print {
