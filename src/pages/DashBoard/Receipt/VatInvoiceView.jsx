@@ -33,6 +33,25 @@ function getAuthToken() {
         || '';
 }
 
+function extractData(response) {
+    return response?.data?.data ?? response?.data ?? response;
+}
+
+function isPlainObject(value) {
+    return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function firstDefined(...values) {
+    return values.find((value) => value != null && String(value).trim() !== '');
+}
+
+function parsePositiveNumber(value) {
+    if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : 0;
+    const matched = /\d+/.exec(String(value ?? ''));
+    const number = Number(matched?.[0] ?? '');
+    return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
 function readTripleNumber(value, forceLeadingZeroHundred = false) {
     const number = Math.max(0, Math.min(999, Math.floor(Math.abs(toMoneyNumber(value)))));
     if (number === 0) return forceLeadingZeroHundred ? 'không trăm' : '';
@@ -141,12 +160,6 @@ function normalizePayload(payload) {
     };
 }
 
-function extractPayload(response) {
-    const data = response?.data?.data ?? response?.data ?? response;
-    if (Array.isArray(data)) return data[0] ?? null;
-    return data && typeof data === 'object' ? data : null;
-}
-
 async function fetchEstimateByServiceTicketId(serviceTicketId) {
     const id = String(serviceTicketId ?? '').trim();
     if (!id) return null;
@@ -164,12 +177,93 @@ async function fetchEstimateByServiceTicketId(serviceTicketId) {
         const message = typeof data === 'string' ? data : data?.message || data?.data?.message || 'Không thể tải dữ liệu hóa đơn.';
         throw new Error(message);
     }
-    return extractPayload(data);
+    return pickLatestEstimate(data);
+}
+
+async function fetchTicketByTicketCode(ticketCode) {
+    const code = String(ticketCode ?? '').trim();
+    if (!code) return null;
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/service-ticket/manage/tickets/${encodeURIComponent(code)}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+    });
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await response.json() : await response.text();
+    if (!response.ok) {
+        const message = typeof data === 'string' ? data : data?.message || data?.data?.message || 'KhÃ´ng thá»ƒ táº£i thÃ´ng tin phiáº¿u bÃ¡n hÃ ng.';
+        throw new Error(message);
+    }
+    const detail = extractData(data);
+    return isPlainObject(detail) ? detail : null;
 }
 
 function getEstimateItems(estimate) {
-    const items = estimate?.items ?? estimate?.estimateItems ?? estimate?.data?.items;
+    const items =
+        estimate?.items ??
+        estimate?.estimateItems ??
+        estimate?.estimate_items ??
+        estimate?.serviceTicketEstimateItems ??
+        estimate?.serviceTicketEstimateItemList ??
+        estimate?.details ??
+        estimate?.detailItems ??
+        estimate?.data?.items;
     return Array.isArray(items) ? items : [];
+}
+
+function isEstimateRecord(value) {
+    if (!isPlainObject(value)) return false;
+    if (value.estimateItemId != null || value.estimate_item_id != null) return false;
+    if (getEstimateItems(value).length > 0) return true;
+    const estimateId = firstDefined(value.estimateId, value.estimateID, value.serviceTicketEstimateId, value.serviceTicketEstimateID);
+    if (estimateId == null) return false;
+    return ['serviceTicketId', 'serviceTicketID', 'estimateType', 'estimateVersion', 'versionNo', 'version', 'estimateNo', 'status', 'createdAt', 'createdDate', 'approvedAt']
+        .some((key) => value?.[key] != null);
+}
+
+function collectEstimateRecords(payload, seen = new WeakSet()) {
+    if (!payload || typeof payload !== 'object') return [];
+    if (seen.has(payload)) return [];
+    seen.add(payload);
+    if (Array.isArray(payload)) return payload.flatMap((item) => collectEstimateRecords(item, seen));
+
+    const records = isEstimateRecord(payload) ? [payload] : [];
+    Object.values(payload).forEach((value) => {
+        if (value && typeof value === 'object') records.push(...collectEstimateRecords(value, seen));
+    });
+    return records;
+}
+
+function pickLatestEstimate(payload) {
+    const seen = new Set();
+    const records = collectEstimateRecords(payload).filter((estimate, index) => {
+        const id = firstDefined(estimate.estimateId, estimate.estimateID, estimate.serviceTicketEstimateId, estimate.serviceTicketEstimateID, estimate.id);
+        const version = firstDefined(estimate.estimateVersion, estimate.versionNo, estimate.version, estimate.estimateNo);
+        const key = id != null ? `id:${id}` : `idx:${version ?? ''}:${index}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+    if (records.length === 0) return null;
+
+    return [...records].sort((a, b) => {
+        const versionA = parsePositiveNumber(firstDefined(a.estimateVersion, a.versionNo, a.version, a.estimateNo));
+        const versionB = parsePositiveNumber(firstDefined(b.estimateVersion, b.versionNo, b.version, b.estimateNo));
+        if (versionA > 0 && versionB > 0 && versionA !== versionB) return versionB - versionA;
+        if (versionA > 0 && !versionB) return -1;
+        if (!versionA && versionB > 0) return 1;
+
+        const idA = parsePositiveNumber(firstDefined(a.estimateId, a.estimateID, a.serviceTicketEstimateId, a.serviceTicketEstimateID, a.id));
+        const idB = parsePositiveNumber(firstDefined(b.estimateId, b.estimateID, b.serviceTicketEstimateId, b.serviceTicketEstimateID, b.id));
+        if (idA > 0 && idB > 0 && idA !== idB) return idB - idA;
+
+        const ta = new Date(a?.approvedAt || a?.updatedAt || a?.createdAt || a?.createdDate || 0).getTime();
+        const tb = new Date(b?.approvedAt || b?.updatedAt || b?.createdAt || b?.createdDate || 0).getTime();
+        return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+    })[0];
 }
 
 function normalizeEstimateItems(items) {
@@ -186,12 +280,20 @@ function normalizeEstimateItems(items) {
             grossAmount - finalAmount,
             0,
         );
+        const taxRateRaw = item?.appliedTaxRate ?? item?.applied_tax_rate ?? item?.taxRate ?? item?.tax_rate;
+        const taxRateNumber = typeof taxRateRaw === 'number' ? taxRateRaw : Number(String(taxRateRaw ?? '').trim());
+        const taxRateText = Number.isFinite(taxRateNumber)
+            ? `${(taxRateNumber > 1 ? taxRateNumber : taxRateNumber * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`
+            : '';
+        const taxAmount = toMoneyNumber(item?.taxAmount ?? item?.tax_amount);
         return {
             key: String(item?.estimateItemId ?? item?.itemId ?? index),
             name: safeText(item?.itemName || item?.newCategoryName || item?.workCategory?.categoryName),
             quantity: safeText(item?.quantity || quantity),
             unitPrice,
             discountAmount,
+            taxRateText,
+            taxAmount,
             grossAmount,
             subTotal: Math.max(0, finalAmount),
         };
@@ -211,24 +313,54 @@ function formatDateParts(value) {
 export default function VatInvoiceView() {
     const [searchParams] = useSearchParams();
     const serviceTicketIdParam = safeText(searchParams.get('serviceTicketId'));
+    const ticketCodeParam = safeText(searchParams.get('ticketCode'));
     const payload = useMemo(() => {
         const parsedPayload = normalizePayload(parsePayload(searchParams.get('data')));
         if (parsedPayload) return parsedPayload;
-        if (!serviceTicketIdParam) return null;
+        if (!serviceTicketIdParam && !ticketCodeParam) return null;
         return {
             store: STORE_INFO,
             serviceTicketId: serviceTicketIdParam,
-            ticketCode: '',
+            ticketCode: ticketCodeParam,
             issuedAt: new Date().toISOString(),
             customer: {},
             vehicle: {},
             invoice: { items: [], subtotal: 0, discountAmount: 0, total: 0 },
         };
-    }, [searchParams, serviceTicketIdParam]);
-    const serviceTicketId = safeText(searchParams.get('serviceTicketId') || payload?.serviceTicketId);
+    }, [searchParams, serviceTicketIdParam, ticketCodeParam]);
+    const [ticketDetail, setTicketDetail] = useState(null);
+    const [ticketError, setTicketError] = useState('');
     const [estimateItems, setEstimateItems] = useState([]);
     const [estimateError, setEstimateError] = useState('');
     const [estimateLoading, setEstimateLoading] = useState(false);
+
+    useEffect(() => {
+        if (!ticketCodeParam) return undefined;
+        let cancelled = false;
+        fetchTicketByTicketCode(ticketCodeParam)
+            .then((detail) => {
+                if (cancelled) return;
+                setTicketDetail(detail);
+                setTicketError('');
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                setTicketDetail(null);
+                setTicketError(err?.message || 'KhÃ´ng thá»ƒ táº£i thÃ´ng tin phiáº¿u bÃ¡n hÃ ng.');
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [ticketCodeParam]);
+
+    const serviceTicketId = safeText(
+        searchParams.get('serviceTicketId') ||
+        ticketDetail?.serviceTicketId ||
+        ticketDetail?.serviceTicketID ||
+        ticketDetail?.ticketId ||
+        ticketDetail?.id ||
+        payload?.serviceTicketId,
+    );
 
     useEffect(() => {
         if (!serviceTicketId) return undefined;
@@ -272,7 +404,25 @@ export default function VatInvoiceView() {
         );
     }
 
-    const store = payload.store || STORE_INFO;
+    const detailCustomer = ticketDetail?.customer || {};
+    const detailVehicle = ticketDetail?.vehicle || {};
+    const effectivePayload = {
+        ...payload,
+        ticketCode: safeText(ticketDetail?.ticketCode || ticketDetail?.serviceTicketCode || ticketDetail?.code || payload.ticketCode),
+        issuedAt: ticketDetail?.handoverAt || ticketDetail?.receivedAt || ticketDetail?.createdAt || payload.issuedAt,
+        customer: {
+            ...payload.customer,
+            name: safeText(detailCustomer?.name || detailCustomer?.fullName || ticketDetail?.customerName || payload.customer?.name),
+            phone: safeText(detailCustomer?.phone || ticketDetail?.customerPhone || payload.customer?.phone),
+            address: safeText(detailCustomer?.address || ticketDetail?.customerAddress || payload.customer?.address),
+        },
+        vehicle: {
+            ...payload.vehicle,
+            licensePlate: safeText(detailVehicle?.licensePlate || ticketDetail?.licensePlate || payload.vehicle?.licensePlate),
+            model: safeText(detailVehicle?.model || detailVehicle?.vehicleModel || ticketDetail?.vehicleModel || payload.vehicle?.model),
+        },
+    };
+    const store = effectivePayload.store || STORE_INFO;
     const invoice = payload.invoice || {};
     const fallbackItems = Array.isArray(invoice.items) ? invoice.items : [];
     const items = estimateItems.length > 0 ? estimateItems : fallbackItems;
@@ -283,9 +433,9 @@ export default function VatInvoiceView() {
         ? items.reduce((sum, item) => sum + toMoneyNumber(item.discountAmount), 0)
         : toMoneyNumber(invoice.discountAmount);
     const total = estimateItems.length > 0
-        ? Math.max(0, subtotal - discountAmount)
+        ? items.reduce((sum, item) => sum + toMoneyNumber(item.subTotal), 0)
         : (toMoneyNumber(invoice.total) || Math.max(0, subtotal - discountAmount));
-    const date = formatDateParts(payload.issuedAt);
+    const date = formatDateParts(effectivePayload.issuedAt);
 
     return (
         <main className={styles.page}>
@@ -296,19 +446,19 @@ export default function VatInvoiceView() {
                     <div className={styles.sellerLine}>Mặt hàng bán: {safeText(store.businessLine) || '-'}</div>
                     <h1 className={styles.title}>HÓA ĐƠN GIÁ TRỊ GIA TĂNG</h1>
                     <div className={styles.dateLine}>Ngày {date.day} tháng {date.month} năm {date.year}</div>
-                    <div className={styles.lookupLine}>Mã phiếu bán hàng: <strong>{safeText(payload.ticketCode) || '-'}</strong></div>
-                    {serviceTicketId ? <div className={styles.lookupLine}>Service ticket ID: <strong>{serviceTicketId}</strong></div> : null}
+                    <div className={styles.lookupLine}>Mã phiếu bán hàng: <strong>{safeText(effectivePayload.ticketCode) || '-'}</strong></div>
                 </header>
 
+                {ticketError ? <div className={styles.errorNotice}>{ticketError}</div> : null}
                 {estimateLoading ? <div className={styles.notice}>Đang tải dữ liệu hạng mục từ báo giá...</div> : null}
                 {estimateError ? <div className={styles.errorNotice}>{estimateError}</div> : null}
 
                 <section className={styles.customerBlock}>
-                    <div><strong>Họ tên người mua hàng:</strong> {safeText(payload.customer?.name) || '-'}</div>
-                    <div><strong>Số điện thoại:</strong> {safeText(payload.customer?.phone) || '-'}</div>
-                    <div><strong>Địa chỉ:</strong> {safeText(payload.customer?.address) || '-'}</div>
-                    <div><strong>Biển số:</strong> {safeText(payload.vehicle?.licensePlate) || '-'}</div>
-                    <div><strong>Loại xe:</strong> {safeText(payload.vehicle?.model) || '-'}</div>
+                    <div><strong>Họ tên người mua hàng:</strong> {safeText(effectivePayload.customer?.name) || '-'}</div>
+                    <div><strong>Số điện thoại:</strong> {safeText(effectivePayload.customer?.phone) || '-'}</div>
+                    <div><strong>Địa chỉ:</strong> {safeText(effectivePayload.customer?.address) || '-'}</div>
+                    <div><strong>Biển số:</strong> {safeText(effectivePayload.vehicle?.licensePlate) || '-'}</div>
+                    <div><strong>Loại xe:</strong> {safeText(effectivePayload.vehicle?.model) || '-'}</div>
                 </section>
 
                 <table className={styles.table}>
@@ -318,6 +468,8 @@ export default function VatInvoiceView() {
                             <th>Tên hàng hóa, dịch vụ</th>
                             <th>Số lượng</th>
                             <th>Đơn giá</th>
+                            <th>Giảm giá</th>
+                            <th>Thuế</th>
                             <th>Thành tiền</th>
                         </tr>
                     </thead>
@@ -328,6 +480,8 @@ export default function VatInvoiceView() {
                                 <td>{safeText(item.name) || '-'}</td>
                                 <td className={styles.center}>{safeText(item.quantity) || '-'}</td>
                                 <td className={styles.right}>{formatCurrencyVndZero(item.unitPrice)}</td>
+                                <td className={styles.right}>{formatCurrencyVndZero(item.discountAmount)}</td>
+                                <td className={styles.center}>{safeText(item.taxRateText) || (item.taxAmount ? formatCurrencyVndZero(item.taxAmount) : '0%')}</td>
                                 <td className={styles.right}>{formatCurrencyVndZero(item.subTotal)}</td>
                             </tr>
                         ))}
@@ -335,8 +489,7 @@ export default function VatInvoiceView() {
                 </table>
 
                 <section className={styles.summary}>
-                    <div><span>Tổng tiền hàng:</span><strong>{formatCurrencyVndZero(subtotal)}</strong></div>
-                    <div><span>Giảm giá:</span><strong>{discountAmount ? `-${formatCurrencyVndZero(discountAmount)}` : formatCurrencyVndZero(0)}</strong></div>
+                    <div><span>Tổng tiền hàng:</span><strong>{formatCurrencyVndZero(total)}</strong></div>
                     <div><span>Tổng cộng tiền thanh toán:</span><strong>{formatCurrencyVndZero(total)}</strong></div>
                 </section>
 

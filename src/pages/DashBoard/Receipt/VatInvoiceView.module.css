@@ -87,13 +87,19 @@
 .table th,
 .table td {
     border: 1px solid #111827;
-    padding: 7px 8px;
+    padding: 6px 6px;
     vertical-align: middle;
+    word-break: break-word;
 }
 
 .table th {
     text-align: center;
     font-weight: 700;
+    font-size: 12px;
+}
+
+.table td {
+    font-size: 12px;
 }
 
 .table th:first-child {
@@ -101,12 +107,17 @@
 }
 
 .table th:nth-child(3) {
-    width: 82px;
+    width: 68px;
 }
 
 .table th:nth-child(4),
-.table th:nth-child(5) {
-    width: 118px;
+.table th:nth-child(5),
+.table th:nth-child(7) {
+    width: 92px;
+}
+
+.table th:nth-child(6) {
+    width: 66px;
 }
 
 .center {
@@ -118,8 +129,8 @@
 }
 
 .summary {
-    width: 72mm;
-    margin: 14px 0 10px auto;
+    width: 78mm;
+    margin: 12px 0 10px auto;
     border: 1px solid #111827;
     border-bottom: none;
 }
