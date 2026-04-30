@@ -118,15 +118,11 @@
 .table th:nth-child(5),
 .table th:nth-child(6),
 .table th:nth-child(8) {
-    width: 76px;
+    width: 82px;
 }
 
 .table th:nth-child(7) {
     width: 54px;
-}
-
-.table th:nth-child(9) {
-    width: 72px;
 }
 
 .unitText {

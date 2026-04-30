@@ -187,6 +187,25 @@ async function fetchEstimateByServiceTicketId(serviceTicketId) {
     return pickLatestEstimate(data);
 }
 
+async function fetchTaxRules() {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/service-ticket/tax-rule/all`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+    });
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await response.json() : await response.text();
+    if (!response.ok) {
+        const message = typeof data === 'string' ? data : data?.message || data?.data?.message || 'Khong the tai danh sach thue.';
+        throw new Error(message);
+    }
+    const rules = extractData(data);
+    return Array.isArray(rules) ? rules : [];
+}
+
 async function fetchTicketByTicketCode(ticketCode) {
     const code = String(ticketCode ?? '').trim();
     if (!code) return null;
@@ -273,19 +292,20 @@ function pickLatestEstimate(payload) {
     })[0];
 }
 
-function normalizeEstimateItems(items) {
+function normalizeEstimateItems(items, taxRuleById = new Map()) {
     return items.map((item, index) => {
         const quantity = toMoneyNumber(item?.quantity) || 1;
         const unitPriceBase = toMoneyNumber(item?.unitPrice);
         const unitPriceWithVat = toMoneyNumber(item?.unitPriceWithVat ?? item?.unitPriceWithVAT);
         const unitPrice = unitPriceBase || unitPriceWithVat;
         const baseLineAmount = unitPrice * quantity;
-        const subTotalBase = toMoneyNumber(item?.subTotal);
+        const rawSubTotal = toMoneyNumber(item?.subTotal);
         const subTotalWithVat = toMoneyNumber(item?.subTotalWithVat ?? item?.subTotalWithVAT);
         const rawFinalPrice = item?.finalPrice ?? item?.final_price ?? item?.finalAmount ?? item?.final_amount;
+        const fallbackLineAmount = subTotalWithVat || rawSubTotal || baseLineAmount;
         const finalAmount = subTotalWithVat ||
             (rawFinalPrice == null || String(rawFinalPrice).trim() === ''
-                ? (subTotalBase || baseLineAmount)
+                ? fallbackLineAmount
                 : toMoneyNumber(rawFinalPrice));
         const explicitDiscount = toMoneyNumber(
             item?.discountAmount ??
@@ -295,11 +315,22 @@ function normalizeEstimateItems(items) {
             item?.discountValue ??
             item?.discount_value,
         );
+        const taxRuleId = firstDefined(
+            item?.taxRuleId,
+            item?.tax_rule_id,
+            item?.workCategoryTaxRuleId,
+            item?.work_category_tax_rule_id,
+            item?.workCategory?.taxRuleId,
+            item?.workCategory?.tax_rule_id,
+        );
+        const taxRule = taxRuleId == null ? null : taxRuleById.get(String(taxRuleId));
         const taxRateRaw = firstDefined(
             item?.appliedTaxRate,
             item?.applied_tax_rate,
             item?.taxRate,
             item?.tax_rate,
+            taxRule?.taxRate,
+            taxRule?.rate,
             item?.taxRule?.taxRate,
             item?.taxRule?.rate,
             item?.workCategory?.taxRule?.taxRate,
@@ -322,7 +353,7 @@ function normalizeEstimateItems(items) {
             : finalAmount;
         const inferredDiscount = Math.max(0, baseLineAmount - netAfterDiscount);
         const discountAmount = Math.max(explicitDiscount, inferredDiscount);
-        const grossAmount = Math.max(baseLineAmount, subTotalBase, finalAmount + explicitDiscount);
+        const grossAmount = Math.max(baseLineAmount, rawSubTotal, finalAmount + explicitDiscount);
         const taxAmount = toMoneyNumber(item?.taxAmount ?? item?.tax_amount) ||
             Math.max(0, finalAmount - Math.max(0, grossAmount - discountAmount));
         return {
@@ -337,7 +368,6 @@ function normalizeEstimateItems(items) {
             taxRateText: formatTaxRateText(normalizedTaxRate),
             taxAmount,
             grossAmount,
-            warehouseName: safeText(item?.warehouseName ?? item?.warehouse?.warehouseName ?? item?.warehouse?.name),
             subTotal: Math.max(0, finalAmount),
         };
     }).filter((item) => item.name || item.unitPrice > 0 || item.subTotal > 0);
@@ -373,7 +403,8 @@ export default function VatInvoiceView() {
     }, [searchParams, serviceTicketIdParam, ticketCodeParam]);
     const [ticketDetail, setTicketDetail] = useState(null);
     const [ticketError, setTicketError] = useState('');
-    const [estimateItems, setEstimateItems] = useState([]);
+    const [estimateRawItems, setEstimateRawItems] = useState([]);
+    const [taxRules, setTaxRules] = useState([]);
     const [estimateError, setEstimateError] = useState('');
     const [estimateLoading, setEstimateLoading] = useState(false);
 
@@ -395,6 +426,34 @@ export default function VatInvoiceView() {
             cancelled = true;
         };
     }, [ticketCodeParam]);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchTaxRules()
+            .then((rules) => {
+                if (!cancelled) setTaxRules(rules);
+            })
+            .catch(() => {
+                if (!cancelled) setTaxRules([]);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const taxRuleById = useMemo(() => {
+        const map = new Map();
+        for (const rule of Array.isArray(taxRules) ? taxRules : []) {
+            const id = firstDefined(rule?.taxRuleId, rule?.tax_rule_id, rule?.id);
+            if (id != null) map.set(String(id), rule);
+        }
+        return map;
+    }, [taxRules]);
+
+    const estimateItems = useMemo(
+        () => normalizeEstimateItems(estimateRawItems, taxRuleById),
+        [estimateRawItems, taxRuleById],
+    );
 
     const serviceTicketId = safeText(
         searchParams.get('serviceTicketId') ||
@@ -421,11 +480,11 @@ export default function VatInvoiceView() {
         fetchEstimateByServiceTicketId(serviceTicketId)
             .then((estimate) => {
                 if (cancelled) return;
-                setEstimateItems(normalizeEstimateItems(getEstimateItems(estimate)));
+                setEstimateRawItems(getEstimateItems(estimate));
             })
             .catch((err) => {
                 if (cancelled) return;
-                setEstimateItems([]);
+                setEstimateRawItems([]);
                 setEstimateError(err?.message || 'Không thể tải dữ liệu hóa đơn.');
             })
             .finally(() => {
@@ -515,7 +574,6 @@ export default function VatInvoiceView() {
                             <th>Giảm giá</th>
                             <th>Thuế</th>
                             <th>Thành tiền</th>
-                            <th>Kho</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -532,7 +590,6 @@ export default function VatInvoiceView() {
                                 <td className={styles.right}>{formatCurrencyVndZero(item.discountAmount)}</td>
                                 <td className={styles.center}>{safeText(item.taxRateText) || '0%'}</td>
                                 <td className={styles.right}>{formatCurrencyVndZero(item.subTotal)}</td>
-                                <td>{safeText(item.warehouseName) || '-'}</td>
                             </tr>
                         ))}
                     </tbody>
