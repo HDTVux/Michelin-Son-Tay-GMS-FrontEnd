@@ -2169,7 +2169,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					quantity: qtyValidated.value ?? 0,
 					unitPrice: priceValidated.value ?? 0,
 					taxRuleId: taxRuleId ?? null,
-					isChecked: true,
+					isChecked: getEstimateItemStockAllocationStatus(r) === 'RELEASED' ? false : true,
 					isRemoved: false,
 					revisedFromItemId: null,
 					...buildEstimateItemPromotionPayloadFields(r),
