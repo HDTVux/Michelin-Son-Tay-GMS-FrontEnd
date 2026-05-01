@@ -148,6 +148,48 @@ RoleBasedSections.propTypes = {
     onEstimateStatusChange: PropTypes.func,
 };
 
+function getEstimateIdValue(estimate) {
+    return toPositiveNumberOrNull(
+        estimate?.estimateId ??
+        estimate?.estimateID ??
+        estimate?.id ??
+        estimate?.serviceTicketEstimateId ??
+        estimate?.serviceTicketEstimateID ??
+        estimate?.service_ticket_estimate_id,
+    );
+}
+
+function getEstimateItemWarehouseId(item) {
+    return toPositiveNumberOrNull(
+        item?.warehouseId ??
+        item?.warehouseID ??
+        item?.warehouse_id ??
+        item?.warehouse?.warehouseId ??
+        item?.warehouse?.id,
+    );
+}
+
+function getEstimateItemStockStatus(item) {
+    return String(
+        item?.stockAllocation?.status ??
+        item?.allocation?.status ??
+        item?.warehouseAllocation?.status ??
+        item?.stockAllocationStatus ??
+        item?.stock_allocation_status ??
+        item?.allocationStatus ??
+        '',
+    ).trim().toUpperCase();
+}
+
+function isEstimateItemCheckedForActions(item) {
+    const raw = item?.isChecked ?? item?.checked;
+    return !(raw === false || String(raw ?? '').trim().toLowerCase() === 'false');
+}
+
+function isEstimateItemAvailableForActions(item) {
+    return getEstimateItemStockStatus(item) !== 'RELEASED' && isEstimateItemCheckedForActions(item);
+}
+
 export default function ServiceTicketDetail({ ticketCodeOverride }) {
     useScrollToTop();
     const navigate = useNavigate();
@@ -192,6 +234,22 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const [refreshTick, setRefreshTick] = useState(0);
     const triggerRefresh = useCallback(() => setRefreshTick((prev) => prev + 1), []);
+    const [, setPageRenderTick] = useState(0);
+    const renderPageSoon = useCallback(() => {
+        const render = () => setPageRenderTick((prev) => prev + 1);
+        if (typeof globalThis.requestAnimationFrame === 'function') {
+            globalThis.requestAnimationFrame(render);
+        } else {
+            render();
+        }
+    }, []);
+    const handlePageButtonClickCapture = useCallback((event) => {
+        const button = typeof event?.target?.closest === 'function'
+            ? event.target.closest('button')
+            : null;
+        if (!button || button.disabled) return;
+        renderPageSoon();
+    }, [renderPageSoon]);
 
     // When using "Thêm dịch vụ" we temporarily force Estimate to DRAFT.
     // Cancel in append-only mode must revert statuses back.
@@ -465,9 +523,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     }, [latestEstimate]);
 
     const estimateIdNum = useMemo(() => {
-        const raw = latestEstimate?.estimateId ?? latestEstimate?.id;
-        const n = typeof raw === 'number' ? raw : Number(raw);
-        return Number.isFinite(n) && n > 0 ? n : null;
+        return getEstimateIdValue(latestEstimate);
     }, [latestEstimate]);
 
     const isAddServicePending = useMemo(() => {
@@ -698,7 +754,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const snapshot = readAddServiceRestoreSnapshot(serviceTicketIdNum);
             if (!snapshot) return latest;
 
-            const latestEstimateId = toPositiveNumberOrNull(latest?.estimateId ?? latest?.id);
+            const latestEstimateId = getEstimateIdValue(latest);
             if (!latestEstimateId || latestEstimateId !== snapshot.estimateIdNum) {
                 clearAddServiceRestoreSnapshot(serviceTicketIdNum);
                 if (addServiceRevertRef.current?.estimateIdNum === snapshot.estimateIdNum) {
@@ -786,6 +842,58 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             if (estimateLoadSeqRef.current === seq) setEstimateLoading(false);
         }
     }, [restoreInterruptedAddServiceEstimate, serviceTicketIdNum]);
+
+    const refreshDetailView = useCallback(async (options = {}) => {
+        const {
+            refreshEstimate = true,
+            refreshBill = false,
+            refreshAdvisor = refreshEstimate,
+        } = options;
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        const ticketCode = String(ticket?.ticketCode || ticketCodeParam || '').trim();
+        const tasks = [];
+
+        if (token && ticketCode) {
+            tasks.push(
+                fetchServiceTicketDetail(ticketCode, token)
+                    .then((detailRes) => {
+                        if (detailRes?.data) setTicketRaw(detailRes.data);
+                    })
+                    .catch(() => null),
+            );
+        }
+
+        if (refreshEstimate) {
+            tasks.push(loadLatestEstimate());
+        }
+
+        if (refreshBill && token && serviceTicketIdNum) {
+            tasks.push(
+                fetchPaymentByServiceTicketId(serviceTicketIdNum, token)
+                    .then((res) => {
+                        setBillPayment(res?.data ?? res ?? null);
+                        setBillLookupError('');
+                    })
+                    .catch((err) => {
+                        const message = String(err?.message || '').toLowerCase();
+                        const isNotFound = message.includes('not found')
+                            || message.includes('404')
+                            || message.includes('không tìm thấy')
+                            || message.includes('khong tim thay');
+                        if (isNotFound) {
+                            setBillPayment(null);
+                            setBillLookupError('');
+                        }
+                    }),
+            );
+        }
+
+        if (tasks.length > 0) {
+            await Promise.allSettled(tasks);
+        }
+        if (refreshAdvisor) triggerRefresh();
+        renderPageSoon();
+    }, [loadLatestEstimate, renderPageSoon, serviceTicketIdNum, setTicketRaw, ticket?.ticketCode, ticketCodeParam, triggerRefresh]);
 
     useEffect(() => {
         loadLatestEstimate();
@@ -882,7 +990,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
             setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
 
-            triggerRefresh();
+            await refreshDetailView({ refreshEstimate: true, refreshBill: true });
             notify(res?.message || fallbackSuccessMessage || `Đã cập nhật trạng thái: ${nextStatus}`);
         } catch (err) {
             notify(err?.message || 'Không thể cập nhật trạng thái phiếu dịch vụ.');
@@ -947,7 +1055,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
             setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
-            triggerRefresh();
+            await refreshDetailView({ refreshEstimate: true, refreshBill: true });
             notify('Đã chuyển sang trạng thái "Hoàn tất sửa chữa".');
         } catch (err) {
             notify(getFinishWorkErrorMessage(err, 'Không thể báo hoàn thành sửa chữa.'));
@@ -1002,9 +1110,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             addServiceRevertRef.current = null;
             clearAddServiceRestoreSnapshot(serviceTicketIdNum);
             setAddServiceReverting(false);
-            triggerRefresh();
+            await refreshDetailView({ refreshEstimate: true, refreshBill: true });
         }
-    }, [addServiceReverting, notify, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw, triggerRefresh]);
+    }, [addServiceReverting, notify, refreshDetailView, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw]);
 
     const handleRestartFromArchived = async () => {
         if (statusUpdating) return;
@@ -1036,7 +1144,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
             setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
 
-            triggerRefresh();
+            await refreshDetailView({ refreshEstimate: false, refreshBill: true, refreshAdvisor: false });
             // Notify advisor table to open create mode immediately
             try {
                 globalThis.dispatchEvent(new CustomEvent('startCreateEstimate'));
@@ -1085,7 +1193,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             }
             const detailRes = await fetchServiceTicketDetail(code, token);
             setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
-            triggerRefresh();
+            await refreshDetailView({ refreshEstimate: true, refreshBill: true });
             notify('Đã hoàn tác trạng thái phiếu dịch vụ trước khi tạo báo giá mới.');
         } catch (err) {
             notify(err?.message || 'Không thể hoàn tác trạng thái phiếu dịch vụ.');
@@ -1094,7 +1202,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setIsCreatingNewEstimateVersion(false);
             setStatusUpdating(false);
         }
-    }, [notify, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw, triggerRefresh]);
+    }, [notify, refreshDetailView, serviceTicketIdNum, setTicketRaw, ticket, ticketCodeParam, ticketRaw]);
 
     const handleOpenEstimateTimePopup = () => {
         setEstimateTimePopupOpen(true);
@@ -1124,7 +1232,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
                         const list = Array.isArray(estimateRes?.data) ? estimateRes.data : [];
                         const found =
-                            list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
+                            list.find((row) => getEstimateIdValue(row) === Number(estimateIdNum)) ||
                             pickLatestEstimate(list);
                         if (Array.isArray(found?.items)) {
                             currentEstimateItems = found.items;
@@ -1238,7 +1346,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         const estimateRes = await fetchServiceTicketEstimate(serviceTicketIdNum, token);
                         const list = Array.isArray(estimateRes?.data) ? estimateRes.data : [];
                         const found =
-                            list.find((row) => Number(row?.estimateId ?? row?.id ?? 0) === Number(estimateIdNum)) ||
+                            list.find((row) => getEstimateIdValue(row) === Number(estimateIdNum)) ||
                             pickLatestEstimate(list);
                         debugEstimateAllocation('refetched-estimate-before-allocation-fallback', {
                             estimateId: estimateIdNum,
@@ -1356,7 +1464,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
             if (detailRes?.data) setTicketRaw(detailRes.data);
 
-            triggerRefresh();
+            await refreshDetailView({ refreshEstimate: true, refreshBill: true });
             notify('Đã xác nhận báo giá.');
 
             // End "create new estimate version" flow after confirming.
@@ -1382,21 +1490,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const committedAllocationCount = Number(ticket?.committedAllocationCount ?? 0);
     const hasAnyStockAllocation = reservedAllocationCount > 0 || committedAllocationCount > 0;
 
-    const hasAnyWarehouseDependentItem = useMemo(() => {
-        const items = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
-        return items
-            .filter((it) => !it?.isRemoved)
-            .some((it) => {
-                const warehouseId =
-                    it?.warehouseId ??
-                    it?.warehouseID ??
-                    it?.warehouse_id ??
-                    it?.warehouse?.warehouseId ??
-                    it?.warehouse?.id ??
-                    null;
-                return toPositiveNumberOrNull(warehouseId) != null;
-            });
-    }, [latestEstimate?.items]);
+    const advisorItems = useMemo(() => Array.isArray(latestEstimate?.items) ? latestEstimate.items.filter(it => !it?.isRemoved) : [], [latestEstimate]);
+    const actionableAdvisorItems = useMemo(
+        () => advisorItems.filter(isEstimateItemAvailableForActions),
+        [advisorItems],
+    );
+    const hasAnyActionableAdvisorItem = actionableAdvisorItems.length > 0;
+    const hasAnyWarehouseDependentItem = useMemo(
+        () => actionableAdvisorItems.some((it) => getEstimateItemWarehouseId(it) != null),
+        [actionableAdvisorItems],
+    );
 
     const canCancel =
         ['CREATED', 'INSPECTING', 'PENDING', 'INSPECTED', 'ESTIMATED', 'REPAIRING'].includes(ticketStatus)
@@ -1405,17 +1508,27 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const canStartRepair = (ticketStatus === 'ESTIMATED' || ticketStatus === 'PENDING')
         && Boolean(estimateIdNum)
         && isEstimateApproved
+        && hasAnyActionableAdvisorItem
         && (ticket?.warehouseReadyForRepair === true || !hasAnyWarehouseDependentItem)
         && !isActionLocked;
     const canCompleteRepair = ticketStatus === 'REPAIRING' && !isActionLocked && ticket?.hasDraftStockIssue === false;
-    const canOpenWarehouseIssues = hasWarehouseKeeperRole && ticket?.hasDraftStockIssue === true;
     const canOpenReceiptPayment = hasAccountantRole && hasBill;
+
+    const hasAnyRequestableWarehouseDependentItem = useMemo(
+        () => actionableAdvisorItems.some((it) => getEstimateItemWarehouseId(it) != null),
+        [actionableAdvisorItems],
+    );
+    const canOpenWarehouseIssues =
+        hasWarehouseKeeperRole &&
+        ticket?.hasDraftStockIssue === true &&
+        hasAnyRequestableWarehouseDependentItem;
 
     const canRequestStockIssue = useMemo(() => {
         if (isActionLocked) return false;
         if (ticketStatus !== 'ESTIMATED' && ticketStatus !== 'REPAIRING' ) return false;
+        if (!hasAnyRequestableWarehouseDependentItem) return false;
         return ticket?.canRequestIssueDraft === true;
-    }, [isActionLocked, ticketStatus, ticket?.canRequestIssueDraft]);
+    }, [hasAnyRequestableWarehouseDependentItem, isActionLocked, ticketStatus, ticket?.canRequestIssueDraft]);
 
     const handleRequestStockIssue = useCallback(async () => {
         if (stockIssueRequesting) return;
@@ -1444,7 +1557,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 const detailRes = await fetchServiceTicketDetail(ticketCode, token);
                 if (detailRes?.data) setTicketRaw(detailRes.data);
             }
-            triggerRefresh();
+            await refreshDetailView({ refreshEstimate: true, refreshBill: true });
         } catch (err) {
             notify(err?.message || 'Không thể tạo yêu cầu xuất kho.');
         } finally {
@@ -1457,11 +1570,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         stockIssueRequesting,
         ticket?.ticketCode,
         ticketCodeParam,
-        triggerRefresh,
         setTicketRaw,
+        refreshDetailView,
     ]);
 
-    const advisorItems = useMemo(() => Array.isArray(latestEstimate?.items) ? latestEstimate.items.filter(it => !it?.isRemoved) : [], [latestEstimate]);
     const selectedServiceItems = useMemo(
         () => (Array.isArray(ticket.services) ? ticket.services : []).filter((item) => normalizeTicketItemType(item) === 'SERVICE'),
         [ticket.services],
@@ -1470,8 +1582,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => (Array.isArray(ticket.services) ? ticket.services : []).filter((item) => normalizeTicketItemType(item) === 'PART'),
         [ticket.services],
     );
-    const hasAnyAdvisorItem = advisorItems.length > 0;
-    const isEstimatePersisted = Boolean(latestEstimate?.createdAt || latestEstimate?.estimateId || latestEstimate?.id);
+    const hasAnyAdvisorItem = actionableAdvisorItems.length > 0;
+    const isEstimatePersisted = Boolean(
+        estimateIdNum ||
+        latestEstimate?.createdAt ||
+        latestEstimate?.createdDate ||
+        latestEstimate?.created_at,
+    );
     const canPrintServiceReceipt = Boolean(estimateIdNum)
         && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT')
         && hasAnyAdvisorItem
@@ -1492,7 +1609,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         && !isEstimateEditing
         && !isActionLocked;
     const handleEstimateStatusChange = useCallback((est) => {
-        const nextEstimateId = toPositiveNumberOrNull(est?.estimateId ?? est?.id);
+        const nextEstimateId = getEstimateIdValue(est);
         const nextEstimateStatus = normalizeEstimateStatus(est?.estimateStatus ?? est?.status ?? est?.estimate_status);
         const optimisticEstimateStatus =
             nextEstimateStatus || (isCreatingNewEstimateVersion && nextEstimateId ? 'DRAFT' : '');
@@ -1503,6 +1620,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             if (optimisticEstimateStatus) {
                 next.status = normalizeEstimateStatus(next.status) || optimisticEstimateStatus;
                 next.estimateStatus = normalizeEstimateStatus(next.estimateStatus) || optimisticEstimateStatus;
+            }
+            if (nextEstimateId && !getEstimateIdValue(next)) {
+                next.estimateId = nextEstimateId;
             }
             // Some update APIs may return estimate meta without items.
             // Keep previous items temporarily to avoid disabling confirm button,
@@ -1518,39 +1638,30 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setIsCreatingNewEstimateVersion(false);
         }
 
-        const hasEstimateId = Boolean(est?.estimateId ?? est?.id);
+        const hasEstimateId = Boolean(nextEstimateId);
         const hasItems = Array.isArray(est?.items) && est.items.length > 0;
-        if (hasEstimateId && !hasItems) {
+        if (hasEstimateId && !hasItems && !isCreatingNewEstimateVersion) {
             loadLatestEstimate();
         }
         const shouldSyncCreatedVersion =
             isCreatingNewEstimateVersion &&
             hasEstimateId &&
-            optimisticEstimateStatus === 'DRAFT' &&
-            createVersionSyncRef.current !== `${nextEstimateId}:DRAFT`;
+            (optimisticEstimateStatus === 'DRAFT' || optimisticEstimateStatus === 'SENT') &&
+            createVersionSyncRef.current !== `${nextEstimateId}:${optimisticEstimateStatus}`;
 
         if (shouldSyncCreatedVersion) {
-            createVersionSyncRef.current = `${nextEstimateId}:DRAFT`;
+            createVersionSyncRef.current = `${nextEstimateId}:${optimisticEstimateStatus}`;
             globalThis.setTimeout?.(() => {
                 createNewEstimateRevertRef.current = null;
                 setIsCreatingNewEstimateVersion(false);
-                triggerRefresh();
-                loadLatestEstimate();
-
-                const token = localStorage.getItem('authToken');
-                const code = String(ticket?.ticketCode || ticketCodeParam || '').trim();
-                if (token && code) {
-                    fetchServiceTicketDetail(code, token)
-                        .then((detailRes) => {
-                            if (detailRes?.data) setTicketRaw(detailRes.data);
-                        })
-                        .catch(() => {
-                            // Estimate refresh above is enough for the version flow.
-                        });
-                }
+                refreshDetailView({ refreshEstimate: false, refreshBill: true, refreshAdvisor: false });
             }, 80);
+        } else if (hasEstimateId) {
+            globalThis.setTimeout?.(() => {
+                refreshDetailView({ refreshEstimate: false, refreshBill: true, refreshAdvisor: false });
+            }, 120);
         }
-    }, [isCreatingNewEstimateVersion, loadLatestEstimate, setTicketRaw, ticket?.ticketCode, ticketCodeParam, triggerRefresh]);
+    }, [isCreatingNewEstimateVersion, loadLatestEstimate, refreshDetailView]);
 
     const handleBeforeEstimateMutate = useCallback(async (options = {}) => {
         if (!estimateIdNum || hasBill) return;
@@ -1648,11 +1759,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         try {
             const detailRes = await fetchServiceTicketDetail(code, token);
             if (detailRes?.data) setTicketRaw(detailRes.data);
-            setRefreshTick(prev => prev + 1);
+            await refreshDetailView({ refreshEstimate: true, refreshBill: true });
         } catch (err) {
             notify(err?.message || 'Không thể tải lại trạng thái phiếu dịch vụ sau khi hoàn thành kiểm tra.');
         }
-    }, [notify, setTicketRaw, ticket.ticketCode, ticketCodeParam]);
+    }, [notify, refreshDetailView, setTicketRaw, ticket.ticketCode, ticketCodeParam]);
 
     const applyPromotion = async (promotionType) => {
         const type = String(promotionType || '').trim().toUpperCase();
@@ -1806,6 +1917,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             if (estimateStatus === 'DRAFT') {
                 await manageServiceTicketEstimateStatus(estimateIdNum, 'SENT', token);
                 setLatestEstimate((prev) => (prev ? { ...prev, status: 'SENT', estimateStatus: 'SENT' } : prev));
+                await refreshDetailView({ refreshEstimate: true, refreshBill: true });
                 notify('Đã chuyển báo giá sang trạng thái SENT.');
             }
             globalThis.setTimeout?.(() => {
@@ -1880,6 +1992,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             } catch {
                 setBillPayment(billRes?.data ?? billRes ?? null);
             }
+            await refreshDetailView({ refreshEstimate: true, refreshBill: true });
             notify('Đã tạo yêu cầu thanh toán.');
         } catch (err) {
             if (archivedBeforeBill) {
@@ -1968,6 +2081,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             );
             setMaintenanceDraft({ scheduledAt: String(scheduledAt || ''), note: String(note || '') });
             setMaintenancePopupOpen(false);
+            renderPageSoon();
             notify('Đã tạo lịch nhắc bảo dưỡng.');
         } catch (err) {
             notify(err?.message || 'Không thể tạo lịch nhắc bảo dưỡng.');
@@ -1977,7 +2091,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     };
 
     return (
-        <div className={styles.page}>
+        <div className={styles.page} onClickCapture={handlePageButtonClickCapture}>
             <div className={styles.screenOnly}>
                 <div className={styles.layout}>
                     <main className={styles.main}>
@@ -2337,7 +2451,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     </div>
                                 </section>
                             ) : null}
-                                    {ticket.hasDraftStockIssue ? (
+                                    {ticket.hasDraftStockIssue && hasAnyRequestableWarehouseDependentItem ? (
                                     <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
                                     ) : null}
                                 </>

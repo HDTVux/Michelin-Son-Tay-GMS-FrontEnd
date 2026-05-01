@@ -787,6 +787,10 @@
   width: min(640px, 100%);
   max-height: calc(100vh - 48px);
   overflow: auto;
+  position: relative;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
   border-radius: 8px;
   border: 1px solid var(--ui-border);
   background: #fff;
@@ -825,6 +829,52 @@
   display: grid;
   grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
   gap: 14px;
+}
+
+.returnModalBody input[type='file'] {
+  width: 100%;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ui-text);
+  padding: 10px 12px;
+  font: inherit;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.returnModalBody input[type='file']::file-selector-button {
+  margin-right: 12px;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #2563eb;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.returnModalBody input[type='file']::file-selector-button:hover {
+  background: #1d4ed8;
+}
+
+.returnModalBody input[type='file']::file-selector-button:active {
+  transform: translateY(1px);
+}
+
+.returnModalBody input[type='file']::-webkit-file-upload-button {
+  margin-right: 12px;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #2563eb;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .returnModalActions {
