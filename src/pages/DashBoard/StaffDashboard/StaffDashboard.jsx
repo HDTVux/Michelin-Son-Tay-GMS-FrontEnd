@@ -502,7 +502,7 @@ export default function StaffDashboard() {
       fetchStaffStatistics(currentMonth, currentYear, token),
       fetchStaffAttendanceHistory(currentMonth, currentYear, token),
       fetchStaffSchedule(scheduleFrom, scheduleTo, token),
-      fetchStaffNotifications(0, 10, token),
+      fetchStaffNotifications(token),
       fetchStaffTodayTasks(token),
       primaryRole === STAFF_ROLE.ACCOUNTANT
         ? fetchServiceTicketsPaged({ page: 0, size: 1, status: 'PAID' }, token)

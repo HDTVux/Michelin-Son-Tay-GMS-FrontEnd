@@ -68,6 +68,7 @@ import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 //Receptionist pages
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
 import SendReminder from './pages/DashBoard/SendReminder/SendReminder.jsx';
+import StaffNotificationSender from './pages/DashBoard/StaffNotificationSender/StaffNotificationSender.jsx';
 import MaintenanceReminder from './pages/DashBoard/MaintenanceReminder/MaintenanceReminder.jsx';
 import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.jsx';
 import ConfirmedBookingDetail from './pages/DashBoard/BookingManagement/ConfirmedBookingDetail.jsx';
@@ -301,6 +302,7 @@ export default function App() {
           <Route path="employee-manager/:staffId" element={<EmployeeProfilePage />} />
           <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
           <Route path="announcement_campaign" element={<SendReminder />} />
+          <Route path="staff-notification-sender" element={<StaffNotificationSender />} />
           <Route path="send-reminder" element={<Navigate to="/announcement_campaign" replace />} />
           <Route path="maintenance-reminders" element={<MaintenanceReminder />} />
           <Route path="feedback-management" element={<FeedbackManagement />} />
