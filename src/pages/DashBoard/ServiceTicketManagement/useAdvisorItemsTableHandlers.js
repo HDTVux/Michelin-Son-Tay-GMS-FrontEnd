@@ -2262,6 +2262,9 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
             onEstimateStatusChangeRef.current?.(nextEstimate ?? null);
             setIsCreating(false);
 			initialCreateRowsSnapshotRef.current = '';
+			globalThis.setTimeout?.(() => {
+				globalThis.location?.reload?.();
+			}, 120);
         } catch (err) {
             setSaveError(err?.message || 'Không thể lưu báo giá.');
         } finally {

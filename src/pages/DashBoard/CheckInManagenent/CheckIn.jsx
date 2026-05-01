@@ -853,7 +853,7 @@ export default function CheckIn() {
                         </div>
 
                         <div className="ui-field" style={{ marginBottom: 0 }}>
-                            <label htmlFor="advisorSelect">Tư vấn viên</label>
+                            <label htmlFor="advisorSelect">Tư vấn viên (<span className={styles.required}>*</span>)</label>
                             <select
                                 id="advisorSelect"
                                 value={selectedAdvisorId}

@@ -37,6 +37,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
         const reason = String(returnReason || '').trim();
         const qty = toPositiveNumberOrNull(quantity);
         const note = String(conditionNote || '').trim();
+        const imageFiles = Array.isArray(files) ? files.filter(Boolean) : [];
 
         if (!reason) {
             setError('Vui lòng nhập lý do hoàn trả.');
@@ -53,18 +54,28 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
             return;
         }
 
+        if (!note) {
+            setError('Vui lòng nhập ghi chú tình trạng.');
+            return;
+        }
+
+        if (imageFiles.length === 0) {
+            setError('Vui lòng chọn ít nhất 1 ảnh tình trạng.');
+            return;
+        }
+
         setError('');
         onSubmit?.({
             returnReason: reason,
             quantity: qty,
             conditionNote: note,
-            files,
+            files: imageFiles,
         });
     };
 
     return createPortal(
-        <div className={styles.returnModalOverlay} role="presentation">
-            <section className={styles.returnModal} role="dialog" aria-modal="true" aria-labelledby="return-entry-title">
+        <div className={styles.returnModalOverlay}>
+            <dialog className={styles.returnModal} open aria-modal="true" aria-labelledby="return-entry-title">
                 <div className={styles.returnModalHeader}>
                     <div>
                         <h3 id="return-entry-title" className={styles.returnModalTitle}>Tạo phiếu hoàn trả</h3>
@@ -77,7 +88,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
 
                 <div className={styles.returnModalBody}>
                     <div className="ui-field">
-                        <label htmlFor="return-entry-reason">Lý do hoàn trả</label>
+                        <label htmlFor="return-entry-reason">Lý do hoàn trả (<span className={styles.required}>*</span>)</label>
                         <textarea
                             id="return-entry-reason"
                             value={returnReason}
@@ -85,12 +96,13 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                             placeholder="Nhập lý do hoàn trả..."
                             disabled={submitting}
                             rows={3}
+                            required
                         />
                     </div>
 
                     <div className={styles.returnModalGrid}>
                         <div className="ui-field">
-                            <label htmlFor="return-entry-quantity">Số lượng hoàn</label>
+                            <label htmlFor="return-entry-quantity">Số lượng hoàn (<span className={styles.required}>*</span>)</label>
                             <input
                                 id="return-entry-quantity"
                                 type="number"
@@ -100,13 +112,14 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                                 value={quantity}
                                 onChange={(e) => setQuantity(e.target.value)}
                                 disabled={submitting}
+                                required
                             />
                             <div className={styles.fieldHint}>
                                 Tối đa {maxQuantity}{unitText ? ` ${unitText}` : ''}
                             </div>
                         </div>
                         <div className="ui-field">
-                            <label htmlFor="return-entry-files">Ảnh tình trạng</label>
+                            <label htmlFor="return-entry-files">Ảnh tình trạng (<span className={styles.required}>*</span>)</label>
                             <input
                                 id="return-entry-files"
                                 type="file"
@@ -114,6 +127,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                                 multiple
                                 onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, 5))}
                                 disabled={submitting}
+                                required
                             />
                         </div>
                     </div>
@@ -126,6 +140,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                             onChange={(e) => setConditionNote(e.target.value)}
                             placeholder="Ví dụ: Vỏ bị nứt, xước..."
                             disabled={submitting}
+                            required
                         />
                     </div>
 
@@ -140,7 +155,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                         {submitting ? 'Đang tạo...' : 'Xác nhận hoàn trả'}
                     </button>
                 </div>
-            </section>
+            </dialog>
         </div>,
         portalContainer,
     );

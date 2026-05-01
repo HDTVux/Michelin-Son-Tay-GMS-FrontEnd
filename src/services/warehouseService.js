@@ -663,6 +663,17 @@ export const confirmWarehouseReturnEntry = (id, token) => {
   });
 };
 
+// POST: /api/warehouse/return-entries/{id}/cancel
+export const cancelWarehouseReturnEntry = (id, token) => {
+  const idNum = typeof id === 'number' ? id : Number(id);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+
+  return request(`/api/warehouse/return-entries/${encodeURIComponent(String(safeId))}/cancel`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
 // GET: /api/warehouse/stock-issues/{id}
 export const fetchWarehouseStockIssueDetail = (id, token) => {
   const idNum = typeof id === 'number' ? id : Number(id);
