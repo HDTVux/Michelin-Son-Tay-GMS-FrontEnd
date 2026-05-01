@@ -14,8 +14,281 @@
   color: var(--ui-text, #0a0f1c);
 }
 
+.staffNotification {
+  position: fixed;
+  top: 16px;
+  right: 18px;
+  z-index: 1000;
+}
+
+.staffNotification__button {
+  position: relative;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  cursor: pointer;
+  list-style: none;
+  color: #111827;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+}
+
+.staffNotification__button::-webkit-details-marker {
+  display: none;
+}
+
+.staffNotification__button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.staffNotification__button.hasUnread svg {
+  transform-origin: 50% 0;
+  animation: staffBellRing 1.8s ease-in-out infinite;
+}
+
+.staffNotification__button.hasUnread::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 1px solid rgba(220, 38, 38, 0.36);
+  border-radius: 999px;
+  animation: staffBellPulse 1.8s ease-out infinite;
+}
+
+.staffNotification__badge {
+  position: absolute;
+  top: -5px;
+  right: -3px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: #dc2626;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+@keyframes staffBellRing {
+  0%,
+  44%,
+  100% {
+    transform: rotate(0deg);
+  }
+  6% {
+    transform: rotate(16deg);
+  }
+  12% {
+    transform: rotate(-14deg);
+  }
+  18% {
+    transform: rotate(10deg);
+  }
+  24% {
+    transform: rotate(-8deg);
+  }
+  30% {
+    transform: rotate(5deg);
+  }
+  36% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes staffBellPulse {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.92);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .staffNotification__button.hasUnread svg,
+  .staffNotification__button.hasUnread::after {
+    animation: none;
+  }
+}
+
+.staffNotification__panel {
+  position: absolute;
+  top: 54px;
+  right: 0;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 90px));
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);
+}
+
+.staffNotification__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.staffNotification__header div {
+  display: grid;
+  gap: 3px;
+}
+
+.staffNotification__header strong {
+  font-size: 15px;
+  color: #111827;
+}
+
+.staffNotification__header span,
+.staffNotification__header small,
+.staffNotification__item time {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.staffNotification__error {
+  margin: 10px 12px 0;
+  padding: 9px 10px;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.staffNotification__list {
+  max-height: 438px;
+  overflow: auto;
+  padding: 8px;
+}
+
+.staffNotification__empty {
+  margin: 0;
+  padding: 26px 12px;
+  color: #6b7280;
+  text-align: center;
+  font-size: 14px;
+}
+
+.staffNotification__item {
+  display: block;
+  padding: 11px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.staffNotification__item[role="button"] {
+  cursor: pointer;
+}
+
+.staffNotification__item[role="button"]:hover,
+.staffNotification__item[role="button"]:focus-visible {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  outline: none;
+}
+
+.staffNotification__item.isUnread {
+  background: #eff6ff;
+}
+
+.staffNotification__itemTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.staffNotification__badges {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  max-width: 142px;
+}
+
+.staffNotification__item strong {
+  display: block;
+  min-width: 0;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.staffNotification__status,
+.staffNotification__type {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.staffNotification__type.info {
+  color: #0369a1;
+  background: #e0f2fe;
+}
+
+.staffNotification__type.warning {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.staffNotification__type.urgent {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.staffNotification__status.isUnread {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.staffNotification__status.isRead {
+  color: #4b5563;
+  background: #f3f4f6;
+}
+
+.staffNotification__item p {
+  margin: 4px 0;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 @media print {
   .sidebar {
+    display: none !important;
+  }
+
+  .staffNotification {
     display: none !important;
   }
 
@@ -37,5 +310,10 @@
 
   .staffLayout__content {
     width: 100%;
+  }
+
+  .staffNotification {
+    top: 14px;
+    right: 14px;
   }
 }
