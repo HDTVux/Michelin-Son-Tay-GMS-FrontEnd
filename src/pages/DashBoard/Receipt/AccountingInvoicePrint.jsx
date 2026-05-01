@@ -51,6 +51,18 @@ function formatTaxRateForPrint(item) {
     return toMoneyNumber(item?.taxAmount ?? item?.tax_amount) > 0 ? '--' : '0%';
 }
 
+function isReturnedInvoiceItem(item) {
+    return String(
+        item?.stockAllocation?.status ??
+            item?.allocation?.status ??
+            item?.warehouseAllocation?.status ??
+            item?.stockAllocationStatus ??
+            item?.stock_allocation_status ??
+            item?.allocationStatus ??
+            '',
+    ).trim().toUpperCase() === 'RELEASED';
+}
+
 function readTripleNumber(value, forceLeadingZeroHundred = false) {
     const number = Math.max(0, Math.min(999, Math.floor(Math.abs(toMoneyNumber(value)))));
     if (number === 0) return forceLeadingZeroHundred ? 'không trăm' : '';
@@ -174,7 +186,7 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
 
     const invoice = useMemo(() => ticket?.invoice || {}, [ticket]);
     const invoiceItems = useMemo(
-        () => (Array.isArray(invoice?.items) ? invoice.items : []),
+        () => (Array.isArray(invoice?.items) ? invoice.items.filter((item) => !isReturnedInvoiceItem(item)) : []),
         [invoice],
     );
     const rowCount = Math.max(DEFAULT_ROW_COUNT, invoiceItems.length);

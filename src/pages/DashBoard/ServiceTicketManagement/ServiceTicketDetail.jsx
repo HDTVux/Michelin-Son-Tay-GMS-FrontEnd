@@ -89,6 +89,18 @@ function InfoBlock({ title, rows }) {
     );
 }
 
+function isReturnedEstimatePrintItem(item) {
+    return String(
+        item?.stockAllocation?.status ??
+            item?.allocation?.status ??
+            item?.warehouseAllocation?.status ??
+            item?.stockAllocationStatus ??
+            item?.stock_allocation_status ??
+            item?.allocationStatus ??
+            '',
+    ).trim().toUpperCase() === 'RELEASED';
+}
+
 function TimelineBlock({ steps }) {
     return (
         <section className={styles.block}>
@@ -533,6 +545,26 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => receiptItems.reduce((acc, it) => acc + toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal), 0),
         [receiptItems],
     );
+    const printReceiptItems = useMemo(
+        () => receiptItems.filter((it) => !isReturnedEstimatePrintItem(it)),
+        [receiptItems],
+    );
+    const printReceiptSubtotal = useMemo(
+        () => printReceiptItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotalDisplay ?? it.subTotal), 0),
+        [printReceiptItems],
+    );
+    const printReceiptDiscountAmount = useMemo(() => {
+        return printReceiptItems.reduce((acc, it) => {
+            const lineSubtotal = toMoneyNumber(it.subTotalDisplay ?? it.subTotal);
+            const lineFinal = toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal);
+            const backendDiscount = toMoneyNumber(it.discountAmount);
+            return acc + Math.max(backendDiscount, lineSubtotal - lineFinal, 0);
+        }, 0);
+    }, [printReceiptItems]);
+    const printReceiptTotal = useMemo(
+        () => printReceiptItems.reduce((acc, it) => acc + toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal), 0),
+        [printReceiptItems],
+    );
     const appliedPromotionList = useMemo(
         () => PROMOTION_TYPES.map(({ type }) => appliedPromotions[type]).filter(Boolean),
         [appliedPromotions],
@@ -606,16 +638,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         recommendation: printRecommendation,
         safetyInspectionEnabled: ticketRaw?.safetyInspectionEnabled,
         invoice: {
-            items: receiptItems.map((it) => ({
+            items: printReceiptItems.map((it) => ({
                 ...it,
                 unitPrice: toMoneyNumber(it.unitPriceDisplay ?? it.unitPrice),
                 subTotal: toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal),
             })),
-            subtotal: receiptSubtotal,
-            discountAmount: receiptDiscountAmount,
+            subtotal: printReceiptSubtotal,
+            discountAmount: printReceiptDiscountAmount,
             vatRate: '',
             vatAmount: 0,
-            total: receiptTotal,
+            total: printReceiptTotal,
             promotionLabel: activePromotionLabels.join(' / '),
         },
         safetyInspection: safetyInspectionForPrint ?? ticketRaw?.safetyInspection ?? {},
@@ -625,10 +657,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         defaultSafetyCategories,
         handoverAtDisplay,
         printRecommendation,
-        receiptItems,
-        receiptDiscountAmount,
-        receiptSubtotal,
-        receiptTotal,
+        printReceiptItems,
+        printReceiptDiscountAmount,
+        printReceiptSubtotal,
+        printReceiptTotal,
         receivedAtDisplay,
         safetyInspectionForPrint,
         ticket,

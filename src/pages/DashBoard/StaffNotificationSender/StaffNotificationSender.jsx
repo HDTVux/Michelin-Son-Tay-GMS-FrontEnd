@@ -1,11 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'react-toastify';
-import { fetchAllStaff } from '../../../services/adminService.js';
 import { createStaffNotification } from '../../../services/staffNotificationService.js';
 import styles from './StaffNotificationSender.module.css';
-
-const getToken = () =>
-  localStorage.getItem('authToken') || localStorage.getItem('staffToken') || localStorage.getItem('adminToken') || '';
 
 const readCurrentStaffId = () => {
   try {
@@ -18,68 +14,17 @@ const readCurrentStaffId = () => {
   }
 };
 
-const unwrapStaffRows = (response) => {
-  const data = response?.data;
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.content)) return data.content;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.items)) return data.items;
-  return [];
-};
-
-const getStaffName = (staff) =>
-  staff?.fullName || staff?.staffName || staff?.name || `NV-${staff?.staffId ?? staff?.id ?? ''}`;
-
 export default function StaffNotificationSender() {
-  const [sendMode, setSendMode] = useState('all');
-  const [staffId, setStaffId] = useState('');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [notificationType, setNotificationType] = useState('INFO');
-  const [staffList, setStaffList] = useState([]);
-  const [staffLoading, setStaffLoading] = useState(false);
-  const [staffError, setStaffError] = useState('');
   const [sending, setSending] = useState(false);
-
-  const selectedStaff = useMemo(() => {
-    const id = Number(staffId);
-    if (!Number.isFinite(id) || id <= 0) return null;
-    return staffList.find((staff) => Number(staff?.staffId ?? staff?.id) === id) || null;
-  }, [staffId, staffList]);
-
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-
-    let cancelled = false;
-    setStaffLoading(true);
-    setStaffError('');
-
-    fetchAllStaff({ page: 0, size: 500 }, token)
-      .then((response) => {
-        if (cancelled) return;
-        setStaffList(unwrapStaffRows(response));
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setStaffError(err?.message || 'Không tải được danh sách nhân viên.');
-        setStaffList([]);
-      })
-      .finally(() => {
-        if (!cancelled) setStaffLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     const cleanTitle = title.trim();
     const cleanMessage = message.trim();
-    const targetStaffId = sendMode === 'all' ? null : Number(staffId);
 
     if (!cleanTitle) {
       toast.error('Vui lòng nhập tiêu đề thông báo.');
@@ -91,15 +36,10 @@ export default function StaffNotificationSender() {
       return;
     }
 
-    if (sendMode === 'staff' && (!Number.isFinite(targetStaffId) || targetStaffId <= 0)) {
-      toast.error('Vui lòng chọn hoặc nhập Staff ID hợp lệ.');
-      return;
-    }
-
     setSending(true);
     try {
       await createStaffNotification({
-        staffId: targetStaffId,
+        staffId: null,
         title: cleanTitle,
         message: cleanMessage,
         notificationType,
@@ -107,10 +47,9 @@ export default function StaffNotificationSender() {
         sentBy: readCurrentStaffId(),
       });
 
-      toast.success(sendMode === 'all' ? 'Đã gửi thông báo chung.' : 'Đã gửi thông báo cho nhân viên.');
+      toast.success('Đã gửi thông báo chung.');
       setTitle('');
       setMessage('');
-      if (sendMode === 'staff') setStaffId('');
     } catch (err) {
       toast.error(err?.message || 'Không gửi được thông báo.');
     } finally {
@@ -131,55 +70,7 @@ export default function StaffNotificationSender() {
         <form className={styles.panel} onSubmit={handleSubmit}>
           <section className={styles.section}>
             <h2>Người nhận</h2>
-            <div className={styles.segmented}>
-              <button
-                type="button"
-                className={sendMode === 'all' ? styles.active : ''}
-                onClick={() => setSendMode('all')}
-              >
-                Tất cả nhân viên
-              </button>
-              <button
-                type="button"
-                className={sendMode === 'staff' ? styles.active : ''}
-                onClick={() => setSendMode('staff')}
-              >
-                Một nhân viên
-              </button>
-            </div>
-
-            {sendMode === 'staff' && (
-              <div className={styles.targetGrid}>
-                <label>
-                  Chọn nhân viên
-                  <select value={staffId} onChange={(event) => setStaffId(event.target.value)}>
-                    <option value="">Chọn từ danh sách</option>
-                    {staffList.map((staff) => {
-                      const id = staff?.staffId ?? staff?.id;
-                      if (!id) return null;
-                      return (
-                        <option key={id} value={id}>
-                          {getStaffName(staff)} - ID {id}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </label>
-                <label>
-                  Hoặc nhập Staff ID
-                  <input
-                    type="number"
-                    min="1"
-                    value={staffId}
-                    onChange={(event) => setStaffId(event.target.value)}
-                    placeholder="Ví dụ: 5"
-                  />
-                </label>
-              </div>
-            )}
-
-            {staffLoading && <p className={styles.hint}>Đang tải danh sách nhân viên...</p>}
-            {staffError && <p className={styles.warning}>{staffError}</p>}
+            <div className={styles.recipientBox}>Tất cả nhân viên</div>
           </section>
 
           <section className={styles.section}>
@@ -216,7 +107,6 @@ export default function StaffNotificationSender() {
             <button type="button" className={styles.secondaryButton} onClick={() => {
               setTitle('');
               setMessage('');
-              setStaffId('');
               setNotificationType('INFO');
             }}>
               Làm mới
@@ -232,7 +122,7 @@ export default function StaffNotificationSender() {
             <span className={`${styles.typeBadge} ${styles[notificationType.toLowerCase()]}`}>
               {notificationType}
             </span>
-            <span>{sendMode === 'all' ? 'Thông báo chung' : selectedStaff ? getStaffName(selectedStaff) : 'Thông báo riêng'}</span>
+            <span>Thông báo chung</span>
           </div>
           <h2>{title.trim() || 'Tiêu đề thông báo'}</h2>
           <p>{message.trim() || 'Nội dung thông báo sẽ hiển thị ở đây trước khi gửi.'}</p>

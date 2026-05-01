@@ -97,17 +97,6 @@
   border-color: #2563eb;
 }
 
-.segmented {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 4px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.segmented button,
 .primaryButton,
 .secondaryButton {
   min-height: 42px;
@@ -116,21 +105,17 @@
   cursor: pointer;
 }
 
-.segmented button {
-  border: 0;
-  color: #4b5563;
-  background: transparent;
-}
-
-.segmented .active {
-  color: #ffffff;
-  background: #2563eb;
-}
-
-.targetGrid {
-  display: grid;
-  grid-template-columns: 1fr 180px;
-  gap: 12px;
+.recipientBox {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  padding: 0 14px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .hint,
@@ -236,8 +221,7 @@
     padding: 14px;
   }
 
-  .grid,
-  .targetGrid {
+  .grid {
     grid-template-columns: 1fr;
   }
 
@@ -253,7 +237,6 @@
     padding: 16px;
   }
 
-  .segmented,
   .actions {
     grid-template-columns: 1fr;
     flex-direction: column;

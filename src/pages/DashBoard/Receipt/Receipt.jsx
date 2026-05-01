@@ -27,6 +27,18 @@ function getGiftFlag(item) {
     return raw === true || String(raw ?? '').trim().toLowerCase() === 'true';
 }
 
+function isReturnedInvoiceItem(item) {
+    return String(
+        item?.stockAllocation?.status ??
+            item?.allocation?.status ??
+            item?.warehouseAllocation?.status ??
+            item?.stockAllocationStatus ??
+            item?.stock_allocation_status ??
+            item?.allocationStatus ??
+            '',
+    ).trim().toUpperCase() === 'RELEASED';
+}
+
 function CarDiagram({ src }) {
 	const resolvedSrc = typeof src === 'string' && src.trim() ? src.trim() : CarIcon;
 	return <img className={styles.carImg} src={resolvedSrc} alt="" />;
@@ -104,7 +116,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     );
     const odometer = vehicle?.odometerKm == null ? '' : `${Number(vehicle.odometerKm).toLocaleString('vi-VN')}`;
 
-    const invoiceItemsRaw = Array.isArray(invoice?.items) ? invoice.items : [];
+    const invoiceItemsRaw = Array.isArray(invoice?.items)
+        ? invoice.items.filter((item) => !isReturnedInvoiceItem(item))
+        : [];
     const invoiceItems = invoiceItemsRaw.map((it, idx) => {
         const quantity = toMoneyNumber(it?.quantity);
         const unitPrice = toMoneyNumber(it?.unitPrice);

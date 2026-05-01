@@ -59,6 +59,18 @@ function formatTaxRateText(value) {
     return `${percent.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`;
 }
 
+function isReturnedEstimateItem(item) {
+    return String(
+        item?.stockAllocation?.status ??
+            item?.allocation?.status ??
+            item?.warehouseAllocation?.status ??
+            item?.stockAllocationStatus ??
+            item?.stock_allocation_status ??
+            item?.allocationStatus ??
+            '',
+    ).trim().toUpperCase() === 'RELEASED';
+}
+
 function readTripleNumber(value, forceLeadingZeroHundred = false) {
     const number = Math.max(0, Math.min(999, Math.floor(Math.abs(toMoneyNumber(value)))));
     if (number === 0) return forceLeadingZeroHundred ? 'không trăm' : '';
@@ -293,7 +305,7 @@ function pickLatestEstimate(payload) {
 }
 
 function normalizeEstimateItems(items, taxRuleById = new Map()) {
-    return items.map((item, index) => {
+    return items.filter((item) => !isReturnedEstimateItem(item)).map((item, index) => {
         const quantity = toMoneyNumber(item?.quantity) || 1;
         const unitPriceBase = toMoneyNumber(item?.unitPrice);
         const unitPriceWithVat = toMoneyNumber(item?.unitPriceWithVat ?? item?.unitPriceWithVAT);
@@ -526,7 +538,9 @@ export default function VatInvoiceView() {
     };
     const store = effectivePayload.store || STORE_INFO;
     const invoice = payload.invoice || {};
-    const fallbackItems = Array.isArray(invoice.items) ? invoice.items : [];
+    const fallbackItems = Array.isArray(invoice.items)
+        ? invoice.items.filter((item) => !isReturnedEstimateItem(item))
+        : [];
     const items = estimateItems.length > 0 ? estimateItems : fallbackItems;
     const subtotal = estimateItems.length > 0
         ? items.reduce((sum, item) => sum + (toMoneyNumber(item.grossAmount) || toMoneyNumber(item.subTotal)), 0)

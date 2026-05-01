@@ -62,6 +62,18 @@ function normalizeTaxRatePercentText(rawRate) {
     return `${text}%`;
 }
 
+function isReturnedEstimateItem(item) {
+    return String(
+        item?.stockAllocation?.status ??
+            item?.allocation?.status ??
+            item?.warehouseAllocation?.status ??
+            item?.stockAllocationStatus ??
+            item?.stock_allocation_status ??
+            item?.allocationStatus ??
+            '',
+    ).trim().toUpperCase() === 'RELEASED';
+}
+
 function extractPaymentEstimates(paymentPayload) {
     const root = paymentPayload?.data ?? paymentPayload;
     const list = root?.estimate ?? root?.estimates ?? root?.estimateList ?? root?.estimate_list;
@@ -298,6 +310,15 @@ export default function ReceiptPaymentMethod() {
                     taxTitle,
                     subTotalDisplay,
                     finalPriceDisplay,
+                    stockAllocationStatus: String(
+                        it?.stockAllocation?.status ??
+                            it?.allocation?.status ??
+                            it?.warehouseAllocation?.status ??
+                            it?.stockAllocationStatus ??
+                            it?.stock_allocation_status ??
+                            it?.allocationStatus ??
+                            '',
+                    ).trim().toUpperCase(),
                 };
             })
             .filter(
@@ -414,7 +435,13 @@ export default function ReceiptPaymentMethod() {
             return;
         }
 
-        const invoiceItems = payItems.map((item, idx) => {
+        const printableItems = payItems.filter((item) => !isReturnedEstimateItem(item));
+        if (printableItems.length === 0) {
+            toast.error('Không có hạng mục nào để in hoá đơn.');
+            return;
+        }
+
+        const invoiceItems = printableItems.map((item, idx) => {
             const quantity = toMoneyNumber(item?.quantity ?? 1) || 1;
             const unitPrice = toMoneyNumber(item?.unitPrice ?? item?.unitPriceDisplay ?? 0);
             const discountAmount = Math.max(0, toMoneyNumber(item?.discountAmount));
@@ -434,6 +461,7 @@ export default function ReceiptPaymentMethod() {
                 grossAmount,
                 subTotal,
                 isGift: Boolean(item?.isGift),
+                stockAllocationStatus: item?.stockAllocationStatus ?? '',
             };
         });
 
@@ -463,7 +491,7 @@ export default function ReceiptPaymentMethod() {
                 items: invoiceItems,
                 subtotal: invoiceSubtotal,
                 discountAmount: invoiceDiscountAmount,
-                total: totalSafe,
+                total: Math.max(0, invoiceSubtotal - invoiceDiscountAmount),
             },
         };
 

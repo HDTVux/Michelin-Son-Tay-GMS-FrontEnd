@@ -68,6 +68,18 @@ function getEstimateItemGiftFlag(item) {
     return raw === true || String(raw ?? '').trim().toLowerCase() === 'true';
 }
 
+function getEstimateItemStockAllocationStatus(item) {
+    return String(
+        item?.stockAllocation?.status ??
+            item?.allocation?.status ??
+            item?.warehouseAllocation?.status ??
+            item?.stockAllocationStatus ??
+            item?.stock_allocation_status ??
+            item?.allocationStatus ??
+            '',
+    ).trim().toUpperCase();
+}
+
 function getEstimateItemFinalPriceDisplay(item, fallbackValue) {
     const rawFinalPrice = item?.finalPrice ?? item?.final_price;
     if (rawFinalPrice == null || String(rawFinalPrice).trim() === '') return fallbackValue;
@@ -978,6 +990,7 @@ function mapEstimateItemsForReceipt(estimate) {
                 finalPrice: it?.finalPrice ?? it?.final_price ?? '',
                 finalPriceDisplay,
                 isGift: getEstimateItemGiftFlag(it),
+                stockAllocationStatus: getEstimateItemStockAllocationStatus(it),
                 warehouseName: String(it?.warehouseName ?? it?.warehouse?.warehouseName ?? it?.warehouse?.name ?? '').trim(),
             };
         })
