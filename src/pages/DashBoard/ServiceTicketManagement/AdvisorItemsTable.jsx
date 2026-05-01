@@ -5,40 +5,30 @@ import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 import { validateTaxName, validateTaxRatePercent, validateTextInput } from '../../../components/inputValidation.js';
 import {
+    formatAppliedTaxRate,
     formatCurrencyVnd,
+    getRowStockStatus,
+    getStockAllocationClassName,
+    getStockAllocationDisplay,
+    getTaxRuleDisplayLabel,
+    getTaxRuleSelectLabel,
+    getWarehouseActionKey,
+    handleCancelWarehouseAllocationAction,
+    handleStartCreateAction,
+    handleStartCreateNewVersionAction,
+    handleStartEditAction,
+    handleSubmitReturnEntryAction,
+    hasApprovedAddServicePendingSnapshot,
     isDraftRowEmpty,
+    normalizeSuggestionText,
+    pickAdvisorCatalogItem,
+    refreshLatestAdvisorEstimate,
+    clearAdvisorRowInputs,
     toIdOrNull,
     useAdvisorItemsTableHandlers,
 } from './useAdvisorItemsTableHandlers.js';
 import CatalogPicker from './CatalogPicker.jsx';
 import ReturnEntryRequestModal from './ReturnEntryRequestModal.jsx';
-import {
-    cancelWarehouseAllocation,
-    fetchServiceTicketEstimate,
-    requestWarehouseReturnEntry,
-} from '../../../services/serviceTicketService.js';
-
-const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
-
-function normalizeSuggestionText(value) {
-    return String(value ?? '')
-        .normalize('NFD')
-        .replaceAll(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
-}
-
-function readAddServicePendingSnapshot(serviceTicketId) {
-    const id = serviceTicketId == null ? '' : String(serviceTicketId).trim();
-    if (!id) return null;
-    try {
-        const raw = localStorage.getItem(`${ADD_SERVICE_RESTORE_STORAGE_PREFIX}${id}`);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' ? parsed : null;
-    } catch {
-        return null;
-    }
-}
 
 function CategorySuggestDropdownPortal({ open, anchorRef, items, disabled, onPick, onClose }) {
     const dropdownRef = useRef(null);
@@ -135,105 +125,6 @@ CategorySuggestDropdownPortal.propTypes = {
     onPick: PropTypes.func,
     onClose: PropTypes.func,
 };
-
-function formatTaxRatePercent(rule) {
-    const raw = rule?.taxRate ?? rule?.rate;
-    const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
-    if (!Number.isFinite(n)) return '';
-    let rate = n;
-    if (rate > 1) rate = rate / 100;
-    if (rate < 0) rate = 0;
-    const pct = rate * 100;
-    const text = pct.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-    return `${text}%`;
-}
-
-function getTaxRuleSelectLabel(rule) {
-    if (!rule) return '';
-    const name = String(rule?.taxName ?? rule?.name ?? '').trim();
-    const code = String(rule?.taxCode ?? rule?.code ?? '').trim();
-    const label = name || code;
-    const rateText = formatTaxRatePercent(rule);
-    if (label && rateText) return `${label} (${rateText})`;
-    return label || rateText;
-}
-
-function getTaxRuleDisplayLabel(rule) {
-    if (!rule) return '';
-    return getTaxRuleSelectLabel(rule);
-}
-
-function getStockAllocationDisplay(status) {
-    const normalized = String(status || '').trim().toUpperCase();
-    if (normalized === 'COMMITTED') return 'Đã xuất hàng';
-    if (normalized === 'RESERVED') return 'Đang giữ hàng';
-    if (normalized === 'RELEASED') return 'Trả hàng';
-    return '-';
-}
-
-function getStockAllocationClassName(status) {
-    const normalized = String(status || '').trim().toUpperCase();
-    if (normalized === 'COMMITTED') return styles.stockStatusCommitted;
-    if (normalized === 'RESERVED') return styles.stockStatusReserved;
-    if (normalized === 'RELEASED') return styles.stockStatusReleased;
-    return styles.stockStatusMissing;
-}
-
-function extractApiPayload(response) {
-    return response?.data?.data ?? response?.data ?? response;
-}
-
-function pickLatestEstimate(payload) {
-    const list = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.estimates)
-            ? payload.estimates
-            : Array.isArray(payload?.estimateList)
-                ? payload.estimateList
-                : null;
-
-    if (list) {
-        const active = list.filter((estimate) => !estimate?.isRemoved);
-        const source = active.length > 0 ? active : list;
-        return source
-            .slice()
-            .sort((a, b) => {
-                const versionA = Number(a?.version ?? a?.estimateVersion ?? 0);
-                const versionB = Number(b?.version ?? b?.estimateVersion ?? 0);
-                if (versionA !== versionB) return versionB - versionA;
-                return Number(b?.estimateId ?? b?.id ?? 0) - Number(a?.estimateId ?? a?.id ?? 0);
-            })[0] ?? null;
-    }
-
-    if (payload && typeof payload === 'object' && Array.isArray(payload.items)) return payload;
-    if (payload?.estimate && typeof payload.estimate === 'object') return payload.estimate;
-    return null;
-}
-
-function getRowStockStatus(row) {
-    return String(
-        row?.stockAllocation?.status ??
-            row?.allocation?.status ??
-            row?.warehouseAllocation?.status ??
-            row?.stockAllocationStatus ??
-            row?.stock_allocation_status ??
-            row?.allocationStatus ??
-            '',
-    ).trim().toUpperCase();
-}
-
-function getWarehouseActionKey(row) {
-    return `${row?.estimateItemId ?? ''}-${row?.issueId ?? ''}-${row?.allocationId ?? ''}`;
-}
-
-function formatAppliedTaxRate(value) {
-    const raw = String(value ?? '').trim();
-    if (!raw) return '';
-    const n = typeof value === 'number' ? value : Number(raw);
-    if (!Number.isFinite(n) || n <= 0) return '';
-    const percent = n > 1 ? n : n * 100;
-    return percent.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-}
 
 function TaxRuleQuickAdd({
     show,
@@ -404,7 +295,7 @@ function EstimateItemRow({
         row?.warehouseName ?? row?.warehouse?.warehouseName ?? row?.warehouse?.name ?? '',
     ).trim();
     const stockAllocationText = getStockAllocationDisplay(row?.stockAllocationStatus);
-    const stockAllocationClassName = getStockAllocationClassName(row?.stockAllocationStatus);
+    const stockAllocationClassName = getStockAllocationClassName(row?.stockAllocationStatus, styles);
     const stockStatus = getRowStockStatus(row);
     const estimateItemId = toIdOrNull(row?.estimateItemId);
     const isReleasedStockItem = stockStatus === 'RELEASED';
@@ -910,11 +801,10 @@ export default function AdvisorItemsTable({
     const [warehouseActionBusyKey, setWarehouseActionBusyKey] = useState('');
     const [returnModalItem, setReturnModalItem] = useState(null);
     const [returnSubmitting, setReturnSubmitting] = useState(false);
-    const hasPendingAddServiceSnapshot = useMemo(() => {
-        const snapshot = readAddServicePendingSnapshot(serviceTicketId);
-        const previousEstimateStatus = String(snapshot?.prevEstimateStatus || '').trim().toUpperCase();
-        return previousEstimateStatus === 'APPROVED';
-    }, [serviceTicketId]);
+    const hasPendingAddServiceSnapshot = useMemo(
+        () => hasApprovedAddServicePendingSnapshot(serviceTicketId),
+        [serviceTicketId],
+    );
     const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
     const tableHasRows = Array.isArray(tableRows) && tableRows.length > 0;
     const shouldShowTable =
@@ -993,158 +883,68 @@ export default function AdvisorItemsTable({
     const [isStartingCreate, setIsStartingCreate] = useState(false);
 
     const refreshLatestEstimate = useCallback(async () => {
-        const ticketId = toIdOrNull(serviceTicketId);
-        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-        if (!ticketId || !token) return null;
-        const res = await fetchServiceTicketEstimate(ticketId, token);
-        const latest = pickLatestEstimate(extractApiPayload(res));
-        if (latest) syncEstimate?.(latest);
-        return latest;
+        return refreshLatestAdvisorEstimate({ serviceTicketId, syncEstimate });
     }, [serviceTicketId, syncEstimate]);
 
     const handleCancelWarehouseAllocation = useCallback(async (row) => {
-        const estimateItemId = toIdOrNull(row?.estimateItemId);
-        if (!estimateItemId) {
-            notify('Thiếu estimateItemId để hủy giữ hàng.');
-            return;
-        }
-
-        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-        if (!token) {
-            notify('Vui lòng đăng nhập để hủy giữ hàng.');
-            return;
-        }
-
-        const actionKey = getWarehouseActionKey(row);
-        try {
-            setWarehouseActionBusyKey(actionKey);
-            await cancelWarehouseAllocation(
-                {
-                    estimateItemId,
-                    issueId: toIdOrNull(row?.issueId),
-                },
-                token,
-            );
-            await refreshLatestEstimate();
-            notify('Đã hủy giữ hàng cho sản phẩm.');
-        } catch (err) {
-            notify(err?.message || 'Không thể hủy giữ hàng.');
-        } finally {
-            setWarehouseActionBusyKey('');
-        }
+        await handleCancelWarehouseAllocationAction({
+            row,
+            notify,
+            setWarehouseActionBusyKey,
+            refreshLatestEstimate,
+        });
     }, [notify, refreshLatestEstimate]);
 
     const handleSubmitReturnEntry = useCallback(async ({ returnReason, quantity, conditionNote, files }) => {
-        const row = returnModalItem;
-        const itemId = toIdOrNull(row?.itemId);
-        const allocationId = toIdOrNull(row?.allocationId);
-        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-
-        if (!token) {
-            notify('Vui lòng đăng nhập để tạo phiếu hoàn trả.');
-            return;
-        }
-        if (!itemId || !allocationId) {
-            notify('Thiếu itemId hoặc allocationId để tạo phiếu hoàn trả.');
-            return;
-        }
-
-        try {
-            setReturnSubmitting(true);
-            await requestWarehouseReturnEntry(
-                {
-                    warehouseId: toIdOrNull(row?.warehouseId),
-                    sourceIssueId: toIdOrNull(row?.issueId),
-                    returnReason,
-                    returnType: 'CUSTOMER_RETURN',
-                    items: [
-                        {
-                            itemId,
-                            allocationId,
-                            quantity,
-                            conditionNote,
-                        },
-                    ],
-                },
-                Array.isArray(files) ? files : [],
-                token,
-            );
-            setReturnModalItem(null);
-            await refreshLatestEstimate();
-            notify('Đã tạo phiếu hoàn trả.');
-        } catch (err) {
-            notify(err?.message || 'Không thể tạo phiếu hoàn trả.');
-        } finally {
-            setReturnSubmitting(false);
-        }
+        await handleSubmitReturnEntryAction({
+            returnModalItem,
+            returnReason,
+            quantity,
+            conditionNote,
+            files,
+            notify,
+            setReturnSubmitting,
+            setReturnModalItem,
+            refreshLatestEstimate,
+        });
     }, [notify, refreshLatestEstimate, returnModalItem]);
 
     const handleStartCreate = async () => {
-        if (isStartingCreate) return;
-        if (isReadOnly) {
-            notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
-            return;
-        }
-        if (isTicketLocked) {
-            notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
-            return;
-        }
-		setRevertOnCancel(false);
-		setRevertTicketOnCancel(false);
-        try {
-            const cleanEstimate = await onBeforeEstimateMutate?.();
-            if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
-            if (startCreate) startCreate(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
-        } catch {
-            return;
-        }
+        await handleStartCreateAction({
+            isStartingCreate,
+            isReadOnly,
+            readOnlyMessage,
+            isTicketLocked,
+            notify,
+            setRevertOnCancel,
+            setRevertTicketOnCancel,
+            onBeforeEstimateMutate,
+            syncEstimate,
+            startCreate,
+        });
     };
 
     const handleStartCreateNewVersion = async () => {
-        if (isStartingCreate) return;
-        if (isReadOnly) {
-            notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
-            return;
-        }
-        if (isTicketLocked) {
-            notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
-            return;
-        }
-		setRevertOnCancel(false);
-        setRevertTicketOnCancel(true);
-        try {
-            const seedEstimate = await onBeforeEstimateMutate?.({
-                promotionTypesToUnapply: ['PERCENT'],
-                resetPromotionSelection: true,
-            });
-            if (seedEstimate !== undefined) syncEstimate?.(seedEstimate);
-            startCreate?.(
-                seedEstimate !== undefined
-                    ? { seedFromPreviousEstimate: true, estimateOverride: seedEstimate }
-                    : { seedFromPreviousEstimate: true },
-            );
-        } catch {
-            setRevertTicketOnCancel(false);
-            return;
-        }
-
-        if (!onRestartWorkflow) return;
-
-        try {
-            setIsStartingCreate(true);
-            notify('Đang chuẩn bị tạo bản báo giá mới...');
-            // Đẩy ServiceTicket về ESTIMATED trước khi tạo Estimate mới (backend không cho phép DRAFT)
-            await onRestartWorkflow();
-        } catch {
-            setRevertTicketOnCancel(false);
-            cancelCreate?.();
-        } finally {
-            setIsStartingCreate(false);
-        }
+        await handleStartCreateNewVersionAction({
+            isStartingCreate,
+            isReadOnly,
+            readOnlyMessage,
+            isTicketLocked,
+            notify,
+            setRevertOnCancel,
+            setRevertTicketOnCancel,
+            onBeforeEstimateMutate,
+            syncEstimate,
+            startCreate,
+            onRestartWorkflow,
+            setIsStartingCreate,
+            cancelCreate,
+        });
     };
 
     useEffect(() => {
         if (!isCreating) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setRevertTicketOnCancel(false);
         }
     }, [isCreating]);
@@ -1235,18 +1035,15 @@ export default function AdvisorItemsTable({
     }, [estimate, isReadOnly, isTicketLocked, isCreating, isEditing, notify, onBeforeEstimateMutate, startCreate, startEdit, syncEstimate]);
 
     const handleStartEdit = useCallback(async () => {
-        if (isReadOnly) {
-            notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
-            return;
-        }
-        setRevertOnCancel(false);
-        try {
-            const cleanEstimate = await onBeforeEstimateMutate?.();
-            if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
-            startEdit?.(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
-        } catch {
-            return;
-        }
+        await handleStartEditAction({
+            isReadOnly,
+            readOnlyMessage,
+            notify,
+            setRevertOnCancel,
+            onBeforeEstimateMutate,
+            syncEstimate,
+            startEdit,
+        });
     }, [isReadOnly, notify, onBeforeEstimateMutate, readOnlyMessage, startEdit, syncEstimate]);
 
     const [pickerOpen, setPickerOpen] = useState(false);
@@ -1308,81 +1105,25 @@ export default function AdvisorItemsTable({
     };
 
     const handleClearRowInputs = useCallback((rowIndex) => {
-        if (!showInputs) return;
-        if (rowIndex == null) return;
-
-        const row = Array.isArray(tableRows) ? tableRows[rowIndex] : null;
-        const giftRaw = row?.isGift ?? row?.is_gift;
-        if (!row || row?.isLockedFromPreviousVersion || giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') return;
-
-        if (activeRowIndex === rowIndex) {
-            setPickerOpen(false);
-            setActiveRowIndex(null);
-            setPickerInitQuery("");
-        }
-
-        onChange(rowIndex, 'newCategoryName', '');
-        onChange(rowIndex, 'workCategoryId', '');
-        onChange(rowIndex, 'workCategoryCode', '');
-
-        onChange(rowIndex, 'itemId', '');
-        onChange(rowIndex, 'itemName', '');
-        onChange(rowIndex, 'unit', '');
-
-        onChange(rowIndex, 'quantity', '');
-        onChange(rowIndex, 'unitPrice', '');
-
-        onChange(rowIndex, 'warehouseId', '');
-        onChange(rowIndex, 'warehouseName', '');
-        onChange(rowIndex, 'warehouseAvailableQuantity', null);
-
-        onChange(rowIndex, 'taxRuleId', '');
-        onChange(rowIndex, 'itemTaxRuleId', '');
-
+        clearAdvisorRowInputs({
+            rowIndex,
+            showInputs,
+            tableRows,
+            activeRowIndex,
+            setPickerOpen,
+            setActiveRowIndex,
+            setPickerInitQuery,
+            onChange,
+        });
     }, [activeRowIndex, onChange, showInputs, tableRows]);
 
     const handlePickCatalogItem = (item) => {
-        if (activeRowIndex == null) return;
-        const id = item?.itemId ?? item?.id ?? null;
-        const name = item?.itemName ?? item?.name ?? '';
-        const price = item?.sellingPrice ?? item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
-        const unit = String(item?.unit ?? '').trim();
-        const warehouseId = item?.warehouseId ?? item?.selectedWarehouse?.warehouseId ?? null;
-        const warehouseName = String(
-            item?.warehouseName ??
-            item?.selectedWarehouse?.warehouseName ??
-            item?.selectedWarehouse?.name ??
-            '',
-        ).trim();
-        const availableQtyRaw =
-            item?.availableQuantity ??
-            item?.selectedWarehouse?.quantity ??
-            item?.selectedWarehouse?.availableQuantity ??
-            null;
-        const availableQtyNum =
-            typeof availableQtyRaw === 'number' ? availableQtyRaw : Number(String(availableQtyRaw ?? '').trim());
-        const rawTaxId = item?.taxRuleId ?? item?.tax_rule_id ?? item?.taxRule?.taxRuleId ?? item?.taxRule?.id ?? '';
-        onChange(activeRowIndex, 'itemId', id);
-        onChange(activeRowIndex, 'itemName', name);
-        onChange(activeRowIndex, 'unitPrice', price);
-        onChange(activeRowIndex, 'unit', unit);
-        if (warehouseId != null && String(warehouseId).trim() !== '') {
-            onChange(activeRowIndex, 'warehouseId', warehouseId);
-        } else {
-            onChange(activeRowIndex, 'warehouseId', '');
-        }
-        onChange(activeRowIndex, 'warehouseName', warehouseName);
-        if (Number.isFinite(availableQtyNum) && availableQtyNum >= 0) {
-            onChange(activeRowIndex, 'warehouseAvailableQuantity', availableQtyNum);
-        } else {
-            onChange(activeRowIndex, 'warehouseAvailableQuantity', null);
-        }
-        onChange(activeRowIndex, 'itemTaxRuleId', rawTaxId == null ? '' : String(rawTaxId));
-
-        // Nếu sản phẩm có thuế thì ưu tiên sản phẩm -> clear chọn thuế thủ công.
-        const taxIdNum = toIdOrNull(rawTaxId);
-        if (taxIdNum) onChange(activeRowIndex, 'taxRuleId', '');
-        closeCatalogPicker();
+        pickAdvisorCatalogItem({
+            item,
+            activeRowIndex,
+            onChange,
+            closeCatalogPicker,
+        });
     };
 
     const showTaxQuickAdd = !isTicketLocked && showInputs;

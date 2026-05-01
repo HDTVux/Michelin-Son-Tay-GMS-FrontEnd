@@ -2,11 +2,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
-import { fetchWarehouseReturnEntries } from '../../../services/warehouseService.js';
+import { fetchWarehousesAll, fetchWarehouseReturnEntries } from '../../../services/warehouseService.js';
 import styles from './WarehouseReturnEntryManagement.module.css';
 
 const DEFAULT_WAREHOUSE_ID = 1;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const toWarehouseIdText = (value) => {
+  const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+  return Number.isFinite(n) && n > 0 ? String(Math.trunc(n)) : '';
+};
+
+const getWarehouseIdText = (warehouse) =>
+  toWarehouseIdText(warehouse?.warehouseId ?? warehouse?.warehouseID ?? warehouse?.id);
+
 const STATUS_OPTIONS = [
   { value: 'ALL', label: 'Tất cả' },
   { value: 'SUBMITTED', label: getStatusTextVi('SUBMITTED') },
@@ -57,7 +65,9 @@ export default function WarehouseReturnEntryManagement() {
   useScrollToTop();
   const navigate = useNavigate();
 
-  const [warehouseIdInput] = useState(String(DEFAULT_WAREHOUSE_ID));
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehouseLoading, setWarehouseLoading] = useState(false);
+  const [warehouseIdInput, setWarehouseIdInput] = useState(String(DEFAULT_WAREHOUSE_ID));
   const [status, setStatus] = useState('ALL');
   const [entries, setEntries] = useState([]);
   const [page, setPage] = useState(0);
@@ -66,16 +76,24 @@ export default function WarehouseReturnEntryManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [warehouseError, setWarehouseError] = useState('');
 
-  const fetchList = async ({ pageOverride, sizeOverride } = {}) => {
+  const fetchList = async ({ warehouseIdOverride, pageOverride, sizeOverride } = {}) => {
     try {
       setLoading(true);
       setError('');
-      const warehouseId = String(warehouseIdInput || '').trim();
+      const warehouseIdSource = warehouseIdOverride ?? warehouseIdInput ?? '';
+      const warehouseId = toWarehouseIdText(warehouseIdSource);
+      if (!warehouseId) {
+        setEntries([]);
+        setTotalElements(0);
+        setTotalPages(1);
+        setError('Vui lòng chọn kho.');
+        return;
+      }
       const nextPage = Number.isFinite(pageOverride) ? pageOverride : page;
       const nextSize = Number.isFinite(sizeOverride) ? sizeOverride : size;
-      const params = {};
-      if (warehouseId) params.warehouseId = warehouseId;
+      const params = { warehouseId };
       if (status && status !== 'ALL') params.status = status;
       params.page = nextPage;
       params.size = nextSize;
@@ -96,15 +114,52 @@ export default function WarehouseReturnEntryManagement() {
   };
 
   useEffect(() => {
-    fetchList();
+    let cancelled = false;
+    (async () => {
+      try {
+        setWarehouseLoading(true);
+        setWarehouseError('');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        const res = await fetchWarehousesAll(token);
+        const payload = res?.data?.data ?? res?.data ?? res;
+        const list = Array.isArray(payload) ? payload : [];
+        if (cancelled) return;
+        setWarehouses(list);
+
+        const currentIdText = toWarehouseIdText(warehouseIdInput);
+        const hasCurrent = Boolean(currentIdText) && list.some((w) => getWarehouseIdText(w) === currentIdText);
+        if (hasCurrent) {
+          await fetchList({ warehouseIdOverride: currentIdText, pageOverride: 0 });
+          return;
+        }
+
+        const firstActive =
+          list.find((w) => w?.isActive === true && getWarehouseIdText(w)) ||
+          list.find((w) => getWarehouseIdText(w)) ||
+          null;
+        const nextId = getWarehouseIdText(firstActive) || String(DEFAULT_WAREHOUSE_ID);
+        setWarehouseIdInput(String(nextId));
+        await fetchList({ warehouseIdOverride: String(nextId), pageOverride: 0 });
+      } catch (err) {
+        if (cancelled) return;
+        setWarehouses([]);
+        setWarehouseError(err?.message || 'Không thể tải danh sách kho.');
+        await fetchList({ warehouseIdOverride: String(DEFAULT_WAREHOUSE_ID), pageOverride: 0 });
+      } finally {
+        if (!cancelled) setWarehouseLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stats = useMemo(() => {
     const total = totalElements;
-    const draft = entries.filter((row) => String(row?.status || '').toUpperCase() === 'DRAFT').length;
+    const submitted = entries.filter((row) => String(row?.status || '').toUpperCase() === 'SUBMITTED').length;
     const confirmed = entries.filter((row) => String(row?.status || '').toUpperCase() === 'CONFIRMED').length;
-    return { total, draft, confirmed };
+    return { total, submitted, confirmed };
   }, [entries, totalElements]);
 
   const safePage = Math.min(Math.max(0, page), Math.max(1, totalPages) - 1);
@@ -128,6 +183,24 @@ export default function WarehouseReturnEntryManagement() {
     setPage(0);
     fetchList({ pageOverride: 0, sizeOverride: nextSize });
   };
+
+  const selectedWarehouseLabel = useMemo(() => {
+    const idText = toWarehouseIdText(warehouseIdInput);
+    if (!idText) return '-';
+    const warehouse = warehouses.find((row) => getWarehouseIdText(row) === idText);
+    if (!warehouse) return idText;
+    return (
+      String(
+        warehouse?.warehouseName ||
+          warehouse?.warehouseCode ||
+          warehouse?.name ||
+          warehouse?.warehouseId ||
+          warehouse?.warehouseID ||
+          warehouse?.id ||
+          idText,
+      ).trim() || idText
+    );
+  }, [warehouseIdInput, warehouses]);
 
   return (
     <div className={styles.bookingPage}>
@@ -173,7 +246,7 @@ export default function WarehouseReturnEntryManagement() {
           </article>
           <article className={styles.statCard}>
             <p className={styles.statLabel}>Kho đang lọc</p>
-            <p className={styles.statValue}>{String(warehouseIdInput || '').trim() || '-'}</p>
+            <p className={styles.statValue}>{selectedWarehouseLabel}</p>
           </article>
         </section>
 
@@ -189,9 +262,32 @@ export default function WarehouseReturnEntryManagement() {
               id="return-entry-warehouse"
               className={styles.select}
               value={warehouseIdInput}
-              disabled
+              onChange={(e) => setWarehouseIdInput(e.target.value)}
+              disabled={warehouseLoading}
             >
-              <option value="1">Kho Michelin Son Tay</option>
+              {warehouses.length > 0 ? (
+                warehouses
+                  .map((warehouse) => {
+                    const idText = getWarehouseIdText(warehouse);
+                    if (!idText) return null;
+                    return (
+                      <option key={idText} value={idText}>
+                        {String(
+                          warehouse?.warehouseName ||
+                            warehouse?.warehouseCode ||
+                            warehouse?.name ||
+                            warehouse?.warehouseId ||
+                            warehouse?.warehouseID ||
+                            warehouse?.id ||
+                            '',
+                        ).trim() || '-'}
+                      </option>
+                    );
+                  })
+                  .filter(Boolean)
+              ) : (
+                <option value={warehouseIdInput}>{warehouseIdInput || '-'}</option>
+              )}
             </select>
           </div>
           <div className={styles.field}>
@@ -225,6 +321,7 @@ export default function WarehouseReturnEntryManagement() {
           </div>
         </section>
 
+        {warehouseError ? <div className={styles.errorBanner}>{warehouseError}</div> : null}
         {error ? <div className={styles.errorBanner}>{error}</div> : null}
 
         <div className={styles.bookingCard}>

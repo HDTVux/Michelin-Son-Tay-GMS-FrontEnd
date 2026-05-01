@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	createServiceTicketEstimate,
+	cancelWarehouseAllocation,
 	fetchServiceTicketEstimate,
 	fetchSafetyInspectionCurrentRecommend,
 	fetchWorkCategoriesAll,
 	fetchTaxRulesAll,
+	requestWarehouseReturnEntry,
 	updateServiceTicketEstimate,
 	updateServiceTicketEstimateItem,
 } from '../../../services/serviceTicketService.js';
@@ -44,10 +46,436 @@ const writeEstimateDraftSnapshot = (storageKey, estimate) => {
 	}
 };
 
+const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
+
+export function normalizeSuggestionText(value) {
+	return String(value ?? '')
+		.normalize('NFD')
+		.replaceAll(/[\u0300-\u036f]/g, '')
+		.toLowerCase();
+}
+
+export function readAddServicePendingSnapshot(serviceTicketId) {
+	const id = serviceTicketId == null ? '' : String(serviceTicketId).trim();
+	if (!id) return null;
+	try {
+		const raw = localStorage.getItem(`${ADD_SERVICE_RESTORE_STORAGE_PREFIX}${id}`);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw);
+		return parsed && typeof parsed === 'object' ? parsed : null;
+	} catch {
+		return null;
+	}
+}
+
 export function formatCurrencyVnd(value) {
 	const n = typeof value === 'number' ? value : Number(value);
 	if (!Number.isFinite(n)) return '';
 	return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
+}
+
+export function formatTaxRatePercent(rule) {
+	const raw = rule?.taxRate ?? rule?.rate;
+	const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+	if (!Number.isFinite(n)) return '';
+	let rate = n;
+	if (rate > 1) rate = rate / 100;
+	if (rate < 0) rate = 0;
+	const pct = rate * 100;
+	const text = pct.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+	return `${text}%`;
+}
+
+export function getTaxRuleSelectLabel(rule) {
+	if (!rule) return '';
+	const name = String(rule?.taxName ?? rule?.name ?? '').trim();
+	const code = String(rule?.taxCode ?? rule?.code ?? '').trim();
+	const label = name || code;
+	const rateText = formatTaxRatePercent(rule);
+	if (label && rateText) return `${label} (${rateText})`;
+	return label || rateText;
+}
+
+export function getTaxRuleDisplayLabel(rule) {
+	if (!rule) return '';
+	return getTaxRuleSelectLabel(rule);
+}
+
+export function getStockAllocationDisplay(status) {
+	const normalized = String(status || '').trim().toUpperCase();
+	if (normalized === 'COMMITTED') return 'Đã xuất hàng';
+	if (normalized === 'RESERVED') return 'Đang giữ hàng';
+	if (normalized === 'RELEASED') return 'Trả hàng';
+	return '-';
+}
+
+export function getStockAllocationClassName(status, styles) {
+	const normalized = String(status || '').trim().toUpperCase();
+	if (normalized === 'COMMITTED') return styles.stockStatusCommitted;
+	if (normalized === 'RESERVED') return styles.stockStatusReserved;
+	if (normalized === 'RELEASED') return styles.stockStatusReleased;
+	return styles.stockStatusMissing;
+}
+
+export function pickLatestEstimateFromPayload(payload) {
+	const list = Array.isArray(payload)
+		? payload
+		: Array.isArray(payload?.estimates)
+			? payload.estimates
+			: Array.isArray(payload?.estimateList)
+				? payload.estimateList
+				: null;
+
+	if (list) {
+		const active = list.filter((estimate) => !estimate?.isRemoved);
+		const source = active.length > 0 ? active : list;
+		return source
+			.slice()
+			.sort((a, b) => {
+				const versionA = Number(a?.version ?? a?.estimateVersion ?? 0);
+				const versionB = Number(b?.version ?? b?.estimateVersion ?? 0);
+				if (versionA !== versionB) return versionB - versionA;
+				return Number(b?.estimateId ?? b?.id ?? 0) - Number(a?.estimateId ?? a?.id ?? 0);
+			})[0] ?? null;
+	}
+
+	if (payload && typeof payload === 'object' && Array.isArray(payload.items)) return payload;
+	if (payload?.estimate && typeof payload.estimate === 'object') return payload.estimate;
+	return null;
+}
+
+export function getRowStockStatus(row) {
+	return String(
+		row?.stockAllocation?.status ??
+			row?.allocation?.status ??
+			row?.warehouseAllocation?.status ??
+			row?.stockAllocationStatus ??
+			row?.stock_allocation_status ??
+			row?.allocationStatus ??
+			'',
+	).trim().toUpperCase();
+}
+
+export function getWarehouseActionKey(row) {
+	return `${row?.estimateItemId ?? ''}-${row?.issueId ?? ''}-${row?.allocationId ?? ''}`;
+}
+
+export function formatAppliedTaxRate(value) {
+	const raw = String(value ?? '').trim();
+	if (!raw) return '';
+	const n = typeof value === 'number' ? value : Number(raw);
+	if (!Number.isFinite(n) || n <= 0) return '';
+	const percent = n > 1 ? n : n * 100;
+	return percent.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+}
+
+export function hasApprovedAddServicePendingSnapshot(serviceTicketId) {
+	const snapshot = readAddServicePendingSnapshot(serviceTicketId);
+	const previousEstimateStatus = String(snapshot?.prevEstimateStatus || '').trim().toUpperCase();
+	return previousEstimateStatus === 'APPROVED';
+}
+
+export async function refreshLatestAdvisorEstimate({ serviceTicketId, syncEstimate }) {
+	const ticketId = toIdOrNull(serviceTicketId);
+	const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+	if (!ticketId || !token) return null;
+	const res = await fetchServiceTicketEstimate(ticketId, token);
+	const latest = pickLatestEstimateFromPayload(extractApiPayload(res));
+	if (latest) syncEstimate?.(latest);
+	return latest;
+}
+
+export async function handleCancelWarehouseAllocationAction({
+	row,
+	notify,
+	setWarehouseActionBusyKey,
+	refreshLatestEstimate,
+}) {
+	const estimateItemId = toIdOrNull(row?.estimateItemId);
+	if (!estimateItemId) {
+		notify('Thiếu estimateItemId để hủy giữ hàng.');
+		return;
+	}
+
+	const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+	if (!token) {
+		notify('Vui lòng đăng nhập để hủy giữ hàng.');
+		return;
+	}
+
+	const actionKey = getWarehouseActionKey(row);
+	try {
+		setWarehouseActionBusyKey(actionKey);
+		await cancelWarehouseAllocation(
+			{
+				estimateItemId,
+				issueId: toIdOrNull(row?.issueId),
+			},
+			token,
+		);
+		await refreshLatestEstimate();
+		notify('Đã hủy giữ hàng cho sản phẩm.');
+	} catch (err) {
+		notify(err?.message || 'Không thể hủy giữ hàng.');
+	} finally {
+		setWarehouseActionBusyKey('');
+	}
+}
+
+export async function handleSubmitReturnEntryAction({
+	returnModalItem,
+	returnReason,
+	quantity,
+	conditionNote,
+	files,
+	notify,
+	setReturnSubmitting,
+	setReturnModalItem,
+	refreshLatestEstimate,
+}) {
+	const row = returnModalItem;
+	const itemId = toIdOrNull(row?.itemId);
+	const allocationId = toIdOrNull(row?.allocationId);
+	const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+
+	if (!token) {
+		notify('Vui lòng đăng nhập để tạo phiếu hoàn trả.');
+		return;
+	}
+	if (!itemId || !allocationId) {
+		notify('Thiếu itemId hoặc allocationId để tạo phiếu hoàn trả.');
+		return;
+	}
+
+	try {
+		setReturnSubmitting(true);
+		await requestWarehouseReturnEntry(
+			{
+				warehouseId: toIdOrNull(row?.warehouseId),
+				sourceIssueId: toIdOrNull(row?.issueId),
+				returnReason,
+				returnType: 'CUSTOMER_RETURN',
+				items: [
+					{
+						itemId,
+						allocationId,
+						quantity,
+						conditionNote,
+					},
+				],
+			},
+			Array.isArray(files) ? files : [],
+			token,
+		);
+		setReturnModalItem(null);
+		await refreshLatestEstimate();
+		notify('Đã tạo phiếu hoàn trả.');
+	} catch (err) {
+		notify(err?.message || 'Không thể tạo phiếu hoàn trả.');
+	} finally {
+		setReturnSubmitting(false);
+	}
+}
+
+export async function handleStartCreateAction({
+	isStartingCreate,
+	isReadOnly,
+	readOnlyMessage,
+	isTicketLocked,
+	notify,
+	setRevertOnCancel,
+	setRevertTicketOnCancel,
+	onBeforeEstimateMutate,
+	syncEstimate,
+	startCreate,
+}) {
+	if (isStartingCreate) return;
+	if (isReadOnly) {
+		notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
+		return;
+	}
+	if (isTicketLocked) {
+		notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
+		return;
+	}
+	setRevertOnCancel(false);
+	setRevertTicketOnCancel(false);
+	try {
+		const cleanEstimate = await onBeforeEstimateMutate?.();
+		if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+		if (startCreate) startCreate(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
+	} catch {
+		// keep existing silent cancel behavior
+	}
+}
+
+export async function handleStartCreateNewVersionAction({
+	isStartingCreate,
+	isReadOnly,
+	readOnlyMessage,
+	isTicketLocked,
+	notify,
+	setRevertOnCancel,
+	setRevertTicketOnCancel,
+	onBeforeEstimateMutate,
+	syncEstimate,
+	startCreate,
+	onRestartWorkflow,
+	setIsStartingCreate,
+	cancelCreate,
+}) {
+	if (isStartingCreate) return;
+	if (isReadOnly) {
+		notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
+		return;
+	}
+	if (isTicketLocked) {
+		notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
+		return;
+	}
+	setRevertOnCancel(false);
+	setRevertTicketOnCancel(true);
+	try {
+		const seedEstimate = await onBeforeEstimateMutate?.({
+			promotionTypesToUnapply: ['PERCENT'],
+			resetPromotionSelection: true,
+		});
+		if (seedEstimate !== undefined) syncEstimate?.(seedEstimate);
+		startCreate?.(
+			seedEstimate !== undefined
+				? { seedFromPreviousEstimate: true, estimateOverride: seedEstimate }
+				: { seedFromPreviousEstimate: true },
+		);
+	} catch {
+		setRevertTicketOnCancel(false);
+		return;
+	}
+
+	if (!onRestartWorkflow) return;
+
+	try {
+		setIsStartingCreate(true);
+		notify('Đang chuẩn bị tạo bản báo giá mới...');
+		await onRestartWorkflow();
+	} catch {
+		setRevertTicketOnCancel(false);
+		cancelCreate?.();
+	} finally {
+		setIsStartingCreate(false);
+	}
+}
+
+export async function handleStartEditAction({
+	isReadOnly,
+	readOnlyMessage,
+	notify,
+	setRevertOnCancel,
+	onBeforeEstimateMutate,
+	syncEstimate,
+	startEdit,
+}) {
+	if (isReadOnly) {
+		notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
+		return;
+	}
+	setRevertOnCancel(false);
+	try {
+		const cleanEstimate = await onBeforeEstimateMutate?.();
+		if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+		startEdit?.(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
+	} catch {
+		// keep existing silent cancel behavior
+	}
+}
+
+export function clearAdvisorRowInputs({
+	rowIndex,
+	showInputs,
+	tableRows,
+	activeRowIndex,
+	setPickerOpen,
+	setActiveRowIndex,
+	setPickerInitQuery,
+	onChange,
+}) {
+	if (!showInputs) return;
+	if (rowIndex == null) return;
+
+	const row = Array.isArray(tableRows) ? tableRows[rowIndex] : null;
+	const giftRaw = row?.isGift ?? row?.is_gift;
+	if (!row || row?.isLockedFromPreviousVersion || giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') return;
+
+	if (activeRowIndex === rowIndex) {
+		setPickerOpen(false);
+		setActiveRowIndex(null);
+		setPickerInitQuery('');
+	}
+
+	onChange(rowIndex, 'newCategoryName', '');
+	onChange(rowIndex, 'workCategoryId', '');
+	onChange(rowIndex, 'workCategoryCode', '');
+
+	onChange(rowIndex, 'itemId', '');
+	onChange(rowIndex, 'itemName', '');
+	onChange(rowIndex, 'unit', '');
+
+	onChange(rowIndex, 'quantity', '');
+	onChange(rowIndex, 'unitPrice', '');
+
+	onChange(rowIndex, 'warehouseId', '');
+	onChange(rowIndex, 'warehouseName', '');
+	onChange(rowIndex, 'warehouseAvailableQuantity', null);
+
+	onChange(rowIndex, 'taxRuleId', '');
+	onChange(rowIndex, 'itemTaxRuleId', '');
+}
+
+export function pickAdvisorCatalogItem({
+	item,
+	activeRowIndex,
+	onChange,
+	closeCatalogPicker,
+}) {
+	if (activeRowIndex == null) return;
+	const id = item?.itemId ?? item?.id ?? null;
+	const name = item?.itemName ?? item?.name ?? '';
+	const price = item?.sellingPrice ?? item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
+	const unit = String(item?.unit ?? '').trim();
+	const warehouseId = item?.warehouseId ?? item?.selectedWarehouse?.warehouseId ?? null;
+	const warehouseName = String(
+		item?.warehouseName ??
+			item?.selectedWarehouse?.warehouseName ??
+			item?.selectedWarehouse?.name ??
+			'',
+	).trim();
+	const availableQtyRaw =
+		item?.availableQuantity ??
+		item?.selectedWarehouse?.quantity ??
+		item?.selectedWarehouse?.availableQuantity ??
+		null;
+	const availableQtyNum =
+		typeof availableQtyRaw === 'number' ? availableQtyRaw : Number(String(availableQtyRaw ?? '').trim());
+	const rawTaxId = item?.taxRuleId ?? item?.tax_rule_id ?? item?.taxRule?.taxRuleId ?? item?.taxRule?.id ?? '';
+	onChange(activeRowIndex, 'itemId', id);
+	onChange(activeRowIndex, 'itemName', name);
+	onChange(activeRowIndex, 'unitPrice', price);
+	onChange(activeRowIndex, 'unit', unit);
+	if (warehouseId != null && String(warehouseId).trim() !== '') {
+		onChange(activeRowIndex, 'warehouseId', warehouseId);
+	} else {
+		onChange(activeRowIndex, 'warehouseId', '');
+	}
+	onChange(activeRowIndex, 'warehouseName', warehouseName);
+	if (Number.isFinite(availableQtyNum) && availableQtyNum >= 0) {
+		onChange(activeRowIndex, 'warehouseAvailableQuantity', availableQtyNum);
+	} else {
+		onChange(activeRowIndex, 'warehouseAvailableQuantity', null);
+	}
+	onChange(activeRowIndex, 'itemTaxRuleId', rawTaxId == null ? '' : String(rawTaxId));
+
+	const taxIdNum = toIdOrNull(rawTaxId);
+	if (taxIdNum) onChange(activeRowIndex, 'taxRuleId', '');
+	closeCatalogPicker();
 }
 
 function pickLatestEstimate(list) {
@@ -188,7 +616,7 @@ function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCa
 	return '';
 }
 
-function extractApiPayload(response) {
+export function extractApiPayload(response) {
 	return response?.data?.data ?? response?.data ?? response;
 }
 
@@ -1411,6 +1839,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	// Tổng tiền của các dòng ước tính đang tạo hoặc đang edit, được dùng để hiển thị ở dòng status và footer của table
 	const draftTotal = useMemo(() => {
 		return draftComputed.reduce((acc, r) => {
+			if (getEstimateItemStockAllocationStatus(r) === 'RELEASED') return acc;
 			if (getEstimateItemGiftFlag(r)) return acc + toNumberOrZero(r?.finalPrice ?? r?.finalPriceDisplay ?? 0);
 			const discountAmount = pickDiscountAmountValue(r);
 			const rawFinalPrice = r?.finalPrice ?? r?.final_price;
