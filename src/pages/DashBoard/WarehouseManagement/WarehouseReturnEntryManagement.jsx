@@ -9,7 +9,7 @@ const DEFAULT_WAREHOUSE_ID = 1;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const STATUS_OPTIONS = [
   { value: 'ALL', label: 'Tất cả' },
-  { value: 'DRAFT', label: getStatusTextVi('DRAFT') },
+  { value: 'SUBMITTED', label: getStatusTextVi('SUBMITTED') },
   { value: 'CONFIRMED', label: getStatusTextVi('CONFIRMED') },
   { value: 'CANCELLED', label: getStatusTextVi('CANCELLED') },
 ];
@@ -164,8 +164,8 @@ export default function WarehouseReturnEntryManagement() {
             <p className={styles.statValue}>{stats.total}</p>
           </article>
           <article className={styles.statCard}>
-            <p className={styles.statLabel}>Nháp</p>
-            <p className={styles.statValue}>{stats.draft}</p>
+            <p className={styles.statLabel}>Đã gửi</p>
+            <p className={styles.statValue}>{stats.submitted}</p>
           </article>
           <article className={styles.statCard}>
             <p className={styles.statLabel}>Đã xác nhận</p>

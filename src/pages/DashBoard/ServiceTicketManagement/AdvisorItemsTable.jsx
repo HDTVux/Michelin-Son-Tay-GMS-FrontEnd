@@ -11,6 +11,12 @@ import {
     useAdvisorItemsTableHandlers,
 } from './useAdvisorItemsTableHandlers.js';
 import CatalogPicker from './CatalogPicker.jsx';
+import ReturnEntryRequestModal from './ReturnEntryRequestModal.jsx';
+import {
+    cancelWarehouseAllocation,
+    fetchServiceTicketEstimate,
+    requestWarehouseReturnEntry,
+} from '../../../services/serviceTicketService.js';
 
 const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
 
@@ -161,6 +167,7 @@ function getStockAllocationDisplay(status) {
     const normalized = String(status || '').trim().toUpperCase();
     if (normalized === 'COMMITTED') return 'Đã xuất hàng';
     if (normalized === 'RESERVED') return 'Đang giữ hàng';
+    if (normalized === 'RELEASED') return 'Trả hàng';
     return '-';
 }
 
@@ -168,7 +175,47 @@ function getStockAllocationClassName(status) {
     const normalized = String(status || '').trim().toUpperCase();
     if (normalized === 'COMMITTED') return styles.stockStatusCommitted;
     if (normalized === 'RESERVED') return styles.stockStatusReserved;
+    if (normalized === 'RELEASED') return styles.stockStatusReleased;
     return styles.stockStatusMissing;
+}
+
+function extractApiPayload(response) {
+    return response?.data?.data ?? response?.data ?? response;
+}
+
+function pickLatestEstimate(payload) {
+    const list = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.estimates)
+            ? payload.estimates
+            : Array.isArray(payload?.estimateList)
+                ? payload.estimateList
+                : null;
+
+    if (list) {
+        const active = list.filter((estimate) => !estimate?.isRemoved);
+        const source = active.length > 0 ? active : list;
+        return source
+            .slice()
+            .sort((a, b) => {
+                const versionA = Number(a?.version ?? a?.estimateVersion ?? 0);
+                const versionB = Number(b?.version ?? b?.estimateVersion ?? 0);
+                if (versionA !== versionB) return versionB - versionA;
+                return Number(b?.estimateId ?? b?.id ?? 0) - Number(a?.estimateId ?? a?.id ?? 0);
+            })[0] ?? null;
+    }
+
+    if (payload && typeof payload === 'object' && Array.isArray(payload.items)) return payload;
+    if (payload?.estimate && typeof payload.estimate === 'object') return payload.estimate;
+    return null;
+}
+
+function getRowStockStatus(row) {
+    return String(row?.stockAllocationStatus || '').trim().toUpperCase();
+}
+
+function getWarehouseActionKey(row) {
+    return `${row?.estimateItemId ?? ''}-${row?.issueId ?? ''}-${row?.allocationId ?? ''}`;
 }
 
 function formatAppliedTaxRate(value) {
@@ -303,6 +350,10 @@ function EstimateItemRow({
     openCatalogPicker,
     showTaxColumn,
     showDiscountColumn,
+    showWarehouseActionColumn,
+    warehouseActionBusyKey,
+    onCancelAllocation,
+    onOpenReturnModal,
 }) {
     const giftRaw = row?.isGift ?? row?.is_gift;
     const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
@@ -346,6 +397,9 @@ function EstimateItemRow({
     ).trim();
     const stockAllocationText = getStockAllocationDisplay(row?.stockAllocationStatus);
     const stockAllocationClassName = getStockAllocationClassName(row?.stockAllocationStatus);
+    const stockStatus = getRowStockStatus(row);
+    const rowActionKey = getWarehouseActionKey(row);
+    const isWarehouseActionBusy = warehouseActionBusyKey === rowActionKey;
 
     let itemPlaceholder = 'Diễn giải';
     if (categoryFilled) {
@@ -515,6 +569,31 @@ function EstimateItemRow({
 
             <td>{warehouseText || '-'}</td>
             {!showInputs ? <td><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
+            {!showInputs && showWarehouseActionColumn ? (
+                <td className={styles.tdCenter}>
+                    <div className={styles.warehouseItemActions}>
+                        {stockStatus === 'RESERVED' ? (
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn--ghost"
+                                onClick={() => onCancelAllocation?.(row)}
+                                disabled={isSaving || isWarehouseActionBusy}
+                            >
+                                {isWarehouseActionBusy ? 'Đang hủy...' : 'Hủy sản phẩm'}
+                            </button>
+                        ) : stockStatus === 'COMMITTED' ? (
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn--ghost"
+                                onClick={() => onOpenReturnModal?.(row)}
+                                disabled={isSaving || isWarehouseActionBusy}
+                            >
+                                Hoàn trả
+                            </button>
+                        ) : null}
+                    </div>
+                </td>
+            ) : null}
             {showInputs ? (
                 <td className={styles.tdCenter}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
@@ -564,6 +643,10 @@ EstimateItemRow.propTypes = {
     openCatalogPicker: PropTypes.func,
     showTaxColumn: PropTypes.bool,
     showDiscountColumn: PropTypes.bool,
+    showWarehouseActionColumn: PropTypes.bool,
+    warehouseActionBusyKey: PropTypes.string,
+    onCancelAllocation: PropTypes.func,
+    onOpenReturnModal: PropTypes.func,
 };
 
 function EstimateActions({
@@ -812,6 +895,9 @@ export default function AdvisorItemsTable({
     const showTaxColumn = isCreating || isEditing;
     const showDiscountColumn = !showInputs;
     const isReadOnly = Boolean(readOnly);
+    const [warehouseActionBusyKey, setWarehouseActionBusyKey] = useState('');
+    const [returnModalItem, setReturnModalItem] = useState(null);
+    const [returnSubmitting, setReturnSubmitting] = useState(false);
     const hasPendingAddServiceSnapshot = useMemo(() => {
         const snapshot = readAddServicePendingSnapshot(serviceTicketId);
         const previousEstimateStatus = String(snapshot?.prevEstimateStatus || '').trim().toUpperCase();
@@ -827,12 +913,6 @@ export default function AdvisorItemsTable({
         isEditing ||
         isReadOnly ||
         Boolean(errorLine);
-
-    const footerSpacerColSpan =
-        (showTaxColumn ? 1 : 0) +
-        1 +
-        (!showInputs ? 1 : 0) +
-        (showInputs ? 1 : 0);
 
     const RECOMMEND_MAX_LENGTH = 255;
     const recommendationValidation = useMemo(
@@ -882,10 +962,110 @@ export default function AdvisorItemsTable({
     // "Tạo version báo giá mới" dành cho báo giá đã gửi hoặc đã xác nhận.
     // ARCHIVED tương ứng đã có bill và bị khóa ở parent, không cho tạo version mới.
     const canCreateNewVersion = !isReadOnly && !isCreating && !isEditing && Boolean(estimate) && canVersionFromCurrentEstimate && !isTicketLocked;
+    const showWarehouseActionColumn =
+        !showInputs &&
+        !isReadOnly &&
+        !isTicketLocked &&
+        Array.isArray(tableRows) &&
+        tableRows.some((row) => ['RESERVED', 'COMMITTED'].includes(getRowStockStatus(row)));
+
+    const footerSpacerColSpan =
+        (showTaxColumn ? 1 : 0) +
+        1 +
+        (!showInputs ? 1 : 0) +
+        (showInputs ? 1 : 0) +
+        (showWarehouseActionColumn ? 1 : 0);
 
     const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
     const [isStartingCreate, setIsStartingCreate] = useState(false);
+
+    const refreshLatestEstimate = useCallback(async () => {
+        const ticketId = toIdOrNull(serviceTicketId);
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!ticketId || !token) return null;
+        const res = await fetchServiceTicketEstimate(ticketId, token);
+        const latest = pickLatestEstimate(extractApiPayload(res));
+        if (latest) syncEstimate?.(latest);
+        return latest;
+    }, [serviceTicketId, syncEstimate]);
+
+    const handleCancelWarehouseAllocation = useCallback(async (row) => {
+        const estimateItemId = toIdOrNull(row?.estimateItemId);
+        if (!estimateItemId) {
+            notify('Thiếu estimateItemId để hủy giữ hàng.');
+            return;
+        }
+
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để hủy giữ hàng.');
+            return;
+        }
+
+        const actionKey = getWarehouseActionKey(row);
+        try {
+            setWarehouseActionBusyKey(actionKey);
+            await cancelWarehouseAllocation(
+                {
+                    estimateItemId,
+                    issueId: toIdOrNull(row?.issueId),
+                },
+                token,
+            );
+            await refreshLatestEstimate();
+            notify('Đã hủy giữ hàng cho sản phẩm.');
+        } catch (err) {
+            notify(err?.message || 'Không thể hủy giữ hàng.');
+        } finally {
+            setWarehouseActionBusyKey('');
+        }
+    }, [notify, refreshLatestEstimate]);
+
+    const handleSubmitReturnEntry = useCallback(async ({ returnReason, quantity, conditionNote, files }) => {
+        const row = returnModalItem;
+        const itemId = toIdOrNull(row?.itemId);
+        const allocationId = toIdOrNull(row?.allocationId);
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+
+        if (!token) {
+            notify('Vui lòng đăng nhập để tạo phiếu hoàn trả.');
+            return;
+        }
+        if (!itemId || !allocationId) {
+            notify('Thiếu itemId hoặc allocationId để tạo phiếu hoàn trả.');
+            return;
+        }
+
+        try {
+            setReturnSubmitting(true);
+            await requestWarehouseReturnEntry(
+                {
+                    warehouseId: toIdOrNull(row?.warehouseId),
+                    sourceIssueId: toIdOrNull(row?.issueId),
+                    returnReason,
+                    returnType: 'CUSTOMER_RETURN',
+                    items: [
+                        {
+                            itemId,
+                            allocationId,
+                            quantity,
+                            conditionNote,
+                        },
+                    ],
+                },
+                Array.isArray(files) ? files : [],
+                token,
+            );
+            setReturnModalItem(null);
+            await refreshLatestEstimate();
+            notify('Đã tạo phiếu hoàn trả.');
+        } catch (err) {
+            notify(err?.message || 'Không thể tạo phiếu hoàn trả.');
+        } finally {
+            setReturnSubmitting(false);
+        }
+    }, [notify, refreshLatestEstimate, returnModalItem]);
 
     const handleStartCreate = async () => {
         if (isStartingCreate) return;
@@ -1331,6 +1511,7 @@ export default function AdvisorItemsTable({
                             <th scope="col">THÀNH TIỀN</th>
                             <th scope="col">KHO</th>
                             {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
+                            {showWarehouseActionColumn ? <th scope="col">THAO TÁC</th> : null}
                             {showInputs ? <th scope="col">THAO TÁC</th> : null}
                         </tr>
                     </thead>
@@ -1353,6 +1534,10 @@ export default function AdvisorItemsTable({
                                 isEditing={isEditing}
                                 softDeleteEditRow={softDeleteEditRow}
                                 openCatalogPicker={openCatalogPicker}
+                                showWarehouseActionColumn={showWarehouseActionColumn}
+                                warehouseActionBusyKey={warehouseActionBusyKey}
+                                onCancelAllocation={handleCancelWarehouseAllocation}
+                                onOpenReturnModal={setReturnModalItem}
                             />
                         ))}
                     </tbody>
@@ -1482,6 +1667,19 @@ export default function AdvisorItemsTable({
                 existingSelectionKeys={selectedProductWarehouseKeys}
                 excludeSelectionKey={activeRowSelectionKey}
             />
+
+            {returnModalItem ? (
+                <ReturnEntryRequestModal
+                    open
+                    item={returnModalItem}
+                    submitting={returnSubmitting}
+                    onClose={() => {
+                        if (returnSubmitting) return;
+                        setReturnModalItem(null);
+                    }}
+                    onSubmit={handleSubmitReturnEntry}
+                />
+            ) : null}
 
             {photoPreview?.url ? (
                 <dialog

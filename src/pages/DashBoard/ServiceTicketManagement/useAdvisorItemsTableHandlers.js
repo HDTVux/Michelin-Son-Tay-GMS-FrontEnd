@@ -213,6 +213,8 @@ function getEstimateItemWarehouseName(item) {
 function getEstimateItemStockAllocationStatus(item) {
 	return String(
 		item?.stockAllocation?.status ??
+			item?.allocation?.status ??
+			item?.warehouseAllocation?.status ??
 			item?.stockAllocationStatus ??
 			item?.stock_allocation_status ??
 			item?.allocationStatus ??
@@ -1182,7 +1184,37 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const workCategoryTaxRuleId = it?.workCategory?.taxRuleId ?? '';
 				const itemId = it?.itemId ?? it?.catalogItemId ?? it?.serviceItemId ?? it?.id ?? null;
 				const itemTaxRuleId = getItemTaxRuleIdFromEstimateItem(it);
+				const warehouseId =
+					it?.warehouseId ??
+					it?.warehouse_id ??
+					it?.warehouse?.warehouseId ??
+					it?.stockAllocation?.warehouseId ??
+					it?.allocation?.warehouseId ??
+					it?.warehouseAllocation?.warehouseId ??
+					'';
 				const warehouseName = getEstimateItemWarehouseName(it);
+				const allocationId =
+					it?.allocationId ??
+					it?.stockAllocationId ??
+					it?.stock_allocation_id ??
+					it?.stockAllocation?.allocationId ??
+					it?.stockAllocation?.stockAllocationId ??
+					it?.allocation?.allocationId ??
+					it?.allocation?.stockAllocationId ??
+					it?.warehouseAllocation?.allocationId ??
+					it?.warehouseAllocation?.stockAllocationId ??
+					null;
+				const issueId =
+					it?.issueId ??
+					it?.stockIssueId ??
+					it?.stock_issue_id ??
+					it?.stockAllocation?.issueId ??
+					it?.stockAllocation?.stockIssueId ??
+					it?.allocation?.issueId ??
+					it?.allocation?.stockIssueId ??
+					it?.warehouseAllocation?.issueId ??
+					it?.warehouseAllocation?.stockIssueId ??
+					null;
 				// Nếu sản phẩm có thuế, luôn ưu tiên thuế sản phẩm -> clear chọn thuế thủ công để UI hiển thị đúng.
 				const taxRuleId = toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? '');
 				return {
@@ -1194,7 +1226,10 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					workCategoryTaxRuleId,
 					itemId,
 					unit,
+					warehouseId,
 					warehouseName,
+					allocationId,
+					issueId,
 					itemTaxRuleId,
 					categoryName,
 					itemName: it?.itemName || '',
