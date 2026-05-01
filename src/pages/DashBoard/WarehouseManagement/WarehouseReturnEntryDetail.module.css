@@ -74,6 +74,17 @@
   padding: 18px;
 }
 
+.bottomAction {
+  display: flex;
+  margin-top: 4px;
+}
+
+.confirmButtonWide {
+  width: 100%;
+  justify-content: center;
+  min-height: 46px;
+}
+
 @media (max-width: 1024px) {
   .detailGrid {
     grid-template-columns: 1fr;

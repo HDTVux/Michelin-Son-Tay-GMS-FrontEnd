@@ -28,23 +28,13 @@ EntryField.propTypes = {
   fullRow: PropTypes.bool,
 };
 
-const EntrySummaryCard = ({ entry, statusLabel, statusValue, isDraft, isConfirming, onConfirm }) => (
+const EntrySummaryCard = ({ entry, statusLabel, statusValue }) => (
   <section className={styles.card}>
     <div className={styles.headerRow}>
       <div className={styles.titleBlock}>
         <div className={styles.entryCode}>{entry?.returnCode || `#${entry?.returnId || '-'}`}</div>
         <span className={`${commonStyles.badge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
       </div>
-      {isDraft ? (
-        <button
-          type="button"
-          className="ui-btn ui-btn--primary"
-          onClick={onConfirm}
-          disabled={isConfirming}
-        >
-          {isConfirming ? 'Đang xác nhận...' : 'Xác nhận phiếu trả'}
-        </button>
-      ) : null}
     </div>
 
     <div className={styles.detailGrid}>
@@ -67,9 +57,6 @@ EntrySummaryCard.propTypes = {
   }),
   statusLabel: PropTypes.string.isRequired,
   statusValue: PropTypes.string.isRequired,
-  isDraft: PropTypes.bool,
-  isConfirming: PropTypes.bool,
-  onConfirm: PropTypes.func.isRequired,
 };
 
 const ReturnItemsCard = ({ items, title = 'Danh sách sản phẩm trả' }) => (
@@ -162,7 +149,7 @@ export default function WarehouseReturnEntryDetail() {
   }, [hasValidReturnId, returnId, params.returnId]);
 
   const statusValue = String(entry?.status || '').toUpperCase();
-  const isDraft = statusValue === 'DRAFT';
+  const canConfirm = statusValue === 'SUBMITTED';
   const statusLabel = getStatusTextVi(statusValue, statusValue || '-');
 
   const handleConfirm = async () => {
@@ -182,7 +169,7 @@ export default function WarehouseReturnEntryDetail() {
     try {
       const response = await confirmWarehouseReturnEntry(safeReturnId, token);
       setEntry((prev) => (prev ? { ...prev, status: 'CONFIRMED' } : prev));
-      notify(response?.message || 'Xác nhận phiếu trả hàng thành công.');
+      notify(response?.message || 'Xác nhận phiếu hoàn hàng thành công.');
     } catch (err) {
       notify(err?.message || 'Không thể xác nhận phiếu trả hàng.');
     } finally {
@@ -212,13 +199,22 @@ export default function WarehouseReturnEntryDetail() {
           entry={entry}
           statusLabel={statusLabel}
           statusValue={statusValue}
-          isDraft={isDraft}
-          isConfirming={isConfirming}
-          onConfirm={handleConfirm}
         />
         <ReturnItemsCard items={entry?.items} title="Danh sách sản phẩm trả" />
         {hasExchangeItems ? (
           <ReturnItemsCard items={entry?.exchangeItems} title="Danh sách sản phẩm thay thế" />
+        ) : null}
+        {canConfirm ? (
+          <div className={styles.bottomAction}>
+            <button
+              type="button"
+              className={`ui-btn ui-btn--primary ${styles.confirmButtonWide}`}
+              onClick={handleConfirm}
+              disabled={isConfirming}
+            >
+              {isConfirming ? 'Đang xác nhận...' : 'Xác nhận phiếu hoàn hàng'}
+            </button>
+          </div>
         ) : null}
       </>
     );

@@ -31,6 +31,7 @@ const STATUS_TEXT_VI = {
   DONE: 'Hoàn tất',
   NEW: 'Mới',
   NOT_ARRIVED: 'Chưa đến',
+  SUBMITTED: 'Đã gửi',
 };
 
 const SERVICE_TICKET_STATUS_TEXT_VI = {

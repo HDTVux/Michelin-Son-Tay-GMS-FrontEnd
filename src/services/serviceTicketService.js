@@ -10,6 +10,11 @@ const toSafeSize = (value, fallback = 10) => {
   return Number.isFinite(number) && number >= 1 ? Math.trunc(number) : fallback;
 };
 
+const toPositiveNumberOrNull = (value) => {
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+};
+
 function parseFilenameFromContentDisposition(headerValue) {
   const raw = String(headerValue || '').trim();
   if (!raw) return null;
@@ -194,6 +199,120 @@ export const updateEstimateStockAllocation = (estimateId, allocations, token) =>
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(bodyArr),
+  });
+};
+
+// Tạo yêu cầu hoàn hàng từ trang phiếu dịch vụ
+// Endpoint: POST /api/warehouse/return-entries/request
+// multipart fields: warehouseId?, sourceIssueId?, returnReason, returnType?, items(JSON), exchangeItems?(JSON), file_0..file_4
+export const requestWarehouseReturnEntry = async (payload, filesOrToken, maybeToken) => {
+  const token = typeof filesOrToken === 'string' ? filesOrToken : maybeToken;
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để tạo phiếu hoàn hàng.');
+    error.status = 401;
+    throw error;
+  }
+
+  const safePayload = payload && typeof payload === 'object' ? payload : {};
+  const warehouseId = toPositiveNumberOrNull(safePayload.warehouseId);
+  const sourceIssueId = toPositiveNumberOrNull(safePayload.sourceIssueId);
+  const returnReason = String(safePayload.returnReason ?? '').trim();
+  const returnType = String(safePayload.returnType ?? 'CUSTOMER_RETURN').trim().toUpperCase();
+  const items = Array.isArray(safePayload.items) ? safePayload.items : [];
+  const exchangeItems = Array.isArray(safePayload.exchangeItems) ? safePayload.exchangeItems : [];
+
+  if (!returnReason) {
+    const error = new Error('Vui lòng nhập lý do hoàn hàng.');
+    error.status = 400;
+    throw error;
+  }
+
+  if (items.length === 0) {
+    const error = new Error('Thiếu danh sách sản phẩm hoàn hàng.');
+    error.status = 400;
+    throw error;
+  }
+
+  const normalizedItems = items.map((item) => ({
+    itemId: toPositiveNumberOrNull(item?.itemId),
+    allocationId: toPositiveNumberOrNull(item?.allocationId),
+    quantity: toPositiveNumberOrNull(item?.quantity),
+    conditionNote: String(item?.conditionNote ?? '').trim(),
+  }));
+
+  if (normalizedItems.some((item) => !item.itemId || !item.allocationId || !item.quantity)) {
+    const error = new Error('Danh sách sản phẩm hoàn hàng thiếu itemId, allocationId hoặc quantity hợp lệ.');
+    error.status = 400;
+    throw error;
+  }
+
+  const formData = new FormData();
+  if (warehouseId) formData.append('warehouseId', String(warehouseId));
+  if (sourceIssueId) formData.append('sourceIssueId', String(sourceIssueId));
+  formData.append('returnReason', returnReason);
+  if (returnType) formData.append('returnType', returnType);
+  formData.append('items', JSON.stringify(normalizedItems));
+  if (exchangeItems.length > 0) formData.append('exchangeItems', JSON.stringify(exchangeItems));
+
+  const rawFiles = typeof filesOrToken === 'string'
+    ? (safePayload.files || safePayload.attachments || safePayload.images)
+    : filesOrToken;
+  const uploadFiles = rawFiles ? Array.from(rawFiles) : [];
+  uploadFiles.slice(0, 5).forEach((file, idx) => {
+    const isBlob = typeof Blob !== 'undefined' && file instanceof Blob;
+    if (!isBlob) return;
+    formData.append(`file_${idx}`, file, file?.name || `attachment_${idx + 1}`);
+  });
+
+  const response = await fetch(`${API_BASE_URL}/api/warehouse/return-entries/request`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json') ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof data === 'string' ? data : data?.message || data?.data?.message || 'Request failed';
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  if (data?.success === false) {
+    const error = new Error(data?.message || data?.data?.message || 'Request failed');
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+};
+
+// Hủy giữ hàng theo estimate item và phiếu xuất kho liên quan
+// Endpoint: POST /api/warehouse/allocations/cancel
+// Request body: { estimateItemId, issueId? }
+export const cancelWarehouseAllocation = (payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để hủy giữ hàng.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const safePayload = payload && typeof payload === 'object' ? payload : {};
+  const estimateItemId = toPositiveNumberOrNull(safePayload.estimateItemId);
+  const issueId = safePayload.issueId == null ? null : toPositiveNumberOrNull(safePayload.issueId);
+
+  if (!estimateItemId) {
+    const error = new Error('Thiếu estimateItemId hợp lệ để hủy giữ hàng.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request('/api/warehouse/allocations/cancel', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ estimateItemId, issueId }),
   });
 };
 
