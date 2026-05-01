@@ -211,7 +211,15 @@ function pickLatestEstimate(payload) {
 }
 
 function getRowStockStatus(row) {
-    return String(row?.stockAllocationStatus || '').trim().toUpperCase();
+    return String(
+        row?.stockAllocation?.status ??
+            row?.allocation?.status ??
+            row?.warehouseAllocation?.status ??
+            row?.stockAllocationStatus ??
+            row?.stock_allocation_status ??
+            row?.allocationStatus ??
+            '',
+    ).trim().toUpperCase();
 }
 
 function getWarehouseActionKey(row) {
@@ -398,6 +406,8 @@ function EstimateItemRow({
     const stockAllocationText = getStockAllocationDisplay(row?.stockAllocationStatus);
     const stockAllocationClassName = getStockAllocationClassName(row?.stockAllocationStatus);
     const stockStatus = getRowStockStatus(row);
+    const estimateItemId = toIdOrNull(row?.estimateItemId);
+    const isReleasedStockItem = stockStatus === 'RELEASED';
     const rowActionKey = getWarehouseActionKey(row);
     const isWarehouseActionBusy = warehouseActionBusyKey === rowActionKey;
 
@@ -598,16 +608,18 @@ function EstimateItemRow({
                 <td className={styles.tdCenter}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                         {allowInputs ? (
-                            isEditing && toIdOrNull(row?.estimateItemId) ? (
+                            isEditing && estimateItemId ? (
+                                isReleasedStockItem ? null : (
                                 <button
                                     type="button"
                                     className="ui-btn ui-btn--ghost"
                                     onClick={() => softDeleteEditRow(idx)}
-                                    disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row) || isLocked}
+                                    disabled={isSaving || !estimateItemId || isDraftRowEmpty(row) || isLocked}
                                     title="Xóa dòng này"
                                 >
                                     Xóa
                                 </button>
+                                )
                             ) : (
                                 <button
                                     type="button"

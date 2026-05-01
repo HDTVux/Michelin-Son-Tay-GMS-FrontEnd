@@ -320,6 +320,28 @@ function mapEstimateItemToLockedRow(it, idx, options = {}) {
 	const unit = getItemUnitFromEstimateItem(it);
 	const warehouseId = it?.warehouseId ?? it?.warehouse_id ?? it?.warehouse?.warehouseId ?? '';
 	const warehouseName = getEstimateItemWarehouseName(it);
+	const allocationId =
+		it?.allocationId ??
+			it?.stockAllocationId ??
+			it?.stock_allocation_id ??
+			it?.stockAllocation?.allocationId ??
+			it?.stockAllocation?.stockAllocationId ??
+			it?.allocation?.allocationId ??
+			it?.allocation?.stockAllocationId ??
+			it?.warehouseAllocation?.allocationId ??
+			it?.warehouseAllocation?.stockAllocationId ??
+			null;
+	const issueId =
+		it?.issueId ??
+			it?.stockIssueId ??
+			it?.stock_issue_id ??
+			it?.stockAllocation?.issueId ??
+			it?.stockAllocation?.stockIssueId ??
+			it?.allocation?.issueId ??
+			it?.allocation?.stockIssueId ??
+			it?.warehouseAllocation?.issueId ??
+			it?.warehouseAllocation?.stockIssueId ??
+			null;
 	const newCategoryName = String(
 		it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
 	).trim();
@@ -334,6 +356,8 @@ function mapEstimateItemToLockedRow(it, idx, options = {}) {
 		unit,
 		warehouseId,
 		warehouseName,
+		allocationId,
+		issueId,
 		warehouseAvailableQuantity: null,
 		itemTaxRuleId,
 		categoryName: newCategoryName,
@@ -345,6 +369,7 @@ function mapEstimateItemToLockedRow(it, idx, options = {}) {
 		finalPrice: resetPromotionPricing ? '' : (it?.finalPrice ?? it?.final_price ?? ''),
 		isGift: getEstimateItemGiftFlag(it),
 		triggeredByItemId: pickTriggeredByItemId(it),
+		stockAllocationStatus: getEstimateItemStockAllocationStatus(it),
 		// Dòng khóa (seed từ version trước): vẫn ưu tiên thuế sản phẩm nếu có.
 		taxRuleId: toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? ''),
 		isRemoved: false,
@@ -1400,6 +1425,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 	const editTotal = useMemo(() => {
 		return editComputed.reduce((acc, r) => {
+			if (getEstimateItemStockAllocationStatus(r) === 'RELEASED') return acc;
 			if (getEstimateItemGiftFlag(r)) return acc + toNumberOrZero(r?.finalPrice ?? r?.finalPriceDisplay ?? 0);
 			const discountAmount = pickDiscountAmountValue(r);
 			const rawFinalPrice = r?.finalPrice ?? r?.final_price;
@@ -1573,6 +1599,28 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				const itemTaxRuleId = getItemTaxRuleIdFromEstimateItem(it);
 				const warehouseId = it?.warehouseId ?? it?.warehouse_id ?? it?.warehouse?.warehouseId ?? '';
 				const warehouseName = getEstimateItemWarehouseName(it);
+				const allocationId =
+					it?.allocationId ??
+					it?.stockAllocationId ??
+					it?.stock_allocation_id ??
+					it?.stockAllocation?.allocationId ??
+					it?.stockAllocation?.stockAllocationId ??
+					it?.allocation?.allocationId ??
+					it?.allocation?.stockAllocationId ??
+					it?.warehouseAllocation?.allocationId ??
+					it?.warehouseAllocation?.stockAllocationId ??
+					null;
+				const issueId =
+					it?.issueId ??
+					it?.stockIssueId ??
+					it?.stock_issue_id ??
+					it?.stockAllocation?.issueId ??
+					it?.stockAllocation?.stockIssueId ??
+					it?.allocation?.issueId ??
+					it?.allocation?.stockIssueId ??
+					it?.warehouseAllocation?.issueId ??
+					it?.warehouseAllocation?.stockIssueId ??
+					null;
 				const warehouseAvailableQuantity =
 					it?.warehouseAvailableQuantity ??
 					it?.availableQuantity ??
@@ -1596,6 +1644,8 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					unit: getItemUnitFromEstimateItem(it),
 					warehouseId,
 					warehouseName,
+					allocationId,
+					issueId,
 					warehouseAvailableQuantity,
 					itemTaxRuleId,
 					newCategoryName: String(
@@ -1610,6 +1660,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					finalPrice: it?.finalPrice ?? it?.final_price ?? '',
 					isGift: getEstimateItemGiftFlag(it),
 					triggeredByItemId: pickTriggeredByItemId(it),
+					stockAllocationStatus: getEstimateItemStockAllocationStatus(it),
 				};
 			});
 		const normalized = normalizeDraftRows(mapped);
@@ -1898,6 +1949,10 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 			const row = editComputed[rowIndex];
 			if (getEstimateItemGiftFlag(row)) return;
+			if (getEstimateItemStockAllocationStatus(row) === 'RELEASED') {
+				setSaveError('Không thể xóa sản phẩm đã hoàn hàng.');
+				return;
+			}
 			const estimateItemId = toIdOrNull(row?.estimateItemId);
 			if (!estimateItemId) {
 				setSaveError('Không tìm thấy estimateItemId để xóa.');
