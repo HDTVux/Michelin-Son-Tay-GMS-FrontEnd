@@ -1532,10 +1532,25 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         if (shouldSyncCreatedVersion) {
             createVersionSyncRef.current = `${nextEstimateId}:DRAFT`;
             globalThis.setTimeout?.(() => {
-                globalThis.location?.reload?.();
+                createNewEstimateRevertRef.current = null;
+                setIsCreatingNewEstimateVersion(false);
+                triggerRefresh();
+                loadLatestEstimate();
+
+                const token = localStorage.getItem('authToken');
+                const code = String(ticket?.ticketCode || ticketCodeParam || '').trim();
+                if (token && code) {
+                    fetchServiceTicketDetail(code, token)
+                        .then((detailRes) => {
+                            if (detailRes?.data) setTicketRaw(detailRes.data);
+                        })
+                        .catch(() => {
+                            // Estimate refresh above is enough for the version flow.
+                        });
+                }
             }, 80);
         }
-    }, [isCreatingNewEstimateVersion, loadLatestEstimate]);
+    }, [isCreatingNewEstimateVersion, loadLatestEstimate, setTicketRaw, ticket?.ticketCode, ticketCodeParam, triggerRefresh]);
 
     const handleBeforeEstimateMutate = useCallback(async (options = {}) => {
         if (!estimateIdNum || hasBill) return;

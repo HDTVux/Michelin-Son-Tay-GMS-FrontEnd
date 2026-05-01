@@ -256,8 +256,6 @@ function EstimateItemRow({
 }) {
     const giftRaw = row?.isGift ?? row?.is_gift;
     const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
-    const isLocked = Boolean(row?.isLockedFromPreviousVersion) || isGift;
-    const allowInputs = showInputs && !isLocked;
 
     const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
     const categoryInputRef = useRef(null);
@@ -269,6 +267,10 @@ function EstimateItemRow({
         return list.filter((label) => normalizeSuggestionText(label).includes(q)).slice(0, 50);
     }, [categorySuggestions, row.newCategoryName]);
 
+    const stockStatus = getRowStockStatus(row);
+    const isWarehouseLockedItem = ['RESERVED', 'COMMITTED', 'RELEASED'].includes(stockStatus);
+    const isLocked = Boolean(row?.isLockedFromPreviousVersion) || isGift || isWarehouseLockedItem;
+    const allowInputs = showInputs && !isLocked;
     const categoryFilled =
         Boolean(String(row?.newCategoryName ?? row?.categoryName ?? '').trim()) || Boolean(toIdOrNull(row?.workCategoryId));
     const allowItemActions = allowInputs && categoryFilled;
@@ -296,9 +298,7 @@ function EstimateItemRow({
     ).trim();
     const stockAllocationText = getStockAllocationDisplay(row?.stockAllocationStatus);
     const stockAllocationClassName = getStockAllocationClassName(row?.stockAllocationStatus, styles);
-    const stockStatus = getRowStockStatus(row);
     const estimateItemId = toIdOrNull(row?.estimateItemId);
-    const isReleasedStockItem = stockStatus === 'RELEASED';
     const rowActionKey = getWarehouseActionKey(row);
     const isWarehouseActionBusy = warehouseActionBusyKey === rowActionKey;
 
@@ -500,7 +500,6 @@ function EstimateItemRow({
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                         {allowInputs ? (
                             isEditing && estimateItemId ? (
-                                isReleasedStockItem ? null : (
                                 <button
                                     type="button"
                                     className="ui-btn ui-btn--ghost"
@@ -510,7 +509,6 @@ function EstimateItemRow({
                                 >
                                     Xóa
                                 </button>
-                                )
                             ) : (
                                 <button
                                     type="button"

@@ -160,6 +160,10 @@ export function getWarehouseActionKey(row) {
 	return `${row?.estimateItemId ?? ''}-${row?.issueId ?? ''}-${row?.allocationId ?? ''}`;
 }
 
+function isWarehouseStockLockedStatus(status) {
+	return ['RESERVED', 'COMMITTED', 'RELEASED'].includes(String(status || '').trim().toUpperCase());
+}
+
 export function formatAppliedTaxRate(value) {
 	const raw = String(value ?? '').trim();
 	if (!raw) return '';
@@ -404,6 +408,7 @@ export function clearAdvisorRowInputs({
 	const row = Array.isArray(tableRows) ? tableRows[rowIndex] : null;
 	const giftRaw = row?.isGift ?? row?.is_gift;
 	if (!row || row?.isLockedFromPreviousVersion || giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') return;
+	if (isWarehouseStockLockedStatus(getEstimateItemStockAllocationStatus(row))) return;
 
 	if (activeRowIndex === rowIndex) {
 		setPickerOpen(false);
@@ -924,6 +929,27 @@ function normalizeEditRowsForDirtyCheck(rows) {
 		}));
 }
 
+function normalizeCreateRowsForDirtyCheck(rows) {
+	return (Array.isArray(rows) ? rows : [])
+		.filter((row) => !isDraftRowEmpty(row) && !getEstimateItemGiftFlag(row))
+		.map((row) => ({
+			estimateItemId: toIdOrNull(row?.estimateItemId),
+			workCategoryId: toIdOrNull(row?.workCategoryId),
+			itemId: toIdOrNull(row?.itemId),
+			warehouseId: toIdOrNull(row?.warehouseId ?? row?.warehouse_id),
+			newCategoryName: String(row?.newCategoryName ?? '').trim(),
+			itemName: String(row?.itemName ?? '').trim(),
+			unit: String(row?.unit ?? '').trim(),
+			quantity: toNumberOrZero(row?.quantity),
+			unitPrice: toNumberOrZero(row?.unitPrice),
+			isChecked: getEstimateItemStockAllocationStatus(row) === 'RELEASED' ? false : true,
+			revisedFromItemId: toIdOrNull(row?.estimateItemId),
+			discountAmount: pickDiscountAmountValue(row),
+			finalPrice: row?.finalPrice == null || String(row?.finalPrice).trim() === '' ? null : toNumberOrZero(row?.finalPrice),
+			triggeredByItemId: pickTriggeredByItemId(row),
+		}));
+}
+
 function getEstimateItemFinalPriceDisplay(item, fallbackValue) {
 	const rawFinalPrice = item?.finalPrice ?? item?.final_price;
 	if (rawFinalPrice == null || String(rawFinalPrice).trim() === '') return fallbackValue;
@@ -1120,6 +1146,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const [draftRows, setDraftRows] = useState(() => [createEmptyDraftRow()]);
 	const [editRows, setEditRows] = useState(() => [createEmptyDraftRow()]);
 	const initialEditRowsSnapshotRef = useRef('');
+	const initialCreateRowsSnapshotRef = useRef('');
 	const lastValidServiceTicketIdRef = useRef(
 		serviceTicketId != null && String(serviceTicketId).trim() !== '' ? serviceTicketId : null,
 	);
@@ -1920,7 +1947,11 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const handleDraftChange = useCallback((index, field, value) => {
 		setDraftRows((prev) => {
 			const base = Array.isArray(prev) ? prev : [];
-			if (base[index]?.isLockedFromPreviousVersion || getEstimateItemGiftFlag(base[index])) return base;
+			if (
+				base[index]?.isLockedFromPreviousVersion ||
+				getEstimateItemGiftFlag(base[index]) ||
+				isWarehouseStockLockedStatus(getEstimateItemStockAllocationStatus(base[index]))
+			) return base;
 			const next = base.map((r, idx) => {
 				if (idx !== index) return r;
 				if (field === 'newCategoryName') return applyCategorySelection(r, value);
@@ -1945,7 +1976,11 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const handleEditChange = useCallback((index, field, value) => {
 		setEditRows((prev) => {
 			const base = Array.isArray(prev) ? prev : [];
-			if (base[index]?.isLockedFromPreviousVersion || getEstimateItemGiftFlag(base[index])) return base;
+			if (
+				base[index]?.isLockedFromPreviousVersion ||
+				getEstimateItemGiftFlag(base[index]) ||
+				isWarehouseStockLockedStatus(getEstimateItemStockAllocationStatus(base[index]))
+			) return base;
 			const next = base.map((r, idx) => {
 				if (idx !== index) return r;
 				if (field === 'newCategoryName') return applyCategorySelection(r, value);
@@ -1984,11 +2019,13 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				.filter((it) => !it?.isRemoved)
 				.map((it, idx) => mapEstimateItemToLockedRow(it, idx, { resetPromotionPricing: true }));
 			const seeded = normalizeDraftRows([...locked, createEmptyDraftRow()]);
+			initialCreateRowsSnapshotRef.current = JSON.stringify(normalizeCreateRowsForDirtyCheck(seeded));
 			setDraftRows(seeded);
 			// Enrich tax for seeded locked rows if estimate API didn't embed item tax.
 			enrichRowsWithItemTaxes(seeded, setDraftRows);
 			return;
 		}
+		initialCreateRowsSnapshotRef.current = '';
 		setDraftRows([createEmptyDraftRow()]);
 	}, [estimate, enrichRowsWithItemTaxes, isEditing]);
 
@@ -1997,6 +2034,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		setIsCreating(false);
 		setIsAppendOnlyEdit(false);
 		setSaveError('');
+		initialCreateRowsSnapshotRef.current = '';
 	}, [isSaving]);
 
 	const startEdit = useCallback((options) => {
@@ -2129,6 +2167,14 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			return;
 		}
 
+		const currentCreateRowsSnapshot = JSON.stringify(normalizeCreateRowsForDirtyCheck(draftRows));
+		if (initialCreateRowsSnapshotRef.current && initialCreateRowsSnapshotRef.current === currentCreateRowsSnapshot) {
+			setSaveError('');
+			setIsCreating(false);
+			initialCreateRowsSnapshotRef.current = '';
+			return;
+		}
+
 		const items = (Array.isArray(draftRows) ? draftRows : [])
 			.filter((r) => !isDraftRowEmpty(r))
 			.map((r) => {
@@ -2215,6 +2261,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
             setEstimate(nextEstimate ?? null);
             onEstimateStatusChangeRef.current?.(nextEstimate ?? null);
             setIsCreating(false);
+			initialCreateRowsSnapshotRef.current = '';
         } catch (err) {
             setSaveError(err?.message || 'Không thể lưu báo giá.');
         } finally {
@@ -2378,8 +2425,8 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 			const row = editComputed[rowIndex];
 			if (getEstimateItemGiftFlag(row)) return;
-			if (getEstimateItemStockAllocationStatus(row) === 'RELEASED') {
-				setSaveError('Không thể xóa sản phẩm đã hoàn hàng.');
+			if (isWarehouseStockLockedStatus(getEstimateItemStockAllocationStatus(row))) {
+				setSaveError('Không thể xóa sản phẩm đã giữ/xuất/hoàn hàng.');
 				return;
 			}
 			const estimateItemId = toIdOrNull(row?.estimateItemId);
