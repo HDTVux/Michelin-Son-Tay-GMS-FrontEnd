@@ -854,6 +854,7 @@ export default function AdvisorItemsTable({
     // Cho phép tạo mới nếu chưa có báo giá.
     const ticketStatusUpper = String(ticketStatus || '').trim().toUpperCase();
     const isTicketPaid = ticketStatusUpper === 'PAID';
+    const isTicketCompleted = ticketStatusUpper === 'COMPLETED';
     const isTicketCancelled = ['CANCELLED', 'CANCELED', 'CANCEL'].includes(ticketStatusUpper);
     const isTicketLocked = isTicketPaid || isTicketCancelled;
     // "Tạo báo giá mới" chỉ dành cho trường hợp chưa có bất kì báo giá nào.
@@ -866,6 +867,7 @@ export default function AdvisorItemsTable({
         !showInputs &&
         !isReadOnly &&
         !isTicketLocked &&
+        !isTicketCompleted &&
         Array.isArray(tableRows) &&
         tableRows.some((row) => ['RESERVED', 'COMMITTED'].includes(getRowStockStatus(row)));
 

@@ -115,7 +115,6 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                                 onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, 5))}
                                 disabled={submitting}
                             />
-                            <div className={styles.fieldHint}>Tối đa 5 ảnh.</div>
                         </div>
                     </div>
 
