@@ -216,7 +216,6 @@ const ReturnItemsCard = ({ items, title = 'Danh sách sản phẩm trả' }) => 
                   <td>
                     <div className={styles.stackedCell}>
                       <span>{row?.entryCode || '-'}</span>
-                      <span>{row?.entryLotCode || '-'}</span>
                     </div>
                   </td>
                   <td>{formatNumber(row?.quantity)}</td>

@@ -3,17 +3,7 @@ import { fetchServiceTicketDetail, updateServiceTicket } from '../../../services
 import { validateTextInput } from '../../../components/inputValidation.js';
 import { getServiceTicketStatusTextVi } from '../../../components/statusUtils.js';
 
-const STAFF_ROLE = {
-    ADVISOR: 'ADVISOR',
-    RECEPTIONIST: 'RECEPTIONIST',
-    ACCOUNTANT: 'ACCOUNTANT',
-    WAREHOUSE_KEEPER: 'WAREHOUSE_KEEPER',
-};
 const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
-const PROMOTION_TYPES = [
-    { type: 'PERCENT', label: 'Giảm theo phần trăm' },
-    { type: 'BUY_X_GET_Y', label: 'Mua X tặng Y' },
-];
 
 function readStaffRolesFromStorage() {
     try {
@@ -1050,8 +1040,6 @@ function normalizeBillId(payment) {
 
 
 export {
-	STAFF_ROLE,
-	PROMOTION_TYPES,
 	readStaffRolesFromStorage,
 	formatCurrencyVnd,
 	toMoneyNumber,
