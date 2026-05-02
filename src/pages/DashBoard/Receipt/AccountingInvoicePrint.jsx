@@ -192,14 +192,18 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
     const rowCount = Math.max(DEFAULT_ROW_COUNT, invoiceItems.length);
 
     const computedSubtotal = invoiceItems.reduce((sum, item) => sum + (toMoneyNumber(item?.grossAmount) || toMoneyNumber(item?.subTotal)), 0);
-    const subtotalAmount = Math.max(0, toMoneyNumber(invoice?.subtotal) || computedSubtotal);
+    const computedLineTotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
+    const subtotalAmount = Math.max(0, computedSubtotal || toMoneyNumber(invoice?.subtotal));
     const discountAmount = Math.max(0, toMoneyNumber(invoice?.discountAmount));
     const lineDiscountAmount = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.discountAmount ?? item?.discount_amount), 0);
-    const displayDiscountAmount = Math.max(discountAmount, lineDiscountAmount);
+    const displayDiscountAmount = invoiceItems.length > 0 ? lineDiscountAmount : discountAmount;
 
-    const totalAmount = Number.isFinite(Number(invoice?.total))
-        ? Number(invoice.total)
-        : Math.max(0, subtotalAmount - displayDiscountAmount);
+    const invoiceTotal = Number(invoice?.total);
+    const totalAmount = computedLineTotal > 0
+        ? computedLineTotal
+        : Number.isFinite(invoiceTotal)
+            ? Math.max(0, invoiceTotal)
+            : Math.max(0, subtotalAmount - displayDiscountAmount);
 
     const totalInWords = numberToVietnameseWords(totalAmount);
     const customerName = buildCustomerName(ticket?.customer);

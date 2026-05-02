@@ -261,11 +261,7 @@ export default function ReceiptPaymentMethod() {
                     rawFinalPrice == null || String(rawFinalPrice).trim() === ''
                         ? subTotalDisplay
                         : toMoneyNumber(rawFinalPrice);
-                const discountAmount = Math.max(
-                    toMoneyNumber(it?.discountAmount ?? it?.discount_amount),
-                    subTotalDisplay - finalPriceDisplay,
-                    0,
-                );
+                const discountAmount = Math.max(0, toMoneyNumber(it?.discountAmount ?? it?.discount_amount));
 
                 const appliedTaxRate = it?.appliedTaxRate ?? it?.applied_tax_rate ?? null;
                 const appliedTaxRateText = normalizeTaxRatePercentText(appliedTaxRate);
@@ -332,8 +328,12 @@ export default function ReceiptPaymentMethod() {
     }, [estimate]);
 
     const payItems = estimateItems;
+    const payableItems = useMemo(
+        () => payItems.filter((item) => !isReturnedEstimateItem(item)),
+        [payItems],
+    );
     const totalSafe = useMemo(() => {
-        const estimateTotal = payItems.reduce((sum, item) => sum + toMoneyNumber(item?.finalPriceDisplay), 0);
+        const estimateTotal = payableItems.reduce((sum, item) => sum + toMoneyNumber(item?.finalPriceDisplay), 0);
         if (estimateTotal > 0) return estimateTotal;
         return toMoneyNumber(
             payment?.finalAmount ??
@@ -342,7 +342,7 @@ export default function ReceiptPaymentMethod() {
             payment?.total_amount ??
             payment?.amount,
         );
-    }, [payItems, payment]);
+    }, [payableItems, payment]);
 
     const transferContent = useMemo(() => {
         const code = ticketCodeParam || ticketFromState?.ticketCode || 'SERVICE_TICKET';
@@ -466,9 +466,8 @@ export default function ReceiptPaymentMethod() {
         });
 
         const computedSubtotal = invoiceItems.reduce((sum, item) => sum + (toMoneyNumber(item?.grossAmount) || toMoneyNumber(item?.subTotal)), 0);
-        const invoiceSubtotal = Math.max(0, toMoneyNumber(payment?.subTotal) || computedSubtotal);
         const computedDiscountAmount = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.discountAmount), 0);
-        const invoiceDiscountAmount = Math.max(0, toMoneyNumber(payment?.discountAmount) || computedDiscountAmount);
+        const computedTotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
 
         const stateCustomer = ticketFromState?.customer || {};
         const stateVehicle = ticketFromState?.vehicle || {};
@@ -489,9 +488,9 @@ export default function ReceiptPaymentMethod() {
             },
             invoice: {
                 items: invoiceItems,
-                subtotal: invoiceSubtotal,
-                discountAmount: invoiceDiscountAmount,
-                total: Math.max(0, invoiceSubtotal - invoiceDiscountAmount),
+                subtotal: computedSubtotal,
+                discountAmount: computedDiscountAmount,
+                total: computedTotal,
             },
         };
 
