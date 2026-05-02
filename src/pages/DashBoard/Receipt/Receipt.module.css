@@ -725,6 +725,7 @@
 .serviceTable {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
     font-size: 10px;
 }
 .serviceTable thead th {
@@ -732,7 +733,7 @@
     color: var(--barText);
     font-weight: 900;
     font-size: 9px;
-    padding: 2mm 1.5mm;
+    padding: 1.45mm 1mm;
     border-right: 1px solid rgba(255, 255, 255, 0.25);
     text-align: center;
     letter-spacing: 0.5px;
@@ -747,10 +748,11 @@
 .serviceTable td {
     border-top: 1px solid var(--line);
     border-right: 1px solid var(--line);
-    padding: 1.2mm 1.5mm;
-    height: 6mm;
+    padding: 0.7mm 1mm;
+    height: 5.1mm;
     vertical-align: middle;
     font-size: 10px;
+    line-height: 1.1;
 }
 .serviceTable td:last-child,
 .serviceTable th:last-child {
@@ -760,13 +762,13 @@
     background: #f0f5ff;
 }
 .thStt { width: 28px; }
-.thItem { width: 105px; }
+.thItem { width: 92px; }
 .thDesc { width: auto; }
 .thQty { width: 28px; }
 .thPrice { width: 68px; }
-.thAmount { width: 75px; }
-.thKho { width: 36px; }
-.thGift { width: 48px; }
+.thAmount { width: 82px; }
+.thKho { width: 64px; }
+.thGift { width: 42px; }
 
 .giftRow td {
     background: #eefaf2 !important;
@@ -774,6 +776,30 @@
 
 .tdCenter { text-align: center; }
 .tdRight { text-align: right; }
+.amountCell {
+    line-height: 1.05;
+}
+.taxIncludedNote {
+    margin-top: 0.2mm;
+    font-size: 6.6px;
+    line-height: 1.05;
+    font-weight: 700;
+    white-space: normal;
+}
+.tdWarehouse {
+    font-size: 7px !important;
+    line-height: 1.05 !important;
+    padding: 0.35mm 0.55mm !important;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+}
+.tdWarehouseLong {
+    font-size: 6.1px !important;
+    line-height: 1 !important;
+}
 
 /* Dòng Tổng Cộng */
 .totalLabel {
@@ -799,8 +825,8 @@
    4. FOOTER
 ========================================= */
 .footer {
-    margin-top: 2mm;
-    padding-top: 2mm;
+    margin-top: 1.2mm;
+    padding-top: 1.2mm;
     border-top: 1.5px solid var(--line);
 }
 .recommendation {
@@ -813,12 +839,12 @@
     display: flex;
     align-items: baseline;
     gap: 2mm;
-    min-height: 6mm;
-    padding: 0 0 1mm;
+    min-height: 4.5mm;
+    padding: 0 0 0.6mm;
 }
 .recommendationLine .legalText {
-    font-size: 9px;
-    line-height: 1.25;
+    font-size: 8.4px;
+    line-height: 1.16;
 }
 .privacyNotice {
     margin-top: 0;
@@ -833,16 +859,16 @@
     white-space: nowrap;
 }
 .legalText {
-    font-size: 7.8px;
+    font-size: 7.1px;
     color: #444;
     text-align: justify;
-    line-height: 1.32;
+    line-height: 1.18;
 }
 .signRow {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12mm;
-    margin-top: 2.5mm;
+    margin-top: 1.5mm;
 }
 .signCol {
     text-align: center;
@@ -862,7 +888,7 @@
     width: 55mm;
     height: 1px;
     background: #111;
-    margin: 11mm auto 1mm;
+    margin: 8mm auto 1mm;
 }
 
 /* Right tire pressure layout aligned with the printed Michelin form. */

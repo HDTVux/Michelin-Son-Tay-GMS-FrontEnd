@@ -62,7 +62,7 @@ function normalizeTaxRatePercentText(rawRate) {
     return `${text}%`;
 }
 
-function isReturnedEstimateItem(item) {
+function getEstimateItemStockStatus(item) {
     return String(
         item?.stockAllocation?.status ??
             item?.allocation?.status ??
@@ -71,7 +71,33 @@ function isReturnedEstimateItem(item) {
             item?.stock_allocation_status ??
             item?.allocationStatus ??
             '',
-    ).trim().toUpperCase() === 'RELEASED';
+    ).trim().toUpperCase();
+}
+
+function isReturnedEstimateItem(item) {
+    const status = getEstimateItemStockStatus(item);
+    if (['RELEASED', 'RETURNED', 'RETURN', 'REFUNDED', 'REFUND', 'CANCELLED_RETURN'].includes(status)) return true;
+
+    const text = String(
+        item?.returnStatus ??
+            item?.return_status ??
+            item?.returnEntryStatus ??
+            item?.return_entry_status ??
+            item?.warehouseReturnStatus ??
+            item?.warehouse_return_status ??
+            item?.stockReturnStatus ??
+            item?.stock_return_status ??
+            '',
+    ).trim().toUpperCase();
+    if (['RETURNED', 'RETURN', 'REFUNDED', 'REFUND', 'CONFIRMED', 'COMPLETED'].includes(text)) return true;
+
+    return toMoneyNumber(item?.returnedQuantity ?? item?.returned_quantity ?? item?.returnQuantity ?? item?.return_quantity) > 0;
+}
+
+function isBillableEstimateItem(item) {
+    if (isReturnedEstimateItem(item)) return false;
+    const status = getEstimateItemStockStatus(item);
+    return !status || status === 'COMMITTED';
 }
 
 function extractPaymentEstimates(paymentPayload) {
@@ -261,11 +287,7 @@ export default function ReceiptPaymentMethod() {
                     rawFinalPrice == null || String(rawFinalPrice).trim() === ''
                         ? subTotalDisplay
                         : toMoneyNumber(rawFinalPrice);
-                const discountAmount = Math.max(
-                    toMoneyNumber(it?.discountAmount ?? it?.discount_amount),
-                    subTotalDisplay - finalPriceDisplay,
-                    0,
-                );
+                const discountAmount = Math.max(0, toMoneyNumber(it?.discountAmount ?? it?.discount_amount));
 
                 const appliedTaxRate = it?.appliedTaxRate ?? it?.applied_tax_rate ?? null;
                 const appliedTaxRateText = normalizeTaxRatePercentText(appliedTaxRate);
@@ -310,15 +332,9 @@ export default function ReceiptPaymentMethod() {
                     taxTitle,
                     subTotalDisplay,
                     finalPriceDisplay,
-                    stockAllocationStatus: String(
-                        it?.stockAllocation?.status ??
-                            it?.allocation?.status ??
-                            it?.warehouseAllocation?.status ??
-                            it?.stockAllocationStatus ??
-                            it?.stock_allocation_status ??
-                            it?.allocationStatus ??
-                            '',
-                    ).trim().toUpperCase(),
+                    stockAllocationStatus: getEstimateItemStockStatus(it),
+                    returnedQuantity: it?.returnedQuantity ?? it?.returned_quantity ?? it?.returnQuantity ?? it?.return_quantity ?? 0,
+                    returnStatus: it?.returnStatus ?? it?.return_status ?? it?.returnEntryStatus ?? it?.return_entry_status ?? '',
                 };
             })
             .filter(
@@ -332,9 +348,13 @@ export default function ReceiptPaymentMethod() {
     }, [estimate]);
 
     const payItems = estimateItems;
+    const billableItems = useMemo(
+        () => payItems.filter(isBillableEstimateItem),
+        [payItems],
+    );
     const totalSafe = useMemo(() => {
-        const estimateTotal = payItems.reduce((sum, item) => sum + toMoneyNumber(item?.finalPriceDisplay), 0);
-        if (estimateTotal > 0) return estimateTotal;
+        const estimateTotal = billableItems.reduce((sum, item) => sum + toMoneyNumber(item?.finalPriceDisplay), 0);
+        if (payItems.length > 0) return estimateTotal;
         return toMoneyNumber(
             payment?.finalAmount ??
             payment?.final_amount ??
@@ -342,7 +362,7 @@ export default function ReceiptPaymentMethod() {
             payment?.total_amount ??
             payment?.amount,
         );
-    }, [payItems, payment]);
+    }, [billableItems, payItems.length, payment]);
 
     const transferContent = useMemo(() => {
         const code = ticketCodeParam || ticketFromState?.ticketCode || 'SERVICE_TICKET';
@@ -435,7 +455,7 @@ export default function ReceiptPaymentMethod() {
             return;
         }
 
-        const printableItems = payItems.filter((item) => !isReturnedEstimateItem(item));
+        const printableItems = billableItems;
         if (printableItems.length === 0) {
             toast.error('Không có hạng mục nào để in hoá đơn.');
             return;
@@ -462,13 +482,14 @@ export default function ReceiptPaymentMethod() {
                 subTotal,
                 isGift: Boolean(item?.isGift),
                 stockAllocationStatus: item?.stockAllocationStatus ?? '',
+                returnedQuantity: item?.returnedQuantity ?? 0,
+                returnStatus: item?.returnStatus ?? '',
             };
         });
 
         const computedSubtotal = invoiceItems.reduce((sum, item) => sum + (toMoneyNumber(item?.grossAmount) || toMoneyNumber(item?.subTotal)), 0);
-        const invoiceSubtotal = Math.max(0, toMoneyNumber(payment?.subTotal) || computedSubtotal);
         const computedDiscountAmount = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.discountAmount), 0);
-        const invoiceDiscountAmount = Math.max(0, toMoneyNumber(payment?.discountAmount) || computedDiscountAmount);
+        const computedTotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
 
         const stateCustomer = ticketFromState?.customer || {};
         const stateVehicle = ticketFromState?.vehicle || {};
@@ -489,9 +510,9 @@ export default function ReceiptPaymentMethod() {
             },
             invoice: {
                 items: invoiceItems,
-                subtotal: invoiceSubtotal,
-                discountAmount: invoiceDiscountAmount,
-                total: Math.max(0, invoiceSubtotal - invoiceDiscountAmount),
+                subtotal: computedSubtotal,
+                discountAmount: computedDiscountAmount,
+                total: computedTotal,
             },
         };
 
@@ -564,7 +585,7 @@ export default function ReceiptPaymentMethod() {
                                 <div className={styles.sectionTitle}>Báo giá được thanh toán</div>
                                 {estimateLoading ? <div className={styles.muted}>Đang tải báo giá...</div> : null}
                                 {!estimateLoading && estimateError ? <div className={styles.error}>{estimateError}</div> : null}
-                                {payItems.length ? (
+                                {billableItems.length ? (
                                     <div className={styles.tableWrap}>
                                         <table className={styles.table}>
                                             <colgroup>
@@ -590,7 +611,7 @@ export default function ReceiptPaymentMethod() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {payItems.map((it, index) => (
+                                                {billableItems.map((it, index) => (
                                                     <tr key={it.key} className={it.isGift ? styles.giftRow : undefined}>
                                                         <td className={styles.tdQty}>{String(index + 1).padStart(2, '0')}</td>
                                                         <td className={styles.tdText}>{it.categoryName}</td>
@@ -609,7 +630,7 @@ export default function ReceiptPaymentMethod() {
                                         </table>
                                     </div>
                                 ) : !estimateLoading && !estimateError ? (
-                                    <div className={styles.muted}>Chưa có hạng mục nào được xác nhận.</div>
+                                    <div className={styles.muted}>Không có hạng mục đã xuất hàng để thanh toán.</div>
                                 ) : null}
                             </div>
 

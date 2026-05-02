@@ -268,10 +268,6 @@ export default function WarehouseStockIssues() {
 				</section>
 
 				<section className={styles.pendingFilters}>
-					<div className={styles.filterCardLabels}>
-						<span>Kho</span>
-						<span>Trạng thái</span>
-					</div>
 					<div className={styles.filterCardControls}>
 					<div className={styles.field}>
 						<label htmlFor="stock-issue-warehouse">Kho</label>
