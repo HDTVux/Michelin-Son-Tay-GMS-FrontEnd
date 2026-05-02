@@ -12,7 +12,7 @@ import {
 } from '../../../services/serviceTicketService.js';
 import { updateSafetyInspectionRecommend } from '../../../services/safetyInspectionService.js';
 import { fetchAllCatalogItems } from '../../../services/catalogService.js';
-import { createTaxRule, fetchWarehouseCatalogItemDetail } from '../../../services/warehouseService.js';
+import { createTaxRule, fetchWarehouseCatalogItemDetail, cancelWarehouseReturnEntry } from '../../../services/warehouseService.js';
 import {
 	validateNonNegativeNumber,
 	validatePositiveNumber,
@@ -194,6 +194,7 @@ export async function handleCancelWarehouseAllocationAction({
 	notify,
 	setWarehouseActionBusyKey,
 	refreshLatestEstimate,
+	markEstimateDraft,
 }) {
 	const estimateItemId = toIdOrNull(row?.estimateItemId);
 	if (!estimateItemId) {
@@ -217,6 +218,7 @@ export async function handleCancelWarehouseAllocationAction({
 			},
 			token,
 		);
+		await markEstimateDraft?.();
 		await refreshLatestEstimate();
 		notify('Đã hủy giữ hàng cho sản phẩm.');
 	} catch (err) {
@@ -236,6 +238,7 @@ export async function handleSubmitReturnEntryAction({
 	setReturnSubmitting,
 	setReturnModalItem,
 	refreshLatestEstimate,
+	markEstimateDraft,
 }) {
 	const row = returnModalItem;
 	const itemId = toIdOrNull(row?.itemId);
@@ -272,12 +275,47 @@ export async function handleSubmitReturnEntryAction({
 			token,
 		);
 		setReturnModalItem(null);
+		await markEstimateDraft?.();
 		await refreshLatestEstimate();
 		notify('Đã tạo phiếu hoàn trả.');
 	} catch (err) {
 		notify(err?.message || 'Không thể tạo phiếu hoàn trả.');
 	} finally {
 		setReturnSubmitting(false);
+	}
+}
+
+export async function handleCancelReturnEntryAction({
+	row,
+	notify,
+	setWarehouseActionBusyKey,
+	refreshLatestEstimate,
+	markEstimateDraft,
+}) {
+	const rawReturnId = row?.stockAllocation?.returnId ?? row?.allocation?.returnId ?? row?.warehouseAllocation?.returnId ?? row?.returnId ?? 0;
+	const returnId = typeof rawReturnId === 'number' ? rawReturnId : Number(String(rawReturnId ?? '').trim());
+	if (!Number.isFinite(returnId) || returnId <= 0) {
+		notify('Thiếu returnId để hủy phiếu hoàn.');
+		return;
+	}
+
+	const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+	if (!token) {
+		notify('Vui lòng đăng nhập để hủy phiếu hoàn.');
+		return;
+	}
+
+	const actionKey = getWarehouseActionKey(row);
+	try {
+		setWarehouseActionBusyKey(actionKey);
+		await cancelWarehouseReturnEntry(returnId, token);
+		await markEstimateDraft?.();
+		await refreshLatestEstimate();
+		notify('Hủy phiếu hoàn thành công.');
+	} catch (err) {
+		notify(err?.message || 'Không thể hủy phiếu hoàn.');
+	} finally {
+		setWarehouseActionBusyKey('');
 	}
 }
 
@@ -1725,6 +1763,11 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					isGift: getEstimateItemGiftFlag(it),
 					triggeredByItemId: pickTriggeredByItemId(it),
 					stockAllocationStatus: getEstimateItemStockAllocationStatus(it),
+					stockAllocation: it?.stockAllocation ?? it?.allocation ?? it?.warehouseAllocation ?? null,
+					returnStatus:
+						it?.stockAllocation?.returnStatus ?? it?.allocation?.returnStatus ?? it?.warehouseAllocation?.returnStatus ?? it?.returnStatus ?? null,
+					returnId:
+						it?.stockAllocation?.returnId ?? it?.allocation?.returnId ?? it?.warehouseAllocation?.returnId ?? it?.returnId ?? null,
 					taxRuleId,
 					isRemoved: Boolean(it?.isRemoved),
 				};
@@ -1939,6 +1982,26 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		if (isEditing) return editComputed;
 		return rows;
 	}, [isCreating, isEditing, draftComputed, editComputed, rows]);
+
+	const currentCreateRowsSnapshot = useMemo(
+		() => JSON.stringify(normalizeCreateRowsForDirtyCheck(draftRows)),
+		[draftRows],
+	);
+	const hasCreateChanges = useMemo(() => {
+		if (!isCreating) return false;
+		if (!initialCreateRowsSnapshotRef.current) return currentCreateRowsSnapshot !== '[]';
+		return initialCreateRowsSnapshotRef.current !== currentCreateRowsSnapshot;
+	}, [currentCreateRowsSnapshot, isCreating]);
+
+	const currentEditRowsSnapshot = useMemo(
+		() => JSON.stringify(normalizeEditRowsForDirtyCheck(editRows)),
+		[editRows],
+	);
+	const hasEditChanges = useMemo(() => {
+		if (!isEditing) return false;
+		if (!initialEditRowsSnapshotRef.current) return currentEditRowsSnapshot !== '[]';
+		return initialEditRowsSnapshotRef.current !== currentEditRowsSnapshot;
+	}, [currentEditRowsSnapshot, isEditing]);
 
 	const showInputs = useMemo(() => {
 		return isCreating || isEditing;
@@ -2262,9 +2325,6 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
             onEstimateStatusChangeRef.current?.(nextEstimate ?? null);
             setIsCreating(false);
 			initialCreateRowsSnapshotRef.current = '';
-			globalThis.setTimeout?.(() => {
-				globalThis.location?.reload?.();
-			}, 120);
         } catch (err) {
             setSaveError(err?.message || 'Không thể lưu báo giá.');
         } finally {
@@ -2553,6 +2613,8 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		footerTotalText,
 		tableRows,
 		showInputs,
+		hasCreateChanges,
+		hasEditChanges,
 		onChange,
 		startCreate,
 		cancelCreate,
