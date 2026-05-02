@@ -56,6 +56,7 @@ import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagem
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
 import VehicleManagement from './pages/DashBoard/VehicleManagement/VehicleManagement.jsx';
 import WarehouseManagement from './pages/DashBoard/WarehouseManagement/WarehouseManagement.jsx';
+import RevenueManagement from './pages/DashBoard/RevenueManagement/RevenueManagement.jsx';
 
 //Customer pages
 import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
@@ -310,6 +311,7 @@ export default function App() {
           <Route path="system-log-management" element={<SystemLogManagement />} />
           <Route path="warehouse-management" element={<WarehouseManagement />} />
           <Route path="warehouse-pricing" element={<WarehousePricing />} />
+          <Route path="revenue-management" element={<RevenueManagement />} />
           
           {/* Technician pages */}
           <Route path="technician/my-tasks" element={<MyTasks />} />

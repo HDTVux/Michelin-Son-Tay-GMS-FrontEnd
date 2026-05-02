@@ -140,7 +140,12 @@ const StaffNotificationBell = ({
         <header className="staffNotification__header">
           <div>
             <strong>Thông báo</strong>
-            <span>{connected ? 'Đang kết nối realtime' : 'Đang chờ kết nối'}</span>
+            <span
+              className={`staffNotification__panelConnectionDot ${connected ? 'isConnected' : ''}`}
+              title={connected ? 'Đã kết nối realtime' : 'Đang chờ kết nối realtime'}
+              aria-label={connected ? 'Đã kết nối realtime' : 'Đang chờ kết nối realtime'}
+              role="status"
+            />
           </div>
           <small>{loading ? 'Đang tải...' : `${notifications.length} thông báo`}</small>
         </header>

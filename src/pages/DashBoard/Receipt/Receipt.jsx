@@ -22,9 +22,25 @@ function formatCurrencyVnd(value) {
     return n ? new Intl.NumberFormat('vi-VN').format(Math.round(n)) : '';
 }
 
+function firstMoneyValue(...values) {
+    const found = values.find(hasPrintValue);
+    return found == null ? 0 : toMoneyNumber(found);
+}
+
 function getGiftFlag(item) {
     const raw = item?.isGift ?? item?.is_gift;
     return raw === true || String(raw ?? '').trim().toLowerCase() === 'true';
+}
+
+function getLineDiscountAmount(item) {
+    return Math.max(0, firstMoneyValue(
+        item?.discountAmount,
+        item?.discount_amount,
+        item?.promotionDiscountAmount,
+        item?.promotion_discount_amount,
+        item?.discountValue,
+        item?.discount_value,
+    ));
 }
 
 function isReturnedInvoiceItem(item) {
@@ -183,7 +199,16 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     const invoiceItems = invoiceItemsRaw.map((it, idx) => {
         const quantity = toMoneyNumber(it?.quantity);
         const unitPrice = toMoneyNumber(it?.unitPrice);
-        const subTotal = toMoneyNumber(it?.subTotal) || quantity * unitPrice;
+        const discountLineAmount = getLineDiscountAmount(it);
+        const grossAmount = quantity * unitPrice;
+        const subTotal = firstMoneyValue(
+            it?.subTotal,
+            it?.sub_total,
+            it?.finalPrice,
+            it?.final_price,
+            it?.finalAmount,
+            it?.final_amount,
+        ) || Math.max(0, grossAmount - discountLineAmount);
         const isGift = getGiftFlag(it);
         return {
             key: String(it?.key ?? it?.estimateItemId ?? it?.itemId ?? idx),
@@ -192,6 +217,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
             warehouseName: safeText(it?.warehouseName || it?.warehouse?.warehouseName || it?.warehouse?.name || ''),
             quantity,
             unitPrice: isGift ? 0 : unitPrice,
+            discountAmount: isGift ? 0 : discountLineAmount,
             subTotal: isGift ? 0 : subTotal,
             taxRateText: getLineTaxRateText(it),
             taxIncludedNote: isGift ? '' : getLineTaxIncludedNote(it),
@@ -320,9 +346,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         <th className={styles.thDesc}>DIỄN GIẢI</th>
                         <th className={styles.thQty}>SL</th>
                         <th className={styles.thPrice}>ĐƠN GIÁ</th>
+                        <th className={styles.thDiscount}>GIẢM GIÁ</th>
                         <th className={styles.thAmount}>THÀNH TIỀN</th>
                         <th className={styles.thKho}>KHO</th>
-                        <th className={styles.thGift}>GHI CHÚ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -333,13 +359,13 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         const desc = it?.itemName || '';
                         const qty = it?.quantity ? String(it.quantity) : '';
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
+                        const discount = it?.discountAmount ? formatCurrencyVnd(it.discountAmount) : '';
                         const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
                         const warehouseName = it?.warehouseName || '';
                         const taxIncludedNote = it?.taxIncludedNote || '';
                         const warehouseClassName = warehouseName.length > 28
                             ? `${styles.tdWarehouse} ${styles.tdWarehouseLong}`
                             : styles.tdWarehouse;
-                        const note = it?.isGift ? 'Quà tặng' : '';
                         return (
                             <tr key={rowKey} className={it?.isGift ? styles.giftRow : undefined}>
                                 <td className={styles.tdCenter}>{String(idx + 1).padStart(2, '0')}</td>
@@ -347,20 +373,20 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                                 <td>{desc}</td>
                                 <td className={styles.tdCenter}>{qty}</td>
                                 <td className={styles.tdRight}>{price}</td>
+                                <td className={styles.tdRight}>{discount}</td>
                                 <td className={`${styles.tdRight} ${styles.amountCell}`}>
                                     <div>{amount}</div>
                                     {taxIncludedNote ? <div className={styles.taxIncludedNote}>{taxIncludedNote}</div> : null}
                                 </td>
                                 <td className={warehouseClassName} title={warehouseName}>{warehouseName}</td>
-                                <td className={styles.tdCenter}>{note}</td>
                             </tr>
                         );
                     })}
                     {showTotal ? (
                         <tr>
-                            <td colSpan={5} className={styles.totalLabel}>TỔNG CỘNG</td>
+                            <td colSpan={6} className={styles.totalLabel}>TỔNG CỘNG</td>
                             <td className={`${styles.tdRight} ${styles.tdTotalValue}`}>{formatCurrencyVnd(total)}</td>
-                            <td colSpan={2} />
+                            <td />
                         </tr>
                     ) : null}
                 </tbody>
@@ -644,9 +670,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         <th className={styles.thDesc}>DIỄN GIẢI</th>
                         <th className={styles.thQty}>SL</th>
                         <th className={styles.thPrice}>ĐƠN GIÁ</th>
+                        <th className={styles.thDiscount}>GIẢM GIÁ</th>
                         <th className={styles.thAmount}>THÀNH TIỀN</th>
                         <th className={styles.thKho}>KHO</th>
-                        <th className={styles.thGift}>GHI CHÚ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -656,13 +682,13 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         const desc = it?.itemName || '';
                         const qty = it?.quantity ? String(it.quantity) : '';
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
+                        const discount = it?.discountAmount ? formatCurrencyVnd(it.discountAmount) : '';
                         const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
                         const warehouseName = it?.warehouseName || '';
                         const taxIncludedNote = it?.taxIncludedNote || '';
                         const warehouseClassName = warehouseName.length > 28
                             ? `${styles.tdWarehouse} ${styles.tdWarehouseLong}`
                             : styles.tdWarehouse;
-                        const note = it?.isGift ? 'Quà tặng' : '';
                         return (
                             <tr key={rowKey} className={it?.isGift ? styles.giftRow : undefined}>
                                 <td className={styles.tdCenter}>{String(idx + 1).padStart(2, '0')}</td>
@@ -670,20 +696,20 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                                 <td>{desc}</td>
                                 <td className={styles.tdCenter}>{qty}</td>
                                 <td className={styles.tdRight}>{price}</td>
+                                <td className={styles.tdRight}>{discount}</td>
                                 <td className={`${styles.tdRight} ${styles.amountCell}`}>
                                     <div>{amount}</div>
                                     {taxIncludedNote ? <div className={styles.taxIncludedNote}>{taxIncludedNote}</div> : null}
                                 </td>
                                 <td className={warehouseClassName} title={warehouseName}>{warehouseName}</td>
-                                <td className={styles.tdCenter}>{note}</td>
                             </tr>
                         );
                     })}
                     {/* Dòng TỔNG CỘNG */}
                     <tr>
-                        <td colSpan={5} className={styles.totalLabel}>TỔNG CỘNG</td>
+                        <td colSpan={6} className={styles.totalLabel}>TỔNG CỘNG</td>
                         <td className={`${styles.tdRight} ${styles.tdTotalValue}`}>{formatCurrencyVnd(total)}</td>
-                        <td colSpan={2} />
+                        <td />
                     </tr>
                 </tbody>
             </table>
@@ -764,6 +790,8 @@ Receipt.propTypes = {
                     warehouseName: PropTypes.string,
                     quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     unitPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    discountAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    discount_amount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     subTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     taxRateText: PropTypes.string,
                     taxAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),

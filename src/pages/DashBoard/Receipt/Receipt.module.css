@@ -766,9 +766,9 @@
 .thDesc { width: auto; }
 .thQty { width: 28px; }
 .thPrice { width: 68px; }
+.thDiscount { width: 58px; }
 .thAmount { width: 82px; }
 .thKho { width: 64px; }
-.thGift { width: 42px; }
 
 .giftRow td {
     background: #eefaf2 !important;

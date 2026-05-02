@@ -90,6 +90,13 @@ const NAV_GROUPS = [
                 ]
             },
             {
+                id: 'sub-finance',
+                label: 'Tài chính & Doanh thu',
+                items: [
+                    { id: 'revenue-management', label: 'Quản lý doanh thu', path: '/revenue-management', icon: <IconRevenue />, roles: [STAFF_ROLE.ACCOUNTANT, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                ]
+            },
+            {
                 id: 'sub-warehouse',
                 label: 'Kho & Phụ tùng',
                 items: [
@@ -412,6 +419,7 @@ function IconBell() { return <svg {...svgProps}><path d="M18 8A6 6 0 0 0 6 8c0 7
 function IconMegaphone() { return <svg {...svgProps}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>; }
 function IconStar() { return <svg {...svgProps}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>; }
 function IconHistory() { return <svg {...svgProps}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></svg>; }
+function IconRevenue() { return <svg {...svgProps}><path d="M3 19h18" /><path d="M7 16V9" /><path d="M12 16V5" /><path d="M17 16v-4" /><path d="m6 9 6-4 6 7" /></svg>; }
 
 // Hệ thống
 function IconTerminal() { return <svg {...svgProps}><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>; }

@@ -183,6 +183,20 @@
   font-size: 12px;
 }
 
+.staffNotification__panelConnectionDot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  background: #9ca3af;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.16);
+}
+
+.staffNotification__panelConnectionDot.isConnected {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.16);
+}
+
 .staffNotification__error {
   margin: 10px 12px 0;
   padding: 9px 10px;
