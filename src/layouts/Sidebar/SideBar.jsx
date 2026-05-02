@@ -90,13 +90,6 @@ const NAV_GROUPS = [
                 ]
             },
             {
-                id: 'sub-finance',
-                label: 'Tài chính & Doanh thu',
-                items: [
-                    { id: 'revenue-management', label: 'Quản lý doanh thu', path: '/revenue-management', icon: <IconRevenue />, roles: [STAFF_ROLE.ACCOUNTANT, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
-                ]
-            },
-            {
                 id: 'sub-warehouse',
                 label: 'Kho & Phụ tùng',
                 items: [
@@ -135,6 +128,14 @@ const NAV_GROUPS = [
                     { id: 'system-log-management', label: 'Nhật ký hệ thống', path: '/system-log-management', icon: <IconTerminal />, roles: [STAFF_ROLE.ADMIN] },
                 ]
             }
+        ],
+    },
+    {
+        id: 'finance',
+        label: 'Tài chính & Doanh thu',
+        defaultOpen: true,
+        items: [
+            { id: 'revenue-management', label: 'Quản lý doanh thu', path: '/revenue-management', icon: <IconRevenue />, roles: [STAFF_ROLE.ACCOUNTANT, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
         ],
     },
     {
