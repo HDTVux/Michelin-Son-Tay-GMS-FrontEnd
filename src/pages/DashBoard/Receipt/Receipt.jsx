@@ -98,6 +98,67 @@ function firstPrintValue(...values) {
     return found == null ? '' : String(found);
 }
 
+function normalizeTaxRatePercentText(rawRate) {
+    const n = typeof rawRate === 'number' ? rawRate : Number(String(rawRate ?? '').trim());
+    if (!Number.isFinite(n) || n <= 0) return '';
+    const rate = n > 1 ? n : n * 100;
+    return `${rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`;
+}
+
+function getLineTaxRateText(item) {
+    const directText = safeText(item?.taxRateText ?? item?.tax_rate_text);
+    if (directText && directText !== '0%' && directText !== '--') return directText;
+
+    const rateText = normalizeTaxRatePercentText(
+        item?.appliedTaxRate ??
+            item?.applied_tax_rate ??
+            item?.taxRate ??
+            item?.tax_rate ??
+            item?.taxRule?.taxRate ??
+            item?.taxRule?.rate ??
+            item?.workCategory?.taxRule?.taxRate ??
+            item?.workCategory?.taxRule?.rate,
+    );
+    if (rateText) return rateText;
+
+    return '';
+}
+
+function getLineTaxIncludedNote(item) {
+    const taxRateText = getLineTaxRateText(item);
+    if (!taxRateText && toMoneyNumber(item?.taxAmount ?? item?.tax_amount) <= 0) return '';
+    return taxRateText ? `(đã bao gồm thuế ${taxRateText})` : '(đã bao gồm thuế)';
+}
+
+function resolveSafetyEnabled(ticket, safetyInspection) {
+    const status = String(
+        safetyInspection?.inspectionStatus ??
+            safetyInspection?.status ??
+            ticket?.safetyInspectionStatus ??
+            ticket?.inspectionStatus ??
+            ticket?.inspection?.inspectionStatus ??
+            '',
+    ).trim().toUpperCase();
+
+    if (['SKIPPED', 'CANCELLED', 'DISABLED', 'NOT_REQUIRED'].includes(status)) return false;
+
+    const explicit = ticket?.safetyInspectionEnabled;
+    if (typeof explicit === 'boolean') return explicit;
+    if (typeof explicit === 'number') return explicit === 1;
+    if (typeof explicit === 'string') {
+        const normalized = explicit.trim().toLowerCase();
+        if (['false', '0', 'no', 'khong', 'không'].includes(normalized)) return false;
+        if (['true', '1', 'yes', 'co', 'có'].includes(normalized)) return true;
+    }
+
+    return Boolean(
+        safetyInspection?.technicianNotes ||
+            safetyInspection?.recommendedTireSize ||
+            safetyInspection?.tires?.length ||
+            safetyInspection?.items?.length,
+    );
+}
+
 export default function Receipt({ ticket, carDiagramSrc }) {
 	const customer = ticket?.customer || {};
 	const vehicle = ticket?.vehicle || {};
@@ -132,6 +193,8 @@ export default function Receipt({ ticket, carDiagramSrc }) {
             quantity,
             unitPrice: isGift ? 0 : unitPrice,
             subTotal: isGift ? 0 : subTotal,
+            taxRateText: getLineTaxRateText(it),
+            taxIncludedNote: isGift ? '' : getLineTaxIncludedNote(it),
             isGift,
         };
     });
@@ -159,13 +222,8 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     }
 
     // Safety inspection data
-    // Kiểm tra an toàn: dựa vào có dữ liệu safety inspection hay không
-    const hasSafetyEnabled = Boolean(safetyInspection) && (
-        Boolean(safetyInspection?.technicianNotes) ||
-        Boolean(safetyInspection?.recommendedTireSize) ||
-        Boolean(safetyInspection?.tires?.length) ||
-        Boolean(safetyInspection?.items?.length)
-    );
+    // Ưu tiên trạng thái/cờ của phiếu để trường hợp SKIPPED không bị in nhầm là "Có".
+    const hasSafetyEnabled = resolveSafetyEnabled(ticket, safetyInspection);
 
     const technicianNotes = safeText(safetyInspection?.technicianNotes || '');
 
@@ -277,6 +335,10 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
                         const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
                         const warehouseName = it?.warehouseName || '';
+                        const taxIncludedNote = it?.taxIncludedNote || '';
+                        const warehouseClassName = warehouseName.length > 28
+                            ? `${styles.tdWarehouse} ${styles.tdWarehouseLong}`
+                            : styles.tdWarehouse;
                         const note = it?.isGift ? 'Quà tặng' : '';
                         return (
                             <tr key={rowKey} className={it?.isGift ? styles.giftRow : undefined}>
@@ -285,8 +347,11 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                                 <td>{desc}</td>
                                 <td className={styles.tdCenter}>{qty}</td>
                                 <td className={styles.tdRight}>{price}</td>
-                                <td className={styles.tdRight}>{amount}</td>
-                                <td>{warehouseName}</td>
+                                <td className={`${styles.tdRight} ${styles.amountCell}`}>
+                                    <div>{amount}</div>
+                                    {taxIncludedNote ? <div className={styles.taxIncludedNote}>{taxIncludedNote}</div> : null}
+                                </td>
+                                <td className={warehouseClassName} title={warehouseName}>{warehouseName}</td>
                                 <td className={styles.tdCenter}>{note}</td>
                             </tr>
                         );
@@ -593,6 +658,10 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
                         const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
                         const warehouseName = it?.warehouseName || '';
+                        const taxIncludedNote = it?.taxIncludedNote || '';
+                        const warehouseClassName = warehouseName.length > 28
+                            ? `${styles.tdWarehouse} ${styles.tdWarehouseLong}`
+                            : styles.tdWarehouse;
                         const note = it?.isGift ? 'Quà tặng' : '';
                         return (
                             <tr key={rowKey} className={it?.isGift ? styles.giftRow : undefined}>
@@ -601,8 +670,11 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                                 <td>{desc}</td>
                                 <td className={styles.tdCenter}>{qty}</td>
                                 <td className={styles.tdRight}>{price}</td>
-                                <td className={styles.tdRight}>{amount}</td>
-                                <td>{warehouseName}</td>
+                                <td className={`${styles.tdRight} ${styles.amountCell}`}>
+                                    <div>{amount}</div>
+                                    {taxIncludedNote ? <div className={styles.taxIncludedNote}>{taxIncludedNote}</div> : null}
+                                </td>
+                                <td className={warehouseClassName} title={warehouseName}>{warehouseName}</td>
                                 <td className={styles.tdCenter}>{note}</td>
                             </tr>
                         );
@@ -693,6 +765,9 @@ Receipt.propTypes = {
                     quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     unitPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     subTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    taxRateText: PropTypes.string,
+                    taxAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    appliedTaxRate: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     isGift: PropTypes.bool,
                     is_gift: PropTypes.bool,
                 }),
@@ -729,6 +804,7 @@ Receipt.propTypes = {
 				categoryName: PropTypes.string,
 				itemStatus: PropTypes.string,
 			})),
+            inspectionStatus: PropTypes.string,
 		}),
 	}),
 	carDiagramSrc: PropTypes.string,

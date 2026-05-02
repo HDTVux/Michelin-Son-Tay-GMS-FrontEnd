@@ -59,6 +59,32 @@ function pickMoneyDisplayValue(withVatValue, baseValue) {
     return Math.max(0, toMoneyNumber(baseValue));
 }
 
+function normalizeTaxRatePercentText(rawRate) {
+    const n = typeof rawRate === 'number' ? rawRate : Number(String(rawRate ?? '').trim());
+    if (!Number.isFinite(n) || n <= 0) return '';
+    const pct = (n > 1 ? n : n * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+    return `${pct}%`;
+}
+
+function getEstimateItemTaxRateText(item) {
+    const directText = String(item?.taxRateText ?? item?.tax_rate_text ?? '').trim();
+    if (directText) return directText;
+
+    const rateText = normalizeTaxRatePercentText(
+        item?.appliedTaxRate ??
+            item?.applied_tax_rate ??
+            item?.taxRate ??
+            item?.tax_rate ??
+            item?.taxRule?.taxRate ??
+            item?.taxRule?.rate ??
+            item?.workCategory?.taxRule?.taxRate ??
+            item?.workCategory?.taxRule?.rate,
+    );
+    if (rateText) return rateText;
+
+    return toMoneyNumber(item?.taxAmount ?? item?.tax_amount) > 0 ? '--' : '0%';
+}
+
 function pickDiscountAmountValue(item) {
     return toMoneyNumber(item?.discountAmount ?? item?.discount_amount);
 }
@@ -976,6 +1002,7 @@ function mapEstimateItemsForReceipt(estimate) {
             const unitPriceDisplay = pickMoneyDisplayValue(it?.unitPriceWithVat ?? it?.unitPriceWithVAT ?? 0, unitPrice);
             const subTotalDisplay = pickMoneyDisplayValue(it?.subTotalWithVat ?? it?.subTotalWithVAT ?? 0, subTotal);
             const finalPriceDisplay = getEstimateItemFinalPriceDisplay(it, subTotalDisplay);
+            const taxAmount = toMoneyNumber(it?.taxAmount ?? it?.tax_amount);
             return {
                 key: String(it?.estimateItemId ?? it?.itemId ?? `${idx}`),
                 estimateItemId: it?.estimateItemId ?? it?.estimateItemID ?? it?.id ?? null,
@@ -987,6 +1014,9 @@ function mapEstimateItemsForReceipt(estimate) {
                 subTotal,
                 subTotalDisplay,
                 discountAmount: pickDiscountAmountValue(it),
+                taxRateText: getEstimateItemTaxRateText(it),
+                taxAmount,
+                appliedTaxRate: it?.appliedTaxRate ?? it?.applied_tax_rate ?? it?.taxRate ?? it?.tax_rate ?? '',
                 finalPrice: it?.finalPrice ?? it?.final_price ?? '',
                 finalPriceDisplay,
                 isGift: getEstimateItemGiftFlag(it),
