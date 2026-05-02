@@ -133,7 +133,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                     </div>
 
                     <div className="ui-field">
-                        <label htmlFor="return-entry-condition">Ghi chú tình trạng</label>
+                        <label htmlFor="return-entry-condition">Ghi chú tình trạng (<span className={styles.required}>*</span>)</label>
                         <input
                             id="return-entry-condition"
                             value={conditionNote}

@@ -202,6 +202,19 @@ function isEstimateItemAvailableForActions(item) {
     return getEstimateItemStockStatus(item) !== 'RELEASED' && isEstimateItemCheckedForActions(item);
 }
 
+function hasPendingReturnApproval(items) {
+    return (Array.isArray(items) ? items : []).some((item) => {
+        const rawReturnStatus =
+            item?.stockAllocation?.returnStatus ??
+            item?.allocation?.returnStatus ??
+            item?.warehouseAllocation?.returnStatus ??
+            item?.returnStatus ??
+            item?.stock_allocation_return_status ??
+            '';
+        return String(rawReturnStatus).trim().toUpperCase() === 'SUBMITTED';
+    });
+}
+
 export default function ServiceTicketDetail({ ticketCodeOverride }) {
     useScrollToTop();
     const navigate = useNavigate();
@@ -587,18 +600,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const receiptItems = useMemo(() => mapEstimateItemsForReceipt(latestEstimate), [latestEstimate]);
     const receiptSubtotal = useMemo(
         () => receiptItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotalDisplay ?? it.subTotal), 0),
-        [receiptItems],
-    );
-    const receiptDiscountAmount = useMemo(() => {
-        return receiptItems.reduce((acc, it) => {
-            const lineSubtotal = toMoneyNumber(it.subTotalDisplay ?? it.subTotal);
-            const lineFinal = toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal);
-            const backendDiscount = toMoneyNumber(it.discountAmount);
-            return acc + Math.max(backendDiscount, lineSubtotal - lineFinal, 0);
-        }, 0);
-    }, [receiptItems]);
-    const receiptTotal = useMemo(
-        () => receiptItems.reduce((acc, it) => acc + toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal), 0),
         [receiptItems],
     );
     const printReceiptItems = useMemo(
@@ -1615,16 +1616,18 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         [ticket.services],
     );
     const hasAnyAdvisorItem = actionableAdvisorItems.length > 0;
-    const isEstimatePersisted = Boolean(
-        estimateIdNum ||
-        latestEstimate?.createdAt ||
-        latestEstimate?.createdDate ||
-        latestEstimate?.created_at,
+    const hasPendingWarehouseReturnApproval = useMemo(
+        () => hasPendingReturnApproval(latestEstimate?.items),
+        [latestEstimate?.items],
     );
+    // A saved estimate should be considered persisted as soon as the backend returns an estimateId.
+    // New version responses may lag on createdAt metadata, but the action row must become usable immediately.
+    const isEstimatePersisted = Boolean(estimateIdNum);
     const canPrintServiceReceipt = Boolean(estimateIdNum)
         && (estimateStatus === 'DRAFT' || estimateStatus === 'SENT')
         && hasAnyAdvisorItem
         && isEstimatePersisted
+        && !hasPendingWarehouseReturnApproval
         && !shouldHideEstimateUntilInspectionDone
         && !isEstimateEditing
         && !isActionLocked;
@@ -1650,8 +1653,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             if (!est) return null;
             const next = prev ? { ...prev, ...est } : { ...est };
             if (optimisticEstimateStatus) {
-                next.status = normalizeEstimateStatus(next.status) || optimisticEstimateStatus;
-                next.estimateStatus = normalizeEstimateStatus(next.estimateStatus) || optimisticEstimateStatus;
+                next.status = optimisticEstimateStatus;
+                next.estimateStatus = optimisticEstimateStatus;
             }
             if (nextEstimateId && !getEstimateIdValue(next)) {
                 next.estimateId = nextEstimateId;
@@ -1686,11 +1689,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             globalThis.setTimeout?.(() => {
                 createNewEstimateRevertRef.current = null;
                 setIsCreatingNewEstimateVersion(false);
-                refreshDetailView({ refreshEstimate: false, refreshBill: true, refreshAdvisor: false });
+                refreshDetailView({ refreshEstimate: true, refreshBill: true, refreshAdvisor: false });
             }, 80);
         } else if (hasEstimateId) {
             globalThis.setTimeout?.(() => {
-                refreshDetailView({ refreshEstimate: false, refreshBill: true, refreshAdvisor: false });
+                refreshDetailView({ refreshEstimate: true, refreshBill: true, refreshAdvisor: false });
             }, 120);
         }
     }, [isCreatingNewEstimateVersion, loadLatestEstimate, refreshDetailView]);
@@ -1939,6 +1942,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Vui lòng đăng nhập để in phiếu dịch vụ.');
             return;
         }
+        if (hasPendingWarehouseReturnApproval) {
+            notify('Có phiếu hoàn hàng đang chờ kho xét duyệt, không thể in phiếu dịch vụ.');
+            return;
+        }
         if (!estimateIdNum || (estimateStatus !== 'DRAFT' && estimateStatus !== 'SENT')) {
             notify('Chỉ có thể in phiếu dịch vụ khi báo giá đang ở trạng thái DRAFT hoặc SENT.');
             return;
@@ -2005,13 +2012,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 estimateId: estimateIdNum,
                 version: billVersion,
                 paymentStatus: 'UNPAID',
-                subTotal: toMoneyNumber(receiptSubtotal),
-                discountAmount: toMoneyNumber(receiptDiscountAmount),
-                finalAmount: toMoneyNumber(receiptTotal),
+                subTotal: toMoneyNumber(latestEstimate?.subTotal),
+                discountAmount: toMoneyNumber(latestEstimate?.discountAmount ?? 0),
+                finalAmount: toMoneyNumber(latestEstimate?.totalPrice ?? latestEstimate?.totalAmount),
                 promotionId: promotionId ?? null,
-                discount_amount: toMoneyNumber(receiptDiscountAmount),
-                final_amount: toMoneyNumber(receiptTotal),
-                totalAmount: toMoneyNumber(receiptTotal),
+                discount_amount: toMoneyNumber(latestEstimate?.discountAmount ?? 0),
+                final_amount: toMoneyNumber(latestEstimate?.totalPrice ?? latestEstimate?.totalAmount),
+                totalAmount: toMoneyNumber(latestEstimate?.totalPrice ?? latestEstimate?.totalAmount),
             };
 
             const billRes = await createPayment(createPayload, token);

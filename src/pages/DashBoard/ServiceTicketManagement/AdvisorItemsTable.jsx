@@ -14,6 +14,7 @@ import {
     getTaxRuleSelectLabel,
     getWarehouseActionKey,
     handleCancelWarehouseAllocationAction,
+    handleCancelReturnEntryAction,
     handleStartCreateAction,
     handleStartCreateNewVersionAction,
     handleStartEditAction,
@@ -29,6 +30,7 @@ import {
 } from './useAdvisorItemsTableHandlers.js';
 import CatalogPicker from './CatalogPicker.jsx';
 import ReturnEntryRequestModal from './ReturnEntryRequestModal.jsx';
+import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
 
 function CategorySuggestDropdownPortal({ open, anchorRef, items, disabled, onPick, onClose }) {
     const dropdownRef = useRef(null);
@@ -253,6 +255,7 @@ function EstimateItemRow({
     warehouseActionBusyKey,
     onCancelAllocation,
     onOpenReturnModal,
+    onCancelReturn,
 }) {
     const giftRaw = row?.isGift ?? row?.is_gift;
     const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
@@ -483,14 +486,36 @@ function EstimateItemRow({
                                 {isWarehouseActionBusy ? 'Đang hủy...' : 'Hủy sản phẩm'}
                             </button>
                         ) : stockStatus === 'COMMITTED' ? (
-                            <button
-                                type="button"
-                                className="ui-btn ui-btn--ghost"
-                                onClick={() => onOpenReturnModal?.(row)}
-                                disabled={isSaving || isWarehouseActionBusy}
-                            >
-                                Hoàn trả
-                            </button>
+                            (() => {
+                                const rawReturnStatus =
+                                    row?.stockAllocation?.returnStatus ??
+                                    row?.allocation?.returnStatus ??
+                                    row?.warehouseAllocation?.returnStatus ??
+                                    row?.returnStatus ?? null;
+                                const isReturnSubmitted = String(rawReturnStatus ?? '').trim().toUpperCase() === 'SUBMITTED';
+                                if (isReturnSubmitted) {
+                                    return (
+                                        <button
+                                            type="button"
+                                            className="ui-btn ui-btn--ghost"
+                                            onClick={() => onCancelReturn?.(row)}
+                                            disabled={isSaving || isWarehouseActionBusy}
+                                        >
+                                            {isWarehouseActionBusy ? 'Đang hủy...' : 'Hủy phiếu hoàn'}
+                                        </button>
+                                    );
+                                }
+                                return (
+                                    <button
+                                        type="button"
+                                        className="ui-btn ui-btn--ghost"
+                                        onClick={() => onOpenReturnModal?.(row)}
+                                        disabled={isSaving || isWarehouseActionBusy}
+                                    >
+                                        Hoàn trả
+                                    </button>
+                                );
+                            })()
                         ) : null}
                     </div>
                 </td>
@@ -548,6 +573,7 @@ EstimateItemRow.propTypes = {
     warehouseActionBusyKey: PropTypes.string,
     onCancelAllocation: PropTypes.func,
     onOpenReturnModal: PropTypes.func,
+    onCancelReturn: PropTypes.func,
 };
 
 function EstimateActions({
@@ -558,6 +584,8 @@ function EstimateActions({
     isCreating,
     isEditing,
     isSaving,
+    hasCreateChanges,
+    hasEditChanges,
     startCreate,
     startCreateNewVersion,
     startEdit,
@@ -667,7 +695,7 @@ function EstimateActions({
                         Hủy
                     </button>
                     {isRestrictedStatus ? null : (
-                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEstimate} disabled={isSaving}>
+                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEstimate} disabled={isSaving || !hasCreateChanges}>
                             {isSaving ? 'Đang lưu...' : 'Lưu báo giá'}
                         </button>
                     )}
@@ -680,7 +708,7 @@ function EstimateActions({
                         Hủy
                     </button>
                     {isRestrictedStatus ? null : (
-                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving || cancelBusy}>
+                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving || cancelBusy || !hasEditChanges}>
                             {isSaving ? 'Đang lưu...' : 'Lưu chỉnh sửa'}
                         </button>
                     )}
@@ -698,6 +726,8 @@ EstimateActions.propTypes = {
     isCreating: PropTypes.bool,
     isEditing: PropTypes.bool,
     isSaving: PropTypes.bool,
+    hasCreateChanges: PropTypes.bool,
+    hasEditChanges: PropTypes.bool,
     startCreate: PropTypes.func,
     startCreateNewVersion: PropTypes.func,
     startEdit: PropTypes.func,
@@ -774,6 +804,8 @@ export default function AdvisorItemsTable({
         footerTotalText,
         tableRows,
         showInputs,
+        hasCreateChanges,
+        hasEditChanges,
         onChange,
         showAddEstimate,
         canEdit,
@@ -886,14 +918,38 @@ export default function AdvisorItemsTable({
         return refreshLatestAdvisorEstimate({ serviceTicketId, syncEstimate });
     }, [serviceTicketId, syncEstimate]);
 
+    const markEstimateDraft = useCallback(async () => {
+        const estimateIdNum = toIdOrNull(estimate?.estimateId ?? estimate?.id);
+        if (!estimateIdNum) return;
+
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để cập nhật trạng thái báo giá.');
+            return;
+        }
+
+        await manageServiceTicketEstimateStatus(estimateIdNum, 'DRAFT', token);
+    }, [estimate, notify]);
+
     const handleCancelWarehouseAllocation = useCallback(async (row) => {
         await handleCancelWarehouseAllocationAction({
             row,
             notify,
             setWarehouseActionBusyKey,
             refreshLatestEstimate,
+            markEstimateDraft,
         });
-    }, [notify, refreshLatestEstimate]);
+    }, [markEstimateDraft, notify, refreshLatestEstimate]);
+
+    const handleCancelReturnEntry = useCallback(async (row) => {
+        await handleCancelReturnEntryAction({
+            row,
+            notify,
+            setWarehouseActionBusyKey,
+            refreshLatestEstimate,
+            markEstimateDraft,
+        });
+    }, [markEstimateDraft, notify, refreshLatestEstimate]);
 
     const handleSubmitReturnEntry = useCallback(async ({ returnReason, quantity, conditionNote, files }) => {
         await handleSubmitReturnEntryAction({
@@ -906,8 +962,9 @@ export default function AdvisorItemsTable({
             setReturnSubmitting,
             setReturnModalItem,
             refreshLatestEstimate,
+            markEstimateDraft,
         });
-    }, [notify, refreshLatestEstimate, returnModalItem]);
+    }, [markEstimateDraft, notify, refreshLatestEstimate, returnModalItem]);
 
     const handleStartCreate = async () => {
         await handleStartCreateAction({
@@ -1291,6 +1348,7 @@ export default function AdvisorItemsTable({
                                 warehouseActionBusyKey={warehouseActionBusyKey}
                                 onCancelAllocation={handleCancelWarehouseAllocation}
                                 onOpenReturnModal={setReturnModalItem}
+                                onCancelReturn={handleCancelReturnEntry}
                             />
                         ))}
                     </tbody>
@@ -1322,6 +1380,8 @@ export default function AdvisorItemsTable({
                         isCreating={isCreating}
                         isEditing={isEditing}
                         isSaving={isSaving}
+                        hasCreateChanges={hasCreateChanges}
+                        hasEditChanges={hasEditChanges}
                         startCreate={handleStartCreate}
                         startCreateNewVersion={handleStartCreateNewVersion}
                         startEdit={handleStartEdit}
