@@ -1490,11 +1490,32 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 snapshotEstimateId != null &&
                 snapshotEstimateId === estimateIdNum &&
                 snapshotPrevStatus === 'APPROVED';
+
+            // If we already have stock allocations on the ticket, we normally call
+            // updateEstimateStockAllocation to sync changes. However there is a
+            // special case: when a confirm is triggered only as part of a return
+            // flow (every estimate item has a non-null returnStatus), we should
+            // NOT call update (no actual allocation changes expected).
+            const anyEstimateItemMissingReturnStatus = Array.isArray(latestEstimate?.items)
+                ? latestEstimate.items.some((it) => {
+                    const rawReturnStatus =
+                        it?.stockAllocation?.returnStatus ??
+                        it?.allocation?.returnStatus ??
+                        it?.warehouseAllocation?.returnStatus ??
+                        it?.returnStatus ??
+                        it?.stock_allocation_return_status ??
+                        null;
+                    return rawReturnStatus == null || String(rawReturnStatus).trim() === '';
+                })
+                : true; // default true to preserve existing behavior if items unknown
+
             await ensureStockAllocationAfterConfirm({
                 token,
                 // Only update when this ticket already has reserved/committed allocations
-                // or when confirming append-only changes on an already approved estimate.
-                shouldUpdateExistingAllocations: isAppendOnlyConfirm || hasAnyStockAllocation,
+                // AND at least one estimate item does NOT have a returnStatus (meaning
+                // there are real allocation-relevant items), OR when confirming
+                // append-only changes on an already approved estimate.
+                shouldUpdateExistingAllocations: isAppendOnlyConfirm || (hasAnyStockAllocation && anyEstimateItemMissingReturnStatus),
             });
 
             const detailRes = await fetchServiceTicketDetail(ticketCode, token);
