@@ -51,7 +51,7 @@ function formatTaxRateForPrint(item) {
     return toMoneyNumber(item?.taxAmount ?? item?.tax_amount) > 0 ? '--' : '0%';
 }
 
-function isReturnedInvoiceItem(item) {
+function getInvoiceItemStockStatus(item) {
     return String(
         item?.stockAllocation?.status ??
             item?.allocation?.status ??
@@ -60,7 +60,33 @@ function isReturnedInvoiceItem(item) {
             item?.stock_allocation_status ??
             item?.allocationStatus ??
             '',
-    ).trim().toUpperCase() === 'RELEASED';
+    ).trim().toUpperCase();
+}
+
+function isReturnedInvoiceItem(item) {
+    const status = getInvoiceItemStockStatus(item);
+    if (['RELEASED', 'RETURNED', 'RETURN', 'REFUNDED', 'REFUND', 'CANCELLED_RETURN'].includes(status)) return true;
+
+    const returnStatus = String(
+        item?.returnStatus ??
+            item?.return_status ??
+            item?.returnEntryStatus ??
+            item?.return_entry_status ??
+            item?.warehouseReturnStatus ??
+            item?.warehouse_return_status ??
+            item?.stockReturnStatus ??
+            item?.stock_return_status ??
+            '',
+    ).trim().toUpperCase();
+    if (['RETURNED', 'RETURN', 'REFUNDED', 'REFUND', 'CONFIRMED', 'COMPLETED'].includes(returnStatus)) return true;
+
+    return toMoneyNumber(item?.returnedQuantity ?? item?.returned_quantity ?? item?.returnQuantity ?? item?.return_quantity) > 0;
+}
+
+function isBillableInvoiceItem(item) {
+    if (isReturnedInvoiceItem(item)) return false;
+    const status = getInvoiceItemStockStatus(item);
+    return !status || status === 'COMMITTED';
 }
 
 function readTripleNumber(value, forceLeadingZeroHundred = false) {
@@ -186,7 +212,7 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
 
     const invoice = useMemo(() => ticket?.invoice || {}, [ticket]);
     const invoiceItems = useMemo(
-        () => (Array.isArray(invoice?.items) ? invoice.items.filter((item) => !isReturnedInvoiceItem(item)) : []),
+        () => (Array.isArray(invoice?.items) ? invoice.items.filter(isBillableInvoiceItem) : []),
         [invoice],
     );
     const rowCount = Math.max(DEFAULT_ROW_COUNT, invoiceItems.length);
