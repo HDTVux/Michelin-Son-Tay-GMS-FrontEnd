@@ -8,6 +8,7 @@ import { fetchManagedBookingDetail, fetchManagedBookingsPaged } from '../../../s
 import { formatDateTimeVi, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
 import { fetchServiceTicketBookingHistoryByCustomerId } from '../../../services/serviceTicketService.js';
+import BookingEstimateReadonlyTable from './BookingEstimateReadonlyTable.jsx';
 
 const DEFAULT_SLOT_CAPACITY = 6;
 
@@ -164,9 +165,11 @@ function mapBooking(apiData) {
   const rawStatus = apiData.status || 'NEW';
   const status = normalizeStatusCode(rawStatus) || 'NEW';
   const statusTone = mapStatusTone(status);
+  const bookingIdRaw = apiData.bookingId ?? apiData.id;
 
   return {
-    bookingId: apiData.bookingId?.toString() || '',
+    bookingId: bookingIdRaw?.toString() || '',
+    bookingIdNumber: bookingIdRaw,
     customerId,
     name: customerName,
     phone: customerPhone,
@@ -399,6 +402,8 @@ export default function ConfirmedBookingDetail() {
                 <div className={styles.noteBox}>{booking.note || 'Không có ghi chú'}</div>
               </div>
             </section>
+
+            <BookingEstimateReadonlyTable bookingId={booking.bookingIdNumber || booking.bookingId} />
           </div>
 
           <SchedulePanel
