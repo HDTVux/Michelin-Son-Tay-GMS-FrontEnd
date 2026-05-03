@@ -378,7 +378,7 @@ function EstimateItemRow({
                 ) : (
                     <div className={styles.itemNameCell}>
                         <span>{row.itemName || ''}</span>
-                        {isGift && !HIDE_BUY_X_GET_Y_UI ? <span className={styles.giftBadge}>Quà tặng</span> : null}
+                        {/* BUY_X_GET_Y UI hidden: gift badge intentionally disabled */}
                     </div>
                 )}
             </td>
@@ -975,7 +975,7 @@ export default function AdvisorItemsTable({
                     refreshLatestEstimate,
                     markEstimateDraft,
                 });
-            } catch (err) {
+            } catch {
                 // continue cancelling others even if one fails
             }
         }

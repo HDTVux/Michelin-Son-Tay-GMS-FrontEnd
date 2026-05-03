@@ -231,7 +231,6 @@ export default function CheckIn() {
     const [isCreatingVehicle, setIsCreatingVehicle] = useState(false); // Trạng thái khi đang tạo xe mới
     const [odometerKm, setOdometerKm] = useState(''); // Số km hiện tại nhân viên nhập
     const [lastOdometerKm, setLastOdometerKm] = useState(null); // Số km lần trước (từ hệ thống)
-    const [damageNote, setDamageNote] = useState(''); // Ghi chú hư hỏng bên ngoài
 
     // Thông tin bổ sung cho phiếu dịch vụ (chưa có backend)
         const [safetyInspection, setSafetyInspection] = useState(false);
@@ -312,8 +311,6 @@ export default function CheckIn() {
         return odometerNumber < lastOdometerKm;
     }, [odometerNumber, lastOdometerKm]);
 
-    const damageNoteLength = useMemo(() => String(damageNote || '').length, [damageNote]);
-    const damageNoteRemaining = useMemo(() => Math.max(0, DESCRIPTION_MAX_LENGTH - damageNoteLength), [damageNoteLength]);
 
     const descriptionLengths = useMemo(() => {
         const result = {};
@@ -378,7 +375,6 @@ export default function CheckIn() {
 		photos,
 		photoDescriptions,
 		odometerNumber,
-		damageNote,
 		previousVehicleIdRef,
 		notify,
 		navigate,
@@ -919,17 +915,7 @@ export default function CheckIn() {
                         })}
                     </div>
 
-                    <div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
-                        <label htmlFor="damageNote">Ghi chú hư hỏng</label>
-                        <textarea
-                            id="damageNote"
-                            value={damageNote}
-                            onChange={(e) => setDamageNote(e.target.value)}
-                            maxLength={DESCRIPTION_MAX_LENGTH}
-                            placeholder="Ghi chú hư hỏng"
-                        />
-                        <div className={styles['char-count']}>{damageNoteRemaining} ký tự còn lại</div>
-                    </div>
+
                 </section>
 
                 {/* Footer: Các nút điều hướng Hủy/Xác nhận */}
