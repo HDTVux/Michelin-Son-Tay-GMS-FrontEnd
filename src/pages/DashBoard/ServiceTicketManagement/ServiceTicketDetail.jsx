@@ -84,6 +84,7 @@ const PROMOTION_TYPES = [
     { type: 'PERCENT', label: 'Giảm theo phần trăm' },
     { type: 'BUY_X_GET_Y', label: 'Mua X tặng Y' },
 ];
+const HIDE_BUY_X_GET_Y_UI = true;
 
 // Component hiển thị một block thông tin với tiêu đề và các cặp key-value 
 function InfoBlock({ title, rows }) {
@@ -455,12 +456,15 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             try {
                 setPromotionsLoading(true);
                 setPromotionsError('');
-                const entries = await Promise.all(PROMOTION_TYPES.map(async ({ type }) => {
+                const fetchPromotionTypes = HIDE_BUY_X_GET_Y_UI
+                    ? PROMOTION_TYPES.filter(({ type }) => type !== 'BUY_X_GET_Y')
+                    : PROMOTION_TYPES;
+                const entries = await Promise.all(fetchPromotionTypes.map(async ({ type }) => {
                     const res = await fetchAvailablePromotions(token, type, customerIdNum);
                     return [type, Array.isArray(res?.data) ? res.data : []];
                 }));
                 if (cancelled) return;
-                setAvailablePromotions(Object.fromEntries(entries));
+                setAvailablePromotions({ PERCENT: [], BUY_X_GET_Y: [], ...Object.fromEntries(entries) });
             } catch (err) {
                 if (cancelled) return;
                 setAvailablePromotions({ PERCENT: [], BUY_X_GET_Y: [] });
@@ -675,7 +679,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         addPromo(latestEstimate?.appliedPromotion);
         addPromo(latestEstimate?.promotionCode);
         addPromo(latestEstimate?.promoCode);
-        return rows.filter((row) => row.label);
+        return rows.filter((row) => row.label && (!HIDE_BUY_X_GET_Y_UI || String(row?.promotionType || '').trim().toUpperCase() !== 'BUY_X_GET_Y'));
     }, [appliedPromotions, availablePromotions, latestEstimate]);
     const canUnapplyPromotionFromCurrentEstimate = Boolean(latestEstimate)
         && (isEstimateDraft || (isNewEstimateVersionPromotionLimited && isEstimateSent))
@@ -683,10 +687,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const canUnapplyPromotionRow = useCallback((row) => {
         if (!canUnapplyPromotionFromCurrentEstimate) return false;
         const promotionType = String(row?.promotionType || '').trim().toUpperCase();
+        if (HIDE_BUY_X_GET_Y_UI && promotionType === 'BUY_X_GET_Y') return false;
         if (isEstimateVersionRevision && promotionType === 'BUY_X_GET_Y') return false;
         return true;
     }, [canUnapplyPromotionFromCurrentEstimate, isEstimateVersionRevision]);
     const visiblePromotionTypes = useMemo(() => {
+        if (HIDE_BUY_X_GET_Y_UI) {
+            return PROMOTION_TYPES.filter(({ type }) => type !== 'BUY_X_GET_Y');
+        }
         if (isNewEstimateVersionPromotionLimited) {
             return PROMOTION_TYPES.filter(({ type }) => type === 'PERCENT');
         }
@@ -1872,6 +1880,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const applyPromotion = async (promotionType) => {
         const type = String(promotionType || '').trim().toUpperCase();
+        if (HIDE_BUY_X_GET_Y_UI && type === 'BUY_X_GET_Y') {
+            notify('Phần khuyến mãi Mua X tặng Y đang được ẩn.');
+            return;
+        }
         if (isNewEstimateVersionPromotionLimited && type !== 'PERCENT') {
             notify('Version báo giá mới chỉ được áp dụng mã giảm giá phần trăm.');
             return;

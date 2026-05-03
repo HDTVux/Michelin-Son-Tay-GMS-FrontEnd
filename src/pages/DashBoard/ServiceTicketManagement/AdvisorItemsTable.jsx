@@ -5,6 +5,7 @@ import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 import { validateTaxName, validateTaxRatePercent, validateTextInput } from '../../../components/inputValidation.js';
 const TAX_NAME_MAX_LENGTH = 100;
+const HIDE_BUY_X_GET_Y_UI = true;
 import {
     formatAppliedTaxRate,
     formatCurrencyVnd,
@@ -377,7 +378,7 @@ function EstimateItemRow({
                 ) : (
                     <div className={styles.itemNameCell}>
                         <span>{row.itemName || ''}</span>
-                        {isGift ? <span className={styles.giftBadge}>Quà tặng</span> : null}
+                        {isGift && !HIDE_BUY_X_GET_Y_UI ? <span className={styles.giftBadge}>Quà tặng</span> : null}
                     </div>
                 )}
             </td>
