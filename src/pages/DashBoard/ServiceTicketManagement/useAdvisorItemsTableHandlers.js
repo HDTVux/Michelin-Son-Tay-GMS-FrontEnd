@@ -412,7 +412,8 @@ export async function handleStartCreateNewVersionAction({
 
 	try {
 		setIsStartingCreate(true);
-		notify('Đang chuẩn bị tạo bản báo giá mới...');
+		// Add a small delay to ensure promotion removal notification is displayed before this one
+		await new Promise((resolve) => setTimeout(resolve, 500));
 		await onRestartWorkflow();
 	} catch {
 		setRevertTicketOnCancel(false);

@@ -5,6 +5,7 @@ import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 import { validateTaxName, validateTaxRatePercent, validateTextInput } from '../../../components/inputValidation.js';
 const TAX_NAME_MAX_LENGTH = 100;
+const HIDE_BUY_X_GET_Y_UI = true;
 import {
     formatAppliedTaxRate,
     formatCurrencyVnd,
@@ -377,7 +378,7 @@ function EstimateItemRow({
                 ) : (
                     <div className={styles.itemNameCell}>
                         <span>{row.itemName || ''}</span>
-                        {isGift ? <span className={styles.giftBadge}>Quà tặng</span> : null}
+                        {/* BUY_X_GET_Y UI hidden: gift badge intentionally disabled */}
                     </div>
                 )}
             </td>
@@ -974,7 +975,7 @@ export default function AdvisorItemsTable({
                     refreshLatestEstimate,
                     markEstimateDraft,
                 });
-            } catch (err) {
+            } catch {
                 // continue cancelling others even if one fails
             }
         }
