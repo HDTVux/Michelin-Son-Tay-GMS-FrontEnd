@@ -20,6 +20,38 @@ const resolveCustomerStatus = (customer) =>
   customer?.userStatus ??
   customer?.customerAuth?.status;
 
+const buildPageItems = (currentPage, totalPages) => {
+  const safeTotal = Math.max(1, Number(totalPages) || 1);
+  const safeCurrent = Math.min(Math.max(1, Number(currentPage) || 1), safeTotal);
+
+  if (safeTotal <= 7) {
+    return Array.from({ length: safeTotal }, (_, index) => index + 1);
+  }
+
+  const pages = new Set([1, safeTotal, safeCurrent]);
+
+  if (safeCurrent <= 4) {
+    [2, 3, 4, 5].forEach((page) => pages.add(page));
+  } else if (safeCurrent >= safeTotal - 3) {
+    [safeTotal - 4, safeTotal - 3, safeTotal - 2, safeTotal - 1].forEach((page) => pages.add(page));
+  } else {
+    [safeCurrent - 1, safeCurrent + 1].forEach((page) => pages.add(page));
+  }
+
+  const ordered = [...pages].filter((page) => page >= 1 && page <= safeTotal).sort((a, b) => a - b);
+  const result = [];
+
+  ordered.forEach((page, index) => {
+    const previous = ordered[index - 1];
+    if (previous && page - previous > 1) {
+      result.push(`ellipsis-${previous}-${page}`);
+    }
+    result.push(page);
+  });
+
+  return result;
+};
+
 const CustomerManager = () => {
   useScrollToTop();
   const navigate = useNavigate();
@@ -208,6 +240,7 @@ const CustomerManager = () => {
   };
 
   const totalPages = Math.max(1, Math.ceil((totalItems || 0) / Math.max(1, itemsPerPage)));
+  const pageItems = buildPageItems(currentPage, totalPages);
 
   const openCreateModal = () => {
     setShowModal(true);
@@ -345,15 +378,26 @@ const CustomerManager = () => {
             >
               Trước
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                className={`${styles.pageBtn} ${currentPage === page ? styles.active : ''}`}
-                onClick={() => setCurrentPage(page)}
-              >
-                {page}
-              </button>
-            ))}
+            {pageItems.map((page) => {
+              if (typeof page === 'string') {
+                return (
+                  <span key={page} className={styles.pageDots}>
+                    ...
+                  </span>
+                );
+              }
+
+              return (
+                <button
+                  key={page}
+                  className={`${styles.pageBtn} ${currentPage === page ? styles.active : ''}`}
+                  onClick={() => setCurrentPage(page)}
+                  aria-current={currentPage === page ? 'page' : undefined}
+                >
+                  {page}
+                </button>
+              );
+            })}
             <button
               className={styles.pageBtn}
               disabled={currentPage === totalPages}
