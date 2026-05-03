@@ -680,6 +680,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const canUnapplyPromotionFromCurrentEstimate = Boolean(latestEstimate)
         && (isEstimateDraft || (isNewEstimateVersionPromotionLimited && isEstimateSent))
         && !isActionLocked;
+    const canUnapplyPromotionRow = useCallback((row) => {
+        if (!canUnapplyPromotionFromCurrentEstimate) return false;
+        const promotionType = String(row?.promotionType || '').trim().toUpperCase();
+        if (isEstimateVersionRevision && promotionType === 'BUY_X_GET_Y') return false;
+        return true;
+    }, [canUnapplyPromotionFromCurrentEstimate, isEstimateVersionRevision]);
     const visiblePromotionTypes = useMemo(() => {
         if (isNewEstimateVersionPromotionLimited) {
             return PROMOTION_TYPES.filter(({ type }) => type === 'PERCENT');
@@ -1497,16 +1503,18 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             // flow (every estimate item has a non-null returnStatus), we should
             // NOT call update (no actual allocation changes expected).
             const anyEstimateItemMissingReturnStatus = Array.isArray(latestEstimate?.items)
-                ? latestEstimate.items.some((it) => {
-                    const rawReturnStatus =
-                        it?.stockAllocation?.returnStatus ??
-                        it?.allocation?.returnStatus ??
-                        it?.warehouseAllocation?.returnStatus ??
-                        it?.returnStatus ??
-                        it?.stock_allocation_return_status ??
-                        null;
-                    return rawReturnStatus == null || String(rawReturnStatus).trim() === '';
-                })
+                ? latestEstimate.items
+                      .filter((it) => !getEstimateItemGiftFlag(it))
+                      .some((it) => {
+                          const rawReturnStatus =
+                              it?.stockAllocation?.returnStatus ??
+                              it?.allocation?.returnStatus ??
+                              it?.warehouseAllocation?.returnStatus ??
+                              it?.returnStatus ??
+                              it?.stock_allocation_return_status ??
+                              null;
+                          return rawReturnStatus == null || String(rawReturnStatus).trim() === '';
+                      })
                 : true; // default true to preserve existing behavior if items unknown
 
             await ensureStockAllocationAfterConfirm({
@@ -1953,6 +1961,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     const unapplySinglePromotion = async (promotionRow) => {
         if (promoApplying) return;
+        if (!canUnapplyPromotionRow(promotionRow)) {
+            notify('Không thể hủy áp dụng khuyến mãi Mua X tặng Y ở phiên bản báo giá lớn hơn 1.');
+            return;
+        }
         if (!estimateIdNum) {
             notify('Không tìm thấy báo giá hợp lệ để hủy mã giảm giá.');
             return;
@@ -2447,7 +2459,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                 <div key={`${row.promotionId || row.promotionCode}`} className={styles.promotionSummary}>
                                                     <span className={styles.promotionSummaryLabel}>Đang áp dụng:</span>
                                                     <span className={styles.promotionSummaryText}>{row.label}</span>
-                                                    {canUnapplyPromotionFromCurrentEstimate ? (
+                                                    {canUnapplyPromotionRow(row) ? (
                                                         <button
                                                             type="button"
                                                             className="ui-btn ui-btn--ghost"

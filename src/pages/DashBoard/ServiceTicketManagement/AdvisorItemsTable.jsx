@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 import { validateTaxName, validateTaxRatePercent, validateTextInput } from '../../../components/inputValidation.js';
+const TAX_NAME_MAX_LENGTH = 100;
 import {
     formatAppliedTaxRate,
     formatCurrencyVnd,
@@ -142,7 +143,7 @@ function TaxRuleQuickAdd({
     stopAddNewTaxRule,
     handleCreateTaxRule,
 }) {
-    const taxNameValidation = validateTaxName(taxName, { required: true });
+    const taxNameValidation = validateTaxName(taxName, { required: true, maxLength: TAX_NAME_MAX_LENGTH });
     const taxRateValidation = validateTaxRatePercent(taxRate, { required: true });
     const taxHasError = Boolean(taxNameValidation.error || taxRateValidation.error);
 
@@ -190,14 +191,19 @@ function TaxRuleQuickAdd({
                         <input
                             id="estimate-tax-name"
                             value={taxName}
-                            onChange={(e) => setTaxName(e.target.value)}
+                            maxLength={TAX_NAME_MAX_LENGTH}
+                            onChange={(e) => setTaxName(String(e.target.value || '').slice(0, TAX_NAME_MAX_LENGTH))}
                             placeholder="Nhập tên thuế"
                             autoComplete="off"
                             disabled={isCreatingTaxRule || isSaving}
                         />
-                        {taxNameValidation.error ? (
-                            <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>{taxNameValidation.error}</div>
-                        ) : null}
+                        <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                            {taxNameValidation.error ? (
+                                <div style={{ fontSize: 12, color: '#991b1b' }}>{taxNameValidation.error}</div>
+                            ) : (
+                                <div style={{ fontSize: 12, color: '#6b7280' }}>{`${Math.max(0, TAX_NAME_MAX_LENGTH - String(taxName ?? '').length)} ký tự còn lại`}</div>
+                            )}
+                        </div>
                     </div>
                     <div className="ui-field" style={{ marginBottom: 0 }}>
                         <label htmlFor="estimate-tax-rate">Thuế suất</label>
@@ -381,8 +387,15 @@ function EstimateItemRow({
                         <input
                             className={`${styles.tableInput} ${styles.tableInputNumber}`}
                             type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={6}
                             value={row.quantity}
-                            onChange={(e) => onChange(idx, 'quantity', String(e.target.value || '').replaceAll(/\D/g, ''))}
+                            onChange={(e) => {
+                                const raw = String(e.target.value || '').replaceAll(/\D/g, '').slice(0, 6);
+                                const capped = raw ? String(Math.min(Number(raw), 999999)) : '';
+                                onChange(idx, 'quantity', capped);
+                            }}
                             placeholder="0"
                             disabled={isSaving}
                         />
@@ -404,13 +417,17 @@ function EstimateItemRow({
                     <input
                         className={`${styles.tableInput} ${styles.tableInputNumber}`}
                         type="text"
+                        inputMode="decimal"
+                        maxLength={12}
                         value={row.unitPrice}
                         onChange={(e) => {
                             const raw = String(e.target.value || '').replaceAll(/[^\d.]/g, '');
-                            // Ensure only one decimal point
                             const parts = raw.split('.');
-                            const sanitized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : raw;
-                            onChange(idx, 'unitPrice', sanitized);
+                            const intPart = (parts[0] || '').slice(0, 9); // max 9 integer digits
+                            const decPart = (parts[1] || '').slice(0, 2); // max 2 decimals
+                            const sanitized = decPart ? `${intPart}.${decPart}` : intPart;
+                            const cappedNum = Number(sanitized || 0) > 999999999 ? '999999999' : sanitized;
+                            onChange(idx, 'unitPrice', cappedNum);
                         }}
                         placeholder="0"
                         disabled={isSaving}
@@ -932,6 +949,13 @@ export default function AdvisorItemsTable({
     }, [estimate, notify]);
 
     const handleCancelWarehouseAllocation = useCallback(async (row) => {
+        // Cancel allocation for the selected row and any linked gift rows
+        const baseItemId = toIdOrNull(row?.itemId);
+        const linked = (Array.isArray(tableRows) ? tableRows : []).filter(
+            (r) => toIdOrNull(r?.triggeredByItemId) === baseItemId,
+        );
+
+        // Cancel base first
         await handleCancelWarehouseAllocationAction({
             row,
             notify,
@@ -939,7 +963,22 @@ export default function AdvisorItemsTable({
             refreshLatestEstimate,
             markEstimateDraft,
         });
-    }, [markEstimateDraft, notify, refreshLatestEstimate]);
+
+        // Cancel allocations for each linked gift row
+        for (const giftRow of linked) {
+            try {
+                await handleCancelWarehouseAllocationAction({
+                    row: giftRow,
+                    notify,
+                    setWarehouseActionBusyKey,
+                    refreshLatestEstimate,
+                    markEstimateDraft,
+                });
+            } catch (err) {
+                // continue cancelling others even if one fails
+            }
+        }
+    }, [markEstimateDraft, notify, refreshLatestEstimate, tableRows]);
 
     const handleCancelReturnEntry = useCallback(async (row) => {
         await handleCancelReturnEntryAction({
@@ -952,6 +991,21 @@ export default function AdvisorItemsTable({
     }, [markEstimateDraft, notify, refreshLatestEstimate]);
 
     const handleSubmitReturnEntry = useCallback(async ({ returnReason, quantity, conditionNote, files }) => {
+        // When returning a base item, also include any gift items linked by triggeredByItemId
+        const baseRow = returnModalItem;
+        const baseItemId = toIdOrNull(baseRow?.itemId);
+        const linkedGifts = (Array.isArray(tableRows) ? tableRows : []).filter(
+            (r) => toIdOrNull(r?.triggeredByItemId) === baseItemId,
+        );
+        const extraItems = linkedGifts
+            .map((g) => ({
+                itemId: toIdOrNull(g?.itemId),
+                allocationId: g?.allocationId ?? g?.allocation_id ?? null,
+                quantity: Number(g?.quantity) || 0,
+                conditionNote: '',
+            }))
+            .filter((it) => it.itemId && it.allocationId);
+
         await handleSubmitReturnEntryAction({
             returnModalItem,
             returnReason,
@@ -963,8 +1017,9 @@ export default function AdvisorItemsTable({
             setReturnModalItem,
             refreshLatestEstimate,
             markEstimateDraft,
+            extraItems,
         });
-    }, [markEstimateDraft, notify, refreshLatestEstimate, returnModalItem]);
+    }, [markEstimateDraft, notify, refreshLatestEstimate, returnModalItem, tableRows]);
 
     const handleStartCreate = async () => {
         await handleStartCreateAction({

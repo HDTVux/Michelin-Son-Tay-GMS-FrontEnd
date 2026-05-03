@@ -1,4 +1,11 @@
-import { validatePositiveNumber, validateNonNegativeNumber } from '../../../components/inputValidation.js';
+import {
+  readNumber,
+  validateSupplierName,
+  validateNotes,
+  validateWarehouseQuantity,
+  validateWarehouseImportPrice,
+  validateWarehouseMarkupMultiplier,
+} from '../../../components/inputValidation.js';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -41,10 +48,7 @@ const formatCurrency = (value) => {
   return new Intl.NumberFormat('vi-VN').format(Math.round(num));
 };
 
-const readNumber = (value) => {
-  const num = typeof value === 'number' ? value : Number(String(value ?? '').trim().replaceAll(',', ''));
-  return Number.isFinite(num) ? num : Number.NaN;
-};
+
 
 const extractCatalogItems = (response) => {
   const payload = response?.data?.data ?? response?.data ?? response;
@@ -69,6 +73,13 @@ const isPartCatalogItem = (item) => {
   const typeText = String(item?.itemType ?? item?.item_type ?? item?.type ?? item?.categoryType ?? '').trim().toLowerCase();
   return typeText === 'part' || typeText === 'parts';
 };
+
+// Validation constants
+const SUPPLIER_NAME_MAX_LENGTH = 100;
+const NOTES_MAX_LENGTH = 500;
+const QUANTITY_MAX_VALUE = 999999;
+const IMPORT_PRICE_MAX_VALUE = 999999999;
+const MARKUP_MULTIPLIER_MAX_VALUE = 999.99;
 
 const buildDraftPayload = (warehouseId, supplierName, notes, selectedItems) => ({
   warehouseId: Number(warehouseId) || DEFAULT_WAREHOUSE_ID,
@@ -309,24 +320,31 @@ export default function WarehouseStockEntry() {
 
   const [rowErrors, setRowErrors] = useState({});
 
+  const getFieldError = (field, value) => {
+    if (field === 'quantity') {
+      const validation = validateWarehouseQuantity(value);
+      return validation.error;
+    }
+    if (field === 'importPrice') {
+      const validation = validateWarehouseImportPrice(value);
+      return validation.error;
+    }
+    if (field === 'markupMultiplier') {
+      const validation = validateWarehouseMarkupMultiplier(value);
+      return validation.error;
+    }
+    return '';
+  };
+
   const updateSelectedItem = (itemId, field, value) => {
+    const error = getFieldError(field, value);
+    setRowErrors((prevErrs) => ({ ...prevErrs, [`${itemId}_${field}`]: error }));
     setSelectedItems((prev) =>
       prev.map((row) => {
-        if (Number(row.itemId) !== Number(itemId)) return row;
-        // Validate ngay khi nhập
-        let error = '';
-        if (field === 'quantity') {
-          const res = validatePositiveNumber(value, { fieldLabel: 'Số lượng', required: true, integer: true });
-          error = res.error;
-        } else if (field === 'importPrice') {
-          const res = validateNonNegativeNumber(value, { fieldLabel: 'Giá nhập', required: true, integer: false });
-          error = res.error;
-        } else if (field === 'markupMultiplier') {
-          const res = validateNonNegativeNumber(value, { fieldLabel: 'Mức lợi nhuận', required: true, integer: false });
-          error = res.error;
+        if (Number(row.itemId) === Number(itemId)) {
+          return { ...row, [field]: value };
         }
-        setRowErrors((prevErrs) => ({ ...prevErrs, [`${itemId}_${field}`]: error }));
-        return { ...row, [field]: value };
+        return row;
       }),
     );
   };
@@ -353,25 +371,45 @@ export default function WarehouseStockEntry() {
       }
     }
 
-    const supplier = String(supplierName || '').trim();
-    if (!supplier) {
-      notify('Vui lòng nhập nhà cung cấp.');
+    const supplierValidation = validateSupplierName(supplierName);
+    if (!supplierValidation.valid) {
+      notify(supplierValidation.error);
       return;
     }
+
+    const notesValidation = validateNotes(notes);
+    if (!notesValidation.valid) {
+      notify(notesValidation.error);
+      return;
+    }
+
     if (selectedItems.length === 0) {
       notify('Vui lòng thêm ít nhất 1 hàng vào bảng nhập.');
       return;
     }
 
     const invalidRow = selectedItems.find((row) => {
-      const quantity = readNumber(row.quantity);
-      const importPrice = readNumber(row.importPrice);
-      const markupMultiplier = readNumber(row.markupMultiplier);
-      return !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(importPrice) || importPrice <= 0 || !Number.isFinite(markupMultiplier) || markupMultiplier < 0;
+      const quantityValidation = validateWarehouseQuantity(row.quantity);
+      const importPriceValidation = validateWarehouseImportPrice(row.importPrice);
+      const markupValidation = validateWarehouseMarkupMultiplier(row.markupMultiplier);
+      return !quantityValidation.valid || !importPriceValidation.valid || !markupValidation.valid;
     });
 
     if (invalidRow) {
-      notify(`Dữ liệu chưa hợp lệ ở dòng: ${invalidRow.itemName || invalidRow.sku || invalidRow.itemId}`);
+      const quantityValidation = validateWarehouseQuantity(invalidRow.quantity);
+      const importPriceValidation = validateWarehouseImportPrice(invalidRow.importPrice);
+      const markupValidation = validateWarehouseMarkupMultiplier(invalidRow.markupMultiplier);
+      
+      let errorMsg = '';
+      if (quantityValidation.valid === false) {
+        errorMsg = quantityValidation.error;
+      } else if (importPriceValidation.valid === false) {
+        errorMsg = importPriceValidation.error;
+      } else {
+        errorMsg = markupValidation.error;
+      }
+      
+      notify(`${errorMsg} (${invalidRow.itemName || invalidRow.sku || invalidRow.itemId})`);
       return;
     }
 
@@ -388,6 +426,9 @@ export default function WarehouseStockEntry() {
       const response = await createWarehouseStockEntryWithAttachment(payload, attachmentFile, token);
       localStorage.removeItem(DRAFT_STORAGE_KEY);
       notify(response?.message || 'Xác nhận nhập kho thành công.');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (err) {
       const message = err?.message || 'Không thể xác nhận nhập kho.';
       notify(message);
@@ -482,14 +523,23 @@ export default function WarehouseStockEntry() {
                   <input
                     type="text"
                     value={supplierName}
-                    onChange={(e) => setSupplierName(e.target.value)}
+                    onChange={(e) => setSupplierName(e.target.value.slice(0, SUPPLIER_NAME_MAX_LENGTH))}
+                    maxLength={SUPPLIER_NAME_MAX_LENGTH}
                     placeholder="Nhập tên nhà cung cấp"
                   />
+                  <div className={styles.helperText}>
+                    {supplierName.length}/{SUPPLIER_NAME_MAX_LENGTH}
+                  </div>
                 </label>
 
                 <label className={styles.field}>
                   <span>Ngày nhập</span>
-                  <input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
+                  <input
+                    type="date"
+                    value={entryDate}
+                    onChange={(e) => setEntryDate(e.target.value)}
+                    min={new Date().toISOString().slice(0, 10)}
+                  />
                 </label>
 
                 <label className={styles.field}>
@@ -497,9 +547,13 @@ export default function WarehouseStockEntry() {
                   <input
                     type="text"
                     value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                    onChange={(e) => setNotes(e.target.value.slice(0, NOTES_MAX_LENGTH))}
+                    maxLength={NOTES_MAX_LENGTH}
                     placeholder="Nhập ghi chú cho phiếu nhập"
                   />
+                  <div className={styles.helperText}>
+                    {notes.length}/{NOTES_MAX_LENGTH}
+                  </div>
                 </label>
               </div>
             </div>
@@ -586,11 +640,13 @@ export default function WarehouseStockEntry() {
                                 type="number"
                                 min="1"
                                 step="1"
+                                max={QUANTITY_MAX_VALUE}
                                 value={row.quantity}
                                 onChange={(e) => {
-                                  // Chặn số âm
                                   const val = e.target.value;
-                                  if (val === '' || Number(val) >= 0) updateSelectedItem(row.itemId, 'quantity', val);
+                                  if (val === '' || (Number(val) >= 0 && Number(val) <= QUANTITY_MAX_VALUE)) {
+                                    updateSelectedItem(row.itemId, 'quantity', val);
+                                  }
                                 }}
                               />
                               {rowErrors[`${row.itemId}_quantity`] && (
@@ -603,10 +659,13 @@ export default function WarehouseStockEntry() {
                                 type="number"
                                 min="0"
                                 step="1"
+                                max={IMPORT_PRICE_MAX_VALUE}
                                 value={row.importPrice}
                                 onChange={(e) => {
                                   const val = e.target.value;
-                                  if (val === '' || Number(val) >= 0) updateSelectedItem(row.itemId, 'importPrice', val);
+                                  if (val === '' || (Number(val) >= 0 && Number(val) <= IMPORT_PRICE_MAX_VALUE)) {
+                                    updateSelectedItem(row.itemId, 'importPrice', val);
+                                  }
                                 }}
                                 placeholder="0"
                               />
@@ -620,10 +679,13 @@ export default function WarehouseStockEntry() {
                                 type="number"
                                 min="0"
                                 step="0.01"
+                                max={MARKUP_MULTIPLIER_MAX_VALUE}
                                 value={row.markupMultiplier}
                                 onChange={(e) => {
                                   const val = e.target.value;
-                                  if (val === '' || Number(val) >= 0) updateSelectedItem(row.itemId, 'markupMultiplier', val);
+                                  if (val === '' || (Number(val) >= 0 && Number(val) <= MARKUP_MULTIPLIER_MAX_VALUE)) {
+                                    updateSelectedItem(row.itemId, 'markupMultiplier', val);
+                                  }
                                 }}
                                 placeholder="1.0"
                               />

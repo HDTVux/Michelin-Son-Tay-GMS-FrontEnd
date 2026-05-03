@@ -63,6 +63,29 @@ async function fetchBlobWithAuth(path, { method, body, token }) {
   return { blob, filename };
 }
 
+function normalizeEstimateItemPromotionId(item) {
+  const rawPromotionId = item?.promotionId ?? item?.promotionID ?? item?.PromotionId ?? item?.promotion_id ?? null;
+  if (rawPromotionId == null || String(rawPromotionId).trim() === '') {
+    return null;
+  }
+
+  const promotionIdNum = typeof rawPromotionId === 'number' ? rawPromotionId : Number(rawPromotionId);
+  return Number.isFinite(promotionIdNum) && promotionIdNum > 0 ? promotionIdNum : null;
+}
+
+function normalizeEstimateItemsForRequest(items) {
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const promotionId = normalizeEstimateItemPromotionId(item);
+    return promotionId ? { ...item, promotionId } : { ...item };
+  });
+}
+
+function toPositiveNumberOrNullFromValue(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : Number.NaN;
+}
+
 // Đổi trạng thái phiếu dịch vụ theo serviceTicketId
 // Endpoint: PUT /api/service-ticket/manage/{serviceTicketId}/{status}
 export const manageServiceTicketStatus = (serviceTicketId, status, token) => {
@@ -784,16 +807,14 @@ export const createServiceTicketEstimate = (payload, token) => {
     serviceTicketId !== undefined &&
     serviceTicketId !== null &&
     String(serviceTicketId).trim() !== '';
-  const idNum = hasServiceTicketId
-    ? (typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId))
-    : null;
+  const idNum = hasServiceTicketId ? toPositiveNumberOrNullFromValue(serviceTicketId) : null;
   if (hasServiceTicketId && (!Number.isFinite(idNum) || idNum <= 0)) {
     const error = new Error('Thiếu serviceTicketId hợp lệ.');
     error.status = 400;
     return Promise.reject(error);
   }
 
-  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const items = normalizeEstimateItemsForRequest(payload?.items);
   if (items.length === 0) {
     const error = new Error('Báo giá cần có ít nhất 1 dòng items.');
     error.status = 400;
@@ -806,6 +827,7 @@ export const createServiceTicketEstimate = (payload, token) => {
     body: JSON.stringify({
       ...payload,
       serviceTicketId: hasServiceTicketId ? idNum : null,
+      items,
     }),
   });
 };
@@ -832,16 +854,14 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
     serviceTicketId !== undefined &&
     serviceTicketId !== null &&
     String(serviceTicketId).trim() !== '';
-  const ticketNum = hasServiceTicketId
-    ? (typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId))
-    : null;
+  const ticketNum = hasServiceTicketId ? toPositiveNumberOrNullFromValue(serviceTicketId) : null;
   if (hasServiceTicketId && (!Number.isFinite(ticketNum) || ticketNum <= 0)) {
     const error = new Error('Thiếu serviceTicketId hợp lệ.');
     error.status = 400;
     return Promise.reject(error);
   }
 
-  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const items = normalizeEstimateItemsForRequest(payload?.items);
   if (items.length === 0) {
     const error = new Error('Báo giá cần có ít nhất 1 dòng.');
     error.status = 400;
@@ -854,6 +874,7 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
     body: JSON.stringify({
       ...payload,
       serviceTicketId: hasServiceTicketId ? ticketNum : null,
+      items,
     }),
   });
 };

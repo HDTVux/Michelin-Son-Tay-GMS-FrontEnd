@@ -239,6 +239,7 @@ export async function handleSubmitReturnEntryAction({
 	setReturnModalItem,
 	refreshLatestEstimate,
 	markEstimateDraft,
+    extraItems,
 }) {
 	const row = returnModalItem;
 	const itemId = toIdOrNull(row?.itemId);
@@ -256,6 +257,19 @@ export async function handleSubmitReturnEntryAction({
 
 	try {
 		setReturnSubmitting(true);
+		const extra = Array.isArray(extraItems) ? extraItems : [];
+		const extraNormalized = extra
+			.map((it) => {
+				if (!it) return null;
+				return {
+					itemId: toIdOrNull(it.itemId),
+					allocationId: toIdOrNull(it.allocationId ?? it.allocation_id),
+					quantity: typeof it.quantity === 'number' ? it.quantity : (it.quantity ? Number(it.quantity) : undefined),
+					conditionNote: it.conditionNote ?? '',
+				};
+			})
+			.filter(Boolean);
+
 		await requestWarehouseReturnEntry(
 			{
 				warehouseId: toIdOrNull(row?.warehouseId),
@@ -269,6 +283,7 @@ export async function handleSubmitReturnEntryAction({
 						quantity,
 						conditionNote,
 					},
+					...extraNormalized,
 				],
 			},
 			Array.isArray(files) ? files : [],
@@ -422,7 +437,10 @@ export async function handleStartEditAction({
 	}
 	setRevertOnCancel(false);
 	try {
-		const cleanEstimate = await onBeforeEstimateMutate?.();
+		const cleanEstimate = await onBeforeEstimateMutate?.({
+			// Keep BUY_X_GET_Y gifts fixed while editing; only unapply percentage discounts.
+			promotionTypesToUnapply: ['PERCENT'],
+		});
 		if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
 		startEdit?.(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
 	} catch {
@@ -840,6 +858,8 @@ function mapEstimateItemToLockedRow(it, idx, options = {}) {
 		finalPrice: resetPromotionPricing ? '' : (it?.finalPrice ?? it?.final_price ?? ''),
 		isGift: getEstimateItemGiftFlag(it),
 		triggeredByItemId: pickTriggeredByItemId(it),
+		promotionId: pickGiftPromotionId(it),
+		promotion_id: pickGiftPromotionId(it),
 		stockAllocationStatus: getEstimateItemStockAllocationStatus(it),
 		// Dòng khóa (seed từ version trước): vẫn ưu tiên thuế sản phẩm nếu có.
 		taxRuleId: toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? ''),
@@ -880,11 +900,26 @@ function pickTriggeredByItemId(item) {
 	return toIdOrNull(item?.triggeredByItemId ?? item?.triggered_by_item_id);
 }
 
+function pickGiftPromotionId(item) {
+	if (!getEstimateItemGiftFlag(item)) return null;
+	const raw =
+		item?.promotionId ??
+		item?.promotionID ??
+		item?.PromotionId ??
+		item?.promotion_id ??
+		item?.promotion?.promotionId ??
+		item?.promotion?.promotionID ??
+		item?.promotion?.promotion_id ??
+		null;
+	return toIdOrNull(raw);
+}
+
 function buildEstimateItemPromotionPayloadFields(item) {
 	const isGift = getEstimateItemGiftFlag(item);
 	const discountAmount = item?.discountAmount ?? item?.discount_amount;
 	const finalPrice = item?.finalPrice ?? item?.final_price;
 	const triggeredByItemId = pickTriggeredByItemId(item);
+	const promotionId = pickGiftPromotionId(item);
 	const normalizedDiscountAmount = isGift
 		? 0
 		: (discountAmount == null || String(discountAmount).trim() === '' ? null : toNumberOrZero(discountAmount));
@@ -894,6 +929,8 @@ function buildEstimateItemPromotionPayloadFields(item) {
 	return {
 		isGift,
 		is_gift: isGift,
+		promotionId,
+		promotion_id: promotionId,
 		triggeredByItemId,
 		triggered_by_item_id: triggeredByItemId,
 		discountAmount: normalizedDiscountAmount,
@@ -930,6 +967,7 @@ function normalizeEstimateUpdateItemForCompare(item) {
 		isRemoved: Boolean(item?.isRemoved),
 		revisedFromItemId: estimateItemId,
 		isGift: Boolean(promotionFields.isGift),
+		promotionId: promotionFields.promotionId ?? null,
 		triggeredByItemId: promotionFields.triggeredByItemId ?? null,
 		discountAmount: promotionFields.discountAmount ?? null,
 		finalPrice: promotionFields.finalPrice ?? null,
@@ -964,6 +1002,7 @@ function normalizeEditRowsForDirtyCheck(rows) {
 			discountAmount: pickDiscountAmountValue(row),
 			finalPrice: row?.finalPrice == null || String(row?.finalPrice).trim() === '' ? null : toNumberOrZero(row?.finalPrice),
 			triggeredByItemId: pickTriggeredByItemId(row),
+			promotionId: pickGiftPromotionId(row),
 		}));
 }
 
@@ -985,6 +1024,7 @@ function normalizeCreateRowsForDirtyCheck(rows) {
 			discountAmount: pickDiscountAmountValue(row),
 			finalPrice: row?.finalPrice == null || String(row?.finalPrice).trim() === '' ? null : toNumberOrZero(row?.finalPrice),
 			triggeredByItemId: pickTriggeredByItemId(row),
+			promotionId: pickGiftPromotionId(row),
 		}));
 }
 
@@ -2302,6 +2342,8 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				estimateStatus: 'DRAFT',
 				items,
 			});
+
+
 			const res = await createServiceTicketEstimate(
                 {
                     serviceTicketId: standaloneDraftMode ? null : idNum,
