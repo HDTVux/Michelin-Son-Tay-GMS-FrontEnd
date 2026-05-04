@@ -727,7 +727,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 promotionId: resolvedId,
                 promotionCode: resolvedCode,
                 promotionType: getPromotionType(lookupPromo) || typeHint,
-                label: buildPromotionDisplayLabel(lookupPromo) || buildPromotionLabel(lookupPromo) || resolvedCode || buildPromotionIdFallbackLabel(resolvedId),
+                label: buildPromotionDisplayLabel(lookupPromo, { includeUsageRemaining: false }) || buildPromotionLabel(lookupPromo) || resolvedCode || buildPromotionIdFallbackLabel(resolvedId),
             });
         };
 
@@ -743,6 +743,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         addPromo(latestEstimate?.promoCode);
         return rows.filter((row) => row.label);
     }, [appliedPromotions, availablePromotions, latestEstimate]);
+    const hasActivePromotionOnCurrentEstimate = activePromotionRows.length > 0;
 
     // Tính toán xem có thể bỏ áp dụng khuyến mãi khỏi báo giá hiện tại hay không
     const canUnapplyPromotionFromCurrentEstimate = Boolean(latestEstimate)
@@ -760,6 +761,22 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         () => PROMOTION_TYPES.filter(({ type }) => type === 'PERCENT'),
         [],
     );
+
+    useEffect(() => {
+        if (!hasActivePromotionOnCurrentEstimate) return;
+        if (promoCodes.PERCENT || promoCodes.BUY_X_GET_Y) {
+            setPromoCodes({ PERCENT: '', BUY_X_GET_Y: '' });
+        }
+        if (selectedPromotions.PERCENT || selectedPromotions.BUY_X_GET_Y) {
+            setSelectedPromotions({ PERCENT: '', BUY_X_GET_Y: '' });
+        }
+    }, [
+        hasActivePromotionOnCurrentEstimate,
+        promoCodes.BUY_X_GET_Y,
+        promoCodes.PERCENT,
+        selectedPromotions.BUY_X_GET_Y,
+        selectedPromotions.PERCENT,
+    ]);
 
     // Tính toán dữ liệu để in ấn phiếu dịch vụ, bao gồm thông tin phiếu dịch vụ, thông tin kiểm tra an toàn, danh sách item của báo giá để hiển thị trên hóa đơn 
     const printTicket = useMemo(() => ({
@@ -2009,6 +2026,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             notify('Không tìm thấy báo giá hợp lệ để áp dụng khuyến mãi.');
             return;
         }
+        if (hasActivePromotionOnCurrentEstimate) {
+            notify('Báo giá đã có mã giảm giá. Vui lòng hủy mã hiện tại trước khi chọn mã khác.');
+            return;
+        }
 
         setPromoError('');
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -2610,10 +2631,19 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             ))}
                                         </div>
                                     ) : null}
+                                    {hasActivePromotionOnCurrentEstimate ? (
+                                        <div className={styles.promotionApplied}>
+                                            Muốn chọn mã giảm giá khác, vui lòng hủy mã đang áp dụng trước.
+                                        </div>
+                                    ) : null}
                                     <div className={styles.promotionGrid}>
                                                 {visiblePromotionTypes.map(({ type, label }) => {
                                                     const list = Array.isArray(availablePromotions[type]) ? availablePromotions[type] : [];
-                                                    const appliedLabel = buildPromotionDisplayLabel(appliedPromotions[type]);
+                                                    const appliedLabel = buildPromotionDisplayLabel(appliedPromotions[type], { includeUsageRemaining: false });
+                                                    const promotionInputsDisabled = !canApplyPromotionToCurrentEstimate
+                                                        || hasActivePromotionOnCurrentEstimate
+                                                        || billCreating
+                                                        || promoApplying;
                                                     return (
                                                         <div key={type} className={styles.promotionBox}>
                                                             <div className="ui-field" style={{ marginBottom: 0 }}>
@@ -2629,7 +2659,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                                         }
                                                                     }}
                                                                     placeholder="Nhập mã khuyến mãi"
-                                                                    disabled={!canApplyPromotionToCurrentEstimate || billCreating || promoApplying}
+                                                                    disabled={promotionInputsDisabled}
                                                                 />
                                                             </div>
                                                             <div className="ui-field" style={{ marginBottom: 0 }}>
@@ -2644,7 +2674,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                                             setPromoCodes((prev) => ({ ...prev, [type]: '' }));
                                                                         }
                                                                     }}
-                                                                    disabled={!canApplyPromotionToCurrentEstimate || billCreating || promoApplying || promotionsLoading}
+                                                                    disabled={promotionInputsDisabled || promotionsLoading}
                                                                 >
                                                                     <option value="">{promotionsLoading ? 'Đang tải...' : '-'}</option>
                                                                     {list.map((p) => {
@@ -2662,7 +2692,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                                 type="button"
                                                                 className="ui-btn ui-btn--primary"
                                                                 onClick={() => applyPromotion(type)}
-                                                                disabled={!canApplyPromotionToCurrentEstimate || billCreating || promoApplying || (!promoCodes[type] && !selectedPromotions[type])}
+                                                                disabled={promotionInputsDisabled || (!promoCodes[type] && !selectedPromotions[type])}
                                                             >
                                                                 {promoApplying ? 'Đang áp dụng...' : 'Áp dụng'}
                                                             </button>

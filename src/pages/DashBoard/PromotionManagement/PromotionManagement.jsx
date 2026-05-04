@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -111,25 +111,11 @@ const isPositiveIntegerValue = (value) => {
   return Number.isInteger(num) && num > 0;
 };
 
-const getTodayDateString = () => {
-  const now = new Date();
-  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 10);
-};
-
 const isValidDateInput = (value) => {
   const text = String(value ?? '').trim();
   if (!DATE_INPUT_PATTERN.test(text)) return false;
   const date = new Date(`${text}T00:00:00`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text;
-};
-
-const shiftDateString = (value, dayOffset) => {
-  if (!isValidDateInput(value)) return '';
-  const date = new Date(`${value}T00:00:00`);
-  date.setDate(date.getDate() + dayOffset);
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 10);
 };
 
 const getDiscountPercentError = (value) => {
@@ -202,12 +188,7 @@ const mergeSelectedById = (current, nextItem, getId) => {
   return [...current, nextItem];
 };
 
-const buildPromotionFormErrors = (
-  rawForm,
-  existingPromotions = [],
-  currentPromotionId = null,
-  { validateCreateDates = false } = {},
-) => {
+const buildPromotionFormErrors = (rawForm, existingPromotions = [], currentPromotionId = null) => {
   const nextErrors = {};
   const code = normalizePromotionCode(rawForm?.code);
   const name = String(rawForm?.name ?? '').trim();
@@ -216,7 +197,6 @@ const buildPromotionFormErrors = (
   const endDate = String(rawForm?.endDate ?? '').trim();
   const minOrderValueText = String(rawForm?.minOrderValue ?? '').trim();
   const usageLimitText = String(rawForm?.usageLimit ?? '').trim();
-  const todayDate = getTodayDateString();
 
   if (!code) {
     nextErrors.code = 'Vui lòng nhập mã khuyến mãi.';
@@ -282,20 +262,10 @@ const buildPromotionFormErrors = (
     nextErrors.startDate = 'Vui lòng chọn ngày bắt đầu.';
   }
   if (startDate && endDate && isValidDateInput(startDate) && isValidDateInput(endDate)) {
-    if (validateCreateDates ? startDate >= endDate : startDate > endDate) {
-      nextErrors.startDate = validateCreateDates
-        ? 'Ngày bắt đầu phải nhỏ hơn ngày kết thúc.'
-        : 'Ngày bắt đầu không được sau ngày kết thúc.';
-      nextErrors.endDate = validateCreateDates
-        ? 'Ngày kết thúc phải lớn hơn ngày bắt đầu.'
-        : 'Ngày kết thúc không được trước ngày bắt đầu.';
+    if (startDate >= endDate) {
+      nextErrors.startDate = 'Ngày bắt đầu phải nhỏ hơn ngày kết thúc.';
+      nextErrors.endDate = 'Ngày kết thúc phải lớn hơn ngày bắt đầu.';
     }
-  }
-  if (validateCreateDates && startDate && isValidDateInput(startDate) && startDate < todayDate) {
-    nextErrors.startDate = 'Ngày bắt đầu không được là ngày trong quá khứ.';
-  }
-  if (validateCreateDates && endDate && isValidDateInput(endDate) && endDate < todayDate) {
-    nextErrors.endDate = 'Ngày kết thúc không được là ngày trong quá khứ.';
   }
 
   if (minOrderValueText !== '') {
@@ -340,6 +310,7 @@ export default function PromotionManagement() {
   const navigate = useNavigate();
   const location = useLocation();
   const isCreatePage = location.pathname.endsWith('/create');
+  const wasCreatePageRef = useRef(isCreatePage);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [promotions, setPromotions] = useState([]);
@@ -376,7 +347,6 @@ export default function PromotionManagement() {
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customerError, setCustomerError] = useState('');
   const [selectedCustomers, setSelectedCustomers] = useState([]);
-  const todayDate = useMemo(() => getTodayDateString(), []);
   const normalizedFormType = normalizeTypeValue(form.type);
   const isBuyXGetY = normalizedFormType === 'BUY_X_GET_Y';
   const isPercentType = normalizedFormType === 'PERCENT';
@@ -388,6 +358,8 @@ export default function PromotionManagement() {
     () => normalizeIdArray(selectedPromotion?.promotionCustomers),
     [selectedPromotion],
   );
+  const normalizedStatusFilter = ['ACTIVE', 'INACTIVE'].includes(statusFilter) ? statusFilter : 'ALL';
+  const normalizedTypeFilter = ['PERCENT', 'BUY_X_GET_Y'].includes(typeFilter) ? typeFilter : 'ALL';
 
   const loadData = useCallback(async () => {
     const token = getAuthToken();
@@ -412,6 +384,36 @@ export default function PromotionManagement() {
       setLoading(false);
     }
   }, [mode]);
+
+  const resetFilters = useCallback(() => {
+    setSearch('');
+    setMode('ADMIN_ALL');
+    setStatusFilter('ALL');
+    setTypeFilter('ALL');
+  }, []);
+
+  const resetSpecificSelections = useCallback(() => {
+    setCatalogSearch('');
+    setCatalogResults([]);
+    setCatalogError('');
+    setCatalogLoading(false);
+    setSelectedCatalogItems([]);
+    setBuyCatalogSearch('');
+    setBuyCatalogResults([]);
+    setBuyCatalogError('');
+    setBuyCatalogLoading(false);
+    setSelectedBuyCatalogItem(null);
+    setGetCatalogSearch('');
+    setGetCatalogResults([]);
+    setGetCatalogError('');
+    setGetCatalogLoading(false);
+    setSelectedGetCatalogItem(null);
+    setCustomerSearch('');
+    setCustomerResults([]);
+    setCustomerError('');
+    setCustomerLoading(false);
+    setSelectedCustomers([]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -453,7 +455,7 @@ export default function PromotionManagement() {
       setForm(defaultForm);
       resetSpecificSelections();
     }
-  }, [isCreatePage]);
+  }, [isCreatePage, resetSpecificSelections]);
 
   useEffect(() => {
     if (!isCreatePage || editing || !openModal) return;
@@ -659,24 +661,20 @@ export default function PromotionManagement() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const hasActiveFilters = Boolean(q) || normalizedStatusFilter !== 'ALL' || normalizedTypeFilter !== 'ALL';
+    if (!hasActiveFilters) return promotions;
+
     return promotions.filter((item) => {
       const matchesSearch = !q || `${item?.promotionId ?? ''} ${item?.code ?? ''} ${item?.name ?? ''} ${item?.type ?? ''}`
         .toLowerCase()
         .includes(q);
       const itemStatus = item?.isActive ? 'ACTIVE' : 'INACTIVE';
       const itemType = normalizeTypeValue(item?.type);
-      const matchesStatus = statusFilter === 'ALL' || statusFilter === itemStatus;
-      const matchesType = typeFilter === 'ALL' || typeFilter === itemType;
+      const matchesStatus = normalizedStatusFilter === 'ALL' || normalizedStatusFilter === itemStatus;
+      const matchesType = normalizedTypeFilter === 'ALL' || normalizedTypeFilter === itemType;
       return matchesSearch && matchesStatus && matchesType;
     });
-  }, [promotions, search, statusFilter, typeFilter]);
-
-  const resetFilters = () => {
-    setSearch('');
-    setMode('ADMIN_ALL');
-    setStatusFilter('ALL');
-    setTypeFilter('ALL');
-  };
+  }, [promotions, search, normalizedStatusFilter, normalizedTypeFilter]);
 
   const stats = useMemo(() => {
     const total = promotions.length;
@@ -684,28 +682,21 @@ export default function PromotionManagement() {
     return { total, active, inactive: total - active };
   }, [promotions]);
 
-  const resetSpecificSelections = () => {
-    setCatalogSearch('');
-    setCatalogResults([]);
-    setCatalogError('');
-    setCatalogLoading(false);
-    setSelectedCatalogItems([]);
-    setBuyCatalogSearch('');
-    setBuyCatalogResults([]);
-    setBuyCatalogError('');
-    setBuyCatalogLoading(false);
-    setSelectedBuyCatalogItem(null);
-    setGetCatalogSearch('');
-    setGetCatalogResults([]);
-    setGetCatalogError('');
-    setGetCatalogLoading(false);
-    setSelectedGetCatalogItem(null);
-    setCustomerSearch('');
-    setCustomerResults([]);
-    setCustomerError('');
-    setCustomerLoading(false);
-    setSelectedCustomers([]);
-  };
+  useEffect(() => {
+    const wasCreatePage = wasCreatePageRef.current;
+    wasCreatePageRef.current = isCreatePage;
+
+    if (!wasCreatePage || isCreatePage) return;
+
+    localStorage.removeItem(PROMOTION_CREATE_DRAFT_KEY);
+    resetFilters();
+    setOpenModal(false);
+    setEditing(false);
+    setForm(defaultForm);
+    resetSpecificSelections();
+    setFormErrors({});
+    void loadData();
+  }, [isCreatePage, loadData, resetFilters, resetSpecificSelections]);
 
   const openCreate = () => {
     navigate('/promotion-management/create');
@@ -804,16 +795,26 @@ export default function PromotionManagement() {
     setSelectedPromotion(null);
   };
 
-  const closeModal = () => {
+  const closeModal = ({ refreshList = false } = {}) => {
     if (isCreatePage) {
       localStorage.removeItem(PROMOTION_CREATE_DRAFT_KEY);
-      navigate('/promotion-management');
+      resetFilters();
     }
     setOpenModal(false);
     setEditing(false);
     setForm(defaultForm);
     resetSpecificSelections();
     setFormErrors({});
+    if (isCreatePage) {
+      navigate('/promotion-management', { replace: true });
+      if (refreshList) {
+        void loadData();
+      }
+    }
+  };
+
+  const cancelModal = () => {
+    closeModal({ refreshList: true });
   };
 
   const clearFieldErrors = useCallback((fields) => {
@@ -1059,7 +1060,6 @@ export default function PromotionManagement() {
       form,
       promotions,
       editing ? form.promotionId : null,
-      { validateCreateDates: !editing },
     );
 
     if (Object.keys(nextErrors).length > 0) {
@@ -1269,7 +1269,7 @@ export default function PromotionManagement() {
           <label className={styles.filterLabel}>Trạng thái</label>
           <select
             className={styles.filterSelect}
-            value={statusFilter}
+            value={normalizedStatusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="ALL">Tất cả trạng thái</option>
@@ -1281,7 +1281,7 @@ export default function PromotionManagement() {
           <label className={styles.filterLabel}>Loại</label>
           <select
             className={styles.filterSelect}
-            value={typeFilter}
+            value={normalizedTypeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
           >
             <option value="ALL">Tất cả loại</option>
@@ -1513,7 +1513,7 @@ export default function PromotionManagement() {
                   {editing ? `Chỉnh sửa chương trình #${form.promotionId}` : 'Tạo một chương trình khuyến mãi mới cho hệ thống'}
                 </p>
               </div>
-              <button type="button" className={styles.modalClose} onClick={closeModal}>{isCreatePage ? '←' : '✕'}</button>
+              <button type="button" className={styles.modalClose} onClick={cancelModal}>{isCreatePage ? '←' : '✕'}</button>
             </div>
 
             <div className={styles.modalBody}>
@@ -1631,8 +1631,6 @@ export default function PromotionManagement() {
                     className={getFieldClassName('startDate', styles.input)}
                     type="date"
                     value={form.startDate || ''}
-                    min={!editing ? todayDate : undefined}
-                    max={!editing && form.endDate ? shiftDateString(form.endDate, -1) : form.endDate || undefined}
                     onChange={(e) => updateFormField('startDate', e.target.value)}
                     aria-invalid={Boolean(formErrors.startDate)}
                   />
@@ -1644,7 +1642,6 @@ export default function PromotionManagement() {
                     className={getFieldClassName('endDate', styles.input)}
                     type="date"
                     value={form.endDate || ''}
-                    min={!editing && form.startDate ? shiftDateString(form.startDate, 1) : form.startDate || (!editing ? todayDate : undefined)}
                     onChange={(e) => updateFormField('endDate', e.target.value)}
                     aria-invalid={Boolean(formErrors.endDate)}
                   />
@@ -1819,7 +1816,7 @@ export default function PromotionManagement() {
             </div>
 
             <div className={styles.modalFooter}>
-              <button type="button" className={styles.cancelBtn} onClick={closeModal}>Hủy</button>
+              <button type="button" className={styles.cancelBtn} onClick={cancelModal}>Hủy</button>
               <button type="button" className={styles.saveBtn} onClick={handleSubmit}>
                 {editing ? 'Lưu thay đổi' : 'Tạo khuyến mãi'}
               </button>

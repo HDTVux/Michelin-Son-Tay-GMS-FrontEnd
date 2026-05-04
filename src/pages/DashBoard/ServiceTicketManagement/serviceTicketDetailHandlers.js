@@ -662,7 +662,7 @@ function getPromotionUsageRemaining(promo) {
 }
 
 // Xây dựng nhãn hiển thị chi tiết cho khuyến mãi, bao gồm tên, mã, điều kiện đơn tối thiểu, và số lượt còn lại.
-function buildPromotionDisplayLabel(promo) {
+function buildPromotionDisplayLabel(promo, { includeUsageRemaining = true } = {}) {
     const base = buildPromotionLabel(promo);
     if (!promo || typeof promo === 'number' || typeof promo === 'string') return base;
     const details = [];
@@ -670,8 +670,10 @@ function buildPromotionDisplayLabel(promo) {
     if (Number.isFinite(minOrderValue) && minOrderValue > 0) {
         details.push(`Đơn tối thiểu ${new Intl.NumberFormat('vi-VN').format(minOrderValue)}đ`);
     }
-    const remaining = getPromotionUsageRemaining(promo);
-    if (remaining != null) details.push(`Còn ${remaining} lượt`);
+    if (includeUsageRemaining) {
+        const remaining = getPromotionUsageRemaining(promo);
+        if (remaining != null) details.push(`Còn ${remaining} lượt`);
+    }
     if (details.length === 0) return base;
     return [base, details.join(' • ')].filter(Boolean).join(' — ');
 }
