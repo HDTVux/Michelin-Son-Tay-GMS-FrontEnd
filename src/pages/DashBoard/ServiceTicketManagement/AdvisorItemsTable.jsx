@@ -4,8 +4,7 @@ import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 import { validateTaxName, validateTaxRatePercent, validateTextInput } from '../../../components/inputValidation.js';
-const TAX_NAME_MAX_LENGTH = 100;
-const HIDE_BUY_X_GET_Y_UI = true;
+
 import {
     formatAppliedTaxRate,
     formatCurrencyVnd,
@@ -33,6 +32,10 @@ import {
 import CatalogPicker from './CatalogPicker.jsx';
 import ReturnEntryRequestModal from './ReturnEntryRequestModal.jsx';
 import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
+
+const TAX_NAME_MAX_LENGTH = 100;
+const HIDE_BUY_X_GET_Y_UI = true;
+
 
 function CategorySuggestDropdownPortal({ open, anchorRef, items, disabled, onPick, onClose }) {
     const dropdownRef = useRef(null);

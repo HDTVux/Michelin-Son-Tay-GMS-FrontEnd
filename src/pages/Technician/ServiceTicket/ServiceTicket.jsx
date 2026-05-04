@@ -33,6 +33,7 @@ const SERVICE_TICKET_DRAFT_SCHEMA_VERSION = 2;
 const TIRE_FIELD_AUTOCOMPLETE = 'new-password';
 const getRecommendationStorageKey = (serviceTicketId) => `serviceTicketRecommendation:${serviceTicketId}`;
 const getServiceTicketDraftStorageKey = (ticketCode, draftScope = 'default') => `serviceTicketDraft:${String(draftScope ?? 'default').trim()}:${String(ticketCode ?? '').trim()}`;
+const getServiceTicketSharedNotesDraftStorageKey = (ticketCode) => `serviceTicketDraft:sharedNotes:${String(ticketCode ?? '').trim()}`;
 
 const normalizeServiceTicketStatus = (status) => String(status ?? '')
   .trim()
@@ -342,23 +343,61 @@ const buildAdvisorNotePatchItems = (items, { includeEmpty = false } = {}) => {
     .filter(Boolean);
 };
 
-const getTechnicianNotesValue = (payload) => String(
-  payload?.technicianNotes
-  ?? payload?.technicianNote
-  ?? payload?.notes
-  ?? payload?.note
-  ?? '',
+const hasOwn = (payload, fieldName) => (
+  payload != null && Object.prototype.hasOwnProperty.call(payload, fieldName)
 );
 
-const hasTechnicianNotesField = (payload) => (
-  payload != null
-  && (
-    Object.prototype.hasOwnProperty.call(payload, 'technicianNotes')
-    || Object.prototype.hasOwnProperty.call(payload, 'technicianNote')
-    || Object.prototype.hasOwnProperty.call(payload, 'notes')
-    || Object.prototype.hasOwnProperty.call(payload, 'note')
-  )
-);
+const getFirstTextValueFromFields = (sources, fieldNames) => {
+  let hasValue = false;
+  let emptyValue = '';
+
+  for (const source of sources) {
+    if (source == null) continue;
+
+    for (const fieldName of fieldNames) {
+      if (!hasOwn(source, fieldName)) continue;
+      hasValue = true;
+      const text = String(source[fieldName] ?? '');
+      if (text.trim()) return text;
+      emptyValue = text;
+    }
+  }
+
+  return hasValue ? emptyValue : null;
+};
+
+const getTechnicianNotesValue = (payload) => {
+  const sources = [payload, payload?.safetyInspection, payload?.inspection];
+  const technicianSpecificNotes = getFirstTextValueFromFields(
+    sources,
+    ['technicianNotes', 'technicianNote', 'technician_notes', 'technician_note'],
+  );
+
+  if (technicianSpecificNotes != null) return technicianSpecificNotes;
+
+  return getFirstTextValueFromFields(sources, ['notes', 'note']) ?? '';
+};
+
+const hasTechnicianNotesField = (payload) => {
+  return [payload, payload?.safetyInspection, payload?.inspection].some((source) => (
+    hasOwn(source, 'technicianNotes')
+    || hasOwn(source, 'technicianNote')
+    || hasOwn(source, 'technician_notes')
+    || hasOwn(source, 'technician_note')
+    || hasOwn(source, 'notes')
+    || hasOwn(source, 'note')
+  ));
+};
+
+const buildTechnicianNotesPayload = (value) => {
+  const technicianNotes = String(value ?? '');
+  return {
+    technicianNotes,
+    technicianNote: technicianNotes,
+    notes: technicianNotes,
+    note: technicianNotes,
+  };
+};
 
 const readServiceTicketDraft = (ticketCode, draftScope = 'default') => {
   const storageKey = getServiceTicketDraftStorageKey(ticketCode, draftScope);
@@ -383,6 +422,47 @@ const clearServiceTicketDraft = (ticketCode, draftScope = 'default') => {
   const storageKey = getServiceTicketDraftStorageKey(ticketCode, draftScope);
   if (!storageKey) return;
   localStorage.removeItem(storageKey);
+};
+
+const readServiceTicketSharedNotesDraft = (ticketCode) => {
+  const storageKey = getServiceTicketSharedNotesDraftStorageKey(ticketCode);
+  if (!storageKey) return null;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeServiceTicketSharedNotesDraft = (ticketCode, notes) => {
+  const storageKey = getServiceTicketSharedNotesDraftStorageKey(ticketCode);
+  if (!storageKey) return;
+  localStorage.setItem(storageKey, JSON.stringify({
+    schemaVersion: SERVICE_TICKET_DRAFT_SCHEMA_VERSION,
+    savedAt: new Date().toISOString(),
+    notes: String(notes ?? ''),
+  }));
+};
+
+const clearServiceTicketSharedNotesDraft = (ticketCode) => {
+  const storageKey = getServiceTicketSharedNotesDraftStorageKey(ticketCode);
+  if (!storageKey) return;
+  localStorage.removeItem(storageKey);
+};
+
+const clearAllServiceTicketDrafts = (ticketCode) => {
+  clearServiceTicketDraft(ticketCode, 'technician');
+  clearServiceTicketDraft(ticketCode, 'advisor');
+  clearServiceTicketDraft(ticketCode, 'default');
+  clearServiceTicketSharedNotesDraft(ticketCode);
+};
+
+const getDraftSavedAtMs = (draft) => {
+  const time = Date.parse(String(draft?.savedAt ?? ''));
+  return Number.isFinite(time) ? time : 0;
 };
 
 export const ServiceTicket = ({
@@ -752,6 +832,7 @@ export const ServiceTicket = ({
     }
 
     writeServiceTicketDraft(resolvedTicketCode, draftPayload, draftScope);
+    writeServiceTicketSharedNotesDraft(resolvedTicketCode, notes);
   }, [notes, recommendedTireSize, tireData, safetyChecks, resolveServiceTicketId, resolvedTicketCode, draftScope, isAdvisorMode]);
 
   const mergedSafetyChecks = useMemo(() => (
@@ -836,7 +917,8 @@ export const ServiceTicket = ({
         setTireData(createEmptyTireState());
         setRecommendedTireSize('');
         setRecommendedTireSizeError('');
-        setNotes(getTechnicianNotesValue(ticketDetail));
+        let loadedTechnicianNotes = getTechnicianNotesValue(ticketDetail);
+        setNotes(loadedTechnicianNotes);
 
         try {
 
@@ -901,7 +983,8 @@ export const ServiceTicket = ({
             }
 
             if (hasTechnicianNotesField(inspection)) {
-              setNotes(getTechnicianNotesValue(inspection));
+              loadedTechnicianNotes = getTechnicianNotesValue(inspection);
+              setNotes(loadedTechnicianNotes);
             }
           }
         } catch {
@@ -911,10 +994,8 @@ export const ServiceTicket = ({
         }
 
         const localDraft = readServiceTicketDraft(resolvedTicketCode, draftScope);
+        const sharedNotesDraft = readServiceTicketSharedNotesDraft(resolvedTicketCode);
         if (localDraft) {
-          if (typeof localDraft.notes === 'string') {
-            setNotes(localDraft.notes);
-          }
           if (Array.isArray(localDraft.advisorItems) && localDraft.advisorItems.length > 0) {
             applyAdvisorNotesToLocalState(localDraft.advisorItems);
           }
@@ -926,6 +1007,12 @@ export const ServiceTicket = ({
               localStorage.removeItem(getRecommendationStorageKey(finalServiceTicketId));
             }
           }
+        }
+        const noteDrafts = [localDraft, sharedNotesDraft]
+          .filter((draft) => typeof draft?.notes === 'string')
+          .sort((left, right) => getDraftSavedAtMs(right) - getDraftSavedAtMs(left));
+        if (noteDrafts.length > 0) {
+          setNotes(noteDrafts[0].notes);
         }
 
         if (!isAdvisorMode && safetyEnabledFromTicket && !isLockedByTicketStatus) {
@@ -1210,7 +1297,7 @@ export const ServiceTicket = ({
 
         const bootstrapPayload = {
           serviceTicketId: finalServiceTicketId,
-          technicianNotes: null,
+          ...buildTechnicianNotesPayload(''),
           tires: {
             frontTireSpecification: null,
             rearTireSpecification: null,
@@ -1434,7 +1521,7 @@ export const ServiceTicket = ({
           }
         }
         if (!isAdvisorMode) {
-          await updateTechnicianNotes(resolvedTicketCode, { technicianNotes: String(notes ?? '') }, token);
+          await updateTechnicianNotes(resolvedTicketCode, buildTechnicianNotesPayload(notes), token);
         }
         const finalServiceTicketId = resolveServiceTicketId();
         if (finalServiceTicketId) {
@@ -1558,7 +1645,7 @@ export const ServiceTicket = ({
       const safetyPayload = {
         serviceTicketId: finalServiceTicketId,
         generalNotes: currentRecommendation || null,
-        technicianNotes: notes || null,
+        ...buildTechnicianNotesPayload(notes),
         tires: tiresPayload,
         items: itemsPayload,
         inspectionStatus: 'PENDING',
@@ -1577,7 +1664,7 @@ export const ServiceTicket = ({
       }
 
       if (!isAdvisorMode) {
-        await updateTechnicianNotes(resolvedTicketCode, { technicianNotes: String(notes ?? '') }, token);
+        await updateTechnicianNotes(resolvedTicketCode, buildTechnicianNotesPayload(notes), token);
       }
       await updateSafetyInspectionRecommend(finalServiceTicketId, currentRecommendation, token);
 
@@ -1772,7 +1859,7 @@ export const ServiceTicket = ({
       const safetyPayload = {
         serviceTicketId: finalServiceTicketId,
         generalNotes: currentRecommendation || null,
-        technicianNotes: notes || null,
+        ...buildTechnicianNotesPayload(notes),
         tires: tiresPayload,
         items: itemsPayload,
         inspectionStatus: completionInspectionStatus,
@@ -1792,7 +1879,7 @@ export const ServiceTicket = ({
       }
 
       if (!isAdvisorMode) {
-        await updateTechnicianNotes(resolvedTicketCode, { technicianNotes: String(notes ?? '') }, token);
+        await updateTechnicianNotes(resolvedTicketCode, buildTechnicianNotesPayload(notes), token);
       }
       await updateSafetyInspectionRecommend(finalServiceTicketId, currentRecommendation, token);
       setInspectionStatus(completionInspectionStatus);
@@ -1830,7 +1917,7 @@ export const ServiceTicket = ({
 
       toast.success('Đã hoàn thành phiếu kiểm tra an toàn.');
       setRefreshKey(prev => prev + 1); // reload để dữ liệu advisor/technician map đồng bộ qua API
-      clearServiceTicketDraft(resolvedTicketCode, draftScope);
+      clearAllServiceTicketDrafts(resolvedTicketCode);
       markLocalEditsSaved();
       if (typeof onInspectionCompleted === 'function') {
         await onInspectionCompleted({
