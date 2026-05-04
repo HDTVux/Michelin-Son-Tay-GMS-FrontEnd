@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   fetchAdvisorMyTickets,
@@ -583,6 +583,7 @@ const fetchAdvisorTicketsForAppointmentDate = async (params, token) => {
     size: ADVISOR_TICKET_LOOKUP_SIZE,
     status: params?.status,
     search: params?.search,
+    ticketCode: params?.ticketCode,
   };
   const firstResponse = await fetchAdvisorMyTickets({ ...baseParams, page: 0 }, token);
   const totalPages = getAdvisorTicketTotalPages(firstResponse);
@@ -786,9 +787,14 @@ const filterTicketsByCurrentAdvisor = async (list, token, currentAdvisorId) => {
 
 export default function AdvisorInspection() {
   const navigate = useNavigate();
+  const location = useLocation();
   const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
   const canChangeAdvisorByRole = staffRoles.includes(STAFF_ROLE.ADVISOR);
   const initialDate = useMemo(() => readPersistedActiveDay() || getTodayLocalISO(), []);
+  const ticketCodeFromQuery = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return String(params.get('ticketCode') || params.get('search') || '').trim();
+  }, [location.search]);
   const dayPickerRef = useRef(null);
 
   // Ticket list state
@@ -839,6 +845,19 @@ export default function AdvisorInspection() {
   const hasLoadedTicketsRef = useRef(false);
   const lastSoftRefreshAtRef = useRef(0);
   const softRefreshRequestedRef = useRef(false);
+  const appliedTicketCodeQueryRef = useRef('');
+
+  useEffect(() => {
+    if (!ticketCodeFromQuery || appliedTicketCodeQueryRef.current === ticketCodeFromQuery) return;
+    appliedTicketCodeQueryRef.current = ticketCodeFromQuery;
+    setSearch(ticketCodeFromQuery);
+    setDebouncedSearch(ticketCodeFromQuery);
+    setStatusFilter('');
+    setDateFrom('');
+    setDateTo('');
+    setPeriodFilter('all');
+    setPage(0);
+  }, [ticketCodeFromQuery]);
 
   // Debounce search
   useEffect(() => {
@@ -849,7 +868,8 @@ export default function AdvisorInspection() {
   const filters = useMemo(() => ({
     status: statusFilter || undefined,
     search: debouncedSearch || undefined,
-  }), [statusFilter, debouncedSearch]);
+    ticketCode: ticketCodeFromQuery || undefined,
+  }), [statusFilter, debouncedSearch, ticketCodeFromQuery]);
 
   // Load ticket list (paginated)
   useEffect(() => {

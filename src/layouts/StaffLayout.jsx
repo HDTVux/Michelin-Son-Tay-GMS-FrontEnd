@@ -98,7 +98,7 @@ const getNotificationTypeMeta = (type) => {
   };
 };
 
-const SERVICE_TICKET_DETAIL_ROLES = new Set(['RECEPTIONIST', 'ADVISOR', 'ACCOUNTANT', 'MANAGER', 'ADMIN']);
+const SERVICE_TICKET_DETAIL_ROLES = new Set(['RECEPTIONIST', 'ACCOUNTANT', 'MANAGER', 'ADMIN']);
 const TICKET_CODE_PATTERN = /\b(?:[A-Z]{2,}[A-Z0-9]*[_-][A-Z0-9_-]{2,}|[A-Z]{2,}[A-Z0-9_]{5,})\b/gi;
 
 const normalizeRoleName = (value) => {
@@ -197,8 +197,12 @@ const getTicketNotificationPath = (notification) => {
 
   const roles = readStaffRolesForNotificationRouting();
   const canOpenServiceTicketDetail =
-    roles.length === 0 || roles.some((role) => SERVICE_TICKET_DETAIL_ROLES.has(role));
+    roles.some((role) => SERVICE_TICKET_DETAIL_ROLES.has(role));
   const encodedCode = encodeURIComponent(ticketCode);
+
+  if (roles.length === 0 || roles.includes('ADVISOR')) {
+    return `/advisor/inspection?ticketCode=${encodedCode}`;
+  }
 
   if (!canOpenServiceTicketDetail && roles.includes('TECHNICIAN')) {
     return `/technician/safetyinspection-ticket/${encodedCode}`;

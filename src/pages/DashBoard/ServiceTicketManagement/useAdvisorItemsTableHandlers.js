@@ -48,6 +48,13 @@ const writeEstimateDraftSnapshot = (storageKey, estimate) => {
 
 const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
 
+/**
+ * Chuẩn hóa text để so sánh: loại bỏ dấu tiếng Việt, chuyển thành chữ thường
+ * @param {string} value - Giá trị text cần chuẩn hóa
+ * @returns {string} Text đã chuẩn hóa
+ * @usage Dùng khi tìm kiếm, so sánh tên hạng mục hoặc tên sản phẩm
+ * @example normalizeSuggestionText('Hàng Móc Trọng') => 'hang moc trong'
+ */
 export function normalizeSuggestionText(value) {
 	return String(value ?? '')
 		.normalize('NFD')
@@ -55,6 +62,12 @@ export function normalizeSuggestionText(value) {
 		.toLowerCase();
 }
 
+/**
+ * Đọc dữ liệu pending của dịch vụ thêm từ localStorage
+ * @param {number|string} serviceTicketId - ID phiếu dịch vụ
+ * @returns {object|null} Dữ liệu pending hoặc null nếu không tìm thấy
+ * @usage Dùng để kiểm tra xem có pending add service khi người dùng khởi tạo tạo báo giá mới
+ */
 export function readAddServicePendingSnapshot(serviceTicketId) {
 	const id = serviceTicketId == null ? '' : String(serviceTicketId).trim();
 	if (!id) return null;
@@ -68,12 +81,25 @@ export function readAddServicePendingSnapshot(serviceTicketId) {
 	}
 }
 
+/**
+ * Định dạng số tiền thành tiền VND với ký hiệu đ (đồng)
+ * @param {number|string} value - Giá trị số cần định dạng
+ * @returns {string} Chuỗi định dạng tiền (ví dụ: '1.000.000đ')
+ * @usage Hiển thị giá tiền, tổng, đơn giá, etc. trong UI
+ */
 export function formatCurrencyVnd(value) {
 	const n = typeof value === 'number' ? value : Number(value);
 	if (!Number.isFinite(n)) return '';
 	return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
 }
 
+/**
+ * Định dạng tỷ lệ thuế thành phần trăm
+ * @param {object} rule - Đối tượng rule chứa taxRate hoặc rate
+ * @returns {string} Tỷ lệ thuế dạng phần trăm (ví dụ: '10%')
+ * @usage Hiển thị tỷ lệ thuế trong dropdown, label, hoặc info text
+ * @note Tự động convert nếu rate > 1 (xem như đã là phần trăm: 10 -> 0.1 -> 10%)
+ */
 export function formatTaxRatePercent(rule) {
 	const raw = rule?.taxRate ?? rule?.rate;
 	const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
@@ -86,6 +112,12 @@ export function formatTaxRatePercent(rule) {
 	return `${text}%`;
 }
 
+/**
+ * Tạo label cho dropdown chọn thuế: tên + tỷ lệ
+ * @param {object} rule - Đối tượng tax rule
+ * @returns {string} Label để hiển thị (ví dụ: 'VAT (10%)')
+ * @usage Hiển thị trong option của select dropdown thuế
+ */
 export function getTaxRuleSelectLabel(rule) {
 	if (!rule) return '';
 	const name = String(rule?.taxName ?? rule?.name ?? '').trim();
@@ -96,11 +128,23 @@ export function getTaxRuleSelectLabel(rule) {
 	return label || rateText;
 }
 
+/**
+ * Tạo label hiển thị cho tax rule (dùng khi chỉ xem, không chọn)
+ * @param {object} rule - Đối tượng tax rule
+ * @returns {string} Label hiển thị
+ * @usage Hiển thị thuế đã chọn ở cột thuế khi trong chế độ chỉ xem
+ */
 export function getTaxRuleDisplayLabel(rule) {
 	if (!rule) return '';
 	return getTaxRuleSelectLabel(rule);
 }
 
+/**
+ * Chuyển đổi trạng thái kho thành text hiển thị Tiếng Việt
+ * @param {string} status - Trạng thái kho (COMMITTED, RESERVED, RELEASED)
+ * @returns {string} Text Tiếng Việt (ví dụ: 'Đã xuất hàng')
+ * @usage Hiển thị trạng thái hàng trong bảng dòng ước tính
+ */
 export function getStockAllocationDisplay(status) {
 	const normalized = String(status || '').trim().toUpperCase();
 	if (normalized === 'COMMITTED') return 'Đã xuất hàng';
@@ -109,6 +153,13 @@ export function getStockAllocationDisplay(status) {
 	return '-';
 }
 
+/**
+ * Lấy CSS class cho trạng thái stock allocation
+ * @param {string} status - Trạng thái kho
+ * @param {object} styles - Import CSS modules
+ * @returns {string} Tên class CSS để style hiển thị
+ * @usage Áp dụng styling cho status cell trong bảng dòng ước tính
+ */
 export function getStockAllocationClassName(status, styles) {
 	const normalized = String(status || '').trim().toUpperCase();
 	if (normalized === 'COMMITTED') return styles.stockStatusCommitted;
@@ -117,7 +168,15 @@ export function getStockAllocationClassName(status, styles) {
 	return styles.stockStatusMissing;
 }
 
+/**
+ * Lấy báo giá mới nhất từ payload API
+ * @param {array|object} payload - Dữ liệu trả về từ API
+ * @returns {object|null} Báo giá có version cao nhất hoặc mới nhất
+ * @usage Dùng khi fetch báo giá từ server, giúp lấy version mới nhất
+ * @note Ưu tiên trạng thái không bị xoá (isRemoved !== true)
+ */
 export function pickLatestEstimateFromPayload(payload) {
+	// Payload có thể là một object chứa nested list (estimates hoặc estimateList)
 	const list = Array.isArray(payload)
 		? payload
 		: Array.isArray(payload?.estimates)
@@ -125,7 +184,7 @@ export function pickLatestEstimateFromPayload(payload) {
 			: Array.isArray(payload?.estimateList)
 				? payload.estimateList
 				: null;
-
+	// Nếu có list, ưu tiên các báo giá không bị xoá (isRemoved !== true), sau đó lấy version cao nhất
 	if (list) {
 		const active = list.filter((estimate) => !estimate?.isRemoved);
 		const source = active.length > 0 ? active : list;
@@ -144,6 +203,12 @@ export function pickLatestEstimateFromPayload(payload) {
 	return null;
 }
 
+/**
+ * Lấy trạng thái stock allocation từ row dòng ước tính
+ * @param {object} row - Dữ liệu dòng ước tính
+ * @returns {string} Trạng thái (RESERVED, COMMITTED, RELEASED, etc.)
+ * @usage Xác định xem hàng đã được giữ, xuất hay hoàn chưa
+ */
 export function getRowStockStatus(row) {
 	return String(
 		row?.stockAllocation?.status ??
@@ -156,6 +221,12 @@ export function getRowStockStatus(row) {
 	).trim().toUpperCase();
 }
 
+/**
+ * Tạo key duy nhất để xác định action trên kho (hủy giữ, hoàn trả, etc.)
+ * @param {object} row - Dữ liệu dòng ước tính
+ * @returns {string} Key combine từ estimateItemId-issueId-allocationId
+ * @usage Dùng để track trạng thái busy khi đang thực hiện action trên kho
+ */
 export function getWarehouseActionKey(row) {
 	return `${row?.estimateItemId ?? ''}-${row?.issueId ?? ''}-${row?.allocationId ?? ''}`;
 }
@@ -164,6 +235,12 @@ function isWarehouseStockLockedStatus(status) {
 	return ['RESERVED', 'COMMITTED', 'RELEASED'].includes(String(status || '').trim().toUpperCase());
 }
 
+/**
+ * Định dạng tỷ lệ thuế đã áp dụng thành % (để hiển thị ghi chú)
+ * @param {number|string} value - Tỷ lệ thuế (có thể là 0.1 hoặc 10)
+ * @returns {string} Tỷ lệ dạng % (ví dụ: '10')
+ * @usage Hiển thị text ghi chú 'đã bao gồm thuế 10%' ở cột amount
+ */
 export function formatAppliedTaxRate(value) {
 	const raw = String(value ?? '').trim();
 	if (!raw) return '';
@@ -173,12 +250,25 @@ export function formatAppliedTaxRate(value) {
 	return percent.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 }
 
+/**
+ * Kiểm tra xem có pending add service với trạng thái APPROVED
+ * @param {number|string} serviceTicketId - ID phiếu dịch vụ
+ * @returns {boolean} true nếu có pending với prevEstimateStatus = 'APPROVED'
+ * @usage Quyết định có nên tạo báo giá mới version hay không
+ */
 export function hasApprovedAddServicePendingSnapshot(serviceTicketId) {
 	const snapshot = readAddServicePendingSnapshot(serviceTicketId);
 	const previousEstimateStatus = String(snapshot?.prevEstimateStatus || '').trim().toUpperCase();
 	return previousEstimateStatus === 'APPROVED';
 }
 
+/**
+ * Fetch báo giá mới nhất từ server và sync vào state
+ * @param {object} options - {serviceTicketId, syncEstimate}
+ * @returns {Promise<object|null>} Báo giá mới nhất từ server
+ * @usage Gọi sau khi thực hiện các action (hủy, hoàn trả, etc.) trên kho
+ * @note Tự động sync vào state thông qua callback syncEstimate
+ */
 export async function refreshLatestAdvisorEstimate({ serviceTicketId, syncEstimate }) {
 	const ticketId = toIdOrNull(serviceTicketId);
 	const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -189,6 +279,14 @@ export async function refreshLatestAdvisorEstimate({ serviceTicketId, syncEstima
 	return latest;
 }
 
+/**
+ * Hủy giữ hàng trên kho cho một dòng ước tính
+ * @param {object} options - {row, notify, setWarehouseActionBusyKey, refreshLatestEstimate, markEstimateDraft}
+ * @async
+ * @returns {Promise<void>}
+ * @usage Khi người dùng nhấn button 'Hủy sản phẩm' trên dòng có status 'RESERVED'
+ * @note Cầp nhật API, sau đó refresh để hiển thị báo giá mới
+ */
 export async function handleCancelWarehouseAllocationAction({
 	row,
 	notify,
@@ -198,7 +296,7 @@ export async function handleCancelWarehouseAllocationAction({
 }) {
 	const estimateItemId = toIdOrNull(row?.estimateItemId);
 	if (!estimateItemId) {
-		notify('Thiếu estimateItemId để hủy giữ hàng.');
+		notify('Thiếu id báo giá để hủy giữ hàng.');
 		return;
 	}
 
@@ -228,6 +326,14 @@ export async function handleCancelWarehouseAllocationAction({
 	}
 }
 
+/**
+ * Tạo phiếu hoàn trả hàng (đố với COMMITTED items)
+ * @param {object} options - {returnModalItem, returnReason, quantity, conditionNote, files, notify, setReturnSubmitting, setReturnModalItem, refreshLatestEstimate, markEstimateDraft, extraItems}
+ * @async
+ * @returns {Promise<void>}
+ * @usage Khi người dùng nhấn button 'Hoàn trả' trên dòng COMMITTED
+ * @note Hỗ trợ hoàn trả nhiều item cùng 1 lúc (extraItems)
+ */
 export async function handleSubmitReturnEntryAction({
 	returnModalItem,
 	returnReason,
@@ -300,6 +406,13 @@ export async function handleSubmitReturnEntryAction({
 	}
 }
 
+/**
+ * Hủy phiếu hoàn trả đã đặt
+ * @param {object} options - {row, notify, setWarehouseActionBusyKey, refreshLatestEstimate, markEstimateDraft}
+ * @async
+ * @returns {Promise<void>}
+ * @usage Khi người dùng nhấn 'Hủy hoàn trả' trên dòng RELEASED (có phiếu hoàn)
+ */
 export async function handleCancelReturnEntryAction({
 	row,
 	notify,
@@ -334,6 +447,14 @@ export async function handleCancelReturnEntryAction({
 	}
 }
 
+/**
+ * Bắt đầu tạo báo giá mới (v1 Đầu tiên)
+ * @param {object} options - Thông số cấu hình (isStartingCreate, isReadOnly, isTicketLocked, notify, etc.)
+ * @async
+ * @returns {Promise<void>}
+ * @usage Khi người dùng nhấn button 'Tạo báo giá mới'
+ * @note Kiểm tra các điều kiện (chề độ xem, phiếu đã khóa)
+ */
 export async function handleStartCreateAction({
 	isStartingCreate,
 	isReadOnly,
@@ -449,6 +570,13 @@ export async function handleStartEditAction({
 	}
 }
 
+/**
+ * Xóa tất cả input (định dạng) của một dòng ước tính
+ * @param {object} options - {rowIndex, showInputs, tableRows, activeRowIndex, setPickerOpen, setActiveRowIndex, setPickerInitQuery, onChange}
+ * @returns {void}
+ * @usage Khi người dùng nhấn button 'Xóa' để xoá định dạng dòng draft
+ * @note Không xóa nếu dòng là sản phẩm quà tăng (gift) hoặc đã giữ hàng
+ */
 export function clearAdvisorRowInputs({
 	rowIndex,
 	showInputs,
@@ -492,6 +620,13 @@ export function clearAdvisorRowInputs({
 	onChange(rowIndex, 'itemTaxRuleId', '');
 }
 
+/**
+ * Điền thông tin sản phẩm vào dòng ước tính sau khi chọn từ catalog picker
+ * @param {object} options - {item, activeRowIndex, onChange, closeCatalogPicker}
+ * @returns {void}
+ * @usage Gọi sau khi chọn được 1 sản phẩm từ mủ catalog picker
+ * @note Tự động điền đơn giá, đơn vị, kho, v.v.
+ */
 export function pickAdvisorCatalogItem({
 	item,
 	activeRowIndex,
@@ -678,6 +813,12 @@ function getEstimateRowValidationError(row, rowIndex, requireItemForPredefinedCa
 	return '';
 }
 
+/**
+ * Có liên quan đến API payload - lấy dữ liệu thị có thể là nested
+ * @param {object} response - Response từ API
+ * @returns {object} Dữ liệu thỏ kỳ (data.data hoặc data)
+ * @usage Dùng khi xử lý response từ service
+ */
 export function extractApiPayload(response) {
 	return response?.data?.data ?? response?.data ?? response;
 }
@@ -1036,6 +1177,12 @@ function getEstimateItemFinalPriceDisplay(item, fallbackValue) {
 	return Number.isFinite(finalPrice) ? finalPrice : fallbackValue;
 }
 
+/**
+ * Chuyển gá ID và không trả về ID, null nếu không hợp lệ
+ * @param {any} value - Giá trị cần kiểm tra
+ * @returns {number|null} Số dương hoặc null
+ * @usage Dùng khi lấy ID từ dữ liệu, để đảm bảo ID hợp lệ
+ */
 export function toIdOrNull(value) {
 	if (value == null) return null;
 	const n = typeof value === 'number' ? value : Number(String(value).trim());
@@ -1050,6 +1197,12 @@ function debugEstimateVersion(tag, payload) {
 	}
 }
 
+/**
+ * Kiểm tra xem một dòng draft có rổng (ko có dữ liệu)
+ * @param {object} row - Dữ liệu dòng
+ * @returns {boolean} true nếu dòng trổng (ko có hạng mục, sản phẩm, số lượng, giá)
+ * @usage Dùng để lọc dữ liệu, tính tổng, vào
+ */
 export function isDraftRowEmpty(row) {
 	const newCategoryName = String(row?.newCategoryName || '').trim();
 	const itemName = String(row?.itemName || '').trim();
