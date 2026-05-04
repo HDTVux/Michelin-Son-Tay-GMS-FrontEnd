@@ -368,6 +368,27 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         );
     }, [ticket, ticketFromState, ticketRaw]);
 
+    // Hàm để tải lại danh sách khuyến mãi có sẵn cho khách hàng, có thể được gọi sau khi áp dụng hoặc hủy bỏ khuyến mãi để cập nhật lại danh sách khuyến mãi có sẵn và trạng thái áp dụng
+    const refreshAvailablePromotions = useCallback(async (token = null, customerId = customerIdNum) => {
+        const authToken = token || localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!authToken) return;
+
+        try {
+            setPromotionsLoading(true);
+            setPromotionsError('');
+            const entries = await Promise.all(PROMOTION_TYPES.map(async ({ type }) => {
+                const res = await fetchAvailablePromotions(authToken, type, customerId);
+                return [type, Array.isArray(res?.data) ? res.data : []];
+            }));
+            setAvailablePromotions(Object.fromEntries(entries));
+        } catch (err) {
+            setAvailablePromotions({ PERCENT: [], BUY_X_GET_Y: [] });
+            setPromotionsError(err?.message || 'Không thể tải danh sách khuyến mãi.');
+        } finally {
+            setPromotionsLoading(false);
+        }
+    }, [customerIdNum]);
+
     // Khi chuyển sang phiếu dịch vụ khác, reset các ref và state liên quan đến luồng tạo bản báo giá mới để tránh ảnh hưởng đến phiếu dịch vụ khác
     useEffect(() => {
         addServiceRevertRef.current = null;
@@ -462,32 +483,19 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     // Khi có ID khách hàng hợp lệ, tự động tải danh sách khuyến mãi có sẵn cho khách hàng đó và lưu trữ
     useEffect(() => {
-        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-        if (!token) return undefined;
-
         let cancelled = false;
-        // Gọi API để tải danh sách khuyến mãi có sẵn cho khách hàng, nếu có lỗi thì lưu trữ lỗi và reset danh sách khuyến mãi về rỗng
-        (async () => {
-            try {
-                setPromotionsLoading(true);
-                setPromotionsError('');
-                const entries = await Promise.all(PROMOTION_TYPES.map(async ({ type }) => {
-                    const res = await fetchAvailablePromotions(token, type, customerIdNum); // Gọi API để tải danh sách khuyến mãi 
-                    return [type, Array.isArray(res?.data) ? res.data : []];
-                }));
-                if (cancelled) return;
-                setAvailablePromotions(Object.fromEntries(entries));
-            } catch (err) {
-                if (cancelled) return;
-                setAvailablePromotions({ PERCENT: [], BUY_X_GET_Y: [] });
-                setPromotionsError(err?.message || 'Không thể tải danh sách khuyến mãi.');
-            } finally {
-                if (!cancelled) setPromotionsLoading(false);
-            }
-        })();
+        if (!customerIdNum) {
+            setAvailablePromotions({ PERCENT: [], BUY_X_GET_Y: [] });
+            setPromotionsError('');
+            return () => { cancelled = true; };
+        }
+
+        refreshAvailablePromotions().finally(() => {
+            if (cancelled) return;
+        });
 
         return () => { cancelled = true; };
-    }, [customerIdNum]);
+    }, [customerIdNum, refreshAvailablePromotions]);
 
     // Khi có mã phiếu dịch vụ hợp lệ, tự động tải thông tin kiểm tra an toàn liên quan đến phiếu dịch vụ đó để hiển thị trên phiếu in
     useEffect(() => {
@@ -748,12 +756,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return true;
     }, [canUnapplyPromotionFromCurrentEstimate, isEstimateVersionRevision]);
     // Tính toán xem có thể áp dụng khuyến mãi mới cho báo giá hiện tại hay ko dựa trên việc có thể áp dụng khuyến mãi cho báo giá hiện tại và loại khuyến mãi đó 
-    const visiblePromotionTypes = useMemo(() => {
-        if (isNewEstimateVersionPromotionLimited) {
-            return PROMOTION_TYPES.filter(({ type }) => type === 'PERCENT');
-        }
-        return PROMOTION_TYPES;
-    }, [isNewEstimateVersionPromotionLimited]);
+    const visiblePromotionTypes = useMemo(
+        () => PROMOTION_TYPES.filter(({ type }) => type === 'PERCENT'),
+        [],
+    );
 
     // Tính toán dữ liệu để in ấn phiếu dịch vụ, bao gồm thông tin phiếu dịch vụ, thông tin kiểm tra an toàn, danh sách item của báo giá để hiển thị trên hóa đơn 
     const printTicket = useMemo(() => ({
@@ -1264,6 +1270,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
 
             await refreshDetailView({ refreshEstimate: false, refreshBill: true, refreshAdvisor: false });
+            await refreshAvailablePromotions(token);
             // Notify advisor table to open create mode immediately
             try {
                 globalThis.dispatchEvent(new CustomEvent('startCreateEstimate'));
@@ -1329,6 +1336,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const detailRes = await fetchServiceTicketDetail(code, token);
             setTicketRaw(detailRes?.data ?? ticketRaw ?? null);
             await refreshDetailView({ refreshEstimate: true, refreshBill: true });
+            await refreshAvailablePromotions(token);
             notify('Đã hoàn tác trạng thái phiếu dịch vụ trước khi tạo báo giá mới.');
         } catch (err) {
             notify(err?.message || 'Không thể hoàn tác trạng thái phiếu dịch vụ.');
@@ -1831,10 +1839,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 createNewEstimateRevertRef.current = null;
                 setIsCreatingNewEstimateVersion(false);
                 refreshDetailView({ refreshEstimate: true, refreshBill: true, refreshAdvisor: false });
+                refreshAvailablePromotions();
             }, 80);
         } else if (hasEstimateId) {
             globalThis.setTimeout?.(() => {
                 refreshDetailView({ refreshEstimate: true, refreshBill: true, refreshAdvisor: false });
+                refreshAvailablePromotions();
             }, 120);
         }
     }, [isCreatingNewEstimateVersion, loadLatestEstimate, refreshDetailView]);
@@ -1945,6 +1955,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const cleanEstimate = pickLatestEstimate(estimateRes?.data);
             setLatestEstimate(cleanEstimate ?? null);
             setRefreshTick((prev) => prev + 1);
+            await refreshAvailablePromotions(token);
             notify(promotionTypesToUnapply.length > 0
                 ? 'Đã gỡ khuyến mãi phần trăm khỏi báo giá. Vui lòng áp dụng lại sau khi lưu chỉnh sửa.'
                 : 'Đã gỡ khuyến mãi khỏi báo giá. Vui lòng áp dụng lại sau khi lưu chỉnh sửa.');
@@ -2059,6 +2070,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             setSelectedPromotions((prev) => ({ ...prev, [type]: '' }));
             await loadLatestEstimate();
             setRefreshTick((prev) => prev + 1);
+            await refreshAvailablePromotions(token);
             notify('Đã áp dụng khuyến mãi vào báo giá.');
         } catch (err) {
             setAppliedPromotions((prev) => ({ ...prev, [type]: null }));
@@ -2115,6 +2127,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const latest = pickLatestEstimate(estimateRes?.data);
             setLatestEstimate(latest ?? null);
             triggerRefresh();
+            await refreshAvailablePromotions(token);
             notify('Đã hủy áp dụng mã giảm giá.');
         } catch (err) {
             setPromoError(err?.message || 'Không thể hủy áp dụng mã giảm giá.');
