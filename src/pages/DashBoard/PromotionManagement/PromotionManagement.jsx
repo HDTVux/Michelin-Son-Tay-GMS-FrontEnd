@@ -73,6 +73,7 @@ const PROMOTION_CREATE_DRAFT_KEY = 'promotionManagement.createDraft.v1';
 const PROMOTION_CODE_PATTERN = /^[A-Z0-9_-]+$/;
 const DECIMAL_INPUT_PATTERN = /^\d*(?:\.\d*)?$/;
 const INTEGER_INPUT_PATTERN = /^\d*$/;
+const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const NUMERIC_INPUT_RULES = {
   discountPercent: {
@@ -108,6 +109,27 @@ const sanitizeNumericInputValue = (value, rule) => {
 const isPositiveIntegerValue = (value) => {
   const num = Number(value);
   return Number.isInteger(num) && num > 0;
+};
+
+const getTodayDateString = () => {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+};
+
+const isValidDateInput = (value) => {
+  const text = String(value ?? '').trim();
+  if (!DATE_INPUT_PATTERN.test(text)) return false;
+  const date = new Date(`${text}T00:00:00`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text;
+};
+
+const shiftDateString = (value, dayOffset) => {
+  if (!isValidDateInput(value)) return '';
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + dayOffset);
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
 };
 
 const getDiscountPercentError = (value) => {
@@ -180,7 +202,12 @@ const mergeSelectedById = (current, nextItem, getId) => {
   return [...current, nextItem];
 };
 
-const buildPromotionFormErrors = (rawForm, existingPromotions = [], currentPromotionId = null) => {
+const buildPromotionFormErrors = (
+  rawForm,
+  existingPromotions = [],
+  currentPromotionId = null,
+  { validateCreateDates = false } = {},
+) => {
   const nextErrors = {};
   const code = normalizePromotionCode(rawForm?.code);
   const name = String(rawForm?.name ?? '').trim();
@@ -189,6 +216,7 @@ const buildPromotionFormErrors = (rawForm, existingPromotions = [], currentPromo
   const endDate = String(rawForm?.endDate ?? '').trim();
   const minOrderValueText = String(rawForm?.minOrderValue ?? '').trim();
   const usageLimitText = String(rawForm?.usageLimit ?? '').trim();
+  const todayDate = getTodayDateString();
 
   if (!code) {
     nextErrors.code = 'Vui lòng nhập mã khuyến mãi.';
@@ -241,15 +269,33 @@ const buildPromotionFormErrors = (rawForm, existingPromotions = [], currentPromo
     }
   }
 
+  if (startDate && !isValidDateInput(startDate)) {
+    nextErrors.startDate = 'Ngày bắt đầu không hợp lệ.';
+  }
+  if (endDate && !isValidDateInput(endDate)) {
+    nextErrors.endDate = 'Ngày kết thúc không hợp lệ.';
+  }
   if (startDate && !endDate) {
     nextErrors.endDate = 'Vui lòng chọn ngày kết thúc.';
   }
   if (!startDate && endDate) {
     nextErrors.startDate = 'Vui lòng chọn ngày bắt đầu.';
   }
-  if (startDate && endDate && startDate > endDate) {
-    nextErrors.startDate = 'Ngày bắt đầu không được sau ngày kết thúc.';
-    nextErrors.endDate = 'Ngày kết thúc không được trước ngày bắt đầu.';
+  if (startDate && endDate && isValidDateInput(startDate) && isValidDateInput(endDate)) {
+    if (validateCreateDates ? startDate >= endDate : startDate > endDate) {
+      nextErrors.startDate = validateCreateDates
+        ? 'Ngày bắt đầu phải nhỏ hơn ngày kết thúc.'
+        : 'Ngày bắt đầu không được sau ngày kết thúc.';
+      nextErrors.endDate = validateCreateDates
+        ? 'Ngày kết thúc phải lớn hơn ngày bắt đầu.'
+        : 'Ngày kết thúc không được trước ngày bắt đầu.';
+    }
+  }
+  if (validateCreateDates && startDate && isValidDateInput(startDate) && startDate < todayDate) {
+    nextErrors.startDate = 'Ngày bắt đầu không được là ngày trong quá khứ.';
+  }
+  if (validateCreateDates && endDate && isValidDateInput(endDate) && endDate < todayDate) {
+    nextErrors.endDate = 'Ngày kết thúc không được là ngày trong quá khứ.';
   }
 
   if (minOrderValueText !== '') {
@@ -330,6 +376,7 @@ export default function PromotionManagement() {
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customerError, setCustomerError] = useState('');
   const [selectedCustomers, setSelectedCustomers] = useState([]);
+  const todayDate = useMemo(() => getTodayDateString(), []);
   const normalizedFormType = normalizeTypeValue(form.type);
   const isBuyXGetY = normalizedFormType === 'BUY_X_GET_Y';
   const isPercentType = normalizedFormType === 'PERCENT';
@@ -1008,7 +1055,12 @@ export default function PromotionManagement() {
     const token = getAuthToken();
     if (!token) return;
     const submitType = normalizeTypeValue(form.type);
-    const nextErrors = buildPromotionFormErrors(form, promotions, editing ? form.promotionId : null);
+    const nextErrors = buildPromotionFormErrors(
+      form,
+      promotions,
+      editing ? form.promotionId : null,
+      { validateCreateDates: !editing },
+    );
 
     if (Object.keys(nextErrors).length > 0) {
       setFormErrors(nextErrors);
@@ -1579,6 +1631,8 @@ export default function PromotionManagement() {
                     className={getFieldClassName('startDate', styles.input)}
                     type="date"
                     value={form.startDate || ''}
+                    min={!editing ? todayDate : undefined}
+                    max={!editing && form.endDate ? shiftDateString(form.endDate, -1) : form.endDate || undefined}
                     onChange={(e) => updateFormField('startDate', e.target.value)}
                     aria-invalid={Boolean(formErrors.startDate)}
                   />
@@ -1590,6 +1644,7 @@ export default function PromotionManagement() {
                     className={getFieldClassName('endDate', styles.input)}
                     type="date"
                     value={form.endDate || ''}
+                    min={!editing && form.startDate ? shiftDateString(form.startDate, 1) : form.startDate || (!editing ? todayDate : undefined)}
                     onChange={(e) => updateFormField('endDate', e.target.value)}
                     aria-invalid={Boolean(formErrors.endDate)}
                   />
