@@ -9,7 +9,10 @@ import {
 } from '../services/staffNotificationService.js';
 
 const getAuthToken = () =>
-  localStorage.getItem('authToken') || localStorage.getItem('staffToken') || '';
+  localStorage.getItem('authToken') ||
+  localStorage.getItem('staffToken') ||
+  localStorage.getItem('adminToken') ||
+  '';
 
 const getNotificationKey = (notification) => {
   if (notification?.notificationId != null) return `id:${notification.notificationId}`;
@@ -124,12 +127,11 @@ export const useNotifications = ({
     }
 
     loadNotifications();
+    const token = getAuthToken();
 
     const client = new Client({
       webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws-notifications`),
-      connectHeaders: getAuthToken()
-        ? { Authorization: `Bearer ${getAuthToken()}` }
-        : {},
+      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       reconnectDelay,
       debug: () => {},
       onConnect: () => {

@@ -49,7 +49,7 @@ export default function Login() {
 
     const token = localStorage.getItem('authToken');
     if (token) {
-      navigate('/booking-management', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [navigate]);
 

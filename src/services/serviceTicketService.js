@@ -792,6 +792,29 @@ export const fetchServiceTicketEstimate = (serviceTicketId, token) => {
   });
 };
 
+// Lấy thông tin ước tính cho phiếu dịch vụ theo bookingId
+// Endpoint: GET /api/service-ticket/estimate/{bookingId}/bookingId
+export const fetchServiceTicketEstimateByBookingId = (bookingId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem bảng báo giá.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idRaw = String(bookingId ?? '').trim();
+  if (!idRaw) {
+    const error = new Error('Thiếu bookingId.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const idEncoded = encodeURIComponent(idRaw);
+  return request(`/api/service-ticket/estimate/${idEncoded}/bookingId`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Tạo mới bảng báo giá cho phiếu dịch vụ
 // Endpoint: POST /api/service-ticket/estimate/
 // Payload: { serviceTicketId, estimateType, items: [{ workCategoryId, newCategoryName, itemId, itemName, unit, quantity, unitPrice }] }
