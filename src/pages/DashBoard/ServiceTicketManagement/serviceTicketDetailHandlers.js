@@ -3,8 +3,10 @@ import { fetchServiceTicketDetail, updateServiceTicket } from '../../../services
 import { validateTextInput } from '../../../components/inputValidation.js';
 import { getServiceTicketStatusTextVi } from '../../../components/statusUtils.js';
 
+// Prefix dùng để lưu trạng thái tạm thời khi đang thêm dịch vụ vào SessionStorage
 const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
 
+// Đọc role của nhân viên từ localStorage, chuẩn hóa thành mảng các string (chữ hoa).
 function readStaffRolesFromStorage() {
     try {
         const raw = localStorage.getItem('staffRoles');
@@ -20,6 +22,7 @@ function readStaffRolesFromStorage() {
     }
 }
 
+//Chuyển chuỗi mã (ví dụ LICENSE_PLATE hoặc photo-type) thành dạng Title Case (License Plate).
 function toTitleCaseFromCode(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -32,23 +35,28 @@ function toTitleCaseFromCode(value) {
         .replaceAll(/\b\w/g, (m) => m.toUpperCase());
 }
 
+// Định dạng tiền tệ theo chuẩn Việt Nam, thêm đuôi "đ"
 function formatCurrencyVnd(value) {
     const n = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(n)) return '-';
     return `${new Intl.NumberFormat('vi-VN').format(n)}đ`;
 }
 
+// Chuyển giá trị (chuỗi hoặc số) thành số tiền hợp lệ (number), trả về 0 nếu không hợp lệ.
+// Dùng ở đâu: Đảm bảo các trường tiền tệ (price, discount, total) luôn là số để tính toán và hiển thị.
 function toMoneyNumber(value) {
     const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
     return Number.isFinite(n) ? n : 0;
 }
 
+// Ưu tiên lấy giá đã bao gồm VAT nếu có, nếu không lấy giá cơ bản
 function pickMoneyDisplayValue(withVatValue, baseValue) {
     const withVatNum = toMoneyNumber(withVatValue);
     if (withVatNum > 0) return withVatNum;
     return Math.max(0, toMoneyNumber(baseValue));
 }
 
+// Chuẩn hóa các trường liên quan đến thuế của một item
 function normalizeTaxRatePercentText(rawRate) {
     const n = typeof rawRate === 'number' ? rawRate : Number(String(rawRate ?? '').trim());
     if (!Number.isFinite(n) || n <= 0) return '';
@@ -56,6 +64,7 @@ function normalizeTaxRatePercentText(rawRate) {
     return `${pct}%`;
 }
 
+// Lấy nhãn hiển thị thuế suất VD: 8%, 10%, hoặc '--' nếu có thuế nhưng không xác định được suất, hoặc '0%' nếu không có thuế
 function getEstimateItemTaxRateText(item) {
     const directText = String(item?.taxRateText ?? item?.tax_rate_text ?? '').trim();
     if (directText) return directText;
@@ -75,15 +84,18 @@ function getEstimateItemTaxRateText(item) {
     return toMoneyNumber(item?.taxAmount ?? item?.tax_amount) > 0 ? '--' : '0%';
 }
 
-function pickDiscountAmountValue(item) {
+// Ưu tiên lấy discountAmount đã tính toán nếu có, nếu không lấy discount_amount
+function pickDiscountAmountValue(item) { 
     return toMoneyNumber(item?.discountAmount ?? item?.discount_amount);
 }
 
+// Lấy cờ quà tặng của một item
 function getEstimateItemGiftFlag(item) {
     const raw = item?.isGift ?? item?.is_gift;
     return raw === true || String(raw ?? '').trim().toLowerCase() === 'true';
 }
 
+// Lấy trạng thái giữ chỗ vật tư của một item, ưu tiên các trường mới hơn, trả về chuỗi đã chuẩn hóa (UPPERCASE) hoặc empty string nếu không xác định
 function getEstimateItemStockAllocationStatus(item) {
     return String(
         item?.stockAllocation?.status ??
@@ -96,6 +108,7 @@ function getEstimateItemStockAllocationStatus(item) {
     ).trim().toUpperCase();
 }
 
+// Lấy giá cuối cùng của item, ưu tiên các trường mới hơn, trả về số hoặc fallbackValue nếu không xác định
 function getEstimateItemFinalPriceDisplay(item, fallbackValue) {
     const rawFinalPrice = item?.finalPrice ?? item?.final_price;
     if (rawFinalPrice == null || String(rawFinalPrice).trim() === '') return fallbackValue;
@@ -103,6 +116,7 @@ function getEstimateItemFinalPriceDisplay(item, fallbackValue) {
     return Number.isFinite(finalPrice) ? finalPrice : fallbackValue;
 }
 
+// Chuyển giá trị ngày giờ từ các định dạng khác nhau thành chuẩn ISO 8601 (YYYY-MM-DDTHH:mm:ss) để gửi payload
 function formatEstimatedDeliveryAtForApi(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -122,6 +136,7 @@ function formatEstimatedDeliveryAtForApi(value) {
         return '';
     }
 
+
     if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return '';
 
     if (/^\d{2}:\d{2}:\d{2}$/.test(timePart)) return `${datePart}T${timePart}`;
@@ -131,24 +146,31 @@ function formatEstimatedDeliveryAtForApi(value) {
     return `${datePart}T${hhmm}:00`;
 }
 
+// Không thể báo hoàn thành sửa chữa nếu có lỗi từ backend
 function getFinishWorkErrorMessage(err, fallback) {
     // Intentionally do not surface backend error messages in the UI.
     // Keep the helper for consistent call-sites.
     return fallback || 'Không thể báo hoàn thành sửa chữa.';
 }
 
+// Chuẩn hóa giá trị số công tơ mét, loại bỏ các ký tự không phải số
 function normalizeOdometerKm(value) {
     if (value == null) return null;
     const n = typeof value === 'number' ? value : Number(String(value).replaceAll(/\D/g, ''));
     return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/**
+ * Chuyển giá trị thành số nguyên dương hoặc null. Loại bỏ các ký tự không phải số.
+ * Chuẩn hóa ID (serviceTicketId, estimateId, customerId, warehouseId...).
+ */
 function toPositiveNumberOrNull(value) {
     if (value == null) return null;
     const n = typeof value === 'number' ? value : Number(String(value).trim());
     return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+// Chuẩn hóa giá trị boolean từ backend có thể ở dạng boolean, số (1/0), hoặc chuỗi ('true', 'false')
 function normalizeBackendBoolean(value) {
     if (typeof value === 'boolean') return value;
     if (typeof value === 'number') return value === 1;
@@ -160,6 +182,7 @@ function normalizeBackendBoolean(value) {
     return false;
 }
 
+// Lấy tên hiển thị của item
 function getTicketItemName(item) {
     return String(
         item?.serviceName ??
@@ -173,6 +196,7 @@ function getTicketItemName(item) {
     ).trim();
 }
 
+// Kiểm tra nếu text có chứa các từ khóa liên quan đến phụ tùng, dùng để phân loại item
 function hasPartText(value) {
     const text = String(value || '').trim().toLowerCase();
     if (!text) return false;
@@ -185,6 +209,7 @@ function hasPartText(value) {
     );
 }
 
+// Kiểm tra nếu tên item có chứa tín hiệu liên quan đến phụ tùng, dùng để phân loại item
 function normalizeSearchText(value) {
     return String(value || '')
         .trim()
@@ -194,6 +219,7 @@ function normalizeSearchText(value) {
         .replaceAll(/[\u0300-\u036f]/g, '');
 }
 
+// Kiểm tra nếu tên item có chứa tín hiệu liên quan đến phụ tùng, dùng để phân loại item
 function hasPartNameSignal(value) {
     const text = normalizeSearchText(value);
     if (!text || text.includes('dich vu')) return false;
@@ -228,6 +254,7 @@ function hasPartNameSignal(value) {
     );
 }
 
+// Lấy loại item (SERVICE hoặc PART) dựa trên nhiều trường khác nhau và heuristic từ tên/mô tả.
 function getTicketItemTypeText(item) {
     return String(
         item?.__forcedType ??
@@ -246,6 +273,10 @@ function getTicketItemTypeText(item) {
     ).trim();
 }
 
+/**
+ * Xác định loại item (SERVICE hoặc PART) dựa trên nhiều trường khác nhau và heuristic từ tên/mô tả.
+ * Phân loại item để hiển thị riêng dịch vụ và phụ tùng, tính toán phí dịch vụ/phụ tùng.
+ */
 function normalizeTicketItemType(item) {
     const typeText = getTicketItemTypeText(item).toUpperCase();
     if (typeText === 'SERVICE') return 'SERVICE';
@@ -281,6 +312,10 @@ function normalizeTicketItemType(item) {
     return 'SERVICE';
 }
 
+/**
+ * Thu thập tất cả các item từ các trường khác nhau (services, items, parts, bookingItems...) và loại bỏ trùng lặp.
+ * Chuẩn hóa danh sách item được chọn khi hiển thị phiếu chi tiết.
+ */
 function collectTicketItems(input) {
     const sources = [
         { list: input?.services },
@@ -315,12 +350,17 @@ function collectTicketItems(input) {
     return Array.from(map.values());
 }
 
+/**
+ * Payload để gửi API update stock allocation (giữ chỗ vật tư).
+ * Khi confirm estimate, để thực hiện giữ chỗ vật tư (PUT /stock-allocation/update).
+ */
 function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estimateItems }) {
     const estId = toPositiveNumberOrNull(estimateId);
     const ticketId = toPositiveNumberOrNull(serviceTicketId);
     const items = Array.isArray(estimateItems) ? estimateItems : [];
     if (!estId || !ticketId || items.length === 0) return [];
 
+    // Thu thập tất cả item từ các trường khác nhau và loại bỏ trùng lặp
     const rows = items
         .filter((it) => !it?.isRemoved)
         .map((it) => {
@@ -331,7 +371,7 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
                 it?.id ??
                 null;
 
-            // Try to avoid mistakenly picking estimateItemId as itemId by checking nested fields first.
+            // Lấy itemId từ nhiều trường khác nhau để đảm bảo có ID chính xác cho việc giữ chỗ vật tư.
             const itemId =
                 it?.itemId ??
                 it?.catalogItemId ??
@@ -341,10 +381,11 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
                 it?.catalogItem?.itemId ??
                 it?.serviceItem?.itemId ??
                 null;
-
+            // Chuyển quantity thành số dương hoặc null, loại bỏ các giá trị không hợp lệ.
             const quantity = toPositiveNumberOrNull(it?.quantity ?? it?.qty);
             if (!toPositiveNumberOrNull(estimateItemId) || !toPositiveNumberOrNull(itemId) || !quantity) return null;
 
+            // Lấy warehouseId từ nhiều trường khác nhau 
             const warehouseId =
                 it?.warehouseId ??
                 it?.warehouseID ??
@@ -353,12 +394,11 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
                 it?.warehouse?.id ??
                 undefined;
 
-            // Stock allocation only applies to rows tied to a warehouse (parts/materials).
-            // Service-only rows typically have no warehouseId and must be skipped,
-            // otherwise backend validation can fail (warehouseId must not be null).
+            // Chuyển warehouseId thành số dương hoặc null, loại bỏ các giá trị không hợp lệ.
             const warehouseIdNum = toPositiveNumberOrNull(warehouseId);
             if (!warehouseIdNum) return null;
 
+            // Lấy allocationId từ nhiều trường khác nhau để đảm bảo có ID chính xác 
             const allocationId =
                 it?.allocationId ??
                 it?.stockAllocationId ??
@@ -366,6 +406,7 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
                 it?.reservationId ??
                 undefined;
 
+            // Lấy trạng thái giữ chỗ vật tư từ nhiều trường khác nhau, chuẩn hóa thành UPPERCASE hoặc undefined nếu không xác định.
             const status = it?.allocationStatus ?? it?.stockAllocationStatus ?? it?.stock_allocation_status ?? undefined;
             const createdBy = it?.createdBy ?? it?.created_by ?? undefined;
 
@@ -386,6 +427,8 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
     return rows;
 }
 
+// Lấy giá trị đầu tiên không null/undefined/empty string từ một đối tượng dựa trên danh sách khóa ưu tiên.
+// Khi có nhiều trường có thể chứa cùng một thông tin để lấy giá trị hiển thị cuối cùng.
 function pickFirstDefined(obj, keys) {
     for (const key of keys) {
         const v = obj?.[key];
@@ -394,6 +437,10 @@ function pickFirstDefined(obj, keys) {
     return null;
 }
 
+/**
+ * Lấy báo giá mới nhất từ mảng estimate (sắp xếp theo version/createdAt giảm dần).
+ * Sau khi fetch danh sách estimate, lấy phiên bản mới nhất để hiển thị/chỉnh sửa.
+ */
 function pickLatestEstimate(list) {
     const arr = Array.isArray(list) ? list : [];
     if (arr.length === 0) return null;
@@ -412,23 +459,32 @@ function pickLatestEstimate(list) {
     })[0];
 }
 
+// Kiểm tra nếu item báo giá đang hoạt động (chưa bị xoá), dựa trên trường isRemoved.
 function isEstimateItemActive(it) {
     return !it?.isRemoved;
 }
 
+// Lấy ID của item báo giá dưới dạng string, ưu tiên các trường mới hơn
 function getEstimateItemIdKey(it) {
     const id = toPositiveNumberOrNull(it?.estimateItemId ?? it?.estimateItemID ?? it?.id);
     return id ? String(id) : '';
 }
 
+// Lấy danh sách item báo giá chưa bị xoá (isRemoved = false) từ một estimate, dựa trên trường items hoặc services.
 function getActiveEstimateItems(estimate) {
     return (Array.isArray(estimate?.items) ? estimate.items : []).filter(isEstimateItemActive);
 }
 
+/**
+ * Lấy danh sách ID (dạng string) của các item báo giá chưa bị xoá (isRemoved = false).
+ * So sánh thay đổi item khi khôi phục trạng thái thêm dịch vụ (add service).
+ */
 function getActiveEstimateItemKeys(estimate) {
     return getActiveEstimateItems(estimate).map(getEstimateItemIdKey).filter(Boolean);
 }
 
+// Kiểm tra nếu hai mảng có cùng tập hợp giá trị (dạng string)
+// Không quan tâm đến thứ tự, loại bỏ giá trị rỗng/null/undefined.
 function hasSameStringSet(left, right) {
     const a = Array.isArray(left) ? left.map(String).filter(Boolean) : [];
     const b = Array.isArray(right) ? right.map(String).filter(Boolean) : [];
@@ -437,11 +493,16 @@ function hasSameStringSet(left, right) {
     return a.every((value) => bSet.has(value));
 }
 
+// Lấy key cho storage khi khôi phục trạng thái thêm dịch vụ.
 function getAddServiceRestoreStorageKey(serviceTicketId) {
     const id = toPositiveNumberOrNull(serviceTicketId);
     return id ? `${ADD_SERVICE_RESTORE_STORAGE_PREFIX}${id}` : '';
 }
 
+/**
+ * Đọc snapshot trạng thái tạm (lưu trong sessionStorage) khi đang trong luồng thêm dịch vụ.
+ * Để khôi phục trạng thái khi user cancel hành động thêm dịch vụ.
+ */
 function readAddServiceRestoreSnapshot(serviceTicketId) {
     try {
         const key = getAddServiceRestoreStorageKey(serviceTicketId);
@@ -463,6 +524,10 @@ function readAddServiceRestoreSnapshot(serviceTicketId) {
     }
 }
 
+/**
+ * Xoá snapshot trạng thái tạm khỏi sessionStorage (sau khi hoàn thành hoặc cancel thêm dịch vụ).
+ * Khi confirm estimate hoặc cancel luồng thêm dịch vụ.
+ */
 function clearAddServiceRestoreSnapshot(serviceTicketId) {
     try {
         const key = getAddServiceRestoreStorageKey(serviceTicketId);
@@ -473,6 +538,7 @@ function clearAddServiceRestoreSnapshot(serviceTicketId) {
     }
 }
 
+
 function debugEstimateAllocation(tag, payload) {
     try {
         console.log(`[estimate-allocation-debug] ${tag}`, payload);
@@ -481,6 +547,10 @@ function debugEstimateAllocation(tag, payload) {
     }
 }
 
+/**
+ * Chuẩn hóa trạng thái ticket từ các tên khác nhau (CREATED/DRAFT, INSPECTING/INSPECTION, COMPLETED/DONE...) thành canonical form.
+ * Quyết định hiển thị UI và enable/disable nút hành động dựa trên trạng thái ticket.
+ */
 function normalizeTicketStatus(raw) {
     const value = String(raw || '')
         .trim()
@@ -500,6 +570,10 @@ function normalizeTicketStatus(raw) {
     return value;
 }
 
+/**
+ * Chuẩn hóa trạng thái estimate (DRAFT, SENT, APPROVED, ARCHIVED, CANCELLED...).
+ * Quyết định hiển thị UI (ẩn/hiện nút confirm, print...) và kiểm tra điều kiện cho các hành động.
+ */
 function normalizeEstimateStatus(raw) {
     const value = String(raw || '')
         .trim()
@@ -512,6 +586,7 @@ function normalizeEstimateStatus(raw) {
     return value;
 }
 
+// Chuyển giá trị ngày tháng từ định dạng YMD (YYYY-MM-DD) thành đối tượng Date, với tuỳ chọn lấy thời điểm cuối ngày.
 function parsePromotionYmdDate(value, { endOfDay } = {}) {
     const raw = String(value ?? '').trim();
     if (!raw) return null;
@@ -521,6 +596,11 @@ function parsePromotionYmdDate(value, { endOfDay } = {}) {
     return Number.isFinite(dt.getTime()) ? dt : null;
 }
 
+/**
+ * getPromotionId(promo)
+ * Trích xuất ID khuyến mãi từ object promotion (hỗ trợ nhiều tên trường: promotionId, id, PromotionId...).
+ * Lấy ID để call API apply/unapply promotion hoặc lookup trong cache.
+ */
 function getPromotionId(promo) {
     if (!promo) return null;
     if (typeof promo === 'number' || typeof promo === 'string') {
@@ -533,6 +613,7 @@ function getPromotionId(promo) {
     return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+// Lấy ID khuyến mãi từ object promotion
 function getExplicitPromotionId(promo) {
     if (!promo) return null;
     const raw = promo?.promotionId ?? promo?.promotionID ?? promo?.PromotionId ?? promo?.promotion_id ?? null;
@@ -541,6 +622,7 @@ function getExplicitPromotionId(promo) {
     return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+// Chuẩn hóa object promotion, đảm bảo có trường promotionId để dễ dàng lookup và hiển thị.
 function normalizePromotion(promo) {
     if (!promo) return null;
     if (Array.isArray(promo)) return normalizePromotion(promo[0] ?? null);
@@ -549,6 +631,11 @@ function normalizePromotion(promo) {
     return promotionId ? { ...promo, promotionId } : promo;
 }
 
+/**
+ * buildPromotionLabel(promo)
+ * Xây dựng nhãn hiển thị cho khuyến mãi (ví dụ: 'Khuyến mãi 10%' hoặc 'Mua X tặng Y').
+ * Hiển thị tên khuyến mãi đang áp dụng hoặc danh sách khuyến mãi có sẵn.
+ */
 function buildPromotionLabel(promo) {
     if (!promo) return '';
     if (typeof promo === 'number' || typeof promo === 'string') {
@@ -565,6 +652,7 @@ function buildPromotionLabel(promo) {
     return parts.join(' • ');
 }
 
+// Tính số lượt sử dụng còn lại của khuyến mãi dựa trên usageLimit và usedCount
 function getPromotionUsageRemaining(promo) {
     const usageLimit = toMoneyNumber(promo?.usageLimit);
     const usedCount = toMoneyNumber(promo?.usedCount);
@@ -573,6 +661,7 @@ function getPromotionUsageRemaining(promo) {
     return Math.max(usageLimit - used, 0);
 }
 
+// Xây dựng nhãn hiển thị chi tiết cho khuyến mãi, bao gồm tên, mã, điều kiện đơn tối thiểu, và số lượt còn lại.
 function buildPromotionDisplayLabel(promo) {
     const base = buildPromotionLabel(promo);
     if (!promo || typeof promo === 'number' || typeof promo === 'string') return base;
@@ -587,6 +676,7 @@ function buildPromotionDisplayLabel(promo) {
     return [base, details.join(' • ')].filter(Boolean).join(' — ');
 }
 
+// Kiểm tra nếu khuyến mãi có thể áp dụng được trên hóa đơn hiện tại dựa trên trạng thái, thời gian, điều kiện đơn tối thiểu, và loại khuyến mãi.
 function validatePromotion(promo, subtotal) {
     if (!promo) return 'Mã không hợp lệ';
     if (promo?.isActive === false) return 'Khuyến mãi không còn hiệu lực';
@@ -608,10 +698,12 @@ function validatePromotion(promo, subtotal) {
     return '';
 }
 
+// Lấy loại khuyến mãi đã chuẩn hóa (UPPERCASE) để phân loại và hiển thị phù hợp
 function getPromotionType(promo) {
     return String(promo?.type ?? promo?.promotionType ?? '').trim().toUpperCase();
 }
 
+// Lấy mã khuyến mãi đã chuẩn hóa
 function getPromotionCode(promo) {
     return String(
         promo?.code ??
@@ -625,6 +717,7 @@ function getPromotionCode(promo) {
     ).trim();
 }
 
+// Tra cứu promotion theo ID từ danh sách promotion có sẵn theo loại.
 function buildPromotionLookupById(availablePromotionsByType = {}) {
     const lookup = new Map();
     Object.values(availablePromotionsByType || {})
@@ -636,6 +729,7 @@ function buildPromotionLookupById(availablePromotionsByType = {}) {
     return lookup;
 }
 
+// Tra cứu promotion theo mã code từ danh sách promotion có sẵn theo loại.
 function buildPromotionLookupByCode(availablePromotionsByType = {}) {
     const lookup = new Map();
     Object.values(availablePromotionsByType || {})
@@ -651,6 +745,10 @@ function buildPromotionIdFallbackLabel(promotionId) {
     return promotionId ? `Promotion #${promotionId}` : '';
 }
 
+/**
+ * Danh sách nhãn khuyến mãi có sẵn trên báo giá hiện tại (từ promotions field hoặc item gifts).
+ * Hiển thị tóm tắt khuyến mãi trên hóa đơn hoặc khối thông tin báo giá.
+ */
 function buildEstimatePromotionLabels(estimate, availablePromotionsByType = {}) {
     const labels = [];
     const seen = new Set();
@@ -716,6 +814,10 @@ function buildEstimatePromotionLabels(estimate, availablePromotionsByType = {}) 
     return labels;
 }
 
+/**
+ * Thu thập danh sách promotion đã áp dụng hoặc có sẵn trên estimate để chuẩn bị gỡ/restore.
+ * Khi chỉnh sửa estimate để biết promotion nào cần gỡ trước khi thao tác.
+ */
 function collectAppliedPromotionRefs(estimate, appliedPromotionsByType = {}, availablePromotionsByType = {}) {
     const refs = [];
     const seen = new Set();
@@ -775,6 +877,7 @@ function collectAppliedPromotionRefs(estimate, appliedPromotionsByType = {}, ava
     return refs;
 }
 
+
 function normalizeSafetyInspectionStatus(raw) {
     const value = String(raw || '')
         .trim()
@@ -787,6 +890,7 @@ function normalizeSafetyInspectionStatus(raw) {
     return value;
 }
 
+// Xây dựng danh sách sự kiện timeline (check-in, created, diagnosis, in progress, completed) dựa trên nhiều trường ngày tháng khác nhau từ input.
 function buildTimelineEvents(input, receivedAt, handoverAt) {
     const createdAt = pickFirstDefined(input, [
         'createdAt',
@@ -825,6 +929,8 @@ function buildTimelineEvents(input, receivedAt, handoverAt) {
     return events.filter((e) => e.at != null && String(e.at).trim() !== '');
 }
 
+// Chuẩn hóa danh sách ảnh của ticket
+// trích xuất URL, loại ảnh, mô tả, và sắp xếp theo thứ tự ưu tiên loại ảnh và thời gian tải lên.
 function getPhotoCategoryLabel(category) {
     const c = String(category || '').trim().toUpperCase();
     if (c === 'FRONT') return 'Trước';
@@ -838,6 +944,7 @@ function getPhotoCategoryLabel(category) {
     return toTitleCaseFromCode(c);
 }
 
+// Xếp hạng ưu tiên cho các loại ảnh để sắp xếp khi hiển thị: FRONT > BACK > LEFT > RIGHT > OVERALL > DAMAGE > LICENSE_PLATE > others
 function photoCategoryRank(category) {
     const c = String(category || '').trim().toUpperCase();
     if (c === 'FRONT') return 1;
@@ -850,6 +957,8 @@ function photoCategoryRank(category) {
     return 99;
 }
 
+// Chuẩn hóa danh sách ảnh của ticket
+// trích xuất URL, loại ảnh, mô tả, và sắp xếp theo thứ tự ưu tiên loại ảnh và thời gian tải lên.
 function normalizeTicketPhotos(list) {
     const arr = Array.isArray(list) ? list : [];
     return arr
@@ -877,6 +986,10 @@ function normalizeTicketPhotos(list) {
         });
 }
 
+/**
+ * Chuẩn hóa ticket object từ backend: trích xuất/chuẩn hóa các trường, tính toán trạng thái hiển thị.
+ * Component ServiceTicketDetail để hiển thị thông tin ticket trên giao diện.
+ */
 function normalizeTicket(input, codeFallback) {
     const ticketCode = String(input?.ticketCode || codeFallback || '').trim();
     const serviceTicketId =
@@ -981,6 +1094,11 @@ function normalizeTicket(input, codeFallback) {
     };
 }
 
+/**
+ * mapEstimateItemsForReceipt(estimate)
+ * Biến đổi estimate items thành format phù hợp để hiển thị/in trên phiếu dịch vụ.
+ * Hiển thị bảng items trên phiếu dịch vụ hoặc PDF in.
+ */
 function mapEstimateItemsForReceipt(estimate) {
     const items = Array.isArray(estimate?.items) ? estimate.items : [];
     return items
@@ -1017,6 +1135,10 @@ function mapEstimateItemsForReceipt(estimate) {
         .filter((r) => r.itemName || r.categoryName || r.quantity > 0 || r.unitPrice > 0 || r.subTotal > 0 || r.subTotalDisplay > 0);
 }
 
+/**
+ * Trích xuất bill/invoice ID từ payment object 
+ * Xác định xem có hóa đơn liên quan đến ticket hay không để lock hành động chỉnh sửa.
+ */
 function normalizeBillId(payment) {
     if (!payment || typeof payment !== 'object') return null;
     const candidates = [
@@ -1037,7 +1159,6 @@ function normalizeBillId(payment) {
     if (Number.isFinite(n) && n > 0) return String(n);
     return String(raw).trim() || null;
 }
-
 
 export {
 	readStaffRolesFromStorage,
@@ -1089,6 +1210,10 @@ export {
 };
 
 // --------- Ticket detail loading ---------
+/**
+ * Custom React hook để tải dữ liệu chi tiết ticket từ API (nếu truyền code) hoặc dùng state có sẵn.
+ * Component ServiceTicketDetail để quản lý lifecycle load ticket detail.
+ */
 export function useServiceTicketDetailData(ticketCodeParam, ticketFromState) {
 	const [ticketRaw, setTicketRaw] = useState(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -1113,7 +1238,7 @@ export function useServiceTicketDetailData(ticketCodeParam, ticketFromState) {
 			try {
 				setIsLoading(true);
 				setError('');
-				const res = await fetchServiceTicketDetail(ticketCodeParam, token);
+				const res = await fetchServiceTicketDetail(ticketCodeParam, token); // API call để lấy chi tiết ticket
 				if (ignore) return;
 				setTicketRaw(res?.data ?? null);
 			} catch (err) {
@@ -1148,12 +1273,17 @@ export function useServiceTicketDetailData(ticketCodeParam, ticketFromState) {
 	};
 }
 
+// Edit customer request của ticket, với validation, guard condition, và API call để lưu thay đổi.
 function getSaveEditGuardError({ ticketCodeParam, isImmutable }) {
 	if (!ticketCodeParam) return 'Thiếu ticketCode để cập nhật.';
 	if (isImmutable) return 'Phiếu dịch vụ này không thể chỉnh sửa.';
 	return '';
 }
 
+/**
+ * Custom React hook để quản lý form chỉnh sửa yêu cầu khách hàng của ticket.
+ * Component ServiceTicketDetail để cho phép lễ tân chỉnh sửa customerRequest.
+ */
 export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRaw, ticket, setTicketRaw, setError, notify }) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);

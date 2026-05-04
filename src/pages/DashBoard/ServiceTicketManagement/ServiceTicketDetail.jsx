@@ -85,7 +85,10 @@ const PROMOTION_TYPES = [
     { type: 'BUY_X_GET_Y', label: 'Mua X tặng Y' },
 ];
 
-// Component hiển thị một block thông tin với tiêu đề và các cặp key-value 
+/**
+ * Component nhỏ dùng để hiển thị một khối thông tin dạng cặp key-value.
+ * Hiển thị các nhóm thông tin như thông tin khách hàng, thông tin xe, thông tin ticket.
+ */
 function InfoBlock({ title, rows }) {
     return (
         <section className={styles.block}>
@@ -102,7 +105,11 @@ function InfoBlock({ title, rows }) {
     );
 }
 
-// Kiểm tra xem một item có được trả về và có trong phiếu hoàn trả hay không
+/**
+ * Kiểm tra xem một estimate item đã được trả về (trạng thái allocation = RELEASED) hay chưa.
+ * boolean (true nếu item đã RELEASED — đã được trả lại kho).
+ * Dùng Khi lọc danh sách in phiếu, hoặc khi quyết định hiển thị/không hiển thị item đã trả lại.
+ */
 function isReturnedItem(item) {
     return String(
         item?.stockAllocation?.status ??
@@ -157,12 +164,20 @@ function isEstimateItemCheckedForActions(item) {
     return !(raw === false || String(raw ?? '').trim().toLowerCase() === 'false');
 }
 
-// Kiểm tra xem một item có đủ điều kiện để thực hiện các hành động
+/**
+ * Kết hợp trạng thái kho và flag checked để quyết định item có sẵn cho các hành động tương tác (ví dụ xuất kho, sửa)
+ *  boolean (true nếu trạng thái không phải 'RELEASED' và item được checked).
+ * Tính toán danh sách actionableAdvisorItems, quyết định enable/disable các nút hành động.
+ */
 function isEstimateItemAvailableForActions(item) {
     return getEstimateItemStockStatus(item) !== 'RELEASED' && isEstimateItemCheckedForActions(item);
 }
 
-// Kiểm tra xem có item nào trong danh sách có trạng thái hoàn trả đang chờ duyệt hay không
+/**
+ * Kiểm tra trong mảng items có bất kỳ item nào đang trong trạng thái trả hàng đã submit chờ duyệt hay không.
+ * Output: boolean (true nếu tồn tại item có returnStatus = 'SUBMITTED').
+ *  quyết định cho phép hoàn tất sửa chữa, in hóa đơn hoặc khóa các hành động nếu có trả hàng đang chờ.
+ */
 function hasPendingReturnApproval(items) {
     return (Array.isArray(items) ? items : []).some((item) => {
         const rawReturnStatus =
@@ -451,12 +466,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         if (!token) return undefined;
 
         let cancelled = false;
+        // Gọi API để tải danh sách khuyến mãi có sẵn cho khách hàng, nếu có lỗi thì lưu trữ lỗi và reset danh sách khuyến mãi về rỗng
         (async () => {
             try {
                 setPromotionsLoading(true);
                 setPromotionsError('');
                 const entries = await Promise.all(PROMOTION_TYPES.map(async ({ type }) => {
-                    const res = await fetchAvailablePromotions(token, type, customerIdNum);
+                    const res = await fetchAvailablePromotions(token, type, customerIdNum); // Gọi API để tải danh sách khuyến mãi 
                     return [type, Array.isArray(res?.data) ? res.data : []];
                 }));
                 if (cancelled) return;
@@ -473,6 +489,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return () => { cancelled = true; };
     }, [customerIdNum]);
 
+    // Khi có mã phiếu dịch vụ hợp lệ, tự động tải thông tin kiểm tra an toàn liên quan đến phiếu dịch vụ đó để hiển thị trên phiếu in
     useEffect(() => {
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
         if (!token) return undefined;
@@ -482,7 +499,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         let cancelled = false;
         (async () => {
             try {
-                const res = await getSafetyInspectionByTicketCode(code, token);
+                const res = await getSafetyInspectionByTicketCode(code, token);// Gọi API để tải thông tin kiểm tra an toàn 
                 if (!cancelled) setSafetyInspectionForPrint(res?.data ?? null);
             } catch {
                 if (!cancelled) setSafetyInspectionForPrint(null);
@@ -491,14 +508,15 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return () => { cancelled = true; };
     }, [ticket.ticketCode, ticketCodeParam]);
 
-    useEffect(() => {
+    // Khi component được mount, tự động tải danh mục kiểm tra an toàn mặc định để hiển thị trên phiếu in
+    useEffect(() => { 
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
         if (!token) return undefined;
 
         let cancelled = false;
         (async () => {
             try {
-                const res = await getDefaultSafetyInspectionCategories(token);
+                const res = await getDefaultSafetyInspectionCategories(token); // Gọi API để tải danh mục kiểm tra an toàn mặc định
                 if (!cancelled) setDefaultSafetyCategories(Array.isArray(res?.data) ? res.data : []);
             } catch {
                 if (!cancelled) setDefaultSafetyCategories([]);
@@ -507,6 +525,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return () => { cancelled = true; };
     }, []);
 
+    // Khi có mã phiếu dịch vụ hợp lệ, tự động tải khuyến nghị kiểm tra an toàn hiện tại để hiển thị trên phiếu in
     useEffect(() => {
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
         if (!token || !serviceTicketIdNum) {
@@ -514,11 +533,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             return undefined;
         }
 
+        // Gọi API để tải khuyến nghị kiểm tra an toàn hiện tại
         let cancelled = false;
         (async () => {
             const storageKey = `serviceTicketRecommendation:${serviceTicketIdNum}`;
             try {
-                const res = await fetchSafetyInspectionCurrentRecommend(serviceTicketIdNum, token);
+                const res = await fetchSafetyInspectionCurrentRecommend(serviceTicketIdNum, token); // Gọi API để tải khuyến nghị kiểm tra an toàn hiện tại
                 const value = String(
                     res?.data?.recommend ??
                     res?.data?.recommendation ??
@@ -539,25 +559,29 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return () => { cancelled = true; };
     }, [serviceTicketIdNum]);
 
+    // Tính toán trạng thái của báo giá mới nhất liên quan đến phiếu dịch vụ
     const estimateStatus = useMemo(() => {
         return normalizeEstimateStatus(
             latestEstimate?.estimateStatus ?? latestEstimate?.status ?? latestEstimate?.estimate_status,
         );
     }, [latestEstimate]);
 
+    // Tính toán ID của báo giá mới nhất liên quan đến phiếu dịch vụ để so sánh khi đang trong luồng thêm dịch vụ để xác định xem có phải cùng một báo giá hay không
     const estimateIdNum = useMemo(() => {
         return getEstimateIdValue(latestEstimate);
     }, [latestEstimate]);
 
+    // Tính toán xem có đang chờ thêm dịch vụ không
     const isAddServicePending = useMemo(() => {
         if (!serviceTicketIdNum) return false;
         const snapshot = addServiceRevertRef.current ?? readAddServiceRestoreSnapshot(serviceTicketIdNum);
         if (!snapshot) return false;
 
+        // So sánh ID báo giá trong snapshot với ID báo giá hiện tại để xác định xem có phải cùng một báo giá hay không khi trạng thái trước đó của báo giá là APPROVED
         const snapshotEstimateId = toPositiveNumberOrNull(snapshot?.estimateIdNum);
         const previousEstimateStatus = normalizeEstimateStatus(snapshot?.prevEstimateStatus);
+        // Nếu không có ID báo giá thì mặc định là cùng một báo giá
         if (previousEstimateStatus !== 'APPROVED') return false;
-
         if (snapshotEstimateId && estimateIdNum) {
             return snapshotEstimateId === estimateIdNum;
         }
@@ -565,12 +589,15 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return true;
     }, [estimateIdNum, serviceTicketIdNum]);
 
+    // Tính toán xem có đang trong luồng tạo bản báo giá mới hay không, dựa trên trạng thái đang chờ thêm dịch vụ và trạng thái tạo bản báo giá mới
     const isEstimateDraft = estimateStatus === 'DRAFT';
     const isEstimateSent = estimateStatus === 'SENT';
     const isEstimateApproved = estimateStatus === 'APPROVED';
     const billId = useMemo(() => normalizeBillId(billPayment), [billPayment]);
-    const hasBill = Boolean(billId);
-    const isActionLocked = ticketStatus === 'PAID' || hasBill;
+    const hasBill = Boolean(billId); // Xác định xem đã có hóa đơn nào liên quan đến phiếu dịch vụ hay chưa
+    const isActionLocked = ticketStatus === 'PAID' || hasBill; // Khóa các hành động chỉnh sửa nếu phiếu dịch vụ đã được thanh toán hoặc đã có hóa đơn
+    
+    // Tính toán xem có đang trong luồng tạo bản báo giá mới hay không, dựa trên trạng thái đang chờ thêm dịch vụ và trạng thái tạo bản báo giá mới
     const isEstimateVersionRevision = useMemo(() => {
         if (isCreatingNewEstimateVersion) return true;
         const versionRaw =
@@ -578,36 +605,53 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             latestEstimate?.estimateVersion ??
             latestEstimate?.estimateNo ??
             latestEstimate?.versionNo ??
-            null;
-        const hasVersionValue = versionRaw != null && String(versionRaw).trim() !== '';
+            null; // Các trường có thể có trong dữ liệu gốc để xác định phiên bản của báo giá
+        const hasVersionValue = versionRaw != null && String(versionRaw).trim() !== ''; // Kiểm tra xem có giá trị phiên bản nào hay không 
+        // Trích xuất số phiên bản 
         const versionNumber =
             typeof versionRaw === 'number'
                 ? versionRaw
                 : Number(/\d+/.exec(String(versionRaw ?? ''))?.[0] ?? '');
         if (Number.isFinite(versionNumber) && versionNumber > 1) return true;
         if (hasVersionValue) return false;
+
+        // Kiểm tra xem có item nào trong báo giá đã được chỉnh sửa từ phiên bản trước đó hay không để xác định xem có đang trong luồng tạo bản báo giá mới hay không
         const items = Array.isArray(latestEstimate?.items) ? latestEstimate.items : [];
         return items.some((it) => toPositiveNumberOrNull(it?.revisedFromItemId) != null);
     }, [isCreatingNewEstimateVersion, latestEstimate]);
+
+    // Xem có đang bị giới hạn áp dụng khuyến mãi mới chỉ cho các loại khuyến mãi nhất định hay không dựa trên việc đang trong luồng tạo bản báo giá mới và trạng thái của báo giá
     const isNewEstimateVersionPromotionLimited = isEstimateVersionRevision && (isEstimateDraft || isEstimateSent);
+
+    // Tính toán xem có thể áp dụng khuyến mãi mới cho báo giá hiện tại hay không 
+    // Điều kiện: - Phải có báo giá mới nhất để áp dụng khuyến mãi
+    // - Phải đang ở trạng thái nháp hoặc đang trong luồng tạo bản báo giá mới và báo giá đã được gửi đi
     const canApplyPromotionToCurrentEstimate = Boolean(latestEstimate)
         && (isEstimateDraft || (isNewEstimateVersionPromotionLimited && isEstimateSent))
         && ticketStatus !== 'PAID'
         && !shouldHideEstimateUntilInspectionDone;
 
+    // Tính toán các item của báo giá để hiển thị trên phiếu in
     const receiptItems = useMemo(() => mapEstimateItemsForReceipt(latestEstimate), [latestEstimate]);
+    // Tính toán tổng phụ của hóa đơn dựa trên các item của báo giá
     const receiptSubtotal = useMemo(
         () => receiptItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotalDisplay ?? it.subTotal), 0),
         [receiptItems],
     );
-    const printReceiptItems = useMemo(
+    
+    // Chỉ hiển thị các item không phải là item đã được trả về 
+    const printReceiptItems = useMemo( 
         () => receiptItems.filter((it) => !isReturnedItem(it)),
         [receiptItems],
     );
+
+    // Tính toán tổng phụ của hóa đơn dựa trên các item được in trên phiếu, chỉ tính các item không phải là item đã được trả về
     const printReceiptSubtotal = useMemo(
         () => printReceiptItems.reduce((acc, it) => acc + toMoneyNumber(it.subTotalDisplay ?? it.subTotal), 0),
         [printReceiptItems],
     );
+
+    // Tính toán tổng số tiền được giảm giá (không còn vì ko có giảm giá bill) 
     const printReceiptDiscountAmount = useMemo(() => {
         return printReceiptItems.reduce((acc, it) => {
             const lineSubtotal = toMoneyNumber(it.subTotalDisplay ?? it.subTotal);
@@ -616,22 +660,29 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             return acc + Math.max(backendDiscount, lineSubtotal - lineFinal, 0);
         }, 0);
     }, [printReceiptItems]);
+
+    // Tính toán tổng số tiền phải thanh toán trên hóa đơn dựa trên các item được in trên phiếu, chỉ tính các item không phải là item đã được trả về
     const printReceiptTotal = useMemo(
         () => printReceiptItems.reduce((acc, it) => acc + toMoneyNumber(it.finalPriceDisplay ?? it.subTotalDisplay ?? it.subTotal), 0),
         [printReceiptItems],
     );
+    
+    // Danh sách khuyến mãi đã được áp dụng cho báo giá hiện tại dựa trên các loại khuyến mãi đã được áp dụng và thông tin khuyến mãi có sẵn
     const appliedPromotionList = useMemo(
         () => PROMOTION_TYPES.map(({ type }) => appliedPromotions[type]).filter(Boolean),
         [appliedPromotions],
     );
+    // Nhãn hiển thị cho các khuyến mãi đã được áp dụng (ko có vì ko còn buy x get y)
     const appliedPromotionLabel = useMemo(
         () => appliedPromotionList.map(buildPromotionLabel).filter(Boolean).join(' / '),
         [appliedPromotionList],
     );
+    // Nhãn hiển thị cho các khuyến mãi liên quan đến báo giá hiện tại dựa trên thông tin khuyến mãi có sẵn và thông tin khuyến mãi đã được áp dụng
     const estimatePromotionLabels = useMemo(
         () => buildEstimatePromotionLabels(latestEstimate, availablePromotions),
         [availablePromotions, latestEstimate],
     );
+    // Danh sách nhãn hiển thị cho tất cả các khuyến mãi liên quan đến báo giá hiện tại
     const activePromotionLabels = useMemo(() => {
         const labels = [];
         const seen = new Set();
@@ -645,21 +696,25 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         estimatePromotionLabels.forEach(add);
         return labels;
     }, [appliedPromotionLabel, estimatePromotionLabels]);
+
+    // Danh sách các khuyến mãi liên quan đến báo giá hiện tại
     const activePromotionRows = useMemo(() => {
         const rows = [];
         const seen = new Set();
-        const byId = buildPromotionLookupById(availablePromotions);
-        const byCode = buildPromotionLookupByCode(availablePromotions);
+        const byId = buildPromotionLookupById(availablePromotions); // Tạo lookup để tìm khuyến mãi theo id từ danh sách khuyến mãi có sẵn
+        const byCode = buildPromotionLookupByCode(availablePromotions); // Tạo lookup để tìm khuyến mãi theo code từ danh sách khuyến mãi có sẵn
+        // Hàm để thêm khuyến mãi vào danh sách hiển thị
         const addPromo = (promo, typeHint = '') => {
             if (!promo) return;
-            const id = getPromotionId(promo);
-            const code = getPromotionCode(promo);
-            const lookupPromo = (id ? byId.get(id) : null) || (code ? byCode.get(code) : null) || promo;
-            const resolvedId = getPromotionId(lookupPromo) || id;
-            const resolvedCode = getPromotionCode(lookupPromo) || code;
-            const key = resolvedId ? `id:${resolvedId}` : resolvedCode ? `code:${resolvedCode}` : '';
+            const id = getPromotionId(promo); // Trích xuất id của khuyến mãi từ đối tượng khuyến mãi, 
+            const code = getPromotionCode(promo); // Trích xuất code của khuyến mãi từ đối tượng khuyến mãi
+            const lookupPromo = (id ? byId.get(id) : null) || (code ? byCode.get(code) : null) || promo; // Tìm khuyến mãi trong lookup theo id hoặc code
+            const resolvedId = getPromotionId(lookupPromo) || id; // Giải quyết id của khuyến mãi, ưu tiên id từ lookup nếu có để đảm bảo tính nhất quán
+            const resolvedCode = getPromotionCode(lookupPromo) || code; // Giải quyết code của khuyến mãi, ưu tiên code từ lookup nếu có để đảm bảo tính nhất quán
+            const key = resolvedId ? `id:${resolvedId}` : resolvedCode ? `code:${resolvedCode}` : ''; // Tạo key duy nhất để tránh trùng lặp khuyến mãi trong danh sách hiển thị
             if (!key || seen.has(key)) return;
             seen.add(key);
+            // Thêm khuyến mãi vào danh sách hiển thị với thông tin đã được giải quyết và nhãn hiển thị được xây dựng từ thông tin khuyến mãi
             rows.push({
                 promotionId: resolvedId,
                 promotionCode: resolvedCode,
@@ -668,8 +723,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             });
         };
 
+        // Thêm khuyến mãi đã được áp dụng vào danh sách hiển thị
         Object.entries(appliedPromotions || {}).forEach(([type, promo]) => addPromo(promo, type));
+        // Thêm khuyến mãi liên quan đến báo giá hiện tại vào danh sách hiển thị
         const estimatePromotions = Array.isArray(latestEstimate?.promotions) ? latestEstimate.promotions : [];
+        // Thêm từng khuyến mãi trong danh sách khuyến mãi của báo giá vào danh sách hiển thị
         estimatePromotions.forEach((promo) => addPromo(promo));
         addPromo(latestEstimate?.promotion);
         addPromo(latestEstimate?.appliedPromotion);
@@ -677,21 +735,27 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         addPromo(latestEstimate?.promoCode);
         return rows.filter((row) => row.label);
     }, [appliedPromotions, availablePromotions, latestEstimate]);
+
+    // Tính toán xem có thể bỏ áp dụng khuyến mãi khỏi báo giá hiện tại hay không
     const canUnapplyPromotionFromCurrentEstimate = Boolean(latestEstimate)
         && (isEstimateDraft || (isNewEstimateVersionPromotionLimited && isEstimateSent))
         && !isActionLocked;
+    // Tính toán xem có thể bỏ áp dụng khuyến mãi khỏi một khuyến mãi cụ thể trong danh sách khuyến mãi liên quan đến báo giá hiện tại hay ko
     const canUnapplyPromotionRow = useCallback((row) => {
         if (!canUnapplyPromotionFromCurrentEstimate) return false;
         const promotionType = String(row?.promotionType || '').trim().toUpperCase();
         if (isEstimateVersionRevision && promotionType === 'BUY_X_GET_Y') return false;
         return true;
     }, [canUnapplyPromotionFromCurrentEstimate, isEstimateVersionRevision]);
+    // Tính toán xem có thể áp dụng khuyến mãi mới cho báo giá hiện tại hay ko dựa trên việc có thể áp dụng khuyến mãi cho báo giá hiện tại và loại khuyến mãi đó 
     const visiblePromotionTypes = useMemo(() => {
         if (isNewEstimateVersionPromotionLimited) {
             return PROMOTION_TYPES.filter(({ type }) => type === 'PERCENT');
         }
         return PROMOTION_TYPES;
     }, [isNewEstimateVersionPromotionLimited]);
+
+    // Tính toán dữ liệu để in ấn phiếu dịch vụ, bao gồm thông tin phiếu dịch vụ, thông tin kiểm tra an toàn, danh sách item của báo giá để hiển thị trên hóa đơn 
     const printTicket = useMemo(() => ({
         ...ticket,
         receivedAtDisplay,
@@ -729,6 +793,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         ticketRaw?.safetyInspectionEnabled,
     ]);
 
+    // Nếu đã có hóa đơn liên quan đến phiếu dịch vụ, reset các khuyến mãi đã được áp dụng và các mã khuyến mãi đang được chỉnh sửa 
     useEffect(() => {
         if (!hasBill) return;
         if (appliedPromotionList.length > 0) setAppliedPromotions({ PERCENT: null, BUY_X_GET_Y: null });
@@ -747,14 +812,18 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         selectedPromotions.PERCENT,
     ]);
 
+    // Tính toán xem có đang ở trạng thái không thể chỉnh sửa phiếu kiểm tra và báo giá hay ko
     const isImmutable = Boolean(ticketRaw?.immutable ?? ticketFromState?.immutable ?? ticket?.immutable) || isActionLocked;
+    // Nếu đang ở trạng thái không thể chỉnh sửa, hiển thị thông báo tương ứng dựa trên việc có phải do không phải tư vấn viên hay do phiếu dịch vụ đã được thanh toán hoặc đã có hóa đơn
     const isInspectionAndEstimateReadOnly = isActionLocked || !hasAdvisorRole;
+    // Thông báo hiển thị khi phiếu kiểm tra và báo giá đang ở trạng thái chỉ đọc, nếu không phải tư vấn viên thì hiển thị thông báo về việc chỉ tư vấn viên mới được chỉnh sửa
     const inspectionAndEstimateReadOnlyMessage = !hasAdvisorRole
         ? 'Chỉ tư vấn viên mới được chỉnh sửa phần phiếu kiểm tra và báo giá. '
         : ticketStatus === 'PAID'
             ? 'Phiếu dịch vụ đã được thanh toán, không thể chỉnh sửa.'
             : 'Phiếu dịch vụ đã có hóa đơn chờ thanh toán, không thể chỉnh sửa.';
 
+    // Các giá trị và hàm liên quan đến luồng chỉnh sửa phiếu dịch vụ
     const {
         isEditing,
         isSaving,
@@ -774,16 +843,21 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         notify,
     });
 
+    // Tính toán giá trị hiển thị của đồng hồ công tơ mét không có thì hiển thị dấu gạch ngang
     const odometerKm = ticket?.vehicle?.odometerKm;
     const odometerDisplay =
         odometerKm == null ? '-' : `${Number(odometerKm).toLocaleString('vi-VN')} km`;
 
+    // Tính toán danh sách ảnh của phiếu dịch vụ, ưu tiên các trường có thể có trong dữ liệu gốc, sau đó chuẩn hóa lại để sử dụng trong giao diện
     const ticketPhotos = useMemo(() => (Array.isArray(ticket?.photos) ? ticket.photos : []), [ticket?.photos]);
     const licensePlatePhotos = useMemo(
         () => ticketPhotos.filter((p) => String(p?.category || '').toUpperCase() === 'LICENSE_PLATE'),
         [ticketPhotos],
     );
 
+    // Hàm để khôi phục trạng thái của báo giá khi đang trong luồng thêm dịch vụ bị gián đoạn
+    //  Dựa trên snapshot đã lưu trữ trước đó và so sánh với báo giá mới nhất hiện tại để xác định xem có phải cùng một báo giá hay ko
+    // Sau đó khôi phục trạng thái của báo giá và phiếu dịch vụ nếu cần thiết
     const restoreInterruptedAddServiceEstimate = useCallback(
         async (latest, token) => {
             if (!latest || !serviceTicketIdNum) return latest;
@@ -791,6 +865,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             const snapshot = readAddServiceRestoreSnapshot(serviceTicketIdNum);
             if (!snapshot) return latest;
 
+            // So sánh ID báo giá trong snapshot với ID báo giá hiện tại để xác định xem có phải cùng một báo giá hay không
             const latestEstimateId = getEstimateIdValue(latest);
             if (!latestEstimateId || latestEstimateId !== snapshot.estimateIdNum) {
                 clearAddServiceRestoreSnapshot(serviceTicketIdNum);
@@ -800,10 +875,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 return latest;
             }
 
+            // Lưu snapshot vào ref để có thể sử dụng khi cần thiết trong luồng thêm dịch vụ
             addServiceRevertRef.current = snapshot;
 
+            // So sánh trạng thái của báo giá hiện tại với trạng thái trước đó trong snapshot để xác định xem có cần khôi phục trạng thái hay không
             const currentStatus = normalizeEstimateStatus(latest?.estimateStatus ?? latest?.status ?? latest?.estimate_status);
             const previousStatus = normalizeEstimateStatus(snapshot.prevEstimateStatus);
+            // Nếu trạng thái hiện tại không phải là DRAFT hoặc trạng thái trước đó không phải là APPROVED thì không cần khôi phục trạng thái, chỉ cần xóa snapshot và ref liên quan
             if (currentStatus !== 'DRAFT') {
                 clearAddServiceRestoreSnapshot(serviceTicketIdNum);
                 addServiceRevertRef.current = null;
@@ -811,7 +889,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             }
             if (previousStatus !== 'APPROVED') return latest;
 
+            // So sánh các item của báo giá hiện tại với các item trong snapshot để xác định xem có cần khôi phục trạng thái hay không
             const hasNoSavedItemChange = hasSameStringSet(getActiveEstimateItemKeys(latest), snapshot.activeItemKeys);
+            // Nếu không có thay đổi nào về item đã được lưu trữ trong snapshot thì không cần khôi phục trạng thái
             if (!hasNoSavedItemChange) {
                 globalThis.setTimeout?.(() => {
                     try {
@@ -823,8 +903,10 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 return latest;
             }
 
+            // Nếu cần khôi phục trạng thái, gọi API để khôi phục trạng thái của báo giá và phiếu dịch vụ về trạng thái trước đó trong snapshot
             try {
                 const previousTicketStatus = normalizeTicketStatus(snapshot.prevTicketStatus);
+                // Nếu trạng thái của phiếu dịch vụ trước đó có sự khác biệt so với trạng thái hiện tại, thì khôi phục trạng thái của phiếu dịch vụ về trạng thái trước đó
                 if (previousTicketStatus) {
                     await manageServiceTicketStatus(serviceTicketIdNum, previousTicketStatus, token);
                 }
@@ -1437,7 +1519,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     }, [estimateIdNum, latestEstimate?.items, revertEstimateToDraftSilently, serviceTicketIdNum]);
 
+    /**
+     * Luồng xác nhận báo giá (confirm estimate).
+     * - Đồng bộ giữ chỗ vật tư: gọi `ensureStockAllocationAfterConfirm` để quyết định
+     * - Reload dữ liệu chi tiết và kích hoạt refresh UI
+     * Gọi khi người dùng bấm "Xác nhận báo giá" hoặc khi submit popup thời gian.
+     */
     const executeConfirmEstimate = async (estimatedAt = '') => {
+        // Kiểm tra điều kiện (estimate tồn tại, đã login, có item hợp lệ...)
         if (estimateLoading) return;
         if (!estimateIdNum) {
             notify('Chưa có báo giá hợp lệ để xác nhận.');
@@ -1468,6 +1557,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             return;
         }
 
+
         try {
             setEstimateLoading(true);
 
@@ -1477,12 +1567,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                     notify('Thời gian ước tính không hợp lệ.');
                     return;
                 }
+                // Cập nhật thời gian ước tính nếu được truyền vào
                 await updateServiceTicketEstimatedDelivery(ticketCode, estimatedDeliveryAt, token);
                 setEstimatedTimeDraft(estimatedAt);
             }
 
             await manageServiceTicketStatus(serviceTicketIdNum, 'ESTIMATED', token);
             await manageServiceTicketEstimateStatus(estimateIdNum, 'APPROVED', token);
+            // Đổi trạng thái ticket/estimate trên backend (ESTIMATED, APPROVED)
             setLatestEstimate((prev) => (prev ? { ...prev, status: 'APPROVED', estimateStatus: 'APPROVED' } : prev));
 
             // Giữ chỗ vật tư:
@@ -1497,11 +1589,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 snapshotEstimateId === estimateIdNum &&
                 snapshotPrevStatus === 'APPROVED';
 
-            // If we already have stock allocations on the ticket, we normally call
-            // updateEstimateStockAllocation to sync changes. However there is a
-            // special case: when a confirm is triggered only as part of a return
-            // flow (every estimate item has a non-null returnStatus), we should
-            // NOT call update (no actual allocation changes expected).
+            // Mọi mục trong báo giá đều có trạng thái trả hàng - returnStatus khác null),
+            // thì ko  gọi hàm cập nhật (vì không có thay đổi nào về việc giữ hàng mới).
             const anyEstimateItemMissingReturnStatus = Array.isArray(latestEstimate?.items)
                 ? latestEstimate.items
                       .filter((it) => !getEstimateItemGiftFlag(it))
@@ -1515,14 +1604,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                               null;
                           return rawReturnStatus == null || String(rawReturnStatus).trim() === '';
                       })
-                : true; // default true to preserve existing behavior if items unknown
+                : true; 
 
             await ensureStockAllocationAfterConfirm({
                 token,
-                // Only update when this ticket already has reserved/committed allocations
-                // AND at least one estimate item does NOT have a returnStatus (meaning
-                // there are real allocation-relevant items), OR when confirming
-                // append-only changes on an already approved estimate.
+                // Chỉ thực hiện cập nhật khi
+                // Phiếu dịch vụ này đã có các stock allocation trước đó (reserved/committed)
+                // Và có ít nhất một item trong báo giá chưa có trạng thái trả hàng (returnStatus) 
                 shouldUpdateExistingAllocations: isAppendOnlyConfirm || (hasAnyStockAllocation && anyEstimateItemMissingReturnStatus),
             });
 
@@ -1613,7 +1701,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return ticket?.canRequestIssueDraft === true;
     }, [hasAnyRequestableWarehouseDependentItem, isActionLocked, isEstimateApproved, ticketStatus, ticket?.canRequestIssueDraft]);
 
+    /**
+     * Tạo yêu cầu xuất kho cho phiếu dịch vụ hiện tại.
+     * Bấm nút yêu cầu xuất kho
+     */
     const handleRequestStockIssue = useCallback(async () => {
+        // Kiểm tra quyền/điều kiện (token, serviceTicketId, không có lock do hoá đơn)
         if (stockIssueRequesting) return;
         if (isActionLocked) {
             notify('Phiếu dịch vụ đã có hóa đơn, không thể yêu cầu xuất kho.');
@@ -1632,7 +1725,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
         setStockIssueRequesting(true);
         try {
-            const response = await requestWarehouseStockIssue(serviceTicketIdNum, token);
+            const response = await requestWarehouseStockIssue(serviceTicketIdNum, token); //api tạo yêu cầu xuất kho
             notify(response?.message || 'Đã tạo yêu cầu xuất kho.');
 
             const ticketCode = String(ticket?.ticketCode || ticketCodeParam || '').trim();
@@ -1746,6 +1839,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     }, [isCreatingNewEstimateVersion, loadLatestEstimate, refreshDetailView]);
 
+    /**
+     * Xử lý trước khi thực hiện thao tác làm thay đổi báo giá (mutate):
+     * Kiểm tra điều kiện không được phép sửa (ví dụ có hoá đơn, trả hàng đang chờ)
+     * Xác định các promotion cần gỡ (nếu có) và gỡ trước khi thao tác
+     * Cập nhật state tạm để có thể restore promotion sau khi thao tác thất bại/huỷ
+     * Trả về: estimate đã được làm sạch (nếu cần) hoặc null.
+     * Gọi trước các hành động thêm/sửa/xoá item báo giá để đảm bảo consistency.
+     */
     const handleBeforeEstimateMutate = useCallback(async (options = {}) => {
         if (!estimateIdNum || hasBill) return;
         if (hasPendingWarehouseReturnApproval) {
@@ -1870,6 +1971,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     }, [notify, refreshDetailView, setTicketRaw, ticket.ticketCode, ticketCodeParam]);
 
+    /**
+     * Áp dụng một khuyến mãi cho báo giá hiện tại.
+     * Hành vi:
+     * - Kiểm tra điều kiện cho phép áp dụng (trạng thái báo giá, loại promotion, quyền)
+     * - Lấy promotion từ `promoCodes` hoặc `selectedPromotions` và validate
+     * - Gọi API `applyPromotionToEstimate` và cập nhật state local (appliedPromotions, latestEstimate)
+     * - Reload estimate để cập nhật thông tin mới
+     */
     const applyPromotion = async (promotionType) => {
         const type = String(promotionType || '').trim().toUpperCase();
         if (isNewEstimateVersionPromotionLimited && type !== 'PERCENT') {
@@ -1959,6 +2068,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    /**
+     * Hủy áp dụng một khuyến mãi cụ thể khỏi báo giá hiện tại.
+     * Kiểm tra điều kiện (có thể hủy không, tồn tại estimate/serviceTicket id, token)
+     * Gọi API `unapplyPromotionFromEstimate`, cập nhật state và reload estimate
+     */
     const unapplySinglePromotion = async (promotionRow) => {
         if (promoApplying) return;
         if (!canUnapplyPromotionRow(promotionRow)) {
@@ -2133,6 +2247,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    /**
+     * Xử lý khi user gửi form đặt lịch bảo dưỡng từ popup.
+     * Kiểm tra token và các ID cần thiết (serviceTicketId, vehicleId, customerId)
+     * - Gọi `createServiceTicketReminder` để tạo reminder
+     * - Cập nhật local state và thông báo thành công/ lỗi
+     */
     const handleSubmitMaintenance = async ({ scheduledAt, note }) => {
         if (maintenanceSubmitting) return;
 
@@ -2152,6 +2272,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         const reminderDate = String(reminderDateRaw || '').trim();
         const reminderTime = String(reminderTimeRaw || '').slice(0, 5);
 
+        // Validate 
         const source = ticketRaw ?? ticketFromState ?? ticket ?? {};
         const vehicleId =
             toPositiveNumberOrNull(
@@ -2181,6 +2302,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
         try {
             setMaintenanceSubmitting(true);
+            // API tạo lịch nhắc
             await createServiceTicketReminder(
                 {
                     serviceTicketId: serviceTicketIdNum,
@@ -2192,6 +2314,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                 },
                 token,
             );
+            // Cập nhật state nếu cần, ví dụ thêm vào danh sách reminders hiện tại (nếu có)
             setMaintenanceDraft({ scheduledAt: String(scheduledAt || ''), note: String(note || '') });
             setMaintenancePopupOpen(false);
             renderPageSoon();
@@ -2203,6 +2326,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    // Phần giao diện chi tiết phiếu dịch vụ
     return (
         <div className={styles.page} onClickCapture={handlePageButtonClickCapture}>
             <div className={styles.screenOnly}>

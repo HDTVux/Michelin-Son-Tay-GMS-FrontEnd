@@ -974,7 +974,7 @@ export default function AdvisorItemsTable({
                     refreshLatestEstimate,
                     markEstimateDraft,
                 });
-            } catch (err) {
+            } catch {
                 // continue cancelling others even if one fails
             }
         }
