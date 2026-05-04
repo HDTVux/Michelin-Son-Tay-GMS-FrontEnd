@@ -1,15 +1,5 @@
 import { request } from './apiClient';
 
-const toSafePage = (value) => {
-  const number = Number(value);
-  return Number.isFinite(number) && number >= 0 ? Math.trunc(number) : 0;
-};
-
-const toSafeSize = (value, fallback = 10) => {
-  const number = Number(value);
-  return Number.isFinite(number) && number >= 1 ? Math.trunc(number) : fallback;
-};
-
 // ============ STAFF DASHBOARD APIs ============
 
 /**
@@ -80,8 +70,8 @@ export const fetchStaffSchedule = (from, to, token) => {
  * GET /api/staff/notifications?page=&size=
  * Lấy danh sách thông báo có phân trang.
  */
-export const fetchStaffNotifications = (page = 0, size = 10, token) =>
-  request(`/api/staff/notifications?page=${toSafePage(page)}&size=${toSafeSize(size)}`, {
+export const fetchStaffNotifications = (token) =>
+  request('/api/staff-notification', {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -91,7 +81,7 @@ export const fetchStaffNotifications = (page = 0, size = 10, token) =>
  * Đánh dấu một thông báo đã đọc.
  */
 export const markStaffNotificationAsRead = (notificationId, token) =>
-  request(`/api/staff/notifications/${notificationId}/read`, {
+  request(`/api/staff-notification/${encodeURIComponent(notificationId)}/isReaded`, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
   });

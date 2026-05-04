@@ -22,6 +22,39 @@ function formatCurrencyVnd(value) {
     return n ? new Intl.NumberFormat('vi-VN').format(Math.round(n)) : '';
 }
 
+function firstMoneyValue(...values) {
+    const found = values.find(hasPrintValue);
+    return found == null ? 0 : toMoneyNumber(found);
+}
+
+function getGiftFlag(item) {
+    const raw = item?.isGift ?? item?.is_gift;
+    return raw === true || String(raw ?? '').trim().toLowerCase() === 'true';
+}
+
+function getLineDiscountAmount(item) {
+    return Math.max(0, firstMoneyValue(
+        item?.discountAmount,
+        item?.discount_amount,
+        item?.promotionDiscountAmount,
+        item?.promotion_discount_amount,
+        item?.discountValue,
+        item?.discount_value,
+    ));
+}
+
+function isReturnedInvoiceItem(item) {
+    return String(
+        item?.stockAllocation?.status ??
+            item?.allocation?.status ??
+            item?.warehouseAllocation?.status ??
+            item?.stockAllocationStatus ??
+            item?.stock_allocation_status ??
+            item?.allocationStatus ??
+            '',
+    ).trim().toUpperCase() === 'RELEASED';
+}
+
 function CarDiagram({ src }) {
 	const resolvedSrc = typeof src === 'string' && src.trim() ? src.trim() : CarIcon;
 	return <img className={styles.carImg} src={resolvedSrc} alt="" />;
@@ -81,6 +114,67 @@ function firstPrintValue(...values) {
     return found == null ? '' : String(found);
 }
 
+function normalizeTaxRatePercentText(rawRate) {
+    const n = typeof rawRate === 'number' ? rawRate : Number(String(rawRate ?? '').trim());
+    if (!Number.isFinite(n) || n <= 0) return '';
+    const rate = n > 1 ? n : n * 100;
+    return `${rate.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`;
+}
+
+function getLineTaxRateText(item) {
+    const directText = safeText(item?.taxRateText ?? item?.tax_rate_text);
+    if (directText && directText !== '0%' && directText !== '--') return directText;
+
+    const rateText = normalizeTaxRatePercentText(
+        item?.appliedTaxRate ??
+            item?.applied_tax_rate ??
+            item?.taxRate ??
+            item?.tax_rate ??
+            item?.taxRule?.taxRate ??
+            item?.taxRule?.rate ??
+            item?.workCategory?.taxRule?.taxRate ??
+            item?.workCategory?.taxRule?.rate,
+    );
+    if (rateText) return rateText;
+
+    return '';
+}
+
+function getLineTaxIncludedNote(item) {
+    const taxRateText = getLineTaxRateText(item);
+    if (!taxRateText && toMoneyNumber(item?.taxAmount ?? item?.tax_amount) <= 0) return '';
+    return taxRateText ? `(đã bao gồm thuế ${taxRateText})` : '(đã bao gồm thuế)';
+}
+
+function resolveSafetyEnabled(ticket, safetyInspection) {
+    const status = String(
+        safetyInspection?.inspectionStatus ??
+            safetyInspection?.status ??
+            ticket?.safetyInspectionStatus ??
+            ticket?.inspectionStatus ??
+            ticket?.inspection?.inspectionStatus ??
+            '',
+    ).trim().toUpperCase();
+
+    if (['SKIPPED', 'CANCELLED', 'DISABLED', 'NOT_REQUIRED'].includes(status)) return false;
+
+    const explicit = ticket?.safetyInspectionEnabled;
+    if (typeof explicit === 'boolean') return explicit;
+    if (typeof explicit === 'number') return explicit === 1;
+    if (typeof explicit === 'string') {
+        const normalized = explicit.trim().toLowerCase();
+        if (['false', '0', 'no', 'khong', 'không'].includes(normalized)) return false;
+        if (['true', '1', 'yes', 'co', 'có'].includes(normalized)) return true;
+    }
+
+    return Boolean(
+        safetyInspection?.technicianNotes ||
+            safetyInspection?.recommendedTireSize ||
+            safetyInspection?.tires?.length ||
+            safetyInspection?.items?.length,
+    );
+}
+
 export default function Receipt({ ticket, carDiagramSrc }) {
 	const customer = ticket?.customer || {};
 	const vehicle = ticket?.vehicle || {};
@@ -99,20 +193,35 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     );
     const odometer = vehicle?.odometerKm == null ? '' : `${Number(vehicle.odometerKm).toLocaleString('vi-VN')}`;
 
-    const invoiceItemsRaw = Array.isArray(invoice?.items) ? invoice.items : [];
+    const invoiceItemsRaw = Array.isArray(invoice?.items)
+        ? invoice.items.filter((item) => !isReturnedInvoiceItem(item))
+        : [];
     const invoiceItems = invoiceItemsRaw.map((it, idx) => {
         const quantity = toMoneyNumber(it?.quantity);
         const unitPrice = toMoneyNumber(it?.unitPrice);
-        const subTotal = toMoneyNumber(it?.subTotal) || quantity * unitPrice;
+        const discountLineAmount = getLineDiscountAmount(it);
+        const grossAmount = quantity * unitPrice;
+        const subTotal = firstMoneyValue(
+            it?.subTotal,
+            it?.sub_total,
+            it?.finalPrice,
+            it?.final_price,
+            it?.finalAmount,
+            it?.final_amount,
+        ) || Math.max(0, grossAmount - discountLineAmount);
+        const isGift = getGiftFlag(it);
         return {
             key: String(it?.key ?? it?.estimateItemId ?? it?.itemId ?? idx),
             categoryName: safeText(it?.categoryName || it?.workCategory?.categoryName || it?.workCategory?.categoryCode || ''),
             itemName: safeText(it?.itemName || it?.description || ''),
             warehouseName: safeText(it?.warehouseName || it?.warehouse?.warehouseName || it?.warehouse?.name || ''),
             quantity,
-            unitPrice,
-            subTotal,
-            confirmed: Boolean(it?.confirmed),
+            unitPrice: isGift ? 0 : unitPrice,
+            discountAmount: isGift ? 0 : discountLineAmount,
+            subTotal: isGift ? 0 : subTotal,
+            taxRateText: getLineTaxRateText(it),
+            taxIncludedNote: isGift ? '' : getLineTaxIncludedNote(it),
+            isGift,
         };
     });
 
@@ -139,13 +248,8 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     }
 
     // Safety inspection data
-    // Kiểm tra an toàn: dựa vào có dữ liệu safety inspection hay không
-    const hasSafetyEnabled = Boolean(safetyInspection) && (
-        Boolean(safetyInspection?.technicianNotes) ||
-        Boolean(safetyInspection?.recommendedTireSize) ||
-        Boolean(safetyInspection?.tires?.length) ||
-        Boolean(safetyInspection?.items?.length)
-    );
+    // Ưu tiên trạng thái/cờ của phiếu để trường hợp SKIPPED không bị in nhầm là "Có".
+    const hasSafetyEnabled = resolveSafetyEnabled(ticket, safetyInspection);
 
     const technicianNotes = safeText(safetyInspection?.technicianNotes || '');
 
@@ -242,9 +346,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         <th className={styles.thDesc}>DIỄN GIẢI</th>
                         <th className={styles.thQty}>SL</th>
                         <th className={styles.thPrice}>ĐƠN GIÁ</th>
+                        <th className={styles.thDiscount}>GIẢM GIÁ</th>
                         <th className={styles.thAmount}>THÀNH TIỀN</th>
                         <th className={styles.thKho}>KHO</th>
-                        <th className={styles.thConfirm}>XÁC NHẬN</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -255,27 +359,34 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         const desc = it?.itemName || '';
                         const qty = it?.quantity ? String(it.quantity) : '';
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
+                        const discount = it?.discountAmount ? formatCurrencyVnd(it.discountAmount) : '';
                         const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
                         const warehouseName = it?.warehouseName || '';
-                        const confirmMark = it?.confirmed ? '✓' : '';
+                        const taxIncludedNote = it?.taxIncludedNote || '';
+                        const warehouseClassName = warehouseName.length > 28
+                            ? `${styles.tdWarehouse} ${styles.tdWarehouseLong}`
+                            : styles.tdWarehouse;
                         return (
-                            <tr key={rowKey}>
+                            <tr key={rowKey} className={it?.isGift ? styles.giftRow : undefined}>
                                 <td className={styles.tdCenter}>{String(idx + 1).padStart(2, '0')}</td>
                                 <td>{label}</td>
                                 <td>{desc}</td>
                                 <td className={styles.tdCenter}>{qty}</td>
                                 <td className={styles.tdRight}>{price}</td>
-                                <td className={styles.tdRight}>{amount}</td>
-                                <td>{warehouseName}</td>
-                                <td className={styles.tdCenter}>{confirmMark}</td>
+                                <td className={styles.tdRight}>{discount}</td>
+                                <td className={`${styles.tdRight} ${styles.amountCell}`}>
+                                    <div>{amount}</div>
+                                    {taxIncludedNote ? <div className={styles.taxIncludedNote}>{taxIncludedNote}</div> : null}
+                                </td>
+                                <td className={warehouseClassName} title={warehouseName}>{warehouseName}</td>
                             </tr>
                         );
                     })}
                     {showTotal ? (
                         <tr>
-                            <td colSpan={5} className={styles.totalLabel}>TỔNG CỘNG</td>
+                            <td colSpan={6} className={styles.totalLabel}>TỔNG CỘNG</td>
                             <td className={`${styles.tdRight} ${styles.tdTotalValue}`}>{formatCurrencyVnd(total)}</td>
-                            <td colSpan={2} />
+                            <td />
                         </tr>
                     ) : null}
                 </tbody>
@@ -559,9 +670,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         <th className={styles.thDesc}>DIỄN GIẢI</th>
                         <th className={styles.thQty}>SL</th>
                         <th className={styles.thPrice}>ĐƠN GIÁ</th>
+                        <th className={styles.thDiscount}>GIẢM GIÁ</th>
                         <th className={styles.thAmount}>THÀNH TIỀN</th>
                         <th className={styles.thKho}>KHO</th>
-                        <th className={styles.thConfirm}>XÁC NHẬN</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -571,27 +682,34 @@ export default function Receipt({ ticket, carDiagramSrc }) {
                         const desc = it?.itemName || '';
                         const qty = it?.quantity ? String(it.quantity) : '';
                         const price = it?.unitPrice ? formatCurrencyVnd(it.unitPrice) : '';
+                        const discount = it?.discountAmount ? formatCurrencyVnd(it.discountAmount) : '';
                         const amount = it?.subTotal ? formatCurrencyVnd(it.subTotal) : '';
                         const warehouseName = it?.warehouseName || '';
-                        const confirmMark = it?.confirmed ? '✓' : '';
+                        const taxIncludedNote = it?.taxIncludedNote || '';
+                        const warehouseClassName = warehouseName.length > 28
+                            ? `${styles.tdWarehouse} ${styles.tdWarehouseLong}`
+                            : styles.tdWarehouse;
                         return (
-                            <tr key={rowKey}>
+                            <tr key={rowKey} className={it?.isGift ? styles.giftRow : undefined}>
                                 <td className={styles.tdCenter}>{String(idx + 1).padStart(2, '0')}</td>
                                 <td>{label}</td>
                                 <td>{desc}</td>
                                 <td className={styles.tdCenter}>{qty}</td>
                                 <td className={styles.tdRight}>{price}</td>
-                                <td className={styles.tdRight}>{amount}</td>
-                                <td>{warehouseName}</td>
-                                <td className={styles.tdCenter}>{confirmMark}</td>
+                                <td className={styles.tdRight}>{discount}</td>
+                                <td className={`${styles.tdRight} ${styles.amountCell}`}>
+                                    <div>{amount}</div>
+                                    {taxIncludedNote ? <div className={styles.taxIncludedNote}>{taxIncludedNote}</div> : null}
+                                </td>
+                                <td className={warehouseClassName} title={warehouseName}>{warehouseName}</td>
                             </tr>
                         );
                     })}
                     {/* Dòng TỔNG CỘNG */}
                     <tr>
-                        <td colSpan={5} className={styles.totalLabel}>TỔNG CỘNG</td>
+                        <td colSpan={6} className={styles.totalLabel}>TỔNG CỘNG</td>
                         <td className={`${styles.tdRight} ${styles.tdTotalValue}`}>{formatCurrencyVnd(total)}</td>
-                        <td colSpan={2} />
+                        <td />
                     </tr>
                 </tbody>
             </table>
@@ -672,8 +790,14 @@ Receipt.propTypes = {
                     warehouseName: PropTypes.string,
                     quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     unitPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    discountAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    discount_amount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     subTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-                    confirmed: PropTypes.bool,
+                    taxRateText: PropTypes.string,
+                    taxAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    appliedTaxRate: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    isGift: PropTypes.bool,
+                    is_gift: PropTypes.bool,
                 }),
             ),
             subtotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
@@ -708,6 +832,7 @@ Receipt.propTypes = {
 				categoryName: PropTypes.string,
 				itemStatus: PropTypes.string,
 			})),
+            inspectionStatus: PropTypes.string,
 		}),
 	}),
 	carDiagramSrc: PropTypes.string,

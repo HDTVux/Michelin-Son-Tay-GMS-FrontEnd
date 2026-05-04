@@ -1,11 +1,35 @@
 import { API_BASE_URL, request } from './apiClient.js';
 
+const authHeaders = (token) => (token ? { Authorization: `Bearer ${token}` } : {});
+
+const appendCustomerSearchParam = (params, key, value) => {
+  if (value === undefined || value === null) return;
+  const text = String(value).trim();
+  if (!text) return;
+  params.append(key, text);
+};
+
 // Customer lookup by phone for staff
 export const fetchCustomerByPhone = (phone, token) =>
   request(`/api/booking/staff/customer-lookup?phone=${encodeURIComponent(phone)}`, {
     method: 'GET',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: authHeaders(token),
   });
+
+export const searchAdminCustomers = (params = {}, token) => {
+  const qp = new URLSearchParams();
+  qp.append('page', String(Math.max(0, Number(params.page) || 0)));
+  qp.append('size', String(Math.max(1, Number(params.size) || 10)));
+  appendCustomerSearchParam(qp, 'date', params.date);
+  appendCustomerSearchParam(qp, 'isGuest', params.isGuest);
+  appendCustomerSearchParam(qp, 'search', params.search);
+  appendCustomerSearchParam(qp, 'status', params.status);
+
+  return request(`/api/admin/customer/getAllCustomer?${qp.toString()}`, {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+};
 
 // Fetch customer profile
 export const fetchCustomerProfile = (token) =>

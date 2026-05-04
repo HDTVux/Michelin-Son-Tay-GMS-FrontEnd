@@ -14,6 +14,7 @@ const STORE_INFO = {
 };
 
 const BARCODE_BCID = 'code128';
+const QR_BCID = 'qrcode';
 
 function safeText(value) {
     if (value == null) return '';
@@ -34,6 +35,58 @@ function formatCurrencyVnd(value) {
 function formatCurrencyVndZero(value) {
     const amount = Math.round(toMoneyNumber(value));
     return new Intl.NumberFormat('vi-VN').format(amount);
+}
+
+function formatTaxRateForPrint(item) {
+    const directText = safeText(item?.taxRateText ?? item?.tax_rate_text);
+    if (directText) return directText;
+
+    const rawRate = item?.appliedTaxRate ?? item?.applied_tax_rate ?? item?.taxRate ?? item?.tax_rate;
+    const rate = typeof rawRate === 'number' ? rawRate : Number(String(rawRate ?? '').trim());
+    if (Number.isFinite(rate) && rate > 0) {
+        const percent = rate > 1 ? rate : rate * 100;
+        return `${percent.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`;
+    }
+
+    return toMoneyNumber(item?.taxAmount ?? item?.tax_amount) > 0 ? '--' : '0%';
+}
+
+function getInvoiceItemStockStatus(item) {
+    return String(
+        item?.stockAllocation?.status ??
+            item?.allocation?.status ??
+            item?.warehouseAllocation?.status ??
+            item?.stockAllocationStatus ??
+            item?.stock_allocation_status ??
+            item?.allocationStatus ??
+            '',
+    ).trim().toUpperCase();
+}
+
+function isReturnedInvoiceItem(item) {
+    const status = getInvoiceItemStockStatus(item);
+    if (['RELEASED', 'RETURNED', 'RETURN', 'REFUNDED', 'REFUND', 'CANCELLED_RETURN'].includes(status)) return true;
+
+    const returnStatus = String(
+        item?.returnStatus ??
+            item?.return_status ??
+            item?.returnEntryStatus ??
+            item?.return_entry_status ??
+            item?.warehouseReturnStatus ??
+            item?.warehouse_return_status ??
+            item?.stockReturnStatus ??
+            item?.stock_return_status ??
+            '',
+    ).trim().toUpperCase();
+    if (['RETURNED', 'RETURN', 'REFUNDED', 'REFUND', 'CONFIRMED', 'COMPLETED'].includes(returnStatus)) return true;
+
+    return toMoneyNumber(item?.returnedQuantity ?? item?.returned_quantity ?? item?.returnQuantity ?? item?.return_quantity) > 0;
+}
+
+function isBillableInvoiceItem(item) {
+    if (isReturnedInvoiceItem(item)) return false;
+    const status = getInvoiceItemStockStatus(item);
+    return !status || status === 'COMMITTED';
 }
 
 function readTripleNumber(value, forceLeadingZeroHundred = false) {
@@ -126,6 +179,28 @@ function getInvoiceDate(ticket) {
     return parsed;
 }
 
+function encodeBase64Url(value) {
+    const bytes = new TextEncoder().encode(String(value ?? ''));
+    let binary = '';
+    bytes.forEach((byte) => {
+        binary += String.fromCharCode(byte);
+    });
+    return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+}
+
+function buildVatInvoicePayload({ ticket, subtotalAmount, discountAmount, totalAmount, issuedAt }) {
+    return {
+        sid: ticket?.serviceTicketId ?? ticket?.serviceTicketID ?? ticket?.serviceTicket?.serviceTicketId ?? null,
+        c: safeText(ticket?.ticketCode || ticket?.serviceTicketCode || ticket?.code),
+        d: issuedAt.toISOString().slice(0, 10),
+        u: [buildCustomerName(ticket?.customer), safeText(ticket?.customer?.phone), buildCustomerAddress(ticket)],
+        v: [safeText(ticket?.vehicle?.licensePlate), safeText(ticket?.vehicle?.model)],
+        s: subtotalAmount,
+        g: discountAmount,
+        t: totalAmount,
+    };
+}
+
 export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint = true }) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -135,17 +210,26 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
         return ticketProp ?? location?.state?.ticket ?? null;
     }, [ticketProp, location?.state?.ticket]);
 
-    const invoice = ticket?.invoice || {};
-    const invoiceItems = Array.isArray(invoice?.items) ? invoice.items : [];
+    const invoice = useMemo(() => ticket?.invoice || {}, [ticket]);
+    const invoiceItems = useMemo(
+        () => (Array.isArray(invoice?.items) ? invoice.items.filter(isBillableInvoiceItem) : []),
+        [invoice],
+    );
     const rowCount = Math.max(DEFAULT_ROW_COUNT, invoiceItems.length);
 
-    const computedSubtotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
-    const subtotalAmount = Math.max(0, toMoneyNumber(invoice?.subtotal) || computedSubtotal);
+    const computedSubtotal = invoiceItems.reduce((sum, item) => sum + (toMoneyNumber(item?.grossAmount) || toMoneyNumber(item?.subTotal)), 0);
+    const computedLineTotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
+    const subtotalAmount = Math.max(0, computedSubtotal || toMoneyNumber(invoice?.subtotal));
     const discountAmount = Math.max(0, toMoneyNumber(invoice?.discountAmount));
+    const lineDiscountAmount = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.discountAmount ?? item?.discount_amount), 0);
+    const displayDiscountAmount = invoiceItems.length > 0 ? lineDiscountAmount : discountAmount;
 
-    const totalAmount = Number.isFinite(Number(invoice?.total))
-        ? Number(invoice.total)
-        : Math.max(0, subtotalAmount - discountAmount);
+    const invoiceTotal = Number(invoice?.total);
+    const totalAmount = computedLineTotal > 0
+        ? computedLineTotal
+        : Number.isFinite(invoiceTotal)
+            ? Math.max(0, invoiceTotal)
+            : Math.max(0, subtotalAmount - displayDiscountAmount);
 
     const totalInWords = numberToVietnameseWords(totalAmount);
     const customerName = buildCustomerName(ticket?.customer);
@@ -160,19 +244,80 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
         const code = safeText(ticket?.ticketCode || ticket?.serviceTicketCode || ticket?.code);
         if (!code) return '';
         const bcid = safeText(invoice?.barcodeType) || BARCODE_BCID;
-        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(bcid)}&text=${encodeURIComponent(code)}`;
+        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(bcid)}&text=${encodeURIComponent(code)}&scale=2&height=12&includetext&textxalign=center&textsize=9&paddingwidth=8`;
     }, [invoice?.barcodeType, ticket?.code, ticket?.serviceTicketCode, ticket?.ticketCode]);
+
+    const vatInvoiceUrl = useMemo(() => {
+        if (!ticketCode) return '';
+        const origin = globalThis.window?.location?.origin || '';
+        if (!origin) return '';
+        const payload = buildVatInvoicePayload({
+            ticket,
+            subtotalAmount,
+            discountAmount: displayDiscountAmount,
+            totalAmount,
+            issuedAt,
+        });
+        const serviceTicketId = payload.sid == null ? '' : String(payload.sid).trim();
+        const params = new URLSearchParams();
+        params.set('ticketCode', ticketCode);
+        if (serviceTicketId) params.set('serviceTicketId', serviceTicketId);
+        if (!serviceTicketId) {
+            params.set('data', encodeBase64Url(JSON.stringify(payload)));
+        }
+        return `${origin}/vat-invoice?${params.toString()}`;
+    }, [displayDiscountAmount, issuedAt, subtotalAmount, ticket, ticketCode, totalAmount]);
+
+    const vatQrUrl = useMemo(() => {
+        if (!vatInvoiceUrl) return '';
+        return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(QR_BCID)}&text=${encodeURIComponent(vatInvoiceUrl)}&scale=8&eclevel=M&paddingwidth=14`;
+    }, [vatInvoiceUrl]);
 
     useEffect(() => {
         if (!autoPrint) return;
         if (!ticket) return;
-        const id = globalThis.setTimeout?.(() => {
-            globalThis.window?.print?.();
-        }, barcodeUrl ? 900 : 100);
-        return () => {
-            if (id) globalThis.clearTimeout?.(id);
+
+        let rafId = 0;
+        let timeoutId = 0;
+        let didPrint = false;
+
+        const areCodeImagesReady = () => {
+            const images = Array.from(globalThis.document?.querySelectorAll?.('[data-role="invoice-code-img"]') || []);
+            if (images.length === 0) return true;
+            return images.every((img) => img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0);
         };
-    }, [autoPrint, barcodeUrl, ticket]);
+
+        const doPrint = async () => {
+            if (didPrint) return;
+            didPrint = true;
+            if (rafId) globalThis.cancelAnimationFrame?.(rafId);
+            if (timeoutId) globalThis.clearTimeout?.(timeoutId);
+            try {
+                await globalThis.document?.fonts?.ready;
+            } catch {
+                // ignore
+            }
+            globalThis.window?.print?.();
+        };
+
+        const waitAndPrint = () => {
+            if (areCodeImagesReady()) {
+                void doPrint();
+                return;
+            }
+            rafId = globalThis.requestAnimationFrame?.(waitAndPrint);
+        };
+
+        rafId = globalThis.requestAnimationFrame?.(waitAndPrint);
+        timeoutId = globalThis.setTimeout?.(() => {
+            void doPrint();
+        }, 8000);
+
+        return () => {
+            if (rafId) globalThis.cancelAnimationFrame?.(rafId);
+            if (timeoutId) globalThis.clearTimeout?.(timeoutId);
+        };
+    }, [autoPrint, barcodeUrl, vatQrUrl, ticket]);
 
     if (!ticket) {
         const code = safeText(params?.ticketCode);
@@ -216,11 +361,40 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                             <span>Ngày lập</span>
                             <strong>{issuedAt.getDate()}/{issuedAt.getMonth() + 1}/{issuedAt.getFullYear()}</strong>
                         </div>
-                        {barcodeUrl ? (
-                            <div className={styles.barcodeWrap}>
-                                <img className={styles.barcodeImg} src={barcodeUrl} alt={`Barcode ${ticketCode}`} />
-                            </div>
-                        ) : null}
+                        <div className={styles.codeWrap}>
+                            <span
+                                hidden
+                                data-role="vat-qr-state"
+                                data-ready={vatInvoiceUrl ? String(Boolean(vatQrUrl)) : 'true'}
+                            />
+                            {barcodeUrl ? (
+                                <div className={styles.barcodeWrap}>
+                                    <img
+                                        className={styles.barcodeImg}
+                                        src={barcodeUrl}
+                                        alt={`Barcode ${ticketCode}`}
+                                        loading="eager"
+                                        decoding="sync"
+                                        fetchPriority="high"
+                                        data-role="invoice-code-img"
+                                    />
+                                </div>
+                            ) : null}
+                            {vatQrUrl ? (
+                                <div className={styles.qrWrap}>
+                                    <img
+                                        className={styles.qrImg}
+                                        src={vatQrUrl}
+                                        alt="QR hóa đơn giá trị gia tăng"
+                                        loading="eager"
+                                        decoding="sync"
+                                        fetchPriority="high"
+                                        data-role="invoice-code-img"
+                                    />
+                                    <span>QR HĐ GTGT</span>
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
 
@@ -255,6 +429,8 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                         <th>TÊN HÀNG</th>
                         <th className={styles.colQty}>SỐ LƯỢNG</th>
                         <th className={styles.colPrice}>ĐƠN GIÁ</th>
+                        <th className={styles.colDiscount}>GIẢM GIÁ</th>
+                        <th className={styles.colTax}>THUẾ</th>
                         <th className={styles.colAmount}>THÀNH TIỀN</th>
                     </tr>
                 </thead>
@@ -267,26 +443,14 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
                                 <td>{buildInvoiceItemName(item) || ' '}</td>
                                 <td className={styles.center}>{item ? safeText(item?.quantity) : ' '}</td>
                                 <td className={styles.right}>{item ? formatCurrencyVnd(item?.unitPrice) : ' '}</td>
+                                <td className={styles.right}>{item ? formatCurrencyVndZero(item?.discountAmount ?? item?.discount_amount) : ' '}</td>
+                                <td className={styles.center}>{item ? formatTaxRateForPrint(item) : ' '}</td>
                                 <td className={styles.right}>{item ? formatCurrencyVnd(item?.subTotal) : ' '}</td>
                             </tr>
                         );
                     })}
                     <tr className={styles.totalRow}>
-                        <td colSpan={4} className={styles.totalLabel}>
-                            CỘNG TIỀN HÀNG
-                        </td>
-                        <td className={styles.right}>{formatCurrencyVndZero(subtotalAmount)}</td>
-                    </tr>
-
-                    <tr className={styles.totalRow}>
-                        <td colSpan={4} className={styles.totalLabel}>
-                            GIẢM GIÁ
-                        </td>
-                        <td className={styles.right}>{discountAmount ? `-${formatCurrencyVndZero(discountAmount)}` : formatCurrencyVndZero(0)}</td>
-                    </tr>
-
-                    <tr className={styles.totalRow}>
-                        <td colSpan={4} className={styles.totalLabel}>
+                        <td colSpan={6} className={styles.totalLabel}>
                             TỔNG THANH TOÁN
                         </td>
                         <td className={styles.right}>{formatCurrencyVndZero(totalAmount)}</td>
@@ -320,6 +484,7 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
 AccountingInvoicePrint.propTypes = {
     ticket: PropTypes.shape({
         ticketCode: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        serviceTicketId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         receivedAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
         handoverAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
         customer: PropTypes.shape({
@@ -342,6 +507,10 @@ AccountingInvoicePrint.propTypes = {
                     itemName: PropTypes.string,
                     quantity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     unitPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    discountAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    taxRateText: PropTypes.string,
+                    taxAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+                    grossAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                     subTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
                 }),
             ),

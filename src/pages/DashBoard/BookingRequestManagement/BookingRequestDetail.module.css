@@ -215,6 +215,127 @@
   word-break: break-word;
 }
 
+.estimateHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.estimateMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.estimateStatus {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  font-weight: 600;
+}
+
+.estimateTableWrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: white;
+}
+
+.estimateTable {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.estimateTable th,
+.estimateTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+  color: #0f172a;
+}
+
+.estimateTable th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.estimateTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.estimateItemName {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 170px;
+}
+
+.giftBadge {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.numberCell {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.estimateTotals {
+  align-self: flex-end;
+  width: min(100%, 360px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.estimateTotals > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #475569;
+}
+
+.estimateTotals strong {
+  color: #0f172a;
+}
+
+.estimateGrandTotal {
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+  color: #0f172a !important;
+}
+
+.estimateGrandTotal strong {
+  font-size: 17px;
+  color: #047857;
+}
+
 .actionsRow {
   display: flex;
   flex-wrap: wrap;

@@ -238,3 +238,157 @@ export function validateFixedDigitsYear(
 
   return { value: year, error: '' };
 }
+
+/**
+ * Helper to parse number, handling comma as decimal separator.
+ *
+ * @param {unknown} value
+ * @returns {number}
+ */
+export function readNumber(value) {
+  let stringValue = '';
+  if (typeof value === 'number') {
+    stringValue = String(value);
+  } else if (typeof value === 'string') {
+    stringValue = value ?? '';
+  }
+  const num = Number(stringValue.trim().replaceAll(',', ''));
+  return Number.isFinite(num) ? num : Number.NaN;
+}
+
+/**
+ * Validate supplier name for warehouse stock entry.
+ *
+ * @param {unknown} value
+ * @param {{ maxLength?: number }} [options]
+ * @returns {{ valid: boolean, error: string }}
+ */
+export function validateSupplierName(value, { maxLength = 100 } = {}) {
+  let stringValue = '';
+  if (typeof value === 'string') {
+    stringValue = value ?? '';
+  } else if (typeof value === 'number') {
+    stringValue = String(value);
+  }
+  const trimmed = stringValue.trim();
+  if (!trimmed) return { valid: false, error: 'Nhà cung cấp không được để trống' };
+  if (trimmed.length > maxLength) {
+    return { valid: false, error: `Nhà cung cấp tối đa ${maxLength} ký tự` };
+  }
+  return { valid: true, error: '' };
+}
+
+/**
+ * Validate notes field for warehouse stock entry.
+ *
+ * @param {unknown} value
+ * @param {{ maxLength?: number }} [options]
+ * @returns {{ valid: boolean, error: string }}
+ */
+export function validateNotes(value, { maxLength = 500 } = {}) {
+  let stringValue = '';
+  if (typeof value === 'string') {
+    stringValue = value ?? '';
+  } else if (typeof value === 'number') {
+    stringValue = String(value);
+  }
+  const trimmed = stringValue.trim();
+  if (trimmed.length > maxLength) {
+    return { valid: false, error: `Ghi chú tối đa ${maxLength} ký tự` };
+  }
+  return { valid: true, error: '' };
+}
+
+/**
+ * Validate quantity for warehouse stock entry.
+ *
+ * @param {unknown} value
+ * @param {{ maxValue?: number }} [options]
+ * @returns {{ valid: boolean, error: string }}
+ */
+export function validateWarehouseQuantity(value, { maxValue = 999999 } = {}) {
+  const num = readNumber(value);
+  if (!Number.isFinite(num) || num <= 0) {
+    return { valid: false, error: 'Số lượng phải > 0' };
+  }
+  if (num > maxValue) {
+    return { valid: false, error: `Số lượng tối đa ${maxValue}` };
+  }
+  if (!Number.isInteger(num)) {
+    return { valid: false, error: 'Số lượng phải là số nguyên' };
+  }
+  return { valid: true, error: '' };
+}
+
+/**
+ * Validate import price for warehouse stock entry.
+ *
+ * @param {unknown} value
+ * @param {{ maxValue?: number }} [options]
+ * @returns {{ valid: boolean, error: string }}
+ */
+export function validateWarehouseImportPrice(value, { maxValue = 999999999 } = {}) {
+  const num = readNumber(value);
+  if (!Number.isFinite(num) || num < 0) {
+    return { valid: false, error: 'Giá nhập phải >= 0' };
+  }
+  if (num > maxValue) {
+    return { valid: false, error: `Giá nhập tối đa ${maxValue}` };
+  }
+  return { valid: true, error: '' };
+}
+
+/**
+ * Validate markup multiplier for warehouse stock entry.
+ *
+ * @param {unknown} value
+ * @param {{ maxValue?: number }} [options]
+ * @returns {{ valid: boolean, error: string }}
+ */
+export function validateWarehouseMarkupMultiplier(value, { maxValue = 999.99 } = {}) {
+  const num = readNumber(value);
+  if (!Number.isFinite(num) || num < 0) {
+    return { valid: false, error: 'Mức lợi nhuận phải >= 0' };
+  }
+  if (num > maxValue) {
+    return { valid: false, error: `Mức lợi nhuận tối đa ${maxValue}` };
+  }
+  return { valid: true, error: '' };
+}
+
+/**
+ * Validate estimate/row quantity (used in advisor/estimate rows).
+ * Ensures integer, >0 and within allowed max.
+ */
+export function validateEstimateQuantity(value, { required = true, maxValue = 999999 } = {}) {
+  const num = readNumber(value);
+  if (!Number.isFinite(num)) {
+    return { valid: !required, error: required ? 'Số lượng không hợp lệ' : '' };
+  }
+  if (num <= 0) return { valid: false, error: 'Số lượng phải > 0' };
+  if (!Number.isInteger(num)) return { valid: false, error: 'Số lượng phải là số nguyên' };
+  if (num > maxValue) return { valid: false, error: `Số lượng tối đa ${maxValue}` };
+  return { valid: true, error: '' };
+}
+
+/**
+ * Validate estimate/row unit price.
+ * Allows decimals (default 2) and enforces non-negative and max value.
+ */
+export function validateEstimateUnitPrice(
+  value,
+  { required = false, maxValue = 999999999, maxDecimals = 2 } = {},
+) {
+  const raw = typeof value === 'string' ? value.replaceAll(',', '.') : String(value);
+  if (!raw || raw === '.') return required ? { valid: false, error: 'Đơn giá là bắt buộc' } : { valid: true, error: '' };
+  // basic numeric format check
+  if (!/^\d+(?:\.\d+)?$/.test(raw)) return { valid: false, error: 'Đơn giá không hợp lệ' };
+  const parts = raw.split('.');
+  const decimals = parts.length > 1 ? parts[1] : '';
+  if (decimals.length > maxDecimals) return { valid: false, error: `Đơn giá tối đa ${maxDecimals} chữ số thập phân` };
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return { valid: false, error: 'Đơn giá không hợp lệ' };
+  if (num < 0) return { valid: false, error: 'Đơn giá phải >= 0' };
+  if (num > maxValue) return { valid: false, error: `Đơn giá tối đa ${maxValue}` };
+  return { valid: true, error: '' };
+}

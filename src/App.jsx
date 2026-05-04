@@ -49,12 +49,14 @@ import WarehousePricing from './pages/DashBoard/WarehouseManagement/WarehousePri
 import BlogManagement from './pages/DashBoard/PartManagement/ServiceManagement.jsx';
 import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx';
 import CreateService from './pages/DashBoard/PartManagement/CreateService.jsx';
+import BlogFormPage from './pages/DashBoard/PartManagement/BlogFormPage.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
 import VehicleManagement from './pages/DashBoard/VehicleManagement/VehicleManagement.jsx';
 import WarehouseManagement from './pages/DashBoard/WarehouseManagement/WarehouseManagement.jsx';
+import RevenueManagement from './pages/DashBoard/RevenueManagement/RevenueManagement.jsx';
 
 //Customer pages
 import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
@@ -67,8 +69,8 @@ import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 //Receptionist pages
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
 import SendReminder from './pages/DashBoard/SendReminder/SendReminder.jsx';
+import StaffNotificationSender from './pages/DashBoard/StaffNotificationSender/StaffNotificationSender.jsx';
 import MaintenanceReminder from './pages/DashBoard/MaintenanceReminder/MaintenanceReminder.jsx';
-import ReceiptConfirm from './pages/DashBoard/Receipt/ReceiptConfirm.jsx';
 import QueueManagement from './pages/DashBoard/QueueManagement/QueueManagement.jsx';
 import ConfirmedBookingDetail from './pages/DashBoard/BookingManagement/ConfirmedBookingDetail.jsx';
 import BookingRequestDetail from './pages/DashBoard/BookingRequestManagement/BookingRequestDetail.jsx';
@@ -77,6 +79,7 @@ import ConfirmedBookingManagement from './pages/DashBoard/BookingManagement/Conf
 import BookingRequestEdit from './pages/DashBoard/BookingRequestManagement/BookingRequestEdit.jsx';
 import ReceiptPaymentMethod from './pages/DashBoard/Receipt/ReceiptPaymentMethod.jsx';
 import AccountingInvoicePrint from './pages/DashBoard/Receipt/AccountingInvoicePrint.jsx';
+import VatInvoiceView from './pages/DashBoard/Receipt/VatInvoiceView.jsx';
 import CheckIn from './pages/DashBoard/CheckInManagenent/CheckIn.jsx';
 
 // Import Work History pages
@@ -104,7 +107,35 @@ import UpdateProgress from './pages/Technician/UpdateProgress/UpdateProgress.jsx
 import AdvisorInspection from './pages/DashBoard/AdvisorInspection/AdvisorInspection.jsx';
 
 const STAFF_ROLE = {
+  MANAGER: 'MANAGER',
   ADVISOR: 'ADVISOR',
+  RECEPTIONIST: 'RECEPTIONIST',
+  TECHNICIAN: 'TECHNICIAN',
+  ADMIN: 'ADMIN',
+  WAREHOUSE_KEEPER: 'WAREHOUSE_KEEPER',
+  ACCOUNTANT: 'ACCOUNTANT',
+};
+
+const ROLE_GROUP = {
+  ADMIN_ONLY: [STAFF_ROLE.ADMIN],
+  MANAGER_OR_ADMIN: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN],
+  RECEPTIONIST: [STAFF_ROLE.RECEPTIONIST],
+  RECEPTIONIST_OR_ADMIN: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ADMIN],
+  RECEPTIONIST_MANAGER_ADMIN: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN],
+  MARKETING: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER],
+  ADVISOR: [STAFF_ROLE.ADVISOR],
+  TECHNICIAN: [STAFF_ROLE.TECHNICIAN],
+  ACCOUNTANT: [STAFF_ROLE.ACCOUNTANT],
+  ACCOUNTING: [STAFF_ROLE.ACCOUNTANT, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN],
+  WAREHOUSE: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER],
+  SERVICE_TICKET: [
+    STAFF_ROLE.RECEPTIONIST,
+    STAFF_ROLE.ADVISOR,
+    STAFF_ROLE.ACCOUNTANT,
+    STAFF_ROLE.MANAGER,
+    STAFF_ROLE.ADMIN,
+  ],
+  SERVICE_CATALOG: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT],
 };
 
 const normalizeRoleName = (value) => {
@@ -144,10 +175,61 @@ const readStaffRolesForRouting = () => {
   }
 };
 
+const getStaffTokenForRouting = () =>
+  localStorage.getItem('authToken') || localStorage.getItem('staffToken') || localStorage.getItem('adminToken') || '';
+
+const clearStaffSessionForRouting = () => {
+  ['authToken', 'staffToken', 'adminToken', 'staffRoles', 'staffProfile'].forEach((key) => {
+    localStorage.removeItem(key);
+  });
+};
+
+const hasAnyRole = (allowedRoles, staffRoles) => {
+  if (allowedRoles === 'ALL') return true;
+  if (!Array.isArray(allowedRoles) || allowedRoles.length === 0) return false;
+
+  const roleSet = new Set(
+    (Array.isArray(staffRoles) ? staffRoles : [])
+      .map((role) => normalizeRoleName(role))
+      .filter(Boolean),
+  );
+
+  return allowedRoles.some((role) => roleSet.has(normalizeRoleName(role)));
+};
+
+function StaffAreaRoute({ children }) {
+  const location = useLocation();
+  const hasToken = Boolean(getStaffTokenForRouting());
+
+  if (!hasToken) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  return children;
+}
+
+function StaffLoginRedirect({ clearSession = false }) {
+  const location = useLocation();
+  if (clearSession) clearStaffSessionForRouting();
+  return <Navigate to="/login" replace state={{ from: location }} />;
+}
+
+function AuthorizedStaffRoute({ allowedRoles = 'ALL', children }) {
+  const location = useLocation();
+  const hasToken = Boolean(getStaffTokenForRouting());
+  const staffRoles = readStaffRolesForRouting();
+
+  if (!hasToken) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  return hasAnyRole(allowedRoles, staffRoles) ? children : <StaffLoginRedirect clearSession />;
+}
+
 function AdvisorOnlyRoute({ children }) {
   const staffRoles = readStaffRolesForRouting();
   const isAdvisor = staffRoles.includes(STAFF_ROLE.ADVISOR);
-  return isAdvisor ? children : <Navigate to="/dashboard" replace />;
+  return isAdvisor ? children : <StaffLoginRedirect clearSession />;
 }
 
 // Title updater based on route
@@ -203,6 +285,12 @@ export default function App() {
     cleanupExpiredTokens();
   }, []);
 
+  const staffRoute = (element, allowedRoles = 'ALL') => (
+    <AuthorizedStaffRoute allowedRoles={allowedRoles}>
+      {element}
+    </AuthorizedStaffRoute>
+  );
+
   return (
     <BrowserRouter>
       <RouteSessionPersistence />
@@ -236,80 +324,84 @@ export default function App() {
         </Route>
 
         {/* Nhóm trang dashboard nhân viên dùng SideBar */}
-        <Route element={<StaffLayout />}>
-          <Route path="dashboard" element={<StaffDashboard />} />
+        <Route element={<StaffAreaRoute><StaffLayout /></StaffAreaRoute>}>
+          <Route path="dashboard" element={staffRoute(<StaffDashboard />)} />
           
           {/* Role-based Dashboards */}
-          <Route path="admin-dashboard" element={<AdminDashboard />} />
-          <Route path="manager-dashboard" element={<ManagerDashboard />} />
-          <Route path="advisor-dashboard" element={<AdvisorDashboard />} />
-          <Route path="receptionist-dashboard" element={<ReceptionistDashboard />} />
-          <Route path="technician-dashboard" element={<TechnicianDashboard />} />
-          <Route path="accountant-dashboard" element={<AccountantDashboard />} />
+          <Route path="admin-dashboard" element={staffRoute(<AdminDashboard />, ROLE_GROUP.ADMIN_ONLY)} />
+          <Route path="manager-dashboard" element={staffRoute(<ManagerDashboard />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+          <Route path="advisor-dashboard" element={staffRoute(<AdvisorDashboard />, ROLE_GROUP.ADVISOR)} />
+          <Route path="receptionist-dashboard" element={staffRoute(<ReceptionistDashboard />, ROLE_GROUP.RECEPTIONIST)} />
+          <Route path="technician-dashboard" element={staffRoute(<TechnicianDashboard />, ROLE_GROUP.TECHNICIAN)} />
+          <Route path="accountant-dashboard" element={staffRoute(<AccountantDashboard />, ROLE_GROUP.ACCOUNTANT)} />
           
           {/* Work History pages */}
-          <Route path="work-history/admin" element={<AdminWorkHistory />} />
-          <Route path="work-history/manager" element={<ManagerWorkHistory />} />
-          <Route path="work-history/advisor" element={<AdvisorWorkHistory />} />
-          <Route path="work-history/receptionist" element={<ReceptionistWorkHistory />} />
-          <Route path="work-history/technician" element={<TechnicianWorkHistory />} />
-          <Route path="work-history/accountant" element={<AccountantWorkHistory />} />
+          <Route path="work-history/admin" element={staffRoute(<AdminWorkHistory />, ROLE_GROUP.ADMIN_ONLY)} />
+          <Route path="work-history/manager" element={staffRoute(<ManagerWorkHistory />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+          <Route path="work-history/advisor" element={staffRoute(<AdvisorWorkHistory />, ROLE_GROUP.ADVISOR)} />
+          <Route path="work-history/receptionist" element={staffRoute(<ReceptionistWorkHistory />, ROLE_GROUP.RECEPTIONIST)} />
+          <Route path="work-history/technician" element={staffRoute(<TechnicianWorkHistory />, ROLE_GROUP.TECHNICIAN)} />
+          <Route path="work-history/accountant" element={staffRoute(<AccountantWorkHistory />, ROLE_GROUP.ACCOUNTANT)} />
           
-          <Route path="booking-request-management" element={<BookingManagement />} />
-          <Route path="booking-management" element={<ConfirmedBookingManagement />} />
-          <Route path="booking-management/:id" element={<ConfirmedBookingDetail />} />
-          <Route path="booking-request-management/:id" element={<BookingRequestDetail />} />
-          <Route path="booking-request-management/:id/edit" element={<BookingRequestEdit />} />
-          <Route path="staff-profile" element={<StaffProfile />} />
-          <Route path="update-staff-profile" element={<UpdateStaffProfile />} />
-          <Route path="staff-change-password" element={<StaffChangePassword />} />
-          <Route path="staff-manage-sso" element={<StaffManageSSO />} />
-          <Route path="check-in" element={<CheckIn />} />
-          <Route path="daily-schedule" element={<DailySchedule />} />
-          <Route path="customer-profile/:customerId" element={<EditCustomerProfile />} />
-          <Route path="staff-attendance" element={<StaffAttendance />} />
-          <Route path="technician-tasks" element={<TechnicianTasks />} />
-          <Route path="service-ticket/:ticketCode" element={<ServiceTicketDetail />} />
-          <Route path="service-ticket/:ticketCode/receipt-confirm" element={<ReceiptConfirm />} />
-          <Route path="service-ticket/:ticketCode/receipt-payment-method" element={<ReceiptPaymentMethod />} />
-          <Route path="service-ticket/:ticketCode/accounting-invoice-print" element={<AccountingInvoicePrint />} />
-          <Route path="service-ticket-detail/:ticketCode" element={<ServiceTicketDetail />} />
-          <Route path="service-ticket-management" element={<ServiceTicketManagement />} />
-          <Route path="part-management" element={<PartManagement />} />
-          <Route path="part-management/create-product" element={<CreateProduct />} />
-          <Route path="service-management" element={<BlogManagement />} />
-          <Route path="warehouse-stock-entries" element={<WarehouseStockEntryManagement />} />
-          <Route path="warehouse-stock-entries/:entryId" element={<WarehouseStockEntryDetail />} />
-          <Route path="warehouse-stock-entry" element={<WarehouseStockEntry />} />
-          <Route path="warehouse-stock-issues" element={<WarehouseStockIssues />} />
-          <Route path="warehouse-stock-issues/:issueId" element={<WarehouseStockIssueDetail />} />
-          <Route path="warehouse-return-entry" element={<WarehouseReturnEntry />} />
-          <Route path="warehouse-return-entries" element={<WarehouseReturnEntryManagement />} />
-          <Route path="warehouse-return-entries/:returnId" element={<WarehouseReturnEntryDetail />} />
+          <Route path="booking-request-management" element={staffRoute(<BookingManagement />, ROLE_GROUP.RECEPTIONIST)} />
+          <Route path="booking-management" element={staffRoute(<ConfirmedBookingManagement />, ROLE_GROUP.RECEPTIONIST)} />
+          <Route path="booking-management/:id" element={staffRoute(<ConfirmedBookingDetail />, ROLE_GROUP.RECEPTIONIST)} />
+          <Route path="booking-request-management/:id" element={staffRoute(<BookingRequestDetail />, ROLE_GROUP.RECEPTIONIST)} />
+          <Route path="booking-request-management/:id/edit" element={staffRoute(<BookingRequestEdit />, ROLE_GROUP.RECEPTIONIST)} />
+          <Route path="staff-profile" element={staffRoute(<StaffProfile />)} />
+          <Route path="update-staff-profile" element={staffRoute(<UpdateStaffProfile />)} />
+          <Route path="staff-change-password" element={staffRoute(<StaffChangePassword />)} />
+          <Route path="staff-manage-sso" element={staffRoute(<StaffManageSSO />)} />
+          <Route path="check-in" element={staffRoute(<CheckIn />, ROLE_GROUP.RECEPTIONIST)} />
+          <Route path="daily-schedule" element={staffRoute(<DailySchedule />)} />
+          <Route path="customer-profile/:customerId" element={staffRoute(<EditCustomerProfile />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
+          <Route path="staff-attendance" element={staffRoute(<StaffAttendance />)} />
+          <Route path="technician-tasks" element={staffRoute(<TechnicianTasks />, ROLE_GROUP.TECHNICIAN)} />
+          <Route path="service-ticket/:ticketCode" element={staffRoute(<ServiceTicketDetail />, ROLE_GROUP.SERVICE_TICKET)} />
+          <Route path="service-ticket/:ticketCode/receipt-payment-method" element={staffRoute(<ReceiptPaymentMethod />, ROLE_GROUP.ACCOUNTING)} />
+          <Route path="service-ticket/:ticketCode/accounting-invoice-print" element={staffRoute(<AccountingInvoicePrint />, ROLE_GROUP.ACCOUNTING)} />
+          <Route path="service-ticket-detail/:ticketCode" element={staffRoute(<ServiceTicketDetail />, ROLE_GROUP.SERVICE_TICKET)} />
+          <Route path="service-ticket-management" element={staffRoute(<ServiceTicketManagement />, [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ACCOUNTANT])} />
+          <Route path="part-management" element={staffRoute(<PartManagement />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="part-management/blog/:itemId" element={staffRoute(<BlogFormPage itemType="PART" />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="part-management/create-product" element={staffRoute(<CreateProduct />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="service-management" element={staffRoute(<BlogManagement />, ROLE_GROUP.SERVICE_CATALOG)} />
+          <Route path="warehouse-stock-entries" element={staffRoute(<WarehouseStockEntryManagement />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="warehouse-stock-entries/:entryId" element={staffRoute(<WarehouseStockEntryDetail />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="warehouse-stock-entry" element={staffRoute(<WarehouseStockEntry />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="warehouse-stock-issues" element={staffRoute(<WarehouseStockIssues />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="warehouse-stock-issues/:issueId" element={staffRoute(<WarehouseStockIssueDetail />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="warehouse-return-entry" element={staffRoute(<WarehouseReturnEntry />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="warehouse-return-entries" element={staffRoute(<WarehouseReturnEntryManagement />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="warehouse-return-entries/:returnId" element={staffRoute(<WarehouseReturnEntryDetail />, ROLE_GROUP.WAREHOUSE)} />
           <Route path="blog-management" element={<Navigate to="/service-management" replace />} />
-          <Route path="service-management/create-service" element={<CreateService />} />
-          <Route path="promotion-management" element={<PromotionManagement />} />
-          <Route path="shift-management" element={<ShiftManagement />} />
-          <Route path="queue-management" element={<QueueManagement />} />
-          <Route path="create-booking" element={<CreatBooking />} />
-          <Route path="customer-manager" element={<CustomerManager />} />
-          <Route path="staff-manager" element={<StaffManagement />} />
-          <Route path="employee-manager" element={<EmployeeManager />} />
-          <Route path="employee-manager/:staffId" element={<EmployeeProfilePage />} />
-          <Route path="staff-manager/:staffId" element={<StaffDetailPage />} />
-          <Route path="announcement_campaign" element={<SendReminder />} />
+          <Route path="service-management/blog/:itemId" element={staffRoute(<BlogFormPage itemType="SERVICE" />, ROLE_GROUP.SERVICE_CATALOG)} />
+          <Route path="service-management/create-service" element={staffRoute(<CreateService />, ROLE_GROUP.SERVICE_CATALOG)} />
+          <Route path="promotion-management" element={staffRoute(<PromotionManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+          <Route path="promotion-management/create" element={staffRoute(<PromotionManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+          <Route path="shift-management" element={staffRoute(<ShiftManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+          <Route path="queue-management" element={staffRoute(<QueueManagement />, ROLE_GROUP.RECEPTIONIST)} />
+          <Route path="create-booking" element={staffRoute(<CreatBooking />, ROLE_GROUP.RECEPTIONIST)} />
+          <Route path="customer-manager" element={staffRoute(<CustomerManager />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
+          <Route path="staff-manager" element={staffRoute(<StaffManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+          <Route path="employee-manager" element={staffRoute(<EmployeeManager />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+          <Route path="employee-manager/:staffId" element={staffRoute(<EmployeeProfilePage />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+          <Route path="staff-manager/:staffId" element={staffRoute(<StaffDetailPage />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+          <Route path="announcement_campaign" element={staffRoute(<SendReminder />, ROLE_GROUP.MARKETING)} />
+          <Route path="staff-notification-sender" element={staffRoute(<StaffNotificationSender />, ROLE_GROUP.RECEPTIONIST_MANAGER_ADMIN)} />
           <Route path="send-reminder" element={<Navigate to="/announcement_campaign" replace />} />
-          <Route path="maintenance-reminders" element={<MaintenanceReminder />} />
-          <Route path="feedback-management" element={<FeedbackManagement />} />
-          <Route path="vehicle-management" element={<VehicleManagement />} />
-          <Route path="system-log-management" element={<SystemLogManagement />} />
-          <Route path="warehouse-management" element={<WarehouseManagement />} />
-          <Route path="warehouse-pricing" element={<WarehousePricing />} />
+          <Route path="maintenance-reminders" element={staffRoute(<MaintenanceReminder />, ROLE_GROUP.MARKETING)} />
+          <Route path="feedback-management" element={staffRoute(<FeedbackManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+          <Route path="vehicle-management" element={staffRoute(<VehicleManagement />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
+          <Route path="system-log-management" element={staffRoute(<SystemLogManagement />, ROLE_GROUP.ADMIN_ONLY)} />
+          <Route path="warehouse-management" element={staffRoute(<WarehouseManagement />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="warehouse-pricing" element={staffRoute(<WarehousePricing />, ROLE_GROUP.WAREHOUSE)} />
+          <Route path="revenue-management" element={staffRoute(<RevenueManagement />, ROLE_GROUP.ACCOUNTING)} />
           
           {/* Technician pages */}
-          <Route path="technician/my-tasks" element={<MyTasks />} />
-          <Route path="technician/safetyinspection-ticket/:id" element={<ServiceTicket />} />
-          <Route path="technician/update-progress/:id" element={<UpdateProgress />} />
+          <Route path="technician/my-tasks" element={staffRoute(<MyTasks />, ROLE_GROUP.TECHNICIAN)} />
+          <Route path="technician/safetyinspection-ticket/:id" element={staffRoute(<ServiceTicket />, ROLE_GROUP.TECHNICIAN)} />
+          <Route path="technician/update-progress/:id" element={staffRoute(<UpdateProgress />, ROLE_GROUP.TECHNICIAN)} />
 
 
           {/* Advisor pages */}
@@ -324,6 +416,7 @@ export default function App() {
         </Route>
 
         <Route path="login" element={<Login />} />
+        <Route path="vat-invoice" element={<VatInvoiceView />} />
         <Route path="forgot-password" element={<ForgotPassword />} />
       </Routes>
     </BrowserRouter>

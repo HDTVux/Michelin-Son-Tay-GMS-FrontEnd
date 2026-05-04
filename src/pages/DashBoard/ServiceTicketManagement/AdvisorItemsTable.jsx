@@ -4,35 +4,38 @@ import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
 import { validateTaxName, validateTaxRatePercent, validateTextInput } from '../../../components/inputValidation.js';
+
 import {
+    formatAppliedTaxRate,
     formatCurrencyVnd,
+    getRowStockStatus,
+    getStockAllocationClassName,
+    getStockAllocationDisplay,
+    getTaxRuleDisplayLabel,
+    getTaxRuleSelectLabel,
+    getWarehouseActionKey,
+    handleCancelWarehouseAllocationAction,
+    handleCancelReturnEntryAction,
+    handleStartCreateAction,
+    handleStartCreateNewVersionAction,
+    handleStartEditAction,
+    handleSubmitReturnEntryAction,
+    hasApprovedAddServicePendingSnapshot,
     isDraftRowEmpty,
+    normalizeSuggestionText,
+    pickAdvisorCatalogItem,
+    refreshLatestAdvisorEstimate,
+    clearAdvisorRowInputs,
     toIdOrNull,
     useAdvisorItemsTableHandlers,
 } from './useAdvisorItemsTableHandlers.js';
 import CatalogPicker from './CatalogPicker.jsx';
+import ReturnEntryRequestModal from './ReturnEntryRequestModal.jsx';
+import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
 
-const ADD_SERVICE_RESTORE_STORAGE_PREFIX = 'serviceTicketAddServicePending:';
+const TAX_NAME_MAX_LENGTH = 100;
+const HIDE_BUY_X_GET_Y_UI = true;
 
-function normalizeSuggestionText(value) {
-    return String(value ?? '')
-        .normalize('NFD')
-        .replaceAll(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
-}
-
-function readAddServicePendingSnapshot(serviceTicketId) {
-    const id = serviceTicketId == null ? '' : String(serviceTicketId).trim();
-    if (!id) return null;
-    try {
-        const raw = localStorage.getItem(`${ADD_SERVICE_RESTORE_STORAGE_PREFIX}${id}`);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' ? parsed : null;
-    } catch {
-        return null;
-    }
-}
 
 function CategorySuggestDropdownPortal({ open, anchorRef, items, disabled, onPick, onClose }) {
     const dropdownRef = useRef(null);
@@ -130,32 +133,6 @@ CategorySuggestDropdownPortal.propTypes = {
     onClose: PropTypes.func,
 };
 
-function formatTaxRatePercent(rule) {
-    const raw = rule?.taxRate ?? rule?.rate;
-    const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
-    if (!Number.isFinite(n)) return '';
-    let rate = n;
-    if (rate > 1) rate = rate / 100;
-    if (rate < 0) rate = 0;
-    const pct = rate * 100;
-    const text = pct.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-    return `${text}%`;
-}
-
-function getTaxRuleSelectLabel(rule) {
-    if (!rule) return '';
-    const name = String(rule?.taxName ?? rule?.name ?? '').trim();
-    const code = String(rule?.taxCode ?? rule?.code ?? '').trim();
-    return name || code;
-}
-
-function getTaxRuleDisplayLabel(rule) {
-    if (!rule) return '';
-    const rateText = formatTaxRatePercent(rule);
-    if (rateText) return rateText;
-    return getTaxRuleSelectLabel(rule);
-}
-
 function TaxRuleQuickAdd({
     show,
     isAddingNewTaxRule,
@@ -170,7 +147,7 @@ function TaxRuleQuickAdd({
     stopAddNewTaxRule,
     handleCreateTaxRule,
 }) {
-    const taxNameValidation = validateTaxName(taxName, { required: true });
+    const taxNameValidation = validateTaxName(taxName, { required: true, maxLength: TAX_NAME_MAX_LENGTH });
     const taxRateValidation = validateTaxRatePercent(taxRate, { required: true });
     const taxHasError = Boolean(taxNameValidation.error || taxRateValidation.error);
 
@@ -218,14 +195,19 @@ function TaxRuleQuickAdd({
                         <input
                             id="estimate-tax-name"
                             value={taxName}
-                            onChange={(e) => setTaxName(e.target.value)}
+                            maxLength={TAX_NAME_MAX_LENGTH}
+                            onChange={(e) => setTaxName(String(e.target.value || '').slice(0, TAX_NAME_MAX_LENGTH))}
                             placeholder="Nhập tên thuế"
                             autoComplete="off"
                             disabled={isCreatingTaxRule || isSaving}
                         />
-                        {taxNameValidation.error ? (
-                            <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>{taxNameValidation.error}</div>
-                        ) : null}
+                        <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                            {taxNameValidation.error ? (
+                                <div style={{ fontSize: 12, color: '#991b1b' }}>{taxNameValidation.error}</div>
+                            ) : (
+                                <div style={{ fontSize: 12, color: '#6b7280' }}>{`${Math.max(0, TAX_NAME_MAX_LENGTH - String(taxName ?? '').length)} ký tự còn lại`}</div>
+                            )}
+                        </div>
                     </div>
                     <div className="ui-field" style={{ marginBottom: 0 }}>
                         <label htmlFor="estimate-tax-rate">Thuế suất</label>
@@ -278,10 +260,15 @@ function EstimateItemRow({
     softDeleteEditRow,
     openCatalogPicker,
     showTaxColumn,
-    showConfirmColumn,
+    showDiscountColumn,
+    showWarehouseActionColumn,
+    warehouseActionBusyKey,
+    onCancelAllocation,
+    onOpenReturnModal,
+    onCancelReturn,
 }) {
-    const isLocked = Boolean(row?.isLockedFromPreviousVersion);
-    const allowInputs = showInputs && !isLocked;
+    const giftRaw = row?.isGift ?? row?.is_gift;
+    const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
 
     const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
     const categoryInputRef = useRef(null);
@@ -293,6 +280,10 @@ function EstimateItemRow({
         return list.filter((label) => normalizeSuggestionText(label).includes(q)).slice(0, 50);
     }, [categorySuggestions, row.newCategoryName]);
 
+    const stockStatus = getRowStockStatus(row);
+    const isWarehouseLockedItem = ['RESERVED', 'COMMITTED', 'RELEASED'].includes(stockStatus);
+    const isLocked = Boolean(row?.isLockedFromPreviousVersion) || isGift || isWarehouseLockedItem;
+    const allowInputs = showInputs && !isLocked;
     const categoryFilled =
         Boolean(String(row?.newCategoryName ?? row?.categoryName ?? '').trim()) || Boolean(toIdOrNull(row?.workCategoryId));
     const allowItemActions = allowInputs && categoryFilled;
@@ -307,15 +298,22 @@ function EstimateItemRow({
     const effectiveTaxRuleId = itemTaxRuleId || categoryTaxRuleId || manualTaxRuleId;
     const taxRule = effectiveTaxRuleId ? taxRuleById.get(effectiveTaxRuleId) : null;
     const taxLabel = getTaxRuleDisplayLabel(taxRule);
-    const taxRateText = formatTaxRatePercent(taxRule);
     const isPredefinedCategory = Boolean(toIdOrNull(row?.workCategoryId));
     const subTotalValue = effectiveTaxRuleId ? (row?.subTotalWithVat ?? row?.subTotal) : row?.subTotal;
+    const amountDisplayValue = showInputs ? subTotalValue : (row?.finalPriceDisplay ?? row?.subTotalDisplay ?? row?.subTotal);
+    const appliedTaxRateText = !showInputs && !isGift ? formatAppliedTaxRate(row?.appliedTaxRate) : '';
+    const discountAmountValue = Number(row?.discountAmount ?? 0);
     const shouldShowTaxDropdown = allowInputs && !itemTaxRuleId && !categoryTaxRuleId;
 
     const unitText = String(row?.unit ?? '').trim();
     const warehouseText = String(
         row?.warehouseName ?? row?.warehouse?.warehouseName ?? row?.warehouse?.name ?? '',
     ).trim();
+    const stockAllocationText = getStockAllocationDisplay(row?.stockAllocationStatus);
+    const stockAllocationClassName = getStockAllocationClassName(row?.stockAllocationStatus, styles);
+    const estimateItemId = toIdOrNull(row?.estimateItemId);
+    const rowActionKey = getWarehouseActionKey(row);
+    const isWarehouseActionBusy = warehouseActionBusyKey === rowActionKey;
 
     let itemPlaceholder = 'Diễn giải';
     if (categoryFilled) {
@@ -325,7 +323,7 @@ function EstimateItemRow({
     }
 
     return (
-        <tr key={`advisor-row-${stt}-${row.key}`}>
+        <tr key={`advisor-row-${stt}-${row.key}`} className={isGift ? styles.giftRow : undefined}>
             <td>{stt}</td>
             <td>
                 {allowInputs ? (
@@ -353,7 +351,7 @@ function EstimateItemRow({
                         />
                     </>
                 ) : (
-                    row.categoryName || ''
+                    row.categoryName || row.newCategoryName || ''
                 )}
             </td>
             <td>
@@ -381,7 +379,10 @@ function EstimateItemRow({
                         </button>
                     </div>
                 ) : (
-                    row.itemName || ''
+                    <div className={styles.itemNameCell}>
+                        <span>{row.itemName || ''}</span>
+                        {/* BUY_X_GET_Y UI hidden: gift badge intentionally disabled */}
+                    </div>
                 )}
             </td>
             <td className={styles.tdNumber}>
@@ -390,8 +391,15 @@ function EstimateItemRow({
                         <input
                             className={`${styles.tableInput} ${styles.tableInputNumber}`}
                             type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={6}
                             value={row.quantity}
-                            onChange={(e) => onChange(idx, 'quantity', String(e.target.value || '').replaceAll(/\D/g, ''))}
+                            onChange={(e) => {
+                                const raw = String(e.target.value || '').replaceAll(/\D/g, '').slice(0, 6);
+                                const capped = raw ? String(Math.min(Number(raw), 999999)) : '';
+                                onChange(idx, 'quantity', capped);
+                            }}
                             placeholder="0"
                             disabled={isSaving}
                         />
@@ -413,25 +421,25 @@ function EstimateItemRow({
                     <input
                         className={`${styles.tableInput} ${styles.tableInputNumber}`}
                         type="text"
+                        inputMode="decimal"
+                        maxLength={12}
                         value={row.unitPrice}
                         onChange={(e) => {
                             const raw = String(e.target.value || '').replaceAll(/[^\d.]/g, '');
-                            // Ensure only one decimal point
                             const parts = raw.split('.');
-                            const sanitized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : raw;
-                            onChange(idx, 'unitPrice', sanitized);
+                            const intPart = (parts[0] || '').slice(0, 9); // max 9 integer digits
+                            const decPart = (parts[1] || '').slice(0, 2); // max 2 decimals
+                            const sanitized = decPart ? `${intPart}.${decPart}` : intPart;
+                            const cappedNum = Number(sanitized || 0) > 999999999 ? '999999999' : sanitized;
+                            onChange(idx, 'unitPrice', cappedNum);
                         }}
                         placeholder="0"
                         disabled={isSaving}
                     />
                 ) : (
-                    formatCurrencyVnd(row.unitPriceDisplay ?? row.unitPrice)
+                    isGift ? <span className={styles.giftAmount}>0đ</span> : formatCurrencyVnd(row.unitPriceDisplay ?? row.unitPrice)
                 )}
             </td>
-            <td className={styles.tdNumber}>
-                {showInputs ? formatCurrencyVnd(subTotalValue) : formatCurrencyVnd(row.subTotalDisplay ?? row.subTotal)}
-            </td>
-            
             {showTaxColumn ? (
                 <td>
                     {showInputs ? (
@@ -450,8 +458,8 @@ function EstimateItemRow({
                                         </option>
                                     ))}
                                 </select>
-                                {effectiveTaxRuleId && taxRateText ? (
-                                    <span style={{ color: 'var(--ui-muted)', whiteSpace: 'nowrap' }}>{taxRateText}</span>
+                                {effectiveTaxRuleId && taxLabel ? (
+                                    <span style={{ color: 'var(--ui-muted)', whiteSpace: 'nowrap' }}>{taxLabel}</span>
                                 ) : null}
                             </div>
                         ) : (
@@ -462,28 +470,87 @@ function EstimateItemRow({
                     )}
                 </td>
             ) : null}
+            {showDiscountColumn ? (
+                <td className={styles.tdNumber}>
+                    {Number.isFinite(discountAmountValue) && discountAmountValue > 0
+                        ? formatCurrencyVnd(discountAmountValue)
+                        : '-'}
+                </td>
+            ) : null}
+            <td className={styles.tdNumber}>
+                {isGift ? (
+                    <span className={styles.giftAmount}>0đ</span>
+                ) : (
+                    <div className={styles.amountWithTax}>
+                        <span>{formatCurrencyVnd(amountDisplayValue)}</span>
+                        {appliedTaxRateText ? (
+                            <span className={styles.appliedTaxNote}>
+                                {`(đã bao gồm thuế ${appliedTaxRateText}%)`}
+                            </span>
+                        ) : null}
+                    </div>
+                )}
+            </td>
 
             <td>{warehouseText || '-'}</td>
-            {showConfirmColumn ? (
+            {!showInputs ? <td><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
+            {!showInputs && showWarehouseActionColumn ? (
                 <td className={styles.tdCenter}>
-                    <input
-                        type="checkbox"
-                        checked={Boolean(row.confirmed)}
-                        onChange={(e) => onChange(idx, 'confirmed', e.target.checked)}
-                        disabled={isSaving || isLocked}
-                    />
+                    <div className={styles.warehouseItemActions}>
+                        {stockStatus === 'RESERVED' ? (
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn--ghost"
+                                onClick={() => onCancelAllocation?.(row)}
+                                disabled={isSaving || isWarehouseActionBusy}
+                            >
+                                {isWarehouseActionBusy ? 'Đang hủy...' : 'Hủy sản phẩm'}
+                            </button>
+                        ) : stockStatus === 'COMMITTED' ? (
+                            (() => {
+                                const rawReturnStatus =
+                                    row?.stockAllocation?.returnStatus ??
+                                    row?.allocation?.returnStatus ??
+                                    row?.warehouseAllocation?.returnStatus ??
+                                    row?.returnStatus ?? null;
+                                const isReturnSubmitted = String(rawReturnStatus ?? '').trim().toUpperCase() === 'SUBMITTED';
+                                if (isReturnSubmitted) {
+                                    return (
+                                        <button
+                                            type="button"
+                                            className="ui-btn ui-btn--ghost"
+                                            onClick={() => onCancelReturn?.(row)}
+                                            disabled={isSaving || isWarehouseActionBusy}
+                                        >
+                                            {isWarehouseActionBusy ? 'Đang hủy...' : 'Hủy phiếu hoàn'}
+                                        </button>
+                                    );
+                                }
+                                return (
+                                    <button
+                                        type="button"
+                                        className="ui-btn ui-btn--ghost"
+                                        onClick={() => onOpenReturnModal?.(row)}
+                                        disabled={isSaving || isWarehouseActionBusy}
+                                    >
+                                        Hoàn trả
+                                    </button>
+                                );
+                            })()
+                        ) : null}
+                    </div>
                 </td>
             ) : null}
             {showInputs ? (
                 <td className={styles.tdCenter}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                         {allowInputs ? (
-                            Boolean(row?.confirmed) && isEditing ? (
+                            isEditing && estimateItemId ? (
                                 <button
                                     type="button"
                                     className="ui-btn ui-btn--ghost"
                                     onClick={() => softDeleteEditRow(idx)}
-                                    disabled={isSaving || !toIdOrNull(row?.estimateItemId) || isDraftRowEmpty(row) || isLocked}
+                                    disabled={isSaving || !estimateItemId || isDraftRowEmpty(row) || isLocked}
                                     title="Xóa dòng này"
                                 >
                                     Xóa
@@ -522,7 +589,12 @@ EstimateItemRow.propTypes = {
     softDeleteEditRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
     showTaxColumn: PropTypes.bool,
-    showConfirmColumn: PropTypes.bool,
+    showDiscountColumn: PropTypes.bool,
+    showWarehouseActionColumn: PropTypes.bool,
+    warehouseActionBusyKey: PropTypes.string,
+    onCancelAllocation: PropTypes.func,
+    onOpenReturnModal: PropTypes.func,
+    onCancelReturn: PropTypes.func,
 };
 
 function EstimateActions({
@@ -533,6 +605,8 @@ function EstimateActions({
     isCreating,
     isEditing,
     isSaving,
+    hasCreateChanges,
+    hasEditChanges,
     startCreate,
     startCreateNewVersion,
     startEdit,
@@ -642,7 +716,7 @@ function EstimateActions({
                         Hủy
                     </button>
                     {isRestrictedStatus ? null : (
-                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEstimate} disabled={isSaving}>
+                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEstimate} disabled={isSaving || !hasCreateChanges}>
                             {isSaving ? 'Đang lưu...' : 'Lưu báo giá'}
                         </button>
                     )}
@@ -655,7 +729,7 @@ function EstimateActions({
                         Hủy
                     </button>
                     {isRestrictedStatus ? null : (
-                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving || cancelBusy}>
+                        <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving || cancelBusy || !hasEditChanges}>
                             {isSaving ? 'Đang lưu...' : 'Lưu chỉnh sửa'}
                         </button>
                     )}
@@ -673,6 +747,8 @@ EstimateActions.propTypes = {
     isCreating: PropTypes.bool,
     isEditing: PropTypes.bool,
     isSaving: PropTypes.bool,
+    hasCreateChanges: PropTypes.bool,
+    hasEditChanges: PropTypes.bool,
     startCreate: PropTypes.func,
     startCreateNewVersion: PropTypes.func,
     startEdit: PropTypes.func,
@@ -702,6 +778,7 @@ export default function AdvisorItemsTable({
     onCancelCreateNewVersion,
     onCancelAppendOnly,
     onEstimateEditingChange,
+    onBeforeEstimateMutate,
     readOnly = false,
     readOnlyMessage = '',
     hideReadOnlyNotice = false,
@@ -748,6 +825,8 @@ export default function AdvisorItemsTable({
         footerTotalText,
         tableRows,
         showInputs,
+        hasCreateChanges,
+        hasEditChanges,
         onChange,
         showAddEstimate,
         canEdit,
@@ -757,6 +836,7 @@ export default function AdvisorItemsTable({
         cancelEdit,
         saveEstimate,
         saveEdit,
+        syncEstimate,
         softDeleteEditRow,
         estimate,
     } = useAdvisorItemsTableHandlers(serviceTicketId, {
@@ -767,13 +847,15 @@ export default function AdvisorItemsTable({
     });
 
     const showTaxColumn = isCreating || isEditing;
-    const showConfirmColumn = Boolean(showInputs);
+    const showDiscountColumn = !showInputs;
     const isReadOnly = Boolean(readOnly);
-    const hasPendingAddServiceSnapshot = useMemo(() => {
-        const snapshot = readAddServicePendingSnapshot(serviceTicketId);
-        const previousEstimateStatus = String(snapshot?.prevEstimateStatus || '').trim().toUpperCase();
-        return previousEstimateStatus === 'APPROVED';
-    }, [serviceTicketId]);
+    const [warehouseActionBusyKey, setWarehouseActionBusyKey] = useState('');
+    const [returnModalItem, setReturnModalItem] = useState(null);
+    const [returnSubmitting, setReturnSubmitting] = useState(false);
+    const hasPendingAddServiceSnapshot = useMemo(
+        () => hasApprovedAddServicePendingSnapshot(serviceTicketId),
+        [serviceTicketId],
+    );
     const errorLine = saveError || loadError || taxRulesError || workCategoriesError || '';
     const tableHasRows = Array.isArray(tableRows) && tableRows.length > 0;
     const shouldShowTable =
@@ -784,12 +866,6 @@ export default function AdvisorItemsTable({
         isEditing ||
         isReadOnly ||
         Boolean(errorLine);
-
-    const footerSpacerColSpan =
-        (showTaxColumn ? 1 : 0) +
-        1 +
-        (showConfirmColumn ? 1 : 0) +
-        (showInputs ? 1 : 0);
 
     const RECOMMEND_MAX_LENGTH = 255;
     const recommendationValidation = useMemo(
@@ -823,88 +899,188 @@ export default function AdvisorItemsTable({
         };
     }, [isCreating, isEditing, isSaving, onEstimateEditingChange]);
 
-    const currentEstimateStatus = estimate?.estimateStatus || estimate?.status || '';
-    const isArchived = currentEstimateStatus === 'ARCHIVED';
+    const currentEstimateStatus = String(estimate?.estimateStatus || estimate?.status || '').trim().toUpperCase();
+    const canVersionFromCurrentEstimate = currentEstimateStatus === 'SENT' || currentEstimateStatus === 'APPROVED';
     // Khi đang tạo mới / đang chỉnh sửa, chúng ta không bị hạn chế bởi status của báo giá cũ
     const isRestrictedStatus = !(isCreating || isEditing) && ['APPROVED', 'REJECTED', 'ARCHIVED', 'CANCELLED'].includes(currentEstimateStatus);
 
-    // Cho phép tạo mới nếu chưa có báo giá hoặc báo giá hiện tại đã ARCHIVED
+    // Cho phép tạo mới nếu chưa có báo giá.
     const ticketStatusUpper = String(ticketStatus || '').trim().toUpperCase();
     const isTicketPaid = ticketStatusUpper === 'PAID';
+    const isTicketCompleted = ticketStatusUpper === 'COMPLETED';
     const isTicketCancelled = ['CANCELLED', 'CANCELED', 'CANCEL'].includes(ticketStatusUpper);
     const isTicketLocked = isTicketPaid || isTicketCancelled;
     // "Tạo báo giá mới" chỉ dành cho trường hợp chưa có bất kì báo giá nào.
     const canCreateNew = !isReadOnly && !isCreating && !isEditing && showAddEstimate && !isTicketLocked;
 
-    // "Tạo version báo giá mới" chỉ dành cho trường hợp báo giá hiện tại là ARCHIVED.
-    const canCreateNewVersion = !isReadOnly && !isCreating && !isEditing && Boolean(estimate) && isArchived && !isTicketLocked;
+    // "Tạo version báo giá mới" dành cho báo giá đã gửi hoặc đã xác nhận.
+    // ARCHIVED tương ứng đã có bill và bị khóa ở parent, không cho tạo version mới.
+    const canCreateNewVersion = !isReadOnly && !isCreating && !isEditing && Boolean(estimate) && canVersionFromCurrentEstimate && !isTicketLocked;
+    const showWarehouseActionColumn =
+        !showInputs &&
+        !isReadOnly &&
+        !isTicketLocked &&
+        !isTicketCompleted &&
+        Array.isArray(tableRows) &&
+        tableRows.some((row) => ['RESERVED', 'COMMITTED'].includes(getRowStockStatus(row)));
+
+    const footerSpacerColSpan =
+        (showTaxColumn ? 1 : 0) +
+        1 +
+        (!showInputs ? 1 : 0) +
+        (showInputs ? 1 : 0) +
+        (showWarehouseActionColumn ? 1 : 0);
 
     const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
     const [isStartingCreate, setIsStartingCreate] = useState(false);
 
+    const refreshLatestEstimate = useCallback(async () => {
+        return refreshLatestAdvisorEstimate({ serviceTicketId, syncEstimate });
+    }, [serviceTicketId, syncEstimate]);
+
+    const markEstimateDraft = useCallback(async () => {
+        const estimateIdNum = toIdOrNull(estimate?.estimateId ?? estimate?.id);
+        if (!estimateIdNum) return;
+
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (!token) {
+            notify('Vui lòng đăng nhập để cập nhật trạng thái báo giá.');
+            return;
+        }
+
+        await manageServiceTicketEstimateStatus(estimateIdNum, 'DRAFT', token);
+    }, [estimate, notify]);
+
+    const handleCancelWarehouseAllocation = useCallback(async (row) => {
+        // Cancel allocation for the selected row and any linked gift rows
+        const baseItemId = toIdOrNull(row?.itemId);
+        const linked = (Array.isArray(tableRows) ? tableRows : []).filter(
+            (r) => toIdOrNull(r?.triggeredByItemId) === baseItemId,
+        );
+
+        // Cancel base first
+        await handleCancelWarehouseAllocationAction({
+            row,
+            notify,
+            setWarehouseActionBusyKey,
+            refreshLatestEstimate,
+            markEstimateDraft,
+        });
+
+        // Cancel allocations for each linked gift row
+        for (const giftRow of linked) {
+            try {
+                await handleCancelWarehouseAllocationAction({
+                    row: giftRow,
+                    notify,
+                    setWarehouseActionBusyKey,
+                    refreshLatestEstimate,
+                    markEstimateDraft,
+                });
+            } catch {
+                // continue cancelling others even if one fails
+            }
+        }
+    }, [markEstimateDraft, notify, refreshLatestEstimate, tableRows]);
+
+    const handleCancelReturnEntry = useCallback(async (row) => {
+        await handleCancelReturnEntryAction({
+            row,
+            notify,
+            setWarehouseActionBusyKey,
+            refreshLatestEstimate,
+            markEstimateDraft,
+        });
+    }, [markEstimateDraft, notify, refreshLatestEstimate]);
+
+    const handleSubmitReturnEntry = useCallback(async ({ returnReason, quantity, conditionNote, files }) => {
+        // When returning a base item, also include any gift items linked by triggeredByItemId
+        const baseRow = returnModalItem;
+        const baseItemId = toIdOrNull(baseRow?.itemId);
+        const linkedGifts = (Array.isArray(tableRows) ? tableRows : []).filter(
+            (r) => toIdOrNull(r?.triggeredByItemId) === baseItemId,
+        );
+        const extraItems = linkedGifts
+            .map((g) => ({
+                itemId: toIdOrNull(g?.itemId),
+                allocationId: g?.allocationId ?? g?.allocation_id ?? null,
+                quantity: Number(g?.quantity) || 0,
+                conditionNote: '',
+            }))
+            .filter((it) => it.itemId && it.allocationId);
+
+        await handleSubmitReturnEntryAction({
+            returnModalItem,
+            returnReason,
+            quantity,
+            conditionNote,
+            files,
+            notify,
+            setReturnSubmitting,
+            setReturnModalItem,
+            refreshLatestEstimate,
+            markEstimateDraft,
+            extraItems,
+        });
+    }, [markEstimateDraft, notify, refreshLatestEstimate, returnModalItem, tableRows]);
+
     const handleStartCreate = async () => {
-        if (isStartingCreate) return;
-        if (isReadOnly) {
-            notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
-            return;
-        }
-        if (isTicketLocked) {
-            notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
-            return;
-        }
-		setRevertOnCancel(false);
-		setRevertTicketOnCancel(false);
-        if (startCreate) startCreate();
+        await handleStartCreateAction({
+            isStartingCreate,
+            isReadOnly,
+            readOnlyMessage,
+            isTicketLocked,
+            notify,
+            setRevertOnCancel,
+            setRevertTicketOnCancel,
+            onBeforeEstimateMutate,
+            syncEstimate,
+            startCreate,
+        });
     };
 
     const handleStartCreateNewVersion = async () => {
-        if (isStartingCreate) return;
-        if (isReadOnly) {
-            notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
-            return;
-        }
-        if (isTicketLocked) {
-            notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
-            return;
-        }
-		setRevertOnCancel(false);
-        setRevertTicketOnCancel(true);
-
-        // Seed các dòng của version trước sang version mới (read-only)
-        startCreate?.({ seedFromPreviousEstimate: true });
-
-        if (!onRestartWorkflow) return;
-
-        try {
-            setIsStartingCreate(true);
-            notify('Đang chuẩn bị tạo bản báo giá mới...');
-            // Đẩy ServiceTicket về ESTIMATED trước khi tạo Estimate mới (backend không cho phép DRAFT)
-            await onRestartWorkflow();
-        } catch {
-            setRevertTicketOnCancel(false);
-            cancelCreate?.();
-        } finally {
-            setIsStartingCreate(false);
-        }
+        await handleStartCreateNewVersionAction({
+            isStartingCreate,
+            isReadOnly,
+            readOnlyMessage,
+            isTicketLocked,
+            notify,
+            setRevertOnCancel,
+            setRevertTicketOnCancel,
+            onBeforeEstimateMutate,
+            syncEstimate,
+            startCreate,
+            onRestartWorkflow,
+            setIsStartingCreate,
+            cancelCreate,
+        });
     };
 
     useEffect(() => {
         if (!isCreating) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setRevertTicketOnCancel(false);
         }
     }, [isCreating]);
 
     // Ensure create mode can be opened automatically after the ticket is restarted/refreshed.
     useEffect(() => {
-        const handler = () => {
+        const handler = async () => {
             if (isReadOnly) return;
             if (isTicketLocked) {
                 notify('Không thể tạo báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
                 return;
             }
             if (isCreating || isEditing) return;
-            startCreate?.();
+            try {
+                const cleanEstimate = await onBeforeEstimateMutate?.();
+                if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+                startCreate?.(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
+            } catch {
+                return;
+            }
         };
 
         try {
@@ -920,12 +1096,12 @@ export default function AdvisorItemsTable({
                 // ignore
             }
         };
-    }, [isReadOnly, isTicketLocked, isCreating, isEditing, notify, startCreate]);
+    }, [isReadOnly, isTicketLocked, isCreating, isEditing, notify, onBeforeEstimateMutate, startCreate, syncEstimate]);
 
     // Ensure append-only edit mode can be opened automatically (add service: keep current estimate version,
     // lock existing rows, only allow adding new rows).
     useEffect(() => {
-        const handler = () => {
+        const handler = async () => {
             if (isReadOnly) return;
             if (isTicketLocked) {
                 notify('Không thể sửa báo giá khi phiếu dịch vụ đã bị khóa (PAID/CANCELLED).');
@@ -936,11 +1112,27 @@ export default function AdvisorItemsTable({
 
             // If there is no estimate yet, fall back to create mode.
             if (!estimate) {
-                startCreate?.();
+                try {
+                    const cleanEstimate = await onBeforeEstimateMutate?.();
+                    if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+                    startCreate?.(cleanEstimate !== undefined ? { estimateOverride: cleanEstimate } : undefined);
+                } catch {
+                    return;
+                }
                 return;
             }
 
-            startEdit?.({ appendOnly: true });
+            try {
+                const cleanEstimate = await onBeforeEstimateMutate?.();
+                if (cleanEstimate !== undefined) syncEstimate?.(cleanEstimate);
+                startEdit?.(
+                    cleanEstimate !== undefined
+                        ? { appendOnly: true, estimateOverride: cleanEstimate }
+                        : { appendOnly: true },
+                );
+            } catch {
+                return;
+            }
         };
 
         try {
@@ -956,16 +1148,19 @@ export default function AdvisorItemsTable({
                 // ignore
             }
         };
-    }, [estimate, isReadOnly, isTicketLocked, isCreating, isEditing, notify, startCreate, startEdit]);
+    }, [estimate, isReadOnly, isTicketLocked, isCreating, isEditing, notify, onBeforeEstimateMutate, startCreate, startEdit, syncEstimate]);
 
-    const handleStartEdit = useCallback(() => {
-        if (isReadOnly) {
-            notify(readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.');
-            return;
-        }
-        setRevertOnCancel(false);
-        startEdit?.();
-    }, [isReadOnly, notify, readOnlyMessage, startEdit]);
+    const handleStartEdit = useCallback(async () => {
+        await handleStartEditAction({
+            isReadOnly,
+            readOnlyMessage,
+            notify,
+            setRevertOnCancel,
+            onBeforeEstimateMutate,
+            syncEstimate,
+            startEdit,
+        });
+    }, [isReadOnly, notify, onBeforeEstimateMutate, readOnlyMessage, startEdit, syncEstimate]);
 
     const [pickerOpen, setPickerOpen] = useState(false);
     const [activeRowIndex, setActiveRowIndex] = useState(null);
@@ -977,6 +1172,8 @@ export default function AdvisorItemsTable({
             // Only count rows that are actually editable in current mode.
             // Locked rows (seeded from previous estimate version) should not lock selection.
             if (r?.isLockedFromPreviousVersion) continue;
+            const giftRaw = r?.isGift ?? r?.is_gift;
+            if (giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') continue;
             const itemId = toIdOrNull(r?.itemId);
             if (!itemId) continue;
             const warehouseId = toIdOrNull(r?.warehouseId);
@@ -1000,6 +1197,8 @@ export default function AdvisorItemsTable({
     const [pickerInitQuery, setPickerInitQuery] = useState("");
 
     const openCatalogPicker = (rowIndex, rowObj) => {
+        const giftRaw = rowObj?.isGift ?? rowObj?.is_gift;
+        if (giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') return;
         const hasCategory =
             Boolean(String(rowObj?.newCategoryName ?? rowObj?.categoryName ?? '').trim()) || Boolean(toIdOrNull(rowObj?.workCategoryId));
         if (!hasCategory) {
@@ -1022,81 +1221,25 @@ export default function AdvisorItemsTable({
     };
 
     const handleClearRowInputs = useCallback((rowIndex) => {
-        if (!showInputs) return;
-        if (rowIndex == null) return;
-
-        const row = Array.isArray(tableRows) ? tableRows[rowIndex] : null;
-        if (!row || row?.isLockedFromPreviousVersion) return;
-
-        if (activeRowIndex === rowIndex) {
-            setPickerOpen(false);
-            setActiveRowIndex(null);
-            setPickerInitQuery("");
-        }
-
-        onChange(rowIndex, 'newCategoryName', '');
-        onChange(rowIndex, 'workCategoryId', '');
-        onChange(rowIndex, 'workCategoryCode', '');
-
-        onChange(rowIndex, 'itemId', '');
-        onChange(rowIndex, 'itemName', '');
-        onChange(rowIndex, 'unit', '');
-
-        onChange(rowIndex, 'quantity', '');
-        onChange(rowIndex, 'unitPrice', '');
-
-        onChange(rowIndex, 'warehouseId', '');
-        onChange(rowIndex, 'warehouseName', '');
-        onChange(rowIndex, 'warehouseAvailableQuantity', null);
-
-        onChange(rowIndex, 'taxRuleId', '');
-        onChange(rowIndex, 'itemTaxRuleId', '');
-
-        onChange(rowIndex, 'confirmed', false);
+        clearAdvisorRowInputs({
+            rowIndex,
+            showInputs,
+            tableRows,
+            activeRowIndex,
+            setPickerOpen,
+            setActiveRowIndex,
+            setPickerInitQuery,
+            onChange,
+        });
     }, [activeRowIndex, onChange, showInputs, tableRows]);
 
     const handlePickCatalogItem = (item) => {
-        if (activeRowIndex == null) return;
-        const id = item?.itemId ?? item?.id ?? null;
-        const name = item?.itemName ?? item?.name ?? '';
-        const price = item?.sellingPrice ?? item?.price ?? item?.unitPrice ?? item?.unit_price ?? '';
-        const unit = String(item?.unit ?? '').trim();
-        const warehouseId = item?.warehouseId ?? item?.selectedWarehouse?.warehouseId ?? null;
-        const warehouseName = String(
-            item?.warehouseName ??
-            item?.selectedWarehouse?.warehouseName ??
-            item?.selectedWarehouse?.name ??
-            '',
-        ).trim();
-        const availableQtyRaw =
-            item?.availableQuantity ??
-            item?.selectedWarehouse?.quantity ??
-            item?.selectedWarehouse?.availableQuantity ??
-            null;
-        const availableQtyNum =
-            typeof availableQtyRaw === 'number' ? availableQtyRaw : Number(String(availableQtyRaw ?? '').trim());
-        const rawTaxId = item?.taxRuleId ?? item?.tax_rule_id ?? item?.taxRule?.taxRuleId ?? item?.taxRule?.id ?? '';
-        onChange(activeRowIndex, 'itemId', id);
-        onChange(activeRowIndex, 'itemName', name);
-        onChange(activeRowIndex, 'unitPrice', price);
-        onChange(activeRowIndex, 'unit', unit);
-        if (warehouseId != null && String(warehouseId).trim() !== '') {
-            onChange(activeRowIndex, 'warehouseId', warehouseId);
-        } else {
-            onChange(activeRowIndex, 'warehouseId', '');
-        }
-        onChange(activeRowIndex, 'warehouseName', warehouseName);
-        if (Number.isFinite(availableQtyNum) && availableQtyNum >= 0) {
-            onChange(activeRowIndex, 'warehouseAvailableQuantity', availableQtyNum);
-        } else {
-            onChange(activeRowIndex, 'warehouseAvailableQuantity', null);
-        }
-        onChange(activeRowIndex, 'itemTaxRuleId', rawTaxId == null ? '' : String(rawTaxId));
-
-        // Nếu sản phẩm có thuế thì ưu tiên sản phẩm -> clear chọn thuế thủ công.
-        const taxIdNum = toIdOrNull(rawTaxId);
-        if (taxIdNum) onChange(activeRowIndex, 'taxRuleId', '');
-        closeCatalogPicker();
+        pickAdvisorCatalogItem({
+            item,
+            activeRowIndex,
+            onChange,
+            closeCatalogPicker,
+        });
     };
 
     const showTaxQuickAdd = !isTicketLocked && showInputs;
@@ -1232,10 +1375,12 @@ export default function AdvisorItemsTable({
                             <th scope="col">DIỄN GIẢI</th>
                             <th scope="col">SL</th>
                             <th scope="col">ĐƠN GIÁ</th>
-                            <th scope="col">THÀNH TIỀN</th>
                             {showTaxColumn ? <th scope="col">THUẾ </th> : null}
+                            {showDiscountColumn ? <th scope="col">GIẢM GIÁ</th> : null}
+                            <th scope="col">THÀNH TIỀN</th>
                             <th scope="col">KHO</th>
-                            {showConfirmColumn ? <th scope="col">XÁC NHẬN</th> : null}
+                            {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
+                            {showWarehouseActionColumn ? <th scope="col">THAO TÁC</th> : null}
                             {showInputs ? <th scope="col">THAO TÁC</th> : null}
                         </tr>
                     </thead>
@@ -1247,7 +1392,7 @@ export default function AdvisorItemsTable({
                                 idx={idx}
                                 showInputs={showInputs}
                                 showTaxColumn={showTaxColumn}
-                                showConfirmColumn={showConfirmColumn}
+                                showDiscountColumn={showDiscountColumn}
                                 onChange={onChange}
                                 onClearRow={handleClearRowInputs}
                                 isSaving={isSaving}
@@ -1258,12 +1403,17 @@ export default function AdvisorItemsTable({
                                 isEditing={isEditing}
                                 softDeleteEditRow={softDeleteEditRow}
                                 openCatalogPicker={openCatalogPicker}
+                                showWarehouseActionColumn={showWarehouseActionColumn}
+                                warehouseActionBusyKey={warehouseActionBusyKey}
+                                onCancelAllocation={handleCancelWarehouseAllocation}
+                                onOpenReturnModal={setReturnModalItem}
+                                onCancelReturn={handleCancelReturnEntry}
                             />
                         ))}
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td className={styles.tableFooterLabel} colSpan={5}>
+                            <td className={styles.tableFooterLabel} colSpan={showDiscountColumn ? 6 : 5}>
                                 TỔNG CỘNG
                             </td>
                             <td className={styles.tdNumber}>{footerTotalText}</td>
@@ -1285,10 +1435,12 @@ export default function AdvisorItemsTable({
                         canCreateNew={canCreateNew}
                         canCreateNewVersion={canCreateNewVersion}
                         createBusy={isStartingCreate}
-                        canEdit={canEdit && !isReadOnly && !disableFullEdit && !hasPendingAddServiceSnapshot}
+                        canEdit={canEdit && currentEstimateStatus !== 'SENT' && !isReadOnly && !disableFullEdit && !hasPendingAddServiceSnapshot}
                         isCreating={isCreating}
                         isEditing={isEditing}
                         isSaving={isSaving}
+                        hasCreateChanges={hasCreateChanges}
+                        hasEditChanges={hasEditChanges}
                         startCreate={handleStartCreate}
                         startCreateNewVersion={handleStartCreateNewVersion}
                         startEdit={handleStartEdit}
@@ -1388,6 +1540,19 @@ export default function AdvisorItemsTable({
                 excludeSelectionKey={activeRowSelectionKey}
             />
 
+            {returnModalItem ? (
+                <ReturnEntryRequestModal
+                    open
+                    item={returnModalItem}
+                    submitting={returnSubmitting}
+                    onClose={() => {
+                        if (returnSubmitting) return;
+                        setReturnModalItem(null);
+                    }}
+                    onSubmit={handleSubmitReturnEntry}
+                />
+            ) : null}
+
             {photoPreview?.url ? (
                 <dialog
                     className={styles.photoModalDialog}
@@ -1428,6 +1593,7 @@ AdvisorItemsTable.propTypes = {
     estimatedTimeDisplay: PropTypes.string,
     onEstimateStatusChange: PropTypes.func,
     onEstimateEditingChange: PropTypes.func,
+    onBeforeEstimateMutate: PropTypes.func,
     onRestartWorkflow: PropTypes.func,
     onCancelCreateNewVersion: PropTypes.func,
     onCancelAppendOnly: PropTypes.func,

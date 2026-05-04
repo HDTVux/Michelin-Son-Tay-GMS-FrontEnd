@@ -41,7 +41,10 @@ export default function EstimateTimePopup({ open, initialDateTime, onClose, onSu
         return `${hh}:${mm}`;
     }, [hour, minute]);
 
-    const canConfirm = Boolean(date) && Boolean(timeNormalized);
+    const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+    const isPastDate = Boolean(date) && date < today;
+
+    const canConfirm = Boolean(date) && Boolean(timeNormalized) && !isPastDate;
 
     if (!open) return null;
 
@@ -70,9 +73,13 @@ export default function EstimateTimePopup({ open, initialDateTime, onClose, onSu
                         <input
                             id="estimate-time-date"
                             type="date"
+                            min={today}
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
                         />
+                        {isPastDate ? (
+                            <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>Không được chọn ngày trong quá khứ.</div>
+                        ) : null}
                     </div>
 
                     <div className="ui-field">

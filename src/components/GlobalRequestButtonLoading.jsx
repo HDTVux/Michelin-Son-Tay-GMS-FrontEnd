@@ -22,6 +22,7 @@ export default function GlobalRequestButtonLoading() {
   const intentRef = useRef({ button: null, at: 0 });
   const loadingCountRef = useRef(0);
   const loadingStartedAtRef = useRef(0);
+  const hideTimerRef = useRef(null);
   const forceHideTimerRef = useRef(null);
   const mountedRef = useRef(false);
   const [visible, setVisible] = useState(false);
@@ -34,6 +35,10 @@ export default function GlobalRequestButtonLoading() {
         window.clearTimeout(forceHideTimerRef.current);
         forceHideTimerRef.current = null;
       }
+      if (hideTimerRef.current) {
+        window.clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -42,6 +47,10 @@ export default function GlobalRequestButtonLoading() {
 
     const showOverlay = () => {
       loadingCountRef.current += 1;
+      if (hideTimerRef.current) {
+        window.clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
       if (loadingCountRef.current === 1) {
         loadingStartedAtRef.current = Date.now();
         if (mountedRef.current) setVisible(true);
@@ -65,7 +74,8 @@ export default function GlobalRequestButtonLoading() {
 
       const elapsed = Date.now() - loadingStartedAtRef.current;
       const remaining = Number.isFinite(elapsed) ? Math.max(0, MIN_LOADING_MS - elapsed) : 0;
-      window.setTimeout(() => {
+      hideTimerRef.current = window.setTimeout(() => {
+        hideTimerRef.current = null;
         if (loadingCountRef.current === 0 && mountedRef.current) setVisible(false);
       }, remaining);
     };

@@ -1,10 +1,17 @@
 import { request } from './apiClient';
 
-export const fetchAvailablePromotions = (token) =>
-	request('/api/promotion/available', {
+export const fetchAvailablePromotions = (token, promotionType = '', customerId = null) => {
+	const type = String(promotionType ?? '').trim();
+	const params = new URLSearchParams();
+	if (type) params.set('promotionType', type);
+	const customerIdText = String(customerId ?? '').trim();
+	if (customerIdText) params.set('customerId', customerIdText);
+	const qs = params.toString() ? `?${params.toString()}` : '';
+	return request(`/api/promotion/available${qs}`, {
 		method: 'GET',
 		headers: token ? { Authorization: `Bearer ${token}` } : {},
 	});
+};
 
 export const fetchPromotionByCode = async (promotionCode, token) => {
 	const raw = String(promotionCode ?? '').trim();
@@ -42,6 +49,20 @@ const toNumberOrNull = (value) => {
   return Number.isFinite(num) ? num : null;
 };
 
+const normalizeIdList = (value) => {
+  if (!Array.isArray(value)) return null;
+  const ids = value
+    .map((item) => {
+      const raw = typeof item === 'object' && item !== null
+        ? item.id ?? item.itemId ?? item.customerId ?? item.value
+        : item;
+      const num = Number(raw);
+      return Number.isInteger(num) && num > 0 ? num : null;
+    })
+    .filter((id) => id !== null);
+  return [...new Set(ids)];
+};
+
 const normalizePromotionPayload = (payload = {}) => ({
   promotionId: toNumberOrNull(payload.promotionId),
   code: payload.code?.trim() || '',
@@ -59,6 +80,8 @@ const normalizePromotionPayload = (payload = {}) => ({
   startDate: payload.startDate || null,
   endDate: payload.endDate || null,
   usageLimit: toNumberOrNull(payload.usageLimit),
+  promotionItems: payload.applyTo?.trim() === 'SPECIFIC' ? normalizeIdList(payload.promotionItems) : null,
+  promotionCustomers: payload.targetType?.trim() === 'SPECIFIC' ? normalizeIdList(payload.promotionCustomers) : null,
 });
 
 export const fetchAllPromotions = (token) => {

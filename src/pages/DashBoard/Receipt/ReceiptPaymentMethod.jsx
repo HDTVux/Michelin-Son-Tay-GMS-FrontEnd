@@ -44,18 +44,6 @@ function pickLatestEstimate(list) {
     })[0];
 }
 
-function getItemConfirmedFlag(it) {
-    return Boolean(
-        it?.isChecked ??
-            it?.confirmed ??
-            it?.isConfirmed ??
-            it?.approved ??
-            it?.isApproved ??
-            it?.customerConfirmed ??
-            it?.isCustomerConfirmed,
-    );
-}
-
 function pickMoneyDisplayValue(withVatValue, baseValue) {
     const withVatNum = toMoneyNumber(withVatValue);
     if (withVatNum > 0) return withVatNum;
@@ -72,6 +60,44 @@ function normalizeTaxRatePercentText(rawRate) {
     const pct = rate * 100;
     const text = pct.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
     return `${text}%`;
+}
+
+function getEstimateItemStockStatus(item) {
+    return String(
+        item?.stockAllocation?.status ??
+            item?.allocation?.status ??
+            item?.warehouseAllocation?.status ??
+            item?.stockAllocationStatus ??
+            item?.stock_allocation_status ??
+            item?.allocationStatus ??
+            '',
+    ).trim().toUpperCase();
+}
+
+function isReturnedEstimateItem(item) {
+    const status = getEstimateItemStockStatus(item);
+    if (['RELEASED', 'RETURNED', 'RETURN', 'REFUNDED', 'REFUND', 'CANCELLED_RETURN'].includes(status)) return true;
+
+    const text = String(
+        item?.returnStatus ??
+            item?.return_status ??
+            item?.returnEntryStatus ??
+            item?.return_entry_status ??
+            item?.warehouseReturnStatus ??
+            item?.warehouse_return_status ??
+            item?.stockReturnStatus ??
+            item?.stock_return_status ??
+            '',
+    ).trim().toUpperCase();
+    if (['RETURNED', 'RETURN', 'REFUNDED', 'REFUND', 'CONFIRMED', 'COMPLETED'].includes(text)) return true;
+
+    return toMoneyNumber(item?.returnedQuantity ?? item?.returned_quantity ?? item?.returnQuantity ?? item?.return_quantity) > 0;
+}
+
+function isBillableEstimateItem(item) {
+    if (isReturnedEstimateItem(item)) return false;
+    const status = getEstimateItemStockStatus(item);
+    return !status || status === 'COMMITTED';
 }
 
 function extractPaymentEstimates(paymentPayload) {
@@ -238,7 +264,6 @@ export default function ReceiptPaymentMethod() {
         return Number.isFinite(n) && n > 0 ? n : null;
     }, [payment]);
 
-    const totalSafe = useMemo(() => toMoneyNumber(payment?.finalAmount), [payment]);
     const paymentStatusCode = normalizeStatusCode(payment?.paymentStatus);
     const paymentStatusLabel = getStatusTextVi(paymentStatusCode, paymentStatusCode || '-');
     const isPaid = paymentStatusCode === 'PAID';
@@ -257,6 +282,12 @@ export default function ReceiptPaymentMethod() {
                 const subTotalWithVatNum = toMoneyNumber(subTotalWithVat);
                 const unitPriceDisplay = pickMoneyDisplayValue(unitPriceWithVatNum, unitPriceBase);
                 const subTotalDisplay = pickMoneyDisplayValue(subTotalWithVatNum, subTotalBase);
+                const rawFinalPrice = it?.finalPrice ?? it?.final_price;
+                const finalPriceDisplay =
+                    rawFinalPrice == null || String(rawFinalPrice).trim() === ''
+                        ? subTotalDisplay
+                        : toMoneyNumber(rawFinalPrice);
+                const discountAmount = Math.max(0, toMoneyNumber(it?.discountAmount ?? it?.discount_amount));
 
                 const appliedTaxRate = it?.appliedTaxRate ?? it?.applied_tax_rate ?? null;
                 const appliedTaxRateText = normalizeTaxRatePercentText(appliedTaxRate);
@@ -284,18 +315,26 @@ export default function ReceiptPaymentMethod() {
                 // - Else if there is any tax amount => show '--' (rate missing but tax applied).
                 // - Else show 0%.
                 const categoryName = it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '';
+                const giftRaw = it?.isGift ?? it?.is_gift;
+                const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
                 return {
                     key: String(it?.estimateItemId ?? it?.itemId ?? `${idx}`),
                     categoryName,
                     itemName: String(it?.itemName || '').trim(),
                     quantity,
+                    isGift,
+                    warehouseName: String(it?.warehouseName ?? it?.warehouse?.warehouseName ?? it?.warehouse?.name ?? '').trim(),
                     unitPriceDisplay,
+                    discountAmount,
                     taxRateText,
                     taxCode,
                     workCategoryTaxRuleId,
                     taxTitle,
                     subTotalDisplay,
-                    confirmed: getItemConfirmedFlag(it),
+                    finalPriceDisplay,
+                    stockAllocationStatus: getEstimateItemStockStatus(it),
+                    returnedQuantity: it?.returnedQuantity ?? it?.returned_quantity ?? it?.returnQuantity ?? it?.return_quantity ?? 0,
+                    returnStatus: it?.returnStatus ?? it?.return_status ?? it?.returnEntryStatus ?? it?.return_entry_status ?? '',
                 };
             })
             .filter(
@@ -304,11 +343,26 @@ export default function ReceiptPaymentMethod() {
                     r.categoryName ||
                     r.quantity > 0 ||
                     r.unitPriceDisplay > 0 ||
-                    r.subTotalDisplay > 0,
+                    r.finalPriceDisplay > 0,
             );
     }, [estimate]);
 
-    const payItems = useMemo(() => estimateItems.filter((it) => it.confirmed), [estimateItems]);
+    const payItems = estimateItems;
+    const billableItems = useMemo(
+        () => payItems.filter(isBillableEstimateItem),
+        [payItems],
+    );
+    const totalSafe = useMemo(() => {
+        const estimateTotal = billableItems.reduce((sum, item) => sum + toMoneyNumber(item?.finalPriceDisplay), 0);
+        if (payItems.length > 0) return estimateTotal;
+        return toMoneyNumber(
+            payment?.finalAmount ??
+            payment?.final_amount ??
+            payment?.totalAmount ??
+            payment?.total_amount ??
+            payment?.amount,
+        );
+    }, [billableItems, payItems.length, payment]);
 
     const transferContent = useMemo(() => {
         const code = ticketCodeParam || ticketFromState?.ticketCode || 'SERVICE_TICKET';
@@ -345,14 +399,15 @@ export default function ReceiptPaymentMethod() {
             if (!root) return false;
             const hasTable = Boolean(root.querySelector('table'));
             const textLen = (root.textContent || '').trim().length;
-
-            const barcodeImg = root.querySelector('[data-role="barcode"]');
-            if (barcodeImg && barcodeImg instanceof HTMLImageElement) {
-                if (!barcodeImg.complete) return false;
-                if (!barcodeImg.naturalWidth) return false;
-            }
-
-            return hasTable && textLen > 20;
+            const qrStates = Array.from(root.querySelectorAll('[data-role="vat-qr-state"]'));
+            const vatQrReady = qrStates.every((node) => node instanceof HTMLElement && node.dataset.ready === 'true');
+            const codeImages = Array.from(root.querySelectorAll('[data-role="invoice-code-img"]'));
+            const codeImagesReady = codeImages.length === 0 || codeImages.every((image) => (
+                image instanceof HTMLImageElement &&
+                image.complete &&
+                image.naturalWidth > 0
+            ));
+            return hasTable && textLen > 20 && vatQrReady && codeImagesReady;
         };
 
         const doPrint = async () => {
@@ -370,7 +425,7 @@ export default function ReceiptPaymentMethod() {
 
         const tryPrint = async () => {
             attempts += 1;
-            if (isInvoiceDomReady() || attempts >= 30) {
+            if (isInvoiceDomReady() || attempts >= 600) {
                 await doPrint();
                 return;
             }
@@ -380,7 +435,7 @@ export default function ReceiptPaymentMethod() {
         rafId = globalThis.requestAnimationFrame?.(tryPrint);
         timeoutId = globalThis.setTimeout?.(() => {
             void doPrint();
-        }, 1200);
+        }, 10000);
 
         return () => {
             if (rafId) globalThis.cancelAnimationFrame?.(rafId);
@@ -400,24 +455,41 @@ export default function ReceiptPaymentMethod() {
             return;
         }
 
-        const invoiceItems = payItems.map((item, idx) => {
+        const printableItems = billableItems;
+        if (printableItems.length === 0) {
+            toast.error('Không có hạng mục nào để in hoá đơn.');
+            return;
+        }
+
+        const invoiceItems = printableItems.map((item, idx) => {
             const quantity = toMoneyNumber(item?.quantity ?? 1) || 1;
             const unitPrice = toMoneyNumber(item?.unitPrice ?? item?.unitPriceDisplay ?? 0);
-            const subTotal = toMoneyNumber(item?.subTotal ?? item?.subTotalDisplay ?? 0) || unitPrice * quantity;
+            const discountAmount = Math.max(0, toMoneyNumber(item?.discountAmount));
+            const grossAmount = toMoneyNumber(item?.subTotalDisplay) || unitPrice * quantity;
+            const subTotal = toMoneyNumber(item?.finalPrice ?? item?.finalPriceDisplay ?? 0) || Math.max(0, grossAmount - discountAmount);
 
             return {
                 key: item?.key ?? String(idx + 1),
                 categoryName: item?.categoryName ?? '',
                 itemName: item?.itemName ?? '',
+                warehouseName: item?.warehouseName ?? '',
                 quantity,
                 unitPrice,
+                discountAmount,
+                taxRateText: item?.taxRateText ?? '',
+                taxAmount: toMoneyNumber(item?.taxAmount ?? item?.tax_amount),
+                grossAmount,
                 subTotal,
+                isGift: Boolean(item?.isGift),
+                stockAllocationStatus: item?.stockAllocationStatus ?? '',
+                returnedQuantity: item?.returnedQuantity ?? 0,
+                returnStatus: item?.returnStatus ?? '',
             };
         });
 
-        const computedSubtotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
-        const invoiceSubtotal = Math.max(0, toMoneyNumber(payment?.subTotal) || computedSubtotal);
-        const invoiceDiscountAmount = Math.max(0, toMoneyNumber(payment?.discountAmount));
+        const computedSubtotal = invoiceItems.reduce((sum, item) => sum + (toMoneyNumber(item?.grossAmount) || toMoneyNumber(item?.subTotal)), 0);
+        const computedDiscountAmount = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.discountAmount), 0);
+        const computedTotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
 
         const stateCustomer = ticketFromState?.customer || {};
         const stateVehicle = ticketFromState?.vehicle || {};
@@ -425,6 +497,7 @@ export default function ReceiptPaymentMethod() {
         const printTicket = {
             ...(ticketFromState ?? undefined),
             ticketCode,
+            serviceTicketId,
             customer: {
                 ...stateCustomer,
                 name: stateCustomer?.name || stateCustomer?.fullName || ticketFromState?.customerName || '',
@@ -437,9 +510,9 @@ export default function ReceiptPaymentMethod() {
             },
             invoice: {
                 items: invoiceItems,
-                subtotal: invoiceSubtotal,
-                discountAmount: invoiceDiscountAmount,
-                total: totalSafe,
+                subtotal: computedSubtotal,
+                discountAmount: computedDiscountAmount,
+                total: computedTotal,
             },
         };
 
@@ -512,48 +585,52 @@ export default function ReceiptPaymentMethod() {
                                 <div className={styles.sectionTitle}>Báo giá được thanh toán</div>
                                 {estimateLoading ? <div className={styles.muted}>Đang tải báo giá...</div> : null}
                                 {!estimateLoading && estimateError ? <div className={styles.error}>{estimateError}</div> : null}
-                                {payItems.length ? (
+                                {billableItems.length ? (
                                     <div className={styles.tableWrap}>
                                         <table className={styles.table}>
                                             <colgroup>
+                                                <col style={{ width: 64 }} />
                                                 <col style={{ width: 160 }} />
                                                 <col />
                                                 <col style={{ width: 70 }} />
                                                 <col style={{ width: 140 }} />
                                                 <col style={{ width: 140 }} />
                                                 <col style={{ width: 140 }} />
+                                                <col style={{ width: 130 }} />
                                             </colgroup>
                                             <thead>
                                                 <tr>
+                                                    <th>STT</th>
                                                     <th>Hạng mục</th>
                                                     <th>Diễn giải</th>
                                                     <th className={styles.thQty}>SL</th>
                                                     <th className={styles.thNumber}>Đơn giá</th>
-                                                    <th className={styles.thNumber}>Thuế (%)</th>
+                                                    <th className={styles.thNumber}>Giảm giá</th>
                                                     <th className={styles.thNumber}>Thành tiền</th>
+                                                    <th>Kho</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {payItems.map((it) => (
-                                                    <tr key={it.key}>
+                                                {billableItems.map((it, index) => (
+                                                    <tr key={it.key} className={it.isGift ? styles.giftRow : undefined}>
+                                                        <td className={styles.tdQty}>{String(index + 1).padStart(2, '0')}</td>
                                                         <td className={styles.tdText}>{it.categoryName}</td>
-                                                        <td className={styles.tdText}>{it.itemName}</td>
+                                                        <td className={styles.tdText}>
+                                                            {it.itemName}
+                                                            {it.isGift ? <span className={styles.giftBadge}>Quà tặng</span> : null}
+                                                        </td>
                                                         <td className={styles.tdQty}>{it.quantity ? String(it.quantity) : ''}</td>
                                                         <td className={styles.tdNumber}>{formatCurrencyVnd(it.unitPriceDisplay)}</td>
-                                                        <td
-                                                            className={styles.tdNumber}
-                                                            title={it.taxTitle || ''}
-                                                        >
-                                                            {it.taxRateText}
-                                                        </td>
-                                                        <td className={styles.tdNumber}>{formatCurrencyVnd(it.subTotalDisplay)}</td>
+                                                        <td className={styles.tdNumber}>{it.discountAmount > 0 ? formatCurrencyVnd(it.discountAmount) : '-'}</td>
+                                                        <td className={styles.tdNumber}>{formatCurrencyVnd(it.finalPriceDisplay)}</td>
+                                                        <td className={styles.tdText}>{it.warehouseName || '-'}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
                                         </table>
                                     </div>
                                 ) : !estimateLoading && !estimateError ? (
-                                    <div className={styles.muted}>Chưa có hạng mục nào được xác nhận.</div>
+                                    <div className={styles.muted}>Không có hạng mục đã xuất hàng để thanh toán.</div>
                                 ) : null}
                             </div>
 
@@ -562,14 +639,14 @@ export default function ReceiptPaymentMethod() {
                                     <span>Trạng thái:</span>
                                     <strong>{paymentStatusLabel}</strong>
                                 </div>
-                                <div className={styles.qrMetaRow}>
+                                {/* <div className={styles.qrMetaRow}>
                                     <span>Giá gốc:</span>
                                     <strong>{formatCurrencyVnd(payment?.subTotal)}</strong>
                                 </div>
                                 <div className={styles.qrMetaRow}>
                                     <span>Giảm giá:</span>
                                     <strong>{formatCurrencyVnd(payment?.discountAmount)}</strong>
-                                </div>
+                                </div> */}
                                 <div className={styles.qrMetaRow}>
                                     <span>Tổng tiền cần thanh toán:</span>
                                     <strong>{formatCurrencyVnd(totalSafe)}</strong>

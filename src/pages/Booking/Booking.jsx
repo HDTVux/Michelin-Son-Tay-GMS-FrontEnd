@@ -103,7 +103,6 @@ const getCatalogPriceText = (item) => {
 // Component chính của trang đặt lịch
 export default function Booking() {
   const location = useLocation();
-  useScrollToTop([stepIndex], 'smooth');
 
   // Lấy thông tin được truyền qua state khi điều hướng đến trang này, ví dụ như số điện thoại đã điền sẵn, dịch vụ đã chọn,...
   const prefilledPhone = location.state?.phone || '';
@@ -115,6 +114,7 @@ export default function Booking() {
 
   // Các state để quản lý bước hiện tại
   const [stepIndex, setStepIndex] = useState(0); // 0: chọn dịch vụ, 1: chọn lịch, 2: điền thông tin, 3: hoàn tất
+  useScrollToTop([stepIndex], 'smooth');
   const [services, setServices] = useState([]);  // Danh sách dịch vụ/phụ tùng được tải về từ API
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');

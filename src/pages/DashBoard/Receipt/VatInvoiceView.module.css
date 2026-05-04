@@ -1,0 +1,181 @@
+.page {
+    min-height: 100vh;
+    padding: 24px;
+    background: #eef2f7;
+    color: #111827;
+}
+
+.sheet {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 14mm;
+    box-sizing: border-box;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.sellerName {
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.sellerLine {
+    margin-top: 2px;
+}
+
+.title {
+    margin: 18px 0 4px;
+    font-size: 24px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.dateLine,
+.lookupLine,
+.muted {
+    color: #4b5563;
+}
+
+.notice,
+.errorNotice {
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+}
+
+.notice {
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.errorNotice {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.customerBlock {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 18px;
+    margin-bottom: 14px;
+}
+
+.customerBlock div:nth-child(3) {
+    grid-column: 1 / -1;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.table th,
+.table td {
+    border: 1px solid #111827;
+    padding: 5px 5px;
+    vertical-align: middle;
+    word-break: break-word;
+}
+
+.table th {
+    text-align: center;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.table td {
+    font-size: 11px;
+}
+
+.table th:first-child {
+    width: 34px;
+}
+
+.table th:nth-child(2),
+.table th:nth-child(3) {
+    width: auto;
+}
+
+.table th:nth-child(4) {
+    width: 48px;
+}
+
+.table th:nth-child(5),
+.table th:nth-child(6),
+.table th:nth-child(8) {
+    width: 82px;
+}
+
+.table th:nth-child(7) {
+    width: 54px;
+}
+
+.unitText {
+    margin-top: 2px;
+    color: #4b5563;
+    font-size: 10px;
+}
+
+.center {
+    text-align: center;
+}
+
+.right {
+    text-align: right;
+}
+
+.summary {
+    width: 78mm;
+    margin: 12px 0 10px auto;
+    border: 1px solid #111827;
+    border-bottom: none;
+}
+
+.summary div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 7px 10px;
+    border-bottom: 1px solid #111827;
+}
+
+.wordsLine {
+    margin-top: 14px;
+}
+
+.footer {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 60px;
+    margin-top: 42px;
+    text-align: center;
+    font-weight: 700;
+}
+
+@media print {
+    .page {
+        padding: 0;
+        background: #fff;
+    }
+
+    .sheet {
+        width: auto;
+        min-height: 297mm;
+        border: none;
+    }
+}

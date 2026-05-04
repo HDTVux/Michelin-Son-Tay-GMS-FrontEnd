@@ -136,6 +136,9 @@ export default function MaintenanceBookingPopup({
         };
     }, [date, durationMinutes]);
 
+    const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+    const isPastDate = Boolean(date) && date < today;
+
     if (!open) return null;
 
     return (
@@ -163,10 +166,14 @@ export default function MaintenanceBookingPopup({
                         <input
                             id="maintenance-next-date"
                             type="date"
+                            min={today}
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
                             disabled={submitting}
                         />
+                        {isPastDate ? (
+                            <div className={styles.maintenanceSlotError}>Không được chọn ngày trong quá khứ.</div>
+                        ) : null}
                     </div>
 
                     <div className="ui-field">

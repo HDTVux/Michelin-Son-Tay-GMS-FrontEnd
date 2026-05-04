@@ -173,6 +173,12 @@
   font-size: 14px;
 }
 
+.helperText {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: -4px;
+}
+
 .field input,
 .field select,
 .searchBar input,

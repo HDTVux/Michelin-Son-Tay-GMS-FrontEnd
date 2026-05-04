@@ -73,7 +73,6 @@ const NAV_GROUPS = [
                 label: 'Khách hàng & Lịch hẹn',
                 items: [
                     { id: 'customer-manager', label: 'Quản lý khách hàng', path: '/customer-manager', icon: <IconUser />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ADMIN] },
-                    { id: 'vehicle-management', label: 'Quản lý phương tiện', path: '/vehicle-management', icon: <IconVehicle />, roles: [STAFF_ROLE.ADVISOR, STAFF_ROLE.RECEPTIONIST] },
                     { id: 'create-booking', label: 'Tạo lịch giữ chỗ', path: '/create-booking', icon: <IconEdit />, roles: [STAFF_ROLE.RECEPTIONIST] },
                     { id: 'booking-management', label: 'Quản lý lịch hẹn', path: '/booking-management', icon: <IconCalendar />, roles: [STAFF_ROLE.RECEPTIONIST] },
                     { id: 'booking-request-management', label: 'Yêu cầu đặt lịch', path: '/booking-request-management', icon: <IconClock />, roles: [STAFF_ROLE.RECEPTIONIST] },
@@ -94,12 +93,12 @@ const NAV_GROUPS = [
                 id: 'sub-warehouse',
                 label: 'Kho & Phụ tùng',
                 items: [
-                    { id: 'warehouse-management', label: 'Quản lý kho', path: '/warehouse-management', icon: <IconBox />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT] },
-                    { id: 'warehouse-pricing', label: 'Giá theo kho', path: '/warehouse-pricing', icon: <IconBox />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT] },
-                    { id: 'part-management', label: 'Quản lý phụ tùng', path: '/part-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT] },
-                    { id: 'warehouse-stock-entries', label: 'Quản lý phiếu nhập', path: '/warehouse-stock-entries', icon: <IconDownload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, STAFF_ROLE.ACCOUNTANT] },
-                    { id: 'warehouse-stock-issues', label: 'Quản lý phiếu xuất', path: '/warehouse-stock-issues', icon: <IconUpload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, STAFF_ROLE.ACCOUNTANT] },
-                    { id: 'warehouse-return-entries', label: 'Quản lý phiếu trả hàng', path: '/warehouse-return-entries', icon: <IconUpload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, STAFF_ROLE.ACCOUNTANT] },
+                    { id: 'warehouse-management', label: 'Quản lý kho', path: '/warehouse-management', icon: <IconBox />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
+                    { id: 'warehouse-pricing', label: 'Giá theo kho', path: '/warehouse-pricing', icon: <IconBox />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
+                    { id: 'part-management', label: 'Quản lý phụ tùng', path: '/part-management', icon: <IconSettings />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
+                    { id: 'warehouse-stock-entries', label: 'Quản lý phiếu nhập', path: '/warehouse-stock-entries', icon: <IconDownload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
+                    { id: 'warehouse-stock-issues', label: 'Quản lý phiếu xuất', path: '/warehouse-stock-issues', icon: <IconUpload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
+                    { id: 'warehouse-return-entries', label: 'Quản lý phiếu trả hàng', path: '/warehouse-return-entries', icon: <IconUpload />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
                 ]
             },
             {
@@ -109,6 +108,7 @@ const NAV_GROUPS = [
                     { id: 'staff-manager', label: 'Quản lý nhân viên', path: '/staff-manager', icon: <IconUsers />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                     { id: 'employee-manager', label: 'Quản lý hồ sơ nhân viên', path: '/employee-manager', icon: <IconBadge />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                     { id: 'shift-management', label: 'Quản lý ca làm việc', path: '/shift-management', icon: <IconCalendar />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                    { id: 'staff-notification-sender', label: 'Thông báo nhân viên', path: '/staff-notification-sender', icon: <IconBell />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                 ]
             },
             {
@@ -128,6 +128,14 @@ const NAV_GROUPS = [
                     { id: 'system-log-management', label: 'Nhật ký hệ thống', path: '/system-log-management', icon: <IconTerminal />, roles: [STAFF_ROLE.ADMIN] },
                 ]
             }
+        ],
+    },
+    {
+        id: 'finance',
+        label: 'Tài chính & Doanh thu',
+        defaultOpen: true,
+        items: [
+            { id: 'revenue-management', label: 'Quản lý doanh thu', path: '/revenue-management', icon: <IconRevenue />, roles: [STAFF_ROLE.ACCOUNTANT, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
         ],
     },
     {
@@ -412,6 +420,7 @@ function IconBell() { return <svg {...svgProps}><path d="M18 8A6 6 0 0 0 6 8c0 7
 function IconMegaphone() { return <svg {...svgProps}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>; }
 function IconStar() { return <svg {...svgProps}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>; }
 function IconHistory() { return <svg {...svgProps}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></svg>; }
+function IconRevenue() { return <svg {...svgProps}><path d="M3 19h18" /><path d="M7 16V9" /><path d="M12 16V5" /><path d="M17 16v-4" /><path d="m6 9 6-4 6 7" /></svg>; }
 
 // Hệ thống
 function IconTerminal() { return <svg {...svgProps}><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>; }

@@ -125,8 +125,8 @@ export default function CreateBooking() {
 
 	const displaySubmitError = submitError || (sourceReminderBlocksBooking ? 'Chỉ có thể tạo lịch từ lời nhắc đã xác nhận.' : '');
 
-		// Các handler chính được sử dụng trong component, được tách ra và quản lý trong useCreateBookingHandlers 
-	    const { handleCheckCustomer, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset, handleCancelEstimate } =
+	// Các handler chính được sử dụng trong component, được tách ra và quản lý trong useCreateBookingHandlers 
+    const { handleCheckCustomer, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset, handleCancelEstimate } =
         useCreateBookingHandlers({
             baseSlots,
 			selectedItems: selectedEstimateItems,
@@ -146,7 +146,6 @@ export default function CreateBooking() {
 			submitSuccess,
 			estimateStorageKey: CREATE_BOOKING_ESTIMATE_STORAGE_KEY,
             navigate,
-
 
             setSelectedIds: noop,
             setSchedule,

@@ -10,6 +10,11 @@ const toSafeSize = (value, fallback = 10) => {
   return Number.isFinite(number) && number >= 1 ? Math.trunc(number) : fallback;
 };
 
+const toPositiveNumberOrNull = (value) => {
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+};
+
 function parseFilenameFromContentDisposition(headerValue) {
   const raw = String(headerValue || '').trim();
   if (!raw) return null;
@@ -56,6 +61,29 @@ async function fetchBlobWithAuth(path, { method, body, token }) {
   const blob = await response.blob();
   const filename = parseFilenameFromContentDisposition(response.headers.get('content-disposition'));
   return { blob, filename };
+}
+
+function normalizeEstimateItemPromotionId(item) {
+  const rawPromotionId = item?.promotionId ?? item?.promotionID ?? item?.PromotionId ?? item?.promotion_id ?? null;
+  if (rawPromotionId == null || String(rawPromotionId).trim() === '') {
+    return null;
+  }
+
+  const promotionIdNum = typeof rawPromotionId === 'number' ? rawPromotionId : Number(rawPromotionId);
+  return Number.isFinite(promotionIdNum) && promotionIdNum > 0 ? promotionIdNum : null;
+}
+
+function normalizeEstimateItemsForRequest(items) {
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const promotionId = normalizeEstimateItemPromotionId(item);
+    return promotionId ? { ...item, promotionId } : { ...item };
+  });
+}
+
+function toPositiveNumberOrNullFromValue(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : Number.NaN;
 }
 
 // Đổi trạng thái phiếu dịch vụ theo serviceTicketId
@@ -194,6 +222,120 @@ export const updateEstimateStockAllocation = (estimateId, allocations, token) =>
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(bodyArr),
+  });
+};
+
+// Tạo yêu cầu hoàn hàng từ trang phiếu dịch vụ
+// Endpoint: POST /api/warehouse/return-entries/request
+// multipart fields: warehouseId?, sourceIssueId?, returnReason, returnType?, items(JSON), exchangeItems?(JSON), file_0..file_4
+export const requestWarehouseReturnEntry = async (payload, filesOrToken, maybeToken) => {
+  const token = typeof filesOrToken === 'string' ? filesOrToken : maybeToken;
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để tạo phiếu hoàn hàng.');
+    error.status = 401;
+    throw error;
+  }
+
+  const safePayload = payload && typeof payload === 'object' ? payload : {};
+  const warehouseId = toPositiveNumberOrNull(safePayload.warehouseId);
+  const sourceIssueId = toPositiveNumberOrNull(safePayload.sourceIssueId);
+  const returnReason = String(safePayload.returnReason ?? '').trim();
+  const returnType = String(safePayload.returnType ?? 'CUSTOMER_RETURN').trim().toUpperCase();
+  const items = Array.isArray(safePayload.items) ? safePayload.items : [];
+  const exchangeItems = Array.isArray(safePayload.exchangeItems) ? safePayload.exchangeItems : [];
+
+  if (!returnReason) {
+    const error = new Error('Vui lòng nhập lý do hoàn hàng.');
+    error.status = 400;
+    throw error;
+  }
+
+  if (items.length === 0) {
+    const error = new Error('Thiếu danh sách sản phẩm hoàn hàng.');
+    error.status = 400;
+    throw error;
+  }
+
+  const normalizedItems = items.map((item) => ({
+    itemId: toPositiveNumberOrNull(item?.itemId),
+    allocationId: toPositiveNumberOrNull(item?.allocationId),
+    quantity: toPositiveNumberOrNull(item?.quantity),
+    conditionNote: String(item?.conditionNote ?? '').trim(),
+  }));
+
+  if (normalizedItems.some((item) => !item.itemId || !item.allocationId || !item.quantity)) {
+    const error = new Error('Danh sách sản phẩm hoàn hàng thiếu itemId, allocationId hoặc quantity hợp lệ.');
+    error.status = 400;
+    throw error;
+  }
+
+  const formData = new FormData();
+  if (warehouseId) formData.append('warehouseId', String(warehouseId));
+  if (sourceIssueId) formData.append('sourceIssueId', String(sourceIssueId));
+  formData.append('returnReason', returnReason);
+  if (returnType) formData.append('returnType', returnType);
+  formData.append('items', JSON.stringify(normalizedItems));
+  if (exchangeItems.length > 0) formData.append('exchangeItems', JSON.stringify(exchangeItems));
+
+  const rawFiles = typeof filesOrToken === 'string'
+    ? (safePayload.files || safePayload.attachments || safePayload.images)
+    : filesOrToken;
+  const uploadFiles = rawFiles ? Array.from(rawFiles) : [];
+  uploadFiles.slice(0, 5).forEach((file, idx) => {
+    const isBlob = typeof Blob !== 'undefined' && file instanceof Blob;
+    if (!isBlob) return;
+    formData.append(`file_${idx}`, file, file?.name || `attachment_${idx + 1}`);
+  });
+
+  const response = await fetch(`${API_BASE_URL}/api/warehouse/return-entries/request`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json') ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof data === 'string' ? data : data?.message || data?.data?.message || 'Request failed';
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  if (data?.success === false) {
+    const error = new Error(data?.message || data?.data?.message || 'Request failed');
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+};
+
+// Hủy giữ hàng theo estimate item và phiếu xuất kho liên quan
+// Endpoint: POST /api/warehouse/allocations/cancel
+// Request body: { estimateItemId, issueId? }
+export const cancelWarehouseAllocation = (payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để hủy giữ hàng.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const safePayload = payload && typeof payload === 'object' ? payload : {};
+  const estimateItemId = toPositiveNumberOrNull(safePayload.estimateItemId);
+  const issueId = safePayload.issueId == null ? null : toPositiveNumberOrNull(safePayload.issueId);
+
+  if (!estimateItemId) {
+    const error = new Error('Thiếu estimateItemId hợp lệ để hủy giữ hàng.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request('/api/warehouse/allocations/cancel', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ estimateItemId, issueId }),
   });
 };
 
@@ -650,6 +792,29 @@ export const fetchServiceTicketEstimate = (serviceTicketId, token) => {
   });
 };
 
+// Lấy thông tin ước tính cho phiếu dịch vụ theo bookingId
+// Endpoint: GET /api/service-ticket/estimate/{bookingId}/bookingId
+export const fetchServiceTicketEstimateByBookingId = (bookingId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem bảng báo giá.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idRaw = String(bookingId ?? '').trim();
+  if (!idRaw) {
+    const error = new Error('Thiếu bookingId.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const idEncoded = encodeURIComponent(idRaw);
+  return request(`/api/service-ticket/estimate/${idEncoded}/bookingId`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Tạo mới bảng báo giá cho phiếu dịch vụ
 // Endpoint: POST /api/service-ticket/estimate/
 // Payload: { serviceTicketId, estimateType, items: [{ workCategoryId, newCategoryName, itemId, itemName, unit, quantity, unitPrice }] }
@@ -665,16 +830,14 @@ export const createServiceTicketEstimate = (payload, token) => {
     serviceTicketId !== undefined &&
     serviceTicketId !== null &&
     String(serviceTicketId).trim() !== '';
-  const idNum = hasServiceTicketId
-    ? (typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId))
-    : null;
+  const idNum = hasServiceTicketId ? toPositiveNumberOrNullFromValue(serviceTicketId) : null;
   if (hasServiceTicketId && (!Number.isFinite(idNum) || idNum <= 0)) {
     const error = new Error('Thiếu serviceTicketId hợp lệ.');
     error.status = 400;
     return Promise.reject(error);
   }
 
-  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const items = normalizeEstimateItemsForRequest(payload?.items);
   if (items.length === 0) {
     const error = new Error('Báo giá cần có ít nhất 1 dòng items.');
     error.status = 400;
@@ -687,6 +850,7 @@ export const createServiceTicketEstimate = (payload, token) => {
     body: JSON.stringify({
       ...payload,
       serviceTicketId: hasServiceTicketId ? idNum : null,
+      items,
     }),
   });
 };
@@ -713,16 +877,14 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
     serviceTicketId !== undefined &&
     serviceTicketId !== null &&
     String(serviceTicketId).trim() !== '';
-  const ticketNum = hasServiceTicketId
-    ? (typeof serviceTicketId === 'number' ? serviceTicketId : Number(serviceTicketId))
-    : null;
+  const ticketNum = hasServiceTicketId ? toPositiveNumberOrNullFromValue(serviceTicketId) : null;
   if (hasServiceTicketId && (!Number.isFinite(ticketNum) || ticketNum <= 0)) {
     const error = new Error('Thiếu serviceTicketId hợp lệ.');
     error.status = 400;
     return Promise.reject(error);
   }
 
-  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const items = normalizeEstimateItemsForRequest(payload?.items);
   if (items.length === 0) {
     const error = new Error('Báo giá cần có ít nhất 1 dòng.');
     error.status = 400;
@@ -735,6 +897,7 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
     body: JSON.stringify({
       ...payload,
       serviceTicketId: hasServiceTicketId ? ticketNum : null,
+      items,
     }),
   });
 };
@@ -761,6 +924,86 @@ export const updateServiceTicketEstimateItem = (estimateItemId, payload, token) 
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload ?? {}),
   });
+};
+
+// Áp dụng khuyến mãi vào bảng báo giá.
+// Endpoint: PUT /api/service-ticket/estimate/{promotionId}/apply-promotion/{estimateId}?promotionCode={code}
+export const applyPromotionToEstimate = (promotionId, estimateId, promotionCode, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để áp dụng khuyến mãi.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const promotionIdNum = typeof promotionId === 'number' ? promotionId : Number(promotionId);
+  if (!Number.isFinite(promotionIdNum) || promotionIdNum <= 0) {
+    const error = new Error('Thiếu promotionId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const estimateIdNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(estimateIdNum) || estimateIdNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const code = String(promotionCode ?? '').trim();
+  if (!code) {
+    const error = new Error('Thiếu promotionCode hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const qs = new URLSearchParams({ promotionCode: code }).toString();
+  return request(
+    `/api/service-ticket/estimate/${encodeURIComponent(String(promotionIdNum))}/apply-promotion/${encodeURIComponent(String(estimateIdNum))}?${qs}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+};
+
+// Gỡ khuyến mãi khỏi bảng báo giá.
+// Endpoint: PUT /api/service-ticket/estimate/{promotionId}/unapply-promotion/{estimateId}?promotionCode={code}
+export const unapplyPromotionFromEstimate = (promotionId, estimateId, promotionCode, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để gỡ khuyến mãi.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const promotionIdNum = typeof promotionId === 'number' ? promotionId : Number(promotionId);
+  if (!Number.isFinite(promotionIdNum) || promotionIdNum <= 0) {
+    const error = new Error('Thiếu promotionId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const estimateIdNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  if (!Number.isFinite(estimateIdNum) || estimateIdNum <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const code = String(promotionCode ?? '').trim();
+  if (!code) {
+    const error = new Error('Thiếu promotionCode hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const qs = new URLSearchParams({ promotionCode: code }).toString();
+  return request(
+    `/api/service-ticket/estimate/${encodeURIComponent(String(promotionIdNum))}/unapply-promotion/${encodeURIComponent(String(estimateIdNum))}?${qs}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
 };
 
 // Lấy danh sách phân công của một phiếu
