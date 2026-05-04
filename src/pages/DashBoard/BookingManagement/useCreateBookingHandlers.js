@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { staffCreateBooking } from '../../../services/bookingService.js';
 import { fetchCustomerByPhone } from '../../../services/customerService.js';
 import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
+import { sendEstimateNotificationZalo } from '../../../services/zaloService.js';
 import {
 	formatLocalDateYYYYMMDD,
 	formatTimeHHmm,
@@ -86,6 +87,7 @@ function clearEstimateDraftStorage(storageKey) {
 export function useCreateBookingHandlers({
 	baseSlots,
 	selectedIds,
+	selectedItems,
 	estimateId,
 	schedule,
 	scheduleMode,
@@ -293,6 +295,45 @@ export function useCreateBookingHandlers({
 			setSubmitSuccess(msg);
 			setSubmitLocked(true);
 			toast(msg, { containerId: 'app-toast' });
+
+			// ===== GỬI THÔNG BÁO ZALO SAU KHI TẠO BOOKING THÀNH CÔNG =====
+			// Xây dựng danh sách tên sản phẩm từ estimate items
+			const productNames = (Array.isArray(selectedItems) ? selectedItems : [])
+				.filter(item => item && !item.isRemoved)
+				.map(item => String(item?.productName ?? item?.serviceName ?? item?.name ?? '').trim())
+				.filter(name => name.length > 0);
+
+			// Tính tổng giá tiền từ estimate items
+			const totalPrice = (Array.isArray(selectedItems) ? selectedItems : [])
+				.filter(item => item && !item.isRemoved)
+				.reduce((sum, item) => {
+					const unitPrice = Number(item?.unitPrice ?? item?.price ?? 0);
+					const quantity = Number(item?.quantity ?? 1);
+					const itemPrice = Number.isFinite(unitPrice) && Number.isFinite(quantity) ? unitPrice * quantity : 0;
+					return sum + itemPrice;
+				}, 0);
+
+			const zaloPayload = {
+				number: String(info?.phone ?? '').trim(),
+				customerName: String(info?.name ?? '').trim(),
+				productName: productNames.length > 0 ? productNames : ['Dịch vụ bảo trì'],
+				orderCode: bookingCode,
+				garageLocation: 'Michelin Sơn Tây',
+				totalPrice: String(totalPrice),
+			};
+
+			const token = localStorage.getItem('authToken');
+			if (token && bookingCode) {
+				try {
+					await sendEstimateNotificationZalo(zaloPayload, token);
+					toast('Đã gửi thông báo cho khách hàng qua Zalo.', { containerId: 'app-toast' });
+				} catch (zaloErr) {
+					// Log lỗi nhưng không block luồng tạo booking
+					console.warn('Gửi thông báo Zalo thất bại:', zaloErr?.message);
+					// Có thể thêm toast warning tùy chọn
+					// toast(`Cảnh báo: Gửi Zalo thất bại (${zaloErr?.message})`, { containerId: 'app-toast' });
+				}
+			}
 		} catch (err) {
 			setSubmitError(err?.message || 'Không thể tạo lịch hẹn.');
 		} finally {
@@ -308,6 +349,7 @@ export function useCreateBookingHandlers({
 		schedule?.date,
 		schedule?.time,
 		selectedIds,
+		selectedItems,
 		sourceReminderId,
 		submitLocked,
 		setCreatedBookingForCheckIn,
