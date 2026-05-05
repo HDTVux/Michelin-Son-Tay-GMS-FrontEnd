@@ -393,7 +393,9 @@ export default function MaintenanceReminder() {
                       <td className={styles.ticketCode}>{row?.ticketCode || '-'}</td>
                       <td className={styles.customerCell}>{row?.customerName || '-'}</td>
                       <td className={styles.nowrap}>{row?.customerPhone || '-'}</td>
-                      <td className={styles.plate}>{row?.licensePlate || '-'}</td>
+                      <td>
+                        <span className={styles.plate}>{row?.licensePlate || '-'}</span>
+                      </td>
                       <td className={styles.nowrap}>{formatReminderDateTime(row?.reminderDate, row?.reminderTime)}</td>
                       <td className={styles.noteCell}>{row?.note || '-'}</td>
                       <td>

@@ -129,15 +129,6 @@ const sanitizeTireInputValue = (field, value) => {
   return sanitizeDecimalTireInputValue(raw);
 };
 
-const isTireInputAboveMax = (field, value) => {
-  const raw = String(value ?? '').trim();
-  if (!raw || raw === '.') return false;
-  const range = TIRE_FIELD_RANGES[field];
-  if (!range) return false;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > range.max;
-};
-
 const extractRecommendationValue = (response) => {
   const payload = response?.data?.data ?? response?.data ?? response;
   if (typeof payload === 'string') return payload.trim();
@@ -579,6 +570,7 @@ export const ServiceTicket = ({
     const section = tireInputSectionRef.current;
     if (!section) return;
     section.querySelectorAll('input[name^="gms-tire-"]').forEach((input) => {
+      if (input === document.activeElement) return;
       const expectedValue = String(tireInputValueByNameRef.current?.[input.name] ?? '');
       if (input.value !== expectedValue) {
         input.value = expectedValue;
@@ -601,13 +593,9 @@ export const ServiceTicket = ({
       window.setTimeout(syncTireInputDomValues, 50);
     };
     section?.addEventListener('focusin', handlePotentialAutofill);
-    section?.addEventListener('input', handlePotentialAutofill);
-    section?.addEventListener('change', handlePotentialAutofill);
     return () => {
       timers.forEach((timerId) => window.clearTimeout(timerId));
       section?.removeEventListener('focusin', handlePotentialAutofill);
-      section?.removeEventListener('input', handlePotentialAutofill);
-      section?.removeEventListener('change', handlePotentialAutofill);
     };
   }, [resolvedTicketCode, draftScope, syncTireInputDomValues]);
 
@@ -1065,12 +1053,7 @@ export const ServiceTicket = ({
     if (!canEditTechnicalFields || isFormLocked) return;
     const nextValue = sanitizeTireInputValue(field, value);
     const currentValue = String(tireData?.[position]?.[field] ?? '');
-    const isAddingMoreInvalidInput = (
-      nextValue.length > currentValue.length
-      && isTireInputAboveMax(field, currentValue)
-      && isTireInputAboveMax(field, nextValue)
-    );
-    if (nextValue === currentValue || isAddingMoreInvalidInput || isTireInputAboveMax(field, nextValue)) return;
+    if (nextValue === currentValue) return;
     markUnsavedLocalEdit();
     setTireData(prev => ({
       ...prev,
