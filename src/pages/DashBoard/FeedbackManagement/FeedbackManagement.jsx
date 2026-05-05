@@ -4,7 +4,6 @@ import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/t
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchFeedbackPaged } from '../../../services/feedbackService.js';
 import {
-  fetchServiceTicketDetail,
   fetchServiceTicketsPaged,
   fetchTicketAssignments,
 } from '../../../services/serviceTicketService.js';
@@ -130,10 +129,37 @@ const compactText = (value, fallback = '-') => {
   return text || fallback;
 };
 
+const getServiceTicketIdFromAny = (value) => (
+  toSafePositiveInt(
+    value?.serviceTicketId
+      ?? value?.service_ticket_id
+      ?? value?.ticketId
+      ?? value?.id
+      ?? value?.serviceTicket?.serviceTicketId
+      ?? value?.serviceTicket?.id
+      ?? value?.ticket?.serviceTicketId
+      ?? value?.ticket?.id,
+  )
+);
+
+const getTicketCodeFromAny = (value) => (
+  compactText(
+    value?.ticketCode
+      || value?.serviceTicketCode
+      || value?.service_ticket_code
+      || value?.code
+      || value?.serviceTicket?.ticketCode
+      || value?.serviceTicket?.code
+      || value?.ticket?.ticketCode
+      || value?.ticket?.code,
+    '',
+  )
+);
+
 const buildModalTicketInfo = (detail, ticketCodeFallback, serviceTicketIdFallback) => {
   const payload = extractPayload(detail) ?? {};
-  const serviceTicketId = toSafePositiveInt(payload?.serviceTicketId) || serviceTicketIdFallback || null;
-  const ticketCode = compactText(payload?.ticketCode || ticketCodeFallback, '-');
+  const serviceTicketId = getServiceTicketIdFromAny(payload) || serviceTicketIdFallback || null;
+  const ticketCode = compactText(getTicketCodeFromAny(payload) || ticketCodeFallback, '-');
   const bookingDate = compactText(payload?.booking?.scheduledDate || payload?.scheduledDate, '');
   const bookingTime = formatTimeHHmm(payload?.booking?.scheduledTime || payload?.scheduledTime || '');
 
@@ -212,11 +238,36 @@ function FeedbackManagement() {
       );
       const payload = extractPayload(response) ?? {};
       const content = Array.isArray(payload?.content) ? payload.content : [];
-      const matched = content.find((item) => toSafePositiveInt(item?.serviceTicketId) === ticketId) || null;
+      const matched = content.find((item) => getServiceTicketIdFromAny(item) === ticketId) || null;
       if (matched) {
         const result = {
           serviceTicketId: ticketId,
-          ticketCode: compactText(matched?.ticketCode, ''),
+          ticketCode: getTicketCodeFromAny(matched),
+          raw: matched,
+        };
+        ticketLookupCacheRef.current.set(ticketId, result);
+        return result;
+      }
+
+      totalPageCount = Number(payload?.totalPages ?? 0);
+      if (!Number.isFinite(totalPageCount) || totalPageCount <= 0) break;
+      pageIndex += 1;
+    }
+
+    pageIndex = 0;
+    totalPageCount = 1;
+    while (pageIndex < totalPageCount) {
+      const response = await fetchServiceTicketsPaged(
+        { page: pageIndex, size: PAGE_SIZE },
+        token,
+      );
+      const payload = extractPayload(response) ?? {};
+      const content = Array.isArray(payload?.content) ? payload.content : [];
+      const matched = content.find((item) => getServiceTicketIdFromAny(item) === ticketId) || null;
+      if (matched) {
+        const result = {
+          serviceTicketId: ticketId,
+          ticketCode: getTicketCodeFromAny(matched),
           raw: matched,
         };
         ticketLookupCacheRef.current.set(ticketId, result);
@@ -319,7 +370,7 @@ function FeedbackManagement() {
 
   const openTicketDetailModal = useCallback(async (feedback) => {
     const token = getToken();
-    const serviceTicketId = toSafePositiveInt(feedback?.serviceTicketId);
+    const serviceTicketId = getServiceTicketIdFromAny(feedback);
 
     setDetailOpen(true);
     setDetailLoading(true);
@@ -356,25 +407,16 @@ function FeedbackManagement() {
       }
       setTicketAssignments(assignments);
 
-      const ticketCode = ticketLookupResult.status === 'fulfilled' ? ticketLookupResult.value?.ticketCode : '';
-      if (!ticketCode) {
-        localErrors.push(`Không tìm thấy ticketCode cho phiếu #${serviceTicketId}.`);
-        setTicketInfo(
-          buildModalTicketInfo(
-            null,
-            '',
-            serviceTicketId,
-          ),
-        );
-      } else {
-        try {
-          const detailResponse = await fetchServiceTicketDetail(ticketCode, token);
-          setTicketInfo(buildModalTicketInfo(detailResponse, ticketCode, serviceTicketId));
-        } catch {
-          localErrors.push('Không thể tải chi tiết phiếu dịch vụ.');
-          setTicketInfo(buildModalTicketInfo(null, ticketCode, serviceTicketId));
-        }
+      const ticketLookup = ticketLookupResult.status === 'fulfilled' ? ticketLookupResult.value : null;
+      if (!ticketLookup) {
+        localErrors.push(`Không tìm thấy phiếu dịch vụ #${serviceTicketId} trong danh sách quản lý.`);
       }
+      const ticketSource = ticketLookup?.raw || feedback?.serviceTicket || feedback?.ticket || feedback;
+      setTicketInfo(buildModalTicketInfo(
+        ticketSource,
+        ticketLookup?.ticketCode || getTicketCodeFromAny(feedback),
+        serviceTicketId,
+      ));
     } finally {
       setDetailError(localErrors.join(' '));
       setDetailLoading(false);
@@ -516,7 +558,7 @@ function FeedbackManagement() {
             <thead>
               <tr>
                 <th>STT</th>
-                <th>Mã phiếu</th>
+                <th>ID phiếu</th>
                 <th>Số sao</th>
                 <th>Nhận xét</th>
                 <th>Chi tiết phản hồi</th>
@@ -538,7 +580,7 @@ function FeedbackManagement() {
                 </tr>
               ) : (
                 items.map((item, index) => {
-                  const ticketId = toSafePositiveInt(item?.serviceTicketId);
+                  const ticketId = getServiceTicketIdFromAny(item);
                   return (
                     <tr key={`${ticketId || 'feedback'}-${index}`}>
                       <td>{safePage * safeSize + index + 1}</td>
@@ -611,7 +653,7 @@ function FeedbackManagement() {
           <div className={styles.modalContent} onClick={(event) => event.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>
-                Chi tiết phiếu {ticketInfo?.ticketCode && ticketInfo.ticketCode !== '-' ? `#${ticketInfo.ticketCode}` : ''}
+                Chi tiết phiếu {ticketInfo?.serviceTicketId ? `#${ticketInfo.serviceTicketId}` : ''}
               </h3>
               <button className={styles.modalClose} onClick={closeDetailModal} aria-label="Đóng">
                 ×
@@ -650,6 +692,10 @@ function FeedbackManagement() {
                     <h4 className={styles.sectionTitle}>Thông tin phiếu dịch vụ</h4>
                     <div className={styles.detailCard}>
                       <div className={styles.detailGrid}>
+                        <div className={styles.detailItem}>
+                          <span>ID phiếu</span>
+                          <strong>{ticketInfo?.serviceTicketId || '-'}</strong>
+                        </div>
                         <div className={styles.detailItem}>
                           <span>Mã phiếu</span>
                           <strong>{ticketInfo?.ticketCode || '-'}</strong>
