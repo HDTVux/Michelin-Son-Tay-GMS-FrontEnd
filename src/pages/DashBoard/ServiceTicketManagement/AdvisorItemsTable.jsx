@@ -1287,7 +1287,11 @@ export default function AdvisorItemsTable({
                                     {conditionPhotos.map((p, idx) => {
                                         const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
                                         const label = String(p?.label || p?.category || '').trim();
-                                        const caption = label || (p?.description ? String(p.description) : `Ảnh ${idx + 1}`);
+                                        const description = String(p?.description || '').trim();
+                                        const fallbackLabel = label || `Ảnh ${idx + 1}`;
+                                        const caption = description
+                                            ? (label ? `${label}: ${description}` : description)
+                                            : fallbackLabel;
                                         return (
                                             <figure key={key} className={styles.vehiclePhotoCard}>
                                                 <button
@@ -1304,7 +1308,12 @@ export default function AdvisorItemsTable({
                                                         referrerPolicy="no-referrer"
                                                     />
                                                 </button>
-                                                <figcaption className={styles.vehiclePhotoCaption}>{caption}</figcaption>
+                                                <figcaption className={styles.vehiclePhotoCaption}>
+                                                    <span className={styles.vehiclePhotoLabel}>{fallbackLabel}</span>
+                                                    {description ? (
+                                                        <span className={styles.vehiclePhotoDescription}>{description}</span>
+                                                    ) : null}
+                                                </figcaption>
                                             </figure>
                                         );
                                     })}

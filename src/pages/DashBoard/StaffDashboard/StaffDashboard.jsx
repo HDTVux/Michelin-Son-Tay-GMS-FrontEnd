@@ -11,6 +11,7 @@ import {
   fetchStaffTodayTasks,
   markStaffNotificationAsRead,
 } from '../../../services/staffDashboardService.js';
+import { fetchManagedBookingsPaged } from '../../../services/bookingService.js';
 import { fetchServiceTicketsPaged } from '../../../services/serviceTicketService.js';
 import styles from './StaffDashboard.module.css';
 
@@ -100,8 +101,8 @@ const roleTaskConfig = (role) => {
     return {
       eyebrow: 'Tiếp nhận',
       title: 'Việc lễ tân hôm nay',
-      route: '/booking-request-management',
-      button: 'Mở yêu cầu',
+      route: '/booking-management',
+      button: 'Mở lịch hẹn',
       empty: 'Các việc lễ tân nằm ở yêu cầu đặt lịch, lịch hẹn và check-in.',
       hint: 'Yêu cầu, lịch hẹn, check-in',
     };
@@ -297,6 +298,15 @@ const calcHours = (checkIn, checkOut) => {
 const unwrapList = (response, fallback = []) =>
   Array.isArray(response?.data) ? response.data : fallback;
 
+const unwrapPayload = (response) => response?.data?.data ?? response?.data ?? response;
+
+const unwrapPageContent = (response, fallback = []) => {
+  const payload = unwrapPayload(response);
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.content)) return payload.content;
+  return fallback;
+};
+
 const unwrapObject = (response, fallback = null) =>
   response?.data && typeof response.data === 'object' ? response.data : fallback;
 
@@ -328,6 +338,61 @@ const buildAttendancePie = (summary) => {
     : '#e5e7eb 0% 100%';
 
   return { segments, total, gradient };
+};
+
+const getBookingCode = (booking) => String(
+  booking?.bookingCode
+    ?? booking?.booking_code
+    ?? booking?.code
+    ?? '',
+).trim();
+
+const formatBookingTime = (value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  if (/^\d{2}:\d{2}/.test(raw)) return raw.slice(0, 5);
+  return raw;
+};
+
+const mapBookingToReceptionistTask = (booking) => {
+  const bookingCode = getBookingCode(booking);
+  const time = formatBookingTime(booking?.scheduledTime);
+  const customer = booking?.customer ?? {};
+  const customerName = String(
+    customer?.fullName
+      ?? booking?.customerName
+      ?? booking?.fullName
+      ?? booking?.name
+      ?? '',
+  ).trim();
+  const customerPhone = String(customer?.phone ?? booking?.customerPhone ?? booking?.phone ?? '').trim();
+
+  return {
+    bookingId: booking?.bookingId ?? booking?.id ?? bookingCode,
+    ticketCode: bookingCode || 'Lá»‹ch háº¹n',
+    customerName: customerName || 'KhÃ¡ch hÃ ng',
+    licensePlate: [time, customerPhone].filter(Boolean).join(' â€¢ ') || 'Lá»‹ch háº¹n hÃ´m nay',
+    ticketStatus: booking?.status || booking?.bookingStatus || 'CONFIRMED',
+    route: bookingCode
+      ? `/booking-management/${encodeURIComponent(bookingCode)}`
+      : '/booking-management',
+  };
+};
+
+const mergeTasksByCode = (...lists) => {
+  const seen = new Set();
+  return lists.flatMap((list) => (Array.isArray(list) ? list : [])).filter((item, index) => {
+    const key = String(
+      item?.bookingId
+        ?? item?.serviceTicketId
+        ?? item?.ticketCode
+        ?? item?.serviceTicketCode
+        ?? index,
+    );
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 };
 
 function Icon({ name }) {
@@ -497,6 +562,7 @@ export default function StaffDashboard() {
       notificationsResult,
       tasksResult,
       paidTicketsResult,
+      receptionistBookingsResult,
     ] = await Promise.allSettled([
       fetchStaffDashboard(token),
       fetchStaffStatistics(currentMonth, currentYear, token),
@@ -506,6 +572,9 @@ export default function StaffDashboard() {
       fetchStaffTodayTasks(token),
       primaryRole === STAFF_ROLE.ACCOUNTANT
         ? fetchServiceTicketsPaged({ page: 0, size: 1, status: 'PAID' }, token)
+        : Promise.resolve(null),
+      primaryRole === STAFF_ROLE.RECEPTIONIST
+        ? fetchManagedBookingsPaged({ page: 0, size: 10, date: scheduleFrom }, token)
         : Promise.resolve(null),
     ]);
 
@@ -530,11 +599,15 @@ export default function StaffDashboard() {
         ? unwrapList(notificationsResult.value, overview?.notifications || [])
         : overview?.notifications || [],
     );
-    setTasks(
-      tasksResult.status === 'fulfilled'
-        ? unwrapList(tasksResult.value, overview?.todayTasks || [])
-        : overview?.todayTasks || [],
-    );
+    const apiTasks = tasksResult.status === 'fulfilled'
+      ? unwrapList(tasksResult.value, overview?.todayTasks || [])
+      : overview?.todayTasks || [];
+    const receptionistBookingTasks = primaryRole === STAFF_ROLE.RECEPTIONIST && receptionistBookingsResult.status === 'fulfilled'
+      ? unwrapPageContent(receptionistBookingsResult.value).map(mapBookingToReceptionistTask)
+      : [];
+    setTasks(primaryRole === STAFF_ROLE.RECEPTIONIST
+      ? mergeTasksByCode(receptionistBookingTasks, apiTasks)
+      : apiTasks);
     setAccountantPaidCount(
       paidTicketsResult.status === 'fulfilled' && paidTicketsResult.value
         ? unwrapPageTotal(paidTicketsResult.value)
@@ -549,6 +622,7 @@ export default function StaffDashboard() {
       notificationsResult,
       tasksResult,
       paidTicketsResult,
+      receptionistBookingsResult,
     ].filter((result) => result.status === 'rejected').length;
 
     if (failedCount > 0) {
@@ -741,9 +815,9 @@ export default function StaffDashboard() {
               tasks.slice(0, 5).map((task) => (
                 <button
                   type="button"
-                  key={task.serviceTicketId || task.ticketCode}
+                  key={task.bookingId || task.serviceTicketId || task.ticketCode}
                   className={styles.taskItem}
-                  onClick={() => navigate(taskConfig.route)}
+                  onClick={() => navigate(task.route || taskConfig.route)}
                 >
                   <span className={styles.taskCode}>{task.ticketCode || task.serviceTicketCode || 'Phiếu'}</span>
                   <span className={styles.taskInfo}>

@@ -326,7 +326,7 @@ export function useCreateBookingHandlers({
 			if (token && bookingCode) {
 				try {
 					await sendEstimateNotificationZalo(zaloPayload, token);
-					toast('Đã gửi thông báo cho khách hàng qua Zalo.', { containerId: 'app-toast' });
+					// toast('Đã gửi thông báo cho khách hàng qua Zalo.', { containerId: 'app-toast' });
 				} catch (zaloErr) {
 					// Log lỗi nhưng không block luồng tạo booking
 					console.warn('Gửi thông báo Zalo thất bại:', zaloErr?.message);
