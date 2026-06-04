@@ -30,8 +30,16 @@ function hasStoredEstimateDraft() {
 }
 
 
+const STEPS = [
+	{ id: 'estimate', label: 'Bảng báo giá dự kiến' },
+	{ id: 'schedule', label: 'Chọn lịch' },
+	{ id: 'info', label: 'Thông tin & Yêu cầu đặc biệt' },
+];
+
+
 export default function CreateBooking() {
-	useScrollToTop();
+	const [stepIndex, setStepIndex] = useState(0);
+	useScrollToTop([stepIndex], 'smooth');
 	const noop = () => {};
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -79,7 +87,7 @@ export default function CreateBooking() {
 	// Trạng thái lịch hẹn
 	const [schedule, setSchedule] = useState({ date: initialReminderDate, time: initialReminderTime });
 	const [scheduleMode, setScheduleMode] = useState('manual'); // 'manual' | 'now'
-	const [showSchedulePicker, setShowSchedulePicker] = useState(shouldShowInitialSchedulePicker);
+	const [showSchedulePicker, setShowSchedulePicker] = useState(true);
 
 	// Trạng thái khung giờ
 	const [baseSlots, setBaseSlots] = useState([]);
@@ -167,6 +175,7 @@ export default function CreateBooking() {
 			setIsEstimateEditing,
 			setEstimateTableKey,
 			setCancellingEstimate,
+			setStepIndex,
         });
 	
 	// Xây dựng các options cho dropdown chọn ngày, giới hạn trong vòng 10 ngày tới
@@ -337,6 +346,30 @@ export default function CreateBooking() {
 	return (
 		<div className={`${bookingStyles['booking-page']} ${styles.page}`}>
 			<h2 className={`${bookingStyles['section-title']} ${styles.title}`}>Tạo lịch cho khách hàng</h2>
+
+			<div className={bookingStyles['stepper-wrapper']}>
+				<div className={bookingStyles['progress-track']}>
+					<div className={bookingStyles['progress-fill']} style={{ width: `${((stepIndex + 1) / STEPS.length) * 100}%` }} />
+				</div>
+				<div className={bookingStyles.stepper}>
+					{STEPS.map((step, idx) => {
+						const isCompleted = idx < stepIndex || (submitLocked && idx === 2);
+						const isActive = idx === stepIndex;
+						const stepClass = [
+							bookingStyles.step,
+							isCompleted ? bookingStyles.completed : '',
+							isActive ? bookingStyles.active : ''
+						].filter(Boolean).join(' ');
+						return (
+							<div key={step.id} className={stepClass}>
+								<div className={bookingStyles.dot}>{isCompleted ? '✓' : idx + 1}</div>
+								<div className={bookingStyles.label}>{step.label}</div>
+							</div>
+						);
+					})}
+				</div>
+			</div>
+
 			{sourceReminderId && (
 				<div className={styles.reminderSource}>
 					Đang tạo lịch từ lời nhắc #{sourceReminderId}
@@ -347,184 +380,229 @@ export default function CreateBooking() {
 					Chỉ có thể tạo lịch khi lời nhắc đã xác nhận.
 				</div>
 			)}
-			<AdvisorItemsTable
-				key={estimateTableKey}
-				className={styles.estimatePanel}
-				serviceTicketId={null}
-				ticketStatus=""
-				ticketPhotos={[]}
-				estimatedTimeDisplay=""
-				title="Bảng báo giá dự kiến"
-				draftStorageKey={CREATE_BOOKING_ESTIMATE_STORAGE_KEY}
-				hideVehiclePhotos
-				hideRecommendation
-				hideEstimateSummary
-				hideEmptyTableBeforeCreate
-				onEstimateStatusChange={setSelectedEstimate}
-				onEstimateEditingChange={setIsEstimateEditing}
-			/>
-			{hasActiveEstimateDraft ? (
-				<div className={bookingStyles['booking-actions']} style={{ padding: 0, marginTop: 8 }}>
-					<button
-						type="button"
-						className={bookingStyles.btn}
-						onClick={handleCancelEstimate}
-						disabled={cancellingEstimate || submitting}
-					>
-						{cancellingEstimate ? 'Đang hủy báo giá...' : 'Hủy báo giá'}
-					</button>
-				</div>
-			) : null}
 
-			<div className={styles.sectionSpacer} />
+			{/* BƯỚC 1: BẢNG BÁO GIÁ DỰ KIẾN */}
+			{stepIndex === 0 && (
+				<>
+					<AdvisorItemsTable
+						key={estimateTableKey}
+						className={styles.estimatePanel}
+						serviceTicketId={null}
+						ticketStatus=""
+						ticketPhotos={[]}
+						estimatedTimeDisplay=""
+						title="Bảng báo giá dự kiến"
+						draftStorageKey={CREATE_BOOKING_ESTIMATE_STORAGE_KEY}
+						hideVehiclePhotos
+						hideRecommendation
+						hideEstimateSummary
+						autoStartCreate
+						onEstimateStatusChange={setSelectedEstimate}
+						onEstimateEditingChange={setIsEstimateEditing}
+					/>
+					{hasActiveEstimateDraft ? (
+						<div className={bookingStyles['booking-actions']} style={{ padding: 0, marginTop: 8 }}>
+							<button
+								type="button"
+								className={bookingStyles.btn}
+								onClick={handleCancelEstimate}
+								disabled={cancellingEstimate || submitting}
+							>
+								{cancellingEstimate ? 'Đang hủy báo giá...' : 'Hủy báo giá'}
+							</button>
+						</div>
+					) : null}
 
-			<section className={`${scheduleStyles.section} ${styles.fullWidthSection}`}>
-				<h3 className={scheduleStyles.sectionTitle}>Chọn lịch</h3>
-				<div className={bookingStyles['booking-actions']} style={{ padding: 0, marginTop: 8 }}>
-					<button
-						type="button"
-						className={bookingStyles.btn}
-						onClick={handleShowManualSchedule}
-						disabled={submitting || sourceReminderBlocksBooking}
-					>
-						Chọn lịch
-					</button>
-					<button
-						type="button"
-						className={`${bookingStyles.btn} ${bookingStyles.primary}`}
-						onClick={handleUseNow}
-						disabled={submitting || sourceReminderBlocksBooking}
-					>
-						Dùng ngày giờ hiện tại
-					</button>
-				</div>
-
-				{scheduleMode === 'now' && schedule.date && schedule.time && (
-					<div className={scheduleStyles.helperText} style={{ marginTop: 8 }}>
-						Đang đặt cho slot: {schedule.date} {schedule.time}
+					<div className={bookingStyles['booking-actions']} style={{ marginTop: 24 }}>
+						<button
+							type="button"
+							className={bookingStyles.btn}
+							onClick={handleReset}
+							disabled={submitting || cancellingEstimate}
+						>
+							Làm mới
+						</button>
+						<button
+							type="button"
+							className={`${bookingStyles.btn} ${bookingStyles.primary}`}
+							onClick={() => setStepIndex(1)}
+						>
+							Tiếp tục
+						</button>
 					</div>
-				)}
-				
-				{/* Giao diện chọn ngày & giờ thủ công */}
-				{showSchedulePicker && scheduleMode === 'manual' && (
-					<>
-						<div className={scheduleStyles.formRow}>
-							<div className={scheduleStyles.formField}>
-								<label className={scheduleStyles.label} htmlFor="desiredDate">Ngày mong muốn</label>
-								<div className={scheduleStyles.dateInput}>
-									<span className={scheduleStyles.dateIcon}>📅</span>
-									<select
-										id="desiredDate"
-										value={schedule.date}
-										onChange={(e) => setSchedule((prev) => ({ ...prev, date: e.target.value, time: '' }))}
-									>
-										<option value="">Chọn ngày</option>
+				</>
+			)}
+
+			{/* BƯỚC 2: CHỌN LỊCH */}
+			{stepIndex === 1 && (
+				<>
+					<section className={`${scheduleStyles.section} ${styles.fullWidthSection}`}>
+						<h3 className={scheduleStyles.sectionTitle}>Chọn lịch</h3>
+						<div className={bookingStyles['booking-actions']} style={{ padding: 0, marginTop: 8 }}>
+							<button
+								type="button"
+								className={bookingStyles.btn}
+								onClick={handleShowManualSchedule}
+								disabled={submitting || sourceReminderBlocksBooking}
+							>
+								Chọn lịch
+							</button>
+							<button
+								type="button"
+								className={`${bookingStyles.btn} ${bookingStyles.primary}`}
+								onClick={handleUseNow}
+								disabled={submitting || sourceReminderBlocksBooking}
+							>
+								Dùng ngày giờ hiện tại
+							</button>
+						</div>
+
+						{scheduleMode === 'now' && schedule.date && schedule.time && (
+							<div className={scheduleStyles.helperText} style={{ marginTop: 8 }}>
+								Đang đặt cho slot: {schedule.date} {schedule.time}
+							</div>
+						)}
+						
+						{/* Giao diện chọn ngày & giờ thủ công */}
+						{showSchedulePicker && scheduleMode === 'manual' && (
+							<>
+								<div className={scheduleStyles.formRow}>
+									<div className={scheduleStyles.formField}>
+										<label className={scheduleStyles.label} htmlFor="desiredDate">Ngày mong muốn</label>
+										<div className={scheduleStyles.dateInput}>
+											<span className={scheduleStyles.dateIcon}>📅</span>
+											<select
+												id="desiredDate"
+												value={schedule.date}
+												onChange={(e) => setSchedule((prev) => ({ ...prev, date: e.target.value, time: '' }))}
+											>
+												<option value="">Chọn ngày</option>
+												{isDateOutOfRange && (
+													<option value={schedule.date} disabled>
+														{schedule.date}
+													</option>
+												)}
+												{dateOptions.map((opt) => (
+													<option key={opt.value} value={opt.value}>{opt.label}</option>
+												))}
+											</select>
+										</div>
 										{isDateOutOfRange && (
-											<option value={schedule.date} disabled>
-												{schedule.date}
-											</option>
-										)}
-										{dateOptions.map((opt) => (
-											<option key={opt.value} value={opt.value}>{opt.label}</option>
-										))}
-									</select>
-								</div>
-								{isDateOutOfRange && (
-									<div className={scheduleStyles.helperText}>
-										Chỉ cho phép chọn trong 10 ngày tới.
-									</div>
-								)}
-							</div>
-							<div className={scheduleStyles.formField}>
-								<label className={scheduleStyles.label} htmlFor="desiredTime">Khung giờ</label>
-								<input
-									id="desiredTime"
-									type="time"
-									value={schedule.time}
-									onChange={(e) => setSchedule((prev) => ({ ...prev, time: e.target.value }))}
-									disabled={!schedule.date || slotsLoading || !!slotsError}
-								/>
-							</div>
-						</div>
-
-						<div className={scheduleStyles.slotSection}>
-							<div className={scheduleStyles.slotTitle}>Chọn khung giờ theo danh sách</div>
-							<div className={scheduleStyles.slotSub}>
-								Hiển thị các khung giờ theo ngày đã chọn; các khung đã đầy sẽ bị khóa.
-							</div>
-
-							{baseSlotsLoading && <div className={scheduleStyles.serviceStatus}>Đang tải khung giờ...</div>}
-							{!baseSlotsLoading && baseSlotsError && <div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>{baseSlotsError}</div>}
-
-							{!!schedule.date && slotsLoading && <div className={scheduleStyles.serviceStatus}>Đang tải trạng thái chỗ trống...</div>}
-							{!!schedule.date && !slotsLoading && slotsError && <div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>{slotsError}</div>}
-							{!!selectedSlotStatus?.status && (
-								<div
-									className={`${scheduleStyles.serviceStatus} ${selectedSlotStatus.isOverCapacity || selectedSlotStatus.isUnavailable ? scheduleStyles.serviceStatusError : ''}`}
-									style={{ marginTop: 8 }}
-								>
-									{selectedSlotStatus.occupancyText ? ` (${selectedSlotStatus.occupancyText})` : ''}
-									{selectedSlotStatus.isOverCapacity ? ' — Đã vượt quá sức chứa! Nhân viên cần xem xét trước khi tạo lịch.' : ''}
-								</div>
-							)}
-
-							<div className={scheduleStyles.slotGrid}>
-								{displaySlots.map((slot) => {
-									const rawTime = slot?.startTime;
-									const displayTime = formatTimeHHmm(rawTime);
-
-									const remaining = Number(slot?.remainingCapacity);
-									const hasRemaining = Number.isFinite(remaining);
-									const capacity = Number(slot?.capacity);
-									const currentBookingCount = Number(slot?.currentBookingCount);
-									const hasCapacity = Number.isFinite(capacity) && capacity > 0;
-									const hasCurrentCount = Number.isFinite(currentBookingCount) && currentBookingCount >= 0;
-
-
-									const hasCapacityInfo = !!schedule.date && !slotsError && !slotsLoading;
-									const isDisabled = hasCapacityInfo ? slot?.isActive === false : false;
-									const blockPicking = !schedule.date || slotsLoading || !!slotsError;
-									const active = timeKey(schedule.time) === timeKey(rawTime);
-
-									let capacityText = '';
-									if (hasCapacityInfo) {
-										if (hasCapacity && hasCurrentCount) capacityText = ` · ${currentBookingCount}/${capacity}`;
-										else if (hasRemaining) capacityText = ` · Còn ${remaining}`;
-									}
-
-									return (
-										<button
-											key={slot?.slotId ?? timeKey(rawTime) ?? rawTime}
-											type="button"
-											className={[
-												scheduleStyles.slotBtn,
-												active ? scheduleStyles.slotBtnActive : '',
-												isDisabled ? scheduleStyles.slotBtnDisabled : '',
-											].filter(Boolean).join(' ')}
-											onClick={() => !isDisabled && !blockPicking && handlePickSlot(rawTime)}
-											disabled={blockPicking || isDisabled}
-										>
-											<div className={scheduleStyles.slotTime}>{displayTime}</div>
-											<div className={scheduleStyles.slotMeta}>
-												{normalizePeriodLabel(slot?.period)}
-												{capacityText}
+											<div className={scheduleStyles.helperText}>
+												Chỉ cho phép chọn trong 10 ngày tới.
 											</div>
-										</button>
-									);
-								})}
-							</div>
-						</div>
-					</>
-				)}
-			</section>
+										)}
+									</div>
+									<div className={scheduleStyles.formField}>
+										<label className={scheduleStyles.label} htmlFor="desiredTime">Khung giờ</label>
+										<input
+											id="desiredTime"
+											type="time"
+											value={schedule.time}
+											onChange={(e) => setSchedule((prev) => ({ ...prev, time: e.target.value }))}
+											disabled={!schedule.date || slotsLoading || !!slotsError}
+										/>
+									</div>
+								</div>
 
-			<div style={{ height: 16 }} />
+								<div className={scheduleStyles.slotSection}>
+									<div className={scheduleStyles.slotTitle}>Chọn khung giờ theo danh sách</div>
+									<div className={scheduleStyles.slotSub}>
+										Hiển thị các khung giờ theo ngày đã chọn; các khung đã đầy sẽ bị khóa.
+									</div>
 
-			<h3 className={bookingStyles['section-title']}>Thông tin khách hàng</h3>
-			<p className={infoStyles['info-note']}>Vui lòng nhập thông tin để tiếp tục.</p>
+									{baseSlotsLoading && <div className={scheduleStyles.serviceStatus}>Đang tải khung giờ...</div>}
+									{!baseSlotsLoading && baseSlotsError && <div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>{baseSlotsError}</div>}
 
-			<div className={`${infoStyles['info-card']} ${styles.fullWidthCard}`}>
+									{!!schedule.date && slotsLoading && <div className={scheduleStyles.serviceStatus}>Đang tải trạng thái chỗ trống...</div>}
+									{!!schedule.date && !slotsLoading && slotsError && <div className={`${scheduleStyles.serviceStatus} ${scheduleStyles.serviceStatusError}`}>{slotsError}</div>}
+									{!!selectedSlotStatus?.status && (
+										<div
+											className={`${scheduleStyles.serviceStatus} ${selectedSlotStatus.isOverCapacity || selectedSlotStatus.isUnavailable ? scheduleStyles.serviceStatusError : ''}`}
+											style={{ marginTop: 8 }}
+										>
+											{selectedSlotStatus.occupancyText ? ` (${selectedSlotStatus.occupancyText})` : ''}
+											{selectedSlotStatus.isOverCapacity ? ' — Đã vượt quá sức chứa! Nhân viên cần xem xét trước khi tạo lịch.' : ''}
+										</div>
+									)}
 
+									<div className={scheduleStyles.slotGrid}>
+										{displaySlots.map((slot) => {
+											const rawTime = slot?.startTime;
+											const displayTime = formatTimeHHmm(rawTime);
+
+											const remaining = Number(slot?.remainingCapacity);
+											const hasRemaining = Number.isFinite(remaining);
+											const capacity = Number(slot?.capacity);
+											const currentBookingCount = Number(slot?.currentBookingCount);
+											const hasCapacity = Number.isFinite(capacity) && capacity > 0;
+											const hasCurrentCount = Number.isFinite(currentBookingCount) && currentBookingCount >= 0;
+
+
+											const hasCapacityInfo = !!schedule.date && !slotsError && !slotsLoading;
+											const isDisabled = hasCapacityInfo ? slot?.isActive === false : false;
+											const blockPicking = !schedule.date || slotsLoading || !!slotsError;
+											const active = timeKey(schedule.time) === timeKey(rawTime);
+
+											let capacityText = '';
+											if (hasCapacityInfo) {
+												if (hasCapacity && hasCurrentCount) capacityText = ` · ${currentBookingCount}/${capacity}`;
+												else if (hasRemaining) capacityText = ` · Còn ${remaining}`;
+											}
+
+											return (
+												<button
+													key={slot?.slotId ?? timeKey(rawTime) ?? rawTime}
+													type="button"
+													className={[
+														scheduleStyles.slotBtn,
+														active ? scheduleStyles.slotBtnActive : '',
+														isDisabled ? scheduleStyles.slotBtnDisabled : '',
+													].filter(Boolean).join(' ')}
+													onClick={() => !isDisabled && !blockPicking && handlePickSlot(rawTime)}
+													disabled={blockPicking || isDisabled}
+												>
+													<div className={scheduleStyles.slotTime}>{displayTime}</div>
+													<div className={scheduleStyles.slotMeta}>
+														{normalizePeriodLabel(slot?.period)}
+														{capacityText}
+													</div>
+												</button>
+											);
+										})}
+									</div>
+								</div>
+							</>
+						)}
+					</section>
+
+					<div className={bookingStyles['booking-actions']} style={{ marginTop: 24 }}>
+						<button
+							type="button"
+							className={bookingStyles.btn}
+							onClick={() => setStepIndex(0)}
+						>
+							Quay lại
+						</button>
+						<button
+							type="button"
+							className={`${bookingStyles.btn} ${bookingStyles.primary}`}
+							onClick={() => setStepIndex(2)}
+							disabled={!schedule.date || !schedule.time}
+						>
+							Tiếp tục
+						</button>
+					</div>
+				</>
+			)}
+
+			{/* BƯỚC 3: THÔNG TIN KHÁCH HÀNG VÀ YÊU CẦU ĐẶC BIỆT */}
+			{stepIndex === 2 && (
+				<>
+					<h3 className={bookingStyles['section-title']}>Thông tin khách hàng</h3>
+					<p className={infoStyles['info-note']}>Vui lòng nhập thông tin để tiếp tục.</p>
+
+					<div className={`${infoStyles['info-card']} ${styles.fullWidthCard}`}>
 						<div className={infoStyles.field}>
 							<label htmlFor="create-booking-phone" >Số điện thoại (<span className={styles.required}>*</span>)</label>
 							<div className={infoStyles['inline-input']}>
@@ -539,12 +617,13 @@ export default function CreateBooking() {
 										setCustomerCheckError('');
 									}}
 									required
+									disabled={submitLocked}
 								/>
 								<button
 									type="button"
 									className={bookingStyles.btn}
 									onClick={handleCheckCustomer}
-									disabled={checkingCustomer || !info.phone.trim()}
+									disabled={checkingCustomer || !info.phone.trim() || submitLocked}
 								>
 									{checkingCustomer ? 'Đang kiểm tra...' : 'Kiểm tra KH'}
 								</button>
@@ -567,69 +646,87 @@ export default function CreateBooking() {
 								value={info.name}
 								onChange={(e) => setInfo((prev) => ({ ...prev, name: e.target.value }))}
 								required
+								disabled={submitLocked || customerChecked?.exists === true}
 								style={customerChecked?.exists === true ? { background: '#f3f4f6', color: '#888' } : {}}
 							/>
 						</div>
+					</div>
 
-			</div>
+					{displaySubmitError && <div className={infoStyles.error}>{displaySubmitError}</div>}
 
-			{displaySubmitError && <div className={infoStyles.error}>{displaySubmitError}</div>}
+					<div className={`${infoStyles['section-block']} ${styles.fullWidthNoteBlock}`}>
+						<div className={infoStyles['section-title-row']}>
+							<h4 className={bookingStyles['section-title']}>
+								Yêu cầu đặc biệt (không bắt buộc)
+							</h4>
+						</div>
+						<div className={infoStyles.field}>
+							<label htmlFor="create-booking-note" className={infoStyles.srOnly}>Ghi chú</label>
+							<textarea
+								id="create-booking-note"
+								rows="6"
+								placeholder="VD: Kiểm tra thêm tiếng kêu ở bánh trước, cần lấy xe trước 17h, ..."
+								value={info.note}
+								onChange={(e) => setInfo((prev) => ({ ...prev, note: e.target.value }))}
+								maxLength={NOTE_MAX_LENGTH}
+								disabled={submitLocked}
+							/>
+							<div className={infoStyles['char-count']}>{noteRemaining} ký tự còn lại</div>
+						</div>
+					</div>
 
-			<div className={`${infoStyles['section-block']} ${styles.fullWidthNoteBlock}`}>
-				<div className={infoStyles['section-title-row']}>
-					<h4 className={bookingStyles['section-title']}>
-						Yêu cầu đặc biệt (không bắt buộc)
-					</h4>
-				</div>
-				<div className={infoStyles.field}>
-					<label htmlFor="create-booking-note" className={infoStyles.srOnly}>Ghi chú</label>
-					<textarea
-						id="create-booking-note"
-						rows="6"
-						placeholder="VD: Kiểm tra thêm tiếng kêu ở bánh trước, cần lấy xe trước 17h, ..."
-						value={info.note}
-						onChange={(e) => setInfo((prev) => ({ ...prev, note: e.target.value }))}
-						maxLength={NOTE_MAX_LENGTH}
-					/>
-					<div className={infoStyles['char-count']}>{noteRemaining} ký tự còn lại</div>
-				</div>
-			</div>
-			{submitSuccess && (
-				<div className={styles.successRow}>
-					<div className={`${scheduleStyles.serviceStatus} ${styles.successMessage}`}>{submitSuccess}</div>
-					{createdBookingForCheckIn?.bookingCode && (
-						<button
-							type="button"
-							className={`${bookingStyles.btn} ${bookingStyles.primary} ${styles.successBtn}`}
-							onClick={handleGoToCheckIn}
-							disabled={!canGoToCheckIn}
-							title={canGoToCheckIn ? 'Chuyển sang Check-in' : 'Chỉ có thể check-in lịch hẹn trong ngày hôm nay'}
-						>
-							Chuyển sang Check-in
-						</button>
+					{submitSuccess && (
+						<div className={styles.successRow}>
+							<div className={`${scheduleStyles.serviceStatus} ${styles.successMessage}`}>{submitSuccess}</div>
+						</div>
 					)}
-				</div>
-			)}
 
-			<div className={bookingStyles['booking-actions']}>
-				<button
-					type="button"
-					className={bookingStyles.btn}
-					onClick={handleReset}
-					disabled={submitting || cancellingEstimate}
-				>
-					Làm mới
-				</button>
-				<button
-					type="button"
-					className={`${bookingStyles.btn} ${bookingStyles.primary}`}
-					onClick={handleSubmit}
-					disabled={!canSubmit}
-					aria-busy={submitting}
-				>
-					{submitting ? 'Đang xử lý...' : 'Tạo lịch'}
-				</button>
-			</div>
+					<div className={bookingStyles['booking-actions']} style={{ marginTop: 24 }}>
+						{submitSuccess ? (
+							<>
+								<button
+									type="button"
+									className={bookingStyles.btn}
+									onClick={handleReset}
+								>
+									Tạo lịch mới
+								</button>
+								{createdBookingForCheckIn?.bookingCode && (
+									<button
+										type="button"
+										className={`${bookingStyles.btn} ${bookingStyles.primary} ${styles.successBtn}`}
+										onClick={handleGoToCheckIn}
+										disabled={!canGoToCheckIn}
+										title={canGoToCheckIn ? 'Chuyển sang Check-in' : 'Chỉ có thể check-in lịch hẹn trong ngày hôm nay'}
+									>
+										Chuyển sang Check-in
+									</button>
+								)}
+							</>
+						) : (
+							<>
+								<button
+									type="button"
+									className={bookingStyles.btn}
+									onClick={() => setStepIndex(1)}
+									disabled={submitting}
+								>
+									Quay lại
+								</button>
+								<button
+									type="button"
+									className={`${bookingStyles.btn} ${bookingStyles.primary}`}
+									onClick={handleSubmit}
+									disabled={!canSubmit}
+									aria-busy={submitting}
+								>
+									{submitting ? 'Đang xử lý...' : 'Tạo lịch'}
+								</button>
+							</>
+						)}
+					</div>
+				</>
+			)}
 		</div>
 	);
 }

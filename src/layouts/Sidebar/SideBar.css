@@ -290,9 +290,8 @@
     -webkit-background-clip: border-box;
     -webkit-text-fill-color: currentColor;
     background-clip: border-box;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    word-break: break-word;
 }
 
 /* --- MOBILE TOGGLE --- */

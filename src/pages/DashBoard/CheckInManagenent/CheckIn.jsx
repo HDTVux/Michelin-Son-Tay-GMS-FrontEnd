@@ -6,6 +6,7 @@ import { formatTimeHHmm } from '../../../components/timeUtils.js';
 import { fetchCheckInAdvisors, fetchCheckInCustomerVehicles } from '../../../services/checkInService.js';
 import { toast } from 'react-toastify';
 import { normalizeVehiclesPayload, useCheckInHandlers } from './useCheckInHandlers.js';
+import { validateLicensePlateStrict } from '../../../components/inputValidation.js';
 const CONDITION_PHOTO_KEYS = [
     'photoFront',
     'photoRear',
@@ -196,6 +197,52 @@ const mergeBookingSnapshotForDisplay = (booking, snapshot) => {
     };
 };
 
+export const VEHICLE_MAKES = [
+    'AC', 'ACURA', 'ALFA ROMEO', 'ASTON MARTIN', 'AUDI', 'AUSTIN', 'BAIC', 'BENTLEY', 'BMW', 'BRABUS', 'BUGATTI', 
+    'BUICK', 'BYD', 'CHANGAN', 'CHERY', 'CHEVROLET', 'CHRYSLER', 'CITROEN', 'DAIHATSU', 'DALLARA', 'DATSUN', 
+    'DEEPAL', 'DFM', 'DFSK', 'ELIO', 'FERRARI', 'FIAT', 'FORD', 'GEELY', 'GENESIS', 'GORDON MURRAY', 'GREAT WALL', 
+    'GUMPERT', 'HAFEI', 'HAIMA', 'HAVAL', 'HOMMEL', 'HONDA', 'HUMMER', 'HYUNDAI', 'INEOS', 'INFINITI', 'ISUZU', 
+    'IVECO', 'JAC', 'JAGUAR', 'JEEP', 'JMC', 'KGM', 'KIA', 'KOENIGSEGG', 'KTM', 'LADA', 'LAMBORGHINI', 'LAND ROVER', 
+    'LEXUS', 'LIFAN', 'LINCOLN', 'LUCID', 'LUXGEN', 'MAHINDRA', 'MARUSSIA', 'MASERATI', 'MAYBACH', 'MAZDA', 
+    'MCLAREN', 'MERCEDES-AMG', 'MERCEDES-BENZ', 'MG', 'MG ROVER', 'MIA ELECTRIC', 'MINI', 'MITSUBISHI', 
+    'MITSUBISHI FUSO', 'NISSAN', 'OMODA', 'PAGANI', 'PANOZ', 'PERODUA', 'PEUGEOT', 'POLESTAR', 'PORSCHE', 
+    'PRAGA', 'PROTON', 'RENAULT', 'RIDDARA', 'RIVIAN', 'ROLLS ROYCE', 'SANTANA', 'SSANGYONG', 'SSC', 'SUBARU', 
+    'SUZUKI', 'TATA', 'TESLA', 'TOGG', 'TOYOTA', 'TRABANT', 'UAZ', 'VINFAST', 'VOLKSWAGEN', 'VOLVO', 'XIAOMI', 
+    'XPENG', 'ZEEKR', 'ZENVO', 'ZOTYE', 'ZX AUTO'
+];
+
+export const POPULAR_MODELS = {
+    'TOYOTA': ['Camry', 'Corolla Altis', 'Vios', 'Fortuner', 'Innova', 'Raize', 'Yaris', 'Veloz Cross', 'Corolla Cross', 'Hilux', 'Land Cruiser', 'Wigo'],
+    'HONDA': ['Civic', 'City', 'CR-V', 'HR-V', 'Accord', 'Brio', 'BR-V'],
+    'HYUNDAI': ['Accent', 'Grand i10', 'Santa Fe', 'Tucson', 'Elantra', 'Creta', 'Stargazer', 'Custin', 'Palisade'],
+    'VINFAST': ['VF 5', 'VF 6', 'VF 7', 'VF 8', 'VF 9', 'Fadil', 'Lux A2.0', 'Lux SA2.0', 'President'],
+    'MAZDA': ['Mazda 2', 'Mazda 3', 'Mazda 6', 'CX-5', 'CX-8', 'CX-3', 'CX-30', 'BT-50'],
+    'KIA': ['Morning', 'Soluto', 'K3', 'K5', 'Sonet', 'Seltos', 'Sportage', 'Sorento', 'Carnival', 'Carens'],
+    'FORD': ['Ranger', 'Everest', 'Explorer', 'Territory', 'Transit', 'EcoSport', 'Focus'],
+    'MITSUBISHI': ['Xpander', 'Outlander', 'Attrage', 'Pajero Sport', 'Triton'],
+    'MERCEDES-BENZ': ['C-Class', 'E-Class', 'S-Class', 'GLC', 'GLA', 'GLB', 'GLE', 'GLS', 'Maybach'],
+    'BMW': ['3 Series', '5 Series', '7 Series', 'X1', 'X3', 'X5', 'X6', 'X7'],
+    'AUDI': ['A4', 'A6', 'A8', 'Q2', 'Q3', 'Q5', 'Q7', 'Q8', 'e-tron'],
+    'LEXUS': ['ES', 'LS', 'NX', 'RX', 'GX', 'LX'],
+    'NISSAN': ['Almera', 'Navara', 'Kicks', 'Terra', 'Sunny'],
+    'SUZUKI': ['Swift', 'Ertiga', 'XL7', 'Ciaz', 'Carry'],
+    'CHEVROLET': ['Cruze', 'Colorado', 'Captiva', 'Spark', 'Trailblazer'],
+    'PEUGEOT': ['2008', '3008', '5008', 'Traveller'],
+    'VOLVO': ['XC40', 'XC60', 'XC90', 'S60', 'S90', 'V60'],
+    'SUBARU': ['Forester', 'Outback', 'WRX', 'BRZ'],
+    'PORSCHE': ['911', 'Cayenne', 'Macan', 'Panamera', 'Taycan', 'Boxster'],
+    'BYD': ['Atto 3', 'Dolphin', 'Seal'],
+    'MG': ['MG5', 'ZS', 'HS', 'Cyberster'],
+};
+
+const yearsList = (() => {
+    const list = [];
+    for (let y = 2026; y >= 1990; y--) {
+        list.push(y);
+    }
+    return list;
+})();
+
 export default function CheckIn() {
     useScrollToTop(); // Hook tự động cuộn lên đầu trang khi component mount
     const navigate = useNavigate();
@@ -207,6 +254,9 @@ export default function CheckIn() {
         return String(code || '');
     });
 
+    // Trạng thái thu gọn/mở rộng header thông tin đặt lịch
+    const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
+
     // Quản lý trạng thái danh sách xe và xe đang được chọn
     const [vehicles, setVehicles] = useState([]);
     const [isVehiclesLoading, setIsVehiclesLoading] = useState(false);
@@ -215,6 +265,12 @@ export default function CheckIn() {
     // Quản lý trạng thái khi nhân viên chọn "Thêm xe mới" thay vì chọn xe có sẵn
     const [isAddingNewVehicle, setIsAddingNewVehicle] = useState(false);
     const previousVehicleIdRef = useRef(''); // Lưu lại ID xe cũ để khôi phục nếu hủy thêm mới
+
+    // States cho popup thêm xe mới
+    const [modalStep, setModalStep] = useState(1);
+    const [makeSearch, setMakeSearch] = useState('');
+    const wheelRef = useRef(null);
+    const scrollTimeoutRef = useRef(null);
 
     // Các state lưu thông tin chi tiết của xe (dùng khi thêm mới hoặc hiển thị xe đã chọn)
     const [licensePlate, setLicensePlate] = useState('');
@@ -233,7 +289,7 @@ export default function CheckIn() {
     const [lastOdometerKm, setLastOdometerKm] = useState(null); // Số km lần trước (từ hệ thống)
 
     // Thông tin bổ sung cho phiếu dịch vụ (chưa có backend)
-        const [safetyInspection, setSafetyInspection] = useState(false);
+    const [safetyInspection, setSafetyInspection] = useState(true);
     const [selectedAdvisorId, setSelectedAdvisorId] = useState('');
 
     // Advisors for receptionist check-in
@@ -337,6 +393,9 @@ export default function CheckIn() {
             Object.values(current).forEach((p) => {
                 if (p?.url) URL.revokeObjectURL(p.url);
             });
+            if (scrollTimeoutRef.current) {
+                clearTimeout(scrollTimeoutRef.current);
+            }
         };
     }, []);
 
@@ -394,6 +453,102 @@ export default function CheckIn() {
 		setPhotos,
 	});
 
+    const handleOpenVehicleModal = useCallback(() => {
+        setModalStep(1);
+        setMakeSearch('');
+        startAddNewVehicle(); // Gọi handler có sẵn để xóa thông tin xe cũ
+    }, [startAddNewVehicle]);
+
+    const licensePlateError = useMemo(() => {
+        if (!licensePlate) return '';
+        const validation = validateLicensePlateStrict(licensePlate);
+        return validation.error;
+    }, [licensePlate]);
+
+    const filteredMakes = useMemo(() => {
+        const q = String(makeSearch || '').trim().toUpperCase();
+        if (!q) return VEHICLE_MAKES;
+        return VEHICLE_MAKES.filter(make => make.toUpperCase().includes(q));
+    }, [makeSearch]);
+
+    const suggestedModels = useMemo(() => {
+        const make = String(vehicleMake || '').trim().toUpperCase();
+        return POPULAR_MODELS[make] || [];
+    }, [vehicleMake]);
+
+    const handleSelectMake = useCallback((make) => {
+        const plate = String(licensePlate || '').trim();
+        if (!plate) {
+            notify('Vui lòng nhập biển số xe trước khi chọn thương hiệu.');
+            return;
+        }
+        const validation = validateLicensePlateStrict(licensePlate);
+        if (validation.error) {
+            notify(validation.error);
+            return;
+        }
+        setVehicleMake(make);
+        setModalStep(2);
+    }, [licensePlate, notify, setVehicleMake]);
+
+    const handleSelectModel = useCallback((model) => {
+        setVehicleModel(model);
+        setModalStep(3);
+    }, [setVehicleModel]);
+
+    const handleNextStepFrom2 = useCallback(() => {
+        const model = String(vehicleModel || '').trim();
+        if (!model) {
+            notify('Vui lòng nhập hoặc chọn dòng xe.');
+            return;
+        }
+        setModalStep(3);
+    }, [vehicleModel, notify]);
+
+    const handlePrevStep = useCallback(() => {
+        setModalStep((prev) => Math.max(1, prev - 1));
+    }, []);
+
+    const handleWheelScroll = useCallback((e) => {
+        const scrollTop = e.target.scrollTop;
+        const index = Math.round(scrollTop / 44);
+        if (index >= 0 && index < yearsList.length) {
+            const year = yearsList[index];
+            if (scrollTimeoutRef.current) {
+                clearTimeout(scrollTimeoutRef.current);
+            }
+            scrollTimeoutRef.current = setTimeout(() => {
+                setVehicleYear(String(year));
+            }, 80);
+        }
+    }, [setVehicleYear]);
+
+    const handleSelectYear = useCallback((y, index) => {
+        setVehicleYear(String(y));
+        if (wheelRef.current) {
+            wheelRef.current.scrollTo({
+                top: index * 44,
+                behavior: 'smooth'
+            });
+        }
+    }, [setVehicleYear]);
+
+    // Tự động căn giữa năm đã chọn trong con lăn khi mở bước 3 (chỉ chạy một lần lúc mở bước)
+    useEffect(() => {
+        if (modalStep === 3) {
+            const targetYear = vehicleYear || '2020';
+            const idx = yearsList.indexOf(Number(targetYear));
+            if (idx !== -1) {
+                const timer = setTimeout(() => {
+                    if (wheelRef.current) {
+                        wheelRef.current.scrollTop = idx * 44;
+                    }
+                }, 80);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [modalStep]);
+
     // Load danh sách tư vấn viên cho receptionist check-in 
     useEffect(() => {
         let cancelled = false;
@@ -436,27 +591,8 @@ export default function CheckIn() {
     }, [notify]);
 
     const handleConfirmWithValidation = useCallback(() => {
-        const hasLicensePlatePhoto = Boolean(
-            photos?.licensePlatePhoto?.file || photos?.licensePlatePhoto?.url || photos?.licensePlatePhoto?.dataUrl,
-        );
-
-        if (!hasLicensePlatePhoto) {
-            notify('Vui lòng chụp ảnh biển số (Bước 1) trước khi tiếp nhận.');
-            return;
-        }
-
-        const hasAnyConditionPhoto = CONDITION_PHOTO_KEYS.some((key) => {
-            const p = photos?.[key];
-            return Boolean(p?.file || p?.url || p?.dataUrl);
-        });
-
-        if (!hasAnyConditionPhoto) {
-            notify('Vui lòng chụp ít nhất 1 ảnh tình trạng xe (Bước 4) trước khi tiếp nhận.');
-            return;
-        }
-
         handleConfirm();
-    }, [handleConfirm, notify, photos]);
+    }, [handleConfirm]);
 
     // Tự động tìm kiếm booking khi trang vừa được load
     useEffect(() => {
@@ -616,163 +752,97 @@ export default function CheckIn() {
         <div className={styles.page}>
             {/* Phần Header: Hiển thị thông tin khách hàng và dịch vụ từ Booking */}
             <div className={styles.header}>
-                <h1 className={styles.title}>Tiếp nhận xe và tạo phiếu dịch vụ</h1>
-                <div className={styles.infoList}>
-                    <div className={styles.infoRow}>
-                        <span className={styles.infoLabel}>Khách hàng:</span>
-                        <span className={styles.infoValue}>{booking?.customerName || '-'}</span>
+                <div className={styles.headerTop}>
+                    <div className={styles.headerTitleGroup}>
+                        <span className={styles.headerBadgeIcon}>🚗</span>
+                        <h1 className={styles.title}>Tiếp nhận & Tạo phiếu</h1>
+                        <span className={styles.headerSeparator}>•</span>
+                        <div className={styles.headerInfoInline}>
+                            <span className={styles.infoItem}>
+                                <span className={styles.infoLabel}>KH:</span>
+                                <span className={styles.infoValue}>{booking?.customerName || '-'}</span>
+                            </span>
+                            <span className={styles.infoItem}>
+                                <span className={styles.infoLabel}>SĐT:</span>
+                                <span className={styles.infoValue}>{booking?.customerPhone || '-'}</span>
+                            </span>
+                            <span className={styles.infoItem}>
+                                <span className={styles.infoLabel}>Hẹn:</span>
+                                <span className={styles.infoValue}>{scheduledTimeDisplay}</span>
+                            </span>
+                        </div>
                     </div>
-                    <div className={styles.infoRow}>
-                        <span className={styles.infoLabel}>Số điện thoại:</span>
-                        <span className={styles.infoValue}>{booking?.customerPhone || '-'}</span>
-                    </div>
-                    <div className={`${styles.infoRow} ${styles.infoRowCatalog}`}>
-                        <span className={styles.infoLabel}>Dịch vụ:</span>
-                        <span className={`${styles.infoValue} ${styles.infoValueList}`}>{servicesDisplay}</span>
-                    </div>
-                    <div className={styles.infoRow}>
-                        <span className={styles.infoLabel}>Giờ hẹn:</span>
-                        <span className={styles.infoValue}>{scheduledTimeDisplay}</span>
-                    </div>
-                    <div className={`${styles.infoRow} ${styles.infoRowCatalog} ${styles.infoRowFull}`}>
-                        <span className={styles.infoLabel}>Phụ tùng:</span>
-                        <span className={`${styles.infoValue} ${styles.infoValueList}`}>{partsDisplay || '-'}</span>
-                    </div>
+                    <button
+                        type="button"
+                        className={`${styles.toggleHeaderBtn} ui-btn ui-btn--ghost`}
+                        onClick={() => setIsHeaderExpanded((prev) => !prev)}
+                    >
+                        {isHeaderExpanded ? 'Thu gọn' : 'Chi tiết DV/PT'}
+                    </button>
                 </div>
+                {isHeaderExpanded && (
+                    <div className={styles.expandedDrawer}>
+                        <div className={styles.drawerItem}>
+                            <span className={styles.drawerLabel}>Dịch vụ đã chọn:</span>
+                            <span className={styles.drawerValue}>{servicesDisplay}</span>
+                        </div>
+                        <div className={styles.drawerItem}>
+                            <span className={styles.drawerLabel}>Phụ tùng yêu cầu:</span>
+                            <span className={styles.drawerValue}>{partsDisplay || '-'}</span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className={styles.card}>
                 {/* Step 1: Lựa chọn xe của khách hoặc đăng ký xe mới cho khách */}
-                <section className={styles.step}>
-                    <h2 className={styles.stepTitle}>Bước 1: Chọn xe (<span className={styles.required}>*</span>)</h2>
+                <section className={styles.stepCard}>
+                    <div className={styles.stepHeader}>
+                        <div className={styles.stepBadge}>1</div>
+                        <h2 className={styles.stepTitle}>Chọn xe<span className={styles.required}>*</span></h2>
+                    </div>
                     <div className={styles.stepRow}>
                         <div className="ui-field" style={{ marginBottom: 0 }}>
-                            <label htmlFor={isAddingNewVehicle ? 'licensePlate' : 'vehicleSelect'}>
-                                {isAddingNewVehicle ? 'Biển số xe (mới)' : 'Xe của khách'}
-                            </label>
-
-                            {isAddingNewVehicle ? (
-                                <input
-                                    id="licensePlate"
-                                    value={licensePlate}
-                                    onChange={(e) => setLicensePlate(e.target.value)}
-                                    placeholder="Biển số xe"
-                                    autoComplete="off"
-                                />
-                            ) : (
-                                <select
-                                    id="vehicleSelect"
-                                    value={selectedVehicleId}
-                                    onChange={(e) => setSelectedVehicleId(e.target.value)}
-                                    disabled={isVehiclesLoading || !vehicles.length}
-                                >
-                                    <option value="" disabled>
-                                        {isVehiclesLoading
-                                            ? 'Đang tải danh sách xe...'
-                                            : vehicles.length
-                                                ? 'Chọn xe'
-                                                : 'Khách hàng chưa có xe'}
-                                    </option>
-                                    {vehicles.map((v) => {
-                                        const modelText = [v?.make, v?.model, v?.year].filter(Boolean).join(' ');
-                                        const optionLabel = modelText ? `${v?.licensePlate} - ${modelText}` : String(v?.licensePlate || '');
-                                        return (
-                                            <option key={v.vehicleId} value={String(v.vehicleId)}>
-                                                {optionLabel}
-                                            </option>
-                                        );
-                                    })}
-                                </select>
-                            )}
+                            <label htmlFor="vehicleSelect">Xe của khách</label>
+                            <select
+                                id="vehicleSelect"
+                                value={selectedVehicleId}
+                                onChange={(e) => setSelectedVehicleId(e.target.value)}
+                                disabled={isVehiclesLoading || !vehicles.length}
+                            >
+                                <option value="" disabled>
+                                    {isVehiclesLoading
+                                        ? 'Đang tải danh sách xe...'
+                                        : vehicles.length
+                                            ? 'Chọn xe'
+                                            : 'Khách hàng chưa có xe'}
+                                </option>
+                                {vehicles.map((v) => {
+                                    const modelText = [v?.make, v?.model, v?.year].filter(Boolean).join(' ');
+                                    const optionLabel = modelText ? `${v?.licensePlate} - ${modelText}` : String(v?.licensePlate || '');
+                                    return (
+                                        <option key={v.vehicleId} value={String(v.vehicleId)}>
+                                            {optionLabel}
+                                        </option>
+                                    );
+                                })}
+                            </select>
                         </div>
 
                         <div className={styles.vehicleActions}>
-                            {!isAddingNewVehicle ? (
-                                <button
-                                    type="button"
-                                    className="ui-btn"
-                                    onClick={startAddNewVehicle}
-                                    disabled={isVehiclesLoading}
-                                >
-                                    Thêm xe mới
-                                </button>
-                            ) : (
-                                <>
-                                    <button
-                                        type="button"
-                                        className="ui-btn ui-btn--primary"
-                                        onClick={handleCreateVehicle}
-                                        disabled={isCreatingVehicle || isSubmitting || isVehiclesLoading}
-                                    >
-                                        {isCreatingVehicle ? 'Đang thêm xe...' : 'Xác nhận thêm xe'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="ui-btn ui-btn--ghost"
-                                        onClick={stopAddNewVehicle}
-                                        disabled={isCreatingVehicle || isSubmitting || isVehiclesLoading}
-                                    >
-                                        Chọn từ danh sách
-                                    </button>
-                                </>
-                            )}
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn--primary"
+                                onClick={handleOpenVehicleModal}
+                                disabled={isVehiclesLoading}
+                            >
+                                Thêm xe mới
+                            </button>
                         </div>
                     </div>
 
                     {!isVehiclesLoading && !isAddingNewVehicle && !vehicles.length && (
                         <div className={styles.warningBox}>Khách hàng chưa có xe. Vui lòng thêm xe mới để tiếp nhận.</div>
-                    )}
-
-                    {/* Form nhập thông tin chi tiết xe mới */}
-                    {isAddingNewVehicle && (
-                        <div className={styles.vehicleFormGrid}>
-                            <div className="ui-field" style={{ marginBottom: 0 }}>
-                                <label htmlFor="vehicleMake">Hãng xe</label>
-                                <input
-                                    id="vehicleMake"
-                                        value={vehicleMake}
-                                        onChange={(e) => {
-                                            const raw = e.target.value || '';
-                                            const filtered = String(raw).replace(/\d/g, '');
-                                            setVehicleMake(filtered);
-                                            if (/\d/.test(raw)) {
-                                                setVehicleMakeError('Tên hãng xe không được chứa chữ số');
-                                            } else {
-                                                setVehicleMakeError('');
-                                            }
-                                        }}
-                                    placeholder="Ví dụ: Toyota"
-                                    autoComplete="off"
-                                />
-                                    {vehicleMakeError ? (
-                                        <div style={{ color: 'red', fontSize: 13, marginTop: 6 }}>{vehicleMakeError}</div>
-                                    ) : null}
-                            </div>
-                            <div className="ui-field" style={{ marginBottom: 0 }}>
-                                <label htmlFor="vehicleModel">Dòng xe</label>
-                                <input
-                                    id="vehicleModel"
-                                    value={vehicleModel}
-                                    onChange={(e) => setVehicleModel(e.target.value)}
-                                    placeholder="Ví dụ: Camry"
-                                    autoComplete="off"
-                                />
-                            </div>
-                            <div className="ui-field" style={{ marginBottom: 0 }}>
-                                <label htmlFor="vehicleYear">Năm sản xuất</label>
-                                <input
-                                    id="vehicleYear"
-                                    inputMode="numeric"
-                                    value={vehicleYear}
-                                    onChange={(e) =>
-                                        setVehicleYear(String(e.target.value || '').replaceAll(/\D/g, '').slice(0, 4))
-                                    }
-                                    maxLength={4}
-                                    placeholder="Ví dụ: 2020"
-                                    autoComplete="off"
-                                />
-                            </div>
-                        </div>
                     )}
 
                     <div className={styles.hint}>
@@ -791,14 +861,17 @@ export default function CheckIn() {
                             label: 'Ảnh biển số',
                             labelClassName: styles.photoLabelFieldLike,
                             withDescription: false,
-                            required: true,
+                            required: false,
                         })}
                     </div>
                 </section>
 
                 {/* Step 2: Nhập số Km hiện tại và kiểm tra tính hợp lệ so với lần trước */}
-                <section className={styles.step}>
-                    <h2 className={styles.stepTitle}>Bước 2: Ghi số Odometer</h2>
+                <section className={styles.stepCard}>
+                    <div className={styles.stepHeader}>
+                        <div className={styles.stepBadge}>2</div>
+                        <h2 className={styles.stepTitle}>Bước 2: Ghi số Odometer</h2>
+                    </div>
                     <div className="ui-field" style={{ marginBottom: 0 }}>
                         <label htmlFor="odometer">Số km hiện tại</label>
                         <input
@@ -819,37 +892,16 @@ export default function CheckIn() {
                 </section>
 
                 {/* Step 3: Thông tin bổ sung cho phiếu dịch vụ  */}
-                <section className={styles.step}>
-                    <h2 className={styles.stepTitle}>Bước 3: Thông tin phiếu dịch vụ (<span className={styles.required}>*</span>)</h2>
+                <section className={styles.stepCard}>
+                    <div className={styles.stepHeader}>
+                        <div className={styles.stepBadge}>3</div>
+                        <h2 className={styles.stepTitle}>Bước 3: Thông tin phiếu dịch vụ<span className={styles.required}>*</span></h2>
+                    </div>
                     <div className={styles.ticketFormGrid}>
-                        <div className="ui-field" style={{ marginBottom: 0 }}>
-                            <label htmlFor="safetyInspection">Kiểm tra an toàn</label>
-                                <div id="safetyInspection" style={{ display: 'flex', gap: 16, alignItems: 'center', height: 40 }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-                                        <input
-                                            type="radio"
-                                            name="safetyInspection"
-                                            value="false"
-                                            checked={!safetyInspection}
-                                            onChange={() => setSafetyInspection(false)}
-                                        />
-                                        <span>Không</span>
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-                                        <input
-                                            type="radio"
-                                            name="safetyInspection"
-                                            value="true"
-                                            checked={safetyInspection}
-                                            onChange={() => setSafetyInspection(true)}
-                                        />
-                                        <span>Có</span>
-                                    </label>
-                                </div>
-                        </div>
+
 
                         <div className="ui-field" style={{ marginBottom: 0 }}>
-                            <label htmlFor="advisorSelect">Tư vấn viên (<span className={styles.required}>*</span>)</label>
+                            <label htmlFor="advisorSelect">Tư vấn viên<span className={styles.required}>*</span></label>
                             <select
                                 id="advisorSelect"
                                 value={selectedAdvisorId}
@@ -868,8 +920,11 @@ export default function CheckIn() {
                 </section>
 
                 {/* Step 4: Chụp ảnh hiện trạng xe để làm bằng chứng lúc tiếp nhận */}
-                <section className={styles.step}>
-                    <h2 className={styles.stepTitle}>Bước 4: Chụp ảnh tình trạng xe( Yêu cầu phải có ít nhất 1 ảnh tình trạng xe!)</h2>
+                <section className={styles.stepCard}>
+                    <div className={styles.stepHeader}>
+                        <div className={styles.stepBadge}>4</div>
+                        <h2 className={styles.stepTitle}>Bước 4: Chụp ảnh tình trạng xe</h2>
+                    </div>
                     <div className={styles.photoGrid}>
                         {renderPhotoPicker({
                             keyName: 'photoFront',
@@ -914,8 +969,6 @@ export default function CheckIn() {
                             descriptionLabel: 'Mô tả ảnh hư hỏng',
                         })}
                     </div>
-
-
                 </section>
 
                 {/* Footer: Các nút điều hướng Hủy/Xác nhận */}
@@ -935,6 +988,186 @@ export default function CheckIn() {
                     </div>
                 </div>
             </div>
+
+            {/* Modal popup thêm xe mới */}
+            {isAddingNewVehicle && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContainer}>
+                        <div className={styles.modalHeader}>
+                            <h3 className={styles.modalTitle}>Thêm xe mới cho khách</h3>
+                            <button type="button" className={styles.closeBtn} onClick={stopAddNewVehicle}>&times;</button>
+                        </div>
+                        
+                        {/* Stepper progress */}
+                        <div className={styles.modalStepper}>
+                            <div className={`${styles.modalStepIndicator} ${modalStep >= 1 ? styles.modalStepIndicatorActive : ''}`}>
+                                <span className={styles.indicatorNumber}>1</span>
+                                <span className={styles.indicatorLabel}>Thương hiệu</span>
+                            </div>
+                            <div className={styles.modalStepLine} />
+                            <div className={`${styles.modalStepIndicator} ${modalStep >= 2 ? styles.modalStepIndicatorActive : ''}`}>
+                                <span className={styles.indicatorNumber}>2</span>
+                                <span className={styles.indicatorLabel}>Dòng xe</span>
+                            </div>
+                            <div className={styles.modalStepLine} />
+                            <div className={`${styles.modalStepIndicator} ${modalStep >= 3 ? styles.modalStepIndicatorActive : ''}`}>
+                                <span className={styles.indicatorNumber}>3</span>
+                                <span className={styles.indicatorLabel}>Năm sản xuất</span>
+                            </div>
+                        </div>
+
+                        <div className={styles.modalBody}>
+                            {modalStep === 1 && (
+                                <div className={styles.modalStepContent}>
+                                    <div className="ui-field" style={{ marginBottom: 0 }}>
+                                        <label htmlFor="modalLicensePlate">Biển số xe<span className={styles.required}>*</span></label>
+                                        <input
+                                            id="modalLicensePlate"
+                                            value={licensePlate}
+                                            onChange={(e) => setLicensePlate(e.target.value)}
+                                            placeholder="Ví dụ: 29A12345"
+                                            autoComplete="off"
+                                            autoFocus
+                                        />
+                                        {licensePlateError ? (
+                                            <div className={styles.inputErrorMsg}>{licensePlateError}</div>
+                                        ) : null}
+                                    </div>
+                                    <div className="ui-field">
+                                        <label htmlFor="modalMakeSearch">Tìm thương hiệu xe</label>
+                                        <input
+                                            id="modalMakeSearch"
+                                            value={makeSearch}
+                                            onChange={(e) => setMakeSearch(e.target.value)}
+                                            placeholder="Nhập tên thương hiệu (ví dụ: Toyota)"
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                    <div className={styles.brandListContainer}>
+                                        <div className={styles.brandGrid}>
+                                            {filteredMakes.length > 0 ? (
+                                                filteredMakes.map((make) => (
+                                                    <button
+                                                        key={make}
+                                                        type="button"
+                                                        className={`${styles.brandBtn} ${vehicleMake === make ? styles.brandBtnActive : ''}`}
+                                                        onClick={() => handleSelectMake(make)}
+                                                    >
+                                                        {make}
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className={styles.noResults}>Không tìm thấy thương hiệu nào</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {modalStep === 2 && (
+                                <div className={styles.modalStepContent}>
+                                    <div className={styles.selectedMeta}>
+                                        <span>Thương hiệu đã chọn: <strong>{vehicleMake}</strong></span>
+                                    </div>
+                                    <div className="ui-field">
+                                        <label htmlFor="modalModelInput">Dòng xe (Nhập tay hoặc chọn dưới đây)<span className={styles.required}>*</span></label>
+                                        <input
+                                            id="modalModelInput"
+                                            value={vehicleModel}
+                                            onChange={(e) => setVehicleModel(e.target.value)}
+                                            placeholder="Nhập dòng xe (Ví dụ: Camry)"
+                                            autoComplete="off"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className={styles.modelListTitle}>Dòng xe gợi ý:</div>
+                                    <div className={styles.modelListContainer}>
+                                        <div className={styles.modelGrid}>
+                                            {suggestedModels.length > 0 ? (
+                                                suggestedModels.map((model) => (
+                                                    <button
+                                                        key={model}
+                                                        type="button"
+                                                        className={`${styles.modelBtn} ${vehicleModel === model ? styles.modelBtnActive : ''}`}
+                                                        onClick={() => handleSelectModel(model)}
+                                                    >
+                                                        {model}
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className={styles.noResults}>Không có gợi ý cho thương hiệu này, vui lòng nhập tay ở trên.</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {modalStep === 3 && (
+                                <div className={styles.modalStepContent}>
+                                    <div className={styles.selectedMeta}>
+                                        <span>Thương hiệu: <strong>{vehicleMake}</strong> • Dòng xe: <strong>{vehicleModel}</strong></span>
+                                    </div>
+                                    <div className="ui-field" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                        <label style={{ textAlign: 'center', marginBottom: 12 }}>
+                                            Năm sản xuất đã chọn: <strong className={styles.yearHighlight}>{vehicleYear || 'Chưa chọn'}</strong>
+                                        </label>
+                                        <div className={styles.wheelContainer}>
+                                            <div className={styles.wheelIndicator} />
+                                            <div 
+                                                className={styles.wheelList} 
+                                                ref={wheelRef} 
+                                                onScroll={handleWheelScroll}
+                                            >
+                                                {yearsList.map((y, index) => (
+                                                    <div 
+                                                        key={y} 
+                                                        className={`${styles.wheelItem} ${String(vehicleYear) === String(y) ? styles.wheelItemActive : ''}`}
+                                                        onClick={() => handleSelectYear(y, index)}
+                                                    >
+                                                        {y}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={styles.modalFooter}>
+                            {modalStep === 1 && (
+                                <button type="button" className="ui-btn ui-btn--ghost" onClick={stopAddNewVehicle}>Hủy</button>
+                            )}
+                            {modalStep > 1 && (
+                                <button type="button" className="ui-btn ui-btn--ghost" onClick={handlePrevStep}>Quay lại</button>
+                            )}
+                            
+                            <div className={styles.footerRight}>
+                                {modalStep === 2 && (
+                                    <button 
+                                        type="button" 
+                                        className="ui-btn ui-btn--primary" 
+                                        onClick={handleNextStepFrom2}
+                                        disabled={!vehicleModel.trim()}
+                                    >
+                                        Tiếp tục
+                                    </button>
+                                )}
+                                {modalStep === 3 && (
+                                    <button 
+                                        type="button" 
+                                        className="ui-btn ui-btn--primary" 
+                                        onClick={handleCreateVehicle}
+                                        disabled={isCreatingVehicle || !vehicleYear}
+                                    >
+                                        {isCreatingVehicle ? 'Đang thêm...' : 'Xác nhận thêm xe'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
