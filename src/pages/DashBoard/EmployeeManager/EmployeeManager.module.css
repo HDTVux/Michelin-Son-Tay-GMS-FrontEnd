@@ -29,62 +29,117 @@
   margin: 0;
 }
 
-/* ── Stats grid ─────────────────────────────────────────────────────────────── */
-.statsGrid {
+/* ── Stats container ─────────────────────────────────────────────────────────── */
+.statsContainer {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
+  grid-template-columns: 260px 1.2fr 1fr;
+  gap: 24px;
   margin-bottom: 28px;
 }
 
-.statCard {
+.totalStaffCard {
   background: white;
-  padding: 28px 24px;
+  padding: 32px 24px;
   border-radius: 16px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid rgba(30, 144, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.totalStaffCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(30, 144, 255, 0.15);
+  border-color: rgba(30, 144, 255, 0.25);
+}
+
+.totalStaffIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: rgba(30, 144, 255, 0.08);
+  color: #1E90FF;
+  display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
   transition: all 0.3s;
-  border: 2px solid transparent;
 }
 
-.statCard:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+.totalStaffCard:hover .totalStaffIcon {
+  background: linear-gradient(135deg, #1E90FF 0%, #1873CC 100%);
+  color: white;
+  transform: scale(1.06) rotate(-3deg);
 }
 
-.statTotal   { border-color: #1E90FF; }
-.statRole    { border-color: #10b981; }
+.totalStaffIcon svg {
+  width: 26px;
+  height: 26px;
+}
 
-.statTotal:hover   { box-shadow: 0 8px 24px rgba(30, 144, 255, 0.2); }
-.statRole:hover    { box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2); }
+.totalStaffInfo {
+  display: flex;
+  flex-direction: column;
+}
 
-.statValue {
-  font-size: 48px;
-  font-weight: 700;
-  margin-bottom: 8px;
+.totalStaffValue {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1;
+  margin: 0;
   background: linear-gradient(135deg, #1E90FF 0%, #1873CC 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  line-height: 1;
 }
 
-.statRole .statValue     { background: linear-gradient(135deg, #10b981 0%, #059669 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-
-.statLabel {
-  font-size: 14px;
+.totalStaffLabel {
+  font-size: 12px;
   color: #6b7280;
   font-weight: 600;
+  margin-top: 6px;
+  margin-bottom: 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  text-align: center;
 }
 
-.statRole .statLabel {
-  font-size: 12px;
+.chartCard {
+  background: white;
+  padding: 24px 28px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid rgba(16, 185, 129, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chartCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.chartTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 18px;
+  letter-spacing: -0.01em;
+}
+
+.chartContainer {
+  position: relative;
+  height: 320px;
+  width: 100%;
+}
+
+.noChartData {
+  font-size: 14px;
+  color: #9ca3af;
+  text-align: center;
+  padding: 16px 0;
+  margin: 0;
 }
 
 /* ── Toolbar ────────────────────────────────────────────────────────────────── */
@@ -393,16 +448,28 @@
 
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 @media (max-width: 1200px) {
-  .statsGrid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+  .statsContainer {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .totalStaffCard {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 768px) {
+  .statsContainer {
+    grid-template-columns: 1fr;
+  }
+  .totalStaffCard {
+    grid-column: span 1;
+  }
   .header { flex-direction: column; align-items: flex-start; }
-  .statsGrid { grid-template-columns: repeat(2, 1fr); }
   .toolbar { flex-direction: column; align-items: stretch; }
   .searchBox { width: 100%; }
   .filterSelect { width: 100%; }
 }
+
 
 /* ── Modal ───────────────────────────────────────────────────────────────────── */
 .modalOverlay {

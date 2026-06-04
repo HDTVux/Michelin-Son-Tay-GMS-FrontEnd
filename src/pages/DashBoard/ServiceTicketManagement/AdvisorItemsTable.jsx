@@ -271,6 +271,7 @@ function EstimateItemRow({
     const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
 
     const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+    const [isMobileExpanded, setIsMobileExpanded] = useState(false);
     const categoryInputRef = useRef(null);
 
     const filteredCategorySuggestions = useMemo(() => {
@@ -323,9 +324,46 @@ function EstimateItemRow({
     }
 
     return (
-        <tr key={`advisor-row-${stt}-${row.key}`} className={isGift ? styles.giftRow : undefined}>
-            <td>{stt}</td>
-            <td>
+        <tr
+            key={`advisor-row-${stt}-${row.key}`}
+            className={`${isGift ? styles.giftRow : ''} ${isMobileExpanded ? styles.isMobileExpanded : ''}`.trim() || undefined}
+        >
+            <td data-label="STT">
+                <span>{stt}</span>
+                <div className={styles.mobileRowActions}>
+                    <button
+                        type="button"
+                        className={styles.mobileExpandToggle}
+                        onClick={() => setIsMobileExpanded(!isMobileExpanded)}
+                    >
+                        {isMobileExpanded ? 'Thu gọn ▲' : 'Xem chi tiết ▼'}
+                    </button>
+                    {allowInputs ? (
+                        isEditing && estimateItemId ? (
+                            <button
+                                type="button"
+                                className={`ui-btn ui-btn--ghost ${styles.mobileDeleteBtn}`}
+                                onClick={() => softDeleteEditRow(idx)}
+                                disabled={isSaving || !estimateItemId || isDraftRowEmpty(row) || isLocked}
+                                title="Xóa dòng này"
+                            >
+                                Xóa
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                className={`ui-btn ui-btn--ghost ${styles.mobileDeleteBtn}`}
+                                onClick={() => onClearRow?.(idx)}
+                                disabled={isSaving}
+                                title="Xóa các ô đã nhập của dòng này"
+                            >
+                                Xóa
+                            </button>
+                        )
+                    ) : null}
+                </div>
+            </td>
+            <td data-label="Hạng mục">
                 {allowInputs ? (
                     <>
                         <input
@@ -354,7 +392,7 @@ function EstimateItemRow({
                     row.categoryName || row.newCategoryName || ''
                 )}
             </td>
-            <td>
+            <td data-label="Diễn giải">
                 {allowInputs ? (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <input
@@ -385,7 +423,7 @@ function EstimateItemRow({
                     </div>
                 )}
             </td>
-            <td className={styles.tdNumber}>
+            <td data-label="Số lượng" className={styles.tdNumber}>
                 {allowInputs ? (
                     <div className={styles.qtyWithUnit}>
                         <input
@@ -416,7 +454,7 @@ function EstimateItemRow({
                     </div>
                 )}
             </td>
-            <td className={styles.tdNumber}>
+            <td data-label="Đơn giá" className={styles.tdNumber}>
                 {allowInputs ? (
                     <input
                         className={`${styles.tableInput} ${styles.tableInputNumber}`}
@@ -441,7 +479,7 @@ function EstimateItemRow({
                 )}
             </td>
             {showTaxColumn ? (
-                <td>
+                <td data-label="Thuế">
                     {showInputs ? (
                         shouldShowTaxDropdown ? (
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -471,13 +509,13 @@ function EstimateItemRow({
                 </td>
             ) : null}
             {showDiscountColumn ? (
-                <td className={styles.tdNumber}>
+                <td data-label="Giảm giá" className={styles.tdNumber}>
                     {Number.isFinite(discountAmountValue) && discountAmountValue > 0
                         ? formatCurrencyVnd(discountAmountValue)
                         : '-'}
                 </td>
             ) : null}
-            <td className={styles.tdNumber}>
+            <td data-label="Thành tiền" className={styles.tdNumber}>
                 {isGift ? (
                     <span className={styles.giftAmount}>0đ</span>
                 ) : (
@@ -492,10 +530,10 @@ function EstimateItemRow({
                 )}
             </td>
 
-            <td>{warehouseText || '-'}</td>
-            {!showInputs ? <td><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
+            <td data-label="Kho">{warehouseText || '-'}</td>
+            {!showInputs ? <td data-label="Xuất kho"><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
             {!showInputs && showWarehouseActionColumn ? (
-                <td className={styles.tdCenter}>
+                <td data-label="Thao tác" className={styles.tdCenter}>
                     <div className={styles.warehouseItemActions}>
                         {stockStatus === 'RESERVED' ? (
                             <button
@@ -542,7 +580,7 @@ function EstimateItemRow({
                 </td>
             ) : null}
             {showInputs ? (
-                <td className={styles.tdCenter}>
+                <td data-label="Thao tác" className={styles.tdCenter}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                         {allowInputs ? (
                             isEditing && estimateItemId ? (

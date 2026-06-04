@@ -208,6 +208,7 @@ const readSidebarState = (storageKey, fallbackValue) => {
 
 const SideBar = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [openGroups, setOpenGroups] = useState(() =>
         ({
             ...Object.fromEntries(NAV_GROUPS.map((g) => [g.id, Boolean(g.defaultOpen)])),
@@ -233,7 +234,15 @@ const SideBar = () => {
     const staffAvatarUrl = getAvatarSrc(staffProfile?.avatarUrl);
 
     const visibleGroups = useMemo(() => {
-        return buildVisibleGroups(NAV_GROUPS, staffRoles);
+        // Lọc bỏ nhóm 'personal' vì đã chuyển vào dropdown profile
+        const filteredNavGroups = NAV_GROUPS.filter((g) => g.id !== 'personal');
+        return buildVisibleGroups(filteredNavGroups, staffRoles);
+    }, [staffRoles]);
+
+    const personalItems = useMemo(() => {
+        const personalGroup = NAV_GROUPS.find((g) => g.id === 'personal');
+        if (!personalGroup) return [];
+        return filterItemsByRoles(personalGroup.items, staffRoles);
     }, [staffRoles]);
 
     useEffect(() => {
@@ -252,10 +261,27 @@ const SideBar = () => {
         }
     }, [openSubGroups]);
 
+    useEffect(() => {
+        setIsProfileOpen(false);
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (!isProfileOpen) return;
+        const handleOutsideClick = (event) => {
+            if (!event.target.closest('.sidebar__profile-container')) {
+                setIsProfileOpen(false);
+            }
+        };
+        document.addEventListener('click', handleOutsideClick);
+        return () => document.removeEventListener('click', handleOutsideClick);
+    }, [isProfileOpen]);
+
     const toggleMenu = () => setIsOpen((prev) => !prev);
+    const toggleProfileDropdown = () => setIsProfileOpen((prev) => !prev);
     
     const handleNavClick = (path) => {
         setIsOpen(false);
+        setIsProfileOpen(false);
         if (path) navigate(path);
     };
 
@@ -293,14 +319,57 @@ const SideBar = () => {
 
     return (
         <aside className="sidebar">
-            <div className="sidebar__profile">
-                <div className="sidebar__avatar">
-                    <img src={staffAvatarUrl} alt={staffFullName} onError={handleAvatarError} />
+            <div className={`sidebar__profile-container ${isProfileOpen ? 'is-open' : ''}`}>
+                <div 
+                    className="sidebar__profile" 
+                    onClick={toggleProfileDropdown}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && toggleProfileDropdown()}
+                    aria-label="Thông tin cá nhân"
+                >
+                    <div className="sidebar__avatar">
+                        <img src={staffAvatarUrl} alt={staffFullName} onError={handleAvatarError} />
+                    </div>
+                    <div className="sidebar__meta">
+                        <p className="sidebar__greeting">Xin chào,</p>
+                        <p className="sidebar__name" title={staffFullName}>{staffFullName}</p>
+                    </div>
+                    <div className="sidebar__profile-chevron" aria-hidden="true">
+                        <IconChevron />
+                    </div>
                 </div>
-                <div>
-                    <p className="sidebar__greeting">Xin chào,</p>
-                    <p className="sidebar__name">{staffFullName}</p>
-                </div>
+
+                {isProfileOpen && (
+                    <div className="sidebar__profile-dropdown">
+                        {personalItems.map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                className="sidebar__profile-dropdown-item"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleNavClick(item.path);
+                                }}
+                            >
+                                <span className="dropdown-item__icon">{item.icon}</span>
+                                <span className="dropdown-item__label">{item.label}</span>
+                            </button>
+                        ))}
+                        {personalItems.length > 0 && <hr className="dropdown-divider" />}
+                        <button
+                            type="button"
+                            className="sidebar__profile-dropdown-item logout"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleLogout();
+                            }}
+                        >
+                            <IconLogout />
+                            <span>Đăng xuất</span>
+                        </button>
+                    </div>
+                )}
             </div>
 
             <button
