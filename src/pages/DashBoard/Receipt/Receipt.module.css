@@ -18,28 +18,34 @@
     -webkit-print-color-adjust: exact;
     box-sizing: border-box;
 }
+
 .sheet {
     break-after: page;
     page-break-after: always;
 }
+
 .sheet:last-child {
     break-after: auto;
     page-break-after: auto;
 }
+
 .hasContinuation .serviceTable tbody tr:last-child,
 .hasContinuation .footer {
     display: none;
 }
+
 .continuationSheet {
     display: flex;
     flex-direction: column;
 }
+
 .continuationHeader {
     border-bottom: 2px solid var(--bar);
     margin-bottom: 5mm;
     padding-bottom: 3mm;
     text-align: center;
 }
+
 .continuationTitle {
     color: var(--bar);
     font-size: 18px;
@@ -48,6 +54,7 @@
     text-transform: uppercase;
     letter-spacing: 0.6px;
 }
+
 .continuationCode {
     margin-top: 1mm;
     font-size: 10px;
@@ -109,14 +116,23 @@
     padding-bottom: 3mm;
     border-bottom: 2.5px solid var(--bar);
 }
-.topHeaderLeft { height: 1px; }
-.topHeaderCenter { display: flex; justify-content: center; }
+
+.topHeaderLeft {
+    height: 1px;
+}
+
+.topHeaderCenter {
+    display: flex;
+    justify-content: center;
+}
+
 .titleStack {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 1mm;
 }
+
 .sheetTitle {
     color: var(--bar);
     font-style: italic;
@@ -125,6 +141,7 @@
     text-transform: uppercase;
     letter-spacing: 1px;
 }
+
 .ticketCodeLine {
     color: #111;
     font-size: 10px;
@@ -133,17 +150,20 @@
     text-transform: uppercase;
     white-space: nowrap;
 }
+
 .topHeaderRight {
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 10px;
 }
+
 .logo {
     width: 14mm;
     height: 14mm;
     object-fit: contain;
 }
+
 .brandText {
     white-space: pre-line;
     color: var(--bar);
@@ -163,6 +183,7 @@
     gap: 6mm;
     margin-bottom: 5px;
 }
+
 .infoColumn {
     display: flex;
     flex-direction: column;
@@ -171,34 +192,41 @@
     padding: 3mm 4mm;
     border: 1px solid #c0cfee;
 }
+
 .infoColumnLeft {
     border-left: 4px solid var(--bar);
 }
+
 .infoColumnRight {
     border-left: 4px solid #d48800;
 }
+
 .infoRow {
     display: flex;
     align-items: baseline;
     gap: 4px;
 }
+
 .infoRowSub {
     display: flex;
     align-items: baseline;
     gap: 4px;
 }
+
 .safetyCheckRow {
     display: flex;
     align-items: center;
     gap: 14px;
     margin-top: 1px;
 }
+
 .infoLabel {
     font-size: 11px;
     white-space: nowrap;
     font-weight: 700;
     color: #333;
 }
+
 .infoDotted {
     flex-grow: 1;
     border-bottom: 1px dotted var(--soft);
@@ -209,17 +237,20 @@
     min-width: 25px;
     color: #111;
 }
+
 .inlineChecks {
     display: flex;
     align-items: center;
     gap: 14px;
     font-size: 11px;
 }
+
 .checkItem {
     display: inline-flex;
     align-items: center;
     gap: 5px;
 }
+
 .checkBoxSmall {
     width: 3mm;
     height: 3mm;
@@ -266,6 +297,7 @@
     width: 22mm;
     /* Cụm trên (trước) & cụm dưới (sau) — không margin để canh đúng trục */
 }
+
 .tireClusterHeader {
     background: #fff;
     padding: 0 0 0.8mm;
@@ -273,12 +305,14 @@
     align-items: center;
     justify-content: center;
 }
+
 .tireClusterLabel {
     font-weight: 900;
     font-size: 8px;
     color: #333;
     white-space: nowrap;
 }
+
 .tireClusterSubHeader {
     font-weight: 900;
     font-size: 8px;
@@ -291,6 +325,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
 .tireClusterSize {
     font-weight: 900;
     font-size: 8px;
@@ -302,6 +337,7 @@
     white-space: nowrap;
     letter-spacing: 0.5px;
 }
+
 .tireClusterRow {
     display: grid;
     grid-template-columns: 9.5mm 1fr;
@@ -311,9 +347,11 @@
     align-items: stretch;
     position: relative;
 }
+
 .tireClusterRow:first-of-type {
     border-top: none;
 }
+
 .tireClusterUnit {
     font-size: 7.5px;
     font-weight: 900;
@@ -326,6 +364,7 @@
     justify-content: center;
     white-space: nowrap;
 }
+
 .tireClusterValue {
     background: #fff;
     min-height: 6.2mm;
@@ -342,6 +381,7 @@
 .carArea {
     display: contents;
 }
+
 .carBox {
     grid-column: 2;
     grid-row: 1;
@@ -352,12 +392,14 @@
     justify-content: center;
     overflow: hidden;
 }
+
 .carImg {
     width: auto;
     height: 53mm;
     object-fit: contain;
     display: block;
 }
+
 /* Size lốp & Lưu ý: nằm ngay dưới xe, căn trái nhẹ */
 .sizeNoteWrap {
     grid-column: 1 / 4;
@@ -368,6 +410,7 @@
     /* Đặt sát dưới hình xe, căn trái */
     padding-left: 0;
 }
+
 .sizeNoteRow {
     display: flex;
     align-items: baseline;
@@ -376,10 +419,12 @@
     border-top: none;
     padding: 0;
 }
+
 .sizeNoteRow .infoDotted {
     flex-grow: 1;
     min-width: 0;
 }
+
 .sizeNoteRow:first-child {
     border-top: none;
     padding-top: 0;
@@ -416,6 +461,7 @@
     z-index: 2;
     /* Bỏ margin cứng — dùng space-between của flex parent */
 }
+
 .pressureCluster::after {
     content: "";
     position: absolute;
@@ -428,9 +474,11 @@
     background: #fff;
     pointer-events: none;
 }
+
 .pressureClusterUnit {
     display: none;
 }
+
 .pressureClusterRow {
     display: grid;
     grid-template-columns: 1fr 10.5mm;
@@ -439,9 +487,11 @@
     border-top: none;
     align-items: stretch;
 }
+
 .pressureClusterRow:first-of-type {
     border-top: none;
 }
+
 .pressureUnit {
     grid-column: 2;
     grid-row: 1;
@@ -456,6 +506,7 @@
     justify-content: center;
     white-space: nowrap;
 }
+
 .pressureValue {
     grid-column: 1;
     grid-row: 1;
@@ -494,6 +545,7 @@
     text-overflow: ellipsis;
     pointer-events: none;
 }
+
 .recommendedPressureValue::before {
     content: "Áp suất khuyến cáo";
     display: block;
@@ -514,39 +566,49 @@
     padding-top: 6mm;
     padding-bottom: 6mm;
 }
+
 .denseServiceList .topHeader {
     margin-bottom: 2mm;
     padding-bottom: 2mm;
 }
+
 .denseServiceList .infoSection {
     margin-bottom: 3px;
 }
+
 .denseServiceList .infoColumn {
     gap: 1px;
     padding: 2mm 3mm;
 }
+
 .denseServiceList .infoLabel,
 .denseServiceList .inlineChecks {
     font-size: 10px;
 }
+
 .denseServiceList .infoDotted {
     min-height: 3.8mm;
     font-size: 10px;
 }
+
 .denseServiceList .middleSplit {
     margin-top: 2mm;
     margin-bottom: 2mm;
 }
+
 .denseServiceList .serviceTableWrap {
     margin-bottom: 2px;
 }
+
 .denseServiceList .serviceTable {
     font-size: 8.4px;
 }
+
 .denseServiceList .serviceTable thead th {
     padding: 1.1mm 0.9mm;
     font-size: 8px;
 }
+
 .denseServiceList .serviceTable td {
     height: 4.25mm;
     padding: 0.45mm 0.9mm;
@@ -556,31 +618,39 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
 .denseServiceList .totalLabel {
     font-size: 8.8px;
 }
+
 .denseServiceList .tdTotalValue {
     font-size: 9px;
 }
+
 .denseServiceList .footer {
     margin-top: 1mm;
     padding-top: 1mm;
 }
+
 .denseServiceList .recommendationLine {
     min-height: 4.5mm;
     padding-bottom: 0.5mm;
 }
+
 .denseServiceList .legalText {
     font-size: 7px;
     line-height: 1.18;
 }
+
 .denseServiceList .recommendationLine .legalText {
     font-size: 8.4px;
     line-height: 1.15;
 }
+
 .denseServiceList .signRow {
     margin-top: 1.5mm;
 }
+
 .denseServiceList .signLine {
     margin-top: 7mm;
 }
@@ -608,6 +678,7 @@
     font-weight: 800;
     overflow: hidden;
 }
+
 .pressureVerticalLabel::before,
 .pressureVerticalLabel::after {
     content: "";
@@ -616,9 +687,11 @@
     right: 0;
     border-top: 1px dashed var(--soft);
 }
+
 .pressureVerticalLabel::before {
     top: 33.333%;
 }
+
 .pressureVerticalLabel::after {
     top: 66.666%;
 }
@@ -632,6 +705,7 @@
     padding: 0 2mm 2mm;
     background: #fff;
 }
+
 .safetyHeader {
     display: grid;
     grid-template-columns: 1fr 31mm;
@@ -640,6 +714,7 @@
     align-items: end;
     padding-bottom: 0;
 }
+
 .safetyTitle {
     color: #111;
     font-weight: 900;
@@ -648,29 +723,36 @@
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
+
 .safetyCols {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
 }
+
 .safetyCol {
     font-weight: 900;
     font-size: 7.5px;
     text-align: center;
     padding-bottom: 0.5mm;
 }
+
 .safetyCol:nth-child(1) {
     color: #111;
 }
+
 .safetyCol:nth-child(2) {
     color: #d48800;
 }
+
 .safetyCol:nth-child(3) {
     color: #d48800;
 }
+
 .safetyBody {
     display: flex;
     flex-direction: column;
 }
+
 .safetyRow {
     display: grid;
     grid-template-columns: 1fr 31mm;
@@ -678,6 +760,7 @@
     align-items: center;
     border-bottom: 1px dotted var(--soft);
 }
+
 .safetyItem {
     font-size: 9.5px;
     padding-bottom: 0;
@@ -686,23 +769,27 @@
     text-overflow: ellipsis;
     color: #222;
 }
+
 .safetyChecks {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     padding: 0 0 0 2mm;
     align-items: center;
 }
+
 .safetyInlineNote {
     font-size: 8.5px;
     color: #333;
     font-style: italic;
 }
+
 .checkbox {
     width: 2.8mm;
     height: 2.8mm;
     border: 1.2px solid var(--line);
     margin: 0 auto;
 }
+
 .checkMark {
     width: 2.8mm;
     height: 2.8mm;
@@ -722,12 +809,14 @@
     border: 2px solid var(--line);
     margin-bottom: 4px;
 }
+
 .serviceTable {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
     font-size: 10px;
 }
+
 .serviceTable thead th {
     background: var(--bar);
     color: var(--barText);
@@ -739,12 +828,15 @@
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
+
 .serviceTable thead th:first-child {
     border-left: none;
 }
+
 .serviceTable thead th:last-child {
     border-right: none;
 }
+
 .serviceTable td {
     border-top: 1px solid var(--line);
     border-right: 1px solid var(--line);
@@ -754,31 +846,64 @@
     font-size: 10px;
     line-height: 1.1;
 }
+
 .serviceTable td:last-child,
 .serviceTable th:last-child {
     border-right: none;
 }
+
 .serviceTable tbody tr:nth-child(even) td {
     background: #f0f5ff;
 }
-.thStt { width: 28px; }
-.thItem { width: 92px; }
-.thDesc { width: auto; }
-.thQty { width: 28px; }
-.thPrice { width: 68px; }
-.thDiscount { width: 58px; }
-.thAmount { width: 82px; }
-.thKho { width: 64px; }
+
+.thStt {
+    width: 28px;
+}
+
+.thItem {
+    width: 92px;
+}
+
+.thDesc {
+    width: auto;
+}
+
+.thQty {
+    width: 28px;
+}
+
+.thPrice {
+    width: 68px;
+}
+
+.thDiscount {
+    width: 58px;
+}
+
+.thAmount {
+    width: 82px;
+}
+
+.thKho {
+    width: 64px;
+}
 
 .giftRow td {
     background: #eefaf2 !important;
 }
 
-.tdCenter { text-align: center; }
-.tdRight { text-align: right; }
+.tdCenter {
+    text-align: center;
+}
+
+.tdRight {
+    text-align: right;
+}
+
 .amountCell {
     line-height: 1.05;
 }
+
 .taxIncludedNote {
     margin-top: 0.2mm;
     font-size: 6.6px;
@@ -786,6 +911,7 @@
     font-weight: 700;
     white-space: normal;
 }
+
 .tdWarehouse {
     font-size: 7px !important;
     line-height: 1.05 !important;
@@ -796,6 +922,7 @@
     word-break: break-word;
     hyphens: auto;
 }
+
 .tdWarehouseLong {
     font-size: 6.1px !important;
     line-height: 1 !important;
@@ -812,6 +939,7 @@
     letter-spacing: 0.5px;
     border-top: 2.5px solid var(--bar);
 }
+
 .tdTotalValue {
     font-weight: 900;
     text-align: right;
@@ -829,12 +957,14 @@
     padding-top: 1.2mm;
     border-top: 1.5px solid var(--line);
 }
+
 .recommendation {
     margin-bottom: 0;
     background: transparent;
     border: 0;
     padding: 0;
 }
+
 .recommendationLine {
     display: flex;
     align-items: baseline;
@@ -842,14 +972,17 @@
     min-height: 4.5mm;
     padding: 0 0 0.6mm;
 }
+
 .recommendationLine .legalText {
     font-size: 8.4px;
     line-height: 1.16;
 }
+
 .privacyNotice {
     margin-top: 0;
     padding-top: 0;
 }
+
 .footerTitle {
     font-weight: 900;
     font-size: 11px;
@@ -858,32 +991,38 @@
     color: var(--bar);
     white-space: nowrap;
 }
+
 .legalText {
     font-size: 7.1px;
     color: #444;
     text-align: justify;
     line-height: 1.18;
 }
+
 .signRow {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12mm;
     margin-top: 1.5mm;
 }
+
 .signCol {
     text-align: center;
 }
+
 .signTitle {
     font-weight: 900;
     font-size: 11px;
     color: #111;
 }
+
 .signHint {
     font-size: 9px;
     font-style: italic;
     color: #666;
     margin-top: 2px;
 }
+
 .signLine {
     width: 55mm;
     height: 1px;
@@ -896,6 +1035,7 @@
     content: none;
     display: none;
 }
+
 .pressureVerticalLabel {
     position: absolute;
     left: 20mm;
@@ -916,6 +1056,7 @@
     letter-spacing: 0.2px;
     pointer-events: none;
 }
+
 .pressureVerticalLabel::before {
     content: "Áp suất khuyến cáo";
     display: block;
@@ -923,6 +1064,7 @@
     border: 0;
     font-size: 9px;
 }
+
 .pressureVerticalLabel::after {
     display: none;
 }
@@ -930,15 +1072,14 @@
 /* Split each recommended pressure box into label and writable rows. */
 .pressureCluster::after {
     background:
-        linear-gradient(
-            to bottom,
+        linear-gradient(to bottom,
             transparent calc(50% - 0.5px),
             var(--soft) calc(50% - 0.5px),
             var(--soft) calc(50% + 0.5px),
-            transparent calc(50% + 0.5px)
-        ),
+            transparent calc(50% + 0.5px)),
         #fff;
 }
+
 .recommendedPressureValue {
     display: grid;
     grid-template-rows: 1fr 1fr;
@@ -947,6 +1088,7 @@
     padding: 0;
     font-size: 0;
 }
+
 .recommendedPressureValue::before {
     content: "Áp suất khuyến cáo";
     display: flex;
@@ -961,6 +1103,7 @@
     text-transform: none;
     color: #333;
 }
+
 .pressureVerticalLabel {
     display: none;
 }

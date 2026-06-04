@@ -1055,3 +1055,109 @@
   cursor: not-allowed;
   border-color: #e5e7eb;
 }
+
+/* Responsive Tire Inspection Diagram */
+.tireInspectionDiagram {
+  position: relative;
+  height: 520px;
+  margin-top: 20px;
+  display: block;
+}
+
+.leftTiresCol {
+  position: absolute;
+  left: 10px;
+  top: 50px;
+  display: flex;
+  flex-direction: column;
+  gap: 100px;
+  z-index: 2;
+}
+
+.rightTiresCol {
+  position: absolute;
+  right: 10px;
+  top: 50px;
+  display: flex;
+  flex-direction: column;
+  gap: 50px;
+  z-index: 2;
+}
+
+.carDiagramWrapper {
+  display: block;
+}
+
+.tireGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tireInputsBody {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.mobileTireLabel {
+  display: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-bottom: 2px;
+  border-left: 3px solid #3b82f6;
+  padding-left: 6px;
+}
+
+@media (max-width: 768px) {
+  .tireInspectionDiagram {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .leftTiresCol,
+  .rightTiresCol {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+  }
+
+  .carDiagramWrapper {
+    display: none;
+  }
+
+  .tireGroup {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  .mobileTireLabel {
+    display: block;
+  }
+
+  .tireInputsBody {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* Force absolute positioned validation boxes inside the group to follow static block layout on mobile */
+  .tireGroup div[style*="position: 'absolute'"],
+  .tireGroup div[style*="position: absolute"],
+  .tireGroup div[style*="position:'absolute'"],
+  .tireGroup div[style*="position:absolute"] {
+    position: static !important;
+    transform: none !important;
+    margin-top: 4px !important;
+    white-space: normal !important;
+    display: block !important;
+  }
+}
+

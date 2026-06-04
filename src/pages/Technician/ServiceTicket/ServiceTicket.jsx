@@ -1988,408 +1988,426 @@ export const ServiceTicket = ({
           </div>
         </div>
 
-        <div style={{ position: 'relative', height: '520px', marginTop: '20px' }}>
+        <div className={styles.tireInspectionDiagram}>
           {/* BÊN TRÁI - FRONT LEFT (trên-trái) + REAR LEFT (dưới-trái) */}
-          <div style={{ position: 'absolute', left: '10px', top: '50px', display: 'flex', flexDirection: 'column', gap: '100px' }}>
+          <div className={styles.leftTiresCol}>
             {/* FRONT LEFT */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div className={styles.tireBoxRow}>
-                  <input type="text" value={tireData.frontLeft.size1} onChange={(e) => handleTireDataChange('frontLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-left-size1')} disabled={!canEditTechnicalFields} />
-                  <span className={styles.tireSlash}>/</span>
-                  <input type="text" value={tireData.frontLeft.size2} onChange={(e) => handleTireDataChange('frontLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-left-size2')} disabled={!canEditTechnicalFields} />
-                  <span className={styles.tireRLabel}>R</span>
-                  <input type="text" value={tireData.frontLeft.size3} onChange={(e) => handleTireDataChange('frontLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-left-size3')} disabled={!canEditTechnicalFields} />
-                </div>
-                {['frontLeft_size1', 'frontLeft_size2', 'frontLeft_size3'].map((errorKey) => (
-                  visibleTireMmErrors[errorKey]
-                    ? <span key={errorKey} style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors[errorKey]}</span>
-                    : null
-                ))}
-                <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.frontLeft.mm} onChange={(e) => handleTireDataChange('frontLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-left-mm')} disabled={!canEditTechnicalFields} />
-                    {visibleTireMmErrors['frontLeft_mm'] && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        marginTop: '2px',
-                        padding: '4px 8px',
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '4px',
-                        color: '#dc2626', 
-                        fontSize: '10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {visibleTireMmErrors['frontLeft_mm']}
-                      </div>
-                    )}
+            <div className={styles.tireGroup}>
+              <div className={styles.mobileTireLabel}>Lốp trước trái (FL)</div>
+              <div className={styles.tireInputsBody}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div className={styles.tireBoxRow}>
+                    <input type="text" value={tireData.frontLeft.size1} onChange={(e) => handleTireDataChange('frontLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-left-size1')} disabled={!canEditTechnicalFields} />
+                    <span className={styles.tireSlash}>/</span>
+                    <input type="text" value={tireData.frontLeft.size2} onChange={(e) => handleTireDataChange('frontLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-left-size2')} disabled={!canEditTechnicalFields} />
+                    <span className={styles.tireRLabel}>R</span>
+                    <input type="text" value={tireData.frontLeft.size3} onChange={(e) => handleTireDataChange('frontLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-left-size3')} disabled={!canEditTechnicalFields} />
                   </div>
-                </div>
-                <div className={styles.tireBoxRow}>
-                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
-                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.frontLeft.pressure} onChange={(e) => handleTireDataChange('frontLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-left-pressure')} disabled={!canEditTechnicalFields} />
-                    {visibleTireMmErrors['frontLeft_pressure'] && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        marginTop: '2px',
-                        padding: '4px 8px',
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '4px',
-                        color: '#dc2626', 
-                        fontSize: '10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {visibleTireMmErrors['frontLeft_pressure']}
-                      </div>
-                    )}
+                  {['frontLeft_size1', 'frontLeft_size2', 'frontLeft_size3'].map((errorKey) => (
+                    visibleTireMmErrors[errorKey]
+                      ? <span key={errorKey} style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors[errorKey]}</span>
+                      : null
+                  ))}
+                  <div className={styles.tireBoxRow}>
+                    <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <input type="text" value={tireData.frontLeft.mm} onChange={(e) => handleTireDataChange('frontLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-left-mm')} disabled={!canEditTechnicalFields} />
+                      {visibleTireMmErrors['frontLeft_mm'] && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: '0', 
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '4px',
+                          color: '#dc2626', 
+                          fontSize: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                          {visibleTireMmErrors['frontLeft_mm']}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.tireBoxRow}>
+                     <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <input type="text" value={tireData.frontLeft.pressure} onChange={(e) => handleTireDataChange('frontLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-left-pressure')} disabled={!canEditTechnicalFields} />
+                      {visibleTireMmErrors['frontLeft_pressure'] && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: '0', 
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '4px',
+                          color: '#dc2626', 
+                          fontSize: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                          {visibleTireMmErrors['frontLeft_pressure']}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* REAR LEFT */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div className={styles.tireBoxRow}>
-                  <input type="text" value={tireData.rearLeft.size1} onChange={(e) => handleTireDataChange('rearLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-left-size1')} disabled={!canEditTechnicalFields} />
-                  <span className={styles.tireSlash}>/</span>
-                  <input type="text" value={tireData.rearLeft.size2} onChange={(e) => handleTireDataChange('rearLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-left-size2')} disabled={!canEditTechnicalFields} />
-                  <span className={styles.tireRLabel}>R</span>
-                  <input type="text" value={tireData.rearLeft.size3} onChange={(e) => handleTireDataChange('rearLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-left-size3')} disabled={!canEditTechnicalFields} />
-                </div>
-                {['rearLeft_size1', 'rearLeft_size2', 'rearLeft_size3'].map((errorKey) => (
-                  visibleTireMmErrors[errorKey]
-                    ? <span key={errorKey} style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors[errorKey]}</span>
-                    : null
-                ))}
-                <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.rearLeft.mm} onChange={(e) => handleTireDataChange('rearLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-left-mm')} disabled={!canEditTechnicalFields} />
-                    {visibleTireMmErrors['rearLeft_mm'] && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        marginTop: '2px',
-                        padding: '4px 8px',
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '4px',
-                        color: '#dc2626', 
-                        fontSize: '10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {visibleTireMmErrors['rearLeft_mm']}
-                      </div>
-                    )}
+            <div className={styles.tireGroup}>
+              <div className={styles.mobileTireLabel}>Lốp sau trái (RL)</div>
+              <div className={styles.tireInputsBody}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div className={styles.tireBoxRow}>
+                    <input type="text" value={tireData.rearLeft.size1} onChange={(e) => handleTireDataChange('rearLeft', 'size1', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-left-size1')} disabled={!canEditTechnicalFields} />
+                    <span className={styles.tireSlash}>/</span>
+                    <input type="text" value={tireData.rearLeft.size2} onChange={(e) => handleTireDataChange('rearLeft', 'size2', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-left-size2')} disabled={!canEditTechnicalFields} />
+                    <span className={styles.tireRLabel}>R</span>
+                    <input type="text" value={tireData.rearLeft.size3} onChange={(e) => handleTireDataChange('rearLeft', 'size3', e.target.value)} className={styles.tireInputWide} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-left-size3')} disabled={!canEditTechnicalFields} />
                   </div>
-                </div>
-                <div className={styles.tireBoxRow}>
-                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
-                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.rearLeft.pressure} onChange={(e) => handleTireDataChange('rearLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-left-pressure')} disabled={!canEditTechnicalFields} />
-                    {visibleTireMmErrors['rearLeft_pressure'] && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        marginTop: '2px',
-                        padding: '4px 8px',
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '4px',
-                        color: '#dc2626', 
-                        fontSize: '10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {visibleTireMmErrors['rearLeft_pressure']}
-                      </div>
-                    )}
+                  {['rearLeft_size1', 'rearLeft_size2', 'rearLeft_size3'].map((errorKey) => (
+                    visibleTireMmErrors[errorKey]
+                      ? <span key={errorKey} style={{ color: '#dc2626', fontSize: '10px' }}>{visibleTireMmErrors[errorKey]}</span>
+                      : null
+                  ))}
+                  <div className={styles.tireBoxRow}>
+                    <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <input type="text" value={tireData.rearLeft.mm} onChange={(e) => handleTireDataChange('rearLeft', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-left-mm')} disabled={!canEditTechnicalFields} />
+                      {visibleTireMmErrors['rearLeft_mm'] && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: '0', 
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '4px',
+                          color: '#dc2626', 
+                          fontSize: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                          {visibleTireMmErrors['rearLeft_mm']}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.tireBoxRow}>
+                     <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <input type="text" value={tireData.rearLeft.pressure} onChange={(e) => handleTireDataChange('rearLeft', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-left-pressure')} disabled={!canEditTechnicalFields} />
+                      {visibleTireMmErrors['rearLeft_pressure'] && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: '0', 
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '4px',
+                          color: '#dc2626', 
+                          fontSize: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                          {visibleTireMmErrors['rearLeft_pressure']}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* THÂN XE - Giữa */}
-          <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
-            <img src={carImage} alt="Car" style={{ width: '260px', height: 'auto', objectFit: 'contain' }} />
-          </div>
+          {/* KHUNG XE VÀ BÁNH XE (Hides on Mobile) */}
+          <div className={styles.carDiagramWrapper}>
+            {/* THÂN XE - Giữa */}
+            <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
+              <img src={carImage} alt="Car" style={{ width: '260px', height: 'auto', objectFit: 'contain' }} />
+            </div>
 
-          {/* BÁNH XE - 4 vị trí hiển thị */}
-          <div className={styles.wheel} style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-120px)' }}>
-            <div className={styles.wheelRim}></div>
-          </div>
-          <div className={styles.wheel} style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(75px)' }}>
-            <div className={styles.wheelRim}></div>
-          </div>
-          <div className={styles.wheel} style={{ position: 'absolute', top: '280px', left: '50%', transform: 'translateX(-120px)' }}>
-            <div className={styles.wheelRim}></div>
-          </div>
-          <div className={styles.wheel} style={{ position: 'absolute', top: '280px', left: '50%', transform: 'translateX(75px)' }}>
-            <div className={styles.wheelRim}></div>
+            {/* BÁNH XE - 4 vị trí hiển thị */}
+            <div className={styles.wheel} style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-120px)' }}>
+              <div className={styles.wheelRim}></div>
+            </div>
+            <div className={styles.wheel} style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(75px)' }}>
+              <div className={styles.wheelRim}></div>
+            </div>
+            <div className={styles.wheel} style={{ position: 'absolute', top: '280px', left: '50%', transform: 'translateX(-120px)' }}>
+              <div className={styles.wheelRim}></div>
+            </div>
+            <div className={styles.wheel} style={{ position: 'absolute', top: '280px', left: '50%', transform: 'translateX(75px)' }}>
+              <div className={styles.wheelRim}></div>
+            </div>
           </div>
 
           {/* BÊN PHẢI - FRONT RIGHT + REAR RIGHT + SPARE */}
           {/* Mỗi tire block gồm: [mm] [PSI] | [Áp suất khuyến cáo] */}
-          <div style={{ position: 'absolute', right: '10px', top: '50px', display: 'flex', flexDirection: 'column', gap: '50px' }}>
+          <div className={styles.rightTiresCol}>
 
             {/* FRONT RIGHT - [mm][PSI] | [Áp suất khuyến cáo] */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              {/* [mm] [PSI] */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.frontRight.mm} onChange={(e) => handleTireDataChange('frontRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-right-mm')} disabled={!canEditTechnicalFields} />
-                    {visibleTireMmErrors['frontRight_mm'] && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        marginTop: '2px',
-                        padding: '4px 8px',
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '4px',
-                        color: '#dc2626', 
-                        fontSize: '10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {visibleTireMmErrors['frontRight_mm']}
-                      </div>
-                    )}
+            <div className={styles.tireGroup}>
+              <div className={styles.mobileTireLabel}>Lốp trước phải (FR)</div>
+              <div className={styles.tireInputsBody}>
+                {/* [mm] [PSI] */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div className={styles.tireBoxRow}>
+                    <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <input type="text" value={tireData.frontRight.mm} onChange={(e) => handleTireDataChange('frontRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-right-mm')} disabled={!canEditTechnicalFields} />
+                      {visibleTireMmErrors['frontRight_mm'] && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: '0', 
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '4px',
+                          color: '#dc2626', 
+                          fontSize: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                          {visibleTireMmErrors['frontRight_mm']}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.tireBoxRow}>
+                     <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <input type="text" value={tireData.frontRight.pressure} onChange={(e) => handleTireDataChange('frontRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-right-pressure')} disabled={!canEditTechnicalFields} />
+                      {visibleTireMmErrors['frontRight_pressure'] && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: '0', 
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '4px',
+                          color: '#dc2626', 
+                          fontSize: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                          {visibleTireMmErrors['frontRight_pressure']}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className={styles.tireBoxRow}>
-                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
-                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.frontRight.pressure} onChange={(e) => handleTireDataChange('frontRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-right-pressure')} disabled={!canEditTechnicalFields} />
-                    {visibleTireMmErrors['frontRight_pressure'] && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        marginTop: '2px',
-                        padding: '4px 8px',
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '4px',
-                        color: '#dc2626', 
-                        fontSize: '10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {visibleTireMmErrors['frontRight_pressure']}
-                      </div>
-                    )}
-                  </div>
+                {/* [Áp suất khuyến cáo] */}
+                <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
+                  <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
+                  <input type="text" value={tireData.frontRight.recommendedPressure} onChange={(e) => handleTireDataChange('frontRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-right-recommended-pressure')} disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
+                  {visibleTireMmErrors['frontRight_recommendedPressure'] && (
+                    <div style={{ 
+                      position: 'absolute', 
+                      top: '100%', 
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      marginTop: '2px',
+                      padding: '4px 8px',
+                      background: '#fee2e2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '4px',
+                      color: '#dc2626', 
+                      fontSize: '10px',
+                      whiteSpace: 'nowrap',
+                      zIndex: 10,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}>
+                      {visibleTireMmErrors['frontRight_recommendedPressure']}
+                    </div>
+                  )}
                 </div>
-              </div>
-              {/* [Áp suất khuyến cáo] */}
-              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
-                <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
-                <input type="text" value={tireData.frontRight.recommendedPressure} onChange={(e) => handleTireDataChange('frontRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('front-right-recommended-pressure')} disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
-                {visibleTireMmErrors['frontRight_recommendedPressure'] && (
-                  <div style={{ 
-                    position: 'absolute', 
-                    top: '100%', 
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    marginTop: '2px',
-                    padding: '4px 8px',
-                    background: '#fee2e2',
-                    border: '1px solid #fecaca',
-                    borderRadius: '4px',
-                    color: '#dc2626', 
-                    fontSize: '10px',
-                    whiteSpace: 'nowrap',
-                    zIndex: 10,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}>
-                    {visibleTireMmErrors['frontRight_recommendedPressure']}
-                  </div>
-                )}
               </div>
             </div>
 
             {/* REAR RIGHT - [mm][PSI] | [Áp suất khuyến cáo] */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.rearRight.mm} onChange={(e) => handleTireDataChange('rearRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-right-mm')} disabled={!canEditTechnicalFields} />
-                    {visibleTireMmErrors['rearRight_mm'] && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        marginTop: '2px',
-                        padding: '4px 8px',
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '4px',
-                        color: '#dc2626', 
-                        fontSize: '10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {visibleTireMmErrors['rearRight_mm']}
-                      </div>
-                    )}
+            <div className={styles.tireGroup}>
+              <div className={styles.mobileTireLabel}>Lốp sau phải (RR)</div>
+              <div className={styles.tireInputsBody}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div className={styles.tireBoxRow}>
+                    <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <input type="text" value={tireData.rearRight.mm} onChange={(e) => handleTireDataChange('rearRight', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-right-mm')} disabled={!canEditTechnicalFields} />
+                      {visibleTireMmErrors['rearRight_mm'] && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: '0', 
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '4px',
+                          color: '#dc2626', 
+                          fontSize: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                          {visibleTireMmErrors['rearRight_mm']}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.tireBoxRow}>
+                     <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <input type="text" value={tireData.rearRight.pressure} onChange={(e) => handleTireDataChange('rearRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-right-pressure')} disabled={!canEditTechnicalFields} />
+                      {visibleTireMmErrors['rearRight_pressure'] && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: '0', 
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '4px',
+                          color: '#dc2626', 
+                          fontSize: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                          {visibleTireMmErrors['rearRight_pressure']}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className={styles.tireBoxRow}>
-                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
-                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.rearRight.pressure} onChange={(e) => handleTireDataChange('rearRight', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-right-pressure')} disabled={!canEditTechnicalFields} />
-                    {visibleTireMmErrors['rearRight_pressure'] && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        marginTop: '2px',
-                        padding: '4px 8px',
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '4px',
-                        color: '#dc2626', 
-                        fontSize: '10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {visibleTireMmErrors['rearRight_pressure']}
-                      </div>
-                    )}
-                  </div>
+                <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
+                  <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
+                  <input type="text" value={tireData.rearRight.recommendedPressure} onChange={(e) => handleTireDataChange('rearRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-right-recommended-pressure')} disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
+                  {visibleTireMmErrors['rearRight_recommendedPressure'] && (
+                    <div style={{ 
+                      position: 'absolute', 
+                      top: '100%', 
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      marginTop: '2px',
+                      padding: '4px 8px',
+                      background: '#fee2e2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '4px',
+                      color: '#dc2626', 
+                      fontSize: '10px',
+                      whiteSpace: 'nowrap',
+                      zIndex: 10,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}>
+                      {visibleTireMmErrors['rearRight_recommendedPressure']}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
-                <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
-                <input type="text" value={tireData.rearRight.recommendedPressure} onChange={(e) => handleTireDataChange('rearRight', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('rear-right-recommended-pressure')} disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
-                {visibleTireMmErrors['rearRight_recommendedPressure'] && (
-                  <div style={{ 
-                    position: 'absolute', 
-                    top: '100%', 
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    marginTop: '2px',
-                    padding: '4px 8px',
-                    background: '#fee2e2',
-                    border: '1px solid #fecaca',
-                    borderRadius: '4px',
-                    color: '#dc2626', 
-                    fontSize: '10px',
-                    whiteSpace: 'nowrap',
-                    zIndex: 10,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}>
-                    {visibleTireMmErrors['rearRight_recommendedPressure']}
-                  </div>
-                )}
               </div>
             </div>
 
             {/* SPARE - [mm][PSI] | [Áp suất khuyến cáo] */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div className={styles.tireBoxRow}>
-                  <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
-                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.spare.mm} onChange={(e) => handleTireDataChange('spare', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('spare-mm')} disabled={!canEditTechnicalFields} />
-                    {visibleTireMmErrors['spare_mm'] && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        marginTop: '2px',
-                        padding: '4px 8px',
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '4px',
-                        color: '#dc2626', 
-                        fontSize: '10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {visibleTireMmErrors['spare_mm']}
-                      </div>
-                    )}
+            <div className={styles.tireGroup}>
+              <div className={styles.mobileTireLabel}>Lốp dự phòng (Spare)</div>
+              <div className={styles.tireInputsBody}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div className={styles.tireBoxRow}>
+                    <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>mm</span></div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <input type="text" value={tireData.spare.mm} onChange={(e) => handleTireDataChange('spare', 'mm', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('spare-mm')} disabled={!canEditTechnicalFields} />
+                      {visibleTireMmErrors['spare_mm'] && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: '0', 
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '4px',
+                          color: '#dc2626', 
+                          fontSize: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                          {visibleTireMmErrors['spare_mm']}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.tireBoxRow}>
+                     <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <input type="text" value={tireData.spare.pressure} onChange={(e) => handleTireDataChange('spare', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('spare-pressure')} disabled={!canEditTechnicalFields} />
+                      {visibleTireMmErrors['spare_pressure'] && (
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '100%', 
+                          left: '0', 
+                          marginTop: '2px',
+                          padding: '4px 8px',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '4px',
+                          color: '#dc2626', 
+                          fontSize: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                          {visibleTireMmErrors['spare_pressure']}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className={styles.tireBoxRow}>
-                   <div className={styles.tireBoxBlueSmall}><span className={styles.tireBoxLabelSmall}>kg/cm²</span></div>
-                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <input type="text" value={tireData.spare.pressure} onChange={(e) => handleTireDataChange('spare', 'pressure', e.target.value)} className={styles.tireInputWhite} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('spare-pressure')} disabled={!canEditTechnicalFields} />
-                    {visibleTireMmErrors['spare_pressure'] && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '100%', 
-                        left: '0', 
-                        marginTop: '2px',
-                        padding: '4px 8px',
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '4px',
-                        color: '#dc2626', 
-                        fontSize: '10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        {visibleTireMmErrors['spare_pressure']}
-                      </div>
-                    )}
-                  </div>
+                <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
+                  <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
+                  <input type="text" value={tireData.spare.recommendedPressure} onChange={(e) => handleTireDataChange('spare', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('spare-recommended-pressure')} disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
+                  {visibleTireMmErrors['spare_recommendedPressure'] && (
+                    <div style={{ 
+                      position: 'absolute', 
+                      top: '100%', 
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      marginTop: '2px',
+                      padding: '4px 8px',
+                      background: '#fee2e2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '4px',
+                      color: '#dc2626', 
+                      fontSize: '10px',
+                      whiteSpace: 'nowrap',
+                      zIndex: 10,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}>
+                      {visibleTireMmErrors['spare_recommendedPressure']}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
-                <label style={{ fontSize: '10px', color: '#6b7280', marginBottom: '3px', textAlign: 'center', whiteSpace: 'nowrap' }}>Áp suất<br/>khuyến cáo</label>
-                <input type="text" value={tireData.spare.recommendedPressure} onChange={(e) => handleTireDataChange('spare', 'recommendedPressure', e.target.value)} className={styles.tireInputDashed} placeholder="" autoComplete={TIRE_FIELD_AUTOCOMPLETE} name={getTireInputName('spare-recommended-pressure')} disabled={!canEditTechnicalFields} style={{ width: '72px', height: '32px', fontSize: '13px' }} />
-                {visibleTireMmErrors['spare_recommendedPressure'] && (
-                  <div style={{ 
-                    position: 'absolute', 
-                    top: '100%', 
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    marginTop: '2px',
-                    padding: '4px 8px',
-                    background: '#fee2e2',
-                    border: '1px solid #fecaca',
-                    borderRadius: '4px',
-                    color: '#dc2626', 
-                    fontSize: '10px',
-                    whiteSpace: 'nowrap',
-                    zIndex: 10,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}>
-                    {visibleTireMmErrors['spare_recommendedPressure']}
-                  </div>
-                )}
               </div>
             </div>
           </div>

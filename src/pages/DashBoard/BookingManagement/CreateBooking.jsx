@@ -9,6 +9,8 @@ import { buildDateOptions, formatLocalDateYYYYMMDD, formatTimeHHmm, isPastSlot }
 import { normalizePeriodLabel, timeKey, useCreateBookingHandlers } from './useCreateBookingHandlers.js';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import AdvisorItemsTable from '../ServiceTicketManagement/AdvisorItemsTable.jsx';
+import Receipt from '../Receipt/Receipt.jsx';
+import { getDefaultSafetyInspectionCategories } from '../../../services/safetyInspectionService.js';
 
 const DURATION_MINUTES = 60;	// Thời lượng mặc định cho 1 slot
 const DATE_RANGE_DAYS = 10;		// Giới hạn chọn lịch trong vòng 10 ngày tới
@@ -40,7 +42,7 @@ const STEPS = [
 export default function CreateBooking() {
 	const [stepIndex, setStepIndex] = useState(0);
 	useScrollToTop([stepIndex], 'smooth');
-	const noop = () => {};
+	const noop = () => { };
 	const navigate = useNavigate();
 	const location = useLocation();
 
@@ -107,6 +109,23 @@ export default function CreateBooking() {
 	const [submitLocked, setSubmitLocked] = useState(false);
 	const [cancellingEstimate, setCancellingEstimate] = useState(false);
 	const [estimateTableKey, setEstimateTableKey] = useState(0);
+	const [defaultSafetyCategories, setDefaultSafetyCategories] = useState([]);
+
+	useEffect(() => {
+		const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+		if (!token) return;
+		let active = true;
+		getDefaultSafetyInspectionCategories(token)
+			.then((res) => {
+				if (active) setDefaultSafetyCategories(Array.isArray(res?.data) ? res.data : []);
+			})
+			.catch(() => {
+				if (active) setDefaultSafetyCategories([]);
+			});
+		return () => {
+			active = false;
+		};
+	}, []);
 
 	// Logic kiểm tra điều kiện để cho phép bấm nút "Tạo lịch" 
 	// - Lịch hẹn phải có ngày và giờ hợp lệ
@@ -117,6 +136,7 @@ export default function CreateBooking() {
 		return (
 			info.name.trim() &&
 			info.phone.trim() &&
+			!customerCheckError &&
 			schedule.date &&
 			schedule.time &&
 			(!schedule.date || (!slotsLoading && !slotsError)) &&
@@ -124,50 +144,105 @@ export default function CreateBooking() {
 			!submitLocked &&
 			!sourceReminderBlocksBooking
 		);
-	}, [info.name, info.phone, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked, sourceReminderBlocksBooking]);
+	}, [info.name, info.phone, customerCheckError, schedule.date, schedule.time, slotsLoading, slotsError, submitting, submitLocked, sourceReminderBlocksBooking]);
 
 	// Kiểm tra xem có tồn tại một bản nháp báo giá nào đang hoạt động hay không (bao gồm cả bản nháp hiện tại trong state và bản nháp đã lưu trong LocalStorage)
 	const hasActiveEstimateDraft = useMemo(() => {
 		return Boolean(estimateId || selectedEstimateItems.length > 0 || hasStoredEstimateDraft());
 	}, [estimateId, selectedEstimateItems.length]);
 
+	// Dữ liệu cho hóa đơn/phiếu dịch vụ in ấn
+	const printTicket = useMemo(() => {
+		const items = selectedEstimateItems.map((item, idx) => {
+			const qty = Number(item.quantity || 1);
+			const price = Number(item.unitPrice || item.price || 0);
+			const discount = Number(item.discountAmount || 0);
+			return {
+				...item,
+				categoryName: item.categoryName || item.newCategoryName || '',
+				itemName: item.itemName || item.productName || item.serviceName || item.name || '',
+				quantity: qty,
+				unitPrice: price,
+				discountAmount: discount,
+				subTotal: Math.max(0, qty * price - discount),
+			};
+		});
+
+		const subtotal = items.reduce((acc, it) => acc + (it.subTotal || 0), 0);
+		const discountAmount = items.reduce((acc, it) => acc + (it.discountAmount || 0), 0);
+		const total = Math.max(0, subtotal - discountAmount);
+
+		return {
+			customer: {
+				name: info.name || '-',
+				phone: info.phone || '-',
+				email: '-',
+			},
+			vehicle: {
+				model: '-',
+				licensePlate: '-',
+				odometerKm: '',
+			},
+			ticketCode: selectedEstimate?.serviceTicketCode || selectedEstimate?.ticketCode || 'BÁO GIÁ NHÁP',
+			receivedAtDisplay: schedule.date ? `${schedule.date} ${schedule.time}` : 'Chưa chọn',
+			handoverAtDisplay: '',
+			safetyInspectionEnabled: true,
+			defaultCategories: defaultSafetyCategories,
+			recommendation: '',
+			requestNote: info.note || '',
+			invoice: {
+				items,
+				subtotal,
+				discountAmount,
+				vatAmount: 0,
+				total,
+			},
+		};
+	}, [info.name, info.phone, info.note, schedule.date, schedule.time, selectedEstimate, selectedEstimateItems, defaultSafetyCategories]);
+
+	const handlePrintReceipt = () => {
+		globalThis.setTimeout?.(() => {
+			globalThis.requestAnimationFrame?.(() => globalThis.window?.print?.());
+		}, 120);
+	};
+
 	const displaySubmitError = submitError || (sourceReminderBlocksBooking ? 'Chỉ có thể tạo lịch từ lời nhắc đã xác nhận.' : '');
 
 	// Các handler chính được sử dụng trong component, được tách ra và quản lý trong useCreateBookingHandlers 
-    const { handleCheckCustomer, handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset, handleCancelEstimate } =
-        useCreateBookingHandlers({
-            baseSlots,
+	const { handleUseNow, handleShowManualSchedule, handlePickSlot, handleSubmit, handleGoToCheckIn, handleReset, handleCancelEstimate } =
+		useCreateBookingHandlers({
+			baseSlots,
 			selectedItems: selectedEstimateItems,
-            selectedIds: [],
+			selectedIds: [],
 			estimateId,
-            schedule,
-            scheduleMode,
-            info,
-            canSubmit,
-            submitLocked,
-            slotsLoading,
-            slotsError,
-            createdBookingForCheckIn,
+			schedule,
+			scheduleMode,
+			info,
+			canSubmit,
+			submitLocked,
+			slotsLoading,
+			slotsError,
+			createdBookingForCheckIn,
 			sourceReminderId,
 			hasActiveEstimateDraft,
 			cancellingEstimate,
 			submitSuccess,
 			estimateStorageKey: CREATE_BOOKING_ESTIMATE_STORAGE_KEY,
-            navigate,
+			navigate,
 
-            setSelectedIds: noop,
-            setSchedule,
-            setScheduleMode,
-            setShowSchedulePicker,
-            setInfo,
-            setAvailableSlots,
-            setSlotsLoading,
-            setSlotsError,
-            setSubmitting,
+			setSelectedIds: noop,
+			setSchedule,
+			setScheduleMode,
+			setShowSchedulePicker,
+			setInfo,
+			setAvailableSlots,
+			setSlotsLoading,
+			setSlotsError,
+			setSubmitting,
 			setSubmitError,
-            setSubmitSuccess,
-            setCreatedBookingForCheckIn,
-            setSubmitLocked,
+			setSubmitSuccess,
+			setCreatedBookingForCheckIn,
+			setSubmitLocked,
 			setCheckingCustomer,
 			setCustomerChecked,
 			setCustomerCheckError,
@@ -176,8 +251,8 @@ export default function CreateBooking() {
 			setEstimateTableKey,
 			setCancellingEstimate,
 			setStepIndex,
-        });
-	
+		});
+
 	// Xây dựng các options cho dropdown chọn ngày, giới hạn trong vòng 10 ngày tới
 	const dateOptions = useMemo(() => buildDateOptions(DATE_RANGE_DAYS), []);
 	const allowedDateSet = useMemo(() => new Set(dateOptions.map((o) => o.value)), [dateOptions]);
@@ -345,7 +420,8 @@ export default function CreateBooking() {
 
 	return (
 		<div className={`${bookingStyles['booking-page']} ${styles.page}`}>
-			<h2 className={`${bookingStyles['section-title']} ${styles.title}`}>Tạo lịch cho khách hàng</h2>
+			<div className={styles.screenOnly}>
+				<h2 className={`${bookingStyles['section-title']} ${styles.title}`}>Tạo lịch cho khách hàng</h2>
 
 			<div className={bookingStyles['stepper-wrapper']}>
 				<div className={bookingStyles['progress-track']}>
@@ -422,6 +498,16 @@ export default function CreateBooking() {
 						>
 							Làm mới
 						</button>
+						{hasActiveEstimateDraft && (
+							<button
+								type="button"
+								className={bookingStyles.btn}
+								onClick={handlePrintReceipt}
+								disabled={submitting || cancellingEstimate}
+							>
+								In phiếu dịch vụ
+							</button>
+						)}
 						<button
 							type="button"
 							className={`${bookingStyles.btn} ${bookingStyles.primary}`}
@@ -462,7 +548,7 @@ export default function CreateBooking() {
 								Đang đặt cho slot: {schedule.date} {schedule.time}
 							</div>
 						)}
-						
+
 						{/* Giao diện chọn ngày & giờ thủ công */}
 						{showSchedulePicker && scheduleMode === 'manual' && (
 							<>
@@ -584,6 +670,16 @@ export default function CreateBooking() {
 						>
 							Quay lại
 						</button>
+						{hasActiveEstimateDraft && (
+							<button
+								type="button"
+								className={bookingStyles.btn}
+								onClick={handlePrintReceipt}
+								disabled={submitting}
+							>
+								In phiếu dịch vụ
+							</button>
+						)}
 						<button
 							type="button"
 							className={`${bookingStyles.btn} ${bookingStyles.primary}`}
@@ -605,35 +701,28 @@ export default function CreateBooking() {
 					<div className={`${infoStyles['info-card']} ${styles.fullWidthCard}`}>
 						<div className={infoStyles.field}>
 							<label htmlFor="create-booking-phone" >Số điện thoại (<span className={styles.required}>*</span>)</label>
-							<div className={infoStyles['inline-input']}>
-								<input
-									id="create-booking-phone"
-									type="tel"
-									placeholder="Nhập số điện thoại"
-									value={info.phone}
-									onChange={(e) => {
-										setInfo((prev) => ({ ...prev, phone: e.target.value }));
-										setCustomerChecked(null);
-										setCustomerCheckError('');
-									}}
-									required
-									disabled={submitLocked}
-								/>
-								<button
-									type="button"
-									className={bookingStyles.btn}
-									onClick={handleCheckCustomer}
-									disabled={checkingCustomer || !info.phone.trim() || submitLocked}
-								>
-									{checkingCustomer ? 'Đang kiểm tra...' : 'Kiểm tra KH'}
-								</button>
-							</div>
-							{customerCheckError && <div style={{ color: '#e53935', fontSize: 13 }}>{customerCheckError}</div>}
+							<input
+								id="create-booking-phone"
+								type="tel"
+								placeholder="Nhập số điện thoại"
+								value={info.phone}
+								onChange={(e) => {
+									setInfo((prev) => ({ ...prev, phone: e.target.value }));
+									setCustomerChecked(null);
+									setCustomerCheckError('');
+								}}
+								required
+								disabled={submitLocked}
+							/>
+							{checkingCustomer && (
+								<div style={{ color: '#6b7280', fontSize: 13, marginTop: 4 }}>Đang kiểm tra...</div>
+							)}
+							{customerCheckError && <div style={{ color: '#e53935', fontSize: 13, marginTop: 4 }}>{customerCheckError}</div>}
 							{customerChecked?.exists === true && (
-								<div style={{ color: '#059669', fontSize: 13 }}>Khách hàng đã tồn tại: {customerChecked.fullName}</div>
+								<div style={{ color: '#059669', fontSize: 13, marginTop: 4 }}>Khách hàng đã tồn tại: {customerChecked.fullName}</div>
 							)}
 							{customerChecked?.exists === false && (
-								<div style={{ color: '#f59e42', fontSize: 13 }}>Chưa có khách hàng này trong hệ thống.</div>
+								<div style={{ color: '#f59e42', fontSize: 13, marginTop: 4 }}>Chưa có khách hàng này trong hệ thống.</div>
 							)}
 						</div>
 
@@ -713,6 +802,16 @@ export default function CreateBooking() {
 								>
 									Quay lại
 								</button>
+								{hasActiveEstimateDraft && (
+									<button
+										type="button"
+										className={bookingStyles.btn}
+										onClick={handlePrintReceipt}
+										disabled={submitting}
+									>
+										In phiếu dịch vụ
+									</button>
+								)}
 								<button
 									type="button"
 									className={`${bookingStyles.btn} ${bookingStyles.primary}`}
@@ -726,6 +825,12 @@ export default function CreateBooking() {
 						)}
 					</div>
 				</>
+			)}
+			</div>
+			{hasActiveEstimateDraft && (
+				<div className={styles.printOnly}>
+					<Receipt ticket={printTicket} />
+				</div>
 			)}
 		</div>
 	);

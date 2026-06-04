@@ -442,7 +442,7 @@ export default function Receipt({ ticket, carDiagramSrc }) {
             </div>
             <div className={styles.topHeaderRight}>
                 <img className={styles.logo} src={logo} alt="Michelin" />
-                <div className={styles.brandText}>{"MICHELIN\nCAR SERVICE"}</div>
+                <div className={styles.brandText}>{"MICHELIN SONTAY\nCAR SERVICE"}</div>
             </div>
         </header>
 

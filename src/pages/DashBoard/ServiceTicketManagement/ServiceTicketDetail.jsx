@@ -343,8 +343,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return ['INSPECTED', 'ESTIMATED', 'PENDING', 'REPAIRING', 'COMPLETED', 'PAID'].includes(ticketStatus);
     }, [isSafetyInspectionEnabled, safetyInspectionStatus, ticketStatus]);
 
-    // Ẩn báo giá nếu xe chưa được kiểm tra an toàn
-    const shouldHideEstimateUntilInspectionDone = !hasCompletedInspectionStep;
+    // Ẩn báo giá nếu xe chưa được kiểm tra an toàn (Bỏ chặn hiển thị báo giá)
+    const shouldHideEstimateUntilInspectionDone = false;
     
     // Kiểm tra xem phiếu dịch vụ đã bị hủy hay chưa, dựa trên trạng thái của phiếu dịch vụ
     const isTicketCancelled = ticketStatus === 'CANCELLED';
@@ -2854,7 +2854,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         onClick={handleOpenMaintenancePopup}
                                                         disabled={statusUpdating || receiptApproving}
                                                     >
-                                                        Đặt lịch bảo dưỡng
+                                                        Hẹn lịch bảo dưỡng
                                                     </button>
                                                 )}
                                                 {canRequestPayment && (

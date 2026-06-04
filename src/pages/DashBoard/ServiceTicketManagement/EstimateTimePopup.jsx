@@ -57,11 +57,11 @@ export default function EstimateTimePopup({ open, initialDateTime, onClose, onSu
                 e.preventDefault();
                 onClose?.();
             }}
-            aria-label="Nhập thời gian ước tính"
+            aria-label="Thời gian dự kiến hoàn tất sửa chữa"
         >
             <div className={styles.maintenanceModalContent}>
                 <div className={styles.maintenanceModalHeader}>
-                    <div className={styles.maintenanceModalTitle}>Nhập thời gian ước tính</div>
+                    <div className={styles.maintenanceModalTitle}>Thời gian dự kiến hoàn tất sửa chữa</div>
                     <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose}>
                         Đóng
                     </button>
