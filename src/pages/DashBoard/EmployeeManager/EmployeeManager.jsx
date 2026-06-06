@@ -85,6 +85,14 @@ const getEmployeeRoleNames = (employee) => {
   return Array.from(new Set(roleList.length > 0 ? roleList : fallbackRoles));
 };
 
+const chunkArray = (arr, size) => {
+  const result = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+};
+
 const ROLE_SORT_ORDER = [
   'Quản trị viên',
   'Quản lý viên',
@@ -222,7 +230,7 @@ export default function EmployeeManager() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return employees.filter((employee) => {
-      const roleOk = roleFilter === 'ALL' || getEmployeeRoleNames(employee).includes(roleFilter);
+      const roleOk = !roleFilter || roleFilter === 'ALL' || getEmployeeRoleNames(employee).includes(roleFilter);
       if (!roleOk) return false;
       if (!q) return true;
 
@@ -448,6 +456,7 @@ export default function EmployeeManager() {
           />
         </div>
         <select
+          key={roles.length}
           className={styles.filterSelect}
           value={roleFilter}
           onChange={(event) => setRoleFilter(event.target.value)}
@@ -518,7 +527,21 @@ export default function EmployeeManager() {
                     </td>
                     <td>{employee.phone || '-'}</td>
                     <td>
-                      <span className={styles.roleBadge}>{employee.roleDisplay || '-'}</span>
+                      <div className={styles.roleBadgesContainer}>
+                        {getEmployeeRoleNames(employee).length > 0 ? (
+                          chunkArray(getEmployeeRoleNames(employee), 3).map((chunk, chunkIdx) => (
+                            <div key={chunkIdx} className={styles.roleRow}>
+                              {chunk.map((role) => (
+                                <span key={role} className={styles.roleBadge}>
+                                  {role}
+                                </span>
+                              ))}
+                            </div>
+                          ))
+                        ) : (
+                          '-'
+                        )}
+                      </div>
                     </td>
                     <td>{employee.gender || '-'}</td>
                     <td>{employee.dob || '-'}</td>

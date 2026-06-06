@@ -49,7 +49,7 @@
 .table {
 	width: 100%;
 	border-collapse: collapse;
-	min-width: 920px;
+	min-width: 1060px;
 	table-layout: fixed;
 }
 
@@ -93,31 +93,40 @@
 .table th:nth-child(2),
 .table td:nth-child(2) {
 	width: 180px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .table th:nth-child(3),
 .table td:nth-child(3) {
-	width: 220px;
+	width: 200px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .table th:nth-child(4),
 .table td:nth-child(4) {
-	width: 130px;
+	width: 120px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .table th:nth-child(5),
 .table td:nth-child(5) {
-	width: 130px;
+	width: 120px;
 }
 
 .table th:nth-child(6),
 .table td:nth-child(6) {
-	width: 150px;
+	width: 220px;
 }
 
 .table th:nth-child(7),
 .table td:nth-child(7) {
-	width: 140px;
+	width: 170px;
 }
 
 .staffCell {
@@ -136,58 +145,91 @@
 }
 
 .actionGroup {
-	display: grid;
-	grid-template-columns: repeat(3, 72px);
+	display: flex;
+	flex-direction: row;
+	gap: 4px;
 	justify-content: center;
-	gap: 5px;
+	align-items: center;
 }
 
 .actionBtn {
-	padding: 8px 0;
+	padding: 5px 8px;
 	border: none;
-	border-radius: 8px;
-	font-size: 13px;
+	border-radius: 6px;
+	font-size: 12px;
 	font-weight: 600;
 	cursor: pointer;
-	transition: all 0.25s;
-	display: flex;
+	transition: all 0.2s;
+	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	min-width: 48px;
 }
 
 .actionBtn:hover {
-	transform: translateY(-2px);
+	transform: translateY(-1px);
 }
 
 .viewBtn {
 	background: #1E90FF;
 	color: white;
-	box-shadow: 0 2px 8px rgba(30, 144, 255, 0.3);
+	box-shadow: 0 1px 4px rgba(30, 144, 255, 0.15);
 }
 
 .viewBtn:hover {
 	background: #1873CC;
-	box-shadow: 0 4px 12px rgba(30, 144, 255, 0.4);
+	box-shadow: 0 2px 6px rgba(30, 144, 255, 0.25);
 }
 
 .lockBtn {
 	background: #ef5350;
 	color: white;
-	box-shadow: 0 2px 8px rgba(239, 83, 80, 0.3);
+	box-shadow: 0 1px 4px rgba(239, 83, 80, 0.15);
 }
 
 .lockBtn:hover {
 	background: #e53935;
-	box-shadow: 0 4px 12px rgba(239, 83, 80, 0.4);
+	box-shadow: 0 2px 6px rgba(239, 83, 80, 0.25);
 }
 
 .deleteBtn {
 	background: #dc2626;
 	color: white;
-	box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+	box-shadow: 0 1px 4px rgba(220, 38, 38, 0.15);
 }
 
 .deleteBtn:hover {
 	background: #b91c1c;
-	box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+	box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+}
+
+.roleBadgesContainer {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	justify-content: center;
+	align-items: center;
+	margin: 0 auto;
+}
+
+.roleRow {
+	display: flex;
+	flex-direction: row;
+	gap: 6px;
+	justify-content: center;
+	align-items: center;
+}
+
+.roleBadge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 3px 6px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	background: #e0e7ff;
+	border: 1px solid #c7d2fe;
+	color: #4338ca;
+	white-space: nowrap;
 }

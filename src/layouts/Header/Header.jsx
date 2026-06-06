@@ -47,7 +47,7 @@ const Header = () => {
     setIsAuthed(!!token);
     setCustomerName(name?.trim() || 'Khách hàng');
   }, []);
-  
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -186,7 +186,7 @@ const Header = () => {
             )}
           </div>
 
-          <button 
+          <button
             className={`mobileMenuToggle ${isMenuOpen ? 'active' : ''}`}
             onClick={toggleMenu}
             aria-label="Toggle menu"

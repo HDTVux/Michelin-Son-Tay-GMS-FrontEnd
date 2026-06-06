@@ -143,6 +143,41 @@ const StaffProfile = () => {
     confirm: false
   });
 
+  // Dynamically compute links based on normalized role
+  const staffProfileForActions = readStaffProfileFromStorage();
+  const rawRole = staffProfileForActions?.role?.[0] || '';
+  const normalizedRole = rawRole.toUpperCase().replace('ROLE_', '');
+
+  let workHistoryLink = '/work-history/technician';
+  if (['TECHNICIAN', 'ADVISOR', 'RECEPTIONIST', 'ACCOUNTANT', 'MANAGER', 'ADMIN'].includes(normalizedRole)) {
+    workHistoryLink = `/work-history/${normalizedRole.toLowerCase()}`;
+  }
+
+  let taskLink = '/technician/my-tasks';
+  let taskTitle = 'Xem công việc được giao';
+  let taskDesc = 'Quản lý và theo dõi các công việc được giao';
+  if (normalizedRole === 'ADVISOR') {
+    taskLink = '/advisor/inspection';
+    taskTitle = 'Điều phối phiếu';
+    taskDesc = 'Màn điều phối dịch vụ và phiếu cần cố vấn';
+  } else if (normalizedRole === 'RECEPTIONIST') {
+    taskLink = '/booking-management';
+    taskTitle = 'Quản lý lịch hẹn';
+    taskDesc = 'Tiếp nhận xe và quản lý lịch hẹn lễ tân';
+  } else if (normalizedRole === 'ACCOUNTANT') {
+    taskLink = '/service-ticket-management';
+    taskTitle = 'Hóa đơn dịch vụ';
+    taskDesc = 'Theo dõi phiếu dịch vụ và hóa đơn thanh toán';
+  } else if (normalizedRole === 'MANAGER') {
+    taskLink = '/employee-manager';
+    taskTitle = 'Quản lý nhân viên';
+    taskDesc = 'Xem danh sách và quản lý hồ sơ nhân viên';
+  } else if (normalizedRole === 'ADMIN') {
+    taskLink = '/system-log-management';
+    taskTitle = 'Nhật ký hệ thống';
+    taskDesc = 'Xem nhật ký hoạt động của hệ thống';
+  }
+
   const quickActions = [
     {
       id: 0,
@@ -160,7 +195,7 @@ const StaffProfile = () => {
       icon: '📋',
       title: 'Lịch sử công việc',
       description: 'Xem chi tiết các công việc bạn đã thực hiện',
-      link: '/work-history/technician'
+      link: workHistoryLink
     },
     {
       id: 2,
@@ -172,9 +207,9 @@ const StaffProfile = () => {
     {
       id: 3,
       icon: '📊',
-      title: 'Xem công việc được giao',
-      description: 'Quản lý và theo dõi các công việc được giao',
-      link: '/technician/my-tasks'
+      title: taskTitle,
+      description: taskDesc,
+      link: taskLink
     }
   ];
 
@@ -378,13 +413,8 @@ const StaffProfile = () => {
           <div className={styles.infoDetails}>
             <div className={styles.infoHeader}>
               <h2 className={styles.staffName}>{staffInfo.fullName}</h2>
-              <span className={styles.staffCode}>Mã: STF{String(staffInfo.staffId).padStart(3, '0')}</span>
             </div>
             <div className={styles.infoGrid}>
-              <div className={styles.infoRow}>
-                <span className={styles.infoLabel}>Họ và Tên:</span>
-                <span className={styles.infoValue}>{staffInfo.fullName}</span>
-              </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Giới tính:</span>
                 <span className={styles.infoValue}>{getGenderLabel(staffInfo.gender)}</span>
@@ -410,27 +440,35 @@ const StaffProfile = () => {
         <h2 className={styles.sectionTitle}>Thống kê cá nhân theo lịch sử làm việc</h2>
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
-            <span className={styles.statIcon}>🎫</span>
-            <div className={styles.statLabel}>Tổng số ticket đã tham gia</div>
-            <div className={styles.statValue}>{workStats.totalTickets}</div>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statIcon}>🔧</span>
-            <div className={styles.statLabel}>Tổng số dịch vụ đã thực hiện</div>
-            <div className={styles.statValue}>{workStats.totalServices}</div>
-          </div>
-          <div className={`${styles.statCard} ${styles.blue}`}>
-            <span className={styles.statIcon}>⏱️</span>
-            <div className={styles.statLabel}>Tổng giờ làm việc tích lũy</div>
-            <div className={styles.statValue}>
-              {workStats.totalWorkingHours.toLocaleString('vi-VN')} giờ
+            <span className={`${styles.statIcon} ${styles.iconTicket}`}>🎫</span>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{workStats.totalTickets}</div>
+              <div className={styles.statLabel}>Tổng số ticket đã tham gia</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <span className={styles.statIcon}>⭐</span>
-            <div className={styles.statLabel}>Đánh giá trung bình từ khách hàng</div>
-            <div className={styles.statValue}>
-              {workStats.averageRating ? `${workStats.averageRating}/5.0` : 'Chưa có đánh giá'}
+            <span className={`${styles.statIcon} ${styles.iconWrench}`}>🔧</span>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{workStats.totalServices}</div>
+              <div className={styles.statLabel}>Tổng số dịch vụ đã thực hiện</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <span className={`${styles.statIcon} ${styles.iconClock}`}>⏱️</span>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>
+                {workStats.totalWorkingHours.toLocaleString('vi-VN')} giờ
+              </div>
+              <div className={styles.statLabel}>Tổng giờ làm việc tích lũy</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <span className={`${styles.statIcon} ${styles.iconStar}`}>⭐</span>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>
+                {workStats.averageRating ? `${workStats.averageRating}/5.0` : 'Chưa có đánh giá'}
+              </div>
+              <div className={styles.statLabel}>Đánh giá trung bình</div>
             </div>
           </div>
         </div>
@@ -439,16 +477,22 @@ const StaffProfile = () => {
       <section className={styles.actionsSection}>
         <h2 className={styles.sectionTitle}>Tiện ích nhanh</h2>
         <div className={styles.actionsGrid}>
-          {quickActions.map((action) => (
-            action.link ? (
+          {quickActions.map((action) => {
+            const iconClass = action.id === 0 ? styles.iconEdit
+                            : action.id === 1 ? styles.iconHistory
+                            : action.id === 2 ? styles.iconPassword
+                            : styles.iconTasks;
+            return action.link ? (
               <Link
                 key={action.id}
                 to={action.link}
                 className={styles.actionCard}
               >
-                <span className={styles.actionIcon}>{action.icon}</span>
-                <h3 className={styles.actionTitle}>{action.title}</h3>
-                <p className={styles.actionDescription}>{action.description}</p>
+                <span className={`${styles.actionIcon} ${iconClass}`}>{action.icon}</span>
+                <div className={styles.actionInfo}>
+                  <h3 className={styles.actionTitle}>{action.title}</h3>
+                  <p className={styles.actionDescription}>{action.description}</p>
+                </div>
               </Link>
             ) : (
               <div
@@ -457,12 +501,14 @@ const StaffProfile = () => {
                 className={styles.actionCard}
                 style={{ cursor: 'pointer' }}
               >
-                <span className={styles.actionIcon}>{action.icon}</span>
-                <h3 className={styles.actionTitle}>{action.title}</h3>
-                <p className={styles.actionDescription}>{action.description}</p>
+                <span className={`${styles.actionIcon} ${iconClass}`}>{action.icon}</span>
+                <div className={styles.actionInfo}>
+                  <h3 className={styles.actionTitle}>{action.title}</h3>
+                  <p className={styles.actionDescription}>{action.description}</p>
+                </div>
               </div>
-            )
-          ))}
+            );
+          })}
         </div>
       </section>
 

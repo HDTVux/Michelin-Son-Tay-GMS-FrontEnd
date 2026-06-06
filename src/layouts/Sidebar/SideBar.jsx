@@ -13,7 +13,7 @@ const STAFF_ROLE = {
     TECHNICIAN: 'TECHNICIAN',
     ADMIN: 'ADMIN',
     WAREHOUSE_KEEPER: 'WAREHOUSE_KEEPER',
-    ACCOUNTANT: 'ACCOUNTANT', 
+    ACCOUNTANT: 'ACCOUNTANT',
 };
 
 const normalizeRoleName = (value) => {
@@ -146,6 +146,11 @@ const NAV_GROUPS = [
             { id: 'staff-profile', label: 'Hồ sơ nhân viên', path: '/staff-profile', icon: <IconBadge />, roles: 'ALL' },
             { id: 'daily-schedule', label: 'Lịch làm việc', path: '/daily-schedule', icon: <IconCalendar />, roles: 'ALL' },
             { id: 'work-history-technician', label: 'Lịch sử công việc', path: '/work-history/technician', icon: <IconBriefcase />, roles: [STAFF_ROLE.TECHNICIAN] },
+            { id: 'work-history-advisor', label: 'Lịch sử công việc', path: '/work-history/advisor', icon: <IconBriefcase />, roles: [STAFF_ROLE.ADVISOR] },
+            { id: 'work-history-receptionist', label: 'Lịch sử công việc', path: '/work-history/receptionist', icon: <IconBriefcase />, roles: [STAFF_ROLE.RECEPTIONIST] },
+            { id: 'work-history-accountant', label: 'Lịch sử công việc', path: '/work-history/accountant', icon: <IconBriefcase />, roles: [STAFF_ROLE.ACCOUNTANT] },
+            { id: 'work-history-manager', label: 'Lịch sử công việc', path: '/work-history/manager', icon: <IconBriefcase />, roles: [STAFF_ROLE.MANAGER] },
+            { id: 'work-history-admin', label: 'Lịch sử công việc', path: '/work-history/admin', icon: <IconBriefcase />, roles: [STAFF_ROLE.ADMIN] },
         ],
     },
 ];
@@ -210,15 +215,15 @@ const SideBar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [openGroups, setOpenGroups] = useState(() =>
-        ({
-            ...Object.fromEntries(NAV_GROUPS.map((g) => [g.id, Boolean(g.defaultOpen)])),
-            ...readSidebarState(SIDEBAR_GROUPS_STORAGE_KEY, {}),
-        })
+    ({
+        ...Object.fromEntries(NAV_GROUPS.map((g) => [g.id, Boolean(g.defaultOpen)])),
+        ...readSidebarState(SIDEBAR_GROUPS_STORAGE_KEY, {}),
+    })
     );
     const [openSubGroups, setOpenSubGroups] = useState(() =>
         readSidebarState(SIDEBAR_SUBGROUPS_STORAGE_KEY, {})
     );
-    
+
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -278,7 +283,7 @@ const SideBar = () => {
 
     const toggleMenu = () => setIsOpen((prev) => !prev);
     const toggleProfileDropdown = () => setIsProfileOpen((prev) => !prev);
-    
+
     const handleNavClick = (path) => {
         setIsOpen(false);
         setIsProfileOpen(false);
@@ -320,8 +325,8 @@ const SideBar = () => {
     return (
         <aside className="sidebar">
             <div className={`sidebar__profile-container ${isProfileOpen ? 'is-open' : ''}`}>
-                <div 
-                    className="sidebar__profile" 
+                <div
+                    className="sidebar__profile"
                     onClick={toggleProfileDropdown}
                     role="button"
                     tabIndex={0}
@@ -423,7 +428,7 @@ const SideBar = () => {
                                                             <IconChevron />
                                                         </span>
                                                     </button>
-                                                    
+
                                                     <div className={`navGroup__subItemsWrapper ${isSubGroupOpen ? 'is-open' : ''}`}>
                                                         <div className="navGroup__subItems">
                                                             {subGroup.items.map(renderNavItem)}
@@ -457,7 +462,7 @@ const svgProps = { fill: 'none', stroke: 'currentColor', strokeWidth: '2', strok
 function IconHome() { return <svg {...svgProps}><path d="M3 9.5L12 3l9 6.5V20a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z" /></svg>; }
 function IconMenu() { return <svg {...svgProps}><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>; }
 function IconClose() { return <svg {...svgProps}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>; }
-function IconChevron() { return <svg {...svgProps} strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>; }
+function IconChevron() { return <svg {...svgProps} strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>; }
 function IconLogout() { return <svg {...svgProps}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>; }
 
 // Khách hàng & Lịch hẹn

@@ -48,17 +48,17 @@
 
 .staffInfoSection {
   background: #f8fafc;
-  padding: 24px;
-  border-radius: 16px;
+  padding: 20px;
+  border-radius: 12px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-  margin-bottom: 32px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  margin-bottom: 24px;
 }
 
 .infoCard {
   display: flex;
-  gap: 32px;
-  align-items: flex-start;
+  gap: 24px;
+  align-items: center;
 }
 
 .avatarContainer {
@@ -67,58 +67,53 @@
 
 .avatarImage,
 .avatarPlaceholder {
-  width: 120px;
-  height: 120px;
-  border-radius: 16px;
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
   object-fit: cover;
-  border: 3px solid #e5e7eb;
+  border: 2px solid #e2e8f0;
   background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+  font-size: 36px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
 
 .infoDetails {
   flex: 1;
+  min-width: 0;
 }
 
 .infoHeader {
   display: flex;
-  align-items: baseline;
-  gap: 16px;
-  margin-bottom: 24px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
 .staffName {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 800;
   color: #0f172a;
   margin: 0;
 }
 
-.staffCode {
-  font-size: 16px;
-  color: #64748b;
-  font-weight: 600;
-}
-
 .infoGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 }
 
 .infoRow {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .infoLabel {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #64748b;
   text-transform: uppercase;
@@ -126,7 +121,7 @@
 }
 
 .infoValue {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
 }
@@ -167,71 +162,84 @@
 
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
 }
 
 .statCard {
   background: white;
-  padding: 28px 24px;
-  border-radius: 16px;
+  padding: 16px 20px;
+  border-radius: 12px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s;
-  border: 2px solid transparent;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #e2e8f0;
 }
 
 .statCard:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
   border-color: #1E90FF;
-}
-
-.statCard.blue {
-  border-color: #1E90FF;
-}
-
-.statCard.blue:hover {
-  box-shadow: 0 8px 24px rgba(30, 144, 255, 0.2);
 }
 
 .statIcon {
-  font-size: 32px;
-  margin-bottom: 12px;
-  display: block;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+/* Elegant theme colors for stats cards */
+.iconTicket {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.iconWrench {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.iconClock {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.iconStar {
+  background: #faf5ff;
+  color: #7c3aed;
+}
+
+.statInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .statLabel {
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280;
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  text-align: center;
-}
-
-.statCard.blue .statLabel {
-  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  line-height: 1.4;
 }
 
 .statValue {
-  font-size: 48px;
+  font-size: 22px;
   font-weight: 700;
-  background: linear-gradient(135deg, #1E90FF 0%, #1873CC 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-align: center;
-}
-
-.statCard.blue .statValue {
-  background: linear-gradient(135deg, #1E90FF 0%, #1873CC 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #0f172a;
+  line-height: 1.2;
 }
 
 .actionsSection {
@@ -244,45 +252,83 @@
 
 .actionsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
 }
 
 .actionCard {
   background: #fff;
-  padding: 24px;
+  padding: 14px 18px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   color: inherit;
-  display: block;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
 }
 
 .actionCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
-  border-color: #1d4ed8;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  border-color: #1E90FF;
 }
 
 .actionIcon {
-  font-size: 32px;
-  margin-bottom: 16px;
-  display: block;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+/* Elegant quick action icon theme colors */
+.iconEdit {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.iconHistory {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.iconPassword {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.iconTasks {
+  background: #faf5ff;
+  color: #7c3aed;
+}
+
+.actionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .actionTitle {
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 700;
   color: #0f172a;
-  margin: 0 0 8px;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .actionDescription {
-  font-size: 14px;
+  font-size: 12px;
   color: #64748b;
-  line-height: 1.6;
+  line-height: 1.4;
   margin: 0;
 }
 

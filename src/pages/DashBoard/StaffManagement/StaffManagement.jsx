@@ -583,12 +583,20 @@ SearchIcon.propTypes = {
 	className: PropTypes.string
 };
 
+const chunkArray = (arr, size) => {
+	const result = [];
+	for (let i = 0; i < arr.length; i += size) {
+		result.push(arr.slice(i, i + size));
+	}
+	return result;
+};
+
 function StaffTableRow({ item, index, onView, onLock, onDelete }) {
 	const resolvedStatus = resolveStaffStatus(item);
 	const normalizedStatus = normalizeStaffStatus(resolvedStatus);
 	const statusMeta = getStaffStatusMeta({ status: resolvedStatus, isActive: item?.isActive });
 	const canManage = Boolean(normalizedStatus) && normalizedStatus !== 'DELETED';
-	const roleText =
+	const roleNames =
 		Array.isArray(item?.roles) && item.roles.length > 0
 			? item.roles
 					.map((r) => {
@@ -597,8 +605,7 @@ function StaffTableRow({ item, index, onView, onLock, onDelete }) {
 						return name || code || '';
 					})
 					.filter(Boolean)
-					.join(', ')
-				: item?.position || '-';
+				: (item?.position ? [item.position] : []);
 	return (
 		<tr>
 			<td>{index}</td>
@@ -620,7 +627,23 @@ function StaffTableRow({ item, index, onView, onLock, onDelete }) {
 					{statusMeta.label}
 				</span>
 			</td>
-			<td>{roleText}</td>
+			<td>
+				<div className={styles.roleBadgesContainer}>
+					{roleNames.length > 0 ? (
+						chunkArray(roleNames, 3).map((chunk, chunkIdx) => (
+							<div key={chunkIdx} className={styles.roleRow}>
+								{chunk.map((role) => (
+									<span key={role} className={styles.roleBadge}>
+										{role}
+									</span>
+								))}
+							</div>
+						))
+					) : (
+						'-'
+					)}
+				</div>
+			</td>
 			<td>
 				<div className={styles.actionGroup}>
 					<button
