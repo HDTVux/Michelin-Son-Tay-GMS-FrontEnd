@@ -51,14 +51,12 @@ body {
 	color: #ffffff;
 	text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 90, 169, 0.4);
 	font-weight: 900;
-	-webkit-text-stroke: 1px rgba(0, 0, 0, 0.1);
 }
 
 .banner-title .titlePart2 {
 	color: #ffffff;
 	text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 90, 169, 0.6);
 	font-weight: 900;
-	-webkit-text-stroke: 1px rgba(0, 90, 169, 0.2);
 }
 
 .banner-carousel {
@@ -213,12 +211,10 @@ body {
     
     .banner-title .titlePart1 {
         text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 1px 6px rgba(0, 0, 0, 0.4);
-        -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.2);
     }
     
     .banner-title .titlePart2 {
         text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 90, 169, 0.5);
-        -webkit-text-stroke: 0.5px rgba(0, 90, 169, 0.2);
     }
     
     .banner-dots {
@@ -285,12 +281,10 @@ body {
     .banner-title .titlePart1 {
         margin-right: 4px;
         text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
-        -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.2);
     }
     
     .banner-title .titlePart2 {
         text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6), 0 0 18px rgba(0, 90, 169, 0.5);
-        -webkit-text-stroke: 0.5px rgba(0, 90, 169, 0.2);
     }
     
     .banner-dots {
