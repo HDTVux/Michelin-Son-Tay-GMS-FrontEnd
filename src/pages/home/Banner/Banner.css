@@ -167,6 +167,12 @@ body {
 @media (max-width: 768px) {
     .banner {
         padding: 0;
+        width: 100% !important;
+        margin-left: 0 !important;
+        transform: none !important;
+    }
+    .banner-carousel {
+        width: 100% !important;
     }
     .banner-inner {
         padding: 0;
@@ -235,6 +241,12 @@ body {
 @media (max-width: 480px) {
     .banner {
         padding: 0;
+        width: 100% !important;
+        margin-left: 0 !important;
+        transform: none !important;
+    }
+    .banner-carousel {
+        width: 100% !important;
     }
     .banner-inner {
         padding: 0;
@@ -274,8 +286,8 @@ body {
         margin-bottom: 10px;
         line-height: 1.25;
         gap: 4px;
-        flex-wrap: nowrap;
-        white-space: nowrap;
+        flex-wrap: wrap;
+        white-space: normal;
     }
     
     .banner-title .titlePart1 {
