@@ -780,6 +780,13 @@ export default function CreateBooking() {
 								>
 									Tạo lịch mới
 								</button>
+								<button
+									type="button"
+									className={`${bookingStyles.btn} ${bookingStyles.primary} ${styles.successBtn}`}
+									onClick={() => navigate('/booking-management')}
+								>
+									Quản lý lịch hẹn
+								</button>
 								{createdBookingForCheckIn?.bookingCode && (
 									<button
 										type="button"
