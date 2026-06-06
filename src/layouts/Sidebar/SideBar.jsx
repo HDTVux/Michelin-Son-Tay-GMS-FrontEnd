@@ -247,7 +247,21 @@ const SideBar = () => {
     const personalItems = useMemo(() => {
         const personalGroup = NAV_GROUPS.find((g) => g.id === 'personal');
         if (!personalGroup) return [];
-        return filterItemsByRoles(personalGroup.items, staffRoles);
+        const filtered = filterItemsByRoles(personalGroup.items, staffRoles);
+        
+        // Deduplicate multiple work history items to avoid duplicates in the dropdown menu
+        const workHistoryItems = filtered.filter((item) => item.id.startsWith('work-history-'));
+        if (workHistoryItems.length <= 1) {
+            return filtered;
+        }
+        
+        const firstWorkHistory = workHistoryItems[0];
+        return filtered.filter((item) => {
+            if (item.id.startsWith('work-history-')) {
+                return item.id === firstWorkHistory.id;
+            }
+            return true;
+        });
     }, [staffRoles]);
 
     useEffect(() => {

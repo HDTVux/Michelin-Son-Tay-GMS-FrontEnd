@@ -137,27 +137,14 @@ export default function StaffManagement() {
 		loadRoles();
 	}, []);
 
-	const filters = useMemo(() => {
-		let parsedIsActive;
-		if (statusFilter === 'ACTIVE') parsedIsActive = true;
-		else if (statusFilter === 'INACTIVE') parsedIsActive = false;
+	const [reloadTrigger, setReloadTrigger] = useState(0);
 
-		const roleId = Number(roleIdFilter);
-		const roleIds = roleIdFilter !== '' && Number.isFinite(roleId) && roleId > 0 ? [roleId] : undefined;
+	const reloadStaffList = useCallback(async () => {
+		setReloadTrigger((prev) => prev + 1);
+	}, []);
 
-		return {
-			page,
-			size,
-			date: date || undefined,
-			isActive: parsedIsActive,
-			status: statusFilter || undefined,
-			search: debouncedSearch || undefined,
-			roleIds
-		};
-	}, [page, size, date, statusFilter, debouncedSearch, roleIdFilter]);
-
-	const reloadStaffList = useCallback(async (tokenOverride) => {
-		const token = tokenOverride || getAuthToken();
+	useEffect(() => {
+		const token = getAuthToken();
 		if (!token) {
 			setError('Vui lòng đăng nhập để xem danh sách nhân viên.');
 			setStaff([]);
@@ -167,47 +154,64 @@ export default function StaffManagement() {
 			return;
 		}
 
-		const requestSeq = ++requestSeqRef.current;
-		try {
-			setIsLoading(true);
-			setError('');
-			const response = await fetchAllStaff(filters, token);
-			if (requestSeq !== requestSeqRef.current) return;
+		let parsedIsActive;
+		if (statusFilter === 'ACTIVE') parsedIsActive = true;
+		else if (statusFilter === 'INACTIVE') parsedIsActive = false;
 
-			const pageData = response?.data;
-			const list = Array.isArray(pageData?.content) ? pageData.content : [];
-			const visibleList = list.filter((s) => normalizeStaffStatus(resolveStaffStatus(s)) !== 'DELETED');
-			const apiTotalPages = Number.isFinite(pageData?.totalPages) ? pageData.totalPages : 1;
-			const apiTotalElements =
-				Number.isFinite(pageData?.totalElements) ? pageData.totalElements : visibleList.length;
+		const roleId = Number(roleIdFilter);
+		const roleIds = roleIdFilter !== '' && Number.isFinite(roleId) && roleId > 0 ? [roleId] : undefined;
 
-			setStaff(visibleList);
-			setTotalPages(Math.max(1, apiTotalPages));
-			setTotalElements(Math.max(0, apiTotalElements));
-			if (apiTotalPages > 0 && filters.page > apiTotalPages - 1) {
-				setPage(Math.max(0, apiTotalPages - 1));
+		const currentFilters = {
+			page,
+			size,
+			date: date || undefined,
+			isActive: parsedIsActive,
+			status: statusFilter || undefined,
+			search: debouncedSearch || undefined,
+			roleIds
+		};
+
+		const load = async () => {
+			const requestSeq = ++requestSeqRef.current;
+			try {
+				setIsLoading(true);
+				setError('');
+				const response = await fetchAllStaff(currentFilters, token);
+				if (requestSeq !== requestSeqRef.current) return;
+
+				const pageData = response?.data;
+				const list = Array.isArray(pageData?.content) ? pageData.content : [];
+				const visibleList = list.filter((s) => normalizeStaffStatus(resolveStaffStatus(s)) !== 'DELETED');
+				const apiTotalPages = Number.isFinite(pageData?.totalPages) ? pageData.totalPages : 1;
+				const apiTotalElements =
+					Number.isFinite(pageData?.totalElements) ? pageData.totalElements : visibleList.length;
+
+				setStaff(visibleList);
+				setTotalPages(Math.max(1, apiTotalPages));
+				setTotalElements(Math.max(0, apiTotalElements));
+				if (apiTotalPages > 0 && page > apiTotalPages - 1) {
+					setPage(Math.max(0, apiTotalPages - 1));
+				}
+			} catch (err) {
+				if (requestSeq !== requestSeqRef.current) return;
+				const msg = err?.message || 'Không thể tải danh sách nhân viên.';
+				const isUnauthorized = err?.status === 401 || err?.status === 403;
+				if (isUnauthorized) {
+					localStorage.removeItem('authToken');
+					setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+				} else {
+					setError(msg);
+				}
+				setStaff([]);
+				setTotalPages(1);
+				setTotalElements(0);
+			} finally {
+				if (requestSeq === requestSeqRef.current) setIsLoading(false);
 			}
-		} catch (err) {
-			if (requestSeq !== requestSeqRef.current) return;
-			const msg = err?.message || 'Không thể tải danh sách nhân viên.';
-			const isUnauthorized = err?.status === 401 || err?.status === 403;
-			if (isUnauthorized) {
-				localStorage.removeItem('authToken');
-				setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-			} else {
-				setError(msg);
-			}
-			setStaff([]);
-			setTotalPages(1);
-			setTotalElements(0);
-		} finally {
-			if (requestSeq === requestSeqRef.current) setIsLoading(false);
-		}
-	}, [filters]);
+		};
 
-	useEffect(() => {
-		reloadStaffList();
-	}, [reloadStaffList]);
+		load();
+	}, [page, size, date, statusFilter, debouncedSearch, roleIdFilter, reloadTrigger]);
 
 	const safeTotalPages = Number.isFinite(totalPages) ? Math.max(1, totalPages) : 1;
 	const safePage = Number.isFinite(page) ? Math.min(Math.max(0, page), safeTotalPages - 1) : 0;
