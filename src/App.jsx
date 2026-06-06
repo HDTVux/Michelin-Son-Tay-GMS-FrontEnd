@@ -63,8 +63,9 @@ import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
 import UserProfile from './pages/UserProfile/UserProfile.jsx';
 import MyBookings from './pages/MyBookings/MyBookings.jsx';
 import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
-import EditBooking from './pages/EditBooking/EditBooking.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
+import NotFound from './pages/NotFound/NotFound.jsx';
+import EditBooking from './pages/EditBooking/EditBooking.jsx';
 
 //Receptionist pages
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
@@ -230,6 +231,26 @@ function AdvisorOnlyRoute({ children }) {
   const staffRoles = readStaffRolesForRouting();
   const isAdvisor = staffRoles.includes(STAFF_ROLE.ADVISOR);
   return isAdvisor ? children : <StaffLoginRedirect clearSession />;
+}
+
+function ExternalRedirect({ to }) {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0e1118', color: '#fff', fontFamily: 'sans-serif' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ border: '4px solid rgba(255,255,255,0.1)', borderTop: '4px solid #3b82f6', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+        <p>Đang chuyển hướng đến trang đăng nhập nhân viên...</p>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    </div>
+  );
 }
 
 // Title updater based on route
@@ -411,7 +432,7 @@ export default function App() {
                 )}
               />
             </Route>
-            <Route path="*" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<NotFound />} />
           </>
         ) : (
           // LUỒNG ROUTES CHO KHÁCH HÀNG (TÊN MIỀN CHÍNH)
@@ -434,8 +455,8 @@ export default function App() {
 
             {/* Các route phụ trợ khác */}
             <Route path="vat-invoice" element={<VatInvoiceView />} />
-            <Route path="login" element={<Navigate to="https://staff.sontaygarage.vn/login" replace />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="login" element={<ExternalRedirect to="https://staff.sontaygarage.vn/login" />} />
+            <Route path="*" element={<NotFound />} />
           </>
         )}
       </Routes>
