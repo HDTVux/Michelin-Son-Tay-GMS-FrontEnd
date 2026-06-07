@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
@@ -179,7 +179,13 @@ export default function CreateProduct() {
 	const [isCreatingProductTaxRule, setIsCreatingProductTaxRule] = useState(false);
 	const [sku, setSku] = useState(() => initialDraft?.sku ?? '');
 	const [isScanning, setIsScanning] = useState(false);
-	const html5QrCodeRef = useRef(null);
+	const codeReaderRef = useRef(null);
+	const videoTrackRef = useRef(null);
+	const [hasZoomSupport, setHasZoomSupport] = useState(false);
+	const [zoomMin, setZoomMin] = useState(1);
+	const [zoomMax, setZoomMax] = useState(10);
+	const [zoomStep, setZoomStep] = useState(0.1);
+	const [zoomValue, setZoomValue] = useState(1);
 	const [price, setPrice] = useState(() => initialDraft?.price ?? '');
 	const [showPrice, setShowPrice] = useState(() => initialDraft?.showPrice ?? true);
 	const [unit, setUnit] = useState(() => initialDraft?.unit ?? '');
@@ -655,81 +661,131 @@ export default function CreateProduct() {
 		setIsScanning(true);
 	}, []);
 
-	const stopScanningSku = useCallback(async () => {
-		if (html5QrCodeRef.current) {
+	const stopScanningSku = useCallback(() => {
+		if (codeReaderRef.current) {
 			try {
-				await html5QrCodeRef.current.stop();
+				codeReaderRef.current.reset();
 			} catch (e) {
 				console.error("Failed to stop scanner:", e);
 			}
-			html5QrCodeRef.current = null;
+			codeReaderRef.current = null;
+		}
+		if (videoTrackRef.current) {
+			try {
+				videoTrackRef.current.stop();
+			} catch (e) {
+				console.error("Failed to stop track:", e);
+			}
+			videoTrackRef.current = null;
 		}
 		setIsScanning(false);
+		setHasZoomSupport(false);
+	}, []);
+
+	const handleZoomChange = useCallback(async (e) => {
+		const val = parseFloat(e.target.value);
+		setZoomValue(val);
+		if (videoTrackRef.current && typeof videoTrackRef.current.applyConstraints === 'function') {
+			try {
+				await videoTrackRef.current.applyConstraints({
+					advanced: [{ zoom: val }]
+				});
+			} catch (err) {
+				console.error("Failed to apply zoom:", err);
+			}
+		}
 	}, []);
 
 	useEffect(() => {
 		if (!isScanning) return;
 
-		const timer = setTimeout(() => {
+		let localStream = null;
+		const timer = setTimeout(async () => {
 			try {
-				const html5QrCode = new Html5Qrcode("sku-scanner-reader", {
-					formatsToSupport: [
-						Html5QrcodeSupportedFormats.EAN_13,
-						Html5QrcodeSupportedFormats.EAN_8,
-						Html5QrcodeSupportedFormats.CODE_128,
-						Html5QrcodeSupportedFormats.CODE_39,
-						Html5QrcodeSupportedFormats.UPC_A,
-						Html5QrcodeSupportedFormats.UPC_E,
-						Html5QrcodeSupportedFormats.QR_CODE,
-					]
-				});
-				html5QrCodeRef.current = html5QrCode;
+				const hints = new Map();
+				const formats = [
+					BarcodeFormat.EAN_13,
+					BarcodeFormat.EAN_8,
+					BarcodeFormat.CODE_128,
+					BarcodeFormat.CODE_39,
+					BarcodeFormat.CODE_93,
+					BarcodeFormat.UPC_A,
+					BarcodeFormat.UPC_E,
+					BarcodeFormat.QR_CODE,
+					BarcodeFormat.ITF,
+				];
+				hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+				hints.set(DecodeHintType.TRY_HARDER, true);
 
-				const config = {
-					fps: 10,
-					aspectRatio: 1.33333,
-					qrbox: (viewfinderWidth, viewfinderHeight) => {
-						// Larger and more flexible focus box for barcode framing
-						const width = Math.min(Math.floor(viewfinderWidth * 0.85), 320);
-						const height = Math.min(Math.floor(viewfinderHeight * 0.5), 140);
-						return {
-							width: Math.max(width, 220),
-							height: Math.max(height, 90),
-						};
-					},
-					useBarCodeDetectorIfSupported: true,
-					videoConstraints: {
+				const codeReader = new BrowserMultiFormatReader(hints);
+				codeReaderRef.current = codeReader;
+
+				const constraints = {
+					video: {
 						facingMode: "environment",
 						width: { ideal: 1280 },
 						height: { ideal: 720 },
 					}
 				};
 
-				html5QrCode.start(
-					{ facingMode: "environment" },
-					config,
-					(decodedText) => {
+				const stream = await navigator.mediaDevices.getUserMedia(constraints);
+				localStream = stream;
+
+				const videoElement = document.getElementById("sku-scanner-reader-video");
+				if (!videoElement) {
+					stream.getTracks().forEach(track => track.stop());
+					setIsScanning(false);
+					return;
+				}
+
+				videoElement.srcObject = stream;
+
+				const track = stream.getVideoTracks()[0];
+				videoTrackRef.current = track;
+
+				if (track && typeof track.getCapabilities === 'function') {
+					const capabilities = track.getCapabilities();
+					if (capabilities.zoom) {
+						setHasZoomSupport(true);
+						setZoomMin(capabilities.zoom.min || 1);
+						setZoomMax(capabilities.zoom.max || 10);
+						setZoomStep(capabilities.zoom.step || 0.1);
+						setZoomValue(track.getSettings().zoom || capabilities.zoom.min || 1);
+					} else {
+						setHasZoomSupport(false);
+					}
+				} else {
+					setHasZoomSupport(false);
+				}
+
+				codeReader.decodeFromVideoElement(videoElement, (result, err) => {
+					if (result) {
+						const decodedText = result.getText();
 						setSku(decodedText);
 						toast.success(`Đã quét được SKU: ${decodedText}`, { containerId: 'app-toast' });
 						stopScanningSku();
-					},
-					() => {}
-				).catch((err) => {
-					console.error("Camera start failed:", err);
-					toast.error("Không thể mở camera. Vui lòng kiểm tra quyền truy cập camera.", { containerId: 'app-toast' });
-					setIsScanning(false);
+					}
 				});
-			} catch (e) {
-				console.error("Scanner init failed:", e);
+
+			} catch (err) {
+				console.error("Camera start failed:", err);
+				toast.error("Không thể mở camera. Vui lòng kiểm tra quyền truy cập camera.", { containerId: 'app-toast' });
 				setIsScanning(false);
 			}
 		}, 300);
 
 		return () => {
 			clearTimeout(timer);
-			if (html5QrCodeRef.current) {
-				html5QrCodeRef.current.stop().catch(console.error);
-				html5QrCodeRef.current = null;
+			if (codeReaderRef.current) {
+				codeReaderRef.current.reset();
+				codeReaderRef.current = null;
+			}
+			if (videoTrackRef.current) {
+				videoTrackRef.current.stop();
+				videoTrackRef.current = null;
+			}
+			if (localStream) {
+				localStream.getTracks().forEach(track => track.stop());
 			}
 		};
 	}, [isScanning, stopScanningSku]);
@@ -1448,6 +1504,13 @@ export default function CreateProduct() {
 						fontFamily: 'sans-serif',
 					}}
 				>
+					<style>{`
+						@keyframes scan-line-animation {
+							0% { top: 15%; }
+							50% { top: 85%; }
+							100% { top: 15%; }
+						}
+					`}</style>
 					<div
 						style={{
 							backgroundColor: '#1b2230',
@@ -1465,7 +1528,6 @@ export default function CreateProduct() {
 						<h3 style={{ margin: '0 0 16px', fontSize: '18px', fontWeight: 600 }}>Quét mã vạch SKU</h3>
 						
 						<div
-							id="sku-scanner-reader"
 							style={{
 								width: '100%',
 								borderRadius: '8px',
@@ -1473,11 +1535,70 @@ export default function CreateProduct() {
 								backgroundColor: '#000',
 								border: '2px solid #3b82f6',
 								position: 'relative',
+								display: 'flex',
+								justifyContent: 'center',
+								alignItems: 'center',
 							}}
-						/>
+						>
+							<video
+								id="sku-scanner-reader-video"
+								style={{
+									width: '100%',
+									height: 'auto',
+									maxHeight: '300px',
+									objectFit: 'cover',
+									display: 'block',
+								}}
+								playsInline
+								muted
+							/>
+							
+							{/* Laser scan line overlay */}
+							<div
+								style={{
+									position: 'absolute',
+									top: '50%',
+									left: '10%',
+									right: '10%',
+									height: '2.5px',
+									backgroundColor: '#ef4444',
+									boxShadow: '0 0 8px #ef4444',
+									animation: 'scan-line-animation 2.5s linear infinite',
+									zIndex: 10,
+								}}
+							/>
+							
+							{/* Corner brackets */}
+							<div style={{ position: 'absolute', border: '3px solid #3b82f6', width: '24px', height: '24px', top: '16px', left: '16px', borderRight: 'none', borderBottom: 'none' }} />
+							<div style={{ position: 'absolute', border: '3px solid #3b82f6', width: '24px', height: '24px', top: '16px', right: '16px', borderLeft: 'none', borderBottom: 'none' }} />
+							<div style={{ position: 'absolute', border: '3px solid #3b82f6', width: '24px', height: '24px', bottom: '16px', left: '16px', borderRight: 'none', borderTop: 'none' }} />
+							<div style={{ position: 'absolute', border: '3px solid #3b82f6', width: '24px', height: '24px', bottom: '16px', right: '16px', borderLeft: 'none', borderTop: 'none' }} />
+						</div>
+						
+						{hasZoomSupport && (
+							<div style={{ width: '100%', marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+								<div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#9ca3af' }}>
+									<span>Thu phóng camera (Zoom)</span>
+									<span style={{ fontWeight: 600, color: '#3b82f6' }}>{zoomValue.toFixed(1)}x</span>
+								</div>
+								<input
+									type="range"
+									min={zoomMin}
+									max={zoomMax}
+									step={zoomStep}
+									value={zoomValue}
+									onChange={handleZoomChange}
+									style={{
+										width: '100%',
+										accentColor: '#3b82f6',
+										cursor: 'pointer',
+									}}
+								/>
+							</div>
+						)}
 						
 						<p style={{ fontSize: '13px', color: '#9ca3af', margin: '16px 0', textAlign: 'center' }}>
-							Đưa mã vạch của sản phẩm vào trước camera để quét tự động.
+							Căn chỉnh mã vạch vào vùng quét. Kéo thanh trượt để phóng to nếu mã vạch ở xa.
 						</p>
 						
 						<div style={{ display: 'flex', gap: '12px', width: '100%' }}>
