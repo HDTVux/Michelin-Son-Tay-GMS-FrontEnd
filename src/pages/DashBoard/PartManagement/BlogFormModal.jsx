@@ -516,8 +516,8 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved,
 
       setItemName(detail.title || detail.itemName || '');
       setSku(detail.sku || '');
-      const resolvedShowPrice = pickFirstPresent(baseItem.showPrice, catalogDetail.showPrice, true);
-      const resolvedPrice = pickPriceValue(baseItem, catalogDetail);
+      const resolvedShowPrice = pickFirstPresent(catalogDetail.showPrice, baseItem.showPrice, true);
+      const resolvedPrice = pickPriceValue(catalogDetail, baseItem);
       setPriceMode(pickPriceMode(resolvedShowPrice, true));
       setPrice(resolvedPrice !== '' ? String(resolvedPrice) : '');
       setIntroText(splitSections.introText || String(detail.shortDescription || '').trim());
@@ -545,6 +545,8 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved,
       if (draft) {
         if (typeof draft.itemName === 'string' && draft.itemName.trim()) setItemName(draft.itemName);
         if (typeof draft.sku === 'string' && draft.sku.trim()) setSku(draft.sku);
+        if (draft.priceMode === 'fixed' || draft.priceMode === 'contact') setPriceMode(draft.priceMode);
+        if (typeof draft.price === 'string' && draft.price.trim()) setPrice(draft.price);
         if (typeof draft.introText === 'string' && draft.introText.trim()) setIntroText(draft.introText);
         if (typeof draft.detailHtml === 'string' && stripHtml(draft.detailHtml)) setDetailHtml(draft.detailHtml);
         if (typeof draft.unit === 'string' && draft.unit.trim()) setUnit(draft.unit);
@@ -1281,7 +1283,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved,
             {errors.itemName && <span className={styles['field-error']}>{errors.itemName}</span>}
           </div>
 
-          <div className={styles.field}>
+          <div className={styles.field} style={{ display: 'none' }}>
             <label>Loại</label>
             <div className={styles['price-mode-row']}>
               <label className={styles['price-choice']}>
