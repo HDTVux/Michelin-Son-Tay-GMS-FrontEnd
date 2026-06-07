@@ -21,20 +21,20 @@
 }
 
 /* --- SCROLLBAR --- */
-.sidebar::-webkit-scrollbar {
+.sidebar__nav::-webkit-scrollbar {
     width: 4px;
 }
 
-.sidebar::-webkit-scrollbar-track {
+.sidebar__nav::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
+.sidebar__nav::-webkit-scrollbar-thumb {
     background: rgba(0, 90, 169, 0.15);
     border-radius: 99px;
 }
 
-.sidebar::-webkit-scrollbar-thumb:hover {
+.sidebar__nav::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 90, 169, 0.3);
 }
 
@@ -45,8 +45,7 @@
     background: var(--sb-bg-primary);
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: visible;
     position: sticky;
     top: 0;
     font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -64,24 +63,34 @@
 }
 
 @media (min-width: 1025px) {
-    /* Profile container uses flexbox to align profile card and collapse button side-by-side */
     .sidebar__profile-container {
-        display: flex;
-        align-items: stretch;
-        gap: 8px;
+        position: relative;
         margin: 16px 16px 8px;
+        height: 78px;
+        display: block;
+        transition: height var(--sb-transition), margin var(--sb-transition);
     }
 
     .sidebar__profile {
-        flex: 1;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: calc(100% - 46px); /* 100% minus button width (38px) and gap (8px) */
+        height: 78px;
         margin: 0;
+        transition: all var(--sb-transition);
     }
 
     .sidebar__collapse-button {
         display: flex;
+        position: absolute;
+        left: auto;
+        right: 0;
+        top: 0;
+        width: 38px;
+        height: 78px;
         align-items: center;
         justify-content: center;
-        width: 38px;
         border-radius: 14px;
         background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
         border: 1px solid rgba(0, 90, 169, 0.08);
@@ -116,27 +125,28 @@
         padding-left: 0 !important;
         padding-right: 0 !important;
         pointer-events: none;
+        white-space: nowrap !important;
     }
 
     .sidebar.is-collapsed .sidebar__profile-container {
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
         margin: 12px 8px 8px;
+        height: 104px; /* 62px profile + 8px gap + 34px button */
     }
 
     .sidebar.is-collapsed .sidebar__profile {
-        flex: none;
         width: 100%;
-        height: 62px; /* Fixed height when collapsed to prevent vertical stretching */
+        height: 62px;
         padding: 8px;
         justify-content: center;
         align-items: center;
         margin: 0;
+        gap: 0;
     }
 
     .sidebar.is-collapsed .sidebar__collapse-button {
-        flex: none;
+        left: 0;
+        right: 0;
+        top: 70px; /* 62px + 8px gap */
         width: 100%;
         height: 34px;
         border-radius: 8px;
@@ -498,6 +508,8 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 /* ===== NAV GROUP ===== */
@@ -516,7 +528,7 @@
     border: none;
     cursor: pointer;
     border-radius: var(--sb-radius);
-    transition: background-color var(--sb-transition);
+    transition: all var(--sb-transition);
 }
 
 .navGroup__header:hover {
