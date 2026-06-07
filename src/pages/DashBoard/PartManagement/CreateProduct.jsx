@@ -1293,7 +1293,41 @@ export default function CreateProduct() {
 							<input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 						</div>
 						<div className="ui-field" style={{ marginBottom: 0 }}>
-							<label htmlFor="price">Giá bán</label>
+							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+								<label htmlFor="price" style={{ marginBottom: 0 }}>Giá bán</label>
+								<label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#6b7280', userSelect: 'none' }}>
+									<input
+										type="checkbox"
+										checked={showPrice}
+										onChange={(e) => setShowPrice(e.target.checked)}
+										disabled={Boolean(createdCatalogItemId)}
+										style={{ display: 'none' }}
+									/>
+									<span style={{
+										width: '32px',
+										height: '18px',
+										backgroundColor: showPrice ? '#3b82f6' : '#d1d5db',
+										borderRadius: '999px',
+										display: 'inline-block',
+										position: 'relative',
+										transition: 'background-color 0.2s',
+									}}>
+										<span style={{
+											width: '14px',
+											height: '14px',
+											backgroundColor: '#ffffff',
+											borderRadius: '50%',
+											display: 'inline-block',
+											position: 'absolute',
+											top: '2px',
+											left: showPrice ? '16px' : '2px',
+											transition: 'left 0.2s',
+											boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+										}} />
+									</span>
+									<span style={{ fontWeight: 500 }}>Hiển thị giá</span>
+								</label>
+							</div>
 							<input
 								id="price"
 								type="number"
@@ -1303,10 +1337,11 @@ export default function CreateProduct() {
 								value={price}
 								onChange={(e) => setPrice(e.target.value)}
 								disabled={Boolean(createdCatalogItemId) || !showPrice}
+								placeholder={showPrice ? "Nhập giá bán..." : "Liên hệ"}
 							/>
 						</div>
 					</div>
-					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginTop: 12 }}>
 						<div className="ui-field" style={{ marginBottom: 0 }}>
 							<label htmlFor="unit">Đơn vị</label>
 							<input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
@@ -1338,14 +1373,6 @@ export default function CreateProduct() {
 								style={{ cursor: 'pointer' }}
 								disabled={Boolean(createdCatalogItemId)}
 							/>
-						</div>
-					</div>
-					<div style={{ marginTop: 12 }}>
-						<div className="ui-field" style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end' }}>
-							<label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-								<input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} disabled={Boolean(createdCatalogItemId)} />
-								<span>Hiển thị giá</span>
-							</label>
 						</div>
 					</div>
 

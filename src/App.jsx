@@ -446,6 +446,9 @@ export default function App() {
                 )}
               />
             </Route>
+            <Route element={<MainLayout />}>
+              <Route path="services/:serviceId" element={<ServiceDetail />} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </>
         ) : (

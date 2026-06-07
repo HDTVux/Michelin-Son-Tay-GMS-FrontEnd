@@ -1,4 +1,4 @@
-﻿import styles from './ServiceDetail.module.css';
+import styles from './ServiceDetail.module.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { fetchHomeProductDetail, fetchHomeServiceDetail } from '../../services/homeService';
@@ -7,6 +7,7 @@ import {
   fetchWarehouseSpecificationsByCatalogItemId,
 } from '../../services/warehouseService.js';
 import serviceFallback from '../../assets/lop and mam.jpg';
+import { useScrollToTop } from '../../hooks/useScrollToTop.js';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
 const stripHtml = (value) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -337,6 +338,8 @@ const ServiceDetail = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  useScrollToTop([routeParam]);
+
   const routeId = useMemo(() => toPositiveNumber(routeParam), [routeParam]);
   const stateCatalogItemId = useMemo(() => toPositiveNumber(location?.state?.catalogItemId), [location?.state]);
   const stateServiceId = useMemo(() => toPositiveNumber(location?.state?.serviceId), [location?.state]);
@@ -350,6 +353,35 @@ const ServiceDetail = () => {
   const [activeTab, setActiveTab] = useState('description');
 
   useEffect(() => {
+    if (routeParam === 'preview') {
+      try {
+        const rawPreview = localStorage.getItem('gms_service_preview_data');
+        if (!rawPreview) {
+          setError('Không có dữ liệu xem trước.');
+          setLoading(false);
+          return;
+        }
+        const data = JSON.parse(rawPreview);
+        const normalized = normalizeDetail(data, null, data.itemType);
+        if (!normalized) {
+          setError('Dữ liệu xem trước không hợp lệ.');
+          setLoading(false);
+          return;
+        }
+        setService(normalized);
+        const imageCandidates = [
+          normalized.mediaThumbnail,
+          ...normalized.media.filter((m) => !isVideoMedia(m)).map((m) => m.mediaUrl),
+        ].filter(Boolean);
+        setActiveImg(imageCandidates[0] || serviceFallback);
+      } catch (err) {
+        setError('Không thể đọc dữ liệu xem trước.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     const serviceLookupId = stateServiceId ?? routeId;
 
     if (!serviceLookupId) {

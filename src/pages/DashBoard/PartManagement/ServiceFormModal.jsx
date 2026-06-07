@@ -10,6 +10,7 @@ import {
   createWarehouseCatalogItem,
   createWarehouseItemCategory,
   fetchWarehouseItemCategories,
+  updateWarehouseCatalogItem,
 } from '../../../services/warehouseService.js';
 import { fetchHomeProductDetail, fetchHomeServiceDetail } from '../../../services/homeService.js';
 import { appendPersistedServiceMediaFiles, isPersistedMediaUrl } from './serviceMediaUploadUtils.js';
@@ -508,7 +509,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
       setPrice(resolvedPrice !== '' ? String(resolvedPrice) : '');
       setIntroText(splitSections.introText || String(detail.shortDescription || '').trim());
       setDetailHtml(splitSections.detailHtml || normalizeEditorHtml(detail.fullDescription || detail.descriptionHtml || ''));
-      setUnit(detail.unit || '');
+      setUnit(detail.unit || detail.itemUnit || detail.unitName || detail.catalogUnit || baseItem.unit || '');
       const resolvedEstimateTime = pickEstimateTimeValue(detail, serviceDetail, catalogDetail, baseItem);
       setEstimateTime(resolvedEstimateTime !== '' ? String(resolvedEstimateTime) : '');
       const parsedIsActive = toNullableBoolean(detail.isActive ?? detail.status);
@@ -718,6 +719,10 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
     });
   }, []);
 
+  const removeExistingMedia = useCallback((index) => {
+    setExistingMedia((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!isDraftReady) return;
@@ -841,21 +846,25 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
       formData.append('imageUrl', thumbnailPreview);
       formData.append('mediaThumbnail', thumbnailPreview);
     }
-    await appendPersistedServiceMediaFiles({
-      formData,
-      thumbnailFile,
-      thumbnailPreview,
-      existingMedia,
-    });
+    // Only fetch and download persisted files to re-upload if we are CREATING a new catalog entry.
+    // If updating (isEdit is true), the backend update logic will preserve unchanged files using thumbnailUrl / existingMediaUrls.
+    if (!isEdit) {
+      await appendPersistedServiceMediaFiles({
+        formData,
+        thumbnailFile,
+        thumbnailPreview,
+        existingMedia,
+      });
+    }
     mediaFiles.forEach((entry) => {
       if (entry?.file) formData.append('mediaFiles', entry.file);
     });
     const existingMediaUrls = existingMedia
       .map((entry) => entry?.mediaUrl)
       .filter(isPersistedMediaUrl);
-    if (existingMediaUrls.length > 0) {
-      formData.append('existingMediaUrls', JSON.stringify(existingMediaUrls));
-    }
+    existingMediaUrls.forEach((url) => {
+      formData.append('existingMediaUrls', url);
+    });
     return formData;
   }, [
     buildDescriptionHtml,
@@ -872,6 +881,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
     thumbnailPreview,
     estimateTime,
     unit,
+    isEdit,
   ]);
 
   const buildCatalogPayload = useCallback((catalogItemId = null, serviceServiceId = null) => {
@@ -992,6 +1002,37 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
     setErrors((prev) => ({ ...prev, sku: undefined }));
   }, [itemName]);
 
+  const handlePreview = useCallback(() => {
+    const showPrice = priceMode === 'fixed';
+    const priceNum = Number(String(price || '').trim());
+    const resolvedPrice = showPrice && Number.isFinite(priceNum) && priceNum >= 0 ? priceNum : 0;
+    const fullDescription = buildDescriptionHtml();
+    const shortDescription = String(introText || '').trim();
+    const title = String(itemName || '').trim() || 'Dịch vụ xem trước';
+    const unitText = String(unit || '').trim();
+
+    const previewData = {
+      itemType: 'SERVICE',
+      title,
+      itemName: title,
+      shortDescription,
+      fullDescription,
+      showPrice,
+      displayPrice: resolvedPrice,
+      price: resolvedPrice,
+      unit: unitText,
+      estimateTime: estimateTime,
+      thumbnailUrl: thumbnailPreview,
+      media: [
+        ...existingMedia.map(m => ({ mediaUrl: m.mediaUrl, mediaType: m.isVideo ? 'VIDEO' : 'IMAGE' })),
+        ...mediaFiles.map(m => ({ mediaUrl: m.previewUrl, mediaType: m.file?.type?.startsWith('video') ? 'VIDEO' : 'IMAGE' }))
+      ]
+    };
+
+    localStorage.setItem('gms_service_preview_data', JSON.stringify(previewData));
+    window.open('/services/preview', '_blank');
+  }, [priceMode, price, buildDescriptionHtml, introText, itemName, unit, estimateTime, thumbnailPreview, existingMedia, mediaFiles]);
+
   const handleSubmit = useCallback(async () => {
     if (!validateBeforeSubmit()) return;
     const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -1006,6 +1047,9 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
         if (!serviceId) {
           notify('Không tìm thấy serviceId để cập nhật. Vui lòng tạo bài viết trước.', 'error');
           return;
+        }
+        if (catalogItemId) {
+          await updateWarehouseCatalogItem(catalogItemId, buildCatalogPayload(catalogItemId, serviceId), token);
         }
         const updateRes = await updateServiceById(serviceId, await buildServiceFormData(), token);
         const updatedService = extractPayload(updateRes) || {};
@@ -1099,6 +1143,136 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
         <div className={styles['modal-body']}>
           {/* ── Thông tin dịch vụ ── */}
           <div className={styles['section-label']}>Thông tin dịch vụ</div>
+
+          <div className={styles['field']}>
+            <label>Ảnh đại diện</label>
+            <div className={styles['upload-box-wrapper']}>
+              <input
+                id="svc-item-thumb"
+                type="file"
+                accept="image/*"
+                onChange={handleThumbnailChange}
+                disabled={isSubmitting}
+                className={styles['file-input-hidden']}
+              />
+              {thumbnailPreview ? (
+                <div className={styles['square-preview-box']}>
+                  <img
+                    src={thumbnailPreview}
+                    alt="Thumbnail"
+                    className={styles['square-preview-img']}
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <label htmlFor="svc-item-thumb" className={styles['preview-overlay']}>
+                    <span>Thay đổi</span>
+                  </label>
+                  <button
+                    type="button"
+                    className={styles['remove-media-btn']}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setThumbnailFile(null);
+                      setThumbnailPreview('');
+                    }}
+                    title="Xóa ảnh"
+                  >
+                    x
+                  </button>
+                </div>
+              ) : (
+                <label htmlFor="svc-item-thumb" className={styles['square-upload-placeholder']}>
+                  <svg className={styles['upload-icon']} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                  <span className={styles['upload-text']}>Chọn ảnh</span>
+                </label>
+              )}
+            </div>
+          </div>
+
+          <div className={styles['auto-gen-row']} style={{ display: 'none' }}>
+            <button
+              type="button"
+              className={styles['auto-gen-button']}
+              onClick={() => autoGenerateContentFromImage(thumbnailFile, { force: true })}
+              disabled={isSubmitting || isAutoGenerating || !thumbnailFile}
+            >
+              {isAutoGenerating ? 'Đang phân tích ảnh...' : 'Tạo lại Giới thiệu & Chi tiết từ ảnh'}
+            </button>
+            <span className={styles['auto-gen-hint']}>
+              {autoGenHint || 'Nội dung sẽ được tự động gợi ý sau khi chọn ảnh đại diện.'}
+            </span>
+          </div>
+
+          <div className={styles['field']}>
+            <label>Thư viện hình ảnh / video (tùy chọn)</label>
+            <input
+              id="svc-item-media"
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleMediaChange}
+              disabled={isSubmitting}
+              className={styles['file-input-hidden']}
+            />
+            <div className={styles['media-grid']}>
+              {/* Media đã lưu */}
+              {existingMedia.map((entry, index) => (
+                <div key={`existing-${entry.key}`} className={styles['media-thumb']}>
+                  {entry.isVideo ? (
+                    <video src={entry.mediaUrl} className={styles['media-img']} />
+                  ) : (
+                    <img src={entry.mediaUrl} alt={entry.mediaDescription || 'media'} className={styles['media-img']} />
+                  )}
+                  <button
+                    type="button"
+                    className={styles['remove-media-btn']}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      removeExistingMedia(index);
+                    }}
+                    title="Xóa"
+                  >
+                    x
+                  </button>
+                  <span className={styles['media-badge-existing']}>Đã lưu</span>
+                </div>
+              ))}
+
+              {/* Media mới thêm */}
+              {mediaFiles.map((entry, index) => (
+                <div key={`${entry.file?.name || 'media'}-${index}`} className={styles['media-thumb']}>
+                  {entry.file?.type?.startsWith('video') ? (
+                    <video src={entry.previewUrl} className={styles['media-img']} />
+                  ) : (
+                    <img src={entry.previewUrl} alt={entry.file?.name || 'media'} className={styles['media-img']} />
+                  )}
+                  <button
+                    type="button"
+                    className={styles['remove-media-btn']}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      removeMedia(index);
+                    }}
+                    title="Xóa"
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+
+              {/* Ô vuông uploader nét đứt ở cuối grid */}
+              <label htmlFor="svc-item-media" className={styles['media-upload-placeholder']}>
+                <span className={styles['plus-icon']}>+</span>
+                <span className={styles['upload-subtext']}>Thêm ảnh/video</span>
+              </label>
+            </div>
+          </div>
 
           <div className={styles['field']}>
             <label htmlFor="svc-item-name">Tiêu đề <span className={styles['required']}>*</span></label>
@@ -1228,40 +1402,6 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
             </div>
           </div>
 
-          <div className={styles['field']}>
-            <label htmlFor="svc-item-thumb">Ảnh đại diện</label>
-            <input
-              id="svc-item-thumb"
-              type="file"
-              accept="image/*"
-              onChange={handleThumbnailChange}
-              disabled={isSubmitting}
-            />
-            {thumbnailPreview && (
-              <div className={styles['thumb-preview-wrap']}>
-                <img
-                  src={thumbnailPreview}
-                  alt="Thumbnail"
-                  className={styles['thumb-preview-large']}
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className={styles['auto-gen-row']} style={{ display: 'none' }}>
-            <button
-              type="button"
-              className={styles['auto-gen-button']}
-              onClick={() => autoGenerateContentFromImage(thumbnailFile, { force: true })}
-              disabled={isSubmitting || isAutoGenerating || !thumbnailFile}
-            >
-              {isAutoGenerating ? 'Đang phân tích ảnh...' : 'Tạo lại Giới thiệu & Chi tiết từ ảnh'}
-            </button>
-            <span className={styles['auto-gen-hint']}>
-              {autoGenHint || 'Nội dung sẽ được tự động gợi ý sau khi chọn ảnh đại diện.'}
-            </span>
-          </div>
 
           <div className={styles['field']}>
             <label htmlFor="svc-intro-text">Giới thiệu</label>
@@ -1307,56 +1447,6 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
             </div>
           </div>
 
-          <div className={styles['field']}>
-            <label htmlFor="svc-item-media">Thư viện hình ảnh / video (tùy chọn)</label>
-            <input
-              id="svc-item-media"
-              type="file"
-              accept="image/*,video/*"
-              multiple
-              onChange={handleMediaChange}
-              disabled={isSubmitting}
-            />
-            {existingMedia.length > 0 && (
-              <>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
-                  Media đã lưu ({existingMedia.length})
-                </div>
-                <div className={styles['media-grid']}>
-                  {existingMedia.map((entry) => (
-                    <div key={`existing-${entry.key}`} className={styles['media-thumb']}>
-                      {entry.isVideo ? (
-                        <video src={entry.mediaUrl} controls className={styles['media-img']} />
-                      ) : (
-                        <img src={entry.mediaUrl} alt={entry.mediaDescription || 'media'} className={styles['media-img']} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-            {mediaFiles.length > 0 && (
-              <div className={styles['media-grid']}>
-                {mediaFiles.map((entry, index) => (
-                  <div key={`${entry.file?.name || 'media'}-${index}`} className={styles['media-thumb']}>
-                    {entry.file?.type?.startsWith('video') ? (
-                      <video src={entry.previewUrl} controls className={styles['media-img']} />
-                    ) : (
-                      <img src={entry.previewUrl} alt={entry.file?.name || 'media'} className={styles['media-img']} />
-                    )}
-                    <button
-                      type="button"
-                      className={styles['remove-media-btn']}
-                      onClick={() => removeMedia(index)}
-                      title="Xóa"
-                    >
-                      x
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* ── Thông tin hệ thống ── */}
           <div className={styles['section-label']}>Thông tin hệ thống</div>
@@ -1474,6 +1564,14 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
             disabled={isSubmitting || isAutoGenerating}
           >
             Xóa nháp
+          </button>
+          <button
+            type="button"
+            className={styles['submit-btn']}
+            style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
+            onClick={handlePreview}
+          >
+            Preview
           </button>
           <button
             type="button"
