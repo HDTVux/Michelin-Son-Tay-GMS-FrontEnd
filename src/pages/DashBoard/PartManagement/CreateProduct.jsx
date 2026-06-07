@@ -186,6 +186,9 @@ export default function CreateProduct() {
 	const [zoomMax, setZoomMax] = useState(10);
 	const [zoomStep, setZoomStep] = useState(0.1);
 	const [zoomValue, setZoomValue] = useState(1);
+	const zoomTimeoutRef = useRef(null);
+	const isApplyingZoomRef = useRef(false);
+	const pendingZoomValRef = useRef(null);
 	const [price, setPrice] = useState(() => initialDraft?.price ?? '');
 	const [showPrice, setShowPrice] = useState(() => initialDraft?.showPrice ?? true);
 	const [unit, setUnit] = useState(() => initialDraft?.unit ?? '');
@@ -682,19 +685,45 @@ export default function CreateProduct() {
 		setHasZoomSupport(false);
 	}, []);
 
-	const handleZoomChange = useCallback(async (e) => {
-		const val = parseFloat(e.target.value);
-		setZoomValue(val);
-		if (videoTrackRef.current && typeof videoTrackRef.current.applyConstraints === 'function') {
-			try {
-				await videoTrackRef.current.applyConstraints({
-					advanced: [{ zoom: val }]
-				});
-			} catch (err) {
-				console.error("Failed to apply zoom:", err);
+	const applyZoomConstraints = useCallback(async (val) => {
+		if (!videoTrackRef.current || typeof videoTrackRef.current.applyConstraints !== 'function') return;
+		if (isApplyingZoomRef.current) {
+			pendingZoomValRef.current = val;
+			return;
+		}
+		isApplyingZoomRef.current = true;
+		try {
+			await videoTrackRef.current.applyConstraints({
+				advanced: [{ zoom: val }]
+			});
+			const videoElement = document.getElementById("sku-scanner-reader-video");
+			if (videoElement && videoElement.paused) {
+				await videoElement.play().catch(() => {});
+			}
+		} catch (err) {
+			console.error("Failed to apply zoom:", err);
+		} finally {
+			isApplyingZoomRef.current = false;
+			if (pendingZoomValRef.current !== null) {
+				const nextVal = pendingZoomValRef.current;
+				pendingZoomValRef.current = null;
+				applyZoomConstraints(nextVal);
 			}
 		}
 	}, []);
+
+	const handleZoomChange = useCallback((e) => {
+		const val = parseFloat(e.target.value);
+		setZoomValue(val);
+
+		if (zoomTimeoutRef.current) {
+			clearTimeout(zoomTimeoutRef.current);
+		}
+
+		zoomTimeoutRef.current = setTimeout(() => {
+			applyZoomConstraints(val);
+		}, 80); // 80ms debounce with concurrency lock
+	}, [applyZoomConstraints]);
 
 	useEffect(() => {
 		if (!isScanning) return;
@@ -758,14 +787,26 @@ export default function CreateProduct() {
 					setHasZoomSupport(false);
 				}
 
-				codeReader.decodeFromVideoElement(videoElement, (result, err) => {
-					if (result) {
-						const decodedText = result.getText();
-						setSku(decodedText);
-						toast.success(`Đã quét được SKU: ${decodedText}`, { containerId: 'app-toast' });
-						stopScanningSku();
-					}
-				});
+				const startDecoding = () => {
+					videoElement.play().then(() => {
+						codeReader.decodeFromVideoElementContinuously(videoElement, (result, err) => {
+							if (result) {
+								const decodedText = result.getText();
+								setSku(decodedText);
+								toast.success(`Đã quét được SKU: ${decodedText}`, { containerId: 'app-toast' });
+								stopScanningSku();
+							}
+						});
+					}).catch(err => {
+						console.error("Autoplay failed:", err);
+					});
+				};
+
+				if (videoElement.readyState >= 1) {
+					startDecoding();
+				} else {
+					videoElement.onloadedmetadata = startDecoding;
+				}
 
 			} catch (err) {
 				console.error("Camera start failed:", err);
@@ -776,6 +817,9 @@ export default function CreateProduct() {
 
 		return () => {
 			clearTimeout(timer);
+			if (zoomTimeoutRef.current) {
+				clearTimeout(zoomTimeoutRef.current);
+			}
 			if (codeReaderRef.current) {
 				codeReaderRef.current.reset();
 				codeReaderRef.current = null;
@@ -1538,19 +1582,20 @@ export default function CreateProduct() {
 								display: 'flex',
 								justifyContent: 'center',
 								alignItems: 'center',
+								aspectRatio: '4/3',
 							}}
 						>
 							<video
 								id="sku-scanner-reader-video"
 								style={{
 									width: '100%',
-									height: 'auto',
-									maxHeight: '300px',
-									objectFit: 'cover',
+									height: '100%',
+									objectFit: 'contain',
 									display: 'block',
 								}}
 								playsInline
 								muted
+								autoPlay
 							/>
 							
 							{/* Laser scan line overlay */}
