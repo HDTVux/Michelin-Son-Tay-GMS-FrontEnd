@@ -1,15 +1,14 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { Html5Qrcode } from 'html5-qrcode';
 
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { validateTaxName, validateTaxRatePercent } from '../../../components/inputValidation.js';
 import {
-	createWarehouseBrand,
 	createWarehouseCatalogItem,
 	createWarehouseItemCategory,
-	createWarehouseProductLine,
 	createWarehouseSpecAttribute,
 	createWarehouseSpecificationValue,
 	createTaxRule,
@@ -132,70 +131,68 @@ export default function CreateProduct() {
 	const navigate = useNavigate();
 	const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
+	const location = useLocation();
+	const initialDraft = useMemo(() => {
+		if (!location.state?.fromCategorySelection && !location.state?.fromBrandSelection && !location.state?.fromProductLineSelection) {
+			sessionStorage.removeItem('gms_create_product_draft');
+			return null;
+		}
+		try {
+			const raw = sessionStorage.getItem('gms_create_product_draft');
+			if (raw) return JSON.parse(raw);
+		} catch (e) {
+			console.error(e);
+		}
+		return null;
+	}, [location]);
+
 	// Step 1: Category
 	const [categories, setCategories] = useState([]);
 	const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
-	const [selectedCategoryId, setSelectedCategoryId] = useState('');
-	const selectedCategoryIdRef = useRef('');
-	const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
-	const previousCategoryIdRef = useRef('');
-	const [categoryCode, setCategoryCode] = useState('');
-	const [categoryName, setCategoryName] = useState('');
-	const [categoryType] = useState(CATEGORY_TYPE_FIXED);
-	const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+	const [selectedCategoryId, setSelectedCategoryId] = useState(() => initialDraft?.selectedCategoryId ?? '');
+	const selectedCategoryIdRef = useRef(initialDraft?.selectedCategoryId ?? '');
 
-	// Tax rules for category
+	// Tax rules (fetched for product tax configuration)
 	const [taxRules, setTaxRules] = useState([]);
 	const [isTaxRulesLoading, setIsTaxRulesLoading] = useState(false);
-	const [selectedTaxRuleId, setSelectedTaxRuleId] = useState('');
-	const [isAddingNewTaxRule, setIsAddingNewTaxRule] = useState(false);
-	const [taxName, setTaxName] = useState('');
-	const [taxRate, setTaxRate] = useState('');
-	const [isCreatingTaxRule, setIsCreatingTaxRule] = useState(false);
 
 	// Step 2: Brand
 	const [brands, setBrands] = useState([]);
 	const [isBrandsLoading, setIsBrandsLoading] = useState(false);
-	const [selectedBrandId, setSelectedBrandId] = useState('');
-	const selectedBrandIdRef = useRef('');
-	const [isAddingNewBrand, setIsAddingNewBrand] = useState(false);
-	const previousBrandIdRef = useRef('');
-	const [brandName, setBrandName] = useState('');
-	const [isCreatingBrand, setIsCreatingBrand] = useState(false);
+	const [selectedBrandId, setSelectedBrandId] = useState(() => initialDraft?.selectedBrandId ?? '');
+	const selectedBrandIdRef = useRef(initialDraft?.selectedBrandId ?? '');
 
 	// Step 3: Product line
 	const [productLines, setProductLines] = useState([]);
 	const [isProductLinesLoading, setIsProductLinesLoading] = useState(false);
-	const [selectedProductLineId, setSelectedProductLineId] = useState('');
-	const selectedProductLineIdRef = useRef('');
-	const [isAddingNewProductLine, setIsAddingNewProductLine] = useState(false);
-	const previousProductLineIdRef = useRef('');
-	const [productLineName, setProductLineName] = useState('');
-	const [isCreatingProductLine, setIsCreatingProductLine] = useState(false);
+	const [selectedProductLineId, setSelectedProductLineId] = useState(() => initialDraft?.selectedProductLineId ?? '');
+	const selectedProductLineIdRef = useRef(initialDraft?.selectedProductLineId ?? '');
 
 	// Step 4: Catalog item
 	const [isCreatingCatalogItem, setIsCreatingCatalogItem] = useState(false);
 	const [createdCatalogItem, setCreatedCatalogItem] = useState(null);
 	const itemType = 'PART';
-	const [selectedProductTaxRuleId, setSelectedProductTaxRuleId] = useState('');
+	const [selectedProductTaxRuleId, setSelectedProductTaxRuleId] = useState(() => initialDraft?.selectedProductTaxRuleId ?? '');
 	const [isAddingNewProductTaxRule, setIsAddingNewProductTaxRule] = useState(false);
 	const [productTaxName, setProductTaxName] = useState('');
 	const [productTaxRate, setProductTaxRate] = useState('');
 	const [isCreatingProductTaxRule, setIsCreatingProductTaxRule] = useState(false);
-	const [sku, setSku] = useState('');
-	const [price, setPrice] = useState('');
-	const [showPrice, setShowPrice] = useState(true);
-	const [unit, setUnit] = useState('');
-	const [origin, setOrigin] = useState('');
-	const [customOrigin, setCustomOrigin] = useState('');
-	const [color, setColor] = useState('');
-	const [customColor, setCustomColor] = useState('');
-	const [description, setDescription] = useState('');
+	const [sku, setSku] = useState(() => initialDraft?.sku ?? '');
+	const [isScanning, setIsScanning] = useState(false);
+	const html5QrCodeRef = useRef(null);
+	const [price, setPrice] = useState(() => initialDraft?.price ?? '');
+	const [showPrice, setShowPrice] = useState(() => initialDraft?.showPrice ?? true);
+	const [unit, setUnit] = useState(() => initialDraft?.unit ?? '');
+	const [origin, setOrigin] = useState(() => initialDraft?.origin ?? '');
+	const [customOrigin, setCustomOrigin] = useState(() => initialDraft?.customOrigin ?? '');
+	const [color, setColor] = useState(() => initialDraft?.color ?? '');
+	const [customColor, setCustomColor] = useState(() => initialDraft?.customColor ?? '');
+	const [description, setDescription] = useState(() => initialDraft?.description ?? '');
 	// Image file is kept only in component state (no upload at create time)
 	const [imageFile, setImageFile] = useState(null);
 	const [imagePreviewUrl, setImagePreviewUrl] = useState('');
 	// const [imageUrl, setImageUrl] = useState('');
-	const [warrantyDurationMonths, setWarrantyDurationMonths] = useState('');
+	const [warrantyDurationMonths, setWarrantyDurationMonths] = useState(() => initialDraft?.warrantyDurationMonths ?? '');
 
 	// Step 5-6: Spec attributes + specification values
 	const [specAttributes, setSpecAttributes] = useState([]);
@@ -215,7 +212,7 @@ export default function CreateProduct() {
 		isCreatingNew: false,
 	});
 
-	const [specDrafts, setSpecDrafts] = useState(() => [makeSpecDraft()]);
+	const [specDrafts, setSpecDrafts] = useState(() => initialDraft?.specDrafts ?? [makeSpecDraft()]);
 
 	const addSpecDraft = useCallback(() => {
 		setSpecDrafts((prev) => [...(Array.isArray(prev) ? prev : []), makeSpecDraft()]);
@@ -237,23 +234,7 @@ export default function CreateProduct() {
 		selectedProductLineIdRef.current = String(selectedProductLineId || '');
 	}, [selectedProductLineId]);
 
-	const categoryPlaceholder = useMemo(() => {
-		if (isCategoriesLoading) return 'Đang tải danh sách nhóm...';
-		if (categories.length) return 'Chọn nhóm';
-		return 'Chưa có nhóm';
-	}, [categories, isCategoriesLoading]);
 
-	const brandPlaceholder = useMemo(() => {
-		if (isBrandsLoading) return 'Đang tải danh sách hãng...';
-		if (brands.length) return 'Chọn hãng';
-		return 'Chưa có hãng';
-	}, [brands.length, isBrandsLoading]);
-
-	const productLinePlaceholder = useMemo(() => {
-		if (isProductLinesLoading) return 'Đang tải danh sách dòng...';
-		if (productLines.length) return 'Chọn dòng sản phẩm';
-		return 'Chưa có dòng sản phẩm';
-	}, [isProductLinesLoading, productLines.length]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -297,15 +278,24 @@ export default function CreateProduct() {
 				// Keep user's current selection only if it still exists in the refreshed list.
 				// Otherwise, stay at default (empty) so the user explicitly chooses.
 				const currentCategoryId = String(selectedCategoryIdRef.current || '').trim();
-				const categoryValid = currentCategoryId && catsNorm.some((c) => String(c.itemCategoryId) === currentCategoryId);
+				const categoryValid = currentCategoryId &&
+					currentCategoryId !== 'null' &&
+					currentCategoryId !== 'undefined' &&
+					catsNorm.some((c) => c.itemCategoryId && String(c.itemCategoryId) === currentCategoryId);
 				setSelectedCategoryId(categoryValid ? currentCategoryId : '');
 
 				const currentBrandId = String(selectedBrandIdRef.current || '').trim();
-				const brandValid = currentBrandId && brandsNorm.some((b) => String(b.brandId) === currentBrandId);
+				const brandValid = currentBrandId &&
+					currentBrandId !== 'null' &&
+					currentBrandId !== 'undefined' &&
+					brandsNorm.some((b) => b.brandId && String(b.brandId) === currentBrandId);
 				setSelectedBrandId(brandValid ? currentBrandId : '');
 
 				const currentLineId = String(selectedProductLineIdRef.current || '').trim();
-				const lineValid = currentLineId && linesNorm.some((l) => String(l.productLineId) === currentLineId);
+				const lineValid = currentLineId &&
+					currentLineId !== 'null' &&
+					currentLineId !== 'undefined' &&
+					linesNorm.some((l) => l.productLineId && String(l.productLineId) === currentLineId);
 				setSelectedProductLineId(lineValid ? currentLineId : '');
 			} catch (err) {
 				if (cancelled) return;
@@ -337,22 +327,59 @@ export default function CreateProduct() {
 
 	const selectedCategory = useMemo(() => {
 		const id = String(selectedCategoryId || '').trim();
-		return categories.find((c) => String(c.itemCategoryId) === id) || null;
+		if (!id || id === 'null' || id === 'undefined') return null;
+		return categories.find((c) => c.itemCategoryId && String(c.itemCategoryId) === id) || null;
 	}, [categories, selectedCategoryId]);
 
-	const selectedTaxRule = useMemo(() => {
-		const id = String(selectedTaxRuleId || '').trim();
-		return taxRules.find((t) => String(t.taxRuleId) === id) || null;
-	}, [selectedTaxRuleId, taxRules]);
+	const handleCategoryInputClick = useCallback(() => {
+		const draft = {
+			selectedCategoryId,
+			selectedBrandId,
+			selectedProductLineId,
+			sku,
+			price,
+			showPrice,
+			unit,
+			origin,
+			customOrigin,
+			color,
+			customColor,
+			description,
+			warrantyDurationMonths,
+			selectedProductTaxRuleId,
+			specDrafts,
+		};
+		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
+		navigate('/part-management/select-category');
+	}, [
+		selectedCategoryId,
+		selectedBrandId,
+		selectedProductLineId,
+		sku,
+		price,
+		showPrice,
+		unit,
+		origin,
+		customOrigin,
+		color,
+		customColor,
+		description,
+		warrantyDurationMonths,
+		selectedProductTaxRuleId,
+		specDrafts,
+		navigate,
+	]);
 
 	const selectedProductTaxRule = useMemo(() => {
 		const id = String(selectedProductTaxRuleId || '').trim();
-		return taxRules.find((t) => String(t.taxRuleId) === id) || null;
+		if (!id || id === 'null' || id === 'undefined') return null;
+		return taxRules.find((t) => t.taxRuleId && String(t.taxRuleId) === id) || null;
 	}, [selectedProductTaxRuleId, taxRules]);
 
 	const selectedBrand = useMemo(() => {
 		const id = String(selectedBrandId || '').trim();
-		return brands.find((b) => String(b.brandId) === id) || null;
+		if (!id || id === 'null' || id === 'undefined') return null;
+		return brands.find((b) => b.brandId && String(b.brandId) === id) || null;
 	}, [brands, selectedBrandId]);
 
 	const filteredProductLines = useMemo(() => {
@@ -364,7 +391,8 @@ export default function CreateProduct() {
 
 	const selectedProductLine = useMemo(() => {
 		const id = String(selectedProductLineId || '').trim();
-		return productLines.find((l) => String(l.productLineId) === id) || null;
+		if (!id || id === 'null' || id === 'undefined') return null;
+		return productLines.find((l) => l.productLineId && String(l.productLineId) === id) || null;
 	}, [productLines, selectedProductLineId]);
 
 	useEffect(() => {
@@ -424,19 +452,7 @@ export default function CreateProduct() {
 		return Number.isFinite(n) && n > 0 ? n : null;
 	}, [createdCatalogItem]);
 
-	const canShowBrandStep = useMemo(() => {
-		return Boolean(String(selectedCategoryId || '').trim()) && !isAddingNewCategory;
-	}, [isAddingNewCategory, selectedCategoryId]);
 
-	const canShowProductLineStep = useMemo(() => {
-		return canShowBrandStep && Boolean(String(selectedBrandId || '').trim()) && !isAddingNewBrand;
-	}, [canShowBrandStep, isAddingNewBrand, selectedBrandId]);
-
-	const canShowCatalogItemStep = useMemo(() => {
-		return canShowProductLineStep && Boolean(String(selectedProductLineId || '').trim()) && !isAddingNewProductLine;
-	}, [canShowProductLineStep, isAddingNewProductLine, selectedProductLineId]);
-
-	const canShowSpecsStep = Boolean(createdCatalogItemId);
 
 	useEffect(() => {
 		if (!createdCatalogItemId) {
@@ -465,202 +481,44 @@ export default function CreateProduct() {
 	}, [createdCatalogItemId]);
 
 
-	const startAddNewBrand = useCallback(() => {
-		previousBrandIdRef.current = String(selectedBrandId || '');
-		setIsAddingNewBrand(true);
-		setSelectedBrandId('');
-		setBrandName('');
-	}, [selectedBrandId]);
-
-	const stopAddNewBrand = useCallback(() => {
-		setIsAddingNewBrand(false);
-		const restored = previousBrandIdRef.current;
-		const restoredExists = restored && brands.some((b) => String(b?.brandId) === String(restored));
-		if (restoredExists) {
-			setSelectedBrandId(restored);
-			return;
-		}
-		setSelectedBrandId('');
-	}, [brands]);
-
-	const handleCreateBrand = useCallback(async () => {
-		if (isCreatingBrand) return;
-		const name = String(brandName || '').trim();
-		if (!name) {
-			notify('Vui lòng nhập tên hãng.');
-			return;
-		}
-
-		try {
-			setIsCreatingBrand(true);
-			const token = localStorage.getItem('authToken');
-			const response = await createWarehouseBrand(
-				{
-					brandId: null,
-					brandName: name,
-					logoUrl: null,
-					isActive: '1',
-				},
-				token,
-			);
-			const payload = response?.data?.data ?? response?.data ?? response;
-			const created = mapBrandItem(payload);
-			const createdId = Number(created?.brandId) || null;
-			if (!createdId) {
-				notify('Tạo hãng thất bại (không nhận được brandId).');
-				return;
-			}
-
-			setBrands((prev) => {
-				const list = Array.isArray(prev) ? prev : [];
-				const withoutDup = list.filter((b) => Number(b?.brandId) !== createdId);
-				return [created, ...withoutDup];
-			});
-
-			setIsAddingNewBrand(false);
-			setSelectedBrandId(String(createdId));
-			notify('Đã thêm hãng mới.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo hãng.');
-		} finally {
-			setIsCreatingBrand(false);
-		}
-	}, [brandName, isCreatingBrand, notify]);
-
-	const startAddNewCategory = useCallback(() => {
-		previousCategoryIdRef.current = String(selectedCategoryId || '');
-		setIsAddingNewCategory(true);
-		setSelectedCategoryId('');
-		setCategoryCode('');
-		setCategoryName('');
-		setSelectedTaxRuleId('');
-		setIsAddingNewTaxRule(false);
-		setTaxName('');
-		setTaxRate('');
-	}, [selectedCategoryId]);
-
-	const stopAddNewCategory = useCallback(() => {
-		setIsAddingNewCategory(false);
-		const restored = previousCategoryIdRef.current;
-		const restoredExists = restored && categories.some((c) => String(c?.itemCategoryId) === String(restored));
-		if (restoredExists) {
-			setSelectedCategoryId(restored);
-			return;
-		}
-		setSelectedCategoryId('');
-	}, [categories]);
-
-	const handleCreateCategory = useCallback(async () => {
-		if (isCreatingCategory) return;
-		const code = String(categoryCode || '').trim();
-		const name = String(categoryName || '').trim();
-		const type = CATEGORY_TYPE_FIXED;
-		const taxRuleIdNumRaw = selectedTaxRuleId ? Number(selectedTaxRuleId) : null;
-		const taxRuleIdNum = Number.isFinite(taxRuleIdNumRaw) && taxRuleIdNumRaw > 0 ? taxRuleIdNumRaw : null;
-		if (!code || !name) {
-			notify('Vui lòng nhập đủ: Mã nhóm, Tên nhóm.');
-			return;
-		}
-		try {
-			setIsCreatingCategory(true);
-			const token = localStorage.getItem('authToken');
-
-			const basePayload = {
-				// Legacy id field (some envs still expect itemCategoryId)
-				itemCategoryId: null,
-				// New id field (work category)
-				workCategoryId: null,
-				categoryCode: code,
-				categoryName: name,
-				displayOrder: 0,
-				isActive: true,
-				estimateItemEstimateItem: 0,
-				isDefault: true,
-				taxRuleId: taxRuleIdNum,
-				categoryType: type,
-			};
-
-			const res = await createWarehouseItemCategory(basePayload, token);
-
-			const created = mapCategoryItem(extractPayload(res));
-			const createdId = Number(created?.itemCategoryId) || null;
-			if (!createdId) {
-				notify('Tạo nhóm thất bại (không nhận được itemCategoryId).');
-				return;
-			}
-			setCategories((prev) => {
-				const list = Array.isArray(prev) ? prev : [];
-				const withoutDup = list.filter((c) => Number(c?.itemCategoryId) !== createdId);
-				return [created, ...withoutDup];
-			});
-			setIsAddingNewCategory(false);
-			setSelectedCategoryId(String(createdId));
-			notify('Đã thêm nhóm mới.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo nhóm.');
-		} finally {
-			setIsCreatingCategory(false);
-		}
-	}, [categoryCode, categoryName, isCreatingCategory, notify, selectedTaxRuleId]);
-
-	const startAddNewTaxRule = useCallback(() => {
-		if (isTaxRulesLoading) return;
-		setIsAddingNewTaxRule(true);
-		setTaxName('');
-		setTaxRate('');
-	}, [isTaxRulesLoading]);
-
-	const stopAddNewTaxRule = useCallback(() => {
-		if (isCreatingTaxRule) return;
-		setIsAddingNewTaxRule(false);
-		setTaxName('');
-		setTaxRate('');
-	}, [isCreatingTaxRule]);
-
-	const handleCreateTaxRule = useCallback(async () => {
-		if (isCreatingTaxRule) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			notify('Vui lòng đăng nhập để tạo loại thuế.');
-			return;
-		}
-		const nameValidated = validateTaxName(taxName, { required: true });
-		if (nameValidated.error) {
-			notify(nameValidated.error);
-			return;
-		}
-		const rateValidated = validateTaxRatePercent(taxRate, { required: true });
-		if (rateValidated.error) {
-			notify(rateValidated.error);
-			return;
-		}
-		const name = nameValidated.value;
-		const rateNumber = rateValidated.value;
-		try {
-			setIsCreatingTaxRule(true);
-			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
-			const created = mapTaxRuleItem(extractPayload(res));
-			const createdId = Number(created?.taxRuleId) || null;
-			if (!createdId) {
-				notify('Tạo thuế thất bại (không nhận được taxRuleId).');
-				return;
-			}
-			setTaxRules((prev) => {
-				const list = Array.isArray(prev) ? prev : [];
-				const withoutDup = list.filter((t) => Number(t?.taxRuleId) !== createdId);
-				return [created, ...withoutDup];
-			});
-			setSelectedTaxRuleId(String(createdId));
-			setIsAddingNewTaxRule(false);
-			setTaxName('');
-			setTaxRate('');
-			notify('Đã thêm thuế mới.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo thuế.');
-		} finally {
-			setIsCreatingTaxRule(false);
-		}
-	}, [isCreatingTaxRule, notify, taxName, taxRate]);
+	const handleBrandInputClick = useCallback(() => {
+		const draft = {
+			selectedCategoryId,
+			selectedBrandId,
+			selectedProductLineId,
+			sku,
+			price,
+			showPrice,
+			unit,
+			origin,
+			customOrigin,
+			color,
+			customColor,
+			description,
+			warrantyDurationMonths,
+			selectedProductTaxRuleId,
+			specDrafts,
+		};
+		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
+		navigate('/part-management/select-brand');
+	}, [
+		selectedCategoryId,
+		selectedBrandId,
+		selectedProductLineId,
+		sku,
+		price,
+		showPrice,
+		unit,
+		origin,
+		customOrigin,
+		color,
+		customColor,
+		description,
+		warrantyDurationMonths,
+		selectedProductTaxRuleId,
+		specDrafts,
+		navigate,
+	]);
 
 	const startAddNewProductTaxRule = useCallback(() => {
 		if (isTaxRulesLoading) return;
@@ -721,63 +579,49 @@ export default function CreateProduct() {
 		}
 	}, [isCreatingProductTaxRule, notify, productTaxName, productTaxRate]);
 
-	const startAddNewProductLine = useCallback(() => {
-		previousProductLineIdRef.current = String(selectedProductLineId || '');
-		setIsAddingNewProductLine(true);
-		setSelectedProductLineId('');
-		setProductLineName('');
-	}, [selectedProductLineId]);
-
-	const stopAddNewProductLine = useCallback(() => {
-		setIsAddingNewProductLine(false);
-		const restored = previousProductLineIdRef.current;
-		const restoredExists = restored && productLines.some((l) => String(l?.productLineId) === String(restored));
-		if (restoredExists) {
-			setSelectedProductLineId(restored);
+	const handleProductLineInputClick = useCallback(() => {
+		if (!selectedBrandId) {
+			notify('Vui lòng chọn hãng sản xuất trước khi chọn dòng sản phẩm.');
 			return;
 		}
-		setSelectedProductLineId('');
-	}, [productLines]);
-
-	const handleCreateProductLine = useCallback(async () => {
-		if (isCreatingProductLine) return;
-		const brandId = Number(selectedBrandId) || null;
-		if (!brandId) {
-			notify('Vui lòng chọn hãng trước khi tạo dòng sản phẩm.');
-			return;
-		}
-		const name = String(productLineName || '').trim();
-		if (!name) {
-			notify('Vui lòng nhập tên dòng sản phẩm.');
-			return;
-		}
-		try {
-			setIsCreatingProductLine(true);
-			const token = localStorage.getItem('authToken');
-			const res = await createWarehouseProductLine(
-				{ productLineId: null, brandId, lineName: name, isActive: '1' },
-				token,
-			);
-			const created = mapProductLineItem(extractPayload(res));
-			const createdId = Number(created?.productLineId) || null;
-			if (!createdId) {
-				notify('Tạo dòng sản phẩm thất bại (không nhận được productLineId).');
-				return;
-			}
-			setProductLines((prev) => {
-				const list = Array.isArray(prev) ? prev : [];
-				const withoutDup = list.filter((l) => Number(l?.productLineId) !== createdId);
-				return [created, ...withoutDup];
-			});
-			setIsAddingNewProductLine(false);
-			setSelectedProductLineId(String(createdId));
-			notify('Đã thêm dòng sản phẩm mới.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo dòng sản phẩm.');
-		} finally {
-			setIsCreatingProductLine(false);
-		}
-	}, [isCreatingProductLine, notify, productLineName, selectedBrandId]);
+		const draft = {
+			selectedCategoryId,
+			selectedBrandId,
+			selectedProductLineId,
+			sku,
+			price,
+			showPrice,
+			unit,
+			origin,
+			customOrigin,
+			color,
+			customColor,
+			description,
+			warrantyDurationMonths,
+			selectedProductTaxRuleId,
+			specDrafts,
+		};
+		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
+		navigate('/part-management/select-product-line');
+	}, [
+		selectedCategoryId,
+		selectedBrandId,
+		selectedProductLineId,
+		sku,
+		price,
+		showPrice,
+		unit,
+		origin,
+		customOrigin,
+		color,
+		customColor,
+		description,
+		warrantyDurationMonths,
+		selectedProductTaxRuleId,
+		specDrafts,
+		navigate,
+		notify,
+	]);
 
 	// Image file selection (local preview only)
 	const handleImageFileChange = useCallback(
@@ -806,6 +650,69 @@ export default function CreateProduct() {
 			if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
 		};
 	}, [imagePreviewUrl]);
+
+	const startScanningSku = useCallback(() => {
+		setIsScanning(true);
+	}, []);
+
+	const stopScanningSku = useCallback(async () => {
+		if (html5QrCodeRef.current) {
+			try {
+				await html5QrCodeRef.current.stop();
+			} catch (e) {
+				console.error("Failed to stop scanner:", e);
+			}
+			html5QrCodeRef.current = null;
+		}
+		setIsScanning(false);
+	}, []);
+
+	useEffect(() => {
+		if (!isScanning) return;
+
+		const timer = setTimeout(() => {
+			try {
+				const html5QrCode = new Html5Qrcode("sku-scanner-reader");
+				html5QrCodeRef.current = html5QrCode;
+
+				const config = {
+					fps: 15,
+					qrbox: (width, height) => {
+						return {
+							width: Math.min(width * 0.8, 300),
+							height: Math.min(height * 0.4, 100),
+						};
+					},
+				};
+
+				html5QrCode.start(
+					{ facingMode: "environment" },
+					config,
+					(decodedText) => {
+						setSku(decodedText);
+						toast.success(`Đã quét được SKU: ${decodedText}`, { containerId: 'app-toast' });
+						stopScanningSku();
+					},
+					() => {}
+				).catch((err) => {
+					console.error("Camera start failed:", err);
+					toast.error("Không thể mở camera. Vui lòng kiểm tra quyền truy cập camera.", { containerId: 'app-toast' });
+					setIsScanning(false);
+				});
+			} catch (e) {
+				console.error("Scanner init failed:", e);
+				setIsScanning(false);
+			}
+		}, 300);
+
+		return () => {
+			clearTimeout(timer);
+			if (html5QrCodeRef.current) {
+				html5QrCodeRef.current.stop().catch(console.error);
+				html5QrCodeRef.current = null;
+			}
+		};
+	}, [isScanning, stopScanningSku]);
 
 	const handleSubmitProduct = useCallback(async () => {
 		if (isCreatingCatalogItem) return;
@@ -891,7 +798,34 @@ export default function CreateProduct() {
 				return;
 			}
 			setCreatedCatalogItem(created);
+			sessionStorage.removeItem('gms_create_product_draft');
 			notify(`Đã tạo sản phẩm (#${createdId}).`);
+
+			// Automatically save all filled specs in drafts
+			const draftsToSave = Array.isArray(specDrafts) ? specDrafts.filter(d => String(d.specValue || '').trim() && d.attributeId) : [];
+			if (draftsToSave.length > 0) {
+				notify('Đang lưu các thông số...');
+				for (let i = 0; i < draftsToSave.length; i++) {
+					const d = draftsToSave[i];
+					try {
+						await createWarehouseSpecificationValue(
+							{ specId: null, itemId: createdId, attributeId: Number(d.attributeId), specValue: String(d.specValue).trim() },
+							token
+						);
+					} catch (err) {
+						notify(`Không thể lưu thông số "${d.displayName}": ${err.message}`);
+					}
+				}
+				// Refresh saved specs list
+				try {
+					const specRes = await fetchWarehouseSpecificationsByCatalogItemId(createdId, token);
+					const specList = Array.isArray(extractPayload(specRes)) ? extractPayload(specRes) : [];
+					setSavedSpecs(specList);
+				} catch {
+					// ignore spec fetch error
+				}
+				notify('Đã lưu các thông số.');
+			}
 		} catch (err) {
 			notify(err?.message || 'Không thể tạo sản phẩm.');
 		} finally {
@@ -917,6 +851,7 @@ export default function CreateProduct() {
 		sku,
 		unit,
 		warrantyDurationMonths,
+		specDrafts,
 	]);
 
 	const handleCreateSpecAttributeIfNeeded = useCallback(
@@ -1048,249 +983,74 @@ export default function CreateProduct() {
 
 				{/* Step 1: Category */}
 				<div className={styles['pending-filters']}>
-					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-						<div style={{ fontWeight: 600 }}>1) Hạng mục sản phẩm </div>
-						{isAddingNewCategory ? (
-							<div style={{ display: 'flex', gap: 8 }}>
-								<button
-									type="button"
-									className={styles['primary-button']}
-									onClick={handleCreateCategory}
-									disabled={isCreatingCategory || Boolean(createdCatalogItemId)}
-								>
-									{isCreatingCategory ? 'Đang thêm...' : 'Xác nhận thêm hạng mục'}
-								</button>
-								<button
-									type="button"
-									className={styles['ghost-button']}
-									onClick={stopAddNewCategory}
-									disabled={isCreatingCategory || Boolean(createdCatalogItemId)}
-								>
-									Chọn từ danh sách
-								</button>
-							</div>
-						) : (
-							<button
-								type="button"
-								className={styles['primary-button']}
-								onClick={startAddNewCategory}
-								disabled={isCategoriesLoading || Boolean(createdCatalogItemId)}
-							>
-								Thêm nhóm
-							</button>
-						)}
+					<div style={{ fontWeight: 600, marginBottom: 8 }}>1) Hạng mục sản phẩm</div>
+					<div className="ui-field" style={{ marginBottom: 0 }}>
+						<input
+							id="categorySelect"
+							readOnly
+							placeholder="Nhấn vào đây để chọn nhóm hàng..."
+							value={selectedCategory ? (selectedCategory.categoryName || selectedCategory.categoryCode) : ''}
+							onClick={handleCategoryInputClick}
+							style={{ cursor: 'pointer' }}
+							disabled={Boolean(createdCatalogItemId)}
+						/>
 					</div>
-
-					{isAddingNewCategory ? (
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 12, marginBottom: 0 }}>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="categoryCode">Mã nhóm</label>
-								<input id="categoryCode" value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="categoryName">Tên nhóm</label>
-								<input id="categoryName" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="categoryType">Loại</label>
-								<input id="categoryType" value={categoryType} disabled />
-							</div>
-							<div style={{ gridColumn: '1 / -1', marginTop: 12 }}>
-								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-									<div style={{ fontWeight: 600 }}>Thuế</div>
-									{isAddingNewTaxRule ? (
-										<div style={{ display: 'flex', gap: 8 }}>
-											<button
-												type="button"
-												className={styles['primary-button']}
-												onClick={handleCreateTaxRule}
-												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
-											>
-												{isCreatingTaxRule ? 'Đang thêm...' : 'Xác nhận thuế'}
-											</button>
-											<button
-												type="button"
-												className={styles['ghost-button']}
-												onClick={stopAddNewTaxRule}
-												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
-											>
-												Hủy
-											</button>
-										</div>
-									) : (
-										<button
-											type="button"
-											className={styles['ghost-button']}
-											onClick={startAddNewTaxRule}
-											disabled={isTaxRulesLoading || Boolean(createdCatalogItemId)}
-										>
-											Thêm thuế
-										</button>
-									)}
-								</div>
-
-								{isAddingNewTaxRule ? (
-									<div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-										<div className="ui-field" style={{ marginBottom: 0 }}>
-											<label htmlFor="taxName">Tên thuế</label>
-											<input
-												id="taxName"
-												value={taxName}
-												onChange={(e) => setTaxName(e.target.value)}
-												placeholder="Ví dụ: VAT 10%"
-												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
-											/>
-										</div>
-										<div className="ui-field" style={{ marginBottom: 0 }}>
-											<label htmlFor="taxRate">Thuế suất</label>
-											<input
-												id="taxRate"
-												value={taxRate}
-												onChange={(e) => setTaxRate(e.target.value)}
-												placeholder="10 hoặc 0.1"
-												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
-											/>
-										</div>
-									</div>
-								) : (
-									<div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-										<div className="ui-field" style={{ marginBottom: 0 }}>
-											<label htmlFor="taxRuleSelect">Chọn thuế</label>
-											<select
-												id="taxRuleSelect"
-												value={selectedTaxRuleId}
-												onChange={(e) => setSelectedTaxRuleId(e.target.value)}
-												disabled={isTaxRulesLoading || isCreatingCategory || Boolean(createdCatalogItemId)}
-											>
-												<option value="">Không áp dụng</option>
-												{taxRules.map((t) => (
-													<option key={String(t.taxRuleId)} value={String(t.taxRuleId)}>
-														{getTaxRuleSelectLabel(t) || `#${t.taxRuleId}`}
-													</option>
-												))}
-											</select>
-											{selectedTaxRule ? (
-												<div className={styles['filter-card__hint']}>
-													Thuế suất: {formatTaxRatePercent(selectedTaxRule) || '--'}
-												</div>
-											) : null}
-										</div>
-									</div>
-								)}
-							</div>
-						</div>
-					) : (
-						<div className="ui-field" style={{ marginBottom: 0 }}>
-							<select
-								id="categorySelect"
-								value={selectedCategoryId}
-								onChange={(e) => setSelectedCategoryId(e.target.value)}
-								disabled={isCategoriesLoading || Boolean(createdCatalogItemId)}
-							>
-								<option value="">{categoryPlaceholder}</option>
-								{categories.map((c) => (
-									<option key={String(c.itemCategoryId)} value={String(c.itemCategoryId)}>
-										{c.categoryName || c.categoryCode || `#${c.itemCategoryId}`}
-									</option>
-								))}
-							</select>
-						</div>
-					)}
 				</div>
 
 				{/* Step 2: Brand */}
-				{canShowBrandStep ? (
-					<div className={styles['pending-filters']}>
-						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-							<div style={{ fontWeight: 600 }}>2) Hãng</div>
-							{isAddingNewBrand ? (
-								<div style={{ display: 'flex', gap: 8 }}>
-									<button type="button" className={styles['primary-button']} onClick={handleCreateBrand} disabled={isCreatingBrand || Boolean(createdCatalogItemId)}>
-										{isCreatingBrand ? 'Đang thêm...' : 'Xác nhận thêm hãng'}
-									</button>
-									<button type="button" className={styles['ghost-button']} onClick={stopAddNewBrand} disabled={isCreatingBrand || Boolean(createdCatalogItemId)}>
-										Chọn từ danh sách
-									</button>
-								</div>
-							) : (
-								<button type="button" className={styles['primary-button']} onClick={startAddNewBrand} disabled={isBrandsLoading || Boolean(createdCatalogItemId)}>
-									Thêm hãng
-								</button>
-							)}
-						</div>
-
-						{isAddingNewBrand ? (
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="brandName">Tên hãng (mới)</label>
-								<input id="brandName" value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Nhập tên hãng" autoComplete="off" disabled={Boolean(createdCatalogItemId)} />
-							</div>
-						) : (
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<select id="brandSelect" value={selectedBrandId} onChange={(e) => setSelectedBrandId(e.target.value)} disabled={isBrandsLoading || !brands.length || Boolean(createdCatalogItemId)}>
-									<option value="">{brandPlaceholder}</option>
-									{brands.map((b) => (
-										<option key={String(b.brandId)} value={String(b.brandId)}>
-											{b.brandName || `#${b.brandId}`}
-										</option>
-									))}
-								</select>
-							</div>
-						)}
+				<div className={styles['pending-filters']}>
+					<div style={{ fontWeight: 600, marginBottom: 8 }}>2) Hãng</div>
+					<div className="ui-field" style={{ marginBottom: 0 }}>
+						<input
+							id="brandSelect"
+							readOnly
+							placeholder="Nhấn vào đây để chọn hãng sản xuất..."
+							value={selectedBrand ? selectedBrand.brandName : ''}
+							onClick={handleBrandInputClick}
+							style={{ cursor: 'pointer' }}
+							disabled={Boolean(createdCatalogItemId)}
+						/>
 					</div>
-				) : null}
+				</div>
 
 				{/* Step 3: Product line */}
-				{canShowProductLineStep ? (
-					<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
-						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-							<div style={{ fontWeight: 600 }}>3) Dòng sản phẩm </div>
-							{isAddingNewProductLine ? (
-								<div style={{ display: 'flex', gap: 8 }}>
-									<button type="button" className={styles['primary-button']} onClick={handleCreateProductLine} disabled={isCreatingProductLine || Boolean(createdCatalogItemId)}>
-										{isCreatingProductLine ? 'Đang thêm...' : 'Xác nhận thêm dòng'}
-									</button>
-									<button type="button" className={styles['ghost-button']} onClick={stopAddNewProductLine} disabled={isCreatingProductLine || Boolean(createdCatalogItemId)}>
-										Chọn từ danh sách
-									</button>
-								</div>
-							) : (
-								<button type="button" className={styles['primary-button']} onClick={startAddNewProductLine} disabled={!selectedBrandId || isProductLinesLoading || Boolean(createdCatalogItemId)}>
-									Thêm dòng
-								</button>
-							)}
-						</div>
-
-						{isAddingNewProductLine ? (
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="productLineName">Tên dòng sản phẩm (mới)</label>
-								<input id="productLineName" value={productLineName} onChange={(e) => setProductLineName(e.target.value)} placeholder="Nhập tên dòng" autoComplete="off" disabled={Boolean(createdCatalogItemId)} />
-							</div>
-						) : (
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<select id="productLineSelect" value={selectedProductLineId} onChange={(e) => setSelectedProductLineId(e.target.value)} disabled={isProductLinesLoading || !filteredProductLines.length || Boolean(createdCatalogItemId)}>
-									<option value="">{productLinePlaceholder}</option>
-									{filteredProductLines.map((l) => (
-										<option key={String(l.productLineId)} value={String(l.productLineId)}>
-											{l.lineName || `#${l.productLineId}`}
-										</option>
-									))}
-								</select>
-							</div>
-						)}
+				<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
+					<div style={{ fontWeight: 600, marginBottom: 8 }}>3) Dòng sản phẩm</div>
+					<div className="ui-field" style={{ marginBottom: 0 }}>
+						<input
+							id="productLineSelect"
+							readOnly
+							placeholder="Nhấn vào đây để chọn dòng sản phẩm..."
+							value={selectedProductLine ? selectedProductLine.lineName : ''}
+							onClick={handleProductLineInputClick}
+							style={{ cursor: 'pointer' }}
+							disabled={Boolean(createdCatalogItemId)}
+						/>
 					</div>
-				) : null}
+				</div>
 
 				{/* Step 4: Catalog item fields */}
-				{canShowCatalogItemStep ? (
-					<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
-						<div style={{ fontWeight: 600, marginBottom: 8 }}>4) Thông tin sản phẩm (Catalog Item)</div>
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+				<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
+						<div style={{ fontWeight: 600, marginBottom: 8 }}>4) Thông tin sản phẩm</div>
+						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="itemType">Loại</label>
-								<input id="itemType" value={itemType} disabled />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="sku">SKU</label>
+								<label htmlFor="sku" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+									<span>SKU</span>
+									{!createdCatalogItemId && (
+										<button
+											type="button"
+											className={styles['ghost-button']}
+											style={{ padding: '2px 8px', fontSize: '11px', height: 'auto', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #d1d5db' }}
+											onClick={startScanningSku}
+										>
+											<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+												<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+												<circle cx="12" cy="13" r="4" />
+											</svg>
+											<span>Quét mã</span>
+										</button>
+									)}
+								</label>
 								<input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 							</div>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
@@ -1461,11 +1221,9 @@ export default function CreateProduct() {
 							</button>
 						</div>
 					</div>
-				) : null}
 
 				{/* Step 5-6: Specs */}
-				{canShowSpecsStep ? (
-					<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
+				<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
 						<div style={{ fontWeight: 600, marginBottom: 8 }}>5-6) Thông số (Spec Attribute + Specification Value)</div>
 						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
 
@@ -1644,13 +1402,78 @@ export default function CreateProduct() {
 						)}
 					</div>
 				</div>
-				) : null}
 			</section>
 					<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
 						<button type="button" className={styles['primary-button']} onClick={() => navigate(-1)}>
 							Quay lại
 						</button>
 					</div>
+
+			{isScanning && (
+				<div
+					style={{
+						position: 'fixed',
+						top: 0,
+						left: 0,
+						right: 0,
+						bottom: 0,
+						backgroundColor: 'rgba(14, 17, 24, 0.85)',
+						backdropFilter: 'blur(8px)',
+						zIndex: 10000,
+						display: 'flex',
+						flexDirection: 'column',
+						justifyContent: 'center',
+						alignItems: 'center',
+						color: '#fff',
+						fontFamily: 'sans-serif',
+					}}
+				>
+					<div
+						style={{
+							backgroundColor: '#1b2230',
+							borderRadius: '12px',
+							padding: '24px',
+							maxWidth: '440px',
+							width: '90%',
+							boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+							border: '1px solid rgba(255, 255, 255, 0.1)',
+							display: 'flex',
+							flexDirection: 'column',
+							alignItems: 'center',
+						}}
+					>
+						<h3 style={{ margin: '0 0 16px', fontSize: '18px', fontWeight: 600 }}>Quét mã vạch SKU</h3>
+						
+						<div
+							id="sku-scanner-reader"
+							style={{
+								width: '100%',
+								aspectRatio: '4/3',
+								borderRadius: '8px',
+								overflow: 'hidden',
+								backgroundColor: '#000',
+								border: '2px solid #3b82f6',
+								position: 'relative',
+							}}
+						/>
+						
+						<p style={{ fontSize: '13px', color: '#9ca3af', margin: '16px 0', textAlign: 'center' }}>
+							Đưa mã vạch của sản phẩm vào trước camera để quét tự động.
+						</p>
+						
+						<div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+							<button
+								type="button"
+								className={styles['ghost-button']}
+								style={{ flex: 1, padding: '10px', backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#fff' }}
+								onClick={stopScanningSku}
+							>
+								Hủy bỏ
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

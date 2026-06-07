@@ -34,9 +34,12 @@ import ServiceTicketManagement from './pages/DashBoard/ServiceTicketManagement/S
 import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
 import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.jsx';
 import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.jsx';
-import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.jsx';
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
+import EmployeeManager from './pages/DashBoard/EmployeeManager/EmployeeManager.jsx';
 import CreateProduct from './pages/DashBoard/PartManagement/CreateProduct.jsx';
+import CategorySelection from './pages/DashBoard/PartManagement/CategorySelection.jsx';
+import BrandSelection from './pages/DashBoard/PartManagement/BrandSelection.jsx';
+import ProductLineSelection from './pages/DashBoard/PartManagement/ProductLineSelection.jsx';
 import WarehouseStockEntry from './pages/DashBoard/WarehouseManagement/WarehouseStockEntry.jsx';
 import WarehouseStockEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
 import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryDetail.jsx';
@@ -384,6 +387,9 @@ export default function App() {
               <Route path="part-management" element={staffRoute(<PartManagement />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/blog/:itemId" element={staffRoute(<BlogFormPage itemType="PART" />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/create-product" element={staffRoute(<CreateProduct />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="part-management/select-category" element={staffRoute(<CategorySelection />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="part-management/select-brand" element={staffRoute(<BrandSelection />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="part-management/select-product-line" element={staffRoute(<ProductLineSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="service-management" element={staffRoute(<BlogManagement />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="warehouse-stock-entries" element={staffRoute(<WarehouseStockEntryManagement />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-stock-entries/:entryId" element={staffRoute(<WarehouseStockEntryDetail />, ROLE_GROUP.WAREHOUSE)} />
