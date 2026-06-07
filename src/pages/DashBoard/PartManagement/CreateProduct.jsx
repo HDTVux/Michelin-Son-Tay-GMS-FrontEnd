@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
@@ -672,17 +672,34 @@ export default function CreateProduct() {
 
 		const timer = setTimeout(() => {
 			try {
-				const html5QrCode = new Html5Qrcode("sku-scanner-reader");
+				const html5QrCode = new Html5Qrcode("sku-scanner-reader", {
+					formatsToSupport: [
+						Html5QrcodeSupportedFormats.EAN_13,
+						Html5QrcodeSupportedFormats.EAN_8,
+						Html5QrcodeSupportedFormats.CODE_128,
+						Html5QrcodeSupportedFormats.CODE_39,
+						Html5QrcodeSupportedFormats.UPC_A,
+						Html5QrcodeSupportedFormats.UPC_E,
+						Html5QrcodeSupportedFormats.QR_CODE,
+					]
+				});
 				html5QrCodeRef.current = html5QrCode;
 
 				const config = {
 					fps: 15,
-					qrbox: (width, height) => {
+					qrbox: (viewfinderWidth, viewfinderHeight) => {
+						// Responsive width & height based on device viewfinder to prevent layout distortion on mobile
+						const width = Math.min(Math.floor(viewfinderWidth * 0.85), 320);
+						const height = Math.min(Math.floor(viewfinderHeight * 0.35), 100);
 						return {
-							width: Math.min(width * 0.8, 300),
-							height: Math.min(height * 0.4, 100),
+							width: Math.max(width, 200),
+							height: Math.max(height, 60),
 						};
 					},
+					videoConstraints: {
+						width: { ideal: 1280 },
+						height: { ideal: 720 },
+					}
 				};
 
 				html5QrCode.start(
@@ -1448,7 +1465,6 @@ export default function CreateProduct() {
 							id="sku-scanner-reader"
 							style={{
 								width: '100%',
-								aspectRatio: '4/3',
 								borderRadius: '8px',
 								overflow: 'hidden',
 								backgroundColor: '#000',
