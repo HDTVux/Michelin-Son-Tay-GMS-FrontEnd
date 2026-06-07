@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
@@ -69,7 +69,30 @@ const CATEGORY_TYPE_FIXED = 'PART';
 
 export default function CategorySelection() {
 	useScrollToTop();
+	const location = useLocation();
 	const navigate = useNavigate();
+
+	const initialDraft = useMemo(() => {
+		if (!location.state?.fromTaxSelection) {
+			sessionStorage.removeItem('gms_create_category_draft');
+			return null;
+		}
+		try {
+			const raw = sessionStorage.getItem('gms_create_category_draft');
+			if (raw) return JSON.parse(raw);
+		} catch (e) {
+			console.error(e);
+		}
+		return null;
+	}, [location]);
+
+	const [isAddingNewCategory, setIsAddingNewCategory] = useState(() => Boolean(initialDraft?.isAddingNewCategory));
+	const [categoryCode, setCategoryCode] = useState(() => initialDraft?.categoryCode ?? '');
+	const [categoryName, setCategoryName] = useState(() => initialDraft?.categoryName ?? '');
+	const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(() => Boolean(initialDraft?.isCodeManuallyEdited));
+	const [selectedTaxRuleId, setSelectedTaxRuleId] = useState(() => initialDraft?.selectedTaxRuleId ?? '');
+	const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
 	const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
 	const [categories, setCategories] = useState([]);
@@ -79,18 +102,6 @@ export default function CategorySelection() {
 	// Tax rules for adding category
 	const [taxRules, setTaxRules] = useState([]);
 	const [isTaxRulesLoading, setIsTaxRulesLoading] = useState(false);
-	const [selectedTaxRuleId, setSelectedTaxRuleId] = useState('');
-	const [isAddingNewTaxRule, setIsAddingNewTaxRule] = useState(false);
-	const [taxName, setTaxName] = useState('');
-	const [taxRate, setTaxRate] = useState('');
-	const [isCreatingTaxRule, setIsCreatingTaxRule] = useState(false);
-
-	// Add new category
-	const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
-	const [categoryCode, setCategoryCode] = useState('');
-	const [categoryName, setCategoryName] = useState('');
-	const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
-	const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
 	// Load data
 	useEffect(() => {
@@ -245,61 +256,17 @@ export default function CategorySelection() {
 		}
 	}, [categoryCode, categoryName, isCreatingCategory, notify, selectedTaxRuleId, handleSelectCategory, categories]);
 
-	// Tax creation handlers
-	const startAddNewTaxRule = useCallback(() => {
-		if (isTaxRulesLoading) return;
-		setIsAddingNewTaxRule(true);
-		setTaxName('');
-		setTaxRate('');
-	}, [isTaxRulesLoading]);
-
-	const stopAddNewTaxRule = useCallback(() => {
-		if (isCreatingTaxRule) return;
-		setIsAddingNewTaxRule(false);
-		setTaxName('');
-		setTaxRate('');
-	}, [isCreatingTaxRule]);
-
-	const handleCreateTaxRule = useCallback(async () => {
-		if (isCreatingTaxRule) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			notify('Vui lòng đăng nhập để tạo loại thuế.');
-			return;
-		}
-		const nameValidated = validateTaxName(taxName, { required: true });
-		if (nameValidated.error) {
-			notify(nameValidated.error);
-			return;
-		}
-		const rateValidated = validateTaxRatePercent(taxRate, { required: true });
-		if (rateValidated.error) {
-			notify(rateValidated.error);
-			return;
-		}
-		const name = nameValidated.value;
-		const rateNumber = rateValidated.value;
-		try {
-			setIsCreatingTaxRule(true);
-			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
-			const created = mapTaxRuleItem(extractPayload(res));
-			const createdId = Number(created?.taxRuleId) || null;
-			if (!createdId) {
-				notify('Tạo thuế thất bại.');
-				return;
-			}
-			setTaxRules((prev) => [created, ...prev]);
-			setSelectedTaxRuleId(String(createdId));
-			setIsAddingNewTaxRule(false);
-			setTaxName('');
-			setTaxRate('');
-			notify('Đã thêm thuế mới.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo thuế.');
-		} finally {
-			setIsCreatingTaxRule(false);
-		}
-	}, [isCreatingTaxRule, notify, taxName, taxRate]);
+	const handleTaxInputClick = useCallback(() => {
+		const draft = {
+			categoryCode,
+			categoryName,
+			isCodeManuallyEdited,
+			selectedTaxRuleId,
+			isAddingNewCategory: true
+		};
+		sessionStorage.setItem('gms_create_category_draft', JSON.stringify(draft));
+		navigate('/part-management/select-tax', { state: { fromCategorySelection: true } });
+	}, [categoryCode, categoryName, isCodeManuallyEdited, selectedTaxRuleId, navigate]);
 
 	return (
 		<div className={styles['service-page']}>
@@ -364,85 +331,18 @@ export default function CategorySelection() {
 					</div>
 
 					<div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 16, marginTop: 16 }}>
-						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-							<div style={{ fontWeight: 600 }}>Cấu hình Thuế</div>
-							{isAddingNewTaxRule ? (
-								<div style={{ display: 'flex', gap: 8 }}>
-									<button
-										type="button"
-										className={styles['primary-button']}
-										onClick={handleCreateTaxRule}
-										disabled={isCreatingTaxRule}
-									>
-										{isCreatingTaxRule ? 'Đang thêm...' : 'Xác nhận thêm thuế'}
-									</button>
-									<button
-										type="button"
-										className={styles['ghost-button']}
-										onClick={stopAddNewTaxRule}
-										disabled={isCreatingTaxRule}
-									>
-										Hủy
-									</button>
-								</div>
-							) : (
-								<button
-									type="button"
-									className={styles['ghost-button']}
-									onClick={startAddNewTaxRule}
-									disabled={isTaxRulesLoading}
-								>
-									Thêm thuế mới
-								</button>
-							)}
+						<div className="ui-field">
+							<label htmlFor="taxRuleSelect">Chọn thuế</label>
+							<input
+								id="taxRuleSelect"
+								readOnly
+								placeholder="Nhấn vào đây để cấu hình thuế..."
+								value={selectedTaxRule ? `${getTaxRuleSelectLabel(selectedTaxRule)} (${formatTaxRatePercent(selectedTaxRule)})` : 'Không áp dụng'}
+								onClick={handleTaxInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={isTaxRulesLoading}
+							/>
 						</div>
-
-						{isAddingNewTaxRule ? (
-							<div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-								<div className="ui-field">
-									<label htmlFor="taxName">Tên thuế</label>
-									<input
-										id="taxName"
-										value={taxName}
-										onChange={(e) => setTaxName(e.target.value)}
-										placeholder="Ví dụ: VAT 10%"
-										disabled={isCreatingTaxRule}
-									/>
-								</div>
-								<div className="ui-field">
-									<label htmlFor="taxRate">Thuế suất</label>
-									<input
-										id="taxRate"
-										value={taxRate}
-										onChange={(e) => setTaxRate(e.target.value)}
-										placeholder="10 hoặc 0.1"
-										disabled={isCreatingTaxRule}
-									/>
-								</div>
-							</div>
-						) : (
-							<div className="ui-field">
-								<label htmlFor="taxRuleSelect">Chọn thuế</label>
-								<select
-									id="taxRuleSelect"
-									value={selectedTaxRuleId}
-									onChange={(e) => setSelectedTaxRuleId(e.target.value)}
-									disabled={isTaxRulesLoading}
-								>
-									<option value="">Không áp dụng</option>
-									{taxRules.map((t) => (
-										<option key={String(t.taxRuleId)} value={String(t.taxRuleId)}>
-											{getTaxRuleSelectLabel(t) || `#${t.taxRuleId}`}
-										</option>
-									))}
-								</select>
-								{selectedTaxRule ? (
-									<div className={styles['filter-card__hint']} style={{ marginTop: 6 }}>
-										Thuế suất: {formatTaxRatePercent(selectedTaxRule) || '--'}
-									</div>
-								) : null}
-							</div>
-						)}
 					</div>
 
 					<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>

@@ -40,6 +40,9 @@ import CreateProduct from './pages/DashBoard/PartManagement/CreateProduct.jsx';
 import CategorySelection from './pages/DashBoard/PartManagement/CategorySelection.jsx';
 import BrandSelection from './pages/DashBoard/PartManagement/BrandSelection.jsx';
 import ProductLineSelection from './pages/DashBoard/PartManagement/ProductLineSelection.jsx';
+import OriginSelection from './pages/DashBoard/PartManagement/OriginSelection.jsx';
+import ColorSelection from './pages/DashBoard/PartManagement/ColorSelection.jsx';
+import TaxSelection from './pages/DashBoard/PartManagement/TaxSelection.jsx';
 import WarehouseStockEntry from './pages/DashBoard/WarehouseManagement/WarehouseStockEntry.jsx';
 import WarehouseStockEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
 import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryDetail.jsx';
@@ -306,6 +309,7 @@ function TitleUpdater() {
 
 const isStaffSubdomain = () => {
   const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
   return hostname.startsWith('staff.') || hostname.startsWith('admin.');
 };
 
@@ -386,10 +390,13 @@ export default function App() {
               <Route path="service-ticket-management" element={staffRoute(<ServiceTicketManagement />, [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ACCOUNTANT])} />
               <Route path="part-management" element={staffRoute(<PartManagement />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/blog/:itemId" element={staffRoute(<BlogFormPage itemType="PART" />, ROLE_GROUP.WAREHOUSE)} />
-              <Route path="part-management/create-product" element={staffRoute(<CreateProduct />, ROLE_GROUP.WAREHOUSE)} />
+               <Route path="part-management/create-product" element={staffRoute(<CreateProduct />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/select-category" element={staffRoute(<CategorySelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/select-brand" element={staffRoute(<BrandSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/select-product-line" element={staffRoute(<ProductLineSelection />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="part-management/select-origin" element={staffRoute(<OriginSelection />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="part-management/select-color" element={staffRoute(<ColorSelection />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="part-management/select-tax" element={staffRoute(<TaxSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="service-management" element={staffRoute(<BlogManagement />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="warehouse-stock-entries" element={staffRoute(<WarehouseStockEntryManagement />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-stock-entries/:entryId" element={staffRoute(<WarehouseStockEntryDetail />, ROLE_GROUP.WAREHOUSE)} />

@@ -96,34 +96,6 @@ const mapSpecAttributeItem = (item) => {
 // it will be created via the API when the user requests it.
 
 const CATEGORY_TYPE_FIXED = 'PART';
-const COUNTRY_OPTIONS = [
-	'Việt Nam',
-	'Nhật Bản',
-	'Hàn Quốc',
-	'Trung Quốc',
-	'Thái Lan',
-	'Indonesia',
-	'Malaysia',
-	'Singapore',
-	'Đức',
-	'Pháp',
-	'Ý',
-	'Anh',
-	'Mỹ',
-];
-const COLOR_OPTIONS = [
-	'Đen',
-	'Trắng',
-	'Xám',
-	'Bạc',
-	'Đỏ',
-	'Xanh dương',
-	'Xanh lá',
-	'Vàng',
-	'Cam',
-	'Nâu',
-	'Be',
-];
 const OTHER_OPTION_VALUE = '__OTHER__';
 
 export default function CreateProduct() {
@@ -133,7 +105,14 @@ export default function CreateProduct() {
 
 	const location = useLocation();
 	const initialDraft = useMemo(() => {
-		if (!location.state?.fromCategorySelection && !location.state?.fromBrandSelection && !location.state?.fromProductLineSelection) {
+		if (
+			!location.state?.fromCategorySelection &&
+			!location.state?.fromBrandSelection &&
+			!location.state?.fromProductLineSelection &&
+			!location.state?.fromOriginSelection &&
+			!location.state?.fromColorSelection &&
+			!location.state?.fromProductTaxSelection
+		) {
 			sessionStorage.removeItem('gms_create_product_draft');
 			return null;
 		}
@@ -173,14 +152,11 @@ export default function CreateProduct() {
 	const [createdCatalogItem, setCreatedCatalogItem] = useState(null);
 	const itemType = 'PART';
 	const [selectedProductTaxRuleId, setSelectedProductTaxRuleId] = useState(() => initialDraft?.selectedProductTaxRuleId ?? '');
-	const [isAddingNewProductTaxRule, setIsAddingNewProductTaxRule] = useState(false);
-	const [productTaxName, setProductTaxName] = useState('');
-	const [productTaxRate, setProductTaxRate] = useState('');
-	const [isCreatingProductTaxRule, setIsCreatingProductTaxRule] = useState(false);
 	const [sku, setSku] = useState(() => initialDraft?.sku ?? '');
 	const [isScanning, setIsScanning] = useState(false);
 	const codeReaderRef = useRef(null);
 	const videoTrackRef = useRef(null);
+	const fileInputRef = useRef(null);
 	const [hasZoomSupport, setHasZoomSupport] = useState(false);
 	const [zoomMin, setZoomMin] = useState(1);
 	const [zoomMax, setZoomMax] = useState(10);
@@ -529,64 +505,44 @@ export default function CreateProduct() {
 		navigate,
 	]);
 
-	const startAddNewProductTaxRule = useCallback(() => {
-		if (isTaxRulesLoading) return;
-		setIsAddingNewProductTaxRule(true);
-		setProductTaxName('');
-		setProductTaxRate('');
-	}, [isTaxRulesLoading]);
-
-	const stopAddNewProductTaxRule = useCallback(() => {
-		if (isCreatingProductTaxRule) return;
-		setIsAddingNewProductTaxRule(false);
-		setProductTaxName('');
-		setProductTaxRate('');
-	}, [isCreatingProductTaxRule]);
-
-	const handleCreateProductTaxRule = useCallback(async () => {
-		if (isCreatingProductTaxRule) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			notify('Vui lòng đăng nhập để tạo loại thuế.');
-			return;
-		}
-		const nameValidated = validateTaxName(productTaxName, { required: true });
-		if (nameValidated.error) {
-			notify(nameValidated.error);
-			return;
-		}
-		const rateValidated = validateTaxRatePercent(productTaxRate, { required: true });
-		if (rateValidated.error) {
-			notify(rateValidated.error);
-			return;
-		}
-		const name = nameValidated.value;
-		const rateNumber = rateValidated.value;
-		try {
-			setIsCreatingProductTaxRule(true);
-			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
-			const created = mapTaxRuleItem(extractPayload(res));
-			const createdId = Number(created?.taxRuleId) || null;
-			if (!createdId) {
-				notify('Tạo thuế thất bại (không nhận được taxRuleId).');
-				return;
-			}
-			setTaxRules((prev) => {
-				const list = Array.isArray(prev) ? prev : [];
-				const withoutDup = list.filter((t) => Number(t?.taxRuleId) !== createdId);
-				return [created, ...withoutDup];
-			});
-			setSelectedProductTaxRuleId(String(createdId));
-			setIsAddingNewProductTaxRule(false);
-			setProductTaxName('');
-			setProductTaxRate('');
-			notify('Đã thêm thuế mới cho sản phẩm.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo thuế.');
-		} finally {
-			setIsCreatingProductTaxRule(false);
-		}
-	}, [isCreatingProductTaxRule, notify, productTaxName, productTaxRate]);
+	const handleProductTaxInputClick = useCallback(() => {
+		const draft = {
+			selectedCategoryId,
+			selectedBrandId,
+			selectedProductLineId,
+			sku,
+			price,
+			showPrice,
+			unit,
+			origin,
+			customOrigin,
+			color,
+			customColor,
+			description,
+			warrantyDurationMonths,
+			selectedProductTaxRuleId,
+			specDrafts,
+		};
+		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
+		navigate('/part-management/select-tax');
+	}, [
+		selectedCategoryId,
+		selectedBrandId,
+		selectedProductLineId,
+		sku,
+		price,
+		showPrice,
+		unit,
+		origin,
+		customOrigin,
+		color,
+		customColor,
+		description,
+		warrantyDurationMonths,
+		selectedProductTaxRuleId,
+		specDrafts,
+		navigate,
+	]);
 
 	const handleProductLineInputClick = useCallback(() => {
 		if (!selectedBrandId) {
@@ -630,6 +586,84 @@ export default function CreateProduct() {
 		specDrafts,
 		navigate,
 		notify,
+	]);
+
+	const handleOriginInputClick = useCallback(() => {
+		const draft = {
+			selectedCategoryId,
+			selectedBrandId,
+			selectedProductLineId,
+			sku,
+			price,
+			showPrice,
+			unit,
+			origin,
+			customOrigin,
+			color,
+			customColor,
+			description,
+			warrantyDurationMonths,
+			selectedProductTaxRuleId,
+			specDrafts,
+		};
+		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
+		navigate('/part-management/select-origin');
+	}, [
+		selectedCategoryId,
+		selectedBrandId,
+		selectedProductLineId,
+		sku,
+		price,
+		showPrice,
+		unit,
+		origin,
+		customOrigin,
+		color,
+		customColor,
+		description,
+		warrantyDurationMonths,
+		selectedProductTaxRuleId,
+		specDrafts,
+		navigate,
+	]);
+
+	const handleColorInputClick = useCallback(() => {
+		const draft = {
+			selectedCategoryId,
+			selectedBrandId,
+			selectedProductLineId,
+			sku,
+			price,
+			showPrice,
+			unit,
+			origin,
+			customOrigin,
+			color,
+			customColor,
+			description,
+			warrantyDurationMonths,
+			selectedProductTaxRuleId,
+			specDrafts,
+		};
+		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
+		navigate('/part-management/select-color');
+	}, [
+		selectedCategoryId,
+		selectedBrandId,
+		selectedProductLineId,
+		sku,
+		price,
+		showPrice,
+		unit,
+		origin,
+		customOrigin,
+		color,
+		customColor,
+		description,
+		warrantyDurationMonths,
+		selectedProductTaxRuleId,
+		specDrafts,
+		navigate,
 	]);
 
 	// Image file selection (local preview only)
@@ -1084,6 +1118,125 @@ export default function CreateProduct() {
 					</div>
 				</div>
 
+				{/* Avatar Image Upload Section */}
+				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+					<div
+						onClick={() => {
+							if (!createdCatalogItemId && fileInputRef.current) {
+								fileInputRef.current.click();
+							}
+						}}
+						style={{
+							width: '120px',
+							height: '120px',
+							borderRadius: '16px',
+							border: imagePreviewUrl ? '2px solid #e2e8f0' : '2px dashed #cbd5e1',
+							backgroundColor: '#f8fafc',
+							display: 'flex',
+							flexDirection: 'column',
+							alignItems: 'center',
+							justifyContent: 'center',
+							cursor: createdCatalogItemId ? 'default' : 'pointer',
+							overflow: 'hidden',
+							position: 'relative',
+							transition: 'all 0.2s ease-in-out',
+							boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+						}}
+						onMouseEnter={(e) => {
+							if (!createdCatalogItemId) {
+								e.currentTarget.style.borderColor = '#1E90FF';
+								e.currentTarget.style.backgroundColor = '#eff6ff';
+							}
+						}}
+						onMouseLeave={(e) => {
+							if (!createdCatalogItemId) {
+								e.currentTarget.style.borderColor = imagePreviewUrl ? '#e2e8f0' : '#cbd5e1';
+								e.currentTarget.style.backgroundColor = '#f8fafc';
+							}
+						}}
+					>
+						{imagePreviewUrl ? (
+							<>
+								<img
+									src={imagePreviewUrl}
+									alt="Avatar Preview"
+									style={{
+										width: '100%',
+										height: '100%',
+										objectFit: 'cover',
+									}}
+								/>
+								{!createdCatalogItemId && (
+									<div
+										style={{
+											position: 'absolute',
+											bottom: 0,
+											left: 0,
+											right: 0,
+											backgroundColor: 'rgba(0, 0, 0, 0.6)',
+											color: '#fff',
+											fontSize: '11px',
+											textAlign: 'center',
+											padding: '4px 0',
+											fontWeight: '500',
+										}}
+									>
+										Thay đổi
+									</div>
+								)}
+							</>
+						) : (
+							<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#64748b' }}>
+								<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 4 }}>
+									<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+									<circle cx="8.5" cy="8.5" r="1.5" />
+									<polyline points="21 15 16 10 5 21" />
+								</svg>
+								<span style={{ fontSize: '12px', fontWeight: '500' }}>Thêm ảnh</span>
+							</div>
+						)}
+					</div>
+					
+					<input
+						type="file"
+						ref={fileInputRef}
+						accept="image/*"
+						onChange={handleImageFileChange}
+						style={{ display: 'none' }}
+						disabled={Boolean(createdCatalogItemId)}
+					/>
+
+					{imagePreviewUrl && !createdCatalogItemId && (
+						<button
+							type="button"
+							onClick={(e) => {
+								e.stopPropagation();
+								if (imagePreviewUrl) {
+									URL.revokeObjectURL(imagePreviewUrl);
+								}
+								setImageFile(null);
+								setImagePreviewUrl('');
+								if (fileInputRef.current) {
+									fileInputRef.current.value = '';
+								}
+							}}
+							style={{
+								background: 'none',
+								border: 'none',
+								color: '#ef4444',
+								fontSize: '12px',
+								fontWeight: '600',
+								marginTop: '8px',
+								cursor: 'pointer',
+								textDecoration: 'underline',
+								padding: '2px 8px',
+							}}
+						>
+							Xoá ảnh
+						</button>
+					)}
+				</div>
+
 				<div className={styles['pending-filters']}>
 					<div style={{ fontWeight: 600, marginBottom: 8 }}>Tên sản phẩm</div>
 					<div className={styles['filter-card__hint']}>
@@ -1164,8 +1317,17 @@ export default function CreateProduct() {
 								<input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 							</div>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="price">Giá</label>
-								<input id="price" type="number" min="1" value={price} onChange={(e) => setPrice(e.target.value)} disabled={Boolean(createdCatalogItemId) || !showPrice} />
+								<label htmlFor="price">Giá bán</label>
+								<input
+									id="price"
+									type="number"
+									min="1"
+									inputMode="numeric"
+									pattern="[0-9]*"
+									value={price}
+									onChange={(e) => setPrice(e.target.value)}
+									disabled={Boolean(createdCatalogItemId) || !showPrice}
+								/>
 							</div>
 						</div>
 						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
@@ -1179,45 +1341,27 @@ export default function CreateProduct() {
 							</div>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="origin">Xuất xứ</label>
-								<select id="origin" value={origin} onChange={(e) => setOrigin(e.target.value)} disabled={Boolean(createdCatalogItemId)}>
-									<option value="">Chọn xuất xứ</option>
-									{COUNTRY_OPTIONS.map((country) => (
-										<option key={country} value={country}>
-											{country}
-										</option>
-									))}
-									<option value={OTHER_OPTION_VALUE}>Khác</option>
-								</select>
-								{origin === OTHER_OPTION_VALUE ? (
-									<input
-										style={{ marginTop: 8 }}
-										value={customOrigin}
-										onChange={(e) => setCustomOrigin(e.target.value)}
-										placeholder="Nhập xuất xứ"
-										disabled={Boolean(createdCatalogItemId)}
-									/>
-								) : null}
+								<input
+									id="origin"
+									readOnly
+									placeholder="Nhấn vào đây để chọn xuất xứ..."
+									value={origin === OTHER_OPTION_VALUE ? customOrigin : origin}
+									onClick={handleOriginInputClick}
+									style={{ cursor: 'pointer' }}
+									disabled={Boolean(createdCatalogItemId)}
+								/>
 							</div>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="color">Màu</label>
-								<select id="color" value={color} onChange={(e) => setColor(e.target.value)} disabled={Boolean(createdCatalogItemId)}>
-									<option value="">Chọn màu</option>
-									{COLOR_OPTIONS.map((colorOption) => (
-										<option key={colorOption} value={colorOption}>
-											{colorOption}
-										</option>
-									))}
-									<option value={OTHER_OPTION_VALUE}>Khác</option>
-								</select>
-								{color === OTHER_OPTION_VALUE ? (
-									<input
-										style={{ marginTop: 8 }}
-										value={customColor}
-										onChange={(e) => setCustomColor(e.target.value)}
-										placeholder="Nhập màu"
-										disabled={Boolean(createdCatalogItemId)}
-									/>
-								) : null}
+								<input
+									id="color"
+									readOnly
+									placeholder="Nhấn vào đây để chọn màu..."
+									value={color === OTHER_OPTION_VALUE ? customColor : color}
+									onClick={handleColorInputClick}
+									style={{ cursor: 'pointer' }}
+									disabled={Boolean(createdCatalogItemId)}
+								/>
 							</div>
 						</div>
 						<div style={{ marginTop: 12 }}>
@@ -1230,100 +1374,24 @@ export default function CreateProduct() {
 						</div>
 
 						<div style={{ marginTop: 12 }}>
-							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-								<div style={{ fontWeight: 600 }}>Thuế sản phẩm</div>
-								{isAddingNewProductTaxRule ? (
-									<div style={{ display: 'flex', gap: 8 }}>
-										<button
-											type="button"
-											className={styles['primary-button']}
-											onClick={handleCreateProductTaxRule}
-											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
-										>
-											{isCreatingProductTaxRule ? 'Đang thêm...' : 'Xác nhận thuế'}
-										</button>
-										<button
-											type="button"
-											className={styles['ghost-button']}
-											onClick={stopAddNewProductTaxRule}
-											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
-										>
-											Hủy
-										</button>
-									</div>
-								) : (
-									<button
-										type="button"
-										className={styles['ghost-button']}
-										onClick={startAddNewProductTaxRule}
-										disabled={isTaxRulesLoading || Boolean(createdCatalogItemId)}
-									>
-										Thêm thuế
-									</button>
-								)}
+							<div className="ui-field" style={{ marginBottom: 0 }}>
+								<label htmlFor="productTaxRuleSelect">Chọn thuế</label>
+								<input
+									id="productTaxRuleSelect"
+									readOnly
+									placeholder="Nhấn vào đây để chọn thuế..."
+									value={selectedProductTaxRule ? `${getTaxRuleSelectLabel(selectedProductTaxRule)} (${formatTaxRatePercent(selectedProductTaxRule)})` : 'Không áp dụng'}
+									onClick={handleProductTaxInputClick}
+									style={{ cursor: 'pointer' }}
+									disabled={isTaxRulesLoading || isCreatingCatalogItem || Boolean(createdCatalogItemId)}
+								/>
 							</div>
-
-							{isAddingNewProductTaxRule ? (
-								<div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-									<div className="ui-field" style={{ marginBottom: 0 }}>
-										<label htmlFor="productTaxName">Tên thuế</label>
-										<input
-											id="productTaxName"
-											value={productTaxName}
-											onChange={(e) => setProductTaxName(e.target.value)}
-											placeholder="Ví dụ: VAT 10%"
-											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
-										/>
-									</div>
-									<div className="ui-field" style={{ marginBottom: 0 }}>
-										<label htmlFor="productTaxRate">Thuế suất</label>
-										<input
-											id="productTaxRate"
-											value={productTaxRate}
-											onChange={(e) => setProductTaxRate(e.target.value)}
-											placeholder="10 hoặc 0.1"
-											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
-										/>
-									</div>
-							</div>
-							) : (
-								<div className="ui-field" style={{ marginBottom: 0 }}>
-									<label htmlFor="productTaxRuleSelect">Chọn thuế</label>
-									<select
-										id="productTaxRuleSelect"
-										value={selectedProductTaxRuleId}
-										onChange={(e) => setSelectedProductTaxRuleId(e.target.value)}
-										disabled={isTaxRulesLoading || isCreatingCatalogItem || Boolean(createdCatalogItemId)}
-									>
-										<option value="">Không áp dụng</option>
-										{taxRules.map((t) => (
-											<option key={String(t.taxRuleId)} value={String(t.taxRuleId)}>
-												{getTaxRuleSelectLabel(t) || `#${t.taxRuleId}`}
-											</option>
-										))}
-									</select>
-									{selectedProductTaxRule ? (
-										<div className={styles['filter-card__hint']}>
-											Thuế suất: {formatTaxRatePercent(selectedProductTaxRule) || '--'}
-										</div>
-									) : null}
-								</div>
-							)}
 						</div>
 						<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
 							<label htmlFor="description">Mô tả</label>
 							<textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 						</div>
-						<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
-							<label htmlFor="imageFile">Ảnh </label>
-							<input id="imageFile" type="file" accept="image/*" onChange={handleImageFileChange} disabled={Boolean(createdCatalogItemId)} />
-							{imagePreviewUrl ? (
-								<div style={{ marginTop: 8 }}>
-									{imageFile?.name ? <div style={{ fontSize: 12, marginBottom: 6 }}>{imageFile.name}</div> : null}
-									<img src={imagePreviewUrl} alt="Preview" style={{ maxWidth: 240, maxHeight: 240, objectFit: 'contain' }} />
-								</div>
-							) : null}
-						</div>
+
 
 						<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center', marginTop: 12 }}>
 							<button type="button" className={styles['primary-button']} onClick={handleSubmitProduct} disabled={isCreatingCatalogItem || Boolean(createdCatalogItemId)}>
