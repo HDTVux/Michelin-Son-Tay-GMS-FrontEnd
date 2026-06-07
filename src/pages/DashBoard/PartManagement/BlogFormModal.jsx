@@ -896,9 +896,12 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved,
       isActive,
       is_active: 1,
       brandId: toNullablePositiveNumber(brandId) ?? undefined,
+      brand_id: toNullablePositiveNumber(brandId) ?? undefined,
       productLineId: toNullablePositiveNumber(productLineId) ?? undefined,
+      product_line_id: toNullablePositiveNumber(productLineId) ?? undefined,
       itemCategoryId: categoryIdForPayload,
       workCategoryId: categoryIdForPayload,
+      work_category_id: categoryIdForPayload,
     };
   }, [baseItem, brandId, buildDescriptionHtml, isActive, isCreateNew, itemCategoryId, itemName, normalizedItemType, price, priceMode, productLineId, sku, unit, warrantyMonths]);
 

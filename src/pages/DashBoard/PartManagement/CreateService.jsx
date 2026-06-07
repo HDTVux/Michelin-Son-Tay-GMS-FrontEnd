@@ -814,7 +814,7 @@ export default function CreateService() {
 		}
 		const categoryId = Number(selectedCategoryId) || null;
 		const brandId = Number(selectedBrandId) || null;
-		const productLineId = Number(selectedProductLineId) || null;
+		const productLineId = selectedProductLineId ? Number(selectedProductLineId) : null;
 		if (!categoryId) {
 			notify('Vui lòng chọn hạng mục dịch vụ (Item Category).');
 			return;
@@ -869,11 +869,13 @@ export default function CreateService() {
 					isRecurring: false,
 					brandId,
 					productLineId,
+					product_line_id: productLineId,
 					// Backward compatible (older warehouse API)
 					itemCategoryId: categoryId,
 					// Newer API shape (work category)
 					workCategoryId: categoryId,
 					taxRuleId: taxRuleIdNum,
+					tax_rule_id: taxRuleIdNum,
 				},
 				token,
 			);

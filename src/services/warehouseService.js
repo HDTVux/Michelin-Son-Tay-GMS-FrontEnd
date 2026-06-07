@@ -254,22 +254,43 @@ export const createWarehouseProductLine = (payload, token) => {
 
 const stripNullishPayload = (payload) => {
   // Strip both null and undefined values to avoid backend crash on findById(null)
+  // But explicitly keep null for optional foreign key IDs so they don't default to 0 on the BE
   const clean = payload ?? {};
   const stripped = {};
+  
   Object.entries(clean).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
     stripped[k] = v;
   });
+
+  // Ensure both camelCase and snake_case exist for productLineId and taxRuleId
+  // and maintain null/number values properly
+  const keysToMap = [
+    { camel: 'productLineId', snake: 'product_line_id' },
+    { camel: 'taxRuleId', snake: 'tax_rule_id' }
+  ];
+
+  keysToMap.forEach(({ camel, snake }) => {
+    if (camel in clean || snake in clean) {
+      const rawVal = clean[camel] !== undefined ? clean[camel] : clean[snake];
+      const val = (rawVal === null || rawVal === undefined || rawVal === '') ? null : rawVal;
+      stripped[camel] = val;
+      stripped[snake] = val;
+    }
+  });
+
   return stripped;
 };
 
 // Warehouse catalog item APIs
 // POST: /api/warehouse/catalog-item/create
 export const createWarehouseCatalogItem = (payload, token) => {
+  const finalPayload = stripNullishPayload(payload);
+  console.log('createWarehouseCatalogItem finalPayload:', finalPayload);
   return request('/api/warehouse/catalog-item/create', {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: JSON.stringify(stripNullishPayload(payload)),
+    body: JSON.stringify(finalPayload),
   });
 };
 

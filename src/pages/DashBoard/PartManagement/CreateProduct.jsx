@@ -111,7 +111,8 @@ export default function CreateProduct() {
 			!location.state?.fromProductLineSelection &&
 			!location.state?.fromOriginSelection &&
 			!location.state?.fromColorSelection &&
-			!location.state?.fromProductTaxSelection
+			!location.state?.fromProductTaxSelection &&
+			!location.state?.fromAttributeSelection
 		) {
 			sessionStorage.removeItem('gms_create_product_draft');
 			return null;
@@ -382,6 +383,8 @@ export default function CreateProduct() {
 
 	useEffect(() => {
 		// When brand changes, keep current product line only if still valid; otherwise reset to default.
+		// Avoid resetting during initial load when productLines are not loaded yet.
+		if (isProductLinesLoading || productLines.length === 0) return;
 		const brandIdNum = Number(selectedBrandId) || null;
 		const list = Array.isArray(filteredProductLines) ? filteredProductLines : [];
 		const current = String(selectedProductLineId || '').trim();
@@ -391,7 +394,7 @@ export default function CreateProduct() {
 		}
 		if (current && list.some((l) => String(l.productLineId) === current)) return;
 		setSelectedProductLineId('');
-	}, [filteredProductLines, selectedBrandId, selectedProductLineId]);
+	}, [filteredProductLines, selectedBrandId, selectedProductLineId, isProductLinesLoading, productLines]);
 
 	useEffect(() => {
 		// Auto-map attributeId for known spec codes if attribute exists.
@@ -732,7 +735,7 @@ export default function CreateProduct() {
 			});
 			const videoElement = document.getElementById("sku-scanner-reader-video");
 			if (videoElement && videoElement.paused) {
-				await videoElement.play().catch(() => {});
+				await videoElement.play().catch(() => { });
 			}
 		} catch (err) {
 			console.error("Failed to apply zoom:", err);
@@ -867,17 +870,13 @@ export default function CreateProduct() {
 		}
 		const categoryId = Number(selectedCategoryId) || null;
 		const brandId = Number(selectedBrandId) || null;
-		const productLineId = Number(selectedProductLineId) || null;
+		const productLineId = selectedProductLineId ? Number(selectedProductLineId) : null;
 		if (!categoryId) {
 			notify('Vui lòng chọn hạng mục sản phẩm (Item Category).');
 			return;
 		}
 		if (!brandId) {
 			notify('Vui lòng chọn hãng.');
-			return;
-		}
-		if (!productLineId) {
-			notify('Vui lòng chọn dòng sản phẩm.');
 			return;
 		}
 		const skuTrim = String(sku || '').trim();
@@ -927,11 +926,13 @@ export default function CreateProduct() {
 					isRecurring: false,
 					brandId,
 					productLineId,
+					product_line_id: productLineId,
 					// Backward compatible (older warehouse API)
 					itemCategoryId: categoryId,
 					// Newer API shape (work category)
 					workCategoryId: categoryId,
 					taxRuleId: taxRuleIdNum,
+					tax_rule_id: taxRuleIdNum,
 				},
 				token,
 			);
@@ -970,6 +971,7 @@ export default function CreateProduct() {
 				}
 				notify('Đã lưu các thông số.');
 			}
+			navigate('/part-management');
 		} catch (err) {
 			notify(err?.message || 'Không thể tạo sản phẩm.');
 		} finally {
@@ -996,73 +998,47 @@ export default function CreateProduct() {
 		unit,
 		warrantyDurationMonths,
 		specDrafts,
+		navigate,
 	]);
 
-	const handleCreateSpecAttributeIfNeeded = useCallback(
-		async (draftIndex) => {
-			const d = specDrafts?.[draftIndex];
-			if (!d) return null;
-			if (d.attributeId) return Number(d.attributeId) || null;
-			const token = localStorage.getItem('authToken');
-			if (!token) {
-				notify('Vui lòng đăng nhập để tạo thuộc tính thông số.');
-				return null;
-			}
-			try {
-				setSpecDrafts((prev) => prev.map((x, idx) => (idx === draftIndex ? { ...x, creatingAttribute: true } : x)));
-				// Generate attributeCode if missing (safe fallback from displayName)
-				const codeCandidate = String(d.code || '').trim();
-				const attributeCode =
-					codeCandidate ||
-					String(d.displayName || '')
-						.trim()
-						.toUpperCase()
-						.replace(/[^A-Z0-9]+/g, '_')
-						.slice(0, 50);
-				const res = await createWarehouseSpecAttribute(
-					{
-						attributeId: null,
-						attributeCode,
-						displayName: String(d.displayName || '').trim() || attributeCode,
-						unit: String(d.unit || '').trim(),
-					},
-					token,
-				);
-				const created = mapSpecAttributeItem(extractPayload(res));
-				const createdId = Number(created?.attributeId) || null;
-				if (!createdId) {
-					notify('Tạo thuộc tính thất bại (không nhận được attributeId).');
-					return null;
-				}
-				setSpecAttributes((prev) => {
-					const list = Array.isArray(prev) ? prev : [];
-					const withoutDup = list.filter((a) => Number(a?.attributeId) !== createdId);
-					return [created, ...withoutDup];
-				});
-				setSpecDrafts((prev) =>
-					prev.map((x, idx) =>
-						idx === draftIndex
-							? {
-								...x,
-								attributeId: String(createdId),
-								code: String(created?.attributeCode || '').toUpperCase(),
-								displayName: created?.displayName || x.displayName,
-								unit: created?.unit || x.unit,
-								creatingAttribute: false,
-								isCreatingNew: false,
-							}
-						: x,
-					),
-				);
-				return createdId;
-			} catch (err) {
-				notify(err?.message || 'Không thể tạo thuộc tính thông số.');
-				setSpecDrafts((prev) => prev.map((x, idx) => (idx === draftIndex ? { ...x, creatingAttribute: false } : x)));
-				return null;
-			}
-		},
-		[notify, specDrafts],
-	);
+	const handleAttributeInputClick = useCallback(() => {
+		const draft = {
+			selectedCategoryId,
+			selectedBrandId,
+			selectedProductLineId,
+			sku,
+			price,
+			showPrice,
+			unit,
+			origin,
+			customOrigin,
+			color,
+			customColor,
+			description,
+			warrantyDurationMonths,
+			selectedProductTaxRuleId,
+			specDrafts,
+		};
+		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
+		navigate('/part-management/select-attribute');
+	}, [
+		selectedCategoryId,
+		selectedBrandId,
+		selectedProductLineId,
+		sku,
+		price,
+		showPrice,
+		unit,
+		origin,
+		customOrigin,
+		color,
+		customColor,
+		description,
+		warrantyDurationMonths,
+		selectedProductTaxRuleId,
+		specDrafts,
+		navigate,
+	]);
 
 	const handleSaveSpecificationValue = useCallback(
 		async (draftIndex) => {
@@ -1196,7 +1172,7 @@ export default function CreateProduct() {
 							</div>
 						)}
 					</div>
-					
+
 					<input
 						type="file"
 						ref={fileInputRef}
@@ -1294,272 +1270,166 @@ export default function CreateProduct() {
 
 				{/* Step 4: Catalog item fields */}
 				<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
-						<div style={{ fontWeight: 600, marginBottom: 8 }}>4) Thông tin sản phẩm</div>
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="sku" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-									<span>SKU</span>
-									{!createdCatalogItemId && (
-										<button
-											type="button"
-											className={styles['ghost-button']}
-											style={{ padding: '2px 8px', fontSize: '11px', height: 'auto', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #d1d5db' }}
-											onClick={startScanningSku}
-										>
-											<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-												<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-												<circle cx="12" cy="13" r="4" />
-											</svg>
-											<span>Quét mã</span>
-										</button>
-									)}
-								</label>
-								<input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="price">Giá bán</label>
-								<input
-									id="price"
-									type="number"
-									min="1"
-									inputMode="numeric"
-									pattern="[0-9]*"
-									value={price}
-									onChange={(e) => setPrice(e.target.value)}
-									disabled={Boolean(createdCatalogItemId) || !showPrice}
-								/>
-							</div>
+					<div style={{ fontWeight: 600, marginBottom: 8 }}>4) Thông tin sản phẩm</div>
+					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="sku" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+								<span>SKU</span>
+								{!createdCatalogItemId && (
+									<button
+										type="button"
+										className={styles['ghost-button']}
+										style={{ padding: '2px 8px', fontSize: '11px', height: 'auto', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #d1d5db' }}
+										onClick={startScanningSku}
+									>
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+											<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+											<circle cx="12" cy="13" r="4" />
+										</svg>
+										<span>Quét mã</span>
+									</button>
+								)}
+							</label>
+							<input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 						</div>
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="unit">Đơn vị</label>
-								<input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="warranty">Bảo hành (tháng)</label>
-								<input id="warranty" type="number" value={warrantyDurationMonths} onChange={(e) => setWarrantyDurationMonths(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="origin">Xuất xứ</label>
-								<input
-									id="origin"
-									readOnly
-									placeholder="Nhấn vào đây để chọn xuất xứ..."
-									value={origin === OTHER_OPTION_VALUE ? customOrigin : origin}
-									onClick={handleOriginInputClick}
-									style={{ cursor: 'pointer' }}
-									disabled={Boolean(createdCatalogItemId)}
-								/>
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="color">Màu</label>
-								<input
-									id="color"
-									readOnly
-									placeholder="Nhấn vào đây để chọn màu..."
-									value={color === OTHER_OPTION_VALUE ? customColor : color}
-									onClick={handleColorInputClick}
-									style={{ cursor: 'pointer' }}
-									disabled={Boolean(createdCatalogItemId)}
-								/>
-							</div>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="price">Giá bán</label>
+							<input
+								id="price"
+								type="number"
+								min="1"
+								inputMode="numeric"
+								pattern="[0-9]*"
+								value={price}
+								onChange={(e) => setPrice(e.target.value)}
+								disabled={Boolean(createdCatalogItemId) || !showPrice}
+							/>
 						</div>
-						<div style={{ marginTop: 12 }}>
-							<div className="ui-field" style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end' }}>
-								<label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-									<input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} disabled={Boolean(createdCatalogItemId)} />
-									<span>Hiển thị giá</span>
-								</label>
-							</div>
+					</div>
+					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="unit">Đơn vị</label>
+							<input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 						</div>
-
-						<div style={{ marginTop: 12 }}>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="productTaxRuleSelect">Chọn thuế</label>
-								<input
-									id="productTaxRuleSelect"
-									readOnly
-									placeholder="Nhấn vào đây để chọn thuế..."
-									value={selectedProductTaxRule ? `${getTaxRuleSelectLabel(selectedProductTaxRule)} (${formatTaxRatePercent(selectedProductTaxRule)})` : 'Không áp dụng'}
-									onClick={handleProductTaxInputClick}
-									style={{ cursor: 'pointer' }}
-									disabled={isTaxRulesLoading || isCreatingCatalogItem || Boolean(createdCatalogItemId)}
-								/>
-							</div>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="warranty">Bảo hành (tháng)</label>
+							<input id="warranty" type="number" value={warrantyDurationMonths} onChange={(e) => setWarrantyDurationMonths(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 						</div>
-						<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
-							<label htmlFor="description">Mô tả</label>
-							<textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="origin">Xuất xứ</label>
+							<input
+								id="origin"
+								readOnly
+								placeholder="Nhấn vào đây để chọn xuất xứ..."
+								value={origin === OTHER_OPTION_VALUE ? customOrigin : origin}
+								onClick={handleOriginInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
 						</div>
-
-
-						<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center', marginTop: 12 }}>
-							<button type="button" className={styles['primary-button']} onClick={handleSubmitProduct} disabled={isCreatingCatalogItem || Boolean(createdCatalogItemId)}>
-								{createdCatalogItemId ? `Đã tạo (#${createdCatalogItemId})` : isCreatingCatalogItem ? 'Đang tạo...' : 'Tạo sản phẩm'}
-							</button>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="color">Màu</label>
+							<input
+								id="color"
+								readOnly
+								placeholder="Nhấn vào đây để chọn màu..."
+								value={color === OTHER_OPTION_VALUE ? customColor : color}
+								onClick={handleColorInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
+						</div>
+					</div>
+					<div style={{ marginTop: 12 }}>
+						<div className="ui-field" style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end' }}>
+							<label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+								<input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} disabled={Boolean(createdCatalogItemId)} />
+								<span>Hiển thị giá</span>
+							</label>
 						</div>
 					</div>
 
-				{/* Step 5-6: Specs */}
-				<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
-						<div style={{ fontWeight: 600, marginBottom: 8 }}>5-6) Thông số (Spec Attribute + Specification Value)</div>
-						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-
+					<div style={{ marginTop: 12 }}>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="productTaxRuleSelect">Chọn thuế</label>
+							<input
+								id="productTaxRuleSelect"
+								readOnly
+								placeholder="Nhấn vào đây để chọn thuế..."
+								value={selectedProductTaxRule ? `${getTaxRuleSelectLabel(selectedProductTaxRule)} (${formatTaxRatePercent(selectedProductTaxRule)})` : 'Không áp dụng'}
+								onClick={handleProductTaxInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={isTaxRulesLoading || isCreatingCatalogItem || Boolean(createdCatalogItemId)}
+							/>
 						</div>
+					</div>
+					<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
+						<label htmlFor="description">Mô tả</label>
+						<textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
+					</div>
 
+
+					<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center', marginTop: 12 }}>
+						<button type="button" className={styles['primary-button']} onClick={handleSubmitProduct} disabled={isCreatingCatalogItem || Boolean(createdCatalogItemId)}>
+							{createdCatalogItemId ? `Đã tạo (#${createdCatalogItemId})` : isCreatingCatalogItem ? 'Đang tạo...' : 'Tạo sản phẩm'}
+						</button>
+					</div>
+				</div>
+
+				{/* Step 5: Thuộc tính */}
+				<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
+					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+						<div style={{ fontWeight: 600, fontSize: 16 }}>5) Thuộc tính</div>
+						{!createdCatalogItemId && (
+							<button
+								type="button"
+								className={styles['primary-button']}
+								style={{ padding: '8px 16px', fontSize: '13px' }}
+								onClick={handleAttributeInputClick}
+							>
+								{specDrafts.filter(s => s.attributeId).length > 0 ? 'Thay đổi thuộc tính' : 'Chọn thuộc tính'}
+							</button>
+						)}
+					</div>
+
+					{specDrafts.filter(s => s.attributeId).length > 0 ? (
 						<table className={styles['service-table']}>
 							<thead>
 								<tr>
 									<th style={{ width: 140 }}>Mã</th>
-									<th style={{ width: 220 }}>Thuộc tính</th>
+									<th style={{ textAlign: 'left' }}>Tên thuộc tính</th>
 									<th>Giá trị</th>
-									<th style={{ width: 160 }}>Hành động</th>
+									<th style={{ width: 120 }}>Đơn vị</th>
 								</tr>
 							</thead>
 							<tbody>
-								{specDrafts.map((d, idx) => {
-									const options = Array.isArray(specAttributes) ? specAttributes : [];
-									const selectedAttr = specAttributes.find((sa) => String(sa.attributeId) === String(d.attributeId));
-									const selectedUnit = selectedAttr?.unit || '';
+								{specDrafts.filter(s => s.attributeId).map((d) => (
+									<tr key={d.attributeId}>
+										<td style={{ fontFamily: 'monospace' }}>{d.code || '-'}</td>
+										<td style={{ textAlign: 'left', fontWeight: 600 }}>{d.displayName}</td>
+										<td style={{ fontWeight: 500 }}>{d.specValue}</td>
+										<td>{d.unit || '-'}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					) : (
+						<div className={styles['filter-card__hint']} style={{ padding: '12px 0' }}>
+							Chưa có thuộc tính nào được chọn. Nhấn nút "Chọn thuộc tính" để cấu hình.
+						</div>
+					)}
 
-									return (
-										<tr key={d.id}>
-											<td>{d.code}</td>
-											<td>
-												{d.isCreatingNew ? (
-													<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-														<input
-															className={styles['spec-input']}
-															value={d.displayName}
-															onChange={(e) =>
-																setSpecDrafts((prev) => prev.map((x, i) => (i === idx ? { ...x, displayName: e.target.value } : x)))
-															}
-															placeholder="Tên hiển thị"
-															disabled={d.creatingAttribute}
-														/>
-														<div style={{ display: 'flex', gap: 8 }}>
-															<input
-																className={styles['spec-input']}
-																value={d.unit}
-																onChange={(e) =>
-																setSpecDrafts((prev) => prev.map((x, i) => (i === idx ? { ...x, unit: e.target.value } : x)))
-															}
-															placeholder="Đơn vị"
-															disabled={d.creatingAttribute}
-															/>
-															<button
-																type="button"
-																className={styles['ghost-button']}
-																onClick={() => handleCreateSpecAttributeIfNeeded(idx)}
-																disabled={d.creatingAttribute || !d.displayName}
-															>
-																{d.creatingAttribute ? 'Đang tạo...' : 'Tạo thuộc tính'}
-															</button>
-															<button
-																type="button"
-																className={styles['ghost-button']}
-																onClick={() => setSpecDrafts((prev) => prev.map((x, i) => (i === idx ? { ...x, isCreatingNew: false } : x)))}
-															>
-																Huỷ
-															</button>
-														</div>
-													</div>
-												) : (
-													<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-														<select
-															className={styles['spec-select']}
-															value={d.attributeId || ''}
-															onChange={(e) => {
-																const val = e.target.value;
-																const attr = specAttributes.find((a) => String(a.attributeId) === String(val));
-																setSpecDrafts((prev) =>
-																	prev.map((x, i) =>
-																		i === idx
-																			? {
-																				...x,
-																				attributeId: val,
-																				code: attr?.attributeCode || x.code,
-																				displayName: attr?.displayName || x.displayName,
-																				unit: attr?.unit || x.unit,
-																			}
-																		: x,
-																	),
-																);
-															}}
-															disabled={isSpecAttributesLoading}
-														>
-															<option value="">Chọn thuộc tính</option>
-															{options.map((a) => (
-																<option key={String(a.attributeId)} value={String(a.attributeId)}>
-																	{a.displayName || a.attributeCode}
-																</option>
-															))}
-														</select>
-														<input className={styles['spec-input']} value={selectedUnit} readOnly placeholder="Đơn vị" style={{ minWidth: 100 }} />
-														<button
-															type="button"
-															className={styles['ghost-button']}
-															onClick={() => setSpecDrafts((prev) => prev.map((x, i) => (i === idx ? { ...x, isCreatingNew: true } : x)))}
-															disabled={d.creatingAttribute}
-														>
-															Tạo thuộc tính
-														</button>
-													</div>
-												)}
-											</td>
-											<td>
-												<input
-													className={styles['spec-input']}
-													value={d.specValue}
-													onChange={(e) =>
-														setSpecDrafts((prev) => prev.map((x, i) => (i === idx ? { ...x, specValue: e.target.value } : x)))
-													}
-													disabled={d.creatingSpec}
-												/>
-											</td>
-											<td>
-												<div style={{ display: 'flex', gap: 8 }}>
-													<button
-														type="button"
-														className={styles['primary-button']}
-														onClick={() => handleSaveSpecificationValue(idx)}
-														disabled={!createdCatalogItemId || d.creatingAttribute || d.creatingSpec || !d.attributeId || !String(d.specValue || '').trim()}
-													>
-														{d.creatingSpec ? 'Đang lưu...' : 'Lưu'}
-													</button>
-													<button
-														type="button"
-														className={styles['ghost-button']}
-														onClick={() => removeSpecDraft(idx)}
-														disabled={d.creatingAttribute || d.creatingSpec}
-													>
-														Xoá
-													</button>
-												</div>
-											</td>
-										</tr>
-									);
-								})}
-						</tbody>
-					</table>
-
-					<div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-						<button type="button" className={styles['ghost-button']} onClick={addSpecDraft}>
-							Thêm thông số
-						</button>
-					</div>
-
-					<div style={{ marginTop: 12 }}>
-						<div style={{ fontWeight: 600, marginBottom: 8,fontSize: 16 }}>Thông số đã lưu</div>
+					<div style={{ marginTop: 16 }}>
+						<div style={{ fontWeight: 600, marginBottom: 8, fontSize: 16 }}>Thuộc tính đã lưu</div>
 						{isSpecsLoading ? (
 							<div className={styles['filter-card__hint']}>Đang tải...</div>
 						) : savedSpecs.length ? (
 							<table className={styles['service-table']}>
 								<thead>
 									<tr>
-										<th style={{ fontWeight: 600, fontSize: 15 }}>Thuộc tính</th>
+										<th style={{ fontWeight: 600, fontSize: 15, textAlign: 'left' }}>Thuộc tính</th>
 										<th style={{ fontWeight: 600, fontSize: 15 }}>Giá trị</th>
-                                        <th style={{ fontWeight: 600, fontSize: 15 }}>Đơn vị</th>
+										<th style={{ fontWeight: 600, fontSize: 15 }}>Đơn vị</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -1567,7 +1437,7 @@ export default function CreateProduct() {
 										const attr = specAttributes.find((a) => Number(a.attributeId) === Number(s?.attributeId));
 										return (
 											<tr key={`${s?.specId ?? ''}-${i}`}>
-												<td>{attr?.displayName || attr?.attributeCode || s?.attributeId || '-'}</td>
+												<td style={{ textAlign: 'left', fontWeight: 600 }}>{attr?.displayName || attr?.attributeCode || s?.attributeId || '-'}</td>
 												<td>{s?.specValue ?? '-'}</td>
 												<td>{s?.specUnit || attr?.unit || '-'}</td>
 											</tr>
@@ -1576,16 +1446,16 @@ export default function CreateProduct() {
 								</tbody>
 							</table>
 						) : (
-							<div className={styles['filter-card__hint']}>Chưa có thông số.</div>
+							<div className={styles['filter-card__hint']}>Chưa lưu thuộc tính nào lên hệ thống. (Thuộc tính sẽ tự động lưu khi tạo sản phẩm thành công)</div>
 						)}
 					</div>
 				</div>
 			</section>
-					<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-						<button type="button" className={styles['primary-button']} onClick={() => navigate(-1)}>
-							Quay lại
-						</button>
-					</div>
+			<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+				<button type="button" className={styles['primary-button']} onClick={() => navigate(-1)}>
+					Quay lại
+				</button>
+			</div>
 
 			{isScanning && (
 				<div
@@ -1628,7 +1498,7 @@ export default function CreateProduct() {
 						}}
 					>
 						<h3 style={{ margin: '0 0 16px', fontSize: '18px', fontWeight: 600 }}>Quét mã vạch SKU</h3>
-						
+
 						<div
 							style={{
 								width: '100%',
@@ -1655,7 +1525,7 @@ export default function CreateProduct() {
 								muted
 								autoPlay
 							/>
-							
+
 							{/* Laser scan line overlay */}
 							<div
 								style={{
@@ -1670,14 +1540,14 @@ export default function CreateProduct() {
 									zIndex: 10,
 								}}
 							/>
-							
+
 							{/* Corner brackets */}
 							<div style={{ position: 'absolute', border: '3px solid #3b82f6', width: '24px', height: '24px', top: '16px', left: '16px', borderRight: 'none', borderBottom: 'none' }} />
 							<div style={{ position: 'absolute', border: '3px solid #3b82f6', width: '24px', height: '24px', top: '16px', right: '16px', borderLeft: 'none', borderBottom: 'none' }} />
 							<div style={{ position: 'absolute', border: '3px solid #3b82f6', width: '24px', height: '24px', bottom: '16px', left: '16px', borderRight: 'none', borderTop: 'none' }} />
 							<div style={{ position: 'absolute', border: '3px solid #3b82f6', width: '24px', height: '24px', bottom: '16px', right: '16px', borderLeft: 'none', borderTop: 'none' }} />
 						</div>
-						
+
 						{hasZoomSupport && (
 							<div style={{ width: '100%', marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
 								<div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#9ca3af' }}>
@@ -1699,11 +1569,11 @@ export default function CreateProduct() {
 								/>
 							</div>
 						)}
-						
+
 						<p style={{ fontSize: '13px', color: '#9ca3af', margin: '16px 0', textAlign: 'center' }}>
 							Căn chỉnh mã vạch vào vùng quét. Kéo thanh trượt để phóng to nếu mã vạch ở xa.
 						</p>
-						
+
 						<div style={{ display: 'flex', gap: '12px', width: '100%' }}>
 							<button
 								type="button"

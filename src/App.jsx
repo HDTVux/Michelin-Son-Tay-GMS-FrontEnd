@@ -43,6 +43,7 @@ import ProductLineSelection from './pages/DashBoard/PartManagement/ProductLineSe
 import OriginSelection from './pages/DashBoard/PartManagement/OriginSelection.jsx';
 import ColorSelection from './pages/DashBoard/PartManagement/ColorSelection.jsx';
 import TaxSelection from './pages/DashBoard/PartManagement/TaxSelection.jsx';
+import AttributeSelection from './pages/DashBoard/PartManagement/AttributeSelection.jsx';
 import WarehouseStockEntry from './pages/DashBoard/WarehouseManagement/WarehouseStockEntry.jsx';
 import WarehouseStockEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
 import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryDetail.jsx';
@@ -309,7 +310,6 @@ function TitleUpdater() {
 
 const isStaffSubdomain = () => {
   const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
   return hostname.startsWith('staff.') || hostname.startsWith('admin.');
 };
 
@@ -397,6 +397,7 @@ export default function App() {
               <Route path="part-management/select-origin" element={staffRoute(<OriginSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/select-color" element={staffRoute(<ColorSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/select-tax" element={staffRoute(<TaxSelection />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="part-management/select-attribute" element={staffRoute(<AttributeSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="service-management" element={staffRoute(<BlogManagement />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="warehouse-stock-entries" element={staffRoute(<WarehouseStockEntryManagement />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-stock-entries/:entryId" element={staffRoute(<WarehouseStockEntryDetail />, ROLE_GROUP.WAREHOUSE)} />

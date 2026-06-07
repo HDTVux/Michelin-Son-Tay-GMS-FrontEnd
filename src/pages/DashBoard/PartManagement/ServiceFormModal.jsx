@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import styles from './ServiceManagement.module.css';
 import {
@@ -901,9 +901,12 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
       isActive,
       is_active: 1,
       brandId: toNullablePositiveNumber(brandId) ?? undefined,
+      brand_id: toNullablePositiveNumber(brandId) ?? undefined,
       productLineId: toNullablePositiveNumber(productLineId) ?? undefined,
+      product_line_id: toNullablePositiveNumber(productLineId) ?? undefined,
       itemCategoryId: categoryIdForPayload,
       workCategoryId: categoryIdForPayload,
+      work_category_id: categoryIdForPayload,
     };
   }, [baseItem, brandId, buildDescriptionHtml, estimateTime, isActive, isCreateNew, itemCategoryId, itemName, price, priceMode, productLineId, sku, unit]);
 
