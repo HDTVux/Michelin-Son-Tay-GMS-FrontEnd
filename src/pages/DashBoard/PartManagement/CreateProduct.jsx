@@ -687,6 +687,7 @@ export default function CreateProduct() {
 
 				const config = {
 					fps: 15,
+					aspectRatio: 1.33333,
 					qrbox: (viewfinderWidth, viewfinderHeight) => {
 						// Responsive width & height based on device viewfinder to prevent layout distortion on mobile
 						const width = Math.min(Math.floor(viewfinderWidth * 0.85), 320);
@@ -697,6 +698,7 @@ export default function CreateProduct() {
 						};
 					},
 					videoConstraints: {
+						facingMode: "environment",
 						width: { ideal: 1280 },
 						height: { ideal: 720 },
 					}
