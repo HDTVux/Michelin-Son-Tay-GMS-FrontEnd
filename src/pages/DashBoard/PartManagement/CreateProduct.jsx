@@ -686,17 +686,18 @@ export default function CreateProduct() {
 				html5QrCodeRef.current = html5QrCode;
 
 				const config = {
-					fps: 15,
+					fps: 10,
 					aspectRatio: 1.33333,
 					qrbox: (viewfinderWidth, viewfinderHeight) => {
-						// Responsive width & height based on device viewfinder to prevent layout distortion on mobile
+						// Larger and more flexible focus box for barcode framing
 						const width = Math.min(Math.floor(viewfinderWidth * 0.85), 320);
-						const height = Math.min(Math.floor(viewfinderHeight * 0.35), 100);
+						const height = Math.min(Math.floor(viewfinderHeight * 0.5), 140);
 						return {
-							width: Math.max(width, 200),
-							height: Math.max(height, 60),
+							width: Math.max(width, 220),
+							height: Math.max(height, 90),
 						};
 					},
+					useBarCodeDetectorIfSupported: true,
 					videoConstraints: {
 						facingMode: "environment",
 						width: { ideal: 1280 },
