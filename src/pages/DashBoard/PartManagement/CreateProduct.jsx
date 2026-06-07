@@ -767,8 +767,6 @@ export default function CreateProduct() {
 					return;
 				}
 
-				videoElement.srcObject = stream;
-
 				const track = stream.getVideoTracks()[0];
 				videoTrackRef.current = track;
 
@@ -787,26 +785,18 @@ export default function CreateProduct() {
 					setHasZoomSupport(false);
 				}
 
-				const startDecoding = () => {
-					videoElement.play().then(() => {
-						codeReader.decodeFromVideoElementContinuously(videoElement, (result, err) => {
-							if (result) {
-								const decodedText = result.getText();
-								setSku(decodedText);
-								toast.success(`Đã quét được SKU: ${decodedText}`, { containerId: 'app-toast' });
-								stopScanningSku();
-							}
-						});
-					}).catch(err => {
-						console.error("Autoplay failed:", err);
-					});
-				};
-
-				if (videoElement.readyState >= 1) {
-					startDecoding();
-				} else {
-					videoElement.onloadedmetadata = startDecoding;
-				}
+				// The decodeFromStream method handles binding the media stream to the video element,
+				// auto-playing it, and running the continuous frame decoding loop.
+				codeReader.decodeFromStream(stream, videoElement, (result, err) => {
+					if (result) {
+						const decodedText = result.getText();
+						setSku(decodedText);
+						toast.success(`Đã quét được SKU: ${decodedText}`, { containerId: 'app-toast' });
+						stopScanningSku();
+					}
+				}).catch(err => {
+					console.error("Failed to decode from stream:", err);
+				});
 
 			} catch (err) {
 				console.error("Camera start failed:", err);
