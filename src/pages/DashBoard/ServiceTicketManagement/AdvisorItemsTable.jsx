@@ -262,6 +262,7 @@ function EstimateItemRow({
     showTaxColumn,
     showDiscountColumn,
     showWarehouseActionColumn,
+    showReturnAfterPaymentColumn,
     warehouseActionBusyKey,
     onCancelAllocation,
     onOpenReturnModal,
@@ -532,10 +533,10 @@ function EstimateItemRow({
 
             <td data-label="Kho">{warehouseText || '-'}</td>
             {!showInputs ? <td data-label="Xuất kho"><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
-            {!showInputs && showWarehouseActionColumn ? (
+            {!showInputs && (showWarehouseActionColumn || showReturnAfterPaymentColumn) ? (
                 <td data-label="Thao tác" className={styles.tdCenter}>
                     <div className={styles.warehouseItemActions}>
-                        {stockStatus === 'RESERVED' ? (
+                        {showWarehouseActionColumn && stockStatus === 'RESERVED' ? (
                             <button
                                 type="button"
                                 className="ui-btn ui-btn--ghost"
@@ -571,7 +572,7 @@ function EstimateItemRow({
                                         onClick={() => onOpenReturnModal?.(row)}
                                         disabled={isSaving || isWarehouseActionBusy}
                                     >
-                                        Hoàn trả
+                                        {showReturnAfterPaymentColumn ? 'Hoàn hàng' : 'Hoàn trả'}
                                     </button>
                                 );
                             })()
@@ -629,6 +630,7 @@ EstimateItemRow.propTypes = {
     showTaxColumn: PropTypes.bool,
     showDiscountColumn: PropTypes.bool,
     showWarehouseActionColumn: PropTypes.bool,
+    showReturnAfterPaymentColumn: PropTypes.bool,
     warehouseActionBusyKey: PropTypes.string,
     onCancelAllocation: PropTypes.func,
     onOpenReturnModal: PropTypes.func,
@@ -962,12 +964,22 @@ export default function AdvisorItemsTable({
         Array.isArray(tableRows) &&
         tableRows.some((row) => ['RESERVED', 'COMMITTED'].includes(getRowStockStatus(row)));
 
+    // Cho phép hiện cột hoàn hàng ngay cả sau khi thanh toán, miễn là còn hàng đã xuất (COMMITTED)
+    const showReturnAfterPaymentColumn =
+        !showInputs &&
+        !showWarehouseActionColumn &&
+        isTicketPaid &&
+        !isTicketCompleted &&
+        !isTicketCancelled &&
+        Array.isArray(tableRows) &&
+        tableRows.some((row) => getRowStockStatus(row) === 'COMMITTED');
+
     const footerSpacerColSpan =
         (showTaxColumn ? 1 : 0) +
         1 +
         (!showInputs ? 1 : 0) +
         (showInputs ? 1 : 0) +
-        (showWarehouseActionColumn ? 1 : 0);
+        (showWarehouseActionColumn || showReturnAfterPaymentColumn ? 1 : 0);
 
     const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
@@ -1427,7 +1439,7 @@ export default function AdvisorItemsTable({
                             <th scope="col">THÀNH TIỀN</th>
                             <th scope="col">KHO</th>
                             {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
-                            {showWarehouseActionColumn ? <th scope="col">THAO TÁC</th> : null}
+                            {showWarehouseActionColumn || showReturnAfterPaymentColumn ? <th scope="col">THAO TÁC</th> : null}
                             {showInputs ? <th scope="col">THAO TÁC</th> : null}
                         </tr>
                     </thead>
@@ -1451,6 +1463,7 @@ export default function AdvisorItemsTable({
                                 softDeleteEditRow={softDeleteEditRow}
                                 openCatalogPicker={openCatalogPicker}
                                 showWarehouseActionColumn={showWarehouseActionColumn}
+                                showReturnAfterPaymentColumn={showReturnAfterPaymentColumn}
                                 warehouseActionBusyKey={warehouseActionBusyKey}
                                 onCancelAllocation={handleCancelWarehouseAllocation}
                                 onOpenReturnModal={setReturnModalItem}
