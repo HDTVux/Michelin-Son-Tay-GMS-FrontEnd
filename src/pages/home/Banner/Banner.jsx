@@ -1,25 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import './Banner.css';
-import wheel1 from '../../../assets/wheel1.jpg'
+import wheel1 from '../../../assets/wheel1.png'
 import wheel2 from '../../../assets/wheel2.jpg'
 import wheel3 from '../../../assets/wheel3.jpg'
 
-export default function Banner(){
+export default function Banner() {
     const slides = [
         {
             id: 1,
             img: wheel1,
-            title: 'HIỆU SUẤT BỀN BỈ, AN TOÀN TỐI ĐA',
+            title: 'GARA Ô TÔ SƠN TÂY DỊCH VỤ 24/7',
         },
         {
             id: 2,
             img: wheel2,
-            title: 'CHINH PHỤC MỌI ĐỊA HÌNH',
+            title: 'CUNG CẤP LỐP, DẦU NHỚT, ẮC QUY CHÍNH HÃNG',
         },
         {
             id: 3,
             img: wheel3,
-            title: 'ÊM ÁI VÀ AN TOÀN TRÊN MỌI CUNG ĐƯỜNG ƯỚT',
+            title: 'GARAGE HIỆN ĐẠI, DỊCH VỤ CHUẨN QUỐC TẾ',
         }
     ];
 
@@ -61,7 +61,7 @@ export default function Banner(){
             const rect = testDiv.getBoundingClientRect();
             const zoomLevel = rect.width / 100;
             document.body.removeChild(testDiv);
-            
+
             // Counter zoom: scale ngược lại để giữ nguyên kích thước
             if (zoomLevel > 0 && zoomLevel !== 1) {
                 setZoomScale(1 / zoomLevel);
@@ -73,28 +73,28 @@ export default function Banner(){
         detectZoom();
         window.addEventListener('resize', detectZoom);
         window.addEventListener('orientationchange', detectZoom);
-        
+
         return () => {
             window.removeEventListener('resize', detectZoom);
             window.removeEventListener('orientationchange', detectZoom);
         };
     }, []);
 
-    function goTo(i){ setIndex(i); }
+    function goTo(i) { setIndex(i); }
 
-    function onPointerDown(e){
+    function onPointerDown(e) {
         pointer.current.dragging = true;
         pointer.current.startX = e.clientX ?? e.touches?.[0]?.clientX;
     }
-    function onPointerMove(e){
-        if(!pointer.current.dragging) return;
+    function onPointerMove(e) {
+        if (!pointer.current.dragging) return;
         const x = e.clientX ?? e.touches?.[0]?.clientX;
         pointer.current.deltaX = x - pointer.current.startX;
     }
-    function onPointerUp(){
+    function onPointerUp() {
         pointer.current.dragging = false;
         const dx = pointer.current.deltaX;
-        if (Math.abs(dx) > 50){
+        if (Math.abs(dx) > 50) {
             if (dx < 0) setIndex(i => (i + 1) % slides.length);
             else setIndex(i => (i - 1 + slides.length) % slides.length);
         }
@@ -102,8 +102,8 @@ export default function Banner(){
     }
 
     return (
-        <section 
-            className="banner" 
+        <section
+            className="banner"
             ref={bannerRef}
             style={{
                 transform: `translateX(-50%) scale(${zoomScale})`,
@@ -129,15 +129,15 @@ export default function Banner(){
                         onTouchEnd={onPointerUp}
                     >
                         {slides.map((s) => (
-                        <div className="slide" key={s.id}>
-                            <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image fixed-zoom" />
-                            <div className={`slide-text ${textVisible && index === s.id - 1 ? 'visible' : ''}`}>
-                                <h1 className="banner-title">
-                                    <span className="titlePart1">{s.title}</span>
-                                </h1>
+                            <div className="slide" key={s.id}>
+                                <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image fixed-zoom" />
+                                <div className={`slide-text ${textVisible && index === s.id - 1 ? 'visible' : ''}`}>
+                                    <h1 className="banner-title">
+                                        <span className="titlePart1">{s.title}</span>
+                                    </h1>
+                                </div>
                             </div>
-                        </div>
-                        ))} 
+                        ))}
                     </div>
 
                     <div className="banner-dots" role="tablist" aria-label="carousel dots">
@@ -146,7 +146,7 @@ export default function Banner(){
                                 key={s.id}
                                 className={"dot-btn " + (i === index ? 'active' : '')}
                                 onClick={() => goTo(i)}
-                                aria-label={`Go to slide ${i+1}`}
+                                aria-label={`Go to slide ${i + 1}`}
                             />
                         ))}
                     </div>

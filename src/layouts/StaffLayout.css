@@ -18,7 +18,7 @@
   position: fixed;
   top: 16px;
   right: 18px;
-  z-index: 1000;
+  z-index: 2000;
 }
 
 .staffNotification__button {
@@ -344,6 +344,21 @@
 
   .staffNotification {
     top: 14px;
+    right: 110px;
+  }
+
+  .staffNotification__panel {
+    position: fixed;
+    top: 74px;
     right: 14px;
+    left: 14px;
+    width: auto;
+    max-height: calc(100vh - 90px);
+  }
+}
+
+@media (max-width: 420px) {
+  .staffNotification {
+    right: 64px;
   }
 }

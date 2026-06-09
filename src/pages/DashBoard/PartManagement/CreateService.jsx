@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -284,13 +284,22 @@ export default function CreateService() {
 				const prevBrand = String(selectedBrandIdRef.current || '').trim();
 				const prevLine = String(selectedProductLineIdRef.current || '').trim();
 
-				const categoryExists = prevCat && catsNorm.some((c) => String(c.itemCategoryId) === prevCat);
+				const categoryExists = prevCat &&
+					prevCat !== 'null' &&
+					prevCat !== 'undefined' &&
+					catsNorm.some((c) => c.itemCategoryId && String(c.itemCategoryId) === prevCat);
 				setSelectedCategoryId(categoryExists ? prevCat : '');
 
-				const brandExists = prevBrand && brandsNorm.some((b) => String(b.brandId) === prevBrand);
+				const brandExists = prevBrand &&
+					prevBrand !== 'null' &&
+					prevBrand !== 'undefined' &&
+					brandsNorm.some((b) => b.brandId && String(b.brandId) === prevBrand);
 				setSelectedBrandId(brandExists ? prevBrand : '');
 
-				const lineExists = prevLine && linesNorm.some((l) => String(l.productLineId) === prevLine);
+				const lineExists = prevLine &&
+					prevLine !== 'null' &&
+					prevLine !== 'undefined' &&
+					linesNorm.some((l) => l.productLineId && String(l.productLineId) === prevLine);
 				setSelectedProductLineId(lineExists ? prevLine : '');
 			} catch (err) {
 				if (cancelled) return;
@@ -322,22 +331,26 @@ export default function CreateService() {
 
 	const selectedCategory = useMemo(() => {
 		const id = String(selectedCategoryId || '').trim();
-		return categories.find((c) => String(c.itemCategoryId) === id) || null;
+		if (!id || id === 'null' || id === 'undefined') return null;
+		return categories.find((c) => c.itemCategoryId && String(c.itemCategoryId) === id) || null;
 	}, [categories, selectedCategoryId]);
 
 	const selectedTaxRule = useMemo(() => {
 		const id = String(selectedTaxRuleId || '').trim();
-		return taxRules.find((t) => String(t.taxRuleId) === id) || null;
+		if (!id || id === 'null' || id === 'undefined') return null;
+		return taxRules.find((t) => t.taxRuleId && String(t.taxRuleId) === id) || null;
 	}, [selectedTaxRuleId, taxRules]);
 
 	const selectedProductTaxRule = useMemo(() => {
 		const id = String(selectedProductTaxRuleId || '').trim();
-		return taxRules.find((t) => String(t.taxRuleId) === id) || null;
+		if (!id || id === 'null' || id === 'undefined') return null;
+		return taxRules.find((t) => t.taxRuleId && String(t.taxRuleId) === id) || null;
 	}, [selectedProductTaxRuleId, taxRules]);
 
 	const selectedBrand = useMemo(() => {
 		const id = String(selectedBrandId || '').trim();
-		return brands.find((b) => String(b.brandId) === id) || null;
+		if (!id || id === 'null' || id === 'undefined') return null;
+		return brands.find((b) => b.brandId && String(b.brandId) === id) || null;
 	}, [brands, selectedBrandId]);
 
 	const filteredProductLines = useMemo(() => {
@@ -349,7 +362,8 @@ export default function CreateService() {
 
 	const selectedProductLine = useMemo(() => {
 		const id = String(selectedProductLineId || '').trim();
-		return productLines.find((l) => String(l.productLineId) === id) || null;
+		if (!id || id === 'null' || id === 'undefined') return null;
+		return productLines.find((l) => l.productLineId && String(l.productLineId) === id) || null;
 	}, [productLines, selectedProductLineId]);
 
 	useEffect(() => {
@@ -800,7 +814,7 @@ export default function CreateService() {
 		}
 		const categoryId = Number(selectedCategoryId) || null;
 		const brandId = Number(selectedBrandId) || null;
-		const productLineId = Number(selectedProductLineId) || null;
+		const productLineId = selectedProductLineId ? Number(selectedProductLineId) : null;
 		if (!categoryId) {
 			notify('Vui lòng chọn hạng mục dịch vụ (Item Category).');
 			return;
@@ -855,11 +869,13 @@ export default function CreateService() {
 					isRecurring: false,
 					brandId,
 					productLineId,
+					product_line_id: productLineId,
 					// Backward compatible (older warehouse API)
 					itemCategoryId: categoryId,
 					// Newer API shape (work category)
 					workCategoryId: categoryId,
 					taxRuleId: taxRuleIdNum,
+					tax_rule_id: taxRuleIdNum,
 				},
 				token,
 			);
@@ -1286,11 +1302,53 @@ export default function CreateService() {
 								</div>
 							</div>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="price">Giá</label>
-								<input id="price" type="number" min="1" value={price} onChange={(e) => setPrice(e.target.value)} disabled={Boolean(createdCatalogItemId) || !showPrice} />
+								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+									<label htmlFor="price" style={{ marginBottom: 0 }}>Giá</label>
+									<label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#6b7280', userSelect: 'none' }}>
+										<input
+											type="checkbox"
+											checked={showPrice}
+											onChange={(e) => setShowPrice(e.target.checked)}
+											disabled={Boolean(createdCatalogItemId)}
+											style={{ display: 'none' }}
+										/>
+										<span style={{
+											width: '32px',
+											height: '18px',
+											backgroundColor: showPrice ? '#3b82f6' : '#d1d5db',
+											borderRadius: '999px',
+											display: 'inline-block',
+											position: 'relative',
+											transition: 'background-color 0.2s',
+										}}>
+											<span style={{
+												width: '14px',
+												height: '14px',
+												backgroundColor: '#ffffff',
+												borderRadius: '50%',
+												display: 'inline-block',
+												position: 'absolute',
+												top: '2px',
+												left: showPrice ? '16px' : '2px',
+												transition: 'left 0.2s',
+												boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+											}} />
+										</span>
+										<span style={{ fontWeight: 500 }}>Hiển thị giá</span>
+									</label>
+								</div>
+								<input
+									id="price"
+									type="number"
+									min="1"
+									value={price}
+									onChange={(e) => setPrice(e.target.value)}
+									disabled={Boolean(createdCatalogItemId) || !showPrice}
+									placeholder={showPrice ? "Nhập giá dịch vụ..." : "Liên hệ"}
+								/>
 							</div>
 						</div>
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="unit">Đơn vị</label>
 								<input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
@@ -1298,12 +1356,6 @@ export default function CreateService() {
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="warranty">Bảo hành (tháng)</label>
 								<input id="warranty" type="number" value={warrantyDurationMonths} onChange={(e) => setWarrantyDurationMonths(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end' }}>
-								<label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-									<input type="checkbox" checked={showPrice} onChange={(e) => setShowPrice(e.target.checked)} disabled={Boolean(createdCatalogItemId)} />
-									<span>Hiển thị giá</span>
-								</label>
 							</div>
 						</div>
 

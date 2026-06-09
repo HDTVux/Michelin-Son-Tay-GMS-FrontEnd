@@ -93,7 +93,7 @@ const Home = () => {
 
 
     const introText = [
-        'Michelin sơn tây là địa chỉ lốp uy tín ở sơn tây.',
+        'Michelin Sơn Tây là địa chỉ lốp uy tín ở Sơn Tây.',
         'Là đại lý duy nhất. Chuyên cung cấp lốp dầu ắc quy chính hãng.',
         'Sửa chữa ôtô cứu hộ 24/7',
         'Sơn- Gò- Hàn.',
@@ -163,8 +163,8 @@ const Home = () => {
                     <div className={`introTextCol ${introVisible ? 'visible' : ''}`}>
                         <h2 className="introWelcome">Chào mừng đến với</h2>
                         <h1 className="introTitle">
-                            <span className="titlePart1">michelin</span>
-                            <span className="titlePart2">sontay</span>
+                            <span className="titlePart1">Michelin </span>
+                            <span className="titlePart2">Sơn Tây</span>
                         </h1>
                         <div className="introTextList">
                             {introText.map((text, idx) => (

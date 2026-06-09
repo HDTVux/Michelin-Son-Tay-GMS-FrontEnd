@@ -4,7 +4,26 @@ import { toast } from 'react-toastify';
 import { fetchAllStaff } from '../../../services/adminService.js';
 import { fetchManagerEmployees } from '../../../services/managerService.js';
 import { getAvatarSrc, handleAvatarError } from '../../../assets/defaultAvatar.js';
+import { Bar, Pie } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Tooltip as ChartTooltip,
+  Legend as ChartLegend,
+} from 'chart.js';
 import styles from './EmployeeManager.module.css';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  ChartTooltip,
+  ChartLegend
+);
 
 const ITEMS_PER_PAGE = 10;
 
@@ -66,6 +85,14 @@ const getEmployeeRoleNames = (employee) => {
   return Array.from(new Set(roleList.length > 0 ? roleList : fallbackRoles));
 };
 
+const chunkArray = (arr, size) => {
+  const result = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+};
+
 const ROLE_SORT_ORDER = [
   'Quản trị viên',
   'Quản lý viên',
@@ -82,6 +109,36 @@ const ROLE_SORT_ORDER = [
   'ACCOUNTANT',
   'WAREHOUSE',
   'STOREKEEPER',
+];
+
+const PIE_COLORS = [
+  'rgba(30, 144, 255, 0.75)',   // Xanh dương (Dodger Blue)
+  'rgba(16, 185, 129, 0.75)',   // Xanh lá (Emerald)
+  'rgba(245, 158, 11, 0.75)',   // Vàng cam (Amber)
+  'rgba(139, 92, 246, 0.75)',   // Tím (Violet)
+  'rgba(236, 72, 153, 0.75)',   // Hồng (Pink)
+  'rgba(14, 165, 233, 0.75)',   // Xanh da trời (Sky Blue)
+  'rgba(20, 184, 166, 0.75)',   // Xanh ngọc (Teal)
+  'rgba(239, 68, 68, 0.75)',    // Đỏ san hô (Coral Red)
+  'rgba(168, 85, 247, 0.75)',   // Tím nhạt (Purple)
+  'rgba(234, 179, 8, 0.75)',    // Vàng chanh (Yellow)
+  'rgba(99, 102, 241, 0.75)',   // Indigo
+  'rgba(244, 63, 94, 0.75)',    // Rose
+];
+
+const PIE_BORDER_COLORS = [
+  'rgba(30, 144, 255, 1)',
+  'rgba(16, 185, 129, 1)',
+  'rgba(245, 158, 11, 1)',
+  'rgba(139, 92, 246, 1)',
+  'rgba(236, 72, 153, 1)',
+  'rgba(14, 165, 233, 1)',
+  'rgba(20, 184, 166, 1)',
+  'rgba(239, 68, 68, 1)',
+  'rgba(168, 85, 247, 1)',
+  'rgba(234, 179, 8, 1)',
+  'rgba(99, 102, 241, 1)',
+  'rgba(244, 63, 94, 1)',
 ];
 
 const compareRoleNames = (a, b) => {
@@ -173,7 +230,7 @@ export default function EmployeeManager() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return employees.filter((employee) => {
-      const roleOk = roleFilter === 'ALL' || getEmployeeRoleNames(employee).includes(roleFilter);
+      const roleOk = !roleFilter || roleFilter === 'ALL' || getEmployeeRoleNames(employee).includes(roleFilter);
       if (!roleOk) return false;
       if (!q) return true;
 
@@ -192,10 +249,146 @@ export default function EmployeeManager() {
     });
     const roleStats = Array.from(roleCounts.entries())
       .map(([label, count]) => ({ label, count }))
-      .sort((a, b) => compareRoleNames(a.label, b.label));
+      .sort((a, b) => {
+        if (b.count !== a.count) {
+          return b.count - a.count;
+        }
+        return compareRoleNames(a.label, b.label);
+      });
 
-    return { total, roleStats };
+    const maxCount = roleStats.length > 0 ? Math.max(...roleStats.map((r) => r.count)) : 1;
+
+    return { total, roleStats, maxCount };
   }, [employees]);
+
+  const chartData = useMemo(() => {
+    return {
+      labels: stats.roleStats.map((r) => r.label),
+      datasets: [
+        {
+          label: 'Số lượng nhân viên',
+          data: stats.roleStats.map((r) => r.count),
+          backgroundColor: 'rgba(16, 185, 129, 0.8)',
+          borderColor: 'rgb(16, 185, 129)',
+          borderWidth: 1.5,
+          borderRadius: 6,
+          hoverBackgroundColor: 'rgba(16, 185, 129, 0.95)',
+        },
+      ],
+    };
+  }, [stats.roleStats]);
+
+  const chartOptions = useMemo(() => {
+    return {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          padding: 10,
+          backgroundColor: 'rgba(17, 24, 39, 0.9)',
+          titleFont: {
+            family: 'Inter, sans-serif',
+            size: 13,
+            weight: 'bold',
+          },
+          bodyFont: {
+            family: 'Inter, sans-serif',
+            size: 13,
+          },
+          callbacks: {
+            label: (context) => ` ${context.raw} nhân viên`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1,
+            precision: 0,
+            font: {
+              family: 'Inter, sans-serif',
+              size: 12,
+            },
+          },
+          grid: {
+            color: '#f3f4f6',
+          },
+        },
+        y: {
+          grid: {
+            display: false,
+          },
+          ticks: {
+            font: {
+              family: 'Inter, sans-serif',
+              size: 12.5,
+              weight: '600',
+            },
+            color: '#374151',
+          },
+        },
+      },
+    };
+  }, []);
+
+  const pieData = useMemo(() => {
+    return {
+      labels: stats.roleStats.map((r) => r.label),
+      datasets: [
+        {
+          label: 'Tỷ lệ vai trò',
+          data: stats.roleStats.map((r) => r.count),
+          backgroundColor: PIE_COLORS.slice(0, stats.roleStats.length),
+          borderColor: PIE_BORDER_COLORS.slice(0, stats.roleStats.length),
+          borderWidth: 1.5,
+        },
+      ],
+    };
+  }, [stats.roleStats]);
+
+  const pieOptions = useMemo(() => {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            boxWidth: 10,
+            font: {
+              family: 'Inter, sans-serif',
+              size: 11,
+              weight: '500',
+            },
+            color: '#374151',
+            padding: 8,
+          },
+        },
+        tooltip: {
+          padding: 10,
+          backgroundColor: 'rgba(17, 24, 39, 0.9)',
+          titleFont: {
+            family: 'Inter, sans-serif',
+            size: 13,
+            weight: 'bold',
+          },
+          bodyFont: {
+            family: 'Inter, sans-serif',
+            size: 13,
+          },
+          callbacks: {
+            label: (context) => ` ${context.label}: ${context.raw} nhân viên`,
+          },
+        },
+      },
+    };
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const safePage = Math.min(page, totalPages);
@@ -214,17 +407,43 @@ export default function EmployeeManager() {
         </button>
       </div>
 
-      <div className={styles.statsGrid}>
-        <div className={`${styles.statCard} ${styles.statTotal}`}>
-          <p className={styles.statLabel}>Tổng nhân viên</p>
-          <p className={styles.statValue}>{stats.total}</p>
-        </div>
-        {stats.roleStats.map((role) => (
-          <div key={role.label} className={`${styles.statCard} ${styles.statRole}`}>
-            <p className={styles.statLabel}>{role.label}</p>
-            <p className={styles.statValue}>{role.count}</p>
+      <div className={styles.statsContainer}>
+        <div className={styles.totalStaffCard}>
+          <div className={styles.totalStaffIcon} aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
           </div>
-        ))}
+          <div className={styles.totalStaffInfo}>
+            <p className={styles.totalStaffValue}>{stats.total}</p>
+            <p className={styles.totalStaffLabel}>Tổng nhân sự thực tế</p>
+          </div>
+        </div>
+
+        <div className={styles.chartCard}>
+          <h2 className={styles.chartTitle}>Phân bố vai trò (Cột ngang)</h2>
+          <div className={styles.chartContainer}>
+            {stats.roleStats.length > 0 ? (
+              <Bar options={chartOptions} data={chartData} />
+            ) : (
+              <p className={styles.noChartData}>Chưa có dữ liệu thống kê vai trò.</p>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.chartCard}>
+          <h2 className={styles.chartTitle}>Tỷ lệ vai trò nhân viên (Tròn)</h2>
+          <div className={styles.chartContainer}>
+            {stats.roleStats.length > 0 ? (
+              <Pie options={pieOptions} data={pieData} />
+            ) : (
+              <p className={styles.noChartData}>Chưa có dữ liệu thống kê vai trò.</p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className={styles.toolbar}>
@@ -237,6 +456,7 @@ export default function EmployeeManager() {
           />
         </div>
         <select
+          key={roles.length}
           className={styles.filterSelect}
           value={roleFilter}
           onChange={(event) => setRoleFilter(event.target.value)}
@@ -307,7 +527,21 @@ export default function EmployeeManager() {
                     </td>
                     <td>{employee.phone || '-'}</td>
                     <td>
-                      <span className={styles.roleBadge}>{employee.roleDisplay || '-'}</span>
+                      <div className={styles.roleBadgesContainer}>
+                        {getEmployeeRoleNames(employee).length > 0 ? (
+                          chunkArray(getEmployeeRoleNames(employee), 3).map((chunk, chunkIdx) => (
+                            <div key={chunkIdx} className={styles.roleRow}>
+                              {chunk.map((role) => (
+                                <span key={role} className={styles.roleBadge}>
+                                  {role}
+                                </span>
+                              ))}
+                            </div>
+                          ))
+                        ) : (
+                          '-'
+                        )}
+                      </div>
                     </td>
                     <td>{employee.gender || '-'}</td>
                     <td>{employee.dob || '-'}</td>

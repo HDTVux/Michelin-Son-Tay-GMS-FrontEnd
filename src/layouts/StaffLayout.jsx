@@ -363,8 +363,8 @@ const StaffLayout = () => {
   return (
     <div className="staffLayout">
       <SideBar />
+      {hasStaffToken && <StaffNotificationBell {...notificationState} />}
       <main className="staffLayout__content">
-        {hasStaffToken && <StaffNotificationBell {...notificationState} />}
         <Outlet />
       </main>
     </div>

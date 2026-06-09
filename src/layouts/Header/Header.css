@@ -121,6 +121,7 @@
 
 /* If you want a compact variant (small screens) */
 @media (max-width: 1024px) {
+
   .headerLogo img,
   .headerLogo #Logo {
     height: 32px;
@@ -128,6 +129,7 @@
 }
 
 @media (max-width: 480px) {
+
   .headerLogo img,
   .headerLogo #Logo {
     height: 28px;
@@ -336,7 +338,7 @@
   text-decoration: none;
   padding: 9px 18px;
   border-radius: 10px;
-  background: #FCE500 ;
+  background: #FCE500;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-weight: 600;
   font-size: 14px;
@@ -457,13 +459,13 @@
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
-  
+
   .headerNav a:hover {
     background: rgba(0, 90, 169, 0.2);
     border-color: rgba(0, 90, 169, 0.4);
     transform: translateX(4px);
   }
-  
+
   .headerNav a.active {
     background: rgba(0, 90, 169, 0.3);
     border-color: rgba(0, 90, 169, 0.5);
@@ -501,7 +503,7 @@
     padding: 10px 16px;
   }
 
-  .btnNavLogin{
+  .btnNavLogin {
     flex: 1;
     min-width: 120px;
     text-align: center;
@@ -549,7 +551,7 @@
     padding: 12px 4%;
   }
 
-  .btnNavLogin{
+  .btnNavLogin {
     font-size: 13px;
     padding: 8px 12px;
   }

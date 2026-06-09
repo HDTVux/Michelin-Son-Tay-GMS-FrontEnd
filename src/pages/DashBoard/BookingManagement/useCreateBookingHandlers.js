@@ -124,6 +124,7 @@ export function useCreateBookingHandlers({
 	setIsEstimateEditing,
 	setEstimateTableKey,
 	setCancellingEstimate,
+	setStepIndex,
 }) {
 	const submitInFlightRef = useRef(false);	// Ref chống spam click submit
 
@@ -157,31 +158,69 @@ export function useCreateBookingHandlers({
 		};
 	}, [estimateStorageKey]);
 
-	// Kiểm tra số điện thoại khách hàng xem đã có trong DB chưa
-	const handleCheckCustomer = useCallback(async () => {
-		setCheckingCustomer(true);
-		setCustomerCheckError('');
-		setCustomerChecked(null);
+	// Tự động kiểm tra số điện thoại khách hàng khi nhập (debounce 500ms)
+	useEffect(() => {
 		const phone = String(info?.phone ?? '').trim();
+
+		// Nếu trống, reset trạng thái
 		if (!phone) {
-			setCustomerCheckError('Vui lòng nhập số điện thoại.');
-			setCheckingCustomer(false);
+			setCustomerChecked(null);
+			setCustomerCheckError('');
 			return;
 		}
-		try {
-			const token = localStorage.getItem('authToken');
-			const res = await fetchCustomerByPhone(phone, token);
-			if (res?.data?.exists) {
-				setInfo((prev) => ({ ...prev, name: res.data.fullName || '' }));
-				setCustomerChecked(res.data);
-			} else {
-				setCustomerChecked({ exists: false });
-			}
-		} catch (err) {
-			setCustomerCheckError(err?.message || 'Không thể kiểm tra khách hàng.');
-		} finally {
-			setCheckingCustomer(false);
+
+		// Kiểm tra ký tự không phải số
+		if (!/^\d+$/.test(phone)) {
+			setCustomerChecked(null);
+			setCustomerCheckError('Số điện thoại chỉ được chứa các chữ số.');
+			return;
 		}
+
+		// Khi đang nhập dở, tạm thời ẩn lỗi/trạng thái cũ để tránh phiền cho người dùng
+		setCustomerCheckError('');
+		setCustomerChecked(null);
+
+		let active = true;
+
+		const timer = setTimeout(async () => {
+			// Kiểm tra định dạng số điện thoại Việt Nam (10 chữ số, bắt đầu bằng 03, 05, 07, 08, 09)
+			const isValidVNPhone = /^(03|05|07|08|09)\d{8}$/.test(phone);
+			if (!isValidVNPhone) {
+				if (active) {
+					setCustomerCheckError('Số điện thoại không hợp lệ (phải gồm 10 số và bắt đầu bằng 03, 05, 07, 08, hoặc 09).');
+				}
+				return;
+			}
+
+			setCheckingCustomer(true);
+			try {
+				const token = localStorage.getItem('authToken');
+				if (!token) {
+					if (active) setCustomerCheckError('Vui lòng đăng nhập để kiểm tra.');
+					return;
+				}
+				const res = await fetchCustomerByPhone(phone, token);
+				if (!active) return;
+				if (res?.data?.exists) {
+					setInfo((prev) => ({ ...prev, name: res.data.fullName || '' }));
+					setCustomerChecked(res.data);
+				} else {
+					setCustomerChecked({ exists: false });
+				}
+			} catch (err) {
+				if (!active) return;
+				setCustomerCheckError(err?.message || 'Không thể kiểm tra khách hàng.');
+			} finally {
+				if (active) {
+					setCheckingCustomer(false);
+				}
+			}
+		}, 500);
+
+		return () => {
+			active = false;
+			clearTimeout(timer);
+		};
 	}, [info?.phone, setCheckingCustomer, setCustomerCheckError, setCustomerChecked, setInfo]);
 
 	// Handler khi chọn "Đặt ngay" 
@@ -326,7 +365,7 @@ export function useCreateBookingHandlers({
 			if (token && bookingCode) {
 				try {
 					await sendEstimateNotificationZalo(zaloPayload, token);
-					toast('Đã gửi thông báo cho khách hàng qua Zalo.', { containerId: 'app-toast' });
+					// toast('Đã gửi thông báo cho khách hàng qua Zalo.', { containerId: 'app-toast' });
 				} catch (zaloErr) {
 					// Log lỗi nhưng không block luồng tạo booking
 					console.warn('Gửi thông báo Zalo thất bại:', zaloErr?.message);
@@ -391,6 +430,7 @@ export function useCreateBookingHandlers({
 		setSubmitSuccess('');
 		setCreatedBookingForCheckIn(null);
 		setSubmitLocked(false);
+		if (setStepIndex) setStepIndex(0);
 	}, [
 		setAvailableSlots,
 		setCreatedBookingForCheckIn,
@@ -405,6 +445,7 @@ export function useCreateBookingHandlers({
 		setSubmitSuccess,
 		setSubmitLocked,
 		setSubmitting,
+		setStepIndex,
 	]);
 
 	// Hàm hủy báo giá dự kiến
@@ -471,7 +512,6 @@ export function useCreateBookingHandlers({
 	}, [cancelEstimateDraft, hasActiveEstimateDraft]);
 
 	return {
-		handleCheckCustomer,
 		handleUseNow,
 		handleShowManualSchedule,
 		handlePickSlot,

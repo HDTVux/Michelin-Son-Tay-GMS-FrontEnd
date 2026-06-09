@@ -1,4 +1,4 @@
-import defaultAvatar from './Copy of Logo.png';
+import defaultAvatar from './Copy of Logo.webp';
 
 export const DEFAULT_AVATAR = defaultAvatar;
 

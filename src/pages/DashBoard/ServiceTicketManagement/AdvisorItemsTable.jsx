@@ -262,6 +262,7 @@ function EstimateItemRow({
     showTaxColumn,
     showDiscountColumn,
     showWarehouseActionColumn,
+    showReturnAfterPaymentColumn,
     warehouseActionBusyKey,
     onCancelAllocation,
     onOpenReturnModal,
@@ -271,6 +272,7 @@ function EstimateItemRow({
     const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
 
     const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+    const [isMobileExpanded, setIsMobileExpanded] = useState(false);
     const categoryInputRef = useRef(null);
 
     const filteredCategorySuggestions = useMemo(() => {
@@ -323,9 +325,46 @@ function EstimateItemRow({
     }
 
     return (
-        <tr key={`advisor-row-${stt}-${row.key}`} className={isGift ? styles.giftRow : undefined}>
-            <td>{stt}</td>
-            <td>
+        <tr
+            key={`advisor-row-${stt}-${row.key}`}
+            className={`${isGift ? styles.giftRow : ''} ${isMobileExpanded ? styles.isMobileExpanded : ''}`.trim() || undefined}
+        >
+            <td data-label="STT">
+                <span>{stt}</span>
+                <div className={styles.mobileRowActions}>
+                    <button
+                        type="button"
+                        className={styles.mobileExpandToggle}
+                        onClick={() => setIsMobileExpanded(!isMobileExpanded)}
+                    >
+                        {isMobileExpanded ? 'Thu gọn ▲' : 'Xem chi tiết ▼'}
+                    </button>
+                    {allowInputs ? (
+                        isEditing && estimateItemId ? (
+                            <button
+                                type="button"
+                                className={`ui-btn ui-btn--ghost ${styles.mobileDeleteBtn}`}
+                                onClick={() => softDeleteEditRow(idx)}
+                                disabled={isSaving || !estimateItemId || isDraftRowEmpty(row) || isLocked}
+                                title="Xóa dòng này"
+                            >
+                                Xóa
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                className={`ui-btn ui-btn--ghost ${styles.mobileDeleteBtn}`}
+                                onClick={() => onClearRow?.(idx)}
+                                disabled={isSaving}
+                                title="Xóa các ô đã nhập của dòng này"
+                            >
+                                Xóa
+                            </button>
+                        )
+                    ) : null}
+                </div>
+            </td>
+            <td data-label="Hạng mục">
                 {allowInputs ? (
                     <>
                         <input
@@ -354,7 +393,7 @@ function EstimateItemRow({
                     row.categoryName || row.newCategoryName || ''
                 )}
             </td>
-            <td>
+            <td data-label="Diễn giải">
                 {allowInputs ? (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <input
@@ -385,7 +424,7 @@ function EstimateItemRow({
                     </div>
                 )}
             </td>
-            <td className={styles.tdNumber}>
+            <td data-label="Số lượng" className={styles.tdNumber}>
                 {allowInputs ? (
                     <div className={styles.qtyWithUnit}>
                         <input
@@ -416,7 +455,7 @@ function EstimateItemRow({
                     </div>
                 )}
             </td>
-            <td className={styles.tdNumber}>
+            <td data-label="Đơn giá" className={styles.tdNumber}>
                 {allowInputs ? (
                     <input
                         className={`${styles.tableInput} ${styles.tableInputNumber}`}
@@ -441,7 +480,7 @@ function EstimateItemRow({
                 )}
             </td>
             {showTaxColumn ? (
-                <td>
+                <td data-label="Thuế">
                     {showInputs ? (
                         shouldShowTaxDropdown ? (
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -471,13 +510,13 @@ function EstimateItemRow({
                 </td>
             ) : null}
             {showDiscountColumn ? (
-                <td className={styles.tdNumber}>
+                <td data-label="Giảm giá" className={styles.tdNumber}>
                     {Number.isFinite(discountAmountValue) && discountAmountValue > 0
                         ? formatCurrencyVnd(discountAmountValue)
                         : '-'}
                 </td>
             ) : null}
-            <td className={styles.tdNumber}>
+            <td data-label="Thành tiền" className={styles.tdNumber}>
                 {isGift ? (
                     <span className={styles.giftAmount}>0đ</span>
                 ) : (
@@ -492,12 +531,12 @@ function EstimateItemRow({
                 )}
             </td>
 
-            <td>{warehouseText || '-'}</td>
-            {!showInputs ? <td><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
-            {!showInputs && showWarehouseActionColumn ? (
-                <td className={styles.tdCenter}>
+            <td data-label="Kho">{warehouseText || '-'}</td>
+            {!showInputs ? <td data-label="Xuất kho"><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
+            {!showInputs && (showWarehouseActionColumn || showReturnAfterPaymentColumn) ? (
+                <td data-label="Thao tác" className={styles.tdCenter}>
                     <div className={styles.warehouseItemActions}>
-                        {stockStatus === 'RESERVED' ? (
+                        {showWarehouseActionColumn && stockStatus === 'RESERVED' ? (
                             <button
                                 type="button"
                                 className="ui-btn ui-btn--ghost"
@@ -533,7 +572,7 @@ function EstimateItemRow({
                                         onClick={() => onOpenReturnModal?.(row)}
                                         disabled={isSaving || isWarehouseActionBusy}
                                     >
-                                        Hoàn trả
+                                        {showReturnAfterPaymentColumn ? 'Hoàn hàng' : 'Hoàn trả'}
                                     </button>
                                 );
                             })()
@@ -542,7 +581,7 @@ function EstimateItemRow({
                 </td>
             ) : null}
             {showInputs ? (
-                <td className={styles.tdCenter}>
+                <td data-label="Thao tác" className={styles.tdCenter}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                         {allowInputs ? (
                             isEditing && estimateItemId ? (
@@ -591,6 +630,7 @@ EstimateItemRow.propTypes = {
     showTaxColumn: PropTypes.bool,
     showDiscountColumn: PropTypes.bool,
     showWarehouseActionColumn: PropTypes.bool,
+    showReturnAfterPaymentColumn: PropTypes.bool,
     warehouseActionBusyKey: PropTypes.string,
     onCancelAllocation: PropTypes.func,
     onOpenReturnModal: PropTypes.func,
@@ -924,12 +964,22 @@ export default function AdvisorItemsTable({
         Array.isArray(tableRows) &&
         tableRows.some((row) => ['RESERVED', 'COMMITTED'].includes(getRowStockStatus(row)));
 
+    // Cho phép hiện cột hoàn hàng ngay cả sau khi thanh toán, miễn là còn hàng đã xuất (COMMITTED)
+    const showReturnAfterPaymentColumn =
+        !showInputs &&
+        !showWarehouseActionColumn &&
+        isTicketPaid &&
+        !isTicketCompleted &&
+        !isTicketCancelled &&
+        Array.isArray(tableRows) &&
+        tableRows.some((row) => getRowStockStatus(row) === 'COMMITTED');
+
     const footerSpacerColSpan =
         (showTaxColumn ? 1 : 0) +
         1 +
         (!showInputs ? 1 : 0) +
         (showInputs ? 1 : 0) +
-        (showWarehouseActionColumn ? 1 : 0);
+        (showWarehouseActionColumn || showReturnAfterPaymentColumn ? 1 : 0);
 
     const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
@@ -1287,7 +1337,11 @@ export default function AdvisorItemsTable({
                                     {conditionPhotos.map((p, idx) => {
                                         const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
                                         const label = String(p?.label || p?.category || '').trim();
-                                        const caption = label || (p?.description ? String(p.description) : `Ảnh ${idx + 1}`);
+                                        const description = String(p?.description || '').trim();
+                                        const fallbackLabel = label || `Ảnh ${idx + 1}`;
+                                        const caption = description
+                                            ? (label ? `${label}: ${description}` : description)
+                                            : fallbackLabel;
                                         return (
                                             <figure key={key} className={styles.vehiclePhotoCard}>
                                                 <button
@@ -1304,7 +1358,12 @@ export default function AdvisorItemsTable({
                                                         referrerPolicy="no-referrer"
                                                     />
                                                 </button>
-                                                <figcaption className={styles.vehiclePhotoCaption}>{caption}</figcaption>
+                                                <figcaption className={styles.vehiclePhotoCaption}>
+                                                    <span className={styles.vehiclePhotoLabel}>{fallbackLabel}</span>
+                                                    {description ? (
+                                                        <span className={styles.vehiclePhotoDescription}>{description}</span>
+                                                    ) : null}
+                                                </figcaption>
                                             </figure>
                                         );
                                     })}
@@ -1380,7 +1439,7 @@ export default function AdvisorItemsTable({
                             <th scope="col">THÀNH TIỀN</th>
                             <th scope="col">KHO</th>
                             {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
-                            {showWarehouseActionColumn ? <th scope="col">THAO TÁC</th> : null}
+                            {showWarehouseActionColumn || showReturnAfterPaymentColumn ? <th scope="col">THAO TÁC</th> : null}
                             {showInputs ? <th scope="col">THAO TÁC</th> : null}
                         </tr>
                     </thead>
@@ -1404,6 +1463,7 @@ export default function AdvisorItemsTable({
                                 softDeleteEditRow={softDeleteEditRow}
                                 openCatalogPicker={openCatalogPicker}
                                 showWarehouseActionColumn={showWarehouseActionColumn}
+                                showReturnAfterPaymentColumn={showReturnAfterPaymentColumn}
                                 warehouseActionBusyKey={warehouseActionBusyKey}
                                 onCancelAllocation={handleCancelWarehouseAllocation}
                                 onOpenReturnModal={setReturnModalItem}

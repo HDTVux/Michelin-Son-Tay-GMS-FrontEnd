@@ -248,7 +248,9 @@
 }
 
 .plate {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 3px 10px;
   border-radius: 6px;
   color: #1d4ed8;

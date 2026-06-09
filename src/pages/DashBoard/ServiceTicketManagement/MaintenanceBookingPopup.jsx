@@ -150,11 +150,11 @@ export default function MaintenanceBookingPopup({
                 e.preventDefault();
                 onClose?.();
             }}
-            aria-label="Đặt lịch bảo dưỡng"
+            aria-label="Hẹn lịch bảo dưỡng"
         >
             <div className={styles.maintenanceModalContent}>
                 <div className={styles.maintenanceModalHeader}>
-                    <div className={styles.maintenanceModalTitle}>Đặt lịch bảo dưỡng</div>
+                    <div className={styles.maintenanceModalTitle}>Hẹn lịch bảo dưỡng</div>
                     <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose}>
                         Đóng
                     </button>

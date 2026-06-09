@@ -343,8 +343,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         return ['INSPECTED', 'ESTIMATED', 'PENDING', 'REPAIRING', 'COMPLETED', 'PAID'].includes(ticketStatus);
     }, [isSafetyInspectionEnabled, safetyInspectionStatus, ticketStatus]);
 
-    // Ẩn báo giá nếu xe chưa được kiểm tra an toàn
-    const shouldHideEstimateUntilInspectionDone = !hasCompletedInspectionStep;
+    // Ẩn báo giá nếu xe chưa được kiểm tra an toàn (Bỏ chặn hiển thị báo giá)
+    const shouldHideEstimateUntilInspectionDone = false;
     
     // Kiểm tra xem phiếu dịch vụ đã bị hủy hay chưa, dựa trên trạng thái của phiếu dịch vụ
     const isTicketCancelled = ticketStatus === 'CANCELLED';
@@ -2453,109 +2453,124 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 </div>
                             </div>
 
-                            <section className={styles.block}>
-                                <h2 className={styles.blockTitle}>Ảnh biển số xe</h2>
-                                {licensePlatePhotos.length > 0 ? (
-                                    <div className={styles.vehiclePhotoGrid}>
-                                        {licensePlatePhotos.map((p, idx) => {
-                                            const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
-                                            const label = String(p?.label || p?.category || '').trim();
-                                            const caption = label || (p?.description ? String(p.description) : `Ảnh ${idx + 1}`);
-                                            return (
-                                                <figure key={key} className={styles.vehiclePhotoCard}>
-                                                    <img
-                                                        className={styles.vehiclePhotoImg}
-                                                        src={p.url}
-                                                        alt={caption}
-                                                        loading="lazy"
-                                                        referrerPolicy="no-referrer"
-                                                    />
-                                                    <figcaption className={styles.vehiclePhotoCaption}>{caption}</figcaption>
-                                                </figure>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className={styles.noteBox}>{isLoading ? 'Đang tải...' : '-'}</div>
-                                )}
-                            </section>
-
-                            <section className={styles.block}>
-                                <h2 className={styles.blockTitle}>Hạng mục đã chọn</h2>
-                                <div className={styles.selectedItemGroups}>
-                                    <div>
-                                        <h3 className={styles.selectedItemTitle}>Dịch vụ đã chọn</h3>
-                                        <div className={styles.servicesList}>
-                                            {selectedServiceItems.map((s, idx) => {
-                                                const price = s?.priceVnd ?? s?.price;
+                            {(licensePlatePhotos.length > 0 || isLoading) && (
+                                <section className={styles.block}>
+                                    <h2 className={styles.blockTitle}>Ảnh biển số xe</h2>
+                                    {licensePlatePhotos.length > 0 ? (
+                                        <div className={styles.vehiclePhotoGrid}>
+                                            {licensePlatePhotos.map((p, idx) => {
+                                                const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
+                                                const label = String(p?.label || p?.category || '').trim();
+                                                const description = String(p?.description || '').trim();
+                                                const fallbackLabel = label || `Ảnh ${idx + 1}`;
+                                                const caption = description
+                                                    ? (label ? `${label}: ${description}` : description)
+                                                    : fallbackLabel;
                                                 return (
-                                                    <div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
-                                                        <span className={styles.serviceName}>{getTicketItemName(s) || s?.label || '-'}</span>
-                                                        <span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
-                                                    </div>
+                                                    <figure key={key} className={styles.vehiclePhotoCard}>
+                                                        <img
+                                                            className={styles.vehiclePhotoImg}
+                                                            src={p.url}
+                                                            alt={caption}
+                                                            loading="lazy"
+                                                            referrerPolicy="no-referrer"
+                                                        />
+                                                        <figcaption className={styles.vehiclePhotoCaption}>
+                                                            <span className={styles.vehiclePhotoLabel}>{fallbackLabel}</span>
+                                                            {description ? (
+                                                                <span className={styles.vehiclePhotoDescription}>{description}</span>
+                                                            ) : null}
+                                                        </figcaption>
+                                                    </figure>
                                                 );
                                             })}
-                                            {selectedServiceItems.length === 0 && <div className={styles.noteBox}>-</div>}
+                                        </div>
+                                    ) : (
+                                        <div className={styles.noteBox}>Đang tải...</div>
+                                    )}
+                                </section>
+                            )}
+
+                            {(selectedServiceItems.length > 0 || selectedPartItems.length > 0 || isLoading) && (
+                                <section className={styles.block}>
+                                    <h2 className={styles.blockTitle}>Hạng mục đã chọn</h2>
+                                    <div className={styles.selectedItemGroups}>
+                                        <div>
+                                            <h3 className={styles.selectedItemTitle}>Dịch vụ đã chọn</h3>
+                                            <div className={styles.servicesList}>
+                                                {selectedServiceItems.map((s, idx) => {
+                                                    const price = s?.priceVnd ?? s?.price;
+                                                    return (
+                                                        <div key={`${s?.id ?? s?.name ?? 'service'}-${idx}`} className={styles.serviceRow}>
+                                                            <span className={styles.serviceName}>{getTicketItemName(s) || s?.label || '-'}</span>
+                                                            <span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {selectedServiceItems.length === 0 && <div className={styles.noteBox}>-</div>}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 className={styles.selectedItemTitle}>Phụ tùng đã chọn</h3>
+                                            <div className={styles.servicesList}>
+                                                {selectedPartItems.map((s, idx) => {
+                                                    const price = s?.priceVnd ?? s?.price;
+                                                    return (
+                                                        <div key={`${s?.id ?? s?.name ?? 'part'}-${idx}`} className={styles.serviceRow}>
+                                                            <span className={styles.serviceName}>{getTicketItemName(s) || s?.label || '-'}</span>
+                                                            <span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {selectedPartItems.length === 0 && <div className={styles.noteBox}>-</div>}
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <h3 className={styles.selectedItemTitle}>Phụ tùng đã chọn</h3>
-                                        <div className={styles.servicesList}>
-                                            {selectedPartItems.map((s, idx) => {
-                                                const price = s?.priceVnd ?? s?.price;
-                                                return (
-                                                    <div key={`${s?.id ?? s?.name ?? 'part'}-${idx}`} className={styles.serviceRow}>
-                                                        <span className={styles.serviceName}>{getTicketItemName(s) || s?.label || '-'}</span>
-                                                        <span className={styles.servicePrice}>{price == null ? '-' : formatCurrencyVnd(price)}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                            {selectedPartItems.length === 0 && <div className={styles.noteBox}>-</div>}
+                                    {ticket.externalDependency && (
+                                        <div className={styles.tagsRow}>
+                                            <span className={styles.tag}>External Dependency</span>
                                         </div>
-                                    </div>
-                                </div>
+                                    )}
+                                </section>
+                            )}
 
-                                {ticket.externalDependency && (
-                                    <div className={styles.tagsRow}>
-                                        <span className={styles.tag}>External Dependency</span>
-                                    </div>
-                                )}
-                            </section>
-
-                            <section className={styles.block}>
-                                <h2 className={styles.blockTitle}>Yêu cầu khách hàng</h2>
-                                {isEditing ? (
-                                    <>
-                                        <div className="ui-field" style={{ marginBottom: 0 }}>
-                                            <label htmlFor="service-ticket-customer-request">Nội dung yêu cầu</label>
-                                            <textarea
-                                                id="service-ticket-customer-request"
-                                                value={editForm.customerRequest}
-                                                onChange={(e) => setCustomerRequest(e.target.value)}
-                                                maxLength={255}
-                                                disabled={isSaving}
-                                            />
-                                            {fieldErrors?.customerRequest ? (
-                                                <div className={styles.fieldError}>{fieldErrors.customerRequest}</div>
-                                            ) : null}
+                            {(isEditing || isLoading || (ticket.requestNote && String(ticket.requestNote).trim() !== '')) && (
+                                <section className={styles.block}>
+                                    <h2 className={styles.blockTitle}>Yêu cầu khách hàng</h2>
+                                    {isEditing ? (
+                                        <>
+                                            <div className="ui-field" style={{ marginBottom: 0 }}>
+                                                <label htmlFor="service-ticket-customer-request">Nội dung yêu cầu</label>
+                                                <textarea
+                                                    id="service-ticket-customer-request"
+                                                    value={editForm.customerRequest}
+                                                    onChange={(e) => setCustomerRequest(e.target.value)}
+                                                    maxLength={255}
+                                                    disabled={isSaving}
+                                                />
+                                                {fieldErrors?.customerRequest ? (
+                                                    <div className={styles.fieldError}>{fieldErrors.customerRequest}</div>
+                                                ) : null}
 										<div className={styles.fieldHint}>
 											Còn lại {Math.max(0, 255 - String(editForm.customerRequest || '').length)} ký tự
 										</div>
-                                        </div>
-                                        <div className="ui-actions ui-actions--end">
-                                            <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
-                                                Hủy
-                                            </button>
-                                            <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
-                                                {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
-                                            </button>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className={styles.noteBox}>{ticket.requestNote || (isLoading ? 'Đang tải...' : '-')}</div>
-                                )}
-                            </section>
+                                            </div>
+                                            <div className="ui-actions ui-actions--end">
+                                                <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
+                                                    Hủy
+                                                </button>
+                                                <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
+                                                    {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                                                </button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className={styles.noteBox}>{ticket.requestNote || (isLoading ? 'Đang tải...' : '-')}</div>
+                                    )}
+                                </section>
+                            )}
 
                             {advisorReadOnlyWithoutTechnician ? (
                                 <section className={styles.block}>
@@ -2845,7 +2860,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                         onClick={handleOpenMaintenancePopup}
                                                         disabled={statusUpdating || receiptApproving}
                                                     >
-                                                        Đặt lịch bảo dưỡng
+                                                        Hẹn lịch bảo dưỡng
                                                     </button>
                                                 )}
                                                 {canRequestPayment && (
