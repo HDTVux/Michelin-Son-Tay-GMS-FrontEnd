@@ -317,6 +317,9 @@ export default function CheckIn() {
         photoDamageDescription: '',
     }));
 
+    // State for photo zoom preview modal
+    const [zoomedPhotoUrl, setZoomedPhotoUrl] = useState(null);
+
     // Ref dùng để theo dõi state photos mới nhất trong hàm cleanup (tránh rò rỉ bộ nhớ)
     const photosRef = useRef(photos);
 
@@ -683,23 +686,27 @@ export default function CheckIn() {
         withDescription,
         labelClassName,
         required,
+        className,
     }) => {
         const photo = photos?.[keyName];
         const hasPhoto = Boolean(photo?.url);
 
         return (
-            <div className={styles.photoItem}>
+            <div className={`${styles.photoItem} ${className || ''}`.trim()}>
                 <div className={`${styles.photoLabel} ${labelClassName || ''}`.trim()}>
                     {label}
                     {required ? <span className={styles.required}>*</span> : null}
                 </div>
                 {hasPhoto && (
-                    <div className={styles.imageSlot}>
+                    <div className={styles.imageSlot} onClick={() => setZoomedPhotoUrl(photo.url)} style={{ cursor: 'zoom-in' }}>
                         <img className={styles.previewImg} src={photo.url} alt={label} />
                         <button
                             type="button"
                             className={styles.removeBtn}
-                            onClick={() => handleRemovePhoto(keyName)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemovePhoto(keyName);
+                            }}
                             aria-label="Xóa ảnh"
                         >
                             ×
@@ -862,6 +869,7 @@ export default function CheckIn() {
                             labelClassName: styles.photoLabelFieldLike,
                             withDescription: false,
                             required: false,
+                            className: styles.licensePlatePhotoItem,
                         })}
                     </div>
                 </section>
@@ -1165,6 +1173,22 @@ export default function CheckIn() {
                                 )}
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Lightbox photo zoom modal */}
+            {zoomedPhotoUrl && (
+                <div className={styles.zoomModal} onClick={() => setZoomedPhotoUrl(null)}>
+                    <div className={styles.zoomModalContent} onClick={(e) => e.stopPropagation()}>
+                        <img src={zoomedPhotoUrl} alt="Zoomed view" className={styles.zoomImg} />
+                        <button 
+                            type="button" 
+                            className={styles.zoomCloseBtn} 
+                            onClick={() => setZoomedPhotoUrl(null)}
+                        >
+                            &times;
+                        </button>
                     </div>
                 </div>
             )}
