@@ -808,106 +808,145 @@ export default function CheckIn() {
                         <div className={styles.stepBadge}>1</div>
                         <h2 className={styles.stepTitle}>Chọn xe<span className={styles.required}>*</span></h2>
                     </div>
-                    <div className={styles.stepRow}>
-                        <div className="ui-field" style={{ marginBottom: 0 }}>
-                            <label htmlFor="vehicleSelect">Xe của khách</label>
-                            <select
-                                id="vehicleSelect"
-                                value={selectedVehicleId}
-                                onChange={(e) => setSelectedVehicleId(e.target.value)}
-                                disabled={isVehiclesLoading || !vehicles.length}
-                            >
-                                <option value="" disabled>
-                                    {isVehiclesLoading
-                                        ? 'Đang tải danh sách xe...'
-                                        : vehicles.length
-                                            ? 'Chọn xe'
-                                            : 'Khách hàng chưa có xe'}
-                                </option>
-                                {vehicles.map((v) => {
-                                    const modelText = [v?.make, v?.model, v?.year].filter(Boolean).join(' ');
-                                    const optionLabel = modelText ? `${v?.licensePlate} - ${modelText}` : String(v?.licensePlate || '');
-                                    return (
-                                        <option key={v.vehicleId} value={String(v.vehicleId)}>
-                                            {optionLabel}
+                    <div className={styles.twoColGrid}>
+                        {/* Cột trái: Lựa chọn xe */}
+                        <div>
+                            <div className={styles.stepRow}>
+                                <div className="ui-field" style={{ marginBottom: 0 }}>
+                                    <label htmlFor="vehicleSelect">Xe của khách</label>
+                                    <select
+                                        id="vehicleSelect"
+                                        value={selectedVehicleId}
+                                        onChange={(e) => setSelectedVehicleId(e.target.value)}
+                                        disabled={isVehiclesLoading || !vehicles.length}
+                                    >
+                                        <option value="" disabled>
+                                            {isVehiclesLoading
+                                                ? 'Đang tải danh sách xe...'
+                                                : vehicles.length
+                                                    ? 'Chọn xe'
+                                                    : 'Khách hàng chưa có xe'}
                                         </option>
-                                    );
-                                })}
-                            </select>
+                                        {vehicles.map((v) => {
+                                            const modelText = [v?.make, v?.model, v?.year].filter(Boolean).join(' ');
+                                            const optionLabel = modelText ? `${v?.licensePlate} - ${modelText}` : String(v?.licensePlate || '');
+                                            return (
+                                                <option key={v.vehicleId} value={String(v.vehicleId)}>
+                                                    {optionLabel}
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
+                                </div>
+
+                                <div className={styles.vehicleActions}>
+                                    <button
+                                        type="button"
+                                        className="ui-btn ui-btn--primary"
+                                        onClick={handleOpenVehicleModal}
+                                        disabled={isVehiclesLoading}
+                                    >
+                                        Thêm xe mới
+                                    </button>
+                                </div>
+                            </div>
+
+                            {!isVehiclesLoading && !isAddingNewVehicle && !vehicles.length && (
+                                <div className={styles.warningBox}>Khách hàng chưa có xe. Vui lòng thêm xe mới để tiếp nhận.</div>
+                            )}
+
+                            <div className={styles.hint}>
+                                {isLookupLoading
+                                    ? 'Đang tải thông tin booking...'
+                                    : isVehiclesLoading
+                                        ? 'Đang tải danh sách xe...'
+                                        : !isAddingNewVehicle && selectedVehicle
+                                            ? `Xe đã chọn: ${selectedVehicle.licensePlate || '-'}${selectedVehicle.lastServiceDate ? ` (lần bảo dưỡng gần nhất: ${selectedVehicle.lastServiceDate})` : ''}`
+                                            : 'Thông tin booking'}
+                            </div>
                         </div>
 
-                        <div className={styles.vehicleActions}>
-                            <button
-                                type="button"
-                                className="ui-btn ui-btn--primary"
-                                onClick={handleOpenVehicleModal}
-                                disabled={isVehiclesLoading}
-                            >
-                                Thêm xe mới
-                            </button>
+                        {/* Cột phải: Ảnh biển số */}
+                        <div className="ui-field" style={{ marginBottom: 0 }}>
+                            <label htmlFor="checkin-licensePlatePhoto">Ảnh biển số</label>
+                            <div className={styles.compactPhotoField}>
+                                {photos.licensePlatePhoto?.url ? (
+                                    <div className={styles.compactPhotoPreviewWrapper}>
+                                        <div 
+                                            className={styles.compactPhotoPreview} 
+                                            onClick={() => setZoomedPhotoUrl(photos.licensePlatePhoto.url)}
+                                            style={{ cursor: 'zoom-in' }}
+                                        >
+                                            <img src={photos.licensePlatePhoto.url} alt="Biển số" />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className={styles.compactRemoveBtn}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRemovePhoto('licensePlatePhoto');
+                                            }}
+                                            aria-label="Xóa ảnh"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ) : null}
+
+                                <input
+                                    id="checkin-licensePlatePhoto"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0] ?? null;
+                                        handlePhotoChange('licensePlatePhoto', file);
+                                        e.target.value = ''; // Reset
+                                    }}
+                                    style={{ display: 'none' }}
+                                />
+
+                                <button 
+                                    type="button" 
+                                    className="ui-btn ui-btn--ghost" 
+                                    onClick={() => handlePickPhoto('licensePlatePhoto')}
+                                    style={{ flex: 1, minHeight: '44px', padding: '8px 16px' }}
+                                >
+                                    {photos.licensePlatePhoto?.url ? 'Thay đổi' : 'Chọn ảnh'}
+                                </button>
+                            </div>
                         </div>
-                    </div>
-
-                    {!isVehiclesLoading && !isAddingNewVehicle && !vehicles.length && (
-                        <div className={styles.warningBox}>Khách hàng chưa có xe. Vui lòng thêm xe mới để tiếp nhận.</div>
-                    )}
-
-                    <div className={styles.hint}>
-                        {isLookupLoading
-                            ? 'Đang tải thông tin booking...'
-                            : isVehiclesLoading
-                                ? 'Đang tải danh sách xe...'
-                                : !isAddingNewVehicle && selectedVehicle
-                                    ? `Xe đã chọn: ${selectedVehicle.licensePlate || '-'}${selectedVehicle.lastServiceDate ? ` (lần bảo dưỡng gần nhất: ${selectedVehicle.lastServiceDate})` : ''}`
-                                    : 'Thông tin booking'}
-                    </div>
-
-                    <div style={{ marginTop: 12 }}>
-                        {renderPhotoPicker({
-                            keyName: 'licensePlatePhoto',
-                            label: 'Ảnh biển số',
-                            labelClassName: styles.photoLabelFieldLike,
-                            withDescription: false,
-                            required: false,
-                            className: styles.licensePlatePhotoItem,
-                        })}
                     </div>
                 </section>
 
-                {/* Step 2: Nhập số Km hiện tại và kiểm tra tính hợp lệ so với lần trước */}
+                {/* Step 2: Thông tin phiếu dịch vụ & Số Odometer */}
                 <section className={styles.stepCard}>
                     <div className={styles.stepHeader}>
                         <div className={styles.stepBadge}>2</div>
-                        <h2 className={styles.stepTitle}>Bước 2: Ghi số Odometer</h2>
+                        <h2 className={styles.stepTitle}>Bước 2: Thông tin phiếu dịch vụ &amp; Số Odometer<span className={styles.required}>*</span></h2>
                     </div>
-                    <div className="ui-field" style={{ marginBottom: 0 }}>
-                        <label htmlFor="odometer">Số km hiện tại</label>
-                        <input
-                            id="odometer"
-                            inputMode="numeric"
-                            value={odometerKm}
-                            onChange={(e) => setOdometerKm(String(e.target.value || '').replaceAll(/\D/g, ''))}
-                            placeholder="Số km hiện tại"
-                            autoComplete="off"
-                        />
-                    </div>
-                    {lastOdometerKm != null && (
-                        <div className={styles.hint}>Số km lần trước: {Number(lastOdometerKm).toLocaleString('vi-VN')}</div>
-                    )}
-                    {isOdometerLower && (
-                        <div className={styles.warningBox}>Số km thấp hơn lần trước, vui lòng xác nhận</div>
-                    )}
-                </section>
+                    <div className={styles.twoColGrid}>
+                        {/* Cột Odometer */}
+                        <div>
+                            <div className="ui-field" style={{ marginBottom: 0 }}>
+                                <label htmlFor="odometer">Số km hiện tại</label>
+                                <input
+                                    id="odometer"
+                                    inputMode="numeric"
+                                    value={odometerKm}
+                                    onChange={(e) => setOdometerKm(String(e.target.value || '').replaceAll(/\D/g, ''))}
+                                    placeholder="Số km hiện tại"
+                                    autoComplete="off"
+                                />
+                            </div>
+                            {lastOdometerKm != null && (
+                                <div className={styles.hint}>Số km lần trước: {Number(lastOdometerKm).toLocaleString('vi-VN')}</div>
+                            )}
+                            {isOdometerLower && (
+                                <div className={styles.warningBox} style={{ marginTop: 8 }}>Số km thấp hơn lần trước, vui lòng xác nhận</div>
+                            )}
+                        </div>
 
-                {/* Step 3: Thông tin bổ sung cho phiếu dịch vụ  */}
-                <section className={styles.stepCard}>
-                    <div className={styles.stepHeader}>
-                        <div className={styles.stepBadge}>3</div>
-                        <h2 className={styles.stepTitle}>Bước 3: Thông tin phiếu dịch vụ<span className={styles.required}>*</span></h2>
-                    </div>
-                    <div className={styles.ticketFormGrid}>
-
-
+                        {/* Cột Tư vấn viên */}
                         <div className="ui-field" style={{ marginBottom: 0 }}>
                             <label htmlFor="advisorSelect">Tư vấn viên<span className={styles.required}>*</span></label>
                             <select
@@ -927,11 +966,11 @@ export default function CheckIn() {
                     </div>
                 </section>
 
-                {/* Step 4: Chụp ảnh hiện trạng xe để làm bằng chứng lúc tiếp nhận */}
+                {/* Step 3: Chụp ảnh hiện trạng xe để làm bằng chứng lúc tiếp nhận */}
                 <section className={styles.stepCard}>
                     <div className={styles.stepHeader}>
-                        <div className={styles.stepBadge}>4</div>
-                        <h2 className={styles.stepTitle}>Bước 4: Chụp ảnh tình trạng xe</h2>
+                        <div className={styles.stepBadge}>3</div>
+                        <h2 className={styles.stepTitle}>Bước 3: Chụp ảnh tình trạng xe</h2>
                     </div>
                     <div className={styles.photoGrid}>
                         {renderPhotoPicker({
@@ -978,22 +1017,22 @@ export default function CheckIn() {
                         })}
                     </div>
                 </section>
+            </div>
 
-                {/* Footer: Các nút điều hướng Hủy/Xác nhận */}
-                <div className={styles.actions}>
-                    <button type="button" className="ui-btn ui-btn--ghost" onClick={handleCancel}>
-                        Hủy
+            {/* Footer: Các nút điều hướng Hủy/Xác nhận */}
+            <div className={styles.actions}>
+                <button type="button" className={`ui-btn ${styles.cancelBtn}`} onClick={handleCancel}>
+                    Hủy
+                </button>
+                <div className={styles.actionsRight}>
+                    <button
+                        type="button"
+                        className="ui-btn ui-btn--primary"
+                        onClick={handleConfirmWithValidation}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? 'Đang tạo...' : 'Xác nhận'}
                     </button>
-                    <div className={styles.actionsRight}>
-                        <button
-                            type="button"
-                            className="ui-btn ui-btn--primary"
-                            onClick={handleConfirmWithValidation}
-                            disabled={isSubmitting }
-                        >
-                            {isSubmitting ? 'Đang tạo phiếu...' : 'Xác nhận tiếp nhận'}
-                        </button>
-                    </div>
                 </div>
             </div>
 

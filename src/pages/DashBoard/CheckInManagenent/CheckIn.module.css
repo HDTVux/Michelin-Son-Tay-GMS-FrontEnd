@@ -3,7 +3,7 @@
   display: block;
   background: var(--ui-surface, #f8fafc);
   min-height: 100vh;
-  padding: 24px;
+  padding: 24px 24px 80px 24px;
   color: var(--ui-text, #0f172a);
   font-family: 'Inter', sans-serif;
 }
@@ -392,12 +392,21 @@
 
 /* Footer Bottom Actions */
 .actions {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid var(--ui-border, #e2e8f0);
+  padding: 16px 24px;
+  background: var(--ui-surface-glass, rgba(255, 255, 255, 0.95));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.8));
+  border-radius: 12px;
+  box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 20px -6px rgba(0, 0, 0, 0.05);
+  transition: left 0.25s ease, right 0.25s ease, bottom 0.25s ease;
 }
 
 .actionsRight {
@@ -405,10 +414,61 @@
   gap: 12px;
 }
 
+.cancelBtn {
+  background: var(--ui-danger, #ef4444);
+  color: #ffffff;
+  border-color: var(--ui-danger, #ef4444);
+}
+
+.cancelBtn:hover:not(:disabled) {
+  background: var(--ui-danger-hover, #dc2626);
+  border-color: var(--ui-danger-hover, #dc2626);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  transform: translateY(-1px);
+}
+
+@media (min-width: 1025px) {
+  :global(.sidebar:not(.is-collapsed)) ~ :global(.staffLayout__content) .actions {
+    left: calc(280px + 24px);
+  }
+
+  :global(.sidebar.is-collapsed) ~ :global(.staffLayout__content) .actions {
+    left: calc(76px + 24px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .actions {
+    left: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .actionsRight {
+    flex: 1;
+    display: flex;
+    width: auto;
+  }
+
+  .actions > button,
+  .actionsRight button {
+    flex: 1;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 14px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+}
+
 /* Responsiveness */
 @media (max-width: 768px) {
   .page {
-    padding: 16px;
+    padding: 16px 16px 100px 16px;
   }
   
   .header {
@@ -462,16 +522,30 @@
   }
 
   .actions {
-    flex-direction: column-reverse;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    padding: 10px 14px;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
   }
 
   .actionsRight {
-    width: 100%;
+    flex: 1;
+    display: flex;
+    width: auto;
   }
 
-  .actions button {
+  .actions > button,
+  .actionsRight button {
+    flex: 1;
     width: 100%;
+    min-height: 42px;
+    padding: 8px 12px;
+    font-size: 14px;
     justify-content: center;
+    white-space: nowrap;
   }
 }
 
@@ -916,3 +990,74 @@
   background: rgba(255, 255, 255, 0.35);
   transform: scale(1.05);
 }
+
+/* Two-column layout for Odometer and Advisor */
+.twoColGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .twoColGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* Compact Photo Field (License Plate) */
+.compactPhotoField {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.compactPhotoPreviewWrapper {
+  position: relative;
+  height: 80px;
+  width: 120px;
+  border-radius: 8px;
+  border: 1px solid var(--ui-border, #cbd5e1);
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.compactPhotoPreview {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.compactPhotoPreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.compactRemoveBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  border: none;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.compactRemoveBtn:hover {
+  background: rgba(239, 68, 68, 0.9);
+}
+
