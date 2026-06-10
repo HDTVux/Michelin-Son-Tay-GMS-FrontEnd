@@ -1473,6 +1473,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
                             const createdBy = stockAlloc?.createdBy ?? null;
 
+                            const entryItemId = toPositiveNumberOrNull(
+                                stockAlloc?.entryItemId ??
+                                    estimateItem?.entryItemId ??
+                                    estimateItem?.entry_item_id ??
+                                    fallbackItem?.entryItemId ??
+                                    fallbackItem?.entry_item_id
+                            );
+
                             return {
                                 allocationId: allocationId ?? null,
                                 serviceTicketId: serviceTicketIdNum,
@@ -1483,6 +1491,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 quantity,
                                 status: 'COMMITTED',
                                 ...(createdBy == null ? {} : { createdBy }),
+                                entryItemId: entryItemId ?? null,
                             };
                         })
                         .filter(Boolean);

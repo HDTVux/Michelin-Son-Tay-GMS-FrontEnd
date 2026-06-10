@@ -409,6 +409,7 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
             // Lấy trạng thái giữ chỗ vật tư từ nhiều trường khác nhau, chuẩn hóa thành UPPERCASE hoặc undefined nếu không xác định.
             const status = it?.allocationStatus ?? it?.stockAllocationStatus ?? it?.stock_allocation_status ?? undefined;
             const createdBy = it?.createdBy ?? it?.created_by ?? undefined;
+            const entryItemId = toPositiveNumberOrNull(it?.entryItemId ?? it?.entry_item_id ?? null);
 
             return {
                 ...(allocationId == null ? {} : { allocationId }),
@@ -420,6 +421,7 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
                 quantity: Number(quantity),
                 ...(status == null ? {} : { status }),
                 ...(createdBy == null ? {} : { createdBy }),
+                entryItemId: entryItemId ?? null,
             };
         })
         .filter(Boolean);

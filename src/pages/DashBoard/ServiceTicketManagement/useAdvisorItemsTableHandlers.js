@@ -615,6 +615,8 @@ export function clearAdvisorRowInputs({
 	onChange(rowIndex, 'warehouseId', '');
 	onChange(rowIndex, 'warehouseName', '');
 	onChange(rowIndex, 'warehouseAvailableQuantity', null);
+	onChange(rowIndex, 'entryItemId', null);
+	onChange(rowIndex, 'entryCode', null);
 
 	onChange(rowIndex, 'taxRuleId', '');
 	onChange(rowIndex, 'itemTaxRuleId', '');
@@ -653,6 +655,9 @@ export function pickAdvisorCatalogItem({
 	const availableQtyNum =
 		typeof availableQtyRaw === 'number' ? availableQtyRaw : Number(String(availableQtyRaw ?? '').trim());
 	const rawTaxId = item?.taxRuleId ?? item?.tax_rule_id ?? item?.taxRule?.taxRuleId ?? item?.taxRule?.id ?? '';
+	const entryItemId = item?.entryItemId ?? null;
+	const entryCode = item?.entryCode ?? null;
+
 	onChange(activeRowIndex, 'itemId', id);
 	onChange(activeRowIndex, 'itemName', name);
 	onChange(activeRowIndex, 'unitPrice', price);
@@ -668,6 +673,8 @@ export function pickAdvisorCatalogItem({
 	} else {
 		onChange(activeRowIndex, 'warehouseAvailableQuantity', null);
 	}
+	onChange(activeRowIndex, 'entryItemId', entryItemId);
+	onChange(activeRowIndex, 'entryCode', entryCode);
 	onChange(activeRowIndex, 'itemTaxRuleId', rawTaxId == null ? '' : String(rawTaxId));
 
 	const taxIdNum = toIdOrNull(rawTaxId);
@@ -715,6 +722,8 @@ function createEmptyDraftRow() {
 		taxRuleId: '',
 		isRemoved: false,
 		isLockedFromPreviousVersion: false,
+		entryItemId: null,
+		entryCode: null,
 	};
 }
 
@@ -1007,6 +1016,7 @@ function mapEstimateItemToLockedRow(it, idx, options = {}) {
 		taxRuleId: toIdOrNull(itemTaxRuleId) ? '' : (it?.taxRuleId ?? ''),
 		isRemoved: false,
 		isLockedFromPreviousVersion: true,
+		entryItemId: toIdOrNull(it?.entryItemId ?? it?.entry_item_id) ?? null,
 	};
 }
 
@@ -1091,6 +1101,7 @@ function normalizeEstimateUpdateItemForCompare(item) {
 	const taxRuleId = itemTaxRuleId || workCategoryTaxRuleId || toIdOrNull(item?.taxRuleId);
 	const estimateItemId = toIdOrNull(item?.estimateItemId ?? item?.estimateItemID ?? item?.id);
 	const promotionFields = buildEstimateItemPromotionPayloadFields(item);
+	const entryItemId = toIdOrNull(item?.entryItemId ?? item?.entry_item_id);
 
 	return {
 		estimateItemId,
@@ -1113,6 +1124,7 @@ function normalizeEstimateUpdateItemForCompare(item) {
 		triggeredByItemId: promotionFields.triggeredByItemId ?? null,
 		discountAmount: promotionFields.discountAmount ?? null,
 		finalPrice: promotionFields.finalPrice ?? null,
+		entryItemId,
 	};
 }
 
@@ -1145,6 +1157,7 @@ function normalizeEditRowsForDirtyCheck(rows) {
 			finalPrice: row?.finalPrice == null || String(row?.finalPrice).trim() === '' ? null : toNumberOrZero(row?.finalPrice),
 			triggeredByItemId: pickTriggeredByItemId(row),
 			promotionId: pickGiftPromotionId(row),
+			entryItemId: toIdOrNull(row?.entryItemId),
 		}));
 }
 
@@ -1167,6 +1180,7 @@ function normalizeCreateRowsForDirtyCheck(rows) {
 			finalPrice: row?.finalPrice == null || String(row?.finalPrice).trim() === '' ? null : toNumberOrZero(row?.finalPrice),
 			triggeredByItemId: pickTriggeredByItemId(row),
 			promotionId: pickGiftPromotionId(row),
+			entryItemId: toIdOrNull(row?.entryItemId),
 		}));
 }
 
@@ -2385,6 +2399,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					isGift: getEstimateItemGiftFlag(it),
 					triggeredByItemId: pickTriggeredByItemId(it),
 					stockAllocationStatus: getEstimateItemStockAllocationStatus(it),
+					entryItemId: toIdOrNull(it?.entryItemId ?? it?.entry_item_id) ?? null,
 				};
 			});
 		const normalized = normalizeDraftRows(mapped);
@@ -2475,6 +2490,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					isChecked: getEstimateItemStockAllocationStatus(r) === 'RELEASED' ? false : true,
 					isRemoved: false,
 					revisedFromItemId: null,
+					entryItemId: toIdOrNull(r?.entryItemId) ?? null,
 					...buildEstimateItemPromotionPayloadFields(r),
 				};
 				if (r?.isLockedFromPreviousVersion) {
@@ -2618,6 +2634,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					isChecked: getEstimateItemStockAllocationStatus(sourceRow) === 'RELEASED' ? false : true,
 					isRemoved: false,
 					revisedFromItemId: null,
+					entryItemId: toIdOrNull(sourceRow?.entryItemId) ?? null,
 					...buildEstimateItemPromotionPayloadFields(sourceRow),
 				};
 

@@ -40,10 +40,14 @@ function isOutOfStock(detail) {
   return qty != null && qty <= 0;
 }
 
-function buildPickedCatalogItem(item, warehouseDetail) {
+function buildPickedCatalogItem(item, warehouseDetail, selectedLot) {
   if (!warehouseDetail) return item;
-  const sellingPrice = warehouseDetail?.sellingPrice;
+  const sellingPrice = selectedLot ? selectedLot?.sellingPrice : warehouseDetail?.sellingPrice;
   const nextPrice = sellingPrice ?? item?.price ?? item?.unitPrice;
+  const availableQuantity = selectedLot 
+    ? selectedLot?.remainingQuantity 
+    : getWarehouseAvailableQty(warehouseDetail);
+
   return {
     ...item,
     warehouseId: warehouseDetail?.warehouseId,
@@ -51,8 +55,9 @@ function buildPickedCatalogItem(item, warehouseDetail) {
     sellingPrice,
     price: nextPrice,
     unitPrice: nextPrice,
-    // Keep naming for downstream code, but align value with what we show in dropdown.
-    availableQuantity: getWarehouseAvailableQty(warehouseDetail),
+    availableQuantity,
+    entryItemId: selectedLot ? selectedLot?.entryItemId : null,
+    entryCode: selectedLot ? selectedLot?.entryCode : null,
   };
 }
 
@@ -86,10 +91,15 @@ function CatalogPicker({
 
   // Per-item selected warehouse for pricing display.
   const [selectedWarehouseByItemId, setSelectedWarehouseByItemId] = useState({});
+  // Per-item selected lot/batch for reservation/allocation.
+  const [selectedLotIdByItemId, setSelectedLotIdByItemId] = useState({});
 
-  // Mỗi lần mở modal: reset lại lựa chọn kho (không giữ state lần trước).
+  // Mỗi lần mở modal: reset lại lựa chọn kho & lô (không giữ state lần trước).
   useEffect(() => {
-    if (open) setSelectedWarehouseByItemId({});
+    if (open) {
+      setSelectedWarehouseByItemId({});
+      setSelectedLotIdByItemId({});
+    }
   }, [open]);
 
   // Effect này bắt sự kiện khi prop 'open' thay đổi để mở/đóng Modal chính giữa màn hình
@@ -165,13 +175,31 @@ function CatalogPicker({
     if (selectedDetail && isOutOfStock(selectedDetail)) return;
 
     if (itemId != null) {
+      const itemKey = String(itemId);
       setSelectedWarehouseByItemId((prev) => ({
         ...prev,
-        [String(itemId)]: Number.isFinite(warehouseIdNum) ? warehouseIdNum : warehouseIdRaw,
+        [itemKey]: Number.isFinite(warehouseIdNum) ? warehouseIdNum : warehouseIdRaw,
+      }));
+      // Reset selected lot when warehouse changes
+      setSelectedLotIdByItemId((prev) => ({
+        ...prev,
+        [itemKey]: '',
       }));
     }
 
     // UX: dropdown chỉ để chọn kho + cập nhật hiển thị, chưa pick ngay.
+  };
+
+  const handleLotChange = (item, lotIdRaw) => {
+    const itemId = item?.itemId ?? item?.id ?? null;
+    if (itemId != null) {
+      const itemKey = String(itemId);
+      const lotIdNum = typeof lotIdRaw === 'number' ? lotIdRaw : Number(lotIdRaw);
+      setSelectedLotIdByItemId((prev) => ({
+        ...prev,
+        [itemKey]: Number.isFinite(lotIdNum) ? lotIdNum : lotIdRaw,
+      }));
+    }
   };
 
   const handlePickItem = (item) => {
@@ -188,7 +216,14 @@ function CatalogPicker({
       : Number(selectedWarehouseIdRaw);
     const selectedDetail = details.find((d) => Number(d?.warehouseId) === selectedWarehouseIdNum) || null;
     if (!selectedDetail || isOutOfStock(selectedDetail)) return;
-    handlePick(buildPickedCatalogItem(item, selectedDetail));
+
+    const selectedLotIdRaw = selectedLotIdByItemId[itemKey];
+    const selectedLotIdNum = typeof selectedLotIdRaw === 'number' ? selectedLotIdRaw : Number(selectedLotIdRaw);
+    const selectedLot = Array.isArray(selectedDetail?.lots)
+      ? selectedDetail.lots.find((l) => Number(l?.entryItemId) === selectedLotIdNum)
+      : null;
+
+    handlePick(buildPickedCatalogItem(item, selectedDetail, selectedLot));
   };
 
   // Chỉ render dialog khi `open` = true để tránh reflow/jitter khi không hiển thị
@@ -262,10 +297,21 @@ function CatalogPicker({
                           || details.some((d) => toFiniteNumber(d?.sellingPrice) != null)
                         );
 
+                        const selectedLotIdRaw = selectedLotIdByItemId[itemKey] ?? '';
+                        const lotDetails = Array.isArray(selectedDetail?.lots) ? selectedDetail.lots : [];
+                        const hasLots = lotDetails.length > 0;
+
                         let displayPrice = null;
                         if (details.length > 0) {
                           // Khi có kho: chỉ hiển thị giá theo kho đang chọn (nếu có).
-                          displayPrice = toFiniteNumber(selectedDetail?.sellingPrice);
+                          // Nếu có chọn lô: hiển thị giá theo lô đang chọn.
+                          if (selectedLotIdRaw) {
+                            const selectedLotIdNum = Number(selectedLotIdRaw);
+                            const selectedLot = lotDetails.find((l) => Number(l?.entryItemId) === selectedLotIdNum);
+                            displayPrice = toFiniteNumber(selectedLot?.sellingPrice ?? selectedDetail?.sellingPrice);
+                          } else {
+                            displayPrice = toFiniteNumber(selectedDetail?.sellingPrice);
+                          }
                         } else {
                           // Khi không có kho: dùng giá của item.
                           displayPrice = toFiniteNumber(it?.price) ?? toFiniteNumber(it?.unitPrice);
@@ -282,7 +328,17 @@ function CatalogPicker({
                           const hasSelectedWarehouse = Boolean(selectedWarehouseId);
                           const hasSelectedDetail = Boolean(selectedDetail);
                           const selectedOutOfStock = selectedDetail ? isOutOfStock(selectedDetail) : false;
-                          const pickEnabled = hasSelectedWarehouse && hasSelectedDetail && selectedOutOfStock === false;
+                          
+                          let lotOutOfStock = false;
+                          if (selectedLotIdRaw) {
+                            const selectedLotIdNum = Number(selectedLotIdRaw);
+                            const selectedLot = lotDetails.find((l) => Number(l?.entryItemId) === selectedLotIdNum);
+                            if (selectedLot && (selectedLot.remainingQuantity == null || selectedLot.remainingQuantity <= 0)) {
+                              lotOutOfStock = true;
+                            }
+                          }
+                          
+                          const pickEnabled = hasSelectedWarehouse && hasSelectedDetail && selectedOutOfStock === false && lotOutOfStock === false;
                           pickDisabled = pickEnabled === false;
                         }
 
@@ -334,11 +390,37 @@ function CatalogPicker({
                             </select>
                           );
 
+                          let lotSelectControl = null;
+                          if (selectedDetail && hasLots) {
+                            lotSelectControl = (
+                              <select
+                                className={styles.warehouseSelect}
+                                value={String(selectedLotIdRaw)}
+                                onChange={(e) => handleLotChange(it, e.target.value)}
+                              >
+                                <option value="">-- Chọn lô (FIFO mặc định) --</option>
+                                {lotDetails.map((lot, idx3) => {
+                                  const lotId = lot?.entryItemId;
+                                  const code = lot?.entryCode || '-';
+                                  const qty = lot?.remainingQuantity ?? 0;
+                                  const price = lot?.sellingPrice;
+                                  const label = `Lô: ${code} (Tồn: ${qty}) - ${formatCurrencyVnd(price)}`;
+                                  return (
+                                    <option key={String(lotId ?? `l-${idx3}`)} value={String(lotId ?? '')} disabled={qty <= 0}>
+                                      {label}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            );
+                          }
+
                           const isPickDisabled = pickDisabled || canPickAnyWarehouse === false || isDuplicateSelection;
 
                           actionControl = (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                               {selectControl}
+                              {lotSelectControl}
                               {canPickAnyWarehouse ? null : <span>Hết hàng</span>}
                               <button
                                 type="button"

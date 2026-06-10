@@ -530,7 +530,10 @@ function EstimateItemRow({
                 )}
             </td>
 
-            <td data-label="Kho">{warehouseText || '-'}</td>
+            <td data-label="Kho">
+                {warehouseText || '-'}
+                {row?.entryCode ? ` (Lô: ${row.entryCode})` : (row?.entryItemId ? ` (Lô #${row.entryItemId})` : '')}
+            </td>
             {!showInputs ? <td data-label="Xuất kho"><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
             {!showInputs && showWarehouseActionColumn ? (
                 <td data-label="Thao tác" className={styles.tdCenter}>
