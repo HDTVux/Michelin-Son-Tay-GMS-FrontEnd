@@ -9,6 +9,8 @@ const CONTINUATION_PAGE_SERVICE_LINE_COUNT = 30;
 
 function safeText(value) {
 	if (value == null) return '';
+	const s = String(value).trim();
+	if (s === '-' || s === 'Chưa chọn') return '';
 	return String(value);
 }
 
@@ -106,7 +108,9 @@ function getSafetyAdvisorNote(item) {
 }
 
 function hasPrintValue(value) {
-    return value != null && String(value).trim() !== '';
+    if (value == null) return false;
+    const s = String(value).trim();
+    return s !== '' && s !== '-' && s !== 'Chưa chọn';
 }
 
 function firstPrintValue(...values) {
@@ -181,8 +185,14 @@ export default function Receipt({ ticket, carDiagramSrc }) {
     const invoice = ticket?.invoice || {};
     const safetyInspection = ticket?.safetyInspection || {};
 
-	const receivedAt = safeText(ticket?.receivedAtDisplay || ticket?.receivedAt || '');
-	const handoverAt = safeText(ticket?.handoverAtDisplay || ticket?.handoverAt || '');
+	let receivedAt = safeText(ticket?.receivedAtDisplay || ticket?.receivedAt || '');
+	if (receivedAt === 'Chưa chọn' || receivedAt === '-' || receivedAt.trim() === '') {
+		receivedAt = '';
+	}
+	let handoverAt = safeText(ticket?.handoverAtDisplay || ticket?.handoverAt || '');
+	if (handoverAt === 'Chưa chọn' || handoverAt === '-' || handoverAt.trim() === '') {
+		handoverAt = '';
+	}
 	const model = safeText(vehicle?.model || '');
 	const licensePlate = safeText(vehicle?.licensePlate || '');
     const ticketCode = firstPrintValue(
@@ -191,7 +201,9 @@ export default function Receipt({ ticket, carDiagramSrc }) {
         ticket?.code,
         ticket?.serviceTicket?.ticketCode,
     );
-    const odometer = vehicle?.odometerKm == null ? '' : `${Number(vehicle.odometerKm).toLocaleString('vi-VN')}`;
+    const odometer = (vehicle?.odometerKm == null || Number(vehicle.odometerKm) === 0) 
+        ? '' 
+        : `${Number(vehicle.odometerKm).toLocaleString('vi-VN')}`;
 
     const invoiceItemsRaw = Array.isArray(invoice?.items)
         ? invoice.items.filter((item) => !isReturnedInvoiceItem(item))
