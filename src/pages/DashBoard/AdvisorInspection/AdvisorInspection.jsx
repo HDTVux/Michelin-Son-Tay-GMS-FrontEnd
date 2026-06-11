@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -1701,52 +1701,56 @@ export default function AdvisorInspection() {
 
           {/* Filters */}
           <div className={styles.pendingFilters}>
-            <div className={styles.filterCardLabels}>
-              <span>Khoảng lọc</span>
-              <span>Lịch ngày</span>
-              <span>Trạng thái</span>
-            </div>
-            <div className={styles.filterCardControls}>
-              <select
-                value={periodFilter}
-                onChange={(e) => handlePeriodFilterChange(e.target.value)}
-                aria-label="Chọn khoảng lọc phiếu"
-              >
-                <option value="day">Theo ngày</option>
-                <option value="all">Tất cả</option>
-                <option value="week">Tuần này</option>
-                <option value="month">Tháng này</option>
-              </select>
-              <div className={styles.dayNavigator}>
-                <button type="button" className={styles.dayNavBtn} onClick={handlePreviousDay}>
-                  Trước
-                </button>
-                <button type="button" className={styles.dayCenterBtn} onClick={handleOpenCalendar}>
-                  {formatPeriodDisplay(periodFilter, dateFrom, dateTo)}
-                </button>
-                <button type="button" className={styles.dayNavBtn} onClick={handleNextDay}>
-                  Sau
-                </button>
-                <input
-                  ref={dayPickerRef}
-                  type="date"
-                  value={activeDate}
-                  onChange={(e) => handlePickDay(e.target.value)}
-                  className={styles.hiddenDateInput}
-                  aria-label="Chọn ngày xử lý"
-                />
+            <div className={styles.filterCardGrid}>
+              <div className={styles.filterItem}>
+                <label className={styles.filterLabel}>Khoảng lọc</label>
+                <select
+                  value={periodFilter}
+                  onChange={(e) => handlePeriodFilterChange(e.target.value)}
+                  aria-label="Chọn khoảng lọc phiếu"
+                >
+                  <option value="day">Theo ngày</option>
+                  <option value="all">Tất cả</option>
+                  <option value="week">Tuần này</option>
+                  <option value="month">Tháng này</option>
+                </select>
               </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-              >
-                <option value="">Tất cả</option>
-                {SERVICE_TICKET_STATUS_FILTER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <div className={styles.filterItem}>
+                <label className={styles.filterLabel}>Lịch ngày</label>
+                <div className={styles.dayNavigator}>
+                  <button type="button" className={styles.dayNavBtn} onClick={handlePreviousDay}>
+                    Trước
+                  </button>
+                  <button type="button" className={styles.dayCenterBtn} onClick={handleOpenCalendar}>
+                    {formatPeriodDisplay(periodFilter, dateFrom, dateTo)}
+                  </button>
+                  <button type="button" className={styles.dayNavBtn} onClick={handleNextDay}>
+                    Sau
+                  </button>
+                  <input
+                    ref={dayPickerRef}
+                    type="date"
+                    value={activeDate}
+                    onChange={(e) => handlePickDay(e.target.value)}
+                    className={styles.hiddenDateInput}
+                    aria-label="Chọn ngày xử lý"
+                  />
+                </div>
+              </div>
+              <div className={styles.filterItem}>
+                <label className={styles.filterLabel}>Trạng thái</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+                >
+                  <option value="">Tất cả</option>
+                  {SERVICE_TICKET_STATUS_FILTER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className={styles.filterCardActions}>
               <div className={styles.searchBox}>
@@ -1767,6 +1771,113 @@ export default function AdvisorInspection() {
           </div>
 
           {error && <div className={styles.errorBanner}>{error}</div>}
+
+          {/* Mobile View Card List */}
+          <div className={styles.mobileTicketsList}>
+            {loading && (
+              <div className={styles.emptyRow}>Đang tải...</div>
+            )}
+            {!loading && tickets.length === 0 && (
+              <div className={styles.emptyRow}>Không có phiếu nào.</div>
+            )}
+            {!loading && tickets.map((ticket, idx) => {
+              const code = getTicketCode(ticket);
+              const ticketId = getTicketId(ticket);
+              const hasTech = getTicketHasTechnician(ticket, modalPageAssignments);
+              const queueInfo = getQueueStatusInfo(ticket);
+              const customerPhone = getTicketCustomerPhone(ticket);
+              const isFutureTicket = isFutureAppointmentTicket(ticket);
+              return (
+                <div key={code || ticketId || idx} className={styles.mobileTicketCard}>
+                  <div className={styles.mobileCardHeader}>
+                    <span className={styles.mobileTicketCode}>{code || '-'}</span>
+                    <span className={styles.licensePlate}>{ticket.licensePlate || '-'}</span>
+                  </div>
+                  <div className={styles.mobileCardBody}>
+                    <div className={styles.mobileCardRow}>
+                      <span className={styles.mobileCardLabel}>STT hàng đợi:</span>
+                      <span className={`${styles.queueBadge} ${queueInfo.className}`}>{queueInfo.label}</span>
+                    </div>
+                    <div className={styles.mobileCardRow}>
+                      <span className={styles.mobileCardLabel}>Khách hàng:</span>
+                      <span className={styles.mobileCardValue}>{ticket.customerName || ticket.fullName || '-'}</span>
+                    </div>
+                    <div className={styles.mobileCardRow}>
+                      <span className={styles.mobileCardLabel}>SĐT:</span>
+                      <span className={styles.mobileCardValue}>{customerPhone}</span>
+                    </div>
+                    <div className={styles.mobileCardRow}>
+                      <span className={styles.mobileCardLabel}>Ngày hẹn:</span>
+                      <span className={styles.mobileCardValue}>
+                        {formatAppointmentDateTime(ticket)}
+                        {isFutureTicket && (
+                          <span className={styles.futureTicketNote} style={{ display: 'block', fontSize: '11px', color: '#dc2626' }}>Chờ đến ngày hẹn</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className={styles.mobileCardRow}>
+                      <span className={styles.mobileCardLabel}>Trạng thái:</span>
+                      <span className={`${styles.statusBadge} ${getServiceTicketStatusClass(ticket)}`}>
+                        {getServiceTicketStatusDisplay(ticket)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={styles.mobileCardActions}>
+                    {isFutureTicket ? (
+                      <button
+                        className={`${styles.actionBtn} ${styles.futureActionBtn}`}
+                        type="button"
+                        style={{ width: '100%', flex: '1' }}
+                        title={getFutureAppointmentTicketMessage(ticket)}
+                        onClick={() => toast.info(getFutureAppointmentTicketMessage(ticket))}
+                      >
+                        Chưa đến ngày
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className={styles.actionBtn}
+                          onClick={() => {
+                            if (!code) return;
+                            navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, {
+                              state: { ticket, source: 'advisor-inspection' },
+                            });
+                          }}
+                          disabled={!code || swapping}
+                        >
+                          Mở
+                        </button>
+                        <button
+                          className={`${styles.actionBtn} ${styles.historyBtn}`}
+                          onClick={() => handleOpenRepairHistory(ticket)}
+                          disabled={swapping || (!code && !ticketId)}
+                        >
+                          Lịch sử
+                        </button>
+                        {hasTech ? (
+                          <button
+                            className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
+                            onClick={() => handleOpenModal(ticket)}
+                            disabled={swapping}
+                          >
+                            Xem phân công
+                          </button>
+                        ) : (
+                          <button
+                            className={`${styles.actionBtn} ${styles.assignBtn}`}
+                            onClick={() => handleOpenModal(ticket)}
+                            disabled={!ticketId || swapping}
+                          >
+                            Phân công
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
           {/* Table */}
           <div className={styles.bookingCard}>

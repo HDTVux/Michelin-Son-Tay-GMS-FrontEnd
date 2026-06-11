@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -615,34 +615,40 @@ function TicketPanel({
 			{error && <div className={styles['error-banner']}>{error}</div>}
 
 			<div className={styles['pending-filters']}>
-				<div className={styles['filter-card__labels']}>
-					<span>Khoảng lọc</span>
-					<span>Từ ngày</span>
-					<span>Đến ngày</span>
-					<span>Trạng thái</span>
-				</div>
-				<div className={styles['filter-card__controls']}>
-					<select value={periodFilter} onChange={e => onChangePeriodFilter?.(e.target.value)}>
-						<option value="all">Tất cả</option>
-						<option value="today">Hôm nay</option>
-						<option value="week">Tuần này</option>
-						<option value="month">Tháng này</option>
-						<option value="custom">Tùy chọn</option>
-					</select>
-					<input type="date" value={date} onChange={e => onChangeDate?.(e.target.value)} />
-					<input type="date" value={endDate} onChange={e => onChangeEndDate?.(e.target.value)} />
-					<select value={status} onChange={e => onChangeStatus?.(e.target.value)}>
-						<option value="">Tất cả</option>
-						<option value="CREATED">Khởi tạo phiếu</option>
-						<option value="INSPECTING">Đang kiểm tra</option>
-						<option value="INSPECTED">Đã kiểm tra</option>
-						<option value="PENDING">Chờ xử lý</option>
-						<option value="ESTIMATED">Đã báo giá</option>
-						<option value="REPAIRING">Đang sửa chữa</option>
-						<option value="COMPLETED">Hoàn tất sửa chữa</option>
-						<option value="PAID">Đã thanh toán</option>
-						<option value="CANCELLED">Đã hủy</option>
-					</select>
+				<div className={styles['filter-card__grid']}>
+					<div className={styles['filter-item']}>
+						<label className={styles['filter-label']}>Khoảng lọc</label>
+						<select value={periodFilter} onChange={e => onChangePeriodFilter?.(e.target.value)}>
+							<option value="all">Tất cả</option>
+							<option value="today">Hôm nay</option>
+							<option value="week">Tuần này</option>
+							<option value="month">Tháng này</option>
+							<option value="custom">Tùy chọn</option>
+						</select>
+					</div>
+					<div className={styles['filter-item']}>
+						<label className={styles['filter-label']}>Từ ngày</label>
+						<input type="date" value={date} onChange={e => onChangeDate?.(e.target.value)} />
+					</div>
+					<div className={styles['filter-item']}>
+						<label className={styles['filter-label']}>Đến ngày</label>
+						<input type="date" value={endDate} onChange={e => onChangeEndDate?.(e.target.value)} />
+					</div>
+					<div className={styles['filter-item']}>
+						<label className={styles['filter-label']}>Trạng thái</label>
+						<select value={status} onChange={e => onChangeStatus?.(e.target.value)}>
+							<option value="">Tất cả</option>
+							<option value="CREATED">Khởi tạo phiếu</option>
+							<option value="INSPECTING">Đang kiểm tra</option>
+							<option value="INSPECTED">Đã kiểm tra</option>
+							<option value="PENDING">Chờ xử lý</option>
+							<option value="ESTIMATED">Đã báo giá</option>
+							<option value="REPAIRING">Đang sửa chữa</option>
+							<option value="COMPLETED">Hoàn tất sửa chữa</option>
+							<option value="PAID">Đã thanh toán</option>
+							<option value="CANCELLED">Đã hủy</option>
+						</select>
+					</div>
 				</div>
 				<div className={styles['filter-card__actions']}>
 					<div className={styles['search-box']}>
@@ -658,6 +664,61 @@ function TicketPanel({
 						{isExporting ? 'Đang xuất...' : 'Export'}
 					</button>
 				</div>
+			</div>
+
+			{/* Mobile View Card List */}
+			<div className={styles['mobile-tickets-list']}>
+				{isLoading && (
+					<div className={styles['empty-row']}>Đang tải...</div>
+				)}
+				{!isLoading && data.length === 0 && (
+					<div className={styles['empty-row']}>Không có phiếu nào.</div>
+				)}
+				{!isLoading && data.map((item, idx) => {
+					const statusCode = item?.ticketStatus ?? item?.status;
+					const tone = getServiceTicketStatusTone(statusCode, 'info');
+					const displayStatus = getServiceTicketStatusTextVi(statusCode, String(statusCode || '-'));
+					const scheduledLabel = getScheduledDateTimeLabel(item);
+					return (
+						<div key={item?.serviceTicketId ?? item?.ticketCode ?? idx} className={styles['mobile-ticket-card']}>
+							<div className={styles['mobile-card-header']}>
+								<span className={styles['mobile-ticket-code']}>{item?.ticketCode || '-'}</span>
+								<span className={styles['license-plate']}>{item?.licensePlate || '-'}</span>
+							</div>
+							<div className={styles['mobile-card-body']}>
+								<div className={styles['mobile-card-row']}>
+									<span className={styles['mobile-card-label']}>Khách hàng:</span>
+									<span className={styles['mobile-card-value']}>{item?.customerName || '-'}</span>
+								</div>
+								<div className={styles['mobile-card-row']}>
+									<span className={styles['mobile-card-label']}>SĐT:</span>
+									<span className={styles['mobile-card-value']}>{item?.customerPhone || '-'}</span>
+								</div>
+								<div className={styles['mobile-card-row']}>
+									<span className={styles['mobile-card-label']}>Ngày hẹn:</span>
+									<span className={styles['mobile-card-value']}>{scheduledLabel}</span>
+								</div>
+								<div className={styles['mobile-card-row']}>
+									<span className={styles['mobile-card-label']}>Trạng thái:</span>
+									<span className={`${styles['status-badge']} ${styles['status-badge--' + tone]}`}>{displayStatus}</span>
+								</div>
+							</div>
+							<div className={styles['mobile-card-actions']}>
+								<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
+								<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
+								{isAccountant && item?.hasBill && (String(item?.ticketStatus ?? item?.status).toUpperCase() !== 'PAID') ? (
+									<button
+										className={styles['primary-button']}
+										onClick={() => onPayTicket?.(item)}
+										disabled={isLoading}
+									>
+										Thanh toán
+									</button>
+								) : null}
+							</div>
+						</div>
+					);
+				})}
 			</div>
 
 			<div className={styles['booking-table__wrapper']}>

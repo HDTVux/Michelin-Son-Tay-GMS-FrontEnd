@@ -6,6 +6,7 @@
   min-height: 100vh;
   padding: 24px;
   font-family: 'Segoe UI', Tahoma, 'Noto Sans', Arial, sans-serif;
+  box-sizing: border-box;
 }
 
 /* ─── Header ─── */
@@ -18,6 +19,7 @@
   padding: 18px 24px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
 }
 
 .bookingHeaderTitle {
@@ -86,6 +88,7 @@
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   margin-bottom: 16px;
+  box-sizing: border-box;
 }
 
 .filterCardLabels {
@@ -242,6 +245,7 @@
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
 }
 
 .tableWrapper {
@@ -250,6 +254,7 @@
   border-radius: 8px;
   scrollbar-width: thin;
   scrollbar-color: #1E90FF #f1f1f1;
+  box-sizing: border-box;
 }
 
 .tableWrapper::-webkit-scrollbar {
@@ -1098,6 +1103,148 @@
   color: #991b1b;
 }
 
+/* Filters Grid & Items */
+.filterCardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.filterItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+.filterLabel {
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+}
+
+.pendingFilters select,
+.pendingFilters input[type="date"] {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 2px solid #e5e7eb;
+  background: #fff;
+  font-size: 14px;
+  color: #1a1a1a;
+  font-weight: 500;
+  transition: all 0.3s;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.pendingFilters select:hover,
+.pendingFilters input[type="date"]:hover {
+  border-color: #cbd5e1;
+  background: #f9fafb;
+}
+
+.pendingFilters select:focus,
+.pendingFilters input[type="date"]:focus {
+  outline: none;
+  border-color: #1E90FF;
+  box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.1);
+}
+
+/* Mobile Tickets List & Cards */
+.mobileTicketsList {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mobileTicketCard {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.mobileTicketCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.mobileCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1.5px solid #f3f4f6;
+  padding-bottom: 10px;
+  box-sizing: border-box;
+}
+
+.mobileTicketCode {
+  font-weight: 700;
+  color: #1E90FF;
+  font-size: 15px;
+}
+
+.mobileCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.mobileCardRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.mobileCardLabel {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.mobileCardValue {
+  color: #1a1a1a;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.mobileCardActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  border-top: 1.5px solid #f3f4f6;
+  padding-top: 12px;
+  box-sizing: border-box;
+}
+
+.mobileCardActions button {
+  flex: 1;
+  min-width: 105px;
+  font-size: 13px;
+  padding: 8px 12px;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-sizing: border-box;
+}
+
 /* ─── Responsive ─── */
 @media (max-width: 1280px) {
   .splitLayout {
@@ -1109,22 +1256,19 @@
 }
 
 @media (max-width: 1024px) {
-  .filterCardLabels,
-  .filterCardControls,
-  .filterCardLabelsTwo,
-  .filterCardControlsTwo {
+  .filterCardGrid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
-  .dayNavigator {
-    grid-template-columns: 1fr;
-  }
-  .dayNavBtn,
-  .dayCenterBtn {
-    width: 100%;
-  }
-}
 
-@media (max-width: 1024px) {
+  .tableWrapper {
+    display: none;
+  }
+
+  .mobileTicketsList {
+    display: flex;
+  }
+
   .bookingPage {
     width: 100%;
     max-width: 100%;
@@ -1137,6 +1281,7 @@
   .pendingFilters {
     border-radius: 12px;
     padding: 14px;
+    box-sizing: border-box;
   }
 
   .bookingHeader {
@@ -1183,22 +1328,12 @@
     flex: 1 1 100%;
     width: 100%;
     min-width: 0;
+    box-sizing: border-box;
   }
 
   .filterCardActions .primaryButton,
   .filterCardActions .ghostButton {
     flex: 1 1 180px;
-  }
-
-  .tableWrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .bookingTable th,
-  .bookingTable td {
-    padding: 10px;
-    font-size: 13px;
   }
 
   .bookingFooter {
@@ -1252,8 +1387,8 @@
     box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
   }
 
-  .bookingTable {
-    min-width: 760px;
+  .mobileTicketCard {
+    padding: 12px;
   }
 
   .bookingHeader .primaryButton,

@@ -5,12 +5,14 @@
 	background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 	min-height: 100vh;
 	padding: 24px;
+	box-sizing: border-box;
 }
 
 .booking-layout {
 	display: block;
 	max-width: 100%;
 	width: 100%;
+	box-sizing: border-box;
 }
 
 .booking-left {
@@ -18,6 +20,7 @@
 	flex-direction: column;
 	gap: 16px;
 	width: 100%;
+	box-sizing: border-box;
 }
 
 .pending-filters {
@@ -28,6 +31,7 @@
 	background: white;
 	border-radius: 12px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	box-sizing: border-box;
 }
 
 /* Filter cards */
@@ -74,8 +78,8 @@
 	gap: 16px;
 }
 
-.pending-filters .filter-card__controls select,
-.pending-filters .filter-card__controls input[type="date"] {
+.pending-filters select,
+.pending-filters input[type="date"] {
 	width: 100%;
 	padding: 12px 14px;
 	border-radius: 8px;
@@ -85,16 +89,17 @@
 	color: #1a1a1a;
 	font-weight: 500;
 	transition: all 0.3s;
+	box-sizing: border-box;
 }
 
-.pending-filters .filter-card__controls select:hover,
-.pending-filters .filter-card__controls input[type="date"]:hover {
+.pending-filters select:hover,
+.pending-filters input[type="date"]:hover {
 	border-color: #cbd5e1;
 	background: #f9fafb;
 }
 
-.pending-filters .filter-card__controls select:focus,
-.pending-filters .filter-card__controls input[type="date"]:focus {
+.pending-filters select:focus,
+.pending-filters input[type="date"]:focus {
 	outline: none;
 	border-color: #1E90FF;
 	box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.1);
@@ -150,6 +155,7 @@
 	border-radius: 10px;
 	background: #fff;
 	transition: all 0.3s;
+	box-sizing: border-box;
 }
 
 .search-box:hover {
@@ -199,6 +205,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
+	box-sizing: border-box;
 }
 
 .booking-card__header {
@@ -898,10 +905,131 @@
 	color: #991b1b;
 }
 
+/* Filters Grid & Items */
+.filter-card__grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 16px;
+	box-sizing: border-box;
+}
+
+.filter-item {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	box-sizing: border-box;
+}
+
+.filter-label {
+	font-weight: 600;
+	font-size: 14px;
+	color: #374151;
+}
+
+/* Mobile Tickets List & Cards */
+.mobile-tickets-list {
+	display: none;
+	flex-direction: column;
+	gap: 16px;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.mobile-ticket-card {
+	background: #ffffff;
+	border-radius: 12px;
+	border: 1px solid #e5e7eb;
+	padding: 16px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	transition: transform 0.2s, box-shadow 0.2s;
+	box-sizing: border-box;
+}
+
+.mobile-ticket-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.mobile-card-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	border-bottom: 1.5px solid #f3f4f6;
+	padding-bottom: 10px;
+	box-sizing: border-box;
+}
+
+.mobile-ticket-code {
+	font-weight: 700;
+	color: #1E90FF;
+	font-size: 15px;
+}
+
+.mobile-card-body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	box-sizing: border-box;
+}
+
+.mobile-card-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	font-size: 14px;
+	box-sizing: border-box;
+}
+
+.mobile-card-label {
+	color: #6b7280;
+	font-weight: 500;
+}
+
+.mobile-card-value {
+	color: #1a1a1a;
+	font-weight: 600;
+	text-align: right;
+	word-break: break-word;
+	overflow-wrap: break-word;
+}
+
+.mobile-card-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+	border-top: 1.5px solid #f3f4f6;
+	padding-top: 12px;
+	box-sizing: border-box;
+}
+
+.mobile-card-actions button {
+	flex: 1;
+	min-width: 105px;
+	font-size: 13px;
+	padding: 8px 12px;
+	height: auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	box-sizing: border-box;
+}
+
 @media (max-width: 900px) {
-	.filter-card__labels,
-	.filter-card__controls {
+	.filter-card__grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.booking-table__wrapper {
+		display: none;
+	}
+
+	.mobile-tickets-list {
+		display: flex;
 	}
 }
 
@@ -910,22 +1038,49 @@
 		padding: 16px;
 	}
 
-	.filter-card__labels,
-	.filter-card__controls,
-	.filter-card__actions,
-	.booking-card__header,
-	.booking-card__footer {
-		grid-template-columns: 1fr;
+	.booking-card {
+		padding: 12px;
 	}
 
-	.filter-card__actions,
-	.booking-card__header,
-	.booking-card__footer {
+	.pending-filters {
+		padding: 12px;
+	}
+
+	.mobile-ticket-card {
+		padding: 12px;
+	}
+
+	.filter-card__grid {
+		grid-template-columns: 1fr;
+		gap: 12px;
+	}
+
+	.filter-card__actions {
 		flex-direction: column;
 		align-items: stretch;
+		gap: 10px;
+	}
+
+	.booking-card__header {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+	}
+
+	.booking-card__footer {
+		flex-direction: column;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.page-size {
+		justify-content: center;
+		width: 100%;
 	}
 
 	.pagination {
 		flex-wrap: wrap;
+		justify-content: center;
+		width: 100%;
 	}
 }
