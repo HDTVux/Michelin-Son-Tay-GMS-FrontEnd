@@ -3,6 +3,19 @@ import PropTypes from 'prop-types';
 import styles from './CatalogPicker.module.css';
 import { formatCurrencyVnd } from './useAdvisorItemsTableHandlers.js';
 
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return dateStr;
+}
+
 export default function LotPicker({
   open,
   onClose,
@@ -96,6 +109,7 @@ export default function LotPicker({
               <tr>
                 <th style={{ width: '80px' }}>STT</th>
                 <th>Mã lô</th>
+                <th>Ngày nhập</th>
                 <th>Số lượng tồn</th>
                 <th>Đơn giá lô</th>
                 <th style={{ width: '120px' }} />
@@ -128,6 +142,7 @@ export default function LotPicker({
                         </span>
                       ) : null}
                     </td>
+                    <td>{formatDate(lot.entryDate)}</td>
                     <td>{lot.remainingQuantity ?? 0}</td>
                     <td className={styles.tdNumber}>
                       {formatCurrencyVnd(lot.sellingPrice)}
