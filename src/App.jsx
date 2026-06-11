@@ -50,8 +50,11 @@ import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/War
 import WarehouseStockIssues from './pages/DashBoard/WarehouseManagement/WarehouseStockIssuesManagement.jsx';
 import WarehouseStockIssueDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockIssueDetail.jsx';
 import WarehouseReturnEntry from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntry.jsx';
+import WarehouseReturnEntryFromIssue from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryFromIssue.jsx';
 import WarehouseReturnEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryManagement.jsx';
 import WarehouseReturnEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseReturnEntryDetail.jsx';
+import WarehouseDefectReport from './pages/DashBoard/WarehouseManagement/WarehouseDefectReport.jsx';
+import WarehouseDefectiveInventory from './pages/DashBoard/WarehouseManagement/WarehouseDefectiveInventory.jsx';
 import WarehousePricing from './pages/DashBoard/WarehouseManagement/WarehousePricing.jsx';
 import BlogManagement from './pages/DashBoard/PartManagement/ServiceManagement.jsx';
 import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx';
@@ -405,8 +408,12 @@ export default function App() {
               <Route path="warehouse-stock-issues" element={staffRoute(<WarehouseStockIssues />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-stock-issues/:issueId" element={staffRoute(<WarehouseStockIssueDetail />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-return-entry" element={staffRoute(<WarehouseReturnEntry />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="warehouse-return-entry-from-issue/:issueId" element={staffRoute(<WarehouseReturnEntryFromIssue />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-return-entries" element={staffRoute(<WarehouseReturnEntryManagement />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="warehouse-return-entry-management" element={staffRoute(<WarehouseReturnEntryManagement />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-return-entries/:returnId" element={staffRoute(<WarehouseReturnEntryDetail />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="warehouse-defect-report" element={staffRoute(<WarehouseDefectReport />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="warehouse-defective-inventory" element={staffRoute(<WarehouseDefectiveInventory />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="blog-management" element={<Navigate to="/service-management" replace />} />
               <Route path="service-management/blog/:itemId" element={staffRoute(<BlogFormPage itemType="SERVICE" />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="service-management/create-service" element={staffRoute(<CreateService />, ROLE_GROUP.SERVICE_CATALOG)} />

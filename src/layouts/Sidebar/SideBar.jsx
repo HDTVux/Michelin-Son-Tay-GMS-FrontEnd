@@ -35,6 +35,7 @@ import {
     Terminal,
     Layers,
     DollarSign,
+    AlertTriangle,
 } from 'lucide-react';
 import './SideBar.css';
 
@@ -139,6 +140,8 @@ const NAV_GROUPS = [
                     { id: 'warehouse-stock-entries', label: 'Quản lý phiếu nhập', path: '/warehouse-stock-entries', icon: <Download size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
                     { id: 'warehouse-stock-issues', label: 'Quản lý phiếu xuất', path: '/warehouse-stock-issues', icon: <Upload size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
                     { id: 'warehouse-return-entries', label: 'Quản lý phiếu trả hàng', path: '/warehouse-return-entries', icon: <Undo size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
+                    { id: 'warehouse-defective-inventory', label: 'Kho hàng lỗi', path: '/warehouse-defective-inventory', icon: <AlertTriangle size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
+                    { id: 'warehouse-defect-report', label: 'Báo cáo lỗi & Trách nhiệm', path: '/warehouse-defect-report', icon: <AlertTriangle size={18} />, roles: [STAFF_ROLE.MANAGER] },
                 ]
             },
             {

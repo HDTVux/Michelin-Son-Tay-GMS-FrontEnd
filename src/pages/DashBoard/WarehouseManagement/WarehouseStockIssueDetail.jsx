@@ -461,6 +461,18 @@ export default function WarehouseStockIssueDetail() {
             {isConfirming ? 'Đang xác nhận...' : 'Xác nhận phiếu xuất'}
           </button>
         ) : null}
+
+        {issue && statusValue === 'CONFIRMED' ? (
+          <div className={styles.actionsRow}>
+            <button
+              type="button"
+              className="ui-btn ui-btn--primary"
+              onClick={() => navigate(`/warehouse-return-entry-from-issue/${issueId}`, { state: { issue } })}
+            >
+              Tạo phiếu hoàn từ phiếu xuất này
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {previewUrl ? (
