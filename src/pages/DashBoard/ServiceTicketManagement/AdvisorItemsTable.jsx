@@ -1047,7 +1047,7 @@ export default function AdvisorItemsTable({
         });
     }, [markEstimateDraft, notify, refreshLatestEstimate]);
 
-    const handleSubmitReturnEntry = useCallback(async ({ returnReason, quantity, conditionNote, files }) => {
+    const handleSubmitReturnEntry = useCallback(async ({ returnReason, returnReasonType, defectCause, responsibleStaffId, quantity, conditionNote, files }) => {
         // When returning a base item, also include any gift items linked by triggeredByItemId
         const baseRow = returnModalItem;
         const baseItemId = toIdOrNull(baseRow?.itemId);
@@ -1066,6 +1066,9 @@ export default function AdvisorItemsTable({
         await handleSubmitReturnEntryAction({
             returnModalItem,
             returnReason,
+            returnReasonType,
+            defectCause,
+            responsibleStaffId,
             quantity,
             conditionNote,
             files,

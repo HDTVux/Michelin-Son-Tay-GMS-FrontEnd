@@ -19,6 +19,17 @@ const RETURN_TYPE_LABELS = {
   SUPPLIER_RETURN: 'Trả nhà cung cấp',
 };
 
+const RETURN_REASON_LABELS = {
+  WRONG_TYPE: 'Xuất nhầm kiểu/mẫu',
+  DEFECTIVE: 'Hàng bị lỗi',
+};
+
+const DEFECT_CAUSE_LABELS = {
+  TECHNICIAN: 'Lỗi KTV',
+  WAREHOUSE: 'Lỗi kho',
+  SUPPLIER: 'Lỗi nhà cung cấp',
+};
+
 const badgeClassByStatus = (status) => {
   const tone = getStatusTone(status, 'info');
   if (tone === 'success') return commonStyles.badgeSuccess;
@@ -202,12 +213,20 @@ const ReturnItemsCard = ({ items, title = 'Danh sách sản phẩm trả' }) => 
             <th>Đơn giá</th>
             <th>Thành tiền</th>
             <th>Ghi chú tình trạng</th>
+            <th>Phân loại</th>
+            <th>Nguyên nhân / Người chịu trách nhiệm</th>
           </tr>
         </thead>
         <tbody>
           {Array.isArray(items) && items.length > 0 ? (
             items.map((row, idx) => {
               const totalPrice = row?.totalPrice ?? (Number(row?.quantity) * Number(row?.unitPrice));
+              const returnReasonLabel = RETURN_REASON_LABELS[row?.returnReason] || row?.returnReason || '-';
+              const isDefective = row?.returnReason === 'DEFECTIVE';
+              const defectCauseLabel = isDefective
+                ? (DEFECT_CAUSE_LABELS[row?.defectCause] || row?.defectCause || '-')
+                : null;
+              const responsibleName = row?.responsibleStaffName || (row?.responsibleStaffId ? `NV #${row.responsibleStaffId}` : null);
               return (
                 <tr key={`${row?.returnItemId || row?.itemId}-${idx}`}>
                   <td>{idx + 1}</td>
@@ -222,12 +241,29 @@ const ReturnItemsCard = ({ items, title = 'Danh sách sản phẩm trả' }) => 
                   <td>{formatMoneyVnd(row?.unitPrice)}</td>
                   <td>{formatMoneyVnd(totalPrice)}</td>
                   <td>{row?.conditionNote || '-'}</td>
+                  <td>
+                    <span style={{ color: isDefective ? '#dc2626' : '#059669', fontWeight: 500 }}>
+                      {returnReasonLabel}
+                    </span>
+                  </td>
+                  <td>
+                    {isDefective ? (
+                      <div>
+                        <div>{defectCauseLabel}</div>
+                        {responsibleName && (
+                          <div style={{ fontSize: '0.8em', color: '#6b7280', marginTop: 2 }}>
+                            {responsibleName}
+                          </div>
+                        )}
+                      </div>
+                    ) : '-'}
+                  </td>
                 </tr>
               );
             })
           ) : (
             <tr>
-              <td colSpan={8} className={styles.emptyCell}>Không có sản phẩm.</td>
+              <td colSpan={10} className={styles.emptyCell}>Không có sản phẩm.</td>
             </tr>
           )}
         </tbody>

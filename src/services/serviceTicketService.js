@@ -256,12 +256,18 @@ export const requestWarehouseReturnEntry = async (payload, filesOrToken, maybeTo
     throw error;
   }
 
-  const normalizedItems = items.map((item) => ({
-    itemId: toPositiveNumberOrNull(item?.itemId),
-    allocationId: toPositiveNumberOrNull(item?.allocationId),
-    quantity: toPositiveNumberOrNull(item?.quantity),
-    conditionNote: String(item?.conditionNote ?? '').trim(),
-  }));
+  const normalizedItems = items.map((item) => {
+    const normalized = {
+      itemId: toPositiveNumberOrNull(item?.itemId),
+      allocationId: toPositiveNumberOrNull(item?.allocationId),
+      quantity: toPositiveNumberOrNull(item?.quantity),
+      conditionNote: String(item?.conditionNote ?? '').trim(),
+      returnReason: item?.returnReason ?? 'WRONG_TYPE',
+    };
+    if (item?.defectCause) normalized.defectCause = item.defectCause;
+    if (item?.responsibleStaffId) normalized.responsibleStaffId = toPositiveNumberOrNull(item.responsibleStaffId);
+    return normalized;
+  });
 
   if (normalizedItems.some((item) => !item.itemId || !item.allocationId || !item.quantity)) {
     const error = new Error('Danh sách sản phẩm hoàn hàng thiếu itemId, allocationId hoặc quantity hợp lệ.');

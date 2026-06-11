@@ -609,7 +609,7 @@ export const createWarehouseReturnEntryWithAttachments = async (payload, files, 
     formData.append(`file_${idx}`, file, file.name);
   });
 
-  const response = await fetch(`${API_BASE_URL}/api/warehouse/return-entries/with-attachments`, {
+  const response = await fetch(`${API_BASE_URL}/api/warehouse/return-entries/request`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
@@ -691,6 +691,38 @@ export const cancelWarehouseReturnEntry = (id, token) => {
 
   return request(`/api/warehouse/return-entries/${encodeURIComponent(String(safeId))}/cancel`, {
     method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+/**
+ * Tạo phiếu hoàn từ phiếu xuất đã xác nhận (API mới).
+ * POST /api/warehouse/return-entries/from-issue
+ * Payload: { issueId, returnReason, returnType, items: [{ allocationId, quantity, conditionNote, returnReason, defectCause, responsibleStaffId }], exchangeItems }
+ */
+export const createWarehouseReturnEntryFromIssue = (payload, token) => {
+  return request('/api/warehouse/return-entries/from-issue', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+};
+
+// GET: /api/warehouse/return-entries/defect-summary?from=&to=
+// Báo cáo tổng hợp lỗi hàng theo nhân viên (dùng cho KPI penalty)
+export const fetchDefectSummary = (params = {}, token) => {
+  const query = new URLSearchParams();
+  if (params.from) query.set('from', params.from);
+  if (params.to) query.set('to', params.to);
+  const qs = query.toString();
+  const url = qs
+    ? `/api/warehouse/return-entries/defect-summary?${qs}`
+    : '/api/warehouse/return-entries/defect-summary';
+  return request(url, {
+    method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
@@ -790,6 +822,49 @@ export const fetchWarehouseStockIssues = (params, token) => {
   const url = qs ? `/api/warehouse/stock-issues?${qs}` : '/api/warehouse/stock-issues';
 
   return request(url, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/return-entries/items/{returnItemId}/attachments
+// Upload ảnh chứng minh cho 1 sản phẩm trong phiếu hoàn
+export const uploadReturnEntryItemAttachment = async (returnItemId, file, token) => {
+  const idNum = typeof returnItemId === 'number' ? returnItemId : Number(returnItemId);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+  if (!safeId) throw new Error('Thiếu returnItemId.');
+
+  const formData = new FormData();
+  formData.append('file', file, file?.name || 'attachment');
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/warehouse/return-entries/items/${encodeURIComponent(String(safeId))}/attachments`,
+    {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    },
+  );
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json') ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof data === 'string' ? data : data?.message || data?.data?.message || 'Request failed';
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+};
+
+// GET: /api/warehouse/inventory/{warehouseId}
+// Lấy danh sách tồn kho theo kho (dùng cho kho lỗi DEFECTIVE)
+export const fetchInventoryByWarehouse = (warehouseId, token) => {
+  const idNum = typeof warehouseId === 'number' ? warehouseId : Number(warehouseId);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+  return request(`/api/warehouse/inventory/${encodeURIComponent(String(safeId))}`, {
     method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });

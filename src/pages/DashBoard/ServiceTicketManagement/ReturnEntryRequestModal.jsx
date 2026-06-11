@@ -2,22 +2,56 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import styles from './ServiceTicketDetail.module.css';
+import { fetchManagerEmployees } from '../../../services/managerService.js';
 
 function toPositiveNumberOrNull(value) {
     const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
     return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+const DEFECT_CAUSE_OPTIONS = [
+    { value: 'TECHNICIAN', label: 'Lỗi do kỹ thuật viên' },
+    { value: 'WAREHOUSE',  label: 'Lỗi do kho' },
+    { value: 'SUPPLIER',   label: 'Lỗi từ nhà cung cấp' },
+];
+
 export default function ReturnEntryRequestModal({ open, item, submitting, onClose, onSubmit }) {
     const maxQuantity = useMemo(() => toPositiveNumberOrNull(item?.quantity) ?? 1, [item]);
-    const [returnReason, setReturnReason] = useState('');
-    const [quantity, setQuantity] = useState('1');
-    const [conditionNote, setConditionNote] = useState('');
-    const [files, setFiles] = useState([]);
-    const [error, setError] = useState('');
 
+    const [returnReason, setReturnReason]             = useState('');
+    const [returnReasonType, setReturnReasonType]     = useState('WRONG_TYPE');
+    const [defectCause, setDefectCause]               = useState('');
+    const [responsibleStaffId, setResponsibleStaffId] = useState('');
+    const [quantity, setQuantity]                     = useState('1');
+    const [conditionNote, setConditionNote]           = useState('');
+    const [files, setFiles]                           = useState([]);
+    const [error, setError]                           = useState('');
+    const [staffList, setStaffList]                   = useState([]);
+
+    // Reset khi mở modal
     useEffect(() => {
         if (!open) return undefined;
+        setReturnReason('');
+        setReturnReasonType('WRONG_TYPE');
+        setDefectCause('');
+        setResponsibleStaffId('');
+        setQuantity('1');
+        setConditionNote('');
+        setFiles([]);
+        setError('');
+
+        // Fetch danh sách nhân viên ngay khi modal mở
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        if (token) {
+            fetchManagerEmployees(token)
+                .then((res) => {
+                    const data = res?.data?.data ?? res?.data ?? res ?? [];
+                    const list = Array.isArray(data) ? data : (Array.isArray(data?.content) ? data.content : []);
+                    setStaffList(list);
+                })
+                .catch(() => setStaffList([]));
+        }
+
         const onKeyDown = (event) => {
             if (event.key === 'Escape' && !submitting) onClose?.();
         };
@@ -30,43 +64,52 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
     const portalContainer = globalThis.document?.body;
     if (!portalContainer) return null;
 
-    const itemName = String(item?.itemName || '').trim() || 'Sản phẩm';
-    const unitText = String(item?.unit || '').trim();
+    const itemName  = String(item?.itemName || '').trim() || 'Sản phẩm';
+    const unitText  = String(item?.unit || '').trim();
+    const isDefective = returnReasonType === 'DEFECTIVE';
+    const needsStaff  = isDefective && (defectCause === 'TECHNICIAN' || defectCause === 'WAREHOUSE');
 
     const handleSubmit = () => {
         const reason = String(returnReason || '').trim();
-        const qty = toPositiveNumberOrNull(quantity);
-        const note = String(conditionNote || '').trim();
+        const qty    = toPositiveNumberOrNull(quantity);
+        const note   = String(conditionNote || '').trim();
         const imageFiles = Array.isArray(files) ? files.filter(Boolean) : [];
 
         if (!reason) {
             setError('Vui lòng nhập lý do hoàn trả.');
             return;
         }
-
         if (!qty) {
             setError('Số lượng hoàn trả phải lớn hơn 0.');
             return;
         }
-
         if (qty > maxQuantity) {
             setError(`Số lượng hoàn trả không được vượt quá ${maxQuantity}.`);
             return;
         }
-
         if (!note) {
             setError('Vui lòng nhập ghi chú tình trạng.');
             return;
         }
-
         if (imageFiles.length === 0) {
             setError('Vui lòng chọn ít nhất 1 ảnh tình trạng.');
+            return;
+        }
+        if (isDefective && !defectCause) {
+            setError('Vui lòng chọn nguyên nhân lỗi.');
+            return;
+        }
+        if (needsStaff && !responsibleStaffId) {
+            setError('Vui lòng chọn nhân viên chịu trách nhiệm.');
             return;
         }
 
         setError('');
         onSubmit?.({
             returnReason: reason,
+            returnReasonType,
+            defectCause: isDefective ? defectCause : undefined,
+            responsibleStaffId: needsStaff && responsibleStaffId ? Number(responsibleStaffId) : undefined,
             quantity: qty,
             conditionNote: note,
             files: imageFiles,
@@ -87,8 +130,77 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                 </div>
 
                 <div className={styles.returnModalBody}>
+                    {/* Phân loại lý do hoàn */}
                     <div className="ui-field">
-                        <label htmlFor="return-entry-reason">Lý do hoàn trả (<span className={styles.required}>*</span>)</label>
+                        <label htmlFor="return-reason-type">
+                            Phân loại hoàn hàng (<span className={styles.required}>*</span>)
+                        </label>
+                        <select
+                            id="return-reason-type"
+                            value={returnReasonType}
+                            onChange={(e) => {
+                                setReturnReasonType(e.target.value);
+                                setDefectCause('');
+                                setResponsibleStaffId('');
+                            }}
+                            disabled={submitting}
+                        >
+                            <option value="WRONG_TYPE">Xuất nhầm kiểu / mẫu</option>
+                            <option value="DEFECTIVE">Hàng bị lỗi</option>
+                        </select>
+                    </div>
+
+                    {/* Thông tin lỗi — chỉ hiện khi DEFECTIVE */}
+                    {isDefective && (
+                        <>
+                            <div className="ui-field">
+                                <label htmlFor="defect-cause">
+                                    Nguyên nhân lỗi (<span className={styles.required}>*</span>)
+                                </label>
+                                <select
+                                    id="defect-cause"
+                                    value={defectCause}
+                                    onChange={(e) => {
+                                        setDefectCause(e.target.value);
+                                        setResponsibleStaffId('');
+                                    }}
+                                    disabled={submitting}
+                                >
+                                    <option value="">-- Chọn nguyên nhân --</option>
+                                    {DEFECT_CAUSE_OPTIONS.map((o) => (
+                                        <option key={o.value} value={o.value}>{o.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {needsStaff && (
+                                <div className="ui-field">
+                                    <label htmlFor="responsible-staff">
+                                        Nhân viên chịu trách nhiệm (<span className={styles.required}>*</span>)
+                                    </label>
+                                    <select
+                                        id="responsible-staff"
+                                        value={responsibleStaffId}
+                                        onChange={(e) => setResponsibleStaffId(e.target.value)}
+                                        disabled={submitting}
+                                    >
+                                        <option value="">-- Chọn nhân viên --</option>
+                                        {Array.isArray(staffList) && staffList.map((s) => (
+                                            <option key={s.staffId} value={s.staffId}>
+                                                {s.fullName || s.name || `NV #${s.staffId}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* Lý do hoàn trả (mô tả tự do) */}
+                    <div className="ui-field">
+                        <label htmlFor="return-entry-reason">
+                            Lý do hoàn trả (<span className={styles.required}>*</span>)
+                        </label>
                         <textarea
                             id="return-entry-reason"
                             value={returnReason}
@@ -102,7 +214,9 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
 
                     <div className={styles.returnModalGrid}>
                         <div className="ui-field">
-                            <label htmlFor="return-entry-quantity">Số lượng hoàn (<span className={styles.required}>*</span>)</label>
+                            <label htmlFor="return-entry-quantity">
+                                Số lượng hoàn (<span className={styles.required}>*</span>)
+                            </label>
                             <input
                                 id="return-entry-quantity"
                                 type="number"
@@ -119,7 +233,9 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                             </div>
                         </div>
                         <div className="ui-field">
-                            <label htmlFor="return-entry-files">Ảnh tình trạng (<span className={styles.required}>*</span>)</label>
+                            <label htmlFor="return-entry-files">
+                                Ảnh tình trạng (<span className={styles.required}>*</span>)
+                            </label>
                             <input
                                 id="return-entry-files"
                                 type="file"
@@ -133,7 +249,9 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                     </div>
 
                     <div className="ui-field">
-                        <label htmlFor="return-entry-condition">Ghi chú tình trạng (<span className={styles.required}>*</span>)</label>
+                        <label htmlFor="return-entry-condition">
+                            Ghi chú tình trạng (<span className={styles.required}>*</span>)
+                        </label>
                         <input
                             id="return-entry-condition"
                             value={conditionNote}

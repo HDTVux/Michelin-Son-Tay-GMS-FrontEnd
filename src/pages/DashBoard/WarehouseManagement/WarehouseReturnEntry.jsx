@@ -14,6 +14,16 @@ const RETURN_TYPES = [
   { value: 'SUPPLIER_RETURN', label: 'Trả nhà cung cấp' },
   { value: 'EXCHANGE', label: 'Đổi hàng' },
 ];
+const RETURN_REASON_OPTIONS = [
+  { value: 'WRONG_TYPE', label: 'Xuất nhầm (WRONG_TYPE)' },
+  { value: 'DEFECTIVE', label: 'Hàng lỗi (DEFECTIVE)' },
+];
+
+const DEFECT_CAUSE_OPTIONS = [
+  { value: 'TECHNICIAN', label: 'Kỹ thuật viên' },
+  { value: 'WAREHOUSE', label: 'Kho' },
+  { value: 'SUPPLIER', label: 'Nhà cung cấp' },
+];
 
 const extractCatalogItems = (response) => {
   const payload = response?.data?.data ?? response?.data ?? response;
@@ -115,7 +125,7 @@ export default function WarehouseReturnEntry() {
     if (!mapped.itemId) return;
     setReturnItems((prev) => {
       if (prev.some((row) => Number(row.itemId) === mapped.itemId)) return prev;
-      return [...prev, { ...mapped, quantity: '1', conditionNote: '' }];
+      return [...prev, { ...mapped, quantity: '1', conditionNote: '', returnReason: 'WRONG_TYPE', defectCause: '', responsibleStaffId: '' }];
     });
   };
 
@@ -182,6 +192,25 @@ export default function WarehouseReturnEntry() {
       }
     }
 
+    // Client-side validation for defective items
+    for (const row of returnItems) {
+      const rr = String(row.returnReason || 'WRONG_TYPE');
+      if (rr === 'DEFECTIVE') {
+        if (!row.defectCause) {
+          notify(`Item ${row.itemName || row.itemId}: vui lòng chọn nguyên nhân lỗi (defectCause).`);
+          return;
+        }
+        if (row.defectCause === 'SUPPLIER' && row.responsibleStaffId) {
+          notify(`Item ${row.itemName || row.itemId}: không được nhập responsibleStaffId khi defectCause = SUPPLIER.`);
+          return;
+        }
+        if ((row.defectCause === 'TECHNICIAN' || row.defectCause === 'WAREHOUSE') && !row.responsibleStaffId) {
+          notify(`Item ${row.itemName || row.itemId}: vui lòng nhập responsibleStaffId khi defectCause = ${row.defectCause}.`);
+          return;
+        }
+      }
+    }
+
     const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
     if (!token) {
       notify('Vui lòng đăng nhập để tạo phiếu trả hàng.');
@@ -198,6 +227,9 @@ export default function WarehouseReturnEntry() {
           itemId: Number(row.itemId),
           quantity: toPositiveNumber(row.quantity),
           conditionNote: String(row.conditionNote || '').trim(),
+          returnReason: String(row.returnReason || 'WRONG_TYPE'),
+          defectCause: row.defectCause || null,
+          responsibleStaffId: row.responsibleStaffId ? Number(row.responsibleStaffId) : null,
         })),
         exchangeItems: isExchangeType
           ? exchangeItems.map((row) => ({
@@ -318,6 +350,8 @@ export default function WarehouseReturnEntry() {
                   <th>Sản phẩm</th>
                   <th>Số lượng</th>
                   <th>Ghi chú tình trạng</th>
+                  <th>Lý do</th>
+                  <th>Nguyên nhân / Người chịu trách nhiệm</th>
                   <th />
                 </tr>
               </thead>
@@ -344,6 +378,34 @@ export default function WarehouseReturnEntry() {
                           onChange={(e) => updateReturnItem(row.itemId, 'conditionNote', e.target.value)}
                           placeholder="VD: Vỏ nhựa bị nứt"
                         />
+                      </td>
+                      <td>
+                        <select value={row.returnReason || 'WRONG_TYPE'} onChange={(e) => updateReturnItem(row.itemId, 'returnReason', e.target.value)}>
+                          {RETURN_REASON_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        {String(row.returnReason) === 'DEFECTIVE' ? (
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <select value={row.defectCause || ''} onChange={(e) => updateReturnItem(row.itemId, 'defectCause', e.target.value)}>
+                              <option value="">Chọn nguyên nhân</option>
+                              {DEFECT_CAUSE_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              value={row.responsibleStaffId || ''}
+                              onChange={(e) => updateReturnItem(row.itemId, 'responsibleStaffId', e.target.value)}
+                              placeholder="Staff ID (nếu có)"
+                              style={{ width: 120 }}
+                            />
+                          </div>
+                        ) : (
+                          <em>Không áp dụng</em>
+                        )}
                       </td>
                       <td>
                         <button type="button" onClick={() => removeReturnItem(row.itemId)}>Xóa</button>

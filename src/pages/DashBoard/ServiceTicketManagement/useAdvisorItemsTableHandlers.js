@@ -337,6 +337,9 @@ export async function handleCancelWarehouseAllocationAction({
 export async function handleSubmitReturnEntryAction({
 	returnModalItem,
 	returnReason,
+	returnReasonType,
+	defectCause,
+	responsibleStaffId,
 	quantity,
 	conditionNote,
 	files,
@@ -376,21 +379,24 @@ export async function handleSubmitReturnEntryAction({
 			})
 			.filter(Boolean);
 
+		// Build main item payload — include defect fields when returnReasonType = DEFECTIVE
+		const mainItem = {
+			itemId,
+			allocationId,
+			quantity,
+			conditionNote,
+			returnReason: returnReasonType ?? 'WRONG_TYPE',
+			...(returnReasonType === 'DEFECTIVE' && defectCause ? { defectCause } : {}),
+			...(returnReasonType === 'DEFECTIVE' && responsibleStaffId ? { responsibleStaffId } : {}),
+		};
+
 		await requestWarehouseReturnEntry(
 			{
 				warehouseId: toIdOrNull(row?.warehouseId),
 				sourceIssueId: toIdOrNull(row?.issueId),
 				returnReason,
 				returnType: 'CUSTOMER_RETURN',
-				items: [
-					{
-						itemId,
-						allocationId,
-						quantity,
-						conditionNote,
-					},
-					...extraNormalized,
-				],
+				items: [mainItem, ...extraNormalized],
 			},
 			Array.isArray(files) ? files : [],
 			token,

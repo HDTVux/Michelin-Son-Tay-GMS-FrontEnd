@@ -79,6 +79,17 @@
   justify-content: center;
 }
 
+.actionsRow {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.actionsRow button {
+  min-width: 200px;
+}
+
 .uploadRow {
   display: flex;
   gap: 12px;

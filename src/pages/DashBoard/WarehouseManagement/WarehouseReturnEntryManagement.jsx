@@ -221,13 +221,25 @@ export default function WarehouseReturnEntryManagement() {
           </div>
           <div className={styles.headerActions}>
             <span className={styles.totalCount}>{stats.total} phiếu</span>
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={() => navigate('/warehouse-return-entry')}
-          >
-            Tạo phiếu trả hàng
-          </button>
+            <button
+              type="button"
+              className={styles.ghostButton}
+              onClick={() => {
+                const confirmed = window.confirm(
+                  '⚠️ CẢNH BÁO: Bạn đang tạo phiếu hoàn KHÔNG có nguồn gốc từ phiếu xuất.\n\n' +
+                  'Quy trình chuẩn:\n' +
+                  '1. Vào "Quản lý phiếu xuất kho"\n' +
+                  '2. Chọn phiếu xuất đã CONFIRMED\n' +
+                  '3. Bấm "Tạo phiếu hoàn từ phiếu xuất này"\n\n' +
+                  'Phiếu hoàn thủ công sẽ THIẾU context: không biết phiếu dịch vụ, allocation, KTV nào chịu trách nhiệm.\n\n' +
+                  'Bạn có chắc muốn tiếp tục?'
+                );
+                if (confirmed) navigate('/warehouse-return-entry');
+              }}
+              title="Không khuyến nghị: tạo phiếu hoàn không có nguồn gốc"
+            >
+              ⚠️ Tạo phiếu thủ công (không khuyến nghị)
+            </button>
           </div>
         </header>
 

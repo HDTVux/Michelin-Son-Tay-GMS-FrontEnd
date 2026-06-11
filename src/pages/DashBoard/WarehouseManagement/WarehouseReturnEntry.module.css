@@ -292,6 +292,73 @@
   gap: 10px;
 }
 
+.footerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  min-width: 20px;
+  min-height: 20px;
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.itemConfig {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.itemConfig label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.itemConfig label span {
+  font-weight: 600;
+}
+
+.itemConfig input,
+.itemConfig select {
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px 10px;
+  min-height: 38px;
+  font-size: 14px;
+}
+
+.itemConfig input:focus,
+.itemConfig select:focus {
+  border-color: #1e90ff;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.1);
+}
+
+.emptyText {
+  text-align: center;
+  color: #6b7280;
+  padding: 40px 20px;
+  font-size: 16px;
+}
+
 @media (max-width: 1024px) {
   .formGrid,
   .grid {
@@ -395,5 +462,137 @@
   .table td {
     padding: 10px 8px;
     font-size: 13px;
+  }
+}
+
+/* ── Return Modal (dùng cho ItemReturnModal trong WarehouseReturnEntryFromIssue) ─── */
+.returnModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.returnModal {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  border: none;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.returnModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.returnModalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.returnModalSubtitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.returnModalBody {
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.returnModalGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.returnModalActions {
+  padding: 16px 24px;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ── Misc helpers ─── */
+.tdCenter {
+  text-align: center !important;
+}
+
+.badge {
+  display: inline-block;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.badgeOk {
+  display: inline-block;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badgeDefective {
+  display: inline-block;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fieldHint {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.errorBanner {
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .returnModalGrid {
+    grid-template-columns: 1fr;
+  }
+  .returnModal {
+    max-width: 100%;
+    margin: 0;
+    border-radius: 12px 12px 0 0;
+    align-self: flex-end;
+    max-height: 80vh;
   }
 }
