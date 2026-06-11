@@ -212,12 +212,12 @@ export function pickLatestEstimateFromPayload(payload) {
 export function getRowStockStatus(row) {
 	return String(
 		row?.stockAllocation?.status ??
-			row?.allocation?.status ??
-			row?.warehouseAllocation?.status ??
-			row?.stockAllocationStatus ??
-			row?.stock_allocation_status ??
-			row?.allocationStatus ??
-			'',
+		row?.allocation?.status ??
+		row?.warehouseAllocation?.status ??
+		row?.stockAllocationStatus ??
+		row?.stock_allocation_status ??
+		row?.allocationStatus ??
+		'',
 	).trim().toUpperCase();
 }
 
@@ -348,7 +348,7 @@ export async function handleSubmitReturnEntryAction({
 	setReturnModalItem,
 	refreshLatestEstimate,
 	markEstimateDraft,
-    extraItems,
+	extraItems,
 }) {
 	const row = returnModalItem;
 	const itemId = toIdOrNull(row?.itemId);
@@ -649,9 +649,9 @@ export function pickAdvisorCatalogItem({
 	const warehouseId = item?.warehouseId ?? item?.selectedWarehouse?.warehouseId ?? null;
 	const warehouseName = String(
 		item?.warehouseName ??
-			item?.selectedWarehouse?.warehouseName ??
-			item?.selectedWarehouse?.name ??
-			'',
+		item?.selectedWarehouse?.warehouseName ??
+		item?.selectedWarehouse?.name ??
+		'',
 	).trim();
 	const availableQtyRaw =
 		item?.availableQuantity ??
@@ -689,24 +689,24 @@ export function pickAdvisorCatalogItem({
 }
 
 function pickLatestEstimate(list) {
-    const arr = Array.isArray(list) ? list : [];
-    if (arr.length === 0) return null;
+	const arr = Array.isArray(list) ? list : [];
+	if (arr.length === 0) return null;
 
-    return [...arr].sort((a, b) => {
-        // Bao phủ mọi trường hợp tên ID (id, estimateId, serviceTicketEstimateId...)
-        const idA = Number(a?.estimateId ?? a?.id ?? a?.serviceTicketEstimateId ?? 0);
-        const idB = Number(b?.estimateId ?? b?.id ?? b?.serviceTicketEstimateId ?? 0);
-        
-        // Luôn sắp xếp ID giảm dần (Báo giá tạo sau sẽ có ID lớn hơn)
-        if (idA > 0 && idB > 0 && idA !== idB) {
-            return idB - idA; 
-        }
-        
-        // Fallback: Nếu không tìm thấy ID, so sánh bằng thời gian tạo
-        const ta = new Date(a?.createdAt || a?.approvedAt || a?.createdDate || 0).getTime();
-        const tb = new Date(b?.createdAt || b?.approvedAt || b?.createdDate || 0).getTime();
-        return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
-    })[0];
+	return [...arr].sort((a, b) => {
+		// Bao phủ mọi trường hợp tên ID (id, estimateId, serviceTicketEstimateId...)
+		const idA = Number(a?.estimateId ?? a?.id ?? a?.serviceTicketEstimateId ?? 0);
+		const idB = Number(b?.estimateId ?? b?.id ?? b?.serviceTicketEstimateId ?? 0);
+
+		// Luôn sắp xếp ID giảm dần (Báo giá tạo sau sẽ có ID lớn hơn)
+		if (idA > 0 && idB > 0 && idA !== idB) {
+			return idB - idA;
+		}
+
+		// Fallback: Nếu không tìm thấy ID, so sánh bằng thời gian tạo
+		const ta = new Date(a?.createdAt || a?.approvedAt || a?.createdDate || 0).getTime();
+		const tb = new Date(b?.createdAt || b?.approvedAt || b?.createdDate || 0).getTime();
+		return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+	})[0];
 }
 
 function createEmptyDraftRow() {
@@ -744,23 +744,23 @@ function getEffectiveTaxRuleId(row) {
 function getItemTaxRuleIdFromEstimateItem(it) {
 	return (
 		it?.item?.taxRuleId ??
-			it?.catalogItem?.taxRuleId ??
-			it?.serviceItem?.taxRuleId ??
-			it?.product?.taxRuleId ??
-			it?.service?.taxRuleId ??
-			''
+		it?.catalogItem?.taxRuleId ??
+		it?.serviceItem?.taxRuleId ??
+		it?.product?.taxRuleId ??
+		it?.service?.taxRuleId ??
+		''
 	);
 }
 
 function getItemUnitFromEstimateItem(it) {
 	return String(
 		it?.unit ??
-			it?.item?.unit ??
-			it?.catalogItem?.unit ??
-			it?.serviceItem?.unit ??
-			it?.product?.unit ??
-			it?.service?.unit ??
-			''
+		it?.item?.unit ??
+		it?.catalogItem?.unit ??
+		it?.serviceItem?.unit ??
+		it?.product?.unit ??
+		it?.service?.unit ??
+		''
 	).trim();
 }
 
@@ -841,12 +841,12 @@ export function extractApiPayload(response) {
 function getTaxRuleIdFromCatalogPayload(payload) {
 	return (
 		payload?.taxRuleId ??
-			payload?.tax_rule_id ??
-			payload?.taxRule?.taxRuleId ??
-			payload?.taxRule?.id ??
-			payload?.tax_rule?.tax_rule_id ??
-			payload?.tax_rule?.id ??
-			''
+		payload?.tax_rule_id ??
+		payload?.taxRule?.taxRuleId ??
+		payload?.taxRule?.id ??
+		payload?.tax_rule?.tax_rule_id ??
+		payload?.tax_rule?.id ??
+		''
 	);
 }
 
@@ -859,12 +859,12 @@ function getEstimateItemWarehouseName(item) {
 function getEstimateItemStockAllocationStatus(item) {
 	return String(
 		item?.stockAllocation?.status ??
-			item?.allocation?.status ??
-			item?.warehouseAllocation?.status ??
-			item?.stockAllocationStatus ??
-			item?.stock_allocation_status ??
-			item?.allocationStatus ??
-			'',
+		item?.allocation?.status ??
+		item?.warehouseAllocation?.status ??
+		item?.stockAllocationStatus ??
+		item?.stock_allocation_status ??
+		item?.allocationStatus ??
+		'',
 	).trim().toUpperCase();
 }
 
@@ -968,26 +968,26 @@ function mapEstimateItemToLockedRow(it, idx, options = {}) {
 	const warehouseName = getEstimateItemWarehouseName(it);
 	const allocationId =
 		it?.allocationId ??
-			it?.stockAllocationId ??
-			it?.stock_allocation_id ??
-			it?.stockAllocation?.allocationId ??
-			it?.stockAllocation?.stockAllocationId ??
-			it?.allocation?.allocationId ??
-			it?.allocation?.stockAllocationId ??
-			it?.warehouseAllocation?.allocationId ??
-			it?.warehouseAllocation?.stockAllocationId ??
-			null;
+		it?.stockAllocationId ??
+		it?.stock_allocation_id ??
+		it?.stockAllocation?.allocationId ??
+		it?.stockAllocation?.stockAllocationId ??
+		it?.allocation?.allocationId ??
+		it?.allocation?.stockAllocationId ??
+		it?.warehouseAllocation?.allocationId ??
+		it?.warehouseAllocation?.stockAllocationId ??
+		null;
 	const issueId =
 		it?.issueId ??
-			it?.stockIssueId ??
-			it?.stock_issue_id ??
-			it?.stockAllocation?.issueId ??
-			it?.stockAllocation?.stockIssueId ??
-			it?.allocation?.issueId ??
-			it?.allocation?.stockIssueId ??
-			it?.warehouseAllocation?.issueId ??
-			it?.warehouseAllocation?.stockIssueId ??
-			null;
+		it?.stockIssueId ??
+		it?.stock_issue_id ??
+		it?.stockAllocation?.issueId ??
+		it?.stockAllocation?.stockIssueId ??
+		it?.allocation?.issueId ??
+		it?.allocation?.stockIssueId ??
+		it?.warehouseAllocation?.issueId ??
+		it?.warehouseAllocation?.stockIssueId ??
+		null;
 	const newCategoryName = String(
 		it?.workCategory?.categoryName || it?.workCategory?.categoryCode || it?.newCategoryName || '',
 	).trim();
@@ -1372,7 +1372,26 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const { onEstimateStatusChange, refreshToken, draftStorageKey, autoStartCreate = false } = options || {};
 	const standaloneDraftMode = Boolean(draftStorageKey);
 	const onEstimateStatusChangeRef = useRef(onEstimateStatusChange);
-	const [estimate, setEstimate] = useState(() => readEstimateDraftSnapshot(draftStorageKey));
+
+	const activeTicketId = serviceTicketId || 'new_booking';
+	const backupKey = `gms_advisor_table_backup_${activeTicketId}`;
+
+	const getBackupState = () => {
+		if (typeof sessionStorage === 'undefined') return null;
+		try {
+			const raw = sessionStorage.getItem(backupKey);
+			if (raw) {
+				return JSON.parse(raw);
+			}
+		} catch (e) {
+			console.error(e);
+		}
+		return null;
+	};
+
+	const backup = getBackupState();
+
+	const [estimate, setEstimate] = useState(() => backup?.estimate ?? readEstimateDraftSnapshot(draftStorageKey));
 	const estimateRef = useRef(estimate);
 	const [loading, setLoading] = useState(false);
 	const [loadError, setLoadError] = useState('');
@@ -1390,13 +1409,14 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const [recommendation, setRecommendation] = useState('');
 	const [recommendationLoading, setRecommendationLoading] = useState(false);
 	const [recommendationSaving, setRecommendationSaving] = useState(false);
-	const [isCreating, setIsCreating] = useState(false);
-	const [isEditing, setIsEditing] = useState(false);
-	const [isAppendOnlyEdit, setIsAppendOnlyEdit] = useState(false);
+
+	const [isCreating, setIsCreating] = useState(() => backup?.isCreating ?? false);
+	const [isEditing, setIsEditing] = useState(() => backup?.isEditing ?? false);
+	const [isAppendOnlyEdit, setIsAppendOnlyEdit] = useState(() => backup?.isAppendOnlyEdit ?? false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [saveError, setSaveError] = useState('');
-	const [draftRows, setDraftRows] = useState(() => [createEmptyDraftRow()]);
-	const [editRows, setEditRows] = useState(() => [createEmptyDraftRow()]);
+	const [draftRows, setDraftRows] = useState(() => backup?.draftRows ?? [createEmptyDraftRow()]);
+	const [editRows, setEditRows] = useState(() => backup?.editRows ?? [createEmptyDraftRow()]);
 	const initialEditRowsSnapshotRef = useRef('');
 	const initialCreateRowsSnapshotRef = useRef('');
 	const lastValidServiceTicketIdRef = useRef(
@@ -1405,6 +1425,12 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 	const inventory = useInventoryCheckHandlers();
 	const draftStorageKeyRef = useRef(draftStorageKey);
+
+	useEffect(() => {
+		if (typeof sessionStorage !== 'undefined') {
+			sessionStorage.removeItem(backupKey);
+		}
+	}, [backupKey]);
 
 	const itemTaxRuleCacheRef = useRef(new Map());
 	const resolveItemTaxRuleId = useCallback(async (itemId) => {
@@ -2426,18 +2452,18 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	}, [isSaving]);
 
 	const saveEstimate = useCallback(async () => {
-        if (isSaving) return;
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-            setSaveError('Vui lòng đăng nhập để tạo báo giá.');
-            return;
-        }
+		if (isSaving) return;
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			setSaveError('Vui lòng đăng nhập để tạo báo giá.');
+			return;
+		}
 
-        const idNum = toIdOrNull(serviceTicketId);
-        if (!standaloneDraftMode && !idNum) {
-            setSaveError('Thiếu serviceTicketId hợp lệ.');
-            return;
-        }
+		const idNum = toIdOrNull(serviceTicketId);
+		if (!standaloneDraftMode && !idNum) {
+			setSaveError('Thiếu serviceTicketId hợp lệ.');
+			return;
+		}
 
 		const validation = validateDraftOrEditRows(draftRows);
 		if (!validation.ok) {
@@ -2508,9 +2534,9 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				return payload;
 			});
 
-        try {
-            setIsSaving(true);
-            setSaveError('');
+		try {
+			setIsSaving(true);
+			setSaveError('');
 			debugEstimateVersion('create-version-request', {
 				serviceTicketId: standaloneDraftMode ? null : idNum,
 				estimateType: 'INITIAL',
@@ -2521,15 +2547,15 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 
 			const res = await createServiceTicketEstimate(
-                {
-                    serviceTicketId: standaloneDraftMode ? null : idNum,
-                    estimateType: 'INITIAL',
-                    status: 'DRAFT',         // <-- Bổ sung dòng này
-                    estimateStatus: 'DRAFT', // <-- (Thêm cả dòng này cho chắc ăn, tuỳ BE của bạn dùng field nào)
+				{
+					serviceTicketId: standaloneDraftMode ? null : idNum,
+					estimateType: 'INITIAL',
+					status: 'DRAFT',         // <-- Bổ sung dòng này
+					estimateStatus: 'DRAFT', // <-- (Thêm cả dòng này cho chắc ăn, tuỳ BE của bạn dùng field nào)
 					items,
-                },
-                token,
-            );
+				},
+				token,
+			);
 			let nextEstimate = mergeEstimateWithWarehouseDisplay(
 				extractApiPayload(res),
 				estimateRef.current,
@@ -2539,15 +2565,15 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				nextEstimate = (await refetchLatestEstimate(idNum, token, nextEstimate, estimateRef.current, draftRows)) ?? nextEstimate;
 			}
 			debugEstimateVersion('create-version-response', nextEstimate ?? null);
-            setEstimate(nextEstimate ?? null);
-            onEstimateStatusChangeRef.current?.(nextEstimate ?? null);
-            setIsCreating(false);
+			setEstimate(nextEstimate ?? null);
+			onEstimateStatusChangeRef.current?.(nextEstimate ?? null);
+			setIsCreating(false);
 			initialCreateRowsSnapshotRef.current = '';
-        } catch (err) {
-            setSaveError(err?.message || 'Không thể lưu báo giá.');
-        } finally {
-            setIsSaving(false);
-        }
+		} catch (err) {
+			setSaveError(err?.message || 'Không thể lưu báo giá.');
+		} finally {
+			setIsSaving(false);
+		}
 	}, [draftRows, isSaving, refetchLatestEstimate, serviceTicketId, standaloneDraftMode, validateDraftOrEditRows]);
 
 	const saveEdit = useCallback(async () => {
@@ -2617,10 +2643,10 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				});
 				const qtyValidated = validatePositiveNumber(sourceRow?.quantity,
 					{
-					fieldLabel: 'Số lượng',
-					required: true,
-					integer: true,
-				});
+						fieldLabel: 'Số lượng',
+						required: true,
+						integer: true,
+					});
 				const priceValidated = validateNonNegativeNumber(sourceRow?.unitPrice, {
 					fieldLabel: 'Đơn giá',
 					required: true,

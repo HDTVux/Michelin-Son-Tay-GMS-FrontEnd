@@ -1,0 +1,184 @@
+import { useState, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import styles from './CatalogPicker.module.css';
+import { formatCurrencyVnd } from './useAdvisorItemsTableHandlers.js';
+
+function toFiniteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const num = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function getWarehouseAvailableQty(detail) {
+  const availableStockLevel = toFiniteNumber(
+    detail?.availableStockLevel
+      ?? detail?.available_stock_level
+      ?? detail?.availableStock
+      ?? detail?.available_stock,
+  );
+  if (availableStockLevel != null) return availableStockLevel;
+
+  const qty = toFiniteNumber(detail?.quantity ?? detail?.stockQuantity ?? detail?.stock_quantity);
+  if (qty != null) return qty;
+
+  const availableQty = toFiniteNumber(detail?.availableQuantity ?? detail?.available_quantity);
+  if (availableQty != null) return availableQty;
+
+  return null;
+}
+
+function buildPickedCatalogItem(item, warehouseDetail, selectedLot) {
+  if (!warehouseDetail) return item;
+  const sellingPrice = selectedLot ? selectedLot?.sellingPrice : warehouseDetail?.sellingPrice;
+  const nextPrice = sellingPrice ?? item?.price ?? item?.unitPrice;
+  const availableQuantity = selectedLot 
+    ? selectedLot?.remainingQuantity 
+    : getWarehouseAvailableQty(warehouseDetail);
+
+  return {
+    ...item,
+    warehouseId: warehouseDetail?.warehouseId,
+    selectedWarehouse: warehouseDetail,
+    sellingPrice,
+    price: nextPrice,
+    unitPrice: nextPrice,
+    availableQuantity,
+    entryItemId: selectedLot ? selectedLot?.entryItemId : null,
+    entryCode: selectedLot ? selectedLot?.entryCode : null,
+  };
+}
+
+export default function LotPickerPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const state = location.state || {};
+  const { ticketCode = '', rowIndex = null, item = null, selectedWarehouse = null } = state;
+
+  const [searchCode, setSearchCode] = useState('');
+
+  // 1. Chỉ hiển thị các lô còn hàng (remainingQuantity > 0)
+  const activeLots = useMemo(() => {
+    const lots = Array.isArray(selectedWarehouse?.lots) ? selectedWarehouse.lots : [];
+    return lots.filter((lot) => (lot?.remainingQuantity ?? 0) > 0);
+  }, [selectedWarehouse]);
+
+  // 2. Tìm kiếm nhanh theo mã lô (entryCode)
+  const filteredLots = useMemo(() => {
+    return activeLots.filter((lot) => {
+      const entryCode = String(lot?.entryCode || '').toLowerCase();
+      return entryCode.includes(searchCode.trim().toLowerCase());
+    });
+  }, [activeLots, searchCode]);
+
+  if (!item || !selectedWarehouse) {
+    return (
+      <div className={styles.pageContainer}>
+        <div className={styles.errorBanner}>
+          Không tìm thấy thông tin sản phẩm hoặc kho hàng. Vui lòng quay lại.
+        </div>
+        <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate(-1)}>
+          Quay lại
+        </button>
+      </div>
+    );
+  }
+
+  const handlePickLot = (lot) => {
+    const activeTicketId = ticketCode || 'new_booking';
+    const pickedItem = buildPickedCatalogItem(item, selectedWarehouse, lot);
+    const pickedProductData = {
+      item: pickedItem,
+      rowIndex,
+    };
+    sessionStorage.setItem(`gms_picked_product_${activeTicketId}`, JSON.stringify(pickedProductData));
+    // Quay lại màn hình chi tiết báo giá trước đó (bỏ qua trang chọn catalog bằng cách lùi 2 bước)
+    navigate(-2);
+  };
+
+  return (
+    <div className={styles.pageContainer}>
+      <div className={styles.pageHeader}>
+        <div>
+          <h2 className={styles.pageTitle}>Chọn lô sản phẩm</h2>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.95rem' }}>
+            Sản phẩm: <strong style={{ color: '#1e293b' }}>{item.itemName || item.name}</strong> ({item.sku || 'N/A'}) &mdash; Hãng: <strong style={{ color: '#1e293b' }}>{item.brand || 'N/A'}</strong> &mdash; Kho: <strong style={{ color: '#1e293b' }}>{selectedWarehouse.warehouseName || selectedWarehouse.warehouseCode}</strong>
+          </p>
+        </div>
+        <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate(-1)}>
+          Quay lại
+        </button>
+      </div>
+
+      <div className={styles.modalBody} style={{ padding: 0 }}>
+        {/* Bộ lọc mã lô */}
+        <div className={styles.filterSection}>
+          <div className={styles.searchRow}>
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo mã lô (entryCode)..."
+              value={searchCode}
+              onChange={(e) => setSearchCode(e.target.value)}
+            />
+            <button
+              type="button"
+              className="ui-btn ui-btn--ghost"
+              onClick={() => setSearchCode('')}
+              disabled={!searchCode}
+            >
+              Đặt lại
+            </button>
+          </div>
+        </div>
+
+        {/* Danh sách lô hàng */}
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th style={{ width: '80px' }}>STT</th>
+                <th>Mã lô</th>
+                <th>Số lượng tồn</th>
+                <th>Đơn giá lô</th>
+                <th style={{ width: '120px' }} />
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLots.length > 0 ? (
+                filteredLots.map((lot, index) => (
+                  <tr key={String(lot.entryItemId || index)}>
+                    <td>{index + 1}</td>
+                    <td>
+                      <span style={{ fontWeight: '600', color: '#0f172a' }}>
+                        {lot.entryCode || '-'}
+                      </span>
+                    </td>
+                    <td>{lot.remainingQuantity ?? 0}</td>
+                    <td className={styles.tdNumber}>
+                      {formatCurrencyVnd(lot.sellingPrice)}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="ui-btn ui-btn--primary"
+                        onClick={() => handlePickLot(lot)}
+                      >
+                        Chọn
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className={styles.emptyRow}>
+                    Không tìm thấy lô hàng nào phù hợp.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

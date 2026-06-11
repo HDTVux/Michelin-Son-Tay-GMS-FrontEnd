@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
@@ -30,6 +31,7 @@ import {
     useAdvisorItemsTableHandlers,
 } from './useAdvisorItemsTableHandlers.js';
 import CatalogPicker from './CatalogPicker.jsx';
+import LotPicker from './LotPicker.jsx';
 import ReturnEntryRequestModal from './ReturnEntryRequestModal.jsx';
 import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
 
@@ -605,7 +607,7 @@ function EstimateItemRow({
                                     disabled={isSaving}
                                     title="Xóa các ô đã nhập của dòng này"
                                 >
-                                    Xóa 
+                                    Xóa
                                 </button>
                             )
                         ) : null}
@@ -808,6 +810,51 @@ EstimateActions.propTypes = {
     setShouldRevertTicketOnCancel: PropTypes.func,
     onCancelCreateNewVersion: PropTypes.func,
 };
+
+function toFiniteNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const num = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(num) ? num : null;
+}
+
+function getWarehouseAvailableQty(detail) {
+    const availableStockLevel = toFiniteNumber(
+        detail?.availableStockLevel
+            ?? detail?.available_stock_level
+            ?? detail?.availableStock
+            ?? detail?.available_stock,
+    );
+    if (availableStockLevel != null) return availableStockLevel;
+
+    const qty = toFiniteNumber(detail?.quantity ?? detail?.stockQuantity ?? detail?.stock_quantity);
+    if (qty != null) return qty;
+
+    const availableQty = toFiniteNumber(detail?.availableQuantity ?? detail?.available_quantity);
+    if (availableQty != null) return availableQty;
+
+    return null;
+}
+
+function buildPickedCatalogItem(item, warehouseDetail, selectedLot) {
+    if (!warehouseDetail) return item;
+    const sellingPrice = selectedLot ? selectedLot?.sellingPrice : warehouseDetail?.sellingPrice;
+    const nextPrice = sellingPrice ?? item?.price ?? item?.unitPrice;
+    const availableQuantity = selectedLot 
+        ? selectedLot?.remainingQuantity 
+        : getWarehouseAvailableQty(warehouseDetail);
+
+    return {
+        ...item,
+        warehouseId: warehouseDetail?.warehouseId,
+        selectedWarehouse: warehouseDetail,
+        sellingPrice,
+        price: nextPrice,
+        unitPrice: nextPrice,
+        availableQuantity,
+        entryItemId: selectedLot ? selectedLot?.entryItemId : null,
+        entryCode: selectedLot ? selectedLot?.entryCode : null,
+    };
+}
 
 export default function AdvisorItemsTable({
     className = '',
@@ -1164,7 +1211,7 @@ export default function AdvisorItemsTable({
                 return;
             }
             if (isCreating || isEditing) return;
-			setRevertOnCancel(true);
+            setRevertOnCancel(true);
 
             // If there is no estimate yet, fall back to create mode.
             if (!estimate) {
@@ -1218,15 +1265,50 @@ export default function AdvisorItemsTable({
         });
     }, [isReadOnly, notify, onBeforeEstimateMutate, readOnlyMessage, startEdit, syncEstimate]);
 
-    const [pickerOpen, setPickerOpen] = useState(false);
-    const [activeRowIndex, setActiveRowIndex] = useState(null);
+    const navigate = useNavigate();
+    const activeTicketId = serviceTicketId || 'new_booking';
+    const backupKey = `gms_advisor_table_backup_${activeTicketId}`;
+
+    const [activeRowIndex, setActiveRowIndex] = useState(() => {
+        if (typeof sessionStorage === 'undefined') return null;
+        try {
+            const raw = sessionStorage.getItem(backupKey);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                return parsed?.activeRowIndex ?? null;
+            }
+        } catch {
+            // ignore
+        }
+        return null;
+    });
+
+    const focusRestoredRef = useRef(false);
+
+    useEffect(() => {
+        if (activeRowIndex == null || focusRestoredRef.current) return;
+
+        let attempts = 0;
+        const intervalId = setInterval(() => {
+            attempts += 1;
+            const input = document.querySelector(`input[data-row-index="${activeRowIndex}"][data-field="itemName"]`);
+            if (input) {
+                input.focus({ preventScroll: true });
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                focusRestoredRef.current = true;
+                clearInterval(intervalId);
+            } else if (attempts >= 15) {
+                clearInterval(intervalId);
+            }
+        }, 200);
+
+        return () => clearInterval(intervalId);
+    }, [activeRowIndex]);
 
     const selectedProductWarehouseKeys = useMemo(() => {
         const keys = new Set();
         const rows = Array.isArray(tableRows) ? tableRows : [];
         for (const r of rows) {
-            // Only count rows that are actually editable in current mode.
-            // Locked rows (seeded from previous estimate version) should not lock selection.
             if (r?.isLockedFromPreviousVersion) continue;
             const giftRaw = r?.isGift ?? r?.is_gift;
             if (giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') continue;
@@ -1248,9 +1330,11 @@ export default function AdvisorItemsTable({
         return `${itemId}|${warehouseId ?? ''}`;
     }, [activeRowIndex, tableRows]);
 
-    // Lưu categoryCode để truyền vào CatalogPicker
-    const [pickerCategoryCode, setPickerCategoryCode] = useState("");
-    const [pickerInitQuery, setPickerInitQuery] = useState("");
+    const [catalogPickerOpen, setCatalogPickerOpen] = useState(false);
+    const [lotPickerOpen, setLotPickerOpen] = useState(false);
+    const [selectedCatalogItem, setSelectedCatalogItem] = useState(null);
+    const [selectedWarehouse, setSelectedWarehouse] = useState(null);
+    const [pickerCategoryCode, setPickerCategoryCode] = useState('');
 
     const openCatalogPicker = (rowIndex, rowObj) => {
         const giftRaw = rowObj?.isGift ?? rowObj?.is_gift;
@@ -1261,19 +1345,67 @@ export default function AdvisorItemsTable({
             notify('Vui lòng nhập/chọn hạng mục trước khi thao tác diễn giải hoặc chọn sản phẩm.');
             return;
         }
+
         setActiveRowIndex(rowIndex);
-        // Lấy categoryCode từ dòng (đã map từ workCategory)
         const code = String(rowObj?.workCategoryCode ?? '').trim();
         setPickerCategoryCode(code || "");
-        // Không nhét categoryCode vào ô search; chỉ truyền qua query param categoryCode.
-        setPickerInitQuery("");
-        setPickerOpen(true);
+        setCatalogPickerOpen(true);
     };
 
-    const closeCatalogPicker = () => {
-        setPickerOpen(false);
+    const handleCatalogPickerClose = () => {
+        setCatalogPickerOpen(false);
         setActiveRowIndex(null);
-        setPickerInitQuery("");
+        setPickerCategoryCode("");
+    };
+
+    const handlePickCatalogItem = (item, warehouseDetail) => {
+        const hasLots = Array.isArray(warehouseDetail?.lots) && warehouseDetail.lots.length > 0;
+        if (hasLots) {
+            setSelectedCatalogItem(item);
+            setSelectedWarehouse(warehouseDetail);
+            setLotPickerOpen(true);
+        } else {
+            const picked = buildPickedCatalogItem(item, warehouseDetail, null);
+            pickAdvisorCatalogItem({
+                item: picked,
+                activeRowIndex,
+                onChange,
+                closeCatalogPicker: () => {
+                    setCatalogPickerOpen(false);
+                    setActiveRowIndex(null);
+                    setPickerCategoryCode("");
+                },
+            });
+        }
+    };
+
+    const handleLotPickerBack = () => {
+        setLotPickerOpen(false);
+        setSelectedCatalogItem(null);
+        setSelectedWarehouse(null);
+    };
+
+    const handleLotPickerClose = () => {
+        setLotPickerOpen(false);
+        setSelectedCatalogItem(null);
+        setSelectedWarehouse(null);
+    };
+
+    const handlePickLotItem = (lot) => {
+        const picked = buildPickedCatalogItem(selectedCatalogItem, selectedWarehouse, lot);
+        pickAdvisorCatalogItem({
+            item: picked,
+            activeRowIndex,
+            onChange,
+            closeCatalogPicker: () => {
+                setLotPickerOpen(false);
+                setCatalogPickerOpen(false);
+                setSelectedCatalogItem(null);
+                setSelectedWarehouse(null);
+                setActiveRowIndex(null);
+                setPickerCategoryCode("");
+            },
+        });
     };
 
     const handleClearRowInputs = useCallback((rowIndex) => {
@@ -1282,21 +1414,12 @@ export default function AdvisorItemsTable({
             showInputs,
             tableRows,
             activeRowIndex,
-            setPickerOpen,
+            setPickerOpen: () => { },
             setActiveRowIndex,
-            setPickerInitQuery,
+            setPickerInitQuery: () => { },
             onChange,
         });
     }, [activeRowIndex, onChange, showInputs, tableRows]);
-
-    const handlePickCatalogItem = (item) => {
-        pickAdvisorCatalogItem({
-            item,
-            activeRowIndex,
-            onChange,
-            closeCatalogPicker,
-        });
-    };
 
     const showTaxQuickAdd = !isTicketLocked && showInputs;
 
@@ -1421,73 +1544,73 @@ export default function AdvisorItemsTable({
             />
 
             {shouldShowTable ? (
-            <div className={styles.tableWrap}>
-                {!hideReadOnlyNotice && isTicketPaid ? (
-                <div className={styles.errorBanner} style={{ marginTop: 8 }}>
-                    Phiếu dịch vụ đã được thanh toán — không thể tạo báo giá mới.
-                </div>
-            ) : !hideReadOnlyNotice && isReadOnly ? (
-                <div className={styles.errorBanner} style={{ marginTop: 8 }}>
-                    {readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.'}
-                </div>
-            ) : null}
+                <div className={styles.tableWrap}>
+                    {!hideReadOnlyNotice && isTicketPaid ? (
+                        <div className={styles.errorBanner} style={{ marginTop: 8 }}>
+                            Phiếu dịch vụ đã được thanh toán — không thể tạo báo giá mới.
+                        </div>
+                    ) : !hideReadOnlyNotice && isReadOnly ? (
+                        <div className={styles.errorBanner} style={{ marginTop: 8 }}>
+                            {readOnlyMessage || 'Phiếu đang ở chế độ chỉ xem.'}
+                        </div>
+                    ) : null}
 
-                <table className={styles.table}>
-                    <thead>
-                        <tr>
-                            <th scope="col">STT</th>
-                            <th scope="col">HẠNG MỤC</th>
-                            <th scope="col">DIỄN GIẢI</th>
-                            <th scope="col">SL</th>
-                            <th scope="col">ĐƠN GIÁ</th>
-                            {showTaxColumn ? <th scope="col">THUẾ </th> : null}
-                            {showDiscountColumn ? <th scope="col">GIẢM GIÁ</th> : null}
-                            <th scope="col">THÀNH TIỀN</th>
-                            <th scope="col">KHO</th>
-                            {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
-                            {showWarehouseActionColumn || showReturnAfterPaymentColumn ? <th scope="col">THAO TÁC</th> : null}
-                            {showInputs ? <th scope="col">THAO TÁC</th> : null}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {tableRows.map((row, idx) => (
-                            <EstimateItemRow
-                                key={`advisor-row-${idx}-${row?.key ?? 'row'}`}
-                                row={row}
-                                idx={idx}
-                                showInputs={showInputs}
-                                showTaxColumn={showTaxColumn}
-                                showDiscountColumn={showDiscountColumn}
-                                onChange={onChange}
-                                onClearRow={handleClearRowInputs}
-                                isSaving={isSaving}
-                                categorySuggestions={workCategoriesLoading ? [] : categorySuggestions}
-                                taxRulesLoading={taxRulesLoading}
-                                taxRules={taxRules}
-                                taxRuleById={taxRuleById}
-                                isEditing={isEditing}
-                                softDeleteEditRow={softDeleteEditRow}
-                                openCatalogPicker={openCatalogPicker}
-                                showWarehouseActionColumn={showWarehouseActionColumn}
-                                showReturnAfterPaymentColumn={showReturnAfterPaymentColumn}
-                                warehouseActionBusyKey={warehouseActionBusyKey}
-                                onCancelAllocation={handleCancelWarehouseAllocation}
-                                onOpenReturnModal={setReturnModalItem}
-                                onCancelReturn={handleCancelReturnEntry}
-                            />
-                        ))}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td className={styles.tableFooterLabel} colSpan={showDiscountColumn ? 6 : 5}>
-                                TỔNG CỘNG
-                            </td>
-                            <td className={styles.tdNumber}>{footerTotalText}</td>
-                            <td colSpan={footerSpacerColSpan} />
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+                    <table className={styles.table}>
+                        <thead>
+                            <tr>
+                                <th scope="col">STT</th>
+                                <th scope="col">HẠNG MỤC</th>
+                                <th scope="col">DIỄN GIẢI</th>
+                                <th scope="col">SL</th>
+                                <th scope="col">ĐƠN GIÁ</th>
+                                {showTaxColumn ? <th scope="col">THUẾ </th> : null}
+                                {showDiscountColumn ? <th scope="col">GIẢM GIÁ</th> : null}
+                                <th scope="col">THÀNH TIỀN</th>
+                                <th scope="col">KHO</th>
+                                {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
+                                {showWarehouseActionColumn || showReturnAfterPaymentColumn ? <th scope="col">THAO TÁC</th> : null}
+                                {showInputs ? <th scope="col">THAO TÁC</th> : null}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {tableRows.map((row, idx) => (
+                                <EstimateItemRow
+                                    key={`advisor-row-${idx}-${row?.key ?? 'row'}`}
+                                    row={row}
+                                    idx={idx}
+                                    showInputs={showInputs}
+                                    showTaxColumn={showTaxColumn}
+                                    showDiscountColumn={showDiscountColumn}
+                                    onChange={onChange}
+                                    onClearRow={handleClearRowInputs}
+                                    isSaving={isSaving}
+                                    categorySuggestions={workCategoriesLoading ? [] : categorySuggestions}
+                                    taxRulesLoading={taxRulesLoading}
+                                    taxRules={taxRules}
+                                    taxRuleById={taxRuleById}
+                                    isEditing={isEditing}
+                                    softDeleteEditRow={softDeleteEditRow}
+                                    openCatalogPicker={openCatalogPicker}
+                                    showWarehouseActionColumn={showWarehouseActionColumn}
+                                    showReturnAfterPaymentColumn={showReturnAfterPaymentColumn}
+                                    warehouseActionBusyKey={warehouseActionBusyKey}
+                                    onCancelAllocation={handleCancelWarehouseAllocation}
+                                    onOpenReturnModal={setReturnModalItem}
+                                    onCancelReturn={handleCancelReturnEntry}
+                                />
+                            ))}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td className={styles.tableFooterLabel} colSpan={showDiscountColumn ? 6 : 5}>
+                                    TỔNG CỘNG
+                                </td>
+                                <td className={styles.tdNumber}>{footerTotalText}</td>
+                                <td colSpan={footerSpacerColSpan} />
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             ) : null}
 
             {errorLine ? (
@@ -1517,8 +1640,8 @@ export default function AdvisorItemsTable({
                         isRestrictedStatus={isRestrictedStatus}
                         onCancelAppendOnly={onCancelAppendOnly}
                         isAppendOnlyEdit={isAppendOnlyEdit}
-					shouldRevertOnCancel={revertOnCancel}
-					setShouldRevertOnCancel={setRevertOnCancel}
+                        shouldRevertOnCancel={revertOnCancel}
+                        setShouldRevertOnCancel={setRevertOnCancel}
                         shouldRevertTicketOnCancel={revertTicketOnCancel}
                         setShouldRevertTicketOnCancel={setRevertTicketOnCancel}
                         onCancelCreateNewVersion={onCancelCreateNewVersion}
@@ -1566,17 +1689,17 @@ export default function AdvisorItemsTable({
                                 type="button"
                                 className="ui-btn ui-btn--primary"
                                 onClick={() => {
-								const validated = validateTextInput(recommendation, {
-									fieldLabel: 'Khuyến nghị',
-									required: false,
-									trim: true,
-									maxLength: RECOMMEND_MAX_LENGTH,
-								});
-								if (validated.error) {
-									notify(validated.error);
-									return;
-								}
-								Promise.resolve(saveRecommendation?.(validated.value))
+                                    const validated = validateTextInput(recommendation, {
+                                        fieldLabel: 'Khuyến nghị',
+                                        required: false,
+                                        trim: true,
+                                        maxLength: RECOMMEND_MAX_LENGTH,
+                                    });
+                                    if (validated.error) {
+                                        notify(validated.error);
+                                        return;
+                                    }
+                                    Promise.resolve(saveRecommendation?.(validated.value))
                                         .then((saved) => {
                                             if (saved) notify('Đã lưu khuyến nghị.');
                                         })
@@ -1584,7 +1707,7 @@ export default function AdvisorItemsTable({
                                             notify(err?.message || 'Không thể cập nhật khuyến nghị.');
                                         });
                                 }}
-								disabled={Boolean(recommendationSaving) || Boolean(isSaving) || recommendationHasError}
+                                disabled={Boolean(recommendationSaving) || Boolean(isSaving) || recommendationHasError}
                             >
                                 {recommendationSaving ? 'Đang lưu...' : 'Lưu khuyến nghị'}
                             </button>
@@ -1596,15 +1719,7 @@ export default function AdvisorItemsTable({
 
 
 
-            <CatalogPicker
-                open={pickerOpen}
-                onClose={closeCatalogPicker}
-                onPick={handlePickCatalogItem}
-                initQuery={pickerInitQuery}
-                categoryCode={pickerCategoryCode}
-                existingSelectionKeys={selectedProductWarehouseKeys}
-                excludeSelectionKey={activeRowSelectionKey}
-            />
+
 
             {returnModalItem ? (
                 <ReturnEntryRequestModal
@@ -1646,6 +1761,24 @@ export default function AdvisorItemsTable({
                     </div>
                 </dialog>
             ) : null}
+
+            <CatalogPicker
+                open={catalogPickerOpen}
+                onClose={handleCatalogPickerClose}
+                onPick={handlePickCatalogItem}
+                existingSelectionKeys={selectedProductWarehouseKeys}
+                excludeSelectionKey={activeRowSelectionKey}
+                categoryCode={pickerCategoryCode}
+            />
+
+            <LotPicker
+                open={lotPickerOpen}
+                onClose={handleLotPickerClose}
+                onBack={handleLotPickerBack}
+                onPick={handlePickLotItem}
+                item={selectedCatalogItem}
+                selectedWarehouse={selectedWarehouse}
+            />
         </section>
     );
 }

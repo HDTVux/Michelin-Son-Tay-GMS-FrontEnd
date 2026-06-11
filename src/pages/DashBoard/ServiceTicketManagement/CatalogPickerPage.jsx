@@ -1,7 +1,5 @@
-import { Fragment, useEffect, useState, useRef } from 'react';
-import PropTypes from 'prop-types';
-// Lưu ý: Nếu bạn để CSS chung thì giữ nguyên dòng này. 
-// Nếu tách file thì đổi thành import styles from './CatalogPicker.module.css';
+import { Fragment, useEffect, useState, useRef, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './CatalogPicker.module.css'; 
 import { 
   searchWarehouseCatalogItemsDetail,
@@ -22,7 +20,6 @@ function getWarehouseDisplayName(detail) {
 }
 
 function getWarehouseAvailableQty(detail) {
-  // Remaining quantity should prefer `availableStockLevel` (API-calculated).
   const availableStockLevel = toFiniteNumber(
     detail?.availableStockLevel
       ?? detail?.available_stock_level
@@ -66,22 +63,47 @@ function buildPickedCatalogItem(item, warehouseDetail, selectedLot) {
   };
 }
 
-function CatalogPicker({
-  open,
-  onClose,
-  onPick,
-  existingSelectionKeys,
-  excludeSelectionKey,
-  initialSearch = '',
-  initialPage = 0,
-  pageSize = 10,
-  initQuery = '',
-  categoryCode = '',
-}) {
-  const dialogRef = useRef(null); // Tạo ref để điều khiển thẻ dialog
+export default function CatalogPickerPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [search, setSearch] = useState(initialSearch || initQuery);
+  const state = location.state || {};
+  const {
+    ticketCode = '',
+    rowIndex = null,
+    categoryCode = '',
+    existingSelectionKeys = [],
+    excludeSelectionKey = null,
+    initialSearch = '',
+    initialPage = 0,
+    pageSize = 10,
+    initQuery = '',
+  } = state;
+
+  const existingSelectionKeysSet = useMemo(() => new Set(existingSelectionKeys), [existingSelectionKeys]);
+
+  const [savedState, setSavedState] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('gms_catalog_picker_state');
+      if (saved) {
+        sessionStorage.removeItem('gms_catalog_picker_state');
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to parse saved catalog picker state:', e);
+    }
+    return null;
+  });
+
+  const [search, setSearch] = useState(() => {
+    if (savedState) return savedState.search ?? '';
+    return initialSearch || initQuery || '';
+  });
   const [page, setPage] = useState(() => {
+    if (savedState && savedState.page != null) {
+      const parsed = Number(savedState.page);
+      return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+    }
     const parsed = Number(initialPage);
     return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
   });
@@ -95,7 +117,10 @@ function CatalogPicker({
   const [error, setError] = useState('');
 
   // Per-item selected warehouse for pricing display.
-  const [selectedWarehouseByItemId, setSelectedWarehouseByItemId] = useState({});
+  const [selectedWarehouseByItemId, setSelectedWarehouseByItemId] = useState(() => {
+    if (savedState && savedState.selectedWarehouseByItemId) return savedState.selectedWarehouseByItemId;
+    return {};
+  });
 
   // Dynamic options loaded from API
   const [brandOptions, setBrandOptions] = useState([]);
@@ -104,52 +129,53 @@ function CatalogPicker({
   const [optionsLoading, setOptionsLoading] = useState(false);
 
   // Filter values
-  const [brandId, setBrandId] = useState('');
-  const [productLineId, setProductLineId] = useState('');
-  const [categoryCodeFilter, setCategoryCodeFilter] = useState(categoryCode || '');
-  const [itemType, setItemType] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [sortBy, setSortBy] = useState('');
+  const [brandId, setBrandId] = useState(() => {
+    if (savedState) return savedState.brandId ?? '';
+    return '';
+  });
+  const [productLineId, setProductLineId] = useState(() => {
+    if (savedState) return savedState.productLineId ?? '';
+    return '';
+  });
+  const [categoryCodeFilter, setCategoryCodeFilter] = useState(() => {
+    if (savedState) return savedState.categoryCodeFilter ?? '';
+    return categoryCode || '';
+  });
+  const [itemType, setItemType] = useState(() => {
+    if (savedState) return savedState.itemType ?? '';
+    return '';
+  });
+  const [minPrice, setMinPrice] = useState(() => {
+    if (savedState) return savedState.minPrice ?? '';
+    return '';
+  });
+  const [maxPrice, setMaxPrice] = useState(() => {
+    if (savedState) return savedState.maxPrice ?? '';
+    return '';
+  });
+  const [sortBy, setSortBy] = useState(() => {
+    if (savedState) return savedState.sortBy ?? '';
+    return '';
+  });
 
-  // Mỗi lần mở modal: reset lại lựa chọn kho & bộ lọc (không giữ state lần trước).
+  // Khi mở trang: reset lại lựa chọn kho & bộ lọc (trừ trường hợp vừa phục hồi trạng thái)
   useEffect(() => {
-    if (open) {
-      setSelectedWarehouseByItemId({});
-      setBrandId('');
-      setProductLineId('');
-      setCategoryCodeFilter(categoryCode || '');
-      setItemType('');
-      setMinPrice('');
-      setMaxPrice('');
-      setSortBy('');
+    if (savedState) {
+      setSavedState(null);
+      return;
     }
-  }, [open, categoryCode]);
-
-  // Effect này bắt sự kiện khi prop 'open' thay đổi để mở/đóng Modal chính giữa màn hình
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (open && !dialog.open) {
-      dialog.showModal(); // Hàm này giúp Modal ra giữa màn hình và khóa nền
-    } else if (!open && dialog.open) {
-      dialog.close();
-    }
-  }, [open]);
-
-  // Khi mở dialog, nếu initQuery khác rỗng và khác search hiện tại thì setSearch(initQuery)
-  useEffect(() => {
-    if (open && initQuery && search !== initQuery) {
-      setSearch(initQuery);
-      setPage(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initQuery]);
+    setSelectedWarehouseByItemId({});
+    setBrandId('');
+    setProductLineId('');
+    setCategoryCodeFilter(categoryCode || '');
+    setItemType('');
+    setMinPrice('');
+    setMaxPrice('');
+    setSortBy('');
+  }, [categoryCode]);
 
   // Tải danh mục hãng, dòng sản phẩm, nhóm hàng hỗ trợ bộ lọc
   useEffect(() => {
-    if (!open) return undefined;
     let cancelled = false;
 
     (async () => {
@@ -208,7 +234,7 @@ function CatalogPicker({
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, []);
 
   // Xử lý khi thay đổi Hãng sản xuất
   const handleBrandChange = (e) => {
@@ -226,7 +252,6 @@ function CatalogPicker({
   };
 
   useEffect(() => {
-    if (!open) return undefined;
     let cancelled = false;
 
     (async () => {
@@ -247,8 +272,6 @@ function CatalogPicker({
         if (sortBy) params.sortBy = sortBy;
 
         const res = await searchWarehouseCatalogItemsDetail(params, token);
-        // New API returns: { success, ..., data: { content, totalElements, ... } }
-        // Keep backward-compat: if data wrapper is absent, use response directly.
         const envelope = res?.data ?? res;
         const payload = envelope?.data ?? envelope;
         let content = [];
@@ -270,10 +293,16 @@ function CatalogPicker({
     return () => {
       cancelled = true;
     };
-  }, [open, page, size, search, categoryCodeFilter, itemType, brandId, productLineId, minPrice, maxPrice, sortBy]);
+  }, [page, size, search, categoryCodeFilter, itemType, brandId, productLineId, minPrice, maxPrice, sortBy]);
 
-  const handlePick = (item, warehouseDetail) => {
-    onPick?.(item, warehouseDetail);
+  const handlePick = (item) => {
+    const activeTicketId = ticketCode || 'new_booking';
+    const pickedProductData = {
+      item,
+      rowIndex,
+    };
+    sessionStorage.setItem(`gms_picked_product_${activeTicketId}`, JSON.stringify(pickedProductData));
+    navigate(-1);
   };
 
   const handleWarehouseChange = (item, warehouseIdRaw) => {
@@ -282,7 +311,6 @@ function CatalogPicker({
     const warehouseIdNum = typeof warehouseIdRaw === 'number' ? warehouseIdRaw : Number(warehouseIdRaw);
     const selectedDetail = details.find((d) => Number(d?.warehouseId) === warehouseIdNum) || null;
 
-    // Không cho trỏ tới kho đã hết hàng.
     if (selectedDetail && isOutOfStock(selectedDetail)) return;
 
     if (itemId != null) {
@@ -297,7 +325,7 @@ function CatalogPicker({
   const handlePickItem = (item) => {
     const details = Array.isArray(item?.warehouseDetails) ? item.warehouseDetails : [];
     if (details.length === 0) {
-      handlePick(item, null);
+      handlePick(item);
       return;
     }
 
@@ -309,27 +337,49 @@ function CatalogPicker({
     const selectedDetail = details.find((d) => Number(d?.warehouseId) === selectedWarehouseIdNum) || null;
     if (!selectedDetail || isOutOfStock(selectedDetail)) return;
 
-    handlePick(item, selectedDetail);
+    // Check if the selected warehouse has lots
+    const hasLots = Array.isArray(selectedDetail?.lots) && selectedDetail.lots.length > 0;
+    if (hasLots) {
+      // Save current search/filter states to sessionStorage
+      const stateToSave = {
+        search,
+        page,
+        brandId,
+        productLineId,
+        categoryCodeFilter,
+        itemType,
+        minPrice,
+        maxPrice,
+        sortBy,
+        selectedWarehouseByItemId,
+      };
+      sessionStorage.setItem('gms_catalog_picker_state', JSON.stringify(stateToSave));
+
+      // Navigate to lot-picker page
+      navigate('/lot-picker', {
+        state: {
+          ticketCode,
+          rowIndex,
+          item,
+          selectedWarehouse: selectedDetail,
+        },
+      });
+    } else {
+      // No lots, pick directly
+      handlePick(buildPickedCatalogItem(item, selectedDetail, null));
+    }
   };
 
-  // Chỉ render dialog khi `open` = true để tránh reflow/jitter khi không hiển thị
-  if (!open) return null;
-
   return (
-    <dialog
-      ref={dialogRef} // Gắn ref vào đây
-      className={styles.catalogPickerDialog}
-      aria-labelledby="catalog-picker-title"
-      onCancel={(e) => {
-        // Ngăn ESC đóng modal; chỉ đóng qua nút 'Đóng' hoặc '×'
-        e.preventDefault();
-      }}
-    >
-      <div className={styles.modalHeader}>
-        <h3 id="catalog-picker-title" className={styles.modalTitle}>Chọn sản phẩm từ danh mục</h3>
-        <button type="button" className={styles.modalCloseButton} onClick={onClose} aria-label="Đóng">×</button>
+    <div className={styles.pageContainer}>
+      <div className={styles.pageHeader}>
+        <h2 className={styles.pageTitle}>Chọn sản phẩm từ danh mục</h2>
+        <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate(-1)}>
+          Quay lại
+        </button>
       </div>
-      <div className={styles.modalBody}>
+
+      <div className={styles.modalBody} style={{ padding: 0 }}>
         <div className={styles.filterSection}>
           <div className={styles.searchRow}>
             <input
@@ -532,7 +582,7 @@ function CatalogPicker({
 
                         let displayPrice = null;
                         if (details.length > 0) {
-                          displayPrice = toFiniteNumber(selectedDetail?.sellingPrice ?? (details[0]?.sellingPrice));
+                          displayPrice = toFiniteNumber(selectedDetail?.sellingPrice);
                         } else {
                           displayPrice = toFiniteNumber(it?.price) ?? toFiniteNumber(it?.unitPrice);
                         }
@@ -560,7 +610,7 @@ function CatalogPicker({
                         const isDuplicateSelection = Boolean(
                           itemIdNum
                           && candidateKey
-                          && existingSelectionKeys?.has?.(candidateKey)
+                          && existingSelectionKeysSet?.has?.(candidateKey)
                           && candidateKey !== (excludeSelectionKey ?? ''),
                         );
 
@@ -666,7 +716,6 @@ function CatalogPicker({
             </div>
 
             <div className={styles.modalFooter}>
-              {/* Cụm phân trang bên trái */}
               <div className={styles.pagination}>
                 <button 
                   type="button" 
@@ -690,35 +739,10 @@ function CatalogPicker({
                   Tiếp →
                 </button>
               </div>
-
-              {/* Nút hành động bên phải */}
-              <div className={styles.modalActions}>
-                <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose}>
-                  Đóng
-                </button>
-              </div>
             </div>
-            {/* KẾT THÚC PHẦN THAY THẾ */}
           </>
         )}
       </div>
-    </dialog>
+    </div>
   );
 }
-
-CatalogPicker.propTypes = {
-  open: PropTypes.bool,
-  onClose: PropTypes.func,
-  onPick: PropTypes.func,
-  existingSelectionKeys: PropTypes.shape({
-    has: PropTypes.func,
-  }),
-  excludeSelectionKey: PropTypes.string,
-  initialSearch: PropTypes.string,
-  initialPage: PropTypes.number,
-  pageSize: PropTypes.number,
-  initQuery: PropTypes.string,
-  categoryCode: PropTypes.string,
-};
-
-export default CatalogPicker;
