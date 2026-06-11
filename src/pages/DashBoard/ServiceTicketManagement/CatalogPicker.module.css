@@ -334,3 +334,94 @@
   color: #1e293b;
 }
 
+/* =========================================
+   RESPONSIVE DESIGN (GIAO DIỆN DI ĐỘNG)
+   ========================================= */
+@media (max-width: 768px) {
+  .catalogPickerDialog {
+    width: 96vw;
+    height: 92vh;
+    max-height: 92vh;
+    margin: auto;
+  }
+
+  .modalBody {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .filterSection {
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    gap: 8px;
+  }
+
+  .searchRow {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .searchRow input {
+    width: 100% !important;
+    flex: none !important;
+  }
+
+  .searchRow button {
+    flex: 1;
+    min-width: 80px;
+    padding: 8px 6px;
+    font-size: 0.85rem;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .filterGrid {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    gap: 8px;
+    padding-top: 8px;
+  }
+
+  .filterGroup label {
+    font-size: 0.7rem;
+  }
+
+  .filterGroup select,
+  .filterGroup input {
+    padding: 6px 8px;
+    font-size: 0.85rem;
+  }
+
+  .tableWrap {
+    margin-bottom: 8px;
+  }
+
+  .table th,
+  .table td {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .modalFooter {
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    padding-top: 12px;
+    margin-top: 12px;
+  }
+
+  .pagination {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .modalActions {
+    width: 100%;
+  }
+
+  .modalActions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+

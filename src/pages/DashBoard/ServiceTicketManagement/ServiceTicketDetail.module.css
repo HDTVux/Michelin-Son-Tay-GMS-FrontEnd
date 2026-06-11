@@ -1684,7 +1684,8 @@
     box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1) !important;
   }
 
-  /* Nút Chọn bên cạnh ô Diễn giải trên mobile */
+  /* Nút Chọn bên cạnh ô Hạng mục và Diễn giải trên mobile */
+  .table tbody td[data-label="Hạng mục"] button.pickButtonNoWrap,
   .table tbody td[data-label="Diễn giải"] button.pickButtonNoWrap {
     width: auto !important; /* Ghi đè width: 100% của .ui-btn trên mobile */
     height: 36px !important;
@@ -1700,7 +1701,8 @@
     color: #374151 !important;
   }
 
-  /* Thiết lập cho phần tử div chứa input và button Diễn giải trên mobile */
+  /* Thiết lập cho phần tử div chứa input và button Hạng mục và Diễn giải trên mobile */
+  .table tbody td[data-label="Hạng mục"] > div,
   .table tbody td[data-label="Diễn giải"] > div {
     display: flex !important;
     flex-direction: row !important;
@@ -1710,7 +1712,8 @@
     gap: 8px !important;
   }
 
-  /* Làm cho input Diễn giải chiếm toàn bộ phần trống còn lại, không tràn nút */
+  /* Làm cho input Hạng mục và Diễn giải chiếm toàn bộ phần trống còn lại, không tràn nút */
+  .table tbody td[data-label="Hạng mục"] > div > input,
   .table tbody td[data-label="Diễn giải"] > div > input {
     flex: 1 1 auto !important;
     min-width: 0 !important;
@@ -1720,7 +1723,7 @@
   /* Các cột có ô nhập liệu rộng hiển thị dạng khối dọc */
   .table tbody td[data-label="Hạng mục"],
   .table tbody td[data-label="Diễn giải"],
-  .table tbody td[data-label="Thao tác"] {
+  .table tbody td[data-label="Sửa"] {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 6px !important;
@@ -1728,7 +1731,7 @@
 
   .table tbody td[data-label="Hạng mục"]::before,
   .table tbody td[data-label="Diễn giải"]::before,
-  .table tbody td[data-label="Thao tác"]::before {
+  .table tbody td[data-label="Sửa"]::before {
     margin-right: 0 !important;
     margin-bottom: 2px !important;
   }
@@ -1746,12 +1749,12 @@
   }
 
   /* Căn chỉnh cột thao tác */
-  .table tbody td[data-label="Thao tác"] {
+  .table tbody td[data-label="Sửa"] {
     border-bottom: none !important;
     padding-top: 10px !important;
   }
 
-  .table tbody td[data-label="Thao tác"] > div {
+  .table tbody td[data-label="Sửa"] > div {
     width: 100% !important;
     justify-content: flex-end !important;
   }

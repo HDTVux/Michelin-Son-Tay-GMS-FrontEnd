@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
+import { List, Search, Trash2 } from 'lucide-react';
 import styles from './ServiceTicketDetail.module.css';
 import { validateTaxName, validateTaxRatePercent, validateTextInput } from '../../../components/inputValidation.js';
 
@@ -351,8 +352,9 @@ function EstimateItemRow({
                                 onClick={() => softDeleteEditRow(idx)}
                                 disabled={isSaving || !estimateItemId || isDraftRowEmpty(row) || isLocked}
                                 title="Xóa dòng này"
+                                style={{ minWidth: 'auto', width: 'auto' }}
                             >
-                                Xóa
+                                <Trash2 size={14} />
                             </button>
                         ) : (
                             <button
@@ -361,8 +363,9 @@ function EstimateItemRow({
                                 onClick={() => onClearRow?.(idx)}
                                 disabled={isSaving}
                                 title="Xóa các ô đã nhập của dòng này"
+                                style={{ minWidth: 'auto', width: 'auto' }}
                             >
-                                Xóa
+                                <Trash2 size={14} />
                             </button>
                         )
                     ) : null}
@@ -397,8 +400,9 @@ function EstimateItemRow({
                             className={`ui-btn ui-btn--ghost ${styles.pickButtonNoWrap}`}
                             onClick={() => openCategoryPicker(idx)}
                             disabled={isSaving}
+                            title="Chọn hạng mục"
                         >
-                            Chọn
+                            <List size={16} />
                         </button>
                     </div>
                 ) : (
@@ -425,8 +429,9 @@ function EstimateItemRow({
                             className={`ui-btn ui-btn--ghost ${styles.pickButtonNoWrap}`}
                             onClick={() => openCatalogPicker(idx, row)}
                             disabled={isSaving || !allowItemActions}
+                            title="Chọn sản phẩm"
                         >
-                            Chọn
+                            <Search size={16} />
                         </button>
                     </div>
                 ) : (
@@ -549,7 +554,7 @@ function EstimateItemRow({
             </td>
             {!showInputs ? <td data-label="Xuất kho"><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
             {!showInputs && (showWarehouseActionColumn || showReturnAfterPaymentColumn) ? (
-                <td data-label="Thao tác" className={styles.tdCenter}>
+                <td data-label="Sửa" className={styles.tdCenter}>
                     <div className={styles.warehouseItemActions}>
                         {showWarehouseActionColumn && stockStatus === 'RESERVED' ? (
                             <button
@@ -596,28 +601,30 @@ function EstimateItemRow({
                 </td>
             ) : null}
             {showInputs ? (
-                <td data-label="Thao tác" className={styles.tdCenter}>
+                <td data-label="Sửa" className={styles.tdCenter}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                         {allowInputs ? (
                             isEditing && estimateItemId ? (
                                 <button
                                     type="button"
-                                    className="ui-btn ui-btn--ghost"
+                                    className="ui-btn ui-btn--danger"
                                     onClick={() => softDeleteEditRow(idx)}
                                     disabled={isSaving || !estimateItemId || isDraftRowEmpty(row) || isLocked}
                                     title="Xóa dòng này"
+                                    style={{ padding: '6px 10px', minWidth: 'auto', width: 'auto' }}
                                 >
-                                    Xóa
+                                    <Trash2 size={16} />
                                 </button>
                             ) : (
                                 <button
                                     type="button"
-                                    className="ui-btn ui-btn--ghost"
+                                    className="ui-btn ui-btn--danger"
                                     onClick={() => onClearRow?.(idx)}
                                     disabled={isSaving}
                                     title="Xóa các ô đã nhập của dòng này"
+                                    style={{ padding: '6px 10px', minWidth: 'auto', width: 'auto' }}
                                 >
-                                    Xóa
+                                    <Trash2 size={16} />
                                 </button>
                             )
                         ) : null}
@@ -1595,8 +1602,8 @@ export default function AdvisorItemsTable({
                                 <th scope="col">THÀNH TIỀN</th>
                                 <th scope="col">KHO</th>
                                 {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
-                                {showWarehouseActionColumn || showReturnAfterPaymentColumn ? <th scope="col">THAO TÁC</th> : null}
-                                {showInputs ? <th scope="col">THAO TÁC</th> : null}
+                                {showWarehouseActionColumn || showReturnAfterPaymentColumn ? <th scope="col">SỬA</th> : null}
+                                {showInputs ? <th scope="col">SỬA</th> : null}
                             </tr>
                         </thead>
                         <tbody>

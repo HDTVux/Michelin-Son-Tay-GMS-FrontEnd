@@ -111,6 +111,13 @@ function CatalogPicker({
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState('');
+  const [showFilters, setShowFilters] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && window.innerWidth > 768;
+    } catch {
+      return false;
+    }
+  });
 
   // Mỗi lần mở modal: reset lại lựa chọn kho & bộ lọc (không giữ state lần trước).
   useEffect(() => {
@@ -123,6 +130,11 @@ function CatalogPicker({
       setMinPrice('');
       setMaxPrice('');
       setSortBy('');
+      try {
+        setShowFilters(typeof window !== 'undefined' && window.innerWidth > 768);
+      } catch {
+        setShowFilters(false);
+      }
     }
   }, [open, categoryCode]);
 
@@ -362,134 +374,143 @@ function CatalogPicker({
             >
               Đặt lại
             </button>
+            <button
+              type="button"
+              className="ui-btn ui-btn--ghost"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              {showFilters ? 'Ẩn bộ lọc ▲' : 'Bộ lọc ▼'}
+            </button>
           </div>
 
-          <div className={styles.filterGrid}>
-            {/* Phân loại */}
-            <div className={styles.filterGroup}>
-              <label>Phân loại</label>
-              <select
-                value={itemType}
-                onChange={(e) => {
-                  setItemType(e.target.value);
-                  setPage(0);
-                }}
-              >
-                <option value="">-- Tất cả phân loại --</option>
-                <option value="PART">Phụ tùng / Sản phẩm</option>
-                <option value="SERVICE">Dịch vụ</option>
-                <option value="EQUIPMENT">Thiết bị</option>
-                <option value="COMBO">Combo</option>
-                <option value="MAINTENANCE_PACKAGE">Gói bảo dưỡng</option>
-              </select>
-            </div>
+          {showFilters && (
+            <div className={styles.filterGrid}>
+              {/* Phân loại */}
+              <div className={styles.filterGroup}>
+                <label>Phân loại</label>
+                <select
+                  value={itemType}
+                  onChange={(e) => {
+                    setItemType(e.target.value);
+                    setPage(0);
+                  }}
+                >
+                  <option value="">-- Tất cả phân loại --</option>
+                  <option value="PART">Phụ tùng / Sản phẩm</option>
+                  <option value="SERVICE">Dịch vụ</option>
+                  <option value="EQUIPMENT">Thiết bị</option>
+                  <option value="COMBO">Combo</option>
+                  <option value="MAINTENANCE_PACKAGE">Gói bảo dưỡng</option>
+                </select>
+              </div>
 
-            {/* Hãng sản xuất */}
-            <div className={styles.filterGroup}>
-              <label>Hãng sản xuất</label>
-              <select
-                value={brandId}
-                onChange={handleBrandChange}
-                disabled={optionsLoading}
-              >
-                <option value="">-- Tất cả hãng --</option>
-                {brandOptions.map((b) => (
-                  <option key={String(b.brandId)} value={String(b.brandId)}>
-                    {b.brandName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Dòng sản phẩm */}
-            <div className={styles.filterGroup}>
-              <label>Dòng sản phẩm</label>
-              <select
-                value={productLineId}
-                onChange={(e) => {
-                  setProductLineId(e.target.value);
-                  setPage(0);
-                }}
-                disabled={optionsLoading}
-              >
-                <option value="">-- Tất cả dòng --</option>
-                {productLineOptions
-                  .filter((l) => !brandId || String(l.brandId) === String(brandId))
-                  .map((l) => (
-                    <option key={String(l.productLineId)} value={String(l.productLineId)}>
-                      {l.lineName}
+              {/* Hãng sản xuất */}
+              <div className={styles.filterGroup}>
+                <label>Hãng sản xuất</label>
+                <select
+                  value={brandId}
+                  onChange={handleBrandChange}
+                  disabled={optionsLoading}
+                >
+                  <option value="">-- Tất cả hãng --</option>
+                  {brandOptions.map((b) => (
+                    <option key={String(b.brandId)} value={String(b.brandId)}>
+                      {b.brandName}
                     </option>
                   ))}
-              </select>
-            </div>
+                </select>
+              </div>
 
-            {/* Nhóm sản phẩm */}
-            <div className={styles.filterGroup}>
-              <label>Nhóm sản phẩm</label>
-              <select
-                value={categoryCodeFilter}
-                onChange={(e) => {
-                  setCategoryCodeFilter(e.target.value);
-                  setPage(0);
-                }}
-                disabled={optionsLoading}
-              >
-                <option value="">-- Tất cả nhóm --</option>
-                {categoryOptions.map((c) => (
-                  <option key={String(c.categoryCode)} value={String(c.categoryCode)}>
-                    [{c.categoryCode}] {c.categoryName}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Dòng sản phẩm */}
+              <div className={styles.filterGroup}>
+                <label>Dòng sản phẩm</label>
+                <select
+                  value={productLineId}
+                  onChange={(e) => {
+                    setProductLineId(e.target.value);
+                    setPage(0);
+                  }}
+                  disabled={optionsLoading}
+                >
+                  <option value="">-- Tất cả dòng --</option>
+                  {productLineOptions
+                    .filter((l) => !brandId || String(l.brandId) === String(brandId))
+                    .map((l) => (
+                      <option key={String(l.productLineId)} value={String(l.productLineId)}>
+                        {l.lineName}
+                      </option>
+                    ))}
+                </select>
+              </div>
 
-            {/* Giá từ */}
-            <div className={styles.filterGroup}>
-              <label>Giá từ (đ)</label>
-              <input
-                type="number"
-                placeholder="Từ..."
-                value={minPrice}
-                onChange={(e) => {
-                  setMinPrice(e.target.value);
-                  setPage(0);
-                }}
-              />
-            </div>
+              {/* Nhóm sản phẩm */}
+              <div className={styles.filterGroup}>
+                <label>Nhóm sản phẩm</label>
+                <select
+                  value={categoryCodeFilter}
+                  onChange={(e) => {
+                    setCategoryCodeFilter(e.target.value);
+                    setPage(0);
+                  }}
+                  disabled={optionsLoading}
+                >
+                  <option value="">-- Tất cả nhóm --</option>
+                  {categoryOptions.map((c) => (
+                    <option key={String(c.categoryCode)} value={String(c.categoryCode)}>
+                      [{c.categoryCode}] {c.categoryName}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Giá đến */}
-            <div className={styles.filterGroup}>
-              <label>Giá đến (đ)</label>
-              <input
-                type="number"
-                placeholder="Đến..."
-                value={maxPrice}
-                onChange={(e) => {
-                  setMaxPrice(e.target.value);
-                  setPage(0);
-                }}
-              />
-            </div>
+              {/* Giá từ */}
+              <div className={styles.filterGroup}>
+                <label>Giá từ (đ)</label>
+                <input
+                  type="number"
+                  placeholder="Từ..."
+                  value={minPrice}
+                  onChange={(e) => {
+                    setMinPrice(e.target.value);
+                    setPage(0);
+                  }}
+                />
+              </div>
 
-            {/* Sắp xếp */}
-            <div className={styles.filterGroup}>
-              <label>Sắp xếp</label>
-              <select
-                value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value);
-                  setPage(0);
-                }}
-              >
-                <option value="">Mặc định</option>
-                <option value="itemName,asc">Tên: A → Z</option>
-                <option value="itemName,desc">Tên: Z → A</option>
-                <option value="price,asc">Giá: Thấp → Cao</option>
-                <option value="price,desc">Giá: Cao → Thấp</option>
-                <option value="sku,asc">SKU: A → Z</option>
-              </select>
+              {/* Giá đến */}
+              <div className={styles.filterGroup}>
+                <label>Giá đến (đ)</label>
+                <input
+                  type="number"
+                  placeholder="Đến..."
+                  value={maxPrice}
+                  onChange={(e) => {
+                    setMaxPrice(e.target.value);
+                    setPage(0);
+                  }}
+                />
+              </div>
+
+              {/* Sắp xếp */}
+              <div className={styles.filterGroup}>
+                <label>Sắp xếp</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value);
+                    setPage(0);
+                  }}
+                >
+                  <option value="">Mặc định</option>
+                  <option value="itemName,asc">Tên: A → Z</option>
+                  <option value="itemName,desc">Tên: Z → A</option>
+                  <option value="price,asc">Giá: Thấp → Cao</option>
+                  <option value="price,desc">Giá: Cao → Thấp</option>
+                  <option value="sku,asc">SKU: A → Z</option>
+                </select>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {error ? <div className={styles.errorBanner}>{error}</div> : null}
