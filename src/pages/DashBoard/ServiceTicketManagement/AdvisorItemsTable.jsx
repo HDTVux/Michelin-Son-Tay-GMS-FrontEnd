@@ -33,6 +33,7 @@ import {
 import CatalogPicker from './CatalogPicker.jsx';
 import LotPicker from './LotPicker.jsx';
 import ReturnEntryRequestModal from './ReturnEntryRequestModal.jsx';
+import WorkCategoryPicker from './WorkCategoryPicker.jsx';
 import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
 
 const TAX_NAME_MAX_LENGTH = 100;
@@ -261,6 +262,7 @@ function EstimateItemRow({
     isEditing,
     softDeleteEditRow,
     openCatalogPicker,
+    openCategoryPicker,
     showTaxColumn,
     showDiscountColumn,
     showWarehouseActionColumn,
@@ -368,7 +370,7 @@ function EstimateItemRow({
             </td>
             <td data-label="Hạng mục">
                 {allowInputs ? (
-                    <>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <input
                             ref={categoryInputRef}
                             className={styles.tableInput}
@@ -390,7 +392,15 @@ function EstimateItemRow({
                             onPick={(label) => onChange(idx, 'newCategoryName', label)}
                             onClose={() => setCategoryDropdownOpen(false)}
                         />
-                    </>
+                        <button
+                            type="button"
+                            className={`ui-btn ui-btn--ghost ${styles.pickButtonNoWrap}`}
+                            onClick={() => openCategoryPicker(idx)}
+                            disabled={isSaving}
+                        >
+                            Chọn
+                        </button>
+                    </div>
                 ) : (
                     row.categoryName || row.newCategoryName || ''
                 )}
@@ -632,6 +642,7 @@ EstimateItemRow.propTypes = {
     isEditing: PropTypes.bool,
     softDeleteEditRow: PropTypes.func,
     openCatalogPicker: PropTypes.func,
+    openCategoryPicker: PropTypes.func,
     showTaxColumn: PropTypes.bool,
     showDiscountColumn: PropTypes.bool,
     showWarehouseActionColumn: PropTypes.bool,
@@ -1336,6 +1347,22 @@ export default function AdvisorItemsTable({
     const [selectedWarehouse, setSelectedWarehouse] = useState(null);
     const [pickerCategoryCode, setPickerCategoryCode] = useState('');
 
+    const [workCategoryPickerOpen, setWorkCategoryPickerOpen] = useState(false);
+    const [categoryPickerRowIndex, setCategoryPickerRowIndex] = useState(null);
+
+    const openCategoryPicker = (rowIndex) => {
+        setCategoryPickerRowIndex(rowIndex);
+        setWorkCategoryPickerOpen(true);
+    };
+
+    const handlePickWorkCategory = (categoryName) => {
+        if (categoryPickerRowIndex != null) {
+            onChange(categoryPickerRowIndex, 'newCategoryName', categoryName);
+        }
+        setWorkCategoryPickerOpen(false);
+        setCategoryPickerRowIndex(null);
+    };
+
     const openCatalogPicker = (rowIndex, rowObj) => {
         const giftRaw = rowObj?.isGift ?? rowObj?.is_gift;
         if (giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') return;
@@ -1591,6 +1618,7 @@ export default function AdvisorItemsTable({
                                     isEditing={isEditing}
                                     softDeleteEditRow={softDeleteEditRow}
                                     openCatalogPicker={openCatalogPicker}
+                                    openCategoryPicker={openCategoryPicker}
                                     showWarehouseActionColumn={showWarehouseActionColumn}
                                     showReturnAfterPaymentColumn={showReturnAfterPaymentColumn}
                                     warehouseActionBusyKey={warehouseActionBusyKey}
@@ -1778,6 +1806,16 @@ export default function AdvisorItemsTable({
                 onPick={handlePickLotItem}
                 item={selectedCatalogItem}
                 selectedWarehouse={selectedWarehouse}
+            />
+
+            <WorkCategoryPicker
+                open={workCategoryPickerOpen}
+                onClose={() => {
+                    setWorkCategoryPickerOpen(false);
+                    setCategoryPickerRowIndex(null);
+                }}
+                onPick={handlePickWorkCategory}
+                categorySuggestions={workCategoriesLoading ? [] : categorySuggestions}
             />
         </section>
     );
