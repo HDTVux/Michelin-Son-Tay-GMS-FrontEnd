@@ -85,25 +85,7 @@ const PROMOTION_TYPES = [
     { type: 'BUY_X_GET_Y', label: 'Mua X tặng Y' },
 ];
 
-/**
- * Component nhỏ dùng để hiển thị một khối thông tin dạng cặp key-value.
- * Hiển thị các nhóm thông tin như thông tin khách hàng, thông tin xe, thông tin ticket.
- */
-function InfoBlock({ title, rows }) {
-    return (
-        <section className={styles.block}>
-            <h2 className={styles.blockTitle}>{title}</h2>
-            <div className={styles.kvList}>
-                {rows.map((r) => (
-                    <div key={r.label} className={styles.kvRow}>
-                        <span className={styles.kvLabel}>{r.label}</span>
-                        <span className={styles.kvValue}>{r.value}</span>
-                    </div>
-                ))}
-            </div>
-        </section>
-    );
-}
+
 
 /**
  * Kiểm tra xem một estimate item đã được trả về (trạng thái allocation = RELEASED) hay chưa.
@@ -2401,64 +2383,82 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         ) : null}
 
                         <div className={`ui-card ${styles.card}`}>
-                            <div className={styles.topInfoGrid}>
-                                <div className={styles.topInfoCol}>
-                                    <InfoBlock
-                                        title="Thông tin khách hàng"
-                                        rows={[
-                                            { label: 'Họ tên:', value: ticket.customer?.name || '-' },
-                                            { label: 'SĐT:', value: ticket.customer?.phone || '-' },
-                                            { label: 'Email:', value: ticket.customer?.email || '-' },
-                                        ]}
-                                    />
-                                    <InfoBlock
-                                        title="Thông tin xe"
-                                        rows={[
-                                            { label: 'Biển số xe:', value: ticket.vehicle?.licensePlate || '-' },
-                                            { label: 'Số km:', value: odometerDisplay },
-                                            { label: 'Model:', value: ticket.vehicle?.model || '-' },
-                                        ]}
-                                    />
-                                </div>
-                                <div className={styles.topInfoCol}>
-                                    <InfoBlock
-                                        title="Thông tin ticket"
-                                        rows={[
-                                            { label: 'Ngày tiếp nhận:', value: receivedAtDisplay },
-                                            { label: 'Người tạo:', value: ticket.createdBy || '-' },
-                                        ]}
-                                    />
-                                    <section className={styles.block}>
-                                        <h2 className={styles.blockTitle}>Lịch hẹn</h2>
-                                        <div className={styles.kvList}>
-                                            <div className={styles.kvRow}>
-                                                <span className={styles.kvLabel}>Ngày & Giờ hẹn:</span>
-                                                <span className={styles.kvValue}>
-                                                    {ticket?.booking?.scheduledDate
-                                                        ? `${ticket.booking.scheduledDate} ${formatTimeHHmm(ticket.booking.scheduledTime) || ''}`.trim()
-                                                        : '-'}
-                                                </span>
-                                            </div>
-                                            <div className={styles.kvRow}>
-                                                <span className={styles.kvLabel}>Thời gian ước tính hoàn tất:</span>
-                                                <span className={styles.kvValue}>{estimatedTimeDisplay}</span>
-                                            </div>
-                                            <div className={styles.kvRow}>
-                                                <span className={styles.kvLabel}>Ngày bàn giao:</span>
-                                                <span className={styles.kvValue}>{handoverAtDisplay}</span>
-                                            </div>
-                                            <div className={styles.kvRow}>
-                                                <span className={styles.kvLabel}>Kiểm tra an toàn:</span>
-                                                {ticketRaw?.safetyInspectionEnabled === true ? (
-                                                    <span className={`${styles.safetyBadge} ${styles['safetyBadge--yes']}`}>Có</span>
-                                                ) : ticketRaw?.safetyInspectionEnabled === false ? (
-                                                    <span className={`${styles.safetyBadge} ${styles['safetyBadge--no']}`}>Không</span>
-                                                ) : (
-                                                    <span className={styles.kvValue}>-</span>
-                                                )}
-                                            </div>
+                            <div className={styles.screenInfoSection}>
+                                {/* Cột Trái: Thông tin khách & ticket */}
+                                <div className={`${styles.screenInfoColumn} ${styles.screenInfoColumnLeft}`}>
+                                    <div className={styles.screenInfoRow}>
+                                        <span className={styles.screenInfoLabel}>Họ tên:</span>
+                                        <div className={styles.screenInfoValueDotted}>{ticket.customer?.name || '-'}</div>
+                                    </div>
+
+                                    <div className={styles.screenInfoRowSub}>
+                                        <span className={styles.screenInfoLabel}>Điện thoại:</span>
+                                        <div className={styles.screenInfoValueDotted}>{ticket.customer?.phone || '-'}</div>
+                                        <span className={styles.screenInfoLabel} style={{ marginLeft: '12px' }}>E-mail:</span>
+                                        <div className={styles.screenInfoValueDotted}>{ticket.customer?.email || '-'}</div>
+                                    </div>
+
+                                    <div className={styles.screenInfoRow}>
+                                        <span className={styles.screenInfoLabel}>Ngày tiếp nhận:</span>
+                                        <div className={styles.screenInfoValueDotted}>{receivedAtDisplay}</div>
+                                    </div>
+
+                                    <div className={styles.screenInfoRow}>
+                                        <span className={styles.screenInfoLabel}>Người tạo:</span>
+                                        <div className={styles.screenInfoValueDotted}>{ticket.createdBy || '-'}</div>
+                                    </div>
+
+                                    <div className={styles.screenSafetyCheckRow}>
+                                        <span className={styles.screenInfoLabel}>Kiểm tra an toàn:</span>
+                                        <div className={styles.screenInlineChecks}>
+                                            <span className={styles.screenCheckItem}>
+                                                <span className={styles.screenCheckBoxSmall}>
+                                                    {ticketRaw?.safetyInspectionEnabled === true ? '✓' : ''}
+                                                </span>{' '}
+                                                Có
+                                            </span>
+                                            <span className={styles.screenCheckItem}>
+                                                <span className={styles.screenCheckBoxSmall}>
+                                                    {ticketRaw?.safetyInspectionEnabled === false ? '✓' : ''}
+                                                </span>{' '}
+                                                Không
+                                            </span>
                                         </div>
-                                    </section>
+                                    </div>
+                                </div>
+
+                                {/* Cột Phải: Thông tin xe & lịch hẹn */}
+                                <div className={`${styles.screenInfoColumn} ${styles.screenInfoColumnRight}`}>
+                                    <div className={styles.screenInfoRow}>
+                                        <span className={styles.screenInfoLabel}>Loại &amp; kiểu xe:</span>
+                                        <div className={styles.screenInfoValueDotted}>{ticket.vehicle?.model || '-'}</div>
+                                    </div>
+
+                                    <div className={styles.screenInfoRowSub}>
+                                        <span className={styles.screenInfoLabel}>Biển số:</span>
+                                        <div className={styles.screenInfoValueDotted}>{ticket.vehicle?.licensePlate || '-'}</div>
+                                        <span className={styles.screenInfoLabel} style={{ marginLeft: '12px' }}>Ki-lô-mét:</span>
+                                        <div className={styles.screenInfoValueDotted}>{odometerDisplay}</div>
+                                    </div>
+
+                                    <div className={styles.screenInfoRow}>
+                                        <span className={styles.screenInfoLabel}>Ngày &amp; Giờ hẹn:</span>
+                                        <div className={styles.screenInfoValueDotted}>
+                                            {ticket?.booking?.scheduledDate
+                                                ? `${ticket.booking.scheduledDate} ${formatTimeHHmm(ticket.booking.scheduledTime) || ''}`.trim()
+                                                : '-'}
+                                        </div>
+                                    </div>
+
+                                    <div className={styles.screenInfoRow}>
+                                        <span className={styles.screenInfoLabel}>Dự kiến hoàn tất:</span>
+                                        <div className={styles.screenInfoValueDotted}>{estimatedTimeDisplay}</div>
+                                    </div>
+
+                                    <div className={styles.screenInfoRow}>
+                                        <span className={styles.screenInfoLabel}>Ngày bàn giao:</span>
+                                        <div className={styles.screenInfoValueDotted}>{handoverAtDisplay}</div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -2922,13 +2922,5 @@ ServiceTicketDetail.propTypes = {
     ticketCodeOverride: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
-InfoBlock.propTypes = {
-    title: PropTypes.string.isRequired,
-    rows: PropTypes.arrayOf(
-        PropTypes.shape({
-            label: PropTypes.string.isRequired,
-            value: PropTypes.node,
-        }),
-    ).isRequired,
-};
+
 
