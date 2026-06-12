@@ -393,12 +393,115 @@
 
   .tableWrap {
     margin-bottom: 8px;
+    border: none !important;
   }
 
-  .table th,
-  .table td {
-    padding: 8px 10px;
-    font-size: 0.8rem;
+  .table {
+    display: block !important;
+    border: none !important;
+  }
+
+  .table thead {
+    display: none !important;
+  }
+
+  .table tbody {
+    display: block !important;
+  }
+
+  .table tbody tr {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin-bottom: 16px !important;
+    padding: 14px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04) !important;
+  }
+
+  .table tbody tr:hover {
+    background-color: #ffffff !important;
+  }
+
+  .table tbody td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 8px 0 !important;
+    border: none !important;
+    border-bottom: 1px dashed #f3f4f6 !important;
+    width: 100% !important;
+    text-align: right !important;
+    box-sizing: border-box !important;
+    font-size: 0.85rem !important;
+  }
+
+  .table tbody td:last-child {
+    border-bottom: none !important;
+  }
+
+  /* Show labels on mobile */
+  .table tbody td[data-label]::before {
+    content: attr(data-label) ": ";
+    font-weight: 700 !important;
+    color: #4b5563 !important;
+    font-size: 13px !important;
+    margin-right: 12px !important;
+    text-align: left !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Style column Chọn */
+  .table tbody td[data-label="Chọn"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    padding-bottom: 10px !important;
+    gap: 6px !important;
+  }
+
+  .table tbody td[data-label="Chọn"]::before {
+    margin-bottom: 4px !important;
+    align-self: flex-start !important;
+  }
+
+  .table tbody td[data-label="Chọn"] > button,
+  .table tbody td[data-label="Chọn"] > div {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .table tbody td.emptyRow {
+    display: block !important;
+    text-align: center !important;
+    border: none !important;
+    padding: 32px !important;
+  }
+
+  .table tbody td.emptyRow::before {
+    display: none !important;
+  }
+
+  .table tbody tr.notifyRow {
+    border: 1px solid #bfdbfe !important;
+    background: #eff6ff !important;
+    margin-top: -12px !important;
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
+    padding: 8px 12px !important;
+  }
+
+  .table tbody td.notifyCell {
+    display: block !important;
+    text-align: left !important;
+    border: none !important;
+    font-size: 0.80rem !important;
+  }
+
+  .table tbody td.notifyCell::before {
+    display: none !important;
   }
 
   .modalFooter {

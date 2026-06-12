@@ -2,8 +2,8 @@ import { Fragment, useEffect, useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 // Lưu ý: Nếu bạn để CSS chung thì giữ nguyên dòng này. 
 // Nếu tách file thì đổi thành import styles from './CatalogPicker.module.css';
-import styles from './CatalogPicker.module.css'; 
-import { 
+import styles from './CatalogPicker.module.css';
+import {
   searchWarehouseCatalogItemsDetail,
   fetchWarehouseBrands,
   fetchWarehouseProductLines,
@@ -25,9 +25,9 @@ function getWarehouseAvailableQty(detail) {
   // Remaining quantity should prefer `availableStockLevel` (API-calculated).
   const availableStockLevel = toFiniteNumber(
     detail?.availableStockLevel
-      ?? detail?.available_stock_level
-      ?? detail?.availableStock
-      ?? detail?.available_stock,
+    ?? detail?.available_stock_level
+    ?? detail?.availableStock
+    ?? detail?.available_stock,
   );
   if (availableStockLevel != null) return availableStockLevel;
 
@@ -49,8 +49,8 @@ function buildPickedCatalogItem(item, warehouseDetail, selectedLot) {
   if (!warehouseDetail) return item;
   const sellingPrice = selectedLot ? selectedLot?.sellingPrice : warehouseDetail?.sellingPrice;
   const nextPrice = sellingPrice ?? item?.price ?? item?.unitPrice;
-  const availableQuantity = selectedLot 
-    ? selectedLot?.remainingQuantity 
+  const availableQuantity = selectedLot
+    ? selectedLot?.remainingQuantity
     : getWarehouseAvailableQty(warehouseDetail);
 
   return {
@@ -226,7 +226,7 @@ function CatalogPicker({
   const handleBrandChange = (e) => {
     const nextBrandId = e.target.value;
     setBrandId(nextBrandId);
-    
+
     // Clear dòng sản phẩm nếu dòng hiện tại không thuộc về hãng sản xuất mới
     if (nextBrandId && productLineId) {
       const currentLine = productLineOptions.find((l) => String(l.productLineId) === String(productLineId));
@@ -246,7 +246,7 @@ function CatalogPicker({
         setLoading(true);
         setError('');
         const token = localStorage.getItem('authToken');
-        
+
         // Tạo params tìm kiếm chi tiết dựa trên state bộ lọc hiện tại
         const params = { page, size };
         if (search) params.search = search;
@@ -523,7 +523,7 @@ function CatalogPicker({
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>STT</th>
+                    <th>Chọn</th>
                     <th>Tên</th>
                     <th>SKU</th>
                     <th>HÃNG</th>
@@ -531,7 +531,6 @@ function CatalogPicker({
                     <th>Xuất xứ</th>
                     <th>GIÁ</th>
                     <th>ĐV</th>
-                    <th />
                   </tr>
                 </thead>
                 <tbody>
@@ -544,7 +543,8 @@ function CatalogPicker({
                         const details = Array.isArray(it?.warehouseDetails) ? it.warehouseDetails : [];
                         const selectedWarehouseId = selectedWarehouseByItemId[itemKey] ?? '';
                         const selectedDetail = details.find((d) => String(d?.warehouseId) === String(selectedWarehouseId)) || null;
-                        const notifyText = String(selectedDetail?.notify ?? '').trim();
+                        const rawNotify = String(selectedDetail?.notify ?? '').trim();
+                        const notifyText = rawNotify === 'Đang dùng giá nhập kho nhập mới nhất' ? '' : rawNotify;
                         const hasAnyPrice = (
                           toFiniteNumber(it?.price) != null
                           || toFiniteNumber(it?.unitPrice) != null
@@ -652,21 +652,20 @@ function CatalogPicker({
                         return (
                           <Fragment key={rowKey}>
                             <tr>
-                              <td>{page * size + i + 1}</td>
-                              <td>{it?.itemName || it?.name || '-'}</td>
-                              <td>{it?.sku || '-'}</td>
-                              <td>{it?.brand || '-'}</td>
-                              <td>{it?.color || '-'}</td>
-                              <td>{it?.madeIn || '-'}</td>
-                              <td className={styles.tdNumber}>{priceCellText}</td>
-                              <td>{it?.unit || '-'}</td>
-                              <td>
+                              <td data-label="Chọn">
                                 {actionControl}
                               </td>
+                              <td data-label="Tên">{it?.itemName || it?.name || '-'}</td>
+                              <td data-label="SKU">{it?.sku || '-'}</td>
+                              <td data-label="Hãng">{it?.brand || '-'}</td>
+                              <td data-label="Màu sắc">{it?.color || '-'}</td>
+                              <td data-label="Xuất xứ">{it?.madeIn || '-'}</td>
+                              <td data-label="Giá" className={styles.tdNumber}>{priceCellText}</td>
+                              <td data-label="Đơn vị">{it?.unit || '-'}</td>
                             </tr>
                             {notifyText ? (
                               <tr className={styles.notifyRow}>
-                                <td className={styles.notifyCell} colSpan={9}>
+                                <td className={styles.notifyCell} colSpan={8}>
                                   {notifyText}
                                 </td>
                               </tr>
@@ -677,7 +676,7 @@ function CatalogPicker({
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={9} className={styles.emptyRow}>
+                      <td colSpan={8} className={styles.emptyRow}>
                         Không có kết quả.
                       </td>
                     </tr>
@@ -689,23 +688,23 @@ function CatalogPicker({
             <div className={styles.modalFooter}>
               {/* Cụm phân trang bên trái */}
               <div className={styles.pagination}>
-                <button 
-                  type="button" 
-                  className="ui-btn ui-btn--ghost" 
-                  onClick={() => setPage(Math.max(0, page - 1))} 
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--ghost"
+                  onClick={() => setPage(Math.max(0, page - 1))}
                   disabled={page <= 0 || loading}
                 >
                   ← Trước
                 </button>
-                
+
                 <span className={styles.pageInfo}>
                   Trang {page + 1} / {Math.max(1, Math.ceil(totalElements / size))}
                 </span>
-                
-                <button 
-                  type="button" 
-                  className="ui-btn ui-btn--ghost" 
-                  onClick={() => setPage(page + 1)} 
+
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--ghost"
+                  onClick={() => setPage(page + 1)}
                   disabled={(page + 1) * size >= totalElements || loading}
                 >
                   Tiếp →
