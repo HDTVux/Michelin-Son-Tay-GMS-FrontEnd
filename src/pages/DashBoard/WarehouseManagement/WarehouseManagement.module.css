@@ -480,6 +480,8 @@
 }
 
 .modal-box {
+  position: relative;
+  z-index: 10;
   width: min(900px, 92vw);
   background: #fff;
   border-radius: 12px;

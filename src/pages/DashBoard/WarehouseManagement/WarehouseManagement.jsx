@@ -2,12 +2,26 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import ItemDetailModal from './ItemDetailModal.jsx';
+import EditItemModal from './EditItemModal.jsx';
 import {
   fetchWarehouseInventorySyncTemplate,
   fetchWarehousesAll,
   searchWarehouseCatalogItemsDetail,
   syncWarehouseInventoryExcel,
 } from '../../../services/warehouseService.js';
+
+const readStaffRolesFromStorage = () => {
+  try {
+    const raw = localStorage.getItem('staffRoles');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(r => String(r).toUpperCase());
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+};
 // ...existing code...
 import {
   formatCurrencyVnd,
@@ -115,6 +129,12 @@ export default function PartManagement() {
   const [originFilter, setOriginFilter] = useState('');
   const [colorFilter, setColorFilter] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
+
+  const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
+  const isManagerOrAdmin = useMemo(() => {
+    return staffRoles.includes('MANAGER') || staffRoles.includes('ADMIN') || staffRoles.includes('ROLE_MANAGER') || staffRoles.includes('ROLE_ADMIN');
+  }, [staffRoles]);
 
   const [warehouses, setWarehouses] = useState([]);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
@@ -569,6 +589,15 @@ export default function PartManagement() {
                           >
                             Xem chi tiết
                           </button>
+                          {isManagerOrAdmin && (
+                            <button
+                              className={`${styles['action-btn']} ${styles['edit-btn']}`}
+                              onClick={() => setEditingItem(item)}
+                              title="Sửa danh mục"
+                            >
+                              Sửa danh mục
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -623,6 +652,11 @@ export default function PartManagement() {
       </div>
 
       <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <EditItemModal
+        item={editingItem}
+        onClose={() => setEditingItem(null)}
+        onSaved={() => setRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 }

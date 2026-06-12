@@ -1,0 +1,463 @@
+import { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
+import { toast } from 'react-toastify';
+import styles from './WarehouseManagement.module.css';
+import {
+    fetchWarehouseCatalogItemDetail,
+    updateWarehouseCatalogItem,
+} from '../../../services/warehouseService.js';
+import { getItemColorText, getItemOriginText } from '../PartManagement/itemFormatters.js';
+
+const toFiniteNumber = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const num = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(num) ? num : null;
+};
+
+const getWarehouseOnHandQty = (detail) => {
+    const qty = toFiniteNumber(detail?.quantity ?? detail?.stockQuantity ?? detail?.stock_quantity);
+    return qty ?? 0;
+};
+
+const getWarehouseReservedQty = (detail) => {
+    const reserved = toFiniteNumber(detail?.reservedQuantity ?? detail?.reservedStockLevel ?? detail?.reserved_stock_level);
+    return reserved ?? 0;
+};
+
+const getWarehouseSellingPrice = (detail) => {
+    return toFiniteNumber(detail?.sellingPrice ?? detail?.selling_price ?? detail?.price ?? detail?.unitPrice ?? detail?.unit_price) ?? 0;
+};
+
+export default function EditItemModal({ item, onClose, onSaved }) {
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    // Catalog fields
+    const [itemName, setItemName] = useState('');
+    const [sku, setSku] = useState('');
+    const [unit, setUnit] = useState('');
+    const [price, setPrice] = useState('');
+    const [origin, setOrigin] = useState('');
+    const [color, setColor] = useState('');
+    const [description, setDescription] = useState('');
+
+    // Nested Warehouse and Lot fields state
+    const [warehouseDetailsState, setWarehouseDetailsState] = useState([]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            if (!item) return;
+
+            const id = item?.itemId ?? item?.id ?? null;
+            if (!id) {
+                setError('Không tìm thấy ID phụ tùng.');
+                return;
+            }
+
+            setLoading(true);
+            setError('');
+            try {
+                const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+                const res = await fetchWarehouseCatalogItemDetail(id, token);
+                const payload = res?.data?.data ?? res?.data ?? res;
+                const base = payload ?? {};
+
+                if (!cancelled) {
+                    setItemName(base.itemName || '');
+                    setSku(base.sku || '');
+                    setUnit(base.unit || '');
+                    setPrice(base.price != null ? String(base.price) : '');
+                    setOrigin(getItemOriginText(base) || '');
+                    setColor(getItemColorText(base) || '');
+                    setDescription(base.description || '');
+
+                    // Map warehouseDetails hierarchy
+                    const whDetails = Array.isArray(base.warehouseDetails) ? base.warehouseDetails : [];
+                    setWarehouseDetailsState(
+                        whDetails.map((w) => ({
+                            ...w,
+                            quantity: getWarehouseOnHandQty(w),
+                            reservedQuantity: getWarehouseReservedQty(w),
+                            sellingPrice: getWarehouseSellingPrice(w),
+                            lots: Array.isArray(w.lots)
+                                ? w.lots.map((lot) => ({
+                                      ...lot,
+                                      remainingQuantity: lot.remainingQuantity ?? 0,
+                                      sellingPrice: lot.sellingPrice ?? 0,
+                                  }))
+                                : [],
+                        }))
+                    );
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setError(err?.message || 'Không thể tải chi tiết sản phẩm.');
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [item]);
+
+    if (!item) return null;
+
+    // Handlers for updating local warehouse values
+    const handleWarehouseChange = (whIndex, field, value) => {
+        setWarehouseDetailsState((prev) =>
+            prev.map((w, idx) => {
+                if (idx !== whIndex) return w;
+                return { ...w, [field]: value };
+            })
+        );
+    };
+
+    // Handlers for updating local lot values inside a warehouse
+    const handleLotChange = (whIndex, lotIndex, field, value) => {
+        setWarehouseDetailsState((prev) =>
+            prev.map((w, idx) => {
+                if (idx !== whIndex) return w;
+                const updatedLots = w.lots.map((lot, lIdx) => {
+                    if (lIdx !== lotIndex) return lot;
+                    return { ...lot, [field]: value };
+                });
+                return { ...w, lots: updatedLots };
+            })
+        );
+    };
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+        if (!itemName.trim()) {
+            toast.error('Tên phụ tùng không được bỏ trống.');
+            return;
+        }
+        if (!sku.trim()) {
+            toast.error('Mã SKU không được bỏ trống.');
+            return;
+        }
+
+        const priceNum = Number(price);
+        if (price !== '' && (!Number.isFinite(priceNum) || priceNum < 0)) {
+            toast.error('Giá bán mặc định không hợp lệ.');
+            return;
+        }
+
+        // Validate warehouse details & lots
+        for (const w of warehouseDetailsState) {
+            const qty = Number(w.quantity);
+            const reserved = Number(w.reservedQuantity);
+            const whPrice = Number(w.sellingPrice);
+
+            if (!Number.isFinite(qty) || qty < 0) {
+                toast.error(`Số lượng khả dụng ở kho "${w.warehouseName || w.warehouseId}" không hợp lệ.`);
+                return;
+            }
+            if (!Number.isFinite(reserved) || reserved < 0) {
+                toast.error(`Số lượng khách giữ ở kho "${w.warehouseName || w.warehouseId}" không hợp lệ.`);
+                return;
+            }
+            if (!Number.isFinite(whPrice) || whPrice < 0) {
+                toast.error(`Giá bán ở kho "${w.warehouseName || w.warehouseId}" không hợp lệ.`);
+                return;
+            }
+
+            for (const lot of w.lots) {
+                const lotQty = Number(lot.remainingQuantity);
+                const lotPrice = Number(lot.sellingPrice);
+
+                if (!Number.isFinite(lotQty) || lotQty < 0) {
+                    toast.error(`Số lượng lô "${lot.entryCode}" không hợp lệ.`);
+                    return;
+                }
+                if (!Number.isFinite(lotPrice) || lotPrice < 0) {
+                    toast.error(`Giá bán lô "${lot.entryCode}" không hợp lệ.`);
+                    return;
+                }
+            }
+        }
+
+        setSaving(true);
+        setError('');
+        try {
+            const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+            const id = item?.itemId ?? item?.id;
+
+            // Construct payload
+            const payload = {
+                itemName: itemName.trim(),
+                sku: sku.trim(),
+                unit: unit.trim(),
+                price: price === '' ? null : priceNum,
+                origin: origin.trim(),
+                color: color.trim(),
+                description: description.trim(),
+                warehouseDetails: warehouseDetailsState.map((w) => ({
+                    warehouseId: w.warehouseId,
+                    quantity: Number(w.quantity),
+                    reservedQuantity: Number(w.reservedQuantity),
+                    sellingPrice: Number(w.sellingPrice),
+                    lots: w.lots.map((lot) => ({
+                        entryItemId: lot.entryItemId,
+                        remainingQuantity: Number(lot.remainingQuantity),
+                        sellingPrice: Number(lot.sellingPrice),
+                    })),
+                })),
+            };
+
+            await updateWarehouseCatalogItem(id, payload, token);
+            toast.success('Cập nhật phụ tùng thành công.');
+            if (onSaved) onSaved();
+            onClose();
+        } catch (err) {
+            setError(err?.message || 'Không thể cập nhật phụ tùng.');
+            toast.error(err?.message || 'Không thể cập nhật phụ tùng.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className={styles['modal-overlay']}>
+            <button
+                type="button"
+                className={styles['modal-backdrop']}
+                onClick={onClose}
+                onKeyDown={(e) => {
+                    if (e.key === 'Escape') onClose();
+                }}
+                aria-label="Đóng"
+                disabled={saving}
+            />
+            <div className={styles['modal-box']} style={{ width: 'min(1000px, 95vw)', position: 'relative', zIndex: 10 }}>
+                <div className={styles['modal-header']}>
+                    <h3>Chỉnh sửa danh mục & Tồn kho</h3>
+                    <button type="button" className={styles['modal-close']} onClick={onClose} aria-label="Đóng" disabled={saving}>
+                        ×
+                    </button>
+                </div>
+
+                <form onSubmit={handleSave} className={styles['modal-body']}>
+                    {loading && <div className={styles['empty-row']}>Đang tải chi tiết...</div>}
+                    {error && <div className={styles['error-banner']}>{error}</div>}
+
+                    {!loading && (
+                        <>
+                            {/* Catalog Information Section */}
+                            <div className={styles['modal-section']}>
+                                <div className={styles['modal-section-title']}>Thông tin danh mục</div>
+                                <div className={styles['field-row']}>
+                                    <div className={styles['field']}>
+                                        <label htmlFor="edit-item-name">Tên phụ tùng <span className={styles['required']}>*</span></label>
+                                        <input
+                                            id="edit-item-name"
+                                            value={itemName}
+                                            onChange={(e) => setItemName(e.target.value)}
+                                            required
+                                            disabled={saving}
+                                        />
+                                    </div>
+                                    <div className={styles['field']}>
+                                        <label htmlFor="edit-item-sku">Mã SKU <span className={styles['required']}>*</span></label>
+                                        <input
+                                            id="edit-item-sku"
+                                            value={sku}
+                                            onChange={(e) => setSku(e.target.value)}
+                                            required
+                                            disabled={saving}
+                                        />
+                                    </div>
+                                </div>
+                                <div className={styles['field-row']}>
+                                    <div className={styles['field']}>
+                                        <label htmlFor="edit-item-unit">Đơn vị</label>
+                                        <input
+                                            id="edit-item-unit"
+                                            value={unit}
+                                            onChange={(e) => setUnit(e.target.value)}
+                                            disabled={saving}
+                                        />
+                                    </div>
+                                    <div className={styles['field']}>
+                                        <label htmlFor="edit-item-price">Giá mặc định (₫)</label>
+                                        <input
+                                            id="edit-item-price"
+                                            type="number"
+                                            value={price}
+                                            onChange={(e) => setPrice(e.target.value)}
+                                            disabled={saving}
+                                        />
+                                    </div>
+                                </div>
+                                <div className={styles['field-row']}>
+                                    <div className={styles['field']}>
+                                        <label htmlFor="edit-item-origin">Xuất xứ</label>
+                                        <input
+                                            id="edit-item-origin"
+                                            value={origin}
+                                            onChange={(e) => setOrigin(e.target.value)}
+                                            disabled={saving}
+                                        />
+                                    </div>
+                                    <div className={styles['field']}>
+                                        <label htmlFor="edit-item-color">Màu</label>
+                                        <input
+                                            id="edit-item-color"
+                                            value={color}
+                                            onChange={(e) => setColor(e.target.value)}
+                                            disabled={saving}
+                                        />
+                                    </div>
+                                </div>
+                                <div className={styles['field']}>
+                                    <label htmlFor="edit-item-description">Mô tả</label>
+                                    <textarea
+                                        id="edit-item-description"
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        rows={3}
+                                        disabled={saving}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Inventory and Lot Configuration per Warehouse */}
+                            <div className={styles['modal-section']}>
+                                <div className={styles['modal-section-title']}>Tồn kho & Lô hàng</div>
+                                {warehouseDetailsState.map((w, whIdx) => (
+                                    <div
+                                        key={String(w.warehouseId)}
+                                        style={{
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '8px',
+                                            padding: '16px',
+                                            marginBottom: '16px',
+                                            backgroundColor: '#f8fafc',
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: '700', fontSize: '15px', color: '#0f172a', marginBottom: '12px' }}>
+                                            📍 {w.warehouseName || `Kho ID #${w.warehouseId}`}
+                                        </div>
+
+                                        {/* Warehouse Inventory Controls */}
+                                        <div className={styles['field-row']} style={{ marginBottom: '12px' }}>
+                                            <div className={styles['field']}>
+                                                <label>Số lượng khả dụng (Hàng tồn)</label>
+                                                <input
+                                                    type="number"
+                                                    value={w.quantity}
+                                                    onChange={(e) => handleWarehouseChange(whIdx, 'quantity', e.target.value)}
+                                                    disabled={saving}
+                                                    min={0}
+                                                />
+                                            </div>
+                                            <div className={styles['field']}>
+                                                <label>Khách giữ hàng (Hàng giữ)</label>
+                                                <input
+                                                    type="number"
+                                                    value={w.reservedQuantity}
+                                                    onChange={(e) => handleWarehouseChange(whIdx, 'reservedQuantity', e.target.value)}
+                                                    disabled={saving}
+                                                    min={0}
+                                                />
+                                            </div>
+                                            <div className={styles['field']}>
+                                                <label>Giá bán tại kho (₫)</label>
+                                                <input
+                                                    type="number"
+                                                    value={w.sellingPrice}
+                                                    onChange={(e) => handleWarehouseChange(whIdx, 'sellingPrice', e.target.value)}
+                                                    disabled={saving}
+                                                    min={0}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Lots / Batches controls */}
+                                        {w.lots && w.lots.length > 0 && (
+                                            <div style={{ marginTop: '12px' }}>
+                                                <div style={{ fontWeight: '600', fontSize: '13px', color: '#475569', marginBottom: '8px' }}>
+                                                    Danh sách lô hàng ({w.lots.length})
+                                                </div>
+                                                <div className={styles['spec-table-wrap']}>
+                                                    <table className={styles['spec-table']}>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Mã lô (Entry Code)</th>
+                                                                <th>Ngày nhập</th>
+                                                                <th>Số lượng tồn lô</th>
+                                                                <th>Đơn giá lô (₫)</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {w.lots.map((lot, lotIdx) => (
+                                                                <tr key={String(lot.entryItemId || lotIdx)}>
+                                                                    <td style={{ fontWeight: '600' }}>{lot.entryCode || '-'}</td>
+                                                                    <td>{lot.entryDate ? new Date(lot.entryDate).toLocaleDateString('vi-VN') : '-'}</td>
+                                                                    <td>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={lot.remainingQuantity}
+                                                                            onChange={(e) => handleLotChange(whIdx, lotIdx, 'remainingQuantity', e.target.value)}
+                                                                            style={{ padding: '6px 8px', width: '100px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                            disabled={saving}
+                                                                            min={0}
+                                                                        />
+                                                                    </td>
+                                                                    <td>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={lot.sellingPrice}
+                                                                            onChange={(e) => handleLotChange(whIdx, lotIdx, 'sellingPrice', e.target.value)}
+                                                                            style={{ padding: '6px 8px', width: '130px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                            disabled={saving}
+                                                                            min={0}
+                                                                        />
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Actions Footer */}
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                                <button
+                                    type="button"
+                                    className={styles['ghost-button']}
+                                    onClick={onClose}
+                                    disabled={saving}
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    type="submit"
+                                    className={styles['primary-button']}
+                                    disabled={saving}
+                                >
+                                    {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </form>
+            </div>
+        </div>
+    );
+}
+
+EditItemModal.propTypes = {
+    item: PropTypes.object,
+    onClose: PropTypes.func.isRequired,
+    onSaved: PropTypes.func,
+};
