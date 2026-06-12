@@ -126,8 +126,11 @@ const restorePageSnapshot = (snapshot, { restoreScroll = true } = {}) => {
     if (el instanceof HTMLInputElement) {
       const type = (el.type || '').toLowerCase();
       if (type === 'checkbox' || type === 'radio') {
-        el.checked = Boolean(item?.checked);
-        el.dispatchEvent(new Event('change', { bubbles: true }));
+        const nextChecked = Boolean(item?.checked);
+        if (el.checked !== nextChecked) {
+          el.checked = nextChecked;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         return;
       }
       const nextValue = item?.value ?? '';
@@ -152,13 +155,25 @@ const restorePageSnapshot = (snapshot, { restoreScroll = true } = {}) => {
     if (el instanceof HTMLSelectElement) {
       if (el.multiple && Array.isArray(item?.values)) {
         const values = new Set(item.values.map((v) => String(v)));
+        let changed = false;
         Array.from(el.options).forEach((opt) => {
-          opt.selected = values.has(String(opt.value));
+          const nextSelected = values.has(String(opt.value));
+          if (opt.selected !== nextSelected) {
+            opt.selected = nextSelected;
+            changed = true;
+          }
         });
+        if (changed) {
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
       } else {
-        el.value = String(item?.value ?? '');
+        const nextValue = String(item?.value ?? '');
+        const optionExists = Array.from(el.options).some((opt) => opt.value === nextValue);
+        if (optionExists && el.value !== nextValue) {
+          el.value = nextValue;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
       }
-      el.dispatchEvent(new Event('change', { bubbles: true }));
     }
   });
 

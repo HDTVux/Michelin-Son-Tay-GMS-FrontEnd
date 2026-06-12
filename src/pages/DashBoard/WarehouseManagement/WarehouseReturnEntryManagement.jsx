@@ -74,7 +74,7 @@ export default function WarehouseReturnEntryManagement() {
   const [size, setSize] = useState(10);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [warehouseError, setWarehouseError] = useState('');
 
@@ -129,7 +129,6 @@ export default function WarehouseReturnEntryManagement() {
         const currentIdText = toWarehouseIdText(warehouseIdInput);
         const hasCurrent = Boolean(currentIdText) && list.some((w) => getWarehouseIdText(w) === currentIdText);
         if (hasCurrent) {
-          await fetchList({ warehouseIdOverride: currentIdText, pageOverride: 0 });
           return;
         }
 
@@ -139,12 +138,10 @@ export default function WarehouseReturnEntryManagement() {
           null;
         const nextId = getWarehouseIdText(firstActive) || String(DEFAULT_WAREHOUSE_ID);
         setWarehouseIdInput(String(nextId));
-        await fetchList({ warehouseIdOverride: String(nextId), pageOverride: 0 });
       } catch (err) {
         if (cancelled) return;
         setWarehouses([]);
         setWarehouseError(err?.message || 'Không thể tải danh sách kho.');
-        await fetchList({ warehouseIdOverride: String(DEFAULT_WAREHOUSE_ID), pageOverride: 0 });
       } finally {
         if (!cancelled) setWarehouseLoading(false);
       }
@@ -154,6 +151,14 @@ export default function WarehouseReturnEntryManagement() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const warehouseId = toWarehouseIdText(warehouseIdInput);
+    if (!warehouseId) return;
+
+    fetchList({ warehouseIdOverride: warehouseId, pageOverride: page, sizeOverride: size });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [warehouseIdInput, status, page, size]);
 
   const stats = useMemo(() => {
     const total = totalElements;
@@ -263,10 +268,6 @@ export default function WarehouseReturnEntryManagement() {
         </section>
 
         <section className={styles.pendingFilters}>
-          <div className={styles.filterCardLabels}>
-            <span>Kho</span>
-            <span>Trạng thái</span>
-          </div>
           <div className={styles.filterCardControls}>
           <div className={styles.field}>
             <label htmlFor="return-entry-warehouse">Kho</label>
@@ -274,7 +275,10 @@ export default function WarehouseReturnEntryManagement() {
               id="return-entry-warehouse"
               className={styles.select}
               value={warehouseIdInput}
-              onChange={(e) => setWarehouseIdInput(e.target.value)}
+              onChange={(e) => {
+                setWarehouseIdInput(e.target.value);
+                setPage(0);
+              }}
               disabled={warehouseLoading}
             >
               {warehouses.length > 0 ? (
@@ -308,7 +312,10 @@ export default function WarehouseReturnEntryManagement() {
               id="return-entry-status"
               className={styles.select}
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(0);
+              }}
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -317,19 +324,6 @@ export default function WarehouseReturnEntryManagement() {
               ))}
             </select>
           </div>
-          </div>
-          <div className={styles.filterCardActions}>
-            <button
-              type="button"
-              className={styles.primaryButton}
-              onClick={() => {
-                setPage(0);
-                fetchList({ pageOverride: 0 });
-              }}
-              disabled={loading}
-            >
-              {loading ? 'Đang tải...' : 'Lọc dữ liệu'}
-            </button>
           </div>
         </section>
 
@@ -349,7 +343,13 @@ export default function WarehouseReturnEntryManagement() {
               </tr>
             </thead>
             <tbody>
-              {!loading && entries.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className={styles.emptyCell}>
+                    Đang tải danh sách phiếu trả hàng...
+                  </td>
+                </tr>
+              ) : entries.length === 0 ? (
                 <tr>
                   <td colSpan={5} className={styles.emptyCell}>
                     Không có dữ liệu phiếu trả hàng.
@@ -387,7 +387,7 @@ export default function WarehouseReturnEntryManagement() {
         <div className={styles.bookingFooter}>
           <div className={styles.pageSize}>
             <span>Hiển thị:</span>
-            <select value={String(size)} onChange={(e) => changePageSize(Number(e.target.value))}>
+            <select id="return-entry-page-size" value={String(size)} onChange={(e) => changePageSize(Number(e.target.value))}>
               {PAGE_SIZE_OPTIONS.map((option) => (
                 <option key={option} value={option}>{option}</option>
               ))}

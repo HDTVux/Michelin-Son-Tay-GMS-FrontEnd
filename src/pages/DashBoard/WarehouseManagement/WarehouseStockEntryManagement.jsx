@@ -79,7 +79,7 @@ export default function WarehouseStockEntryManagement() {
   const [size, setSize] = useState(10);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [warehouseError, setWarehouseError] = useState('');
 
@@ -132,7 +132,6 @@ export default function WarehouseStockEntryManagement() {
         const currentIdText = toWarehouseIdText(warehouseIdInput);
         const hasCurrent = Boolean(currentIdText) && list.some((w) => getWarehouseIdText(w) === currentIdText);
         if (hasCurrent) {
-          await fetchList({ warehouseIdOverride: currentIdText, pageOverride: 0 });
           return;
         }
 
@@ -142,12 +141,10 @@ export default function WarehouseStockEntryManagement() {
           null;
         const nextId = getWarehouseIdText(firstActive) || String(DEFAULT_WAREHOUSE_ID);
         setWarehouseIdInput(String(nextId));
-        await fetchList({ warehouseIdOverride: String(nextId), pageOverride: 0 });
       } catch (err) {
         if (cancelled) return;
         setWarehouses([]);
         setWarehouseError(err?.message || 'Không thể tải danh sách kho.');
-        await fetchList({ pageOverride: 0 });
       } finally {
         if (!cancelled) setWarehouseLoading(false);
       }
@@ -157,6 +154,14 @@ export default function WarehouseStockEntryManagement() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const warehouseId = toWarehouseIdText(warehouseIdInput);
+    if (!warehouseId) return;
+
+    fetchList({ warehouseIdOverride: warehouseId, pageOverride: page, sizeOverride: size });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [warehouseIdInput, status, page, size]);
 
   const stats = useMemo(() => {
     const total = totalElements;
@@ -240,7 +245,10 @@ export default function WarehouseStockEntryManagement() {
               id="stock-entry-warehouse"
               className={commonStyles.select}
               value={warehouseIdInput}
-              onChange={(e) => setWarehouseIdInput(e.target.value)}
+              onChange={(e) => {
+                setWarehouseIdInput(e.target.value);
+                setPage(0);
+              }}
               disabled={warehouseLoading}
             >
               {warehouses.length > 0 ? (
@@ -268,7 +276,10 @@ export default function WarehouseStockEntryManagement() {
               id="stock-entry-status"
               className={commonStyles.select}
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(0);
+              }}
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -276,19 +287,6 @@ export default function WarehouseStockEntryManagement() {
                 </option>
               ))}
             </select>
-          </div>
-          <div className={commonStyles.actions}>
-            <button
-              type="button"
-              className="ui-btn ui-btn--primary"
-              onClick={() => {
-                setPage(0);
-                fetchList({ pageOverride: 0 });
-              }}
-              disabled={loading}
-            >
-              {loading ? 'Đang tải...' : 'Lọc dữ liệu'}
-            </button>
           </div>
         </section>
 
@@ -309,7 +307,13 @@ export default function WarehouseStockEntryManagement() {
               </tr>
             </thead>
             <tbody>
-              {!loading && entries.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className={styles.emptyCell}>
+                    Đang tải danh sách phiếu nhập...
+                  </td>
+                </tr>
+              ) : entries.length === 0 ? (
                 <tr>
                   <td colSpan={6} className={styles.emptyCell}>
                     Không có dữ liệu phiếu nhập.
@@ -349,7 +353,7 @@ export default function WarehouseStockEntryManagement() {
         <div className={commonStyles.pagination}>
           <div className={styles.pageSize}>
             <span>{'Hi\u1ec3n th\u1ecb:'}</span>
-            <select value={String(size)} onChange={(e) => changePageSize(Number(e.target.value))}>
+            <select id="stock-entry-page-size" value={String(size)} onChange={(e) => changePageSize(Number(e.target.value))}>
               {PAGE_SIZE_OPTIONS.map((option) => (
                 <option key={option} value={option}>{option}</option>
               ))}
