@@ -1753,22 +1753,22 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	}, [isCreatingTaxRule]);
 
 	const handleCreateTaxRule = useCallback(async () => {
-		if (isCreatingTaxRule) return;
+		if (isCreatingTaxRule) return null;
 		const token = localStorage.getItem('authToken');
 		if (!token) {
 			setSaveError('Vui lòng đăng nhập để tạo loại thuế.');
-			return;
+			return null;
 		}
 
 		const nameValidated = validateTaxName(taxName, { required: true });
 		if (nameValidated.error) {
 			setSaveError(nameValidated.error);
-			return;
+			return null;
 		}
 		const rateValidated = validateTaxRatePercent(taxRate, { required: true });
 		if (rateValidated.error) {
 			setSaveError(rateValidated.error);
-			return;
+			return null;
 		}
 		const name = nameValidated.value;
 		const rateNumber = rateValidated.value;
@@ -1788,7 +1788,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			const createdId = toIdOrNull(created?.taxRuleId);
 			if (!createdId) {
 				setSaveError('Tạo thuế thất bại (không nhận được taxRuleId).');
-				return;
+				return null;
 			}
 
 			setTaxRules((prev) => {
@@ -1800,8 +1800,10 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 			setIsAddingNewTaxRule(false);
 			setTaxName('');
 			setTaxRate('');
+			return createdId;
 		} catch (err) {
 			setSaveError(err?.message || 'Không thể tạo thuế.');
+			return null;
 		} finally {
 			setIsCreatingTaxRule(false);
 		}

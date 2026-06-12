@@ -137,116 +137,185 @@ CategorySuggestDropdownPortal.propTypes = {
     onClose: PropTypes.func,
 };
 
-function TaxRuleQuickAdd({
-    show,
-    isAddingNewTaxRule,
+function TaxPickerModal({
+    open,
+    onClose,
+    taxRules,
     taxRulesLoading,
-    isSaving,
+    selectedTaxRuleId,
+    onSelect,
     isCreatingTaxRule,
     taxName,
     setTaxName,
     taxRate,
     setTaxRate,
-    startAddNewTaxRule,
-    stopAddNewTaxRule,
     handleCreateTaxRule,
+    isSaving,
 }) {
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [validationError, setValidationError] = useState('');
+
     const taxNameValidation = validateTaxName(taxName, { required: true, maxLength: TAX_NAME_MAX_LENGTH });
     const taxRateValidation = validateTaxRatePercent(taxRate, { required: true });
     const taxHasError = Boolean(taxNameValidation.error || taxRateValidation.error);
 
-    if (!show) return null;
+    const onAddTaxSubmit = async (e) => {
+        e.preventDefault();
+        setValidationError('');
+        if (taxHasError) {
+            setValidationError(taxNameValidation.error || taxRateValidation.error);
+            return;
+        }
+        const createdId = await handleCreateTaxRule();
+        if (createdId) {
+            onSelect(createdId);
+            setShowAddForm(false);
+        } else {
+            setValidationError('Không thể tạo thuế. Vui lòng kiểm tra lại.');
+        }
+    };
+
+    if (!open) return null;
 
     return (
-        <div style={{ marginTop: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                <div style={{ fontWeight: 600 }}>Thuế</div>
-                {isAddingNewTaxRule ? (
-                    <div className="ui-actions" style={{ marginTop: 0 }}>
-                        <button
-                            type="button"
-                            className="ui-btn ui-btn--primary"
-                            onClick={handleCreateTaxRule}
-                            disabled={isCreatingTaxRule || isSaving || taxHasError}
-                        >
-                            {isCreatingTaxRule ? 'Đang thêm...' : 'Xác nhận thêm thuế'}
-                        </button>
-                        <button
-                            type="button"
-                            className="ui-btn ui-btn--ghost"
-                            onClick={stopAddNewTaxRule}
-                            disabled={isCreatingTaxRule || isSaving}
-                        >
-                            Hủy
-                        </button>
-                    </div>
-                ) : (
-                    <button
-                        type="button"
-                        className="ui-btn ui-btn--ghost"
-                        onClick={startAddNewTaxRule}
-                        disabled={taxRulesLoading || isSaving}
-                    >
-                        Thêm thuế
+        <div className={styles.taxModalOverlay} onClick={onClose}>
+            <div className={styles.taxModal} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.taxModalHeader}>
+                    <h3 className={styles.taxModalTitle}>Chọn loại thuế</h3>
+                    <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose} style={{ minWidth: 'auto', padding: '6px 12px' }}>
+                        Đóng
                     </button>
-                )}
-            </div>
+                </div>
 
-            {isAddingNewTaxRule ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, marginTop: 10 }}>
-                    <div className="ui-field" style={{ marginBottom: 0 }}>
-                        <label htmlFor="estimate-tax-name">Tên thuế (mới)</label>
-                        <input
-                            id="estimate-tax-name"
-                            value={taxName}
-                            maxLength={TAX_NAME_MAX_LENGTH}
-                            onChange={(e) => setTaxName(String(e.target.value || '').slice(0, TAX_NAME_MAX_LENGTH))}
-                            placeholder="Nhập tên thuế"
-                            autoComplete="off"
-                            disabled={isCreatingTaxRule || isSaving}
-                        />
-                        <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                            {taxNameValidation.error ? (
-                                <div style={{ fontSize: 12, color: '#991b1b' }}>{taxNameValidation.error}</div>
-                            ) : (
-                                <div style={{ fontSize: 12, color: '#6b7280' }}>{`${Math.max(0, TAX_NAME_MAX_LENGTH - String(taxName ?? '').length)} ký tự còn lại`}</div>
-                            )}
+                <div className={styles.taxModalBody}>
+                    {taxRulesLoading ? (
+                        <div style={{ textAlign: 'center', padding: '20px', color: 'var(--ui-muted)' }}>Đang tải danh sách thuế...</div>
+                    ) : (
+                        <div className={styles.taxModalList}>
+                            <button
+                                type="button"
+                                className={`${styles.taxModalItem} ${!selectedTaxRuleId ? styles.taxModalItemActive : ''}`}
+                                onClick={() => onSelect('')}
+                            >
+                                <span>Không áp dụng thuế (0%)</span>
+                                {!selectedTaxRuleId && <span className={styles.taxModalCheckmark}>✓</span>}
+                            </button>
+
+                            {(Array.isArray(taxRules) ? taxRules : []).map((rule) => {
+                                const ruleId = toIdOrNull(rule?.taxRuleId);
+                                if (!ruleId) return null;
+                                const isSelected = selectedTaxRuleId === ruleId;
+                                const label = getTaxRuleSelectLabel(rule) || `Tax #${ruleId}`;
+                                return (
+                                    <button
+                                        key={String(ruleId)}
+                                        type="button"
+                                        className={`${styles.taxModalItem} ${isSelected ? styles.taxModalItemActive : ''}`}
+                                        onClick={() => onSelect(ruleId)}
+                                    >
+                                        <span>{label}</span>
+                                        {isSelected && <span className={styles.taxModalCheckmark}>✓</span>}
+                                    </button>
+                                );
+                            })}
                         </div>
-                    </div>
-                    <div className="ui-field" style={{ marginBottom: 0 }}>
-                        <label htmlFor="estimate-tax-rate">Thuế suất</label>
-                        <input
-                            id="estimate-tax-rate"
-                            type="number"
-                            step="0.01"
-                            value={taxRate}
-                            onChange={(e) => setTaxRate(e.target.value)}
-                            placeholder="0"
-                            disabled={isCreatingTaxRule || isSaving}
-                        />
-                        {taxRateValidation.error ? (
-                            <div style={{ marginTop: 6, fontSize: 12, color: '#991b1b' }}>{taxRateValidation.error}</div>
-                        ) : null}
+                    )}
+
+                    <div style={{ marginTop: 16, borderTop: '1px solid #cbd5e1', paddingTop: 16 }}>
+                        {!showAddForm ? (
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn--primary"
+                                onClick={() => {
+                                    setShowAddForm(true);
+                                    setValidationError('');
+                                }}
+                                style={{ width: '100%' }}
+                            >
+                                + Thêm thuế mới
+                            </button>
+                        ) : (
+                            <form onSubmit={onAddTaxSubmit} className={styles.taxModalAddForm}>
+                                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 700, color: '#1e3a8a' }}>Tạo loại thuế mới</h4>
+                                {validationError ? (
+                                    <div style={{ color: '#dc2626', fontSize: '12px', marginBottom: '8px', fontWeight: 600 }}>{validationError}</div>
+                                ) : null}
+                                <div className="ui-field" style={{ marginBottom: 12 }}>
+                                    <label htmlFor="modal-tax-name" style={{ fontSize: '12.5px' }}>Tên thuế</label>
+                                    <input
+                                        id="modal-tax-name"
+                                        value={taxName}
+                                        maxLength={TAX_NAME_MAX_LENGTH}
+                                        onChange={(e) => setTaxName(String(e.target.value || '').slice(0, TAX_NAME_MAX_LENGTH))}
+                                        placeholder="Nhập tên thuế"
+                                        autoComplete="off"
+                                        disabled={isCreatingTaxRule || isSaving}
+                                        style={{ padding: '8px 10px', fontSize: '13px' }}
+                                    />
+                                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+                                        {`${Math.max(0, TAX_NAME_MAX_LENGTH - String(taxName ?? '').length)} ký tự còn lại`}
+                                    </div>
+                                </div>
+                                <div className="ui-field" style={{ marginBottom: 16 }}>
+                                    <label htmlFor="modal-tax-rate" style={{ fontSize: '12.5px' }}>Thuế suất (%)</label>
+                                    <input
+                                        id="modal-tax-rate"
+                                        type="number"
+                                        step="0.01"
+                                        value={taxRate}
+                                        onChange={(e) => setTaxRate(e.target.value)}
+                                        placeholder="0"
+                                        disabled={isCreatingTaxRule || isSaving}
+                                        style={{ padding: '8px 10px', fontSize: '13px' }}
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                                    <button
+                                        type="button"
+                                        className="ui-btn ui-btn--ghost"
+                                        onClick={() => {
+                                            setShowAddForm(false);
+                                            setTaxName('');
+                                            setTaxRate('');
+                                            setValidationError('');
+                                        }}
+                                        disabled={isCreatingTaxRule || isSaving}
+                                        style={{ padding: '8px 12px', fontSize: '13px' }}
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="ui-btn ui-btn--primary"
+                                        disabled={isCreatingTaxRule || isSaving || taxHasError}
+                                        style={{ padding: '8px 12px', fontSize: '13px' }}
+                                    >
+                                        {isCreatingTaxRule ? 'Đang thêm...' : 'Thêm thuế'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div>
-            ) : null}
+            </div>
         </div>
     );
 }
 
-TaxRuleQuickAdd.propTypes = {
-    show: PropTypes.bool,
-    isAddingNewTaxRule: PropTypes.bool,
+TaxPickerModal.propTypes = {
+    open: PropTypes.bool,
+    onClose: PropTypes.func,
+    taxRules: PropTypes.array,
     taxRulesLoading: PropTypes.bool,
-    isSaving: PropTypes.bool,
+    selectedTaxRuleId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    onSelect: PropTypes.func,
     isCreatingTaxRule: PropTypes.bool,
     taxName: PropTypes.string,
     setTaxName: PropTypes.func,
     taxRate: PropTypes.string,
     setTaxRate: PropTypes.func,
-    startAddNewTaxRule: PropTypes.func,
-    stopAddNewTaxRule: PropTypes.func,
     handleCreateTaxRule: PropTypes.func,
+    isSaving: PropTypes.bool,
 };
 
 function EstimateItemRow({
@@ -272,6 +341,7 @@ function EstimateItemRow({
     onCancelAllocation,
     onOpenReturnModal,
     onCancelReturn,
+    openTaxPicker,
 }) {
     const giftRaw = row?.isGift ?? row?.is_gift;
     const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
@@ -444,21 +514,47 @@ function EstimateItemRow({
             <td data-label="Số lượng" className={styles.tdNumber}>
                 {allowInputs ? (
                     <div className={styles.qtyWithUnit}>
-                        <input
-                            className={`${styles.tableInput} ${styles.tableInputNumber}`}
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            maxLength={6}
-                            value={row.quantity}
-                            onChange={(e) => {
-                                const raw = String(e.target.value || '').replaceAll(/\D/g, '').slice(0, 6);
-                                const capped = raw ? String(Math.min(Number(raw), 999999)) : '';
-                                onChange(idx, 'quantity', capped);
-                            }}
-                            placeholder="0"
-                            disabled={isSaving}
-                        />
+                        <div className={styles.qtyStepper}>
+                            <button
+                                type="button"
+                                className={styles.stepperBtn}
+                                onClick={() => {
+                                    const current = Number(row.quantity) || 0;
+                                    const next = Math.max(0, current - 1);
+                                    onChange(idx, 'quantity', next === 0 ? '' : String(next));
+                                }}
+                                disabled={isSaving}
+                            >
+                                -
+                            </button>
+                            <input
+                                className={`${styles.tableInput} ${styles.tableInputNumber} ${styles.stepperInput}`}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={6}
+                                value={row.quantity}
+                                onChange={(e) => {
+                                    const raw = String(e.target.value || '').replaceAll(/\D/g, '').slice(0, 6);
+                                    const capped = raw ? String(Math.min(Number(raw), 999999)) : '';
+                                    onChange(idx, 'quantity', capped);
+                                }}
+                                placeholder="0"
+                                disabled={isSaving}
+                            />
+                            <button
+                                type="button"
+                                className={styles.stepperBtn}
+                                onClick={() => {
+                                    const current = Number(row.quantity) || 0;
+                                    const next = Math.min(999999, current + 1);
+                                    onChange(idx, 'quantity', String(next));
+                                }}
+                                disabled={isSaving}
+                            >
+                                +
+                            </button>
+                        </div>
                         {unitText ? (
                             <span className={styles.qtyUnit}>{unitText}</span>
                         ) : null}
@@ -501,22 +597,22 @@ function EstimateItemRow({
                     {showInputs ? (
                         shouldShowTaxDropdown ? (
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <select
-                                    className={styles.tableInput}
-                                    value={row.taxRuleId ?? ''}
-                                    onChange={(e) => onChange(idx, 'taxRuleId', e.target.value)}
-                                    disabled={isSaving || taxRulesLoading}
+                                <button
+                                    type="button"
+                                    className={`ui-btn ui-btn--ghost ${styles.taxPickBtn}`}
+                                    onClick={() => openTaxPicker(idx)}
+                                    disabled={isSaving}
+                                    style={{
+                                        padding: '6px 12px',
+                                        fontSize: '13px',
+                                        width: '100%',
+                                        justifyContent: 'space-between',
+                                        minWidth: '100px',
+                                    }}
                                 >
-                                    <option value="">{taxRulesLoading ? 'Đang tải...' : 'Không áp dụng'}</option>
-                                    {(Array.isArray(taxRules) ? taxRules : []).map((rule) => (
-                                        <option key={String(rule?.taxRuleId ?? '')} value={String(rule?.taxRuleId ?? '')}>
-                                            {getTaxRuleSelectLabel(rule) || `Tax #${rule?.taxRuleId}`}
-                                        </option>
-                                    ))}
-                                </select>
-                                {effectiveTaxRuleId && taxLabel ? (
-                                    <span style={{ color: 'var(--ui-muted)', whiteSpace: 'nowrap' }}>{taxLabel}</span>
-                                ) : null}
+                                    <span>{taxLabel || 'Chọn thuế'}</span>
+                                    <span style={{ fontSize: '10px', opacity: 0.7 }}>▼</span>
+                                </button>
                             </div>
                         ) : (
                             taxLabel || ''
@@ -554,7 +650,7 @@ function EstimateItemRow({
             </td>
             {!showInputs ? <td data-label="Xuất kho"><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
             {!showInputs && (showWarehouseActionColumn || showReturnAfterPaymentColumn) ? (
-                <td data-label="Sửa" className={styles.tdCenter}>
+                <td data-label="Sửa" className={`${styles.tdCenter} ${styles.colSuaWarehouse}`}>
                     <div className={styles.warehouseItemActions}>
                         {showWarehouseActionColumn && stockStatus === 'RESERVED' ? (
                             <button
@@ -601,13 +697,13 @@ function EstimateItemRow({
                 </td>
             ) : null}
             {showInputs ? (
-                <td data-label="Sửa" className={styles.tdCenter}>
+                <td data-label="Sửa" className={`${styles.tdCenter} ${styles.colSuaEdit}`}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                         {allowInputs ? (
                             isEditing && estimateItemId ? (
                                 <button
                                     type="button"
-                                    className="ui-btn ui-btn--danger"
+                                    className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
                                     onClick={() => softDeleteEditRow(idx)}
                                     disabled={isSaving || !estimateItemId || isDraftRowEmpty(row) || isLocked}
                                     title="Xóa dòng này"
@@ -618,7 +714,7 @@ function EstimateItemRow({
                             ) : (
                                 <button
                                     type="button"
-                                    className="ui-btn ui-btn--danger"
+                                    className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
                                     onClick={() => onClearRow?.(idx)}
                                     disabled={isSaving}
                                     title="Xóa các ô đã nhập của dòng này"
@@ -658,6 +754,7 @@ EstimateItemRow.propTypes = {
     onCancelAllocation: PropTypes.func,
     onOpenReturnModal: PropTypes.func,
     onCancelReturn: PropTypes.func,
+    openTaxPicker: PropTypes.func,
 };
 
 function EstimateActions({
@@ -901,6 +998,7 @@ export default function AdvisorItemsTable({
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
+    const [taxPickerRowIndex, setTaxPickerRowIndex] = useState(null);
     const {
         categorySuggestions,
         workCategoriesLoading,
@@ -1455,7 +1553,7 @@ export default function AdvisorItemsTable({
         });
     }, [activeRowIndex, onChange, showInputs, tableRows]);
 
-    const showTaxQuickAdd = !isTicketLocked && showInputs;
+
 
     const [photoPreview, setPhotoPreview] = useState(null);
     const closePhotoPreview = useCallback(() => setPhotoPreview(null), []);
@@ -1562,20 +1660,7 @@ export default function AdvisorItemsTable({
                     ) : null}
                 </div>
             ) : null}
-            <TaxRuleQuickAdd
-                show={showTaxQuickAdd}
-                isAddingNewTaxRule={isAddingNewTaxRule}
-                taxRulesLoading={taxRulesLoading}
-                isSaving={isSaving}
-                isCreatingTaxRule={isCreatingTaxRule}
-                taxName={taxName}
-                setTaxName={setTaxName}
-                taxRate={taxRate}
-                setTaxRate={setTaxRate}
-                startAddNewTaxRule={startAddNewTaxRule}
-                stopAddNewTaxRule={stopAddNewTaxRule}
-                handleCreateTaxRule={handleCreateTaxRule}
-            />
+
 
             {shouldShowTable ? (
                 <div className={styles.tableWrap}>
@@ -1602,8 +1687,8 @@ export default function AdvisorItemsTable({
                                 <th scope="col">THÀNH TIỀN</th>
                                 <th scope="col">KHO</th>
                                 {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
-                                {showWarehouseActionColumn || showReturnAfterPaymentColumn ? <th scope="col">SỬA</th> : null}
-                                {showInputs ? <th scope="col">SỬA</th> : null}
+                                {showWarehouseActionColumn || showReturnAfterPaymentColumn ? <th scope="col" className={styles.colSuaWarehouse}>SỬA</th> : null}
+                                {showInputs ? <th scope="col" className={styles.colSuaEdit}>SỬA</th> : null}
                             </tr>
                         </thead>
                         <tbody>
@@ -1632,6 +1717,7 @@ export default function AdvisorItemsTable({
                                     onCancelAllocation={handleCancelWarehouseAllocation}
                                     onOpenReturnModal={setReturnModalItem}
                                     onCancelReturn={handleCancelReturnEntry}
+                                    openTaxPicker={setTaxPickerRowIndex}
                                 />
                             ))}
                         </tbody>
@@ -1766,6 +1852,27 @@ export default function AdvisorItemsTable({
                         setReturnModalItem(null);
                     }}
                     onSubmit={handleSubmitReturnEntry}
+                />
+            ) : null}
+
+            {taxPickerRowIndex !== null ? (
+                <TaxPickerModal
+                    open
+                    taxRules={taxRules}
+                    taxRulesLoading={taxRulesLoading}
+                    selectedTaxRuleId={toIdOrNull(tableRows[taxPickerRowIndex]?.taxRuleId)}
+                    onClose={() => setTaxPickerRowIndex(null)}
+                    onSelect={(taxRuleId) => {
+                        onChange(taxPickerRowIndex, 'taxRuleId', taxRuleId);
+                        setTaxPickerRowIndex(null);
+                    }}
+                    isCreatingTaxRule={isCreatingTaxRule}
+                    taxName={taxName}
+                    setTaxName={setTaxName}
+                    taxRate={taxRate}
+                    setTaxRate={setTaxRate}
+                    handleCreateTaxRule={handleCreateTaxRule}
+                    isSaving={isSaving}
                 />
             ) : null}
 

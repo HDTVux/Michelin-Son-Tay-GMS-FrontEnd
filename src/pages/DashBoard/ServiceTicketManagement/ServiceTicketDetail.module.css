@@ -661,7 +661,7 @@
 
 .table th:nth-child(4),
 .table td:nth-child(4) {
-  width: 70px;
+  width: 120px;
 }
 
 .table th:nth-child(5),
@@ -1786,3 +1786,217 @@
     color: #166534 !important;
   }
 }
+
+.colSuaEdit {
+  width: 70px !important;
+  text-align: center !important;
+}
+
+.colSuaWarehouse {
+  width: 130px !important;
+  text-align: center !important;
+}
+
+/* Tax Pick button in row cell */
+.taxPickBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.taxPickBtn:hover:not(:disabled) {
+  border-color: #3b82f6;
+  background: #f8fafc;
+}
+
+/* Tax Picker Modal Overlay */
+.taxModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+/* Tax Picker Modal Container */
+.taxModal {
+  width: min(440px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  position: relative;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  animation: taxModalSlideIn 0.3s ease-out;
+}
+
+@keyframes taxModalSlideIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.taxModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.taxModalTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.taxModalBody {
+  padding: 20px;
+}
+
+.taxModalList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Tax Modal List Scrollbar */
+.taxModalList::-webkit-scrollbar {
+  width: 6px;
+}
+.taxModalList::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+.taxModalList::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+/* Individual Tax Picker Item */
+.taxModalItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.taxModalItem:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.taxModalItemActive {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.taxModalCheckmark {
+  font-weight: 800;
+  font-size: 14px;
+  color: #2563eb;
+}
+
+/* Add New Tax Form inside modal */
+.taxModalAddForm {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 8px;
+}
+
+/* Quantity Stepper Styles */
+.qtyStepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  overflow: hidden;
+  height: 38px;
+  box-sizing: border-box;
+}
+
+.stepperBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 100%;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.stepperBtn:hover:not(:disabled) {
+  background: #cbd5e1;
+  color: #0f172a;
+}
+
+.stepperBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stepperInput {
+  text-align: center !important;
+  border: none !important;
+  width: 48px !important;
+  height: 100% !important;
+  padding: 0 !important;
+  font-size: 13.5px !important;
+  font-weight: 600;
+  outline: none !important;
+}
+
+.stepperInput:focus {
+  box-shadow: none !important;
+  background: #eff6ff;
+}
+
+
