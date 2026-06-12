@@ -88,7 +88,7 @@ export default function WarehouseStockEntryManagement() {
       setLoading(true);
       setError('');
       const warehouseIdSource = warehouseIdOverride ?? warehouseIdInput ?? '';
-      const warehouseId = toWarehouseIdText(warehouseIdSource);
+      const warehouseId = warehouseIdSource === 'ALL' ? 'ALL' : toWarehouseIdText(warehouseIdSource);
       if (!warehouseId) {
         setEntries([]);
         setTotalElements(0);
@@ -98,7 +98,8 @@ export default function WarehouseStockEntryManagement() {
       }
       const nextPage = Number.isFinite(pageOverride) ? pageOverride : page;
       const nextSize = Number.isFinite(sizeOverride) ? sizeOverride : size;
-      const params = { warehouseId, page: nextPage, size: nextSize };
+      const params = { page: nextPage, size: nextSize };
+      if (warehouseId && warehouseId !== 'ALL') params.warehouseId = warehouseId;
       if (status && status !== 'ALL') params.status = status;
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       const res = await fetchWarehouseStockEntries(params, token);
@@ -156,7 +157,7 @@ export default function WarehouseStockEntryManagement() {
   }, []);
 
   useEffect(() => {
-    const warehouseId = toWarehouseIdText(warehouseIdInput);
+    const warehouseId = warehouseIdInput === 'ALL' ? 'ALL' : toWarehouseIdText(warehouseIdInput);
     if (!warehouseId) return;
 
     fetchList({ warehouseIdOverride: warehouseId, pageOverride: page, sizeOverride: size });
@@ -193,6 +194,7 @@ export default function WarehouseStockEntryManagement() {
   };
 
   const selectedWarehouseLabel = useMemo(() => {
+    if (warehouseIdInput === 'ALL') return 'Tất cả kho';
     const idText = toWarehouseIdText(warehouseIdInput);
     if (!idText) return '-';
     const w = warehouses.find((row) => getWarehouseIdText(row) === idText);
@@ -251,6 +253,7 @@ export default function WarehouseStockEntryManagement() {
               }}
               disabled={warehouseLoading}
             >
+              <option value="ALL">Tất cả kho</option>
               {warehouses.length > 0 ? (
                 warehouses
                   .map((w) => {
@@ -266,7 +269,7 @@ export default function WarehouseStockEntryManagement() {
                   })
                   .filter(Boolean)
               ) : (
-                <option value={warehouseIdInput}>{warehouseIdInput || '-'}</option>
+                warehouseIdInput !== 'ALL' && <option value={warehouseIdInput}>{warehouseIdInput || '-'}</option>
               )}
             </select>
           </div>

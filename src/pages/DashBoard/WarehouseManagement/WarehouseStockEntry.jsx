@@ -566,29 +566,14 @@ export default function WarehouseStockEntry() {
                 <span className={styles.badge}>{searchLoading ? 'Đang tìm...' : `${catalogItems.length} kết quả`}</span>
               </div>
 
-              <form
-                className={styles.searchBar}
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const nextKeyword = keyword.trim();
-                  if (!nextKeyword) {
-                    setCatalogItems([]);
-                    setSearchError('Vui lòng nhập keyword để tìm phụ tùng.');
-                    return;
-                  }
-                  setSubmittedKeyword(nextKeyword);
-                }}
-              >
+              <div className={styles.searchBar}>
                 <input
                   type="text"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   placeholder="Nhập keyword để tìm mã, tên, SKU phụ tùng..."
                 />
-                <button type="submit" className={styles.primaryButton} disabled={searchLoading}>
-                  Tìm
-                </button>
-              </form>
+              </div>
 
               {searchError ? <div className={styles.errorBanner}>{searchError}</div> : null}
 

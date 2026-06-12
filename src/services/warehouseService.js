@@ -529,13 +529,16 @@ export const createWarehouseStockEntryWithAttachment = async (payload, file, tok
 // GET: /api/warehouse/stock-entries?warehouseId=...&status=...
 export const fetchWarehouseStockEntries = (params, token) => {
   const safeParams = normalizePagingParams(params);
-  const warehouseIdNum = toSafeInt(safeParams.warehouseId);
-  if (!warehouseIdNum || warehouseIdNum <= 0) {
-    throw new Error('Thiếu kho (warehouseId).');
-  }
+  const rawWarehouseId = safeParams.warehouseId;
+  const isAll = rawWarehouseId === 'ALL' || rawWarehouseId === '' || rawWarehouseId === null || rawWarehouseId === undefined;
 
   const qp = new URLSearchParams();
-  qp.append('warehouseId', String(warehouseIdNum));
+  if (!isAll) {
+    const warehouseIdNum = toSafeInt(rawWarehouseId);
+    if (warehouseIdNum && warehouseIdNum > 0) {
+      qp.append('warehouseId', String(warehouseIdNum));
+    }
+  }
 
   Object.entries(safeParams).forEach(([key, value]) => {
     if (key === 'warehouseId') return;
