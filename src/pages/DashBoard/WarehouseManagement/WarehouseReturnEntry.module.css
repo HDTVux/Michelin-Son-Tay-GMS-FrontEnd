@@ -6,7 +6,9 @@
 }
 
 .shell {
+  width: 100%;
   max-width: 1440px;
+  min-width: 0;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -42,6 +44,7 @@
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 16px;
+  min-width: 0;
 }
 
 .cardHeader {
@@ -210,6 +213,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   align-items: start;
+  min-width: 0;
 }
 
 .gridSingle {
@@ -218,6 +222,15 @@
 
 .gridSingle > .card {
   width: 100%;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
 }
 
 .table {

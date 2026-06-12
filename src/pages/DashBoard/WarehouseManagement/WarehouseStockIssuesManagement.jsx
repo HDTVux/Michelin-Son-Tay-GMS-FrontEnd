@@ -103,6 +103,7 @@ export default function WarehouseStockIssues() {
 	const [warehouseError, setWarehouseError] = useState('');
 
 	const warehouseSelectValue = useMemo(() => {
+		if (warehouseIdInput === 'ALL') return 'ALL';
 		const currentIdText = toWarehouseIdText(warehouseIdInput);
 		if (currentIdText && (!warehouses.length || warehouses.some((w) => getWarehouseIdText(w) === currentIdText))) {
 			return currentIdText;
@@ -114,10 +115,8 @@ export default function WarehouseStockIssues() {
 		try {
 			setLoading(true);
 			setError('');
-			const warehouseId =
-				toWarehouseIdText(warehouseIdOverride) ||
-				toWarehouseIdText(warehouseIdInput) ||
-				pickDefaultWarehouseId(warehouses);
+			const warehouseIdSource = warehouseIdOverride ?? warehouseSelectValue;
+			const warehouseId = warehouseIdSource === 'ALL' ? 'ALL' : (toWarehouseIdText(warehouseIdSource) || pickDefaultWarehouseId(warehouses));
 			if (!warehouseId) {
 				setIssues([]);
 				setTotalElements(0);
@@ -125,12 +124,13 @@ export default function WarehouseStockIssues() {
 				setError('Vui lòng chọn kho.');
 				return;
 			}
-			if (warehouseId !== toWarehouseIdText(warehouseIdInput)) {
+			if (warehouseId !== warehouseIdInput) {
 				setWarehouseIdInput(warehouseId);
 			}
 			const nextPage = Number.isFinite(pageOverride) ? pageOverride : page;
 			const nextSize = Number.isFinite(sizeOverride) ? sizeOverride : size;
-			const params = { warehouseId, page: nextPage, size: nextSize };
+			const params = { page: nextPage, size: nextSize };
+			if (warehouseId && warehouseId !== 'ALL') params.warehouseId = warehouseId;
 			if (status && status !== 'ALL') params.status = status;
 			const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
 			const res = await fetchWarehouseStockIssues(params, token);
@@ -222,6 +222,7 @@ export default function WarehouseStockIssues() {
 
 	const selectedWarehouseLabel = useMemo(() => {
 		const idText = warehouseSelectValue;
+		if (idText === 'ALL') return 'Tất cả kho';
 		if (!idText) return '-';
 		const w = warehouses.find((row) => getWarehouseIdText(row) === idText);
 		if (!w && idText === String(DEFAULT_WAREHOUSE_ID)) return DEFAULT_WAREHOUSE_LABEL;
@@ -286,6 +287,7 @@ export default function WarehouseStockIssues() {
 							}}
 							disabled={warehouseLoading}
 						>
+							<option value="ALL">Tất cả kho</option>
 							{warehouses.length > 0 ? (
 								warehouses
 									.map((w) => {
@@ -307,7 +309,7 @@ export default function WarehouseStockIssues() {
 									})
 									.filter(Boolean)
 							) : (
-								<option value={warehouseSelectValue || String(DEFAULT_WAREHOUSE_ID)}>{DEFAULT_WAREHOUSE_LABEL}</option>
+								warehouseSelectValue !== 'ALL' && <option value={warehouseSelectValue || String(DEFAULT_WAREHOUSE_ID)}>{DEFAULT_WAREHOUSE_LABEL}</option>
 							)}
 						</select>
 					</div>

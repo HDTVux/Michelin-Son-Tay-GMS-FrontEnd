@@ -465,68 +465,70 @@ export default function WarehouseReturnEntryFromIssue() {
           {availableItems.length === 0 ? (
             <p className={styles.empty}>Không có sản phẩm nào trong phiếu xuất.</p>
           ) : (
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Tên sản phẩm</th>
-                  <th>Mã lô</th>
-                  <th className={styles.tdCenter}>SL xuất</th>
-                  <th className={styles.tdCenter}>SL hoàn</th>
-                  <th className={styles.tdCenter}>Phân loại</th>
-                  <th className={styles.tdCenter}>Ảnh</th>
-                  <th className={styles.tdCenter}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {availableItems.map((item) => {
-                  const cfg = configuredItems.find((c) => c.itemId === item.itemId);
-                  const hasAllocation = Boolean(item.allocationId);
-                  return (
-                    <tr key={item.itemId}>
-                      <td><strong>{item.itemName || '-'}</strong></td>
-                      <td>{item.entryLotCode || '-'}</td>
-                      <td className={styles.tdCenter}>{item.quantity}</td>
-                      <td className={styles.tdCenter}>
-                        {cfg ? (
-                          <span className={styles.badge}>{cfg.quantity}</span>
-                        ) : '-'}
-                      </td>
-                      <td className={styles.tdCenter}>
-                        {cfg ? (
-                          <span className={cfg.returnReasonType === 'DEFECTIVE' ? styles.badgeDefective : styles.badgeOk}>
-                            {cfg.returnReasonType === 'DEFECTIVE' ? 'Hàng lỗi' : 'Xuất nhầm'}
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td className={styles.tdCenter}>
-                        {cfg ? (
-                          <span className={styles.fieldHint}>{cfg.files?.length ?? 0} ảnh</span>
-                        ) : '-'}
-                      </td>
-                      <td className={styles.tdCenter}>
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-                          {hasAllocation ? (
-                            <button type="button" className="ui-btn ui-btn--ghost"
-                              onClick={() => openModal(item)} disabled={isSubmitting}>
-                              {cfg ? 'Sửa' : 'Hoàn trả'}
-                            </button>
-                          ) : (
-                            <span className={styles.emptyText} style={{ fontSize: 12 }}>Không có allocation</span>
-                          )}
-                          {cfg && (
-                            <button type="button" className="ui-btn ui-btn--ghost"
-                              onClick={() => removeItem(item.itemId)} disabled={isSubmitting}
-                              style={{ color: 'var(--ui-danger, #dc2626)' }}>
-                              Bỏ
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Tên sản phẩm</th>
+                    <th>Mã lô</th>
+                    <th className={styles.tdCenter}>SL xuất</th>
+                    <th className={styles.tdCenter}>SL hoàn</th>
+                    <th className={styles.tdCenter}>Phân loại</th>
+                    <th className={styles.tdCenter}>Ảnh</th>
+                    <th className={styles.tdCenter}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {availableItems.map((item) => {
+                    const cfg = configuredItems.find((c) => c.itemId === item.itemId);
+                    const hasAllocation = Boolean(item.allocationId);
+                    return (
+                      <tr key={item.itemId}>
+                        <td><strong>{item.itemName || '-'}</strong></td>
+                        <td>{item.entryLotCode || '-'}</td>
+                        <td className={styles.tdCenter}>{item.quantity}</td>
+                        <td className={styles.tdCenter}>
+                          {cfg ? (
+                            <span className={styles.badge}>{cfg.quantity}</span>
+                          ) : '-'}
+                        </td>
+                        <td className={styles.tdCenter}>
+                          {cfg ? (
+                            <span className={cfg.returnReasonType === 'DEFECTIVE' ? styles.badgeDefective : styles.badgeOk}>
+                              {cfg.returnReasonType === 'DEFECTIVE' ? 'Hàng lỗi' : 'Xuất nhầm'}
+                            </span>
+                          ) : '-'}
+                        </td>
+                        <td className={styles.tdCenter}>
+                          {cfg ? (
+                            <span className={styles.fieldHint}>{cfg.files?.length ?? 0} ảnh</span>
+                          ) : '-'}
+                        </td>
+                        <td className={styles.tdCenter}>
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+                            {hasAllocation ? (
+                              <button type="button" className="ui-btn ui-btn--ghost"
+                                onClick={() => openModal(item)} disabled={isSubmitting}>
+                                {cfg ? 'Sửa' : 'Hoàn trả'}
+                              </button>
+                            ) : (
+                              <span className={styles.emptyText} style={{ fontSize: 12 }}>Không có allocation</span>
+                            )}
+                            {cfg && (
+                              <button type="button" className="ui-btn ui-btn--ghost"
+                                onClick={() => removeItem(item.itemId)} disabled={isSubmitting}
+                                style={{ color: 'var(--ui-danger, #dc2626)' }}>
+                                Bỏ
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
 

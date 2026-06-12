@@ -83,7 +83,7 @@ export default function WarehouseReturnEntryManagement() {
       setLoading(true);
       setError('');
       const warehouseIdSource = warehouseIdOverride ?? warehouseIdInput ?? '';
-      const warehouseId = toWarehouseIdText(warehouseIdSource);
+      const warehouseId = warehouseIdSource === 'ALL' ? 'ALL' : toWarehouseIdText(warehouseIdSource);
       if (!warehouseId) {
         setEntries([]);
         setTotalElements(0);
@@ -93,7 +93,8 @@ export default function WarehouseReturnEntryManagement() {
       }
       const nextPage = Number.isFinite(pageOverride) ? pageOverride : page;
       const nextSize = Number.isFinite(sizeOverride) ? sizeOverride : size;
-      const params = { warehouseId };
+      const params = {};
+      if (warehouseId && warehouseId !== 'ALL') params.warehouseId = warehouseId;
       if (status && status !== 'ALL') params.status = status;
       params.page = nextPage;
       params.size = nextSize;
@@ -153,7 +154,7 @@ export default function WarehouseReturnEntryManagement() {
   }, []);
 
   useEffect(() => {
-    const warehouseId = toWarehouseIdText(warehouseIdInput);
+    const warehouseId = warehouseIdInput === 'ALL' ? 'ALL' : toWarehouseIdText(warehouseIdInput);
     if (!warehouseId) return;
 
     fetchList({ warehouseIdOverride: warehouseId, pageOverride: page, sizeOverride: size });
@@ -190,6 +191,7 @@ export default function WarehouseReturnEntryManagement() {
   };
 
   const selectedWarehouseLabel = useMemo(() => {
+    if (warehouseIdInput === 'ALL') return 'Tất cả kho';
     const idText = toWarehouseIdText(warehouseIdInput);
     if (!idText) return '-';
     const warehouse = warehouses.find((row) => getWarehouseIdText(row) === idText);
@@ -281,6 +283,7 @@ export default function WarehouseReturnEntryManagement() {
               }}
               disabled={warehouseLoading}
             >
+              <option value="ALL">Tất cả kho</option>
               {warehouses.length > 0 ? (
                 warehouses
                   .map((warehouse) => {
@@ -302,7 +305,7 @@ export default function WarehouseReturnEntryManagement() {
                   })
                   .filter(Boolean)
               ) : (
-                <option value={warehouseIdInput}>{warehouseIdInput || '-'}</option>
+                warehouseIdInput !== 'ALL' && <option value={warehouseIdInput}>{warehouseIdInput || '-'}</option>
               )}
             </select>
           </div>

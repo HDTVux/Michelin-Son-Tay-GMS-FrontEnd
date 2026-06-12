@@ -295,27 +295,14 @@ export default function WarehouseReturnEntry() {
             <h2>Tìm sản phẩm</h2>
             <span>{searchLoading ? 'Đang tìm...' : `${catalogItems.length} kết quả`}</span>
           </div>
-          <form
-            className={styles.searchBar}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const nextKeyword = keyword.trim();
-              if (!nextKeyword) {
-                setCatalogItems([]);
-                setSearchError('Vui lòng nhập keyword để tìm sản phẩm.');
-                return;
-              }
-              setSubmittedKeyword(nextKeyword);
-            }}
-          >
+          <div className={styles.searchBar}>
             <input
               type="text"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="Nhập keyword..."
             />
-            <button type="submit" disabled={searchLoading}>Tìm</button>
-          </form>
+          </div>
           {searchError ? <div className={styles.error}>{searchError}</div> : null}
 
           <div className={styles.resultList}>
@@ -344,97 +331,23 @@ export default function WarehouseReturnEntry() {
         <section className={isExchangeType ? styles.grid : `${styles.grid} ${styles.gridSingle}`}>
           <div className={styles.card}>
             <div className={styles.cardHeader}><h2>Sản phẩm lỗi (<span className={styles.required}>*</span>)</h2></div>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Sản phẩm</th>
-                  <th>Số lượng</th>
-                  <th>Ghi chú tình trạng</th>
-                  <th>Lý do</th>
-                  <th>Nguyên nhân / Người chịu trách nhiệm</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {returnItems.length === 0 ? (
-                  <tr><td colSpan={4} className={styles.empty}>Chưa có sản phẩm trả hàng.</td></tr>
-                ) : (
-                  returnItems.map((row) => (
-                    <tr key={String(row.itemId)}>
-                      <td>{row.itemName || `#${row.itemId}`}</td>
-                      <td>
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={row.quantity}
-                          onChange={(e) => updateReturnItem(row.itemId, 'quantity', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          value={row.conditionNote}
-                          onChange={(e) => updateReturnItem(row.itemId, 'conditionNote', e.target.value)}
-                          placeholder="VD: Vỏ nhựa bị nứt"
-                        />
-                      </td>
-                      <td>
-                        <select value={row.returnReason || 'WRONG_TYPE'} onChange={(e) => updateReturnItem(row.itemId, 'returnReason', e.target.value)}>
-                          {RETURN_REASON_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td>
-                        {String(row.returnReason) === 'DEFECTIVE' ? (
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <select value={row.defectCause || ''} onChange={(e) => updateReturnItem(row.itemId, 'defectCause', e.target.value)}>
-                              <option value="">Chọn nguyên nhân</option>
-                              {DEFECT_CAUSE_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                              ))}
-                            </select>
-                            <input
-                              type="text"
-                              value={row.responsibleStaffId || ''}
-                              onChange={(e) => updateReturnItem(row.itemId, 'responsibleStaffId', e.target.value)}
-                              placeholder="Staff ID (nếu có)"
-                              style={{ width: 120 }}
-                            />
-                          </div>
-                        ) : (
-                          <em>Không áp dụng</em>
-                        )}
-                      </td>
-                      <td>
-                        <button type="button" onClick={() => removeReturnItem(row.itemId)}>Xóa</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {isExchangeType ? (
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h2>Sản phẩm thay thế (áp dụng khi Đổi hàng)</h2>
-              </div>
+            <div className={styles.tableWrap}>
               <table className={styles.table}>
                 <thead>
                   <tr>
                     <th>Sản phẩm</th>
                     <th>Số lượng</th>
+                    <th>Ghi chú tình trạng</th>
+                    <th>Lý do</th>
+                    <th>Nguyên nhân / Người chịu trách nhiệm</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {exchangeItems.length === 0 ? (
-                    <tr><td colSpan={3} className={styles.empty}>Chưa có sản phẩm thay thế.</td></tr>
+                  {returnItems.length === 0 ? (
+                    <tr><td colSpan={6} className={styles.empty}>Chưa có sản phẩm trả hàng.</td></tr>
                   ) : (
-                    exchangeItems.map((row) => (
+                    returnItems.map((row) => (
                       <tr key={String(row.itemId)}>
                         <td>{row.itemName || `#${row.itemId}`}</td>
                         <td>
@@ -443,17 +356,95 @@ export default function WarehouseReturnEntry() {
                             min="1"
                             step="1"
                             value={row.quantity}
-                            onChange={(e) => updateExchangeItem(row.itemId, 'quantity', e.target.value)}
+                            onChange={(e) => updateReturnItem(row.itemId, 'quantity', e.target.value)}
                           />
                         </td>
                         <td>
-                          <button type="button" onClick={() => removeExchangeItem(row.itemId)}>Xóa</button>
+                          <input
+                            type="text"
+                            value={row.conditionNote}
+                            onChange={(e) => updateReturnItem(row.itemId, 'conditionNote', e.target.value)}
+                            placeholder="VD: Vỏ nhựa bị nứt"
+                          />
+                        </td>
+                        <td>
+                          <select value={row.returnReason || 'WRONG_TYPE'} onChange={(e) => updateReturnItem(row.itemId, 'returnReason', e.target.value)}>
+                            {RETURN_REASON_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          {String(row.returnReason) === 'DEFECTIVE' ? (
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <select value={row.defectCause || ''} onChange={(e) => updateReturnItem(row.itemId, 'defectCause', e.target.value)}>
+                                <option value="">Chọn nguyên nhân</option>
+                                {DEFECT_CAUSE_OPTIONS.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                              </select>
+                              <input
+                                type="text"
+                                value={row.responsibleStaffId || ''}
+                                onChange={(e) => updateReturnItem(row.itemId, 'responsibleStaffId', e.target.value)}
+                                placeholder="Staff ID (nếu có)"
+                                style={{ width: 120 }}
+                              />
+                            </div>
+                          ) : (
+                            <em>Không áp dụng</em>
+                          )}
+                        </td>
+                        <td>
+                          <button type="button" onClick={() => removeReturnItem(row.itemId)}>Xóa</button>
                         </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {isExchangeType ? (
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <h2>Sản phẩm thay thế (áp dụng khi Đổi hàng)</h2>
+              </div>
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Sản phẩm</th>
+                      <th>Số lượng</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {exchangeItems.length === 0 ? (
+                      <tr><td colSpan={3} className={styles.empty}>Chưa có sản phẩm thay thế.</td></tr>
+                    ) : (
+                      exchangeItems.map((row) => (
+                        <tr key={String(row.itemId)}>
+                          <td>{row.itemName || `#${row.itemId}`}</td>
+                          <td>
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={row.quantity}
+                              onChange={(e) => updateExchangeItem(row.itemId, 'quantity', e.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <button type="button" onClick={() => removeExchangeItem(row.itemId)}>Xóa</button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
         </section>

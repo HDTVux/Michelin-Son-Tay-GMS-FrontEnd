@@ -641,13 +641,16 @@ export const createWarehouseReturnEntryWithAttachments = async (payload, files, 
 // Params: { warehouseId: number, status?: string, ... }
 export const fetchWarehouseReturnEntries = (params, token) => {
   const safeParams = normalizePagingParams(params);
-  const warehouseIdNum = toSafeInt(safeParams.warehouseId);
-  if (!warehouseIdNum || warehouseIdNum <= 0) {
-    throw new Error('Thiếu kho (warehouseId).');
-  }
+  const rawWarehouseId = safeParams.warehouseId;
+  const isAll = rawWarehouseId === 'ALL' || rawWarehouseId === '' || rawWarehouseId === null || rawWarehouseId === undefined;
 
   const query = new URLSearchParams();
-  query.append('warehouseId', String(warehouseIdNum));
+  if (!isAll) {
+    const warehouseIdNum = toSafeInt(rawWarehouseId);
+    if (warehouseIdNum && warehouseIdNum > 0) {
+      query.append('warehouseId', String(warehouseIdNum));
+    }
+  }
 
   Object.entries(safeParams).forEach(([key, value]) => {
     if (key === 'warehouseId') return;
@@ -806,13 +809,16 @@ export const requestWarehouseStockIssue = (ticketId, token) => {
 // GET: /api/warehouse/stock-issues?warehouseId=...&status=...
 export const fetchWarehouseStockIssues = (params, token) => {
   const safeParams = normalizePagingParams(params);
-  const warehouseIdNum = toSafeInt(safeParams.warehouseId);
-  if (!warehouseIdNum || warehouseIdNum <= 0) {
-    throw new Error('Thiếu kho (warehouseId).');
-  }
+  const rawWarehouseId = safeParams.warehouseId;
+  const isAll = rawWarehouseId === 'ALL' || rawWarehouseId === '' || rawWarehouseId === null || rawWarehouseId === undefined;
 
   const query = new URLSearchParams();
-  query.append('warehouseId', String(warehouseIdNum));
+  if (!isAll) {
+    const warehouseIdNum = toSafeInt(rawWarehouseId);
+    if (warehouseIdNum && warehouseIdNum > 0) {
+      query.append('warehouseId', String(warehouseIdNum));
+    }
+  }
 
   Object.entries(safeParams).forEach(([key, value]) => {
     if (key === 'warehouseId') return;
