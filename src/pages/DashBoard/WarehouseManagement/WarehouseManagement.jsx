@@ -365,68 +365,78 @@ export default function PartManagement() {
       </div>
 
       <div className={styles['pending-filters']}>
-        <div className={styles['filter-card-labels']}>
-          <span>Trạng thái</span>
-          <span>Xuất xứ</span>
-          <span>Màu</span>
-          <span>Kho</span>
-        </div>
         <div className={styles['filter-card-controls']}>
-          <select
-            className={styles['status-filter']}
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(0);
-            }}
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="true">Hoạt động</option>
-            <option value="false">Không hoạt động</option>
-          </select>
-          <select
-            className={styles['status-filter']}
-            value={originFilter}
-            onChange={(e) => {
-              setOriginFilter(e.target.value);
-              setPage(0);
-            }}
-          >
-            <option value="">Tất cả xuất xứ</option>
-            {originOptions.map((origin) => (
-              <option key={origin} value={origin}>
-                {origin}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles['status-filter']}
-            value={colorFilter}
-            onChange={(e) => {
-              setColorFilter(e.target.value);
-              setPage(0);
-            }}
-          >
-            <option value="">Tất cả màu</option>
-            {colorOptions.map((color) => (
-              <option key={color} value={color}>
-                {color}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles['status-filter']}
-            value={String(selectedWarehouseId)}
-            onChange={(e) => setSelectedWarehouseId(e.target.value)}
-            title="Chọn kho"
-          >
-            <option value="">Chọn kho...</option>
-            {warehouses.map((w) => (
-              <option key={String(w?.warehouseId ?? w?.warehouseCode)} value={String(w?.warehouseId ?? '')}>
-                {String(w?.warehouseName || w?.warehouseCode || w?.warehouseId || '-')}
-              </option>
-            ))}
-          </select>
+          <div className={styles['field']}>
+            <label htmlFor="filter-status">Trạng thái</label>
+            <select
+              id="filter-status"
+              className={styles['status-filter']}
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="true">Hoạt động</option>
+              <option value="false">Không hoạt động</option>
+            </select>
+          </div>
+          <div className={styles['field']}>
+            <label htmlFor="filter-origin">Xuất xứ</label>
+            <select
+              id="filter-origin"
+              className={styles['status-filter']}
+              value={originFilter}
+              onChange={(e) => {
+                setOriginFilter(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="">Tất cả xuất xứ</option>
+              {originOptions.map((origin) => (
+                <option key={origin} value={origin}>
+                  {origin}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles['field']}>
+            <label htmlFor="filter-color">Màu</label>
+            <select
+              id="filter-color"
+              className={styles['status-filter']}
+              value={colorFilter}
+              onChange={(e) => {
+                setColorFilter(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="">Tất cả màu</option>
+              {colorOptions.map((color) => (
+                <option key={color} value={color}>
+                  {color}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles['field']}>
+            <label htmlFor="filter-warehouse">Kho</label>
+            <select
+              id="filter-warehouse"
+              className={styles['status-filter']}
+              value={String(selectedWarehouseId)}
+              onChange={(e) => setSelectedWarehouseId(e.target.value)}
+              title="Chọn kho"
+            >
+              <option value="">Chọn kho...</option>
+              {warehouses.map((w) => (
+                <option key={String(w?.warehouseId ?? w?.warehouseCode)} value={String(w?.warehouseId ?? '')}>
+                  {String(w?.warehouseName || w?.warehouseCode || w?.warehouseId || '-')}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className={styles['filter-card-actions']}>

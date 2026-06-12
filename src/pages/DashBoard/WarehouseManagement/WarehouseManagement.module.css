@@ -80,8 +80,12 @@
 
 .filter-card-controls {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 16px;
+}
+
+.filter-card-controls .field {
+  margin-bottom: 0;
 }
 
 .filter-card-actions {
@@ -495,6 +499,11 @@
 
 .modal-header h3 {
   font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+}
+
 .modal-backdrop {
   position: absolute;
   inset: 0;
@@ -503,10 +512,6 @@
   margin: 0;
   background: transparent;
   cursor: pointer;
-}
-  font-weight: 700;
-  color: #1a1a1a;
-  margin: 0;
 }
 
 .modal-close {
@@ -564,6 +569,9 @@
   text-align: left;
   border-bottom: 1px solid #f0f0f0;
   font-size: 14px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .detail-table th {
@@ -582,7 +590,6 @@
 .spec-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 400px;
 }
 
 .spec-table th,
@@ -591,6 +598,9 @@
   text-align: left;
   border-bottom: 1px solid #f0f0f0;
   font-size: 14px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .spec-table th {
@@ -960,12 +970,13 @@
   }
 
   .filter-card-actions {
+    flex-wrap: wrap;
     align-items: stretch;
     padding-top: 12px;
+    gap: 10px;
   }
 
-  .filter-card-labels,
-  .filter-card-controls {
+  .filter-card-labels {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -975,10 +986,14 @@
     min-width: 0;
   }
 
-  .status-filter,
+  .status-filter {
+    flex: none;
+    min-width: 0;
+  }
+
   .filter-card-actions .primary-button,
   .filter-card-actions .ghost-button {
-    flex: 1 1 180px;
+    flex: 1 1 120px;
     min-width: 0;
   }
 
@@ -1052,8 +1067,6 @@
 
   .service-header .primary-button,
   .service-header .ghost-button,
-  .filter-card-actions .primary-button,
-  .filter-card-actions .ghost-button,
   .status-filter,
   .cancel-btn,
   .submit-btn,
@@ -1061,8 +1074,7 @@
     width: 100%;
   }
 
-  .filter-card-labels,
-  .filter-card-controls {
+  .filter-card-labels {
     grid-template-columns: 1fr;
   }
 
@@ -1070,9 +1082,31 @@
     min-width: 760px;
   }
 
-  .detail-table,
+  .detail-table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .detail-table th {
+    width: 110px;
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .detail-table td {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
   .spec-table {
-    min-width: 560px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .spec-table th,
+  .spec-table td {
+    font-size: 13px;
+    padding: 8px 10px;
   }
 
   .thumb-preview-large {

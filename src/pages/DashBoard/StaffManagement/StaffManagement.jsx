@@ -469,6 +469,7 @@ export default function StaffManagement() {
 												onView={handleViewStaff}
 												onLock={handleLockStaff}
 												onDelete={handleDeleteStaff}
+												allRoles={allRoles}
 											/>
 										))}
 								</tbody>
@@ -595,11 +596,30 @@ const chunkArray = (arr, size) => {
 	return result;
 };
 
-function StaffTableRow({ item, index, onView, onLock, onDelete }) {
+function StaffTableRow({ item, index, onView, onLock, onDelete, allRoles }) {
 	const resolvedStatus = resolveStaffStatus(item);
 	const normalizedStatus = normalizeStaffStatus(resolvedStatus);
 	const statusMeta = getStaffStatusMeta({ status: resolvedStatus, isActive: item?.isActive });
 	const canManage = Boolean(normalizedStatus) && normalizedStatus !== 'DELETED';
+
+	const hasAllRoles = useMemo(() => {
+		if (!allRoles || allRoles.length === 0) return false;
+		if (!item?.roles || item.roles.length === 0) return false;
+
+		const systemRoleIds = allRoles
+			.map((r) => Number(r?.roleId))
+			.filter((id) => Number.isFinite(id) && id > 0);
+		if (systemRoleIds.length === 0) return false;
+
+		const staffRoleIds = new Set(
+			item.roles
+				.map((r) => Number(r?.roleId))
+				.filter((id) => Number.isFinite(id) && id > 0)
+		);
+
+		return systemRoleIds.every((id) => staffRoleIds.has(id));
+	}, [item.roles, allRoles]);
+
 	const roleNames =
 		Array.isArray(item?.roles) && item.roles.length > 0
 			? item.roles
@@ -633,7 +653,14 @@ function StaffTableRow({ item, index, onView, onLock, onDelete }) {
 			</td>
 			<td>
 				<div className={styles.roleBadgesContainer}>
-					{roleNames.length > 0 ? (
+					{hasAllRoles ? (
+						<span
+							className={styles.roleBadge}
+							style={{ background: '#fee2e2', borderColor: '#fecaca', color: '#dc2626' }}
+						>
+							Toàn Quyền
+						</span>
+					) : roleNames.length > 0 ? (
 						chunkArray(roleNames, 3).map((chunk, chunkIdx) => (
 							<div key={chunkIdx} className={styles.roleRow}>
 								{chunk.map((role) => (
@@ -710,5 +737,6 @@ StaffTableRow.propTypes = {
 	index: PropTypes.number.isRequired,
 	onView: PropTypes.func,
 	onLock: PropTypes.func,
-	onDelete: PropTypes.func.isRequired
+	onDelete: PropTypes.func.isRequired,
+	allRoles: PropTypes.arrayOf(PropTypes.object)
 };
