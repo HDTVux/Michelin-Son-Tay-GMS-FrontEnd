@@ -177,13 +177,13 @@ function TaxPickerModal({
 
     if (!open) return null;
 
-    return (
+    return createPortal(
         <div className={styles.taxModalOverlay} onClick={onClose}>
-            <div className={styles.taxModal} onClick={(e) => e.stopPropagation()}>
+            <dialog className={styles.taxModal} open aria-modal="true" onClick={(e) => e.stopPropagation()}>
                 <div className={styles.taxModalHeader}>
                     <h3 className={styles.taxModalTitle}>Chọn loại thuế</h3>
-                    <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose} style={{ minWidth: 'auto', padding: '6px 12px' }}>
-                        Đóng
+                    <button type="button" className={styles.taxModalCloseButton} onClick={onClose} aria-label="Đóng">
+                        ×
                     </button>
                 </div>
 
@@ -297,8 +297,9 @@ function TaxPickerModal({
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </dialog>
+        </div>,
+        document.body
     );
 }
 
