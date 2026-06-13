@@ -69,6 +69,7 @@ export default function WarehouseReturnEntryManagement() {
   const [warehouseLoading, setWarehouseLoading] = useState(false);
   const [warehouseIdInput, setWarehouseIdInput] = useState(String(DEFAULT_WAREHOUSE_ID));
   const [status, setStatus] = useState('ALL');
+  const [search, setSearch] = useState('');
   const [entries, setEntries] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -96,6 +97,7 @@ export default function WarehouseReturnEntryManagement() {
       const params = {};
       if (warehouseId && warehouseId !== 'ALL') params.warehouseId = warehouseId;
       if (status && status !== 'ALL') params.status = status;
+      if (search && search.trim()) params.search = search.trim();
       params.page = nextPage;
       params.size = nextSize;
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -327,6 +329,22 @@ export default function WarehouseReturnEntryManagement() {
               ))}
             </select>
           </div>
+          <div className={styles.field}>
+            <label htmlFor="return-entry-search">Tìm kiếm</label>
+            <input
+              id="return-entry-search"
+              type="text"
+              className={styles.select}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+                fetchList({ pageOverride: 0 });
+              }}
+              placeholder="Mã phiếu, phiếu xuất..."
+              style={{ minWidth: 180 }}
+            />
+          </div>
           </div>
         </section>
 
@@ -338,8 +356,10 @@ export default function WarehouseReturnEntryManagement() {
           <table className={styles.bookingTable}>
             <thead>
               <tr>
-                <th>STT</th>
                 <th>Mã phiếu</th>
+                <th>Loại trả hàng</th>
+                <th>Phiếu xuất nguồn</th>
+                <th>Phiếu dịch vụ</th>
                 <th>Ngày tạo</th>
                 <th>Trạng thái</th>
                 <th>Hành động</th>
@@ -348,13 +368,13 @@ export default function WarehouseReturnEntryManagement() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className={styles.emptyCell}>
+                  <td colSpan={7} className={styles.emptyCell}>
                     Đang tải danh sách phiếu trả hàng...
                   </td>
                 </tr>
               ) : entries.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className={styles.emptyCell}>
+                  <td colSpan={7} className={styles.emptyCell}>
                     Không có dữ liệu phiếu trả hàng.
                   </td>
                 </tr>
@@ -363,13 +383,33 @@ export default function WarehouseReturnEntryManagement() {
                   const id = entry?.returnId ?? 0;
                   const statusValue = String(entry?.status || '-').toUpperCase();
                   const statusLabel = getStatusTextVi(statusValue, statusValue || '-');
+                  const returnTypeLabel = {
+                    CUSTOMER_RETURN: 'Khách trả hàng',
+                    SUPPLIER_RETURN: '🏭 Trả NCC',
+                    EXCHANGE: '🔄 Đổi hàng',
+                  }[entry?.returnType] || entry?.returnType || '-';
                   return (
                     <tr key={String(id)}>
-                      <td>{id || '-'}</td>
-                      <td>{entry?.returnCode || '-'}</td>
-                      <td>{formatDate(entry?.createdAt)}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#1e40af', fontWeight: 600 }}>
+                        {entry?.returnCode || '-'}
+                      </td>
+                      <td style={{ fontSize: 13 }}>{returnTypeLabel}</td>
+                      <td style={{ fontSize: 13, color: '#6b7280' }}>
+                        {entry?.sourceIssueCode ? (
+                          <span style={{ fontFamily: 'monospace' }}>{entry.sourceIssueCode}</span>
+                        ) : '-'}
+                      </td>
+                      <td style={{ fontSize: 13, color: '#6b7280' }}>
+                        {entry?.serviceTicketCode || '-'}
+                      </td>
+                      <td style={{ fontSize: 12, color: '#6b7280' }}>{formatDate(entry?.createdAt)}</td>
                       <td>
-                        <span className={`${styles.statusBadge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span className={`${styles.statusBadge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
+                          {entry?.hasDefectiveItems && (
+                            <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 600 }}>⚠️ Có hàng lỗi</span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <button

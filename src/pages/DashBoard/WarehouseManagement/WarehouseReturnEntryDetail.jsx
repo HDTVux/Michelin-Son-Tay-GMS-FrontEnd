@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import PropTypes from 'prop-types';
+import { useNavigate, useParams } from 'react-router-dom';import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { formatDateTimeViNoSeconds } from '../../../components/timeUtils.js';
@@ -196,7 +195,7 @@ ImagePreviewModal.propTypes = {
   onClose: PropTypes.func.isRequired,
 };
 
-const ReturnItemsCard = ({ items, title = 'Danh sách sản phẩm trả' }) => (
+const ReturnItemsCard = ({ items, title = 'Danh sách sản phẩm trả', onPreview }) => (
   <section className={styles.card}>
     <div className={styles.sectionHeader}>
       <h2 className={styles.sectionTitle}>{title}</h2>
@@ -206,15 +205,14 @@ const ReturnItemsCard = ({ items, title = 'Danh sách sản phẩm trả' }) => 
         <thead>
           <tr>
             <th>STT</th>
-            <th>Mã sản phẩm</th>
             <th>Tên sản phẩm</th>
             <th>Phiếu nhập/Lô</th>
-            <th>Số lượng</th>
-            <th>Đơn giá</th>
-            <th>Thành tiền</th>
-            <th>Ghi chú tình trạng</th>
-            <th>Phân loại</th>
-            <th>Nguyên nhân / Người chịu trách nhiệm</th>
+            <th style={{ textAlign: 'center' }}>SL</th>
+            <th style={{ textAlign: 'right' }}>Thành tiền</th>
+            <th>Tình trạng</th>
+            <th>Phân loại & Trách nhiệm</th>
+            <th>Kho đích</th>
+            <th style={{ textAlign: 'center' }}>Ảnh</th>
           </tr>
         </thead>
         <tbody>
@@ -229,41 +227,64 @@ const ReturnItemsCard = ({ items, title = 'Danh sách sản phẩm trả' }) => 
               const responsibleName = row?.responsibleStaffName || (row?.responsibleStaffId ? `NV #${row.responsibleStaffId}` : null);
               return (
                 <tr key={`${row?.returnItemId || row?.itemId}-${idx}`}>
-                  <td>{idx + 1}</td>
-                  <td>{row?.itemCode || row?.itemId || '-'}</td>
-                  <td>{row?.itemName || '-'}</td>
+                  <td style={{ width: 36 }}>{idx + 1}</td>
                   <td>
-                    <div className={styles.stackedCell}>
-                      <span>{row?.entryCode || '-'}</span>
-                    </div>
+                    <strong>{row?.itemName || '-'}</strong>
+                    {row?.itemCode ? <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{row.itemCode}</div> : null}
                   </td>
-                  <td>{formatNumber(row?.quantity)}</td>
-                  <td>{formatMoneyVnd(row?.unitPrice)}</td>
-                  <td>{formatMoneyVnd(totalPrice)}</td>
-                  <td>{row?.conditionNote || '-'}</td>
+                  <td style={{ fontSize: '0.8rem', color: '#6b7280' }}>{row?.entryCode || '-'}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 600 }}>{formatNumber(row?.quantity)}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 600 }}>{formatMoneyVnd(totalPrice)}</div>
+                    {row?.unitPrice ? <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{formatMoneyVnd(row.unitPrice)}/cái</div> : null}
+                  </td>
+                  <td style={{ fontSize: '0.8rem', color: '#6b7280', maxWidth: 160 }}>{row?.conditionNote || '-'}</td>
                   <td>
-                    <span style={{ color: isDefective ? '#dc2626' : '#059669', fontWeight: 500 }}>
+                    <span style={{ color: isDefective ? '#dc2626' : '#059669', fontWeight: 600 }}>
                       {returnReasonLabel}
                     </span>
+                    {isDefective && (
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 2 }}>
+                        {defectCauseLabel}
+                        {responsibleName ? ` — ${responsibleName}` : ''}
+                      </div>
+                    )}
                   </td>
                   <td>
-                    {isDefective ? (
-                      <div>
-                        <div>{defectCauseLabel}</div>
-                        {responsibleName && (
-                          <div style={{ fontSize: '0.8em', color: '#6b7280', marginTop: 2 }}>
-                            {responsibleName}
-                          </div>
-                        )}
-                      </div>
-                    ) : '-'}
+                    {isDefective && row?.defectiveWarehouseName ? (
+                      <span style={{
+                        background: '#fef2f2', color: '#991b1b',
+                        border: '1px solid #fca5a5', borderRadius: 4,
+                        padding: '2px 6px', fontSize: '0.75rem', whiteSpace: 'nowrap',
+                      }}>
+                        ⚠️ {row.defectiveWarehouseName}
+                      </span>
+                    ) : isDefective ? (
+                      <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>Kho lỗi (sau xác nhận)</span>
+                    ) : (
+                      <span style={{ color: '#059669', fontSize: '0.75rem' }}>Kho chính</span>
+                    )}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    {Array.isArray(row?.attachmentUrls) && row.attachmentUrls.length > 0 ? (
+                      <button
+                        type="button"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', fontSize: '0.8rem', padding: 0 }}
+                        onClick={() => onPreview?.(row.attachmentUrls[0])}
+                        title="Xem ảnh"
+                      >
+                        📷 {row.attachmentUrls.length}
+                      </button>
+                    ) : (
+                      <span style={{ color: '#d1d5db' }}>—</span>
+                    )}
                   </td>
                 </tr>
               );
             })
           ) : (
             <tr>
-              <td colSpan={10} className={styles.emptyCell}>Không có sản phẩm.</td>
+              <td colSpan={9} className={styles.emptyCell}>Không có sản phẩm.</td>
             </tr>
           )}
         </tbody>
@@ -275,6 +296,7 @@ const ReturnItemsCard = ({ items, title = 'Danh sách sản phẩm trả' }) => 
 ReturnItemsCard.propTypes = {
   items: PropTypes.arrayOf(PropTypes.shape({})),
   title: PropTypes.string,
+  onPreview: PropTypes.func,
 };
 
 export default function WarehouseReturnEntryDetail() {
@@ -440,13 +462,52 @@ export default function WarehouseReturnEntryDetail() {
           statusLabel={statusLabel}
           statusValue={statusValue}
         />
-        <ReturnItemsCard items={entry?.items} title="Danh sách sản phẩm trả" />
+
+        {/* Banner cảnh báo nếu có hàng lỗi vào kho lỗi */}
+        {Array.isArray(entry?.items) && entry.items.some((i) => i.returnReason === 'DEFECTIVE') && (
+          <div style={{
+            background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8,
+            padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 12,
+          }}>
+            <span style={{ fontSize: 20 }}>⚠️</span>
+            <div>
+              <strong style={{ color: '#991b1b' }}>Phiếu này có hàng bị lỗi</strong>
+              <p style={{ margin: '4px 0 0', color: '#7f1d1d', fontSize: 13 }}>
+                Sau khi xác nhận, hàng lỗi sẽ được chuyển vào <strong>kho hàng lỗi</strong> tương ứng.
+                Vào <button type="button" onClick={() => navigate('/warehouse-defective-inventory')}
+                  style={{ color: '#1e40af', background: 'none', border: 'none', cursor: 'pointer',
+                    textDecoration: 'underline', fontSize: 13, padding: 0 }}>Kho hàng lỗi</button>
+                {' '}để theo dõi và xử lý.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <ReturnItemsCard items={entry?.items} title="Danh sách sản phẩm trả" onPreview={openImagePreview} />
         <ReturnAttachmentsCard attachments={attachments} onPreview={openImagePreview} />
         {hasExchangeItems ? (
-          <ReturnItemsCard items={entry?.exchangeItems} title="Danh sách sản phẩm thay thế" />
+          <ReturnItemsCard items={entry?.exchangeItems} title="Danh sách sản phẩm thay thế" onPreview={openImagePreview} />
         ) : null}
+        {statusValue === 'CONFIRMED' && Array.isArray(entry?.items) && entry.items.some((i) => i.returnReason === 'DEFECTIVE') && (
+          <div style={{
+            background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8,
+            padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          }}>
+            <span style={{ color: '#991b1b', fontSize: 14 }}>
+              ⚠️ Phiếu đã xác nhận — hàng lỗi đã vào kho DEFECTIVE
+            </span>
+            <button type="button" className="ui-btn ui-btn--ghost"
+              style={{ fontSize: 13 }}
+              onClick={() => navigate('/warehouse-defective-inventory')}>
+              Xem kho hàng lỗi →
+            </button>
+          </div>
+        )}
         {canTakeAction ? (
           <div className={styles.bottomAction}>
+            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 16px', marginBottom: 12, fontSize: 13, color: '#1e40af' }}>
+              💡 Khi xác nhận: tồn kho sẽ được cập nhật, hàng DEFECTIVE chuyển vào kho lỗi, allocation được giải phóng.
+            </div>
             <div className={styles.actionGroup}>
               <button
                 type="button"
@@ -454,7 +515,7 @@ export default function WarehouseReturnEntryDetail() {
                 onClick={handleConfirm}
                 disabled={isConfirming || isCancelling}
               >
-                {isConfirming ? 'Đang xác nhận...' : 'Xác nhận phiếu hoàn'}
+                {isConfirming ? 'Đang xác nhận...' : '✅ Xác nhận phiếu hoàn'}
               </button>
               <button
                 type="button"
@@ -462,7 +523,7 @@ export default function WarehouseReturnEntryDetail() {
                 onClick={handleCancel}
                 disabled={isConfirming || isCancelling}
               >
-                {isCancelling ? 'Đang hủy...' : 'Hủy phiếu hoàn'}
+                {isCancelling ? 'Đang hủy...' : '❌ Hủy phiếu hoàn'}
               </button>
             </div>
           </div>
