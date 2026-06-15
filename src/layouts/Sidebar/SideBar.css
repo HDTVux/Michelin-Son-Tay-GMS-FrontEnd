@@ -760,29 +760,46 @@
     }
 
     .sidebar__profile-container {
-        margin: 6px 0 6px 12px;
+        margin: 4px 0 4px 8px;
         width: auto;
     }
 
     .sidebar__profile {
-        padding: 6px 10px;
+        padding: 4px 6px;
         border-radius: 10px;
-        gap: 8px;
+        gap: 6px;
+        height: auto;
+        display: flex;
+        align-items: center;
     }
 
     .sidebar__avatar img {
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+    }
+
+    .sidebar__meta {
+        max-width: none !important;
+        overflow: visible !important;
+        display: flex !important;
+        align-items: center !important;
     }
 
     .sidebar__name {
-        font-size: 0.8rem;
-        max-width: 120px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--sb-text-primary);
+        max-width: none !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        margin: 0 !important;
+        line-height: 1.2;
     }
 
     .sidebar__greeting {
-        font-size: 0.6rem;
+        display: none !important;
     }
 
     .sidebar__profile-dropdown {

@@ -472,68 +472,126 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                 <div style={{ fontWeight: '600', fontSize: '13px', color: '#475569', marginBottom: '8px' }}>
                                                     Danh sách lô hàng ({w.lots.length})
                                                 </div>
-                                                <div className={styles['spec-table-wrap']}>
-                                                    <table className={styles['spec-table']}>
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Mã lô (Entry Code)</th>
-                                                                <th>Ngày nhập</th>
-                                                                <th>Số lượng tồn lô</th>
-                                                                <th>Giá nhập lô (₫)</th>
-                                                                <th>Hệ số markup</th>
-                                                                <th>Giá bán lô (₫)</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {w.lots.map((lot, lotIdx) => (
-                                                                <tr key={String(lot.entryItemId || lotIdx)}>
-                                                                    <td style={{ fontWeight: '600' }}>{lot.entryCode || '-'}</td>
-                                                                    <td>{lot.entryDate ? new Date(lot.entryDate).toLocaleDateString('vi-VN') : '-'}</td>
-                                                                    <td>
-                                                                        <input
-                                                                            type="number"
-                                                                            value={lot.remainingQuantity}
-                                                                            onChange={(e) => handleLotChange(whIdx, lotIdx, 'remainingQuantity', e.target.value)}
-                                                                            style={{ padding: '6px 8px', width: '100px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
-                                                                            disabled={saving}
-                                                                            min={0}
-                                                                        />
-                                                                    </td>
-                                                                    <td>
-                                                                        <input
-                                                                            type="number"
-                                                                            value={lot.importPrice}
-                                                                            onChange={(e) => handleLotChange(whIdx, lotIdx, 'importPrice', e.target.value)}
-                                                                            style={{ padding: '6px 8px', width: '120px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
-                                                                            disabled={saving}
-                                                                            min={0}
-                                                                        />
-                                                                    </td>
-                                                                    <td>
-                                                                        <input
-                                                                            type="number"
-                                                                            step="0.0001"
-                                                                            value={lot.markupMultiplier}
-                                                                            onChange={(e) => handleLotChange(whIdx, lotIdx, 'markupMultiplier', e.target.value)}
-                                                                            style={{ padding: '6px 8px', width: '90px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
-                                                                            disabled={saving}
-                                                                            min={0}
-                                                                        />
-                                                                    </td>
-                                                                    <td>
-                                                                        <input
-                                                                            type="number"
-                                                                            value={lot.sellingPrice}
-                                                                            onChange={(e) => handleLotChange(whIdx, lotIdx, 'sellingPrice', e.target.value)}
-                                                                            style={{ padding: '6px 8px', width: '130px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
-                                                                            disabled={saving}
-                                                                            min={0}
-                                                                        />
-                                                                    </td>
+                                                {/* Desktop: Table layout */}
+                                                <div className={styles['desktop-lots-table']}>
+                                                    <div className={styles['spec-table-wrap']}>
+                                                        <table className={styles['spec-table']}>
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Mã lô (Entry Code)</th>
+                                                                    <th>Ngày nhập</th>
+                                                                    <th>Số lượng tồn lô</th>
+                                                                    <th>Giá nhập lô (₫)</th>
+                                                                    <th>Hệ số markup</th>
+                                                                    <th>Giá bán lô (₫)</th>
                                                                 </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
+                                                            </thead>
+                                                            <tbody>
+                                                                {w.lots.map((lot, lotIdx) => (
+                                                                    <tr key={String(lot.entryItemId || lotIdx)}>
+                                                                        <td style={{ fontWeight: '600' }}>{lot.entryCode || '-'}</td>
+                                                                        <td>{lot.entryDate ? new Date(lot.entryDate).toLocaleDateString('vi-VN') : '-'}</td>
+                                                                        <td>
+                                                                            <input
+                                                                                type="number"
+                                                                                value={lot.remainingQuantity}
+                                                                                onChange={(e) => handleLotChange(whIdx, lotIdx, 'remainingQuantity', e.target.value)}
+                                                                                style={{ padding: '6px 8px', width: '100px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                                disabled={saving}
+                                                                                min={0}
+                                                                            />
+                                                                        </td>
+                                                                        <td>
+                                                                            <input
+                                                                                type="number"
+                                                                                value={lot.importPrice}
+                                                                                onChange={(e) => handleLotChange(whIdx, lotIdx, 'importPrice', e.target.value)}
+                                                                                style={{ padding: '6px 8px', width: '120px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                                disabled={saving}
+                                                                                min={0}
+                                                                            />
+                                                                        </td>
+                                                                        <td>
+                                                                            <input
+                                                                                type="number"
+                                                                                step="0.0001"
+                                                                                value={lot.markupMultiplier}
+                                                                                onChange={(e) => handleLotChange(whIdx, lotIdx, 'markupMultiplier', e.target.value)}
+                                                                                style={{ padding: '6px 8px', width: '90px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                                disabled={saving}
+                                                                                min={0}
+                                                                            />
+                                                                        </td>
+                                                                        <td>
+                                                                            <input
+                                                                                type="number"
+                                                                                value={lot.sellingPrice}
+                                                                                onChange={(e) => handleLotChange(whIdx, lotIdx, 'sellingPrice', e.target.value)}
+                                                                                style={{ padding: '6px 8px', width: '130px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                                disabled={saving}
+                                                                                min={0}
+                                                                            />
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+
+                                                {/* Mobile: Card-based input list */}
+                                                <div className={styles['mobile-lots-list']}>
+                                                    {w.lots.map((lot, lotIdx) => (
+                                                        <div key={String(lot.entryItemId || lotIdx)} className={styles['mobile-lot-card']}>
+                                                            <div className={styles['mobile-lot-card__header']}>
+                                                                <span className={styles['mobile-lot-card__code']}>Lô: {lot.entryCode || '-'}</span>
+                                                                <span className={styles['mobile-lot-card__date']}>{lot.entryDate ? new Date(lot.entryDate).toLocaleDateString('vi-VN') : '-'}</span>
+                                                            </div>
+                                                            <div className={styles['mobile-lot-card__grid']}>
+                                                                <div className={styles['mobile-lot-field']}>
+                                                                    <label>Tồn lô</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={lot.remainingQuantity}
+                                                                        onChange={(e) => handleLotChange(whIdx, lotIdx, 'remainingQuantity', e.target.value)}
+                                                                        disabled={saving}
+                                                                        min={0}
+                                                                    />
+                                                                </div>
+                                                                <div className={styles['mobile-lot-field']}>
+                                                                    <label>Giá nhập (₫)</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={lot.importPrice}
+                                                                        onChange={(e) => handleLotChange(whIdx, lotIdx, 'importPrice', e.target.value)}
+                                                                        disabled={saving}
+                                                                        min={0}
+                                                                    />
+                                                                </div>
+                                                                <div className={styles['mobile-lot-field']}>
+                                                                    <label>Markup</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        step="0.0001"
+                                                                        value={lot.markupMultiplier}
+                                                                        onChange={(e) => handleLotChange(whIdx, lotIdx, 'markupMultiplier', e.target.value)}
+                                                                        disabled={saving}
+                                                                        min={0}
+                                                                    />
+                                                                </div>
+                                                                <div className={styles['mobile-lot-field']}>
+                                                                    <label>Giá bán (₫)</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={lot.sellingPrice}
+                                                                        onChange={(e) => handleLotChange(whIdx, lotIdx, 'sellingPrice', e.target.value)}
+                                                                        disabled={saving}
+                                                                        min={0}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             </div>
                                         )}

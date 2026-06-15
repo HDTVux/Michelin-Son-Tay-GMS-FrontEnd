@@ -1125,7 +1125,15 @@
   display: none;
 }
 
-@media (max-width: 768px) {
+.mobile-lots-list {
+  display: none;
+}
+
+.desktop-lots-table {
+  display: block;
+}
+
+@media (max-width: 1024px) {
   .table-wrapper {
     display: none !important;
   }
@@ -1278,4 +1286,69 @@
     padding: 9px 12px;
     font-size: 13px;
   }
+
+  .desktop-lots-table {
+    display: none !important;
+  }
+
+  .mobile-lots-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mobile-lot-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .mobile-lot-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+  }
+
+  .mobile-lot-card__code {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 13px;
+  }
+
+  .mobile-lot-card__date {
+    font-size: 11px;
+    color: #64748b;
+  }
+
+  .mobile-lot-card__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .mobile-lot-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mobile-lot-field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .mobile-lot-field input {
+    padding: 8px;
+    font-size: 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
 }
+
