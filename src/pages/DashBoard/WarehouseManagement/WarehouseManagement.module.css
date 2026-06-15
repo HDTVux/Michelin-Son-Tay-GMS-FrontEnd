@@ -1119,3 +1119,163 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ===== NEW MOBILE RESPONSIBLE REDESIGN FOR WAREHOUSE MANAGEMENT ===== */
+.mobile-cards {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .table-wrapper {
+    display: none !important;
+  }
+
+  .mobile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .mobile-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .mobile-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .mobile-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .mobile-card__index {
+    font-size: 12px;
+    font-weight: 700;
+    color: #005aa9;
+    background: rgba(0, 90, 169, 0.08);
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  .mobile-card__sku {
+    font-size: 12px;
+    font-weight: 600;
+    color: #4b5563;
+    background: #f3f4f6;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  .mobile-card__title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .mobile-card__specs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .spec-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: #4b5563;
+    background: #f3f4f6;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+
+  .mobile-card__warehouses {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .warehouses-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .warehouse-empty {
+    font-size: 13px;
+    color: #94a3b8;
+    text-align: center;
+    padding: 6px 0;
+  }
+
+  .warehouse-row {
+    padding: 8px 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .warehouse-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .warehouse-row:first-of-type {
+    padding-top: 0;
+  }
+
+  .warehouse-row__name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 6px;
+  }
+
+  .warehouse-row__info {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+    color: #4b5563;
+  }
+
+  .warehouse-row__info span {
+    white-space: nowrap;
+  }
+
+  .warehouse-row__info strong {
+    color: #0f172a;
+  }
+
+  .warehouse-row__price {
+    color: #10b981 !important;
+  }
+
+  .mobile-card__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .mobile-card__actions button {
+    flex: 1;
+    justify-content: center;
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+}

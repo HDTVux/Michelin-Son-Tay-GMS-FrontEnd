@@ -607,6 +607,81 @@ export default function PartManagement() {
           </table>
         </div>
 
+        {/* Mobile View: Cards */}
+        <div className={styles['mobile-cards']}>
+          {isLoading && (
+            <div className={styles['empty-row']}>Đang tải dữ liệu...</div>
+          )}
+          {!isLoading && totalElements === 0 && (
+            <div className={styles['empty-row']}>Không có phụ tùng nào.</div>
+          )}
+          {!isLoading &&
+            paged.map((item, idx) => {
+              const displayIndex = safePage * size + idx + 1;
+              const details = getWarehouseDetails(item);
+              return (
+                <div key={item.itemId ?? idx} className={styles['mobile-card']}>
+                  <div className={styles['mobile-card__header']}>
+                    <span className={styles['mobile-card__index']}>#{displayIndex}</span>
+                    <span className={styles['mobile-card__sku']}>{item.sku || 'Không có SKU'}</span>
+                  </div>
+
+                  <h3 className={styles['mobile-card__title']}>{item.itemName ?? '-'}</h3>
+
+                  <div className={styles['mobile-card__specs']}>
+                    <span className={styles['spec-badge']}>ĐVT: {item.unit || '-'}</span>
+                    <span className={styles['spec-badge']}>Xuất xứ: {getItemOriginText(item)}</span>
+                    {getItemColorText(item) !== '-' && (
+                      <span className={styles['spec-badge']}>Màu: {getItemColorText(item)}</span>
+                    )}
+                  </div>
+
+                  <div className={styles['mobile-card__warehouses']}>
+                    <h4 className={styles['warehouses-title']}>Chi tiết tồn kho:</h4>
+                    {details.length === 0 ? (
+                      <div className={styles['warehouse-empty']}>Không có thông tin kho</div>
+                    ) : (
+                      details.map((d, i) => {
+                        const qty = getWarehouseAvailableQty(d);
+                        const reservedQty = getWarehouseReservedQty(d);
+                        const sellingPrice = getWarehouseSellingPrice(d);
+                        return (
+                          <div key={i} className={styles['warehouse-row']}>
+                            <div className={styles['warehouse-row__name']}>
+                              {getWarehouseDisplayName(d)}
+                            </div>
+                            <div className={styles['warehouse-row__info']}>
+                              <span>Tồn: <strong>{qty == null ? '-' : new Intl.NumberFormat('vi-VN').format(qty)}</strong></span>
+                              <span>Giữ: <strong>{reservedQty == null ? '-' : new Intl.NumberFormat('vi-VN').format(reservedQty)}</strong></span>
+                              <span>Giá: <strong className={styles['warehouse-row__price']}>{sellingPrice == null ? 'Liên hệ' : `${formatCurrencyVnd(sellingPrice)} ₫`}</strong></span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className={styles['mobile-card__actions']}>
+                    <button
+                      className={`${styles['action-btn']} ${styles['view-btn']}`}
+                      onClick={() => setSelectedItem(item)}
+                    >
+                      Xem chi tiết
+                    </button>
+                    {isManagerOrAdmin && (
+                      <button
+                        className={`${styles['action-btn']} ${styles['edit-btn']}`}
+                        onClick={() => setEditingItem(item)}
+                      >
+                        Sửa danh mục
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+
         <div className={styles['service-footer']}>
           <div className={styles['page-size']}>
             <span>Hiển thị:</span>
