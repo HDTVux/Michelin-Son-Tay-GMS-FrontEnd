@@ -748,39 +748,39 @@
   border-bottom: 1px solid #cbd5e1;
 }
 
-.table th:nth-child(1),
-.table td:nth-child(1) {
-  width: 60px;
+.colStt {
+  width: 50px;
 }
-
-.table th:nth-child(4),
-.table td:nth-child(4) {
-  width: 120px;
-}
-
-.table th:nth-child(5),
-.table td:nth-child(5) {
-  width: 130px;
-}
-
-.table th:nth-child(6),
-.table td:nth-child(6) {
+.colCategory {
   width: 140px;
 }
-
-.table th:nth-child(7),
-.table td:nth-child(7) {
-  width: 160px;
+.colDescription {
+  width: 200px;
 }
-
-.table th:nth-child(8),
-.table td:nth-child(8) {
-  width: 90px;
+.colQty {
+  width: 80px;
 }
-
-.table th:nth-child(9),
-.table td:nth-child(9) {
+.colPrice {
+  width: 120px;
+}
+.colTax {
+  width: 100px;
+}
+.colDiscount {
   width: 110px;
+}
+.colAmount {
+  width: 130px;
+}
+.colWarehouse {
+  width: 110px;
+}
+.colStockOut {
+  width: 110px;
+}
+.colSuaWarehouse,
+.colSuaEdit {
+  width: 90px;
 }
 
 .tdNumber {

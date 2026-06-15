@@ -645,22 +645,26 @@ function EstimateItemRow({
                 )}
             </td>
 
-            <td data-label="Kho">
-                {warehouseText || '-'}
-                {row?.entryCode ? ` (Lô: ${row.entryCode})` : (row?.entryItemId ? ` (Lô #${row.entryItemId})` : '')}
+            <td data-label="Xuất kho">
+                <span className={stockAllocationClassName}>{stockAllocationText}</span>
+                {['RESERVED', 'COMMITTED', 'RELEASED'].includes(stockStatus) && warehouseText ? (
+                    <div style={{ fontSize: '11px', fontStyle: 'italic', fontWeight: '700', color: '#64748b', marginTop: '2px' }}>
+                        (Kho: {warehouseText}
+                        {row?.entryCode ? ` - Lô: ${row.entryCode}` : (row?.entryItemId ? ` - Lô #${row.entryItemId}` : '')})
+                    </div>
+                ) : null}
             </td>
-            {!showInputs ? <td data-label="Xuất kho"><span className={stockAllocationClassName}>{stockAllocationText}</span></td> : null}
             {!showInputs && (showWarehouseActionColumn || showReturnAfterPaymentColumn) ? (
                 <td data-label="Sửa" className={`${styles.tdCenter} ${styles.colSuaWarehouse}`}>
                     <div className={styles.warehouseItemActions}>
                         {showWarehouseActionColumn && stockStatus === 'RESERVED' ? (
                             <button
                                 type="button"
-                                className="ui-btn ui-btn--ghost"
+                                className={`ui-btn ui-btn--danger ${styles.dangerBtn}`}
                                 onClick={() => onCancelAllocation?.(row)}
                                 disabled={isSaving || isWarehouseActionBusy}
                             >
-                                {isWarehouseActionBusy ? 'Đang hủy...' : 'Hủy sản phẩm'}
+                                {isWarehouseActionBusy ? 'Đang hủy...' : 'Hủy'}
                             </button>
                         ) : stockStatus === 'COMMITTED' ? (
                             (() => {
@@ -1144,7 +1148,6 @@ export default function AdvisorItemsTable({
     const footerSpacerColSpan =
         (showTaxColumn ? 1 : 0) +
         1 +
-        (!showInputs ? 1 : 0) +
         (showInputs ? 1 : 0) +
         (showWarehouseActionColumn || showReturnAfterPaymentColumn ? 1 : 0);
 
@@ -1678,16 +1681,15 @@ export default function AdvisorItemsTable({
                     <table className={styles.table}>
                         <thead>
                             <tr>
-                                <th scope="col">STT</th>
-                                <th scope="col">HẠNG MỤC</th>
-                                <th scope="col">DIỄN GIẢI</th>
-                                <th scope="col">SL</th>
-                                <th scope="col">ĐƠN GIÁ</th>
-                                {showTaxColumn ? <th scope="col">THUẾ </th> : null}
-                                {showDiscountColumn ? <th scope="col">GIẢM GIÁ</th> : null}
-                                <th scope="col">THÀNH TIỀN</th>
-                                <th scope="col">KHO</th>
-                                {!showInputs ? <th scope="col">XUẤT KHO</th> : null}
+                                <th scope="col" className={styles.colStt}>STT</th>
+                                <th scope="col" className={styles.colCategory}>HẠNG MỤC</th>
+                                <th scope="col" className={styles.colDescription}>DIỄN GIẢI</th>
+                                <th scope="col" className={styles.colQty}>SL</th>
+                                <th scope="col" className={styles.colPrice}>ĐƠN GIÁ</th>
+                                {showTaxColumn ? <th scope="col" className={styles.colTax}>THUẾ </th> : null}
+                                {showDiscountColumn ? <th scope="col" className={styles.colDiscount}>GIẢM GIÁ</th> : null}
+                                <th scope="col" className={styles.colAmount}>THÀNH TIỀN</th>
+                                <th scope="col" className={styles.colStockOut}>XUẤT KHO</th>
                                 {showWarehouseActionColumn || showReturnAfterPaymentColumn ? <th scope="col" className={styles.colSuaWarehouse}>SỬA</th> : null}
                                 {showInputs ? <th scope="col" className={styles.colSuaEdit}>SỬA</th> : null}
                             </tr>
