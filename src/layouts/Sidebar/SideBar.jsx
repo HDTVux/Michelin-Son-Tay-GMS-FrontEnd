@@ -191,6 +191,7 @@ const NAV_GROUPS = [
         defaultOpen: true,
         items: [
             { id: 'staff-profile', label: 'Hồ sơ nhân viên', path: '/staff-profile', icon: <Contact size={18} />, roles: 'ALL' },
+            { id: 'staff-notifications-page', label: 'Thông báo', path: '/notifications', icon: <Bell size={18} />, roles: 'ALL' },
             { id: 'daily-schedule', label: 'Lịch làm việc', path: '/daily-schedule', icon: <Calendar size={18} />, roles: 'ALL' },
             { id: 'work-history-technician', label: 'Lịch sử công việc', path: '/work-history/technician', icon: <Briefcase size={18} />, roles: [STAFF_ROLE.TECHNICIAN] },
             { id: 'work-history-advisor', label: 'Lịch sử công việc', path: '/work-history/advisor', icon: <Briefcase size={18} />, roles: [STAFF_ROLE.ADVISOR] },

@@ -108,6 +108,8 @@ import AdvisorDashboard from './pages/DashBoard/AdvisorDashboard/AdvisorDashboar
 import ReceptionistDashboard from './pages/DashBoard/ReceptionistDashboard/ReceptionistDashboard.jsx';
 import TechnicianDashboard from './pages/DashBoard/TechnicianDashboard/TechnicianDashboard.jsx';
 import AccountantDashboard from './pages/DashBoard/AccountantDashboard/AccountantDashboard.jsx';
+import StaffNotifications from './pages/DashBoard/StaffNotifications/StaffNotifications.jsx';
+
 
 // Import Technician pages
 import MyTasks from './pages/Technician/MyTasks/MyTasks.jsx';
@@ -355,6 +357,8 @@ export default function App() {
             {/* Nhóm trang dashboard nhân viên dùng SideBar */}
             <Route element={<StaffAreaRoute><StaffLayout /></StaffAreaRoute>}>
               <Route path="dashboard" element={staffRoute(<StaffDashboard />)} />
+              <Route path="notifications" element={staffRoute(<StaffNotifications />)} />
+
               
               {/* Role-based Dashboards */}
               <Route path="admin-dashboard" element={staffRoute(<AdminDashboard />, ROLE_GROUP.ADMIN_ONLY)} />

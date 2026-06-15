@@ -2,6 +2,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLayoutEffect } from 'react';
 import { useNotifications } from '../hooks/useNotifications.js';
 import SideBar from './Sidebar/SideBar.jsx';
+import MobileNavbar from './MobileNavbar/MobileNavbar.jsx';
 import './StaffLayout.css';
 
 const base64UrlToBase64 = (value) => {
@@ -211,7 +212,7 @@ const getTicketNotificationPath = (notification) => {
   return `/service-ticket-detail/${encodedCode}`;
 };
 
-const StaffNotificationBell = ({
+export const StaffNotificationBell = ({
   connected,
   error,
   loading,
@@ -257,6 +258,11 @@ const StaffNotificationBell = ({
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
     handleNotificationAction(event, item);
+  };
+
+  const handleViewAllClick = (event) => {
+    event.currentTarget.closest('details')?.removeAttribute('open');
+    navigate('/notifications');
   };
 
   return (
@@ -333,6 +339,15 @@ const StaffNotificationBell = ({
             })
           )}
         </div>
+        <footer className="staffNotification__footer">
+          <button
+            type="button"
+            className="staffNotification__viewAllBtn"
+            onClick={handleViewAllClick}
+          >
+            Xem tất cả thông báo
+          </button>
+        </footer>
       </section>
     </details>
   );
@@ -365,8 +380,9 @@ const StaffLayout = () => {
       <SideBar />
       {hasStaffToken && <StaffNotificationBell {...notificationState} />}
       <main className="staffLayout__content">
-        <Outlet />
+        <Outlet context={{ notificationState }} />
       </main>
+      {hasStaffToken && <MobileNavbar notificationState={notificationState} />}
     </div>
   );
 };
