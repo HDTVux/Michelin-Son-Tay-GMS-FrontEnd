@@ -878,3 +878,20 @@ export const fetchInventoryByWarehouse = (warehouseId, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// GET: /api/warehouse/return-entries/defect-details?staffId=...&from=...&to=...
+// Chi tiết từng lỗi của 1 nhân viên — dùng drill-down báo cáo KPI
+export const fetchDefectDetails = (params = {}, token) => {
+  const query = new URLSearchParams();
+  if (params.staffId) query.set('staffId', String(params.staffId));
+  if (params.from) query.set('from', params.from);
+  if (params.to) query.set('to', params.to);
+  const qs = query.toString();
+  const url = qs
+    ? `/api/warehouse/return-entries/defect-details?${qs}`
+    : '/api/warehouse/return-entries/defect-details';
+  return request(url, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
