@@ -5,6 +5,7 @@ import styles from './WarehouseManagement.module.css';
 import {
     fetchWarehouseCatalogItemDetail,
     updateWarehouseCatalogItem,
+    fetchWarehouseItemCategories,
 } from '../../../services/warehouseService.js';
 import { getItemColorText, getItemOriginText } from '../PartManagement/itemFormatters.js';
 
@@ -41,6 +42,8 @@ export default function EditItemModal({ item, onClose, onSaved }) {
     const [origin, setOrigin] = useState('');
     const [color, setColor] = useState('');
     const [description, setDescription] = useState('');
+    const [categories, setCategories] = useState([]);
+    const [workCategoryId, setWorkCategoryId] = useState('');
 
     // Nested Warehouse and Lot fields state
     const [warehouseDetailsState, setWarehouseDetailsState] = useState([]);
@@ -60,11 +63,25 @@ export default function EditItemModal({ item, onClose, onSaved }) {
             setError('');
             try {
                 const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-                const res = await fetchWarehouseCatalogItemDetail(id, token);
+                const [res, catRes] = await Promise.all([
+                    fetchWarehouseCatalogItemDetail(id, token),
+                    fetchWarehouseItemCategories(token)
+                ]);
+
                 const payload = res?.data?.data ?? res?.data ?? res;
                 const base = payload ?? {};
 
+                const catList = Array.isArray(catRes?.data?.data ?? catRes?.data ?? catRes)
+                    ? (catRes?.data?.data ?? catRes?.data ?? catRes)
+                    : [];
+                const mappedCats = catList.map((c) => ({
+                    id: c.itemCategoryId ?? c.workCategoryId ?? c.workCateId ?? c.id,
+                    name: c.categoryName ?? c.name,
+                    type: c.categoryType ?? c.type
+                })).filter(c => c.type === 'PART' && c.id);
+
                 if (!cancelled) {
+                    setCategories(mappedCats);
                     setItemName(base.itemName || '');
                     setSku(base.sku || '');
                     setUnit(base.unit || '');
@@ -72,6 +89,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                     setOrigin(getItemOriginText(base) || '');
                     setColor(getItemColorText(base) || '');
                     setDescription(base.description || '');
+                    setWorkCategoryId(base.workCategoryId != null ? String(base.workCategoryId) : '');
 
                     // Map warehouseDetails hierarchy
                     const whDetails = Array.isArray(base.warehouseDetails) ? base.warehouseDetails : [];
@@ -81,11 +99,14 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                             quantity: getWarehouseOnHandQty(w),
                             reservedQuantity: getWarehouseReservedQty(w),
                             sellingPrice: getWarehouseSellingPrice(w),
+                            hasCustomPricing: w.hasCustomPricing ?? false,
                             lots: Array.isArray(w.lots)
                                 ? w.lots.map((lot) => ({
                                       ...lot,
                                       remainingQuantity: lot.remainingQuantity ?? 0,
                                       sellingPrice: lot.sellingPrice ?? 0,
+                                      importPrice: lot.importPrice ?? 0,
+                                      markupMultiplier: lot.markupMultiplier ?? 1,
                                   }))
                                 : [],
                         }))
@@ -124,7 +145,23 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                 if (idx !== whIndex) return w;
                 const updatedLots = w.lots.map((lot, lIdx) => {
                     if (lIdx !== lotIndex) return lot;
-                    return { ...lot, [field]: value };
+                    const updatedLot = { ...lot, [field]: value };
+
+                    // Recalculations
+                    if (field === 'importPrice' || field === 'markupMultiplier') {
+                        const imp = field === 'importPrice' ? Number(value) : Number(lot.importPrice);
+                        const mul = field === 'markupMultiplier' ? Number(value) : Number(lot.markupMultiplier);
+                        if (Number.isFinite(imp) && Number.isFinite(mul)) {
+                            updatedLot.sellingPrice = Number((imp * mul).toFixed(2));
+                        }
+                    } else if (field === 'sellingPrice') {
+                        const sel = Number(value);
+                        const imp = Number(lot.importPrice);
+                        if (Number.isFinite(sel) && Number.isFinite(imp) && imp > 0) {
+                            updatedLot.markupMultiplier = Number((sel / imp).toFixed(4));
+                        }
+                    }
+                    return updatedLot;
                 });
                 return { ...w, lots: updatedLots };
             })
@@ -139,6 +176,10 @@ export default function EditItemModal({ item, onClose, onSaved }) {
         }
         if (!sku.trim()) {
             toast.error('Mã SKU không được bỏ trống.');
+            return;
+        }
+        if (!workCategoryId) {
+            toast.error('Hạng mục / Nhóm sản phẩm không được bỏ trống.');
             return;
         }
 
@@ -170,6 +211,8 @@ export default function EditItemModal({ item, onClose, onSaved }) {
             for (const lot of w.lots) {
                 const lotQty = Number(lot.remainingQuantity);
                 const lotPrice = Number(lot.sellingPrice);
+                const lotImportPrice = Number(lot.importPrice);
+                const lotMarkup = Number(lot.markupMultiplier);
 
                 if (!Number.isFinite(lotQty) || lotQty < 0) {
                     toast.error(`Số lượng lô "${lot.entryCode}" không hợp lệ.`);
@@ -177,6 +220,14 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                 }
                 if (!Number.isFinite(lotPrice) || lotPrice < 0) {
                     toast.error(`Giá bán lô "${lot.entryCode}" không hợp lệ.`);
+                    return;
+                }
+                if (!Number.isFinite(lotImportPrice) || lotImportPrice < 0) {
+                    toast.error(`Giá nhập lô "${lot.entryCode}" không hợp lệ.`);
+                    return;
+                }
+                if (!Number.isFinite(lotMarkup) || lotMarkup < 0) {
+                    toast.error(`Hệ số markup lô "${lot.entryCode}" không hợp lệ.`);
                     return;
                 }
             }
@@ -197,15 +248,18 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                 origin: origin.trim(),
                 color: color.trim(),
                 description: description.trim(),
+                workCategoryId: workCategoryId === '' ? null : Number(workCategoryId),
                 warehouseDetails: warehouseDetailsState.map((w) => ({
                     warehouseId: w.warehouseId,
                     quantity: Number(w.quantity),
                     reservedQuantity: Number(w.reservedQuantity),
-                    sellingPrice: Number(w.sellingPrice),
+                    sellingPrice: w.hasCustomPricing ? Number(w.sellingPrice) : null,
                     lots: w.lots.map((lot) => ({
                         entryItemId: lot.entryItemId,
                         remainingQuantity: Number(lot.remainingQuantity),
                         sellingPrice: Number(lot.sellingPrice),
+                        importPrice: Number(lot.importPrice),
+                        markupMultiplier: Number(lot.markupMultiplier),
                     })),
                 })),
             };
@@ -275,6 +329,32 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                 </div>
                                 <div className={styles['field-row']}>
                                     <div className={styles['field']}>
+                                        <label htmlFor="edit-item-category">Hạng mục / Nhóm sản phẩm <span className={styles['required']}>*</span></label>
+                                        <select
+                                            id="edit-item-category"
+                                            value={workCategoryId}
+                                            onChange={(e) => setWorkCategoryId(e.target.value)}
+                                            disabled={saving}
+                                            required
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 14px',
+                                                fontSize: '14px',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                backgroundColor: '#ffffff',
+                                                height: '42px'
+                                            }}
+                                        >
+                                            <option value="">-- Chọn hạng mục --</option>
+                                            {categories.map((c) => (
+                                                <option key={String(c.id)} value={String(c.id)}>
+                                                    {c.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className={styles['field']}>
                                         <label htmlFor="edit-item-unit">Đơn vị</label>
                                         <input
                                             id="edit-item-unit"
@@ -283,6 +363,8 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                             disabled={saving}
                                         />
                                     </div>
+                                </div>
+                                <div className={styles['field-row']}>
                                     <div className={styles['field']}>
                                         <label htmlFor="edit-item-price">Giá mặc định (₫)</label>
                                         <input
@@ -293,8 +375,6 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                             disabled={saving}
                                         />
                                     </div>
-                                </div>
-                                <div className={styles['field-row']}>
                                     <div className={styles['field']}>
                                         <label htmlFor="edit-item-origin">Xuất xứ</label>
                                         <input
@@ -304,6 +384,8 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                             disabled={saving}
                                         />
                                     </div>
+                                </div>
+                                <div className={styles['field-row']}>
                                     <div className={styles['field']}>
                                         <label htmlFor="edit-item-color">Màu</label>
                                         <input
@@ -313,6 +395,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                             disabled={saving}
                                         />
                                     </div>
+                                    <div className={styles['field']} />
                                 </div>
                                 <div className={styles['field']}>
                                     <label htmlFor="edit-item-description">Mô tả</label>
@@ -372,9 +455,14 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                     type="number"
                                                     value={w.sellingPrice}
                                                     onChange={(e) => handleWarehouseChange(whIdx, 'sellingPrice', e.target.value)}
-                                                    disabled={saving}
+                                                    disabled={saving || !w.hasCustomPricing}
                                                     min={0}
                                                 />
+                                                {!w.hasCustomPricing && (
+                                                    <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                                                        Chưa cấu hình giá riêng.
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
 
@@ -391,7 +479,9 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                                 <th>Mã lô (Entry Code)</th>
                                                                 <th>Ngày nhập</th>
                                                                 <th>Số lượng tồn lô</th>
-                                                                <th>Đơn giá lô (₫)</th>
+                                                                <th>Giá nhập lô (₫)</th>
+                                                                <th>Hệ số markup</th>
+                                                                <th>Giá bán lô (₫)</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -405,6 +495,27 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                                             value={lot.remainingQuantity}
                                                                             onChange={(e) => handleLotChange(whIdx, lotIdx, 'remainingQuantity', e.target.value)}
                                                                             style={{ padding: '6px 8px', width: '100px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                            disabled={saving}
+                                                                            min={0}
+                                                                        />
+                                                                    </td>
+                                                                    <td>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={lot.importPrice}
+                                                                            onChange={(e) => handleLotChange(whIdx, lotIdx, 'importPrice', e.target.value)}
+                                                                            style={{ padding: '6px 8px', width: '120px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                            disabled={saving}
+                                                                            min={0}
+                                                                        />
+                                                                    </td>
+                                                                    <td>
+                                                                        <input
+                                                                            type="number"
+                                                                            step="0.0001"
+                                                                            value={lot.markupMultiplier}
+                                                                            onChange={(e) => handleLotChange(whIdx, lotIdx, 'markupMultiplier', e.target.value)}
+                                                                            style={{ padding: '6px 8px', width: '90px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                                                             disabled={saving}
                                                                             min={0}
                                                                         />
