@@ -259,12 +259,9 @@ const readSidebarState = (storageKey, fallbackValue) => {
     }
 };
 
-const SideBar = () => {
+const SideBar = ({ isCollapsed, setIsCollapsed }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [isCollapsed, setIsCollapsed] = useState(() => {
-        return localStorage.getItem('sidebarCollapsed') === 'true';
-    });
     const [openGroups, setOpenGroups] = useState(() =>
     ({
         ...Object.fromEntries(NAV_GROUPS.map((g) => [g.id, Boolean(g.defaultOpen)])),
@@ -275,9 +272,6 @@ const SideBar = () => {
         readSidebarState(SIDEBAR_SUBGROUPS_STORAGE_KEY, {})
     );
 
-    useEffect(() => {
-        localStorage.setItem('sidebarCollapsed', isCollapsed);
-    }, [isCollapsed]);
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -393,13 +387,13 @@ const SideBar = () => {
 
     return (
         <aside className={`sidebar ${isCollapsed ? 'is-collapsed' : ''}`}>
-            <div className={`sidebar__profile-container ${isProfileOpen ? 'is-open' : ''}`}>
+            <div className="sidebar__profile-container">
                 <div
                     className="sidebar__profile"
-                    onClick={toggleProfileDropdown}
+                    onClick={() => handleNavClick('/staff-profile')}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && toggleProfileDropdown()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleNavClick('/staff-profile')}
                     aria-label="Thông tin cá nhân"
                 >
                     <div className="sidebar__avatar">
@@ -425,37 +419,6 @@ const SideBar = () => {
                 >
                     {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
                 </button>
-
-                {isProfileOpen && (
-                    <div className="sidebar__profile-dropdown">
-                        {personalItems.map((item) => (
-                            <button
-                                key={item.id}
-                                type="button"
-                                className="sidebar__profile-dropdown-item"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleNavClick(item.path);
-                                }}
-                            >
-                                <span className="dropdown-item__icon">{item.icon}</span>
-                                <span className="dropdown-item__label">{item.label}</span>
-                            </button>
-                        ))}
-                        {personalItems.length > 0 && <hr className="dropdown-divider" />}
-                        <button
-                            type="button"
-                            className="sidebar__profile-dropdown-item logout"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleLogout();
-                            }}
-                        >
-                            <LogOut size={16} />
-                            <span>Đăng xuất</span>
-                        </button>
-                    </div>
-                )}
             </div>
 
             <button

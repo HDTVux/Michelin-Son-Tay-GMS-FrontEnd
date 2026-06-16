@@ -1,9 +1,12 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useState, useEffect } from 'react';
 import { useNotifications } from '../hooks/useNotifications.js';
 import SideBar from './Sidebar/SideBar.jsx';
 import MobileNavbar from './MobileNavbar/MobileNavbar.jsx';
+import StaffHeader from './StaffHeader/StaffHeader.jsx';
 import './StaffLayout.css';
+
+
 
 const base64UrlToBase64 = (value) => {
   const raw = String(value || '').trim();
@@ -358,6 +361,14 @@ const StaffLayout = () => {
   const navigate = useNavigate();
   const hasStaffToken = Boolean(localStorage.getItem('authToken') || localStorage.getItem('staffToken'));
 
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem('sidebarCollapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+  }, [isCollapsed]);
+
   const notificationState = useNotifications({ enabled: hasStaffToken, notifyOnReceive: true });
 
   useLayoutEffect(() => {
@@ -376,11 +387,18 @@ const StaffLayout = () => {
   }, [location.pathname, location.search, navigate]);
 
   return (
-    <div className="staffLayout">
-      <SideBar />
-      {hasStaffToken && <StaffNotificationBell {...notificationState} />}
+    <div className={`staffLayout ${isCollapsed ? 'is-collapsed' : ''}`}>
+      <SideBar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
       <main className="staffLayout__content">
-        <Outlet context={{ notificationState }} />
+        {hasStaffToken && (
+          <StaffHeader
+            notificationState={notificationState}
+            notificationBell={<StaffNotificationBell {...notificationState} />}
+          />
+        )}
+        <div className="staffLayout__page-container">
+          <Outlet context={{ notificationState }} />
+        </div>
       </main>
       {hasStaffToken && <MobileNavbar notificationState={notificationState} />}
     </div>

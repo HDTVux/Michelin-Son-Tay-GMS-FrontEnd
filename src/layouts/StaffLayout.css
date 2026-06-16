@@ -401,3 +401,26 @@
     padding-bottom: 96px !important;
   }
 }
+
+.staffLayout__page-container {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 1025px) {
+  .staffLayout {
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  .staffLayout__content {
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .staffLayout__page-container {
+    padding-top: 64px;
+  }
+}
+
