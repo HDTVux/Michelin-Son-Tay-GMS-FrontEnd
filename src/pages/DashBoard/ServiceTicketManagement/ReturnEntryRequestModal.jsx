@@ -25,6 +25,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
     const [quantity, setQuantity]                     = useState('1');
     const [conditionNote, setConditionNote]           = useState('');
     const [files, setFiles]                           = useState([]);
+    const [fileInputKey, setFileInputKey]             = useState(0);
     const [error, setError]                           = useState('');
     const [staffList, setStaffList]                   = useState([]);
 
@@ -38,6 +39,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
         setQuantity('1');
         setConditionNote('');
         setFiles([]);
+        setFileInputKey((k) => k + 1);
         setError('');
 
         // Fetch danh sách nhân viên ngay khi modal mở
@@ -204,7 +206,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                         <textarea
                             id="return-entry-reason"
                             value={returnReason}
-                            onChange={(e) => setReturnReason(e.target.value)}
+                            onChange={(e) => { setReturnReason(e.target.value); setError(''); }}
                             placeholder="Nhập lý do hoàn trả..."
                             disabled={submitting}
                             rows={3}
@@ -224,7 +226,18 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                                 max={maxQuantity}
                                 step="1"
                                 value={quantity}
-                                onChange={(e) => setQuantity(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setQuantity(val);
+                                    const num = toPositiveNumberOrNull(val);
+                                    if (!num) {
+                                        setError('Số lượng hoàn trả phải lớn hơn 0.');
+                                    } else if (num > maxQuantity) {
+                                        setError(`Số lượng hoàn trả không được vượt quá ${maxQuantity}.`);
+                                    } else {
+                                        setError('');
+                                    }
+                                }}
                                 disabled={submitting}
                                 required
                             />
@@ -238,10 +251,14 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                             </label>
                             <input
                                 id="return-entry-files"
+                                key={fileInputKey}
                                 type="file"
                                 accept="image/*"
                                 multiple
-                                onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, 5))}
+                            onChange={(e) => {
+                                setFiles(Array.from(e.target.files || []).slice(0, 5));
+                                setError('');
+                            }}
                                 disabled={submitting}
                                 required
                             />
@@ -255,7 +272,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                         <input
                             id="return-entry-condition"
                             value={conditionNote}
-                            onChange={(e) => setConditionNote(e.target.value)}
+                            onChange={(e) => { setConditionNote(e.target.value); setError(''); }}
                             placeholder="Ví dụ: Vỏ bị nứt, xước..."
                             disabled={submitting}
                             required
@@ -269,7 +286,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                     <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose} disabled={submitting}>
                         Hủy
                     </button>
-                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleSubmit} disabled={submitting}>
+                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleSubmit} disabled={submitting || !!error}>
                         {submitting ? 'Đang tạo...' : 'Xác nhận hoàn trả'}
                     </button>
                 </div>
