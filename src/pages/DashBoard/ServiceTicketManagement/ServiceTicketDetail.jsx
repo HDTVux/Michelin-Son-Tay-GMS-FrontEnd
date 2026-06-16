@@ -2351,6 +2351,114 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         }
     };
 
+    const promotionSectionJSX = (() => {
+        if (!canApplyPromotionToCurrentEstimate && activePromotionRows.length === 0) return null;
+
+        return (
+            <section className={styles.block} style={{ marginTop: 16, marginBottom: 16 }}>
+                <h2 className={styles.blockTitle}>Mã giảm giá</h2>
+                {activePromotionRows.length > 0 ? (
+                    <div className={styles.promotionSummaryList}>
+                        {activePromotionRows.map((row) => (
+                            <div key={`${row.promotionId || row.promotionCode}`} className={styles.promotionSummary}>
+                                <span className={styles.promotionSummaryLabel}>Đang áp dụng:</span>
+                                <span className={styles.promotionSummaryText}>{row.label}</span>
+                                {(canApplyPromotionToCurrentEstimate ? canUnapplyPromotionRow(row) : canUnapplyPromotionFromCurrentEstimate) ? (
+                                    <button
+                                        type="button"
+                                        className="ui-btn ui-btn--ghost"
+                                        onClick={() => unapplySinglePromotion(row)}
+                                        disabled={promoApplying || !row.promotionId || !row.promotionCode}
+                                    >
+                                        Hủy áp dụng
+                                    </button>
+                                ) : null}
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+                {canApplyPromotionToCurrentEstimate && hasActivePromotionOnCurrentEstimate ? (
+                    <div className={styles.promotionApplied}>
+                        Muốn chọn mã giảm giá khác, vui lòng hủy mã đang áp dụng trước.
+                    </div>
+                ) : null}
+                {canApplyPromotionToCurrentEstimate && (
+                    <div className={styles.promotionGrid}>
+                        {visiblePromotionTypes.map(({ type, label }) => {
+                            const list = Array.isArray(availablePromotions[type]) ? availablePromotions[type] : [];
+                            const appliedLabel = buildPromotionDisplayLabel(appliedPromotions[type], { includeUsageRemaining: false });
+                            const promotionInputsDisabled = !canApplyPromotionToCurrentEstimate
+                                || hasActivePromotionOnCurrentEstimate
+                                || billCreating
+                                || promoApplying;
+                            return (
+                                <div key={type} className={styles.promotionBox}>
+                                    <div className="ui-field" style={{ marginBottom: 0 }}>
+                                        <label htmlFor={`service-ticket-promo-code-${type}`}>{label}</label>
+                                        <input
+                                            id={`service-ticket-promo-code-${type}`}
+                                            value={promoCodes[type] || ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setPromoCodes((prev) => ({ ...prev, [type]: value }));
+                                                if (selectedPromotions[type]) {
+                                                    setSelectedPromotions((prev) => ({ ...prev, [type]: '' }));
+                                                }
+                                            }}
+                                            placeholder="Nhập mã khuyến mãi"
+                                            disabled={promotionInputsDisabled}
+                                        />
+                                    </div>
+                                    <div className="ui-field" style={{ marginBottom: 0 }}>
+                                        <label htmlFor={`service-ticket-promo-${type}`}>Chọn từ danh sách</label>
+                                        <select
+                                            id={`service-ticket-promo-${type}`}
+                                            value={selectedPromotions[type] || ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setSelectedPromotions((prev) => ({ ...prev, [type]: value }));
+                                                if (promoCodes[type]) {
+                                                    setPromoCodes((prev) => ({ ...prev, [type]: '' }));
+                                                }
+                                            }}
+                                            disabled={promotionInputsDisabled || promotionsLoading}
+                                        >
+                                            <option value="">{promotionsLoading ? 'Đang tải...' : '-'}</option>
+                                            {list.map((p) => {
+                                                const id = getPromotionId(p);
+                                                if (!id) return null;
+                                                return (
+                                                    <option key={String(id)} value={String(id)}>
+                                                        {buildPromotionDisplayLabel(p) || String(id)}
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="ui-btn ui-btn--primary"
+                                        onClick={() => applyPromotion(type)}
+                                        disabled={promotionInputsDisabled || (!promoCodes[type] && !selectedPromotions[type])}
+                                    >
+                                        {promoApplying ? 'Đang áp dụng...' : 'Áp dụng'}
+                                    </button>
+                                    {appliedLabel ? (
+                                        <div className={styles.promotionApplied}>
+                                            Đã áp dụng: {appliedLabel}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+                {canApplyPromotionToCurrentEstimate && promotionsError ? <div className={styles.errorBanner} style={{ marginTop: 12 }}>{promotionsError}</div> : null}
+                {canApplyPromotionToCurrentEstimate && promoError ? <div className={styles.errorBanner} style={{ marginTop: 12 }}>{promoError}</div> : null}
+            </section>
+        );
+    })();
+
     // Phần giao diện chi tiết phiếu dịch vụ
     return (
         <div className={styles.page} onClickCapture={handlePageButtonClickCapture}>
@@ -2632,131 +2740,11 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             disableFullEdit={isAddServicePending}
                                             vehicleBrand={ticket?.vehicle?.make || ticket?.vehicle?.brand || ''}
                                             vehicleModel={ticket?.vehicle?.model || ''}
+                                            vehicleOdometer={ticket?.vehicle?.odometerKm}
+                                            promotionSection={promotionSectionJSX}
                                         />
                                     )}
-                            {canApplyPromotionToCurrentEstimate ? (
-                                <section className={styles.block}>
-                                    <h2 className={styles.blockTitle}>Mã giảm giá</h2>
-                                    {activePromotionRows.length > 0 ? (
-                                        <div className={styles.promotionSummaryList}>
-                                            {activePromotionRows.map((row) => (
-                                                <div key={`${row.promotionId || row.promotionCode}`} className={styles.promotionSummary}>
-                                                    <span className={styles.promotionSummaryLabel}>Đang áp dụng:</span>
-                                                    <span className={styles.promotionSummaryText}>{row.label}</span>
-                                                    {canUnapplyPromotionRow(row) ? (
-                                                        <button
-                                                            type="button"
-                                                            className="ui-btn ui-btn--ghost"
-                                                            onClick={() => unapplySinglePromotion(row)}
-                                                            disabled={promoApplying || !row.promotionId || !row.promotionCode}
-                                                        >
-                                                            Hủy áp dụng
-                                                        </button>
-                                                    ) : null}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : null}
-                                    {hasActivePromotionOnCurrentEstimate ? (
-                                        <div className={styles.promotionApplied}>
-                                            Muốn chọn mã giảm giá khác, vui lòng hủy mã đang áp dụng trước.
-                                        </div>
-                                    ) : null}
-                                    <div className={styles.promotionGrid}>
-                                                {visiblePromotionTypes.map(({ type, label }) => {
-                                                    const list = Array.isArray(availablePromotions[type]) ? availablePromotions[type] : [];
-                                                    const appliedLabel = buildPromotionDisplayLabel(appliedPromotions[type], { includeUsageRemaining: false });
-                                                    const promotionInputsDisabled = !canApplyPromotionToCurrentEstimate
-                                                        || hasActivePromotionOnCurrentEstimate
-                                                        || billCreating
-                                                        || promoApplying;
-                                                    return (
-                                                        <div key={type} className={styles.promotionBox}>
-                                                            <div className="ui-field" style={{ marginBottom: 0 }}>
-                                                                <label htmlFor={`service-ticket-promo-code-${type}`}>{label}</label>
-                                                                <input
-                                                                    id={`service-ticket-promo-code-${type}`}
-                                                                    value={promoCodes[type] || ''}
-                                                                    onChange={(e) => {
-                                                                        const value = e.target.value;
-                                                                        setPromoCodes((prev) => ({ ...prev, [type]: value }));
-                                                                        if (selectedPromotions[type]) {
-                                                                            setSelectedPromotions((prev) => ({ ...prev, [type]: '' }));
-                                                                        }
-                                                                    }}
-                                                                    placeholder="Nhập mã khuyến mãi"
-                                                                    disabled={promotionInputsDisabled}
-                                                                />
-                                                            </div>
-                                                            <div className="ui-field" style={{ marginBottom: 0 }}>
-                                                                <label htmlFor={`service-ticket-promo-${type}`}>Chọn từ danh sách</label>
-                                                                <select
-                                                                    id={`service-ticket-promo-${type}`}
-                                                                    value={selectedPromotions[type] || ''}
-                                                                    onChange={(e) => {
-                                                                        const value = e.target.value;
-                                                                        setSelectedPromotions((prev) => ({ ...prev, [type]: value }));
-                                                                        if (promoCodes[type]) {
-                                                                            setPromoCodes((prev) => ({ ...prev, [type]: '' }));
-                                                                        }
-                                                                    }}
-                                                                    disabled={promotionInputsDisabled || promotionsLoading}
-                                                                >
-                                                                    <option value="">{promotionsLoading ? 'Đang tải...' : '-'}</option>
-                                                                    {list.map((p) => {
-                                                                        const id = getPromotionId(p);
-                                                                        if (!id) return null;
-                                                                        return (
-                                                                            <option key={String(id)} value={String(id)}>
-                                                                                {buildPromotionDisplayLabel(p) || String(id)}
-                                                                            </option>
-                                                                        );
-                                                                    })}
-                                                                </select>
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                className="ui-btn ui-btn--primary"
-                                                                onClick={() => applyPromotion(type)}
-                                                                disabled={promotionInputsDisabled || (!promoCodes[type] && !selectedPromotions[type])}
-                                                            >
-                                                                {promoApplying ? 'Đang áp dụng...' : 'Áp dụng'}
-                                                            </button>
-                                                            {appliedLabel ? (
-                                                                <div className={styles.promotionApplied}>
-                                                                    Đã áp dụng: {appliedLabel}
-                                                                </div>
-                                                            ) : null}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                    {promotionsError ? <div className={styles.errorBanner} style={{ marginTop: 12 }}>{promotionsError}</div> : null}
-                                    {promoError ? <div className={styles.errorBanner} style={{ marginTop: 12 }}>{promoError}</div> : null}
-                                </section>
-                            ) : activePromotionRows.length > 0 ? (
-                                <section className={styles.block}>
-                                    <h2 className={styles.blockTitle}>Mã giảm giá</h2>
-                                    <div className={styles.promotionSummaryList}>
-                                        {activePromotionRows.map((row) => (
-                                            <div key={`${row.promotionId || row.promotionCode}`} className={styles.promotionSummary}>
-                                                <span className={styles.promotionSummaryLabel}>Đang áp dụng:</span>
-                                                <span className={styles.promotionSummaryText}>{row.label}</span>
-                                                {canUnapplyPromotionFromCurrentEstimate ? (
-                                                    <button
-                                                        type="button"
-                                                        className="ui-btn ui-btn--ghost"
-                                                        onClick={() => unapplySinglePromotion(row)}
-                                                        disabled={promoApplying || !row.promotionId || !row.promotionCode}
-                                                    >
-                                                        Hủy áp dụng
-                                                    </button>
-                                                ) : null}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </section>
-                            ) : null}
+
                                     {ticket.hasDraftStockIssue && hasAnyRequestableWarehouseDependentItem ? (
                                     <div className={styles.stockWaitBanner}>Hiện có phụ tùng đang đợi xuất kho</div>
                                     ) : null}

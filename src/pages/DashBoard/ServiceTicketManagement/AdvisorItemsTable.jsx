@@ -1002,6 +1002,8 @@ export default function AdvisorItemsTable({
     disableFullEdit = false,
     vehicleBrand = '',
     vehicleModel = '',
+    vehicleOdometer = null,
+    promotionSection = null,
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
@@ -1562,7 +1564,20 @@ export default function AdvisorItemsTable({
 
 
     const [photoPreview, setPhotoPreview] = useState(null);
-    const closePhotoPreview = useCallback(() => setPhotoPreview(null), []);
+    const [isPhotoZoomed, setIsPhotoZoomed] = useState(false);
+    const closePhotoPreview = useCallback(() => {
+        setPhotoPreview(null);
+        setIsPhotoZoomed(false);
+    }, []);
+
+    const CATEGORY_MAP = {
+        FRONT: 'Ảnh trước xe',
+        BACK: 'Ảnh sau xe',
+        LEFT: 'Ảnh sườn trái',
+        RIGHT: 'Ảnh sườn phải',
+        OVERALL: 'Ảnh toàn cảnh',
+        DAMAGE: 'Ảnh vết trầy xước'
+    };
 
     const conditionPhotos = useMemo(() => {
         const allowed = new Set(['FRONT', 'BACK', 'LEFT', 'RIGHT', 'OVERALL', 'DAMAGE']);
@@ -1603,11 +1618,13 @@ export default function AdvisorItemsTable({
                                 <div className={styles.vehiclePhotoGrid}>
                                     {conditionPhotos.map((p, idx) => {
                                         const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
-                                        const label = String(p?.label || p?.category || '').trim();
+                                        const categoryUpper = String(p?.category || '').toUpperCase();
+                                        const translatedCategory = CATEGORY_MAP[categoryUpper] || p?.category || '';
+                                        const label = String(p?.label || '').trim();
+                                        const fallbackLabel = label || translatedCategory || `Ảnh ${idx + 1}`;
                                         const description = String(p?.description || '').trim();
-                                        const fallbackLabel = label || `Ảnh ${idx + 1}`;
                                         const caption = description
-                                            ? (label ? `${label}: ${description}` : description)
+                                            ? (label || translatedCategory ? `${label || translatedCategory}: ${description}` : description)
                                             : fallbackLabel;
                                         return (
                                             <figure key={key} className={styles.vehiclePhotoCard}>
@@ -1617,13 +1634,19 @@ export default function AdvisorItemsTable({
                                                     onClick={() => setPhotoPreview({ url: p?.url, caption })}
                                                     aria-label={`Phóng to: ${caption}`}
                                                 >
-                                                    <img
-                                                        className={styles.vehiclePhotoImg}
-                                                        src={p.url}
-                                                        alt={caption}
-                                                        loading="lazy"
-                                                        referrerPolicy="no-referrer"
-                                                    />
+                                                    <div className={styles.vehiclePhotoContainer}>
+                                                        <img
+                                                            className={styles.vehiclePhotoImg}
+                                                            src={p.url}
+                                                            alt={caption}
+                                                            loading="lazy"
+                                                            referrerPolicy="no-referrer"
+                                                        />
+                                                        <div className={styles.vehiclePhotoOverlay}>
+                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.zoomIcon}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                                                            <span className={styles.overlayText}>Xem ảnh</span>
+                                                        </div>
+                                                    </div>
                                                 </button>
                                                 <figcaption className={styles.vehiclePhotoCaption}>
                                                     <span className={styles.vehiclePhotoLabel}>{fallbackLabel}</span>
@@ -1642,23 +1665,24 @@ export default function AdvisorItemsTable({
                     ) : null}
 
                     {!hideEstimateSummary ? (
-                        <div className={styles.advisorCard}>
-                            <h3 className={styles.advisorTitle}>Ước tính</h3>
-                            <div className={styles.kvList}>
-                                <div className={styles.kvRow}>
-                                    <span className={styles.kvLabel}>Thời gian ước tính hoàn tất:</span>
-                                    <span className={styles.kvValue}>{estimatedTimeDisplay || '-'}</span>
+                        <div className={styles.vehicleInfoCard}>
+                            <div className={styles.vehicleCardHeader}>
+                                <svg className={styles.vehicleCardIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+                                <h3 className={styles.vehicleCardTitle}>Thông tin xe đang sửa</h3>
+                            </div>
+                            <div className={styles.vehicleCardGrid}>
+                                <div className={styles.vehicleGridItem}>
+                                    <span className={styles.vehicleItemLabel}>Hãng sản xuất</span>
+                                    <span className={styles.vehicleItemValue}>{vehicleBrand || '-'}</span>
                                 </div>
-                                <div className={styles.kvRow}>
-                                    <span className={styles.kvLabel}>Chi phí dự kiến</span>
-                                    <span className={styles.kvValue} style={{ fontWeight: 900 }}>
-                                        {estimateCostText}
-                                    </span>
+                                <div className={styles.vehicleGridItem}>
+                                    <span className={styles.vehicleItemLabel}>Dòng xe / Đời xe</span>
+                                    <span className={styles.vehicleItemValue}>{vehicleModel || '-'}</span>
                                 </div>
-                                <div className={styles.kvRow}>
-                                    <span className={styles.kvLabel} />
-                                    <span className={styles.kvValue} style={{ color: 'var(--ui-muted)' }}>
-                                        {errorLine ? '' : statusLine}
+                                <div className={styles.vehicleGridItem}>
+                                    <span className={styles.vehicleItemLabel}>Số Kilômét (Odo)</span>
+                                    <span className={`${styles.vehicleItemValue} ${styles.vehicleOdoValue}`}>
+                                        {vehicleOdometer != null ? `${new Intl.NumberFormat('vi-VN').format(vehicleOdometer)} km` : '-'}
                                     </span>
                                 </div>
                             </div>
@@ -1775,6 +1799,8 @@ export default function AdvisorItemsTable({
                 </div>
             )}
 
+            {promotionSection}
+
             {hideRecommendation ? null : (
                 <>
                     <div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
@@ -1890,6 +1916,11 @@ export default function AdvisorItemsTable({
                         e.preventDefault();
                         closePhotoPreview();
                     }}
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            closePhotoPreview();
+                        }
+                    }}
                     aria-label={photoPreview.caption || 'Xem ảnh'}
                 >
                     <div className={styles.photoModalContent}>
@@ -1899,12 +1930,20 @@ export default function AdvisorItemsTable({
                                 Đóng
                             </button>
                         </div>
-                        <img
-                            className={styles.photoModalImg}
-                            src={photoPreview.url}
-                            alt={photoPreview.caption || 'Ảnh'}
-                            referrerPolicy="no-referrer"
-                        />
+                        <div 
+                            className={`${styles.photoModalBody} ${isPhotoZoomed ? styles.photoBodyZoomed : ''}`}
+                            onClick={() => setIsPhotoZoomed(!isPhotoZoomed)}
+                        >
+                            <img
+                                className={`${styles.photoModalImg} ${isPhotoZoomed ? styles.photoImgZoomed : ''}`}
+                                src={photoPreview.url}
+                                alt={photoPreview.caption || 'Ảnh'}
+                                referrerPolicy="no-referrer"
+                            />
+                            <div className={styles.zoomTip}>
+                                {isPhotoZoomed ? 'Bấm vào ảnh để thu nhỏ' : 'Bấm vào ảnh để phóng to'}
+                            </div>
+                        </div>
                     </div>
                 </dialog>
             ) : null}
@@ -1968,4 +2007,6 @@ AdvisorItemsTable.propTypes = {
     disableFullEdit: PropTypes.bool,
     vehicleBrand: PropTypes.string,
     vehicleModel: PropTypes.string,
+    vehicleOdometer: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    promotionSection: PropTypes.node,
 };

@@ -1072,22 +1072,23 @@
 .vehiclePhotoGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .vehiclePhotoCard {
   margin: 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
   background: white;
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
 }
 
 .vehiclePhotoCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .vehiclePhotoButton {
@@ -1102,42 +1103,99 @@
 }
 
 .vehiclePhotoButton:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.25);
+  outline: 3px solid rgba(59, 130, 246, 0.25);
   outline-offset: 2px;
+}
+
+.vehiclePhotoContainer {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4/3;
+  background: #f1f5f9;
 }
 
 .vehiclePhotoImg {
   width: 100%;
-  height: 130px;
+  height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vehiclePhotoCard:hover .vehiclePhotoImg {
+  transform: scale(1.06);
+}
+
+.vehiclePhotoOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: white;
+}
+
+.vehiclePhotoCard:hover .vehiclePhotoOverlay,
+.vehiclePhotoButton:focus-visible .vehiclePhotoOverlay {
+  opacity: 1;
+}
+
+.zoomIcon {
+  stroke: white;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.vehiclePhotoCard:hover .zoomIcon {
+  transform: scale(1.15) rotate(5deg);
+}
+
+.overlayText {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .vehiclePhotoCaption {
-  padding: 10px;
+  padding: 12px;
   font-size: 12.5px;
   color: #334155;
-  border-top: 1px solid #e2e8f0;
-  line-height: 1.35;
+  border-top: 1px solid #f1f5f9;
+  line-height: 1.4;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   white-space: normal;
-  background: #f8fafc;
+  background: #ffffff;
 }
 
 .vehiclePhotoLabel {
-  font-weight: 700;
-  color: #1e293b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #2563eb; /* Tailwind blue-600 */
+  background: #eff6ff; /* Tailwind blue-50 */
+  padding: 2px 8px;
+  border-radius: 4px;
+  width: fit-content;
+  margin-bottom: 2px;
+  letter-spacing: 0.2px;
+  border: 1px solid #dbeafe;
 }
 
 .vehiclePhotoDescription {
   color: #64748b;
   font-weight: 500;
   overflow-wrap: anywhere;
+  font-size: 12px;
 }
 
 /* Photo preview dialog */
@@ -1147,9 +1205,10 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 20px;
+  padding: 24px;
   border: 0;
-  background: rgba(15, 23, 42, 0.65);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1161,12 +1220,14 @@
 }
 
 .photoModalContent {
-  width: min(100%, 920px);
-  background: white;
-  border-radius: 12px;
+  width: min(100%, 960px);
+  background: #0f172a;
+  border-radius: 16px;
   overflow: hidden;
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
 }
 
 .photoModalHeader {
@@ -1174,26 +1235,105 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0f172a;
 }
 
 .photoModalTitle {
   font-weight: 700;
-  color: #0f172a;
+  color: #f8fafc;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 15px;
+}
+
+.photoModalHeader button {
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.photoModalHeader button:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.photoModalBody {
+  position: relative;
+  width: 100%;
+  height: calc(85vh - 80px);
+  max-height: 650px;
+  min-height: 350px;
+  background: #020617;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.photoBodyZoomed {
+  overflow: auto;
+  display: block;
+}
+
+.photoBodyZoomed::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.photoBodyZoomed::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+.photoBodyZoomed::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+.photoBodyZoomed::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
 .photoModalImg {
-  width: 100%;
-  height: auto;
-  display: block;
-  max-height: calc(100vh - 140px);
+  max-width: 95%;
+  max-height: 95%;
   object-fit: contain;
-  background: #0f172a;
+  cursor: zoom-in;
+  display: block;
+  margin: 0 auto;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.photoImgZoomed {
+  max-width: none;
+  max-height: none;
+  width: 180%;
+  height: auto;
+  cursor: zoom-out;
+}
+
+.zoomTip {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.75);
+  color: #f8fafc;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.photoModalBody:hover .zoomTip {
+  opacity: 1;
 }
 
 /* Maintenance booking popup */
@@ -2116,5 +2256,94 @@
   color: #d32f2f;
   background-color: #ffebee;
 }
+
+/* Redesigned Vehicle Information Card Styles */
+.vehicleInfoCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 16px 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  margin-bottom: 16px;
+  transition: all 0.25s ease;
+  box-sizing: border-box;
+}
+
+.vehicleInfoCard:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
+}
+
+.vehicleCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+
+.vehicleCardIcon {
+  color: #475569;
+}
+
+.vehicleCardTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vehicleCardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.vehicleGridItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.vehicleGridItem:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+}
+
+.vehicleItemLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vehicleItemValue {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.vehicleOdoValue {
+  color: #0d9488;
+}
+
+@media (max-width: 768px) {
+  .vehicleCardGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
 
 

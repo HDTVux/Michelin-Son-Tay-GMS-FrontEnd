@@ -133,7 +133,7 @@ function CatalogPicker({
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState('');
-  const [filterCompatible, setFilterCompatible] = useState(true);
+  const [filterCompatible, setFilterCompatible] = useState(false);
   const [showFilters, setShowFilters] = useState(() => {
     try {
       return typeof window !== 'undefined' && window.innerWidth > 768;
@@ -202,7 +202,7 @@ function CatalogPicker({
       setMinPrice('');
       setMaxPrice('');
       setSortBy('');
-      setFilterCompatible(true);
+      setFilterCompatible(false);
       try {
         setShowFilters(typeof window !== 'undefined' && window.innerWidth > 768);
       } catch {
@@ -345,6 +345,16 @@ function CatalogPicker({
         if (Array.isArray(payload?.content)) content = payload.content;
         else if (Array.isArray(payload)) content = payload;
         if (cancelled) return;
+
+        // If sortBy is empty (default), sort locally to prioritize compatible items.
+        if (!sortBy && (vehicleBrand || vehicleModel)) {
+          content = [...content].sort((a, b) => {
+            const aComp = isItemCompatible(a) ? 1 : 0;
+            const bComp = isItemCompatible(b) ? 1 : 0;
+            return bComp - aComp;
+          });
+        }
+
         setResults(content);
         setTotalElements(Number(payload?.totalElements ?? content.length));
       } catch (err) {
@@ -635,19 +645,22 @@ function CatalogPicker({
 
               {(vehicleBrand || vehicleModel) && (
                 <div className={styles.filterGroupCheckbox}>
-                  <label htmlFor="filterCompatibleCheckbox">Xe tương thích</label>
-                  <div className={styles.checkboxWrapper}>
-                    <input
-                      type="checkbox"
-                      id="filterCompatibleCheckbox"
-                      checked={filterCompatible}
-                      onChange={(e) => {
-                        setFilterCompatible(e.target.checked);
-                        setPage(0);
-                      }}
-                    />
-                    <span className={styles.checkboxLabelText}>
-                      Chỉ hiện phụ tùng/dịch vụ tương thích
+                  <label htmlFor="filterCompatibleToggle">Danh mục tương thích</label>
+                  <div className={`${styles.switchWrapper} ${filterCompatible ? styles.switchWrapperActive : ''}`}>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        id="filterCompatibleToggle"
+                        checked={filterCompatible}
+                        onChange={(e) => {
+                          setFilterCompatible(e.target.checked);
+                          setPage(0);
+                        }}
+                      />
+                      <span className={`${styles.slider} ${styles.round}`}></span>
+                    </label>
+                    <span className={styles.switchLabelText}>
+                      {filterCompatible ? 'Đang bật' : 'Đang tắt'}
                     </span>
                   </div>
                 </div>
@@ -777,19 +790,22 @@ function CatalogPicker({
 
               {(vehicleBrand || vehicleModel) && (
                 <div className={styles.filterGroupCheckboxMobile}>
-                  <label htmlFor="filterCompatibleCheckboxMobile">Xe tương thích</label>
-                  <div className={styles.checkboxWrapper}>
-                    <input
-                      type="checkbox"
-                      id="filterCompatibleCheckboxMobile"
-                      checked={filterCompatible}
-                      onChange={(e) => {
-                        setFilterCompatible(e.target.checked);
-                        setPage(0);
-                      }}
-                    />
-                    <span className={styles.checkboxLabelText}>
-                      Chỉ hiện phụ tùng/dịch vụ tương thích
+                  <label htmlFor="filterCompatibleToggleMobile">Danh mục tương thích</label>
+                  <div className={`${styles.switchWrapper} ${filterCompatible ? styles.switchWrapperActive : ''}`}>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        id="filterCompatibleToggleMobile"
+                        checked={filterCompatible}
+                        onChange={(e) => {
+                          setFilterCompatible(e.target.checked);
+                          setPage(0);
+                        }}
+                      />
+                      <span className={`${styles.slider} ${styles.round}`}></span>
+                    </label>
+                    <span className={styles.switchLabelText}>
+                      {filterCompatible ? 'Đang bật' : 'Đang tắt'}
                     </span>
                   </div>
                 </div>
