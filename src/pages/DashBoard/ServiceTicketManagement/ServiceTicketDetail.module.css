@@ -251,7 +251,30 @@
   padding: 0 4px;
 }
 
-.screenSafetyCheckRow {
+.screenInfoInput {
+  flex-grow: 1;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 4px;
+  min-height: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  padding: 2px 6px;
+  outline: none;
+  background-color: #fff;
+  transition: border-color 0.15s ease-in-out;
+  width: 100%;
+}
+
+.screenInfoInput:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.screenInfoRow:has(.screenInfoInput),
+.screenInfoRowSub:has(.screenInfoInput) {
+  align-items: center;
+}.screenSafetyCheckRow {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -2553,6 +2576,117 @@
   .vehiclePhotoImg {
     height: 100px !important;
   }
+}
+
+/* Inline edit button under handover date */
+.inlineEditBtnWrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.inlineEditBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.inlineEditBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
+}
+
+.inlineEditBtn svg {
+  flex-shrink: 0;
+}
+
+/* Side-by-side layout for License Plate Photos and Customer Request Box */
+.licensePlateAndRequestGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 768px) {
+  .licensePlateAndRequestGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* Inline text area */
+.screenInfoTextarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px 12px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: #334155;
+  background-color: #f8fafc;
+  resize: vertical;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.screenInfoTextarea:focus {
+  border-color: #3b82f6;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  outline: none;
+}
+
+/* Edit action buttons bar */
+.editActionsBar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1.5px solid #e2e8f0;
+}
+
+/* Compact License Plate Photo Gallery styles */
+.licensePlatePhotoGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.licensePlatePhotoCard {
+  width: 90px;
+  height: 60px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: #f1f5f9;
+}
+
+.licensePlatePhotoCard:hover {
+  transform: translateY(-2px);
+  border-color: #3b82f6;
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
+}
+
+.licensePlatePhotoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 

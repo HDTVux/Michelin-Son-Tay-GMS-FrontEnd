@@ -1284,21 +1284,90 @@ function getSaveEditGuardError({ ticketCodeParam, isImmutable }) {
 	return '';
 }
 
+// Chuyển ngày giờ từ server (ISO string, Space separated, or Date object) thành chuẩn datetime-local input YYYY-MM-DDTHH:mm
+function formatDateTimeLocal(dateStr) {
+	if (!dateStr) return '';
+	const raw = String(dateStr).trim();
+	if (raw.includes('T')) {
+		return raw.slice(0, 16);
+	}
+	if (raw.includes(' ')) {
+		return raw.replace(' ', 'T').slice(0, 16);
+	}
+	try {
+		const d = new Date(raw);
+		if (!isNaN(d.getTime())) {
+			const y = d.getFullYear();
+			const m = String(d.getMonth() + 1).padStart(2, '0');
+			const day = String(d.getDate()).padStart(2, '0');
+			const h = String(d.getHours()).padStart(2, '0');
+			const min = String(d.getMinutes()).padStart(2, '0');
+			return `${y}-${m}-${day}T${h}:${min}`;
+		}
+	} catch {}
+	return '';
+}
+
 /**
- * Custom React hook để quản lý form chỉnh sửa yêu cầu khách hàng của ticket.
- * Component ServiceTicketDetail để cho phép lễ tân chỉnh sửa customerRequest.
+ * Custom React hook để quản lý form chỉnh sửa các thông tin của ticket ở đầu trang.
  */
 export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRaw, ticket, setTicketRaw, setError, notify }) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
-	const [editForm, setEditForm] = useState({ customerRequest: '' });
-	const [fieldErrors, setFieldErrors] = useState({ customerRequest: '' });
+	const [editForm, setEditForm] = useState({
+		customerRequest: '',
+		customerName: '',
+		customerPhone: '',
+		customerEmail: '',
+		receivedAt: '',
+		safetyInspectionEnabled: false,
+		vehicleModel: '',
+		licensePlate: '',
+		odometerKm: '',
+		estimatedDeliveryAt: '',
+		deliveredAt: ''
+	});
+	const [fieldErrors, setFieldErrors] = useState({
+		customerRequest: '',
+		customerName: '',
+		customerPhone: '',
+		customerEmail: '',
+		receivedAt: '',
+		safetyInspectionEnabled: '',
+		vehicleModel: '',
+		licensePlate: '',
+		odometerKm: '',
+		estimatedDeliveryAt: '',
+		deliveredAt: ''
+	});
 
 	const CUSTOMER_REQUEST_MAX_LENGTH = 255;
 
 	const initialEditState = useMemo(() => {
 		const request = String(ticketRaw?.customerRequest ?? ticket?.requestNote ?? '').trim();
-		return { request };
+		const customerName = String(ticket?.customer?.name ?? '').trim();
+		const customerPhone = String(ticket?.customer?.phone ?? '').trim();
+		const customerEmail = String(ticket?.customer?.email ?? '').trim();
+		const receivedAt = formatDateTimeLocal(ticket?.receivedAt);
+		const safetyInspectionEnabled = Boolean(ticketRaw?.safetyInspectionEnabled ?? false);
+		const vehicleModel = String(ticket?.vehicle?.model ?? '').trim();
+		const licensePlate = String(ticket?.vehicle?.licensePlate ?? '').trim();
+		const odometerKm = ticket?.vehicle?.odometerKm != null ? String(ticket.vehicle.odometerKm) : '';
+		const estimatedDeliveryAt = formatDateTimeLocal(ticket?.estimatedDeliveryAt);
+		const deliveredAt = formatDateTimeLocal(ticket?.handoverAt);
+		return {
+			request,
+			customerName,
+			customerPhone,
+			customerEmail,
+			receivedAt,
+			safetyInspectionEnabled,
+			vehicleModel,
+			licensePlate,
+			odometerKm,
+			estimatedDeliveryAt,
+			deliveredAt
+		};
 	}, [ticketRaw, ticket]);
 
 	const toggleEdit = useCallback(() => {
@@ -1309,11 +1378,35 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 		}
 
 		setError('');
-		setFieldErrors({ customerRequest: '' });
+		setFieldErrors({
+			customerRequest: '',
+			customerName: '',
+			customerPhone: '',
+			customerEmail: '',
+			receivedAt: '',
+			safetyInspectionEnabled: '',
+			vehicleModel: '',
+			licensePlate: '',
+			odometerKm: '',
+			estimatedDeliveryAt: '',
+			deliveredAt: ''
+		});
 		setIsEditing((prev) => {
 			const next = !prev;
 			if (next) {
-				setEditForm({ customerRequest: initialEditState.request });
+				setEditForm({
+					customerRequest: initialEditState.request,
+					customerName: initialEditState.customerName,
+					customerPhone: initialEditState.customerPhone,
+					customerEmail: initialEditState.customerEmail,
+					receivedAt: initialEditState.receivedAt,
+					safetyInspectionEnabled: initialEditState.safetyInspectionEnabled,
+					vehicleModel: initialEditState.vehicleModel,
+					licensePlate: initialEditState.licensePlate,
+					odometerKm: initialEditState.odometerKm,
+					estimatedDeliveryAt: initialEditState.estimatedDeliveryAt,
+					deliveredAt: initialEditState.deliveredAt
+				});
 			}
 			return next;
 		});
@@ -1324,6 +1417,56 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 	const setCustomerRequest = useCallback((nextValue) => {
 		setEditForm((prev) => ({ ...prev, customerRequest: nextValue }));
 		setFieldErrors((prev) => (prev.customerRequest ? { ...prev, customerRequest: '' } : prev));
+	}, []);
+
+	const setCustomerName = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, customerName: nextValue }));
+		setFieldErrors((prev) => (prev.customerName ? { ...prev, customerName: '' } : prev));
+	}, []);
+
+	const setCustomerPhone = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, customerPhone: nextValue }));
+		setFieldErrors((prev) => (prev.customerPhone ? { ...prev, customerPhone: '' } : prev));
+	}, []);
+
+	const setCustomerEmail = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, customerEmail: nextValue }));
+		setFieldErrors((prev) => (prev.customerEmail ? { ...prev, customerEmail: '' } : prev));
+	}, []);
+
+	const setReceivedAt = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, receivedAt: nextValue }));
+		setFieldErrors((prev) => (prev.receivedAt ? { ...prev, receivedAt: '' } : prev));
+	}, []);
+
+	const setSafetyInspectionEnabled = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, safetyInspectionEnabled: nextValue }));
+		setFieldErrors((prev) => (prev.safetyInspectionEnabled ? { ...prev, safetyInspectionEnabled: '' } : prev));
+	}, []);
+
+	const setVehicleModel = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, vehicleModel: nextValue }));
+		setFieldErrors((prev) => (prev.vehicleModel ? { ...prev, vehicleModel: '' } : prev));
+	}, []);
+
+	const setLicensePlate = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, licensePlate: nextValue }));
+		setFieldErrors((prev) => (prev.licensePlate ? { ...prev, licensePlate: '' } : prev));
+	}, []);
+
+	const setOdometerKm = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, odometerKm: nextValue }));
+		setFieldErrors((prev) => (prev.odometerKm ? { ...prev, odometerKm: '' } : prev));
+	}, []);
+
+	const setEstimatedDeliveryAt = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, estimatedDeliveryAt: nextValue }));
+		setFieldErrors((prev) => (prev.estimatedDeliveryAt ? { ...prev, estimatedDeliveryAt: '' } : prev));
+	}, []);
+
+	const setDeliveredAt = useCallback((nextValue) => {
+		setEditForm((prev) => ({ ...prev, deliveredAt: nextValue }));
+		setFieldErrors((prev) => (prev.deliveredAt ? { ...prev, deliveredAt: '' } : prev));
 	}, []);
 
 	const saveEdit = useCallback(async () => {
@@ -1341,28 +1484,133 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 			return;
 		}
 
-		const validated = validateTextInput(editForm.customerRequest, {
+		// Validations
+		const validatedRequest = validateTextInput(editForm.customerRequest, {
 			fieldLabel: 'Nội dung yêu cầu',
 			required: true,
 			trim: true,
 			maxLength: CUSTOMER_REQUEST_MAX_LENGTH,
 		});
-		if (validated.error) {
+		if (validatedRequest.error) {
 			setError('');
-			setFieldErrors({ customerRequest: validated.error });
+			setFieldErrors((prev) => ({ ...prev, customerRequest: validatedRequest.error }));
 			return;
 		}
 
-		const customerRequest = validated.value;
+		const validatedName = validateTextInput(editForm.customerName, {
+			fieldLabel: 'Họ tên',
+			required: true,
+			trim: true,
+			maxLength: 100,
+		});
+		if (validatedName.error) {
+			setError('');
+			setFieldErrors((prev) => ({ ...prev, customerName: validatedName.error }));
+			return;
+		}
+
+		const validatedPhone = validateTextInput(editForm.customerPhone, {
+			fieldLabel: 'Số điện thoại',
+			required: true,
+			trim: true,
+			maxLength: 20,
+		});
+		if (validatedPhone.error) {
+			setError('');
+			setFieldErrors((prev) => ({ ...prev, customerPhone: validatedPhone.error }));
+			return;
+		}
+		if (!/^\+?[0-9]{9,15}$/.test(validatedPhone.value.replace(/\s+/g, ''))) {
+			setError('');
+			setFieldErrors((prev) => ({ ...prev, customerPhone: 'Số điện thoại không hợp lệ (phải từ 9-15 chữ số)' }));
+			return;
+		}
+
+		if (editForm.customerEmail) {
+			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (!emailRegex.test(editForm.customerEmail.trim())) {
+				setError('');
+				setFieldErrors((prev) => ({ ...prev, customerEmail: 'E-mail không hợp lệ' }));
+				return;
+			}
+		}
+
+		const validatedVehicleModel = validateTextInput(editForm.vehicleModel, {
+			fieldLabel: 'Loại & kiểu xe',
+			required: true,
+			trim: true,
+			maxLength: 100,
+		});
+		if (validatedVehicleModel.error) {
+			setError('');
+			setFieldErrors((prev) => ({ ...prev, vehicleModel: validatedVehicleModel.error }));
+			return;
+		}
+
+		const validatedLicensePlate = validateTextInput(editForm.licensePlate, {
+			fieldLabel: 'Biển số',
+			required: true,
+			trim: true,
+			maxLength: 30,
+		});
+		if (validatedLicensePlate.error) {
+			setError('');
+			setFieldErrors((prev) => ({ ...prev, licensePlate: validatedLicensePlate.error }));
+			return;
+		}
+
+		let odometerKm = null;
+		if (editForm.odometerKm !== '') {
+			const odometerVal = parseInt(String(editForm.odometerKm).replace(/\D/g, ''), 10);
+			if (isNaN(odometerVal) || odometerVal < 0) {
+				setError('');
+				setFieldErrors((prev) => ({ ...prev, odometerKm: 'Số công tơ mét không hợp lệ' }));
+				return;
+			}
+			odometerKm = odometerVal;
+		}
+
+		const customerRequest = validatedRequest.value;
+		const customerName = validatedName.value;
+		const customerPhone = validatedPhone.value;
+		const customerEmail = editForm.customerEmail ? editForm.customerEmail.trim() : '';
+		const receivedAt = editForm.receivedAt ? formatEstimatedDeliveryAtForApi(editForm.receivedAt) : null;
+		const safetyInspectionEnabled = editForm.safetyInspectionEnabled;
+		const vehicleModel = validatedVehicleModel.value;
+		const licensePlate = validatedLicensePlate.value;
+		const estimatedDeliveryAt = editForm.estimatedDeliveryAt ? formatEstimatedDeliveryAtForApi(editForm.estimatedDeliveryAt) : null;
+		const deliveredAt = editForm.deliveredAt ? formatEstimatedDeliveryAtForApi(editForm.deliveredAt) : null;
 
 		try {
 			setIsSaving(true);
 			setError('');
-			setFieldErrors({ customerRequest: '' });
+			setFieldErrors({
+				customerRequest: '',
+				customerName: '',
+				customerPhone: '',
+				customerEmail: '',
+				receivedAt: '',
+				safetyInspectionEnabled: '',
+				vehicleModel: '',
+				licensePlate: '',
+				odometerKm: '',
+				estimatedDeliveryAt: '',
+				deliveredAt: ''
+			});
 			const res = await updateServiceTicket(
 				ticketCodeParam,
 				{
 					customerRequest,
+					customerName,
+					customerPhone,
+					customerEmail,
+					receivedAt,
+					safetyInspectionEnabled,
+					vehicleModel,
+					licensePlate,
+					odometerKm,
+					estimatedDeliveryAt,
+					deliveredAt
 				},
 				token,
 			);
@@ -1375,7 +1623,7 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 		} finally {
 			setIsSaving(false);
 		}
-	}, [isSaving, ticketCodeParam, isImmutable, editForm.customerRequest, setError, setTicketRaw, notify]);
+	}, [isSaving, ticketCodeParam, isImmutable, editForm, setError, setTicketRaw, notify]);
 
 	return {
 		isEditing,
@@ -1384,6 +1632,16 @@ export function useServiceTicketEditing({ ticketCodeParam, isImmutable, ticketRa
 		setEditForm,
 		fieldErrors,
 		setCustomerRequest,
+		setCustomerName,
+		setCustomerPhone,
+		setCustomerEmail,
+		setReceivedAt,
+		setSafetyInspectionEnabled,
+		setVehicleModel,
+		setLicensePlate,
+		setOdometerKm,
+		setEstimatedDeliveryAt,
+		setDeliveredAt,
 		toggleEdit,
 		cancelEdit,
 		saveEdit,

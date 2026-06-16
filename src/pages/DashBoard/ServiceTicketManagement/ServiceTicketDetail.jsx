@@ -208,9 +208,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [maintenancePopupOpen, setMaintenancePopupOpen] = useState(false);
     const [maintenanceDraft, setMaintenanceDraft] = useState({ scheduledAt: '', note: '' });
     const [maintenanceSubmitting, setMaintenanceSubmitting] = useState(false);
-    // State và ref để quản lý popup chỉnh sửa thời gian dự kiến
+
     const [estimateTimePopupOpen, setEstimateTimePopupOpen] = useState(false);
     const [estimatedTimeDraft, setEstimatedTimeDraft] = useState('');
+    const [previewPhotoUrl, setPreviewPhotoUrl] = useState(null);
+    const [isLicensePlateZoomed, setIsLicensePlateZoomed] = useState(false);
+
     // Hàm mở popup đặt lịch bảo dưỡng
     const handleOpenMaintenancePopup = () => {
         setMaintenancePopupOpen(true);
@@ -827,7 +830,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         : ticketStatus === 'PAID'
             ? 'Phiếu dịch vụ đã được thanh toán, không thể chỉnh sửa.'
             : 'Phiếu dịch vụ đã có hóa đơn chờ thanh toán, không thể chỉnh sửa.';
-
     // Các giá trị và hàm liên quan đến luồng chỉnh sửa phiếu dịch vụ
     const {
         isEditing,
@@ -835,6 +837,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         editForm,
         fieldErrors,
         setCustomerRequest,
+        setCustomerName,
+        setCustomerPhone,
+        setCustomerEmail,
+        setReceivedAt,
+        setSafetyInspectionEnabled,
+        setVehicleModel,
+        setLicensePlate,
+        setOdometerKm,
+        setEstimatedDeliveryAt,
+        setDeliveredAt,
         toggleEdit,
         cancelEdit,
         saveEdit,
@@ -847,7 +859,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         setError,
         notify,
     });
-
     // Tính toán giá trị hiển thị của đồng hồ công tơ mét không có thì hiển thị dấu gạch ngang
     const odometerKm = ticket?.vehicle?.odometerKm;
     const odometerDisplay =
@@ -2472,16 +2483,6 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
                                 </div>
                             </div>
-                            {hasReceptionistEditAccess && ticketStatus === 'CREATED' && !isActionLocked && (
-                                <button
-                                    type="button"
-                                    className={`ui-btn ui-btn--ghost ${styles.editBtn}`}
-                                    onClick={toggleEdit}
-                                    disabled={isLoading || isSaving}
-                                >
-                                    {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa'}
-                                </button>
-                            )}
                         </header>
 
                         {error && <div className={styles.errorBanner}>{error}</div>}
@@ -2496,19 +2497,79 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 <div className={`${styles.screenInfoColumn} ${styles.screenInfoColumnLeft}`}>
                                     <div className={styles.screenInfoRow}>
                                         <span className={styles.screenInfoLabel}>Họ tên:</span>
-                                        <div className={styles.screenInfoValueDotted}>{ticket.customer?.name || '-'}</div>
+                                        {isEditing ? (
+                                            <div className="ui-field" style={{ margin: 0, flex: 1 }}>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.customerName}
+                                                    onChange={(e) => setCustomerName(e.target.value)}
+                                                    disabled={isSaving}
+                                                    className={styles.screenInfoInput}
+                                                />
+                                                {fieldErrors?.customerName && (
+                                                    <div className={styles.fieldError}>{fieldErrors.customerName}</div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.screenInfoValueDotted}>{ticket.customer?.name || '-'}</div>
+                                        )}
                                     </div>
 
                                     <div className={styles.screenInfoRowSub}>
                                         <span className={styles.screenInfoLabel}>Điện thoại:</span>
-                                        <div className={styles.screenInfoValueDotted}>{ticket.customer?.phone || '-'}</div>
+                                        {isEditing ? (
+                                            <div className="ui-field" style={{ margin: 0, flex: 1 }}>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.customerPhone}
+                                                    onChange={(e) => setCustomerPhone(e.target.value)}
+                                                    disabled={isSaving}
+                                                    className={styles.screenInfoInput}
+                                                />
+                                                {fieldErrors?.customerPhone && (
+                                                    <div className={styles.fieldError}>{fieldErrors.customerPhone}</div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.screenInfoValueDotted}>{ticket.customer?.phone || '-'}</div>
+                                        )}
                                         <span className={styles.screenInfoLabel} style={{ marginLeft: '12px' }}>E-mail:</span>
-                                        <div className={styles.screenInfoValueDotted}>{ticket.customer?.email || '-'}</div>
+                                        {isEditing ? (
+                                            <div className="ui-field" style={{ margin: 0, flex: 1 }}>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.customerEmail}
+                                                    onChange={(e) => setCustomerEmail(e.target.value)}
+                                                    disabled={isSaving}
+                                                    className={styles.screenInfoInput}
+                                                />
+                                                {fieldErrors?.customerEmail && (
+                                                    <div className={styles.fieldError}>{fieldErrors.customerEmail}</div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.screenInfoValueDotted}>{ticket.customer?.email || '-'}</div>
+                                        )}
                                     </div>
 
                                     <div className={styles.screenInfoRow}>
                                         <span className={styles.screenInfoLabel}>Ngày tiếp nhận:</span>
-                                        <div className={styles.screenInfoValueDotted}>{receivedAtDisplay}</div>
+                                        {isEditing ? (
+                                            <div className="ui-field" style={{ margin: 0, flex: 1 }}>
+                                                <input
+                                                    type="datetime-local"
+                                                    value={editForm.receivedAt}
+                                                    onChange={(e) => setReceivedAt(e.target.value)}
+                                                    disabled={isSaving}
+                                                    className={styles.screenInfoInput}
+                                                />
+                                                {fieldErrors?.receivedAt && (
+                                                    <div className={styles.fieldError}>{fieldErrors.receivedAt}</div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.screenInfoValueDotted}>{receivedAtDisplay}</div>
+                                        )}
                                     </div>
 
                                     <div className={styles.screenInfoRow}>
@@ -2518,35 +2579,106 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
                                     <div className={styles.screenSafetyCheckRow}>
                                         <span className={styles.screenInfoLabel}>Kiểm tra an toàn:</span>
-                                        <div className={styles.screenInlineChecks}>
-                                            <span className={styles.screenCheckItem}>
-                                                <span className={styles.screenCheckBoxSmall}>
-                                                    {ticketRaw?.safetyInspectionEnabled === true ? '✓' : ''}
-                                                </span>{' '}
-                                                Có
-                                            </span>
-                                            <span className={styles.screenCheckItem}>
-                                                <span className={styles.screenCheckBoxSmall}>
-                                                    {ticketRaw?.safetyInspectionEnabled === false ? '✓' : ''}
-                                                </span>{' '}
-                                                Không
-                                            </span>
-                                        </div>
+                                        {isEditing ? (
+                                            <div className={styles.screenInlineChecks}>
+                                                <label className={styles.screenCheckItem} style={{ cursor: 'pointer' }}>
+                                                    <input
+                                                        type="radio"
+                                                        name="safetyInspectionEnabled"
+                                                        checked={editForm.safetyInspectionEnabled === true}
+                                                        onChange={() => setSafetyInspectionEnabled(true)}
+                                                        disabled={isSaving}
+                                                    />
+                                                    Có
+                                                </label>
+                                                <label className={styles.screenCheckItem} style={{ cursor: 'pointer' }}>
+                                                    <input
+                                                        type="radio"
+                                                        name="safetyInspectionEnabled"
+                                                        checked={editForm.safetyInspectionEnabled === false}
+                                                        onChange={() => setSafetyInspectionEnabled(false)}
+                                                        disabled={isSaving}
+                                                    />
+                                                    Không
+                                                </label>
+                                            </div>
+                                        ) : (
+                                            <div className={styles.screenInlineChecks}>
+                                                <span className={styles.screenCheckItem}>
+                                                    <span className={styles.screenCheckBoxSmall}>
+                                                        {ticketRaw?.safetyInspectionEnabled === true ? '✓' : ''}
+                                                    </span>{' '}
+                                                    Có
+                                                </span>
+                                                <span className={styles.screenCheckItem}>
+                                                    <span className={styles.screenCheckBoxSmall}>
+                                                        {ticketRaw?.safetyInspectionEnabled === false ? '✓' : ''}
+                                                    </span>{' '}
+                                                    Không
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
+
                                 </div>
 
                                 {/* Cột Phải: Thông tin xe & lịch hẹn */}
                                 <div className={`${styles.screenInfoColumn} ${styles.screenInfoColumnRight}`}>
                                     <div className={styles.screenInfoRow}>
                                         <span className={styles.screenInfoLabel}>Loại &amp; kiểu xe:</span>
-                                        <div className={styles.screenInfoValueDotted}>{ticket.vehicle?.model || '-'}</div>
+                                        {isEditing ? (
+                                            <div className="ui-field" style={{ margin: 0, flex: 1 }}>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.vehicleModel}
+                                                    onChange={(e) => setVehicleModel(e.target.value)}
+                                                    disabled={isSaving}
+                                                    className={styles.screenInfoInput}
+                                                />
+                                                {fieldErrors?.vehicleModel && (
+                                                    <div className={styles.fieldError}>{fieldErrors.vehicleModel}</div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.screenInfoValueDotted}>{ticket.vehicle?.model || '-'}</div>
+                                        )}
                                     </div>
 
                                     <div className={styles.screenInfoRowSub}>
                                         <span className={styles.screenInfoLabel}>Biển số:</span>
-                                        <div className={styles.screenInfoValueDotted}>{ticket.vehicle?.licensePlate || '-'}</div>
+                                        {isEditing ? (
+                                            <div className="ui-field" style={{ margin: 0, flex: 1 }}>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.licensePlate}
+                                                    onChange={(e) => setLicensePlate(e.target.value)}
+                                                    disabled={isSaving}
+                                                    className={styles.screenInfoInput}
+                                                />
+                                                {fieldErrors?.licensePlate && (
+                                                    <div className={styles.fieldError}>{fieldErrors.licensePlate}</div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.screenInfoValueDotted}>{ticket.vehicle?.licensePlate || '-'}</div>
+                                        )}
                                         <span className={styles.screenInfoLabel} style={{ marginLeft: '12px' }}>Ki-lô-mét:</span>
-                                        <div className={styles.screenInfoValueDotted}>{odometerDisplay}</div>
+                                        {isEditing ? (
+                                            <div className="ui-field" style={{ margin: 0, flex: 1 }}>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.odometerKm}
+                                                    onChange={(e) => setOdometerKm(e.target.value)}
+                                                    disabled={isSaving}
+                                                    className={styles.screenInfoInput}
+                                                />
+                                                {fieldErrors?.odometerKm && (
+                                                    <div className={styles.fieldError}>{fieldErrors.odometerKm}</div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.screenInfoValueDotted}>{odometerDisplay}</div>
+                                        )}
                                     </div>
 
                                     <div className={styles.screenInfoRow}>
@@ -2560,53 +2692,144 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
                                     <div className={styles.screenInfoRow}>
                                         <span className={styles.screenInfoLabel}>Dự kiến hoàn tất:</span>
-                                        <div className={styles.screenInfoValueDotted}>{estimatedTimeDisplay}</div>
+                                        {isEditing ? (
+                                            <div className="ui-field" style={{ margin: 0, flex: 1 }}>
+                                                <input
+                                                    type="datetime-local"
+                                                    value={editForm.estimatedDeliveryAt}
+                                                    onChange={(e) => setEstimatedDeliveryAt(e.target.value)}
+                                                    disabled={isSaving}
+                                                    className={styles.screenInfoInput}
+                                                />
+                                                {fieldErrors?.estimatedDeliveryAt && (
+                                                    <div className={styles.fieldError}>{fieldErrors.estimatedDeliveryAt}</div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.screenInfoValueDotted}>{estimatedTimeDisplay}</div>
+                                        )}
                                     </div>
 
                                     <div className={styles.screenInfoRow}>
                                         <span className={styles.screenInfoLabel}>Ngày bàn giao:</span>
-                                        <div className={styles.screenInfoValueDotted}>{handoverAtDisplay}</div>
+                                        {isEditing ? (
+                                            <div className="ui-field" style={{ margin: 0, flex: 1 }}>
+                                                <input
+                                                    type="datetime-local"
+                                                    value={editForm.deliveredAt}
+                                                    onChange={(e) => setDeliveredAt(e.target.value)}
+                                                    disabled={isSaving}
+                                                    className={styles.screenInfoInput}
+                                                />
+                                                {fieldErrors?.deliveredAt && (
+                                                    <div className={styles.fieldError}>{fieldErrors.deliveredAt}</div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.screenInfoValueDotted}>{handoverAtDisplay}</div>
+                                        )}
                                     </div>
+
+                                    {!isEditing && !isImmutable && (hasAdvisorRole || hasReceptionistRole) && (
+                                        <div className={styles.inlineEditBtnWrapper}>
+                                            <button
+                                                type="button"
+                                                className={`ui-btn ui-btn--primary ${styles.inlineEditBtn}`}
+                                                onClick={toggleEdit}
+                                                title="Chỉnh sửa thông tin"
+                                            >
+                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                    <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                </svg>
+                                                Chỉnh sửa
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            {(licensePlatePhotos.length > 0 || isLoading) && (
-                                <section className={styles.block}>
-                                    <h2 className={styles.blockTitle}>Ảnh biển số xe</h2>
-                                    {licensePlatePhotos.length > 0 ? (
-                                        <div className={styles.vehiclePhotoGrid}>
-                                            {licensePlatePhotos.map((p, idx) => {
-                                                const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
-                                                const label = String(p?.label || p?.category || '').trim();
-                                                const description = String(p?.description || '').trim();
-                                                const fallbackLabel = label || `Ảnh ${idx + 1}`;
-                                                const caption = description
-                                                    ? (label ? `${label}: ${description}` : description)
-                                                    : fallbackLabel;
-                                                return (
-                                                    <figure key={key} className={styles.vehiclePhotoCard}>
-                                                        <img
-                                                            className={styles.vehiclePhotoImg}
-                                                            src={p.url}
-                                                            alt={caption}
-                                                            loading="lazy"
-                                                            referrerPolicy="no-referrer"
-                                                        />
-                                                        <figcaption className={styles.vehiclePhotoCaption}>
-                                                            <span className={styles.vehiclePhotoLabel}>{fallbackLabel}</span>
-                                                            {description ? (
-                                                                <span className={styles.vehiclePhotoDescription}>{description}</span>
-                                                            ) : null}
-                                                        </figcaption>
-                                                    </figure>
-                                                );
-                                            })}
+                            {isEditing && (
+                                <div className={styles.editActionsBar}>
+                                    <button
+                                        type="button"
+                                        className="ui-btn ui-btn--ghost"
+                                        onClick={cancelEdit}
+                                        disabled={isSaving}
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="ui-btn ui-btn--primary"
+                                        onClick={saveEdit}
+                                        disabled={isSaving}
+                                    >
+                                        {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className={styles.licensePlateAndRequestGrid}>
+                                {(licensePlatePhotos.length > 0 || isLoading) && (
+                                    <section className={styles.block} style={{ marginBottom: 0 }}>
+                                        <h2 className={styles.blockTitle}>Ảnh biển số xe</h2>
+                                        {licensePlatePhotos.length > 0 ? (
+                                            <div className={styles.licensePlatePhotoGrid}>
+                                                {licensePlatePhotos.map((p, idx) => {
+                                                    const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
+                                                    return (
+                                                        <div
+                                                            key={key}
+                                                            className={styles.licensePlatePhotoCard}
+                                                            onClick={() => setPreviewPhotoUrl(p.url)}
+                                                            title="Xem ảnh phóng to"
+                                                        >
+                                                            <img
+                                                                className={styles.licensePlatePhotoImg}
+                                                                src={p.url}
+                                                                alt={`Ảnh biển số ${idx + 1}`}
+                                                                loading="lazy"
+                                                                referrerPolicy="no-referrer"
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className={styles.noteBox}>Đang tải...</div>
+                                        )}
+                                    </section>
+                                )}
+
+                                <section className={styles.block} style={{ marginBottom: 0 }}>
+                                    <h2 className={styles.blockTitle}>Yêu cầu khách hàng</h2>
+                                    {isEditing ? (
+                                        <div className="ui-field" style={{ margin: 0 }}>
+                                            <textarea
+                                                id="service-ticket-customer-request"
+                                                value={editForm.customerRequest}
+                                                onChange={(e) => setCustomerRequest(e.target.value)}
+                                                maxLength={255}
+                                                disabled={isSaving}
+                                                className={styles.screenInfoTextarea}
+                                                placeholder="Nhập nội dung yêu cầu"
+                                                style={{ minHeight: '100px' }}
+                                            />
+                                            {fieldErrors?.customerRequest && (
+                                                <div className={styles.fieldError}>{fieldErrors.customerRequest}</div>
+                                            )}
+                                            <div className={styles.fieldHint} style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+                                                Còn lại {Math.max(0, 255 - String(editForm.customerRequest || '').length)} ký tự
+                                            </div>
                                         </div>
                                     ) : (
-                                        <div className={styles.noteBox}>Đang tải...</div>
+                                        <div className={styles.noteBox} style={{ minHeight: '60px' }}>
+                                            {ticket.requestNote || '-'}
+                                        </div>
                                     )}
                                 </section>
-                            )}
+                            </div>
 
                             {(selectedServiceItems.length > 0 || selectedPartItems.length > 0 || isLoading) && (
                                 <section className={styles.block}>
@@ -2653,41 +2876,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 </section>
                             )}
 
-                            {(isEditing || isLoading || (ticket.requestNote && String(ticket.requestNote).trim() !== '')) && (
-                                <section className={styles.block}>
-                                    <h2 className={styles.blockTitle}>Yêu cầu khách hàng</h2>
-                                    {isEditing ? (
-                                        <>
-                                            <div className="ui-field" style={{ marginBottom: 0 }}>
-                                                <label htmlFor="service-ticket-customer-request">Nội dung yêu cầu</label>
-                                                <textarea
-                                                    id="service-ticket-customer-request"
-                                                    value={editForm.customerRequest}
-                                                    onChange={(e) => setCustomerRequest(e.target.value)}
-                                                    maxLength={255}
-                                                    disabled={isSaving}
-                                                />
-                                                {fieldErrors?.customerRequest ? (
-                                                    <div className={styles.fieldError}>{fieldErrors.customerRequest}</div>
-                                                ) : null}
-										<div className={styles.fieldHint}>
-											Còn lại {Math.max(0, 255 - String(editForm.customerRequest || '').length)} ký tự
-										</div>
-                                            </div>
-                                            <div className="ui-actions ui-actions--end">
-                                                <button type="button" className="ui-btn ui-btn--ghost" onClick={cancelEdit} disabled={isSaving}>
-                                                    Hủy
-                                                </button>
-                                                <button type="button" className="ui-btn ui-btn--primary" onClick={saveEdit} disabled={isSaving}>
-                                                    {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
-                                                </button>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className={styles.noteBox}>{ticket.requestNote || (isLoading ? 'Đang tải...' : '-')}</div>
-                                    )}
-                                </section>
-                            )}
+
 
                             {advisorReadOnlyWithoutTechnician ? (
                                 <section className={styles.block}>
@@ -2907,6 +3096,55 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             <div className={styles.printOnly}>
                 <Receipt ticket={printTicket} />
             </div>
+
+
+
+            {previewPhotoUrl && (
+                <dialog
+                    className={styles.photoModalDialog}
+                    open
+                    onClose={() => { setPreviewPhotoUrl(null); setIsLicensePlateZoomed(false); }}
+                    onCancel={(e) => {
+                        e.preventDefault();
+                        setPreviewPhotoUrl(null);
+                        setIsLicensePlateZoomed(false);
+                    }}
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            setPreviewPhotoUrl(null);
+                            setIsLicensePlateZoomed(false);
+                        }
+                    }}
+                    aria-label="Xem ảnh biển số"
+                >
+                    <div className={styles.photoModalContent}>
+                        <div className={styles.photoModalHeader}>
+                            <div className={styles.photoModalTitle}>Ảnh biển số xe</div>
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn--ghost"
+                                onClick={() => { setPreviewPhotoUrl(null); setIsLicensePlateZoomed(false); }}
+                            >
+                                Đóng
+                            </button>
+                        </div>
+                        <div 
+                            className={`${styles.photoModalBody} ${isLicensePlateZoomed ? styles.photoBodyZoomed : ''}`}
+                            onClick={() => setIsLicensePlateZoomed(!isLicensePlateZoomed)}
+                        >
+                            <img
+                                className={`${styles.photoModalImg} ${isLicensePlateZoomed ? styles.photoImgZoomed : ''}`}
+                                src={previewPhotoUrl}
+                                alt="Ảnh biển số xe"
+                                referrerPolicy="no-referrer"
+                            />
+                            <div className={styles.zoomTip}>
+                                {isLicensePlateZoomed ? 'Bấm vào ảnh để thu nhỏ' : 'Bấm vào ảnh để phóng to'}
+                            </div>
+                        </div>
+                    </div>
+                </dialog>
+            )}
         </div>
     );
 }
