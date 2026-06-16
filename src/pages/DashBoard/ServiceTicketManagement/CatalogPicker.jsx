@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, useRef } from 'react';
+import { Fragment, useEffect, useState, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
 // Lưu ý: Nếu bạn để CSS chung thì giữ nguyên dòng này. 
 // Nếu tách file thì đổi thành import styles from './CatalogPicker.module.css';
@@ -118,6 +118,55 @@ function CatalogPicker({
       return false;
     }
   });
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(typeof window !== 'undefined' && window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (itemType) count++;
+    if (brandId) count++;
+    if (productLineId) count++;
+    if (categoryCodeFilter) count++;
+    if (minPrice) count++;
+    if (maxPrice) count++;
+    if (sortBy) count++;
+    return count;
+  }, [itemType, brandId, productLineId, categoryCodeFilter, minPrice, maxPrice, sortBy]);
+
+  // Auto-select warehouse if an item belongs to exactly one warehouse
+  useEffect(() => {
+    if (results && results.length > 0) {
+      setSelectedWarehouseByItemId((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        results.forEach((it) => {
+          const itemKey = String(it?.itemId ?? it?.id ?? '');
+          if (itemKey && next[itemKey] === undefined) {
+            const details = Array.isArray(it?.warehouseDetails) ? it.warehouseDetails : [];
+            if (details.length === 1) {
+              const singleDetail = details[0];
+              const qty = toFiniteNumber(getWarehouseAvailableQty(singleDetail));
+              const outOfStock = qty != null && qty <= 0;
+              if (!outOfStock && singleDetail?.warehouseId != null) {
+                next[itemKey] = String(singleDetail.warehouseId);
+                changed = true;
+              }
+            }
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [results]);
 
   // Mỗi lần mở modal: reset lại lựa chọn kho & bộ lọc (không giữ state lần trước).
   useEffect(() => {
@@ -343,47 +392,92 @@ function CatalogPicker({
       </div>
       <div className={styles.modalBody}>
         <div className={styles.filterSection}>
-          <div className={styles.searchRow}>
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên, SKU..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
-            />
-            <button type="button" className="ui-btn ui-btn--primary" onClick={() => setPage(0)} disabled={loading}>
-              Tìm kiếm
-            </button>
-            <button
-              type="button"
-              className="ui-btn ui-btn--ghost"
-              onClick={() => {
-                setSearch('');
-                setItemType('');
-                setBrandId('');
-                setProductLineId('');
-                setCategoryCodeFilter(categoryCode || '');
-                setMinPrice('');
-                setMaxPrice('');
-                setSortBy('');
-                setPage(0);
-              }}
-              disabled={loading || optionsLoading}
-            >
-              Đặt lại
-            </button>
-            <button
-              type="button"
-              className="ui-btn ui-btn--ghost"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              {showFilters ? 'Ẩn bộ lọc ▲' : 'Bộ lọc ▼'}
-            </button>
-          </div>
+          {!isMobile ? (
+            <div className={styles.searchRow}>
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tên, SKU..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+              />
+              <button type="button" className="ui-btn ui-btn--primary" onClick={() => setPage(0)} disabled={loading}>
+                Tìm kiếm
+              </button>
+              <button
+                type="button"
+                className="ui-btn ui-btn--ghost"
+                onClick={() => {
+                  setSearch('');
+                  setItemType('');
+                  setBrandId('');
+                  setProductLineId('');
+                  setCategoryCodeFilter(categoryCode || '');
+                  setMinPrice('');
+                  setMaxPrice('');
+                  setSortBy('');
+                  setPage(0);
+                }}
+                disabled={loading || optionsLoading}
+              >
+                Đặt lại
+              </button>
+              <button
+                type="button"
+                className="ui-btn ui-btn--ghost"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                {showFilters ? 'Ẩn bộ lọc ▲' : 'Bộ lọc ▼'}
+              </button>
+            </div>
+          ) : (
+            <div className={styles.mobileFilterToggleRow}>
+              <input
+                type="text"
+                placeholder="Tìm kiếm tên, SKU..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+                className={styles.searchBarMobile}
+              />
+              <button
+                type="button"
+                className={`${styles.filterToggleBtn} ${showFilters ? styles.filterToggleBtnActive : ''}`}
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                Bộ lọc
+                {activeFiltersCount > 0 && (
+                  <span className={styles.filterBadge}>{activeFiltersCount}</span>
+                )}
+              </button>
+              <button
+                type="button"
+                className="ui-btn ui-btn--ghost"
+                style={{ padding: '8px 10px', height: '38px' }}
+                onClick={() => {
+                  setSearch('');
+                  setItemType('');
+                  setBrandId('');
+                  setProductLineId('');
+                  setCategoryCodeFilter(categoryCode || '');
+                  setMinPrice('');
+                  setMaxPrice('');
+                  setSortBy('');
+                  setPage(0);
+                }}
+                disabled={loading || optionsLoading}
+              >
+                Đặt lại
+              </button>
+            </div>
+          )}
 
-          {showFilters && (
+          {(!isMobile && showFilters) && (
             <div className={styles.filterGrid}>
               {/* Phân loại */}
               <div className={styles.filterGroup}>
@@ -511,179 +605,543 @@ function CatalogPicker({
               </div>
             </div>
           )}
+
+          {isMobile && (
+            <div className={`${styles.mobileFilterCollapse} ${showFilters ? styles.mobileFilterCollapseOpen : styles.mobileFilterCollapseClosed}`}>
+              <div className={styles.filterGroup}>
+                <label>Phân loại</label>
+                <select
+                  value={itemType}
+                  onChange={(e) => {
+                    setItemType(e.target.value);
+                    setPage(0);
+                  }}
+                >
+                  <option value="">-- Tất cả phân loại --</option>
+                  <option value="PART">Phụ tùng / Sản phẩm</option>
+                  <option value="SERVICE">Dịch vụ</option>
+                  <option value="EQUIPMENT">Thiết bị</option>
+                  <option value="COMBO">Combo</option>
+                  <option value="MAINTENANCE_PACKAGE">Gói bảo dưỡng</option>
+                </select>
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>Hãng sản xuất</label>
+                <select
+                  value={brandId}
+                  onChange={handleBrandChange}
+                  disabled={optionsLoading}
+                >
+                  <option value="">-- Tất cả hãng --</option>
+                  {brandOptions.map((b) => (
+                    <option key={String(b.brandId)} value={String(b.brandId)}>
+                      {b.brandName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>Dòng sản phẩm</label>
+                <select
+                  value={productLineId}
+                  onChange={(e) => {
+                    setProductLineId(e.target.value);
+                    setPage(0);
+                  }}
+                  disabled={optionsLoading}
+                >
+                  <option value="">-- Tất cả dòng --</option>
+                  {productLineOptions
+                    .filter((l) => !brandId || String(l.brandId) === String(brandId))
+                    .map((l) => (
+                      <option key={String(l.productLineId)} value={String(l.productLineId)}>
+                        {l.lineName}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>Nhóm sản phẩm</label>
+                <select
+                  value={categoryCodeFilter}
+                  onChange={(e) => {
+                    setCategoryCodeFilter(e.target.value);
+                    setPage(0);
+                  }}
+                  disabled={optionsLoading}
+                >
+                  <option value="">-- Tất cả nhóm --</option>
+                  {categoryOptions.map((c) => (
+                    <option key={String(c.categoryCode)} value={String(c.categoryCode)}>
+                      [{c.categoryCode}] {c.categoryName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>Giá từ (đ)</label>
+                <input
+                  type="number"
+                  placeholder="Từ..."
+                  value={minPrice}
+                  onChange={(e) => {
+                    setMinPrice(e.target.value);
+                    setPage(0);
+                  }}
+                />
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>Giá đến (đ)</label>
+                <input
+                  type="number"
+                  placeholder="Đến..."
+                  value={maxPrice}
+                  onChange={(e) => {
+                    setMaxPrice(e.target.value);
+                    setPage(0);
+                  }}
+                />
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>Sắp xếp</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value);
+                    setPage(0);
+                  }}
+                >
+                  <option value="">Mặc định</option>
+                  <option value="itemName,asc">Tên: A → Z</option>
+                  <option value="itemName,desc">Tên: Z → A</option>
+                  <option value="price,asc">Giá: Thấp → Cao</option>
+                  <option value="price,desc">Giá: Cao → Thấp</option>
+                  <option value="sku,asc">SKU: A → Z</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
 
         {error ? <div className={styles.errorBanner}>{error}</div> : null}
 
         {loading ? (
-          <div>Đang tải danh mục...</div>
+          <div style={{ padding: '24px 0', textWrap: 'nowrap', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>
+            Đang tải danh mục...
+          </div>
         ) : (
           <>
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Chọn</th>
-                    <th>Tên</th>
-                    <th>SKU</th>
-                    <th>HÃNG</th>
-                    <th>Màu sắc</th>
-                    <th>Xuất xứ</th>
-                    <th>GIÁ</th>
-                    <th>ĐV</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(Array.isArray(results) && results.length > 0) ? (
-                    results.map((it, i) => (
-                      (() => {
-                        const itemKeyRaw = it?.itemId ?? it?.id ?? `res-${i}`;
-                        const itemKey = String(itemKeyRaw);
-                        const itemIdNum = toIdOrNull(it?.itemId ?? it?.id);
-                        const details = Array.isArray(it?.warehouseDetails) ? it.warehouseDetails : [];
-                        const selectedWarehouseId = selectedWarehouseByItemId[itemKey] ?? '';
-                        const selectedDetail = details.find((d) => String(d?.warehouseId) === String(selectedWarehouseId)) || null;
-                        const rawNotify = String(selectedDetail?.notify ?? '').trim();
-                        const notifyText = rawNotify === 'Đang dùng giá nhập kho nhập mới nhất' ? '' : rawNotify;
-                        const hasAnyPrice = (
-                          toFiniteNumber(it?.price) != null
-                          || toFiniteNumber(it?.unitPrice) != null
-                          || details.some((d) => toFiniteNumber(d?.sellingPrice) != null)
-                        );
-
-                        let displayPrice = null;
-                        if (details.length > 0) {
-                          displayPrice = toFiniteNumber(selectedDetail?.sellingPrice ?? (details[0]?.sellingPrice));
-                        } else {
-                          displayPrice = toFiniteNumber(it?.price) ?? toFiniteNumber(it?.unitPrice);
-                        }
-
-                        const canPickAnyWarehouse = details.some((d) => {
-                          const qty = toFiniteNumber(getWarehouseAvailableQty(d));
-                          return qty == null || qty > 0;
-                        });
-
-                        const hasWarehouses = details.length > 0;
-                        let pickDisabled = false;
-                        if (hasWarehouses) {
-                          const hasSelectedWarehouse = Boolean(selectedWarehouseId);
-                          const hasSelectedDetail = Boolean(selectedDetail);
-                          const selectedOutOfStock = selectedDetail ? isOutOfStock(selectedDetail) : false;
-                          pickDisabled = !hasSelectedWarehouse || !hasSelectedDetail || selectedOutOfStock;
-                        }
-
-                        const selectedWarehouseIdNum = hasWarehouses ? toIdOrNull(selectedWarehouseId) : null;
-                        const candidateWarehouseId = hasWarehouses
-                          ? selectedWarehouseIdNum
-                          : toIdOrNull(it?.warehouseId);
-
-                        const candidateKey = itemIdNum ? `${itemIdNum}|${candidateWarehouseId ?? ''}` : '';
-                        const isDuplicateSelection = Boolean(
-                          itemIdNum
-                          && candidateKey
-                          && existingSelectionKeys?.has?.(candidateKey)
-                          && candidateKey !== (excludeSelectionKey ?? ''),
-                        );
-
-                        let priceCellText = '-';
-                        if (hasAnyPrice) {
-                          if (displayPrice != null) priceCellText = formatCurrencyVnd(displayPrice);
-                        } else {
-                          priceCellText = 'Không có dữ liệu về giá';
-                        }
-
-                        let actionControl = null;
-                        if (hasWarehouses) {
-                          const selectControl = (
-                            <select
-                              className={styles.warehouseSelect}
-                              value={selectedWarehouseId}
-                              onChange={(e) => handleWarehouseChange(it, e.target.value)}
-                            >
-                              <option value="" disabled>Chọn kho...</option>
-                              {details.map((d, idx2) => {
-                                const wid = d?.warehouseId;
-                                const name = getWarehouseDisplayName(d);
-                                const qty = toFiniteNumber(getWarehouseAvailableQty(d));
-                                const outOfStock = qty != null && qty <= 0;
-                                let label = name;
-                                if (qty != null) {
-                                  if (outOfStock) label = `${name} (Hết hàng)`;
-                                  else label = `${name} (SL: ${qty})`;
-                                }
-                                return (
-                                  <option key={String(wid ?? `w-${idx2}`)} value={String(wid ?? '')} disabled={outOfStock}>
-                                    {label}
-                                  </option>
-                                );
-                              })}
-                            </select>
+            {!isMobile ? (
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Chọn</th>
+                      <th>Tên</th>
+                      <th>SKU</th>
+                      <th>HÃNG</th>
+                      <th>Màu sắc</th>
+                      <th>Xuất xứ</th>
+                      <th>GIÁ</th>
+                      <th>ĐV</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(Array.isArray(results) && results.length > 0) ? (
+                      results.map((it, i) => (
+                        (() => {
+                          const itemKeyRaw = it?.itemId ?? it?.id ?? `res-${i}`;
+                          const itemKey = String(itemKeyRaw);
+                          const itemIdNum = toIdOrNull(it?.itemId ?? it?.id);
+                          const details = Array.isArray(it?.warehouseDetails) ? it.warehouseDetails : [];
+                          const selectedWarehouseId = selectedWarehouseByItemId[itemKey] ?? '';
+                          const selectedDetail = details.find((d) => String(d?.warehouseId) === String(selectedWarehouseId)) || null;
+                          const rawNotify = String(selectedDetail?.notify ?? '').trim();
+                          const notifyText = rawNotify === 'Đang dùng giá nhập kho nhập mới nhất' ? '' : rawNotify;
+                          const hasAnyPrice = (
+                            toFiniteNumber(it?.price) != null
+                            || toFiniteNumber(it?.unitPrice) != null
+                            || details.some((d) => toFiniteNumber(d?.sellingPrice) != null)
                           );
 
-                          const isPickDisabled = pickDisabled || canPickAnyWarehouse === false || isDuplicateSelection;
+                          let displayPrice = null;
+                          if (details.length > 0) {
+                            displayPrice = toFiniteNumber(selectedDetail?.sellingPrice ?? (details[0]?.sellingPrice));
+                          } else {
+                            displayPrice = toFiniteNumber(it?.price) ?? toFiniteNumber(it?.unitPrice);
+                          }
 
-                          actionControl = (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                              {selectControl}
-                              {canPickAnyWarehouse ? null : <span>Hết hàng</span>}
+                          const canPickAnyWarehouse = details.some((d) => {
+                            const qty = toFiniteNumber(getWarehouseAvailableQty(d));
+                            return qty == null || qty > 0;
+                          });
+
+                          const hasWarehouses = details.length > 0;
+                          let pickDisabled = false;
+                          if (hasWarehouses) {
+                            const hasSelectedWarehouse = Boolean(selectedWarehouseId);
+                            const hasSelectedDetail = Boolean(selectedDetail);
+                            const selectedOutOfStock = selectedDetail ? isOutOfStock(selectedDetail) : false;
+                            pickDisabled = !hasSelectedWarehouse || !hasSelectedDetail || selectedOutOfStock;
+                          }
+
+                          const selectedWarehouseIdNum = hasWarehouses ? toIdOrNull(selectedWarehouseId) : null;
+                          const candidateWarehouseId = hasWarehouses
+                            ? selectedWarehouseIdNum
+                            : toIdOrNull(it?.warehouseId);
+
+                          const candidateKey = itemIdNum ? `${itemIdNum}|${candidateWarehouseId ?? ''}` : '';
+                          const isDuplicateSelection = Boolean(
+                            itemIdNum
+                            && candidateKey
+                            && existingSelectionKeys?.has?.(candidateKey)
+                            && candidateKey !== (excludeSelectionKey ?? ''),
+                          );
+
+                          let priceCellText = '-';
+                          if (hasAnyPrice) {
+                            if (displayPrice != null) priceCellText = formatCurrencyVnd(displayPrice);
+                          } else {
+                            priceCellText = 'Không có dữ liệu về giá';
+                          }
+
+                          let actionControl = null;
+                          if (hasWarehouses) {
+                            const selectControl = (
+                              <select
+                                className={styles.warehouseSelect}
+                                value={selectedWarehouseId}
+                                onChange={(e) => handleWarehouseChange(it, e.target.value)}
+                              >
+                                <option value="" disabled>Chọn kho...</option>
+                                {details.map((d, idx2) => {
+                                  const wid = d?.warehouseId;
+                                  const name = getWarehouseDisplayName(d);
+                                  const qty = toFiniteNumber(getWarehouseAvailableQty(d));
+                                  const outOfStock = qty != null && qty <= 0;
+                                  let label = name;
+                                  if (qty != null) {
+                                    if (outOfStock) label = `${name} (Hết hàng)`;
+                                    else label = `${name} (SL: ${qty})`;
+                                  }
+                                  return (
+                                    <option key={String(wid ?? `w-${idx2}`)} value={String(wid ?? '')} disabled={outOfStock}>
+                                      {label}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            );
+
+                            const isPickDisabled = pickDisabled || canPickAnyWarehouse === false || isDuplicateSelection;
+
+                            actionControl = (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {selectControl}
+                                {canPickAnyWarehouse ? null : <span>Hết hàng</span>}
+                                <button
+                                  type="button"
+                                  className="ui-btn ui-btn--primary"
+                                  onClick={() => handlePickItem(it)}
+                                  disabled={isPickDisabled}
+                                >
+                                  Chọn
+                                </button>
+                              </div>
+                            );
+                          } else {
+                            actionControl = (
                               <button
                                 type="button"
                                 className="ui-btn ui-btn--primary"
                                 onClick={() => handlePickItem(it)}
-                                disabled={isPickDisabled}
+                                disabled={isDuplicateSelection}
                               >
                                 Chọn
                               </button>
-                            </div>
+                            );
+                          }
+                          const rowKey = String(it?.itemId ?? it?.id ?? `res-${i}`);
+                          return (
+                            <Fragment key={rowKey}>
+                              <tr>
+                                <td data-label="Chọn">
+                                  {actionControl}
+                                </td>
+                                <td data-label="Tên">{it?.itemName || it?.name || '-'}</td>
+                                <td data-label="SKU">{it?.sku || '-'}</td>
+                                <td data-label="Hãng">{it?.brand || '-'}</td>
+                                <td data-label="Màu sắc">{it?.color || '-'}</td>
+                                <td data-label="Xuất xứ">{it?.madeIn || '-'}</td>
+                                <td data-label="Giá" className={styles.tdNumber}>{priceCellText}</td>
+                                <td data-label="Đơn vị">{it?.unit || '-'}</td>
+                              </tr>
+                              {notifyText ? (
+                                <tr className={styles.notifyRow}>
+                                  <td className={styles.notifyCell} colSpan={8}>
+                                    {notifyText}
+                                  </td>
+                                </tr>
+                              ) : null}
+                            </Fragment>
                           );
+                        })()
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={8} className={styles.emptyRow}>
+                          Không có kết quả.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className={styles.mobileCardList}>
+                {(Array.isArray(results) && results.length > 0) ? (
+                  results.map((it, i) => {
+                    const itemKeyRaw = it?.itemId ?? it?.id ?? `res-${i}`;
+                    const itemKey = String(itemKeyRaw);
+                    const itemIdNum = toIdOrNull(it?.itemId ?? it?.id);
+                    const details = Array.isArray(it?.warehouseDetails) ? it.warehouseDetails : [];
+                    const selectedWarehouseId = selectedWarehouseByItemId[itemKey] ?? '';
+                    const selectedDetail = details.find((d) => String(d?.warehouseId) === String(selectedWarehouseId)) || null;
+                    const rawNotify = String(selectedDetail?.notify ?? '').trim();
+                    const notifyText = rawNotify === 'Đang dùng giá nhập kho nhập mới nhất' ? '' : rawNotify;
+
+                    const hasAnyPrice = (
+                      toFiniteNumber(it?.price) != null
+                      || toFiniteNumber(it?.unitPrice) != null
+                      || details.some((d) => toFiniteNumber(d?.sellingPrice) != null)
+                    );
+
+                    let displayPrice = null;
+                    if (details.length > 0) {
+                      displayPrice = toFiniteNumber(selectedDetail?.sellingPrice ?? (details[0]?.sellingPrice));
+                    } else {
+                      displayPrice = toFiniteNumber(it?.price) ?? toFiniteNumber(it?.unitPrice);
+                    }
+
+                    const canPickAnyWarehouse = details.some((d) => {
+                      const qty = toFiniteNumber(getWarehouseAvailableQty(d));
+                      return qty == null || qty > 0;
+                    });
+
+                    const hasWarehouses = details.length > 0;
+                    let pickDisabled = false;
+                    if (hasWarehouses) {
+                      const hasSelectedWarehouse = Boolean(selectedWarehouseId);
+                      const hasSelectedDetail = Boolean(selectedDetail);
+                      const selectedOutOfStock = selectedDetail ? isOutOfStock(selectedDetail) : false;
+                      pickDisabled = !hasSelectedWarehouse || !hasSelectedDetail || selectedOutOfStock;
+                    }
+
+                    const selectedWarehouseIdNum = hasWarehouses ? toIdOrNull(selectedWarehouseId) : null;
+                    const candidateWarehouseId = hasWarehouses
+                      ? selectedWarehouseIdNum
+                      : toIdOrNull(it?.warehouseId);
+
+                    const candidateKey = itemIdNum ? `${itemIdNum}|${candidateWarehouseId ?? ''}` : '';
+                    
+                    const hasSelection = existingSelectionKeys && typeof existingSelectionKeys.has === 'function'
+                      ? existingSelectionKeys.has(candidateKey)
+                      : (Array.isArray(existingSelectionKeys) && existingSelectionKeys.includes(candidateKey));
+
+                    const isDuplicateSelection = Boolean(
+                      itemIdNum &&
+                      candidateKey &&
+                      hasSelection &&
+                      candidateKey !== (excludeSelectionKey ?? '')
+                    );
+
+                    let priceCellText = '-';
+                    if (hasAnyPrice) {
+                      if (displayPrice != null) priceCellText = formatCurrencyVnd(displayPrice);
+                    } else {
+                      priceCellText = 'Chưa có giá';
+                    }
+
+                    let typeLabel = 'Sản phẩm';
+                    let typeClass = styles.tagPart;
+                    const itemTypeRaw = it?.itemType ?? 'PART';
+                    if (itemTypeRaw === 'SERVICE') {
+                      typeLabel = 'Dịch vụ';
+                      typeClass = styles.tagService;
+                    } else if (itemTypeRaw === 'EQUIPMENT') {
+                      typeLabel = 'Thiết bị';
+                      typeClass = styles.tagEquipment;
+                    } else if (itemTypeRaw === 'COMBO') {
+                      typeLabel = 'Combo';
+                      typeClass = styles.tagCombo;
+                    } else if (itemTypeRaw === 'MAINTENANCE_PACKAGE') {
+                      typeLabel = 'Gói bảo dưỡng';
+                      typeClass = styles.tagPackage;
+                    }
+
+                    let stockStatusText = '';
+                    let stockStatusClass = '';
+                    if (hasWarehouses) {
+                      if (!selectedWarehouseId) {
+                        stockStatusText = 'Vui lòng chọn kho';
+                        stockStatusClass = styles.stockNone;
+                      } else if (selectedDetail) {
+                        const qty = toFiniteNumber(getWarehouseAvailableQty(selectedDetail));
+                        if (qty != null) {
+                          if (qty <= 0) {
+                            stockStatusText = 'Hết hàng';
+                            stockStatusClass = styles.stockOut;
+                          } else {
+                            stockStatusText = `Còn hàng (Tồn: ${qty})`;
+                            stockStatusClass = styles.stockIn;
+                          }
                         } else {
-                          actionControl = (
+                          stockStatusText = 'Sẵn sàng';
+                          stockStatusClass = styles.stockIn;
+                        }
+                      }
+                    }
+
+                    return (
+                      <div className={styles.mobileCard} key={itemKey}>
+                        <div className={styles.cardHeader}>
+                          <span className={`${styles.typeTag} ${typeClass}`}>
+                            {itemTypeRaw === 'SERVICE' ? (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                            )}
+                            {typeLabel}
+                          </span>
+                          <span className={styles.skuTag}>{it?.sku || 'N/A'}</span>
+                        </div>
+
+                        <h4 className={styles.cardTitle}>{it?.itemName || it?.name || '-'}</h4>
+
+                        <div className={styles.cardSpecsGrid}>
+                          <div className={styles.specItem}>
+                            <span className={styles.specLabel}>Hãng</span>
+                            <span className={styles.specValue} title={it?.brand}>{it?.brand || '-'}</span>
+                          </div>
+                          <div className={styles.specItem}>
+                            <span className={styles.specLabel}>Xuất xứ</span>
+                            <span className={styles.specValue} title={it?.madeIn}>{it?.madeIn || '-'}</span>
+                          </div>
+                          <div className={styles.specItem}>
+                            <span className={styles.specLabel}>Màu sắc</span>
+                            <span className={styles.specValue} title={it?.color}>{it?.color || '-'}</span>
+                          </div>
+                          <div className={styles.specItem}>
+                            <span className={styles.specLabel}>Đơn vị</span>
+                            <span className={styles.specValue} title={it?.unit}>{it?.unit || '-'}</span>
+                          </div>
+                        </div>
+
+                        {hasWarehouses && (
+                          <>
+                            <div className={styles.cardDivider} />
+                            <div className={styles.warehouseSection}>
+                              <label className={styles.warehouseLabel}>
+                                <svg className={styles.warehouseIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                Chọn kho nhận hàng:
+                              </label>
+                              <select
+                                className={styles.warehouseSelectMobile}
+                                value={selectedWarehouseId}
+                                onChange={(e) => handleWarehouseChange(it, e.target.value)}
+                              >
+                                <option value="" disabled>Chọn kho...</option>
+                                {details.map((d, idx2) => {
+                                  const wid = d?.warehouseId;
+                                  const name = getWarehouseDisplayName(d);
+                                  const qty = toFiniteNumber(getWarehouseAvailableQty(d));
+                                  const outOfStock = qty != null && qty <= 0;
+                                  let label = name;
+                                  if (qty != null) {
+                                    if (outOfStock) label = `${name} (Hết hàng)`;
+                                    else label = `${name} (SL: ${qty})`;
+                                  }
+                                  return (
+                                    <option key={String(wid ?? `w-${idx2}`)} value={String(wid ?? '')} disabled={outOfStock}>
+                                      {label}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                              {stockStatusText && (
+                                <div className={`${styles.stockStatus} ${stockStatusClass}`}>
+                                  {stockStatusText === 'Hết hàng' ? (
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                                  ) : stockStatusText === 'Vui lòng chọn kho' ? (
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                  ) : (
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                  )}
+                                  {stockStatusText}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+
+                        {notifyText && (
+                          <div className={styles.mobileNotifyRow}>
+                            {notifyText}
+                          </div>
+                        )}
+
+                        <div className={styles.cardDivider} />
+
+                        <div className={styles.cardFooter}>
+                          <div className={styles.priceContainer}>
+                            <span className={styles.priceLabel}>Giá bán</span>
+                            <span className={styles.priceVal}>{priceCellText}</span>
+                          </div>
+
+                          {isDuplicateSelection ? (
                             <button
                               type="button"
-                              className="ui-btn ui-btn--primary"
-                              onClick={() => handlePickItem(it)}
-                              disabled={isDuplicateSelection}
+                              className={`${styles.mobileActionBtn} ${styles.btnSuccess}`}
+                              disabled
                             >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                              Đã chọn
+                            </button>
+                          ) : hasWarehouses && (pickDisabled || canPickAnyWarehouse === false) ? (
+                            <button
+                              type="button"
+                              className={`${styles.mobileActionBtn} ${styles.btnDisabled}`}
+                              disabled
+                            >
+                              Hết hàng
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className={`${styles.mobileActionBtn} ${styles.btnPrimary}`}
+                              onClick={() => handlePickItem(it)}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                               Chọn
                             </button>
-                          );
-                        }
-                        const rowKey = String(it?.itemId ?? it?.id ?? `res-${i}`);
-                        return (
-                          <Fragment key={rowKey}>
-                            <tr>
-                              <td data-label="Chọn">
-                                {actionControl}
-                              </td>
-                              <td data-label="Tên">{it?.itemName || it?.name || '-'}</td>
-                              <td data-label="SKU">{it?.sku || '-'}</td>
-                              <td data-label="Hãng">{it?.brand || '-'}</td>
-                              <td data-label="Màu sắc">{it?.color || '-'}</td>
-                              <td data-label="Xuất xứ">{it?.madeIn || '-'}</td>
-                              <td data-label="Giá" className={styles.tdNumber}>{priceCellText}</td>
-                              <td data-label="Đơn vị">{it?.unit || '-'}</td>
-                            </tr>
-                            {notifyText ? (
-                              <tr className={styles.notifyRow}>
-                                <td className={styles.notifyCell} colSpan={8}>
-                                  {notifyText}
-                                </td>
-                              </tr>
-                            ) : null}
-                          </Fragment>
-                        );
-                      })()
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={8} className={styles.emptyRow}>
-                        Không có kết quả.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className={styles.emptyRow} style={{ padding: '40px 0', textWrap: 'nowrap', textAlign: 'center', color: '#64748b', fontStyle: 'italic' }}>
+                    Không có kết quả.
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className={styles.modalFooter}>
               {/* Cụm phân trang bên trái */}
@@ -718,7 +1176,6 @@ function CatalogPicker({
                 </button>
               </div>
             </div>
-            {/* KẾT THÚC PHẦN THAY THẾ */}
           </>
         )}
       </div>

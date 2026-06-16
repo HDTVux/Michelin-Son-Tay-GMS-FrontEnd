@@ -15,6 +15,7 @@
   margin: auto; 
   display: flex; /* THÊM Flexbox */
   flex-direction: column; /* Xếp Header và Body từ trên xuống */
+  overflow: hidden; /* Ngăn chặn bất kỳ tràn nào ra ngoài dialog */
 }
 
 /* Lớp nền đen mờ phía sau Modal */
@@ -77,6 +78,7 @@
   flex-direction: column; 
   flex: 1; /* Chiếm toàn bộ không gian còn lại sau khi trừ đi Header */
   overflow: hidden; /* Khóa thanh cuộn tổng, chuyển thanh cuộn vào bên trong bảng */
+  min-height: 0; /* Ngăn flex item nở ra quá khổ */
 }
 
 /* Khung hiển thị lỗi */
@@ -343,11 +345,19 @@
     height: 92vh;
     max-height: 92vh;
     margin: auto;
+    overflow: hidden;
   }
 
   .modalBody {
     padding: 12px;
     gap: 10px;
+    min-height: 0;
+  }
+
+  .mobileFilterCollapse {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px 12px !important;
   }
 
   .filterSection {
@@ -526,5 +536,380 @@
     justify-content: center;
   }
 }
+
+/* ==========================================================================
+   NEW MOBILE CARD VIEW & RECONSTRUCTED MOBILE INTERFACE STYLES (JSX-BASED)
+   ========================================================================== */
+
+.mobileCardList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  padding: 4px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.mobileCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mobileCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.typeTag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tagPart {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #dbeafe;
+}
+
+.tagService {
+  background-color: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #dcfce7;
+}
+
+.tagEquipment {
+  background-color: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #ffedd5;
+}
+
+.tagCombo {
+  background-color: #faf5ff;
+  color: #6b21a8;
+  border: 1px solid #f3e8ff;
+}
+
+.tagPackage {
+  background-color: #fff1f2;
+  color: #be123c;
+  border: 1px solid #ffe4e6;
+}
+
+.skuTag {
+  font-size: 0.7rem;
+  color: #475569;
+  background-color: #f8fafc;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: 'Montserrat', monospace;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+}
+
+.cardTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.4;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardSpecsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.specItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background-color: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+}
+
+.specLabel {
+  font-size: 0.6rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.specValue {
+  font-size: 0.8rem;
+  color: #334155;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardDivider {
+  height: 1px;
+  background-color: #f1f5f9;
+  margin: 2px 0;
+}
+
+.warehouseSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.warehouseLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.warehouseIcon {
+  color: #005aa9;
+  flex-shrink: 0;
+}
+
+.warehouseSelectMobile {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #0f172a;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+  padding-right: 32px;
+}
+
+.warehouseSelectMobile:focus {
+  outline: none;
+  border-color: #005aa9;
+  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.12);
+}
+
+.stockStatus {
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stockIn {
+  color: #16a34a;
+}
+
+.stockOut {
+  color: #dc2626;
+}
+
+.stockNone {
+  color: #ea580c;
+}
+
+.mobileNotifyRow {
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  color: #b45309;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  width: 100%;
+  gap: 12px;
+}
+
+.priceContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.priceLabel {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.priceVal {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #005aa9;
+}
+
+.mobileActionBtn {
+  padding: 10px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 90, 169, 0.12);
+  min-width: 100px;
+}
+
+.btnPrimary {
+  background-color: #005aa9;
+  color: #ffffff;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background-color: #00407f;
+}
+
+.btnSuccess {
+  background-color: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btnDisabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Collapsible Filter Styles */
+.mobileFilterToggleRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.mobileFilterToggleRow input {
+  flex: 1;
+}
+
+.filterToggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 38px;
+}
+
+.filterToggleBtnActive {
+  border-color: #005aa9;
+  color: #005aa9;
+  background-color: #eff6ff;
+}
+
+.filterBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ea580c;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  margin-left: 2px;
+}
+
+.mobileFilterCollapse {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 12px;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease, margin 0.3s ease;
+  background-color: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+}
+
+.mobileFilterCollapse > div:last-child {
+  grid-column: span 2;
+}
+
+.mobileFilterCollapseOpen {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 14px;
+  margin-top: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.mobileFilterCollapseClosed {
+  max-height: 0;
+  padding: 0 14px;
+  border: none;
+  margin-top: 0;
+}
+
 
 
