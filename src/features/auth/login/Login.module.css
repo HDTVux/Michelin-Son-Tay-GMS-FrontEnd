@@ -70,19 +70,7 @@ body {
   opacity: 1;
 }
 
-.loginCard::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0));
-  box-shadow: 0 0 58px rgba(255, 255, 255, 0.98), 0 0 120px rgba(247, 220, 3, 0.55);
-  opacity: 1;
-  z-index: 5;
-}
+/* Removed .loginCard::after which created an undesired vertical white line */
 
 .loginImageSection,
 .loginFormSection {
@@ -575,6 +563,10 @@ body {
     grid-template-columns: 1fr;
     min-height: auto;
     overflow: hidden;
+  }
+
+  .loginCard::before {
+    display: none;
   }
 
   .panelInner {
