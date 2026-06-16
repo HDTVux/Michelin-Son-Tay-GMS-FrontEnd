@@ -39,12 +39,13 @@ const normalizeRoleName = (value) => {
 };
 
 const readStaffRoles = () => {
+  let roles = [];
   try {
     const rawRoles = localStorage.getItem('staffRoles');
     if (rawRoles) {
       const parsedRoles = JSON.parse(rawRoles);
       if (Array.isArray(parsedRoles)) {
-        return parsedRoles
+        roles = parsedRoles
           .filter((role) => typeof role === 'string')
           .map(normalizeRoleName)
           .filter(Boolean);
@@ -52,17 +53,24 @@ const readStaffRoles = () => {
     }
   } catch {}
 
-  try {
-    const rawProfile = localStorage.getItem('staffProfile');
-    const profile = rawProfile ? JSON.parse(rawProfile) : null;
-    const roles = Array.isArray(profile?.role) ? profile.role : [];
-    return roles
-      .filter((role) => typeof role === 'string')
-      .map(normalizeRoleName)
-      .filter(Boolean);
-  } catch {
-    return [];
+  if (roles.length === 0) {
+    try {
+      const rawProfile = localStorage.getItem('staffProfile');
+      const profile = rawProfile ? JSON.parse(rawProfile) : null;
+      const profileRoles = Array.isArray(profile?.role) ? profile.role : [];
+      roles = profileRoles
+        .filter((role) => typeof role === 'string')
+        .map(normalizeRoleName)
+        .filter(Boolean);
+    } catch {
+      roles = [];
+    }
   }
+
+  if (roles.includes('WAREHOUSE_MANAGER') && !roles.includes('WAREHOUSE_KEEPER')) {
+    roles.push('WAREHOUSE_KEEPER');
+  }
+  return roles;
 };
 
 const readStaffProfile = () => {

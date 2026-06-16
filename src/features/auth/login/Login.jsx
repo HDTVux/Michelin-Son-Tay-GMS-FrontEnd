@@ -104,11 +104,19 @@ export default function Login() {
         pin: formData.password,
       });
 
+      let roles = Array.isArray(data?.data?.role) ? data.data.role : [];
+      const normalizedRoles = roles.map(r => String(r).trim().toUpperCase());
+      if (normalizedRoles.includes('WAREHOUSE_MANAGER') || normalizedRoles.includes('ROLE_WAREHOUSE_MANAGER')) {
+        if (!normalizedRoles.includes('WAREHOUSE_KEEPER') && !normalizedRoles.includes('ROLE_WAREHOUSE_KEEPER')) {
+          roles = [...roles, 'WAREHOUSE_KEEPER'];
+        }
+      }
+
       if (data?.data?.token) {
         localStorage.setItem('authToken', data.data.token);
       }
-      if (Array.isArray(data?.data?.role)) {
-        localStorage.setItem('staffRoles', JSON.stringify(data.data.role));
+      if (roles.length > 0) {
+        localStorage.setItem('staffRoles', JSON.stringify(roles));
       } else {
         localStorage.removeItem('staffRoles');
       }
@@ -117,7 +125,7 @@ export default function Login() {
         staffId: data?.data?.staffId ?? null,
         fullName: typeof data?.data?.fullName === 'string' ? data.data.fullName : '',
         avatarUrl: typeof data?.data?.avatarUrl === 'string' ? data.data.avatarUrl : '',
-        role: Array.isArray(data?.data?.role) ? data.data.role : [],
+        role: roles,
       };
 
       if (staffProfile.staffId != null || staffProfile.fullName || staffProfile.avatarUrl) {

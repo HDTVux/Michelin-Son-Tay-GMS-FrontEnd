@@ -59,18 +59,42 @@ const normalizeRoleName = (value) => {
 };
 
 const readStaffRolesFromStorage = () => {
+    let roles = [];
     try {
         const raw = localStorage.getItem('staffRoles');
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return [];
-        return parsed
-            .filter((r) => typeof r === 'string')
-            .map((r) => normalizeRoleName(r))
-            .filter(Boolean);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                roles = parsed
+                    .filter((r) => typeof r === 'string')
+                    .map((r) => normalizeRoleName(r))
+                    .filter(Boolean);
+            }
+        }
     } catch {
-        return [];
+        // ignore storage error
     }
+
+    if (roles.length === 0) {
+        try {
+            const rawProfile = localStorage.getItem('staffProfile');
+            if (rawProfile) {
+                const parsed = JSON.parse(rawProfile);
+                const profileRoles = Array.isArray(parsed?.role) ? parsed.role : [];
+                roles = profileRoles
+                    .filter((r) => typeof r === 'string')
+                    .map((r) => normalizeRoleName(r))
+                    .filter(Boolean);
+            }
+        } catch {
+            roles = [];
+        }
+    }
+
+    if (roles.includes('WAREHOUSE_MANAGER') && !roles.includes('WAREHOUSE_KEEPER')) {
+        roles.push('WAREHOUSE_KEEPER');
+    }
+    return roles;
 };
 
 const readStaffProfileFromStorage = () => {

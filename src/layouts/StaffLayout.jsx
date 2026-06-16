@@ -36,7 +36,13 @@ const persistStaffSessionFromSso = ({ tokenFromUrl, infoFromUrl }) => {
     const decoded = decodeBase64ToUtf8(decodeURIComponent(infoFromUrl));
     const userInfo = JSON.parse(decoded);
 
-    const roles = Array.isArray(userInfo?.role) ? userInfo.role : [];
+    let roles = Array.isArray(userInfo?.role) ? userInfo.role : [];
+    const normalizedRoles = roles.map(r => String(r).trim().toUpperCase());
+    if (normalizedRoles.includes('WAREHOUSE_MANAGER') || normalizedRoles.includes('ROLE_WAREHOUSE_MANAGER')) {
+      if (!normalizedRoles.includes('WAREHOUSE_KEEPER') && !normalizedRoles.includes('ROLE_WAREHOUSE_KEEPER')) {
+        roles = [...roles, 'WAREHOUSE_KEEPER'];
+      }
+    }
     if (roles.length > 0) localStorage.setItem('staffRoles', JSON.stringify(roles));
     else localStorage.removeItem('staffRoles');
 
@@ -112,12 +118,13 @@ const normalizeRoleName = (value) => {
 };
 
 const readStaffRolesForNotificationRouting = () => {
+  let roles = [];
   try {
     const rawRoles = localStorage.getItem('staffRoles');
     if (rawRoles) {
       const parsedRoles = JSON.parse(rawRoles);
       if (Array.isArray(parsedRoles)) {
-        return parsedRoles
+        roles = parsedRoles
           .filter((role) => typeof role === 'string')
           .map((role) => normalizeRoleName(role))
           .filter(Boolean);
@@ -127,17 +134,24 @@ const readStaffRolesForNotificationRouting = () => {
     // Fall back to staffProfile below.
   }
 
-  try {
-    const rawProfile = localStorage.getItem('staffProfile');
-    const profile = rawProfile ? JSON.parse(rawProfile) : null;
-    const roles = Array.isArray(profile?.role) ? profile.role : [];
-    return roles
-      .filter((role) => typeof role === 'string')
-      .map((role) => normalizeRoleName(role))
-      .filter(Boolean);
-  } catch {
-    return [];
+  if (roles.length === 0) {
+    try {
+      const rawProfile = localStorage.getItem('staffProfile');
+      const profile = rawProfile ? JSON.parse(rawProfile) : null;
+      const profileRoles = Array.isArray(profile?.role) ? profile.role : [];
+      roles = profileRoles
+        .filter((role) => typeof role === 'string')
+        .map((role) => normalizeRoleName(role))
+        .filter(Boolean);
+    } catch {
+      roles = [];
+    }
   }
+
+  if (roles.includes('WAREHOUSE_MANAGER') && !roles.includes('WAREHOUSE_KEEPER')) {
+    roles.push('WAREHOUSE_KEEPER');
+  }
+  return roles;
 };
 
 const normalizeSearchText = (value) =>

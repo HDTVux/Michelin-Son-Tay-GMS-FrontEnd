@@ -158,34 +158,42 @@ const normalizeRoleName = (value) => {
 };
 
 const readStaffRolesForRouting = () => {
+  let roles = [];
   try {
     const rawRoles = localStorage.getItem('staffRoles');
     if (rawRoles) {
       const parsedRoles = JSON.parse(rawRoles);
       if (Array.isArray(parsedRoles)) {
-        const normalized = parsedRoles
+        roles = parsedRoles
           .filter((role) => typeof role === 'string')
           .map((role) => normalizeRoleName(role))
           .filter(Boolean);
-        if (normalized.length > 0) return normalized;
       }
     }
   } catch {
     // ignore invalid staffRoles storage
   }
 
-  try {
-    const rawProfile = localStorage.getItem('staffProfile');
-    if (!rawProfile) return [];
-    const parsedProfile = JSON.parse(rawProfile);
-    const profileRoles = Array.isArray(parsedProfile?.role) ? parsedProfile.role : [];
-    return profileRoles
-      .filter((role) => typeof role === 'string')
-      .map((role) => normalizeRoleName(role))
-      .filter(Boolean);
-  } catch {
-    return [];
+  if (roles.length === 0) {
+    try {
+      const rawProfile = localStorage.getItem('staffProfile');
+      if (rawProfile) {
+        const parsedProfile = JSON.parse(rawProfile);
+        const profileRoles = Array.isArray(parsedProfile?.role) ? parsedProfile.role : [];
+        roles = profileRoles
+          .filter((role) => typeof role === 'string')
+          .map((role) => normalizeRoleName(role))
+          .filter(Boolean);
+      }
+    } catch {
+      roles = [];
+    }
   }
+
+  if (roles.includes('WAREHOUSE_MANAGER') && !roles.includes('WAREHOUSE_KEEPER')) {
+    roles.push('WAREHOUSE_KEEPER');
+  }
+  return roles;
 };
 
 const getStaffTokenForRouting = () =>
