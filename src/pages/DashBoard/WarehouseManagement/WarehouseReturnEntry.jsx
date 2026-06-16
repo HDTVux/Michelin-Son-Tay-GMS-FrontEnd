@@ -5,6 +5,7 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import {
   createWarehouseReturnEntryWithAttachments,
   searchWarehouseCatalog,
+  fetchWarehousesAll,
 } from '../../../services/warehouseService.js';
 import styles from './WarehouseReturnEntry.module.css';
 
@@ -50,9 +51,54 @@ export default function WarehouseReturnEntry() {
 
   const notify = (message) => toast(message, { containerId: 'app-toast' });
 
-  const [warehouseId] = useState(DEFAULT_WAREHOUSE_ID);
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehouseLoading, setWarehouseLoading] = useState(false);
+  const [warehouseError, setWarehouseError] = useState('');
+  const [warehouseId, setWarehouseId] = useState(String(DEFAULT_WAREHOUSE_ID));
   const [returnReason, setReturnReason] = useState('');
   const [returnType, setReturnType] = useState('CUSTOMER_RETURN');
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        setWarehouseLoading(true);
+        setWarehouseError('');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+        const res = await fetchWarehousesAll(token);
+        const payload = res?.data?.data ?? res?.data ?? res;
+        const list = Array.isArray(payload) ? payload : [];
+        if (cancelled) return;
+        setWarehouses(list);
+      } catch (err) {
+        if (cancelled) return;
+        setWarehouses([]);
+        setWarehouseError(err?.message || 'Không thể tải danh sách kho.');
+      } finally {
+        if (!cancelled) setWarehouseLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!Array.isArray(warehouses) || warehouses.length === 0) return;
+    const currentIdText = String(warehouseId);
+    const hasCurrent = warehouses.some((w) => String(w?.warehouseId || w?.warehouseID || w?.id) === currentIdText);
+    if (hasCurrent) return;
+
+    const firstActive =
+      warehouses.find((w) => w?.isActive === true && (w?.warehouseId || w?.warehouseID || w?.id)) ||
+      warehouses.find((w) => w?.warehouseId || w?.warehouseID || w?.id) ||
+      null;
+
+    if (firstActive) {
+      setWarehouseId(String(firstActive.warehouseId || firstActive.warehouseID || firstActive.id));
+    }
+  }, [warehouses, warehouseId]);
 
   const [keyword, setKeyword] = useState('');
   const [submittedKeyword, setSubmittedKeyword] = useState('');
@@ -220,7 +266,7 @@ export default function WarehouseReturnEntry() {
     setIsSubmitting(true);
     try {
       const payload = {
-        warehouseId,
+        warehouseId: Number(warehouseId),
         returnReason: reason,
         returnType,
         items: returnItems.map((row) => ({
@@ -266,9 +312,22 @@ export default function WarehouseReturnEntry() {
           <div className={styles.formGrid}>
             <label className={styles.field}>
               <span>Kho</span>
-              <select value={warehouseId} disabled>
-                <option value={1}>Kho Michelin Sơn Tây </option>
+              <select
+                value={warehouseId}
+                onChange={(e) => setWarehouseId(e.target.value)}
+                disabled={warehouseLoading || isSubmitting}
+              >
+                {warehouses.map((w) => {
+                  const idText = String(w?.warehouseId || w?.warehouseID || w?.id || '');
+                  const label = String(w?.warehouseName || w?.name || w?.warehouseCode || idText || '').trim();
+                  return (
+                    <option key={idText} value={idText}>
+                      {label || `KHO #${idText}`}
+                    </option>
+                  );
+                })}
               </select>
+              {warehouseError ? <div className={styles.error}>{warehouseError}</div> : null}
             </label>
             <label className={styles.field}>
               <span>Loại trả hàng</span>

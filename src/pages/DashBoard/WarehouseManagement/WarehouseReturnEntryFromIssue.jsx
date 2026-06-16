@@ -324,6 +324,7 @@ export default function WarehouseReturnEntryFromIssue() {
       // Bước 1: Tạo phiếu hoàn (SUBMITTED)
       const payload = {
         issueId,
+        warehouseId: issue?.warehouseId ? Number(issue.warehouseId) : undefined,
         returnReason: configuredItems.map((c) => c.returnReason).join('; '),
         returnType: returnType || 'CUSTOMER_RETURN',
         items: configuredItems.map((c) => ({

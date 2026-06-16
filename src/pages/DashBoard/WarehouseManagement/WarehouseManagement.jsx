@@ -132,8 +132,8 @@ export default function PartManagement() {
   const [editingItem, setEditingItem] = useState(null);
 
   const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
-  const isManagerOrAdmin = useMemo(() => {
-    return staffRoles.includes('MANAGER') || staffRoles.includes('ADMIN') || staffRoles.includes('ROLE_MANAGER') || staffRoles.includes('ROLE_ADMIN');
+  const isManagerOrWarehouseManager = useMemo(() => {
+    return staffRoles.includes('MANAGER') || staffRoles.includes('WAREHOUSE_MANAGER') || staffRoles.includes('ROLE_MANAGER') || staffRoles.includes('ROLE_WAREHOUSE_MANAGER');
   }, [staffRoles]);
 
   const [warehouses, setWarehouses] = useState([]);
@@ -589,7 +589,7 @@ export default function PartManagement() {
                           >
                             Xem chi tiết
                           </button>
-                          {isManagerOrAdmin && (
+                          {isManagerOrWarehouseManager && (
                             <button
                               className={`${styles['action-btn']} ${styles['edit-btn']}`}
                               onClick={() => setEditingItem(item)}
@@ -668,7 +668,7 @@ export default function PartManagement() {
                     >
                       Xem chi tiết
                     </button>
-                    {isManagerOrAdmin && (
+                    {isManagerOrWarehouseManager && (
                       <button
                         className={`${styles['action-btn']} ${styles['edit-btn']}`}
                         onClick={() => setEditingItem(item)}

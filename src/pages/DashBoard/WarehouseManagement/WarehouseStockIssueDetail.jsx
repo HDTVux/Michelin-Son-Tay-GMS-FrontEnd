@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
@@ -159,10 +159,28 @@ const getAttachmentUrls = (issue) => {
     .filter(Boolean);
 };
 
+const readStaffRolesFromStorage = () => {
+  try {
+    const raw = localStorage.getItem('staffRoles');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(r => String(r).toUpperCase());
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+};
+
 export default function WarehouseStockIssueDetail() {
   useScrollToTop();
   const navigate = useNavigate();
   const params = useParams();
+
+  const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
+  const canConfirm = useMemo(() => {
+    return staffRoles.includes('MANAGER') || staffRoles.includes('WAREHOUSE_MANAGER') || staffRoles.includes('ROLE_MANAGER') || staffRoles.includes('ROLE_WAREHOUSE_MANAGER');
+  }, [staffRoles]);
 
   const [issue, setIssue] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -451,7 +469,7 @@ export default function WarehouseStockIssueDetail() {
 
         {bodyContent}
 
-        {issue && isDraft ? (
+        {issue && isDraft && canConfirm ? (
           <button
             type="button"
             className={`ui-btn ui-btn--primary ${styles.confirmButton}`}

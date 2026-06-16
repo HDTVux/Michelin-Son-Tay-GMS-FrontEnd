@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
@@ -299,10 +299,28 @@ ReturnItemsCard.propTypes = {
   onPreview: PropTypes.func,
 };
 
+const readStaffRolesFromStorage = () => {
+  try {
+    const raw = localStorage.getItem('staffRoles');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(r => String(r).toUpperCase());
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+};
+
 export default function WarehouseReturnEntryDetail() {
   useScrollToTop();
   const navigate = useNavigate();
   const params = useParams();
+
+  const staffRoles = useMemo(() => readStaffRolesFromStorage(), []);
+  const canConfirm = useMemo(() => {
+    return staffRoles.includes('MANAGER') || staffRoles.includes('WAREHOUSE_MANAGER') || staffRoles.includes('ROLE_MANAGER') || staffRoles.includes('ROLE_WAREHOUSE_MANAGER');
+  }, [staffRoles]);
 
   const notify = (message) => toast(message, { containerId: 'app-toast' });
   const [entry, setEntry] = useState(null);
@@ -509,14 +527,16 @@ export default function WarehouseReturnEntryDetail() {
               💡 Khi xác nhận: tồn kho sẽ được cập nhật, hàng DEFECTIVE chuyển vào kho lỗi, allocation được giải phóng.
             </div>
             <div className={styles.actionGroup}>
-              <button
-                type="button"
-                className="ui-btn ui-btn--primary"
-                onClick={handleConfirm}
-                disabled={isConfirming || isCancelling}
-              >
-                {isConfirming ? 'Đang xác nhận...' : '✅ Xác nhận phiếu hoàn'}
-              </button>
+              {canConfirm && (
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--primary"
+                  onClick={handleConfirm}
+                  disabled={isConfirming || isCancelling}
+                >
+                  {isConfirming ? 'Đang xác nhận...' : '✅ Xác nhận phiếu hoàn'}
+                </button>
+              )}
               <button
                 type="button"
                 className="ui-btn ui-btn--danger"
