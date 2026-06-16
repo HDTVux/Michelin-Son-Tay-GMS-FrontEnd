@@ -4,6 +4,7 @@ import { useNotifications } from '../hooks/useNotifications.js';
 import SideBar from './Sidebar/SideBar.jsx';
 import MobileNavbar from './MobileNavbar/MobileNavbar.jsx';
 import StaffHeader from './StaffHeader/StaffHeader.jsx';
+import UserTour from '../components/UserTour/UserTour.jsx';
 import './StaffLayout.css';
 
 
@@ -415,6 +416,7 @@ const StaffLayout = () => {
         </div>
       </main>
       {hasStaffToken && <MobileNavbar notificationState={notificationState} />}
+      <UserTour type="staff" />
     </div>
   );
 };

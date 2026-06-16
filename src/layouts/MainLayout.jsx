@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Header from './Header/Header.jsx';
 import Footer from './Footer/Footer.jsx';
 import BackToTop from '../components/BackToTop/BackToTop.jsx';
+import UserTour from '../components/UserTour/UserTour.jsx';
 import './MainLayout.css';
 
 const MainLayout = () => {
@@ -14,6 +15,7 @@ const MainLayout = () => {
       </main>
       <Footer />
       <BackToTop />
+      <UserTour type="customer" />
     </div>
   );
 };
