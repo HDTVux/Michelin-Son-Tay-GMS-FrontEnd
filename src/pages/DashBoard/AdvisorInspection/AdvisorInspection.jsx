@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { Eye, History, UserPlus, UserCheck, Calendar } from 'lucide-react';
 import {
   fetchAdvisorMyTickets,
   fetchServiceTicketDetail,
@@ -1831,12 +1832,13 @@ export default function AdvisorInspection() {
                         title={getFutureAppointmentTicketMessage(ticket)}
                         onClick={() => toast.info(getFutureAppointmentTicketMessage(ticket))}
                       >
+                        <Calendar size={15} />
                         Chưa đến ngày
                       </button>
                     ) : (
                       <>
                         <button
-                          className={styles.actionBtn}
+                          className={`${styles.actionBtn} ${styles.viewBtn}`}
                           onClick={() => {
                             if (!code) return;
                             navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, {
@@ -1845,6 +1847,7 @@ export default function AdvisorInspection() {
                           }}
                           disabled={!code || swapping}
                         >
+                          <Eye size={15} />
                           Mở
                         </button>
                         <button
@@ -1852,6 +1855,7 @@ export default function AdvisorInspection() {
                           onClick={() => handleOpenRepairHistory(ticket)}
                           disabled={swapping || (!code && !ticketId)}
                         >
+                          <History size={15} />
                           Lịch sử
                         </button>
                         {hasTech ? (
@@ -1860,6 +1864,7 @@ export default function AdvisorInspection() {
                             onClick={() => handleOpenModal(ticket)}
                             disabled={swapping}
                           >
+                            <UserCheck size={15} />
                             Xem phân công
                           </button>
                         ) : (
@@ -1868,6 +1873,7 @@ export default function AdvisorInspection() {
                             onClick={() => handleOpenModal(ticket)}
                             disabled={!ticketId || swapping}
                           >
+                            <UserPlus size={15} />
                             Phân công
                           </button>
                         )}
@@ -1976,12 +1982,13 @@ export default function AdvisorInspection() {
                   title={getFutureAppointmentTicketMessage(ticket)}
                   onClick={() => toast.info(getFutureAppointmentTicketMessage(ticket))}
                 >
+                  <Calendar size={15} />
                   Chưa đến ngày
                 </button>
               ) : (
                 <>
                   <button
-                    className={styles.actionBtn}
+                    className={`${styles.actionBtn} ${styles.viewBtn}`}
                     onClick={() => {
                       if (!code) return;
                       navigate(`/service-ticket-detail/${encodeURIComponent(code)}`, {
@@ -1991,6 +1998,7 @@ export default function AdvisorInspection() {
                     disabled={!code || swapping}
                     title="Mở chi tiết phiếu dịch vụ"
                   >
+                    <Eye size={15} />
                     Mở
                   </button>
                   <button
@@ -1999,14 +2007,17 @@ export default function AdvisorInspection() {
                     disabled={swapping || (!code && !ticketId)}
                     title="Xem lịch sử sửa chữa của xe"
                   >
-                    Lịch sử sửa chữa
+                    <History size={15} />
+                    Lịch sử
                   </button>
                   {hasTech ? (
                     <button
                       className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
                       onClick={() => handleOpenModal(ticket)}
                       disabled={swapping}
+                      title="Xem phân công kỹ thuật viên"
                     >
+                      <UserCheck size={15} />
                       Xem phân công
                     </button>
                   ) : (
@@ -2014,7 +2025,9 @@ export default function AdvisorInspection() {
                       className={`${styles.actionBtn} ${styles.assignBtn}`}
                       onClick={() => handleOpenModal(ticket)}
                       disabled={!ticketId || swapping}
+                      title="Phân công kỹ thuật viên"
                     >
+                      <UserPlus size={15} />
                       Phân công
                     </button>
                   )}
