@@ -904,7 +904,7 @@ function ServiceFormModal({ item, mode = 'create', onClose, onSaved, pageMode = 
       unit: String(unit || '').trim(),
       description: description || undefined,
       warrantyDurationMonths: toNullablePositiveNumber(estimateTime) ?? undefined,
-      serviceServiceId: safeServiceServiceId ?? 0,
+      serviceServiceId: safeServiceServiceId ?? null,
       comboDurationMonths: 0,
       comboDescription: '',
       isRecurring: false,

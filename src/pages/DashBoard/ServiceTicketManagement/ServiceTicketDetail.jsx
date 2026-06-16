@@ -2630,6 +2630,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             readOnlyMessage={inspectionAndEstimateReadOnlyMessage}
                                             hideReadOnlyNotice={false}
                                             disableFullEdit={isAddServicePending}
+                                            vehicleBrand={ticket?.vehicle?.make || ticket?.vehicle?.brand || ''}
+                                            vehicleModel={ticket?.vehicle?.model || ''}
                                         />
                                     )}
                             {canApplyPromotionToCurrentEstimate ? (

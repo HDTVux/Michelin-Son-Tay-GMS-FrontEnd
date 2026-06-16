@@ -5,6 +5,7 @@ import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/
 
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import CompatibleCarsSelector from '../../../components/CompatibleCarsSelector.jsx';
 import { validateTaxName, validateTaxRatePercent } from '../../../components/inputValidation.js';
 import {
 	createWarehouseCatalogItem,
@@ -174,6 +175,7 @@ export default function CreateProduct() {
 	const [color, setColor] = useState(() => initialDraft?.color ?? '');
 	const [customColor, setCustomColor] = useState(() => initialDraft?.customColor ?? '');
 	const [description, setDescription] = useState(() => initialDraft?.description ?? '');
+	const [compatibleCars, setCompatibleCars] = useState(() => initialDraft?.compatibleCars ?? '');
 	// Image file is kept only in component state (no upload at create time)
 	const [imageFile, setImageFile] = useState(null);
 	const [imagePreviewUrl, setImagePreviewUrl] = useState('');
@@ -334,6 +336,7 @@ export default function CreateProduct() {
 			warrantyDurationMonths,
 			selectedProductTaxRuleId,
 			specDrafts,
+			compatibleCars,
 		};
 		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
 		navigate('/part-management/select-category');
@@ -486,6 +489,7 @@ export default function CreateProduct() {
 			warrantyDurationMonths,
 			selectedProductTaxRuleId,
 			specDrafts,
+			compatibleCars,
 		};
 		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
 		navigate('/part-management/select-brand');
@@ -525,6 +529,7 @@ export default function CreateProduct() {
 			warrantyDurationMonths,
 			selectedProductTaxRuleId,
 			specDrafts,
+			compatibleCars,
 		};
 		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
 		navigate('/part-management/select-tax');
@@ -568,6 +573,7 @@ export default function CreateProduct() {
 			warrantyDurationMonths,
 			selectedProductTaxRuleId,
 			specDrafts,
+			compatibleCars,
 		};
 		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
 		navigate('/part-management/select-product-line');
@@ -608,6 +614,7 @@ export default function CreateProduct() {
 			warrantyDurationMonths,
 			selectedProductTaxRuleId,
 			specDrafts,
+			compatibleCars,
 		};
 		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
 		navigate('/part-management/select-origin');
@@ -647,6 +654,7 @@ export default function CreateProduct() {
 			warrantyDurationMonths,
 			selectedProductTaxRuleId,
 			specDrafts,
+			compatibleCars,
 		};
 		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
 		navigate('/part-management/select-color');
@@ -911,7 +919,7 @@ export default function CreateProduct() {
 					itemName,
 					itemType,
 					warrantyDurationMonths: Math.trunc(warrantyNum),
-					serviceServiceId: 0,
+					serviceServiceId: null,
 					sku: skuTrim,
 					price: showPrice ? priceNum : 0,
 					showPrice,
@@ -933,6 +941,7 @@ export default function CreateProduct() {
 					workCategoryId: categoryId,
 					taxRuleId: taxRuleIdNum,
 					tax_rule_id: taxRuleIdNum,
+					compatibleCars: String(compatibleCars || '').trim(),
 				},
 				token,
 			);
@@ -1018,6 +1027,7 @@ export default function CreateProduct() {
 			warrantyDurationMonths,
 			selectedProductTaxRuleId,
 			specDrafts,
+			compatibleCars,
 		};
 		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
 		navigate('/part-management/select-attribute');
@@ -1371,6 +1381,17 @@ export default function CreateProduct() {
 								value={color === OTHER_OPTION_VALUE ? customColor : color}
 								onClick={handleColorInputClick}
 								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
+						</div>
+					</div>
+
+					<div style={{ marginTop: 12 }}>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label>Xe tương thích</label>
+							<CompatibleCarsSelector
+								value={compatibleCars}
+								onChange={setCompatibleCars}
 								disabled={Boolean(createdCatalogItemId)}
 							/>
 						</div>

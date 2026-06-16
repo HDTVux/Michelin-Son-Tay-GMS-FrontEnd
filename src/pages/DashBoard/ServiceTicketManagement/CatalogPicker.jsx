@@ -77,8 +77,30 @@ function CatalogPicker({
   pageSize = 10,
   initQuery = '',
   categoryCode = '',
+  vehicleBrand = '',
+  vehicleModel = '',
 }) {
   const dialogRef = useRef(null); // Tạo ref để điều khiển thẻ dialog
+
+  const isItemCompatible = (item) => {
+    if (!vehicleBrand && !vehicleModel) return false;
+    const comp = String(item?.compatibleCars || '').trim();
+    if (!comp) return true; // Empty/universal compatibility
+
+    const compLower = comp.toLowerCase();
+    if (vehicleBrand) {
+      const brandLower = vehicleBrand.toLowerCase().trim();
+      if (compLower.includes(brandLower)) return true;
+    }
+    if (vehicleModel) {
+      const modelLower = vehicleModel.toLowerCase().trim();
+      if (compLower.includes(modelLower)) return true;
+
+      const firstWord = modelLower.split(/\s+/)[0];
+      if (firstWord && compLower.includes(firstWord)) return true;
+    }
+    return false;
+  };
 
   const [search, setSearch] = useState(initialSearch || initQuery);
   const [page, setPage] = useState(() => {
@@ -111,6 +133,7 @@ function CatalogPicker({
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState('');
+  const [filterCompatible, setFilterCompatible] = useState(true);
   const [showFilters, setShowFilters] = useState(() => {
     try {
       return typeof window !== 'undefined' && window.innerWidth > 768;
@@ -179,6 +202,7 @@ function CatalogPicker({
       setMinPrice('');
       setMaxPrice('');
       setSortBy('');
+      setFilterCompatible(true);
       try {
         setShowFilters(typeof window !== 'undefined' && window.innerWidth > 768);
       } catch {
@@ -307,6 +331,11 @@ function CatalogPicker({
         if (maxPrice) params.maxPrice = maxPrice;
         if (sortBy) params.sortBy = sortBy;
 
+        if (filterCompatible) {
+          if (vehicleBrand) params.vehicleBrand = vehicleBrand;
+          if (vehicleModel) params.vehicleModel = vehicleModel;
+        }
+
         const res = await searchWarehouseCatalogItemsDetail(params, token);
         // New API returns: { success, ..., data: { content, totalElements, ... } }
         // Keep backward-compat: if data wrapper is absent, use response directly.
@@ -331,7 +360,7 @@ function CatalogPicker({
     return () => {
       cancelled = true;
     };
-  }, [open, page, size, search, categoryCodeFilter, itemType, brandId, productLineId, minPrice, maxPrice, sortBy]);
+  }, [open, page, size, search, categoryCodeFilter, itemType, brandId, productLineId, minPrice, maxPrice, sortBy, filterCompatible, vehicleBrand, vehicleModel]);
 
   const handlePick = (item, warehouseDetail) => {
     onPick?.(item, warehouseDetail);
@@ -603,6 +632,26 @@ function CatalogPicker({
                   <option value="sku,asc">SKU: A → Z</option>
                 </select>
               </div>
+
+              {(vehicleBrand || vehicleModel) && (
+                <div className={styles.filterGroupCheckbox}>
+                  <label htmlFor="filterCompatibleCheckbox">Xe tương thích</label>
+                  <div className={styles.checkboxWrapper}>
+                    <input
+                      type="checkbox"
+                      id="filterCompatibleCheckbox"
+                      checked={filterCompatible}
+                      onChange={(e) => {
+                        setFilterCompatible(e.target.checked);
+                        setPage(0);
+                      }}
+                    />
+                    <span className={styles.checkboxLabelText}>
+                      Chỉ hiện phụ tùng/dịch vụ tương thích
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -725,6 +774,26 @@ function CatalogPicker({
                   <option value="sku,asc">SKU: A → Z</option>
                 </select>
               </div>
+
+              {(vehicleBrand || vehicleModel) && (
+                <div className={styles.filterGroupCheckboxMobile}>
+                  <label htmlFor="filterCompatibleCheckboxMobile">Xe tương thích</label>
+                  <div className={styles.checkboxWrapper}>
+                    <input
+                      type="checkbox"
+                      id="filterCompatibleCheckboxMobile"
+                      checked={filterCompatible}
+                      onChange={(e) => {
+                        setFilterCompatible(e.target.checked);
+                        setPage(0);
+                      }}
+                    />
+                    <span className={styles.checkboxLabelText}>
+                      Chỉ hiện phụ tùng/dịch vụ tương thích
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -874,7 +943,16 @@ function CatalogPicker({
                                 <td data-label="Chọn">
                                   {actionControl}
                                 </td>
-                                <td data-label="Tên">{it?.itemName || it?.name || '-'}</td>
+                                <td data-label="Tên">
+                                  <div className={styles.nameCellWrapper}>
+                                    <span className={styles.itemNameText}>{it?.itemName || it?.name || '-'}</span>
+                                    {isItemCompatible(it) && (
+                                      <span className={styles.compatibleBadge} title={`Tương thích với xe ${vehicleBrand} ${vehicleModel}`}>
+                                        ✓ Tương thích
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
                                 <td data-label="SKU">{it?.sku || '-'}</td>
                                 <td data-label="Hãng">{it?.brand || '-'}</td>
                                 <td data-label="Màu sắc">{it?.color || '-'}</td>
@@ -1022,7 +1100,14 @@ function CatalogPicker({
                           <span className={styles.skuTag}>{it?.sku || 'N/A'}</span>
                         </div>
 
-                        <h4 className={styles.cardTitle}>{it?.itemName || it?.name || '-'}</h4>
+                        <h4 className={styles.cardTitle}>
+                          {it?.itemName || it?.name || '-'}
+                          {isItemCompatible(it) && (
+                            <span className={styles.compatibleBadgeMobile} title={`Tương thích với xe ${vehicleBrand} ${vehicleModel}`}>
+                              ✓ Tương thích
+                            </span>
+                          )}
+                        </h4>
 
                         <div className={styles.cardSpecsGrid}>
                           <div className={styles.specItem}>
@@ -1196,6 +1281,8 @@ CatalogPicker.propTypes = {
   pageSize: PropTypes.number,
   initQuery: PropTypes.string,
   categoryCode: PropTypes.string,
+  vehicleBrand: PropTypes.string,
+  vehicleModel: PropTypes.string,
 };
 
 export default CatalogPicker;

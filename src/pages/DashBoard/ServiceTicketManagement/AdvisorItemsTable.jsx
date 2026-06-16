@@ -1000,6 +1000,8 @@ export default function AdvisorItemsTable({
     hideEstimateSummary = false,
     hideEmptyTableBeforeCreate = false,
     disableFullEdit = false,
+    vehicleBrand = '',
+    vehicleModel = '',
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
@@ -1914,6 +1916,8 @@ export default function AdvisorItemsTable({
                 existingSelectionKeys={selectedProductWarehouseKeys}
                 excludeSelectionKey={activeRowSelectionKey}
                 categoryCode={pickerCategoryCode}
+                vehicleBrand={vehicleBrand}
+                vehicleModel={vehicleModel}
             />
 
             <LotPicker
@@ -1962,4 +1966,6 @@ AdvisorItemsTable.propTypes = {
     hideEstimateSummary: PropTypes.bool,
     hideEmptyTableBeforeCreate: PropTypes.bool,
     disableFullEdit: PropTypes.bool,
+    vehicleBrand: PropTypes.string,
+    vehicleModel: PropTypes.string,
 };

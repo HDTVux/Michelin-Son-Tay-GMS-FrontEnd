@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import CompatibleCarsSelector from '../../../components/CompatibleCarsSelector.jsx';
 import {
 	createWarehouseBrand,
 	createWarehouseCatalogItem,
@@ -172,6 +173,7 @@ export default function CreateService() {
 	const [showPrice, setShowPrice] = useState(true);
 	const [unit, setUnit] = useState('');
 	const [description, setDescription] = useState('');
+	const [compatibleCars, setCompatibleCars] = useState('');
 	// Image file is kept only in component state (no upload at create time)
 	const [imageFile, setImageFile] = useState(null);
 	const [imagePreviewUrl, setImagePreviewUrl] = useState('');
@@ -857,7 +859,7 @@ export default function CreateService() {
 					itemName,
 					itemType,
 					warrantyDurationMonths: Math.trunc(warrantyNum),
-					serviceServiceId: 0,
+					serviceServiceId: null,
 					sku: skuTrim,
 					price: showPrice ? priceNum : 0,
 					showPrice,
@@ -876,6 +878,7 @@ export default function CreateService() {
 					workCategoryId: categoryId,
 					taxRuleId: taxRuleIdNum,
 					tax_rule_id: taxRuleIdNum,
+					compatibleCars: String(compatibleCars || '').trim(),
 				},
 				token,
 			);
@@ -908,6 +911,7 @@ export default function CreateService() {
 		sku,
 		unit,
 		warrantyDurationMonths,
+		compatibleCars,
 	]);
 
 	const handleCreateSpecAttributeIfNeeded = useCallback(
@@ -1356,6 +1360,17 @@ export default function CreateService() {
 							<div className="ui-field" style={{ marginBottom: 0 }}>
 								<label htmlFor="warranty">Bảo hành (tháng)</label>
 								<input id="warranty" type="number" value={warrantyDurationMonths} onChange={(e) => setWarrantyDurationMonths(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
+							</div>
+						</div>
+
+						<div style={{ marginTop: 12 }}>
+							<div className="ui-field" style={{ marginBottom: 0 }}>
+								<label>Xe tương thích</label>
+								<CompatibleCarsSelector
+									value={compatibleCars}
+									onChange={setCompatibleCars}
+									disabled={Boolean(createdCatalogItemId)}
+								/>
 							</div>
 						</div>
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import styles from './WarehouseManagement.module.css';
+import CompatibleCarsSelector from '../../../components/CompatibleCarsSelector.jsx';
 import {
     fetchWarehouseCatalogItemDetail,
     updateWarehouseCatalogItem,
@@ -42,6 +43,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
     const [origin, setOrigin] = useState('');
     const [color, setColor] = useState('');
     const [description, setDescription] = useState('');
+    const [compatibleCars, setCompatibleCars] = useState('');
     const [categories, setCategories] = useState([]);
     const [workCategoryId, setWorkCategoryId] = useState('');
 
@@ -89,6 +91,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                     setOrigin(getItemOriginText(base) || '');
                     setColor(getItemColorText(base) || '');
                     setDescription(base.description || '');
+                    setCompatibleCars(base.compatibleCars || '');
                     setWorkCategoryId(base.workCategoryId != null ? String(base.workCategoryId) : '');
 
                     // Map warehouseDetails hierarchy
@@ -248,6 +251,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                 origin: origin.trim(),
                 color: color.trim(),
                 description: description.trim(),
+                compatibleCars: compatibleCars.trim(),
                 workCategoryId: workCategoryId === '' ? null : Number(workCategoryId),
                 warehouseDetails: warehouseDetailsState.map((w) => ({
                     warehouseId: w.warehouseId,
@@ -395,7 +399,14 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                             disabled={saving}
                                         />
                                     </div>
-                                    <div className={styles['field']} />
+                                    <div className={styles['field']}>
+                                        <label>Xe tương thích</label>
+                                        <CompatibleCarsSelector
+                                            value={compatibleCars}
+                                            onChange={setCompatibleCars}
+                                            disabled={saving}
+                                        />
+                                    </div>
                                 </div>
                                 <div className={styles['field']}>
                                     <label htmlFor="edit-item-description">Mô tả</label>
