@@ -1003,6 +1003,9 @@ export default function AdvisorItemsTable({
     vehicleBrand = '',
     vehicleModel = '',
     vehicleOdometer = null,
+    licensePlate = '',
+    customerName = '',
+    customerPhone = '',
     promotionSection = null,
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
@@ -1565,6 +1568,8 @@ export default function AdvisorItemsTable({
 
     const [photoPreview, setPhotoPreview] = useState(null);
     const [isPhotoZoomed, setIsPhotoZoomed] = useState(false);
+    const [isMobileStackExpanded, setIsMobileStackExpanded] = useState(false);
+    const [activeTab, setActiveTab] = useState('photos');
     const closePhotoPreview = useCallback(() => {
         setPhotoPreview(null);
         setIsPhotoZoomed(false);
@@ -1611,83 +1616,139 @@ export default function AdvisorItemsTable({
 
             {!hideVehiclePhotos || !hideEstimateSummary ? (
                 <div className={styles.advisorStack}>
-                    {!hideVehiclePhotos ? (
-                        <div className={styles.advisorCard}>
-                            <h3 className={styles.advisorTitle}>Ảnh tình trạng xe</h3>
-                            {conditionPhotos.length > 0 ? (
-                                <div className={styles.vehiclePhotoGrid}>
-                                    {conditionPhotos.map((p, idx) => {
-                                        const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
-                                        const categoryUpper = String(p?.category || '').toUpperCase();
-                                        const translatedCategory = CATEGORY_MAP[categoryUpper] || p?.category || '';
-                                        const label = String(p?.label || '').trim();
-                                        const fallbackLabel = label || translatedCategory || `Ảnh ${idx + 1}`;
-                                        const description = String(p?.description || '').trim();
-                                        const caption = description
-                                            ? (label || translatedCategory ? `${label || translatedCategory}: ${description}` : description)
-                                            : fallbackLabel;
-                                        return (
-                                            <figure key={key} className={styles.vehiclePhotoCard}>
-                                                <button
-                                                    type="button"
-                                                    className={styles.vehiclePhotoButton}
-                                                    onClick={() => setPhotoPreview({ url: p?.url, caption })}
-                                                    aria-label={`Phóng to: ${caption}`}
-                                                >
-                                                    <div className={styles.vehiclePhotoContainer}>
-                                                        <img
-                                                            className={styles.vehiclePhotoImg}
-                                                            src={p.url}
-                                                            alt={caption}
-                                                            loading="lazy"
-                                                            referrerPolicy="no-referrer"
-                                                        />
-                                                        <div className={styles.vehiclePhotoOverlay}>
-                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.zoomIcon}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                                                            <span className={styles.overlayText}>Xem ảnh</span>
-                                                        </div>
-                                                    </div>
-                                                </button>
-                                                <figcaption className={styles.vehiclePhotoCaption}>
-                                                    <span className={styles.vehiclePhotoLabel}>{fallbackLabel}</span>
-                                                    {description ? (
-                                                        <span className={styles.vehiclePhotoDescription}>{description}</span>
-                                                    ) : null}
-                                                </figcaption>
-                                            </figure>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <div className={styles.noteBox}>-</div>
-                            )}
+                    {/* Collapsed Mobile Summary Bar */}
+                    <div 
+                        className={styles.mobileSummaryBar} 
+                        onClick={() => setIsMobileStackExpanded(!isMobileStackExpanded)}
+                    >
+                        <div className={styles.mobileSummaryLeft}>
+                            <svg className={styles.summaryIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+                            <span className={styles.summaryText}>
+                                {`${licensePlate || 'Chưa có biển'} • ${vehicleBrand || ''} ${vehicleModel || ''}`.trim() || 'Thông tin xe'}
+                                {vehicleOdometer != null ? ` • ${new Intl.NumberFormat('vi-VN').format(vehicleOdometer)} km` : ''}
+                                {conditionPhotos.length > 0 ? ` • ${conditionPhotos.length} ảnh` : ''}
+                            </span>
                         </div>
-                    ) : null}
+                        <button type="button" className={styles.mobileSummaryToggleBtn}>
+                            {isMobileStackExpanded ? 'Thu gọn' : 'Xem & So sánh'}
+                        </button>
+                    </div>
 
-                    {!hideEstimateSummary ? (
-                        <div className={styles.vehicleInfoCard}>
-                            <div className={styles.vehicleCardHeader}>
-                                <svg className={styles.vehicleCardIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
-                                <h3 className={styles.vehicleCardTitle}>Thông tin xe đang sửa</h3>
-                            </div>
-                            <div className={styles.vehicleCardGrid}>
-                                <div className={styles.vehicleGridItem}>
-                                    <span className={styles.vehicleItemLabel}>Hãng sản xuất</span>
-                                    <span className={styles.vehicleItemValue}>{vehicleBrand || '-'}</span>
-                                </div>
-                                <div className={styles.vehicleGridItem}>
-                                    <span className={styles.vehicleItemLabel}>Dòng xe / Đời xe</span>
-                                    <span className={styles.vehicleItemValue}>{vehicleModel || '-'}</span>
-                                </div>
-                                <div className={styles.vehicleGridItem}>
-                                    <span className={styles.vehicleItemLabel}>Số Kilômét (Odo)</span>
-                                    <span className={`${styles.vehicleItemValue} ${styles.vehicleOdoValue}`}>
-                                        {vehicleOdometer != null ? `${new Intl.NumberFormat('vi-VN').format(vehicleOdometer)} km` : '-'}
-                                    </span>
-                                </div>
-                            </div>
+                    {/* Content Section (Photos + Info) */}
+                    <div className={`${styles.mobileStackContent} ${isMobileStackExpanded ? styles.mobileStackExpanded : ''}`}>
+                        
+                        {/* Tab Switcher (Mobile Only) */}
+                        <div className={styles.mobileTabSwitcher}>
+                            <button 
+                                type="button" 
+                                className={`${styles.mobileTabButton} ${activeTab === 'photos' ? styles.mobileActiveTab : ''}`}
+                                onClick={() => setActiveTab('photos')}
+                            >
+                                Ảnh xe ({conditionPhotos.length})
+                            </button>
+                            <button 
+                                type="button" 
+                                className={`${styles.mobileTabButton} ${activeTab === 'info' ? styles.mobileActiveTab : ''}`}
+                                onClick={() => setActiveTab('info')}
+                            >
+                                Thông tin chi tiết
+                            </button>
                         </div>
-                    ) : null}
+
+                        {/* Photos Card */}
+                        {!hideVehiclePhotos ? (
+                            <div className={`${styles.advisorCard} ${activeTab === 'photos' ? '' : styles.mobileHiddenClass}`}>
+                                <div className={styles.vehicleCardHeader}>
+                                    <svg className={styles.vehicleCardIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                    <h3 className={styles.vehicleCardTitle}>Ảnh tình trạng xe</h3>
+                                </div>
+                                {conditionPhotos.length > 0 ? (
+                                    <div className={styles.vehiclePhotoGrid}>
+                                        {conditionPhotos.map((p, idx) => {
+                                            const key = String(p?.photoId ?? `${p?.category || 'photo'}-${idx}`);
+                                            const categoryUpper = String(p?.category || '').toUpperCase();
+                                            const translatedCategory = CATEGORY_MAP[categoryUpper] || p?.category || '';
+                                            const label = String(p?.label || '').trim();
+                                            const fallbackLabel = label || translatedCategory || `Ảnh ${idx + 1}`;
+                                            const description = String(p?.description || '').trim();
+                                            const caption = description
+                                                ? (label || translatedCategory ? `${label || translatedCategory}: ${description}` : description)
+                                                : fallbackLabel;
+                                            return (
+                                                <figure key={key} className={styles.vehiclePhotoCard}>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.vehiclePhotoButton}
+                                                        onClick={() => setPhotoPreview({ url: p?.url, caption })}
+                                                        aria-label={`Phóng to: ${caption}`}
+                                                    >
+                                                        <div className={styles.vehiclePhotoContainer}>
+                                                            <img
+                                                                className={styles.vehiclePhotoImg}
+                                                                src={p.url}
+                                                                alt={caption}
+                                                                loading="lazy"
+                                                                referrerPolicy="no-referrer"
+                                                            />
+                                                            <div className={styles.vehiclePhotoOverlay}>
+                                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.zoomIcon}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                                                                <span className={styles.overlayText}>Xem ảnh</span>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                    <figcaption className={styles.vehiclePhotoCaption}>
+                                                        <span className={styles.vehiclePhotoLabel}>{fallbackLabel}</span>
+                                                        {description ? (
+                                                            <span className={styles.vehiclePhotoDescription}>{description}</span>
+                                                        ) : null}
+                                                    </figcaption>
+                                                </figure>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className={styles.noteBox}>-</div>
+                                )}
+                            </div>
+                        ) : null}
+
+                        {/* Vehicle Info Card */}
+                        {!hideEstimateSummary ? (
+                            <div className={`${styles.vehicleInfoCard} ${activeTab === 'info' ? '' : styles.mobileHiddenClass}`}>
+                                <div className={styles.vehicleCardHeader}>
+                                    <svg className={styles.vehicleCardIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+                                    <h3 className={styles.vehicleCardTitle}>Thông tin xe đang sửa</h3>
+                                </div>
+                                <div className={styles.vehicleCompactGrid}>
+                                    <div className={styles.vehicleCompactItem}>
+                                        <span className={styles.vehicleItemLabel}>Biển số xe</span>
+                                        <span className={`${styles.vehicleItemValue} ${styles.vehiclePlateBadge}`}>{licensePlate || '-'}</span>
+                                    </div>
+                                    <div className={styles.vehicleCompactItem}>
+                                        <span className={styles.vehicleItemLabel}>Xe / Đời xe</span>
+                                        <span className={styles.vehicleItemValue}>
+                                            {`${vehicleBrand || ''} ${vehicleModel || ''}`.trim() || '-'}
+                                        </span>
+                                    </div>
+                                    <div className={styles.vehicleCompactItem}>
+                                        <span className={styles.vehicleItemLabel}>Số Odo</span>
+                                        <span className={`${styles.vehicleItemValue} ${styles.vehicleOdoValue}`}>
+                                            {vehicleOdometer != null ? `${new Intl.NumberFormat('vi-VN').format(vehicleOdometer)} km` : '-'}
+                                        </span>
+                                    </div>
+                                    <div className={styles.vehicleCompactItem}>
+                                        <span className={styles.vehicleItemLabel}>Khách hàng</span>
+                                        <span className={styles.vehicleItemValue}>{customerName || '-'}</span>
+                                    </div>
+                                    <div className={styles.vehicleCompactItem}>
+                                        <span className={styles.vehicleItemLabel}>Số điện thoại</span>
+                                        <span className={styles.vehicleItemValue}>{customerPhone || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
+
+                    </div>
                 </div>
             ) : null}
 
@@ -2008,5 +2069,8 @@ AdvisorItemsTable.propTypes = {
     vehicleBrand: PropTypes.string,
     vehicleModel: PropTypes.string,
     vehicleOdometer: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    licensePlate: PropTypes.string,
+    customerName: PropTypes.string,
+    customerPhone: PropTypes.string,
     promotionSection: PropTypes.node,
 };

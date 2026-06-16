@@ -2741,6 +2741,9 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                             vehicleBrand={ticket?.vehicle?.make || ticket?.vehicle?.brand || ''}
                                             vehicleModel={ticket?.vehicle?.model || ''}
                                             vehicleOdometer={ticket?.vehicle?.odometerKm}
+                                             licensePlate={ticket?.vehicle?.licensePlate || ''}
+                                             customerName={ticket?.customer?.name || ticket?.customerName || ''}
+                                             customerPhone={ticket?.customer?.phone || ticket?.customerPhone || ''}
                                             promotionSection={promotionSectionJSX}
                                         />
                                     )}
