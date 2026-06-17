@@ -153,10 +153,38 @@ export default function CreateBooking() {
 
 	// Dữ liệu cho hóa đơn/phiếu dịch vụ in ấn
 	const printTicket = useMemo(() => {
+		const toNumberOrZero = (val) => {
+			const n = typeof val === 'number' ? val : Number(String(val ?? '').trim());
+			return Number.isFinite(n) ? n : 0;
+		};
+
+		const pickMoneyDisplayValue = (withVatValue, baseValue) => {
+			const withVatNum = toNumberOrZero(withVatValue);
+			if (withVatNum > 0) return withVatNum;
+			const baseNum = toNumberOrZero(baseValue);
+			return baseNum > 0 ? baseNum : 0;
+		};
+
+		const getFinalPriceDisplay = (item, fallbackValue) => {
+			const rawFinalPrice = item?.finalPrice ?? item?.final_price;
+			if (rawFinalPrice == null || String(rawFinalPrice).trim() === '') return fallbackValue;
+			const finalPrice = toNumberOrZero(rawFinalPrice);
+			return finalPrice > 0 ? finalPrice : fallbackValue;
+		};
+
 		const items = selectedEstimateItems.map((item, idx) => {
 			const qty = Number(item.quantity || 1);
 			const price = Number(item.unitPrice || item.price || 0);
-			const discount = Number(item.discountAmount || 0);
+			const discount = toNumberOrZero(item.discountAmount || item.discount_amount || 0);
+
+			// Tính toán subTotal hiển thị (ưu tiên sau thuế)
+			const rawSubTotal = item.subTotal ?? item.sub_total ?? Math.max(0, qty * price - discount);
+			const rawSubTotalWithVat = item.subTotalWithVat ?? item.subTotalWithVAT ?? 0;
+			const subTotalDisplay = pickMoneyDisplayValue(rawSubTotalWithVat, rawSubTotal);
+			
+			// finalPrice là giá cuối cùng đã áp dụng KM & thuế nếu có
+			const finalPriceDisplay = getFinalPriceDisplay(item, subTotalDisplay);
+
 			return {
 				...item,
 				categoryName: item.categoryName || item.newCategoryName || '',
@@ -164,12 +192,19 @@ export default function CreateBooking() {
 				quantity: qty,
 				unitPrice: price,
 				discountAmount: discount,
-				subTotal: Math.max(0, qty * price - discount),
+				subTotal: finalPriceDisplay,
+				_subTotalDisplay: subTotalDisplay,
+				_finalPriceDisplay: finalPriceDisplay,
 			};
 		});
 
-		const subtotal = items.reduce((acc, it) => acc + (it.subTotal || 0), 0);
-		const discountAmount = items.reduce((acc, it) => acc + (it.discountAmount || 0), 0);
+		const subtotal = items.reduce((acc, it) => acc + (it._subTotalDisplay || 0), 0);
+		const discountAmount = items.reduce((acc, it) => {
+			const lineSubtotal = it._subTotalDisplay || 0;
+			const lineFinal = it._finalPriceDisplay || 0;
+			const backendDiscount = it.discountAmount || 0;
+			return acc + Math.max(backendDiscount, lineSubtotal - lineFinal, 0);
+		}, 0);
 		const total = Math.max(0, subtotal - discountAmount);
 
 		return {

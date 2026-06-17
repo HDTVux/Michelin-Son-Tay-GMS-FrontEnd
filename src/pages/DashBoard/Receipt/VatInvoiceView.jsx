@@ -62,12 +62,12 @@ function formatTaxRateText(value) {
 function isReturnedEstimateItem(item) {
     return String(
         item?.stockAllocation?.status ??
-            item?.allocation?.status ??
-            item?.warehouseAllocation?.status ??
-            item?.stockAllocationStatus ??
-            item?.stock_allocation_status ??
-            item?.allocationStatus ??
-            '',
+        item?.allocation?.status ??
+        item?.warehouseAllocation?.status ??
+        item?.stockAllocationStatus ??
+        item?.stock_allocation_status ??
+        item?.allocationStatus ??
+        '',
     ).trim().toUpperCase() === 'RELEASED';
 }
 

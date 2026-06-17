@@ -468,7 +468,13 @@
 /* Responsiveness */
 @media (max-width: 768px) {
   .page {
-    padding: 16px 16px 100px 16px;
+    padding: 16px 16px 180px 16px;
+  }
+
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .page {
+      padding-bottom: calc(180px + env(safe-area-inset-bottom));
+    }
   }
   
   .header {
@@ -524,11 +530,17 @@
   .actions {
     left: 16px;
     right: 16px;
-    bottom: 16px;
+    bottom: 92px;
     padding: 10px 14px;
     flex-direction: row;
     align-items: center;
     gap: 12px;
+  }
+
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .actions {
+      bottom: calc(92px + env(safe-area-inset-bottom));
+    }
   }
 
   .actionsRight {

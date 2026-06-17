@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import styles from './ReceiptPaymentMethod.module.css';
-import { getVietQrUrl } from '../../../services/paymentQrService.js'; 
+import { getVietQrUrl } from '../../../services/paymentQrService.js';
 import { toast } from 'react-toastify';
 import { fetchPaymentByServiceTicketId, payBill } from '../../../services/paymentService.js';
 import { fetchServiceTicketDetail, fetchServiceTicketEstimate, manageServiceTicketStatus } from '../../../services/serviceTicketService.js';
@@ -65,12 +65,12 @@ function normalizeTaxRatePercentText(rawRate) {
 function getEstimateItemStockStatus(item) {
     return String(
         item?.stockAllocation?.status ??
-            item?.allocation?.status ??
-            item?.warehouseAllocation?.status ??
-            item?.stockAllocationStatus ??
-            item?.stock_allocation_status ??
-            item?.allocationStatus ??
-            '',
+        item?.allocation?.status ??
+        item?.warehouseAllocation?.status ??
+        item?.stockAllocationStatus ??
+        item?.stock_allocation_status ??
+        item?.allocationStatus ??
+        '',
     ).trim().toUpperCase();
 }
 
@@ -80,14 +80,14 @@ function isReturnedEstimateItem(item) {
 
     const text = String(
         item?.returnStatus ??
-            item?.return_status ??
-            item?.returnEntryStatus ??
-            item?.return_entry_status ??
-            item?.warehouseReturnStatus ??
-            item?.warehouse_return_status ??
-            item?.stockReturnStatus ??
-            item?.stock_return_status ??
-            '',
+        item?.return_status ??
+        item?.returnEntryStatus ??
+        item?.return_entry_status ??
+        item?.warehouseReturnStatus ??
+        item?.warehouse_return_status ??
+        item?.stockReturnStatus ??
+        item?.stock_return_status ??
+        '',
     ).trim().toUpperCase();
     if (['RETURNED', 'RETURN', 'REFUNDED', 'REFUND', 'CONFIRMED', 'COMPLETED'].includes(text)) return true;
 
@@ -246,7 +246,7 @@ export default function ReceiptPaymentMethod() {
             } catch (err) {
                 if (ignore) return;
                 setEstimate(null);
-				setEstimateError(err?.message || 'Không thể tải báo giá.');
+                setEstimateError(err?.message || 'Không thể tải báo giá.');
             } finally {
                 if (!ignore) setEstimateLoading(false);
             }
