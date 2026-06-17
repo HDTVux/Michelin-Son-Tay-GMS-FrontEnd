@@ -1473,6 +1473,9 @@ export default function AdvisorItemsTable({
     const [workCategoryPickerOpen, setWorkCategoryPickerOpen] = useState(false);
     const [categoryPickerRowIndex, setCategoryPickerRowIndex] = useState(null);
 
+    const [isMobileStackExpanded, setIsMobileStackExpanded] = useState(false);
+    const [activeTab, setActiveTab] = useState('photos');
+
     useEffect(() => {
         const handleTourStepChange = (e) => {
             const { title } = e.detail || {};
@@ -1483,6 +1486,7 @@ export default function AdvisorItemsTable({
                 setCatalogPickerOpen(false);
                 setLotPickerOpen(false);
                 setTaxPickerRowIndex(null);
+                setIsMobileStackExpanded(false);
             } else if (title.includes('2.4. Chọn sản phẩm từ danh mục')) {
                 setWorkCategoryPickerOpen(false);
                 setCategoryPickerRowIndex(null);
@@ -1490,6 +1494,7 @@ export default function AdvisorItemsTable({
                 setActiveRowIndex(0);
                 setLotPickerOpen(false);
                 setTaxPickerRowIndex(null);
+                setIsMobileStackExpanded(false);
             } else if (title.includes('2.5. Chọn lô sản phẩm')) {
                 setWorkCategoryPickerOpen(false);
                 setCategoryPickerRowIndex(null);
@@ -1505,18 +1510,37 @@ export default function AdvisorItemsTable({
                     ]
                 });
                 setLotPickerOpen(true);
+                setIsMobileStackExpanded(false);
+            } else if (title.includes('2.5. Ảnh tình trạng xe')) {
+                setWorkCategoryPickerOpen(false);
+                setCategoryPickerRowIndex(null);
+                setCatalogPickerOpen(false);
+                setLotPickerOpen(false);
+                setTaxPickerRowIndex(null);
+                setIsMobileStackExpanded(true);
+                setActiveTab('photos');
+            } else if (title.includes('2.6. Thông tin xe đang sửa')) {
+                setWorkCategoryPickerOpen(false);
+                setCategoryPickerRowIndex(null);
+                setCatalogPickerOpen(false);
+                setLotPickerOpen(false);
+                setTaxPickerRowIndex(null);
+                setIsMobileStackExpanded(true);
+                setActiveTab('info');
             } else if (title.includes('2.7. Chọn Thuế suất')) {
                 setWorkCategoryPickerOpen(false);
                 setCategoryPickerRowIndex(null);
                 setCatalogPickerOpen(false);
                 setLotPickerOpen(false);
                 setTaxPickerRowIndex(0);
+                setIsMobileStackExpanded(false);
             } else {
                 setWorkCategoryPickerOpen(false);
                 setCategoryPickerRowIndex(null);
                 setCatalogPickerOpen(false);
                 setLotPickerOpen(false);
                 setTaxPickerRowIndex(null);
+                setIsMobileStackExpanded(false);
             }
         };
 
@@ -1524,7 +1548,7 @@ export default function AdvisorItemsTable({
         return () => {
             window.removeEventListener('tourStepChange', handleTourStepChange);
         };
-    }, [setActiveRowIndex, setSelectedCatalogItem, setSelectedWarehouse, setTaxPickerRowIndex]);
+    }, [setActiveRowIndex, setSelectedCatalogItem, setSelectedWarehouse, setTaxPickerRowIndex, setIsMobileStackExpanded, setActiveTab]);
 
     const openCategoryPicker = (rowIndex) => {
         setCategoryPickerRowIndex(rowIndex);
@@ -1628,8 +1652,6 @@ export default function AdvisorItemsTable({
 
     const [photoPreview, setPhotoPreview] = useState(null);
     const [isPhotoZoomed, setIsPhotoZoomed] = useState(false);
-    const [isMobileStackExpanded, setIsMobileStackExpanded] = useState(false);
-    const [activeTab, setActiveTab] = useState('photos');
     const closePhotoPreview = useCallback(() => {
         setPhotoPreview(null);
         setIsPhotoZoomed(false);

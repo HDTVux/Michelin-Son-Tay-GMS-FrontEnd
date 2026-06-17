@@ -1837,6 +1837,7 @@ export default function AdvisorInspection() {
                     ) : (
                       <>
                         <button
+                          id={idx === 0 ? 'tour-view-btn' : undefined}
                           className={`${styles.actionBtn} ${styles.viewBtn}`}
                           onClick={() => {
                             if (!code) return;
@@ -1859,6 +1860,7 @@ export default function AdvisorInspection() {
                         </button>
                         {hasTech ? (
                           <button
+                            id={idx === 0 ? 'tour-assign-btn' : undefined}
                             className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
                             onClick={() => handleOpenModal(ticket)}
                             disabled={swapping}
@@ -1868,6 +1870,7 @@ export default function AdvisorInspection() {
                           </button>
                         ) : (
                           <button
+                            id={idx === 0 ? 'tour-assign-btn' : undefined}
                             className={`${styles.actionBtn} ${styles.assignBtn}`}
                             onClick={() => handleOpenModal(ticket)}
                             disabled={!ticketId || swapping}

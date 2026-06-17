@@ -150,7 +150,7 @@ const ADVISOR_WORKFLOW_STEPS = [
   },
   {
     path: '/advisor/inspection',
-    target: 'table, [class*="table"]',
+    target: 'table, [class*="table"], [class*="mobileTicketsList"]',
     title: '1. Màn hình Điều phối phiếu dịch vụ',
     content: 'Chào mừng bạn đến với trung tâm điều phối của Cố vấn dịch vụ. Tất cả các xe đã làm thủ tục check-in sẽ xuất hiện tại danh sách ở dưới.',
     placement: 'top',
@@ -158,7 +158,7 @@ const ADVISOR_WORKFLOW_STEPS = [
   },
   {
     path: '/advisor/inspection',
-    target: 'input[type="text"], [class*="search"]',
+    target: 'input, [class*="search"]',
     title: '1.1. Tìm kiếm và Lọc thông tin',
     content: 'Tìm kiếm nhanh biển số xe, mã phiếu, hoặc lọc danh sách theo ngày hẹn và trạng thái (Đang kiểm tra, Chờ xử lý...).',
     placement: 'bottom',
@@ -166,7 +166,7 @@ const ADVISOR_WORKFLOW_STEPS = [
   },
   {
     path: '/advisor/inspection',
-    target: 'table, [class*="table"]',
+    target: 'table, [class*="table"], [class*="mobileTicketCard"]',
     title: '1.2. Danh sách xe hiện hành',
     content: 'Theo dõi biển số xe, số thứ tự hàng chờ, trạng thái hiện tại của xe, và thông tin kỹ thuật viên/cố vấn phụ trách.',
     placement: 'top',
@@ -178,7 +178,7 @@ const ADVISOR_WORKFLOW_STEPS = [
     title: '1.3. Phân công Kỹ thuật viên',
     content: 'Bấm nút "Phân công" (hoặc "Xem phân công") để điều phối kỹ thuật viên nhận việc dựa vào số lượng phiếu đang làm của họ.',
     placement: 'bottom',
-    mobilePlacement: 'bottom',
+    mobilePlacement: 'top',
   },
   {
     path: '/advisor/inspection',
@@ -186,7 +186,7 @@ const ADVISOR_WORKFLOW_STEPS = [
     title: '1.4. Chi tiết phiếu dịch vụ',
     content: 'Bấm nút "Mở" (icon mắt) để đi vào chi tiết phiếu dịch vụ. Tại đó, bạn tiến hành ghi nhận kết quả khảo sát an toàn, chọn phụ tùng/dịch vụ Michelin và in báo giá gửi khách hàng.',
     placement: 'bottom',
-    mobilePlacement: 'bottom',
+    mobilePlacement: 'top',
   },
   {
     path: '/service-ticket-detail/demo',
