@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchTechnicianTickets, fetchTechnicianTicketDetail, startInspection } from '../../../services/technicianService';
@@ -1069,6 +1069,7 @@ function MyTasks() {
                         {/* Bắt đầu / Làm việc */}
                         {canStart && (
                           <button
+                            id={idx === 0 ? 'tour-tech-start-btn' : undefined}
                             className={`${styles.actionBtn} ${styles.assignBtn}`}
                             onClick={() => handleStartWork(ticket)}
                           >
@@ -1077,6 +1078,7 @@ function MyTasks() {
                         )}
                         {canWork && hasSafetyInspection && (
                           <button
+                            id={idx === 0 ? 'tour-tech-start-btn' : undefined}
                             className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
                             onClick={() => handleOpenSafetyInspection(ticket)}
                           >
@@ -1085,6 +1087,7 @@ function MyTasks() {
                         )}
                         {canWork && !hasSafetyInspection && (
                           <button
+                            id={idx === 0 ? 'tour-tech-start-btn' : undefined}
                             className={`${styles.actionBtn} ${styles.assignBtn}`}
                             onClick={() => handleViewTask(ticket)}
                           >

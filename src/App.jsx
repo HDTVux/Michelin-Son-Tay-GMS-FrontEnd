@@ -150,6 +150,12 @@ const ROLE_GROUP = {
     STAFF_ROLE.ADMIN,
   ],
   SERVICE_CATALOG: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT],
+  TECHNICIAN_WORKFLOW: [
+    STAFF_ROLE.TECHNICIAN,
+    STAFF_ROLE.MANAGER,
+    STAFF_ROLE.ADVISOR,
+    STAFF_ROLE.ADMIN,
+  ],
 };
 
 const normalizeRoleName = (value) => {
@@ -453,9 +459,9 @@ export default function App() {
               <Route path="revenue-management" element={staffRoute(<RevenueManagement />, ROLE_GROUP.ACCOUNTING)} />
               
               {/* Technician pages */}
-              <Route path="technician/my-tasks" element={staffRoute(<MyTasks />, ROLE_GROUP.TECHNICIAN)} />
-              <Route path="technician/safetyinspection-ticket/:id" element={staffRoute(<ServiceTicket />, ROLE_GROUP.TECHNICIAN)} />
-              <Route path="technician/update-progress/:id" element={staffRoute(<UpdateProgress />, ROLE_GROUP.TECHNICIAN)} />
+              <Route path="technician/my-tasks" element={staffRoute(<MyTasks />, ROLE_GROUP.TECHNICIAN_WORKFLOW)} />
+              <Route path="technician/safetyinspection-ticket/:id" element={staffRoute(<ServiceTicket />, ROLE_GROUP.TECHNICIAN_WORKFLOW)} />
+              <Route path="technician/update-progress/:id" element={staffRoute(<UpdateProgress />, ROLE_GROUP.TECHNICIAN_WORKFLOW)} />
 
               {/* Advisor pages */}
               <Route

@@ -269,6 +269,62 @@ const ADVISOR_WORKFLOW_STEPS = [
   }
 ];
 
+const TECHNICIAN_WORKFLOW_STEPS = [
+  {
+    target: 'body',
+    title: 'Quy trình Nhận việc & Báo cáo tiến độ',
+    content: 'Tour này sẽ hướng dẫn Kỹ thuật viên (hoặc Quản lý/Cố vấn) các bước xem công việc được phân công, nhận xe và thực hiện kiểm tra báo cáo tiến độ.',
+    placement: 'center',
+  },
+  {
+    path: '/technician/my-tasks',
+    target: 'table, [class*="bookingTable"]',
+    title: '1. Danh sách công việc hôm nay',
+    content: 'Tất cả các xe được phân công dịch vụ/sửa chữa cho bạn trong ngày hôm nay sẽ hiển thị tại danh sách này.',
+    placement: 'top',
+    mobilePlacement: 'top',
+  },
+  {
+    path: '/technician/my-tasks',
+    target: '#tour-tech-start-btn',
+    title: '1.1. Tiếp nhận và bắt đầu làm việc',
+    content: 'Bấm nút "Bắt đầu làm việc" (hoặc "Phiếu KT an toàn") để tiếp nhận xe thực hiện kiểm tra an toàn ban đầu.',
+    placement: 'bottom',
+    mobilePlacement: 'top',
+  },
+  {
+    path: '/technician/safetyinspection-ticket/demo',
+    target: 'body',
+    title: '2. Phiếu kiểm tra An toàn & Lốp xe (Demo)',
+    content: 'Chào mừng bạn đến với phiếu kiểm tra an toàn phương tiện. Hãy ghi nhận kết quả khảo sát chi tiết tại đây.',
+    placement: 'center',
+  },
+  {
+    path: '/technician/safetyinspection-ticket/demo',
+    target: '#tour-tire-inspection-card',
+    title: '2.1. Nhập thông số lốp xe',
+    content: 'Đo độ mòn gai lốp (mm) và áp suất thực tế/khuyến cáo của 4 bánh xe và bánh dự phòng.',
+    placement: 'top',
+    mobilePlacement: 'top',
+  },
+  {
+    path: '/technician/safetyinspection-ticket/demo',
+    target: '#tour-safety-checklist-card',
+    title: '2.2. Hạng mục kiểm tra an toàn',
+    content: 'Đánh giá trạng thái hoạt động của các hệ thống an toàn khác trên xe (phanh, lái, giảm xóc...) theo các mức độ.',
+    placement: 'top',
+    mobilePlacement: 'top',
+  },
+  {
+    path: '/technician/safetyinspection-ticket/demo',
+    target: '#tour-tech-save-inspection-btn',
+    title: '2.3. Hoàn thành & Báo cáo',
+    content: 'Cuối cùng, bấm nút "Hoàn thành" để gửi kết quả kiểm tra lên hệ thống cho Cố vấn dịch vụ và quản lý phê duyệt.',
+    placement: 'top',
+    mobilePlacement: 'top',
+  }
+];
+
 export default function UserTour({ type = 'staff' }) {
   const [tourType, setTourType] = useState(type);
   const [activeStep, setActiveStep] = useState(0);
@@ -285,6 +341,7 @@ export default function UserTour({ type = 'staff' }) {
     if (tourType === 'customer') return CUSTOMER_STEPS;
     if (tourType === 'receptionist-workflow') return RECEPTIONIST_WORKFLOW_STEPS;
     if (tourType === 'advisor-workflow') return ADVISOR_WORKFLOW_STEPS;
+    if (tourType === 'technician-workflow') return TECHNICIAN_WORKFLOW_STEPS;
     return STAFF_STEPS;
   }, [tourType]);
   
@@ -348,7 +405,7 @@ export default function UserTour({ type = 'staff' }) {
     // Lắng nghe sự kiện phát hướng dẫn thủ công (on-demand)
     const handleTriggerTour = (e) => {
       const targetType = e.detail?.type || type;
-      const isStaffLayoutTour = type === 'staff' && (targetType === 'staff' || targetType === 'receptionist-workflow' || targetType === 'advisor-workflow');
+      const isStaffLayoutTour = type === 'staff' && (targetType === 'staff' || targetType === 'receptionist-workflow' || targetType === 'advisor-workflow' || targetType === 'technician-workflow');
       const isCustomerLayoutTour = type === 'customer' && targetType === 'customer';
       
       if (isStaffLayoutTour || isCustomerLayoutTour) {
@@ -361,7 +418,7 @@ export default function UserTour({ type = 'staff' }) {
     // Kiểm tra query parameter để kích hoạt tour
     const params = new URLSearchParams(window.location.search);
     const startTourParam = params.get('startTour');
-    const isMatchingParam = startTourParam === type || (type === 'staff' && (startTourParam === 'receptionist-workflow' || startTourParam === 'advisor-workflow'));
+    const isMatchingParam = startTourParam === type || (type === 'staff' && (startTourParam === 'receptionist-workflow' || startTourParam === 'advisor-workflow' || startTourParam === 'technician-workflow'));
     
     if (isMatchingParam) {
       setTourType(startTourParam);
@@ -647,6 +704,9 @@ export default function UserTour({ type = 'staff' }) {
       navigate('/system-tutorials');
     } else if (tourType === 'advisor-workflow') {
       localStorage.setItem('hasSeenTour_advisor_workflow', 'true');
+      navigate('/system-tutorials');
+    } else if (tourType === 'technician-workflow') {
+      localStorage.setItem('hasSeenTour_technician_workflow', 'true');
       navigate('/system-tutorials');
     }
   };
