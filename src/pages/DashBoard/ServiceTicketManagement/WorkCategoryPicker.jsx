@@ -12,7 +12,14 @@ export default function WorkCategoryPicker({ open, onClose, onPick, categorySugg
         if (!dialog) return;
         if (open) {
             setSearch('');
-            if (!dialog.open) dialog.showModal();
+            if (!dialog.open) {
+                const isDemoMode = typeof window !== 'undefined' && window.location.pathname.includes('/demo');
+                if (isDemoMode) {
+                    dialog.show();
+                } else {
+                    dialog.showModal();
+                }
+            }
         } else {
             if (dialog.open) dialog.close();
         }
@@ -69,7 +76,7 @@ export default function WorkCategoryPicker({ open, onClose, onPick, categorySugg
             <div className={styles.header}>
                 <div className={styles.titleContainer}>
                     <Tag size={20} className={styles.titleIcon} />
-                    <h3 className={styles.title}>Chọn Hạng mục</h3>
+                    <h3 id="work-category-title" className={styles.title}>Chọn Hạng mục</h3>
                 </div>
                 <button 
                     type="button" 

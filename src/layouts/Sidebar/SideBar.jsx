@@ -370,6 +370,29 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
         return () => document.removeEventListener('click', handleOutsideClick);
     }, [isProfileOpen]);
 
+    // Tự động sổ các mục con khi chạy tour hướng dẫn để có thể spotlight trỏ tới chính xác
+    useEffect(() => {
+        const handleTriggerTour = () => {
+            setOpenGroups(prev => ({
+                ...prev,
+                general: true,
+                features: true,
+                finance: true,
+            }));
+            setOpenSubGroups(prev => ({
+                ...prev,
+                'sub-booking': true,
+                'sub-service': true,
+                'sub-warehouse': true,
+                'sub-hr': true,
+                'sub-marketing': true,
+                'sub-system': true,
+            }));
+        };
+        window.addEventListener('triggerTour', handleTriggerTour);
+        return () => window.removeEventListener('triggerTour', handleTriggerTour);
+    }, []);
+
     const toggleMenu = () => setIsOpen((prev) => !prev);
     const toggleProfileDropdown = () => setIsProfileOpen((prev) => !prev);
 
@@ -404,6 +427,7 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
                 key={item.id}
                 type="button"
                 onClick={() => handleNavClick(item.path)}
+                data-tour-id={item.id}
             >
                 <span className="navItem__icon">{item.icon}</span>
                 <span className="navItem__label">{item.label}</span>
@@ -468,6 +492,7 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
                                 type="button"
                                 onClick={() => toggleGroup(group.id)}
                                 aria-expanded={isGroupOpen}
+                                data-tour-id={group.id}
                             >
                                 <div className="navGroup__headerLeft">
                                     {group.icon && <span className="navGroup__headerIcon">{group.icon}</span>}
@@ -495,6 +520,7 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
                                                          type="button"
                                                          onClick={() => toggleSubGroup(subGroup.id, isSubGroupOpen)}
                                                          aria-expanded={isSubGroupOpen}
+                                                         data-tour-id={subGroup.id}
                                                     >
                                                          <div className="navGroup__subHeaderLeft">
                                                              {subGroup.icon && <span className="navGroup__subHeaderIcon">{subGroup.icon}</span>}

@@ -16,6 +16,7 @@
   display: flex; /* THÊM Flexbox */
   flex-direction: column; /* Xếp Header và Body từ trên xuống */
   overflow: hidden; /* Ngăn chặn bất kỳ tràn nào ra ngoài dialog */
+  z-index: 999999;
 }
 
 /* Lớp nền đen mờ phía sau Modal */

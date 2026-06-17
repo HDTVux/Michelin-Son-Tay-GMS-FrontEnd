@@ -49,7 +49,12 @@ export default function LotPicker({
     if (!dialog) return;
 
     if (open && !dialog.open) {
-      dialog.showModal();
+      const isDemoMode = typeof window !== 'undefined' && window.location.pathname.includes('/demo');
+      if (isDemoMode) {
+        dialog.show();
+      } else {
+        dialog.showModal();
+      }
     } else if (!open && dialog.open) {
       dialog.close();
     }
@@ -154,6 +159,7 @@ export default function LotPicker({
                         </span>
                         {lot.entryItemId && lot.entryItemId === activeLots[0]?.entryItemId ? (
                           <span 
+                            id="tour-fifo-badge"
                             style={{
                               marginLeft: '8px',
                               backgroundColor: '#e0f2fe',
@@ -207,6 +213,7 @@ export default function LotPicker({
                       <span className={styles.skuTag}>Mã lô: {lot.entryCode || '-'}</span>
                       {isFirstFifo && (
                         <span 
+                          id="tour-fifo-badge"
                           className={styles.typeTag}
                           style={{
                             backgroundColor: '#e0f2fe',

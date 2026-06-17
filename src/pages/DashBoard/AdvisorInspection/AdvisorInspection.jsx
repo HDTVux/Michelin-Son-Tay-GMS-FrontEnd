@@ -806,9 +806,9 @@ export default function AdvisorInspection() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState(initialDate);
-  const [dateTo, setDateTo] = useState(initialDate);
-  const [periodFilter, setPeriodFilter] = useState('day');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [periodFilter, setPeriodFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -1589,12 +1589,11 @@ export default function AdvisorInspection() {
   };
 
   const handleResetFilters = () => {
-    const today = getTodayLocalISO();
     setPage(0);
     setSize(10);
-    setDateFrom(today);
-    setDateTo(today);
-    setPeriodFilter('day');
+    setDateFrom('');
+    setDateTo('');
+    setPeriodFilter('all');
     setStatusFilter('');
     setSearch('');
     setDebouncedSearch('');
@@ -1988,6 +1987,7 @@ export default function AdvisorInspection() {
               ) : (
                 <>
                   <button
+                    id={idx === 0 ? 'tour-view-btn' : undefined}
                     className={`${styles.actionBtn} ${styles.viewBtn}`}
                     onClick={() => {
                       if (!code) return;
@@ -2012,6 +2012,7 @@ export default function AdvisorInspection() {
                   </button>
                   {hasTech ? (
                     <button
+                      id={idx === 0 ? 'tour-assign-btn' : undefined}
                       className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
                       onClick={() => handleOpenModal(ticket)}
                       disabled={swapping}
@@ -2022,6 +2023,7 @@ export default function AdvisorInspection() {
                     </button>
                   ) : (
                     <button
+                      id={idx === 0 ? 'tour-assign-btn' : undefined}
                       className={`${styles.actionBtn} ${styles.assignBtn}`}
                       onClick={() => handleOpenModal(ticket)}
                       disabled={!ticketId || swapping}

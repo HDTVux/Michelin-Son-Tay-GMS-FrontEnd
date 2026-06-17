@@ -217,7 +217,12 @@ function CatalogPicker({
     if (!dialog) return;
 
     if (open && !dialog.open) {
-      dialog.showModal(); // Hàm này giúp Modal ra giữa màn hình và khóa nền
+      const isDemoMode = typeof window !== 'undefined' && window.location.pathname.includes('/demo');
+      if (isDemoMode) {
+        dialog.show();
+      } else {
+        dialog.showModal(); // Hàm này giúp Modal ra giữa màn hình và khóa nền
+      }
     } else if (!open && dialog.open) {
       dialog.close();
     }

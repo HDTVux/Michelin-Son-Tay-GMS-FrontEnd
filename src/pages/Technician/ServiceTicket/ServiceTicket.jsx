@@ -849,6 +849,32 @@ export const ServiceTicket = ({
           return;
         }
 
+        if (resolvedTicketCode === 'demo') {
+          setServiceTicketStatus('ESTIMATED');
+          assignServiceTicketId(99999);
+          setHasSafetyInspectionEnabled(true);
+          setTireData({
+            frontLeft: { size1: '205', size2: '55', size3: '16', mm: '6', pressure: '2.2', recommendedPressure: '2.2' },
+            frontRight: { size1: '205', size2: '55', size3: '16', mm: '6', pressure: '2.2', recommendedPressure: '2.2' },
+            rearLeft: { size1: '205', size2: '55', size3: '16', mm: '5', pressure: '2.3', recommendedPressure: '2.3' },
+            rearRight: { size1: '205', size2: '55', size3: '16', mm: '5', pressure: '2.3', recommendedPressure: '2.3' },
+            spare: { size1: '205', size2: '55', size3: '16', mm: '7', pressure: '2.5', recommendedPressure: '2.5' }
+          });
+          setRecommendedTireSize('205/55R16');
+          setNotes('Xe vận hành bình thường, lốp mòn đều.');
+          setInspectionStatus('COMPLETED');
+          
+          const mockChecks = [
+            { id: 1, workCategoryId: 1, name: 'Hệ thống phanh', good: true, warning: false, replace: false, note: 'Má phanh còn dày', advisorNote: 'Má phanh còn dày', displayOrder: 1, isCustom: false },
+            { id: 2, workCategoryId: 2, name: 'Hệ thống giảm xóc', good: true, warning: false, replace: false, note: 'Không chảy dầu', advisorNote: 'Không chảy dầu', displayOrder: 2, isCustom: false },
+            { id: 3, workCategoryId: 3, name: 'Hệ thống lái', good: false, warning: true, replace: false, note: 'Rơ nhẹ thanh liên kết', advisorNote: 'Rơ nhẹ thanh liên kết', displayOrder: 3, isCustom: false },
+            { id: 4, workCategoryId: 4, name: 'Độ chụm bánh xe', good: false, warning: false, replace: true, note: 'Sai lệch góc đặt bánh xe', advisorNote: 'Sai lệch góc đặt bánh xe', displayOrder: 4, isCustom: false },
+          ];
+          setSafetyChecks(mockChecks);
+          setLoading(false);
+          return;
+        }
+
         let ticketResponse;
         if (isAdvisorMode) {
           ticketResponse = await fetchServiceTicketDetail(resolvedTicketCode, token);
@@ -1936,7 +1962,7 @@ export const ServiceTicket = ({
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>{isAdvisorMode ? 'Phiếu kiểm tra - Cố vấn viên' : 'Phiếu kiểm tra xe'}</h1>
+          <h1 id="tour-inspection-title" className={styles.title}>{isAdvisorMode ? 'Phiếu kiểm tra - Cố vấn viên' : 'Phiếu kiểm tra xe'}</h1>
           {!hideReadOnlyNotice && isServiceTicketLocked && (
             <div style={{
               marginTop: '8px',
@@ -1967,7 +1993,7 @@ export const ServiceTicket = ({
       </div>
 
       {/* Phần kiểm tra lốp */}
-      <div className={styles.card} ref={tireInputSectionRef}>
+      <div id="tour-tire-inspection-card" className={styles.card} ref={tireInputSectionRef}>
         <div className={styles.tireInspectionHeader}>
           <div>
             <div className={styles.tireSizeRow}>
@@ -2415,7 +2441,7 @@ export const ServiceTicket = ({
       </div>
 
       {/* Bảng kiểm tra an toàn - 13 hạng mục mặc định */}
-      <div className={styles.card}>
+      <div id="tour-safety-checklist-card" className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h2 className={styles.sectionTitle}>HẠNG MỤC KIỂM TRA AN TOÀN</h2>
           {canEditTechnicalFields && (

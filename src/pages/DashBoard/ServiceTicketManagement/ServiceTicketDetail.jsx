@@ -355,6 +355,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     // Hàm để tải lại danh sách khuyến mãi có sẵn cho khách hàng, có thể được gọi sau khi áp dụng hoặc hủy bỏ khuyến mãi để cập nhật lại danh sách khuyến mãi có sẵn và trạng thái áp dụng
     const refreshAvailablePromotions = useCallback(async (token = null, customerId = customerIdNum) => {
+        if (ticketCodeParam === 'demo') {
+            setAvailablePromotions({
+                PERCENT: [
+                    { promotionId: 10, promotionCode: 'KM10', promotionType: 'PERCENT', discountValue: 10, maxValue: 500000, minOrderValue: 0, description: 'Giảm 10% tổng hóa đơn, tối đa 500K' },
+                    { promotionId: 20, promotionCode: 'KM20', promotionType: 'PERCENT', discountValue: 20, maxValue: 1000000, minOrderValue: 2000000, description: 'Giảm 20% cho hóa đơn từ 2 triệu, tối đa 1 triệu' }
+                ],
+                BUY_X_GET_Y: []
+            });
+            return;
+        }
         const authToken = token || localStorage.getItem('authToken') || localStorage.getItem('staffToken');
         if (!authToken) return;
 
@@ -372,7 +382,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         } finally {
             setPromotionsLoading(false);
         }
-    }, [customerIdNum]);
+    }, [customerIdNum, ticketCodeParam]);
 
     // Khi chuyển sang phiếu dịch vụ khác, reset các ref và state liên quan đến luồng tạo bản báo giá mới để tránh ảnh hưởng đến phiếu dịch vụ khác
     useEffect(() => {
@@ -419,7 +429,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         let cancelled = false;
 
         // Nếu không có mã phiếu dịch vụ hợp lệ, reset thông tin hóa đơn và lỗi liên quan
-        if (!serviceTicketIdNum) {
+        if (!serviceTicketIdNum || ticketCodeParam === 'demo') {
             setBillPayment(null);
             setBillLookupError('');
             return () => { cancelled = true; };
@@ -489,6 +499,29 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         const code = String(ticket.ticketCode || ticketCodeParam || '').trim();
         if (!code) return undefined;
 
+        if (code === 'demo') {
+            setSafetyInspectionForPrint({
+                inspectionId: 100,
+                serviceTicketId: 99999,
+                inspectionStatus: 'COMPLETED',
+                recommendedTireSize: '205/55R16',
+                tires: [
+                  { tirePosition: 'FRONT_LEFT', treadDepth: 6, pressure: 2.2, recommendedPressure: 2.2, tireSpecification: '205/55R16' },
+                  { tirePosition: 'FRONT_RIGHT', treadDepth: 6, pressure: 2.2, recommendedPressure: 2.2, tireSpecification: '205/55R16' },
+                  { tirePosition: 'REAR_LEFT', treadDepth: 5, pressure: 2.3, recommendedPressure: 2.3, tireSpecification: '205/55R16' },
+                  { tirePosition: 'REAR_RIGHT', treadDepth: 5, pressure: 2.3, recommendedPressure: 2.3, tireSpecification: '205/55R16' },
+                  { tirePosition: 'SPARE', treadDepth: 7, pressure: 2.5, recommendedPressure: 2.5, tireSpecification: '205/55R16' }
+                ],
+                items: [
+                  { workCategoryId: 1, itemId: 1, categoryName: 'Hệ thống phanh', itemStatus: 'GOOD', advisorNote: 'Má phanh còn dày' },
+                  { workCategoryId: 2, itemId: 2, categoryName: 'Hệ thống giảm xóc', itemStatus: 'GOOD', advisorNote: 'Không chảy dầu' },
+                  { workCategoryId: 3, itemId: 3, categoryName: 'Hệ thống lái', itemStatus: 'WARNING', advisorNote: 'Rơ nhẹ thanh liên kết' },
+                  { workCategoryId: 4, itemId: 4, categoryName: 'Độ chụm bánh xe', itemStatus: 'REPLACE', advisorNote: 'Sai lệch góc đặt bánh xe' }
+                ]
+            });
+            return undefined;
+        }
+
         let cancelled = false;
         (async () => {
             try {
@@ -506,6 +539,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
         if (!token) return undefined;
 
+        if (ticketCodeParam === 'demo') {
+            setDefaultSafetyCategories([
+                { id: 1, categoryName: 'Hệ thống phanh', displayOrder: 1 },
+                { id: 2, categoryName: 'Hệ thống giảm xóc', displayOrder: 2 },
+                { id: 3, categoryName: 'Hệ thống lái', displayOrder: 3 },
+                { id: 4, categoryName: 'Độ chụm bánh xe', displayOrder: 4 }
+            ]);
+            return undefined;
+        }
+
         let cancelled = false;
         (async () => {
             try {
@@ -516,13 +559,18 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             }
         })();
         return () => { cancelled = true; };
-    }, []);
+    }, [ticketCodeParam]);
 
     // Khi có mã phiếu dịch vụ hợp lệ, tự động tải khuyến nghị kiểm tra an toàn hiện tại để hiển thị trên phiếu in
     useEffect(() => {
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
         if (!token || !serviceTicketIdNum) {
             setPrintRecommendation('');
+            return undefined;
+        }
+
+        if (ticketCodeParam === 'demo') {
+            setPrintRecommendation('Cân chỉnh góc đặt bánh xe và thay lốp trước.');
             return undefined;
         }
 
@@ -950,6 +998,81 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     );
 
     const loadLatestEstimate = useCallback(async () => {
+        if (ticketCodeParam === 'demo') {
+            setLatestEstimate({
+                estimateId: 12345,
+                estimateCode: 'EST-99999-01',
+                version: 1,
+                status: 'DRAFT',
+                estimateStatus: 'DRAFT',
+                totalAmount: 4300000,
+                subTotal: 4500000,
+                discountAmount: 400000,
+                taxAmount: 200000,
+                items: [
+                    {
+                        estimateItemId: 101,
+                        itemName: 'Lốp Michelin 205/55R16 Primacy 4',
+                        quantity: 2,
+                        unitPrice: 2000000,
+                        subTotal: 4000000,
+                        discountAmount: 200000,
+                        appliedTaxRate: 10,
+                        taxAmount: 380000,
+                        finalPrice: 3800000,
+                        finalPriceDisplay: 3800000,
+                        isGift: false,
+                        stockAllocationStatus: 'ALLOCATED',
+                        warehouseName: 'Kho chính',
+                        workCategory: { categoryName: 'Thay lốp' }
+                    },
+                    {
+                        estimateItemId: 102,
+                        itemName: 'Cân chỉnh độ chụm bánh xe (Alignment)',
+                        quantity: 1,
+                        unitPrice: 500000,
+                        subTotal: 500000,
+                        discountAmount: 0,
+                        appliedTaxRate: 10,
+                        taxAmount: 50000,
+                        finalPrice: 500000,
+                        finalPriceDisplay: 500000,
+                        isGift: false,
+                        stockAllocationStatus: 'COMPLETED',
+                        warehouseName: '',
+                        workCategory: { categoryName: 'Cân chỉnh góc đặt bánh xe' }
+                    },
+                    {
+                        estimateItemId: 103,
+                        itemName: 'Nước rửa kính Michelin (Quà tặng)',
+                        quantity: 1,
+                        unitPrice: 150000,
+                        subTotal: 150000,
+                        discountAmount: 150000,
+                        appliedTaxRate: 0,
+                        taxAmount: 0,
+                        finalPrice: 0,
+                        finalPriceDisplay: 0,
+                        isGift: true,
+                        stockAllocationStatus: 'ALLOCATED',
+                        warehouseName: 'Kho phụ',
+                        workCategory: { categoryName: 'Quà tặng' }
+                    }
+                ],
+                appliedPromotions: {
+                    PERCENT: {
+                        promotionId: 10,
+                        promotionCode: 'KM10',
+                        promotionType: 'PERCENT',
+                        discountValue: 10,
+                        maxValue: 500000,
+                        description: 'Giảm 10% tổng hóa đơn, tối đa 500K'
+                    }
+                }
+            });
+            setEstimateLoading(false);
+            return;
+        }
         const token = localStorage.getItem('authToken');
         if (!token) return;
         if (!serviceTicketIdNum) return;
@@ -976,7 +1099,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         } finally {
             if (estimateLoadSeqRef.current === seq) setEstimateLoading(false);
         }
-    }, [restoreInterruptedAddServiceEstimate, serviceTicketIdNum]);
+    }, [restoreInterruptedAddServiceEstimate, serviceTicketIdNum, ticketCodeParam]);
 
     const refreshDetailView = useCallback(async (options = {}) => {
         const {
@@ -1040,6 +1163,13 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         if (!token) return;
         if (!serviceTicketIdNum) return;
 
+        if (ticketCodeParam === 'demo') {
+            setAssignments([
+                { staffId: 1, fullName: 'Kỹ thuật viên A', roleInTicket: 'TECHNICIAN', status: 'ACTIVE' }
+            ]);
+            return;
+        }
+
         let cancelled = false;
         (async () => {
             try {
@@ -1055,7 +1185,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             }
         })();
         return () => { cancelled = true; };
-    }, [serviceTicketIdNum]);
+    }, [serviceTicketIdNum, ticketCodeParam]);
 
     const hasTechnician = useMemo(() => {
         if (assignmentsLoading) return true;
@@ -2366,7 +2496,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         if (!canApplyPromotionToCurrentEstimate && activePromotionRows.length === 0) return null;
 
         return (
-            <section className={styles.block} style={{ marginTop: 16, marginBottom: 16 }}>
+            <section id="tour-promotion-section" className={styles.block} style={{ marginTop: 16, marginBottom: 16 }}>
                 <h2 className={styles.blockTitle}>Mã giảm giá</h2>
                 {activePromotionRows.length > 0 ? (
                     <div className={styles.promotionSummaryList}>
@@ -2403,7 +2533,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                 || billCreating
                                 || promoApplying;
                             return (
-                                <div key={type} className={styles.promotionBox}>
+                                <div key={type} id={visiblePromotionTypes[0]?.type === type ? 'tour-promo-code-input' : undefined} className={styles.promotionBox}>
                                     <div className="ui-field" style={{ marginBottom: 0 }}>
                                         <label htmlFor={`service-ticket-promo-code-${type}`}>{label}</label>
                                         <input
@@ -2494,7 +2624,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                         <div className={`ui-card ${styles.card}`}>
                             <div className={styles.screenInfoSection}>
                                 {/* Cột Trái: Thông tin khách & ticket */}
-                                <div className={`${styles.screenInfoColumn} ${styles.screenInfoColumnLeft}`}>
+                                <div id="tour-customer-info" className={`${styles.screenInfoColumn} ${styles.screenInfoColumnLeft}`}>
                                     <div className={styles.screenInfoRow}>
                                         <span className={styles.screenInfoLabel}>Họ tên:</span>
                                         {isEditing ? (
@@ -2733,6 +2863,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     {!isEditing && !isImmutable && (hasAdvisorRole || hasReceptionistRole) && (
                                         <div className={styles.inlineEditBtnWrapper}>
                                             <button
+                                                id="tour-edit-info-btn"
                                                 type="button"
                                                 className={`ui-btn ui-btn--primary ${styles.inlineEditBtn}`}
                                                 onClick={toggleEdit}

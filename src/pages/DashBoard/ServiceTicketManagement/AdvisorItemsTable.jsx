@@ -181,7 +181,7 @@ function TaxPickerModal({
         <div className={styles.taxModalOverlay} onClick={onClose}>
             <dialog className={styles.taxModal} open aria-modal="true" onClick={(e) => e.stopPropagation()}>
                 <div className={styles.taxModalHeader}>
-                    <h3 className={styles.taxModalTitle}>Chọn loại thuế</h3>
+                    <h3 id="tour-tax-title" className={styles.taxModalTitle}>Chọn loại thuế</h3>
                     <button type="button" className={styles.taxModalCloseButton} onClick={onClose} aria-label="Đóng">
                         ×
                     </button>
@@ -446,6 +446,7 @@ function EstimateItemRow({
                 {allowInputs ? (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <input
+                            id={idx === 0 ? "tour-input-category" : undefined}
                             ref={categoryInputRef}
                             className={styles.tableInput}
                             value={row.newCategoryName}
@@ -467,6 +468,7 @@ function EstimateItemRow({
                             onClose={() => setCategoryDropdownOpen(false)}
                         />
                         <button
+                            id={idx === 0 ? "tour-btn-select-category" : undefined}
                             type="button"
                             className={`ui-btn ui-btn--ghost ${styles.pickButtonNoWrap}`}
                             onClick={() => openCategoryPicker(idx)}
@@ -484,6 +486,7 @@ function EstimateItemRow({
                 {allowInputs ? (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <input
+                            id={idx === 0 ? "tour-input-description" : undefined}
                             className={styles.tableInput}
                             value={row.itemName ?? ''}
                             placeholder={itemPlaceholder}
@@ -496,6 +499,7 @@ function EstimateItemRow({
                             disabled={isSaving || !allowItemActions}
                         />
                         <button
+                            id={idx === 0 ? "tour-btn-select-product" : undefined}
                             type="button"
                             className={`ui-btn ui-btn--ghost ${styles.pickButtonNoWrap}`}
                             onClick={() => openCatalogPicker(idx, row)}
@@ -529,6 +533,7 @@ function EstimateItemRow({
                                 -
                             </button>
                             <input
+                                id={idx === 0 ? "tour-input-qty" : undefined}
                                 className={`${styles.tableInput} ${styles.tableInputNumber} ${styles.stepperInput}`}
                                 type="text"
                                 inputMode="numeric"
@@ -572,6 +577,7 @@ function EstimateItemRow({
             <td data-label="Đơn giá" className={styles.tdNumber}>
                 {allowInputs ? (
                     <input
+                        id={idx === 0 ? "tour-input-price" : undefined}
                         className={`${styles.tableInput} ${styles.tableInputNumber}`}
                         type="text"
                         inputMode="decimal"
@@ -599,6 +605,7 @@ function EstimateItemRow({
                         shouldShowTaxDropdown ? (
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                 <button
+                                    id={idx === 0 ? "tour-btn-select-tax" : undefined}
                                     type="button"
                                     className={`ui-btn ui-btn--ghost ${styles.taxPickBtn}`}
                                     onClick={() => openTaxPicker(idx)}
@@ -645,7 +652,7 @@ function EstimateItemRow({
                 )}
             </td>
 
-            <td data-label="Xuất kho">
+            <td id={idx === 0 ? "tour-display-stock" : undefined} data-label="Xuất kho">
                 <span className={stockAllocationClassName}>{stockAllocationText}</span>
                 {['RESERVED', 'COMMITTED', 'RELEASED'].includes(stockStatus) && warehouseText ? (
                     <div style={{ fontSize: '11px', fontStyle: 'italic', fontWeight: '700', color: '#64748b', marginTop: '2px' }}>
@@ -1466,6 +1473,59 @@ export default function AdvisorItemsTable({
     const [workCategoryPickerOpen, setWorkCategoryPickerOpen] = useState(false);
     const [categoryPickerRowIndex, setCategoryPickerRowIndex] = useState(null);
 
+    useEffect(() => {
+        const handleTourStepChange = (e) => {
+            const { title } = e.detail || {};
+            
+            if (title.includes('2.3. Nhập Hạng mục dịch vụ')) {
+                setWorkCategoryPickerOpen(true);
+                setCategoryPickerRowIndex(0);
+                setCatalogPickerOpen(false);
+                setLotPickerOpen(false);
+                setTaxPickerRowIndex(null);
+            } else if (title.includes('2.4. Chọn sản phẩm từ danh mục')) {
+                setWorkCategoryPickerOpen(false);
+                setCategoryPickerRowIndex(null);
+                setCatalogPickerOpen(true);
+                setActiveRowIndex(0);
+                setLotPickerOpen(false);
+                setTaxPickerRowIndex(null);
+            } else if (title.includes('2.5. Chọn lô sản phẩm')) {
+                setWorkCategoryPickerOpen(false);
+                setCategoryPickerRowIndex(null);
+                setCatalogPickerOpen(false);
+                setTaxPickerRowIndex(null);
+                setSelectedCatalogItem({ itemName: 'Lốp Michelin Primacy 4 215/55R17', sku: 'MIC-P4-2155517' });
+                setSelectedWarehouse({
+                    warehouseName: 'Kho chính',
+                    warehouseCode: 'WH01',
+                    lots: [
+                        { entryItemId: 201, entryCode: 'LOT-FIFO-001', entryDate: '2026-05-10', remainingQuantity: 10, sellingPrice: 2500000 },
+                        { entryItemId: 202, entryCode: 'LOT-OLD-002', entryDate: '2026-06-01', remainingQuantity: 5, sellingPrice: 2550000 }
+                    ]
+                });
+                setLotPickerOpen(true);
+            } else if (title.includes('2.7. Chọn Thuế suất')) {
+                setWorkCategoryPickerOpen(false);
+                setCategoryPickerRowIndex(null);
+                setCatalogPickerOpen(false);
+                setLotPickerOpen(false);
+                setTaxPickerRowIndex(0);
+            } else {
+                setWorkCategoryPickerOpen(false);
+                setCategoryPickerRowIndex(null);
+                setCatalogPickerOpen(false);
+                setLotPickerOpen(false);
+                setTaxPickerRowIndex(null);
+            }
+        };
+
+        window.addEventListener('tourStepChange', handleTourStepChange);
+        return () => {
+            window.removeEventListener('tourStepChange', handleTourStepChange);
+        };
+    }, [setActiveRowIndex, setSelectedCatalogItem, setSelectedWarehouse, setTaxPickerRowIndex]);
+
     const openCategoryPicker = (rowIndex) => {
         setCategoryPickerRowIndex(rowIndex);
         setWorkCategoryPickerOpen(true);
@@ -1610,7 +1670,7 @@ export default function AdvisorItemsTable({
     }, [photoPreview, closePhotoPreview]);
 
     return (
-        <section className={`${styles.block}${className ? ` ${className}` : ''}`}>
+        <section id="tour-estimate-section" className={`${styles.block}${className ? ` ${className}` : ''}`}>
             <h2 className={styles.blockTitle}>{title}</h2>
 
 
@@ -1657,7 +1717,7 @@ export default function AdvisorItemsTable({
 
                         {/* Photos Card */}
                         {!hideVehiclePhotos ? (
-                            <div className={`${styles.advisorCard} ${activeTab === 'photos' ? '' : styles.mobileHiddenClass}`}>
+                            <div id="tour-vehicle-photos" className={`${styles.advisorCard} ${activeTab === 'photos' ? '' : styles.mobileHiddenClass}`}>
                                 <div className={styles.vehicleCardHeader}>
                                     <svg className={styles.vehicleCardIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                                     <h3 className={styles.vehicleCardTitle}>Ảnh tình trạng xe</h3>
@@ -1714,7 +1774,7 @@ export default function AdvisorItemsTable({
 
                         {/* Vehicle Info Card */}
                         {!hideEstimateSummary ? (
-                            <div className={`${styles.vehicleInfoCard} ${activeTab === 'info' ? '' : styles.mobileHiddenClass}`}>
+                            <div id="tour-vehicle-info-card" className={`${styles.vehicleInfoCard} ${activeTab === 'info' ? '' : styles.mobileHiddenClass}`}>
                                 <div className={styles.vehicleCardHeader}>
                                     <svg className={styles.vehicleCardIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
                                     <h3 className={styles.vehicleCardTitle}>Thông tin xe đang sửa</h3>

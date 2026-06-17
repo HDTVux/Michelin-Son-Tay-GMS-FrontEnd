@@ -23,12 +23,13 @@ import './SystemTutorials.css';
 // Helper to determine customer site URL in production vs development
 const getCustomerSiteUrl = (path = '') => {
   const { protocol, hostname, port } = window.location;
+  // Loại bỏ subdomain staff. hoặc admin. để chuyển về tên miền chính của khách hàng
+  const mainHost = hostname.replace(/^(staff|admin)\./, '');
   if (hostname.includes('sontaygarage.vn')) {
-    const mainHost = hostname.replace(/^(staff|admin)\./, '');
     return `${protocol}//${mainHost}${path}`;
   }
   const portStr = port ? `:${port}` : '';
-  return `${protocol}//${hostname}${portStr}${path}`;
+  return `${protocol}//${mainHost}${portStr}${path}`;
 };
 
 const TUTORIAL_CATEGORIES = [
@@ -41,10 +42,58 @@ const TUTORIAL_CATEGORIES = [
   { id: 'accountant', label: 'Kế toán & Thu ngân', icon: <DollarSign size={16} /> },
 ];
 
+const normalizeRoleName = (value) => {
+  const raw = String(value ?? '').trim().toUpperCase();
+  if (!raw) return '';
+  return raw.startsWith('ROLE_') ? raw.slice('ROLE_'.length) : raw;
+};
+
+const readStaffRolesFromStorage = () => {
+  let roles = [];
+  try {
+    const raw = localStorage.getItem('staffRoles');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        roles = parsed
+          .filter((r) => typeof r === 'string')
+          .map((r) => normalizeRoleName(r))
+          .filter(Boolean);
+      }
+    }
+  } catch (_) {
+    // ignore storage error
+  }
+
+  if (roles.length === 0) {
+    try {
+      const rawProfile = localStorage.getItem('staffProfile');
+      if (rawProfile) {
+        const parsed = JSON.parse(rawProfile);
+        const profileRoles = Array.isArray(parsed?.role) ? parsed.role : [];
+        roles = profileRoles
+          .filter((r) => typeof r === 'string')
+          .map((r) => normalizeRoleName(r))
+          .filter(Boolean);
+      }
+    } catch (_) {
+      roles = [];
+    }
+  }
+
+  if (roles.includes('WAREHOUSE_MANAGER') && !roles.includes('WAREHOUSE_KEEPER')) {
+    roles.push('WAREHOUSE_KEEPER');
+  }
+  return roles;
+};
+
 export default function SystemTutorials() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [activeDetailGuide, setActiveDetailGuide] = useState(null);
+
+  // Read current user's roles
+  const userRoles = useMemo(() => readStaffRolesFromStorage(), []);
 
   // List of all guides built on frontend
   const tutorialsList = useMemo(() => [
@@ -82,60 +131,30 @@ export default function SystemTutorials() {
       title: 'Quy trình Tiếp nhận & Đặt lịch',
       description: 'Quy trình chuẩn từ lúc tiếp nhận yêu cầu đặt lịch hẹn trực tuyến/trực tiếp, kiểm tra hàng chờ điều phối đến việc check-in xe và tạo phiếu dịch vụ ban đầu.',
       category: 'receptionist',
-      role: 'Lễ tân',
+      role: 'Lễ tân, Cố vấn, Quản lý, Admin',
       duration: '5 phút',
-      type: 'workflow',
+      type: 'interactive',
       icon: <Calendar className="tutorial-card__icon text-blue" />,
-      actionLabel: 'Xem quy trình',
-      steps: [
-        {
-          title: 'Tiếp nhận & Tạo lịch hẹn mới',
-          desc: 'Khi khách hàng liên hệ trực tiếp hoặc gửi yêu cầu trực tuyến, Lễ tân thực hiện tạo thông tin lịch hẹn tại màn hình "Tạo lịch giữ chỗ". Nhập đầy đủ thông tin khách hàng, số điện thoại, biển số xe, và thời gian hẹn.'
-        },
-        {
-          title: 'Kiểm tra & Quản lý Hàng chờ (Queue)',
-          desc: 'Theo dõi màn hình "Hàng chờ đặt lịch" để xem danh sách xe chuẩn bị đến. Thực hiện cập nhật trạng thái khi xe của khách hàng đã có mặt tại garage.'
-        },
-        {
-          title: 'Thực hiện Check-in xe',
-          desc: 'Tiến hành chụp ảnh hiện trạng xe, ghi nhận các yêu cầu sửa chữa cơ bản từ khách hàng, nhập cây số (Odo) hiện tại, và kiểm tra thông tin chủ xe trên hệ thống.'
-        },
-        {
-          title: 'Tạo phiếu dịch vụ ban đầu',
-          desc: 'Khởi tạo Phiếu dịch vụ (Service Ticket), gán thông tin xe và chuyển tiếp trạng thái sang "Chờ cố vấn dịch vụ nhận phiếu" để thực hiện khâu tiếp theo.'
-        }
-      ],
-      tips: 'Lễ tân nên hướng dẫn khách hàng đăng ký tài khoản để họ tự động nhận thông báo trạng thái sửa chữa qua Zalo hoặc SMS.'
+      actionLabel: 'Bắt đầu Tour',
+      allowedRoles: ['ADMIN', 'MANAGER', 'ADVISOR', 'RECEPTIONIST'],
+      onClick: () => {
+        window.dispatchEvent(new CustomEvent('triggerTour', { detail: { type: 'receptionist-workflow' } }));
+      }
     },
     {
       id: 'advisor-workflow',
       title: 'Quy trình Khảo sát & Lên Báo giá',
       description: 'Hướng dẫn Cố vấn dịch vụ thực hiện nhận phiếu dịch vụ, tiến hành lập biên bản khảo sát tình trạng xe, chọn phụ tùng, dịch vụ phù hợp và xin phê duyệt báo giá.',
       category: 'advisor',
-      role: 'Cố vấn dịch vụ',
+      role: 'Cố vấn, Quản lý, Admin',
       duration: '7 phút',
-      type: 'workflow',
+      type: 'interactive',
       icon: <ClipboardList className="tutorial-card__icon text-green" />,
-      actionLabel: 'Xem quy trình',
-      steps: [
-        {
-          title: 'Nhận phiếu dịch vụ và Khảo sát xe',
-          desc: 'Nhấp vào màn hình "Điều phối phiếu dịch vụ". Tiếp nhận các phiếu xe mới check-in. Sử dụng thiết bị di động để tích chọn các hạng mục kiểm tra an toàn (Safety Inspection) tại xưởng.'
-        },
-        {
-          title: 'Lựa chọn Dịch vụ & Phụ tùng tương ứng',
-          desc: 'Trong giao diện lập phiếu, bấm thêm các phụ tùng cần thay thế và các công việc dịch vụ tương ứng. Hệ thống sẽ tự động hiển thị giá tồn kho tương ứng.'
-        },
-        {
-          title: 'Áp dụng Khuyến mãi & Thuế',
-          desc: 'Chọn các chương trình khuyến mãi hiện hành cho khách hàng (nếu có) và thiết lập thuế VAT tương ứng cho từng hạng mục để đảm bảo tính đúng hóa đơn.'
-        },
-        {
-          title: 'In báo giá & Chờ khách duyệt',
-          desc: 'In bản ước lượng chi phí (Estimate Invoice) gửi khách hàng ký duyệt trực tiếp. Sau khi khách hàng đồng ý, cập nhật trạng thái phiếu sang "Đang sửa chữa" để chuyển việc cho Kỹ thuật viên.'
-        }
-      ],
-      tips: 'Luôn lưu giữ lại ảnh hiện trạng xe trước và sau khi làm dịch vụ trong tab "Hình ảnh hiện trạng" để làm bằng chứng đối chiếu trực quan với khách hàng.'
+      actionLabel: 'Bắt đầu Tour',
+      allowedRoles: ['ADMIN', 'MANAGER', 'ADVISOR'],
+      onClick: () => {
+        window.dispatchEvent(new CustomEvent('triggerTour', { detail: { type: 'advisor-workflow' } }));
+      }
     },
     {
       id: 'technician-workflow',
@@ -232,6 +251,12 @@ export default function SystemTutorials() {
   // Filter & Search Logic
   const filteredTutorials = useMemo(() => {
     return tutorialsList.filter(item => {
+      // Check role constraints if specified
+      if (item.allowedRoles) {
+        const hasRole = item.allowedRoles.some((role) => userRoles.includes(role));
+        if (!hasRole) return false;
+      }
+
       const matchSearch = 
         item.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
         item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -241,7 +266,7 @@ export default function SystemTutorials() {
 
       return matchSearch && matchCategory;
     });
-  }, [tutorialsList, searchTerm, selectedCategory]);
+  }, [tutorialsList, searchTerm, selectedCategory, userRoles]);
 
   return (
     <div className="tutorials-page">

@@ -1376,6 +1376,8 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const activeTicketId = serviceTicketId || 'new_booking';
 	const backupKey = `gms_advisor_table_backup_${activeTicketId}`;
 
+	const isDemoMode = serviceTicketId === 99999 || String(serviceTicketId) === '99999';
+
 	const getBackupState = () => {
 		if (typeof sessionStorage === 'undefined') return null;
 		try {
@@ -1410,13 +1412,63 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	const [recommendationLoading, setRecommendationLoading] = useState(false);
 	const [recommendationSaving, setRecommendationSaving] = useState(false);
 
-	const [isCreating, setIsCreating] = useState(() => backup?.isCreating ?? false);
+	const [isCreating, setIsCreating] = useState(() => isDemoMode ? true : (backup?.isCreating ?? false));
 	const [isEditing, setIsEditing] = useState(() => backup?.isEditing ?? false);
 	const [isAppendOnlyEdit, setIsAppendOnlyEdit] = useState(() => backup?.isAppendOnlyEdit ?? false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [saveError, setSaveError] = useState('');
-	const [draftRows, setDraftRows] = useState(() => backup?.draftRows ?? [createEmptyDraftRow()]);
-	const [editRows, setEditRows] = useState(() => backup?.editRows ?? [createEmptyDraftRow()]);
+
+	const getDemoRows = () => [
+		{
+			estimateItemId: null,
+			workCategoryId: 1,
+			workCategoryCode: 'THAY_LOP',
+			workCategoryTaxRuleId: '1',
+			itemId: 101,
+			unit: 'Cái',
+			warehouseId: '1',
+			warehouseName: 'Kho chính',
+			warehouseAvailableQuantity: 10,
+			itemTaxRuleId: '1',
+			newCategoryName: 'Thay lốp',
+			itemName: 'Lốp Michelin Primacy 4 215/55R17',
+			quantity: '2',
+			unitPrice: '2500000',
+			taxRuleId: '1',
+			isRemoved: false,
+			isLockedFromPreviousVersion: false,
+			entryItemId: 201,
+			entryCode: 'LOT-FIFO-001',
+			stockStatus: 'RESERVED',
+			allocationStatus: 'RESERVED'
+		},
+		{
+			estimateItemId: null,
+			workCategoryId: 2,
+			workCategoryCode: 'CAN_CHINH',
+			workCategoryTaxRuleId: '1',
+			itemId: 102,
+			unit: 'Lần',
+			warehouseId: '',
+			warehouseName: '',
+			warehouseAvailableQuantity: null,
+			itemTaxRuleId: '1',
+			newCategoryName: 'Cân chỉnh thước lái',
+			itemName: 'Dịch vụ Cân chỉnh góc đặt bánh xe Camry',
+			quantity: '1',
+			unitPrice: '500000',
+			taxRuleId: '1',
+			isRemoved: false,
+			isLockedFromPreviousVersion: false,
+			entryItemId: null,
+			entryCode: null,
+			stockStatus: '',
+			allocationStatus: ''
+		}
+	];
+
+	const [draftRows, setDraftRows] = useState(() => isDemoMode ? getDemoRows() : (backup?.draftRows ?? [createEmptyDraftRow()]));
+	const [editRows, setEditRows] = useState(() => isDemoMode ? getDemoRows() : (backup?.editRows ?? [createEmptyDraftRow()]));
 	const initialEditRowsSnapshotRef = useRef('');
 	const initialCreateRowsSnapshotRef = useRef('');
 	const lastValidServiceTicketIdRef = useRef(
@@ -1673,6 +1725,16 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 	}, [serviceTicketId]);
 
 	useEffect(() => {
+		if (isDemoMode) {
+			setTaxRules([
+				{ taxRuleId: 1, taxCode: 'VAT10', taxName: 'VAT 10%', taxRate: 10, rate: 0.1 },
+				{ taxRuleId: 2, taxCode: 'VAT8', taxName: 'VAT 8%', taxRate: 8, rate: 0.08 }
+			]);
+			setTaxRulesError('');
+			setTaxRulesLoading(false);
+			return;
+		}
+
 		const token = localStorage.getItem('authToken');
 		if (!token) {
 			setTaxRules([]);
@@ -1704,9 +1766,20 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		return () => {
 			ignore = true;
 		};
-	}, []);
+	}, [isDemoMode]);
 
 	useEffect(() => {
+		if (isDemoMode) {
+			setWorkCategories([
+				{ workCategoryId: 1, categoryCode: 'THAY_LOP', categoryName: 'Thay lốp', taxRuleId: '1' },
+				{ workCategoryId: 2, categoryCode: 'CAN_CHINH', categoryName: 'Cân chỉnh thước lái', taxRuleId: '1' },
+				{ workCategoryId: 3, categoryCode: 'BAO_DUONG', categoryName: 'Bảo dưỡng', taxRuleId: '1' }
+			]);
+			setWorkCategoriesError('');
+			setWorkCategoriesLoading(false);
+			return;
+		}
+
 		const token = localStorage.getItem('authToken');
 		if (!token) {
 			setWorkCategories([]);
@@ -1735,7 +1808,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		return () => {
 			ignore = true;
 		};
-	}, []);
+	}, [isDemoMode]);
 
 	const startAddNewTaxRule = useCallback(() => {
 		if (taxRulesLoading) return;

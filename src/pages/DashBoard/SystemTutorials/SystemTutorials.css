@@ -423,7 +423,7 @@
   bottom: 0;
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(4px);
-  z-index: 1000;
+  z-index: 9999;
   display: flex;
   justify-content: flex-end;
   animation: fadeIn 0.25s ease;
@@ -693,7 +693,7 @@
   }
 
   .guide-modal-footer {
-    padding: 16px !important;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .guide-timeline::before {

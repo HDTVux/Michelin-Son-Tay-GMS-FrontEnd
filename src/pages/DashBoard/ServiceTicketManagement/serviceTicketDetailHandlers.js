@@ -1242,6 +1242,41 @@ export function useServiceTicketDetailData(ticketCodeParam, ticketFromState) {
             try {
                 setIsLoading(true);
                 setError('');
+                if (ticketCodeParam === 'demo') {
+                    setTicketRaw({
+                        serviceTicketId: 99999,
+                        ticketCode: 'demo',
+                        ticketStatus: 'ESTIMATED',
+                        receivedAt: '2026-06-17T09:00:00Z',
+                        estimatedDeliveryAt: '2026-06-17T17:00:00Z',
+                        customer: {
+                            customerId: 99999,
+                            id: 99999,
+                            fullName: 'Nguyễn Văn A',
+                            phone: '0987654321',
+                            email: 'nguyenvana@gmail.com'
+                        },
+                        vehicle: {
+                            licensePlate: '30A-99999',
+                            model: 'Camry',
+                            make: 'Toyota',
+                            year: 2020,
+                            odometerReading: 45000
+                        },
+                        booking: {
+                            bookingCode: 'B-12345',
+                            scheduledDate: '2026-06-17',
+                            scheduledTime: '09:00'
+                        },
+                        createdByName: 'Nguyễn Văn Cố Vấn',
+                        customerRequest: 'Khách hàng yêu cầu cân chỉnh độ chụm thước lái, kiểm tra hệ thống phanh và thay lốp.',
+                        safetyInspectionEnabled: true,
+                        safetyInspectionStatus: 'COMPLETED',
+                        photos: []
+                    });
+                    setIsLoading(false);
+                    return;
+                }
                 const res = await fetchServiceTicketDetail(ticketCodeParam, token); // API call để lấy chi tiết ticket
                 if (ignore) return;
                 setTicketRaw(res?.data ?? null);
