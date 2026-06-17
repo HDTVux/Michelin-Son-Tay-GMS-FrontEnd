@@ -36,6 +36,7 @@ import {
     Layers,
     DollarSign,
     AlertTriangle,
+    HelpCircle,
 } from 'lucide-react';
 import './SideBar.css';
 
@@ -122,6 +123,7 @@ const NAV_GROUPS = [
         defaultOpen: true,
         items: [
             { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: 'ALL' },
+            { id: 'system-tutorials', label: 'Hướng dẫn sử dụng', path: '/system-tutorials', icon: <HelpCircle size={18} />, roles: 'ALL' },
         ],
     },
     {

@@ -109,6 +109,7 @@ import ReceptionistDashboard from './pages/DashBoard/ReceptionistDashboard/Recep
 import TechnicianDashboard from './pages/DashBoard/TechnicianDashboard/TechnicianDashboard.jsx';
 import AccountantDashboard from './pages/DashBoard/AccountantDashboard/AccountantDashboard.jsx';
 import StaffNotifications from './pages/DashBoard/StaffNotifications/StaffNotifications.jsx';
+import SystemTutorials from './pages/DashBoard/SystemTutorials/SystemTutorials.jsx';
 
 
 // Import Technician pages
@@ -366,6 +367,7 @@ export default function App() {
             <Route element={<StaffAreaRoute><StaffLayout /></StaffAreaRoute>}>
               <Route path="dashboard" element={staffRoute(<StaffDashboard />)} />
               <Route path="notifications" element={staffRoute(<StaffNotifications />)} />
+              <Route path="system-tutorials" element={staffRoute(<SystemTutorials />)} />
 
               
               {/* Role-based Dashboards */}

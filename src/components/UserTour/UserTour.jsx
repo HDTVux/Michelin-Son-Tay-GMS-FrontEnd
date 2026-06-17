@@ -10,11 +10,11 @@ const STAFF_STEPS = [
     placement: 'center',
   },
   {
-    target: '.sidebar, .mobile-navbar',
+    target: '.sidebar__toggle, .sidebar, .mobile-navbar',
     title: 'Thanh điều hướng chức năng',
     content: 'Đây là nơi tập hợp tất cả các tính năng làm việc của bạn (như Quản lý lịch hẹn, Phiếu dịch vụ, Quản lý kho, Doanh thu...). Hệ thống tự động phân quyền theo vai trò của bạn.',
     placement: 'right',
-    mobilePlacement: 'top',
+    mobilePlacement: 'bottom',
   },
   {
     target: '.staff-header__bell-container, .mobile-navbar button:last-child',
@@ -24,11 +24,11 @@ const STAFF_STEPS = [
     mobilePlacement: 'top',
   },
   {
-    target: '.staff-header__profile-container, .sidebar__toggle',
+    target: '.staff-header__profile-container, .sidebar__profile',
     title: 'Tài khoản & Cá nhân hóa',
     content: 'Xem thông tin cá nhân, cập nhật hồ sơ, đổi mật khẩu và đăng xuất khỏi phiên làm việc một cách an toàn.',
     placement: 'bottom',
-    mobilePlacement: 'top',
+    mobilePlacement: 'bottom',
   }
 ];
 
@@ -119,14 +119,44 @@ export default function UserTour({ type = 'staff' }) {
       checkAuthAndTour();
     };
 
+    // Lắng nghe sự kiện phát hướng dẫn thủ công (on-demand)
+    const handleTriggerTour = (e) => {
+      const targetType = e.detail?.type || type;
+      if (targetType === type) {
+        setShowTour(true);
+        setActiveStep(0);
+      }
+    };
+
+    // Kiểm tra query parameter để kích hoạt tour
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('startTour') === type) {
+      setShowTour(true);
+      setActiveStep(0);
+
+      // Xóa query parameter khỏi URL mà không làm tải lại trang
+      const url = new URL(window.location);
+      url.searchParams.delete('startTour');
+      window.history.replaceState({}, '', url);
+    }
+
     window.addEventListener('storage', handleAuthChange);
     window.addEventListener('authChange', handleAuthChange);
+    window.addEventListener('triggerTour', handleTriggerTour);
 
     return () => {
       window.removeEventListener('storage', handleAuthChange);
       window.removeEventListener('authChange', handleAuthChange);
+      window.removeEventListener('triggerTour', handleTriggerTour);
     };
   }, [type]);
+
+  // Tự động cuộn lên đầu trang khi bắt đầu tour
+  useEffect(() => {
+    if (showTour) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [showTour]);
 
   // Cập nhật vị trí Spotlight & Tooltip khi đổi bước, scroll hoặc resize
   useEffect(() => {
@@ -141,7 +171,12 @@ export default function UserTour({ type = 'staff' }) {
       }
 
       const elements = currentStep.target.split(',').map(sel => document.querySelector(sel.trim())).filter(Boolean);
-      const targetElement = elements[0]; // Lấy phần tử khớp đầu tiên
+      // Ưu tiên chọn phần tử đang hiển thị trên màn hình (như mobile-navbar thay vì sidebar khi ở trên mobile)
+      const visibleElements = elements.filter(el => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).display !== 'none';
+      });
+      const targetElement = visibleElements[0] || elements[0]; // Lấy phần tử khớp đầu tiên
 
       if (!targetElement) {
         // Fallback: nếu không thấy phần tử cần hướng dẫn, hiển thị dạng center modal
@@ -158,10 +193,10 @@ export default function UserTour({ type = 'staff' }) {
       setTimeout(() => {
         const rect = targetElement.getBoundingClientRect();
         
-        // 1. Cập nhật Spotlight Style
+        // 1. Cập nhật Spotlight Style (Sử dụng Fixed để không bị ảnh hưởng bởi scroll tài liệu)
         setSpotlightStyle({
-          top: `${rect.top + window.scrollY}px`,
-          left: `${rect.left + window.scrollX}px`,
+          top: `${rect.top}px`,
+          left: `${rect.left}px`,
           width: `${rect.width}px`,
           height: `${rect.height}px`,
           borderRadius: window.getComputedStyle(targetElement).borderRadius || '8px',
@@ -179,22 +214,27 @@ export default function UserTour({ type = 'staff' }) {
 
         const gap = 12;
         const tooltipWidth = 320; 
-        const tooltipHeight = 180; // Chiều cao ước lượng tối đa
+        
+        // Đo chiều cao thực tế của tooltip để tránh đè lấp phần tử được highlight
+        const tooltipEl = tourRef.current?.querySelector('.user-tour-tooltip');
+        const measuredHeight = tooltipEl ? tooltipEl.offsetHeight : 180;
+        const tooltipHeight = measuredHeight > 50 ? measuredHeight : 180;
+        
         let top = 0;
         let left = 0;
 
         if (placement === 'bottom') {
-          top = rect.bottom + window.scrollY + gap;
-          left = rect.left + window.scrollX + rect.width / 2 - tooltipWidth / 2;
+          top = rect.bottom + gap;
+          left = rect.left + rect.width / 2 - tooltipWidth / 2;
         } else if (placement === 'top') {
-          top = rect.top + window.scrollY - tooltipHeight - gap;
-          left = rect.left + window.scrollX + rect.width / 2 - tooltipWidth / 2;
+          top = rect.top - tooltipHeight - gap;
+          left = rect.left + rect.width / 2 - tooltipWidth / 2;
         } else if (placement === 'right') {
-          left = rect.right + window.scrollX + gap;
-          top = rect.top + window.scrollY + rect.height / 2 - tooltipHeight / 2;
+          left = rect.right + gap;
+          top = rect.top + rect.height / 2 - tooltipHeight / 2;
         } else if (placement === 'left') {
-          left = rect.left + window.scrollX - tooltipWidth - gap;
-          top = rect.top + window.scrollY + rect.height / 2 - tooltipHeight / 2;
+          left = rect.left - tooltipWidth - gap;
+          top = rect.top + rect.height / 2 - tooltipHeight / 2;
         }
 
         // Đảm bảo tooltip không bị tràn khung hình viewport
@@ -208,7 +248,7 @@ export default function UserTour({ type = 'staff' }) {
         setTooltipStyle({
           top: `${top}px`,
           left: `${left}px`,
-          position: 'absolute',
+          position: 'fixed',
         });
         setArrowPlacement(placement);
       }, 100);
