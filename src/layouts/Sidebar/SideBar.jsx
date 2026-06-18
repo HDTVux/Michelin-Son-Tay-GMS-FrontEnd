@@ -37,6 +37,7 @@ import {
     DollarSign,
     AlertTriangle,
     HelpCircle,
+    Building2,
 } from 'lucide-react';
 import './SideBar.css';
 
@@ -161,6 +162,7 @@ const NAV_GROUPS = [
                 icon: <Box size={15} />,
                 items: [
                     { id: 'warehouse-management', label: 'Quản lý kho', path: '/warehouse-management', icon: <Box size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
+                    { id: 'warehouse-config', label: 'Cấu hình kho', path: '/warehouse-config', icon: <Building2 size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, 'WAREHOUSE_MANAGER'] },
                     { id: 'warehouse-pricing', label: 'Giá theo kho', path: '/warehouse-pricing', icon: <Tag size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
                     { id: 'part-management', label: 'Quản lý phụ tùng', path: '/part-management', icon: <Settings size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
                     { id: 'warehouse-stock-entries', label: 'Quản lý phiếu nhập', path: '/warehouse-stock-entries', icon: <Download size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },

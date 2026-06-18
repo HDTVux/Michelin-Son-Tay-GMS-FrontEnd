@@ -66,6 +66,7 @@ import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagem
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
 import VehicleManagement from './pages/DashBoard/VehicleManagement/VehicleManagement.jsx';
 import WarehouseManagement from './pages/DashBoard/WarehouseManagement/WarehouseManagement.jsx';
+import WarehouseConfig from './pages/DashBoard/WarehouseManagement/WarehouseConfig.jsx';
 import RevenueManagement from './pages/DashBoard/RevenueManagement/RevenueManagement.jsx';
 
 //Customer pages
@@ -142,6 +143,7 @@ const ROLE_GROUP = {
   ACCOUNTANT: [STAFF_ROLE.ACCOUNTANT],
   ACCOUNTING: [STAFF_ROLE.ACCOUNTANT, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN],
   WAREHOUSE: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER],
+  WAREHOUSE_ADMIN: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, 'WAREHOUSE_MANAGER'],
   SERVICE_TICKET: [
     STAFF_ROLE.RECEPTIONIST,
     STAFF_ROLE.ADVISOR,
@@ -455,6 +457,7 @@ export default function App() {
               <Route path="vehicle-management" element={staffRoute(<VehicleManagement />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
               <Route path="system-log-management" element={staffRoute(<SystemLogManagement />, ROLE_GROUP.ADMIN_ONLY)} />
               <Route path="warehouse-management" element={staffRoute(<WarehouseManagement />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="warehouse-config" element={staffRoute(<WarehouseConfig />, ROLE_GROUP.WAREHOUSE_ADMIN)} />
               <Route path="warehouse-pricing" element={staffRoute(<WarehousePricing />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="revenue-management" element={staffRoute(<RevenueManagement />, ROLE_GROUP.ACCOUNTING)} />
               
