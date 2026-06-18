@@ -343,6 +343,7 @@ function EstimateItemRow({
     onOpenReturnModal,
     onCancelReturn,
     openTaxPicker,
+    isTicketCompleted,
 }) {
     const giftRaw = row?.isGift ?? row?.is_gift;
     const isGift = giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true';
@@ -700,7 +701,7 @@ function EstimateItemRow({
                                         onClick={() => onOpenReturnModal?.(row)}
                                         disabled={isSaving || isWarehouseActionBusy}
                                     >
-                                        {showReturnAfterPaymentColumn ? 'Hoàn hàng' : 'Hoàn trả'}
+                                        {showReturnAfterPaymentColumn || isTicketCompleted ? 'Hoàn hàng' : 'Hoàn trả'}
                                     </button>
                                 );
                             })()
@@ -767,6 +768,7 @@ EstimateItemRow.propTypes = {
     onOpenReturnModal: PropTypes.func,
     onCancelReturn: PropTypes.func,
     openTaxPicker: PropTypes.func,
+    isTicketCompleted: PropTypes.bool,
 };
 
 function EstimateActions({
@@ -1145,7 +1147,6 @@ export default function AdvisorItemsTable({
         !showInputs &&
         !isReadOnly &&
         !isTicketLocked &&
-        !isTicketCompleted &&
         Array.isArray(tableRows) &&
         tableRows.some((row) => ['RESERVED', 'COMMITTED'].includes(getRowStockStatus(row)));
 
@@ -1154,7 +1155,6 @@ export default function AdvisorItemsTable({
         !showInputs &&
         !showWarehouseActionColumn &&
         isTicketPaid &&
-        !isTicketCompleted &&
         !isTicketCancelled &&
         Array.isArray(tableRows) &&
         tableRows.some((row) => getRowStockStatus(row) === 'COMMITTED');
@@ -1886,6 +1886,7 @@ export default function AdvisorItemsTable({
                                     showWarehouseActionColumn={showWarehouseActionColumn}
                                     showReturnAfterPaymentColumn={showReturnAfterPaymentColumn}
                                     warehouseActionBusyKey={warehouseActionBusyKey}
+                                    isTicketCompleted={isTicketCompleted}
                                     onCancelAllocation={handleCancelWarehouseAllocation}
                                     onOpenReturnModal={setReturnModalItem}
                                     onCancelReturn={handleCancelReturnEntry}
