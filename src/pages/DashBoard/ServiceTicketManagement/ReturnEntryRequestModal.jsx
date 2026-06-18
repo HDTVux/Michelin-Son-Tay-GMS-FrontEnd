@@ -29,6 +29,14 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
     const [error, setError]                           = useState('');
     const [staffList, setStaffList]                   = useState([]);
 
+    // Computed: lỗi số lượng dựa trực tiếp vào value hiện tại — không phụ thuộc vào error state cũ
+    const quantityError = useMemo(() => {
+        const num = toPositiveNumberOrNull(quantity);
+        if (!num) return 'Số lượng hoàn trả phải lớn hơn 0.';
+        if (num > maxQuantity) return `Số lượng hoàn trả không được vượt quá ${maxQuantity}.`;
+        return '';
+    }, [quantity, maxQuantity]);
+
     // Reset khi mở modal
     useEffect(() => {
         if (!open) return undefined;
@@ -81,12 +89,8 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
             setError('Vui lòng nhập lý do hoàn trả.');
             return;
         }
-        if (!qty) {
-            setError('Số lượng hoàn trả phải lớn hơn 0.');
-            return;
-        }
-        if (qty > maxQuantity) {
-            setError(`Số lượng hoàn trả không được vượt quá ${maxQuantity}.`);
+        if (quantityError) {
+            setError(quantityError);
             return;
         }
         if (!note) {
@@ -227,16 +231,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                                 step="1"
                                 value={quantity}
                                 onChange={(e) => {
-                                    const val = e.target.value;
-                                    setQuantity(val);
-                                    const num = toPositiveNumberOrNull(val);
-                                    if (!num) {
-                                        setError('Số lượng hoàn trả phải lớn hơn 0.');
-                                    } else if (num > maxQuantity) {
-                                        setError(`Số lượng hoàn trả không được vượt quá ${maxQuantity}.`);
-                                    } else {
-                                        setError('');
-                                    }
+                                    setQuantity(e.target.value);
                                 }}
                                 disabled={submitting}
                                 required
@@ -244,6 +239,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                             <div className={styles.fieldHint}>
                                 Tối đa {maxQuantity}{unitText ? ` ${unitText}` : ''}
                             </div>
+                            {quantityError ? <div className={styles.fieldError}>{quantityError}</div> : null}
                         </div>
                         <div className="ui-field">
                             <label htmlFor="return-entry-files">
@@ -286,7 +282,7 @@ export default function ReturnEntryRequestModal({ open, item, submitting, onClos
                     <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose} disabled={submitting}>
                         Hủy
                     </button>
-                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleSubmit} disabled={submitting || !!error}>
+                    <button type="button" className="ui-btn ui-btn--primary" onClick={handleSubmit} disabled={submitting || !!quantityError}>
                         {submitting ? 'Đang tạo...' : 'Xác nhận hoàn trả'}
                     </button>
                 </div>
