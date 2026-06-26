@@ -221,7 +221,7 @@ export default function PartManagement() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedSearch, statusFilter, originFilter, colorFilter, refreshKey, pageForFetch, sizeForFetch]);
+  }, [debouncedSearch, statusFilter, originFilter, colorFilter, refreshKey, pageForFetch, sizeForFetch, selectedWarehouseId]);
   const originOptions = useMemo(() => {
     const set = new Set();
     items.forEach((item) => {
@@ -290,7 +290,12 @@ export default function PartManagement() {
   };
 
   const renderWarehouseLines = (item, renderLine, emptyContent = '-') => {
-    const details = getWarehouseDetails(item);
+    let details = getWarehouseDetails(item);
+    if (selectedWarehouseId) {
+      details = details.filter(
+        (d) => String(d?.warehouseId ?? d?.warehouse_id) === String(selectedWarehouseId)
+      );
+    }
     const itemKey = String(item?.itemId ?? item?.id ?? '');
     if (!details.length) {
       return [
@@ -618,7 +623,12 @@ export default function PartManagement() {
           {!isLoading &&
             paged.map((item, idx) => {
               const displayIndex = safePage * size + idx + 1;
-              const details = getWarehouseDetails(item);
+              let details = getWarehouseDetails(item);
+              if (selectedWarehouseId) {
+                details = details.filter(
+                  (d) => String(d?.warehouseId ?? d?.warehouse_id) === String(selectedWarehouseId)
+                );
+              }
               return (
                 <div key={item.itemId ?? idx} className={styles['mobile-card']}>
                   <div className={styles['mobile-card__header']}>

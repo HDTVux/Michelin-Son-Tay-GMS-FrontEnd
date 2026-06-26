@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
-import { confirmWarehouseStockEntry, fetchWarehouseStockEntryDetail } from '../../../services/warehouseService.js';
+import { confirmWarehouseStockEntry, fetchWarehouseStockEntryDetail, uploadWarehouseStockEntryAttachment } from '../../../services/warehouseService.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
 import commonStyles from '../common/ManagementCommon.module.css';
 import styles from './WarehouseStockEntryDetail.module.css';
@@ -109,41 +109,69 @@ EntryItemsCard.propTypes = {
   items: PropTypes.arrayOf(PropTypes.shape({})),
 };
 
-const EntryAttachmentsCard = ({ attachments, onPreview }) => (
-  <section className={styles.card}>
-    <div className={styles.sectionHeader}>
-      <h2 className={styles.sectionTitle}>Ảnh chứng từ</h2>
-    </div>
-    {Array.isArray(attachments) && attachments.length > 0 ? (
-      <div className={styles.attachmentGrid}>
-        {attachments.map((url, idx) => (
-          <figure key={`${String(url)}-${idx}`} className={styles.attachmentItem}>
-            <button
-              type="button"
-              className={styles.attachmentButton}
-              onClick={() => onPreview?.(String(url))}
-              title="Xem ảnh"
-            >
-              <img
-                src={url}
-                alt={`Ảnh chứng từ ${idx + 1}`}
-                loading="lazy"
-                className={styles.attachmentImage}
-              />
-            </button>
-            <figcaption>Ảnh {idx + 1}</figcaption>
-          </figure>
-        ))}
+const EntryAttachmentsCard = ({ attachments, onPreview, isDraft, onUpload, isUploading }) => {
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onUpload?.(file);
+    }
+  };
+
+  return (
+    <section className={styles.card}>
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>Ảnh chứng từ</h2>
       </div>
-    ) : (
-      <p className={styles.emptyText}>Không có file đính kèm.</p>
-    )}
-  </section>
-);
+      {Array.isArray(attachments) && attachments.length > 0 ? (
+        <div className={styles.attachmentGrid}>
+          {attachments.map((url, idx) => (
+            <figure key={`${String(url)}-${idx}`} className={styles.attachmentItem}>
+              <button
+                type="button"
+                className={styles.attachmentButton}
+                onClick={() => onPreview?.(String(url))}
+                title="Xem ảnh"
+              >
+                <img
+                  src={url}
+                  alt={`Ảnh chứng từ ${idx + 1}`}
+                  loading="lazy"
+                  className={styles.attachmentImage}
+                />
+              </button>
+              <figcaption>Ảnh {idx + 1}</figcaption>
+            </figure>
+          ))}
+        </div>
+      ) : (
+        <p className={styles.emptyText}>Không có file đính kèm.</p>
+      )}
+
+      {isDraft && (
+        <div style={{ marginTop: '1.5rem', borderTop: '1px dashed #ddd', paddingTop: '1.25rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '600', color: '#333' }}>
+            Tải lên ảnh chứng từ mới (Bắt buộc để xác nhận phiếu):
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            disabled={isUploading}
+            style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}
+          />
+          {isUploading && <p style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>Đang tải ảnh chứng từ lên...</p>}
+        </div>
+      )}
+    </section>
+  );
+};
 
 EntryAttachmentsCard.propTypes = {
   attachments: PropTypes.arrayOf(PropTypes.string),
   onPreview: PropTypes.func,
+  isDraft: PropTypes.bool,
+  onUpload: PropTypes.func,
+  isUploading: PropTypes.bool,
 };
 
 const readStaffRolesFromStorage = () => {
@@ -177,6 +205,43 @@ export default function WarehouseStockEntryDetail() {
   const [previewUrl, setPreviewUrl] = useState('');
   const entryId = Number(params.entryId);
   const hasValidEntryId = Number.isFinite(entryId) && entryId > 0;
+  const [isUploading, setIsUploading] = useState(false);
+
+  const reloadEntry = async () => {
+    if (!hasValidEntryId) return;
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+      const response = await fetchWarehouseStockEntryDetail(entryId, token);
+      const data = response?.data?.data ?? response?.data ?? response;
+      setEntry(data && typeof data === 'object' ? data : null);
+    } catch (err) {
+      notify('Không thể cập nhật danh sách ảnh đính kèm.');
+    }
+  };
+
+  const handleUploadAttachment = async (file) => {
+    if (!hasValidEntryId) {
+      notify('Không xác định được mã phiếu nhập.');
+      return;
+    }
+
+    const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+    if (!token) {
+      notify('Vui lòng đăng nhập để tải ảnh lên.');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      await uploadWarehouseStockEntryAttachment(entryId, file, token);
+      notify('Tải ảnh chứng từ lên thành công.');
+      await reloadEntry();
+    } catch (err) {
+      notify(err?.message || 'Không thể tải ảnh chứng từ lên.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -285,7 +350,13 @@ export default function WarehouseStockEntryDetail() {
           statusValue={statusValue}
         />
         <EntryItemsCard items={entry?.items} />
-        <EntryAttachmentsCard attachments={entry?.attachments} onPreview={setPreviewUrl} />
+        <EntryAttachmentsCard
+          attachments={entry?.attachments}
+          onPreview={setPreviewUrl}
+          isDraft={isDraft}
+          onUpload={handleUploadAttachment}
+          isUploading={isUploading}
+        />
       </>
     );
   } else {

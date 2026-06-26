@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
 import { fetchWarehousesAll, fetchWarehouseStockEntries } from '../../../services/warehouseService.js';
@@ -69,10 +69,15 @@ const badgeClassByStatus = (status) => {
 export default function WarehouseStockEntryManagement() {
   useScrollToTop();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [warehouses, setWarehouses] = useState([]);
   const [warehouseLoading, setWarehouseLoading] = useState(false);
-  const [warehouseIdInput, setWarehouseIdInput] = useState(String(DEFAULT_WAREHOUSE_ID));
+  
+  const [warehouseIdInput, setWarehouseIdInput] = useState(() => {
+    const stateId = location.state?.warehouseId;
+    return stateId ? String(stateId) : String(DEFAULT_WAREHOUSE_ID);
+  });
   const [status, setStatus] = useState('ALL');
   const [entries, setEntries] = useState([]);
   const [page, setPage] = useState(0);

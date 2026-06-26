@@ -135,13 +135,25 @@ export default function WarehouseExcelImport() {
             stt: parsed.length + 1,
             sku,
             itemName,
-            unit: String(row[3] ?? '').trim(),
-            lotCode: String(row[4] ?? '').trim(),
-            lotDate: String(row[5] ?? '').trim(),
-            quantity: Number(row[6]) || 0,
-            importPrice: Number(row[7]) || 0,
-            markupMultiplier: Number(row[8]) || 1.3,
-            notes: String(row[9] ?? '').trim(),
+            categoryName: String(row[3] ?? '').trim(),
+            brandName: String(row[4] ?? '').trim(),
+            productLineName: String(row[5] ?? '').trim(),
+            unit: String(row[6] ?? '').trim(),
+            price: Number(row[7]) || 0, // Giá bán
+            showPrice: String(row[8] ?? '').trim().toLowerCase() === 'không' || String(row[8] ?? '').trim() === '0' ? false : true,
+            warrantyDurationMonths: Number(row[9]) || 0,
+            origin: String(row[10] ?? '').trim(),
+            color: String(row[11] ?? '').trim(),
+            compatibleCars: String(row[12] ?? '').trim(),
+            description: String(row[13] ?? '').trim(),
+            taxName: String(row[14] ?? '').trim(),
+            lotCode: String(row[15] ?? '').trim(),
+            lotDate: String(row[16] ?? '').trim(),
+            quantity: Number(row[17]) || 0, // Tồn lô
+            importPrice: Number(row[18]) || 0, // Giá nhập
+            markupMultiplier: Number(row[19]) || 1.3,
+            notes: String(row[20] ?? '').trim(),
+            totalStock: Number(row[21]) || 0, // Tổng tồn kho
           });
         }
 
@@ -201,12 +213,14 @@ export default function WarehouseExcelImport() {
       prev.map((row) => {
         if (row.id === editingRowId) {
           const qty = Number(editValues.quantity);
-          const price = Number(editValues.importPrice);
+          const priceBuy = Number(editValues.importPrice);
+          const priceSell = Number(editValues.price);
           const markup = Number(editValues.markupMultiplier);
           return {
             ...editValues,
             quantity: Number.isFinite(qty) && qty >= 0 ? qty : row.quantity,
-            importPrice: Number.isFinite(price) && price >= 0 ? price : row.importPrice,
+            importPrice: Number.isFinite(priceBuy) && priceBuy >= 0 ? priceBuy : row.importPrice,
+            price: Number.isFinite(priceSell) && priceSell >= 0 ? priceSell : row.price,
             markupMultiplier: Number.isFinite(markup) && markup > 0 ? markup : row.markupMultiplier,
           };
         }
@@ -222,6 +236,70 @@ export default function WarehouseExcelImport() {
     setEditingRowId(null);
   };
 
+  // Real-time Data Integrity & Duplicate Check
+  const validatedItems = useMemo(() => {
+    return items.map((item) => {
+      const errors = [];
+      if (!item.sku) {
+        errors.push('SKU không được rỗng');
+      }
+      if (!item.itemName) {
+        errors.push('Tên phụ tùng không được rỗng');
+      }
+      if (item.quantity < 0) {
+        errors.push('Tồn lô không được nhỏ hơn 0');
+      }
+      if (item.importPrice < 0) {
+        errors.push('Giá nhập không được nhỏ hơn 0');
+      }
+      if (item.price < 0) {
+        errors.push('Giá bán không được nhỏ hơn 0');
+      }
+      if (item.markupMultiplier <= 0) {
+        errors.push('Hệ số markup phải lớn hơn 0');
+      }
+
+      // Duplicate Check
+      if (item.sku) {
+        // 1. Same SKU and Same Lot Code
+        const sameSkuAndLot = items.filter(
+          (x) => x.id !== item.id &&
+                 x.sku &&
+                 x.sku.trim().toLowerCase() === item.sku.trim().toLowerCase() &&
+                 x.lotCode &&
+                 x.lotCode.trim().toLowerCase() === item.lotCode.trim().toLowerCase()
+        );
+        if (sameSkuAndLot.length > 0 && item.lotCode && item.lotCode.trim()) {
+          errors.push(`Trùng mã lô "${item.lotCode}" cho cùng mã SKU`);
+        }
+
+        // 2. Conflict in product details for same SKU
+        const sameSkuDifferentDetails = items.filter(
+          (x) => x.id !== item.id &&
+                 x.sku &&
+                 x.sku.trim().toLowerCase() === item.sku.trim().toLowerCase() &&
+                 (x.itemName !== item.itemName ||
+                  x.unit !== item.unit ||
+                  x.price !== item.price ||
+                  x.brandName !== item.brandName ||
+                  x.categoryName !== item.categoryName)
+        );
+        if (sameSkuDifferentDetails.length > 0) {
+          errors.push('Mâu thuẫn thông tin sản phẩm (Tên, ĐVT, Hãng, nhóm) cùng SKU');
+        }
+      }
+
+      return {
+        ...item,
+        errors,
+      };
+    });
+  }, [items]);
+
+  const hasErrors = useMemo(() => {
+    return validatedItems.some((row) => row.errors.length > 0);
+  }, [validatedItems]);
+
   const handleConfirmSync = async () => {
     if (!selectedWarehouseId) {
       setError('Vui lòng chọn kho để đồng bộ.');
@@ -233,10 +311,8 @@ export default function WarehouseExcelImport() {
       return;
     }
 
-    // Check if there are any validation errors (e.g. negative quantities)
-    const hasInvalidRow = items.some((row) => row.quantity < 0 || row.importPrice < 0 || !row.sku);
-    if (hasInvalidRow) {
-      setError('Có hàng chứa dữ liệu không hợp lệ (SKU trống hoặc số lượng/giá nhỏ hơn 0). Vui lòng sửa lại.');
+    if (hasErrors) {
+      setError('Có hàng chứa dữ liệu không hợp lệ hoặc bị trùng lặp. Vui lòng sửa lại các dòng lỗi.');
       return;
     }
 
@@ -247,58 +323,85 @@ export default function WarehouseExcelImport() {
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       let fileToUpload = originalFile;
 
-      // If changes were made, reconstruct the Excel file structure
-      if (hasEdits) {
-        const wb = XLSX.utils.book_new();
-        const exportRows = [
-          [
-            'STT',
-            'SKU',
-            'Tên phụ tùng',
-            'Đơn vị',
-            'Mã lô',
-            'Ngày nhập',
-            'Tồn lô',
-            'Giá nhập (VNĐ)',
-            'Hệ số markup',
-            'Ghi chú',
-          ],
-        ];
+      // Always reconstruct sheet with full 22 columns to be uploaded to backend
+      const wb = XLSX.utils.book_new();
+      const exportRows = [
+        [
+          'STT',
+          'SKU',
+          'Tên phụ tùng',
+          'Hạng mục',
+          'Hãng sản xuất',
+          'Dòng sản phẩm',
+          'Đơn vị tính',
+          'Giá bán (VNĐ)',
+          'Hiển thị giá',
+          'Bảo hành (tháng)',
+          'Xuất xứ',
+          'Màu sắc',
+          'Xe tương thích',
+          'Mô tả',
+          'Thuế',
+          'Mã lô',
+          'Ngày nhập',
+          'Tồn lô',
+          'Giá nhập (VNĐ)',
+          'Hệ số markup',
+          'Ghi chú',
+          'Tổng tồn kho',
+        ],
+      ];
 
-        items.forEach((item, index) => {
-          exportRows.push([
-            index + 1,
-            item.sku,
-            item.itemName,
-            item.unit,
-            item.lotCode,
-            item.lotDate,
-            item.quantity,
-            item.importPrice,
-            item.markupMultiplier,
-            item.notes,
-          ]);
-        });
+      items.forEach((item, index) => {
+        exportRows.push([
+          index + 1,
+          item.sku,
+          item.itemName,
+          item.categoryName || '',
+          item.brandName || '',
+          item.productLineName || '',
+          item.unit || '',
+          item.price || 0,
+          item.showPrice ? 'Có' : 'Không',
+          item.warrantyDurationMonths || 0,
+          item.origin || '',
+          item.color || '',
+          item.compatibleCars || '',
+          item.description || '',
+          item.taxName || '',
+          item.lotCode || '',
+          item.lotDate || '',
+          item.quantity || 0,
+          item.importPrice || 0,
+          item.markupMultiplier || 1.3,
+          item.notes || '',
+          item.totalStock || 0,
+        ]);
+      });
 
-        const ws = XLSX.utils.aoa_to_sheet(exportRows);
-        XLSX.utils.book_append_sheet(wb, ws, 'InventorySync');
-        
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        });
-        
-        fileToUpload = new File([blob], originalFile?.name || 'inventory_sync_modified.xlsx', {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        });
-      }
+      const ws = XLSX.utils.aoa_to_sheet(exportRows);
+      XLSX.utils.book_append_sheet(wb, ws, 'InventorySync');
+      
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      
+      fileToUpload = new File([blob], originalFile?.name || 'inventory_sync_modified.xlsx', {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
 
       const res = await syncWarehouseInventoryExcel(Number(selectedWarehouseId), fileToUpload, token);
-      toast.success(res?.message || 'Đồng bộ tồn kho qua file Excel thành công!');
+      const payload = res?.data ?? res;
+      if (payload?.syncEntryId) {
+        toast.success(`Tạo phiếu nhập kho nháp #${payload.syncEntryId} thành công!`);
+      } else {
+        toast.info('Đồng bộ thành công (Không có tồn kho tăng thêm, không tạo phiếu mới).');
+      }
       
       // Delay before redirecting
       setTimeout(() => {
-        navigate('/warehouse-management');
+        navigate('/warehouse-stock-entries', { state: { warehouseId: selectedWarehouseId } });
       }, 1500);
     } catch (err) {
       setError(err?.message || 'Có lỗi xảy ra trong quá trình đồng bộ.');
@@ -320,15 +423,15 @@ export default function WarehouseExcelImport() {
   }, [items]);
 
   const filteredItems = useMemo(() => {
-    if (!searchTerm.trim()) return items;
+    if (!searchTerm.trim()) return validatedItems;
     const term = searchTerm.toLowerCase();
-    return items.filter(
+    return validatedItems.filter(
       (item) =>
         item.sku.toLowerCase().includes(term) ||
         item.itemName.toLowerCase().includes(term) ||
         item.lotCode.toLowerCase().includes(term)
     );
-  }, [items, searchTerm]);
+  }, [validatedItems, searchTerm]);
 
   const formatCurrencyVnd = (value) => {
     if (value == null) return '0';
@@ -345,8 +448,8 @@ export default function WarehouseExcelImport() {
             </svg>
           </button>
           <div>
-            <h1>Nhập kho bằng Excel</h1>
-            <p>Tải lên file Excel để đồng bộ danh sách phụ tùng và số lượng đã được làm phẳng</p>
+            <h1>Nhập kho bằng Excel (Nhập thêm)</h1>
+            <p>Tải lên file Excel đầy đủ thuộc tính sản phẩm để cập nhật thông tin và nhập thêm tồn kho</p>
           </div>
         </div>
 
@@ -395,7 +498,7 @@ export default function WarehouseExcelImport() {
           <h3>Kéo thả file Excel vào đây</h3>
           <p>hoặc nhấn để chọn file (.xlsx, .xls) từ máy tính</p>
           <div className={styles.specsHint}>
-            Format tệp: STT | SKU | Tên phụ tùng | Đơn vị | Mã lô | Ngày nhập | Tồn lô | Giá nhập | Hệ số markup | Ghi chú
+            Format tệp (22 cột): STT | SKU | Tên | Hạng mục | Hãng | Dòng sản phẩm | ĐVT | Giá bán | Hiển thị giá | Bảo hành | Xuất xứ | Màu | Xe tương thích | Mô tả | Thuế | Mã lô | Ngày nhập | Tồn lô | Giá nhập | Markup | Ghi chú | Tổng tồn kho
           </div>
           <input
             ref={fileInputRef}
@@ -414,7 +517,7 @@ export default function WarehouseExcelImport() {
               <div className={styles.statValue}>{totals.skus.size}</div>
             </div>
             <div className={styles.statCard}>
-              <div className={styles.statLabel}>Tổng số lượng tồn lô</div>
+              <div className={styles.statLabel}>Tổng số lượng tồn lô nhập</div>
               <div className={styles.statValue}>{formatCurrencyVnd(totals.qty)}</div>
             </div>
             <div className={styles.statCard}>
@@ -432,7 +535,7 @@ export default function WarehouseExcelImport() {
           {/* Preview Panel */}
           <div className={styles.previewPanel}>
             <div className={styles.panelHeader}>
-              <h2>Xem trước danh sách phụ tùng đã làm phẳng</h2>
+              <h2>Xem trước danh sách sản phẩm & lô hàng</h2>
               <div className={styles.panelSearch}>
                 <div className={styles.searchWrapper}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -470,22 +573,26 @@ export default function WarehouseExcelImport() {
                     <th>SKU</th>
                     <th>Tên phụ tùng</th>
                     <th>ĐVT</th>
+                    <th>Giá bán</th>
                     <th>Mã lô</th>
                     <th>Ngày nhập</th>
                     <th>Tồn lô</th>
                     <th>Giá nhập</th>
                     <th>Hệ số markup</th>
                     <th>Ghi chú</th>
+                    <th>Tổng tồn</th>
+                    <th>Trạng thái / Lỗi</th>
                     <th>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredItems.map((item, idx) => {
                     const isEditing = editingRowId === item.id;
-                    const hasError = !item.sku || item.quantity < 0 || item.importPrice < 0;
+                    const rowErrors = item.errors || [];
+                    const isRowInvalid = rowErrors.length > 0;
 
                     return (
-                      <tr key={item.id} className={hasError ? styles.errorRow : ''}>
+                      <tr key={item.id} className={isRowInvalid ? styles.errorRow : ''}>
                         <td>{idx + 1}</td>
                         <td>
                           {isEditing ? (
@@ -521,6 +628,18 @@ export default function WarehouseExcelImport() {
                             />
                           ) : (
                             item.unit || '-'
+                          )}
+                        </td>
+                        <td>
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              value={editValues.price}
+                              onChange={(e) => handleEditChange('price', e.target.value)}
+                              className={styles.tableInputNumber}
+                            />
+                          ) : (
+                            `${formatCurrencyVnd(item.price)} ₫`
                           )}
                         </td>
                         <td>
@@ -599,6 +718,20 @@ export default function WarehouseExcelImport() {
                           )}
                         </td>
                         <td>
+                          <strong>{formatCurrencyVnd(item.totalStock)}</strong>
+                        </td>
+                        <td className={styles.errorCell}>
+                          {isRowInvalid ? (
+                            <ul className={styles.errorList}>
+                              {rowErrors.map((err, errIdx) => (
+                                <li key={errIdx} className={styles.errorItem}>{err}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <span className={styles.successBadge}>Hợp lệ</span>
+                          )}
+                        </td>
+                        <td>
                           <div className={styles.rowActions}>
                             {isEditing ? (
                               <>
@@ -640,11 +773,15 @@ export default function WarehouseExcelImport() {
 
             <div className={styles.submitPanel}>
               <div className={styles.submitLeft}>
-                {hasEdits && (
+                {hasErrors ? (
+                  <span className={styles.errorText}>
+                    * Có dữ liệu lỗi hoặc trùng lặp trong danh sách xem trước. Vui lòng sửa hoặc xóa để tiếp tục.
+                  </span>
+                ) : hasEdits ? (
                   <span className={styles.warningText}>
                     * Bạn đã thay đổi dữ liệu xem trước. File mới sẽ được tự động tạo khi bạn bấm xác nhận.
                   </span>
-                )}
+                ) : null}
               </div>
               <div className={styles.submitActions}>
                 <button
@@ -659,7 +796,7 @@ export default function WarehouseExcelImport() {
                   type="button"
                   className={styles.confirmBtn}
                   onClick={handleConfirmSync}
-                  disabled={isSubmitting || items.length === 0}
+                  disabled={isSubmitting || items.length === 0 || hasErrors}
                 >
                   {isSubmitting ? 'Đang đồng bộ...' : 'Xác nhận đồng bộ kho'}
                 </button>

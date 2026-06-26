@@ -579,6 +579,34 @@ export const confirmWarehouseStockEntry = (id, token) => {
   });
 };
 
+// POST: /api/warehouse/stock-entries/{id}/attachments
+export const uploadWarehouseStockEntryAttachment = async (id, file, token) => {
+  const idNum = typeof id === 'number' ? id : Number(id);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+  const formData = new FormData();
+  if (file) {
+    formData.append('file', file);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/warehouse/stock-entries/${encodeURIComponent(String(safeId))}/attachments`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json') ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const message = typeof data === 'string' ? data : data?.message || 'Request failed';
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+};
+
 // POST: /api/warehouse/return-entries/with-attachments
 // multipart fields: warehouseId, returnReason, returnType, items(JSON), exchangeItems(JSON optional for EXCHANGE), file_0..file_n
 export const createWarehouseReturnEntryWithAttachments = async (payload, files, token) => {
