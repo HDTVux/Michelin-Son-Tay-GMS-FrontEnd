@@ -1839,7 +1839,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         && !hasPendingWarehouseReturnApproval
         && !allEstimateItemsAreReturned
         && isEstimateApproved;
-    const canOpenReceiptPayment = hasAccountantRole && hasBill;
+    const canOpenReceiptPayment = hasAccountantRole && hasBill && ticketStatus !== 'PAID';
+    // Sau khi đã PAID và có item bị hoàn (RELEASED) → cho phép in lại hóa đơn với số lượng mới
+    const canPrintInvoiceAfterReturn = hasAccountantRole
+        && ticketStatus === 'PAID'
+        && hasBill
+        && receiptItems.some((it) => isReturnedItem(it));
 
     const hasAnyRequestableWarehouseDependentItem = useMemo(
         () => actionableAdvisorItems.some((it) => getEstimateItemWarehouseId(it) != null),
@@ -3096,6 +3101,21 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                 onClick={handleGoToReceiptPayment}
                                             >
                                                 Thanh toán
+                                            </button>
+                                        ) : null}
+                                        {canPrintInvoiceAfterReturn ? (
+                                            <button
+                                                type="button"
+                                                className="ui-btn ui-btn--ghost"
+                                                onClick={() => {
+                                                    const code = String(ticket?.ticketCode || ticketCodeParam || '').trim();
+                                                    if (!code) { notify('Thiếu mã phiếu để in hóa đơn.'); return; }
+                                                    navigate(`/service-ticket/${encodeURIComponent(code)}/accounting-invoice-print`, {
+                                                        state: { ticket: ticketRaw ?? ticket, serviceTicketId: serviceTicketIdNum },
+                                                    });
+                                                }}
+                                            >
+                                                In lại hóa đơn (sau hoàn)
                                             </button>
                                         ) : null}
                                         {advisorReadOnlyWithoutTechnician || isInspectionAndEstimateReadOnly ? null : isCreatingNewEstimateVersion ? (

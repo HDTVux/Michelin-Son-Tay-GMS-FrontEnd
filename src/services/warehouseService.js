@@ -895,3 +895,60 @@ export const fetchDefectDetails = (params = {}, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// ─── Warehouse CRUD ───────────────────────────────────────────────────────────
+
+// GET: /api/warehouse/warehouse/all?isActive=...
+export const fetchAllWarehouses = (params = {}, token) => {
+  const qp = new URLSearchParams();
+  if (params.isActive !== undefined && params.isActive !== null && params.isActive !== '') {
+    qp.set('isActive', String(params.isActive));
+  }
+  const qs = qp.toString();
+  return request(`/api/warehouse/warehouse/all${qs ? `?${qs}` : ''}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// GET: /api/warehouse/warehouse/{id}
+export const fetchWarehouseById = (id, token) => {
+  return request(`/api/warehouse/warehouse/${encodeURIComponent(String(id))}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/warehouse
+export const createWarehouse = (payload, token) => {
+  return request('/api/warehouse/warehouse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(payload),
+  });
+};
+
+// PUT: /api/warehouse/warehouse/{id}
+export const updateWarehouse = (id, payload, token) => {
+  return request(`/api/warehouse/warehouse/${encodeURIComponent(String(id))}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(payload),
+  });
+};
+
+// POST: /api/warehouse/warehouse/{id}/activate
+export const activateWarehouse = (id, token) => {
+  return request(`/api/warehouse/warehouse/${encodeURIComponent(String(id))}/activate`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/warehouse/{id}/deactivate
+export const deactivateWarehouse = (id, token) => {
+  return request(`/api/warehouse/warehouse/${encodeURIComponent(String(id))}/deactivate`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
