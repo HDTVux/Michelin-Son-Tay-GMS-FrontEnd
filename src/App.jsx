@@ -66,6 +66,7 @@ import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagem
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
 import VehicleManagement from './pages/DashBoard/VehicleManagement/VehicleManagement.jsx';
 import WarehouseManagement from './pages/DashBoard/WarehouseManagement/WarehouseManagement.jsx';
+import WarehouseExcelImport from './pages/DashBoard/WarehouseManagement/WarehouseExcelImport.jsx';
 import RevenueManagement from './pages/DashBoard/RevenueManagement/RevenueManagement.jsx';
 
 //Customer pages
@@ -455,6 +456,7 @@ export default function App() {
               <Route path="vehicle-management" element={staffRoute(<VehicleManagement />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
               <Route path="system-log-management" element={staffRoute(<SystemLogManagement />, ROLE_GROUP.ADMIN_ONLY)} />
               <Route path="warehouse-management" element={staffRoute(<WarehouseManagement />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="warehouse-excel-import" element={staffRoute(<WarehouseExcelImport />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-pricing" element={staffRoute(<WarehousePricing />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="revenue-management" element={staffRoute(<RevenueManagement />, ROLE_GROUP.ACCOUNTING)} />
               

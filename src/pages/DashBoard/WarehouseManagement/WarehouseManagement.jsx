@@ -489,11 +489,11 @@ export default function PartManagement() {
           <button
             type="button"
             className={styles['primary-button']}
-            onClick={handleChooseExcelFile}
-            disabled={isDownloadingTemplate || isSyncingExcel}
+            onClick={() => navigate('/warehouse-excel-import')}
+            disabled={isDownloadingTemplate}
             title="Nhập kho bằng file Excel"
           >
-            {isSyncingExcel ? 'Đang nhập...' : 'Nhập file Excel'}
+            Nhập file Excel
           </button>
 
           <input
