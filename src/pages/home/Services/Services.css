@@ -75,7 +75,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 0.82fr) minmax(700px, 920px);
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: center;
   text-align: left;
@@ -86,8 +86,22 @@
   transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+@media (min-width: 1201px) {
+  .servicesHero:not(.isHome) {
+    grid-template-columns: minmax(0, 0.82fr) minmax(700px, 920px);
+  }
+}
+
+.servicesHero.isHome {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 .servicesHeroContent {
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .servicesHero.visible {
@@ -128,6 +142,8 @@
   align-items: baseline;
   letter-spacing: -0.5px;
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  width: 100%;
+  max-width: 100%;
 }
 
 .titlePart1 {
@@ -1425,6 +1441,15 @@
 }
 
 @media (max-width: 1200px) {
+  .servicesHero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .servicesHeroDescription {
+    margin-left: 0;
+  }
+
   .processDiagram {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

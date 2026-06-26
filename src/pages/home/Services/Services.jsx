@@ -1,4 +1,4 @@
-﻿import './Services.css';
+import './Services.css';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { fetchHomeProducts } from '../../../services/homeService';
@@ -939,7 +939,7 @@ const Services = ({ homeRows = false }) => {
         )}
         <div
           ref={servicesHeroRef}
-          className={`servicesHero ${servicesIntroVisible ? 'visible' : ''}`}
+          className={`servicesHero ${servicesIntroVisible ? 'visible' : ''} ${homeRows ? 'isHome' : ''}`}
         >
           <div className="servicesHeroContent">
             <div className="servicesLabel">{homeRows ? 'DANH MỤC' : dynamicLabel}</div>
