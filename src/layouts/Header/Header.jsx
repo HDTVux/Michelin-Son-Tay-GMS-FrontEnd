@@ -117,6 +117,13 @@ const Header = () => {
             Trang chủ
           </Link>
           <Link
+            to="/car-parts-lookup"
+            className={isActive('/car-parts-lookup') ? 'active' : ''}
+            onClick={() => { closeMenu(); scrollToTop(); }}
+          >
+            Tra cứu
+          </Link>
+          <Link
             to="/about"
             className={isActive('/about') ? 'active' : ''}
             onClick={() => { closeMenu(); scrollToTop(); }}

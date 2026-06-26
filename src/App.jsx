@@ -78,6 +78,7 @@ import BookingDetail from './pages/BookingDetail/BookingDetail.jsx';
 import CustomerDashboard from './pages/CustomerDashboard/CustomerDashboard.jsx';
 import NotFound from './pages/NotFound/NotFound.jsx';
 import EditBooking from './pages/EditBooking/EditBooking.jsx';
+import CarPartsLookup from './pages/CarPartsLookup/CarPartsLookup.jsx';
 
 //Receptionist pages
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
@@ -299,6 +300,7 @@ function TitleUpdater() {
       '/my-bookings': siteTitle,
       '/login': siteTitle,
       '/forgot-password': siteTitle,
+      '/car-parts-lookup': 'Tra cứu phụ tùng - Michelin Sơn Tây',
     };
 
     // Match /services/:id patterns
@@ -500,6 +502,7 @@ export default function App() {
               <Route path="booking-detail/:id" element={<BookingDetail />} />
               <Route path="edit-booking/:id" element={<EditBooking />} />
               <Route path="customer-dashboard" element={<CustomerDashboard />} />
+              <Route path="car-parts-lookup" element={<CarPartsLookup />} />
             </Route>
 
             {/* Các route phụ trợ khác */}
