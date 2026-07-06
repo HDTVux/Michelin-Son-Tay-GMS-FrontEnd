@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchCatalogItems } from '../../../services/blogService.js';
 import { fetchHomeProducts, fetchHomeServices } from '../../../services/homeService.js';
+import ComboItemsConfigModal from './ComboItemsConfigModal.jsx';
 import styles from './ServiceManagement.module.css';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
@@ -196,6 +197,9 @@ export default function ServiceManagement() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  const [selectedComboItem, setSelectedComboItem] = useState(null);
+  const [isComboConfigOpen, setIsComboConfigOpen] = useState(false);
 
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -487,7 +491,7 @@ export default function ServiceManagement() {
                       </span>
                     </td>
                     <td>
-                      <div className={styles['action-buttons']}>
+                      <div className={styles['action-buttons']} style={{ gap: '6px' }}>
                         {itemHasService ? (
                           <button
                             className={`${styles['action-btn']} ${styles['edit-btn']}`}
@@ -503,6 +507,16 @@ export default function ServiceManagement() {
                             Tạo bài viết
                           </button>
                         )}
+                        <button
+                          className={`${styles['action-btn']} ${styles['edit-btn']}`}
+                          onClick={() => {
+                            setSelectedComboItem(item);
+                            setIsComboConfigOpen(true);
+                          }}
+                          style={{ backgroundColor: '#7c3aed', color: '#fff', borderColor: '#7c3aed' }}
+                        >
+                          Cấu hình Combo
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -550,6 +564,12 @@ export default function ServiceManagement() {
           </div>
         </div>
       </div>
+
+      <ComboItemsConfigModal
+        isOpen={isComboConfigOpen}
+        onClose={() => setIsComboConfigOpen(false)}
+        comboItem={selectedComboItem}
+      />
     </div>
   );
 }

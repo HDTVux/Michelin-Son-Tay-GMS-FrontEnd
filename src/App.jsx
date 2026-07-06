@@ -60,6 +60,7 @@ import BlogManagement from './pages/DashBoard/PartManagement/ServiceManagement.j
 import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx';
 import CreateService from './pages/DashBoard/PartManagement/CreateService.jsx';
 import BlogFormPage from './pages/DashBoard/PartManagement/BlogFormPage.jsx';
+import ComboManagement from './pages/DashBoard/PartManagement/ComboManagement.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
@@ -427,6 +428,7 @@ export default function App() {
               <Route path="part-management/select-tax" element={staffRoute(<TaxSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/select-attribute" element={staffRoute(<AttributeSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="service-management" element={staffRoute(<BlogManagement />, ROLE_GROUP.SERVICE_CATALOG)} />
+              <Route path="combo-management" element={staffRoute(<ComboManagement />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="warehouse-stock-entries" element={staffRoute(<WarehouseStockEntryManagement />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-stock-entries/:entryId" element={staffRoute(<WarehouseStockEntryDetail />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-stock-entry" element={staffRoute(<WarehouseStockEntry />, ROLE_GROUP.WAREHOUSE)} />

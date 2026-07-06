@@ -154,6 +154,7 @@ const NAV_GROUPS = [
                     { id: 'service-ticket-management', label: 'Phiếu dịch vụ', path: '/service-ticket-management', icon: <FileText size={18} />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ACCOUNTANT] },
                     { id: 'my-tasks', label: 'Công việc hôm nay', path: '/technician/my-tasks', icon: <CheckSquare size={18} />, roles: [STAFF_ROLE.TECHNICIAN] },
                     { id: 'service-management', label: 'Quản lý dịch vụ', path: '/service-management', icon: <Wrench size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT] },
+                    { id: 'combo-management', label: 'Quản lý gói Combo', path: '/combo-management', icon: <Layers size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ACCOUNTANT] },
                 ]
             },
             {
