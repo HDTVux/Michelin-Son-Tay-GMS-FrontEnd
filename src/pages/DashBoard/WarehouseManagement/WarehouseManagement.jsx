@@ -1,8 +1,136 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Package, Eye, Pencil } from 'lucide-react';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import ItemDetailModal from './ItemDetailModal.jsx';
 import EditItemModal from './EditItemModal.jsx';
+import { fetchHomeServiceDetail, fetchHomeProductDetail } from '../../../services/homeService.js';
+
+const getServiceIdFromUnknownShape = (input) => {
+  if (!input || typeof input !== 'object') return null;
+  for (const [rawKey, rawValue] of Object.entries(input)) {
+    const key = String(rawKey || '').toLowerCase();
+    if (key.includes('service') && key.includes('id')) {
+      const val = toNullablePositiveNumber(rawValue);
+      if (val != null) return val;
+    }
+  }
+  return null;
+};
+
+const getServiceServiceId = (item) => {
+  if (!item || typeof item !== 'object') return null;
+  const candidates = [
+    item.service_service_id, item.serviceServiceId, item.service_serviceId, item.serviceServiceID,
+    item.serviceId, item.service_id,
+    item?.data?.serviceId, item?.data?.service_service_id, item?.data?.serviceServiceId,
+    item?.service?.service_service_id, item?.service?.serviceServiceId,
+    item?.service?.service_id, item?.serviceInfo?.service_service_id,
+    item?.serviceInfo?.serviceServiceId, item?.serviceInfo?.service_id,
+  ];
+  for (const value of candidates) {
+    const parsed = toNullablePositiveNumber(value);
+    if (parsed != null) return parsed;
+  }
+  return getServiceIdFromUnknownShape(item);
+};
+
+const ItemTableImage = ({ item }) => {
+  const id = item?.itemId ?? item?.id ?? null;
+  const initialImg = item?.imageUrl || item?.thumbnailUrl || item?.mediaThumbnail || item?.photoUrl || '';
+  const [imgUrl, setImgUrl] = useState(initialImg);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadImg = async () => {
+      if (!id) return;
+      try {
+        const serviceId = getServiceServiceId(item);
+        let serviceDetail = null;
+        if (serviceId) {
+          try {
+            const serviceRes = await fetchHomeServiceDetail(serviceId);
+            serviceDetail = serviceRes?.data?.data ?? serviceRes?.data ?? serviceRes;
+          } catch {
+            // ignore
+          }
+        }
+        if (!serviceDetail) {
+          try {
+            const homeProductRes = await fetchHomeProductDetail(id);
+            serviceDetail = homeProductRes?.data?.data ?? homeProductRes?.data ?? homeProductRes;
+          } catch {
+            // ignore
+          }
+        }
+
+        if (serviceDetail && !cancelled) {
+          let serviceImg = serviceDetail.thumbnailUrl || serviceDetail.mediaThumbnail || serviceDetail.imageUrl;
+          if (!serviceImg) {
+            const mediaList = serviceDetail.media || serviceDetail.mediaList || [];
+            if (Array.isArray(mediaList) && mediaList.length > 0) {
+              const firstImgMedia = mediaList.find(m => {
+                const url = String(m?.mediaUrl || m?.url || '').trim();
+                const type = String(m?.mediaType || m?.type || '').trim().toUpperCase();
+                const isVideo = type === 'VIDEO' || /\.(mp4|webm|ogg)$/i.test(url);
+                return url && !isVideo;
+              });
+              if (firstImgMedia) {
+                serviceImg = String(firstImgMedia.mediaUrl || firstImgMedia.url).trim();
+              }
+            }
+          }
+          if (!serviceImg) {
+            const htmlContent = serviceDetail.fullDescription || serviceDetail.descriptionHtml || serviceDetail.description || '';
+            const match = htmlContent.match(/<img[^>]+src=["']([^"']+)["']/i);
+            if (match && match[1]) {
+              serviceImg = match[1];
+            }
+          }
+          if (serviceImg) {
+            setImgUrl(serviceImg);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadImg();
+    return () => { cancelled = true; };
+  }, [id, item]);
+
+  return (
+    <div style={{ position: 'relative', width: '40px', height: '40px', margin: '0 auto' }}>
+      {imgUrl && !err ? (
+        <img
+          src={imgUrl}
+          alt={item?.itemName || 'item image'}
+          style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
+          onError={() => setErr(true)}
+        />
+      ) : null}
+      {(!imgUrl || err) && (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#f1f5f9',
+            borderRadius: '6px',
+            color: '#94a3b8',
+            border: '1px solid #e2e8f0'
+          }}
+        >
+          <Package size={20} />
+        </div>
+      )}
+    </div>
+  );
+};
+
 import {
   fetchWarehouseInventorySyncTemplate,
   fetchWarehousesAll,
@@ -522,7 +650,8 @@ export default function PartManagement() {
           <table className={styles['service-table']}>
             <thead>
               <tr>
-             <th>STT</th>
+                <th>STT</th>
+                <th style={{ width: '45px', textAlign: 'center', padding: '8px 4px' }}>ẢNH</th>
                 <th>TÊN</th>
                 <th>SKU</th>
                 <th>KHO</th>
@@ -538,12 +667,12 @@ export default function PartManagement() {
             <tbody>
               {isLoading && (
                 <tr>
-                    <td colSpan="12" className={styles['empty-row']}>Đang tải dữ liệu...</td>
+                    <td colSpan="13" className={styles['empty-row']}>Đang tải dữ liệu...</td>
                 </tr>
               )}
               {!isLoading && totalElements === 0 && (
                 <tr>
-                    <td colSpan="12" className={styles['empty-row']}>Không có phụ tùng nào.</td>
+                    <td colSpan="13" className={styles['empty-row']}>Không có phụ tùng nào.</td>
                 </tr>
               )}
               {!isLoading &&
@@ -553,8 +682,11 @@ export default function PartManagement() {
                   return (
                     <tr key={String(key)}>
                       <td>{displayIndex}</td>
+                      <td style={{ width: '45px', padding: '4px', textAlign: 'center' }}>
+                        <ItemTableImage item={item} />
+                      </td>
                       <td style={{ textAlign: 'left', fontWeight: 500 }}>{item.itemName ?? '-'}</td>
-                      <td>{item.sku || '-'}</td>
+                      <td title={item.sku}>{item.sku || '-'}</td>
                       <td className={styles['warehouse-cell']}>
                         {renderWarehouseLines(item, (d) => (
                           <span>{getWarehouseDisplayName(d)}</span>
@@ -586,21 +718,23 @@ export default function PartManagement() {
                       <td>{getItemOriginText(item)}</td>
                       <td>{getItemColorText(item)}</td>
                       <td>
-                        <div className={styles['action-buttons']}>
+                        <div className={styles['action-buttons']} style={{ justifyContent: 'center', gap: '6px' }}>
                           <button
                             className={`${styles['action-btn']} ${styles['view-btn']}`}
                             onClick={() => setSelectedItem(item)}
-                            title="Xem chi tiet"
+                            title="Xem chi tiết"
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: 0 }}
                           >
-                            Xem chi tiết
+                            <Eye size={16} />
                           </button>
                           {isManagerOrWarehouseManager && (
                             <button
                               className={`${styles['action-btn']} ${styles['edit-btn']}`}
                               onClick={() => setEditingItem(item)}
                               title="Sửa danh mục"
+                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: 0 }}
                             >
-                              Sửa danh mục
+                              <Pencil size={16} />
                             </button>
                           )}
                         </div>
@@ -675,15 +809,17 @@ export default function PartManagement() {
                     <button
                       className={`${styles['action-btn']} ${styles['view-btn']}`}
                       onClick={() => setSelectedItem(item)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                      Xem chi tiết
+                      <Eye size={15} /> Xem chi tiết
                     </button>
                     {isManagerOrWarehouseManager && (
                       <button
                         className={`${styles['action-btn']} ${styles['edit-btn']}`}
                         onClick={() => setEditingItem(item)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
-                        Sửa danh mục
+                        <Pencil size={15} /> Sửa danh mục
                       </button>
                     )}
                   </div>

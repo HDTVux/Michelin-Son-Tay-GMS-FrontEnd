@@ -1,8 +1,44 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
+import { Package } from 'lucide-react';
 import styles from './ServiceManagement.module.css';
 import { fetchWarehouseCatalogItemDetail, fetchWarehouseSpecificationsByCatalogItemId } from '../../../services/warehouseService.js';
+import { fetchHomeServiceDetail, fetchHomeProductDetail } from '../../../services/homeService.js';
 import { getItemColorText, getItemOriginText } from './itemFormatters.js';
+
+const toNullablePositiveNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num > 0 ? num : null;
+};
+
+const getServiceIdFromUnknownShape = (input) => {
+    if (!input || typeof input !== 'object') return null;
+    for (const [rawKey, rawValue] of Object.entries(input)) {
+        const key = String(rawKey || '').toLowerCase();
+        if (key.includes('service') && key.includes('id')) {
+            const val = toNullablePositiveNumber(rawValue);
+            if (val != null) return val;
+        }
+    }
+    return null;
+};
+
+const getServiceServiceId = (item) => {
+    if (!item || typeof item !== 'object') return null;
+    const candidates = [
+        item.service_service_id, item.serviceServiceId, item.service_serviceId, item.serviceServiceID,
+        item.serviceId, item.service_id,
+        item?.data?.serviceId, item?.data?.service_service_id, item?.data?.serviceServiceId,
+        item?.service?.service_service_id, item?.service?.serviceServiceId,
+        item?.service?.service_id, item?.serviceInfo?.service_service_id,
+        item?.serviceInfo?.serviceServiceId, item?.serviceInfo?.service_id,
+    ];
+    for (const value of candidates) {
+        const parsed = toNullablePositiveNumber(value);
+        if (parsed != null) return parsed;
+    }
+    return getServiceIdFromUnknownShape(item);
+};
 
 const formatCurrencyVnd = (value) => {
     const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
@@ -98,6 +134,7 @@ export default function ItemDetailModal({ item, onClose }) {
     const [detail, setDetail] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [imageError, setImageError] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -116,24 +153,86 @@ export default function ItemDetailModal({ item, onClose }) {
                 const token = localStorage.getItem('authToken');
                 const res = await fetchWarehouseCatalogItemDetail(id, token);
 
-                const payload = res?.data?.data ?? res?.data ?? res;
-                let base = payload ?? {};
-
-                if (!base.specifications || !Array.isArray(base.specifications) || base.specifications.length === 0) {
-                    try {
-                        const specsRes = await fetchWarehouseSpecificationsByCatalogItemId(id, token);
-                        const specsPayload = specsRes?.data?.data ?? specsRes?.data ?? specsRes;
-                        base.specifications = Array.isArray(specsPayload) ? specsPayload : [];
-                    } catch {
-                        base.specifications = base.specifications ?? [];
-                    }
-                }
-
-                if (!cancelled) setDetail(base);
+                 const payload = res?.data?.data ?? res?.data ?? res;
+                 let base = payload ?? {};
+ 
+                 // Fetch linked service (blog) post to get the main image
+                 const serviceId = getServiceServiceId(item) || getServiceServiceId(base);
+                 let serviceDetail = null;
+                 if (serviceId) {
+                     try {
+                         const serviceRes = await fetchHomeServiceDetail(serviceId);
+                         serviceDetail = serviceRes?.data?.data ?? serviceRes?.data ?? serviceRes;
+                     } catch {
+                         // ignore
+                     }
+                 }
+                 if (!serviceDetail) {
+                     try {
+                         const homeProductRes = await fetchHomeProductDetail(id);
+                         serviceDetail = homeProductRes?.data?.data ?? homeProductRes?.data ?? homeProductRes;
+                     } catch {
+                         // ignore
+                     }
+                 }
+ 
+                 if (serviceDetail) {
+                     let serviceImg = null;
+ 
+                     // 1. Prioritize cover image (ảnh bìa)
+                     serviceImg = serviceDetail.thumbnailUrl || serviceDetail.mediaThumbnail || serviceDetail.imageUrl;
+ 
+                     // 2. Fallback to first non-video media from media/mediaList
+                     if (!serviceImg) {
+                         const mediaList = serviceDetail.media || serviceDetail.mediaList || [];
+                         if (Array.isArray(mediaList) && mediaList.length > 0) {
+                             const firstImgMedia = mediaList.find(m => {
+                                 const url = String(m?.mediaUrl || m?.url || '').trim();
+                                 const type = String(m?.mediaType || m?.type || '').trim().toUpperCase();
+                                 const isVideo = type === 'VIDEO' || /\.(mp4|webm|ogg)$/i.test(url);
+                                 return url && !isVideo;
+                             });
+                             if (firstImgMedia) {
+                                 serviceImg = String(firstImgMedia.mediaUrl || firstImgMedia.url).trim();
+                             }
+                         }
+                     }
+ 
+                     // 3. Fallback to first <img> tag from HTML content
+                     if (!serviceImg) {
+                         const htmlContent = serviceDetail.fullDescription || serviceDetail.descriptionHtml || serviceDetail.description || '';
+                         const match = htmlContent.match(/<img[^>]+src=["']([^"']+)["']/i);
+                         if (match && match[1]) {
+                             serviceImg = match[1];
+                         }
+                     }
+ 
+                     if (serviceImg) {
+                         base.imageUrl = serviceImg;
+                         base.thumbnailUrl = serviceImg;
+                         base.mediaThumbnail = serviceImg;
+                     }
+                 }
+ 
+                 if (!base.specifications || !Array.isArray(base.specifications) || base.specifications.length === 0) {
+                     try {
+                         const specsRes = await fetchWarehouseSpecificationsByCatalogItemId(id, token);
+                         const specsPayload = specsRes?.data?.data ?? specsRes?.data ?? specsRes;
+                         base.specifications = Array.isArray(specsPayload) ? specsPayload : [];
+                     } catch {
+                         base.specifications = base.specifications ?? [];
+                     }
+                 }
+ 
+                 if (!cancelled) {
+                     setDetail(base);
+                     setImageError(false);
+                 }
             } catch (err) {
                 if (!cancelled) {
                     setError(err?.message || 'Không thể tải chi tiết sản phẩm.');
                     setDetail(item);
+                    setImageError(false);
                 }
             } finally {
                 if (!cancelled) setLoading(false);
@@ -162,6 +261,7 @@ export default function ItemDetailModal({ item, onClose }) {
     const specs = getTechnicalSpecs(display?.specifications);
     const originText = getItemOriginText(display);
     const colorText = getItemColorText(display);
+    const imgUrl = display?.imageUrl || display?.thumbnailUrl || display?.mediaThumbnail || display?.photoUrl || '';
 
     return (
         <div className={styles['modal-overlay']}>
@@ -190,20 +290,39 @@ export default function ItemDetailModal({ item, onClose }) {
 
                     <div className={styles['modal-section']}>
                         <div className={styles['modal-section-title']}>Thông tin chính</div>
-                        <table className={styles['detail-table']}>
-                            <tbody>
-                                <tr><th>ID</th><td>{display?.itemId ?? '-'}</td></tr>
-                                <tr><th>Tên</th><td>{display?.itemName || '-'}</td></tr>
-                                <tr><th>SKU</th><td>{display?.sku || '-'}</td></tr>
-                                <tr><th>Hãng</th><td>{brandText}</td></tr>
-                                <tr><th>Dòng sản phẩm</th><td>{productLineText}</td></tr>
-                                <tr><th>Giá</th><td>{priceText}</td></tr>
-                                <tr><th>Thuế</th><td>{taxText}</td></tr>
-                                <tr><th>Đơn vị</th><td>{display?.unit || '-'}</td></tr>
-                                <tr><th>Xuất xứ</th><td>{originText}</td></tr>
-                                <tr><th>Màu</th><td>{colorText}</td></tr>
-                            </tbody>
-                        </table>
+                        <div className={styles['info-layout']}>
+                            <div className={styles['image-container']}>
+                                {imgUrl && !imageError ? (
+                                    <img
+                                        src={imgUrl}
+                                        alt={display?.itemName}
+                                        className={styles['item-detail-image']}
+                                        onError={() => setImageError(true)}
+                                    />
+                                ) : (
+                                    <div className={styles['image-placeholder']}>
+                                        <Package size={48} />
+                                        <span>Không có ảnh</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className={styles['table-container']}>
+                                <table className={styles['detail-table']}>
+                                    <tbody>
+                                        <tr><th>ID</th><td>{display?.itemId ?? '-'}</td></tr>
+                                        <tr><th>Tên</th><td>{display?.itemName || '-'}</td></tr>
+                                        <tr><th>SKU</th><td>{display?.sku || '-'}</td></tr>
+                                        <tr><th>Hãng</th><td>{brandText}</td></tr>
+                                        <tr><th>Dòng sản phẩm</th><td>{productLineText}</td></tr>
+                                        <tr><th>Giá</th><td>{priceText}</td></tr>
+                                        <tr><th>Thuế</th><td>{taxText}</td></tr>
+                                        <tr><th>Đơn vị</th><td>{display?.unit || '-'}</td></tr>
+                                        <tr><th>Xuất xứ</th><td>{originText}</td></tr>
+                                        <tr><th>Màu</th><td>{colorText}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
 
                     <div className={styles['modal-section']}>

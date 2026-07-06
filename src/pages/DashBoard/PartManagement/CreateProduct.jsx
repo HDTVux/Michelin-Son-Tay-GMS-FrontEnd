@@ -20,6 +20,7 @@ import {
 	fetchWarehouseSpecificationsByCatalogItemId,
 	fetchTaxRules,
 } from '../../../services/warehouseService.js';
+import { createServiceForCatalog } from '../../../services/blogService.js';
 
 const extractPayload = (response) => response?.data?.data ?? response?.data ?? response;
 
@@ -98,6 +99,47 @@ const mapSpecAttributeItem = (item) => {
 
 const CATEGORY_TYPE_FIXED = 'PART';
 const OTHER_OPTION_VALUE = '__OTHER__';
+
+// Helper functions for formatting description and editor HTML
+const stripHtml = (value) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+const escapeHtml = (value) => String(value || '')
+	.replace(/&/g, '&amp;')
+	.replace(/</g, '&lt;')
+	.replace(/>/g, '&gt;')
+	.replace(/"/g, '&quot;')
+	.replace(/'/g, '&#39;');
+const normalizeEditorHtml = (rawHtml) => {
+	if (typeof window === 'undefined') return String(rawHtml || '');
+	const wrapper = document.createElement('div');
+	wrapper.innerHTML = String(rawHtml || '').trim();
+	wrapper.querySelectorAll('b').forEach((node) => {
+		const strong = document.createElement('strong');
+		strong.innerHTML = node.innerHTML;
+		node.replaceWith(strong);
+	});
+	wrapper.querySelectorAll('i').forEach((node) => {
+		const em = document.createElement('em');
+		em.innerHTML = node.innerHTML;
+		node.replaceWith(em);
+	});
+	return wrapper.innerHTML;
+};
+const composeDescriptionHtml = (introText, detailHtml) => {
+	const sections = [];
+	const introTrim = String(introText || '').trim();
+	if (introTrim) {
+		const introParagraphs = introTrim.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => `<p>${escapeHtml(line)}</p>`).join('');
+		sections.push('<h3>Giới thiệu</h3>');
+		sections.push(introParagraphs);
+	}
+	const normalizedDetail = normalizeEditorHtml(detailHtml);
+	if (stripHtml(normalizedDetail)) {
+		sections.push('<h3>Chi tiết dịch vụ</h3>');
+		sections.push(normalizedDetail);
+	}
+	if (!sections.length) return normalizedDetail;
+	return sections.join('');
+};
 
 export default function CreateProduct() {
 	useScrollToTop();
@@ -201,6 +243,14 @@ export default function CreateProduct() {
 	});
 
 	const [specDrafts, setSpecDrafts] = useState(() => initialDraft?.specDrafts ?? [makeSpecDraft()]);
+
+	// Blog/article creation states
+	const [createBlogEnabled, setCreateBlogEnabled] = useState(() => initialDraft?.createBlogEnabled ?? false);
+	const [introText, setIntroText] = useState(() => initialDraft?.introText ?? '');
+	const [detailHtml, setDetailHtml] = useState(() => initialDraft?.detailHtml ?? '');
+	const [blogMediaFiles, setBlogMediaFiles] = useState([]);
+	const [isBlogSubmitting, setIsBlogSubmitting] = useState(false);
+	const editorRef = useRef(null);
 
 	const addSpecDraft = useCallback(() => {
 		setSpecDrafts((prev) => [...(Array.isArray(prev) ? prev : []), makeSpecDraft()]);
@@ -319,7 +369,7 @@ export default function CreateProduct() {
 		return categories.find((c) => c.itemCategoryId && String(c.itemCategoryId) === id) || null;
 	}, [categories, selectedCategoryId]);
 
-	const handleCategoryInputClick = useCallback(() => {
+	const saveDraft = useCallback((targetPath) => {
 		const draft = {
 			selectedCategoryId,
 			selectedBrandId,
@@ -337,9 +387,12 @@ export default function CreateProduct() {
 			selectedProductTaxRuleId,
 			specDrafts,
 			compatibleCars,
+			createBlogEnabled,
+			introText,
+			detailHtml,
 		};
 		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
-		navigate('/part-management/select-category');
+		if (targetPath) navigate(targetPath);
 	}, [
 		selectedCategoryId,
 		selectedBrandId,
@@ -356,8 +409,16 @@ export default function CreateProduct() {
 		warrantyDurationMonths,
 		selectedProductTaxRuleId,
 		specDrafts,
+		compatibleCars,
+		createBlogEnabled,
+		introText,
+		detailHtml,
 		navigate,
 	]);
+
+	const handleCategoryInputClick = useCallback(() => {
+		saveDraft('/part-management/select-category');
+	}, [saveDraft]);
 
 	const selectedProductTaxRule = useMemo(() => {
 		const id = String(selectedProductTaxRuleId || '').trim();
@@ -473,209 +534,28 @@ export default function CreateProduct() {
 
 
 	const handleBrandInputClick = useCallback(() => {
-		const draft = {
-			selectedCategoryId,
-			selectedBrandId,
-			selectedProductLineId,
-			sku,
-			price,
-			showPrice,
-			unit,
-			origin,
-			customOrigin,
-			color,
-			customColor,
-			description,
-			warrantyDurationMonths,
-			selectedProductTaxRuleId,
-			specDrafts,
-			compatibleCars,
-		};
-		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
-		navigate('/part-management/select-brand');
-	}, [
-		selectedCategoryId,
-		selectedBrandId,
-		selectedProductLineId,
-		sku,
-		price,
-		showPrice,
-		unit,
-		origin,
-		customOrigin,
-		color,
-		customColor,
-		description,
-		warrantyDurationMonths,
-		selectedProductTaxRuleId,
-		specDrafts,
-		navigate,
-	]);
+		saveDraft('/part-management/select-brand');
+	}, [saveDraft]);
 
 	const handleProductTaxInputClick = useCallback(() => {
-		const draft = {
-			selectedCategoryId,
-			selectedBrandId,
-			selectedProductLineId,
-			sku,
-			price,
-			showPrice,
-			unit,
-			origin,
-			customOrigin,
-			color,
-			customColor,
-			description,
-			warrantyDurationMonths,
-			selectedProductTaxRuleId,
-			specDrafts,
-			compatibleCars,
-		};
-		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
-		navigate('/part-management/select-tax');
-	}, [
-		selectedCategoryId,
-		selectedBrandId,
-		selectedProductLineId,
-		sku,
-		price,
-		showPrice,
-		unit,
-		origin,
-		customOrigin,
-		color,
-		customColor,
-		description,
-		warrantyDurationMonths,
-		selectedProductTaxRuleId,
-		specDrafts,
-		navigate,
-	]);
+		saveDraft('/part-management/select-tax');
+	}, [saveDraft]);
 
 	const handleProductLineInputClick = useCallback(() => {
 		if (!selectedBrandId) {
 			notify('Vui lòng chọn hãng sản xuất trước khi chọn dòng sản phẩm.');
 			return;
 		}
-		const draft = {
-			selectedCategoryId,
-			selectedBrandId,
-			selectedProductLineId,
-			sku,
-			price,
-			showPrice,
-			unit,
-			origin,
-			customOrigin,
-			color,
-			customColor,
-			description,
-			warrantyDurationMonths,
-			selectedProductTaxRuleId,
-			specDrafts,
-			compatibleCars,
-		};
-		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
-		navigate('/part-management/select-product-line');
-	}, [
-		selectedCategoryId,
-		selectedBrandId,
-		selectedProductLineId,
-		sku,
-		price,
-		showPrice,
-		unit,
-		origin,
-		customOrigin,
-		color,
-		customColor,
-		description,
-		warrantyDurationMonths,
-		selectedProductTaxRuleId,
-		specDrafts,
-		navigate,
-		notify,
-	]);
+		saveDraft('/part-management/select-product-line');
+	}, [saveDraft, selectedBrandId, notify]);
 
 	const handleOriginInputClick = useCallback(() => {
-		const draft = {
-			selectedCategoryId,
-			selectedBrandId,
-			selectedProductLineId,
-			sku,
-			price,
-			showPrice,
-			unit,
-			origin,
-			customOrigin,
-			color,
-			customColor,
-			description,
-			warrantyDurationMonths,
-			selectedProductTaxRuleId,
-			specDrafts,
-			compatibleCars,
-		};
-		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
-		navigate('/part-management/select-origin');
-	}, [
-		selectedCategoryId,
-		selectedBrandId,
-		selectedProductLineId,
-		sku,
-		price,
-		showPrice,
-		unit,
-		origin,
-		customOrigin,
-		color,
-		customColor,
-		description,
-		warrantyDurationMonths,
-		selectedProductTaxRuleId,
-		specDrafts,
-		navigate,
-	]);
+		saveDraft('/part-management/select-origin');
+	}, [saveDraft]);
 
 	const handleColorInputClick = useCallback(() => {
-		const draft = {
-			selectedCategoryId,
-			selectedBrandId,
-			selectedProductLineId,
-			sku,
-			price,
-			showPrice,
-			unit,
-			origin,
-			customOrigin,
-			color,
-			customColor,
-			description,
-			warrantyDurationMonths,
-			selectedProductTaxRuleId,
-			specDrafts,
-			compatibleCars,
-		};
-		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
-		navigate('/part-management/select-color');
-	}, [
-		selectedCategoryId,
-		selectedBrandId,
-		selectedProductLineId,
-		sku,
-		price,
-		showPrice,
-		unit,
-		origin,
-		customOrigin,
-		color,
-		customColor,
-		description,
-		warrantyDurationMonths,
-		selectedProductTaxRuleId,
-		specDrafts,
-		navigate,
-	]);
+		saveDraft('/part-management/select-color');
+	}, [saveDraft]);
 
 	// Image file selection (local preview only)
 	const handleImageFileChange = useCallback(
@@ -887,6 +767,12 @@ export default function CreateProduct() {
 			notify('Vui lòng chọn hãng.');
 			return;
 		}
+		if (createBlogEnabled) {
+			if (!String(introText || '').trim() && !stripHtml(detailHtml)) {
+				notify('Vui lòng nhập tóm tắt ngắn hoặc nội dung chi tiết bài viết.');
+				return;
+			}
+		}
 		const skuTrim = String(sku || '').trim();
 		if (!skuTrim) {
 			notify('Vui lòng nhập SKU.');
@@ -980,6 +866,57 @@ export default function CreateProduct() {
 				}
 				notify('Đã lưu các thông số.');
 			}
+
+			// If createBlogEnabled, create the blog post associated with this catalogItemId
+			if (createBlogEnabled) {
+				notify('Đang tạo bài viết chi tiết...');
+				setIsBlogSubmitting(true);
+				try {
+					const formData = new FormData();
+					const title = String(itemName || '').trim();
+					const skuText = String(skuTrim || '').trim();
+					const resolvedPrice = showPrice ? priceNum : 0;
+					const warrantyNumInt = Math.trunc(warrantyNum);
+					const serviceStatus = 'ACTIVE';
+					const fullDescription = composeDescriptionHtml(introText, detailHtml);
+					const shortDescription = String(introText || '').trim();
+
+					formData.append('title', title);
+					formData.append('itemName', title);
+					formData.append('sku', skuText);
+					formData.append('itemCode', skuText);
+					formData.append('partCode', skuText);
+					formData.append('unit', String(unit || '').trim());
+					formData.append('price', String(resolvedPrice));
+					formData.append('shortDescription', shortDescription);
+					formData.append('fullDescription', fullDescription);
+					formData.append('showPrice', showPrice ? 'true' : 'false');
+					formData.append('displayPrice', String(resolvedPrice));
+					formData.append('status', serviceStatus);
+					formData.append('catalogItemId', String(createdId));
+					if (Number.isFinite(warrantyNumInt) && warrantyNumInt >= 0) {
+						formData.append('estimateTime', String(warrantyNumInt));
+					}
+					// If product has a primary image, we append it as thumbnailFile
+					if (imageFile) {
+						formData.append('thumbnailFile', imageFile);
+					}
+					// Append any additional blog media files
+					blogMediaFiles.forEach((m) => {
+						if (m.file) {
+							formData.append('mediaFiles', m.file);
+						}
+					});
+
+					await createServiceForCatalog(createdId, formData, token);
+					notify('Đã tạo bài viết chi tiết cho phụ tùng thành công!', 'success');
+				} catch (blogErr) {
+					notify(`Tạo bài viết chi tiết thất bại: ${blogErr.message}`);
+				} finally {
+					setIsBlogSubmitting(false);
+				}
+			}
+
 			navigate('/part-management');
 		} catch (err) {
 			notify(err?.message || 'Không thể tạo sản phẩm.');
@@ -992,7 +929,6 @@ export default function CreateProduct() {
 		computedItemName,
 		customColor,
 		customOrigin,
-		// imageUrl,
 		isCreatingCatalogItem,
 		itemType,
 		notify,
@@ -1007,48 +943,87 @@ export default function CreateProduct() {
 		unit,
 		warrantyDurationMonths,
 		specDrafts,
+		createBlogEnabled,
+		introText,
+		detailHtml,
+		blogMediaFiles,
+		imageFile,
 		navigate,
 	]);
 
 	const handleAttributeInputClick = useCallback(() => {
-		const draft = {
-			selectedCategoryId,
-			selectedBrandId,
-			selectedProductLineId,
-			sku,
-			price,
-			showPrice,
-			unit,
-			origin,
-			customOrigin,
-			color,
-			customColor,
-			description,
-			warrantyDurationMonths,
-			selectedProductTaxRuleId,
-			specDrafts,
-			compatibleCars,
-		};
-		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
-		navigate('/part-management/select-attribute');
-	}, [
-		selectedCategoryId,
-		selectedBrandId,
-		selectedProductLineId,
-		sku,
-		price,
-		showPrice,
-		unit,
-		origin,
-		customOrigin,
-		color,
-		customColor,
-		description,
-		warrantyDurationMonths,
-		selectedProductTaxRuleId,
-		specDrafts,
-		navigate,
-	]);
+		saveDraft('/part-management/select-attribute');
+	}, [saveDraft]);
+
+	// Editor and media helper functions for blog creation
+	const syncDetailFromEditor = useCallback(() => {
+		setDetailHtml(normalizeEditorHtml(editorRef.current?.innerHTML || ''));
+	}, []);
+
+	const applyInlineTag = useCallback((tagName, attrs = null) => {
+		const editor = editorRef.current;
+		if (!editor) return;
+		editor.focus();
+		const selection = window.getSelection();
+		if (!selection || selection.rangeCount === 0) return;
+		const range = selection.getRangeAt(0);
+		if (!editor.contains(range.commonAncestorContainer) || range.collapsed) return;
+		const node = document.createElement(tagName);
+		if (attrs && typeof attrs === 'object') Object.entries(attrs).forEach(([k, v]) => node.setAttribute(k, v));
+		node.appendChild(range.extractContents());
+		range.insertNode(node);
+		selection.removeAllRanges();
+		const nextRange = document.createRange();
+		nextRange.selectNodeContents(node);
+		selection.addRange(nextRange);
+		syncDetailFromEditor();
+	}, [syncDetailFromEditor]);
+
+	const applyExecCommand = useCallback((command) => {
+		const editor = editorRef.current;
+		if (!editor) return;
+		editor.focus();
+		document.execCommand(command, false, null);
+		syncDetailFromEditor();
+	}, [syncDetailFromEditor]);
+
+	const handleToolbarClick = useCallback((action) => {
+		if (action === 'bold') return applyExecCommand('bold');
+		if (action === 'italic') return applyExecCommand('italic');
+		if (action === 'uppercase') return applyInlineTag('span', { style: 'text-transform: uppercase;' });
+		if (action === 'ol') return applyExecCommand('insertOrderedList');
+		if (action === 'ul') return applyExecCommand('insertUnorderedList');
+		return undefined;
+	}, [applyExecCommand, applyInlineTag]);
+
+	// Keep editor in sync when detailHtml updates (e.g. from drafts)
+	useEffect(() => {
+		if (!editorRef.current) return;
+		const normalized = normalizeEditorHtml(detailHtml);
+		if (editorRef.current.innerHTML !== normalized) {
+			editorRef.current.innerHTML = normalized;
+		}
+	}, [detailHtml]);
+
+	const handleBlogMediaChange = useCallback((e) => {
+		const files = Array.from(e.target.files || []);
+		const next = files.map((file) => ({
+			id: `media-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+			file,
+			previewUrl: URL.createObjectURL(file),
+		}));
+		setBlogMediaFiles((prev) => [...prev, ...next]);
+	}, []);
+
+	const removeBlogMedia = useCallback((index) => {
+		setBlogMediaFiles((prev) => {
+			const item = prev[index];
+			if (item?.previewUrl) {
+				URL.revokeObjectURL(item.previewUrl);
+			}
+			return prev.filter((_, i) => i !== index);
+		});
+	}, []);
 
 	const handleSaveSpecificationValue = useCallback(
 		async (draftIndex) => {
@@ -1416,6 +1391,111 @@ export default function CreateProduct() {
 						<textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 					</div>
 
+					{!createdCatalogItemId && (
+						<div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #cbd5e1' }}>
+							<div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+								<input
+									type="checkbox"
+									id="createBlogEnabled"
+									checked={createBlogEnabled}
+									onChange={(e) => setCreateBlogEnabled(e.target.checked)}
+									style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+								/>
+								<label htmlFor="createBlogEnabled" style={{ fontWeight: 600, cursor: 'pointer', userSelect: 'none', margin: 0 }}>
+									Đồng thời tạo bài viết giới thiệu chi tiết sản phẩm
+								</label>
+							</div>
+
+							{createBlogEnabled && (
+								<div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16, padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+									<div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+										Nội dung bài viết chi tiết
+									</div>
+									<div className="ui-field" style={{ marginBottom: 0 }}>
+										<label htmlFor="introText" style={{ fontWeight: 500 }}>Tóm tắt ngắn (Intro)</label>
+										<textarea
+											id="introText"
+											value={introText}
+											onChange={(e) => setIntroText(e.target.value)}
+											placeholder="Nhập phần giới thiệu ngắn hoặc tóm tắt của bài viết..."
+											style={{ minHeight: '80px' }}
+										/>
+									</div>
+
+									<div className="ui-field" style={{ marginBottom: 0 }}>
+										<label style={{ fontWeight: 500 }}>Chi tiết sản phẩm</label>
+										<div className={styles['editor-toolbar']}>
+											<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('bold')}><strong>B</strong></button>
+											<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('italic')}><em>I</em></button>
+											<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('uppercase')}>UPPER</button>
+											<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('ol')}>OL</button>
+											<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('ul')}>UL</button>
+										</div>
+										<div
+											ref={editorRef}
+											className={styles['rich-editor']}
+											contentEditable
+											suppressContentEditableWarning
+											onInput={syncDetailFromEditor}
+											onBlur={syncDetailFromEditor}
+											style={{
+												minHeight: '200px',
+												border: '1px solid #cbd5e1',
+												borderRadius: '6px',
+												padding: '12px',
+												backgroundColor: '#fff',
+												overflowY: 'auto'
+											}}
+										/>
+										<div className={styles['editor-hint']}>Output HTML dùng các thẻ {'<strong>'}, {'<em>'}, span uppercase, {'<ol>'}, {'<ul>'}.</div>
+									</div>
+
+									<div className="ui-field" style={{ marginBottom: 0 }}>
+										<label style={{ fontWeight: 500 }}>Tải lên ảnh bổ sung cho bài viết (Media)</label>
+										<input
+											type="file"
+											accept="image/*,video/*"
+											multiple
+											onChange={handleBlogMediaChange}
+											style={{ padding: '6px', fontSize: '13px' }}
+										/>
+										{blogMediaFiles.length > 0 && (
+											<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+												{blogMediaFiles.map((m, idx) => (
+													<div key={m.id || idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', border: '1px solid #cbd5e1', overflow: 'hidden' }}>
+														<img src={m.previewUrl} alt="media preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+														<button
+															type="button"
+															onClick={() => removeBlogMedia(idx)}
+															style={{
+																position: 'absolute',
+																top: '2px',
+																right: '2px',
+																backgroundColor: 'rgba(239, 68, 68, 0.9)',
+																color: 'white',
+																border: 'none',
+																borderRadius: '50%',
+																width: '18px',
+																height: '18px',
+																fontSize: '11px',
+																cursor: 'pointer',
+																display: 'flex',
+																alignItems: 'center',
+																justifyContent: 'center',
+																padding: 0
+															}}
+														>
+															×
+														</button>
+													</div>
+												))}
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+						</div>
+					)}
 
 					<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center', marginTop: 12 }}>
 						<button type="button" className={styles['primary-button']} onClick={handleSubmitProduct} disabled={isCreatingCatalogItem || Boolean(createdCatalogItemId)}>
