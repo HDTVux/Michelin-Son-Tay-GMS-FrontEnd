@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchCustomerDetail, updateCustomer } from '../../../services/adminService.js';
+import { fetchServiceTicketBookingHistoryByCustomerId } from '../../../services/serviceTicketService.js';
 import styles from './EditCustomerProfile.module.css';
 
 const normalizePhone = (value) => String(value || '').replaceAll(/\s/g, '');
@@ -58,6 +59,8 @@ const EditCustomerProfile = () => {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [serviceHistory, setServiceHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const [formData, setFormData] = useState({
     status: 'ACTIVE',
@@ -90,6 +93,15 @@ const EditCustomerProfile = () => {
 
 		if (customer) {
 			setFormData(mapCustomerToFormData(customer));
+			try {
+				setLoadingHistory(true);
+				const historyResponse = await fetchServiceTicketBookingHistoryByCustomerId(customerId, token);
+				setServiceHistory(historyResponse?.data || []);
+			} catch (err) {
+				console.error('Error fetching service history:', err);
+			} finally {
+				setLoadingHistory(false);
+			}
 		} else {
 			toast.error('Không tìm thấy khách hàng');
 			navigate('/customer-manager');
@@ -383,6 +395,103 @@ const EditCustomerProfile = () => {
             )}
 
           </form>
+
+          {!isEditing && (
+            <div className={styles.card} style={{ marginTop: '24px' }}>
+              <div className={styles.cardHeader} style={{ marginBottom: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '12px' }}>
+                <h3 className={styles.cardTitle} style={{ margin: 0, fontSize: '18px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  📊 Lịch sử sửa chữa & dịch vụ
+                </h3>
+              </div>
+              {loadingHistory ? (
+                <div style={{ padding: '20px 0', textAlign: 'center', color: '#6b7280' }}>Đang tải lịch sử dịch vụ...</div>
+              ) : serviceHistory.length === 0 ? (
+                <div style={{ padding: '30px 0', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>Chưa có lịch sử dịch vụ tại xưởng.</div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left', background: '#f9fafb' }}>
+                        <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Mã phiếu</th>
+                        <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Ngày tiếp nhận</th>
+                        <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Biển số xe</th>
+                        <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Hiệu xe</th>
+                        <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Dịch vụ / Yêu cầu</th>
+                        <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Trạng thái</th>
+                        <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151', textAlign: 'center' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {serviceHistory.map((ticket) => {
+                        const statusKey = String(ticket.ticketStatus || '').toUpperCase();
+                        let badgeColor = '#6b7280';
+                        let badgeBg = '#f3f4f6';
+                        let statusTextVi = ticket.ticketStatus || 'Chờ xử lý';
+                        
+                        if (statusKey === 'DRAFT' || statusKey === 'CREATED') {
+                          badgeColor = '#d97706';
+                          badgeBg = '#fef3c7';
+                          statusTextVi = 'Nháp / Mới';
+                        } else if (statusKey === 'IN_PROGRESS' || statusKey === 'REPAIRING') {
+                          badgeColor = '#2563eb';
+                          badgeBg = '#dbeafe';
+                          statusTextVi = 'Đang sửa chữa';
+                        } else if (statusKey === 'COMPLETED') {
+                          badgeColor = '#059669';
+                          badgeBg = '#d1fae5';
+                          statusTextVi = 'Hoàn tất';
+                        } else if (statusKey === 'PAID') {
+                          badgeColor = '#7c3aed';
+                          badgeBg = '#ede9fe';
+                          statusTextVi = 'Đã thanh toán';
+                        } else if (statusKey === 'CANCELLED') {
+                          badgeColor = '#dc2626';
+                          badgeBg = '#fee2e2';
+                          statusTextVi = 'Đã hủy';
+                        }
+
+                        return (
+                          <tr key={ticket.serviceTicketId} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            <td style={{ padding: '12px 8px', fontWeight: '600', color: '#111827' }}>
+                              {ticket.ticketCode}
+                            </td>
+                            <td style={{ padding: '12px 8px', color: '#4b5563' }}>
+                              {ticket.receivedAt ? new Date(ticket.receivedAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                            </td>
+                            <td style={{ padding: '12px 8px' }}>
+                              <span style={{ background: '#f3f4f6', padding: '4px 8px', borderRadius: '4px', fontWeight: '600', color: '#374151', border: '1px solid #e5e7eb' }}>
+                                {ticket.licensePlate || '-'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 8px', color: '#4b5563' }}>
+                              {ticket.vehicleBrand || ticket.vehicleMake || ''} {ticket.vehicleModel || ''}
+                            </td>
+                            <td style={{ padding: '12px 8px', color: '#4b5563', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ticket.customerRequest || ticket.serviceCategory}>
+                              {ticket.customerRequest || ticket.serviceCategory || '-'}
+                            </td>
+                            <td style={{ padding: '12px 8px' }}>
+                              <span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: '9999px', fontWeight: '500', color: badgeColor, backgroundColor: badgeBg, fontSize: '12px' }}>
+                                {statusTextVi}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                style={{ background: 'transparent', border: 'none', color: '#2563eb', fontWeight: '600', cursor: 'pointer' }}
+                                onClick={() => navigate(`/service-ticket-detail/${ticket.ticketCode}`)}
+                              >
+                                Xem chi tiết
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {!isEditing && (
