@@ -6,6 +6,7 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import {
 	createWarehouseProductLine,
 	fetchWarehouseProductLines,
+	deleteWarehouseProductLine,
 	fetchWarehouseBrands,
 } from '../../../services/warehouseService.js';
 
@@ -177,6 +178,22 @@ export default function ProductLineSelection() {
 		}
 	}, [lineName, isCreatingLine, notify, isLineNameDuplicate, handleSelectLine, selectedBrandId]);
 
+	const handleDeleteLine = useCallback(async (line) => {
+		const ok = window.confirm(`Bạn có chắc chắn muốn xóa dòng sản phẩm "${line.lineName}"?`);
+		if (!ok) return;
+		try {
+			const token = localStorage.getItem('authToken');
+			await deleteWarehouseProductLine(line.productLineId, token);
+			notify('Đã xóa dòng sản phẩm thành công.');
+			// Reload product line list
+			const lineRes = await fetchWarehouseProductLines(token);
+			const lineList = Array.isArray(extractPayload(lineRes)) ? extractPayload(lineRes) : [];
+			setLines(lineList.map(mapProductLineItem).filter(Boolean));
+		} catch (err) {
+			notify(err?.message || 'Không thể xóa dòng sản phẩm.');
+		}
+	}, [notify]);
+
 	const handleToggleAddingLine = useCallback(() => {
 		setIsAddingNewLine((prev) => {
 			const next = !prev;
@@ -313,14 +330,27 @@ export default function ProductLineSelection() {
 										<tr key={String(l.productLineId)}>
 											<td style={{ textAlign: 'left', fontWeight: 500 }}>{l.lineName}</td>
 											<td>
-												<button
-													type="button"
-													className={styles['primary-button']}
-													style={{ padding: '6px 16px', fontSize: 13, boxShadow: 'none' }}
-													onClick={() => handleSelectLine(l)}
-												>
-													Chọn
-												</button>
+												<div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+													<button
+														type="button"
+														className={styles['primary-button']}
+														style={{ padding: '6px 16px', fontSize: 13, boxShadow: 'none' }}
+														onClick={() => handleSelectLine(l)}
+													>
+														Chọn
+													</button>
+													<button
+														type="button"
+														className={styles['ghost-button']}
+														style={{ padding: '6px 16px', fontSize: 13, boxShadow: 'none', borderColor: '#ef4444', color: '#ef4444' }}
+														onClick={(e) => {
+															e.stopPropagation();
+															handleDeleteLine(l);
+														}}
+													>
+														Xóa
+													</button>
+												</div>
 											</td>
 										</tr>
 									))}

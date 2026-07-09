@@ -6,6 +6,7 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import {
 	createWarehouseBrand,
 	fetchWarehouseBrands,
+	deleteWarehouseBrand,
 } from '../../../services/warehouseService.js';
 
 const extractPayload = (response) => response?.data?.data ?? response?.data ?? response;
@@ -137,6 +138,22 @@ export default function BrandSelection() {
 		}
 	}, [brandName, isCreatingBrand, notify, isBrandNameDuplicate, handleSelectBrand]);
 
+	const handleDeleteBrand = useCallback(async (brand) => {
+		const ok = window.confirm(`Bạn có chắc chắn muốn xóa hãng "${brand.brandName}"?`);
+		if (!ok) return;
+		try {
+			const token = localStorage.getItem('authToken');
+			await deleteWarehouseBrand(brand.brandId, token);
+			notify('Đã xóa hãng thành công.');
+			// Reload brand list
+			const res = await fetchWarehouseBrands(token);
+			const brandList = Array.isArray(extractPayload(res)) ? extractPayload(res) : [];
+			setBrands(brandList.map(mapBrandItem).filter(Boolean));
+		} catch (err) {
+			notify(err?.message || 'Không thể xóa hãng.');
+		}
+	}, [notify]);
+
 	const handleToggleAddingBrand = useCallback(() => {
 		setIsAddingNewBrand((prev) => {
 			const next = !prev;
@@ -252,14 +269,27 @@ export default function BrandSelection() {
 										<tr key={String(b.brandId)}>
 											<td style={{ textAlign: 'left', fontWeight: 500 }}>{b.brandName}</td>
 											<td>
-												<button
-													type="button"
-													className={styles['primary-button']}
-													style={{ padding: '6px 16px', fontSize: 13, boxShadow: 'none' }}
-													onClick={() => handleSelectBrand(b)}
-												>
-													Chọn
-												</button>
+												<div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+													<button
+														type="button"
+														className={styles['primary-button']}
+														style={{ padding: '6px 16px', fontSize: 13, boxShadow: 'none' }}
+														onClick={() => handleSelectBrand(b)}
+													>
+														Chọn
+													</button>
+													<button
+														type="button"
+														className={styles['ghost-button']}
+														style={{ padding: '6px 16px', fontSize: 13, boxShadow: 'none', borderColor: '#ef4444', color: '#ef4444' }}
+														onClick={(e) => {
+															e.stopPropagation();
+															handleDeleteBrand(b);
+														}}
+													>
+														Xóa
+													</button>
+												</div>
 											</td>
 										</tr>
 									))}
