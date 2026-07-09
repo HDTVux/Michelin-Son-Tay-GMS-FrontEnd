@@ -44,6 +44,7 @@ import OriginSelection from './pages/DashBoard/PartManagement/OriginSelection.js
 import ColorSelection from './pages/DashBoard/PartManagement/ColorSelection.jsx';
 import TaxSelection from './pages/DashBoard/PartManagement/TaxSelection.jsx';
 import AttributeSelection from './pages/DashBoard/PartManagement/AttributeSelection.jsx';
+import UnitSelection from './pages/DashBoard/PartManagement/UnitSelection.jsx';
 import WarehouseStockEntry from './pages/DashBoard/WarehouseManagement/WarehouseStockEntry.jsx';
 import WarehouseStockEntryManagement from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
 import WarehouseStockEntryDetail from './pages/DashBoard/WarehouseManagement/WarehouseStockEntryDetail.jsx';
@@ -425,8 +426,9 @@ export default function App() {
               <Route path="part-management/select-product-line" element={staffRoute(<ProductLineSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/select-origin" element={staffRoute(<OriginSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="part-management/select-color" element={staffRoute(<ColorSelection />, ROLE_GROUP.WAREHOUSE)} />
-              <Route path="part-management/select-tax" element={staffRoute(<TaxSelection />, ROLE_GROUP.WAREHOUSE)} />
-              <Route path="part-management/select-attribute" element={staffRoute(<AttributeSelection />, ROLE_GROUP.WAREHOUSE)} />
+               <Route path="part-management/select-tax" element={staffRoute(<TaxSelection />, ROLE_GROUP.WAREHOUSE)} />
+               <Route path="part-management/select-attribute" element={staffRoute(<AttributeSelection />, ROLE_GROUP.WAREHOUSE)} />
+               <Route path="part-management/select-unit" element={staffRoute(<UnitSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="service-management" element={staffRoute(<BlogManagement />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="combo-management" element={staffRoute(<ComboManagement />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="warehouse-stock-entries" element={staffRoute(<WarehouseStockEntryManagement />, ROLE_GROUP.WAREHOUSE)} />

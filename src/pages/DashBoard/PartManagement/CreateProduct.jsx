@@ -155,7 +155,8 @@ export default function CreateProduct() {
 			!location.state?.fromOriginSelection &&
 			!location.state?.fromColorSelection &&
 			!location.state?.fromProductTaxSelection &&
-			!location.state?.fromAttributeSelection
+			!location.state?.fromAttributeSelection &&
+			!location.state?.fromUnitSelection
 		) {
 			sessionStorage.removeItem('gms_create_product_draft');
 			delete window._gms_create_product_imageFile;
@@ -551,6 +552,10 @@ export default function CreateProduct() {
 
 	const handleBrandInputClick = useCallback(() => {
 		saveDraft('/part-management/select-brand');
+	}, [saveDraft]);
+
+	const handleUnitInputClick = useCallback(() => {
+		saveDraft('/part-management/select-unit');
 	}, [saveDraft]);
 
 	const handleProductTaxInputClick = useCallback(() => {
@@ -1364,7 +1369,15 @@ export default function CreateProduct() {
 					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginTop: 12 }}>
 						<div className="ui-field" style={{ marginBottom: 0 }}>
 							<label htmlFor="unit">Đơn vị</label>
-							<input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
+							<input
+								id="unit"
+								readOnly
+								placeholder="Nhấn để chọn đơn vị..."
+								value={unit}
+								onClick={handleUnitInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
 						</div>
 						<div className="ui-field" style={{ marginBottom: 0 }}>
 							<label htmlFor="warranty">Bảo hành (tháng)</label>

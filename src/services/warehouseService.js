@@ -1004,3 +1004,27 @@ export const deleteWarehouseItemCategory = (categoryId, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// GET: /api/warehouse/units
+export const fetchWarehouseProductUnits = (token) => {
+  return request('/api/warehouse/units', {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/units
+export const createWarehouseProductUnit = (unitName, token) => {
+  return request(`/api/warehouse/units?unitName=${encodeURIComponent(unitName)}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// DELETE: /api/warehouse/units/{unitId}
+export const deleteWarehouseProductUnit = (unitId, token) => {
+  return request(`/api/warehouse/units/${unitId}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
