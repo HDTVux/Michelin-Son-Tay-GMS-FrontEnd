@@ -980,3 +980,27 @@ export const deactivateWarehouse = (id, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// DELETE: /api/warehouse/brand/{brandId}
+export const deleteWarehouseBrand = (brandId, token) => {
+  return request(`/api/warehouse/brand/${brandId}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// DELETE: /api/warehouse/product-line/{productLineId}
+export const deleteWarehouseProductLine = (productLineId, token) => {
+  return request(`/api/warehouse/product-line/${productLineId}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// DELETE: /api/warehouse/item-category/{categoryId}
+export const deleteWarehouseItemCategory = (categoryId, token) => {
+  return request(`/api/warehouse/item-category/${categoryId}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};

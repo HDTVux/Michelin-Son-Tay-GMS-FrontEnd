@@ -158,6 +158,9 @@ export default function CreateProduct() {
 			!location.state?.fromAttributeSelection
 		) {
 			sessionStorage.removeItem('gms_create_product_draft');
+			delete window._gms_create_product_imageFile;
+			delete window._gms_create_product_imagePreviewUrl;
+			delete window._gms_create_product_blogMediaFiles;
 			return null;
 		}
 		try {
@@ -219,8 +222,12 @@ export default function CreateProduct() {
 	const [description, setDescription] = useState(() => initialDraft?.description ?? '');
 	const [compatibleCars, setCompatibleCars] = useState(() => initialDraft?.compatibleCars ?? '');
 	// Image file is kept only in component state (no upload at create time)
-	const [imageFile, setImageFile] = useState(null);
-	const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+	const [imageFile, setImageFile] = useState(() => {
+		return window._gms_create_product_imageFile ?? null;
+	});
+	const [imagePreviewUrl, setImagePreviewUrl] = useState(() => {
+		return window._gms_create_product_imagePreviewUrl ?? '';
+	});
 	// const [imageUrl, setImageUrl] = useState('');
 	const [warrantyDurationMonths, setWarrantyDurationMonths] = useState(() => initialDraft?.warrantyDurationMonths ?? '');
 
@@ -245,10 +252,12 @@ export default function CreateProduct() {
 	const [specDrafts, setSpecDrafts] = useState(() => initialDraft?.specDrafts ?? [makeSpecDraft()]);
 
 	// Blog/article creation states
-	const [createBlogEnabled, setCreateBlogEnabled] = useState(() => initialDraft?.createBlogEnabled ?? false);
+	const createBlogEnabled = true;
 	const [introText, setIntroText] = useState(() => initialDraft?.introText ?? '');
 	const [detailHtml, setDetailHtml] = useState(() => initialDraft?.detailHtml ?? '');
-	const [blogMediaFiles, setBlogMediaFiles] = useState([]);
+	const [blogMediaFiles, setBlogMediaFiles] = useState(() => {
+		return Array.isArray(window._gms_create_product_blogMediaFiles) ? window._gms_create_product_blogMediaFiles : [];
+	});
 	const [isBlogSubmitting, setIsBlogSubmitting] = useState(false);
 	const editorRef = useRef(null);
 
@@ -391,6 +400,10 @@ export default function CreateProduct() {
 			introText,
 			detailHtml,
 		};
+		// Preserve file states in window object before navigating away
+		window._gms_create_product_imageFile = imageFile;
+		window._gms_create_product_imagePreviewUrl = imagePreviewUrl;
+		window._gms_create_product_blogMediaFiles = blogMediaFiles;
 		sessionStorage.setItem('gms_create_product_draft', JSON.stringify(draft));
 		if (targetPath) navigate(targetPath);
 	}, [
@@ -413,6 +426,9 @@ export default function CreateProduct() {
 		createBlogEnabled,
 		introText,
 		detailHtml,
+		imageFile,
+		imagePreviewUrl,
+		blogMediaFiles,
 		navigate,
 	]);
 
@@ -579,11 +595,7 @@ export default function CreateProduct() {
 		[imagePreviewUrl],
 	);
 
-	useEffect(() => {
-		return () => {
-			if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
-		};
-	}, [imagePreviewUrl]);
+	// (Cleanup on unmount removed to preserve draft image preview)
 
 	const startScanningSku = useCallback(() => {
 		setIsScanning(true);
@@ -767,9 +779,15 @@ export default function CreateProduct() {
 			notify('Vui lòng chọn hãng.');
 			return;
 		}
-		if (createBlogEnabled) {
-			if (!String(introText || '').trim() && !stripHtml(detailHtml)) {
-				notify('Vui lòng nhập tóm tắt ngắn hoặc nội dung chi tiết bài viết.');
+		let finalIntroText = String(introText || '').trim();
+		let finalDetailHtml = detailHtml;
+		if (!finalIntroText && !stripHtml(finalDetailHtml)) {
+			const descTrim = String(description || '').trim();
+			if (descTrim) {
+				finalIntroText = descTrim;
+				finalDetailHtml = `<p>${escapeHtml(descTrim)}</p>`;
+			} else {
+				notify('Vui lòng nhập mô tả sản phẩm hoặc tóm tắt/nội dung bài viết.');
 				return;
 			}
 		}
@@ -839,6 +857,9 @@ export default function CreateProduct() {
 			}
 			setCreatedCatalogItem(created);
 			sessionStorage.removeItem('gms_create_product_draft');
+			delete window._gms_create_product_imageFile;
+			delete window._gms_create_product_imagePreviewUrl;
+			delete window._gms_create_product_blogMediaFiles;
 			notify(`Đã tạo sản phẩm (#${createdId}).`);
 
 			// Automatically save all filled specs in drafts
@@ -878,8 +899,8 @@ export default function CreateProduct() {
 					const resolvedPrice = showPrice ? priceNum : 0;
 					const warrantyNumInt = Math.trunc(warrantyNum);
 					const serviceStatus = 'ACTIVE';
-					const fullDescription = composeDescriptionHtml(introText, detailHtml);
-					const shortDescription = String(introText || '').trim();
+					const fullDescription = composeDescriptionHtml(finalIntroText, finalDetailHtml);
+					const shortDescription = finalIntroText;
 
 					formData.append('title', title);
 					formData.append('itemName', title);
@@ -954,6 +975,17 @@ export default function CreateProduct() {
 	const handleAttributeInputClick = useCallback(() => {
 		saveDraft('/part-management/select-attribute');
 	}, [saveDraft]);
+
+	const handleKeyDown = useCallback((e) => {
+		if (e.key === 'Enter') {
+			const target = e.target;
+			const isTextArea = target.tagName === 'TEXTAREA';
+			const isContentEditable = target.contentEditable === 'true' || target.getAttribute('contenteditable') === 'true';
+			if (!isTextArea && !isContentEditable) {
+				e.preventDefault();
+			}
+		}
+	}, []);
 
 	// Editor and media helper functions for blog creation
 	const syncDetailFromEditor = useCallback(() => {
@@ -1071,7 +1103,7 @@ export default function CreateProduct() {
 	);
 
 	return (
-		<div className={styles['service-page']}>
+		<div className={styles['service-page']} onKeyDown={handleKeyDown}>
 			<section className={styles['service-card']}>
 				<div className={styles['service-card__header']}>
 					<div className={styles['service-card__title']}>
@@ -1205,51 +1237,54 @@ export default function CreateProduct() {
 					</div>
 				</div>
 
-				{/* Step 1: Category */}
-				<div className={styles['pending-filters']}>
-					<div style={{ fontWeight: 600, marginBottom: 8 }}>1) Hạng mục sản phẩm</div>
-					<div className="ui-field" style={{ marginBottom: 0 }}>
-						<input
-							id="categorySelect"
-							readOnly
-							placeholder="Nhấn vào đây để chọn nhóm hàng..."
-							value={selectedCategory ? (selectedCategory.categoryName || selectedCategory.categoryCode) : ''}
-							onClick={handleCategoryInputClick}
-							style={{ cursor: 'pointer' }}
-							disabled={Boolean(createdCatalogItemId)}
-						/>
+				{/* Steps 1, 2, 3 Grid (Hạng mục, Hãng, Dòng sản phẩm) */}
+				<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16, marginTop: 12 }}>
+					{/* Step 1: Category */}
+					<div className={styles['pending-filters']} style={{ marginTop: 0 }}>
+						<div style={{ fontWeight: 600, marginBottom: 8 }}>1) Hạng mục sản phẩm</div>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<input
+								id="categorySelect"
+								readOnly
+								placeholder="Nhấn vào đây để chọn nhóm hàng..."
+								value={selectedCategory ? (selectedCategory.categoryName || selectedCategory.categoryCode) : ''}
+								onClick={handleCategoryInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
+						</div>
 					</div>
-				</div>
 
-				{/* Step 2: Brand */}
-				<div className={styles['pending-filters']}>
-					<div style={{ fontWeight: 600, marginBottom: 8 }}>2) Hãng</div>
-					<div className="ui-field" style={{ marginBottom: 0 }}>
-						<input
-							id="brandSelect"
-							readOnly
-							placeholder="Nhấn vào đây để chọn hãng sản xuất..."
-							value={selectedBrand ? selectedBrand.brandName : ''}
-							onClick={handleBrandInputClick}
-							style={{ cursor: 'pointer' }}
-							disabled={Boolean(createdCatalogItemId)}
-						/>
+					{/* Step 2: Brand */}
+					<div className={styles['pending-filters']} style={{ marginTop: 0 }}>
+						<div style={{ fontWeight: 600, marginBottom: 8 }}>2) Hãng</div>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<input
+								id="brandSelect"
+								readOnly
+								placeholder="Nhấn vào đây để chọn hãng sản xuất..."
+								value={selectedBrand ? selectedBrand.brandName : ''}
+								onClick={handleBrandInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
+						</div>
 					</div>
-				</div>
 
-				{/* Step 3: Product line */}
-				<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
-					<div style={{ fontWeight: 600, marginBottom: 8 }}>3) Dòng sản phẩm</div>
-					<div className="ui-field" style={{ marginBottom: 0 }}>
-						<input
-							id="productLineSelect"
-							readOnly
-							placeholder="Nhấn vào đây để chọn dòng sản phẩm..."
-							value={selectedProductLine ? selectedProductLine.lineName : ''}
-							onClick={handleProductLineInputClick}
-							style={{ cursor: 'pointer' }}
-							disabled={Boolean(createdCatalogItemId)}
-						/>
+					{/* Step 3: Product line */}
+					<div className={styles['pending-filters']} style={{ marginTop: 0 }}>
+						<div style={{ fontWeight: 600, marginBottom: 8 }}>3) Dòng sản phẩm</div>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<input
+								id="productLineSelect"
+								readOnly
+								placeholder="Nhấn vào đây để chọn dòng sản phẩm..."
+								value={selectedProductLine ? selectedProductLine.lineName : ''}
+								onClick={handleProductLineInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
+						</div>
 					</div>
 				</div>
 
@@ -1393,107 +1428,92 @@ export default function CreateProduct() {
 
 					{!createdCatalogItemId && (
 						<div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #cbd5e1' }}>
-							<div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-								<input
-									type="checkbox"
-									id="createBlogEnabled"
-									checked={createBlogEnabled}
-									onChange={(e) => setCreateBlogEnabled(e.target.checked)}
-									style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-								/>
-								<label htmlFor="createBlogEnabled" style={{ fontWeight: 600, cursor: 'pointer', userSelect: 'none', margin: 0 }}>
-									Đồng thời tạo bài viết giới thiệu chi tiết sản phẩm
-								</label>
-							</div>
-
-							{createBlogEnabled && (
-								<div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16, padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-									<div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-										Nội dung bài viết chi tiết
-									</div>
-									<div className="ui-field" style={{ marginBottom: 0 }}>
-										<label htmlFor="introText" style={{ fontWeight: 500 }}>Tóm tắt ngắn (Intro)</label>
-										<textarea
-											id="introText"
-											value={introText}
-											onChange={(e) => setIntroText(e.target.value)}
-											placeholder="Nhập phần giới thiệu ngắn hoặc tóm tắt của bài viết..."
-											style={{ minHeight: '80px' }}
-										/>
-									</div>
-
-									<div className="ui-field" style={{ marginBottom: 0 }}>
-										<label style={{ fontWeight: 500 }}>Chi tiết sản phẩm</label>
-										<div className={styles['editor-toolbar']}>
-											<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('bold')}><strong>B</strong></button>
-											<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('italic')}><em>I</em></button>
-											<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('uppercase')}>UPPER</button>
-											<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('ol')}>OL</button>
-											<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('ul')}>UL</button>
-										</div>
-										<div
-											ref={editorRef}
-											className={styles['rich-editor']}
-											contentEditable
-											suppressContentEditableWarning
-											onInput={syncDetailFromEditor}
-											onBlur={syncDetailFromEditor}
-											style={{
-												minHeight: '200px',
-												border: '1px solid #cbd5e1',
-												borderRadius: '6px',
-												padding: '12px',
-												backgroundColor: '#fff',
-												overflowY: 'auto'
-											}}
-										/>
-										<div className={styles['editor-hint']}>Output HTML dùng các thẻ {'<strong>'}, {'<em>'}, span uppercase, {'<ol>'}, {'<ul>'}.</div>
-									</div>
-
-									<div className="ui-field" style={{ marginBottom: 0 }}>
-										<label style={{ fontWeight: 500 }}>Tải lên ảnh bổ sung cho bài viết (Media)</label>
-										<input
-											type="file"
-											accept="image/*,video/*"
-											multiple
-											onChange={handleBlogMediaChange}
-											style={{ padding: '6px', fontSize: '13px' }}
-										/>
-										{blogMediaFiles.length > 0 && (
-											<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-												{blogMediaFiles.map((m, idx) => (
-													<div key={m.id || idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', border: '1px solid #cbd5e1', overflow: 'hidden' }}>
-														<img src={m.previewUrl} alt="media preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-														<button
-															type="button"
-															onClick={() => removeBlogMedia(idx)}
-															style={{
-																position: 'absolute',
-																top: '2px',
-																right: '2px',
-																backgroundColor: 'rgba(239, 68, 68, 0.9)',
-																color: 'white',
-																border: 'none',
-																borderRadius: '50%',
-																width: '18px',
-																height: '18px',
-																fontSize: '11px',
-																cursor: 'pointer',
-																display: 'flex',
-																alignItems: 'center',
-																justifyContent: 'center',
-																padding: 0
-															}}
-														>
-															×
-														</button>
-													</div>
-												))}
-											</div>
-										)}
-									</div>
+							<div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+								<div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+									Bài viết giới thiệu chi tiết sản phẩm
 								</div>
-							)}
+								<div className="ui-field" style={{ marginBottom: 0 }}>
+									<label htmlFor="introText" style={{ fontWeight: 500 }}>Tóm tắt ngắn (Intro)</label>
+									<textarea
+										id="introText"
+										value={introText}
+										onChange={(e) => setIntroText(e.target.value)}
+										placeholder="Nhập phần giới thiệu ngắn hoặc tóm tắt của bài viết..."
+										style={{ minHeight: '80px' }}
+									/>
+								</div>
+
+								<div className="ui-field" style={{ marginBottom: 0 }}>
+									<label style={{ fontWeight: 500 }}>Chi tiết sản phẩm</label>
+									<div className={styles['editor-toolbar']}>
+										<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('bold')}><strong>B</strong></button>
+										<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('italic')}><em>I</em></button>
+										<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('uppercase')}>UPPER</button>
+										<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('ol')}>OL</button>
+										<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('ul')}>UL</button>
+									</div>
+									<div
+										ref={editorRef}
+										className={styles['rich-editor']}
+										contentEditable
+										suppressContentEditableWarning
+										onInput={syncDetailFromEditor}
+										onBlur={syncDetailFromEditor}
+										style={{
+											minHeight: '200px',
+											border: '1px solid #cbd5e1',
+											borderRadius: '6px',
+											padding: '12px',
+											backgroundColor: '#fff',
+											overflowY: 'auto'
+										}}
+									/>
+									<div className={styles['editor-hint']}>Output HTML dùng các thẻ {'<strong>'}, {'<em>'}, span uppercase, {'<ol>'}, {'<ul>'}.</div>
+								</div>
+
+								<div className="ui-field" style={{ marginBottom: 0 }}>
+									<label style={{ fontWeight: 500 }}>Tải lên ảnh bổ sung cho bài viết (Media)</label>
+									<input
+										type="file"
+										accept="image/*,video/*"
+										multiple
+										onChange={handleBlogMediaChange}
+										style={{ padding: '6px', fontSize: '13px' }}
+									/>
+									{blogMediaFiles.length > 0 && (
+										<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+											{blogMediaFiles.map((m, idx) => (
+												<div key={m.id || idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', border: '1px solid #cbd5e1', overflow: 'hidden' }}>
+													<img src={m.previewUrl} alt="media preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+													<button
+														type="button"
+														onClick={() => removeBlogMedia(idx)}
+														style={{
+															position: 'absolute',
+															top: '2px',
+															right: '2px',
+															backgroundColor: 'rgba(239, 68, 68, 0.9)',
+															color: 'white',
+															border: 'none',
+															borderRadius: '50%',
+															width: '18px',
+															height: '18px',
+															fontSize: '11px',
+															cursor: 'pointer',
+															display: 'flex',
+															alignItems: 'center',
+															justifyContent: 'center',
+															padding: 0
+														}}
+													>
+														×
+													</button>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							</div>
 						</div>
 					)}
 

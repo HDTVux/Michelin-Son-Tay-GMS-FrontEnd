@@ -7,6 +7,7 @@ import { validateTaxName, validateTaxRatePercent } from '../../../components/inp
 import {
 	createWarehouseItemCategory,
 	fetchWarehouseItemCategories,
+	deleteWarehouseItemCategory,
 	createTaxRule,
 	fetchTaxRules,
 } from '../../../services/warehouseService.js';
@@ -142,7 +143,7 @@ export default function CategorySelection() {
 	const filteredCategories = useMemo(() => {
 		const q = String(searchQuery || '').trim().toLowerCase();
 		return categories.filter((c) => {
-			const isPart = c.categoryType === CATEGORY_TYPE_FIXED;
+			const isPart = c.categoryType === CATEGORY_TYPE_FIXED || !c.categoryType || c.categoryType === 'null';
 			if (!isPart) return false;
 			if (!q) return true;
 			return (
@@ -255,6 +256,25 @@ export default function CategorySelection() {
 			setIsCreatingCategory(false);
 		}
 	}, [categoryCode, categoryName, isCreatingCategory, notify, selectedTaxRuleId, handleSelectCategory, categories]);
+
+	const handleDeleteCategory = useCallback(async (cat) => {
+		const ok = window.confirm(`Bạn có chắc chắn muốn xóa hạng mục "${cat.categoryName}"?`);
+		if (!ok) return;
+		try {
+			const token = localStorage.getItem('authToken');
+			await deleteWarehouseItemCategory(cat.itemCategoryId, token);
+			notify('Đã xóa hạng mục thành công.');
+			// Reload category list
+			const [catRes, taxRes] = await Promise.all([
+				fetchWarehouseItemCategories(token),
+				fetchTaxRules(token),
+			]);
+			const catList = Array.isArray(extractPayload(catRes)) ? extractPayload(catRes) : [];
+			setCategories(catList.map(mapCategoryItem).filter(Boolean));
+		} catch (err) {
+			notify(err?.message || 'Không thể xóa hạng mục.');
+		}
+	}, [notify]);
 
 	const handleTaxInputClick = useCallback(() => {
 		const draft = {
@@ -403,14 +423,27 @@ export default function CategorySelection() {
 												<td style={{ textAlign: 'left', fontWeight: 500 }}>{cat.categoryName}</td>
 												<td>{taxText}</td>
 												<td>
-													<button
-														type="button"
-														className={styles['primary-button']}
-														style={{ padding: '6px 16px', fontSize: 13, boxShadow: 'none' }}
-														onClick={() => handleSelectCategory(cat)}
-													>
-														Chọn
-													</button>
+													<div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+														<button
+															type="button"
+															className={styles['primary-button']}
+															style={{ padding: '6px 16px', fontSize: 13, boxShadow: 'none' }}
+															onClick={() => handleSelectCategory(cat)}
+														>
+															Chọn
+														</button>
+														<button
+															type="button"
+															className={styles['ghost-button']}
+															style={{ padding: '6px 16px', fontSize: 13, boxShadow: 'none', borderColor: '#ef4444', color: '#ef4444' }}
+															onClick={(e) => {
+																e.stopPropagation();
+																handleDeleteCategory(cat);
+															}}
+														>
+															Xóa
+														</button>
+													</div>
 												</td>
 											</tr>
 										);
