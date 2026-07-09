@@ -754,7 +754,12 @@ export default function CreateBooking() {
 							)}
 							{customerCheckError && <div style={{ color: '#e53935', fontSize: 13, marginTop: 4 }}>{customerCheckError}</div>}
 							{customerChecked?.exists === true && (
-								<div style={{ color: '#059669', fontSize: 13, marginTop: 4 }}>Khách hàng đã tồn tại: {customerChecked.fullName}</div>
+								<div style={{ color: '#059669', fontSize: 13, marginTop: 4 }}>
+									Khách hàng đã tồn tại: {customerChecked.fullName}
+									{customerChecked.serviceUsageCount !== undefined && customerChecked.serviceUsageCount !== null && (
+										<span> (Số lần sử dụng dịch vụ: <strong>{customerChecked.serviceUsageCount}</strong> lần)</span>
+									)}
+								</div>
 							)}
 							{customerChecked?.exists === false && (
 								<div style={{ color: '#f59e42', fontSize: 13, marginTop: 4 }}>Chưa có khách hàng này trong hệ thống.</div>

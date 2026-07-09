@@ -600,10 +600,26 @@ export const fetchServiceTicketReminders = (params = {}, token) => {
   const search = String(params?.search ?? '').trim();
   if (search) query.set('search', search);
 
+  const phone = String(params?.phone ?? '').trim();
+  if (phone) query.set('phone', phone);
+
   const sortBy = String(params?.sortBy ?? '').trim().toLowerCase();
   if (sortBy === 'asc' || sortBy === 'desc') query.set('sortBy', sortBy);
 
   return request(`/api/service-ticket/remind/service-remind-search?${query.toString()}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Lấy danh sách khách hàng 30-60 ngày chưa đến xưởng
+export const fetchInactiveCustomers = (minDays = 30, maxDays = 60, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem danh sách khách hàng trễ hẹn.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+  return request(`/api/service-ticket/remind/inactive-customers?minDays=${minDays}&maxDays=${maxDays}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
   });
