@@ -78,7 +78,8 @@ const EntryItemsCard = ({ items }) => (
             <th>Tên sản phẩm</th>
             <th>Số lượng</th>
             <th>Giá nhập</th>
-            <th>Hệ số lợi nhuận</th>
+            <th>Hệ số lợi nhuận lẻ</th>
+            <th>Hệ số lợi nhuận buôn</th>
             <th>Số lượng còn lại</th>
           </tr>
         </thead>
@@ -91,12 +92,13 @@ const EntryItemsCard = ({ items }) => (
                 <td>{row?.quantity ?? '-'}</td>
                 <td>{row?.importPrice ?? '-'}</td>
                 <td>{row?.markupMultiplier ?? '-'}</td>
+                <td>{row?.markupMultiplierWholesale ?? '-'}</td>
                 <td>{row?.remainingQuantity ?? '-'}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={6} className={styles.emptyCell}>Không có sản phẩm.</td>
+              <td colSpan={7} className={styles.emptyCell}>Không có sản phẩm.</td>
             </tr>
           )}
         </tbody>

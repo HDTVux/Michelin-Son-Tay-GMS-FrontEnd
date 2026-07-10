@@ -80,7 +80,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                     id: c.itemCategoryId ?? c.workCategoryId ?? c.workCateId ?? c.id,
                     name: c.categoryName ?? c.name,
                     type: c.categoryType ?? c.type
-                })).filter(c => c.type === 'PART' && c.id);
+                })).filter(c => (c.type === 'PART' || !c.type || c.type === 'null') && c.id);
 
                 if (!cancelled) {
                     setCategories(mappedCats);
@@ -151,17 +151,27 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                     const updatedLot = { ...lot, [field]: value };
 
                     // Recalculations
-                    if (field === 'importPrice' || field === 'markupMultiplier') {
+                    if (field === 'importPrice' || field === 'markupMultiplier' || field === 'markupMultiplierWholesale') {
                         const imp = field === 'importPrice' ? Number(value) : Number(lot.importPrice);
                         const mul = field === 'markupMultiplier' ? Number(value) : Number(lot.markupMultiplier);
+                        const mulWholesale = field === 'markupMultiplierWholesale' ? Number(value) : Number(lot.markupMultiplierWholesale ?? lot.markupMultiplier ?? 1.0);
                         if (Number.isFinite(imp) && Number.isFinite(mul)) {
                             updatedLot.sellingPrice = Number((imp * mul).toFixed(2));
+                        }
+                        if (Number.isFinite(imp) && Number.isFinite(mulWholesale)) {
+                            updatedLot.sellingPriceWholesale = Number((imp * mulWholesale).toFixed(2));
                         }
                     } else if (field === 'sellingPrice') {
                         const sel = Number(value);
                         const imp = Number(lot.importPrice);
                         if (Number.isFinite(sel) && Number.isFinite(imp) && imp > 0) {
                             updatedLot.markupMultiplier = Number((sel / imp).toFixed(4));
+                        }
+                    } else if (field === 'sellingPriceWholesale') {
+                        const selWholesale = Number(value);
+                        const imp = Number(lot.importPrice);
+                        if (Number.isFinite(selWholesale) && Number.isFinite(imp) && imp > 0) {
+                            updatedLot.markupMultiplierWholesale = Number((selWholesale / imp).toFixed(4));
                         }
                     }
                     return updatedLot;
@@ -493,8 +503,10 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                                     <th>Ngày nhập</th>
                                                                     <th>Số lượng tồn lô</th>
                                                                     <th>Giá nhập lô (₫)</th>
-                                                                    <th>Hệ số markup</th>
-                                                                    <th>Giá bán lô (₫)</th>
+                                                                    <th>Hệ số markup lẻ</th>
+                                                                    <th>Giá bán lẻ lô (₫)</th>
+                                                                    <th>Hệ số markup buôn</th>
+                                                                    <th>Giá bán buôn lô (₫)</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
@@ -507,7 +519,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                                                 type="number"
                                                                                 value={lot.remainingQuantity}
                                                                                 onChange={(e) => handleLotChange(whIdx, lotIdx, 'remainingQuantity', e.target.value)}
-                                                                                style={{ padding: '6px 8px', width: '100px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                                style={{ padding: '6px 8px', width: '80px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                                                                 disabled={saving}
                                                                                 min={0}
                                                                             />
@@ -517,7 +529,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                                                 type="number"
                                                                                 value={lot.importPrice}
                                                                                 onChange={(e) => handleLotChange(whIdx, lotIdx, 'importPrice', e.target.value)}
-                                                                                style={{ padding: '6px 8px', width: '120px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                                style={{ padding: '6px 8px', width: '100px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                                                                 disabled={saving}
                                                                                 min={0}
                                                                             />
@@ -528,7 +540,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                                                 step="0.0001"
                                                                                 value={lot.markupMultiplier}
                                                                                 onChange={(e) => handleLotChange(whIdx, lotIdx, 'markupMultiplier', e.target.value)}
-                                                                                style={{ padding: '6px 8px', width: '90px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                                style={{ padding: '6px 8px', width: '80px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                                                                 disabled={saving}
                                                                                 min={0}
                                                                             />
@@ -538,7 +550,28 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                                                 type="number"
                                                                                 value={lot.sellingPrice}
                                                                                 onChange={(e) => handleLotChange(whIdx, lotIdx, 'sellingPrice', e.target.value)}
-                                                                                style={{ padding: '6px 8px', width: '130px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                                style={{ padding: '6px 8px', width: '110px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                                disabled={saving}
+                                                                                min={0}
+                                                                            />
+                                                                        </td>
+                                                                        <td>
+                                                                            <input
+                                                                                type="number"
+                                                                                step="0.0001"
+                                                                                value={lot.markupMultiplierWholesale ?? lot.markupMultiplier ?? 1.0}
+                                                                                onChange={(e) => handleLotChange(whIdx, lotIdx, 'markupMultiplierWholesale', e.target.value)}
+                                                                                style={{ padding: '6px 8px', width: '80px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                                                disabled={saving}
+                                                                                min={0}
+                                                                            />
+                                                                        </td>
+                                                                        <td>
+                                                                            <input
+                                                                                type="number"
+                                                                                value={lot.sellingPriceWholesale ?? lot.sellingPrice ?? 0}
+                                                                                onChange={(e) => handleLotChange(whIdx, lotIdx, 'sellingPriceWholesale', e.target.value)}
+                                                                                style={{ padding: '6px 8px', width: '110px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                                                                 disabled={saving}
                                                                                 min={0}
                                                                             />
@@ -580,7 +613,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                                     />
                                                                 </div>
                                                                 <div className={styles['mobile-lot-field']}>
-                                                                    <label>Markup</label>
+                                                                    <label>Markup lẻ</label>
                                                                     <input
                                                                         type="number"
                                                                         step="0.0001"
@@ -591,11 +624,32 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                                                     />
                                                                 </div>
                                                                 <div className={styles['mobile-lot-field']}>
-                                                                    <label>Giá bán (₫)</label>
+                                                                    <label>Giá lẻ (₫)</label>
                                                                     <input
                                                                         type="number"
                                                                         value={lot.sellingPrice}
                                                                         onChange={(e) => handleLotChange(whIdx, lotIdx, 'sellingPrice', e.target.value)}
+                                                                        disabled={saving}
+                                                                        min={0}
+                                                                    />
+                                                                </div>
+                                                                <div className={styles['mobile-lot-field']}>
+                                                                    <label>Markup buôn</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        step="0.0001"
+                                                                        value={lot.markupMultiplierWholesale ?? lot.markupMultiplier ?? 1.0}
+                                                                        onChange={(e) => handleLotChange(whIdx, lotIdx, 'markupMultiplierWholesale', e.target.value)}
+                                                                        disabled={saving}
+                                                                        min={0}
+                                                                    />
+                                                                </div>
+                                                                <div className={styles['mobile-lot-field']}>
+                                                                    <label>Giá buôn (₫)</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={lot.sellingPriceWholesale ?? lot.sellingPrice ?? 0}
+                                                                        onChange={(e) => handleLotChange(whIdx, lotIdx, 'sellingPriceWholesale', e.target.value)}
                                                                         disabled={saving}
                                                                         min={0}
                                                                     />
