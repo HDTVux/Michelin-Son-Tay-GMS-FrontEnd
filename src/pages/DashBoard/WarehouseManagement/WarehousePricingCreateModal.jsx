@@ -331,6 +331,7 @@ export default function WarehousePricingCreateModal({
   const [picked, setPicked] = useState(null);
   const [basePriceInput, setBasePriceInput] = useState('');
   const [sellingPriceInput, setSellingPriceInput] = useState('');
+  const [sellingPriceWholesaleInput, setSellingPriceWholesaleInput] = useState('');
   const [effectiveFrom, setEffectiveFrom] = useState(toIsoDateInput());
   const [effectiveTo, setEffectiveTo] = useState(toIsoDateInput());
 
@@ -364,6 +365,7 @@ export default function WarehousePricingCreateModal({
     setPicked(null);
     setBasePriceInput('');
     setSellingPriceInput('');
+    setSellingPriceWholesaleInput('');
     setEffectiveFrom(toIsoDateInput());
     setEffectiveTo(toIsoDateInput());
     setShowPicker(true);
@@ -486,6 +488,7 @@ export default function WarehousePricingCreateModal({
 
       setBasePriceInput(String(toFiniteNumber(selectedDetail?.basePrice) ?? currentSelling ?? '').trim());
       setSellingPriceInput(String(currentSelling ?? '').trim());
+      setSellingPriceWholesaleInput(String(selectedDetail?.sellingPriceWholesale ?? '').trim());
       setFieldErrors((prev) => ({ ...prev, selectedItem: undefined, warehouseId: undefined }));
       setShowPicker(false);
       return;
@@ -511,11 +514,14 @@ export default function WarehousePricingCreateModal({
     if (!picked?.itemId) nextErrors.selectedItem = 'Vui lòng chọn sản phẩm.';
     if (!picked?.warehouseId) nextErrors.warehouseId = 'Vui lòng chọn kho.';
 
-    const selling = toFiniteNumber(sellingPriceInput);
-    if (selling == null || selling <= 0) nextErrors.sellingPrice = 'Giá bán phải là số > 0.';
+    const basePrice = toFiniteNumber(basePriceInput);
+    if (basePrice == null || basePrice <= 0) nextErrors.basePrice = 'Giá hiện tại phải là số > 0.';
 
-    const base = toFiniteNumber(basePriceInput);
-    if (basePriceInput !== '' && (base == null || base < 0)) nextErrors.basePrice = 'Giá gốc không hợp lệ.';
+    const selling = toFiniteNumber(sellingPriceInput);
+    if (selling == null || selling <= 0) nextErrors.sellingPrice = 'Giá bán lẻ phải là số > 0.';
+
+    const sellingWholesale = toFiniteNumber(sellingPriceWholesaleInput);
+    if (sellingWholesale == null || sellingWholesale <= 0) nextErrors.sellingPriceWholesale = 'Giá bán buôn phải là số > 0.';
 
     if (!effectiveFrom) nextErrors.effectiveFrom = 'Vui lòng chọn ngày bắt đầu.';
     if (!effectiveTo) nextErrors.effectiveTo = 'Vui lòng chọn ngày kết thúc.';
@@ -532,15 +538,18 @@ export default function WarehousePricingCreateModal({
       setCreateError('');
 
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-      const basePrice = toFiniteNumber(basePriceInput) ?? selling;
-      const markupMultiplier = basePrice > 0 ? Number((selling / basePrice).toFixed(6)) : 0;
+      const basePriceVal = toFiniteNumber(basePriceInput) ?? selling;
+      const markupMultiplier = basePriceVal > 0 ? Number((selling / basePriceVal).toFixed(6)) : 0;
+      const markupMultiplierWholesale = basePriceVal > 0 ? Number((sellingWholesale / basePriceVal).toFixed(6)) : 0;
 
       const payload = {
         warehouseId: Number(picked.warehouseId),
         itemId: Number(picked.itemId),
-        basePrice,
+        basePrice: basePriceVal,
         markupMultiplier,
+        markupMultiplierWholesale,
         sellingPrice: selling,
+        sellingPriceWholesale: sellingWholesale,
         effectiveFrom,
         effectiveTo,
       };
@@ -626,7 +635,7 @@ export default function WarehousePricingCreateModal({
             </div>
 
             <div className={commonStyles.field}>
-              <label htmlFor="warehouse-pricing-sellingPrice">Giá bán</label>
+              <label htmlFor="warehouse-pricing-sellingPrice">Giá bán lẻ</label>
               <input
                 id="warehouse-pricing-sellingPrice"
                 className={commonStyles.input}
@@ -634,9 +643,23 @@ export default function WarehousePricingCreateModal({
                 step="0.01"
                 value={sellingPriceInput}
                 onChange={(e) => setSellingPriceInput(e.target.value)}
-                placeholder="Nhập giá bán"
+                placeholder="Nhập giá bán lẻ"
               />
               {fieldErrors?.sellingPrice ? <div className={styles.errorBanner}>{fieldErrors.sellingPrice}</div> : null}
+            </div>
+
+            <div className={commonStyles.field}>
+              <label htmlFor="warehouse-pricing-sellingPriceWholesale">Giá bán buôn</label>
+              <input
+                id="warehouse-pricing-sellingPriceWholesale"
+                className={commonStyles.input}
+                type="number"
+                step="0.01"
+                value={sellingPriceWholesaleInput}
+                onChange={(e) => setSellingPriceWholesaleInput(e.target.value)}
+                placeholder="Nhập giá bán buôn"
+              />
+              {fieldErrors?.sellingPriceWholesale ? <div className={styles.errorBanner}>{fieldErrors.sellingPriceWholesale}</div> : null}
             </div>
 
             <div className={commonStyles.field}>

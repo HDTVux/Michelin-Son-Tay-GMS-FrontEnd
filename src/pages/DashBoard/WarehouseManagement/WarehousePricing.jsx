@@ -265,7 +265,8 @@ export default function WarehousePricing() {
                 <th>TÊN SẢN PHẨM</th>
                 <th>KHO</th>
                 <th>GIÁ GỐC</th>
-                <th>GIÁ BÁN</th>
+                <th>GIÁ BÁN LẺ</th>
+                <th>GIÁ BÁN BUÔN</th>
                 <th>HIỆU LỰC TỪ</th>
                 <th>HIỆU LỰC ĐẾN</th>
                 <th>HÀNH ĐỘNG</th>
@@ -274,13 +275,13 @@ export default function WarehousePricing() {
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan="7" className={styles.emptyRow}>Đang tải...</td>
+                  <td colSpan="8" className={styles.emptyRow}>Đang tải...</td>
                 </tr>
               )}
 
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan="7" className={styles.emptyRow}>
+                  <td colSpan="8" className={styles.emptyRow}>
                     {selectedWarehouseId ? 'Không có dữ liệu.' : 'Vui lòng chọn kho để xem giá.'}
                   </td>
                 </tr>
@@ -295,7 +296,22 @@ export default function WarehousePricing() {
                     <td>{r?.itemName ?? '-'}</td>
                     <td>{r?.warehouseName ?? '-'}</td>
                     <td>{formatVnd(r?.basePrice)}</td>
-                    <td>{formatVnd(r?.sellingPrice)}</td>
+                    <td>
+                      {formatVnd(r?.sellingPrice)}
+                      {r?.markupMultiplier != null && (
+                        <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '4px', fontStyle: 'italic' }}>
+                          (x{Number(r.markupMultiplier).toFixed(2)})
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {formatVnd(r?.sellingPriceWholesale)}
+                      {r?.markupMultiplierWholesale != null && (
+                        <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '4px', fontStyle: 'italic' }}>
+                          (x{Number(r.markupMultiplierWholesale).toFixed(2)})
+                        </span>
+                      )}
+                    </td>
                     <td>{r?.effectiveFrom ?? '-'}</td>
                     <td>{r?.effectiveTo ?? '-'}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>

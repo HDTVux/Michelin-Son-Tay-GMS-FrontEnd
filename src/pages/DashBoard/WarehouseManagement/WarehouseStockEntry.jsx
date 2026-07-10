@@ -90,6 +90,7 @@ const buildDraftPayload = (warehouseId, supplierName, notes, selectedItems) => (
     quantity: Number(row.quantity) || 0,
     importPrice: Number(row.importPrice) || 0,
     markupMultiplier: Number(row.markupMultiplier) || 0,
+    markupMultiplierWholesale: Number(row.markupMultiplierWholesale) || 0,
   })),
 });
 
@@ -133,6 +134,7 @@ export default function WarehouseStockEntry() {
               quantity: String(row?.quantity ?? '1'),
               importPrice: String(row?.importPrice ?? ''),
               markupMultiplier: String(row?.markupMultiplier ?? '1'),
+              markupMultiplierWholesale: String(row?.markupMultiplierWholesale ?? '1'),
             }))
             .filter((row) => row.itemId),
         );
@@ -313,6 +315,7 @@ export default function WarehouseStockEntry() {
           quantity: '1',
           importPrice: '',
           markupMultiplier: '1',
+          markupMultiplierWholesale: '1',
         },
       ];
     });
@@ -329,7 +332,7 @@ export default function WarehouseStockEntry() {
       const validation = validateWarehouseImportPrice(value);
       return validation.error;
     }
-    if (field === 'markupMultiplier') {
+    if (field === 'markupMultiplier' || field === 'markupMultiplierWholesale') {
       const validation = validateWarehouseMarkupMultiplier(value);
       return validation.error;
     }
@@ -392,21 +395,25 @@ export default function WarehouseStockEntry() {
       const quantityValidation = validateWarehouseQuantity(row.quantity);
       const importPriceValidation = validateWarehouseImportPrice(row.importPrice);
       const markupValidation = validateWarehouseMarkupMultiplier(row.markupMultiplier);
-      return !quantityValidation.valid || !importPriceValidation.valid || !markupValidation.valid;
+      const markupWholesaleValidation = validateWarehouseMarkupMultiplier(row.markupMultiplierWholesale);
+      return !quantityValidation.valid || !importPriceValidation.valid || !markupValidation.valid || !markupWholesaleValidation.valid;
     });
 
     if (invalidRow) {
       const quantityValidation = validateWarehouseQuantity(invalidRow.quantity);
       const importPriceValidation = validateWarehouseImportPrice(invalidRow.importPrice);
       const markupValidation = validateWarehouseMarkupMultiplier(invalidRow.markupMultiplier);
+      const markupWholesaleValidation = validateWarehouseMarkupMultiplier(invalidRow.markupMultiplierWholesale);
       
       let errorMsg = '';
       if (quantityValidation.valid === false) {
         errorMsg = quantityValidation.error;
       } else if (importPriceValidation.valid === false) {
         errorMsg = importPriceValidation.error;
-      } else {
+      } else if (markupValidation.valid === false) {
         errorMsg = markupValidation.error;
+      } else {
+        errorMsg = markupWholesaleValidation.error;
       }
       
       notify(`${errorMsg} (${invalidRow.itemName || invalidRow.sku || invalidRow.itemId})`);
@@ -598,14 +605,15 @@ export default function WarehouseStockEntry() {
                       <th>Tên</th>
                       <th>SL</th>
                       <th>Giá nhập</th>
-                      <th>Mức lợi nhuận</th>
+                      <th>Mức lợi nhuận lẻ</th>
+                      <th>Mức lợi nhuận buôn</th>
                       <th />
                     </tr>
                   </thead>
                   <tbody>
                     {selectedItems.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className={styles.tableEmpty}>
+                        <td colSpan={7} className={styles.tableEmpty}>
                           Chưa có phụ tùng nào.
                         </td>
                       </tr>
@@ -676,6 +684,26 @@ export default function WarehouseStockEntry() {
                               />
                               {rowErrors[`${row.itemId}_markupMultiplier`] && (
                                 <div className={styles.errorBanner}>{rowErrors[`${row.itemId}_markupMultiplier`]}</div>
+                              )}
+                            </td>
+                            <td>
+                              <input
+                                className={styles.inlineInput}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                max={MARKUP_MULTIPLIER_MAX_VALUE}
+                                value={row.markupMultiplierWholesale}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === '' || (Number(val) >= 0 && Number(val) <= MARKUP_MULTIPLIER_MAX_VALUE)) {
+                                    updateSelectedItem(row.itemId, 'markupMultiplierWholesale', val);
+                                  }
+                                }}
+                                placeholder="1.0"
+                              />
+                              {rowErrors[`${row.itemId}_markupMultiplierWholesale`] && (
+                                <div className={styles.errorBanner}>{rowErrors[`${row.itemId}_markupMultiplierWholesale`]}</div>
                               )}
                             </td>
                             <td>
