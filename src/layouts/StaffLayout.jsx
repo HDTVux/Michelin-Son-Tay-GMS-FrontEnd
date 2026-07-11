@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useLayoutEffect, useState, useEffect } from 'react';
+import { useLayoutEffect, useState, useEffect, useMemo } from 'react';
 import { useNotifications } from '../hooks/useNotifications.js';
 import SideBar from './Sidebar/SideBar.jsx';
 import MobileNavbar from './MobileNavbar/MobileNavbar.jsx';
@@ -230,6 +230,112 @@ const getTicketNotificationPath = (notification) => {
   return `/service-ticket-detail/${encodedCode}`;
 };
 
+const getNotificationRedirectPath = (notification) => {
+  if (notification?.url) {
+    try {
+      const parsedUrl = new URL(notification.url, window.location.origin);
+      if (
+        parsedUrl.origin === window.location.origin ||
+        parsedUrl.hostname === 'localhost' ||
+        parsedUrl.hostname.includes('sontaygarage.vn')
+      ) {
+        return parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
+      }
+    } catch {
+      if (notification.url.startsWith('/')) {
+        return notification.url;
+      }
+    }
+  }
+  return getTicketNotificationPath(notification);
+};
+
+const getNotificationServiceType = (notification) => {
+  const url = notification?.url || '';
+  const message = (notification?.message || '').toLowerCase();
+  const title = (notification?.title || '').toLowerCase();
+
+  if (url.includes('booking') || message.includes('dat lich') || title.includes('dat lich') || message.includes('đặt lịch') || title.includes('đặt lịch')) {
+    return 'booking';
+  }
+  if (url.includes('warehouse-stock-entries') || message.includes('nhap kho') || title.includes('nhap kho') || message.includes('nhập kho') || title.includes('nhập kho')) {
+    return 'import';
+  }
+  if (url.includes('warehouse-stock-issues') || message.includes('xuat kho') || title.includes('xuat kho') || message.includes('xuất kho') || title.includes('xuất kho')) {
+    return 'export';
+  }
+  if (url.includes('warehouse-return-entries') || message.includes('hoan hang') || title.includes('hoan hang') || message.includes('hoàn hàng') || title.includes('hoàn hàng')) {
+    return 'return';
+  }
+  if (url.includes('service-ticket') || url.includes('advisor') || url.includes('technician') || message.includes('phieu dich vu') || message.includes('phiếu dịch vụ') || message.includes('phan cong') || message.includes('phân công') || message.includes('giao phieu') || message.includes('giao phiếu')) {
+    return 'ticket';
+  }
+  return 'general';
+};
+
+const getNotificationIcon = (notification) => {
+  const type = getNotificationServiceType(notification);
+  switch (type) {
+    case 'booking':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#3b82f6' }}>
+          <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+          <line x1="16" x2="16" y1="2" y2="6"/>
+          <line x1="8" x2="8" y1="2" y2="6"/>
+          <line x1="3" x2="21" y1="10" y2="10"/>
+          <path d="M8 14h.01"/>
+          <path d="M12 14h.01"/>
+          <path d="M16 14h.01"/>
+          <path d="M8 18h.01"/>
+          <path d="M12 18h.01"/>
+          <path d="M16 18h.01"/>
+        </svg>
+      );
+    case 'import':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#10b981' }}>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" x2="12" y1="15" y2="3"/>
+        </svg>
+      );
+    case 'export':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#f59e0b' }}>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" x2="12" y1="3" y2="15"/>
+        </svg>
+      );
+    case 'return':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#ef4444' }}>
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+          <path d="M16 3h5v5"/>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+          <path d="M8 21H3v-5"/>
+        </svg>
+      );
+    case 'ticket':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#8b5cf6' }}>
+          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+          <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+          <path d="M10 9H8"/>
+          <path d="M16 13H8"/>
+          <path d="M16 17H8"/>
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#9ca3af' }}>
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+        </svg>
+      );
+  }
+};
+
 export const StaffNotificationBell = ({
   connected,
   error,
@@ -239,8 +345,26 @@ export const StaffNotificationBell = ({
   unreadCount,
 }) => {
   const navigate = useNavigate();
-  const latestNotifications = notifications.slice(0, 8);
+  const [bellFilter, setBellFilter] = useState('ALL'); // ALL, UNREAD, URGENT
 
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter((item) => {
+      if (bellFilter === 'UNREAD') {
+        return !item?.isRead;
+      }
+      if (bellFilter === 'URGENT') {
+        const type = String(item?.notificationType || '').toUpperCase();
+        return type === 'URGENT' || type === 'WARNING';
+      }
+      return true;
+    });
+  }, [notifications, bellFilter]);
+
+  const latestNotifications = filteredNotifications.slice(0, 8);
+
+  const hasUnreadUrgent = useMemo(() => {
+    return notifications.some(n => !n.isRead && (String(n.notificationType).toUpperCase() === 'URGENT' || String(n.notificationType).toUpperCase() === 'WARNING'));
+  }, [notifications]);
   const markNotificationItemAsRead = (item) => {
     if (!item?.notificationId || item?.isRead) return;
     markAsRead(item.notificationId);
@@ -248,7 +372,10 @@ export const StaffNotificationBell = ({
 
   const markOpenNotificationsAsRead = () => {
     notifications
-      .filter((item) => item?.notificationId && !item?.isRead)
+      .filter((item) => {
+        const isUrgent = String(item?.notificationType).toUpperCase() === 'URGENT' || String(item?.notificationType).toUpperCase() === 'WARNING';
+        return item?.notificationId && !item?.isRead && !isUrgent;
+      })
       .forEach((item) => markAsRead(item.notificationId));
   };
 
@@ -260,7 +387,7 @@ export const StaffNotificationBell = ({
   const handleNotificationAction = (event, item) => {
     markNotificationItemAsRead(item);
 
-    const targetPath = getTicketNotificationPath(item);
+    const targetPath = getNotificationRedirectPath(item);
     if (!targetPath) return;
 
     event.currentTarget.closest('details')?.removeAttribute('open');
@@ -317,14 +444,78 @@ export const StaffNotificationBell = ({
 
         {error && <p className="staffNotification__error">{error}</p>}
 
+        <div style={{ display: 'flex', gap: '8px', padding: '10px 16px', borderBottom: '1px solid #eef2f7', background: '#f9fafb', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            style={{
+              padding: '4px 10px',
+              borderRadius: '20px',
+              border: '1px solid ' + (bellFilter === 'ALL' ? '#005aa9' : '#e5e7eb'),
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: bellFilter === 'ALL' ? '#005aa9' : '#ffffff',
+              color: bellFilter === 'ALL' ? '#ffffff' : '#4b5563',
+              transition: 'all 0.15s ease',
+            }}
+            onClick={() => setBellFilter('ALL')}
+          >
+            Tất cả ({notifications.length})
+          </button>
+          <button
+            type="button"
+            style={{
+              padding: '4px 10px',
+              borderRadius: '20px',
+              border: '1px solid ' + (bellFilter === 'UNREAD' ? '#005aa9' : '#e5e7eb'),
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: bellFilter === 'UNREAD' ? '#005aa9' : '#ffffff',
+              color: bellFilter === 'UNREAD' ? '#ffffff' : '#4b5563',
+              transition: 'all 0.15s ease',
+            }}
+            onClick={() => setBellFilter('UNREAD')}
+          >
+            Chưa đọc ({notifications.filter(n => !n.isRead).length})
+          </button>
+          <button
+            type="button"
+            style={{
+              padding: '4px 10px',
+              borderRadius: '20px',
+              border: '1px solid ' + (bellFilter === 'URGENT' ? (hasUnreadUrgent ? '#dc2626' : '#ea580c') : (hasUnreadUrgent ? '#fecaca' : '#e5e7eb')),
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: bellFilter === 'URGENT' 
+                ? (hasUnreadUrgent ? '#dc2626' : '#ea580c') 
+                : (hasUnreadUrgent ? '#fef2f2' : '#ffffff'),
+              color: bellFilter === 'URGENT' 
+                ? '#ffffff' 
+                : (hasUnreadUrgent ? '#dc2626' : '#4b5563'),
+              transition: 'all 0.15s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+            onClick={() => setBellFilter('URGENT')}
+          >
+            {hasUnreadUrgent && <span style={{ fontWeight: 'bold', fontSize: '13px', lineHeight: 1 }}>⚠</span>}
+            Khẩn cấp
+          </button>
+        </div>
+
         <div className="staffNotification__list">
           {latestNotifications.length === 0 ? (
             <p className="staffNotification__empty">Chưa có thông báo.</p>
           ) : (
             latestNotifications.map((item) => {
               const typeMeta = getNotificationTypeMeta(item?.notificationType);
-              const targetPath = getTicketNotificationPath(item);
+              const targetPath = getNotificationRedirectPath(item);
               const isActionable = Boolean(targetPath || (item?.notificationId && !item?.isRead));
+              const isUrgent = String(item?.notificationType).toUpperCase() === 'URGENT' || String(item?.notificationType).toUpperCase() === 'WARNING';
+              const isUnreadUrgent = !item?.isRead && isUrgent;
 
               return (
                 <article
@@ -334,10 +525,22 @@ export const StaffNotificationBell = ({
                   onKeyDown={(event) => handleNotificationKeyDown(event, item)}
                   role={isActionable ? 'button' : undefined}
                   tabIndex={isActionable ? 0 : undefined}
+                  style={{ 
+                    display: 'flex', 
+                    gap: '12px', 
+                    alignItems: 'flex-start',
+                    borderLeft: isUnreadUrgent ? '3px solid #dc2626' : undefined,
+                    background: isUnreadUrgent ? '#fef2f2' : undefined
+                  }}
                 >
-                  <div>
+                  <div style={{ marginTop: '2px' }}>
+                    {getNotificationIcon(item)}
+                  </div>
+                  <div style={{ flex: 1 }}>
                     <div className="staffNotification__itemTop">
-                      <strong>{item?.title || 'Thông báo'}</strong>
+                      <strong style={{ color: isUnreadUrgent ? '#dc2626' : 'inherit' }}>
+                        {isUnreadUrgent && '⚠️ '}{item?.title || 'Thông báo'}
+                      </strong>
                       <div className="staffNotification__badges">
                         <span className={`staffNotification__type ${typeMeta.className}`}>
                           {typeMeta.label}

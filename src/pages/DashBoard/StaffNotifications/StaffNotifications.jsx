@@ -142,6 +142,112 @@ const getTicketNotificationPath = (notification) => {
   return `/service-ticket-detail/${encodedCode}`;
 };
 
+const getNotificationRedirectPath = (notification) => {
+  if (notification?.url) {
+    try {
+      const parsedUrl = new URL(notification.url, window.location.origin);
+      if (
+        parsedUrl.origin === window.location.origin ||
+        parsedUrl.hostname === 'localhost' ||
+        parsedUrl.hostname.includes('sontaygarage.vn')
+      ) {
+        return parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
+      }
+    } catch {
+      if (notification.url.startsWith('/')) {
+        return notification.url;
+      }
+    }
+  }
+  return getTicketNotificationPath(notification);
+};
+
+const getNotificationServiceType = (notification) => {
+  const url = notification?.url || '';
+  const message = (notification?.message || '').toLowerCase();
+  const title = (notification?.title || '').toLowerCase();
+
+  if (url.includes('booking') || message.includes('dat lich') || title.includes('dat lich') || message.includes('đặt lịch') || title.includes('đặt lịch')) {
+    return 'booking';
+  }
+  if (url.includes('warehouse-stock-entries') || message.includes('nhap kho') || title.includes('nhap kho') || message.includes('nhập kho') || title.includes('nhập kho')) {
+    return 'import';
+  }
+  if (url.includes('warehouse-stock-issues') || message.includes('xuat kho') || title.includes('xuat kho') || message.includes('xuất kho') || title.includes('xuất kho')) {
+    return 'export';
+  }
+  if (url.includes('warehouse-return-entries') || message.includes('hoan hang') || title.includes('hoan hang') || message.includes('hoàn hàng') || title.includes('hoàn hàng')) {
+    return 'return';
+  }
+  if (url.includes('service-ticket') || url.includes('advisor') || url.includes('technician') || message.includes('phieu dich vu') || message.includes('phiếu dịch vụ') || message.includes('phan cong') || message.includes('phân công') || message.includes('giao phieu') || message.includes('giao phiếu')) {
+    return 'ticket';
+  }
+  return 'general';
+};
+
+const getNotificationIcon = (notification) => {
+  const type = getNotificationServiceType(notification);
+  switch (type) {
+    case 'booking':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#3b82f6' }}>
+          <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+          <line x1="16" x2="16" y1="2" y2="6"/>
+          <line x1="8" x2="8" y1="2" y2="6"/>
+          <line x1="3" x2="21" y1="10" y2="10"/>
+          <path d="M8 14h.01"/>
+          <path d="M12 14h.01"/>
+          <path d="M16 14h.01"/>
+          <path d="M8 18h.01"/>
+          <path d="M12 18h.01"/>
+          <path d="M16 18h.01"/>
+        </svg>
+      );
+    case 'import':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#10b981' }}>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" x2="12" y1="15" y2="3"/>
+        </svg>
+      );
+    case 'export':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#f59e0b' }}>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" x2="12" y1="3" y2="15"/>
+        </svg>
+      );
+    case 'return':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#ef4444' }}>
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+          <path d="M16 3h5v5"/>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+          <path d="M8 21H3v-5"/>
+        </svg>
+      );
+    case 'ticket':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#8b5cf6' }}>
+          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+          <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+          <path d="M10 9H8"/>
+          <path d="M16 13H8"/>
+          <path d="M16 17H8"/>
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, color: '#9ca3af' }}>
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+        </svg>
+      );
+  }
+};
+
 const StaffNotifications = () => {
   const navigate = useNavigate();
   // Get notifications state from StaffLayout Outlet Context
@@ -158,7 +264,10 @@ const StaffNotifications = () => {
 
   // Handle Mark All As Read
   const handleMarkAllAsRead = () => {
-    const unreadNotifications = notifications.filter((item) => item && !item.isRead);
+    const unreadNotifications = notifications.filter((item) => {
+      const isUrgent = String(item?.notificationType).toUpperCase() === 'URGENT' || String(item?.notificationType).toUpperCase() === 'WARNING';
+      return item && !item.isRead && !isUrgent;
+    });
     unreadNotifications.forEach((item) => {
       if (item?.notificationId) {
         markAsRead(item.notificationId);
@@ -172,7 +281,7 @@ const StaffNotifications = () => {
       markAsRead(item.notificationId);
     }
 
-    const targetPath = getTicketNotificationPath(item);
+    const targetPath = getNotificationRedirectPath(item);
     if (targetPath) {
       navigate(targetPath, {
         state: {
@@ -211,6 +320,12 @@ const StaffNotifications = () => {
 
   const hasUnread = useMemo(() => {
     return notifications.some((item) => item && !item.isRead);
+  }, [notifications]);
+
+  const hasUnreadUrgent = useMemo(() => {
+    return notifications.some(
+      (n) => !n.isRead && (String(n.notificationType).toUpperCase() === 'URGENT' || String(n.notificationType).toUpperCase() === 'WARNING')
+    );
   }, [notifications]);
 
   return (
@@ -263,7 +378,17 @@ const StaffNotifications = () => {
             type="button"
             className={`filter-chip ${activeFilter === 'URGENT' ? 'is-active' : ''}`}
             onClick={() => setActiveFilter('URGENT')}
+            style={
+              hasUnreadUrgent
+                ? {
+                    color: activeFilter === 'URGENT' ? '#ffffff' : '#dc2626',
+                    borderColor: activeFilter === 'URGENT' ? '#dc2626' : '#fecaca',
+                    backgroundColor: activeFilter === 'URGENT' ? '#dc2626' : '#fef2f2',
+                  }
+                : undefined
+            }
           >
+            {hasUnreadUrgent && <span style={{ marginRight: '4px', fontWeight: 'bold' }}>❗</span>}
             Khẩn cấp & Cảnh báo
           </button>
         </div>
@@ -291,19 +416,38 @@ const StaffNotifications = () => {
           <div className="notifications-list">
             {filteredNotifications.map((item) => {
               const typeMeta = getNotificationTypeMeta(item?.notificationType);
-              const targetPath = getTicketNotificationPath(item);
+              const targetPath = getNotificationRedirectPath(item);
+
+              const isUrgent = String(item?.notificationType).toUpperCase() === 'URGENT' || String(item?.notificationType).toUpperCase() === 'WARNING';
+              const isUnreadUrgent = !item?.isRead && isUrgent;
 
               return (
                 <article
                   key={item?.notificationId ?? `${item?.title}-${item?.sentAt}`}
-                  className={`notification-row-item ${item?.isRead ? '' : 'is-unread'}`}
+                  className={`notification-row-item ${item?.isRead ? '' : 'is-unread'} ${isUnreadUrgent ? 'is-unread-urgent' : ''}`}
                   onClick={() => handleItemClick(item)}
+                  style={{ 
+                    display: 'flex', 
+                    gap: '16px', 
+                    alignItems: 'flex-start',
+                    borderLeft: isUnreadUrgent ? '4px solid #dc2626' : undefined,
+                    background: isUnreadUrgent ? '#fff5f5' : undefined
+                  }}
                 >
-                  {!item?.isRead && <span className="notification-row-item__status-dot" />}
-                  
-                  <div className="notification-row-item__content">
+                  {!item?.isRead && (
+                    <span 
+                      className="notification-row-item__status-dot" 
+                      style={{ background: isUnreadUrgent ? '#dc2626' : undefined }}
+                    />
+                  )}
+                  <div style={{ marginTop: '2px' }}>
+                    {getNotificationIcon(item)}
+                  </div>
+                  <div className="notification-row-item__content" style={{ flex: 1 }}>
                     <header className="notification-row-item__header">
-                      <h2 className="notification-row-item__title">{item?.title || 'Thông báo'}</h2>
+                      <h2 className="notification-row-item__title" style={{ color: isUnreadUrgent ? '#dc2626' : 'inherit' }}>
+                        {isUnreadUrgent && '⚠️ '}{item?.title || 'Thông báo'}
+                      </h2>
                       <div className="notification-row-item__badges">
                         <span className={`badge-notif-type ${typeMeta.className}`}>
                           {typeMeta.label}
