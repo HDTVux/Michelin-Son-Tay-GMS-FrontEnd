@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import bookingStyles from '../../Booking/Booking.module.css';
 import scheduleStyles from '../BookingRequestManagement/BookingRequestEdit.module.css';
@@ -11,6 +11,8 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import AdvisorItemsTable from '../ServiceTicketManagement/AdvisorItemsTable.jsx';
 import Receipt from '../Receipt/Receipt.jsx';
 import { getDefaultSafetyInspectionCategories } from '../../../services/safetyInspectionService.js';
+import { fetchAllCustomers } from '../../../services/adminService.js';
+import { Contact, Search, X } from 'lucide-react';
 
 const DURATION_MINUTES = 60;	// Thời lượng mặc định cho 1 slot
 const DATE_RANGE_DAYS = 10;		// Giới hạn chọn lịch trong vòng 10 ngày tới
@@ -19,6 +21,13 @@ const NOTE_MAX_LENGTH = 255;	// Độ dài tối đa của ghi chú
 //Chuẩn hóa trạng thái nhắc nhở bảo trì
 const normalizeReminderStatus = (value) => String(value ?? '').trim().toUpperCase();
 const CREATE_BOOKING_ESTIMATE_STORAGE_KEY = 'create-booking:draft-estimate';
+
+const getInitials = (name) => {
+	if (!name) return 'KH';
+	const parts = name.trim().split(/\s+/);
+	if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+	return (parts[0].slice(0, 1) + parts[parts.length - 1].slice(0, 1)).toUpperCase();
+};
 
 /**
  * Helper: Kiểm tra xem có bản nháp báo giá nào đang lưu trong LocalStorage không
@@ -66,6 +75,59 @@ export default function CreateBooking() {
 		phone: String(sourceReminder?.customerPhone || '').trim(),
 		note: String(sourceReminder?.note || '').trim(),
 	});
+
+	// State cho modal danh bạ chọn khách hàng
+	const [showDirectoryModal, setShowDirectoryModal] = useState(false);
+	const [directorySearch, setDirectorySearch] = useState('');
+	const [directoryCustomers, setDirectoryCustomers] = useState([]);
+	const [directoryLoading, setDirectoryLoading] = useState(false);
+
+	const loadDirectoryCustomers = useCallback(async (searchVal = '') => {
+		setDirectoryLoading(true);
+		try {
+			const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+			if (!token) return;
+			const params = {
+				page: 0,
+				size: 10000, // Load all customers at once
+				search: searchVal || undefined
+			};
+			const res = await fetchAllCustomers(params, token);
+			if (res?.success && res?.data) {
+				const visibleContent = (res.data.content || []).filter((customer) => {
+					return customer.status !== 'DELETED';
+				});
+				setDirectoryCustomers(visibleContent);
+			}
+		} catch (error) {
+			console.error('Error loading directory customers:', error);
+		} finally {
+			setDirectoryLoading(false);
+		}
+	}, []);
+
+	useEffect(() => {
+		if (showDirectoryModal) {
+			loadDirectoryCustomers(directorySearch);
+		}
+	}, [showDirectoryModal, directorySearch, loadDirectoryCustomers]);
+
+	const handleSelectCustomerFromDirectory = (customer) => {
+		setInfo((prev) => ({
+			...prev,
+			phone: customer.phone,
+			name: customer.fullName || ''
+		}));
+		setCustomerChecked({
+			exists: true,
+			fullName: customer.fullName,
+			customerId: customer.customerId || customer.id,
+			serviceUsageCount: customer.totalBookings || 0
+		});
+		setCustomerCheckError('');
+		setShowDirectoryModal(false);
+		setDirectorySearch('');
+	};
 
 	// Quản lý trạng thái báo giá dự kiến
 	const [selectedEstimate, setSelectedEstimate] = useState(null);
@@ -735,7 +797,24 @@ export default function CreateBooking() {
 
 					<div className={`${infoStyles['info-card']} ${styles.fullWidthCard}`}>
 						<div className={infoStyles.field}>
-							<label htmlFor="create-booking-phone" >Số điện thoại (<span className={styles.required}>*</span>)</label>
+							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+								<label htmlFor="create-booking-phone" style={{ margin: 0, padding: 0 }}>
+									Số điện thoại (<span className={styles.required}>*</span>)
+								</label>
+								<button
+									type="button"
+									className={styles.selectDirectoryBtn}
+									onClick={() => {
+										setShowDirectoryModal(true);
+										loadDirectoryCustomers('');
+									}}
+									disabled={submitLocked}
+									title="Chọn khách hàng từ danh bạ"
+								>
+									<Contact size={14} style={{ marginRight: 4 }} />
+									Chọn từ danh bạ
+								</button>
+							</div>
 							<input
 								id="create-booking-phone"
 								type="tel"
@@ -877,6 +956,66 @@ export default function CreateBooking() {
 			{hasActiveEstimateDraft && (
 				<div className={styles.printOnly}>
 					<Receipt ticket={printTicket} />
+				</div>
+			)}
+
+			{/* Modal danh bạ để chọn khách hàng nhanh */}
+			{showDirectoryModal && (
+				<div className={styles.directoryModalOverlay}>
+					<div className={styles.directoryModalBackdrop} onClick={() => setShowDirectoryModal(false)} />
+					<div className={styles.directoryModalContent}>
+						<div className={styles.directoryModalHeader}>
+							<h3>Danh bạ khách hàng</h3>
+							<button type="button" className={styles.directoryModalCloseBtn} onClick={() => setShowDirectoryModal(false)}>
+								<X size={18} />
+							</button>
+						</div>
+						<div className={styles.directoryModalBody}>
+							<div className={styles.directoryModalSearch}>
+								<Search size={16} className={styles.directoryModalSearchIcon} />
+								<input
+									type="text"
+									placeholder="Tìm theo tên hoặc số điện thoại..."
+									value={directorySearch}
+									onChange={(e) => {
+										setDirectorySearch(e.target.value);
+									}}
+								/>
+							</div>
+
+							{directoryLoading ? (
+								<div className={styles.directoryModalLoading}>
+									<div className={styles.directorySpinner} />
+									<p>Đang tải dữ liệu...</p>
+								</div>
+							) : directoryCustomers.length === 0 ? (
+								<div className={styles.directoryModalEmpty}>
+									<p>Không tìm thấy khách hàng nào</p>
+								</div>
+							) : (
+								<div className={styles.directoryModalList}>
+									{directoryCustomers.map((customer) => (
+										<div
+											key={customer.customerId || customer.id}
+											className={styles.directoryModalItem}
+											onClick={() => handleSelectCustomerFromDirectory(customer)}
+										>
+											<div className={styles.directoryModalAvatar}>
+												{getInitials(customer.fullName)}
+											</div>
+											<div className={styles.directoryModalInfo}>
+												<div className={styles.directoryModalName}>{customer.fullName}</div>
+												<div className={styles.directoryModalPhone}>{customer.phone}</div>
+											</div>
+											<div className={styles.directoryModalEmail}>
+												{customer.email || 'Chưa có email'}
+											</div>
+										</div>
+									))}
+								</div>
+							)}
+						</div>
+					</div>
 				</div>
 			)}
 		</div>

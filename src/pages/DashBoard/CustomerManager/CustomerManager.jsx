@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { toast } from 'react-toastify';
-import { deleteCustomerAccount, fetchAllCustomers, lockCustomerAccount } from '../../../services/adminService.js';
+import { deleteCustomerAccount, fetchAllCustomers, lockCustomerAccount, updateCustomer } from '../../../services/adminService.js';
 import styles from './CustomerManager.module.css';
+import { Phone, Mail, Search, User, Plus, RefreshCw, Lock, Trash2, Eye, Car, Edit } from 'lucide-react';
 
 import CreateCustomerModal from './CreateCustomerModal.jsx';
+import EditCustomerModal from './EditCustomerModal.jsx';
 
 const normalizeCustomerStatus = (value) => {
   if (value == null || String(value).trim() === '') return null;
@@ -20,36 +22,29 @@ const resolveCustomerStatus = (customer) =>
   customer?.userStatus ??
   customer?.customerAuth?.status;
 
-const buildPageItems = (currentPage, totalPages) => {
-  const safeTotal = Math.max(1, Number(totalPages) || 1);
-  const safeCurrent = Math.min(Math.max(1, Number(currentPage) || 1), safeTotal);
+const getInitials = (name) => {
+  if (!name) return 'KH';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0].slice(0, 1) + parts[parts.length - 1].slice(0, 1)).toUpperCase();
+};
 
-  if (safeTotal <= 7) {
-    return Array.from({ length: safeTotal }, (_, index) => index + 1);
+const getAvatarColor = (name) => {
+  const gradients = [
+    'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', // Blue
+    'linear-gradient(135deg, #10b981 0%, #047857 100%)', // Green
+    'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)', // Orange/Amber
+    'linear-gradient(135deg, #8b5cf6 0%, #5b21b6 100%)', // Purple
+    'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', // Pink
+    'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)'  // Cyan
+  ];
+  let hash = 0;
+  const str = name || '';
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-
-  const pages = new Set([1, safeTotal, safeCurrent]);
-
-  if (safeCurrent <= 4) {
-    [2, 3, 4, 5].forEach((page) => pages.add(page));
-  } else if (safeCurrent >= safeTotal - 3) {
-    [safeTotal - 4, safeTotal - 3, safeTotal - 2, safeTotal - 1].forEach((page) => pages.add(page));
-  } else {
-    [safeCurrent - 1, safeCurrent + 1].forEach((page) => pages.add(page));
-  }
-
-  const ordered = [...pages].filter((page) => page >= 1 && page <= safeTotal).sort((a, b) => a - b);
-  const result = [];
-
-  ordered.forEach((page, index) => {
-    const previous = ordered[index - 1];
-    if (previous && page - previous > 1) {
-      result.push(`ellipsis-${previous}-${page}`);
-    }
-    result.push(page);
-  });
-
-  return result;
+  const index = Math.abs(hash) % gradients.length;
+  return gradients[index];
 };
 
 const CustomerManager = () => {
@@ -67,15 +62,24 @@ const CustomerManager = () => {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const requestSeqRef = useRef(0);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
+  const handleUpdatedCustomer = (updatedData) => {
+    setSelectedCustomer(updatedData);
+    setCustomers((prev) =>
+      prev.map((c) => {
+        const id = c.customerId || c.id;
+        const targetId = updatedData.customerId || updatedData.id;
+        if (id === targetId) return { ...c, ...updatedData };
+        return c;
+      })
+    );
+  };
 
-  // Load customers from API
+  // Load customers from API (all at once)
   const loadCustomers = useCallback(async () => {
     const requestSeq = ++requestSeqRef.current;
     try {
@@ -88,8 +92,8 @@ const CustomerManager = () => {
       }
 
       const params = {
-        page: currentPage - 1, // Backend uses 0-based index
-        size: itemsPerPage,
+        page: 0,
+        size: 10000, // Load all customers at once to disable pagination
         search: searchTerm || undefined,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
       };
@@ -100,7 +104,7 @@ const CustomerManager = () => {
       if (requestSeq !== requestSeqRef.current) return;
       
       if (response?.success && response?.data) {
-        const { content, totalElements } = response.data;
+        const { content } = response.data;
 
         // Hide soft-deleted customers from UI.
         const visibleContent = (content || []).filter((customer) => {
@@ -108,38 +112,54 @@ const CustomerManager = () => {
           return status !== 'DELETED';
         });
 
-        // If requesting an out-of-range page, Spring may return empty content but still have totalElements.
-        // Auto-step back so pagination remains usable.
-        if ((visibleContent?.length || 0) === 0 && (totalElements || 0) > 0 && currentPage > 1) {
-          setCurrentPage((prev) => Math.max(1, prev - 1));
-          return;
-        }
-
         setCustomers(visibleContent);
-        setTotalItems(totalElements || 0);
       }
     } catch (error) {
       console.error('Error loading customers:', error);
       toast.error(error.message || 'Không tải được dữ liệu khách hàng');
       setCustomers([]);
-      setTotalItems(0);
     } finally {
       if (requestSeq === requestSeqRef.current) {
         setLoading(false);
       }
     }
-  }, [searchTerm, currentPage, statusFilter, itemsPerPage]);
+  }, [searchTerm, statusFilter]);
 
   useEffect(() => {
     loadCustomers();
   }, [loadCustomers]);
 
-  const handleCreatedCustomer = () => {
-    if (currentPage === 1) {
-      loadCustomers();
-      return;
+  // Handle selected customer details persistence or fallback
+  useEffect(() => {
+    if (customers && customers.length > 0) {
+      if (!selectedCustomer) {
+        // Default select first on desktop, but keep null on mobile for contact list view
+        const isMobile = window.innerWidth <= 900;
+        if (!isMobile) {
+          setSelectedCustomer(customers[0]);
+        }
+      } else {
+        const updated = customers.find(
+          (c) => (c.customerId || c.id) === (selectedCustomer.customerId || selectedCustomer.id)
+        );
+        if (updated) {
+          setSelectedCustomer(updated);
+        } else {
+          const isMobile = window.innerWidth <= 900;
+          if (!isMobile) {
+            setSelectedCustomer(customers[0]);
+          } else {
+            setSelectedCustomer(null);
+          }
+        }
+      }
+    } else {
+      setSelectedCustomer(null);
     }
-    setCurrentPage(1);
+  }, [customers]);
+
+  const handleCreatedCustomer = () => {
+    loadCustomers();
   };
 
   const getStatusBadgeClass = (status) => {
@@ -239,9 +259,6 @@ const CustomerManager = () => {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil((totalItems || 0) / Math.max(1, itemsPerPage)));
-  const pageItems = buildPageItems(currentPage, totalPages);
-
   const openCreateModal = () => {
     setShowModal(true);
   };
@@ -250,224 +267,277 @@ const CustomerManager = () => {
     setShowModal(false);
   };
 
-  let mainContent = null;
-  if (loading) {
-    mainContent = (
-      <div className={styles.loadingContainer}>
-        <div className={styles.spinner}></div>
-        <p>Đang tải dữ liệu...</p>
+  return (
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Danh bạ khách hàng</h1>
+        <button className={styles.addButton} onClick={openCreateModal} title="Thêm khách hàng mới">
+          <Plus size={16} /> <span className={styles.addButtonText}>Thêm khách hàng mới</span>
+        </button>
       </div>
-    );
-  } else if (customers.length === 0) {
-    mainContent = (
-      <div className={styles.emptyState}>
-        <p>Khong co khach hang nao</p>
-      </div>
-    );
-  } else {
-    mainContent = (
-      <>
-        <div className={styles.tableCard}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>STT</th>
-                <th>Khách hàng</th>
-                <th>Số điện thoại</th>
-                <th>Trạng thái</th>
-                <th>Booking</th>
-                <th>Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
+
+      <div className={`${styles.directoryLayout} ${selectedCustomer ? styles.hasSelection : ''}`}>
+        {/* Left column: Contact list */}
+        <div className={styles.leftPane}>
+          <div className={styles.toolbar}>
+            <div className={styles.searchBox}>
+              <Search className={styles.searchIcon} size={16} />
+              <input
+                type="text"
+                placeholder="Tìm tên, SĐT..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                }}
+              />
+            </div>
+            <div className={styles.filters}>
+              <select
+                className={styles.filterSelect}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                }}
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="ACTIVE">Hoạt động</option>
+                <option value="INACTIVE">Không hoạt động</option>
+                <option value="LOCKED">Bị khóa</option>
+              </select>
+              <button
+                className={styles.refreshButton}
+                onClick={() => loadCustomers()}
+                title="Làm mới"
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className={styles.loadingContainer}>
+              <div className={styles.spinner}></div>
+              <p>Đang tải dữ liệu...</p>
+            </div>
+          ) : customers.length === 0 ? (
+            <div className={styles.emptyState}>
+              <p>Không có khách hàng nào</p>
+            </div>
+          ) : (
+            <div className={styles.contactsList}>
               {customers
                 .filter((customer) => {
                   const status = normalizeCustomerStatus(resolveCustomerStatus(customer));
                   return status !== 'DELETED';
                 })
-                .map((customer, index) => {
-                  const status = normalizeCustomerStatus(resolveCustomerStatus(customer));
-                  const canManage = status !== null && status !== 'DELETED';
+                .map((customer) => {
+                  const isSelected =
+                    selectedCustomer &&
+                    (customer.customerId || customer.id) === (selectedCustomer.customerId || selectedCustomer.id);
 
                   return (
-                <tr key={customer.customerId || customer.id}>
-                  <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                  <td>
-                    <span className={styles.customerName}>{customer.fullName}</span>
-                  </td>
-                  <td>{customer.phone}</td>
-                  <td>
-                    <span className={`${styles.statusBadge} ${getStatusBadgeClass(status)}`}>
-                      {getStatusText(status)}
-                    </span>
-                  </td>
-                  <td>{customer.totalBookings || 0}</td>
-                  <td>
-                    <div className={styles.actionButtons}>
-                      <button
-                        className={`${styles.actionBtn} ${styles.viewBtn}`}
-                        onClick={() => navigate(`/customer-profile/${customer.customerId || customer.id}`)}
-                        title="Xem chi tiết"
+                    <div
+                      key={customer.customerId || customer.id}
+                      className={`${styles.contactItem} ${isSelected ? styles.contactItemActive : ''}`}
+                      onClick={() => setSelectedCustomer(customer)}
+                    >
+                      <div
+                        className={styles.contactAvatar}
+                        style={{ background: getAvatarColor(customer.fullName) }}
                       >
-                        Xem
-                      </button>
-                      <button
-                        className={`${styles.actionBtn} ${styles.vehicleBtn}`}
-                        onClick={() =>
-                          navigate(
-                            `/vehicle-management?customerId=${encodeURIComponent(customer.customerId || customer.id)}&customerName=${encodeURIComponent(customer.fullName || '')}`,
-                          )
-                        }
-                        title="Xem phương tiện"
-                      >
-                        Xe
-                      </button>
-                      {canManage && (
-                        <>
-                          {status !== 'LOCKED' && (
-                            <button
-                              className={`${styles.actionBtn} ${styles.lockBtn}`}
-                              onClick={() => handleLockAccount(customer.customerId || customer.id)}
-                              title="Khóa tài khoản"
-                            >
-                              Khóa
-                            </button>
-                          )}
-                          <button
-                            className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                            onClick={() => handleDeleteAccount(customer.customerId || customer.id)}
-                            title="Xóa tài khoản"
+                        {getInitials(customer.fullName)}
+                      </div>
+                      <div className={styles.contactInfo}>
+                        <span className={styles.contactName}>{customer.fullName}</span>
+                        <span className={styles.contactPhone}>{customer.phone}</span>
+                      </div>
+                      <div className={styles.quickActions}>
+                        <a
+                          href={`tel:${customer.phone}`}
+                          className={styles.quickCallBtn}
+                          title="Gọi điện"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Phone size={13} />
+                        </a>
+                        {customer.email && (
+                          <a
+                            href={`mailto:${customer.email}`}
+                            className={styles.quickMailBtn}
+                            title="Gửi email"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            Xóa
-                          </button>
-                        </>
-                      )}
+                            <Mail size={13} />
+                          </a>
+                        )}
+                      </div>
                     </div>
-                  </td>
-                </tr>
                   );
                 })}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
 
-        <div className={styles.pagination}>
-          
-          <select
-            className={styles.filterSelect}
-            value={String(itemsPerPage)}
-            onChange={(e) => {
-              const next = Number(e.target.value);
-              setItemsPerPage(Number.isFinite(next) && next > 0 ? next : 10);
-              setCurrentPage(1);
-            }}
-            title="Số dòng hiển thị"
-          >
-            <option value="10">Hiển thị: 10</option>
-            <option value="20">Hiển thị: 20</option>
-            <option value="50">Hiển thị: 50</option>
-          </select>
-          <div className={styles.paginationInfo}>
-            Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} của {totalItems} khách hàng
-          </div>
-          <div className={styles.paginationButtons}>
-            <button
-              className={styles.pageBtn}
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => prev - 1)}
-            >
-              Trước
-            </button>
-            {pageItems.map((page) => {
-              if (typeof page === 'string') {
-                return (
-                  <span key={page} className={styles.pageDots}>
-                    ...
-                  </span>
-                );
-              }
+        {/* Right column: Customer details */}
+        <div className={styles.rightPane}>
+          {selectedCustomer ? (
+            <div className={styles.detailCard}>
+              <button className={styles.backBtn} onClick={() => setSelectedCustomer(null)}>
+                &larr; Danh bạ
+              </button>
 
-              return (
-                <button
-                  key={page}
-                  className={`${styles.pageBtn} ${currentPage === page ? styles.active : ''}`}
-                  onClick={() => setCurrentPage(page)}
-                  aria-current={currentPage === page ? 'page' : undefined}
+              <div className={styles.detailHeader}>
+                <div
+                  className={styles.detailAvatar}
+                  style={{ background: getAvatarColor(selectedCustomer.fullName) }}
                 >
-                  {page}
+                  {getInitials(selectedCustomer.fullName)}
+                </div>
+                <div className={styles.detailMeta}>
+                  <h2 className={styles.detailName}>{selectedCustomer.fullName}</h2>
+                  <div className={styles.detailBadges}>
+                    <span
+                      className={`${styles.statusBadge} ${getStatusBadgeClass(
+                        normalizeCustomerStatus(resolveCustomerStatus(selectedCustomer))
+                      )}`}
+                    >
+                      {getStatusText(normalizeCustomerStatus(resolveCustomerStatus(selectedCustomer)))}
+                    </span>
+                    {selectedCustomer.isGuest && (
+                      <span className={`${styles.statusBadge} ${styles.statusVip}`}>Guest</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Call and Mail Buttons */}
+              <div className={styles.detailActions}>
+                <a href={`tel:${selectedCustomer.phone}`} className={`${styles.detailActionBtn} ${styles.btnCall}`}>
+                  <Phone size={16} /> Gọi điện
+                </a>
+                {selectedCustomer.email ? (
+                  <a href={`mailto:${selectedCustomer.email}`} className={`${styles.detailActionBtn} ${styles.btnMail}`}>
+                    <Mail size={16} /> Gửi Email
+                  </a>
+                ) : (
+                  <button className={`${styles.detailActionBtn} ${styles.btnMail}`} disabled title="Chưa có Email">
+                    <Mail size={16} /> Chưa có Email
+                  </button>
+                )}
+              </div>
+
+              {/* Info Grid */}
+              <div className={styles.detailSectionTitle}>Thông tin liên hệ</div>
+              <div className={styles.detailGrid}>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Số điện thoại</span>
+                  <span className={styles.detailValue}>{selectedCustomer.phone}</span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Email</span>
+                  <span className={styles.detailValue}>{selectedCustomer.email || 'Chưa cung cấp'}</span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Giới tính</span>
+                  <span className={styles.detailValue}>
+                    {selectedCustomer.gender === 'MALE'
+                      ? 'Nam'
+                      : selectedCustomer.gender === 'FEMALE'
+                      ? 'Nữ'
+                      : selectedCustomer.gender === 'OTHER'
+                      ? 'Khác'
+                      : 'Chưa cập nhật'}
+                  </span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Ngày sinh</span>
+                  <span className={styles.detailValue}>{selectedCustomer.dob || 'Chưa cập nhật'}</span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Số lần đặt lịch</span>
+                  <span className={styles.detailValue}>{selectedCustomer.totalBookings || 0} lần</span>
+                </div>
+              </div>
+
+              {/* Actions Section */}
+              <div className={styles.detailSectionTitle}>Thao tác quản trị</div>
+              <div className={styles.managementButtons}>
+                <button
+                  className={`${styles.mgmtBtn} ${styles.mgmtEditBtn}`}
+                  onClick={() => setShowEditModal(true)}
+                >
+                  <Edit size={14} /> Chỉnh sửa hồ sơ
                 </button>
-              );
-            })}
-            <button
-              className={styles.pageBtn}
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-            >
-              Sau
-            </button>
-          </div>
-        </div>
-      </>
-    );
-  }
+                <button
+                  className={`${styles.mgmtBtn} ${styles.mgmtViewBtn}`}
+                  onClick={() => navigate(`/customer-profile/${selectedCustomer.customerId || selectedCustomer.id}`)}
+                >
+                  <Eye size={14} /> Chi tiết lịch sử
+                </button>
+                <button
+                  className={`${styles.mgmtBtn} ${styles.mgmtVehicleBtn}`}
+                  onClick={() =>
+                    navigate(
+                      `/vehicle-management?customerId=${encodeURIComponent(
+                        selectedCustomer.customerId || selectedCustomer.id
+                      )}&customerName=${encodeURIComponent(selectedCustomer.fullName || '')}`
+                    )
+                  }
+                >
+                  <Car size={14} /> Danh sách xe
+                </button>
 
-  return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Quản lý khách hàng</h1>
-        <button className={styles.addButton} onClick={openCreateModal}>
-          <span>+</span> Thêm khách hàng mới
-        </button>
-      </div>
+                {(() => {
+                  const status = normalizeCustomerStatus(resolveCustomerStatus(selectedCustomer));
+                  const canManage = status !== null && status !== 'DELETED';
+                  if (!canManage) return null;
 
-      <div className={styles.toolbar}>
-        <div className={styles.searchBox}>
-          <input
-            type="text"
-            placeholder="Tìm kiếm..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
-
-        <div className={styles.filters}>
-          <select 
-            className={styles.filterSelect}
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="ACTIVE">Hoạt động</option>
-            <option value="INACTIVE">Không hoạt động</option>
-            <option value="LOCKED">Đã khóa</option>
-          </select>
-
-
-          <button 
-            className={styles.refreshButton}
-            onClick={() => loadCustomers()}
-            title="Làm mới"
-          >
-            Làm mới
-          </button>
+                  return (
+                    <>
+                      {status !== 'LOCKED' && (
+                        <button
+                          className={`${styles.mgmtBtn} ${styles.mgmtLockBtn}`}
+                          onClick={() => handleLockAccount(selectedCustomer.customerId || selectedCustomer.id)}
+                        >
+                          <Lock size={14} /> Khóa tài khoản
+                        </button>
+                      )}
+                      <button
+                        className={`${styles.mgmtBtn} ${styles.mgmtDeleteBtn}`}
+                        onClick={() => handleDeleteAccount(selectedCustomer.customerId || selectedCustomer.id)}
+                      >
+                        <Trash2 size={14} /> Xóa khách hàng
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          ) : (
+            <div className={styles.emptyStateDetails}>
+              <User size={48} className={styles.emptyIcon} />
+              <h3>Chưa chọn khách hàng</h3>
+              <p>Chọn một khách hàng từ danh sách bên trái để xem thông tin chi tiết.</p>
+            </div>
+          )}
         </div>
       </div>
-
-      {mainContent}
 
       <CreateCustomerModal
         open={showModal}
         onClose={closeCreateModal}
         onCreated={handleCreatedCustomer}
       />
+
+      <EditCustomerModal
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        customer={selectedCustomer}
+        onUpdated={handleUpdatedCustomer}
+      />
     </div>
   );
 };
 
 export default CustomerManager;
+
