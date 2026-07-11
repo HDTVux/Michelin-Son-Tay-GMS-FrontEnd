@@ -64,6 +64,7 @@ const CustomerManager = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [modalInitialData, setModalInitialData] = useState(null);
 
   const requestSeqRef = useRef(0);
 
@@ -105,14 +106,7 @@ const CustomerManager = () => {
       
       if (response?.success && response?.data) {
         const { content } = response.data;
-
-        // Hide soft-deleted customers from UI.
-        const visibleContent = (content || []).filter((customer) => {
-          const status = normalizeCustomerStatus(resolveCustomerStatus(customer));
-          return status !== 'DELETED';
-        });
-
-        setCustomers(visibleContent);
+        setCustomers(content || []);
       }
     } catch (error) {
       console.error('Error loading customers:', error);
@@ -260,11 +254,25 @@ const CustomerManager = () => {
   };
 
   const openCreateModal = () => {
+    setModalInitialData(null);
     setShowModal(true);
   };
 
   const closeCreateModal = () => {
     setShowModal(false);
+    setModalInitialData(null);
+  };
+
+  const handleCreateAccountForGuest = () => {
+    if (!selectedCustomer) return;
+    setModalInitialData({
+      fullName: selectedCustomer.fullName || '',
+      email: selectedCustomer.email || '',
+      phone: selectedCustomer.phone || '',
+      gender: selectedCustomer.gender || '',
+      dob: selectedCustomer.dob || ''
+    });
+    setShowModal(true);
   };
 
   return (
@@ -303,6 +311,7 @@ const CustomerManager = () => {
                 <option value="ACTIVE">Hoạt động</option>
                 <option value="INACTIVE">Không hoạt động</option>
                 <option value="LOCKED">Bị khóa</option>
+                <option value="DELETED">Đã xóa</option>
               </select>
               <button
                 className={styles.refreshButton}
@@ -326,10 +335,6 @@ const CustomerManager = () => {
           ) : (
             <div className={styles.contactsList}>
               {customers
-                .filter((customer) => {
-                  const status = normalizeCustomerStatus(resolveCustomerStatus(customer));
-                  return status !== 'DELETED';
-                })
                 .map((customer) => {
                   const isSelected =
                     selectedCustomer &&
@@ -462,12 +467,31 @@ const CustomerManager = () => {
               {/* Actions Section */}
               <div className={styles.detailSectionTitle}>Thao tác quản trị</div>
               <div className={styles.managementButtons}>
-                <button
-                  className={`${styles.mgmtBtn} ${styles.mgmtEditBtn}`}
-                  onClick={() => setShowEditModal(true)}
-                >
-                  <Edit size={14} /> Chỉnh sửa hồ sơ
-                </button>
+                {(() => {
+                  const status = normalizeCustomerStatus(resolveCustomerStatus(selectedCustomer));
+                  const isGuestCustomer = status === null || status === undefined;
+
+                  if (isGuestCustomer) {
+                    return (
+                      <button
+                        className={`${styles.mgmtBtn} ${styles.mgmtActivateBtn}`}
+                        onClick={handleCreateAccountForGuest}
+                        title="Tạo tài khoản chính thức cho khách vãng lai"
+                      >
+                        <Plus size={14} /> Tạo tài khoản
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <button
+                      className={`${styles.mgmtBtn} ${styles.mgmtEditBtn}`}
+                      onClick={() => setShowEditModal(true)}
+                    >
+                      <Edit size={14} /> Chỉnh sửa hồ sơ
+                    </button>
+                  );
+                })()}
                 <button
                   className={`${styles.mgmtBtn} ${styles.mgmtViewBtn}`}
                   onClick={() => navigate(`/customer-profile/${selectedCustomer.customerId || selectedCustomer.id}`)}
@@ -527,6 +551,7 @@ const CustomerManager = () => {
         open={showModal}
         onClose={closeCreateModal}
         onCreated={handleCreatedCustomer}
+        initialData={modalInitialData}
       />
 
       <EditCustomerModal

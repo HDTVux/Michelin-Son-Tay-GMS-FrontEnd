@@ -94,10 +94,7 @@ export default function CreateBooking() {
 			};
 			const res = await fetchAllCustomers(params, token);
 			if (res?.success && res?.data) {
-				const visibleContent = (res.data.content || []).filter((customer) => {
-					return customer.status !== 'DELETED';
-				});
-				setDirectoryCustomers(visibleContent);
+				setDirectoryCustomers(res.data.content || []);
 			}
 		} catch (error) {
 			console.error('Error loading directory customers:', error);

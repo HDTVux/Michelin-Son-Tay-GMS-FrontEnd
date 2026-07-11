@@ -493,6 +493,17 @@
   color: #92400e;
 }
 
+.mgmtActivateBtn {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.mgmtActivateBtn:hover {
+  background-color: #bfdbfe;
+  color: #1e40af;
+}
+
 .mgmtVehicleBtn {
   background-color: #eff6ff;
   color: #2563eb;

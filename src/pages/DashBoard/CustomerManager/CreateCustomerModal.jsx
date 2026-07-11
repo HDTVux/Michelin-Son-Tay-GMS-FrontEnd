@@ -7,7 +7,7 @@ import styles from './CustomerManager.module.css';
 const PIN_LENGTH = 6;
 const PIN_KEYS = ['pin-0', 'pin-1', 'pin-2', 'pin-3', 'pin-4', 'pin-5'];
 
-const CreateCustomerModal = ({ open, onClose, onCreated }) => {
+const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -30,17 +30,28 @@ const CreateCustomerModal = ({ open, onClose, onCreated }) => {
 
     setSubmitting(false);
     setErrors({});
-    setFormData({
-      fullName: '',
-      email: '',
-      phone: '',
-      gender: '',
-      dob: '',
-      avatar: ''
-    });
+    if (initialData) {
+      setFormData({
+        fullName: initialData.fullName || '',
+        email: initialData.email || '',
+        phone: initialData.phone || '',
+        gender: initialData.gender || '',
+        dob: initialData.dob || '',
+        avatar: initialData.avatar || ''
+      });
+    } else {
+      setFormData({
+        fullName: '',
+        email: '',
+        phone: '',
+        gender: '',
+        dob: '',
+        avatar: ''
+      });
+    }
     setUseDefaultPin(true);
     setPinDigits(new Array(PIN_LENGTH).fill('1'));
-  }, [open]);
+  }, [open, initialData]);
 
   const focusPinIndex = (index) => {
     const el = pinInputRefs.current?.[index];
@@ -380,4 +391,5 @@ CreateCustomerModal.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func,
   onCreated: PropTypes.func,
+  initialData: PropTypes.object,
 };
