@@ -444,6 +444,13 @@ export const StaffNotificationBell = ({
 
         {error && <p className="staffNotification__error">{error}</p>}
 
+        {!connected && (
+          <div className="staffNotification__connectionWarning">
+            <span>⚠️</span>
+            <span>Mất kết nối realtime. Đang thử kết nối lại...</span>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '8px', padding: '10px 16px', borderBottom: '1px solid #eef2f7', background: '#f9fafb', flexWrap: 'wrap' }}>
           <button
             type="button"
@@ -511,49 +518,29 @@ export const StaffNotificationBell = ({
             <p className="staffNotification__empty">Chưa có thông báo.</p>
           ) : (
             latestNotifications.map((item) => {
-              const typeMeta = getNotificationTypeMeta(item?.notificationType);
               const targetPath = getNotificationRedirectPath(item);
               const isActionable = Boolean(targetPath || (item?.notificationId && !item?.isRead));
-              const isUrgent = String(item?.notificationType).toUpperCase() === 'URGENT' || String(item?.notificationType).toUpperCase() === 'WARNING';
-              const isUnreadUrgent = !item?.isRead && isUrgent;
+              const typeLower = String(item?.notificationType || 'info').toLowerCase();
 
               return (
                 <article
-                  className={`staffNotification__item ${item?.isRead ? '' : 'isUnread'}`}
+                  className={`staffNotification__item type-${typeLower} ${item?.isRead ? '' : 'isUnread'}`}
                   key={item?.notificationId ?? `${item?.title}-${item?.sentAt}`}
                   onClick={(event) => handleNotificationAction(event, item)}
                   onKeyDown={(event) => handleNotificationKeyDown(event, item)}
                   role={isActionable ? 'button' : undefined}
                   tabIndex={isActionable ? 0 : undefined}
-                  style={{ 
-                    display: 'flex', 
-                    gap: '12px', 
-                    alignItems: 'flex-start',
-                    borderLeft: isUnreadUrgent ? '3px solid #dc2626' : undefined,
-                    background: isUnreadUrgent ? '#fef2f2' : undefined
-                  }}
                 >
-                  <div style={{ marginTop: '2px' }}>
+                  <div className="staffNotification__itemIcon">
                     {getNotificationIcon(item)}
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="staffNotification__itemTop">
-                      <strong style={{ color: isUnreadUrgent ? '#dc2626' : 'inherit' }}>
-                        {isUnreadUrgent && '⚠️ '}{item?.title || 'Thông báo'}
-                      </strong>
-                      <div className="staffNotification__badges">
-                        <span className={`staffNotification__type ${typeMeta.className}`}>
-                          {typeMeta.label}
-                        </span>
-                        <span
-                          className={`staffNotification__status ${item?.isRead ? 'isRead' : 'isUnread'}`}
-                        >
-                          {item?.isRead ? 'Đã đọc' : 'Chưa đọc'}
-                        </span>
-                      </div>
+                      <strong>{item?.title || 'Thông báo'}</strong>
+                      {!item?.isRead && <span className="staffNotification__unreadDot" title="Chưa đọc" />}
                     </div>
-                    <p>{item?.message || 'Không có nội dung.'}</p>
-                    <time>{formatNotificationTime(item?.sentAt)}</time>
+                    <p className="staffNotification__itemMessage">{item?.message || 'Không có nội dung.'}</p>
+                    <time className="staffNotification__itemTime">{formatNotificationTime(item?.sentAt)}</time>
                   </div>
                 </article>
               );

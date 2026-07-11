@@ -143,10 +143,10 @@ const querySearch = async (searchTerm, staffRoles) => {
       request(`/api/warehouse/stock-entries?search=${encodeURIComponent(query)}&page=0&size=5`)
         .then(res => {
           results.stockEntries = (res?.data?.content || []).map(e => ({
-            id: e.stockEntryId || e.id,
-            title: e.code || 'Phiếu nhập',
+            id: e.entryId,
+            title: e.entryCode || 'Phiếu nhập',
             subtitle: `NCC: ${e.supplierName || ''} - Tổng: ${e.totalAmount?.toLocaleString('vi-VN') || 0}đ`,
-            path: `/warehouse-stock-entries?search=${encodeURIComponent(e.code)}`
+            path: `/warehouse-stock-entries/${e.entryId}`
           }));
         })
         .catch(() => {})
@@ -156,10 +156,10 @@ const querySearch = async (searchTerm, staffRoles) => {
       request(`/api/warehouse/stock-issues?search=${encodeURIComponent(query)}&page=0&size=5`)
         .then(res => {
           results.stockIssues = (res?.data?.content || []).map(e => ({
-            id: e.stockIssueId || e.id,
-            title: e.code || 'Phiếu xuất',
+            id: e.issueId,
+            title: e.issueCode || 'Phiếu xuất',
             subtitle: `Người nhận: ${e.receiverName || ''} - Loại: ${e.issueType || ''}`,
-            path: `/warehouse-stock-issues?search=${encodeURIComponent(e.code)}`
+            path: `/warehouse-stock-issues/${e.issueId}`
           }));
         })
         .catch(() => {})
@@ -169,10 +169,10 @@ const querySearch = async (searchTerm, staffRoles) => {
       request(`/api/warehouse/return-entries?search=${encodeURIComponent(query)}&page=0&size=5`)
         .then(res => {
           results.returnEntries = (res?.data?.content || []).map(e => ({
-            id: e.returnEntryId || e.id,
-            title: e.code || 'Phiếu hoàn hàng',
+            id: e.returnId,
+            title: e.returnCode || 'Phiếu hoàn hàng',
             subtitle: `Người trả: ${e.staffName || ''} - Lý do: ${e.reason || ''}`,
-            path: `/warehouse-return-entries?search=${encodeURIComponent(e.code)}`
+            path: `/warehouse-return-entries/${e.returnId}`
           }));
         })
         .catch(() => {})
