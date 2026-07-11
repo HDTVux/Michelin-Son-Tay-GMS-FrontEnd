@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
 import {
@@ -38,6 +38,7 @@ import {
     AlertTriangle,
     HelpCircle,
     Building2,
+    Search,
 } from 'lucide-react';
 import './SideBar.css';
 
@@ -53,6 +54,13 @@ const STAFF_ROLE = {
     WAREHOUSE_KEEPER: 'WAREHOUSE_KEEPER',
     ACCOUNTANT: 'ACCOUNTANT',
 };
+
+const normalizeSearchText = (value) =>
+    String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[đĐ]/g, 'd')
+        .toLowerCase();
 
 const normalizeRoleName = (value) => {
     const raw = String(value ?? '').trim().toUpperCase();
@@ -300,7 +308,15 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
     const [openSubGroups, setOpenSubGroups] = useState(() =>
         readSidebarState(SIDEBAR_SUBGROUPS_STORAGE_KEY, {})
     );
+    const [searchTerm, setSearchTerm] = useState('');
+    const searchInputRef = useRef(null);
 
+    const handleSearchToggleClick = () => {
+        setIsCollapsed(false);
+        setTimeout(() => {
+            searchInputRef.current?.focus();
+        }, 100);
+    };
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -321,6 +337,42 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
         const filteredNavGroups = NAV_GROUPS.filter((g) => g.id !== 'personal');
         return buildVisibleGroups(filteredNavGroups, staffRoles);
     }, [staffRoles]);
+
+    const filteredVisibleGroups = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return visibleGroups;
+        }
+
+        const normalizedQuery = normalizeSearchText(searchTerm);
+
+        return visibleGroups.map((group) => {
+            if (group.subGroups) {
+                const filteredSubGroups = group.subGroups.map((subGroup) => {
+                    const matchedItems = subGroup.items.filter((item) => {
+                        const normalizedLabel = normalizeSearchText(item.label);
+                        return normalizedLabel.includes(normalizedQuery);
+                    });
+                    if (matchedItems.length > 0) {
+                        return { ...subGroup, items: matchedItems };
+                    }
+                    return null;
+                }).filter(Boolean);
+
+                if (filteredSubGroups.length > 0) {
+                    return { ...group, subGroups: filteredSubGroups };
+                }
+            } else if (group.items) {
+                const matchedItems = group.items.filter((item) => {
+                    const normalizedLabel = normalizeSearchText(item.label);
+                    return normalizedLabel.includes(normalizedQuery);
+                });
+                if (matchedItems.length > 0) {
+                    return { ...group, items: matchedItems };
+                }
+            }
+            return null;
+        }).filter(Boolean);
+    }, [visibleGroups, searchTerm]);
 
     const personalItems = useMemo(() => {
         const personalGroup = NAV_GROUPS.find((g) => g.id === 'personal');
@@ -486,70 +538,112 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
             </button>
 
             <nav className={`sidebar__nav ${isOpen ? 'is-open' : ''}`}>
-                {visibleGroups.map((group) => {
-                    const isGroupOpen = Boolean(openGroups[group.id]);
-                    return (
-                        <div className="navGroup" key={group.id}>
-                            <button
-                                className="navGroup__header"
-                                type="button"
-                                onClick={() => toggleGroup(group.id)}
-                                aria-expanded={isGroupOpen}
-                                data-tour-id={group.id}
-                            >
-                                <div className="navGroup__headerLeft">
-                                    {group.icon && <span className="navGroup__headerIcon">{group.icon}</span>}
-                                    <span className="navGroup__headerLabel">{group.label}</span>
-                                </div>
-                                <span className={`navGroup__chevron ${isGroupOpen ? 'is-open' : ''}`} aria-hidden="true">
-                                    <ChevronRight />
-                                </span>
-                            </button>
+                <div className="sidebar__search-container">
+                    {isCollapsed ? (
+                        <button
+                            type="button"
+                            className="sidebar__search-toggle-btn"
+                            onClick={handleSearchToggleClick}
+                            aria-label="Tìm kiếm nhanh"
+                        >
+                            <Search size={16} />
+                        </button>
+                    ) : (
+                        <div className="sidebar__search-wrapper">
+                            <Search size={16} className="sidebar__search-icon" />
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder="Tìm nhanh chức năng..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="sidebar__search-input"
+                            />
+                            {searchTerm && (
+                                <button
+                                    type="button"
+                                    className="sidebar__search-clear"
+                                    onClick={() => setSearchTerm('')}
+                                    aria-label="Xóa tìm kiếm"
+                                >
+                                    <X size={14} />
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
 
-                            <div className={`navGroup__itemsWrapper ${isGroupOpen ? 'is-open' : ''}`}>
-                                <div className="navGroup__items">
-                                    {group.subGroups ? (
-                                        group.subGroups.map((subGroup) => {
-                                            // LOGIC UX MỚI: Tự động sổ xuống nếu mục con chỉ có đúng 1 item (trừ khi user cố tình bấm đóng)
-                                            const hasStoredOpenState = Object.hasOwn(openSubGroups, subGroup.id);
-                                            const isSubGroupOpen = hasStoredOpenState
-                                                ? openSubGroups[subGroup.id]
-                                                : subGroup.items.length === 1;
+                {searchTerm.trim() && filteredVisibleGroups.length === 0 ? (
+                    <div className="sidebar__search-empty">
+                        <p>Không tìm thấy chức năng phù hợp</p>
+                    </div>
+                ) : (
+                    filteredVisibleGroups.map((group) => {
+                        const isGroupOpen = searchTerm.trim() ? true : Boolean(openGroups[group.id]);
+                        return (
+                            <div className="navGroup" key={group.id}>
+                                <button
+                                    className="navGroup__header"
+                                    type="button"
+                                    onClick={() => toggleGroup(group.id)}
+                                    aria-expanded={isGroupOpen}
+                                    data-tour-id={group.id}
+                                >
+                                    <div className="navGroup__headerLeft">
+                                        {group.icon && <span className="navGroup__headerIcon">{group.icon}</span>}
+                                        <span className="navGroup__headerLabel">{group.label}</span>
+                                    </div>
+                                    <span className={`navGroup__chevron ${isGroupOpen ? 'is-open' : ''}`} aria-hidden="true">
+                                        <ChevronRight />
+                                    </span>
+                                </button>
 
-                                             return (
-                                                <div key={subGroup.id} className="navGroup__subGroup">
-                                                    <button
-                                                         className="navGroup__subHeader"
-                                                         type="button"
-                                                         onClick={() => toggleSubGroup(subGroup.id, isSubGroupOpen)}
-                                                         aria-expanded={isSubGroupOpen}
-                                                         data-tour-id={subGroup.id}
-                                                    >
-                                                         <div className="navGroup__subHeaderLeft">
-                                                             {subGroup.icon && <span className="navGroup__subHeaderIcon">{subGroup.icon}</span>}
-                                                             <span className="navGroup__subHeaderLabel">{subGroup.label}</span>
-                                                         </div>
-                                                         <span className={`navGroup__chevron ${isSubGroupOpen ? 'is-open' : ''}`} aria-hidden="true">
-                                                             <ChevronRight />
-                                                         </span>
-                                                    </button>
+                                <div className={`navGroup__itemsWrapper ${isGroupOpen ? 'is-open' : ''}`}>
+                                    <div className="navGroup__items">
+                                        {group.subGroups ? (
+                                            group.subGroups.map((subGroup) => {
+                                                 const hasStoredOpenState = Object.hasOwn(openSubGroups, subGroup.id);
+                                                 const isSubGroupOpen = searchTerm.trim()
+                                                     ? true
+                                                     : hasStoredOpenState
+                                                         ? openSubGroups[subGroup.id]
+                                                         : subGroup.items.length === 1;
 
-                                                    <div className={`navGroup__subItemsWrapper ${isSubGroupOpen ? 'is-open' : ''}`}>
-                                                         <div className="navGroup__subItems">
-                                                             {subGroup.items.map(renderNavItem)}
+                                                 return (
+                                                    <div key={subGroup.id} className="navGroup__subGroup">
+                                                        <button
+                                                             className="navGroup__subHeader"
+                                                             type="button"
+                                                             onClick={() => toggleSubGroup(subGroup.id, isSubGroupOpen)}
+                                                             aria-expanded={isSubGroupOpen}
+                                                             data-tour-id={subGroup.id}
+                                                        >
+                                                             <div className="navGroup__subHeaderLeft">
+                                                                 {subGroup.icon && <span className="navGroup__subHeaderIcon">{subGroup.icon}</span>}
+                                                                 <span className="navGroup__subHeaderLabel">{subGroup.label}</span>
+                                                             </div>
+                                                             <span className={`navGroup__chevron ${isSubGroupOpen ? 'is-open' : ''}`} aria-hidden="true">
+                                                                 <ChevronRight />
+                                                             </span>
+                                                        </button>
+
+                                                        <div className={`navGroup__subItemsWrapper ${isSubGroupOpen ? 'is-open' : ''}`}>
+                                                             <div className="navGroup__subItems">
+                                                                 {subGroup.items.map(renderNavItem)}
+                                                             </div>
                                                          </div>
                                                     </div>
-                                                </div>
-                                             );
-                                        })
-                                    ) : (
-                                        group.items?.map(renderNavItem)
-                                    )}
+                                                 );
+                                            })
+                                        ) : (
+                                            group.items?.map(renderNavItem)
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })
+                )}
             </nav>
         </aside>
     );
