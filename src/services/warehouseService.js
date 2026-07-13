@@ -1028,3 +1028,59 @@ export const deleteWarehouseProductUnit = (unitId, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// GET: /api/warehouse/fallback-pricing
+export const fetchFallbackPricingConfigs = (params, token) => {
+  const qp = new URLSearchParams();
+  if (params?.isActive !== undefined && params?.isActive !== null) {
+    qp.append('isActive', String(params.isActive));
+  }
+  if (params?.search) {
+    qp.append('search', String(params.search));
+  }
+  if (params?.page !== undefined) {
+    qp.append('page', String(params.page));
+  }
+  if (params?.size !== undefined) {
+    qp.append('size', String(params.size));
+  }
+  const qs = qp.toString();
+  return request('/api/warehouse/fallback-pricing' + (qs ? `?${qs}` : ''), {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// POST: /api/warehouse/fallback-pricing
+export const createFallbackPricingConfig = (payload, token) => {
+  return request('/api/warehouse/fallback-pricing', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload ?? {}),
+  });
+};
+
+// PUT: /api/warehouse/fallback-pricing/{id}
+export const updateFallbackPricingConfig = (id, payload, token) => {
+  return request(`/api/warehouse/fallback-pricing/${id}`, {
+    method: 'PUT',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload ?? {}),
+  });
+};
+
+// DELETE: /api/warehouse/fallback-pricing/{id}
+export const deleteFallbackPricingConfig = (id, token) => {
+  return request(`/api/warehouse/fallback-pricing/${id}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
+
+// PUT: /api/warehouse/fallback-pricing/{id}/activate
+export const activateFallbackPricingConfig = (id, token) => {
+  return request(`/api/warehouse/fallback-pricing/${id}/activate`, {
+    method: 'PUT',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};

@@ -173,6 +173,7 @@ const NAV_GROUPS = [
                     { id: 'warehouse-management', label: 'Quản lý kho', path: '/warehouse-management', icon: <Box size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
                     { id: 'warehouse-config', label: 'Cấu hình kho', path: '/warehouse-config', icon: <Building2 size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN, 'WAREHOUSE_MANAGER'] },
                     { id: 'warehouse-pricing', label: 'Giá theo kho', path: '/warehouse-pricing', icon: <Tag size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
+                    { id: 'warehouse-fallback-pricing', label: 'Markup mặc định', path: '/warehouse-fallback-pricing', icon: <Tag size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
                     { id: 'part-management', label: 'Quản lý phụ tùng', path: '/part-management', icon: <Settings size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
                     { id: 'warehouse-stock-entries', label: 'Quản lý phiếu nhập', path: '/warehouse-stock-entries', icon: <Download size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },
                     { id: 'warehouse-stock-issues', label: 'Quản lý phiếu xuất', path: '/warehouse-stock-issues', icon: <Upload size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.WAREHOUSE_KEEPER] },

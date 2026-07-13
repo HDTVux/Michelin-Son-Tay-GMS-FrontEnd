@@ -346,6 +346,9 @@ export function validateWarehouseImportPrice(value, { maxValue = 999999999 } = {
  * @returns {{ valid: boolean, error: string }}
  */
 export function validateWarehouseMarkupMultiplier(value, { maxValue = 999.99 } = {}) {
+  if (value === '' || value === null || value === undefined) {
+    return { valid: true, error: '' };
+  }
   const num = readNumber(value);
   if (!Number.isFinite(num) || num < 0) {
     return { valid: false, error: 'Mức lợi nhuận phải >= 0' };

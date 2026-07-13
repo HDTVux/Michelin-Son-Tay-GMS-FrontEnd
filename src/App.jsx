@@ -57,6 +57,7 @@ import WarehouseReturnEntryDetail from './pages/DashBoard/WarehouseManagement/Wa
 import WarehouseDefectReport from './pages/DashBoard/WarehouseManagement/WarehouseDefectReport.jsx';
 import WarehouseDefectiveInventory from './pages/DashBoard/WarehouseManagement/WarehouseDefectiveInventory.jsx';
 import WarehousePricing from './pages/DashBoard/WarehouseManagement/WarehousePricing.jsx';
+import WarehouseFallbackPricing from './pages/DashBoard/WarehouseManagement/WarehouseFallbackPricing.jsx';
 import BlogManagement from './pages/DashBoard/PartManagement/ServiceManagement.jsx';
 import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx';
 import CreateService from './pages/DashBoard/PartManagement/CreateService.jsx';
@@ -467,6 +468,7 @@ export default function App() {
               <Route path="warehouse-excel-import" element={staffRoute(<WarehouseExcelImport />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-config" element={staffRoute(<WarehouseConfig />, ROLE_GROUP.WAREHOUSE_ADMIN)} />
               <Route path="warehouse-pricing" element={staffRoute(<WarehousePricing />, ROLE_GROUP.WAREHOUSE)} />
+              <Route path="warehouse-fallback-pricing" element={staffRoute(<WarehouseFallbackPricing />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="revenue-management" element={staffRoute(<RevenueManagement />, ROLE_GROUP.ACCOUNTING)} />
               
               {/* Technician pages */}

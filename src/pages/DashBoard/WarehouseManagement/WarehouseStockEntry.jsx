@@ -89,8 +89,8 @@ const buildDraftPayload = (warehouseId, supplierName, notes, selectedItems) => (
     itemId: Number(row.itemId) || 0,
     quantity: Number(row.quantity) || 0,
     importPrice: Number(row.importPrice) || 0,
-    markupMultiplier: Number(row.markupMultiplier) || 0,
-    markupMultiplierWholesale: Number(row.markupMultiplierWholesale) || 0,
+    markupMultiplier: row.markupMultiplier !== '' && row.markupMultiplier !== null && row.markupMultiplier !== undefined ? Number(row.markupMultiplier) : null,
+    markupMultiplierWholesale: row.markupMultiplierWholesale !== '' && row.markupMultiplierWholesale !== null && row.markupMultiplierWholesale !== undefined ? Number(row.markupMultiplierWholesale) : null,
   })),
 });
 
@@ -133,8 +133,8 @@ export default function WarehouseStockEntry() {
               ...mapCatalogItem(row),
               quantity: String(row?.quantity ?? '1'),
               importPrice: String(row?.importPrice ?? ''),
-              markupMultiplier: String(row?.markupMultiplier ?? '1'),
-              markupMultiplierWholesale: String(row?.markupMultiplierWholesale ?? '1'),
+              markupMultiplier: row?.markupMultiplier != null ? String(row.markupMultiplier) : '',
+              markupMultiplierWholesale: row?.markupMultiplierWholesale != null ? String(row.markupMultiplierWholesale) : '',
             }))
             .filter((row) => row.itemId),
         );
@@ -314,8 +314,8 @@ export default function WarehouseStockEntry() {
           ...mapped,
           quantity: '1',
           importPrice: '',
-          markupMultiplier: '1',
-          markupMultiplierWholesale: '1',
+          markupMultiplier: '',
+          markupMultiplierWholesale: '',
         },
       ];
     });
@@ -680,7 +680,7 @@ export default function WarehouseStockEntry() {
                                     updateSelectedItem(row.itemId, 'markupMultiplier', val);
                                   }
                                 }}
-                                placeholder="1.0"
+                                placeholder="Mặc định"
                               />
                               {rowErrors[`${row.itemId}_markupMultiplier`] && (
                                 <div className={styles.errorBanner}>{rowErrors[`${row.itemId}_markupMultiplier`]}</div>
@@ -700,7 +700,7 @@ export default function WarehouseStockEntry() {
                                     updateSelectedItem(row.itemId, 'markupMultiplierWholesale', val);
                                   }
                                 }}
-                                placeholder="1.0"
+                                placeholder="Mặc định"
                               />
                               {rowErrors[`${row.itemId}_markupMultiplierWholesale`] && (
                                 <div className={styles.errorBanner}>{rowErrors[`${row.itemId}_markupMultiplierWholesale`]}</div>
