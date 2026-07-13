@@ -1071,6 +1071,7 @@ export default function AdvisorItemsTable({
         selectedFallbackPricingConfigId,
         setSelectedFallbackPricingConfigId,
         applyEstimateMarkup,
+        applyMarkupToLocalRows,
     } = useAdvisorItemsTableHandlers(serviceTicketId, {
         onEstimateStatusChange,
         refreshToken,
@@ -1848,7 +1849,12 @@ export default function AdvisorItemsTable({
                         {showInputs && !isReadOnly && !isTicketPaid ? (
                             <select
                                 value={selectedFallbackPricingConfigId || ''}
-                                onChange={(e) => setSelectedFallbackPricingConfigId(e.target.value ? Number(e.target.value) : null)}
+                                onChange={(e) => {
+                                    const nextConfigId = e.target.value ? Number(e.target.value) : null;
+                                    setSelectedFallbackPricingConfigId(nextConfigId);
+                                    // Tính lại đơn giá các dòng đang nhập ngay khi đổi markup
+                                    applyMarkupToLocalRows(nextConfigId);
+                                }}
                                 style={{
                                     padding: '6px 12px',
                                     borderRadius: '6px',

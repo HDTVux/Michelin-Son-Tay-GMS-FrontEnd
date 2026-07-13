@@ -668,6 +668,9 @@ export function pickAdvisorCatalogItem({
 	onChange(activeRowIndex, 'itemId', id);
 	onChange(activeRowIndex, 'itemName', name);
 	onChange(activeRowIndex, 'unitPrice', price);
+	// Giữ giá vốn để tính lại ngay khi đổi cấu hình Markup toàn phiếu
+	onChange(activeRowIndex, 'importPrice', item?.importPrice ?? item?.import_price ?? null);
+	onChange(activeRowIndex, 'markupBaseUnitPrice', null);
 	onChange(activeRowIndex, 'unit', unit);
 	if (warehouseId != null && String(warehouseId).trim() !== '') {
 		onChange(activeRowIndex, 'warehouseId', warehouseId);
@@ -1012,6 +1015,7 @@ function mapEstimateItemToLockedRow(it, idx, options = {}) {
 		itemName: String(it?.itemName || '').trim(),
 		quantity: it?.quantity ?? '',
 		unitPrice: it?.unitPrice ?? '',
+		importPrice: it?.importPrice ?? it?.import_price ?? null,
 		discountAmount: resetPromotionPricing ? 0 : pickDiscountAmountValue(it),
 		finalPrice: resetPromotionPricing ? '' : (it?.finalPrice ?? it?.final_price ?? ''),
 		isGift: getEstimateItemGiftFlag(it),
@@ -1505,6 +1509,47 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 	const [draftRows, setDraftRows] = useState(() => isDemoMode ? getDemoRows() : (backup?.draftRows ?? [createEmptyDraftRow()]));
 	const [editRows, setEditRows] = useState(() => isDemoMode ? getDemoRows() : (backup?.editRows ?? [createEmptyDraftRow()]));
+
+	/**
+	 * Tính lại đơn giá NGAY trên các dòng đang nhập khi đổi cấu hình "Markup toàn phiếu".
+	 * Cùng công thức với BE (EstimateService.calculateMarkupUnitPrice):
+	 * unitPrice = giá vốn (importPrice) x markupMultiplier, làm tròn 2 chữ số.
+	 * Bỏ chọn cấu hình sẽ khôi phục lại đơn giá gốc trước khi áp markup.
+	 * BE vẫn tính lại chính thức khi lưu báo giá (payload gửi fallbackPricingConfigId).
+	 */
+	const applyMarkupToLocalRows = useCallback((configId) => {
+		const config = configId
+			? (Array.isArray(fallbackConfigs) ? fallbackConfigs : []).find((c) => Number(c?.id) === Number(configId))
+			: null;
+		const multiplier = Number(config?.markupMultiplier);
+
+		const recalcRows = (rows) => (Array.isArray(rows) ? rows : []).map((row) => {
+			if (!row || row.isGift || row.isLockedFromPreviousVersion) return row;
+			if (!toIdOrNull(row.itemId)) return row;
+
+			// Bỏ chọn markup -> khôi phục giá gốc đã lưu lại trước đó
+			if (!configId) {
+				if (row.markupBaseUnitPrice == null) return row;
+				return { ...row, unitPrice: Number(row.markupBaseUnitPrice), markupBaseUnitPrice: null };
+			}
+
+			const cost = Number(row.importPrice);
+			if (!Number.isFinite(multiplier) || multiplier <= 0 || !Number.isFinite(cost) || cost <= 0) return row;
+
+			const currentPrice = Number(row.unitPrice);
+			const baseUnitPrice = row.markupBaseUnitPrice ?? (Number.isFinite(currentPrice) ? currentPrice : null);
+			const nextPrice = Math.round(cost * multiplier * 100) / 100;
+			return { ...row, markupBaseUnitPrice: baseUnitPrice, unitPrice: nextPrice };
+		});
+
+		if (isCreating) {
+			setDraftRows((prev) => normalizeDraftRows(recalcRows(prev)));
+		}
+		if (isEditing) {
+			setEditRows((prev) => normalizeDraftRows(recalcRows(prev)));
+		}
+	}, [fallbackConfigs, isCreating, isEditing]);
+
 	const initialEditRowsSnapshotRef = useRef('');
 	const initialCreateRowsSnapshotRef = useRef('');
 	const lastValidServiceTicketIdRef = useRef(
@@ -2535,6 +2580,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					itemName: String(it?.itemName || '').trim(),
 					quantity: it?.quantity ?? '',
 					unitPrice: it?.unitPrice ?? '',
+					importPrice: it?.importPrice ?? it?.import_price ?? null,
 					taxRuleId,
 					isRemoved: Boolean(it?.isRemoved),
 					discountAmount: pickDiscountAmountValue(it),
@@ -2987,6 +3033,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		selectedFallbackPricingConfigId,
 		setSelectedFallbackPricingConfigId,
 		applyEstimateMarkup,
+		applyMarkupToLocalRows,
 	};
 }
 
