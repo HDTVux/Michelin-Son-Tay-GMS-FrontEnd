@@ -14,7 +14,8 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
     phone: '',
     gender: '',
     dob: '',
-    avatar: ''
+    avatar: '',
+    customerType: 'INDIVIDUAL'
   });
 
   const [useDefaultPin, setUseDefaultPin] = useState(true);
@@ -37,7 +38,8 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
         phone: initialData.phone || '',
         gender: initialData.gender || '',
         dob: initialData.dob || '',
-        avatar: initialData.avatar || ''
+        avatar: initialData.avatar || '',
+        customerType: initialData.customerType || 'INDIVIDUAL'
       });
     } else {
       setFormData({
@@ -46,7 +48,8 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
         phone: '',
         gender: '',
         dob: '',
-        avatar: ''
+        avatar: '',
+        customerType: 'INDIVIDUAL'
       });
     }
     setUseDefaultPin(true);
@@ -206,7 +209,8 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
         pin: pinValue,
         gender: formData.gender,
         dob: formData.dob,
-        avatar: formData.avatar
+        avatar: formData.avatar,
+        customerType: formData.customerType || 'INDIVIDUAL'
       };
 
       const response = await createCustomer(payload, token);
@@ -354,6 +358,21 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
                 ))}
               </div>
               {errors.pin && <span className={styles.errorText}>{errors.pin}</span>}
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label} htmlFor="cm_customerType">Loại khách hàng</label>
+              <select
+                id="cm_customerType"
+                name="customerType"
+                value={formData.customerType}
+                onChange={handleInputChange}
+                className={styles.select}
+              >
+                <option value="INDIVIDUAL">Khách lẻ</option>
+                <option value="DEALER">Đại lý</option>
+                <option value="GARAGE">Garage khác</option>
+              </select>
             </div>
 
             <div className={styles.formGroup}>

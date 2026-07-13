@@ -12,6 +12,7 @@ import AdvisorItemsTable from '../ServiceTicketManagement/AdvisorItemsTable.jsx'
 import Receipt from '../Receipt/Receipt.jsx';
 import { getDefaultSafetyInspectionCategories } from '../../../services/safetyInspectionService.js';
 import { fetchAllCustomers } from '../../../services/adminService.js';
+import { fetchFallbackPricingConfigs } from '../../../services/warehouseService.js';
 import { Contact, Search, X } from 'lucide-react';
 
 const DURATION_MINUTES = 60;	// Thời lượng mặc định cho 1 slot
@@ -169,6 +170,27 @@ export default function CreateBooking() {
 	const [cancellingEstimate, setCancellingEstimate] = useState(false);
 	const [estimateTableKey, setEstimateTableKey] = useState(0);
 	const [defaultSafetyCategories, setDefaultSafetyCategories] = useState([]);
+	const [fallbackConfigs, setFallbackConfigs] = useState([]); // Cấu hình Markup toàn phiếu cho bảng báo giá
+
+	// Tải danh sách cấu hình markup (fallback pricing) đang hoạt động — giống ServiceTicketDetail
+	useEffect(() => {
+		const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+		if (!token) return;
+		let active = true;
+		fetchFallbackPricingConfigs({ size: 100 }, token)
+			.then((res) => {
+				if (!active) return;
+				if (res?.data?.content) {
+					setFallbackConfigs(res.data.content.filter((cfg) => cfg.isActive));
+				}
+			})
+			.catch((err) => {
+				console.error('Failed to load fallback pricing configs:', err);
+			});
+		return () => {
+			active = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -567,6 +589,7 @@ export default function CreateBooking() {
 							hideRecommendation
 							hideEstimateSummary
 							autoStartCreate
+							fallbackConfigs={fallbackConfigs}
 							onEstimateStatusChange={setSelectedEstimate}
 							onEstimateEditingChange={setIsEstimateEditing}
 						/>

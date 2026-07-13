@@ -1349,3 +1349,41 @@ export const fetchWorkCategoriesAll = (token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// Tạo phiếu bán linh kiện (PARTS_SALE) từ báo giá DRAFT.
+// Backend làm trọn trong 1 transaction: tạo ticket rút gọn (không booking/xe/kiểm tra an toàn),
+// tự gán nhân viên, giữ hàng (RESERVED), archive báo giá và tạo bill.
+// Endpoint: POST /api/service-ticket/parts-sale
+// Payload: { customerId, estimateId, note? }
+// Response: { serviceTicketId, ticketCode, customerId, estimateId, billId, finalAmount }
+export const createPartsSale = (payload, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để tạo phiếu bán linh kiện.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const customerId = Number(payload?.customerId);
+  if (!Number.isFinite(customerId) || customerId <= 0) {
+    const error = new Error('Thiếu customerId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const estimateId = Number(payload?.estimateId);
+  if (!Number.isFinite(estimateId) || estimateId <= 0) {
+    const error = new Error('Thiếu estimateId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  return request('/api/service-ticket/parts-sale', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      customerId,
+      estimateId,
+      note: String(payload?.note ?? '').trim() || null,
+    }),
+  });
+};

@@ -1,0 +1,198 @@
+.page {
+	padding-bottom: 40px;
+}
+
+.title {
+	margin-bottom: 16px;
+}
+
+/* Hàng trên: form khách (trái) + box thông tin khách (phải) */
+.topGrid {
+	display: grid;
+	grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+	gap: 16px;
+	margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+	.topGrid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.customerFormCard,
+.customerInfoCard,
+.promotionCard {
+	padding: 16px;
+}
+
+.cardTitleRow {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 8px;
+}
+
+.cardTitle {
+	margin: 0 0 10px;
+	font-size: 16px;
+	font-weight: 700;
+}
+
+.cardTitleRow .cardTitle {
+	margin-bottom: 0;
+}
+
+.cardTitleActions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.required {
+	color: #e53935;
+}
+
+.hintText {
+	color: #6b7280;
+	font-size: 13px;
+	margin-top: 4px;
+}
+
+.errorText {
+	color: #e53935;
+	font-size: 13px;
+	margin-top: 4px;
+}
+
+.okText {
+	color: #059669;
+	font-size: 13px;
+	margin-top: 4px;
+}
+
+.warnText {
+	color: #f59e42;
+	font-size: 13px;
+	margin-top: 4px;
+}
+
+/* Box thông tin khách */
+.customerInfoBody {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+}
+
+.customerAvatar {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	background: #1d4ed8;
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	flex-shrink: 0;
+}
+
+.customerInfoRows {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.customerInfoRow {
+	display: flex;
+	gap: 8px;
+	font-size: 14px;
+}
+
+.customerInfoLabel {
+	color: #6b7280;
+	min-width: 110px;
+}
+
+.customerInfoValue {
+	font-weight: 600;
+	word-break: break-word;
+}
+
+.customerInfoEmpty {
+	color: #6b7280;
+	font-size: 14px;
+	padding: 12px 0;
+}
+
+/* Báo giá */
+.estimatePanel {
+	margin-bottom: 16px;
+}
+
+/* Khuyến mãi */
+.promotionCard {
+	margin-top: 16px;
+}
+
+.promotionGrid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+	gap: 12px;
+	align-items: end;
+}
+
+@media (max-width: 900px) {
+	.promotionGrid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.promotionApplied {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	padding: 8px 0;
+}
+
+/* Tổng kết tiền */
+.summaryRows {
+	margin-top: 16px;
+	border-top: 1px dashed #d1d5db;
+	padding-top: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	max-width: 420px;
+	margin-left: auto;
+}
+
+.summaryRow {
+	display: flex;
+	justify-content: space-between;
+	font-size: 14px;
+}
+
+.summaryTotal {
+	font-size: 16px;
+	font-weight: 700;
+	border-top: 1px solid #d1d5db;
+	padding-top: 8px;
+}
+
+.errorBanner {
+	margin-top: 12px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: #fef2f2;
+	color: #b91c1c;
+	font-size: 14px;
+}
+
+.actions {
+	margin-top: 20px;
+}
