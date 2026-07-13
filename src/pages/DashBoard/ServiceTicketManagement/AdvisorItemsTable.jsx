@@ -979,6 +979,7 @@ function buildPickedCatalogItem(item, warehouseDetail, selectedLot) {
         sellingPrice,
         price: nextPrice,
         unitPrice: nextPrice,
+        importPrice: selectedLot ? selectedLot?.importPrice : (warehouseDetail?.sellingPrice ?? item?.price ?? 0),
         availableQuantity,
         entryItemId: selectedLot ? selectedLot?.entryItemId : null,
         entryCode: selectedLot ? selectedLot?.entryCode : null,
@@ -1016,6 +1017,7 @@ export default function AdvisorItemsTable({
     customerName = '',
     customerPhone = '',
     promotionSection = null,
+    fallbackConfigs = [],
 }) {
     const [revertOnCancel, setRevertOnCancel] = useState(false);
     const [revertTicketOnCancel, setRevertTicketOnCancel] = useState(false);
@@ -1066,11 +1068,15 @@ export default function AdvisorItemsTable({
         syncEstimate,
         softDeleteEditRow,
         estimate,
+        selectedFallbackPricingConfigId,
+        setSelectedFallbackPricingConfigId,
+        applyEstimateMarkup,
     } = useAdvisorItemsTableHandlers(serviceTicketId, {
         onEstimateStatusChange,
         refreshToken,
         draftStorageKey,
         autoStartCreate,
+        fallbackConfigs,
     });
 
     const showTaxColumn = isCreating || isEditing;
@@ -1836,7 +1842,53 @@ export default function AdvisorItemsTable({
 
 
             {shouldShowTable ? (
-                <div className={styles.tableWrap}>
+                <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: '500', fontSize: '14px', color: '#334155' }}>Áp dụng Markup toàn phiếu:</span>
+                        {!isReadOnly && !isTicketPaid ? (
+                            <>
+                                <select
+                                    value={selectedFallbackPricingConfigId || ''}
+                                    onChange={(e) => setSelectedFallbackPricingConfigId(e.target.value ? Number(e.target.value) : null)}
+                                    style={{
+                                        padding: '6px 12px',
+                                        borderRadius: '6px',
+                                        border: '1px solid #cbd5e1',
+                                        background: '#ffffff',
+                                        fontSize: '14px',
+                                        color: '#1e293b',
+                                        outline: 'none',
+                                        cursor: 'pointer'
+                                    }}
+                                    disabled={isSaving}
+                                >
+                                    <option value="">(Để trống - Dùng mặc định hệ thống)</option>
+                                    {fallbackConfigs.map(cfg => (
+                                        <option key={cfg.id} value={cfg.id}>
+                                            {cfg.name} (Lẻ: x{cfg.markupMultiplier} / Sỉ: x{cfg.markupMultiplierWholesale})
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    className="ui-btn ui-btn--primary"
+                                    style={{ padding: '6px 16px', fontSize: '13px', marginLeft: '8px' }}
+                                    disabled={isSaving}
+                                    onClick={() => {
+                                        console.log("DEBUG: Apply button clicked with configId =", selectedFallbackPricingConfigId);
+                                        applyEstimateMarkup(selectedFallbackPricingConfigId);
+                                    }}
+                                >
+                                    {isSaving ? 'Đang áp dụng...' : 'Áp dụng'}
+                                </button>
+                            </>
+                        ) : (
+                            <span style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+                                {fallbackConfigs.find(c => c.id === selectedFallbackPricingConfigId)?.name || 'Mặc định hệ thống'}
+                            </span>
+                        )}
+                    </div>
+                    <div className={styles.tableWrap}>
                     {!hideReadOnlyNotice && isTicketPaid ? (
                         <div className={styles.errorBanner} style={{ marginTop: 8 }}>
                             Phiếu dịch vụ đã được thanh toán — không thể tạo báo giá mới.
@@ -1905,6 +1957,7 @@ export default function AdvisorItemsTable({
                         </tfoot>
                     </table>
                 </div>
+                </>
             ) : null}
 
             {errorLine ? (

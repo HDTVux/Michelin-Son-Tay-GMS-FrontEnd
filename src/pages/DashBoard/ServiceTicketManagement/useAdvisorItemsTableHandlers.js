@@ -9,6 +9,7 @@ import {
 	requestWarehouseReturnEntry,
 	updateServiceTicketEstimate,
 	updateServiceTicketEstimateItem,
+	applyFallbackPricingToEstimate,
 } from '../../../services/serviceTicketService.js';
 import { updateSafetyInspectionRecommend } from '../../../services/safetyInspectionService.js';
 import { fetchAllCatalogItems } from '../../../services/catalogService.js';
@@ -1369,7 +1370,7 @@ export function useInventoryCheckHandlers() {
 }
 
 export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
-	const { onEstimateStatusChange, refreshToken, draftStorageKey, autoStartCreate = false } = options || {};
+	const { onEstimateStatusChange, refreshToken, draftStorageKey, autoStartCreate = false, fallbackConfigs = [] } = options || {};
 	const standaloneDraftMode = Boolean(draftStorageKey);
 	const onEstimateStatusChangeRef = useRef(onEstimateStatusChange);
 
@@ -1395,6 +1396,41 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 
 	const [estimate, setEstimate] = useState(() => backup?.estimate ?? readEstimateDraftSnapshot(draftStorageKey));
 	const estimateRef = useRef(estimate);
+	const [selectedFallbackPricingConfigId, setSelectedFallbackPricingConfigId] = useState(null);
+
+	useEffect(() => {
+		if (estimate) {
+			setSelectedFallbackPricingConfigId(estimate.fallbackPricingConfigId || null);
+		}
+	}, [estimate]);
+
+	const applyEstimateMarkup = useCallback(async (configId) => {
+		console.log("DEBUG: applyEstimateMarkup called with configId:", configId);
+		const estimateId = estimate?.estimateId ?? estimate?.id;
+		console.log("DEBUG: Resolved estimateId:", estimateId, "estimate object:", estimate);
+		if (!estimateId) {
+			console.warn("DEBUG: estimateId is falsy, exiting!");
+			return;
+		}
+		const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+		if (!token) {
+			console.warn("DEBUG: No authentication token found!");
+			return;
+		}
+		try {
+			setIsSaving(true);
+			setSaveError('');
+			console.log("DEBUG: Calling applyFallbackPricingToEstimate API...");
+			const res = await applyFallbackPricingToEstimate(estimateId, configId, token);
+			console.log("DEBUG: API request finished successfully, response:", res);
+			window.location.reload();
+		} catch (err) {
+			console.error("DEBUG: API error details:", err);
+			setSaveError(err.message || 'Lỗi khi áp dụng Markup');
+		} finally {
+			setIsSaving(false);
+		}
+	}, [estimate?.estimateId, estimate?.id]);
 	const [loading, setLoading] = useState(false);
 	const [loadError, setLoadError] = useState('');
 	const [fetched, setFetched] = useState(false);
@@ -2627,6 +2663,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 					estimateType: 'INITIAL',
 					status: 'DRAFT',         // <-- Bổ sung dòng này
 					estimateStatus: 'DRAFT', // <-- (Thêm cả dòng này cho chắc ăn, tuỳ BE của bạn dùng field nào)
+					fallbackPricingConfigId: selectedFallbackPricingConfigId,
 					items,
 				},
 				token,
@@ -2775,6 +2812,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 				{
 					serviceTicketId: standaloneDraftMode ? null : serviceTicketIdNum,
 					estimateType: estimate?.estimateType || 'INITIAL',
+					fallbackPricingConfigId: selectedFallbackPricingConfigId,
 					items,
 				},
 				token,
@@ -2946,6 +2984,9 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		softDeleteEditRow,
 		softDeleteDraftRow,
 		inventory,
+		selectedFallbackPricingConfigId,
+		setSelectedFallbackPricingConfigId,
+		applyEstimateMarkup,
 	};
 }
 

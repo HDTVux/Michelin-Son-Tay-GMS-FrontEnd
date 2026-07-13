@@ -63,7 +63,7 @@ import {
     fetchSafetyInspectionCurrentRecommend,
 } from '../../../services/serviceTicketService.js';
 import { finishWork } from '../../../services/technicianService.js';
-import { requestWarehouseStockIssue } from '../../../services/warehouseService.js';
+import { requestWarehouseStockIssue, fetchFallbackPricingConfigs } from '../../../services/warehouseService.js';
 import { createPayment, fetchPaymentByServiceTicketId } from '../../../services/paymentService.js';
 import { fetchAvailablePromotions, fetchPromotionByCode } from '../../../services/promotionService.js';
 import { getDefaultSafetyInspectionCategories, getSafetyInspectionByTicketCode } from '../../../services/safetyInspectionService.js';
@@ -194,6 +194,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     const [statusUpdating, setStatusUpdating] = useState(false);    
     const [estimateLoading, setEstimateLoading] = useState(false);
     const [latestEstimate, setLatestEstimate] = useState(null); // Lưu trữ báo giá mới nhất để hiển thị và chỉnh sửa
+    const [fallbackConfigs, setFallbackConfigs] = useState([]); // Lưu trữ danh sách cấu hình markup mặc định
     const estimateLoadSeqRef = useRef(0); // Ref để theo dõi thứ tự tải báo giá, tránh cập nhật state với dữ liệu cũ khi có nhiều lần tải liên tiếp
     const createVersionSyncRef = useRef(''); // Ref để đồng bộ trạng thái tạo phiên bản báo giá mới, tránh việc phải đưa isCreatingNewEstimateVersion vào dependency của nhiều useEffect khác nhau.
     const [assignments, setAssignments] = useState([]); // Lưu trữ danh sách nhân viên được phân công cho phiếu dịch vụ
@@ -1156,6 +1157,21 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     useEffect(() => {
         loadLatestEstimate();
     }, [loadLatestEstimate]);
+
+    useEffect(() => {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        (async () => {
+            try {
+                const res = await fetchFallbackPricingConfigs({ size: 100 }, token);
+                if (res?.data?.content) {
+                    setFallbackConfigs(res.data.content.filter(cfg => cfg.isActive));
+                }
+            } catch (err) {
+                console.error("Failed to load fallback pricing configs:", err);
+            }
+        })();
+    }, []);
 
     // Load assignments to check technician before allowing receipt creation
     useEffect(() => {
@@ -3069,7 +3085,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                              licensePlate={ticket?.vehicle?.licensePlate || ''}
                                              customerName={ticket?.customer?.name || ticket?.customerName || ''}
                                              customerPhone={ticket?.customer?.phone || ticket?.customerPhone || ''}
-                                            promotionSection={promotionSectionJSX}
+                                             promotionSection={promotionSectionJSX}
+                                             fallbackConfigs={fallbackConfigs}
                                         />
                                     )}
 

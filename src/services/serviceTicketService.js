@@ -924,6 +924,20 @@ export const updateServiceTicketEstimate = (estimateId, payload, token) => {
   });
 };
 
+export const applyFallbackPricingToEstimate = (estimateId, configId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để áp dụng markup.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+  const idNum = typeof estimateId === 'number' ? estimateId : Number(estimateId);
+  const qStr = configId ? `?configId=${configId}` : '';
+  return request(`/api/service-ticket/estimate/${encodeURIComponent(String(idNum))}/apply-fallback-pricing${qStr}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+
 // Cập nhật 1 dòng item trong bảng báo giá theo estimateItemId (bao gồm xóa mềm)
 // Endpoint: PUT /api/service-ticket/estimate/{estimateItemId}/item
 // Payload: { workCategoryId, newCategoryName, itemId, itemName, unit, quantity, unitPrice, taxRuleId, isChecked, isRemoved }
