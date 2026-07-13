@@ -83,9 +83,12 @@ function isReturnedInvoiceItem(item) {
     return toMoneyNumber(item?.returnedQuantity ?? item?.returned_quantity ?? item?.returnQuantity ?? item?.return_quantity) > 0;
 }
 
-function isBillableInvoiceItem(item) {
+function isBillableInvoiceItem(item, isPartsSale = false) {
     if (isReturnedInvoiceItem(item)) return false;
     const status = getInvoiceItemStockStatus(item);
+    if (isPartsSale) {
+        return !status || status === 'COMMITTED' || status === 'RESERVED';
+    }
     return !status || status === 'COMMITTED';
 }
 
@@ -211,9 +214,13 @@ export default function AccountingInvoicePrint({ ticket: ticketProp, autoPrint =
     }, [ticketProp, location?.state?.ticket]);
 
     const invoice = useMemo(() => ticket?.invoice || {}, [ticket]);
+    const isPartsSale = useMemo(() => {
+        const code = safeText(ticket?.ticketCode || ticket?.serviceTicketCode || ticket?.code);
+        return code.toUpperCase().startsWith('BLK') || ticket?.ticketType === 'PARTS_SALE';
+    }, [ticket]);
     const invoiceItems = useMemo(
-        () => (Array.isArray(invoice?.items) ? invoice.items.filter(isBillableInvoiceItem) : []),
-        [invoice],
+        () => (Array.isArray(invoice?.items) ? invoice.items.filter((item) => isBillableInvoiceItem(item, isPartsSale)) : []),
+        [invoice, isPartsSale],
     );
     const rowCount = Math.max(DEFAULT_ROW_COUNT, invoiceItems.length);
 

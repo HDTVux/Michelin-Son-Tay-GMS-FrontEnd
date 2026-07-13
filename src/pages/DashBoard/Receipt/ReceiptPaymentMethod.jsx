@@ -94,9 +94,12 @@ function isReturnedEstimateItem(item) {
     return toMoneyNumber(item?.returnedQuantity ?? item?.returned_quantity ?? item?.returnQuantity ?? item?.return_quantity) > 0;
 }
 
-function isBillableEstimateItem(item) {
+function isBillableEstimateItem(item, isPartsSale = false) {
     if (isReturnedEstimateItem(item)) return false;
     const status = getEstimateItemStockStatus(item);
+    if (isPartsSale) {
+        return !status || status === 'COMMITTED' || status === 'RESERVED';
+    }
     return !status || status === 'COMMITTED';
 }
 
@@ -129,6 +132,7 @@ export default function ReceiptPaymentMethod() {
     const ticketFromState = location?.state?.ticket ?? null;
     const serviceTicketIdFromState = location?.state?.serviceTicketId ?? ticketFromState?.serviceTicketId ?? null;
 
+    const [ticketDetail, setTicketDetail] = useState(ticketFromState);
     const [serviceTicketId, setServiceTicketId] = useState(() => {
         const raw = serviceTicketIdFromState;
         const id = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
@@ -158,7 +162,7 @@ export default function ReceiptPaymentMethod() {
             return;
         }
 
-        if (serviceTicketId) return;
+        if (ticketDetail) return;
         if (!ticketCodeParam) {
             setError('Thiếu ticketCode để lấy thông tin thanh toán.');
             setLoading(false);
@@ -173,13 +177,15 @@ export default function ReceiptPaymentMethod() {
                 const res = await fetchServiceTicketDetail(ticketCodeParam, token);
                 if (ignore) return;
                 const detail = res?.data ?? res;
+                setTicketDetail(detail);
                 const raw = detail?.serviceTicketId ?? detail?.ticketId ?? detail?.id ?? null;
                 const id = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
-                if (!Number.isFinite(id) || id <= 0) throw new Error('Không tìm thấy serviceTicketId hợp lệ.');
-                setServiceTicketId(id);
+                if (Number.isFinite(id) && id > 0) {
+                    setServiceTicketId(id);
+                }
             } catch (err) {
                 if (ignore) return;
-                setError(err?.message || 'Không thể lấy serviceTicketId.');
+                setError(err?.message || 'Không thể lấy thông tin phiếu dịch vụ.');
                 setLoading(false);
             }
         };
@@ -187,7 +193,7 @@ export default function ReceiptPaymentMethod() {
         return () => {
             ignore = true;
         };
-    }, [serviceTicketId, ticketCodeParam, token]);
+    }, [ticketDetail, ticketCodeParam, token]);
 
     useEffect(() => {
         if (!token) return;
@@ -348,9 +354,13 @@ export default function ReceiptPaymentMethod() {
     }, [estimate]);
 
     const payItems = estimateItems;
+    const isPartsSale = useMemo(() => {
+        return String(ticketCodeParam).trim().toUpperCase().startsWith('BLK') || ticketDetail?.ticketType === 'PARTS_SALE';
+    }, [ticketCodeParam, ticketDetail]);
+
     const billableItems = useMemo(
-        () => payItems.filter(isBillableEstimateItem),
-        [payItems],
+        () => payItems.filter((item) => isBillableEstimateItem(item, isPartsSale)),
+        [payItems, isPartsSale],
     );
     const totalSafe = useMemo(() => {
         const estimateTotal = billableItems.reduce((sum, item) => sum + toMoneyNumber(item?.finalPriceDisplay), 0);
@@ -365,9 +375,9 @@ export default function ReceiptPaymentMethod() {
     }, [billableItems, payItems.length, payment]);
 
     const transferContent = useMemo(() => {
-        const code = ticketCodeParam || ticketFromState?.ticketCode || 'SERVICE_TICKET';
+        const code = ticketCodeParam || ticketDetail?.ticketCode || 'SERVICE_TICKET';
         return `Thanh toan hoa don ${code}`;
-    }, [ticketCodeParam, ticketFromState?.ticketCode]);
+    }, [ticketCodeParam, ticketDetail?.ticketCode]);
 
     const qrImgSrc = useMemo(() => {
         if (method !== 'transfer') return '';
@@ -444,7 +454,7 @@ export default function ReceiptPaymentMethod() {
     }, [printRequested, printTicket]);
 
     const handlePrintInvoice = () => {
-        const ticketCode = ticketCodeParam || ticketFromState?.ticketCode;
+        const ticketCode = ticketCodeParam || ticketDetail?.ticketCode;
         if (!ticketCode) {
             toast.error('Không tìm thấy mã phiếu dịch vụ để in hoá đơn.');
             return;
@@ -491,22 +501,22 @@ export default function ReceiptPaymentMethod() {
         const computedDiscountAmount = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.discountAmount), 0);
         const computedTotal = invoiceItems.reduce((sum, item) => sum + toMoneyNumber(item?.subTotal), 0);
 
-        const stateCustomer = ticketFromState?.customer || {};
-        const stateVehicle = ticketFromState?.vehicle || {};
+        const stateCustomer = ticketDetail?.customer || {};
+        const stateVehicle = ticketDetail?.vehicle || {};
 
         const printTicket = {
-            ...(ticketFromState ?? undefined),
+            ...(ticketDetail ?? undefined),
             ticketCode,
             serviceTicketId,
             customer: {
                 ...stateCustomer,
-                name: stateCustomer?.name || stateCustomer?.fullName || ticketFromState?.customerName || '',
-                phone: stateCustomer?.phone || ticketFromState?.customerPhone || '',
-                address: stateCustomer?.address || ticketFromState?.customerAddress || '',
+                name: stateCustomer?.name || stateCustomer?.fullName || ticketDetail?.customerName || '',
+                phone: stateCustomer?.phone || ticketDetail?.customerPhone || '',
+                address: stateCustomer?.address || ticketDetail?.customerAddress || '',
             },
             vehicle: {
                 ...stateVehicle,
-                licensePlate: stateVehicle?.licensePlate || ticketFromState?.licensePlate || '',
+                licensePlate: stateVehicle?.licensePlate || ticketDetail?.licensePlate || '',
             },
             invoice: {
                 items: invoiceItems,
@@ -570,7 +580,7 @@ export default function ReceiptPaymentMethod() {
                 <header className={styles.header}>
                     <div>
                         <h1 className={styles.title}>Thanh toán</h1>
-                        <div className={styles.subTitle}>Phiếu dịch vụ #{ticketCodeParam || ticketFromState?.ticketCode || '-'}</div>
+                        <div className={styles.subTitle}>Phiếu dịch vụ #{ticketCodeParam || ticketDetail?.ticketCode || '-'}</div>
                     </div>
                 </header>
 
