@@ -538,6 +538,8 @@ export default function StaffDashboard() {
   // Drag states
   const [draggedStatIndex, setDraggedStatIndex] = useState(null);
   const [draggedPanelIndex, setDraggedPanelIndex] = useState(null);
+  const [touchStatIndex, setTouchStatIndex] = useState(null);
+  const [touchPanelIndex, setTouchPanelIndex] = useState(null);
 
   // Widget manager & Modals states
   const [showWidgetManager, setShowWidgetManager] = useState(false);
@@ -1033,6 +1035,93 @@ export default function StaffDashboard() {
     saveLayoutToDb();
   };
 
+  // Mobile Touch drag & drop handlers with non-passive options to prevent scroll/highlight
+  useEffect(() => {
+    const statElements = document.querySelectorAll(`.${styles.dragGripIconStat}`);
+    const panelElements = document.querySelectorAll(`.${styles.dragGripHeader}`);
+
+    const cleanups = [];
+
+    const bindTouchEvents = (elements, isStat) => {
+      elements.forEach((el, index) => {
+        const handleStart = (e) => {
+          // Prevent default to disable text selection and highlighting immediately
+          if (e.cancelable) e.preventDefault();
+          if (isStat) {
+            setTouchStatIndex(index);
+          } else {
+            setTouchPanelIndex(index);
+          }
+        };
+
+        const handleMove = (e) => {
+          const activeIndex = isStat ? touchStatIndex : touchPanelIndex;
+          if (activeIndex === null) return;
+          if (e.cancelable) e.preventDefault(); // Stop mobile scroll
+
+          const touch = e.touches[0];
+          const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (!targetEl) return;
+
+          const wrapperSelector = isStat ? '[data-stat-wrapper="true"]' : '[data-panel-wrapper="true"]';
+          const wrapper = targetEl.closest(wrapperSelector);
+          if (!wrapper) return;
+
+          const targetIndex = Number(wrapper.getAttribute('data-index'));
+          if (Number.isNaN(targetIndex)) return;
+
+          if (targetIndex !== activeIndex) {
+            if (isStat) {
+              setStatsList((prev) => {
+                const next = [...prev];
+                const temp = next[activeIndex];
+                next[activeIndex] = next[targetIndex];
+                next[targetIndex] = temp;
+                return next;
+              });
+              setTouchStatIndex(targetIndex);
+            } else {
+              setPanelsList((prev) => {
+                const next = [...prev];
+                const temp = next[activeIndex];
+                next[activeIndex] = next[targetIndex];
+                next[targetIndex] = temp;
+                return next;
+              });
+              setTouchPanelIndex(targetIndex);
+            }
+          }
+        };
+
+        const handleEnd = () => {
+          if (isStat) {
+            setTouchStatIndex(null);
+          } else {
+            setTouchPanelIndex(null);
+          }
+          saveLayoutToDb();
+        };
+
+        el.addEventListener('touchstart', handleStart, { passive: false });
+        el.addEventListener('touchmove', handleMove, { passive: false });
+        el.addEventListener('touchend', handleEnd);
+
+        cleanups.push(() => {
+          el.removeEventListener('touchstart', handleStart);
+          el.removeEventListener('touchmove', handleMove);
+          el.removeEventListener('touchend', handleEnd);
+        });
+      });
+    };
+
+    bindTouchEvents(statElements, true);
+    bindTouchEvents(panelElements, false);
+
+    return () => {
+      cleanups.forEach((cleanup) => cleanup());
+    };
+  }, [statsList, panelsList, touchStatIndex, touchPanelIndex]);
+
   return (
     <div className={styles.container}>
       {/* 1. HERO SECTION */}
@@ -1188,12 +1277,14 @@ export default function StaffDashboard() {
           .map((s, index) => (
             <div
               key={s.id}
+              data-stat-wrapper="true"
+              data-index={index}
               draggable
               onDragStart={(e) => handleStatDragStart(e, index)}
               onDragOver={(e) => handleStatDragOver(e, index)}
               onDragEnd={handleStatDragEnd}
               className={`${styles.statCardWrapper} ${
-                draggedStatIndex === index ? styles.isDragging : ''
+                draggedStatIndex === index || touchStatIndex === index ? styles.isDragging : ''
               }`}
             >
               <div className={styles.dragGripIconStat}>⠿</div>
@@ -1227,11 +1318,13 @@ export default function StaffDashboard() {
             const isFull = p.size === 'full';
             const itemClass = `${styles.panelWrapper} ${
               isFull ? styles.widgetFullWidth : styles.widgetHalfWidth
-            } ${draggedPanelIndex === index ? styles.isDragging : ''}`;
+            } ${draggedPanelIndex === index || touchPanelIndex === index ? styles.isDragging : ''}`;
 
             return (
               <div
                 key={p.id}
+                data-panel-wrapper="true"
+                data-index={index}
                 draggable
                 onDragOver={(e) => handlePanelDragOver(e, index)}
                 onDragEnd={handlePanelDragEnd}
