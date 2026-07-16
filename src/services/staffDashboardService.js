@@ -85,3 +85,50 @@ export const markStaffNotificationAsRead = (notificationId, token) =>
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
   });
+
+// ============ STAFF DASHBOARD CONFIG APIs ============
+
+export const fetchStaffDashboardConfigs = (token) =>
+  request('/api/staff/dashboard/configs', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const fetchActiveStaffDashboardConfig = (token) =>
+  request('/api/staff/dashboard/configs/active', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const createStaffDashboardConfig = (payload, token) =>
+  request('/api/staff/dashboard/configs', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+export const updateStaffDashboardConfig = (id, payload, token) =>
+  request(`/api/staff/dashboard/configs/${id}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+export const deleteStaffDashboardConfig = (id, token) =>
+  request(`/api/staff/dashboard/configs/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const activateStaffDashboardConfig = (id, token) =>
+  request(`/api/staff/dashboard/configs/${id}/activate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
