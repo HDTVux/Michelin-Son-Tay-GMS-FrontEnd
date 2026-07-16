@@ -10,6 +10,7 @@ import AdvisorItemsTable from '../ServiceTicketManagement/AdvisorItemsTable.jsx'
 import Receipt from '../Receipt/Receipt.jsx';
 import CreateCustomerModal from '../CustomerManager/CreateCustomerModal.jsx';
 import { usePartsSalesHandlers, PARTS_SALES_ESTIMATE_STORAGE_KEY } from './usePartsSalesHandlers.js';
+import { formatTimeHHmm } from '../../../components/timeUtils.js';
 
 const NOTE_MAX_LENGTH = 255;
 
@@ -188,6 +189,18 @@ export default function PartsSales() {
 							/>
 							<div className={styles.hintText}>{Math.max(0, NOTE_MAX_LENGTH - String(h.note || '').length)} ký tự còn lại</div>
 						</div>
+
+						<div className={styles.checkboxField}>
+							<label htmlFor="parts-sales-is-scheduling" className={styles.checkboxLabel}>
+								<input
+									id="parts-sales-is-scheduling"
+									type="checkbox"
+									checked={h.isScheduling}
+									onChange={(e) => h.setIsScheduling(e.target.checked)}
+								/>
+								Hẹn lịch nhận hàng / dịch vụ
+							</label>
+						</div>
 					</section>
 
 					<section className={`ui-card ${styles.customerInfoCard}`}>
@@ -225,6 +238,101 @@ export default function PartsSales() {
 						)}
 					</section>
 				</div>
+
+				{/* ===== MỚI: Thông tin hẹn lịch ===== */}
+				{h.isScheduling && (
+					<section className={`ui-card ${styles.scheduleCard}`}>
+						<h3 className={styles.cardTitle}>Thông tin hẹn lịch</h3>
+						<div className={styles.scheduleRow}>
+							<div className="ui-field" style={{ marginBottom: 0 }}>
+								<label htmlFor="parts-sales-schedule-date">Ngày hẹn</label>
+								<select
+									id="parts-sales-schedule-date"
+									value={h.scheduleDate}
+									onChange={(e) => {
+										h.setScheduleDate(e.target.value);
+										h.setScheduleTime('');
+									}}
+								>
+									<option value="">Chọn ngày hẹn</option>
+									{h.dateOptions.map((opt) => (
+										<option key={opt.value} value={opt.value}>
+											{opt.label}
+										</option>
+									))}
+								</select>
+							</div>
+
+							<div className="ui-field" style={{ marginBottom: 0 }}>
+								<label htmlFor="parts-sales-schedule-time">Giờ hẹn</label>
+								<input
+									id="parts-sales-schedule-time"
+									type="time"
+									value={h.scheduleTime}
+									onChange={(e) => h.setScheduleTime(e.target.value)}
+									disabled={!h.scheduleDate || h.slotsLoading || !!h.slotsError}
+								/>
+							</div>
+						</div>
+
+						<div className={styles.slotContainer}>
+							<div className={styles.slotTitle}>Chọn khung giờ theo danh sách</div>
+							{h.baseSlotsLoading && <div className={styles.slotStatus}>Đang tải khung giờ...</div>}
+							{!h.baseSlotsLoading && h.baseSlotsError && (
+								<div className={`${styles.slotStatus} ${styles.slotStatusError}`}>{h.baseSlotsError}</div>
+							)}
+
+							{!!h.scheduleDate && h.slotsLoading && (
+								<div className={styles.slotStatus}>Đang tải trạng thái chỗ trống...</div>
+							)}
+							{!!h.scheduleDate && !h.slotsLoading && h.slotsError && (
+								<div className={`${styles.slotStatus} ${styles.slotStatusError}`}>{h.slotsError}</div>
+							)}
+
+							<div className={styles.slotGrid}>
+								{h.displaySlots.map((slot) => {
+									const rawTime = slot?.startTime;
+									const displayTime = formatTimeHHmm(rawTime);
+									const remaining = Number(slot?.remainingCapacity);
+									const hasRemaining = Number.isFinite(remaining);
+									const capacity = Number(slot?.capacity);
+									const currentBookingCount = Number(slot?.currentBookingCount);
+									const hasCapacity = Number.isFinite(capacity) && capacity > 0;
+									const hasCurrentCount = Number.isFinite(currentBookingCount) && currentBookingCount >= 0;
+
+									const hasCapacityInfo = !!h.scheduleDate && !h.slotsError && !h.slotsLoading;
+									const isDisabled = hasCapacityInfo ? slot?.isActive === false : false;
+									const blockPicking = !h.scheduleDate || h.slotsLoading || !!h.slotsError;
+									const isActiveSlot = h.timeKey(h.scheduleTime) === h.timeKey(rawTime);
+
+									let capacityText = '';
+									if (hasCapacityInfo) {
+										if (hasCapacity && hasCurrentCount) capacityText = ` · ${currentBookingCount}/${capacity}`;
+										else if (hasRemaining) capacityText = ` · Còn ${remaining}`;
+									}
+
+									return (
+										<button
+											key={slot?.slotId ?? h.timeKey(rawTime) ?? rawTime}
+											type="button"
+											className={`${styles.slotBtn} ${isActiveSlot ? styles.slotBtnActive : ''} ${
+												isDisabled ? styles.slotBtnDisabled : ''
+											}`}
+											onClick={() => !isDisabled && !blockPicking && h.handlePickSlot(rawTime)}
+											disabled={blockPicking || isDisabled}
+										>
+											<div className={styles.slotTimeText}>{displayTime}</div>
+											<div className={styles.slotMetaText}>
+												{h.normalizePeriodLabel(slot?.period)}
+												{capacityText}
+											</div>
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					</section>
+				)}
 
 				{/* ===== Bảng báo giá ===== */}
 				<AdvisorItemsTable
@@ -364,11 +472,17 @@ export default function PartsSales() {
 					<button
 						type="button"
 						className={`${bookingStyles.btn} ${bookingStyles.primary}`}
-						onClick={h.handlePayment}
-						disabled={!h.customer?.customerId || !hasItems || h.paying || h.cancelling}
+						onClick={h.isScheduling ? h.handleCreateBooking : h.handlePayment}
+						disabled={
+							!h.customer?.customerId ||
+							!hasItems ||
+							h.paying ||
+							h.cancelling ||
+							(h.isScheduling && (!h.scheduleDate || !h.scheduleTime))
+						}
 						aria-busy={h.paying}
 					>
-						{h.paying ? 'Đang xử lý...' : 'Thanh toán'}
+						{h.paying ? 'Đang xử lý...' : h.isScheduling ? 'Đặt lịch hẹn' : 'Thanh toán'}
 					</button>
 				</div>
 			</div>

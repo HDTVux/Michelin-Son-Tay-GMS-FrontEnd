@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from '../BookingRequestManagement/BookingRequestManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchManagedBookingsPaged } from '../../../services/bookingService.js';
+import { createPartsSale } from '../../../services/serviceTicketService.js';
 import { combineDateTime, formatDateTimeVi, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi, getBookingStatusTone, normalizeStatusCode } from '../../../components/statusUtils.js';
 
@@ -152,12 +153,48 @@ export default function ConfirmedBookingManagement() {
               }
               navigate(`/booking-management/${code}`, { state });
             }}
-            onCheckIn={(booking) => {
+            onCheckIn={async (booking) => {
               const code = String(booking?.bookingCode ?? '').trim();
               if (!code) {
-                setError('Booking này chưa có mã bookingCode nên không thể check-in.');
+                setError('Booking này chưa có mã bookingCode nên không thể xử lý.');
                 return;
               }
+
+              if (booking?.isPartsSale === true) {
+                const customerId = booking?.customer?.customerId ?? booking?.customerId ?? null;
+                const estimateId = booking?.estimateId ?? null;
+                if (!customerId) {
+                  setError('Không tìm thấy thông tin khách hàng để thanh toán bán linh kiện.');
+                  return;
+                }
+                if (!estimateId) {
+                  setError('Không tìm thấy báo giá đi kèm lịch hẹn bán linh kiện.');
+                  return;
+                }
+                const confirmed = window.confirm('Xác nhận tiếp nhận và xuất hóa đơn thanh toán cho lịch hẹn bán linh kiện này?');
+                if (!confirmed) return;
+
+                const token = localStorage.getItem('staffToken') || localStorage.getItem('authToken');
+                if (!token) {
+                  setError('Vui lòng đăng nhập.');
+                  return;
+                }
+
+                try {
+                  setError('');
+                  const res = await createPartsSale({ customerId, estimateId, bookingId: booking?.bookingId, note: booking?.description }, token);
+                  const data = res?.data ?? res;
+                  const serviceTicketId = data?.serviceTicketId ?? data?.id ?? null;
+                  const ticketCode = data?.ticketCode ?? code;
+                  navigate(`/service-ticket/${encodeURIComponent(ticketCode)}/receipt-payment-method`, {
+                    state: { serviceTicketId }
+                  });
+                } catch (err) {
+                  setError(err?.message || 'Có lỗi xảy ra khi tạo hóa đơn bán linh kiện.');
+                }
+                return;
+              }
+
               navigate('/check-in', {
                 state: {
                   bookingCode: code,
@@ -314,11 +351,11 @@ function BookingPanel({
                     <div className={styles.pagination}>
                       {canCheckIn ? (
                         <button
-                          className={`${styles['primary-button']} ${styles['is-ghost']}`}
+                          className={`${styles['primary-button']} ${item?.isPartsSale === true ? '' : styles['is-ghost']}`}
                           disabled={!bookingCode}
                           onClick={() => onCheckIn?.(item)}
                         >
-                          Check-in
+                          {item?.isPartsSale === true ? 'Thanh toán' : 'Check-in'}
                         </button>
                       ) : null}
                       <button

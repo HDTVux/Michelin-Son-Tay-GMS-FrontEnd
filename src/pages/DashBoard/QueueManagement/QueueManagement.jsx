@@ -5,6 +5,7 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { buildDateOptions, formatDateTimeViNoSeconds, formatLocalDateYYYYMMDD, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { getBookingStatusTextVi, normalizeStatusCode } from '../../../components/statusUtils.js';
 import { fetchAllSlots, fetchManagedBookingsPaged, fetchQueueBySlot, swapQueueBookings } from '../../../services/bookingService.js';
+import { createPartsSale } from '../../../services/serviceTicketService.js';
 import styles from './QueueManagement.module.css';
 
 const timeKey = (t) => formatTimeHHmm(t || '');
@@ -533,7 +534,7 @@ export default function QueueManagement() {
 		navigate(`/booking-management/${encodeURIComponent(String(targetId))}`);
 	}, [navigate, notify]);
 
-	const handleCheckIn = (item) => {
+	const handleCheckIn = async (item) => {
 		if (!isQueueBookingToday(item, todayISO)) {
 			notify('Chỉ có thể check-in booking có lịch hẹn trong ngày hôm nay.');
 			return;
@@ -543,6 +544,41 @@ export default function QueueManagement() {
 		const bookingCode = item?.bookingCode ?? '';
 		const customerPhone = item?.customer?.phone || item?.phone || '-';
 		const appointmentAt = item?.appointmentAt || ((item?.scheduledDate && item?.scheduledTime) ? `${String(item.scheduledDate).trim()}T${String(item.scheduledTime).trim()}` : null);
+
+		if (item?.isPartsSale === true) {
+			const customerId = item?.customer?.customerId ?? item?.customerId ?? null;
+			const estimateId = item?.estimateId ?? null;
+			if (!customerId) {
+				notify('Không tìm thấy thông tin khách hàng để check-in bán linh kiện.');
+				return;
+			}
+			if (!estimateId) {
+				notify('Không tìm thấy báo giá đi kèm lịch hẹn bán linh kiện.');
+				return;
+			}
+			const confirmed = window.confirm('Xác nhận tiếp nhận và xuất hóa đơn thanh toán cho lịch hẹn bán linh kiện này?');
+			if (!confirmed) return;
+
+			const token = localStorage.getItem('authToken');
+			if (!token) {
+				notify('Vui lòng đăng nhập.');
+				return;
+			}
+
+			try {
+				const res = await createPartsSale({ customerId, estimateId, bookingId, note: item?.description }, token);
+				notify(res?.message || 'Đã tiếp nhận bán linh kiện thành công.');
+				const data = res?.data ?? res;
+				const serviceTicketId = data?.serviceTicketId ?? data?.id ?? null;
+				const ticketCode = data?.ticketCode ?? bookingCode;
+				navigate(`/service-ticket/${encodeURIComponent(ticketCode)}/receipt-payment-method`, {
+					state: { serviceTicketId }
+				});
+			} catch (err) {
+				notify(err?.message || 'Có lỗi xảy ra khi tiếp nhận bán linh kiện.');
+			}
+			return;
+		}
 
 		navigate('/check-in', {
 			state: {

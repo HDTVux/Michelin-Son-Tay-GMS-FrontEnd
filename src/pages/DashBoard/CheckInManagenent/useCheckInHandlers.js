@@ -496,8 +496,15 @@ export function useCheckInHandlers({
             const response = await completeAllCheckInMultipart(payload, photoFiles, token);
             const data = response?.data?.data ?? response?.data ?? response;
             const ticketCode = data?.ticketCode || '';
+            const serviceTicketId = data?.serviceTicketId || null;
             notify(ticketCode ? `Tạo phiếu thành công: ${ticketCode}` : 'Tạo phiếu thành công');
-            navigate('/service-ticket-management');
+            if (ticketCode && serviceTicketId) {
+                navigate(`/service-ticket/${encodeURIComponent(ticketCode)}/receipt-payment-method`, {
+                    state: { serviceTicketId },
+                });
+            } else {
+                navigate('/service-ticket-management');
+            }
         } catch (err) {
             notify(err?.message || 'Tạo phiếu thất bại, vui lòng thử lại.');
         } finally {

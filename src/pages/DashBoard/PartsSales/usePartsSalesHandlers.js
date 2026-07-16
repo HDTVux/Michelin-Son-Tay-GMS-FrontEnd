@@ -11,6 +11,26 @@ import {
 } from '../../../services/serviceTicketService.js';
 import { fetchAvailablePromotions, fetchPromotionByCode } from '../../../services/promotionService.js';
 import { fetchFallbackPricingConfigs } from '../../../services/warehouseService.js';
+import { fetchAllSlots, fetchAvailableSlotStaff, staffCreateBooking } from '../../../services/bookingService.js';
+import { sendEstimateNotificationZalo } from '../../../services/zaloService.js';
+import {
+	buildDateOptions,
+	formatTimeHHmm,
+	isPastSlot,
+	normalizeBackendTime,
+} from '../../../components/timeUtils.js';
+
+// Chuẩn hóa nhãn các buổi trong ngày (Sáng, Chiều, Tối) từ dữ liệu Backend
+const normalizePeriodLabel = (raw) => {
+	if (!raw) return '';
+	const v = String(raw).trim().toLowerCase();
+	if (v === 'morning' || v === 'am' || v === 'sang' || v === 'sáng') return 'Sáng';
+	if (v === 'afternoon' || v === 'pm' || v === 'chieu' || v === 'chiều') return 'Chiều';
+	if (v === 'evening' || v === 'night' || v === 'toi' || v === 'tối') return 'Tối';
+	return raw;
+};
+
+const timeKey = (t) => formatTimeHHmm(t || '');
 
 export const PARTS_SALES_ESTIMATE_STORAGE_KEY = 'parts-sales:draft-estimate';
 
@@ -90,6 +110,112 @@ export function usePartsSalesHandlers({ navigate }) {
 	const [paying, setPaying] = useState(false);
 	const [payError, setPayError] = useState('');
 	const payInFlightRef = useRef(false);
+
+	// ===== Đặt lịch hẹn =====
+	const [isScheduling, setIsScheduling] = useState(false);
+	const [scheduleDate, setScheduleDate] = useState('');
+	const [scheduleTime, setScheduleTime] = useState('');
+	const [baseSlots, setBaseSlots] = useState([]);
+	const [baseSlotsLoading, setBaseSlotsLoading] = useState(false);
+	const [baseSlotsError, setBaseSlotsError] = useState('');
+	const [availableSlots, setAvailableSlots] = useState([]);
+	const [slotsLoading, setSlotsLoading] = useState(false);
+	const [slotsError, setSlotsError] = useState('');
+
+	const dateOptions = useMemo(() => buildDateOptions(10), []);
+
+	// Fetch base slots when scheduling is enabled
+	useEffect(() => {
+		if (!isScheduling) return;
+		const token = getToken();
+		if (!token) {
+			setBaseSlotsError('Vui lòng đăng nhập để xem khung giờ.');
+			return;
+		}
+
+		let active = true;
+		setBaseSlotsLoading(true);
+		setBaseSlotsError('');
+
+		fetchAllSlots(token)
+			.then((res) => {
+				if (!active) return;
+				const list = Array.isArray(res?.data) ? res.data : [];
+				const filtered = list.filter((s) => s && (s.isActive ?? true));
+				filtered.sort((a, b) => timeKey(a?.startTime).localeCompare(timeKey(b?.startTime)));
+				setBaseSlots(filtered);
+			})
+			.catch((err) => {
+				if (!active) return;
+				setBaseSlotsError(err?.message || 'Không thể tải khung giờ.');
+				setBaseSlots([]);
+			})
+			.finally(() => {
+				if (active) setBaseSlotsLoading(false);
+			});
+
+		return () => {
+			active = false;
+		};
+	}, [isScheduling]);
+
+	// Fetch available slot capacities when date changes
+	useEffect(() => {
+		if (!isScheduling) return;
+		const token = getToken();
+		if (!scheduleDate) {
+			setAvailableSlots([]);
+			setSlotsError('');
+			setSlotsLoading(false);
+			return;
+		}
+
+		if (!token) {
+			setAvailableSlots([]);
+			setSlotsError('Vui lòng đăng nhập để xem trạng thái chỗ trống.');
+			setSlotsLoading(false);
+			return;
+		}
+
+		let active = true;
+		setSlotsLoading(true);
+		setSlotsError('');
+
+		fetchAvailableSlotStaff(scheduleDate, token, 60)
+			.then((res) => {
+				if (!active) return;
+				const list = Array.isArray(res?.data?.slots) ? res.data.slots : [];
+				setAvailableSlots(list);
+			})
+			.catch((err) => {
+				if (!active) return;
+				setSlotsError(err?.message || 'Không thể tải trạng thái chỗ trống.');
+				setAvailableSlots([]);
+			})
+			.finally(() => {
+				if (active) setSlotsLoading(false);
+			});
+
+		return () => {
+			active = false;
+		};
+	}, [isScheduling, scheduleDate]);
+
+	const displaySlots = useMemo(() => {
+		if (!scheduleDate) return baseSlots;
+		const slots = !slotsLoading && !slotsError ? availableSlots : baseSlots;
+		return slots.filter((s) => !isPastSlot(scheduleDate, s?.startTime));
+	}, [availableSlots, baseSlots, scheduleDate, slotsError, slotsLoading]);
+
+	const handlePickSlot = useCallback(
+		(rawTime) => {
+			if (!scheduleDate) return;
+			if (slotsLoading || slotsError) return;
+			const hhmm = formatTimeHHmm(rawTime);
+			setScheduleTime(hhmm);
+		},
+		[scheduleDate, slotsError, slotsLoading],
+	);
 
 	// ===== Cấu hình Markup toàn phiếu (fallback pricing) cho AdvisorItemsTable =====
 	const [fallbackConfigs, setFallbackConfigs] = useState([]);
@@ -365,6 +491,12 @@ export function usePartsSalesHandlers({ navigate }) {
 		setSelectedPromotionId('');
 		setPromoError('');
 		setPayError('');
+		setIsScheduling(false);
+		setScheduleDate('');
+		setScheduleTime('');
+		setAvailableSlots([]);
+		setSlotsError('');
+		setSlotsLoading(false);
 		try {
 			localStorage.removeItem(PARTS_SALES_ESTIMATE_STORAGE_KEY);
 		} catch {
@@ -461,6 +593,98 @@ export function usePartsSalesHandlers({ navigate }) {
 		}
 	}, [customer, estimateId, navigate, note, paying]);
 
+	// ===== Hẹn lịch =====
+	const handleCreateBooking = useCallback(async () => {
+		if (payInFlightRef.current || paying) return;
+		setPayError('');
+
+		if (!customer?.customerId) {
+			notify('Vui lòng chọn khách hàng (khách phải có trong hệ thống) trước khi hẹn lịch.');
+			return;
+		}
+		if (!estimateId) {
+			notify('Vui lòng bấm "Lưu báo giá" trong bảng báo giá trước khi hẹn lịch.');
+			return;
+		}
+		if (!scheduleDate || !scheduleTime) {
+			notify('Vui lòng chọn ngày và khung giờ hẹn.');
+			return;
+		}
+
+		const token = getToken();
+		if (!token) {
+			notify('Vui lòng đăng nhập để hẹn lịch.');
+			return;
+		}
+
+		payInFlightRef.current = true;
+		setPaying(true);
+
+		try {
+			const payload = {
+				appointmentDate: scheduleDate,
+				appointmentTime: normalizeBackendTime(scheduleTime),
+				userNote: note,
+				fullName: customer.fullName || '',
+				phone: customer.phone || phone,
+				estimateId,
+				isPartsSale: true,
+			};
+
+			const res = await staffCreateBooking(payload);
+			const data = res?.data;
+			const bookingCode = String(data?.bookingCode ?? data?.code ?? '').trim();
+			const msg = bookingCode ? `Hẹn lịch thành công. Mã: ${bookingCode}` : 'Hẹn lịch thành công.';
+
+			try {
+				localStorage.removeItem(PARTS_SALES_ESTIMATE_STORAGE_KEY);
+			} catch {
+				// ignore storage failures
+			}
+
+			notify(msg);
+
+			// Gửi thông báo Zalo giống CreateBooking
+			const productNames = (Array.isArray(selectedEstimate?.items) ? selectedEstimate.items : [])
+				.filter(item => item && !item.isRemoved)
+				.map(item => String(item?.productName ?? item?.serviceName ?? item?.name ?? '').trim())
+				.filter(name => name.length > 0);
+
+			const totalPrice = (Array.isArray(selectedEstimate?.items) ? selectedEstimate.items : [])
+				.filter(item => item && !item.isRemoved)
+				.reduce((sum, item) => {
+					const unitPrice = Number(item?.unitPrice ?? item?.price ?? 0);
+					const quantity = Number(item?.quantity ?? 1);
+					const itemPrice = Number.isFinite(unitPrice) && Number.isFinite(quantity) ? unitPrice * quantity : 0;
+					return sum + itemPrice;
+				}, 0);
+
+			const zaloPayload = {
+				number: String(customer.phone || phone).trim(),
+				customerName: String(customer.fullName).trim(),
+				productName: productNames.length > 0 ? productNames : ['Dịch vụ bảo trì'],
+				orderCode: bookingCode || 'BOOKING',
+				garageLocation: 'Michelin Sơn Tây',
+				totalPrice: String(totalPrice),
+			};
+
+			try {
+				await sendEstimateNotificationZalo(zaloPayload, token);
+			} catch (zaloErr) {
+				console.warn('Gửi thông báo Zalo thất bại:', zaloErr?.message);
+			}
+
+			// Sau khi tạo lịch thành công, điều hướng về quản lý lịch hẹn
+			navigate('/booking-management');
+		} catch (err) {
+			setPayError(err?.message || 'Không thể tạo lịch hẹn.');
+			notify(err?.message || 'Không thể tạo lịch hẹn.');
+		} finally {
+			payInFlightRef.current = false;
+			setPaying(false);
+		}
+	}, [customer, estimateId, scheduleDate, scheduleTime, note, phone, selectedEstimate, navigate]);
+
 	return {
 		// customer
 		phone,
@@ -513,5 +737,22 @@ export function usePartsSalesHandlers({ navigate }) {
 		handlePayment,
 		paying,
 		payError,
+		// scheduling
+		isScheduling,
+		setIsScheduling,
+		scheduleDate,
+		setScheduleDate,
+		scheduleTime,
+		setScheduleTime,
+		baseSlotsLoading,
+		baseSlotsError,
+		slotsLoading,
+		slotsError,
+		displaySlots,
+		handlePickSlot,
+		timeKey,
+		normalizePeriodLabel,
+		dateOptions,
+		handleCreateBooking,
 	};
 }
