@@ -50,20 +50,23 @@
 .staff-header__nav {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
 }
 
 .staff-header__nav-item {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 12px;
   border-radius: 10px;
   color: #64748b; /* Text Muted */
   text-decoration: none;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 700;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
 }
 
 .staff-header__nav-item svg {

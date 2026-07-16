@@ -1844,7 +1844,7 @@ export default function AdvisorItemsTable({
 
             {shouldShowTable ? (
                 <>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div className={styles.markupContainer}>
                         <span style={{ fontWeight: '500', fontSize: '14px', color: '#334155' }}>Áp dụng Markup toàn phiếu:</span>
                         {showInputs && !isReadOnly && !isTicketPaid ? (
                             <select

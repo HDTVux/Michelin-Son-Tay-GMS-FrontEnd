@@ -152,7 +152,7 @@ const NAV_GROUPS = [
                     { id: 'booking-management', label: 'Quản lý lịch hẹn', path: '/booking-management', icon: <Calendar size={18} />, roles: [STAFF_ROLE.RECEPTIONIST] },
                     { id: 'booking-request-management', label: 'Yêu cầu đặt lịch', path: '/booking-request-management', icon: <Clock size={18} />, roles: [STAFF_ROLE.RECEPTIONIST] },
                     { id: 'queue-management', label: 'Quản lý hàng chờ đặt lịch', path: '/queue-management', icon: <FileClock size={18} />, roles: [STAFF_ROLE.RECEPTIONIST] },
-                    { id: 'parts-sales', label: 'Bán linh kiện', path: '/parts-sales', icon: <ShoppingCart size={18} />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.ADVISOR, STAFF_ROLE.ACCOUNTANT, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                    { id: 'parts-sales', label: 'Bán hàng', path: '/parts-sales', icon: <ShoppingCart size={18} />, roles: [STAFF_ROLE.RECEPTIONIST] },
                 ]
             },
             {

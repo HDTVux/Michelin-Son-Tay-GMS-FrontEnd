@@ -453,7 +453,7 @@ export default function App() {
               <Route path="shift-management" element={staffRoute(<ShiftManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="queue-management" element={staffRoute(<QueueManagement />, ROLE_GROUP.RECEPTIONIST)} />
               <Route path="create-booking" element={staffRoute(<CreatBooking />, ROLE_GROUP.RECEPTIONIST)} />
-              <Route path="parts-sales" element={staffRoute(<PartsSales />, ROLE_GROUP.SERVICE_TICKET)} />
+              <Route path="parts-sales" element={staffRoute(<PartsSales />, ROLE_GROUP.RECEPTIONIST)} />
               <Route path="customer-manager" element={staffRoute(<CustomerManager />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
               <Route path="staff-manager" element={staffRoute(<StaffManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="employee-manager" element={staffRoute(<EmployeeManager />, ROLE_GROUP.MANAGER_OR_ADMIN)} />

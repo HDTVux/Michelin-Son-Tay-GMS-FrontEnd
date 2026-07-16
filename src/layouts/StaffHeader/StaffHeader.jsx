@@ -24,7 +24,8 @@ import {
   Upload,
   Undo,
   Layers,
-  X
+  X,
+  ShoppingCart
 } from 'lucide-react';
 import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
 import './StaffHeader.css';
@@ -43,7 +44,7 @@ const SEARCHABLE_FUNCTIONS = [
   { id: 'system-tutorials', label: 'Hướng dẫn sử dụng', path: '/system-tutorials', roles: 'ALL' },
   { id: 'customer-manager', label: 'Danh bạ khách hàng', path: '/customer-manager', roles: ['RECEPTIONIST', 'ADMIN'] },
   { id: 'create-booking', label: 'Tạo lịch giữ chỗ', path: '/create-booking', roles: ['RECEPTIONIST'] },
-  { id: 'parts-sales', label: 'Bán linh kiện', path: '/parts-sales', roles: ['RECEPTIONIST', 'ADVISOR', 'ACCOUNTANT', 'MANAGER', 'ADMIN'] },
+  { id: 'parts-sales', label: 'Bán hàng', path: '/parts-sales', roles: ['RECEPTIONIST'] },
   { id: 'booking-management', label: 'Quản lý lịch hẹn', path: '/booking-management', roles: ['RECEPTIONIST'] },
   { id: 'booking-request-management', label: 'Yêu cầu đặt lịch', path: '/booking-request-management', roles: ['RECEPTIONIST'] },
   { id: 'queue-management', label: 'Quản lý hàng chờ đặt lịch', path: '/queue-management', roles: ['RECEPTIONIST'] },
@@ -381,6 +382,12 @@ const getDynamicNavItems = (roles, isMobile = false) => {
       label: isMobile ? 'Tạo lịch' : 'Tạo Lịch hẹn',
       path: '/create-booking',
       icon: isMobile ? <CalendarPlus size={20} /> : <CalendarPlus size={18} />,
+    });
+    items.push({
+      id: 'parts-sales',
+      label: 'Bán hàng',
+      path: '/parts-sales',
+      icon: isMobile ? <ShoppingCart size={20} /> : <ShoppingCart size={18} />,
     });
   }
 

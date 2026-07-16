@@ -320,3 +320,17 @@
 	color: #6b7280;
 	font-size: 12px;
 }
+
+/* Responsive action buttons for parts sales page on mobile */
+@media (max-width: 768px) {
+	.actions {
+		display: flex !important;
+		flex-direction: column-reverse !important;
+		gap: 8px !important;
+		width: 100% !important;
+	}
+	.actions button {
+		width: 100% !important;
+		margin: 0 !important;
+	}
+}

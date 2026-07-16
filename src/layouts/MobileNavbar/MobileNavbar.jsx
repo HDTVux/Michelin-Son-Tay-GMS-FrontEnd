@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Box, CalendarPlus, FileText, Bell, Users, Settings, Clock, Briefcase, DollarSign, Wrench, Contact } from 'lucide-react';
+import { LayoutDashboard, Box, CalendarPlus, FileText, Bell, Users, Settings, Clock, Briefcase, DollarSign, Wrench, Contact, ShoppingCart } from 'lucide-react';
 import './MobileNavbar.css';
 
 const STAFF_ROLE = {
@@ -180,6 +180,12 @@ const getDynamicNavItems = (roles, isMobile = false) => {
       label: isMobile ? 'Tạo lịch' : 'Tạo Lịch hẹn',
       path: '/create-booking',
       icon: isMobile ? <CalendarPlus size={20} /> : <CalendarPlus size={18} />,
+    });
+    items.push({
+      id: 'parts-sales',
+      label: 'Bán hàng',
+      path: '/parts-sales',
+      icon: isMobile ? <ShoppingCart size={20} /> : <ShoppingCart size={18} />,
     });
   }
 
