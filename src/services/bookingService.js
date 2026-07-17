@@ -69,6 +69,7 @@ export const fetchBookingRequests = (params, token) => {
   searchParams.set('size', String(size));
 
   if (params?.date) searchParams.set('date', params.date);
+  if (params?.toDate) searchParams.set('toDate', params.toDate);
   if (typeof params?.isGuest === 'boolean') searchParams.set('isGuest', String(params.isGuest));
   if (params?.status) searchParams.set('status', params.status);
   if (params?.search) searchParams.set('search', params.search);

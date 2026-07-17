@@ -26,27 +26,27 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  min-height: 122px;
-  padding: 24px;
-  margin-bottom: 18px;
+  min-height: 80px;
+  padding: 14px 20px;
+  margin-bottom: 14px;
   border: 1px solid rgba(37, 99, 235, 0.15);
   border-radius: 8px;
   background:
     linear-gradient(120deg, #123b7a 0%, #2563eb 58%, #f7c948 130%);
   color: #fff;
-  box-shadow: 0 18px 44px rgba(20, 36, 64, 0.14);
+  box-shadow: 0 10px 28px rgba(20, 36, 64, 0.08);
 }
 
 .heroMain {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   min-width: 0;
 }
 
 .avatar {
-  width: 58px;
-  height: 58px;
+  width: 46px;
+  height: 46px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -72,34 +72,35 @@
 }
 
 .hero h1 {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
 }
 
 .heroText {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   max-width: 760px;
   color: rgba(255, 255, 255, 0.9);
-  line-height: 1.45;
+  line-height: 1.4;
+  font-size: 13px;
 }
 
 .roleChips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .roleChips span {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
+  min-height: 22px;
+  padding: 0 8px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
   color: #fff;
   background: rgba(255, 255, 255, 0.14);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -144,7 +145,8 @@
 
 .refreshButton {
   min-height: 38px;
-  padding: 0 14px;
+  width: 38px;
+  padding: 0;
   border-color: rgba(255, 255, 255, 0.35);
   color: #fff;
   background: rgba(255, 255, 255, 0.12);
@@ -391,6 +393,7 @@
 .statCard {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
   gap: 14px;
   min-height: 118px;
   padding: 18px;
@@ -439,7 +442,7 @@
 /* Flexible Widgets Container */
 .widgetsContainer {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
   margin-bottom: 18px;
 }
@@ -791,9 +794,18 @@
 .piedanger { background: var(--red); }
 
 .tableWrap {
+  max-height: 280px;
+  overflow-y: auto;
   overflow-x: auto;
   border: 1px solid #e6edf5;
   border-radius: 8px;
+}
+
+.tableWrap th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f8fafc;
 }
 
 .table {
@@ -1010,7 +1022,10 @@
     grid-template-columns: 1fr;
   }
   .widgetFullWidth,
-  .widgetHalfWidth {
+  .widgetHalfWidth,
+  .widgetSmall,
+  .widgetMedium,
+  .widgetLarge {
     grid-column: span 1 / span 1;
   }
 }
@@ -1072,4 +1087,132 @@
   .pieLegend {
     width: 100%;
   }
+}
+
+.activeBtn {
+  background: var(--blue) !important;
+  color: #fff !important;
+  border-color: var(--blue) !important;
+}
+
+.activeBtn:hover {
+  background: #2563eb !important;
+  color: #fff !important;
+  border-color: #2563eb !important;
+}
+
+.dashboardTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 4px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.tabBtn {
+  min-height: 32px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tabBtn:hover {
+  background: rgba(148, 163, 184, 0.15);
+  color: #334155;
+}
+
+.activeTab {
+  background: #fff !important;
+  color: var(--blue) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.createTabBtn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.15s ease-in-out;
+}
+
+.createTabBtn:hover {
+  background: rgba(148, 163, 184, 0.15);
+  color: #334155;
+}
+
+.notificationTableWrap {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid #e6edf5;
+  border-radius: 8px;
+}
+
+.notificationTableWrap th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f8fafc;
+}
+
+.timeFilterGroup {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.filterBtn {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.filterBtn:hover {
+  color: #334155;
+}
+
+.activeFilterBtn {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.widgetSmall {
+  grid-column: span 1 / span 1;
+}
+
+.widgetMedium {
+  grid-column: span 2 / span 2;
+}
+
+.widgetLarge {
+  grid-column: span 4 / span 4;
 }
