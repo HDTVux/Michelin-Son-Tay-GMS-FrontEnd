@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { getAvatarSrc, handleAvatarError } from '../../../assets/defaultAvatar.js';
@@ -505,16 +505,44 @@ export default function StaffDashboard() {
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const today = selectedDate;
-  const dateInputRef = useRef(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerMonth, setPickerMonth] = useState(new Date());
+  const datePickerRef = useRef(null);
 
   const handleChipClick = () => {
-    if (dateInputRef.current) {
-      try {
-        dateInputRef.current.showPicker();
-      } catch (e) {
-        dateInputRef.current.click();
+    setPickerMonth(selectedDate);
+    setShowDatePicker((prev) => !prev);
+  };
+
+  useEffect(() => {
+    if (!showDatePicker) return undefined;
+    const handleOutsideClick = (e) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target)) {
+        setShowDatePicker(false);
       }
-    }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showDatePicker]);
+
+  const pickerDays = useMemo(() => {
+    const year = pickerMonth.getFullYear();
+    const month = pickerMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const days = [];
+    for (let i = 0; i < firstDay.getDay(); i += 1) days.push(null);
+    for (let d = 1; d <= lastDay.getDate(); d += 1) days.push(new Date(year, month, d));
+    return days;
+  }, [pickerMonth]);
+
+  const goToPrevPickerMonth = () => setPickerMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  const goToNextPickerMonth = () => setPickerMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+
+  const handlePickerDayClick = (day) => {
+    if (!day) return;
+    setSelectedDate(day);
+    setShowDatePicker(false);
   };
   const currentMonth = selectedDate.getMonth() + 1;
   const currentYear = selectedDate.getFullYear();
@@ -558,9 +586,14 @@ export default function StaffDashboard() {
   const [activeConfigId, setActiveConfigId] = useState(null);
   const [widgetsList, setWidgetsList] = useState([]);
 
-  // Drag states
-  const [draggedWidgetIndex, setDraggedWidgetIndex] = useState(null);
-  const [touchWidgetIndex, setTouchWidgetIndex] = useState(null);
+  // Drag / resize states (pointer-based, FLIP-animated)
+  const [dragInfo, setDragInfo] = useState(null); // { id, x, y, offsetX, offsetY, width, height }
+  const [resizeInfo, setResizeInfo] = useState(null); // { id, startX, startWidth, currentWidth, colWidth, gap, minWidth, maxWidth }
+  const widgetRefs = useRef({});
+  const widgetsContainerRef = useRef(null);
+  const flipRectsRef = useRef({});
+  const resizeInfoRef = useRef(null);
+  const widgetsListRef = useRef([]);
 
   // Widget manager & Modals states
   const [showWidgetManager, setShowWidgetManager] = useState(false);
@@ -1159,22 +1192,6 @@ export default function StaffDashboard() {
   };
 
   // 4. Widget customizers
-  const toggleWidgetSize = (id) => {
-    setWidgetsList((prev) => {
-      const next = prev.map((w) => {
-        if (w.id === id) {
-          let nextSize = 'small';
-          if (w.size === 'small') nextSize = 'medium';
-          else if (w.size === 'medium') nextSize = 'large';
-          return { ...w, size: nextSize };
-        }
-        return w;
-      });
-      saveLayoutToDb(next);
-      return next;
-    });
-  };
-
   const toggleWidgetVisibility = (id) => {
     setWidgetsList((prev) => {
       const next = prev.map((w) =>
@@ -1185,87 +1202,230 @@ export default function StaffDashboard() {
     });
   };
 
-  // Drag & drop handlers
-  const handleWidgetDragStart = (e, index) => {
-    setDraggedWidgetIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleWidgetDragOver = (e, index) => {
-    e.preventDefault();
-    if (draggedWidgetIndex === null || draggedWidgetIndex === index) return;
-    setWidgetsList((prev) => {
-      const next = [...prev];
-      const temp = next[draggedWidgetIndex];
-      next[draggedWidgetIndex] = next[index];
-      next[index] = temp;
-      return next;
-    });
-    setDraggedWidgetIndex(index);
-  };
-
-  const handleWidgetDragEnd = () => {
-    setDraggedWidgetIndex(null);
-    saveLayoutToDb();
-  };
-
-  // Mobile Touch drag & drop handlers with non-passive options to prevent scroll/highlight
+  // Keep a ref mirror of widgetsList so pointer handlers (created once per drag/resize
+  // session) always read the latest value instead of a stale closure.
   useEffect(() => {
-    const dragHandles = document.querySelectorAll(`.${styles.dragGripHeader}`);
-    const cleanups = [];
+    widgetsListRef.current = widgetsList;
+  }, [widgetsList]);
 
-    dragHandles.forEach((el, index) => {
-      const handleStart = (e) => {
-        if (e.cancelable) e.preventDefault();
-        setTouchWidgetIndex(index);
-      };
+  // Snapshot every widget's current screen rect so the following layout change can be
+  // FLIP-animated (First-Last-Invert-Play) instead of jumping instantly.
+  const captureRectsForFlip = useCallback(() => {
+    const rects = {};
+    Object.entries(widgetRefs.current).forEach(([id, el]) => {
+      if (el) rects[id] = el.getBoundingClientRect();
+    });
+    flipRectsRef.current = rects;
+  }, []);
 
-      const handleMove = (e) => {
-        if (touchWidgetIndex === null) return;
-        if (e.cancelable) e.preventDefault();
+  // Animate any widget whose position changed since the last captured snapshot.
+  useLayoutEffect(() => {
+    const prevRects = flipRectsRef.current;
+    if (!prevRects || Object.keys(prevRects).length === 0) return;
 
-        const touch = e.touches[0];
-        const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (!targetEl) return;
-
-        const wrapper = targetEl.closest('[data-widget-wrapper="true"]');
-        if (!wrapper) return;
-
-        const targetIndex = Number(wrapper.getAttribute('data-index'));
-        if (Number.isNaN(targetIndex)) return;
-
-        if (targetIndex !== touchWidgetIndex) {
-          setWidgetsList((prev) => {
-            const next = [...prev];
-            const temp = next[touchWidgetIndex];
-            next[touchWidgetIndex] = next[targetIndex];
-            next[targetIndex] = temp;
-            return next;
-          });
-          setTouchWidgetIndex(targetIndex);
-        }
-      };
-
-      const handleEnd = () => {
-        setTouchWidgetIndex(null);
-        saveLayoutToDb();
-      };
-
-      el.addEventListener('touchstart', handleStart, { passive: false });
-      el.addEventListener('touchmove', handleMove, { passive: false });
-      el.addEventListener('touchend', handleEnd);
-
-      cleanups.push(() => {
-        el.removeEventListener('touchstart', handleStart);
-        el.removeEventListener('touchmove', handleMove);
-        el.removeEventListener('touchend', handleEnd);
-      });
+    Object.entries(widgetRefs.current).forEach(([id, el]) => {
+      if (!el) return;
+      if (dragInfo && String(id) === String(dragInfo.id)) return; // dragged item follows the pointer instead
+      const prevRect = prevRects[id];
+      if (!prevRect) return;
+      const newRect = el.getBoundingClientRect();
+      const dx = prevRect.left - newRect.left;
+      const dy = prevRect.top - newRect.top;
+      if (dx || dy) {
+        el.style.transition = 'none';
+        el.style.transform = `translate(${dx}px, ${dy}px)`;
+        // Force reflow before releasing the transform so the browser animates from it.
+        void el.offsetHeight;
+        el.style.transition = 'transform 220ms ease';
+        el.style.transform = '';
+      }
     });
 
-    return () => {
-      cleanups.forEach((cleanup) => cleanup());
+    flipRectsRef.current = {};
+  }, [widgetsList, dragInfo]);
+
+  // Grab-to-move: pointerdown on the grip lifts the widget so it follows the cursor;
+  // other widgets slide out of the way (FLIP) as the pointer crosses their bounds.
+  const handleGripPointerDown = (e, w) => {
+    if (!isEditMode) return;
+    e.preventDefault();
+    const el = widgetRefs.current[w.id];
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setDragInfo({
+      id: w.id,
+      x: e.clientX,
+      y: e.clientY,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+      width: rect.width,
+      height: rect.height,
+    });
+  };
+
+  useEffect(() => {
+    if (!dragInfo) return undefined;
+    const draggedId = dragInfo.id;
+    const pointerPos = { x: dragInfo.x, y: dragInfo.y };
+    let rafId = null;
+
+    const processFrame = () => {
+      rafId = null;
+      const { x, y } = pointerPos;
+      setDragInfo((prev) => (prev ? { ...prev, x, y } : prev));
+
+      // Find the widget whose center is closest to the pointer, then decide whether
+      // the dragged item should land before or after it (by which side of its
+      // horizontal center the pointer is on) — this makes every widget in the row
+      // evenly redistribute to open a slot, instead of only swapping on direct overlap.
+      let nearestId = null;
+      let nearestDist = Infinity;
+      let nearestRect = null;
+      Object.entries(widgetRefs.current).forEach(([id, el]) => {
+        if (!el || String(id) === String(draggedId)) return;
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const dist = Math.hypot(x - cx, y - cy);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearestId = id;
+          nearestRect = r;
+        }
+      });
+
+      if (nearestId) {
+        const current = widgetsListRef.current;
+        const fromIndex = current.findIndex((item) => String(item.id) === String(draggedId));
+        let toIndex = current.findIndex((item) => String(item.id) === String(nearestId));
+        if (fromIndex !== -1 && toIndex !== -1) {
+          const isAfter = x > nearestRect.left + nearestRect.width / 2;
+          if (isAfter) toIndex += 1;
+          if (fromIndex < toIndex) toIndex -= 1;
+          toIndex = Math.max(0, Math.min(toIndex, current.length - 1));
+
+          if (toIndex !== fromIndex) {
+            captureRectsForFlip();
+            const next = [...current];
+            const [moved] = next.splice(fromIndex, 1);
+            next.splice(toIndex, 0, moved);
+            setWidgetsList(next);
+          }
+        }
+      }
     };
-  }, [widgetsList, touchWidgetIndex, isEditMode]);
+
+    const handlePointerMove = (e) => {
+      pointerPos.x = e.clientX;
+      pointerPos.y = e.clientY;
+      if (rafId === null) {
+        rafId = requestAnimationFrame(processFrame);
+      }
+    };
+
+    const handlePointerUp = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      setDragInfo(null);
+      saveLayoutToDb(widgetsListRef.current);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [dragInfo?.id, captureRectsForFlip]);
+
+  const sizeBucketForWidth = (width, colWidth, gap) => {
+    const oneCol = colWidth;
+    const twoCol = colWidth * 2 + gap;
+    const fourCol = colWidth * 4 + gap * 3;
+    if (width >= (twoCol + fourCol) / 2) return 'large';
+    if (width >= (oneCol + twoCol) / 2) return 'medium';
+    return 'small';
+  };
+
+  // Corner resize handle: while dragging, the widget grows/shrinks pixel-by-pixel
+  // as a floating preview (no layout change yet); the size only snaps to one of the
+  // 3 supported configs (Nhỏ / Vừa / Lớn) once the pointer is released.
+  const handleResizeHandlePointerDown = (e, w) => {
+    if (!isEditMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const el = widgetRefs.current[w.id];
+    if (!el || !widgetsContainerRef.current) return;
+    const containerRect = widgetsContainerRef.current.getBoundingClientRect();
+    const computed = getComputedStyle(widgetsContainerRef.current);
+    const gap = parseFloat(computed.columnGap || computed.gap || '18') || 18;
+    const colWidth = (containerRect.width - gap * 3) / 4;
+    const startWidth = el.getBoundingClientRect().width;
+    setResizeInfo({
+      id: w.id,
+      startX: e.clientX,
+      startWidth,
+      currentWidth: startWidth,
+      colWidth,
+      gap,
+      minWidth: colWidth * 0.55,
+      maxWidth: containerRect.width,
+    });
+  };
+
+  useEffect(() => {
+    resizeInfoRef.current = resizeInfo;
+  }, [resizeInfo]);
+
+  useEffect(() => {
+    if (!resizeInfo) return undefined;
+    let rafId = null;
+    let latestX = resizeInfo.startX;
+
+    const processFrame = () => {
+      rafId = null;
+      setResizeInfo((prev) => {
+        if (!prev) return prev;
+        const dx = latestX - prev.startX;
+        const currentWidth = Math.min(prev.maxWidth, Math.max(prev.minWidth, prev.startWidth + dx));
+        return { ...prev, currentWidth };
+      });
+    };
+
+    const handlePointerMove = (e) => {
+      latestX = e.clientX;
+      if (rafId === null) {
+        rafId = requestAnimationFrame(processFrame);
+      }
+    };
+
+    const handlePointerUp = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      const info = resizeInfoRef.current;
+      setResizeInfo(null);
+      if (!info) return;
+
+      const nextSize = sizeBucketForWidth(info.currentWidth, info.colWidth, info.gap);
+      const current = widgetsListRef.current;
+      const widget = current.find((x) => x.id === info.id);
+      if (widget && widget.size !== nextSize) {
+        captureRectsForFlip();
+        const next = current.map((x) => (x.id === info.id ? { ...x, size: nextSize } : x));
+        setWidgetsList(next);
+        saveLayoutToDb(next);
+      } else {
+        saveLayoutToDb(current);
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [resizeInfo?.id, captureRectsForFlip]);
 
   const renderWidgetContent = (w) => {
     if (w.type === 'stat') {
@@ -1828,33 +1988,60 @@ export default function StaffDashboard() {
           </div>
         </div>
         <div className={styles.heroAside}>
-          <div className={styles.todayChip} onClick={handleChipClick} style={{ cursor: 'pointer' }} title="Chọn ngày hiển thị">
-            <Icon name="calendar" />
-            <span style={{ marginLeft: 6 }}>
-              {today.toLocaleDateString('vi-VN', {
-                weekday: 'long',
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })}
-            </span>
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={toIsoDate(today)}
-              onChange={(e) => {
-                if (e.target.value) {
-                  setSelectedDate(new Date(e.target.value));
-                }
-              }}
-              style={{
-                position: 'absolute',
-                width: 0,
-                height: 0,
-                opacity: 0,
-                pointerEvents: 'none'
-              }}
-            />
+          <div className={styles.datePickerWrap} ref={datePickerRef}>
+            <div className={styles.todayChip} onClick={handleChipClick} style={{ cursor: 'pointer' }} title="Chọn ngày hiển thị">
+              <Icon name="calendar" />
+              <span style={{ marginLeft: 6 }}>
+                {today.toLocaleDateString('vi-VN', {
+                  weekday: 'long',
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+            {showDatePicker && (
+              <div className={styles.miniCalendarPopup}>
+                <div className={styles.miniCalendarHeader}>
+                  <button type="button" className={styles.miniCalendarNavBtn} onClick={goToPrevPickerMonth}>‹</button>
+                  <button
+                    type="button"
+                    className={styles.miniCalendarMonthBtn}
+                    onClick={() => setPickerMonth(new Date())}
+                  >
+                    {pickerMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+                  </button>
+                  <button type="button" className={styles.miniCalendarNavBtn} onClick={goToNextPickerMonth}>›</button>
+                </div>
+                <div className={styles.miniCalendarWeekDays}>
+                  {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((d) => (
+                    <span key={d}>{d}</span>
+                  ))}
+                </div>
+                <div className={styles.miniCalendarGrid}>
+                  {pickerDays.map((day, index) => {
+                    const isSelected = day && day.toDateString() === selectedDate.toDateString();
+                    const isToday = day && day.toDateString() === new Date().toDateString();
+                    return (
+                      <button
+                        type="button"
+                        key={day ? day.toISOString() : `empty-${index}`}
+                        className={[
+                          styles.miniCalendarDay,
+                          !day ? styles.miniCalendarDayEmpty : '',
+                          isSelected ? styles.miniCalendarDaySelected : '',
+                          isToday && !isSelected ? styles.miniCalendarDayToday : '',
+                        ].filter(Boolean).join(' ')}
+                        disabled={!day}
+                        onClick={() => handlePickerDayClick(day)}
+                      >
+                        {day ? day.getDate() : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <button type="button" className={styles.refreshButton} onClick={loadDashboard} title="Tải lại dữ liệu">
             <Icon name="refresh" />
@@ -2013,44 +2200,70 @@ export default function StaffDashboard() {
       )}
 
       {/* 3. DRAGGABLE WIDGETS FLEX/GRID CONTAINER */}
-      <section className={styles.widgetsContainer} aria-label="Bố cục Widgets" style={{ marginTop: 16 }}>
+      <section
+        className={styles.widgetsContainer}
+        aria-label="Bố cục Widgets"
+        style={{ marginTop: 16 }}
+        ref={widgetsContainerRef}
+      >
         {widgetsList
           .filter((w) => w.visible)
-          .map((w, index) => {
+          .map((w) => {
             const sizeClass = w.size === 'large' ? styles.widgetLarge : (w.size === 'medium' ? styles.widgetMedium : styles.widgetSmall);
-            const isDragging = draggedWidgetIndex === index || touchWidgetIndex === index;
-            const itemClass = `${styles.panelWrapper} ${sizeClass} ${isDragging ? styles.isDragging : ''}`;
+            const isDraggingThis = dragInfo?.id === w.id;
+            const isResizingThis = resizeInfo?.id === w.id;
+            const itemClass = `${styles.panelWrapper} ${sizeClass} ${isDraggingThis ? styles.isDragging : ''} ${isResizingThis ? styles.isResizing : ''}`;
+
+            const ghostStyle = isDraggingThis
+              ? {
+                  position: 'fixed',
+                  left: dragInfo.x - dragInfo.offsetX,
+                  top: dragInfo.y - dragInfo.offsetY,
+                  width: dragInfo.width,
+                  height: dragInfo.height,
+                  zIndex: 999,
+                  pointerEvents: 'none',
+                  boxShadow: '0 20px 45px rgba(20, 36, 64, 0.28)',
+                  transform: 'rotate(1deg) scale(1.02)',
+                }
+              : isResizingThis
+              ? { overflow: 'visible', zIndex: 30 }
+              : undefined;
 
             return (
+              <Fragment key={w.id}>
+              {/* In-flow drop slot: the dragged widget itself is position:fixed (out of the
+                  grid flow), so this placeholder is what pushes the other widgets aside and
+                  marks where the widget will land on release. */}
+              {isDraggingThis && (
+                <div
+                  className={`${styles.dropPlaceholder} ${sizeClass}`}
+                  style={{ height: dragInfo.height }}
+                />
+              )}
               <div
-                key={w.id}
+                ref={(el) => {
+                  if (el) widgetRefs.current[w.id] = el;
+                  else delete widgetRefs.current[w.id];
+                }}
                 data-widget-wrapper="true"
-                data-index={index}
-                draggable={isEditMode}
-                onDragOver={(e) => handleWidgetDragOver(e, index)}
-                onDragEnd={handleWidgetDragEnd}
                 className={itemClass}
+                style={ghostStyle}
               >
                 {/* Header/Controls (Only visible in Edit Mode, or shown for panel headers/grips) */}
                 {isEditMode ? (
                   <div className={styles.panelHeaderBar}>
                     <div
                       className={styles.dragGripHeader}
-                      draggable
-                      onDragStart={(e) => handleWidgetDragStart(e, index)}
-                      style={{ cursor: 'grab', userSelect: 'none' }}
+                      onPointerDown={(e) => handleGripPointerDown(e, w)}
+                      style={{ cursor: isDraggingThis ? 'grabbing' : 'grab', userSelect: 'none' }}
                     >
-                      ⠿ Kéo để di chuyển ({w.label || w.title})
+                      ⠿ Kéo để di chuyển
                     </div>
                     <div className={styles.panelControls}>
-                      <button
-                        type="button"
-                        className={styles.controlBtn}
-                        onClick={() => toggleWidgetSize(w.id)}
-                        title="Thay đổi kích thước (Nhỏ / Vừa / Lớn)"
-                      >
-                        ⛶ {w.size === 'small' ? 'Nhỏ' : (w.size === 'medium' ? 'Vừa' : 'Lớn')}
-                      </button>
+                      <span className={styles.sizeLabel}>
+                        {w.size === 'small' ? 'Nhỏ' : (w.size === 'medium' ? 'Vừa' : 'Lớn')}
+                      </span>
                       <button
                         type="button"
                         className={styles.controlBtn}
@@ -2076,7 +2289,31 @@ export default function StaffDashboard() {
                 <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   {renderWidgetContent(w)}
                 </div>
+
+                {/* Live width preview while resizing — only snaps to a config size on release */}
+                {isResizingThis && (
+                  <div
+                    className={styles.resizePreview}
+                    style={{ width: resizeInfo.currentWidth }}
+                  >
+                    {sizeBucketForWidth(resizeInfo.currentWidth, resizeInfo.colWidth, resizeInfo.gap) === 'small'
+                      ? 'Nhỏ'
+                      : sizeBucketForWidth(resizeInfo.currentWidth, resizeInfo.colWidth, resizeInfo.gap) === 'medium'
+                      ? 'Vừa'
+                      : 'Lớn'}
+                  </div>
+                )}
+
+                {/* Corner resize handle (Nhỏ / Vừa / Lớn) */}
+                {isEditMode && (
+                  <div
+                    className={styles.resizeHandle}
+                    onPointerDown={(e) => handleResizeHandlePointerDown(e, w)}
+                    title="Kéo để đổi kích thước (Nhỏ / Vừa / Lớn)"
+                  />
+                )}
               </div>
+              </Fragment>
             );
           })}
       </section>
