@@ -475,33 +475,68 @@ function Icon({ name }) {
 }
 
 const DEFAULT_STATS = [
-  { id: 'statPendingToday', label: 'Booking chưa xử lý hôm nay', hint: 'Yêu cầu chờ duyệt hôm nay', icon: 'clock', tone: 'Red', visible: true },
-  { id: 'statPendingTotal', label: 'Booking chưa xác nhận', hint: 'Tổng yêu cầu đặt lịch chờ duyệt', icon: 'ticket', tone: 'Yellow', visible: true },
-  { id: 'statNotArrivedTotal', label: 'Booking chưa đến', hint: 'Tổng số booking khách không đến', icon: 'calendar', tone: 'Red', visible: true },
-  { id: 'statRevenue', label: 'Tổng doanh thu', hint: 'Tổng doanh thu thực nhận', icon: 'chart', tone: 'Green', visible: true },
-  { id: 'statRevenueNoTax', label: 'Doanh thu chưa thuế', hint: 'Doanh thu không tính 10% thuế', icon: 'chart', tone: 'Blue', visible: true },
-  { id: 'statCustomers', label: 'Tổng khách hàng', hint: 'Số khách hàng đăng ký', icon: 'user', tone: 'Cyan', visible: true },
-  { id: 'statBookingSuccessRate', label: 'Tỷ lệ đặt lịch thành công', hint: 'Tỷ lệ lịch hẹn hoàn tất thành công', icon: 'check', tone: 'Purple', visible: true },
-  { id: 'statShift', label: 'Ca hôm nay', hint: '', icon: 'clock', tone: 'Blue', visible: true },
-  { id: 'statHours', label: 'Giờ làm', hint: '', icon: 'chart', tone: 'Green', visible: true },
-  { id: 'statTickets', label: 'Phiếu hoàn tất', hint: '', icon: 'ticket', tone: 'Yellow', visible: true },
-  { id: 'statDays', label: 'Ngày đi làm', hint: '', icon: 'calendar', tone: 'Cyan', visible: true },
-  { id: 'statNotifications', label: 'Thông báo chưa đọc', hint: '', icon: 'bell', tone: 'Red', visible: true },
-  { id: 'statTasks', label: 'Công việc hôm nay', hint: '', icon: 'check', tone: 'Violet', visible: true }
+  { id: 'statPendingToday', label: 'Booking chưa xử lý hôm nay', hint: 'Yêu cầu chờ duyệt hôm nay', icon: 'clock', tone: 'Red', category: 'booking', visible: true },
+  { id: 'statPendingTotal', label: 'Booking chưa xác nhận', hint: 'Tổng yêu cầu đặt lịch chờ duyệt', icon: 'ticket', tone: 'Yellow', category: 'booking', visible: true },
+  { id: 'statNotArrivedTotal', label: 'Booking chưa đến', hint: 'Tổng số booking khách không đến', icon: 'calendar', tone: 'Red', category: 'booking', visible: true },
+  { id: 'statBookingSuccessRate', label: 'Tỷ lệ đặt lịch thành công', hint: 'Tỷ lệ lịch hẹn hoàn tất thành công', icon: 'check', tone: 'Purple', category: 'booking', visible: true },
+  { id: 'statRevenue', label: 'Tổng doanh thu', hint: 'Tổng doanh thu thực nhận', icon: 'chart', tone: 'Green', category: 'revenue', visible: true },
+  { id: 'statRevenueNoTax', label: 'Doanh thu chưa thuế', hint: 'Doanh thu không tính 10% thuế', icon: 'chart', tone: 'Blue', category: 'revenue', visible: true },
+  { id: 'statCustomers', label: 'Tổng khách hàng', hint: 'Số khách hàng đăng ký', icon: 'user', tone: 'Cyan', category: 'customer', visible: true },
+  { id: 'statShift', label: 'Ca hôm nay', hint: 'Khung giờ ca làm việc hiện tại', icon: 'clock', tone: 'Blue', category: 'work', visible: true },
+  { id: 'statHours', label: 'Giờ làm', hint: 'Tổng số giờ làm trong tháng', icon: 'chart', tone: 'Green', category: 'attendance', visible: true },
+  { id: 'statTickets', label: 'Phiếu hoàn tất', hint: 'Số phiếu dịch vụ đã hoàn tất', icon: 'ticket', tone: 'Yellow', category: 'ticket', visible: true },
+  { id: 'statDays', label: 'Ngày đi làm', hint: 'Số ngày có mặt trong tháng', icon: 'calendar', tone: 'Cyan', category: 'attendance', visible: true },
+  { id: 'statNotifications', label: 'Thông báo chưa đọc', hint: 'Số thông báo cá nhân chưa đọc', icon: 'bell', tone: 'Red', category: 'notification', visible: true },
+  { id: 'statTasks', label: 'Công việc hôm nay', hint: 'Số công việc cần xử lý hôm nay', icon: 'check', tone: 'Violet', category: 'work', visible: true }
 ];
 
 const DEFAULT_PANELS = [
-  { id: 'schedule', title: 'Lịch làm việc', eyebrow: 'Lịch làm việc', size: 'half', visible: true },
-  { id: 'tasks', title: 'Công việc hôm nay', eyebrow: 'Công việc', size: 'half', visible: true },
-  { id: 'attendanceChart', title: 'Giờ làm 7 ngày gần nhất', eyebrow: 'Chấm công', size: 'half', visible: true },
-  { id: 'attendancePie', title: 'Trạng thái tháng này', eyebrow: 'Tỷ lệ', size: 'half', visible: true },
-  { id: 'genderRatio', title: 'Tỷ lệ giới tính khách hàng', eyebrow: 'Khách hàng', size: 'half', visible: true },
-  { id: 'notifications', title: 'Thông báo gần đây', eyebrow: 'Thông báo', size: 'full', visible: true },
-  { id: 'attendanceHistory', title: 'Lịch sử tháng', eyebrow: 'Chấm công', size: 'full', visible: true },
-  { id: 'profitTreemap', title: 'Lợi nhuận theo sản phẩm/dịch vụ', eyebrow: 'Lợi nhuận', size: 'full', visible: true },
-  { id: 'topPurchasedItems', title: 'Top mặt hàng bán chạy', eyebrow: 'Bán chạy', size: 'half', visible: true },
-  { id: 'quickActions', title: 'Lối tắt thao tác nhanh', eyebrow: 'Thao tác nhanh', size: 'full', visible: true }
+  { id: 'schedule', title: 'Lịch làm việc', eyebrow: 'Lịch làm việc', description: 'Ca làm và lịch hẹn trong 7 ngày tới', icon: 'calendar', category: 'work', size: 'half', visible: true },
+  { id: 'tasks', title: 'Công việc hôm nay', eyebrow: 'Công việc', description: 'Danh sách việc cần xử lý theo vai trò', icon: 'check', category: 'work', size: 'half', visible: true },
+  { id: 'quickActions', title: 'Lối tắt thao tác nhanh', eyebrow: 'Thao tác nhanh', description: 'Nút truy cập nhanh các chức năng thường dùng', icon: 'arrow', category: 'work', size: 'full', visible: true },
+  { id: 'attendanceChart', title: 'Giờ làm 7 ngày gần nhất', eyebrow: 'Chấm công', description: 'Biểu đồ cột số giờ làm mỗi ngày', icon: 'chart', category: 'attendance', size: 'half', visible: true },
+  { id: 'attendancePie', title: 'Trạng thái tháng này', eyebrow: 'Tỷ lệ', description: 'Tỷ lệ có mặt / đi muộn / vắng trong tháng', icon: 'chart', category: 'attendance', size: 'half', visible: true },
+  { id: 'attendanceHistory', title: 'Lịch sử tháng', eyebrow: 'Chấm công', description: 'Bảng chi tiết chấm công theo từng ngày', icon: 'clock', category: 'attendance', size: 'full', visible: true },
+  { id: 'genderRatio', title: 'Tỷ lệ giới tính khách hàng', eyebrow: 'Khách hàng', description: 'Phân bổ giới tính khách hàng đã đăng ký', icon: 'user', category: 'customer', size: 'half', visible: true },
+  { id: 'notifications', title: 'Thông báo gần đây', eyebrow: 'Thông báo', description: 'Danh sách thông báo hệ thống mới nhất', icon: 'bell', category: 'notification', size: 'full', visible: true },
+  { id: 'profitTreemap', title: 'Lợi nhuận theo sản phẩm/dịch vụ', eyebrow: 'Lợi nhuận', description: 'Treemap lợi nhuận, màu theo biên lợi nhuận', icon: 'chart', category: 'revenue', size: 'full', visible: true },
+  { id: 'topPurchasedItems', title: 'Top mặt hàng bán chạy', eyebrow: 'Bán chạy', description: 'Xếp hạng sản phẩm/dịch vụ bán nhiều nhất', icon: 'ticket', category: 'revenue', size: 'half', visible: true }
 ];
+
+const WIDGET_CATEGORY_LABELS = {
+  booking: 'Đặt lịch & Booking',
+  revenue: 'Doanh thu & Lợi nhuận',
+  customer: 'Khách hàng',
+  work: 'Công việc & Lịch làm việc',
+  attendance: 'Chấm công',
+  ticket: 'Phiếu dịch vụ',
+  notification: 'Thông báo',
+  other: 'Khác',
+};
+
+const WIDGET_CATEGORY_ORDER = ['booking', 'revenue', 'customer', 'work', 'attendance', 'ticket', 'notification', 'other'];
+
+// Widgets that hold a scrollable list/table of rows — these keep an internal scrollbar
+// since the number of rows is open-ended. Everything else (charts, treemap, quick
+// actions) instead gets a hard minimum height so it can never be squeezed below the
+// point where its content stops being readable.
+const LIST_WIDGET_IDS = new Set(['schedule', 'tasks', 'notifications', 'attendanceHistory', 'topPurchasedItems']);
+
+const WIDGET_MIN_CONTENT_HEIGHT = {
+  attendanceChart: 260,
+  attendancePie: 260,
+  genderRatio: 260,
+  profitTreemap: 320,
+  quickActions: 150,
+  schedule: 140,
+  tasks: 140,
+  notifications: 160,
+  attendanceHistory: 160,
+  topPurchasedItems: 160,
+};
+const DEFAULT_MIN_WIDGET_HEIGHT = 120;
+
+const getWidgetMinHeight = (widgetId) => WIDGET_MIN_CONTENT_HEIGHT[widgetId] || DEFAULT_MIN_WIDGET_HEIGHT;
 
 export default function StaffDashboard() {
   useScrollToTop();
@@ -610,6 +645,19 @@ export default function StaffDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [newDashboardName, setNewDashboardName] = useState('');
+  const widgetManagerRef = useRef(null);
+  const widgetManagerTriggerRef = useRef(null);
+
+  useEffect(() => {
+    if (!showWidgetManager) return undefined;
+    const handleOutsideClick = (e) => {
+      if (widgetManagerRef.current?.contains(e.target)) return;
+      if (widgetManagerTriggerRef.current?.contains(e.target)) return;
+      setShowWidgetManager(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showWidgetManager]);
 
   // 1. Fetch layouts from DB
   const loadDashboardConfigs = useCallback(async () => {
@@ -1412,7 +1460,6 @@ export default function StaffDashboard() {
     return sizeBucketForWidth(info.currentWidth, info.colWidth, info.gap);
   };
 
-  const MIN_WIDGET_HEIGHT = 100;
   const MAX_WIDGET_HEIGHT = 900;
   // How far the pointer has to move vertically before a height is actually committed —
   // below this it's treated as a pure width-only drag and the existing height (auto or
@@ -1496,6 +1543,7 @@ export default function StaffDashboard() {
       // of the widget's rendered width, so widen the clamp range there.
       minWidth: numCols < 4 ? startWidth - 90 * 2 : colWidth * 0.55,
       maxWidth: numCols < 4 ? startWidth + 90 * 2 : containerRect.width,
+      minHeight: getWidgetMinHeight(w.id),
     });
   };
 
@@ -1516,8 +1564,8 @@ export default function StaffDashboard() {
         const dx = latestX - prev.startX;
         const dy = latestY - prev.startY;
         const currentWidth = Math.min(prev.maxWidth, Math.max(prev.minWidth, prev.startWidth + dx));
-        const rawHeight = Math.min(MAX_WIDGET_HEIGHT, Math.max(MIN_WIDGET_HEIGHT, prev.startHeight + dy));
-        const currentHeight = snapHeight(rawHeight, prev.id);
+        const rawHeight = Math.min(MAX_WIDGET_HEIGHT, Math.max(prev.minHeight, prev.startHeight + dy));
+        const currentHeight = Math.max(prev.minHeight, snapHeight(rawHeight, prev.id));
         return { ...prev, currentWidth, currentHeight };
       });
     };
@@ -2074,6 +2122,13 @@ export default function StaffDashboard() {
     }
 
     if (w.id === 'profitTreemap') {
+      // The chart area is `flex: 1` under the header instead of a fixed
+      // `height - assumedHeaderPx` calculation — that math broke whenever the header
+      // actually wrapped to 2 lines (long title at a middling width), since the chart
+      // kept the old assumed height and the two together overflowed the widget's box.
+      // Flex lets the chart absorb however much space the header doesn't use, always.
+      const chartMinHeight = w.size === 'small' ? 160 : 200;
+
       const marginColor = (marginPct) => {
         if (marginPct >= 25) return '#059669'; // biên lợi nhuận cao -> xanh
         if (marginPct >= 10) return '#d97706'; // vừa -> cam
@@ -2128,22 +2183,42 @@ export default function StaffDashboard() {
         );
       };
 
+      const isCompactTreemap = w.size === 'small';
+      const legendDots = [
+        { color: '#059669', label: 'Biên cao (≥25%)' },
+        { color: '#d97706', label: 'Vừa (10–25%)' },
+        { color: '#dc2626', label: 'Thấp/lỗ (<10%)' },
+      ];
+
       return (
-        <div style={{ padding: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>
-              Lợi nhuận theo sản phẩm/dịch vụ (30 ngày gần nhất)
+        <div style={{ padding: 16, minWidth: 0, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12, minWidth: 0, flexShrink: 0 }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {isCompactTreemap ? 'Lợi nhuận sản phẩm' : 'Lợi nhuận theo sản phẩm/dịch vụ (30 ngày gần nhất)'}
             </span>
-            <div style={{ display: 'flex', gap: 10, fontSize: 11, color: '#64748b' }}>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#059669', marginRight: 4 }} />Biên cao (≥25%)</span>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#d97706', marginRight: 4 }} />Vừa (10–25%)</span>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#dc2626', marginRight: 4 }} />Thấp/lỗ (&lt;10%)</span>
+            {/* Small width: dots-only with a tooltip, so the legend never needs the full label text to fit. */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: isCompactTreemap ? 4 : 10, fontSize: 11, color: '#64748b', minWidth: 0 }}>
+              {legendDots.map((item) => (
+                isCompactTreemap ? (
+                  <span
+                    key={item.color}
+                    title={item.label}
+                    style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: item.color }}
+                  />
+                ) : (
+                  <span key={item.color} style={{ whiteSpace: 'nowrap' }}>
+                    <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: item.color, marginRight: 4 }} />
+                    {item.label}
+                  </span>
+                )
+              ))}
             </div>
           </div>
           {treemapData.length === 0 ? (
             <div className={styles.emptyState}>Chưa có dữ liệu bán hàng trong 30 ngày qua.</div>
           ) : (
-            <ResponsiveContainer width="100%" height={w.size === 'small' ? 220 : (w.size === 'medium' ? 300 : 380)}>
+            <div style={{ flex: 1, minHeight: chartMinHeight, minWidth: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
               <Treemap data={treemapData} dataKey="size" aspectRatio={4 / 3} stroke="#fff" content={<TreemapCell />}>
                 <Tooltip
                   content={({ payload }) => {
@@ -2161,6 +2236,7 @@ export default function StaffDashboard() {
                 />
               </Treemap>
             </ResponsiveContainer>
+            </div>
           )}
         </div>
       );
@@ -2413,6 +2489,7 @@ export default function StaffDashboard() {
           {isEditMode && (
             <>
               <button
+                ref={widgetManagerTriggerRef}
                 type="button"
                 className={styles.actionBtn}
                 onClick={() => setShowWidgetManager(!showWidgetManager)}
@@ -2450,24 +2527,58 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {/* Widget Manager List */}
+      {/* Widget Manager Drawer — floats over the page without a blocking backdrop, so the
+          dashboard behind stays fully scrollable/interactive while toggling widgets. */}
       {showWidgetManager && (
-        <div className={styles.widgetManagerPanel}>
-          <h3>Bật/Tắt Widget hiển thị</h3>
-          <div className={styles.managerSection}>
-            <div className={styles.managerList}>
-              {widgetsList.map((w) => (
-                <label key={w.id} className={styles.managerItem}>
-                  <input
-                    type="checkbox"
-                    checked={w.visible}
-                    onChange={() => toggleWidgetVisibility(w.id)}
-                  />
-                  <span>{w.label || w.title}</span>
-                </label>
-              ))}
+        <div className={styles.widgetManagerDrawer} ref={widgetManagerRef}>
+            <div className={styles.widgetManagerHeader}>
+              <div>
+                <h3>Quản lý Widget</h3>
+                <p>Bật/tắt các khối hiển thị trên dashboard, theo từng nhóm</p>
+              </div>
+              <button
+                type="button"
+                className={styles.widgetManagerCloseBtn}
+                onClick={() => setShowWidgetManager(false)}
+                aria-label="Đóng"
+              >
+                ×
+              </button>
             </div>
-          </div>
+            <div className={styles.widgetManagerBody}>
+              {WIDGET_CATEGORY_ORDER.map((categoryKey) => {
+                const items = widgetsList.filter((w) => (w.category || 'other') === categoryKey);
+                if (items.length === 0) return null;
+                return (
+                  <div key={categoryKey} className={styles.widgetManagerCategory}>
+                    <div className={styles.widgetManagerCategoryTitle}>
+                      {WIDGET_CATEGORY_LABELS[categoryKey]}
+                    </div>
+                    {items.map((w) => (
+                      <div key={w.id} className={styles.widgetManagerRow}>
+                        <span className={styles.widgetManagerRowIcon}>
+                          <Icon name={w.icon || 'chart'} />
+                        </span>
+                        <div className={styles.widgetManagerRowText}>
+                          <strong>{w.label || w.title}</strong>
+                          {w.hint || w.description ? <span>{w.hint || w.description}</span> : null}
+                        </div>
+                        <button
+                          type="button"
+                          className={`${styles.widgetManagerSwitch} ${w.visible ? styles.isOn : ''}`}
+                          role="switch"
+                          aria-checked={w.visible}
+                          aria-label={`${w.visible ? 'Ẩn' : 'Hiện'} ${w.label || w.title}`}
+                          onClick={() => toggleWidgetVisibility(w.id)}
+                        >
+                          <span className={styles.widgetManagerSwitchThumb} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
         </div>
       )}
 
@@ -2560,7 +2671,23 @@ export default function StaffDashboard() {
                 )}
 
                 {/* Widget Content */}
-                <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflowY: w.height ? 'auto' : undefined, minHeight: 0 }}>
+                <div
+                  style={{
+                    flexGrow: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    // Data-list widgets (schedule/tasks/notifications/history/top-sellers) can
+                    // outgrow their custom height — those scroll. Everything else instead has a
+                    // hard minimum height (see getWidgetMinHeight) so it never needs to scroll.
+                    overflowY: w.height && LIST_WIDGET_IDS.has(w.id) ? 'auto' : undefined,
+                    minHeight: getWidgetMinHeight(w.id),
+                    // Flex items default to min-width/min-height:auto, which lets wide/tall
+                    // content (charts, the Treemap's SVG) force this box past its parent's
+                    // bounds instead of shrinking to fit — 0 lets it actually clip/scale down.
+                    minWidth: 0,
+                  }}
+                >
                   {renderWidgetContent(w)}
                 </div>
 
