@@ -1,11 +1,25 @@
 .page {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   background: #f3f4f6;
   padding: 24px;
   font-family: 'Segoe UI', Tahoma, 'Noto Sans', Arial, sans-serif;
+}
+
+.backBtn {
+  min-height: 40px;
+  padding: 9px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 2px solid #e5e7eb;
+  color: #374151;
+  background: #fff;
 }
 
 .card {
@@ -82,13 +96,39 @@
 }
 
 @media print {
+  :global(body *) {
+    visibility: hidden !important;
+  }
+
   .page {
+    visibility: visible !important;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    min-height: auto;
+    display: block;
     background: #fff;
     padding: 0;
   }
 
+  .page * {
+    visibility: visible !important;
+  }
+
   .card {
+    max-width: 100%;
+    margin: 0 auto;
     border: none;
     box-shadow: none;
+  }
+
+  .screenOnly {
+    display: none !important;
+  }
+
+  :global(html),
+  :global(body),
+  :global(#root) {
+    background: #fff !important;
   }
 }

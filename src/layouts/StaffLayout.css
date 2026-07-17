@@ -384,14 +384,32 @@
     display: none !important;
   }
 
+  .staff-header {
+    display: none !important;
+  }
+
+  .mobile-navbar {
+    display: none !important;
+  }
+
   .staffLayout {
-    display: block;
-    min-height: auto;
+    display: block !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
   }
 
   .staffLayout__content {
-    overflow: visible;
-    min-height: auto;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  .staffLayout__page-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: auto !important;
+    display: block !important;
   }
 }
 

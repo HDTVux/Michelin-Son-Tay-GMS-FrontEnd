@@ -153,18 +153,122 @@ function FitAllBounds({ points }) {
   return null;
 }
 
+function MapFlyTo({ target }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!target) return;
+    map.setView(target, 16);
+  }, [target, map]);
+  return null;
+}
+
 function LocationsOverviewMap({ locations }) {
   const points = locations.map((loc) => loc.position);
   const activePoints = locations.filter((loc) => loc.isActive !== false).map((loc) => loc.position);
   const boundsPoints = activePoints.length > 0 ? activePoints : points;
   const [mapView, setMapView] = useState('street');
+  const [addressQuery, setAddressQuery] = useState('');
+  const [addressResults, setAddressResults] = useState([]);
+  const [searchingAddress, setSearchingAddress] = useState(false);
+  const [flyToTarget, setFlyToTarget] = useState(null);
+
+  const handleSearchAddress = async () => {
+    const query = addressQuery.trim();
+    if (!query) return;
+    setSearchingAddress(true);
+    setAddressResults([]);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=vn&q=${encodeURIComponent(query)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Tìm kiếm thất bại');
+      const data = await res.json();
+      const results = Array.isArray(data) ? data : [];
+      setAddressResults(results);
+      if (results.length === 0) {
+        toast.error('Không tìm thấy địa chỉ phù hợp.');
+      }
+    } catch {
+      toast.error('Không tìm kiếm được địa chỉ. Vui lòng thử lại.');
+    } finally {
+      setSearchingAddress(false);
+    }
+  };
+
+  const handleSelectAddressResult = (result) => {
+    setFlyToTarget([Number(result.lat), Number(result.lon)]);
+    setAddressQuery(result.display_name);
+    setAddressResults([]);
+  };
 
   return (
     <div className={styles.overviewMapCard}>
       <div className={styles.overviewMapHeader}>
         <h3 className={styles.overviewMapTitle}>Bản đồ tất cả vị trí chấm công</h3>
+
+        <div className={styles.overviewSearchWrapper}>
+          <div className={styles.searchAddressBox}>
+            <svg className={styles.searchAddressIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              className={styles.searchAddressInput}
+              placeholder="Tìm địa chỉ trên bản đồ..."
+              value={addressQuery}
+              onChange={(e) => setAddressQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearchAddress();
+                }
+              }}
+            />
+            {addressQuery.trim() && (
+              <button
+                type="button"
+                className={styles.searchAddressClearBtn}
+                onClick={() => { setAddressQuery(''); setAddressResults([]); }}
+                aria-label="Xóa tìm kiếm"
+              >
+                ✕
+              </button>
+            )}
+            <button
+              type="button"
+              className={styles.searchAddressBtn}
+              onClick={handleSearchAddress}
+              disabled={searchingAddress}
+              aria-label="Tìm địa chỉ"
+            >
+              {searchingAddress ? (
+                <span className={styles.searchAddressSpinner} />
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              )}
+            </button>
+            {addressResults.length > 0 && (
+              <div className={styles.searchResultsList}>
+                {addressResults.map((result) => (
+                  <button
+                    key={result.place_id}
+                    type="button"
+                    className={styles.searchResultItem}
+                    onClick={() => handleSelectAddressResult(result)}
+                  >
+                    📍 {result.display_name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         <span className={styles.overviewMapCount}>{locations.length} vị trí có tọa độ</span>
       </div>
+
       <div className={styles.mapShell}>
         <MapContainer center={points[0]} zoom={13} className={styles.overviewMapContainer}>
           <TileLayer attribution={TILE_LAYERS[mapView].attribution} url={TILE_LAYERS[mapView].url} />
@@ -182,6 +286,7 @@ function LocationsOverviewMap({ locations }) {
             </Marker>
           ))}
           <FitAllBounds points={boundsPoints} />
+          <MapFlyTo target={flyToTarget} />
           <InvalidateMapSize />
         </MapContainer>
         <MapLayerToggle mapView={mapView} onToggle={() => setMapView((v) => (v === 'street' ? 'satellite' : 'street'))} />
@@ -229,6 +334,10 @@ function LocationPickerMap({ latitude, longitude, radiusMeters, onPick }) {
   return (
     <div className={styles.mapWrapper}>
       <div className={styles.searchAddressBox}>
+        <svg className={styles.searchAddressIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
         <input
           className={styles.searchAddressInput}
           placeholder="Tìm địa chỉ (VD: 674 QL21, Sơn Tây, Hà Nội)"
@@ -241,8 +350,31 @@ function LocationPickerMap({ latitude, longitude, radiusMeters, onPick }) {
             }
           }}
         />
-        <button type="button" className={styles.searchAddressBtn} onClick={handleSearchAddress} disabled={searching}>
-          {searching ? '...' : '🔍 Tìm'}
+        {searchQuery.trim() && (
+          <button
+            type="button"
+            className={styles.searchAddressClearBtn}
+            onClick={() => { setSearchQuery(''); setSearchResults([]); }}
+            aria-label="Xóa tìm kiếm"
+          >
+            ✕
+          </button>
+        )}
+        <button
+          type="button"
+          className={styles.searchAddressBtn}
+          onClick={handleSearchAddress}
+          disabled={searching}
+          aria-label="Tìm địa chỉ"
+        >
+          {searching ? (
+            <span className={styles.searchAddressSpinner} />
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          )}
         </button>
         {searchResults.length > 0 && (
           <div className={styles.searchResultsList}>
@@ -253,7 +385,7 @@ function LocationPickerMap({ latitude, longitude, radiusMeters, onPick }) {
                 className={styles.searchResultItem}
                 onClick={() => handleSelectResult(result)}
               >
-                {result.display_name}
+                📍 {result.display_name}
               </button>
             ))}
           </div>
@@ -394,9 +526,9 @@ export default function AttendanceLocationManagement() {
     return locations.filter((loc) => `${loc.locationName} ${loc.address}`.toLowerCase().includes(query));
   }, [locations, search]);
 
-  const mapLocations = useMemo(() => filtered
+  const mapLocations = useMemo(() => locations
     .filter((loc) => Number.isFinite(Number(loc.latitude)) && Number.isFinite(Number(loc.longitude)))
-    .map((loc) => ({ ...loc, position: [Number(loc.latitude), Number(loc.longitude)] })), [filtered]);
+    .map((loc) => ({ ...loc, position: [Number(loc.latitude), Number(loc.longitude)] })), [locations]);
 
   const resetModal = () => {
     setOpenModal(false);
@@ -556,24 +688,6 @@ export default function AttendanceLocationManagement() {
         <button type="button" className={styles.primaryBtn} onClick={openCreate}>+ Thêm vị trí</button>
       </div>
 
-      <div className={styles.toolbar}>
-        <div className={styles.searchBox}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" style={{ flexShrink: 0 }}>
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            className={styles.searchInput}
-            placeholder="Tìm theo tên hoặc địa chỉ..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {search.trim() && (
-            <button type="button" className={styles.searchClearBtn} onClick={() => setSearch('')}>x</button>
-          )}
-        </div>
-      </div>
-
       {loading && (
         <div className={styles.loadingContainer}>
           <div className={styles.spinner} />
@@ -591,55 +705,77 @@ export default function AttendanceLocationManagement() {
         <LocationsOverviewMap locations={mapLocations} />
       )}
 
-      {!loading && !error && filtered.length === 0 && (
-        <div className={styles.emptyState}>
-          <p className={styles.emptyTitle}>Chưa có vị trí chấm công nào</p>
-          <p className={styles.emptyMessage}>Bấm "+ Thêm vị trí" để tạo vị trí đầu tiên.</p>
-        </div>
-      )}
-
-      {!loading && !error && filtered.length > 0 && (
+      {!loading && !error && (
         <div className={styles.tableCard}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Tên vị trí</th>
-                <th>Địa chỉ</th>
-                <th>Tọa độ</th>
-                <th>Bán kính</th>
-                <th>Trạng thái</th>
-                <th>Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((loc) => (
-                <tr key={loc.locationId}>
-                  <td className={styles.nameCell}>{loc.locationName || '-'}</td>
-                  <td>{loc.address || '-'}</td>
-                  <td className={styles.coordCell}>{loc.latitude}, {loc.longitude}</td>
-                  <td>{loc.radiusMeters}m</td>
-                  <td>
-                    <span className={`${styles.statusBadge} ${loc.isActive !== false ? styles.statusActive : styles.statusInactive}`}>
-                      {loc.isActive !== false ? 'Hoạt động' : 'Vô hiệu'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className={styles.actionGroup}>
-                      <button type="button" className={styles.qrBtn} onClick={() => setQrTarget(loc)}>Mã QR</button>
-                      {loc.isActive !== false ? (
-                        <>
-                          <button type="button" className={styles.editBtn} onClick={() => openEdit(loc)}>Sửa</button>
-                          <button type="button" className={styles.deactivateBtn} onClick={() => handleDeactivate(loc.locationId)}>Vô hiệu hóa</button>
-                        </>
-                      ) : (
-                        <button type="button" className={styles.editBtn} onClick={() => handleReactivate(loc.locationId)}>Khôi phục</button>
-                      )}
-                    </div>
-                  </td>
+          <div className={styles.tableSearchBar}>
+            <div className={styles.searchBox}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" style={{ flexShrink: 0 }}>
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                className={styles.searchInput}
+                placeholder="Tìm theo tên hoặc địa chỉ..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search.trim() && (
+                <button type="button" className={styles.searchClearBtn} onClick={() => setSearch('')}>x</button>
+              )}
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className={styles.tableEmptyState}>
+              <p className={styles.emptyTitle}>
+                {locations.length === 0 ? 'Chưa có vị trí chấm công nào' : 'Không tìm thấy vị trí phù hợp'}
+              </p>
+              <p className={styles.emptyMessage}>
+                {locations.length === 0 ? 'Bấm "+ Thêm vị trí" để tạo vị trí đầu tiên.' : 'Thử từ khóa khác.'}
+              </p>
+            </div>
+          ) : (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Tên vị trí</th>
+                  <th>Địa chỉ</th>
+                  <th>Tọa độ</th>
+                  <th>Bán kính</th>
+                  <th>Trạng thái</th>
+                  <th>Hành động</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((loc) => (
+                  <tr key={loc.locationId}>
+                    <td className={styles.nameCell}>{loc.locationName || '-'}</td>
+                    <td>{loc.address || '-'}</td>
+                    <td className={styles.coordCell}>{loc.latitude}, {loc.longitude}</td>
+                    <td>{loc.radiusMeters}m</td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${loc.isActive !== false ? styles.statusActive : styles.statusInactive}`}>
+                        {loc.isActive !== false ? 'Hoạt động' : 'Vô hiệu'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className={styles.actionGroup}>
+                        <button type="button" className={styles.qrBtn} onClick={() => setQrTarget(loc)}>Mã QR</button>
+                        {loc.isActive !== false ? (
+                          <>
+                            <button type="button" className={styles.editBtn} onClick={() => openEdit(loc)}>Sửa</button>
+                            <button type="button" className={styles.deactivateBtn} onClick={() => handleDeactivate(loc.locationId)}>Vô hiệu hóa</button>
+                          </>
+                        ) : (
+                          <button type="button" className={styles.editBtn} onClick={() => handleReactivate(loc.locationId)}>Khôi phục</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 

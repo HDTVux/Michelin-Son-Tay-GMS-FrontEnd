@@ -10,20 +10,27 @@ export default function AttendanceQrPrint() {
   const navigate = useNavigate();
   const routeLocation = location?.state?.location || null;
   const canvasRef = useRef(null);
+  const hasPrintedRef = useRef(false);
 
   useEffect(() => {
-    if (!routeLocation?.qrToken || !canvasRef.current) return;
-    QRCode.toCanvas(canvasRef.current, buildCheckInUrl(routeLocation.qrToken), {
+    const qrToken = routeLocation?.qrToken;
+    if (!qrToken || !canvasRef.current || hasPrintedRef.current) return;
+
+    QRCode.toCanvas(canvasRef.current, buildCheckInUrl(qrToken), {
       width: 420,
       margin: 2,
     }).then(() => {
+      if (hasPrintedRef.current) return;
+      hasPrintedRef.current = true;
       globalThis.window?.requestAnimationFrame?.(() => {
         globalThis.window?.print?.();
       });
     }).catch(() => {
       // Nếu sinh QR lỗi, người dùng vẫn thấy trang với thông tin vị trí để thử lại thủ công.
     });
-  }, [routeLocation]);
+    // Chỉ phụ thuộc qrToken (giá trị nguyên thủy) để tránh in lại nhiều lần
+    // khi routeLocation object bị tạo lại tham chiếu mới do re-render.
+  }, [routeLocation?.qrToken]);
 
   if (!routeLocation) {
     return (
@@ -46,6 +53,9 @@ export default function AttendanceQrPrint() {
         <p className={styles.instruction}>Quét mã QR bằng camera điện thoại để chấm công vào/ra tại vị trí này.</p>
         <p className={styles.hint}>Ứng dụng sẽ yêu cầu quyền vị trí (GPS) để xác nhận bạn đang có mặt tại đây.</p>
       </div>
+      <button type="button" className={`${styles.backBtn} ${styles.screenOnly}`} onClick={() => navigate('/attendance-locations')}>
+        ← Quay lại danh sách vị trí
+      </button>
     </div>
   );
 }
