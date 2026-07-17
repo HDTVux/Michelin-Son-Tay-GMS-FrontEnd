@@ -1084,3 +1084,18 @@ export const activateFallbackPricingConfig = (id, token) => {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 };
+
+// GET: /api/warehouse/reports/profit-by-item?fromDate=&toDate=&warehouseId=
+// Aggregated revenue/cost/profit per catalog item (part or service), from confirmed
+// stock issues in the given date range. Used by the profit Treemap + top-sellers widgets.
+export const fetchItemProfitReport = (params, token) => {
+  const qp = new URLSearchParams();
+  if (params?.fromDate) qp.append('fromDate', params.fromDate);
+  if (params?.toDate) qp.append('toDate', params.toDate);
+  if (params?.warehouseId) qp.append('warehouseId', String(params.warehouseId));
+  const qs = qp.toString();
+  return request(`/api/warehouse/reports/profit-by-item${qs ? `?${qs}` : ''}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};

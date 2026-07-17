@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Treemap, ResponsiveContainer, Tooltip } from 'recharts';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { getAvatarSrc, handleAvatarError } from '../../../assets/defaultAvatar.js';
 import {
@@ -21,6 +22,7 @@ import { fetchManagedBookingsPaged, fetchBookingRequests } from '../../../servic
 import { fetchServiceTicketsPaged } from '../../../services/serviceTicketService.js';
 import { searchAdminCustomers } from '../../../services/customerService.js';
 import { buildRevenueDashboard } from '../../../services/revenueService.js';
+import { fetchItemProfitReport } from '../../../services/warehouseService.js';
 import styles from './StaffDashboard.module.css';
 
 const getAuthToken = () =>
@@ -496,6 +498,8 @@ const DEFAULT_PANELS = [
   { id: 'genderRatio', title: 'Tỷ lệ giới tính khách hàng', eyebrow: 'Khách hàng', size: 'half', visible: true },
   { id: 'notifications', title: 'Thông báo gần đây', eyebrow: 'Thông báo', size: 'full', visible: true },
   { id: 'attendanceHistory', title: 'Lịch sử tháng', eyebrow: 'Chấm công', size: 'full', visible: true },
+  { id: 'profitTreemap', title: 'Lợi nhuận theo sản phẩm/dịch vụ', eyebrow: 'Lợi nhuận', size: 'full', visible: true },
+  { id: 'topPurchasedItems', title: 'Top mặt hàng bán chạy', eyebrow: 'Bán chạy', size: 'half', visible: true },
   { id: 'quickActions', title: 'Lối tắt thao tác nhanh', eyebrow: 'Thao tác nhanh', size: 'full', visible: true }
 ];
 
@@ -562,12 +566,18 @@ export default function StaffDashboard() {
     return staffRoles.some((role) => ['ADMIN', 'MANAGER', 'RECEPTIONIST'].includes(role));
   }, [staffRoles]);
 
+  // Matches @PreAuthorize on WarehouseReportController — MANAGER/ADMIN/ACCOUNTANT only.
+  const hasProfitReportPermission = useMemo(() => {
+    return staffRoles.some((role) => ['ADMIN', 'MANAGER', 'ACCOUNTANT'].includes(role));
+  }, [staffRoles]);
+
   const [dashboard, setDashboard] = useState(null);
   const [statistics, setStatistics] = useState(null);
   const [attendance, setAttendance] = useState([]);
   const [schedule, setSchedule] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [itemProfitReport, setItemProfitReport] = useState([]);
   const [accountantPaidCount, setAccountantPaidCount] = useState(0);
   const [pendingTodayCount, setPendingTodayCount] = useState(0);
   const [pendingTotalCount, setPendingTotalCount] = useState(0);
@@ -780,6 +790,7 @@ export default function StaffDashboard() {
       pendingTotalResult,
       notArrivedTotalResult,
       customersResult,
+      itemProfitResult,
     ] = await Promise.allSettled([
       fetchStaffDashboard(token),
       fetchStaffStatistics(currentMonth, currentYear, token),
@@ -803,6 +814,9 @@ export default function StaffDashboard() {
         ? fetchManagedBookingsPaged({ status: 'NOT_ARRIVED', page: 0, size: 1 }, token)
         : Promise.resolve(null),
       searchAdminCustomers({ page: 0, size: 100 }, token),
+      hasProfitReportPermission
+        ? fetchItemProfitReport({ fromDate: toIsoDate(addDays(today, -29)), toDate: scheduleFrom }, token)
+        : Promise.resolve(null),
     ]);
 
     const overview = overviewResult.status === 'fulfilled'
@@ -860,6 +874,10 @@ export default function StaffDashboard() {
       setCustomersList(customersResult.value.data.content);
     }
 
+    setItemProfitReport(
+      itemProfitResult.status === 'fulfilled' ? unwrapList(itemProfitResult.value, []) : []
+    );
+
     const criticalFailed = [
       overviewResult,
       statsResult,
@@ -874,7 +892,7 @@ export default function StaffDashboard() {
     }
 
     setLoading(false);
-  }, [currentMonth, currentYear, primaryRole, scheduleFrom, scheduleTo, hasBookingPermission]);
+  }, [currentMonth, currentYear, primaryRole, scheduleFrom, scheduleTo, hasBookingPermission, hasProfitReportPermission, today]);
 
   useEffect(() => {
     loadDashboardConfigs();
@@ -2055,6 +2073,139 @@ export default function StaffDashboard() {
       );
     }
 
+    if (w.id === 'profitTreemap') {
+      const marginColor = (marginPct) => {
+        if (marginPct >= 25) return '#059669'; // biên lợi nhuận cao -> xanh
+        if (marginPct >= 10) return '#d97706'; // vừa -> cam
+        return '#dc2626'; // thấp hoặc lỗ -> đỏ
+      };
+
+      const treemapData = itemProfitReport
+        .filter((item) => Number(item.revenue) > 0)
+        .map((item) => {
+          const revenue = Number(item.revenue) || 0;
+          const grossProfit = Number(item.grossProfit) || 0;
+          const marginPct = Number(item.marginPct) || 0;
+          return {
+            name: item.itemName || 'Không tên',
+            itemType: item.itemType,
+            revenue,
+            grossProfit,
+            marginPct,
+            // Size by profit — item lỗ vẫn có 1 ô nhỏ để nhìn thấy, không biến mất khỏi treemap.
+            size: Math.max(grossProfit, revenue * 0.03, 1000),
+          };
+        })
+        .sort((a, b) => b.size - a.size)
+        .slice(0, 30);
+
+      const TreemapCell = ({ x, y, width, height, name, marginPct, depth }) => {
+        // Recharts also invokes `content` for the synthetic root node wrapping all
+        // items (depth 0) — it carries no data of ours, so skip rendering it.
+        if (depth === 0 || name == null || !width || !height) return null;
+        const showLabel = width > 58 && height > 30;
+        const safeMarginPct = Number(marginPct) || 0;
+        return (
+          <g>
+            <rect
+              x={x}
+              y={y}
+              width={width}
+              height={height}
+              style={{ fill: marginColor(safeMarginPct), stroke: '#fff', strokeWidth: 2 }}
+            />
+            {showLabel && (
+              <>
+                <text x={x + 8} y={y + 18} fontSize={12} fontWeight={700} fill="#fff">
+                  {String(name).length > 18 ? `${String(name).slice(0, 16)}…` : name}
+                </text>
+                <text x={x + 8} y={y + 34} fontSize={11} fill="rgba(255,255,255,0.85)">
+                  {safeMarginPct.toFixed(1)}% biên LN
+                </text>
+              </>
+            )}
+          </g>
+        );
+      };
+
+      return (
+        <div style={{ padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>
+              Lợi nhuận theo sản phẩm/dịch vụ (30 ngày gần nhất)
+            </span>
+            <div style={{ display: 'flex', gap: 10, fontSize: 11, color: '#64748b' }}>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#059669', marginRight: 4 }} />Biên cao (≥25%)</span>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#d97706', marginRight: 4 }} />Vừa (10–25%)</span>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#dc2626', marginRight: 4 }} />Thấp/lỗ (&lt;10%)</span>
+            </div>
+          </div>
+          {treemapData.length === 0 ? (
+            <div className={styles.emptyState}>Chưa có dữ liệu bán hàng trong 30 ngày qua.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={w.size === 'small' ? 220 : (w.size === 'medium' ? 300 : 380)}>
+              <Treemap data={treemapData} dataKey="size" aspectRatio={4 / 3} stroke="#fff" content={<TreemapCell />}>
+                <Tooltip
+                  content={({ payload }) => {
+                    const d = payload && payload[0] && payload[0].payload;
+                    if (!d) return null;
+                    return (
+                      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px', fontSize: 12, boxShadow: '0 8px 20px rgba(20,36,64,0.12)' }}>
+                        <strong>{d.name}</strong>
+                        <div>Doanh thu: {formatMoney(d.revenue)}</div>
+                        <div>Lợi nhuận: {formatMoney(d.grossProfit)}</div>
+                        <div>Biên LN: {d.marginPct.toFixed(1)}%</div>
+                      </div>
+                    );
+                  }}
+                />
+              </Treemap>
+            </ResponsiveContainer>
+          )}
+        </div>
+      );
+    }
+
+    if (w.id === 'topPurchasedItems') {
+      const limit = w.size === 'small' ? 5 : (w.size === 'medium' ? 8 : 12);
+      const topItems = [...itemProfitReport]
+        .sort((a, b) => (Number(b.quantity) || 0) - (Number(a.quantity) || 0))
+        .slice(0, limit);
+
+      return (
+        <div style={{ padding: 16 }}>
+          <div style={{ fontWeight: 'bold', fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 12 }}>
+            Top mặt hàng bán chạy (30 ngày)
+          </div>
+          {topItems.length === 0 ? (
+            <div className={styles.emptyState}>Chưa có dữ liệu bán hàng.</div>
+          ) : (
+            <div className={styles.taskList}>
+              {topItems.map((item, index) => (
+                <div
+                  key={item.itemId ?? item.itemName}
+                  className={styles.scheduleItem}
+                  style={{ gridTemplateColumns: '28px minmax(0,1fr) auto' }}
+                >
+                  <div className={styles.scheduleDate}>
+                    <strong>#{index + 1}</strong>
+                  </div>
+                  <div className={styles.scheduleBody}>
+                    <strong>{item.itemName || 'Không tên'}</strong>
+                    <span>{item.itemType === 'SERVICE' ? 'Dịch vụ' : 'Phụ tùng'} • {formatMoney(item.revenue)}</span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 800, color: 'var(--blue)' }}>{item.quantity}</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>đã bán</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     if (w.id === 'quickActions') {
       return (
         <div style={{ padding: 16 }}>
@@ -2094,18 +2245,17 @@ export default function StaffDashboard() {
               onError={handleAvatarError}
             />
           </div>
-          <div>
-            <p className={styles.eyebrow}>Staff dashboard</p>
+          <div className={styles.heroTextGroup}>
             <h1>Xin chào, {staff.fullName || 'Nhân viên'}</h1>
-            <p className={styles.heroText}>
-              Bố cục tùy biến kéo thả dành cho {roleLabel(primaryRole).toLowerCase()}. Di chuyển vị trí hoặc phóng to/thu nhỏ các widget theo nhu cầu của bạn.
-            </p>
-            <div className={styles.roleChips}>
-              {staffRoles.length === 0 ? (
-                <span>{roleNames}</span>
-              ) : staffRoles.map((role) => (
-                <span key={role}>{roleLabel(role)}</span>
-              ))}
+            <div className={styles.heroMetaRow}>
+              <p className={styles.heroText}>Kéo-thả để tùy chỉnh bố cục dashboard.</p>
+              <div className={styles.roleChips}>
+                {staffRoles.length === 0 ? (
+                  <span>{roleNames}</span>
+                ) : staffRoles.map((role) => (
+                  <span key={role}>{roleLabel(role)}</span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
