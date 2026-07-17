@@ -681,6 +681,7 @@ export default function StaffDashboard() {
             ...found,
             type: 'stat',
             size: dbS.size || 'small',
+            height: dbS.height || null,
             visible: dbS.visible !== false
           });
         }
@@ -699,6 +700,7 @@ export default function StaffDashboard() {
             ...found,
             type: 'panel',
             size: dbP.size === 'full' ? 'large' : (dbP.size === 'half' ? 'medium' : (dbP.size || 'medium')),
+            height: dbP.height || null,
             visible: dbP.visible !== false
           });
         }
@@ -723,13 +725,14 @@ export default function StaffDashboard() {
 
     const stats = updatedWidgets
       .filter((w) => w.type === 'stat')
-      .map((w) => ({ id: w.id, size: w.size, visible: w.visible }));
+      .map((w) => ({ id: w.id, size: w.size, height: w.height || null, visible: w.visible }));
 
     const panels = updatedWidgets
       .filter((w) => w.type === 'panel')
       .map((w) => ({
         id: w.id,
         size: w.size === 'large' ? 'full' : (w.size === 'medium' ? 'half' : w.size),
+        height: w.height || null,
         visible: w.visible
       }));
 
@@ -1269,6 +1272,15 @@ export default function StaffDashboard() {
     const pointerPos = { x: dragInfo.x, y: dragInfo.y };
     let rafId = null;
 
+    // Reorders driven by "nearest widget" can thrash when the neighbor is a different
+    // size (e.g. a small widget next to a medium one): its center sits far from the
+    // pointer's natural resting spot, so consecutive frames can flip the decision back
+    // and forth as the grid reflows. A cooldown plus an anti-reversal guard stop that
+    // — each reorder gets time to finish its FLIP animation before another is allowed.
+    const REORDER_COOLDOWN_MS = 220;
+    let lastReorderAt = 0;
+    let lastMove = null; // { from, to } of the most recent applied reorder
+
     const processFrame = () => {
       const { x, y } = pointerPos;
 
@@ -1280,6 +1292,9 @@ export default function StaffDashboard() {
       else if (y > window.innerHeight - EDGE) window.scrollBy(0, 14);
 
       setDragInfo((prev) => (prev && (prev.x !== x || prev.y !== y) ? { ...prev, x, y } : prev));
+
+      const now = performance.now();
+      if (now - lastReorderAt < REORDER_COOLDOWN_MS) return;
 
       // Find the widget whose center is closest to the pointer, then decide whether
       // the dragged item should land before or after it (by which side of its
@@ -1311,12 +1326,15 @@ export default function StaffDashboard() {
           if (fromIndex < toIndex) toIndex -= 1;
           toIndex = Math.max(0, Math.min(toIndex, current.length - 1));
 
-          if (toIndex !== fromIndex) {
+          const isImmediateReversal = lastMove && lastMove.to === fromIndex && lastMove.from === toIndex;
+          if (toIndex !== fromIndex && !isImmediateReversal) {
             captureRectsForFlip();
             const next = [...current];
             const [moved] = next.splice(fromIndex, 1);
             next.splice(toIndex, 0, moved);
             setWidgetsList(next);
+            lastReorderAt = now;
+            lastMove = { from: fromIndex, to: toIndex };
           }
         }
       }
@@ -1376,9 +1394,60 @@ export default function StaffDashboard() {
     return sizeBucketForWidth(info.currentWidth, info.colWidth, info.gap);
   };
 
-  // Corner resize handle: while dragging, the widget grows/shrinks pixel-by-pixel
-  // as a floating preview (no layout change yet); the size only snaps to one of the
-  // 3 supported configs (Nhỏ / Vừa / Lớn) once the pointer is released.
+  const MIN_WIDGET_HEIGHT = 100;
+  const MAX_WIDGET_HEIGHT = 900;
+  // How far the pointer has to move vertically before a height is actually committed —
+  // below this it's treated as a pure width-only drag and the existing height (auto or
+  // custom) is left untouched instead of getting pinned to whatever it happened to render at.
+  const HEIGHT_COMMIT_THRESHOLD = 6;
+
+  // Free-form height drag still has "magnetism" — it snaps (with resistance you can drag
+  // through) onto a few fixed reference heights, the height of whatever widget sits next to
+  // it in the same row, or otherwise a small grid step, so results land on tidy values
+  // instead of arbitrary pixel counts.
+  const HEIGHT_PRESETS = [140, 260, 420];
+  const PRESET_SNAP_RADIUS = 14;
+  const NEIGHBOR_SNAP_RADIUS = 10;
+  const HEIGHT_GRID_STEP = 20;
+
+  const snapHeight = (rawHeight, resizingId) => {
+    const neighborHeights = [];
+    const selfEl = widgetRefs.current[resizingId];
+    if (selfEl) {
+      const selfTop = selfEl.getBoundingClientRect().top;
+      Object.entries(widgetRefs.current).forEach(([id, el]) => {
+        if (!el || String(id) === String(resizingId)) return;
+        const r = el.getBoundingClientRect();
+        // Same visual row = top edge lines up with the widget being resized.
+        if (Math.abs(r.top - selfTop) < 12) neighborHeights.push(r.height);
+      });
+    }
+
+    let best = null;
+    let bestDist = Infinity;
+    HEIGHT_PRESETS.forEach((preset) => {
+      const dist = Math.abs(rawHeight - preset);
+      if (dist <= PRESET_SNAP_RADIUS && dist < bestDist) {
+        bestDist = dist;
+        best = preset;
+      }
+    });
+    neighborHeights.forEach((h) => {
+      const dist = Math.abs(rawHeight - h);
+      if (dist <= NEIGHBOR_SNAP_RADIUS && dist < bestDist) {
+        bestDist = dist;
+        best = h;
+      }
+    });
+
+    if (best !== null) return best;
+    return Math.round(rawHeight / HEIGHT_GRID_STEP) * HEIGHT_GRID_STEP;
+  };
+
+  // Corner resize handle: while dragging, the widget grows/shrinks pixel-by-pixel in both
+  // directions as a floating preview (no layout change yet). On release, width snaps to one
+  // of the 3 supported configs (Nhỏ / Vừa / Lớn); height is free-form and applies as-is —
+  // not locked to any preset.
   const handleResizeHandlePointerDown = (e, w) => {
     if (!isEditMode) return;
     e.preventDefault();
@@ -1390,12 +1459,17 @@ export default function StaffDashboard() {
     const gap = parseFloat(computed.columnGap || computed.gap || '18') || 18;
     const numCols = String(computed.gridTemplateColumns || '').trim().split(/\s+/).filter(Boolean).length || 1;
     const colWidth = (containerRect.width - gap * 3) / 4;
-    const startWidth = el.getBoundingClientRect().width;
+    const rect = el.getBoundingClientRect();
+    const startWidth = rect.width;
+    const startHeight = rect.height;
     setResizeInfo({
       id: w.id,
       startX: e.clientX,
+      startY: e.clientY,
       startWidth,
       currentWidth: startWidth,
+      startHeight,
+      currentHeight: startHeight,
       colWidth,
       gap,
       numCols,
@@ -1415,19 +1489,24 @@ export default function StaffDashboard() {
     if (!resizeInfo) return undefined;
     let rafId = null;
     let latestX = resizeInfo.startX;
+    let latestY = resizeInfo.startY;
 
     const processFrame = () => {
       rafId = null;
       setResizeInfo((prev) => {
         if (!prev) return prev;
         const dx = latestX - prev.startX;
+        const dy = latestY - prev.startY;
         const currentWidth = Math.min(prev.maxWidth, Math.max(prev.minWidth, prev.startWidth + dx));
-        return { ...prev, currentWidth };
+        const rawHeight = Math.min(MAX_WIDGET_HEIGHT, Math.max(MIN_WIDGET_HEIGHT, prev.startHeight + dy));
+        const currentHeight = snapHeight(rawHeight, prev.id);
+        return { ...prev, currentWidth, currentHeight };
       });
     };
 
     const handlePointerMove = (e) => {
       latestX = e.clientX;
+      latestY = e.clientY;
       if (rafId === null) {
         rafId = requestAnimationFrame(processFrame);
       }
@@ -1440,11 +1519,18 @@ export default function StaffDashboard() {
       if (!info) return;
 
       const nextSize = resolveTargetSize(info);
+      const heightMoved = Math.abs(info.currentHeight - info.startHeight) > HEIGHT_COMMIT_THRESHOLD;
       const current = widgetsListRef.current;
       const widget = current.find((x) => x.id === info.id);
-      if (widget && widget.size !== nextSize) {
+      if (!widget) {
+        saveLayoutToDb(current);
+        return;
+      }
+
+      const nextHeight = heightMoved ? Math.round(info.currentHeight) : widget.height;
+      if (widget.size !== nextSize || widget.height !== nextHeight) {
         captureRectsForFlip();
-        const next = current.map((x) => (x.id === info.id ? { ...x, size: nextSize } : x));
+        const next = current.map((x) => (x.id === info.id ? { ...x, size: nextSize, height: nextHeight } : x));
         setWidgetsList(next);
         saveLayoutToDb(next);
       } else {
@@ -2263,7 +2349,9 @@ export default function StaffDashboard() {
                   transform: 'rotate(1deg) scale(1.02)',
                 }
               : isResizingThis
-              ? { overflow: 'visible', zIndex: 30 }
+              ? { overflow: 'visible', zIndex: 30, height: w.height ? `${w.height}px` : undefined }
+              : w.height
+              ? { height: `${w.height}px` }
               : undefined;
 
             return (
@@ -2322,28 +2410,33 @@ export default function StaffDashboard() {
                 )}
 
                 {/* Widget Content */}
-                <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflowY: w.height ? 'auto' : undefined, minHeight: 0 }}>
                   {renderWidgetContent(w)}
                 </div>
 
-                {/* Live width preview while resizing — only snaps to a config size on release.
-                    In single-column (mobile) layouts the overlay stays full-width and just
-                    announces the size the step-drag is aiming at. */}
+                {/* Live width+height preview while resizing. Width only snaps to a config
+                    size (Nhỏ/Vừa/Lớn) on release; height is free-form, not locked to any
+                    preset. In single-column (mobile) layouts the width overlay stays
+                    full-width and just announces the size the step-drag is aiming at. */}
                 {isResizingThis && (
                   <div
                     className={styles.resizePreview}
-                    style={{ width: resizeInfo.numCols < 4 ? '100%' : resizeInfo.currentWidth }}
+                    style={{
+                      width: resizeInfo.numCols < 4 ? '100%' : resizeInfo.currentWidth,
+                      height: resizeInfo.currentHeight,
+                    }}
                   >
-                    {sizeLabelText(resolveTargetSize(resizeInfo))}
+                    {sizeLabelText(resolveTargetSize(resizeInfo))} · {Math.round(resizeInfo.currentHeight)}px
                   </div>
                 )}
 
-                {/* Corner resize handle (Nhỏ / Vừa / Lớn) */}
+                {/* Corner resize handle — drag horizontally to step through Nhỏ/Vừa/Lớn,
+                    drag vertically for free-form height. */}
                 {isEditMode && (
                   <div
                     className={styles.resizeHandle}
                     onPointerDown={(e) => handleResizeHandlePointerDown(e, w)}
-                    title="Kéo để đổi kích thước (Nhỏ / Vừa / Lớn)"
+                    title="Kéo ngang để đổi kích thước (Nhỏ / Vừa / Lớn), kéo dọc để đổi chiều cao tự do"
                   />
                 )}
               </div>
