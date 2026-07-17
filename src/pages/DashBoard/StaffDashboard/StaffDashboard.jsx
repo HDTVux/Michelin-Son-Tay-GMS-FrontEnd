@@ -1270,9 +1270,16 @@ export default function StaffDashboard() {
     let rafId = null;
 
     const processFrame = () => {
-      rafId = null;
       const { x, y } = pointerPos;
-      setDragInfo((prev) => (prev ? { ...prev, x, y } : prev));
+
+      // Edge auto-scroll: on touch (and long pages in general) the user must be able
+      // to keep dragging past the viewport — holding the widget near the top/bottom
+      // edge scrolls the page underneath it.
+      const EDGE = 70;
+      if (y < EDGE) window.scrollBy(0, -14);
+      else if (y > window.innerHeight - EDGE) window.scrollBy(0, 14);
+
+      setDragInfo((prev) => (prev && (prev.x !== x || prev.y !== y) ? { ...prev, x, y } : prev));
 
       // Find the widget whose center is closest to the pointer, then decide whether
       // the dragged item should land before or after it (by which side of its
@@ -1315,12 +1322,17 @@ export default function StaffDashboard() {
       }
     };
 
+    // Continuous rAF loop (not per-pointermove): edge auto-scroll must keep working
+    // while the finger/cursor is held still at the viewport edge.
+    const loop = () => {
+      processFrame();
+      rafId = requestAnimationFrame(loop);
+    };
+    rafId = requestAnimationFrame(loop);
+
     const handlePointerMove = (e) => {
       pointerPos.x = e.clientX;
       pointerPos.y = e.clientY;
-      if (rafId === null) {
-        rafId = requestAnimationFrame(processFrame);
-      }
     };
 
     const handlePointerUp = () => {
@@ -1331,10 +1343,12 @@ export default function StaffDashboard() {
 
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
     return () => {
       if (rafId !== null) cancelAnimationFrame(rafId);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
   }, [dragInfo?.id, captureRectsForFlip]);
 
@@ -1345,6 +1359,21 @@ export default function StaffDashboard() {
     if (width >= (twoCol + fourCol) / 2) return 'large';
     if (width >= (oneCol + twoCol) / 2) return 'medium';
     return 'small';
+  };
+
+  const WIDGET_SIZES = ['small', 'medium', 'large'];
+  const sizeLabelText = (size) => (size === 'small' ? 'Nhỏ' : size === 'medium' ? 'Vừa' : 'Lớn');
+
+  // On layouts with fewer than 4 columns (mobile/tablet) the rendered widths no longer
+  // match the 4-column bucket math — step the size by drag distance instead (~90px per step).
+  const resolveTargetSize = (info) => {
+    if (!info) return 'small';
+    if (info.numCols < 4) {
+      const startIdx = Math.max(0, WIDGET_SIZES.indexOf(info.startSize));
+      const step = Math.round((info.currentWidth - info.startWidth) / 90);
+      return WIDGET_SIZES[Math.max(0, Math.min(WIDGET_SIZES.length - 1, startIdx + step))];
+    }
+    return sizeBucketForWidth(info.currentWidth, info.colWidth, info.gap);
   };
 
   // Corner resize handle: while dragging, the widget grows/shrinks pixel-by-pixel
@@ -1359,6 +1388,7 @@ export default function StaffDashboard() {
     const containerRect = widgetsContainerRef.current.getBoundingClientRect();
     const computed = getComputedStyle(widgetsContainerRef.current);
     const gap = parseFloat(computed.columnGap || computed.gap || '18') || 18;
+    const numCols = String(computed.gridTemplateColumns || '').trim().split(/\s+/).filter(Boolean).length || 1;
     const colWidth = (containerRect.width - gap * 3) / 4;
     const startWidth = el.getBoundingClientRect().width;
     setResizeInfo({
@@ -1368,8 +1398,12 @@ export default function StaffDashboard() {
       currentWidth: startWidth,
       colWidth,
       gap,
-      minWidth: colWidth * 0.55,
-      maxWidth: containerRect.width,
+      numCols,
+      startSize: w.size,
+      // Step mode (< 4 columns) needs room to drag in both directions regardless
+      // of the widget's rendered width, so widen the clamp range there.
+      minWidth: numCols < 4 ? startWidth - 90 * 2 : colWidth * 0.55,
+      maxWidth: numCols < 4 ? startWidth + 90 * 2 : containerRect.width,
     });
   };
 
@@ -1405,7 +1439,7 @@ export default function StaffDashboard() {
       setResizeInfo(null);
       if (!info) return;
 
-      const nextSize = sizeBucketForWidth(info.currentWidth, info.colWidth, info.gap);
+      const nextSize = resolveTargetSize(info);
       const current = widgetsListRef.current;
       const widget = current.find((x) => x.id === info.id);
       if (widget && widget.size !== nextSize) {
@@ -1420,10 +1454,12 @@ export default function StaffDashboard() {
 
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
     return () => {
       if (rafId !== null) cancelAnimationFrame(rafId);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
   }, [resizeInfo?.id, captureRectsForFlip]);
 
@@ -2290,17 +2326,15 @@ export default function StaffDashboard() {
                   {renderWidgetContent(w)}
                 </div>
 
-                {/* Live width preview while resizing — only snaps to a config size on release */}
+                {/* Live width preview while resizing — only snaps to a config size on release.
+                    In single-column (mobile) layouts the overlay stays full-width and just
+                    announces the size the step-drag is aiming at. */}
                 {isResizingThis && (
                   <div
                     className={styles.resizePreview}
-                    style={{ width: resizeInfo.currentWidth }}
+                    style={{ width: resizeInfo.numCols < 4 ? '100%' : resizeInfo.currentWidth }}
                   >
-                    {sizeBucketForWidth(resizeInfo.currentWidth, resizeInfo.colWidth, resizeInfo.gap) === 'small'
-                      ? 'Nhỏ'
-                      : sizeBucketForWidth(resizeInfo.currentWidth, resizeInfo.colWidth, resizeInfo.gap) === 'medium'
-                      ? 'Vừa'
-                      : 'Lớn'}
+                    {sizeLabelText(resolveTargetSize(resizeInfo))}
                   </div>
                 )}
 
