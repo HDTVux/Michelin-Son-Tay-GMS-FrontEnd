@@ -1252,7 +1252,47 @@
   color: var(--ink);
   outline: none;
   box-sizing: border-box;
+  margin-bottom: 14px;
+}
+
+.startModeGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 20px;
+}
+
+.startModeOption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.startModeOption:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.startModeOption strong {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.startModeOption span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.startModeOption.isSelected {
+  border-color: var(--blue);
+  background: #eff6ff;
 }
 
 .modalInput:focus {
@@ -1327,16 +1367,21 @@
 }
 
 @media (max-width: 640px) {
+  /* Nhỏ = 1 of 2 columns (a compact square-ish tile, clearly smaller than "Vừa"/"Lớn"),
+     everything else takes the full row — mirrors the 3-preset step-resize on mobile
+     instead of collapsing every size down to one identical full-width block. */
   .widgetsContainer {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+  .widgetSmall {
+    grid-column: span 1 / span 1;
   }
   .widgetFullWidth,
   .widgetHalfWidth,
-  .widgetSmall,
   .widgetMedium,
   .widgetLarge {
-    grid-column: span 1 / span 1;
+    grid-column: span 2 / span 2;
   }
 }
 

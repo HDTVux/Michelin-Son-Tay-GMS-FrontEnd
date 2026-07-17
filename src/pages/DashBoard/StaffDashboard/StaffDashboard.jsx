@@ -496,6 +496,7 @@ const DEFAULT_PANELS = [
   { id: 'quickActions', title: 'Lối tắt thao tác nhanh', eyebrow: 'Thao tác nhanh', description: 'Nút truy cập nhanh các chức năng thường dùng', icon: 'arrow', category: 'work', size: 'full', visible: true },
   { id: 'attendanceChart', title: 'Giờ làm 7 ngày gần nhất', eyebrow: 'Chấm công', description: 'Biểu đồ cột số giờ làm mỗi ngày', icon: 'chart', category: 'attendance', size: 'half', visible: true },
   { id: 'attendancePie', title: 'Trạng thái tháng này', eyebrow: 'Tỷ lệ', description: 'Tỷ lệ có mặt / đi muộn / vắng trong tháng', icon: 'chart', category: 'attendance', size: 'half', visible: true },
+  { id: 'onTimeRate', title: 'Tỷ lệ đi làm đúng giờ', eyebrow: 'Đúng giờ', description: 'Tỷ lệ chấm công đúng giờ so với đi muộn trong tháng', icon: 'clock', category: 'attendance', size: 'half', visible: true },
   { id: 'attendanceHistory', title: 'Lịch sử tháng', eyebrow: 'Chấm công', description: 'Bảng chi tiết chấm công theo từng ngày', icon: 'clock', category: 'attendance', size: 'full', visible: true },
   { id: 'genderRatio', title: 'Tỷ lệ giới tính khách hàng', eyebrow: 'Khách hàng', description: 'Phân bổ giới tính khách hàng đã đăng ký', icon: 'user', category: 'customer', size: 'half', visible: true },
   { id: 'notifications', title: 'Thông báo gần đây', eyebrow: 'Thông báo', description: 'Danh sách thông báo hệ thống mới nhất', icon: 'bell', category: 'notification', size: 'full', visible: true },
@@ -525,6 +526,7 @@ const LIST_WIDGET_IDS = new Set(['schedule', 'tasks', 'notifications', 'attendan
 const WIDGET_MIN_CONTENT_HEIGHT = {
   attendanceChart: 260,
   attendancePie: 260,
+  onTimeRate: 220,
   genderRatio: 260,
   profitTreemap: 320,
   quickActions: 150,
@@ -645,6 +647,7 @@ export default function StaffDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [newDashboardName, setNewDashboardName] = useState('');
+  const [newDashboardStartEmpty, setNewDashboardStartEmpty] = useState(false);
   const widgetManagerRef = useRef(null);
   const widgetManagerTriggerRef = useRef(null);
 
@@ -1174,8 +1177,8 @@ export default function StaffDashboard() {
     if (!token || !name) return;
 
     const initialLayout = {
-      stats: DEFAULT_STATS.map((s) => ({ id: s.id, visible: true })),
-      panels: DEFAULT_PANELS.map((p) => ({ id: p.id, size: p.size, visible: true })),
+      stats: DEFAULT_STATS.map((s) => ({ id: s.id, visible: !newDashboardStartEmpty })),
+      panels: DEFAULT_PANELS.map((p) => ({ id: p.id, size: p.size, visible: !newDashboardStartEmpty })),
     };
 
     const payload = {
@@ -1194,6 +1197,10 @@ export default function StaffDashboard() {
         setShowCreateModal(false);
         setNewDashboardName('');
         setIsEditMode(true);
+        // Blank dashboards need the widget manager open right away so the user can
+        // start adding widgets instead of staring at an empty grid.
+        if (newDashboardStartEmpty) setShowWidgetManager(true);
+        setNewDashboardStartEmpty(false);
       }
     } catch (err) {
       console.error('Không thể tạo dashboard mới:', err);
@@ -1475,7 +1482,25 @@ export default function StaffDashboard() {
   const NEIGHBOR_SNAP_RADIUS = 10;
   const HEIGHT_GRID_STEP = 20;
 
-  const snapHeight = (rawHeight, resizingId) => {
+  // On mobile/step-mode (< 4 columns) there's no free-form resize at all — height must
+  // always land on exactly one of the 3 presets (Nhỏ/Vừa/Lớn), same as width, instead of
+  // the desktop's "magnetic but otherwise free" pixel dragging.
+  const nearestHeightPreset = (rawHeight) => {
+    let best = HEIGHT_PRESETS[0];
+    let bestDist = Infinity;
+    HEIGHT_PRESETS.forEach((preset) => {
+      const dist = Math.abs(rawHeight - preset);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = preset;
+      }
+    });
+    return best;
+  };
+
+  const snapHeight = (rawHeight, resizingId, strictPresetsOnly) => {
+    if (strictPresetsOnly) return nearestHeightPreset(rawHeight);
+
     const neighborHeights = [];
     const selfEl = widgetRefs.current[resizingId];
     if (selfEl) {
@@ -1565,7 +1590,7 @@ export default function StaffDashboard() {
         const dy = latestY - prev.startY;
         const currentWidth = Math.min(prev.maxWidth, Math.max(prev.minWidth, prev.startWidth + dx));
         const rawHeight = Math.min(MAX_WIDGET_HEIGHT, Math.max(prev.minHeight, prev.startHeight + dy));
-        const currentHeight = Math.max(prev.minHeight, snapHeight(rawHeight, prev.id));
+        const currentHeight = Math.max(prev.minHeight, snapHeight(rawHeight, prev.id, prev.numCols < 4));
         return { ...prev, currentWidth, currentHeight };
       });
     };
@@ -1804,6 +1829,37 @@ export default function StaffDashboard() {
           </div>
         );
       }
+    }
+
+    if (w.id === 'onTimeRate') {
+      const onTimeCount = attendanceSummary.present;
+      const lateCount = attendanceSummary.late;
+      const rateTotal = onTimeCount + lateCount || 1;
+      const ratePct = Math.round((onTimeCount / rateTotal) * 100);
+
+      if (w.size === 'small') {
+        // Same stat-card look as the booking widgets (statPendingToday etc.) —
+        // icon circle + big value + label + hint.
+        const tone = ratePct >= 80 ? 'Green' : (ratePct >= 50 ? 'Yellow' : 'Red');
+        return (
+          <div className={`${styles.statCard} ${styles[`tone${tone}`]}`} style={{ width: '100%' }}>
+            <div className={styles.statIcon}>
+              <Icon name="clock" />
+            </div>
+            <div>
+              <div className={styles.statValue}>{ratePct}%</div>
+              <div className={styles.statLabel}>Đi làm đúng giờ</div>
+              <div className={styles.statHint}>{onTimeCount}/{rateTotal} lần chấm công</div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ padding: 16 }}>
+          <OnTimeRatePieChart onTimeCount={onTimeCount} lateCount={lateCount} showLegend={w.size === 'large'} />
+        </div>
+      );
     }
 
     if (w.id === 'genderRatio') {
@@ -2419,6 +2475,7 @@ export default function StaffDashboard() {
               className={styles.createTabBtn}
               onClick={() => {
                 setNewDashboardName('');
+                setNewDashboardStartEmpty(false);
                 setShowCreateModal(true);
               }}
               title="Tạo Dashboard mới"
@@ -2660,7 +2717,11 @@ export default function StaffDashboard() {
                     </div>
                   </div>
                 ) : (
-                  w.type === 'panel' && (
+                  // At "Nhỏ" size onTimeRate already renders a stat-card with its own
+                  // label ("Đi làm đúng giờ") — the generic eyebrow+title header on top
+                  // just repeated the same text right above it. Medium/large keep the
+                  // header since their pie chart has no title of its own.
+                  w.type === 'panel' && !(w.id === 'onTimeRate' && w.size === 'small') && (
                     <div className={styles.panelHeader} style={{ padding: '16px 16px 0 16px', borderBottom: 'none' }}>
                       <div className={styles.panelTitleWrap}>
                         <span className={styles.panelEyebrow}>{w.eyebrow}</span>
@@ -2736,6 +2797,24 @@ export default function StaffDashboard() {
               className={styles.modalInput}
               autoFocus
             />
+            <div className={styles.startModeGroup}>
+              <button
+                type="button"
+                className={`${styles.startModeOption} ${!newDashboardStartEmpty ? styles.isSelected : ''}`}
+                onClick={() => setNewDashboardStartEmpty(false)}
+              >
+                <strong>Dùng bố cục mặc định</strong>
+                <span>Điền sẵn các widget thường dùng, bạn ẩn/hiện lại sau</span>
+              </button>
+              <button
+                type="button"
+                className={`${styles.startModeOption} ${newDashboardStartEmpty ? styles.isSelected : ''}`}
+                onClick={() => setNewDashboardStartEmpty(true)}
+              >
+                <strong>Bắt đầu trống</strong>
+                <span>Trang rỗng, tự thêm dần widget qua "Quản lý Widget"</span>
+              </button>
+            </div>
             <div className={styles.modalActions}>
               <button
                 type="button"
@@ -2797,6 +2876,47 @@ function StatusBadge({ status }) {
     <span className={`${styles.statusBadge} ${styles[`status${statusTone(status)}`]}`}>
       {statusText(status)}
     </span>
+  );
+}
+
+function OnTimeRatePieChart({ onTimeCount, lateCount, showLegend }) {
+  const total = onTimeCount + lateCount || 1;
+  const ratePct = Math.round((onTimeCount / total) * 100);
+  const gradient = onTimeCount + lateCount > 0
+    ? `#059669 0% ${ratePct}%, #dc2626 ${ratePct}% 100%`
+    : '#e5e7eb 0% 100%';
+
+  const pieChart = (
+    <div className={styles.pieChart} style={{ background: `conic-gradient(${gradient})` }}>
+      <div className={styles.pieCenter}>
+        <strong>{ratePct}%</strong>
+        <span>đúng giờ</span>
+      </div>
+    </div>
+  );
+
+  if (!showLegend) {
+    return <div style={{ display: 'flex', justifyContent: 'center' }}>{pieChart}</div>;
+  }
+
+  return (
+    <div className={styles.pieWrap}>
+      {pieChart}
+      <div className={styles.pieLegend}>
+        <div className={styles.pieLegendItem}>
+          <span className={`${styles.pieDot} ${styles.piesuccess}`} />
+          <span>Đúng giờ</span>
+          <strong>{onTimeCount}</strong>
+          <em>{ratePct}%</em>
+        </div>
+        <div className={styles.pieLegendItem}>
+          <span className={`${styles.pieDot} ${styles.piedanger}`} />
+          <span>Đi muộn</span>
+          <strong>{lateCount}</strong>
+          <em>{100 - ratePct}%</em>
+        </div>
+      </div>
+    </div>
   );
 }
 

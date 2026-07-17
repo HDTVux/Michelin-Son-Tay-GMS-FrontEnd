@@ -65,6 +65,7 @@ const SEARCHABLE_FUNCTIONS = [
   { id: 'staff-manager', label: 'Quản lý nhân viên', path: '/staff-manager', roles: ['MANAGER', 'ADMIN'] },
   { id: 'employee-manager', label: 'Quản lý hồ sơ nhân viên', path: '/employee-manager', roles: ['MANAGER', 'ADMIN'] },
   { id: 'shift-management', label: 'Quản lý ca làm việc', path: '/shift-management', roles: ['MANAGER', 'ADMIN'] },
+  { id: 'attendance-management', label: 'Chấm công nhân viên', path: '/attendance-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'staff-notification-sender', label: 'Thông báo nhân viên', path: '/staff-notification-sender', roles: ['RECEPTIONIST', 'MANAGER', 'ADMIN'] },
   { id: 'promotion-management', label: 'Quản lý khuyến mãi', path: '/promotion-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'maintenance-reminders', label: 'Nhắc lịch bảo dưỡng', path: '/maintenance-reminders', roles: ['RECEPTIONIST', 'MANAGER'] },
