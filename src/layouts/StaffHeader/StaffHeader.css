@@ -98,6 +98,27 @@
   gap: 20px;
 }
 
+.staff-header__scan-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.staff-header__scan-btn:hover {
+  background: rgba(0, 90, 169, 0.04);
+  border-color: rgba(0, 90, 169, 0.15);
+  color: #005aa9;
+}
+
 /* Override fixed positioning of the notification bell when inside StaffHeader */
 .staff-header__bell-container .staffNotification {
   position: relative !important;

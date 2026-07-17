@@ -41,7 +41,9 @@ import {
     Search,
     ShoppingCart,
     MapPin,
+    ScanQrCode,
 } from 'lucide-react';
+import UniversalScannerModal from '../../components/UniversalScanner/UniversalScannerModal.jsx';
 import './SideBar.css';
 
 const SIDEBAR_GROUPS_STORAGE_KEY = 'sidebarOpenGroups';
@@ -313,6 +315,7 @@ const readSidebarState = (storageKey, fallbackValue) => {
 const SideBar = ({ isCollapsed, setIsCollapsed }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [openGroups, setOpenGroups] = useState(() =>
     ({
         ...Object.fromEntries(NAV_GROUPS.map((g) => [g.id, Boolean(g.defaultOpen)])),
@@ -542,6 +545,16 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
 
             <button
                 type="button"
+                className="sidebar__scan-button"
+                onClick={() => setIsScannerOpen(true)}
+                aria-label="Quét mã QR / Barcode"
+                title="Quét mã QR / Barcode"
+            >
+                <ScanQrCode size={18} />
+            </button>
+
+            <button
+                type="button"
                 className="sidebar__toggle"
                 onClick={toggleMenu}
                 aria-expanded={isOpen}
@@ -550,6 +563,8 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
                 <span className="sidebar__toggleIcon">{isOpen ? <X /> : <Menu />}</span>
                 <span className="sidebar__toggleLabel">Menu</span>
             </button>
+
+            <UniversalScannerModal open={isScannerOpen} onClose={() => setIsScannerOpen(false)} />
 
             <nav className={`sidebar__nav ${isOpen ? 'is-open' : ''}`}>
                 <div className="sidebar__search-container">

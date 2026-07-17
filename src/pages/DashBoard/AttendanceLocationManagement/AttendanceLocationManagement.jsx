@@ -155,6 +155,8 @@ function FitAllBounds({ points }) {
 
 function LocationsOverviewMap({ locations }) {
   const points = locations.map((loc) => loc.position);
+  const activePoints = locations.filter((loc) => loc.isActive !== false).map((loc) => loc.position);
+  const boundsPoints = activePoints.length > 0 ? activePoints : points;
   const [mapView, setMapView] = useState('street');
 
   return (
@@ -179,7 +181,7 @@ function LocationsOverviewMap({ locations }) {
               </Popup>
             </Marker>
           ))}
-          <FitAllBounds points={points} />
+          <FitAllBounds points={boundsPoints} />
           <InvalidateMapSize />
         </MapContainer>
         <MapLayerToggle mapView={mapView} onToggle={() => setMapView((v) => (v === 'street' ? 'satellite' : 'street'))} />

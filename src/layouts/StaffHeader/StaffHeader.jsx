@@ -25,9 +25,11 @@ import {
   Undo,
   Layers,
   X,
-  ShoppingCart
+  ShoppingCart,
+  ScanQrCode,
 } from 'lucide-react';
 import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
+import UniversalScannerModal from '../../components/UniversalScanner/UniversalScannerModal.jsx';
 import './StaffHeader.css';
 import { request } from '../../services/apiClient.js';
 
@@ -453,6 +455,7 @@ const StaffHeader = ({ notificationState, notificationBell }) => {
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const staffRoles = useMemo(() => readStaffRoles(), [location.pathname]);
   const staffProfile = useMemo(() => readStaffProfile(), [location.pathname]);
@@ -786,6 +789,17 @@ const StaffHeader = ({ notificationState, notificationBell }) => {
           )}
         </div>
 
+        {/* Universal QR/Barcode scanner */}
+        <button
+          type="button"
+          className="staff-header__scan-btn"
+          onClick={() => setIsScannerOpen(true)}
+          aria-label="Quét mã QR / Barcode"
+          title="Quét mã QR / Barcode"
+        >
+          <ScanQrCode size={20} />
+        </button>
+
         {/* Render notification bell here */}
         <div className="staff-header__bell-container">
           {notificationBell}
@@ -844,6 +858,8 @@ const StaffHeader = ({ notificationState, notificationBell }) => {
           )}
         </div>
       </div>
+
+      <UniversalScannerModal open={isScannerOpen} onClose={() => setIsScannerOpen(false)} />
     </header>
   );
 };
