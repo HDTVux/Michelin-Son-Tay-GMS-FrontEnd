@@ -40,6 +40,7 @@ import {
     Building2,
     Search,
     ShoppingCart,
+    MapPin,
 } from 'lucide-react';
 import './SideBar.css';
 
@@ -191,9 +192,17 @@ const NAV_GROUPS = [
                 items: [
                     { id: 'staff-manager', label: 'Quản lý nhân viên', path: '/staff-manager', icon: <Users size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                     { id: 'employee-manager', label: 'Quản lý hồ sơ nhân viên', path: '/employee-manager', icon: <Contact size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                    { id: 'staff-notification-sender', label: 'Thông báo nhân viên', path: '/staff-notification-sender', icon: <Bell size={18} />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                ]
+            },
+            {
+                id: 'sub-attendance',
+                label: 'Ca làm & Chấm công',
+                icon: <CalendarDays size={15} />,
+                items: [
                     { id: 'shift-management', label: 'Quản lý ca làm việc', path: '/shift-management', icon: <CalendarDays size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                     { id: 'attendance-management', label: 'Chấm công nhân viên', path: '/attendance-management', icon: <CheckSquare size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
-                    { id: 'staff-notification-sender', label: 'Thông báo nhân viên', path: '/staff-notification-sender', icon: <Bell size={18} />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                    { id: 'attendance-locations', label: 'Vị trí chấm công (QR)', path: '/attendance-locations', icon: <MapPin size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                 ]
             },
             {
@@ -232,6 +241,7 @@ const NAV_GROUPS = [
         defaultOpen: true,
         items: [
             { id: 'staff-profile', label: 'Hồ sơ nhân viên', path: '/staff-profile', icon: <Contact size={18} />, roles: 'ALL' },
+            { id: 'attendance-checkin', label: 'Chấm công QR', path: '/attendance-checkin', icon: <Clock size={18} />, roles: 'ALL' },
             { id: 'staff-notifications-page', label: 'Thông báo', path: '/notifications', icon: <Bell size={18} />, roles: 'ALL' },
             { id: 'daily-schedule', label: 'Lịch làm việc', path: '/daily-schedule', icon: <Calendar size={18} />, roles: 'ALL' },
             { id: 'work-history-technician', label: 'Lịch sử công việc', path: '/work-history/technician', icon: <Briefcase size={18} />, roles: [STAFF_ROLE.TECHNICIAN] },

@@ -44,6 +44,57 @@ export const fetchStaffAttendanceHistory = (month, year, token) => {
   });
 };
 
+// ============ ATTENDANCE QR + GPS APIs ============
+// Xem docs/migration_attendance_qr_location.sql cho schema + API contract đề xuất.
+
+/**
+ * GET /api/staff/attendance/qr-status?token=
+ * Tra cứu vị trí theo mã QR đã quét + trạng thái chấm công hôm nay của bản thân.
+ * @param {string} qrToken - Token lấy được từ mã QR
+ * @param {string} token - JWT token
+ */
+export const fetchQrAttendanceStatus = (qrToken, token) =>
+  request(`/api/staff/attendance/qr-status?token=${encodeURIComponent(qrToken)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+/**
+ * POST /api/staff/attendance/qr-check-in
+ * Tự chấm công vào bằng mã QR + tọa độ GPS.
+ */
+export const submitQrCheckIn = (payload, token) =>
+  request('/api/staff/attendance/qr-check-in', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      qrToken: payload?.qrToken,
+      latitude: payload?.latitude,
+      longitude: payload?.longitude,
+    }),
+  });
+
+/**
+ * POST /api/staff/attendance/qr-check-out
+ * Tự chấm công ra bằng mã QR + tọa độ GPS.
+ */
+export const submitQrCheckOut = (payload, token) =>
+  request('/api/staff/attendance/qr-check-out', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      qrToken: payload?.qrToken,
+      latitude: payload?.latitude,
+      longitude: payload?.longitude,
+    }),
+  });
+
 /**
  * GET /api/staff/tasks/today
  * Lấy danh sách công việc hôm nay.

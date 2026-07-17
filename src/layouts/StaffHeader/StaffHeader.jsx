@@ -66,6 +66,7 @@ const SEARCHABLE_FUNCTIONS = [
   { id: 'employee-manager', label: 'Quản lý hồ sơ nhân viên', path: '/employee-manager', roles: ['MANAGER', 'ADMIN'] },
   { id: 'shift-management', label: 'Quản lý ca làm việc', path: '/shift-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'attendance-management', label: 'Chấm công nhân viên', path: '/attendance-management', roles: ['MANAGER', 'ADMIN'] },
+  { id: 'attendance-locations', label: 'Vị trí chấm công (QR)', path: '/attendance-locations', roles: ['MANAGER', 'ADMIN'] },
   { id: 'staff-notification-sender', label: 'Thông báo nhân viên', path: '/staff-notification-sender', roles: ['RECEPTIONIST', 'MANAGER', 'ADMIN'] },
   { id: 'promotion-management', label: 'Quản lý khuyến mãi', path: '/promotion-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'maintenance-reminders', label: 'Nhắc lịch bảo dưỡng', path: '/maintenance-reminders', roles: ['RECEPTIONIST', 'MANAGER'] },
@@ -74,6 +75,7 @@ const SEARCHABLE_FUNCTIONS = [
   { id: 'system-log-management', label: 'Nhật ký hệ thống', path: '/system-log-management', roles: ['ADMIN'] },
   { id: 'revenue-management', label: 'Quản lý doanh thu', path: '/revenue-management', roles: ['ACCOUNTANT', 'MANAGER', 'ADMIN'] },
   { id: 'staff-profile', label: 'Hồ sơ nhân viên', path: '/staff-profile', roles: 'ALL' },
+  { id: 'attendance-checkin', label: 'Chấm công QR', path: '/attendance-checkin', roles: 'ALL' },
   { id: 'staff-notifications-page', label: 'Thông báo cá nhân', path: '/notifications', roles: 'ALL' },
   { id: 'daily-schedule', label: 'Lịch làm việc', path: '/daily-schedule', roles: 'ALL' },
 ];
@@ -435,6 +437,7 @@ const getDynamicNavItems = (roles, isMobile = false) => {
 
 const PERSONAL_NAV_ITEMS = [
   { id: 'staff-profile', label: 'Hồ sơ nhân viên', path: '/staff-profile', icon: <Contact size={18} />, roles: 'ALL' },
+  { id: 'attendance-checkin', label: 'Chấm công QR', path: '/attendance-checkin', icon: <Clock size={18} />, roles: 'ALL' },
   { id: 'staff-notifications-page', label: 'Thông báo', path: '/notifications', icon: <Bell size={18} />, roles: 'ALL' },
   { id: 'daily-schedule', label: 'Lịch làm việc', path: '/daily-schedule', icon: <Calendar size={18} />, roles: 'ALL' },
   { id: 'work-history-technician', label: 'Lịch sử công việc', path: '/work-history/technician', icon: <Briefcase size={18} />, roles: [STAFF_ROLE.TECHNICIAN] },

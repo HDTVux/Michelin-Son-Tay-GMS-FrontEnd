@@ -65,6 +65,9 @@ import BlogFormPage from './pages/DashBoard/PartManagement/BlogFormPage.jsx';
 import ComboManagement from './pages/DashBoard/PartManagement/ComboManagement.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 import AttendanceManagement from './pages/DashBoard/AttendanceManagement/AttendanceManagement.jsx';
+import AttendanceLocationManagement from './pages/DashBoard/AttendanceLocationManagement/AttendanceLocationManagement.jsx';
+import AttendanceQrPrint from './pages/DashBoard/AttendanceLocationManagement/AttendanceQrPrint.jsx';
+import AttendanceCheckin from './pages/DashBoard/AttendanceCheckin/AttendanceCheckin.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
@@ -453,6 +456,9 @@ export default function App() {
               <Route path="promotion-management/create" element={staffRoute(<PromotionManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="shift-management" element={staffRoute(<ShiftManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="attendance-management" element={staffRoute(<AttendanceManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+              <Route path="attendance-locations" element={staffRoute(<AttendanceLocationManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+              <Route path="attendance-locations/:locationId/qr-print" element={staffRoute(<AttendanceQrPrint />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+              <Route path="attendance-checkin" element={staffRoute(<AttendanceCheckin />)} />
               <Route path="queue-management" element={staffRoute(<QueueManagement />, ROLE_GROUP.RECEPTIONIST)} />
               <Route path="create-booking" element={staffRoute(<CreatBooking />, ROLE_GROUP.RECEPTIONIST)} />
               <Route path="parts-sales" element={staffRoute(<PartsSales />, ROLE_GROUP.RECEPTIONIST)} />

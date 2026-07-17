@@ -1,0 +1,94 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  padding: 24px;
+  font-family: 'Segoe UI', Tahoma, 'Noto Sans', Arial, sans-serif;
+}
+
+.card {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border: 2px solid #1f2937;
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+}
+
+.storeName {
+  margin: 0 0 4px;
+  font-size: 16px;
+  letter-spacing: 1px;
+  color: #6b7280;
+}
+
+.locationName {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.address {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.qrWrapper {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0 20px;
+}
+
+.instruction {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.fallback {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  color: #4b5563;
+}
+
+.fallback button {
+  min-height: 40px;
+  padding: 9px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  color: #fff;
+  background: #1e90ff;
+}
+
+@media print {
+  .page {
+    background: #fff;
+    padding: 0;
+  }
+
+  .card {
+    border: none;
+    box-shadow: none;
+  }
+}

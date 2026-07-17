@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   fetchManagerAttendance,
@@ -81,6 +82,7 @@ const statusMeta = (status) => {
 };
 
 export default function AttendanceManagement() {
+  const navigate = useNavigate();
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
   const [staffList, setStaffList] = useState([]);
   const [shifts, setShifts] = useState([]);
@@ -252,6 +254,9 @@ export default function AttendanceManagement() {
           <h1 className={styles.title}>Chấm công nhân viên</h1>
           <p className={styles.subtitle}>Chọn nhân viên theo tên và bấm vào ô ngày để điểm danh — không cần nhớ mã số.</p>
         </div>
+        <button type="button" className={styles.navBtn} onClick={() => navigate('/attendance-locations')}>
+          Quản lý vị trí &amp; mã QR
+        </button>
       </div>
 
       <div className={styles.toolbar}>

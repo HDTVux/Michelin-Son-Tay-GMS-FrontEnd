@@ -1,0 +1,641 @@
+.container {
+  min-height: 100vh;
+  padding: 24px;
+  color: #1f1f1f;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  font-family: 'Segoe UI', Tahoma, 'Noto Sans', Arial, sans-serif;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 18px 24px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.primaryBtn {
+  min-height: 42px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  color: #fff;
+  background: #1e90ff;
+  box-shadow: 0 2px 8px rgba(30, 144, 255, 0.3);
+  font-family: inherit;
+  transition: all 0.25s ease;
+}
+
+.primaryBtn:hover {
+  background: #1873cc;
+  transform: translateY(-1px);
+}
+
+.toolbar {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 340px;
+  padding: 8px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  font-family: inherit;
+  background: transparent;
+}
+
+.searchClearBtn {
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 0;
+  color: #6b7280;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid #dbeafe;
+  border-top-color: #1e90ff;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.emptyState {
+  padding: 40px;
+  text-align: center;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.emptyTitle {
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.emptyMessage {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0;
+}
+
+.tableCard {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.table th,
+.table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+}
+
+.table th {
+  background: #f9fafb;
+  font-weight: 700;
+  color: #374151;
+}
+
+.nameCell {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.coordCell {
+  font-variant-numeric: tabular-nums;
+  color: #4b5563;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.statusActive {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.statusInactive {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.actionGroup {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.qrBtn,
+.editBtn,
+.deactivateBtn {
+  border: 2px solid #e5e7eb;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #374151;
+}
+
+.qrBtn {
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+
+.deactivateBtn {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2200;
+  padding: 16px;
+}
+
+.modalContent {
+  width: 100%;
+  max-width: 460px;
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  background: #1e90ff;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.modalTitle {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.modalSubtitle {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.modalClose {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.modalBody {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  min-width: 0;
+}
+
+.modalGrid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.modalFormCol {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.modalMapCol {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.radiusStepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radiusStepper .input {
+  flex: 1;
+  text-align: center;
+}
+
+.radiusStepBtn {
+  flex-shrink: 0;
+  min-width: 42px;
+  min-height: 38px;
+  border: 2px solid #e5e7eb;
+  border-radius: 9px;
+  background: #fff;
+  color: #1e40af;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.radiusStepBtn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+@media (max-width: 760px) {
+  .modalGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.required {
+  color: #ef4444;
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  border: 2px solid #e5e7eb;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  color: #1f2937;
+}
+
+.input:focus {
+  border-color: #1e90ff;
+}
+
+.gpsBtn {
+  border: 2px dashed #93c5fd;
+  background: #eff6ff;
+  color: #1e40af;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.gpsBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.mapWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mapShell {
+  position: relative;
+}
+
+.mapLayerToggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 500;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1f2937;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.mapLayerToggle:hover {
+  background: #fff;
+}
+
+.mapLocateBtn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 500;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  font-size: 16px;
+}
+
+.mapLocateBtn:hover {
+  background: #fff;
+}
+
+.mapLocateBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.searchAddressBox {
+  position: relative;
+  display: flex;
+  gap: 8px;
+}
+
+.searchAddressInput {
+  flex: 1;
+  border: 2px solid #e5e7eb;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  color: #1f2937;
+}
+
+.searchAddressInput:focus {
+  border-color: #1e90ff;
+}
+
+.searchAddressBtn {
+  border: none;
+  border-radius: 9px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #fff;
+  background: #1e90ff;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.searchAddressBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.searchResultsList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 600;
+}
+
+.searchResultItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+  font-size: 12px;
+  color: #374151;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.searchResultItem:last-child {
+  border-bottom: none;
+}
+
+.searchResultItem:hover {
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.mapContainer {
+  width: 100%;
+  height: 440px;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  z-index: 0;
+}
+
+@media (max-width: 760px) {
+  .mapContainer {
+    height: 300px;
+  }
+}
+
+.mapHint {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.overviewMapCard {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.overviewMapHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.overviewMapTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.overviewMapCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.overviewMapContainer {
+  width: 100%;
+  height: 380px;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  z-index: 0;
+}
+
+.markerTooltip {
+  font-weight: 700;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.qrCanvasWrapper {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #f9fafb;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.cancelBtn {
+  min-height: 40px;
+  padding: 9px 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 2px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  font-family: inherit;
+}
+
+.saveBtn {
+  min-height: 40px;
+  padding: 9px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  color: #fff;
+  background: #1e90ff;
+  font-family: inherit;
+}
+
+.saveBtn:hover {
+  background: #1873cc;
+}
