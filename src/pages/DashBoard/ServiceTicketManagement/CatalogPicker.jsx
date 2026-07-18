@@ -855,6 +855,44 @@ function CatalogPicker({
                           const selectedDetail = details.find((d) => String(d?.warehouseId) === String(selectedWarehouseId)) || null;
                           const rawNotify = String(selectedDetail?.notify ?? '').trim();
                           const notifyText = rawNotify === 'Đang dùng giá nhập kho nhập mới nhất' ? '' : rawNotify;
+
+                          const itemTypeRaw = String(it?.itemType || '').trim().toUpperCase();
+                          let typeLabel = 'Phụ tùng';
+                          let typeColor = '#3b82f6';
+                          let typeBg = '#eff6ff';
+                          let typeIcon = (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                          );
+
+                          if (itemTypeRaw === 'SERVICE') {
+                            typeLabel = 'Dịch vụ';
+                            typeColor = '#10b981';
+                            typeBg = '#ecfdf5';
+                            typeIcon = (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            );
+                          } else if (itemTypeRaw === 'EQUIPMENT') {
+                            typeLabel = 'Thiết bị';
+                            typeColor = '#6b7280';
+                            typeBg = '#f3f4f6';
+                            typeIcon = (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="20" x2="6" y2="10"/><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="22" x2="12" y2="10"/></svg>
+                            );
+                          } else if (itemTypeRaw === 'COMBO') {
+                            typeLabel = 'Combo';
+                            typeColor = '#f59e0b';
+                            typeBg = '#fffbeb';
+                            typeIcon = (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                            );
+                          } else if (itemTypeRaw === 'MAINTENANCE_PACKAGE') {
+                            typeLabel = 'Gói';
+                            typeColor = '#8b5cf6';
+                            typeBg = '#f5f3ff';
+                            typeIcon = (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                            );
+                          }
                           const hasAnyPrice = (
                             toFiniteNumber(it?.price) != null
                             || toFiniteNumber(it?.unitPrice) != null
@@ -966,7 +1004,27 @@ function CatalogPicker({
                                   {actionControl}
                                 </td>
                                 <td data-label="Tên">
-                                  <div className={styles.nameCellWrapper}>
+                                  <div className={styles.nameCellWrapper} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        backgroundColor: typeBg,
+                                        color: typeColor,
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        textTransform: 'uppercase',
+                                        border: `1px solid ${typeColor}30`,
+                                        flexShrink: 0
+                                      }}
+                                      title={`Loại: ${typeLabel}`}
+                                    >
+                                      {typeIcon}
+                                      {typeLabel}
+                                    </span>
                                     <span className={styles.itemNameText}>{it?.itemName || it?.name || '-'}</span>
                                     {isItemCompatible(it) && (
                                       <span className={styles.compatibleBadge} title={`Tương thích với xe ${vehicleBrand} ${vehicleModel}`}>
