@@ -541,3 +541,178 @@
     padding: 8px;
   }
 }
+
+/* ─── Ranking Section ────────────────────────────────────────────────────── */
+.rankingSection {
+  margin-bottom: 24px;
+}
+
+.rankCard {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  border: 1.5px solid #e2e8f0;
+  transition: box-shadow 0.2s;
+}
+
+.rankCard:hover {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+}
+
+/* Màu viền trái theo hạng */
+.rankCard_bronze  { border-left: 5px solid #f0b96b; }
+.rankCard_silver  { border-left: 5px solid #94a3b8; }
+.rankCard_gold    { border-left: 5px solid #f59e0b; }
+.rankCard_platinum { border-left: 5px solid #22d3ee; }
+
+.rankCardLeft {
+  flex: 1;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rankCardTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.rankNoData {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* Progress bar */
+.rankProgressWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 320px;
+}
+
+.rankProgressBar {
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.rankProgressFill {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 0.6s ease;
+}
+
+.rankProgressText {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Divider */
+.rankDivider {
+  width: 1px;
+  align-self: stretch;
+  background: #f1f5f9;
+  margin: 16px 0;
+}
+
+.rankCardRight {
+  padding: 24px 28px;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.rankStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.rankStatValue {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.rankStatLabel {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.rankHistoryBtn {
+  padding: 8px 16px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.rankHistoryBtn:hover {
+  background: #e2e8f0;
+}
+
+/* Skeleton loading */
+.rankCardSkeleton {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeletonLine {
+  height: 16px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (max-width: 768px) {
+  .rankCard {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rankDivider {
+    width: auto;
+    height: 1px;
+    margin: 0 16px;
+  }
+
+  .rankCardRight {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .rankProgressWrap {
+    max-width: 100%;
+  }
+}

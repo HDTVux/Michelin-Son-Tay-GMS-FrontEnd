@@ -8,6 +8,7 @@ import { Phone, Mail, Search, User, Plus, RefreshCw, Lock, Trash2, Eye, Car, Edi
 
 import CreateCustomerModal from './CreateCustomerModal.jsx';
 import EditCustomerModal from './EditCustomerModal.jsx';
+import RankBadge from '../../../components/RankBadge/RankBadge.jsx';
 
 const normalizeCustomerStatus = (value) => {
   if (value == null || String(value).trim() === '') return null;
@@ -416,6 +417,7 @@ const CustomerManager = () => {
                     {selectedCustomer.isGuest && (
                       <span className={`${styles.statusBadge} ${styles.statusVip}`}>Guest</span>
                     )}
+                    <RankBadge rank={selectedCustomer.currentRank || 'BRONZE'} size="sm" />
                   </div>
                 </div>
               </div>
@@ -468,6 +470,27 @@ const CustomerManager = () => {
                   <span className={styles.detailValue}>{selectedCustomer.totalBookings || 0} lần</span>
                 </div>
               </div>
+
+              {/* Ranking Section */}
+              {(selectedCustomer.currentRank || selectedCustomer.totalPoints >= 0) && (
+                <>
+                  <div className={styles.detailSectionTitle}>Hạng thành viên</div>
+                  <div className={styles.rankingInfoGrid}>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Hạng hiện tại</span>
+                      <span className={styles.detailValue}>
+                        <RankBadge rank={selectedCustomer.currentRank || 'BRONZE'} size="sm" />
+                      </span>
+                    </div>
+                    <div className={styles.detailField}>
+                      <span className={styles.detailLabel}>Điểm tích lũy (năm nay)</span>
+                      <span className={styles.detailValue} style={{ color: '#2563eb', fontWeight: 700 }}>
+                        {(selectedCustomer.totalPoints || 0).toLocaleString()} điểm
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Actions Section */}
               <div className={styles.detailSectionTitle}>Thao tác quản trị</div>
