@@ -79,6 +79,7 @@ import WarehouseManagement from './pages/DashBoard/WarehouseManagement/Warehouse
 import WarehouseExcelImport from './pages/DashBoard/WarehouseManagement/WarehouseExcelImport.jsx';
 import WarehouseConfig from './pages/DashBoard/WarehouseManagement/WarehouseConfig.jsx';
 import RevenueManagement from './pages/DashBoard/RevenueManagement/RevenueManagement.jsx';
+import KPIManagement from './pages/DashBoard/KPIManagement/KPIManagement.jsx';
 
 //Customer pages
 import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
@@ -486,6 +487,7 @@ export default function App() {
               <Route path="warehouse-pricing" element={staffRoute(<WarehousePricing />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-fallback-pricing" element={staffRoute(<WarehouseFallbackPricing />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="revenue-management" element={staffRoute(<RevenueManagement />, ROLE_GROUP.ACCOUNTING)} />
+              <Route path="kpi-management" element={staffRoute(<KPIManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               
               {/* Technician pages */}
               <Route path="technician/my-tasks" element={staffRoute(<MyTasks />, ROLE_GROUP.TECHNICIAN_WORKFLOW)} />
