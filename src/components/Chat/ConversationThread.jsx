@@ -3,6 +3,13 @@ import MessageList from './MessageList.jsx';
 import ChatComposer from './ChatComposer.jsx';
 import './chatWidget.css';
 
+// Tin nhắn vừa gửi được thêm "lạc quan" vào UI với messageId tạm dạng
+// "local-<ts>-<rand>" (xem genClientMsgId trong useChat.js) TRƯỚC KHI server echo lại
+// ID số thật qua WebSocket. BE nhận upToMessageId kiểu Integer — gửi thẳng ID tạm này
+// lên sẽ làm BE lỗi parse JSON (Cannot deserialize ... as Integer). Phải đợi đến khi
+// tin nhắn được server xác nhận (messageId số thật) mới được markRead.
+const isLocalMessageId = (id) => typeof id === 'string' && id.startsWith('local-');
+
 /**
  * Phần "thân" dùng chung của 1 hội thoại: danh sách tin nhắn + ô soạn tin, cùng logic
  * tải/đánh dấu đã đọc. Dùng lại ở cả `ChatWindow.jsx` (box nổi desktop, khung 320x440)
@@ -33,7 +40,7 @@ const ConversationThread = ({ conversationId, chatState }) => {
     chatState.loadMoreMessages(conversationId, { reset: true }).then((loaded) => {
       if (cancelled) return;
       const last = loaded?.[loaded.length - 1];
-      if (!last?.messageId) return;
+      if (!last?.messageId || isLocalMessageId(last.messageId)) return;
       lastMarkedMessageIdRef.current = last.messageId;
       chatState.markRead(conversationId, last.messageId);
     });
@@ -48,7 +55,7 @@ const ConversationThread = ({ conversationId, chatState }) => {
   // dưới DB chưa được cập nhật cho tin mới đó — đồng bộ lại mỗi khi có tin thật sự mới.
   useEffect(() => {
     const last = messages[messages.length - 1];
-    if (!last?.messageId) return;
+    if (!last?.messageId || isLocalMessageId(last.messageId)) return;
     if (lastMarkedMessageIdRef.current === last.messageId) return;
     lastMarkedMessageIdRef.current = last.messageId;
     chatState.markRead(conversationId, last.messageId);
