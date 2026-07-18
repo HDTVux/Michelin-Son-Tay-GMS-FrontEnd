@@ -203,17 +203,22 @@
   border-color: #005aa9;
 }
 
-/* Online pulse dot */
-.staff-header__avatar::after {
-  content: '';
+/* Chấm báo trạng thái kết nối realtime thật (WebSocket thông báo), thay cho pulse trang trí cũ */
+.staff-header__connectionDot {
   position: absolute;
   bottom: 0px;
   left: 0px; /* Shift to bottom-left to make room for chevron badge */
   width: 9px;
   height: 9px;
-  background: #10b981;
+  background: #ea580c;
   border: 1.5px solid #ffffff;
   border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.4);
+  animation: pulse-ring-header-warning 1.5s infinite;
+}
+
+.staff-header__connectionDot.isConnected {
+  background: #10b981;
   box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
   animation: pulse-ring-header 2s ease-out infinite;
 }
@@ -227,6 +232,18 @@
   }
   100% {
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes pulse-ring-header-warning {
+  0% {
+    box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 4px rgba(234, 88, 12, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(234, 88, 12, 0);
   }
 }
 

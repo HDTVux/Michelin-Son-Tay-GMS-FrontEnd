@@ -1,6 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, FileText, Check, CheckCheck } from 'lucide-react';
+import { loadStickerManifest, getStickerUrlSync } from '../../utils/stickerManifest.js';
 import './chatWidget.css';
+
+// Cloudinary raw upload (dùng cho file đính kèm) không tự giữ tên gốc trong URL
+// (public_id có thể là chuỗi ngẫu nhiên như "file_wrf9d6"), khiến trình duyệt tải
+// về với tên vô nghĩa. Chèn transformation fl_attachment:<tên gốc> để Cloudinary trả
+// header Content-Disposition đúng tên file gốc đã lưu ở AttachmentDto.name.
+const buildDownloadUrl = (url, filename) => {
+  if (!url || !url.includes('/upload/') || !filename) return url;
+  const safeName = encodeURIComponent(filename);
+  return url.replace('/upload/', `/upload/fl_attachment:${safeName}/`);
+};
 
 const formatTime = (value) => {
   if (!value) return '';
@@ -45,7 +56,14 @@ const AttachmentGrid = ({ attachments, onPreview }) => {
         <video key={idx} src={video.url} controls className="chat-widget__video" />
       ))}
       {files.map((file, idx) => (
-        <a key={idx} href={file.url} target="_blank" rel="noopener noreferrer" className="chat-widget__fileCard">
+        <a
+          key={idx}
+          href={buildDownloadUrl(file.url, file.name)}
+          target="_blank"
+          rel="noopener noreferrer"
+          download={file.name || undefined}
+          className="chat-widget__fileCard"
+        >
           <FileText size={20} />
           <div className="chat-widget__fileCardInfo">
             <span className="chat-widget__fileCardName">{file.name || 'Tệp đính kèm'}</span>
@@ -60,6 +78,20 @@ const AttachmentGrid = ({ attachments, onPreview }) => {
 
 const MessageBubble = ({ message, isOwn, showSenderName }) => {
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [stickerUrl, setStickerUrl] = useState(
+    () => message.stickerUrl || getStickerUrlSync(message.stickerId),
+  );
+
+  useEffect(() => {
+    if (message.type !== 'sticker' || stickerUrl) return;
+    let cancelled = false;
+    loadStickerManifest().then(() => {
+      if (!cancelled) setStickerUrl(getStickerUrlSync(message.stickerId));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [message.type, message.stickerId, stickerUrl]);
 
   return (
     <div className={`chat-widget__bubbleRow ${isOwn ? 'is-own' : ''}`}>
@@ -70,7 +102,11 @@ const MessageBubble = ({ message, isOwn, showSenderName }) => {
 
         <div className={`chat-widget__bubble type-${message.type}`}>
           {message.type === 'sticker' ? (
-            <img className="chat-widget__stickerImg" src={message.stickerUrl} alt="sticker" />
+            stickerUrl ? (
+              <img className="chat-widget__stickerImg" src={stickerUrl} alt="sticker" />
+            ) : (
+              <span className="chat-widget__stickerFallback">🏷️</span>
+            )
           ) : (
             <>
               {message.text && <p className="chat-widget__bubbleText">{message.text}</p>}

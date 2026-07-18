@@ -7,6 +7,7 @@ import {
   fetchStaffNotifications,
   markStaffNotificationRead,
 } from '../services/staffNotificationService.js';
+import { playNotificationSound } from '../utils/notificationSound.js';
 
 const getAuthToken = () =>
   localStorage.getItem('authToken') ||
@@ -91,6 +92,7 @@ export const useNotifications = ({
         toast.info(notification.message || notification.title, {
           containerId: 'app-toast',
         });
+        playNotificationSound();
       }
     },
     [notifyOnReceive],

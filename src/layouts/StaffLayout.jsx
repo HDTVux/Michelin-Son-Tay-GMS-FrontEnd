@@ -98,20 +98,6 @@ const formatNotificationTime = (value) => {
   });
 };
 
-const getNotificationTypeMeta = (type) => {
-  const normalizedType = String(type || 'INFO').toUpperCase();
-  const labels = {
-    INFO: 'Thông tin',
-    WARNING: 'Cảnh báo',
-    URGENT: 'Khẩn cấp',
-  };
-
-  return {
-    className: normalizedType.toLowerCase(),
-    label: labels[normalizedType] || normalizedType,
-  };
-};
-
 const SERVICE_TICKET_DETAIL_ROLES = new Set(['RECEPTIONIST', 'ACCOUNTANT', 'MANAGER', 'ADMIN']);
 const TICKET_CODE_PATTERN = /\b(?:[A-Z]{2,}[A-Z0-9]*[_-][A-Z0-9_-]{2,}|[A-Z]{2,}[A-Z0-9_]{5,})\b/gi;
 
@@ -340,7 +326,6 @@ const getNotificationIcon = (notification) => {
 };
 
 export const StaffNotificationBell = ({
-  connected,
   error,
   loading,
   markAsRead,
@@ -423,11 +408,6 @@ export const StaffNotificationBell = ({
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
-        <span
-          className={`staffNotification__connectionDot ${connected ? 'isConnected' : ''}`}
-          title={connected ? 'Đã kết nối realtime' : 'Đang chờ kết nối realtime'}
-          aria-hidden="true"
-        />
         {unreadCount > 0 && <span className="staffNotification__badge">{unreadCount}</span>}
       </summary>
 
@@ -435,24 +415,11 @@ export const StaffNotificationBell = ({
         <header className="staffNotification__header">
           <div>
             <strong>Thông báo</strong>
-            <span
-              className={`staffNotification__panelConnectionDot ${connected ? 'isConnected' : ''}`}
-              title={connected ? 'Đã kết nối realtime' : 'Đang chờ kết nối realtime'}
-              aria-label={connected ? 'Đã kết nối realtime' : 'Đang chờ kết nối realtime'}
-              role="status"
-            />
           </div>
           <small>{loading ? 'Đang tải...' : `${notifications.length} thông báo`}</small>
         </header>
 
         {error && <p className="staffNotification__error">{error}</p>}
-
-        {!connected && (
-          <div className="staffNotification__connectionWarning">
-            <span>⚠️</span>
-            <span>Mất kết nối realtime. Đang thử kết nối lại...</span>
-          </div>
-        )}
 
         <div style={{ display: 'flex', gap: '8px', padding: '10px 16px', borderBottom: '1px solid #eef2f7', background: '#f9fafb', flexWrap: 'wrap' }}>
           <button
@@ -578,9 +545,8 @@ const StaffLayout = () => {
   }, [isCollapsed]);
 
   const notificationState = useNotifications({ enabled: hasStaffToken, notifyOnReceive: true });
-  // mock: true vì backend chat (/api/chat/*, /ws-chat) chưa được đội BE triển khai.
-  // Khi BE hoàn thành theo contract trong src/services/chatService.js, đổi thành mock: false.
-  const chatState = useChat({ enabled: hasStaffToken, mock: true });
+  // Backend chat (/api/chat/*, /ws-chat) đã triển khai theo contract trong src/services/chatService.js.
+  const chatState = useChat({ enabled: hasStaffToken, mock: false });
 
   useLayoutEffect(() => {
     const params = new URLSearchParams(location.search);

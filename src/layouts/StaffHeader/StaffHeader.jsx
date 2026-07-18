@@ -828,6 +828,12 @@ const StaffHeader = ({ notificationState, notificationBell, chatButton }) => {
                 alt={staffFullName}
                 onError={handleAvatarError}
               />
+              <span
+                className={`staff-header__connectionDot ${notificationState?.connected ? 'isConnected' : ''}`}
+                title={notificationState?.connected ? 'Đã kết nối realtime' : 'Mất kết nối realtime, đang thử kết nối lại...'}
+                aria-label={notificationState?.connected ? 'Đã kết nối realtime' : 'Mất kết nối realtime'}
+                role="status"
+              />
               <span className="staff-header__avatar-badge">
                 <ChevronDown size={8} />
               </span>

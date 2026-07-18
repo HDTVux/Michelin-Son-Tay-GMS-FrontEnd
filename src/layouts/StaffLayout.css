@@ -64,36 +64,6 @@
   animation: staffBellPulse 1.8s ease-out infinite;
 }
 
-.staffNotification__connectionDot {
-  position: absolute;
-  right: 5px;
-  bottom: 5px;
-  width: 10px;
-  height: 10px;
-  background: #ea580c;
-  border: 2px solid #ffffff;
-  border-radius: 999px;
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
-  animation: staffConnectionPulse 1.5s infinite;
-}
-
-@keyframes staffConnectionPulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(234, 88, 12, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(234, 88, 12, 0);
-  }
-}
-
-.staffNotification__connectionDot.isConnected {
-  background: #16a34a;
-  animation: none;
-}
-
 .staffNotification__badge {
   position: absolute;
   top: -5px;
@@ -197,45 +167,6 @@
 .staffNotification__item time {
   color: #6b7280;
   font-size: 12px;
-}
-
-.staffNotification__panelConnectionDot {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  background: #ea580c;
-  border-radius: 999px;
-  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.16);
-}
-
-.staffNotification__panelConnectionDot.isConnected {
-  background: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.16);
-}
-
-.staffNotification__connectionWarning {
-  background: #fff9db;
-  color: #f08c00;
-  padding: 8px 16px;
-  font-size: 11px;
-  font-weight: 600;
-  border-bottom: 1px solid #fff3bf;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  animation: staffWarningFlash 2s infinite;
-}
-
-@keyframes staffWarningFlash {
-  0% {
-    background: #fff9db;
-  }
-  50% {
-    background: #fff3bf;
-  }
-  100% {
-    background: #fff9db;
-  }
 }
 
 .staffNotification__error {

@@ -9,7 +9,7 @@ const ChatWindowDock = ({ chatState }) => {
   if (!chatState.openWindows || chatState.openWindows.length === 0) return null;
 
   return (
-    <div className="chat-widget__dock">
+    <div className="chat-widget__dock" data-gms-no-global-loading="true">
       {chatState.openWindows.map((win) => (
         <ChatWindow key={win.conversationId} window={win} chatState={chatState} />
       ))}

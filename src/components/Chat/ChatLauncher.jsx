@@ -48,7 +48,8 @@ const ChatLauncher = ({ chatState }) => {
     if (view === 'new') {
       chatState.searchContacts(search).then(setContacts);
     }
-  }, [view, search, chatState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, search, chatState.searchContacts]);
 
   const filteredConversations = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -71,7 +72,7 @@ const ChatLauncher = ({ chatState }) => {
   };
 
   return (
-    <div className="chat-widget__launcher" ref={containerRef}>
+    <div className="chat-widget__launcher" ref={containerRef} data-gms-no-global-loading="true">
       <button
         type="button"
         className={`chat-widget__launcherBtn ${chatState.unreadTotal > 0 ? 'hasUnread' : ''}`}

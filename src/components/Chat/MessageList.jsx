@@ -12,7 +12,7 @@ const formatDaySeparator = (value) => {
   return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-const MessageList = ({ messages, currentStaffId, hasMore, onLoadMore }) => {
+const MessageList = ({ messages, currentStaffId, hasMore, isLoading, onLoadMore }) => {
   const scrollRef = useRef(null);
   const bottomRef = useRef(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -58,14 +58,22 @@ const MessageList = ({ messages, currentStaffId, hasMore, onLoadMore }) => {
         </div>
       )}
 
-      {messages.length === 0 ? (
+      {isLoading ? (
+        <div className="chat-widget__messageListLoading">
+          <Loader2 size={20} className="chat-widget__spin" />
+          <span>Đang tải tin nhắn...</span>
+        </div>
+      ) : messages.length === 0 ? (
         <p className="chat-widget__emptyMessages">Chưa có tin nhắn nào. Hãy bắt đầu trò chuyện!</p>
       ) : (
         messages.map((message, idx) => {
           const dayLabel = formatDaySeparator(message.createdAt);
           const showDay = dayLabel !== lastDay;
           lastDay = dayLabel;
-          const isOwn = message.senderId === currentStaffId;
+          // So sánh ép kiểu String vì currentStaffId là string (từ localStorage) còn
+          // message.senderId trả về từ BE là number — nếu so sánh === thẳng sẽ luôn
+          // false, khiến mọi tin nhắn hiển thị như của người khác (không phân biệt được).
+          const isOwn = String(message.senderId) === String(currentStaffId);
           const prevMsg = messages[idx - 1];
           const showSenderName = !isOwn && (!prevMsg || prevMsg.senderId !== message.senderId);
 

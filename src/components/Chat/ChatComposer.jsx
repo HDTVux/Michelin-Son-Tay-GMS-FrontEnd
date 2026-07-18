@@ -221,15 +221,6 @@ const ChatComposer = ({ mock, onSend }) => {
           >
             <Paperclip size={18} />
           </button>
-          {showAttachMenu && (
-            <AttachMenu
-              onClose={() => setShowAttachMenu(false)}
-              onPickImage={() => imageInputRef.current?.click()}
-              onPickVideo={() => videoInputRef.current?.click()}
-              onPickFile={() => fileInputRef.current?.click()}
-              onOpenCamera={() => setShowCamera(true)}
-            />
-          )}
         </div>
 
         <textarea
@@ -250,15 +241,6 @@ const ChatComposer = ({ mock, onSend }) => {
           >
             <Smile size={18} />
           </button>
-          {showPicker && (
-            <div className="chat-widget__pickerAnchor">
-              <StickerEmojiPicker
-                onSelectEmoji={handleSelectEmoji}
-                onSelectSticker={handleSelectSticker}
-                onClose={() => setShowPicker(false)}
-              />
-            </div>
-          )}
         </div>
 
         <button
@@ -271,6 +253,28 @@ const ChatComposer = ({ mock, onSend }) => {
           {sending ? <Loader2 size={16} className="chat-widget__spin" /> : <Send size={16} />}
         </button>
       </div>
+
+      {/* Neo theo chiều rộng khung soạn tin (không theo nút nhỏ) để không tràn ra ngoài box */}
+      {showAttachMenu && (
+        <div className="chat-widget__popupSpan chat-widget__popupSpan--bottomLeft">
+          <AttachMenu
+            onClose={() => setShowAttachMenu(false)}
+            onPickImage={() => imageInputRef.current?.click()}
+            onPickVideo={() => videoInputRef.current?.click()}
+            onPickFile={() => fileInputRef.current?.click()}
+            onOpenCamera={() => setShowCamera(true)}
+          />
+        </div>
+      )}
+      {showPicker && (
+        <div className="chat-widget__popupSpan">
+          <StickerEmojiPicker
+            onSelectEmoji={handleSelectEmoji}
+            onSelectSticker={handleSelectSticker}
+            onClose={() => setShowPicker(false)}
+          />
+        </div>
+      )}
 
       <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={(e) => handleFileInputChange(e, 'image')} />
       <input ref={videoInputRef} type="file" accept="video/*" hidden onChange={(e) => handleFileInputChange(e, 'video')} />

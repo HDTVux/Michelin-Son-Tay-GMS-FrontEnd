@@ -368,6 +368,21 @@
   color: var(--chat-primary);
 }
 
+.chat-widget__messageListLoading {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--chat-text-muted);
+  font-size: 0.78rem;
+  padding: 20px;
+}
+
+.chat-widget__messageListLoading .chat-widget__spin {
+  color: var(--chat-primary);
+}
+
 .chat-widget__daySeparator {
   text-align: center;
   margin: 10px 0;
@@ -435,6 +450,16 @@
 .chat-widget__stickerImg {
   width: 84px;
   height: 84px;
+}
+
+.chat-widget__stickerFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  font-size: 2rem;
+  opacity: 0.5;
 }
 
 .chat-widget__meta {
@@ -537,6 +562,7 @@
 
 /* ---------- Composer ---------- */
 .chat-widget__composer {
+  position: relative;
   border-top: 1px solid var(--chat-border);
   background: #fff;
   padding: 8px 8px 10px;
@@ -619,10 +645,9 @@
 }
 
 /* ---------- Attach menu ---------- */
+/* Vị trí/kích thước được kiểm soát bởi wrapper .chat-widget__popupSpan (neo theo
+   khung soạn tin, không theo nút nhỏ) để không bao giờ tràn ra ngoài cửa sổ chat. */
 .chat-widget__attachMenu {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
   background: #fff;
   border: 1px solid var(--chat-border);
   border-radius: 12px;
@@ -630,8 +655,9 @@
   padding: 6px;
   display: flex;
   flex-direction: column;
-  min-width: 160px;
-  z-index: 2000;
+  width: 100%;
+  max-width: 190px;
+  box-sizing: border-box;
 }
 
 .chat-widget__attachMenu button {
@@ -642,11 +668,12 @@
   border: none;
   background: transparent;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
   color: var(--chat-text);
   cursor: pointer;
   text-align: left;
+  white-space: nowrap;
 }
 
 .chat-widget__attachMenu button:hover {
@@ -724,21 +751,32 @@
   cursor: pointer;
 }
 
-/* ---------- Sticker / emoji picker ---------- */
-.chat-widget__pickerAnchor {
+/* ---------- Popup neo theo khung soạn tin (composer), không theo nút nhỏ ---------- */
+/* Đảm bảo AttachMenu / StickerEmojiPicker luôn nằm trọn trong bề rộng cửa sổ chat,
+   không tràn ra ngoài dù cửa sổ chat hẹp (320px). */
+.chat-widget__popupSpan {
   position: absolute;
   bottom: calc(100% + 8px);
-  right: 0;
+  left: 8px;
+  right: 8px;
+  z-index: 2000;
+  display: flex;
 }
 
+.chat-widget__popupSpan--bottomLeft {
+  right: auto;
+}
+
+/* ---------- Sticker / emoji picker ---------- */
 .chat-widget__pickerPopover {
-  width: 300px;
+  width: 100%;
+  max-width: 100%;
   background: #fff;
   border: 1px solid var(--chat-border);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
   overflow: hidden;
-  z-index: 2000;
+  box-sizing: border-box;
 }
 
 .chat-widget__pickerTabs {

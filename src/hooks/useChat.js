@@ -16,6 +16,7 @@ import {
   MOCK_CONVERSATIONS,
   MOCK_MESSAGES,
 } from '../components/Chat/chatMocks.js';
+import { playMessageSound } from '../utils/notificationSound.js';
 
 const MAX_OPEN_WINDOWS = 3;
 
@@ -79,7 +80,30 @@ export const useChat = ({ enabled = true, mock = true, reconnectDelay = 5000 } =
   const [error, setError] = useState('');
   const [connected, setConnected] = useState(false);
   const [openWindows, setOpenWindows] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState({});
+  const [messagesHasMore, setMessagesHasMore] = useState({});
   const clientRef = useRef(null);
+
+  // Ref mirror của state hay đổi liên tục (tin nhắn mới, cửa sổ mở) để các callback
+  // (markRead, loadMoreMessages, applyIncomingMessage...) đọc giá trị mới nhất mà
+  // KHÔNG cần đưa chúng vào dependency array của useCallback — tránh callback bị tạo
+  // lại mỗi khi có tin nhắn mới, vốn làm useEffect ở component con (phụ thuộc callback
+  // đó) chạy lại liên tục mỗi lần nhận/gửi tin (nhìn giống vòng lặp vô hạn trong log BE).
+  const messagesByConversationRef = useRef({});
+  const openWindowsRef = useRef([]);
+  const conversationsRef = useRef([]);
+
+  useEffect(() => {
+    messagesByConversationRef.current = messagesByConversation;
+  }, [messagesByConversation]);
+
+  useEffect(() => {
+    openWindowsRef.current = openWindows;
+  }, [openWindows]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   const unreadTotal = useMemo(
     () => conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0),
@@ -102,12 +126,18 @@ export const useChat = ({ enabled = true, mock = true, reconnectDelay = 5000 } =
     }
   }, [enabled, mock]);
 
+  const sortContactsOnlineFirst = (list) =>
+    [...list].sort((a, b) => {
+      if (Boolean(a.online) !== Boolean(b.online)) return a.online ? -1 : 1;
+      return (a.fullName || '').localeCompare(b.fullName || '');
+    });
+
   const searchContacts = useCallback(
     async (search) => {
       if (mock) {
         const q = (search || '').trim().toLowerCase();
-        if (!q) return MOCK_CONTACTS;
-        return MOCK_CONTACTS.filter((c) => c.fullName.toLowerCase().includes(q));
+        const filtered = q ? MOCK_CONTACTS.filter((c) => c.fullName.toLowerCase().includes(q)) : MOCK_CONTACTS;
+        return sortContactsOnlineFirst(filtered);
       }
       try {
         return await fetchContacts(search);
@@ -118,58 +148,72 @@ export const useChat = ({ enabled = true, mock = true, reconnectDelay = 5000 } =
     [mock],
   );
 
+  /**
+   * Tải tin nhắn cho 1 hội thoại — phân trang theo cursor (message_id).
+   * @param {string|number} conversationId
+   * @param {object} [options]
+   * @param {boolean} [options.reset] - true: tải lại trang mới nhất từ đầu (khi mở hội
+   *   thoại), THAY TOÀN BỘ danh sách hiện có. false (mặc định): tải thêm tin CŨ HƠN khi
+   *   người dùng lăn lên trên, gắn vào ĐẦU danh sách hiện có.
+   */
   const loadMoreMessages = useCallback(
-    async (conversationId) => {
+    async (conversationId, options = {}) => {
+      const { reset = false } = options;
+
       if (mock) {
-        setMessagesByConversation((prev) => ({
-          ...prev,
-          [conversationId]: prev[conversationId] || MOCK_MESSAGES[conversationId] || [],
-        }));
-        return;
+        const nextList = reset
+          ? (MOCK_MESSAGES[conversationId] || [])
+          : (messagesByConversationRef.current[conversationId] || MOCK_MESSAGES[conversationId] || []);
+        messagesByConversationRef.current = { ...messagesByConversationRef.current, [conversationId]: nextList };
+        setMessagesByConversation((prev) => ({ ...prev, [conversationId]: nextList }));
+        setMessagesHasMore((prev) => ({ ...prev, [conversationId]: false }));
+        return nextList;
       }
-      const existing = messagesByConversation[conversationId] || [];
+
+      const existing = reset ? [] : (messagesByConversationRef.current[conversationId] || []);
       const oldest = existing[0];
+      // Loading cục bộ cho từng hội thoại (hiển thị bên trong message box),
+      // KHÔNG dùng loading toàn trang cho việc này.
+      setMessagesLoading((prev) => ({ ...prev, [conversationId]: true }));
       try {
-        const { messages } = await fetchMessages(conversationId, { before: oldest?.messageId });
-        setMessagesByConversation((prev) => ({
-          ...prev,
-          [conversationId]: [...(messages || []).reverse(), ...(prev[conversationId] || [])],
-        }));
+        const { messages, hasMore } = await fetchMessages(conversationId, { before: oldest?.messageId });
+        const incoming = [...(messages || [])].reverse();
+        const nextList = reset ? incoming : [...incoming, ...(messagesByConversationRef.current[conversationId] || [])];
+        // Cập nhật ref NGAY (đồng bộ) thay vì chờ effect đồng bộ ref chạy sau khi React
+        // commit — tránh race condition khi caller cần đọc tin nhắn mới nhất ngay sau
+        // khi promise này resolve (ví dụ markRead cần lấy đúng messageId mới nhất).
+        messagesByConversationRef.current = { ...messagesByConversationRef.current, [conversationId]: nextList };
+        setMessagesByConversation((prev) => ({ ...prev, [conversationId]: nextList }));
+        setMessagesHasMore((prev) => ({ ...prev, [conversationId]: Boolean(hasMore) }));
+        return nextList;
       } catch (err) {
         setError(err?.message || 'Không tải được tin nhắn.');
+        return messagesByConversationRef.current[conversationId] || [];
+      } finally {
+        setMessagesLoading((prev) => ({ ...prev, [conversationId]: false }));
       }
     },
-    [mock, messagesByConversation],
+    [mock],
   );
 
-  const ensureConversationLoaded = useCallback(
-    (conversationId) => {
-      if (!messagesByConversation[conversationId]) {
-        loadMoreMessages(conversationId);
+  // Không fetch tin nhắn ở đây nữa — ChatWindow tự gọi loadMoreMessages({reset:true})
+  // mỗi khi cửa sổ hiển thị (mở mới HOẶC mở lại từ trạng thái thu nhỏ), đảm bảo luôn
+  // lấy dữ liệu mới nhất thay vì dùng cache cũ.
+  const openConversation = useCallback((conversationId) => {
+    setOpenWindows((prev) => {
+      const existing = prev.find((w) => w.conversationId === conversationId);
+      if (existing) {
+        return prev.map((w) =>
+          w.conversationId === conversationId ? { ...w, minimized: false } : w,
+        );
       }
-    },
-    [messagesByConversation, loadMoreMessages],
-  );
-
-  const openConversation = useCallback(
-    (conversationId) => {
-      ensureConversationLoaded(conversationId);
-      setOpenWindows((prev) => {
-        const existing = prev.find((w) => w.conversationId === conversationId);
-        if (existing) {
-          return prev.map((w) =>
-            w.conversationId === conversationId ? { ...w, minimized: false } : w,
-          );
-        }
-        const next = [...prev, { conversationId, minimized: false }];
-        return next.length > MAX_OPEN_WINDOWS ? next.slice(next.length - MAX_OPEN_WINDOWS) : next;
-      });
-      setConversations((prev) =>
-        prev.map((c) => (c.conversationId === conversationId ? { ...c, unreadCount: 0 } : c)),
-      );
-    },
-    [ensureConversationLoaded],
-  );
+      const next = [...prev, { conversationId, minimized: false }];
+      return next.length > MAX_OPEN_WINDOWS ? next.slice(next.length - MAX_OPEN_WINDOWS) : next;
+    });
+    setConversations((prev) =>
+      prev.map((c) => (c.conversationId === conversationId ? { ...c, unreadCount: 0 } : c)),
+    );
+  }, []);
 
   const closeWindow = useCallback((conversationId) => {
     setOpenWindows((prev) => prev.filter((w) => w.conversationId !== conversationId));
@@ -186,7 +230,7 @@ export const useChat = ({ enabled = true, mock = true, reconnectDelay = 5000 } =
   const startConversation = useCallback(
     async (staffId) => {
       if (mock) {
-        const existing = conversations.find(
+        const existing = conversationsRef.current.find(
           (c) => c.type === 'direct' && c.participants.some((p) => p.staffId === staffId),
         );
         if (existing) {
@@ -225,7 +269,7 @@ export const useChat = ({ enabled = true, mock = true, reconnectDelay = 5000 } =
         return null;
       }
     },
-    [mock, conversations, openConversation],
+    [mock, openConversation],
   );
 
   const applyIncomingMessage = useCallback(
@@ -236,8 +280,9 @@ export const useChat = ({ enabled = true, mock = true, reconnectDelay = 5000 } =
         [message.conversationId]: mergeMessageIntoList(prev[message.conversationId] || [], message),
       }));
       setConversations((prev) => {
-        const isOwn = message.senderId === currentStaffId;
-        const isWindowOpenAndFocused = openWindows.some(
+        // Ép về String vì currentStaffId là string còn senderId từ BE là number.
+        const isOwn = String(message.senderId) === String(currentStaffId);
+        const isWindowOpenAndFocused = openWindowsRef.current.some(
           (w) => w.conversationId === message.conversationId && !w.minimized,
         );
         const next = prev.map((c) => {
@@ -252,18 +297,19 @@ export const useChat = ({ enabled = true, mock = true, reconnectDelay = 5000 } =
         return sortConversationsByRecency(next);
       });
 
-      if (message.senderId !== currentStaffId) {
-        const isWindowOpenAndFocused = openWindows.some(
+      if (String(message.senderId) !== String(currentStaffId)) {
+        const isWindowOpenAndFocused = openWindowsRef.current.some(
           (w) => w.conversationId === message.conversationId && !w.minimized,
         );
         if (!isWindowOpenAndFocused) {
           toast.info(`${message.senderName || 'Tin nhắn mới'}: ${message.text || 'Đã gửi tệp đính kèm'}`, {
             containerId: 'app-toast',
           });
+          playMessageSound();
         }
       }
     },
-    [currentStaffId, openWindows],
+    [currentStaffId],
   );
 
   const sendMessage = useCallback(
@@ -306,25 +352,32 @@ export const useChat = ({ enabled = true, mock = true, reconnectDelay = 5000 } =
   );
 
   const markRead = useCallback(
-    async (conversationId) => {
+    async (conversationId, upToMessageIdOverride) => {
       setConversations((prev) =>
         prev.map((c) => (c.conversationId === conversationId ? { ...c, unreadCount: 0 } : c)),
       );
       if (mock) return;
-      const messages = messagesByConversation[conversationId] || [];
+      // Ưu tiên upToMessageIdOverride (truyền trực tiếp từ nơi gọi, ví dụ ChatWindow
+      // sau khi loadMoreMessages resolve) — tránh đọc ref có thể còn rỗng/cũ nếu
+      // markRead được gọi trước khi tin nhắn kịp tải xong (bug: luôn gửi upToMessageId
+      // = null lên BE, khiến BE bỏ qua không cập nhật last_read_message_id, dẫn đến
+      // reload trang lại thấy "chưa đọc" dù UI đã tắt badge tạm thời).
+      const messages = messagesByConversationRef.current[conversationId] || [];
       const last = messages[messages.length - 1];
+      const upToMessageId = upToMessageIdOverride ?? last?.messageId;
+      if (!upToMessageId) return;
       try {
-        await markConversationRead(conversationId, last?.messageId);
+        await markConversationRead(conversationId, upToMessageId);
         clientRef.current?.connected &&
           clientRef.current.publish({
             destination: '/app/chat.read',
-            body: JSON.stringify({ conversationId, upToMessageId: last?.messageId }),
+            body: JSON.stringify({ conversationId, upToMessageId }),
           });
       } catch {
         // Non-fatal: local unread state đã được cập nhật lạc quan.
       }
     },
-    [mock, messagesByConversation],
+    [mock],
   );
 
   useEffect(() => {
@@ -393,26 +446,55 @@ export const useChat = ({ enabled = true, mock = true, reconnectDelay = 5000 } =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, mock, reconnectDelay]);
 
-  return {
-    currentStaffId,
-    mock,
-    conversations,
-    messagesByConversation,
-    openWindows,
-    unreadTotal,
-    loading,
-    error,
-    connected,
-    reload: loadConversations,
-    searchContacts,
-    loadMoreMessages,
-    openConversation,
-    closeWindow,
-    toggleMinimize,
-    startConversation,
-    sendMessage,
-    markRead,
-  };
+  // Memoize object trả về để giữ nguyên reference giữa các lần render khi dữ liệu
+  // không đổi — tránh các useEffect ở component con (nhận cả object này làm dep)
+  // bị kích hoạt lại vô hạn (mỗi lần gọi 1 action lại setState -> re-render -> object mới -> effect chạy lại...).
+  return useMemo(
+    () => ({
+      currentStaffId,
+      mock,
+      conversations,
+      messagesByConversation,
+      messagesLoading,
+      messagesHasMore,
+      openWindows,
+      unreadTotal,
+      loading,
+      error,
+      connected,
+      reload: loadConversations,
+      searchContacts,
+      loadMoreMessages,
+      openConversation,
+      closeWindow,
+      toggleMinimize,
+      startConversation,
+      sendMessage,
+      markRead,
+    }),
+    [
+      currentStaffId,
+      mock,
+      conversations,
+      messagesByConversation,
+      messagesLoading,
+      messagesHasMore,
+      openWindows,
+      unreadTotal,
+      loading,
+      error,
+      connected,
+      loadConversations,
+      searchContacts,
+      loadMoreMessages,
+      openConversation,
+      closeWindow,
+      toggleMinimize,
+      startConversation,
+      sendMessage,
+      markRead,
+    ],
+  );
 };
 
 export default useChat;

@@ -1,19 +1,7 @@
 import { useEffect, useState } from 'react';
 import EmojiPicker from 'emoji-picker-react';
+import { loadStickerManifest } from '../../utils/stickerManifest.js';
 import './chatWidget.css';
-
-let stickerManifestCache = null;
-
-const loadStickerManifest = async () => {
-  if (stickerManifestCache) return stickerManifestCache;
-  try {
-    const res = await fetch('/stickers/manifest.json');
-    stickerManifestCache = await res.json();
-  } catch {
-    stickerManifestCache = [];
-  }
-  return stickerManifestCache;
-};
 
 /**
  * Popover 2 tab: Emoji (emoji-picker-react) và Sticker (bộ tĩnh offline tại public/stickers/).
