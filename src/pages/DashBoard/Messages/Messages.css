@@ -1,0 +1,298 @@
+/* ===== TRANG DANH SÁCH TIN NHẮN (mobile full-page, thay cho popover ChatLauncher) ===== */
+
+.messages-page {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: calc(100vh - 64px);
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #ffffff;
+}
+
+/* Chỉ giới hạn bề rộng đọc trên màn hình thật sự rộng (desktop) để không thành 1 cột
+   dài dằng dặc — mobile/tablet luôn giãn hết chiều rộng khả dụng. */
+@media (min-width: 900px) {
+  .messages-page {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+}
+
+.messages-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 8px;
+}
+
+.messages-page__title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.messages-page__backBtn,
+.messages-page__newBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 90, 169, 0.15);
+  background: #fff;
+  color: #005aa9;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.messages-page__backBtn:hover,
+.messages-page__newBtn:hover {
+  background: rgba(0, 90, 169, 0.08);
+}
+
+.messages-page__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 16px 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: #64748b;
+}
+
+.messages-page__search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+
+.messages-page__list {
+  padding: 0 8px 24px;
+}
+
+.messages-page__empty,
+.messages-page__emptyState {
+  text-align: center;
+  color: #64748b;
+  padding: 48px 20px;
+}
+
+.messages-page__emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.messages-page__emptyState svg {
+  color: #cbd5e1;
+}
+
+.messages-page__emptyStateBtn {
+  margin-top: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  background: #005aa9;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.messages-page__row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.messages-page__row:hover {
+  background: rgba(0, 90, 169, 0.05);
+}
+
+.messages-page__avatar {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.messages-page__avatar img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.messages-page__onlineDot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #fff;
+}
+
+.messages-page__rowInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.messages-page__rowTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.messages-page__rowSubtitle {
+  font-size: 0.78rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.messages-page__rowMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.messages-page__rowTime {
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.messages-page__unreadBadge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #005aa9;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+/* ===== TRANG 1 HỘI THOẠI (mobile full-screen, che toàn bộ chrome của app khi mở) ===== */
+
+.conversation-page {
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.conversation-page__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #005aa9 0%, #3a8de0 100%);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.conversation-page__backBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.conversation-page__avatar {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.conversation-page__avatar img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+}
+
+.conversation-page__onlineDot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #fff;
+}
+
+.conversation-page__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-page__connectionIcon {
+  display: flex;
+  align-items: center;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.conversation-page__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Chỉ chiếm toàn màn hình (che thanh header/footer mobile) ở breakpoint mobile —
+   trên desktop (nếu vào thẳng URL) hiển thị như trang bình thường trong layout. */
+@media (max-width: 1024px) {
+  .conversation-page {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    height: 100dvh;
+  }
+}
+
+@media (min-width: 1025px) {
+  .conversation-page {
+    height: calc(100vh - 64px);
+  }
+}

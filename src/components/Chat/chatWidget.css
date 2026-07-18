@@ -1045,6 +1045,15 @@
 }
 
 /* ---------- Responsive ---------- */
+/* Dưới breakpoint mobile, chat chuyển sang trang riêng (/messages, xem
+   src/pages/DashBoard/Messages/) thay vì box nổi — ẩn hẳn dock để phòng trường hợp
+   cạnh (thu nhỏ trình duyệt từ desktop xuống mobile khi đang có cửa sổ chat mở). */
+@media (max-width: 1024px) {
+  .chat-widget__dock {
+    display: none;
+  }
+}
+
 @media (max-width: 640px) {
   .chat-widget__popover {
     right: -80px;

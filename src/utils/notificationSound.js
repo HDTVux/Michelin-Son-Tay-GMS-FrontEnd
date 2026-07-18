@@ -3,13 +3,48 @@
 // và thông báo hệ thống (trầm hơn, đi xuống, âm sắc khác).
 
 let audioCtx = null;
+let unlockRegistered = false;
+
+// Chính sách autoplay của trình duyệt: AudioContext luôn khởi tạo ở trạng thái
+// "suspended" và CHỈ được mở khoá bởi một user gesture trực tiếp (click/gõ phím/chạm),
+// KHÔNG chấp nhận resume() gọi từ trong handler sự kiện WebSocket (không phải gesture
+// thật). Vì vậy phải lắng nghe tương tác đầu tiên bất kỳ của người dùng trên trang để
+// mở khoá — sau đó context giữ trạng thái "running" cho các lần phát âm tiếp theo dù
+// được kích hoạt từ WS.
+const registerUnlockOnFirstGesture = () => {
+  if (unlockRegistered || typeof document === 'undefined') return;
+  unlockRegistered = true;
+
+  const unlock = () => {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+  };
+
+  ['pointerdown', 'keydown', 'touchstart'].forEach((eventName) =>
+    document.addEventListener(eventName, unlock, { passive: true }),
+  );
+};
 
 const getAudioContext = () => {
   if (typeof window === 'undefined') return null;
   const Ctor = window.AudioContext || window.webkitAudioContext;
   if (!Ctor) return null;
-  if (!audioCtx) audioCtx = new Ctor();
+  if (!audioCtx) {
+    audioCtx = new Ctor();
+    registerUnlockOnFirstGesture();
+  }
   return audioCtx;
+};
+
+/**
+ * Tạo sẵn AudioContext + đăng ký lắng nghe mở khoá càng sớm càng tốt (gọi 1 lần lúc
+ * app khởi động, ví dụ trong StaffLayout) — để tới khi có tin nhắn/thông báo đầu tiên
+ * (qua WS, không phải gesture) thì context nhiều khả năng đã được mở khoá rồi, thay vì
+ * đợi tới lần phát âm đầu tiên mới tạo context (có thể đã quá muộn).
+ */
+export const initNotificationSound = () => {
+  getAudioContext();
 };
 
 const playTone = (ctx, startTime, { frequency, duration, type, gain }) => {

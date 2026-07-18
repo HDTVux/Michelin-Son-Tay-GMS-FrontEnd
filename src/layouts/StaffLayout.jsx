@@ -8,6 +8,8 @@ import StaffHeader from './StaffHeader/StaffHeader.jsx';
 import UserTour from '../components/UserTour/UserTour.jsx';
 import ChatLauncher from '../components/Chat/ChatLauncher.jsx';
 import ChatWindowDock from '../components/Chat/ChatWindowDock.jsx';
+import ChatMobileNavButton from '../components/Chat/ChatMobileNavButton.jsx';
+import { initNotificationSound } from '../utils/notificationSound.js';
 import './StaffLayout.css';
 
 
@@ -544,6 +546,13 @@ const StaffLayout = () => {
     localStorage.setItem('sidebarCollapsed', isCollapsed);
   }, [isCollapsed]);
 
+  // Tạo AudioContext + đăng ký mở khoá âm thanh từ tương tác đầu tiên của người dùng
+  // càng sớm càng tốt — tránh trường hợp tin nhắn/thông báo đầu tiên (kích hoạt qua
+  // WebSocket, không phải gesture) tới trước khi trình duyệt cho phép phát âm thanh.
+  useEffect(() => {
+    initNotificationSound();
+  }, []);
+
   const notificationState = useNotifications({ enabled: hasStaffToken, notifyOnReceive: true });
   // Backend chat (/api/chat/*, /ws-chat) đã triển khai theo contract trong src/services/chatService.js.
   const chatState = useChat({ enabled: hasStaffToken, mock: false });
@@ -565,7 +574,11 @@ const StaffLayout = () => {
 
   return (
     <div className={`staffLayout ${isCollapsed ? 'is-collapsed' : ''}`}>
-      <SideBar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+      <SideBar
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+        chatButton={hasStaffToken ? <ChatMobileNavButton chatState={chatState} /> : null}
+      />
       <main className="staffLayout__content">
         {hasStaffToken && (
           <StaffHeader

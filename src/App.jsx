@@ -125,6 +125,8 @@ import ReceptionistDashboard from './pages/DashBoard/ReceptionistDashboard/Recep
 import TechnicianDashboard from './pages/DashBoard/TechnicianDashboard/TechnicianDashboard.jsx';
 import AccountantDashboard from './pages/DashBoard/AccountantDashboard/AccountantDashboard.jsx';
 import StaffNotifications from './pages/DashBoard/StaffNotifications/StaffNotifications.jsx';
+import MessagesList from './pages/DashBoard/Messages/MessagesList.jsx';
+import ConversationPage from './pages/DashBoard/Messages/ConversationPage.jsx';
 import SystemTutorials from './pages/DashBoard/SystemTutorials/SystemTutorials.jsx';
 
 
@@ -391,6 +393,8 @@ export default function App() {
             <Route element={<StaffAreaRoute><StaffLayout /></StaffAreaRoute>}>
               <Route path="dashboard" element={staffRoute(<StaffDashboard />)} />
               <Route path="notifications" element={staffRoute(<StaffNotifications />)} />
+              <Route path="messages" element={staffRoute(<MessagesList />)} />
+              <Route path="messages/:conversationId" element={staffRoute(<ConversationPage />)} />
               <Route path="system-tutorials" element={staffRoute(<SystemTutorials />)} />
 
               

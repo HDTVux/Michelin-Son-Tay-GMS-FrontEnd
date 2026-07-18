@@ -318,7 +318,7 @@ const readSidebarState = (storageKey, fallbackValue) => {
     }
 };
 
-const SideBar = ({ isCollapsed, setIsCollapsed }) => {
+const SideBar = ({ isCollapsed, setIsCollapsed, chatButton }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -558,6 +558,12 @@ const SideBar = ({ isCollapsed, setIsCollapsed }) => {
             >
                 <ScanQrCode size={18} />
             </button>
+
+            {chatButton && (
+                <div className="sidebar__chat-container">
+                    {chatButton}
+                </div>
+            )}
 
             <button
                 type="button"
