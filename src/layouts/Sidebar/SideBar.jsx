@@ -44,6 +44,7 @@ import {
     ScanQrCode,
 } from 'lucide-react';
 import UniversalScannerModal from '../../components/UniversalScanner/UniversalScannerModal.jsx';
+import UniversalSearch from '../../components/UniversalSearch/UniversalSearch.jsx';
 import './SideBar.css';
 
 const SIDEBAR_GROUPS_STORAGE_KEY = 'sidebarOpenGroups';
@@ -322,6 +323,8 @@ const SideBar = ({ isCollapsed, setIsCollapsed, chatButton }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+    const mobileSearchRef = useRef(null);
     const [openGroups, setOpenGroups] = useState(() =>
     ({
         ...Object.fromEntries(NAV_GROUPS.map((g) => [g.id, Boolean(g.defaultOpen)])),
@@ -435,6 +438,7 @@ const SideBar = ({ isCollapsed, setIsCollapsed, chatButton }) => {
 
     useEffect(() => {
         setIsProfileOpen(false);
+        setIsMobileSearchOpen(false);
     }, [location.pathname]);
 
     useEffect(() => {
@@ -447,6 +451,17 @@ const SideBar = ({ isCollapsed, setIsCollapsed, chatButton }) => {
         document.addEventListener('click', handleOutsideClick);
         return () => document.removeEventListener('click', handleOutsideClick);
     }, [isProfileOpen]);
+
+    useEffect(() => {
+        if (!isMobileSearchOpen) return;
+        const handleOutsideClick = (event) => {
+            if (mobileSearchRef.current && !mobileSearchRef.current.contains(event.target)) {
+                setIsMobileSearchOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, [isMobileSearchOpen]);
 
     // Tự động sổ các mục con khi chạy tour hướng dẫn để có thể spotlight trỏ tới chính xác
     useEffect(() => {
@@ -599,6 +614,30 @@ const SideBar = ({ isCollapsed, setIsCollapsed, chatButton }) => {
                     {chatButton}
                 </div>
             )}
+
+            <div className="sidebar__mobile-search-container" ref={mobileSearchRef}>
+                <button
+                    type="button"
+                    className="sidebar__mobile-search-button"
+                    onClick={() => setIsMobileSearchOpen((prev) => !prev)}
+                    aria-label="Tìm kiếm"
+                    aria-expanded={isMobileSearchOpen}
+                    title="Tìm kiếm"
+                >
+                    <Search size={18} />
+                </button>
+
+                {isMobileSearchOpen && (
+                    <div className="sidebar__mobile-search-popover">
+                        <UniversalSearch
+                            staffRoles={staffRoles}
+                            className="sidebar__mobile-search-inner"
+                            autoFocus
+                            onNavigate={() => setIsMobileSearchOpen(false)}
+                        />
+                    </div>
+                )}
+            </div>
 
             <button
                 type="button"

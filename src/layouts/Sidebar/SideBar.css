@@ -764,7 +764,7 @@
         top: 0;
         z-index: 1000;
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto auto;
+        grid-template-columns: minmax(0, 1fr) auto auto auto auto;
         align-items: center;
         gap: 8px;
         overflow: visible;
@@ -885,6 +885,66 @@
 
     .sidebar__greeting {
         display: none !important;
+    }
+
+    .sidebar__mobile-search-container {
+        flex-shrink: 0;
+    }
+
+    .sidebar__mobile-search-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border: 1px solid rgba(0, 90, 169, 0.15);
+        border-radius: 8px;
+        background: var(--sb-bg-secondary);
+        color: var(--sb-accent);
+        cursor: pointer;
+        transition: all var(--sb-transition);
+    }
+
+    .sidebar__mobile-search-button:hover,
+    .sidebar__mobile-search-button[aria-expanded="true"] {
+        background: var(--sb-accent);
+        color: #ffffff;
+    }
+
+    /* .sidebar (position: sticky) is the nearest positioned ancestor, so this
+       anchors as a full-width bar under the whole mobile header, not just
+       under the narrow search button. */
+    .sidebar__mobile-search-popover {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        top: calc(100% + 6px);
+        z-index: 2100;
+        animation: sbMobileSearchFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes sbMobileSearchFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .sidebar__mobile-search-inner {
+        position: relative;
+        width: 100%;
+    }
+
+    .sidebar__mobile-search-inner .universal-search__dropdown {
+        position: static;
+        margin-top: 8px;
+        width: 100%;
+        min-width: 0;
+        max-height: min(420px, calc(100vh - 140px));
     }
 
     .sidebar__profile-dropdown {
