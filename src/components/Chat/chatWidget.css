@@ -437,14 +437,32 @@
   color: #fff;
 }
 
-.chat-widget__bubble.type-sticker {
+.chat-widget__bubble.type-sticker,
+.chat-widget__bubble.is-emoji-only {
   background: transparent;
   padding: 0;
+}
+
+/* Độ đặc hiệu (3 lớp class) bằng với rule ".is-own .chat-widget__bubble" phía trên
+   (cũng 3 lớp) — nếu không có override riêng cho own+sticker/emoji-only ở đây, rule
+   nền màu của "is-own" sẽ thắng do đứng SAU trong thứ tự nguồn khi độ đặc hiệu bằng
+   nhau, khiến sticker/emoji do chính mình gửi vẫn bị bọc nền màu thay vì hiện trần. */
+.chat-widget__bubbleRow.is-own .chat-widget__bubble.type-sticker,
+.chat-widget__bubbleRow.is-own .chat-widget__bubble.is-emoji-only {
+  background: transparent;
+  color: inherit;
 }
 
 .chat-widget__bubbleText {
   margin: 0;
   white-space: pre-wrap;
+}
+
+/* Tin nhắn chỉ gồm icon/emoji (không chữ khác) hiển thị to như sticker thay vì
+   chữ nhỏ trong bong bóng chat — cùng ý tưởng với Messenger/iMessage/Zalo. */
+.chat-widget__bubbleText.is-emoji-only {
+  font-size: 2.4rem;
+  line-height: 1.2;
 }
 
 .chat-widget__stickerImg {
@@ -1051,6 +1069,12 @@
 @media (max-width: 1024px) {
   .chat-widget__dock {
     display: none;
+  }
+
+  /* iOS Safari tự động zoom trang khi focus vào input/textarea có font-size < 16px —
+     giữ tối thiểu 16px để tắt hành vi zoom không mong muốn này khi mở bàn phím. */
+  .chat-widget__textarea {
+    font-size: 16px;
   }
 }
 

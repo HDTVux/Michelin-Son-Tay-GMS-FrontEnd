@@ -28,7 +28,7 @@ const ChatWindow = ({ window: win, chatState }) => {
   const isOnline = conversation.participants?.some((p) => p.online);
 
   return (
-    <div className={`chat-widget__window ${minimized ? 'is-minimized' : ''}`}>
+    <div className={`chat-widget__window ${minimized ? 'is-minimized' : ''}`} data-gms-no-global-loading="true">
       <header
         className="chat-widget__windowHeader"
         onClick={() => minimized && chatState.toggleMinimize(conversationId)}

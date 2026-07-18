@@ -43,7 +43,7 @@ const MessagesList = () => {
   };
 
   return (
-    <div className="messages-page">
+    <div className="messages-page" data-gms-no-global-loading="true">
       <header className="messages-page__header">
         {view === 'new' ? (
           <>

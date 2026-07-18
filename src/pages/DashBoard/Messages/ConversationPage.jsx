@@ -1,8 +1,35 @@
+import { useEffect } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { ArrowLeft, Wifi, WifiOff } from 'lucide-react';
 import { getAvatarSrc, handleAvatarError } from '../../../assets/defaultAvatar.js';
 import ConversationThread from '../../../components/Chat/ConversationThread.jsx';
 import './Messages.css';
+
+/**
+ * Trên iOS Safari, `position: fixed; height: 100dvh` không tự co theo bàn phím ảo —
+ * trang vẫn giữ chiều cao trước khi mở bàn phím trong khi phần nhìn thấy thực tế (visual
+ * viewport) đã bị bàn phím che mất phần dưới, khiến ô soạn tin/nút gửi bị đẩy khuất phía
+ * dưới màn hình. Đồng bộ 1 biến CSS theo `window.visualViewport.height` (biến này CÓ co
+ * lại khi bàn phím mở) để trang luôn khớp đúng phần thực sự hiển thị.
+ */
+const useVisualViewportHeight = () => {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+
+    const syncHeight = () => {
+      document.documentElement.style.setProperty('--conversation-page-vh', `${vv.height}px`);
+    };
+    syncHeight();
+    vv.addEventListener('resize', syncHeight);
+    vv.addEventListener('scroll', syncHeight);
+    return () => {
+      vv.removeEventListener('resize', syncHeight);
+      vv.removeEventListener('scroll', syncHeight);
+      document.documentElement.style.removeProperty('--conversation-page-vh');
+    };
+  }, []);
+};
 
 /**
  * Trang tin nhắn full-page cho 1 hội thoại (mobile) — thay cho box nổi
@@ -13,6 +40,7 @@ const ConversationPage = () => {
   const { conversationId } = useParams();
   const { chatState } = useOutletContext();
   const navigate = useNavigate();
+  useVisualViewportHeight();
 
   const conversation = chatState.conversations.find(
     (c) => String(c.conversationId) === String(conversationId),
@@ -20,7 +48,7 @@ const ConversationPage = () => {
 
   if (!conversation) {
     return (
-      <div className="conversation-page">
+      <div className="conversation-page" data-gms-no-global-loading="true">
         <header className="conversation-page__header">
           <button type="button" className="conversation-page__backBtn" onClick={() => navigate('/messages')}>
             <ArrowLeft size={18} />
@@ -36,7 +64,7 @@ const ConversationPage = () => {
   const isOnline = conversation.participants?.some((p) => p.online);
 
   return (
-    <div className="conversation-page">
+    <div className="conversation-page" data-gms-no-global-loading="true">
       <header className="conversation-page__header">
         <button type="button" className="conversation-page__backBtn" onClick={() => navigate('/messages')} aria-label="Quay lại">
           <ArrowLeft size={18} />

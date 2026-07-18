@@ -287,7 +287,10 @@
     position: fixed;
     inset: 0;
     z-index: 3000;
-    height: 100dvh;
+    /* --conversation-page-vh (đặt qua window.visualViewport trong ConversationPage.jsx)
+       co lại đúng theo bàn phím ảo trên iOS Safari — 100dvh KHÔNG tự co theo bàn phím,
+       khiến ô soạn tin/nút gửi bị đẩy khuất phía dưới màn hình khi gõ tin nhắn. */
+    height: var(--conversation-page-vh, 100dvh);
   }
 }
 

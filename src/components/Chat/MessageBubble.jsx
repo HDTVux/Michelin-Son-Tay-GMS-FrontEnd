@@ -13,6 +13,27 @@ const buildDownloadUrl = (url, filename) => {
   return url.replace('/upload/', `/upload/fl_attachment:${safeName}/`);
 };
 
+// Tin nhắn CHỈ gồm icon/emoji (không chữ, không đính kèm) hiển thị to như sticker
+// (kiểu Messenger/iMessage) thay vì chữ nhỏ trong khung bong bóng bình thường.
+// Giới hạn số lượng để tránh emoji tràn khung khi người dùng gõ cả chuỗi dài.
+const MAX_EMOJI_ONLY_COUNT = 6;
+// Xây regex bằng String.fromCodePoint thay vì gõ thẳng ký tự variation-selector/ZWJ
+// (0xFE0F, 0x200D) — các ký tự vô hình này rất dễ bị hỏng khi gõ/copy trực tiếp.
+const VARIATION_SELECTOR_16 = String.fromCodePoint(0xfe0f);
+const ZERO_WIDTH_JOINER = String.fromCodePoint(0x200d);
+const EMOJI_ONLY_STRIP_REGEX = new RegExp(
+  `[\\p{Extended_Pictographic}\\p{Emoji_Modifier}\\p{Regional_Indicator}${VARIATION_SELECTOR_16}${ZERO_WIDTH_JOINER}\\s]`,
+  'gu',
+);
+const EMOJI_TEST_REGEX = /[\p{Extended_Pictographic}\p{Regional_Indicator}]/gu;
+
+const isEmojiOnlyText = (text) => {
+  if (!text) return false;
+  const matches = text.match(EMOJI_TEST_REGEX);
+  if (!matches || matches.length === 0 || matches.length > MAX_EMOJI_ONLY_COUNT) return false;
+  return text.replace(EMOJI_ONLY_STRIP_REGEX, '').length === 0;
+};
+
 const formatTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -93,6 +114,9 @@ const MessageBubble = ({ message, isOwn, showSenderName }) => {
     };
   }, [message.type, message.stickerId, stickerUrl]);
 
+  const hasAttachments = Array.isArray(message.attachments) && message.attachments.length > 0;
+  const emojiOnly = message.type === 'text' && !hasAttachments && isEmojiOnlyText(message.text);
+
   return (
     <div className={`chat-widget__bubbleRow ${isOwn ? 'is-own' : ''}`}>
       <div className="chat-widget__bubbleCol">
@@ -100,7 +124,7 @@ const MessageBubble = ({ message, isOwn, showSenderName }) => {
           <span className="chat-widget__senderName">{message.senderName}</span>
         )}
 
-        <div className={`chat-widget__bubble type-${message.type}`}>
+        <div className={`chat-widget__bubble type-${message.type} ${emojiOnly ? 'is-emoji-only' : ''}`}>
           {message.type === 'sticker' ? (
             stickerUrl ? (
               <img className="chat-widget__stickerImg" src={stickerUrl} alt="sticker" />
@@ -109,8 +133,10 @@ const MessageBubble = ({ message, isOwn, showSenderName }) => {
             )
           ) : (
             <>
-              {message.text && <p className="chat-widget__bubbleText">{message.text}</p>}
-              {Array.isArray(message.attachments) && message.attachments.length > 0 && (
+              {message.text && (
+                <p className={`chat-widget__bubbleText ${emojiOnly ? 'is-emoji-only' : ''}`}>{message.text}</p>
+              )}
+              {hasAttachments && (
                 <AttachmentGrid attachments={message.attachments} onPreview={(img) => setLightboxSrc(img.url)} />
               )}
             </>
