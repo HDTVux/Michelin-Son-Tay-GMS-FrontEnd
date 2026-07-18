@@ -238,6 +238,7 @@ const NAV_GROUPS = [
         defaultOpen: true,
         items: [
             { id: 'revenue-management', label: 'Quản lý doanh thu', path: '/revenue-management', icon: <TrendingUp size={18} />, roles: [STAFF_ROLE.ACCOUNTANT, STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+            { id: 'kpi-management', label: 'Quản lý KPI nhân viên', path: '/kpi-management', icon: <Star size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
         ],
     },
     {
