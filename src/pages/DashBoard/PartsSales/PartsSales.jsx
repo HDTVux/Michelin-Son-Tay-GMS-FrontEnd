@@ -9,6 +9,7 @@ import styles from './PartsSales.module.css';
 import AdvisorItemsTable from '../ServiceTicketManagement/AdvisorItemsTable.jsx';
 import Receipt from '../Receipt/Receipt.jsx';
 import CreateCustomerModal from '../CustomerManager/CreateCustomerModal.jsx';
+import RankBadge from '../../../components/RankBadge/RankBadge.jsx';
 import { usePartsSalesHandlers, PARTS_SALES_ESTIMATE_STORAGE_KEY } from './usePartsSalesHandlers.js';
 import { formatTimeHHmm } from '../../../components/timeUtils.js';
 
@@ -221,6 +222,12 @@ export default function PartsSales() {
 										<span className={styles.customerInfoLabel}>Loại khách:</span>
 										<span className={styles.customerInfoValue}>
 											{CUSTOMER_TYPE_LABELS[String(h.customer.customerType || '').toUpperCase()] || 'Khách lẻ'}
+										</span>
+									</div>
+									<div className={styles.customerInfoRow}>
+										<span className={styles.customerInfoLabel}>Hạng khách:</span>
+										<span className={styles.customerInfoValue}>
+											<RankBadge rank={h.customer.currentRank || 'BRONZE'} size="sm" />
 										</span>
 									</div>
 									{h.customer.serviceUsageCount != null && (

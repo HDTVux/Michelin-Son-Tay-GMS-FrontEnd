@@ -427,6 +427,7 @@
 }
 
 /* Floating Kênh liên hệ */
+/* bottom được đẩy cao hơn nút "Lên đầu trang" (.backToTop: bottom 30px, cao 50px) để 2 khối không đè lên nhau */
 .floatingContact {
 	position: fixed;
 	right: 24px;
@@ -460,20 +461,17 @@
 }
 
 .floatingCircle {
-	width: 64px;
-	height: 64px;
+	width: 60px;
+	height: 60px;
 	border-radius: 50%;
 	display: flex;
-	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 	text-decoration: none;
-	font-weight: 700;
-	font-size: 11px;
 	cursor: pointer;
 	position: relative;
 	transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18), 0 0 0 3px rgba(255, 255, 255, 0.8);
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16), 0 0 0 3px rgba(255, 255, 255, 0.9);
 	animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) backwards;
 }
 
@@ -487,36 +485,81 @@
 }
 
 .floatingCircle__icon {
-	font-size: 22px;
-	line-height: 1;
-	margin-bottom: 2px;
-	animation: pulse 2s ease-in-out infinite;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 0;
+	transition: transform 0.3s ease;
 }
 
-.floatingCircle:nth-child(2) .floatingCircle__icon { animation-delay: 0s; }
-.floatingCircle:nth-child(3) .floatingCircle__icon { animation-delay: 0.3s; }
-.floatingCircle:nth-child(4) .floatingCircle__icon { animation-delay: 0.6s; }
-
-@keyframes pulse {
-	0%, 100% { transform: scale(1); }
-	50% { transform: scale(1.15); }
+/* Logo Zalo lấp đầy toàn bộ vòng tròn để nhìn giống icon app thật */
+.floatingCircle__icon--logo {
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	overflow: hidden;
 }
 
-.floatingCircle__text {
-	line-height: 1;
-	font-weight: 800;
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
+.floatingCircle__icon--logo svg,
+.floatingCircle__icon--logo img {
+	width: 100%;
+	height: 100%;
+	display: block;
+	object-fit: cover;
+}
+
+/* Ảnh logo Zalo có viền trắng quanh nét vẽ nên phóng to (crop) nhiều hơn để lấp đầy nút tròn */
+.floatingCircle--zalo img {
+	transform: scale(1.9);
+}
+
+/* Logo Messenger đã gần như lấp đầy khung nên chỉ cần zoom nhẹ để bỏ viền trắng mỏng */
+.floatingCircle--messenger img {
+	transform: scale(1.12);
+}
+
+/* Tooltip hiện tên kênh liên hệ khi hover, trượt ra từ mép trái nút */
+.floatingCircle__tooltip {
+	position: absolute;
+	right: calc(100% + 14px);
+	top: 50%;
+	transform: translateY(-50%) translateX(6px);
+	background: #1f2937;
+	color: #ffffff;
+	font-size: 13px;
+	font-weight: 700;
+	white-space: nowrap;
+	padding: 7px 14px;
+	border-radius: 8px;
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.floatingCircle__tooltip::after {
+	content: '';
+	position: absolute;
+	left: 100%;
+	top: 50%;
+	transform: translateY(-50%);
+	border: 6px solid transparent;
+	border-left-color: #1f2937;
+}
+
+.floatingCircle:hover .floatingCircle__tooltip {
+	opacity: 1;
+	transform: translateY(-50%) translateX(0);
 }
 
 /* Zalo - Blue */
 .floatingCircle--zalo {
-	background: linear-gradient(135deg, #0068ff 0%, #0055d4 100%);
-	color: #ffffff;
+	background: #ffffff;
+	padding: 0;
 }
 
 .floatingCircle--zalo:hover {
-	transform: scale(1.18) translateY(-6px);
+	transform: scale(1.16) translateY(-6px);
 	box-shadow: 0 12px 32px rgba(0, 104, 255, 0.45), 0 0 0 4px rgba(0, 104, 255, 0.3);
 }
 
@@ -525,9 +568,9 @@
 }
 
 @keyframes zaloShake {
-	0%, 100% { transform: scale(1.15) rotate(0deg); }
-	25% { transform: scale(1.15) rotate(-8deg); }
-	75% { transform: scale(1.15) rotate(8deg); }
+	0%, 100% { transform: rotate(0deg); }
+	25% { transform: rotate(-6deg); }
+	75% { transform: rotate(6deg); }
 }
 
 /* Gọi - Green */
@@ -537,7 +580,7 @@
 }
 
 .floatingCircle--call:hover {
-	transform: scale(1.18) translateY(-6px);
+	transform: scale(1.16) translateY(-6px);
 	box-shadow: 0 12px 32px rgba(16, 185, 129, 0.45), 0 0 0 4px rgba(16, 185, 129, 0.3);
 }
 
@@ -546,32 +589,32 @@
 }
 
 @keyframes ringBell {
-	0%, 100% { transform: scale(1.15) rotate(0deg); }
-	20% { transform: scale(1.15) rotate(-15deg); }
-	40% { transform: scale(1.15) rotate(15deg); }
-	60% { transform: scale(1.15) rotate(-10deg); }
-	80% { transform: scale(1.15) rotate(10deg); }
+	0%, 100% { transform: rotate(0deg); }
+	20% { transform: rotate(-15deg); }
+	40% { transform: rotate(15deg); }
+	60% { transform: rotate(-10deg); }
+	80% { transform: rotate(10deg); }
 }
 
-/* Email - Red */
-.floatingCircle--email {
-	background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-	color: #ffffff;
+/* Messenger - Blue/Purple */
+.floatingCircle--messenger {
+	background: #ffffff;
+	padding: 0;
 }
 
-.floatingCircle--email:hover {
-	transform: scale(1.18) translateY(-6px);
-	box-shadow: 0 12px 32px rgba(239, 68, 68, 0.45), 0 0 0 4px rgba(239, 68, 68, 0.3);
+.floatingCircle--messenger:hover {
+	transform: scale(1.16) translateY(-6px);
+	box-shadow: 0 12px 32px rgba(0, 104, 255, 0.4), 0 0 0 4px rgba(160, 51, 255, 0.25);
 }
 
-.floatingCircle--email:hover .floatingCircle__icon {
+.floatingCircle--messenger:hover .floatingCircle__icon {
 	animation: flyUp 0.4s ease-out;
 }
 
 @keyframes flyUp {
-	0% { transform: scale(1.15) translateY(0); }
-	50% { transform: scale(1.15) translateY(-12px); }
-	100% { transform: scale(1.15) translateY(0); }
+	0% { transform: translateY(0); }
+	50% { transform: translateY(-10px); }
+	100% { transform: translateY(0); }
 }
 
 /* Ripple effect on click */
@@ -601,16 +644,13 @@
 	}
 
 	.floatingCircle {
-		width: 54px;
-		height: 54px;
+		width: 50px;
+		height: 50px;
 	}
 
-	.floatingCircle__icon {
-		font-size: 18px;
-	}
-
-	.floatingCircle__text {
-		font-size: 10px;
+	.floatingCircle__tooltip {
+		font-size: 12px;
+		padding: 6px 12px;
 	}
 
 	.floatingContact__label {
@@ -642,10 +682,11 @@
 }
 
 /* Trigger button when minimized */
+/* bottom được đẩy cao hơn nút "Lên đầu trang" để 2 nút không đè lên nhau */
 .floatingContact__trigger {
 	position: fixed;
 	right: 24px;
-	bottom: 40px;
+	bottom: 100px;
 	z-index: 100;
 	width: 64px;
 	height: 64px;
@@ -671,7 +712,7 @@
 @media (max-width: 640px) {
 	.floatingContact__trigger {
 		right: 16px;
-		bottom: 24px;
+		bottom: 80px;
 		width: 54px;
 		height: 54px;
 		font-size: 20px;

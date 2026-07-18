@@ -280,6 +280,7 @@ export function usePartsSalesHandlers({ navigate }) {
 						phone: value,
 						customerType: res.data.customerType || null,
 						serviceUsageCount: res.data.serviceUsageCount ?? null,
+						currentRank: res.data.currentRank || null,
 					});
 					setCustomerNotFound(false);
 				} else {
@@ -330,6 +331,7 @@ export function usePartsSalesHandlers({ navigate }) {
 			fullName: c.fullName || '',
 			phone: c.phone || '',
 			customerType: c.customerType || null,
+			currentRank: c.currentRank || null,
 		});
 		setCustomerNotFound(false);
 		setCustomerCheckError('');

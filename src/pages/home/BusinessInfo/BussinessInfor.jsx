@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { Phone } from 'lucide-react';
+import zaloLogo from '../../../assets/logo-zalo-vector.png';
+import messengerLogo from '../../../assets/messenger-logo.webp';
 import './BusinessInfo.css';
 
 export default function BussinessInfor() {
@@ -77,17 +80,21 @@ export default function BussinessInfor() {
 							&times;
 						</button>
 					</div>
-					<a className="floatingCircle floatingCircle--zalo" href="https://zalo.me/3178553865233362097" target="_blank" rel="noreferrer" aria-label="Liên hệ Zalo">
-						<span className="floatingCircle__icon">💬</span>
-						<span className="floatingCircle__text">Zalo</span>
+					<a className="floatingCircle floatingCircle--zalo" href="https://zalo.me/thietbilop" target="_blank" rel="noreferrer" aria-label="Liên hệ Zalo">
+						<span className="floatingCircle__tooltip">Chat Zalo</span>
+						<span className="floatingCircle__icon floatingCircle__icon--logo">
+							<img src={zaloLogo} alt="Zalo" />
+						</span>
 					</a>
 					<a className="floatingCircle floatingCircle--call" href="tel:0987545680" aria-label="Gọi điện">
-						<span className="floatingCircle__icon">📞</span>
-						<span className="floatingCircle__text">Gọi</span>
+						<span className="floatingCircle__tooltip">Gọi ngay</span>
+						<span className="floatingCircle__icon"><Phone size={26} strokeWidth={2.2} /></span>
 					</a>
-					<a className="floatingCircle floatingCircle--email" href="mailto:minhanhauto.sontay@gmail.com" aria-label="Gửi Email">
-						<span className="floatingCircle__icon">✉️</span>
-						<span className="floatingCircle__text">Email</span>
+					<a className="floatingCircle floatingCircle--messenger" href="https://m.me/michelinsontay" target="_blank" rel="noreferrer" aria-label="Nhắn tin Messenger">
+						<span className="floatingCircle__tooltip">Nhắn tin Messenger</span>
+						<span className="floatingCircle__icon floatingCircle__icon--logo floatingCircle__icon--messengerLogo">
+							<img src={messengerLogo} alt="Messenger" />
+						</span>
 					</a>
 				</div>
 			) : (

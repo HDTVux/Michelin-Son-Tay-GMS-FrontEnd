@@ -14,6 +14,7 @@ import { getDefaultSafetyInspectionCategories } from '../../../services/safetyIn
 import { fetchAllCustomers } from '../../../services/adminService.js';
 import { fetchFallbackPricingConfigs } from '../../../services/warehouseService.js';
 import { Contact, Search, X } from 'lucide-react';
+import RankBadge from '../../../components/RankBadge/RankBadge.jsx';
 
 const DURATION_MINUTES = 60;	// Thời lượng mặc định cho 1 slot
 const DATE_RANGE_DAYS = 10;		// Giới hạn chọn lịch trong vòng 10 ngày tới
@@ -120,7 +121,8 @@ export default function CreateBooking() {
 			exists: true,
 			fullName: customer.fullName,
 			customerId: customer.customerId || customer.id,
-			serviceUsageCount: customer.totalBookings || 0
+			serviceUsageCount: customer.totalBookings || 0,
+			currentRank: customer.currentRank || null
 		});
 		setCustomerCheckError('');
 		setShowDirectoryModal(false);
@@ -853,11 +855,14 @@ export default function CreateBooking() {
 								)}
 								{customerCheckError && <div style={{ color: '#e53935', fontSize: 13, marginTop: 4 }}>{customerCheckError}</div>}
 								{customerChecked?.exists === true && (
-									<div style={{ color: '#059669', fontSize: 13, marginTop: 4 }}>
-										Khách hàng đã tồn tại: {customerChecked.fullName}
-										{customerChecked.serviceUsageCount !== undefined && customerChecked.serviceUsageCount !== null && (
-											<span> (Số lần sử dụng dịch vụ: <strong>{customerChecked.serviceUsageCount}</strong> lần)</span>
-										)}
+									<div style={{ color: '#059669', fontSize: 13, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+										<span>
+											Khách hàng đã tồn tại: {customerChecked.fullName}
+											{customerChecked.serviceUsageCount !== undefined && customerChecked.serviceUsageCount !== null && (
+												<span> (Số lần sử dụng dịch vụ: <strong>{customerChecked.serviceUsageCount}</strong> lần)</span>
+											)}
+										</span>
+										<RankBadge rank={customerChecked.currentRank || 'BRONZE'} size="sm" />
 									</div>
 								)}
 								{customerChecked?.exists === false && (
