@@ -2,7 +2,6 @@ import './Services.css';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { fetchHomeProducts } from '../../../services/homeService';
-import { fetchWorkCategoriesAll } from '../../../services/serviceTicketService';
 import serviceFallback from '../../../assets/lop and mam.jpg';
 import serviceHeroImage from '../../../assets/anh_dich_vu.jpg';
 import partHeroImage from '../../../assets/anh_kho.jpg';
@@ -53,12 +52,6 @@ const normalizeItemType = (value) => {
   const text = String(value || '').trim().toUpperCase();
   if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
   return 'SERVICE';
-};
-const normalizeCategoryType = (value) => {
-  const text = String(value || '').trim().toUpperCase();
-  if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
-  if (text === 'SERVICE') return 'SERVICE';
-  return '';
 };
 const normalizeCategoryToken = (value) => String(value ?? '')
   .trim()
@@ -178,14 +171,6 @@ const hasCategoryOptionMatch = (item, categoryOption) => {
     ? categoryOption.categoryMatchKeys
     : [categoryOption?.categoryKey].filter(Boolean);
   return hasCategoryMatch(item?.categoryMatchKeys || [], matchKeys);
-};
-const isCategoryActive = (value) => {
-  if (value === false || value === 0) return false;
-  if (typeof value === 'string') {
-    const text = value.trim().toLowerCase();
-    if (text === 'false' || text === '0' || text === 'inactive') return false;
-  }
-  return true;
 };
 const toDisplayPrice = (item) => {
   if (item?.showPrice !== true) return 'Giá: Liên hệ';
@@ -309,8 +294,6 @@ const Services = ({ homeRows = false }) => {
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');
-  const [categories, setCategories] = useState([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [currentCatalogServices, setCurrentCatalogServices] = useState([]);
   const [currentCatalogLoading, setCurrentCatalogLoading] = useState(() => !homeRows);
   const [currentCatalogError, setCurrentCatalogError] = useState('');
@@ -473,54 +456,6 @@ const Services = ({ homeRows = false }) => {
     };
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
-
-    fetchWorkCategoriesAll(token)
-      .then((res) => {
-        if (!active) return;
-        const normalized = extractList(res)
-          .map((item) => {
-            const categoryType = normalizeCategoryType(item?.categoryType ?? item?.itemType ?? item?.type);
-            const categoryId = getCategoryId(item) ?? toPositiveNumber(item?.id);
-            const categoryCode = getCategoryCode(item);
-            const categoryName = getCategoryName(item);
-            const categoryKey = getCategoryKey(item) || (categoryId != null ? `id:${categoryId}` : '');
-            const categoryMatchKeys = getCategoryMatchKeys(item);
-            if (!categoryKey || !isCategoryActive(item?.isActive ?? item?.status)) return null;
-            return {
-              categoryId,
-              categoryCode,
-              categoryName,
-              categoryType,
-              categoryKey,
-              categoryMatchKeys,
-              label: categoryName || categoryCode || `Nhóm #${categoryId}`,
-            };
-          })
-          .filter(Boolean);
-
-        const deduped = new Map();
-        normalized.forEach((item) => {
-          const key = `${item.categoryType}:${item.categoryKey}`;
-          if (!deduped.has(key)) deduped.set(key, item);
-        });
-        setCategories(Array.from(deduped.values()));
-      })
-      .catch((err) => {
-        console.error('[Services] Error loading categories:', err);
-        if (active) setCategories([]);
-      })
-      .finally(() => {
-        if (active) setCategoriesLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
   // Scroll reveal cho 3 phần: dịch vụ, quy trình, combo
 
   useEffect(() => {
@@ -552,15 +487,17 @@ const Services = ({ homeRows = false }) => {
   const [servicesIntroVisible, setServicesIntroVisible] = useState(false);
   const [processIntroVisible, setProcessIntroVisible] = useState(false);
 
+  // Danh mục được suy ra trực tiếp từ dữ liệu dịch vụ/phụ tùng công khai (services),
+  // không còn gọi API nội bộ work-category (yêu cầu đăng nhập nhân viên) vì API đó
+  // trả 403 với khách vãng lai và làm apiClient tự động điều hướng cả trang ra /login.
   const categoryOptions = useMemo(() => {
     const derived = new Map();
-    const derivedByNormalizedLabel = new Map();
     const typedServices = services.filter((item) => item.itemType === catalogFilter);
 
-    typedServices
-      .forEach((item) => {
-        if (!item.categoryKey) return;
-        const derivedEntry = {
+    typedServices.forEach((item) => {
+      if (!item.categoryKey) return;
+      if (!derived.has(item.categoryKey)) {
+        derived.set(item.categoryKey, {
           categoryId: item.categoryId,
           categoryKey: item.categoryKey,
           categoryMatchKeys: item.categoryMatchKeys?.length ? item.categoryMatchKeys : [item.categoryKey],
@@ -568,61 +505,14 @@ const Services = ({ homeRows = false }) => {
           categoryName: item.categoryName,
           categoryType: item.itemType,
           label: item.categoryName || item.categoryCode || 'Khác',
-        };
-        if (!derived.has(item.categoryKey)) {
-          derived.set(item.categoryKey, derivedEntry);
-        }
-
-        const normalizedName = normalizeCategoryToken(item.categoryName);
-        const normalizedCode = normalizeCategoryToken(item.categoryCode);
-        if (normalizedName && !derivedByNormalizedLabel.has(normalizedName)) {
-          derivedByNormalizedLabel.set(normalizedName, derivedEntry);
-        }
-        if (normalizedCode && !derivedByNormalizedLabel.has(normalizedCode)) {
-          derivedByNormalizedLabel.set(normalizedCode, derivedEntry);
-        }
-      });
-
-    const options = categories
-      .filter((item) => !item.categoryType || item.categoryType === catalogFilter)
-      .map((item) => {
-        const normalizedName = normalizeCategoryToken(item.categoryName);
-        const normalizedCode = normalizeCategoryToken(item.categoryCode);
-        const matchedDerived = derivedByNormalizedLabel.get(normalizedName) || derivedByNormalizedLabel.get(normalizedCode);
-        const mergedOption = matchedDerived
-          ? {
-              ...item,
-              categoryId: matchedDerived.categoryId ?? item.categoryId,
-              categoryKey: matchedDerived.categoryKey || item.categoryKey,
-              categoryMatchKeys: matchedDerived.categoryMatchKeys?.length
-                ? matchedDerived.categoryMatchKeys
-                : (item.categoryMatchKeys?.length ? item.categoryMatchKeys : [item.categoryKey]),
-              categoryCode: matchedDerived.categoryCode || item.categoryCode,
-              categoryName: matchedDerived.categoryName || item.categoryName,
-              label: matchedDerived.categoryName || item.categoryName || matchedDerived.categoryCode || item.categoryCode || `Nhóm #${item.categoryId}`,
-            }
-          : item;
-
-        return {
-          ...mergedOption,
-          count: typedServices.filter((service) => hasCategoryOptionMatch(service, mergedOption)).length,
-        };
-      });
-
-    derived.forEach((item) => {
-      if (!options.some((opt) => hasCategoryOptionMatch(item, opt))) {
-        options.push({
-          categoryKey: item.categoryKey,
-          categoryMatchKeys: item.categoryMatchKeys?.length ? item.categoryMatchKeys : [item.categoryKey],
-          categoryCode: item.categoryCode,
-          categoryName: item.categoryName,
-          categoryId: item.categoryId,
-          categoryType: item.itemType,
-          label: item.categoryName || item.categoryCode || 'Khác',
-          count: typedServices.filter((service) => hasCategoryOptionMatch(service, item)).length,
         });
       }
     });
+
+    const options = Array.from(derived.values()).map((item) => ({
+      ...item,
+      count: typedServices.filter((service) => hasCategoryOptionMatch(service, item)).length,
+    }));
 
     const sortedOptions = options.sort((a, b) => {
       const countDiff = (b.count || 0) - (a.count || 0);
@@ -641,7 +531,7 @@ const Services = ({ homeRows = false }) => {
         ? { ...item, count: activeCategoryItemCount }
         : item
     ));
-  }, [catalogFilter, categories, services, homeRows, categoryFilter, currentCatalogServices]);
+  }, [catalogFilter, services, homeRows, categoryFilter, currentCatalogServices]);
 
   const activeCategoryFilter = categoryFilter === 'ALL'
     || categoryOptions.some((item) => item.categoryKey === categoryFilter)
@@ -773,7 +663,7 @@ const Services = ({ homeRows = false }) => {
       return;
     }
 
-    if (categoriesLoading && categoryOptions.length === 0) return;
+    if (servicesLoading && categoryOptions.length === 0) return;
 
     const matchedCategory = categoryOptions.find((item) => (
       resolveHomePublicCategoryCode(item?.categoryCode, item?.label || item?.categoryName || '') === normalizedRouteCategoryCode
@@ -797,7 +687,7 @@ const Services = ({ homeRows = false }) => {
       setCategoryFilter(matchedCategory.categoryKey);
       setGridExpanded(false);
     }
-  }, [categoriesLoading, categoryFilter, categoryOptions, routeCategoryCode]);
+  }, [servicesLoading, categoryFilter, categoryOptions, routeCategoryCode]);
 
   useEffect(() => {
     if (homeRows) return;
@@ -1089,7 +979,7 @@ const Services = ({ homeRows = false }) => {
               className={`categorySidebarTrigger ${categoryDropdownOpen ? 'is-open' : ''}`}
               onClick={() => setCategoryDropdownOpen((prev) => !prev)}
               aria-expanded={categoryDropdownOpen}
-              disabled={categoriesLoading && categoryOptions.length === 0}
+              disabled={servicesLoading && categoryOptions.length === 0}
             >
               <span className="categorySidebarTriggerText">{activeCategoryLabel}</span>
               <span className="categoryCount categoryCountTrigger">{activeCategoryCount}</span>
@@ -1120,10 +1010,10 @@ const Services = ({ homeRows = false }) => {
                   <span className="categoryCount">{item.count}</span>
                 </button>
               ))}
-              {categoriesLoading && categoryOptions.length === 0 && (
+              {servicesLoading && categoryOptions.length === 0 && (
                 <div className="categorySidebarHint">Đang tải danh mục...</div>
               )}
-              {!categoriesLoading && categoryOptions.length === 0 && (
+              {!servicesLoading && categoryOptions.length === 0 && (
                 <div className="categorySidebarHint">Chưa có danh mục.</div>
               )}
             </div>

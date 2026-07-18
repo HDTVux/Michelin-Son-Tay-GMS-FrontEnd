@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Phone } from 'lucide-react';
+import { Phone, X } from 'lucide-react';
 import zaloLogo from '../../../assets/logo-zalo-vector.png';
 import messengerLogo from '../../../assets/messenger-logo.webp';
 import './BusinessInfo.css';
@@ -69,17 +69,15 @@ export default function BussinessInfor() {
 			{/* Floating Kênh liên hệ */}
 			{isVisible ? (
 				<div className="floatingContact">
-					<div className="floatingContact__label">
-						<span>📞</span> Kênh liên hệ
-						<button
-							className="floatingContact__close"
-							onClick={() => setIsVisible(false)}
-							title="Ẩn"
-							aria-label="Ẩn kênh liên hệ"
-						>
-							&times;
-						</button>
-					</div>
+					<button
+						type="button"
+						className="floatingContact__close"
+						onClick={() => setIsVisible(false)}
+						title="Thu gọn kênh liên hệ"
+						aria-label="Thu gọn kênh liên hệ"
+					>
+						<X size={18} strokeWidth={2.5} />
+					</button>
 					<a className="floatingCircle floatingCircle--zalo" href="https://zalo.me/thietbilop" target="_blank" rel="noreferrer" aria-label="Liên hệ Zalo">
 						<span className="floatingCircle__tooltip">Chat Zalo</span>
 						<span className="floatingCircle__icon floatingCircle__icon--logo">
