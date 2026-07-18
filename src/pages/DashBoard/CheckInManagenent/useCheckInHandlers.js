@@ -13,6 +13,22 @@ import {
     validatePositiveNumber,
 } from '../../../components/inputValidation.js';
 
+// Đọc role của nhân viên từ localStorage, chuẩn hóa thành mảng các string (chữ hoa).
+const readStaffRolesFromStorage = () => {
+    try {
+        const raw = localStorage.getItem('staffRoles');
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .filter((r) => typeof r === 'string')
+            .map((r) => r.trim().toUpperCase())
+            .filter(Boolean);
+    } catch {
+        return [];
+    }
+};
+
 const CHECKIN_DESCRIPTION_FIELDS = Object.freeze([
     { key: 'photoFrontDescription', label: 'Mô tả ảnh phía trước' },
     { key: 'photoRearDescription', label: 'Mô tả ảnh phía sau' },
@@ -496,15 +512,10 @@ export function useCheckInHandlers({
             const response = await completeAllCheckInMultipart(payload, photoFiles, token);
             const data = response?.data?.data ?? response?.data ?? response;
             const ticketCode = data?.ticketCode || '';
-            const serviceTicketId = data?.serviceTicketId || null;
             notify(ticketCode ? `Tạo phiếu thành công: ${ticketCode}` : 'Tạo phiếu thành công');
-            if (ticketCode && serviceTicketId) {
-                navigate(`/service-ticket/${encodeURIComponent(ticketCode)}/receipt-payment-method`, {
-                    state: { serviceTicketId },
-                });
-            } else {
-                navigate('/service-ticket-management');
-            }
+
+            const staffRoles = readStaffRolesFromStorage();
+            navigate(staffRoles.includes('ADVISOR') ? '/advisor/inspection' : '/booking-management');
         } catch (err) {
             notify(err?.message || 'Tạo phiếu thất bại, vui lòng thử lại.');
         } finally {

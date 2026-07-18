@@ -63,6 +63,10 @@
 }
 
 @media (min-width: 1025px) {
+    .sidebar__mobile-search-container {
+        display: none;
+    }
+
     .sidebar__profile-container {
         position: relative;
         margin: 16px 16px 8px;
