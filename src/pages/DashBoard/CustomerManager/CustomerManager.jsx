@@ -4,7 +4,7 @@ import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { toast } from 'react-toastify';
 import { deleteCustomerAccount, fetchAllCustomers, lockCustomerAccount, updateCustomer } from '../../../services/adminService.js';
 import styles from './CustomerManager.module.css';
-import { Phone, Mail, Search, User, Plus, RefreshCw, Lock, Trash2, Eye, Car, Edit } from 'lucide-react';
+import { Phone, Mail, Search, User, Plus, RefreshCw, Lock, Trash2, Eye, Car, Edit, Upload } from 'lucide-react';
 
 import CreateCustomerModal from './CreateCustomerModal.jsx';
 import EditCustomerModal from './EditCustomerModal.jsx';
@@ -279,9 +279,14 @@ const CustomerManager = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>Danh bạ khách hàng</h1>
-        <button className={styles.addButton} onClick={openCreateModal} title="Thêm khách hàng mới">
-          <Plus size={16} /> <span className={styles.addButtonText}>Thêm khách hàng mới</span>
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className={styles.excelButton} onClick={() => navigate('/customer-excel-import')} title="Nhập khách hàng từ Excel">
+            <Upload size={16} /> <span className={styles.addButtonText}>Nhập Excel</span>
+          </button>
+          <button className={styles.addButton} onClick={openCreateModal} title="Thêm khách hàng mới">
+            <Plus size={16} /> <span className={styles.addButtonText}>Thêm khách hàng mới</span>
+          </button>
+        </div>
       </div>
 
       <div className={`${styles.directoryLayout} ${selectedCustomer ? styles.hasSelection : ''}`}>

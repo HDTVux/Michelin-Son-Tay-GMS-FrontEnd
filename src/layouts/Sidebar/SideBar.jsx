@@ -205,6 +205,8 @@ const NAV_GROUPS = [
                     { id: 'shift-management', label: 'Quản lý ca làm việc', path: '/shift-management', icon: <CalendarDays size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                     { id: 'attendance-management', label: 'Chấm công nhân viên', path: '/attendance-management', icon: <CheckSquare size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                     { id: 'attendance-locations', label: 'Vị trí chấm công (QR)', path: '/attendance-locations', icon: <MapPin size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                    { id: 'attendance-request-management', label: 'Duyệt đơn chấm công/nghỉ', path: '/attendance-request-management', icon: <ClipboardList size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                    { id: 'attendance-requests-nav', label: 'Chấm công bù / Xin nghỉ', path: '/attendance-requests', icon: <FileClock size={18} />, roles: 'ALL' },
                 ]
             },
             {
@@ -244,6 +246,7 @@ const NAV_GROUPS = [
         items: [
             { id: 'staff-profile', label: 'Hồ sơ nhân viên', path: '/staff-profile', icon: <Contact size={18} />, roles: 'ALL' },
             { id: 'attendance-checkin', label: 'Chấm công QR', path: '/attendance-checkin', icon: <Clock size={18} />, roles: 'ALL' },
+            { id: 'attendance-requests', label: 'Chấm công bù / Xin nghỉ', path: '/attendance-requests', icon: <FileClock size={18} />, roles: 'ALL' },
             { id: 'staff-notifications-page', label: 'Thông báo', path: '/notifications', icon: <Bell size={18} />, roles: 'ALL' },
             { id: 'daily-schedule', label: 'Lịch làm việc', path: '/daily-schedule', icon: <Calendar size={18} />, roles: 'ALL' },
             { id: 'work-history-technician', label: 'Lịch sử công việc', path: '/work-history/technician', icon: <Briefcase size={18} />, roles: [STAFF_ROLE.TECHNICIAN] },

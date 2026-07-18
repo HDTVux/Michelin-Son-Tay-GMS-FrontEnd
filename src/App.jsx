@@ -32,6 +32,7 @@ import TechnicianTasks from './pages/DashBoard/TechnicianTasks/TechnicianTasks.j
 import ServiceTicketDetail from './pages/DashBoard/ServiceTicketManagement/ServiceTicketDetail.jsx';
 import ServiceTicketManagement from './pages/DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
 import CustomerManager from './pages/DashBoard/CustomerManager/CustomerManager.jsx';
+import CustomerExcelImport from './pages/DashBoard/CustomerManager/CustomerExcelImport.jsx';
 import StaffManagement from './pages/DashBoard/StaffManagement/StaffManagement.jsx';
 import StaffDetailPage from './pages/DashBoard/StaffManagement/StaffDetailPage.jsx';
 import EmployeeProfilePage from './pages/DashBoard/EmployeeManager/EmployeeProfilePage.jsx';
@@ -68,6 +69,8 @@ import AttendanceManagement from './pages/DashBoard/AttendanceManagement/Attenda
 import AttendanceLocationManagement from './pages/DashBoard/AttendanceLocationManagement/AttendanceLocationManagement.jsx';
 import AttendanceQrPrint from './pages/DashBoard/AttendanceLocationManagement/AttendanceQrPrint.jsx';
 import AttendanceCheckin from './pages/DashBoard/AttendanceCheckin/AttendanceCheckin.jsx';
+import AttendanceRequest from './pages/DashBoard/AttendanceRequest/AttendanceRequest.jsx';
+import AttendanceRequestManagement from './pages/DashBoard/AttendanceRequestManagement/AttendanceRequestManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
@@ -459,10 +462,13 @@ export default function App() {
               <Route path="attendance-locations" element={staffRoute(<AttendanceLocationManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="attendance-locations/:locationId/qr-print" element={staffRoute(<AttendanceQrPrint />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="attendance-checkin" element={staffRoute(<AttendanceCheckin />)} />
+              <Route path="attendance-requests" element={staffRoute(<AttendanceRequest />)} />
+              <Route path="attendance-request-management" element={staffRoute(<AttendanceRequestManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="queue-management" element={staffRoute(<QueueManagement />, ROLE_GROUP.RECEPTIONIST)} />
               <Route path="create-booking" element={staffRoute(<CreatBooking />, ROLE_GROUP.RECEPTIONIST)} />
               <Route path="parts-sales" element={staffRoute(<PartsSales />, ROLE_GROUP.RECEPTIONIST)} />
               <Route path="customer-manager" element={staffRoute(<CustomerManager />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
+              <Route path="customer-excel-import" element={staffRoute(<CustomerExcelImport />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
               <Route path="staff-manager" element={staffRoute(<StaffManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="employee-manager" element={staffRoute(<EmployeeManager />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="employee-manager/:staffId" element={staffRoute(<EmployeeProfilePage />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
