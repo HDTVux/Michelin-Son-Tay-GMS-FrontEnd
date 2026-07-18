@@ -1,7 +1,15 @@
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Box, CalendarPlus, FileText, Bell, Users, Settings, Clock, Briefcase, DollarSign, Wrench, Contact, ShoppingCart } from 'lucide-react';
+import { LayoutDashboard, Box, CalendarPlus, FileText, Bell, Users, Settings, Clock, Briefcase, DollarSign, Wrench, Contact, ShoppingCart, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
+import { useDraggableDock } from '../../hooks/useDraggableDock.js';
 import './MobileNavbar.css';
+
+const COLLAPSE_ICON_BY_EDGE = {
+  top: ChevronDown,
+  bottom: ChevronUp,
+  left: ChevronRight,
+  right: ChevronLeft,
+};
 
 const STAFF_ROLE = {
   MANAGER: 'MANAGER',
@@ -241,41 +249,95 @@ const MobileNavbar = ({ notificationState }) => {
     return getDynamicNavItems(staffRoles, true);
   }, [staffRoles]);
 
+  const {
+    containerRef,
+    edge,
+    collapsed,
+    isDragging,
+    previewEdge,
+    dockStyle,
+    toggleCollapsed,
+    dragHandlers,
+  } = useDraggableDock();
+
   const handleNavClick = (path) => {
     if (path) navigate(path);
   };
 
-  return (
-    <div className="mobile-navbar">
-      {visibleItems.map((item) => {
-        const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
-        return (
-          <button
-            key={item.id}
-            type="button"
-            className={`mobile-navbar__item ${isActive ? 'is-active' : ''}`}
-            onClick={() => handleNavClick(item.path)}
-          >
-            {item.icon}
-            <span>{item.label}</span>
-          </button>
-        );
-      })}
+  const activeItem = visibleItems.find(
+    (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
+  );
+  const CollapseIcon = COLLAPSE_ICON_BY_EDGE[edge] || ChevronDown;
 
-      {/* Nút thông báo ở ngoài cùng bên phải, chuyển hướng trực tiếp */}
-      <button
-        type="button"
-        className={`mobile-navbar__item ${location.pathname === '/notifications' ? 'is-active' : ''} ${notificationState?.unreadCount > 0 ? 'has-unread' : ''}`}
-        onClick={() => navigate('/notifications')}
+  return (
+    <>
+      {isDragging && previewEdge && (
+        <div className={`mobile-navbar__snap-preview mobile-navbar__snap-preview--${previewEdge}`} />
+      )}
+      <div
+        ref={containerRef}
+        className={`mobile-navbar mobile-navbar--edge-${edge} ${collapsed ? 'is-collapsed' : ''} ${isDragging ? 'is-dragging' : ''}`}
+        style={dockStyle}
+        {...dragHandlers}
       >
-        <div className="mobile-navbar__bell-wrapper">
-          <Bell size={20} />
-          {notificationState?.connected && <span className="mobile-navbar__connection-dot is-connected" />}
-          {notificationState?.unreadCount > 0 && <span className="mobile-navbar__badge">{notificationState.unreadCount}</span>}
-        </div>
-        <span>Thông báo</span>
-      </button>
-    </div>
+        <span className="mobile-navbar__grip" aria-hidden="true" />
+
+        <button
+          type="button"
+          className="mobile-navbar__collapse-btn"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
+          title={collapsed ? 'Mở rộng' : 'Thu gọn'}
+        >
+          <CollapseIcon size={13} />
+        </button>
+
+        {collapsed ? (
+          <button
+            type="button"
+            className="mobile-navbar__fab"
+            onClick={toggleCollapsed}
+            aria-label="Mở rộng thanh điều hướng"
+          >
+            {activeItem?.icon || <Menu size={20} />}
+            {notificationState?.unreadCount > 0 && <span className="mobile-navbar__badge">{notificationState.unreadCount}</span>}
+          </button>
+        ) : (
+          <>
+            {visibleItems.map((item) => {
+              const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`mobile-navbar__item ${isActive ? 'is-active' : ''}`}
+                  onClick={() => handleNavClick(item.path)}
+                  title={item.label}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+
+            {/* Nút thông báo ở ngoài cùng, chuyển hướng trực tiếp */}
+            <button
+              type="button"
+              className={`mobile-navbar__item ${location.pathname === '/notifications' ? 'is-active' : ''} ${notificationState?.unreadCount > 0 ? 'has-unread' : ''}`}
+              onClick={() => navigate('/notifications')}
+              title="Thông báo"
+            >
+              <div className="mobile-navbar__bell-wrapper">
+                <Bell size={20} />
+                {notificationState?.connected && <span className="mobile-navbar__connection-dot is-connected" />}
+                {notificationState?.unreadCount > 0 && <span className="mobile-navbar__badge">{notificationState.unreadCount}</span>}
+              </div>
+              <span>Thông báo</span>
+            </button>
+          </>
+        )}
+      </div>
+    </>
   );
 };
 

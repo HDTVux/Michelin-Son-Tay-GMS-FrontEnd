@@ -9,14 +9,13 @@
         display: flex;
         justify-content: space-around;
         align-items: center;
-        position: fixed;
-        bottom: 16px;
-        left: 16px;
-        right: 16px;
+        position: relative;
         height: 64px;
         padding: 6px 8px;
         z-index: 2500;
-        
+        touch-action: none;
+        user-select: none;
+
         /* Premium Glassmorphism styling */
         background: rgba(255, 255, 255, 0.85);
         backdrop-filter: blur(16px) saturate(180%);
@@ -24,15 +23,182 @@
         border: 1px solid rgba(255, 255, 255, 0.4);
         border-radius: 20px;
         box-shadow: 0 8px 32px rgba(15, 23, 42, 0.12);
-        
-        transition: transform 0.3s ease, opacity 0.3s ease;
     }
 
-    /* Support for safe areas on modern mobile browsers (iPhone notch/home indicator) */
-    @supports (padding-bottom: env(safe-area-inset-bottom)) {
-        .mobile-navbar {
-            bottom: calc(16px + env(safe-area-inset-bottom));
-        }
+    /* Vertical layout when docked to a side edge */
+    .mobile-navbar--edge-left,
+    .mobile-navbar--edge-right {
+        flex-direction: column;
+        width: 64px;
+        height: auto;
+        padding: 8px 6px;
+    }
+
+    .mobile-navbar--edge-left .mobile-navbar__item,
+    .mobile-navbar--edge-right .mobile-navbar__item {
+        width: 100%;
+    }
+
+    .mobile-navbar--edge-left .mobile-navbar__item span,
+    .mobile-navbar--edge-right .mobile-navbar__item span {
+        display: none;
+    }
+
+    .mobile-navbar--edge-left .mobile-navbar__item.is-active::after,
+    .mobile-navbar--edge-right .mobile-navbar__item.is-active::after {
+        bottom: auto;
+        width: 3px;
+        height: 14px;
+    }
+
+    .mobile-navbar--edge-left .mobile-navbar__item.is-active::after {
+        left: 2px;
+    }
+
+    .mobile-navbar--edge-right .mobile-navbar__item.is-active::after {
+        right: 2px;
+    }
+
+    /* Dragging state: no transitions, follow the pointer 1:1 */
+    .mobile-navbar.is-dragging {
+        transition: none !important;
+        transform: scale(1.04);
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.28);
+        opacity: 0.96;
+    }
+
+    .mobile-navbar.is-dragging .mobile-navbar__item {
+        pointer-events: none;
+    }
+
+    /* Decorative grip hinting the bar is draggable */
+    .mobile-navbar__grip {
+        position: absolute;
+        pointer-events: none;
+        background: rgba(15, 23, 42, 0.18);
+        border-radius: 99px;
+    }
+
+    .mobile-navbar--edge-top .mobile-navbar__grip,
+    .mobile-navbar--edge-bottom .mobile-navbar__grip {
+        top: -3px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 32px;
+        height: 4px;
+    }
+
+    .mobile-navbar--edge-top .mobile-navbar__grip {
+        top: auto;
+        bottom: -3px;
+    }
+
+    .mobile-navbar--edge-left .mobile-navbar__grip,
+    .mobile-navbar--edge-right .mobile-navbar__grip {
+        left: -3px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 32px;
+    }
+
+    .mobile-navbar--edge-right .mobile-navbar__grip {
+        left: auto;
+        right: -3px;
+    }
+
+    /* Collapse/expand toggle */
+    .mobile-navbar__collapse-btn {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 999px;
+        color: var(--sb-text-muted, #64748b);
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
+        z-index: 1;
+    }
+
+    .mobile-navbar--edge-bottom .mobile-navbar__collapse-btn {
+        top: -11px;
+        right: 10px;
+    }
+
+    .mobile-navbar--edge-top .mobile-navbar__collapse-btn {
+        bottom: -11px;
+        right: 10px;
+    }
+
+    .mobile-navbar--edge-left .mobile-navbar__collapse-btn {
+        right: -11px;
+        bottom: 10px;
+    }
+
+    .mobile-navbar--edge-right .mobile-navbar__collapse-btn {
+        left: -11px;
+        bottom: 10px;
+    }
+
+    .mobile-navbar.is-collapsed {
+        width: 52px;
+        height: 52px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 999px;
+    }
+
+    .mobile-navbar__fab {
+        display: grid;
+        place-items: center;
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        border: none;
+        color: var(--sb-accent, #005aa9);
+        cursor: pointer;
+    }
+
+    /* Live edge-snap preview shown while dragging */
+    .mobile-navbar__snap-preview {
+        position: fixed;
+        pointer-events: none;
+        z-index: 2499;
+        background: rgba(0, 90, 169, 0.28);
+        transition: opacity 0.12s ease;
+    }
+
+    .mobile-navbar__snap-preview--top {
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+    }
+
+    .mobile-navbar__snap-preview--bottom {
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+    }
+
+    .mobile-navbar__snap-preview--left {
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 6px;
+    }
+
+    .mobile-navbar__snap-preview--right {
+        top: 0;
+        bottom: 0;
+        right: 0;
+        width: 6px;
     }
 
     .mobile-navbar__item {
