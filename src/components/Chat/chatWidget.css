@@ -1072,9 +1072,16 @@
   }
 
   /* iOS Safari tự động zoom trang khi focus vào input/textarea có font-size < 16px —
-     giữ tối thiểu 16px để tắt hành vi zoom không mong muốn này khi mở bàn phím. */
-  .chat-widget__textarea {
+     giữ tối thiểu 16px để tắt hành vi zoom không mong muốn này khi mở bàn phím. Áp dụng
+     cho cả ô soạn tin, ô tìm nhãn dán, VÀ ô tìm kiếm nội bộ của thư viện emoji-picker-react
+     (mặc định nhỏ hơn 16px, không có prop nào để chỉnh trực tiếp nên phải override CSS). */
+  .chat-widget__textarea,
+  .chat-widget__stickerSearch {
     font-size: 16px;
+  }
+
+  .EmojiPickerReact .epr-search-container input {
+    font-size: 16px !important;
   }
 }
 

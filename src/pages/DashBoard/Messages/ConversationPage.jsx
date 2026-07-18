@@ -9,31 +9,35 @@ import './Messages.css';
  * Trên iOS Safari, `position: fixed; height: 100dvh` không tự co theo bàn phím ảo —
  * trang vẫn giữ chiều cao trước khi mở bàn phím trong khi phần nhìn thấy thực tế (visual
  * viewport) đã bị bàn phím che mất phần dưới, khiến ô soạn tin/nút gửi bị đẩy khuất phía
- * dưới màn hình.
+ * dưới màn hình. Đồng bộ 1 biến CSS theo `window.visualViewport.height` (biến này CÓ co
+ * lại khi bàn phím mở) để trang luôn khớp đúng phần thực sự hiển thị.
  *
- * Chỉ co `height` theo `visualViewport.height` là CHƯA ĐỦ: khi bàn phím mở, Safari
- * thường cuộn visual viewport xuống một chút để giữ ô đang gõ trong tầm nhìn
- * (`visualViewport.offsetTop` > 0), nhưng phần tử `position: fixed` vẫn neo theo layout
- * viewport gốc (top: 0) — kết quả là 1 khoảng trắng thừa xuất hiện giữa bàn phím và ô
- * nhập (phần tử co đúng độ cao nhưng KHÔNG dịch xuống theo phần đã cuộn). Phải đồng bộ
- * CẢ `offsetTop` lẫn `height` thì mép dưới mới luôn khớp đúng mép trên bàn phím.
+ * ĐÃ THỬ dịch cả `top` theo `visualViewport.offsetTop` (bù phần Safari tự cuộn trang để
+ * giữ ô đang gõ trong tầm nhìn) nhưng cách đó gây giật khi mở bàn phím và có lúc để lộ
+ * headnavbar phía trên bị che khuất bởi phần tử fixed lúc đang dịch chuyển. Vì trang này
+ * đã tự pin đúng vị trí composer bằng flexbox (không cần cuộn để thấy ô nhập), cách ổn
+ * định hơn là CHỦ ĐỘNG kéo trang về lại vị trí cuộn ban đầu (0) mỗi khi Safari cố cuộn nó
+ * — nhờ vậy `top: 0` cố định không bao giờ cần thay đổi, chỉ `height` co lại là đủ.
  */
 const useVisualViewportHeight = () => {
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return undefined;
 
-    const syncViewport = () => {
-      document.documentElement.style.setProperty('--conversation-page-top', `${vv.offsetTop}px`);
+    const syncHeight = () => {
       document.documentElement.style.setProperty('--conversation-page-vh', `${vv.height}px`);
+      if (window.scrollX !== 0 || window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
     };
-    syncViewport();
-    vv.addEventListener('resize', syncViewport);
-    vv.addEventListener('scroll', syncViewport);
+    syncHeight();
+    vv.addEventListener('resize', syncHeight);
+    vv.addEventListener('scroll', syncHeight);
+    window.addEventListener('scroll', syncHeight, { passive: true });
     return () => {
-      vv.removeEventListener('resize', syncViewport);
-      vv.removeEventListener('scroll', syncViewport);
-      document.documentElement.style.removeProperty('--conversation-page-top');
+      vv.removeEventListener('resize', syncHeight);
+      vv.removeEventListener('scroll', syncHeight);
+      window.removeEventListener('scroll', syncHeight);
       document.documentElement.style.removeProperty('--conversation-page-vh');
     };
   }, []);

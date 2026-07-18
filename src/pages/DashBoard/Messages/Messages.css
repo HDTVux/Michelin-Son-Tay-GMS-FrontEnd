@@ -285,14 +285,13 @@
 @media (max-width: 1024px) {
   .conversation-page {
     position: fixed;
-    left: 0;
-    right: 0;
+    inset: 0;
     z-index: 3000;
-    /* --conversation-page-top / --conversation-page-vh (đặt qua window.visualViewport
-       trong ConversationPage.jsx) bám đúng theo phần visual viewport đang thực sự hiển
-       thị trên iOS Safari khi bàn phím mở — dùng CẢ top lẫn height (không chỉ height)
-       để tránh khoảng trắng thừa giữa ô soạn tin và bàn phím do visual viewport bị cuộn. */
-    top: var(--conversation-page-top, 0);
+    /* --conversation-page-vh (đặt qua window.visualViewport trong ConversationPage.jsx)
+       co lại đúng theo bàn phím ảo trên iOS Safari — 100dvh KHÔNG tự co theo bàn phím,
+       khiến ô soạn tin/nút gửi bị đẩy khuất phía dưới màn hình khi gõ tin nhắn. `top`
+       luôn giữ 0 cố định (ConversationPage.jsx chủ động chặn Safari tự cuộn trang khi mở
+       bàn phím) — không dịch top để tránh giật/che headnavbar khi bàn phím đang mở/đóng. */
     height: var(--conversation-page-vh, 100dvh);
   }
 }
