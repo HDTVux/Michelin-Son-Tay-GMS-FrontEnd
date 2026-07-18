@@ -85,10 +85,45 @@ export const playMessageSound = () => {
   ]);
 };
 
-/** Âm báo có thông báo hệ thống mới: 2 nốt trầm hơn, đi xuống, âm sắc khác (triangle). */
+/**
+ * Thông báo hệ thống chia 3 mức (notificationType), mỗi mức 1 âm khác nhau để phân biệt
+ * ngay bằng tai mà không cần nhìn màn hình:
+ *  - Bình thường (INFO...): "ping" 1 nhịp, ngắn gọn, nhẹ nhàng.
+ *  - Cảnh báo (WARNING): giai điệu đi LÊN vài nốt, tốc độ vừa — báo hiệu cần chú ý.
+ *  - Khẩn cấp (URGENT): giai điệu đi LÊN dồn dập hơn, nhiều nốt hơn, nhanh + âm sắc gắt
+ *    hơn (sawtooth) + to hơn — báo hiệu mức độ nghiêm trọng cao nhất.
+ */
+
+/** Thông báo bình thường: 1 nốt "ping" duy nhất. */
 export const playNotificationSound = () => {
   safePlaySequence([
-    { frequency: 523.25, duration: 0.16, offset: 0, type: 'triangle', gain: 0.15 },
-    { frequency: 392, duration: 0.22, offset: 0.14, type: 'triangle', gain: 0.15 },
+    { frequency: 880, duration: 0.18, offset: 0, type: 'sine', gain: 0.15 },
   ]);
+};
+
+/** Thông báo cảnh báo: giai điệu đi lên 3 nốt, tốc độ vừa phải. */
+export const playWarningNotificationSound = () => {
+  safePlaySequence([
+    { frequency: 523.25, duration: 0.14, offset: 0, type: 'triangle', gain: 0.16 },
+    { frequency: 659.25, duration: 0.14, offset: 0.13, type: 'triangle', gain: 0.16 },
+    { frequency: 784.0, duration: 0.2, offset: 0.26, type: 'triangle', gain: 0.18 },
+  ]);
+};
+
+/** Thông báo khẩn cấp: giai điệu đi lên dồn dập, âm sắc gắt hơn, to hơn cảnh báo. */
+export const playUrgentNotificationSound = () => {
+  safePlaySequence([
+    { frequency: 587.33, duration: 0.11, offset: 0, type: 'sawtooth', gain: 0.18 },
+    { frequency: 739.99, duration: 0.11, offset: 0.09, type: 'sawtooth', gain: 0.19 },
+    { frequency: 932.33, duration: 0.11, offset: 0.18, type: 'sawtooth', gain: 0.2 },
+    { frequency: 1174.66, duration: 0.24, offset: 0.27, type: 'sawtooth', gain: 0.22 },
+  ]);
+};
+
+/** Chọn đúng âm báo theo `notificationType` của thông báo hệ thống. */
+export const playNotificationSoundByType = (notificationType) => {
+  const type = String(notificationType || '').toUpperCase();
+  if (type === 'URGENT') return playUrgentNotificationSound();
+  if (type === 'WARNING') return playWarningNotificationSound();
+  return playNotificationSound();
 };
