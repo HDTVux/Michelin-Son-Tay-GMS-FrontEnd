@@ -1,0 +1,337 @@
+.container {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.backBtn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  white-space: nowrap;
+  margin-top: 4px;
+}
+
+.backBtn:hover { color: #1d4ed8; }
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ── Rank Card ── */
+.rankCard {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.08);
+  border: 1.5px solid #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.rank_bronze   { border-top: 4px solid #f0b96b; }
+.rank_silver   { border-top: 4px solid #94a3b8; }
+.rank_gold     { border-top: 4px solid #f59e0b; }
+.rank_platinum { border-top: 4px solid #22d3ee; }
+
+/* Timeline */
+.rankTimeline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  margin-bottom: 28px;
+}
+
+.rankTimeline::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e2e8f0;
+  z-index: 0;
+}
+
+.rankStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+  opacity: 0.45;
+  transition: opacity 0.2s;
+}
+
+.rankStepDone  { opacity: 0.7; }
+.rankStepActive { opacity: 1; }
+
+.rankStepDot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 0 0 2px #e2e8f0;
+}
+
+.rankStepActive .rankStepDot {
+  box-shadow: 0 0 0 3px currentColor;
+  transform: scale(1.15);
+}
+
+.rankStepMin {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+/* Stats */
+.rankStats {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 24px;
+  background: #f8fafc;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.rankStatItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px;
+}
+
+.rankStatDivider {
+  width: 1px;
+  background: #e2e8f0;
+  margin: 12px 0;
+}
+
+.rankStatVal {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.rankStatLbl {
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* Progress */
+.progressSection {
+  margin-bottom: 16px;
+}
+
+.progressLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.progressBar {
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 100px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 0.8s ease;
+}
+
+.progressText {
+  font-size: 13px;
+  color: #475569;
+  margin: 0;
+}
+
+.rankNote {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 16px 0 0 0;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* Rules */
+.rulesCard {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.08);
+  margin-bottom: 20px;
+}
+
+.rulesTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+}
+
+.rulesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.ruleItem {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #f8fafc;
+  padding: 14px;
+  border-radius: 10px;
+}
+
+.ruleIcon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.ruleItem strong {
+  display: block;
+  font-size: 13px;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+
+.ruleItem p {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* History Table */
+.historySection {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.08);
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  padding: 10px 14px;
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table td {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover { background: #f8fafc; }
+
+.positive { color: #16a34a; font-weight: 700; }
+.negative { color: #dc2626; font-weight: 700; }
+
+.loadMoreBtn {
+  display: block;
+  margin: 16px auto 0;
+  padding: 10px 24px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.loadMoreBtn:hover:not(:disabled) { background: #e2e8f0; }
+.loadMoreBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.loadingMsg, .emptyMsg {
+  text-align: center;
+  padding: 32px;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* Skeleton */
+.skeletonCard {
+  height: 180px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.emptyCard {
+  background: white;
+  border-radius: 16px;
+  padding: 48px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .rulesGrid { grid-template-columns: 1fr; }
+  .rankTimeline { gap: 4px; }
+  .rankStats { flex-direction: column; }
+  .rankStatDivider { width: auto; height: 1px; margin: 0 12px; }
+}

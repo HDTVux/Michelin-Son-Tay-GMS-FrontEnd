@@ -65,3 +65,29 @@ export const uploadAvatar = (file, token) => {
     return data;
   });
 };
+
+// ─── Customer Ranking / Points ──────────────────────────────────────────────
+
+export const fetchMyRanking = (customerId, token) =>
+  request(`/api/customer/ranking?customerId=${customerId}`, {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+
+export const fetchMyPointsHistory = (customerId, token, page = 0, size = 10) =>
+  request(`/api/customer/ranking/history?customerId=${customerId}&page=${page}&size=${size}`, {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+
+export const fetchAdminCustomerRanking = (customerId, token) =>
+  request(`/api/admin/customer/${customerId}/ranking`, {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+
+export const adjustCustomerPoints = (customerId, delta, reason, token) =>
+  request(`/api/admin/customer/${customerId}/ranking/adjust?delta=${delta}&reason=${encodeURIComponent(reason)}`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  });

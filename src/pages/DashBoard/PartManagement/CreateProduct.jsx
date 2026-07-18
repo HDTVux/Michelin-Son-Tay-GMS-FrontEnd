@@ -19,6 +19,8 @@ import {
 	fetchWarehouseSpecAttributes,
 	fetchWarehouseSpecificationsByCatalogItemId,
 	fetchTaxRules,
+	fetchWarehouseProductUnits,
+	createWarehouseProductUnit,
 } from '../../../services/warehouseService.js';
 import { createServiceForCatalog } from '../../../services/blogService.js';
 
@@ -216,6 +218,15 @@ export default function CreateProduct() {
 	const [price, setPrice] = useState(() => initialDraft?.price ?? '');
 	const [showPrice, setShowPrice] = useState(() => initialDraft?.showPrice ?? true);
 	const [unit, setUnit] = useState(() => initialDraft?.unit ?? '');
+	// Unit dropdown inline
+	const [units, setUnits] = useState([]);
+	const [isUnitsLoading, setIsUnitsLoading] = useState(false);
+	const [showUnitDropdown, setShowUnitDropdown] = useState(false);
+	const [unitSearchQuery, setUnitSearchQuery] = useState('');
+	const [newUnitName, setNewUnitName] = useState('');
+	const [isCreatingUnit, setIsCreatingUnit] = useState(false);
+	const [showAddUnitInput, setShowAddUnitInput] = useState(false);
+	const unitDropdownRef = useRef(null);
 	const [origin, setOrigin] = useState(() => initialDraft?.origin ?? '');
 	const [customOrigin, setCustomOrigin] = useState(() => initialDraft?.customOrigin ?? '');
 	const [color, setColor] = useState(() => initialDraft?.color ?? '');
@@ -296,12 +307,13 @@ export default function CreateProduct() {
 				setIsSpecAttributesLoading(true);
 				setIsTaxRulesLoading(true);
 
-				const [catRes, brandRes, lineRes, attrRes, taxRes] = await Promise.all([
+				const [catRes, brandRes, lineRes, attrRes, taxRes, unitRes] = await Promise.all([
 					fetchWarehouseItemCategories(token),
 					fetchWarehouseBrands(token),
 					fetchWarehouseProductLines(token),
 					fetchWarehouseSpecAttributes(token),
 					fetchTaxRules(token),
+					fetchWarehouseProductUnits(token),
 				]);
 
 				const catList = Array.isArray(extractPayload(catRes)) ? extractPayload(catRes) : [];
@@ -309,6 +321,7 @@ export default function CreateProduct() {
 				const lineList = Array.isArray(extractPayload(lineRes)) ? extractPayload(lineRes) : [];
 				const attrList = Array.isArray(extractPayload(attrRes)) ? extractPayload(attrRes) : [];
 				const taxList = Array.isArray(extractPayload(taxRes)) ? extractPayload(taxRes) : [];
+				const unitList = Array.isArray(extractPayload(unitRes)) ? extractPayload(unitRes) : [];
 
 				const catsNorm = catList.map(mapCategoryItem).filter(Boolean);
 				const brandsNorm = brandList.map(mapBrandItem).filter(Boolean);
@@ -322,6 +335,7 @@ export default function CreateProduct() {
 				setProductLines(linesNorm);
 				setSpecAttributes(attrsNorm);
 				setTaxRules(taxNorm);
+				setUnits(unitList.map(u => ({ unitId: u.unitId ?? u.id, unitName: u.unitName ?? u.name ?? '' })).filter(u => u.unitName && (String(u.isActive ?? u.active ?? '1') === '1' || u.isActive === true)));
 
 				// Keep user's current selection only if it still exists in the refreshed list.
 				// Otherwise, stay at default (empty) so the user explicitly chooses.
@@ -554,10 +568,63 @@ export default function CreateProduct() {
 		saveDraft('/part-management/select-brand');
 	}, [saveDraft]);
 
-	const handleUnitInputClick = useCallback(() => {
-		saveDraft('/part-management/select-unit');
-	}, [saveDraft]);
+	// ─── Unit dropdown handlers (thay thế navigate sang trang riêng) ──────────
+	const filteredUnitsInline = useMemo(() => {
+		const q = unitSearchQuery.trim().toLowerCase();
+		return units.filter(u => !q || u.unitName.toLowerCase().includes(q));
+	}, [units, unitSearchQuery]);
 
+	const isNewUnitDuplicate = useMemo(() => {
+		const n = newUnitName.trim().toUpperCase();
+		return n ? units.some(u => u.unitName.trim().toUpperCase() === n) : false;
+	}, [units, newUnitName]);
+
+	const handleSelectUnitInline = useCallback((unitName) => {
+		setUnit(unitName);
+		setShowUnitDropdown(false);
+		setUnitSearchQuery('');
+	}, []);
+
+	const handleCreateUnitInline = useCallback(async () => {
+		const name = newUnitName.trim();
+		if (!name || isNewUnitDuplicate || isCreatingUnit) return;
+		try {
+			setIsCreatingUnit(true);
+			const token = localStorage.getItem('authToken');
+			const res = await createWarehouseProductUnit(name, token);
+			const created = extractPayload(res);
+			const createdName = created?.unitName ?? created?.name ?? name;
+			// Refresh list
+			const listRes = await fetchWarehouseProductUnits(token);
+			const listRaw = Array.isArray(extractPayload(listRes)) ? extractPayload(listRes) : [];
+			setUnits(listRaw.map(u => ({ unitId: u.unitId ?? u.id, unitName: u.unitName ?? u.name ?? '' })).filter(u => u.unitName && (String(u.isActive ?? u.active ?? '1') === '1' || u.isActive === true)));
+			setUnit(createdName);
+			setNewUnitName('');
+			setShowAddUnitInput(false);
+			setShowUnitDropdown(false);
+			notify('Đã thêm đơn vị mới.');
+		} catch (err) {
+			notify(err?.message || 'Không thể tạo đơn vị.');
+		} finally {
+			setIsCreatingUnit(false);
+		}
+	}, [newUnitName, isNewUnitDuplicate, isCreatingUnit, notify]);
+
+	// Close dropdown khi click ngoài
+	useEffect(() => {
+		if (!showUnitDropdown) return;
+		const handler = (e) => {
+			if (unitDropdownRef.current && !unitDropdownRef.current.contains(e.target)) {
+				setShowUnitDropdown(false);
+			}
+		};
+		document.addEventListener('mousedown', handler);
+		return () => document.removeEventListener('mousedown', handler);
+	}, [showUnitDropdown]);
+
+	const handleUnitInputClick = useCallback(() => {
+		if (!createdCatalogItem) setShowUnitDropdown(v => !v);
+	}, [createdCatalogItem]);
 	const handleProductTaxInputClick = useCallback(() => {
 		saveDraft('/part-management/select-tax');
 	}, [saveDraft]);
@@ -1367,17 +1434,126 @@ export default function CreateProduct() {
 						</div>
 					</div>
 					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginTop: 12 }}>
-						<div className="ui-field" style={{ marginBottom: 0 }}>
+						<div className="ui-field" style={{ marginBottom: 0, position: 'relative' }} ref={unitDropdownRef}>
 							<label htmlFor="unit">Đơn vị</label>
-							<input
-								id="unit"
-								readOnly
-								placeholder="Nhấn để chọn đơn vị..."
-								value={unit}
-								onClick={handleUnitInputClick}
-								style={{ cursor: 'pointer' }}
-								disabled={Boolean(createdCatalogItemId)}
-							/>
+							<div style={{ display: 'flex', gap: 6 }}>
+								<input
+									id="unit"
+									readOnly
+									placeholder={isUnitsLoading ? 'Đang tải...' : 'Chọn đơn vị...'}
+									value={unit}
+									onClick={handleUnitInputClick}
+									style={{ cursor: createdCatalogItem ? 'not-allowed' : 'pointer', flex: 1 }}
+									disabled={Boolean(createdCatalogItem)}
+								/>
+								{!createdCatalogItem && (
+									<button
+										type="button"
+										title="Thêm đơn vị mới"
+										onClick={() => { setShowUnitDropdown(true); setShowAddUnitInput(true); setUnitSearchQuery(''); }}
+										style={{
+											width: 34, height: 34, border: '1px solid #d1d5db', borderRadius: 8,
+											background: '#f9fafb', cursor: 'pointer', display: 'flex',
+											alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+											fontSize: 18, color: '#374151', lineHeight: 1,
+										}}
+									>
+										+
+									</button>
+								)}
+							</div>
+
+							{/* Dropdown panel */}
+							{showUnitDropdown && (
+								<div style={{
+									position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
+									background: 'white', border: '1px solid #e5e7eb', borderRadius: 10,
+									boxShadow: '0 8px 24px rgba(0,0,0,.12)', marginTop: 4, overflow: 'hidden',
+								}}>
+									{/* Search */}
+									<div style={{ padding: '8px 10px', borderBottom: '1px solid #f3f4f6' }}>
+										<input
+											autoFocus
+											placeholder="Tìm đơn vị..."
+											value={unitSearchQuery}
+											onChange={e => { setUnitSearchQuery(e.target.value); setShowAddUnitInput(false); }}
+											style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }}
+										/>
+									</div>
+
+									{/* List */}
+									<div style={{ maxHeight: 180, overflowY: 'auto' }}>
+										{filteredUnitsInline.length === 0 ? (
+											<div style={{ padding: '10px 14px', color: '#9ca3af', fontSize: 13 }}>Không tìm thấy đơn vị</div>
+										) : filteredUnitsInline.map(u => (
+											<div
+												key={u.unitId}
+												onClick={() => handleSelectUnitInline(u.unitName)}
+												style={{
+													padding: '9px 14px', cursor: 'pointer', fontSize: 13,
+													background: unit === u.unitName ? '#eff6ff' : 'white',
+													color: unit === u.unitName ? '#2563eb' : '#111827',
+													fontWeight: unit === u.unitName ? 600 : 400,
+												}}
+												onMouseEnter={e => { if (unit !== u.unitName) e.currentTarget.style.background = '#f9fafb'; }}
+												onMouseLeave={e => { if (unit !== u.unitName) e.currentTarget.style.background = 'white'; }}
+											>
+												{u.unitName}
+											</div>
+										))}
+									</div>
+
+									{/* Add new unit inline */}
+									<div style={{ borderTop: '1px solid #f3f4f6', padding: '8px 10px' }}>
+										{!showAddUnitInput ? (
+											<button
+												type="button"
+												onClick={() => setShowAddUnitInput(true)}
+												style={{ width: '100%', padding: '7px', border: '1px dashed #d1d5db', borderRadius: 6, background: 'none', cursor: 'pointer', color: '#2563eb', fontSize: 13, fontWeight: 600 }}
+											>
+												+ Thêm đơn vị mới
+											</button>
+										) : (
+											<div style={{ display: 'flex', gap: 6 }}>
+												<div style={{ flex: 1 }}>
+													<input
+														autoFocus
+														placeholder="Tên đơn vị mới..."
+														value={newUnitName}
+														onChange={e => setNewUnitName(e.target.value)}
+														onKeyDown={e => e.key === 'Enter' && handleCreateUnitInline()}
+														style={{
+															width: '100%', padding: '6px 10px', fontSize: 13, boxSizing: 'border-box',
+															border: `1px solid ${isNewUnitDuplicate ? '#ef4444' : '#d1d5db'}`, borderRadius: 6,
+															background: isNewUnitDuplicate ? '#fef2f2' : 'white',
+														}}
+													/>
+													{isNewUnitDuplicate && <span style={{ color: '#ef4444', fontSize: 11 }}>Đơn vị đã tồn tại!</span>}
+												</div>
+												<button
+													type="button"
+													onClick={handleCreateUnitInline}
+													disabled={isCreatingUnit || !newUnitName.trim() || isNewUnitDuplicate}
+													style={{
+														padding: '6px 12px', background: '#2563eb', color: 'white', border: 'none',
+														borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+														opacity: (isCreatingUnit || !newUnitName.trim() || isNewUnitDuplicate) ? 0.5 : 1,
+													}}
+												>
+													{isCreatingUnit ? '...' : 'Tạo'}
+												</button>
+												<button
+													type="button"
+													onClick={() => { setShowAddUnitInput(false); setNewUnitName(''); }}
+													style={{ padding: '6px 10px', background: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+												>
+													Hủy
+												</button>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
 						</div>
 						<div className="ui-field" style={{ marginBottom: 0 }}>
 							<label htmlFor="warranty">Bảo hành (tháng)</label>
