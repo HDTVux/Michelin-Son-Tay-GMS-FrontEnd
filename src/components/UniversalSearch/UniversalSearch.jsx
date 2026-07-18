@@ -303,6 +303,20 @@ const UniversalSearch = ({ staffRoles = [], className = '', autoFocus = false, o
               </button>
             )}
           </>
+        ) : aiState ? (
+          <button
+            type="button"
+            className="universal-search__ai-toggle"
+            onClick={(e) => {
+              e.stopPropagation();
+              aiState.openPanel();
+              onNavigate?.();
+            }}
+            title="Mở Trợ lý AI"
+            aria-label="Mở Trợ lý AI"
+          >
+            <Sparkles size={14} />
+          </button>
         ) : (
           <span className="universal-search__shortcut">Ctrl K</span>
         )}
