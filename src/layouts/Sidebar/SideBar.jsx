@@ -515,14 +515,16 @@ const SideBar = ({ isCollapsed, setIsCollapsed, chatButton }) => {
 
     return (
         <aside className={`sidebar ${isCollapsed ? 'is-collapsed' : ''}`}>
-            <div className="sidebar__profile-container">
+            <div className={`sidebar__profile-container ${isProfileOpen ? 'is-open' : ''}`}>
                 <div
                     className="sidebar__profile"
-                    onClick={() => handleNavClick('/staff-profile')}
+                    onClick={toggleProfileDropdown}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && handleNavClick('/staff-profile')}
-                    aria-label="Thông tin cá nhân"
+                    onKeyDown={(e) => e.key === 'Enter' && toggleProfileDropdown()}
+                    aria-haspopup="menu"
+                    aria-expanded={isProfileOpen}
+                    aria-label="Menu tài khoản"
                 >
                     <div className="sidebar__avatar">
                         <img src={staffAvatarUrl} alt={staffFullName} onError={handleAvatarError} />
@@ -535,6 +537,39 @@ const SideBar = ({ isCollapsed, setIsCollapsed, chatButton }) => {
                         <ChevronRight />
                     </div>
                 </div>
+
+                {isProfileOpen && (
+                    <div className="sidebar__profile-dropdown" role="menu">
+                        {personalItems.map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                role="menuitem"
+                                className="sidebar__profile-dropdown-item"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleNavClick(item.path);
+                                }}
+                            >
+                                <span className="dropdown-item__icon">{item.icon}</span>
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                        {personalItems.length > 0 && <hr className="sidebar__profile-dropdown-divider" />}
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="sidebar__profile-dropdown-item logout"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleLogout();
+                            }}
+                        >
+                            <span className="dropdown-item__icon"><LogOut size={16} /></span>
+                            <span>Đăng xuất</span>
+                        </button>
+                    </div>
+                )}
 
                 <button
                     type="button"
