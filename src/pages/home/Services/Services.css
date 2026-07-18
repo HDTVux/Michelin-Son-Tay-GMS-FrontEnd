@@ -646,9 +646,27 @@
 
 .servicesGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
   animation: gridFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 1500px) {
+  .servicesGrid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 1280px) {
+  .servicesGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .servicesGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .servicesRowsWrapper {
@@ -1022,43 +1040,74 @@
 }
 
 /* ====== Grid Toggle Button ====== */
-.gridToggleWrapper {
+/* ====== Pagination ====== */
+.gridPagination {
   display: flex;
   justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 40px;
 }
 
-.gridToggleButton {
+.gridPageBtn {
+  min-width: 40px;
+  height: 40px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 40px;
+  justify-content: center;
   border: 2px solid rgba(0, 90, 169, 0.2);
-  border-radius: 50px;
+  border-radius: 12px;
   background: #ffffff;
   color: #005aa9;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  letter-spacing: 0.3px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.gridToggleButton:hover {
+.gridPageBtn:hover:not(:disabled):not(.is-active) {
+  border-color: #005aa9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 90, 169, 0.2);
+}
+
+.gridPageBtn.is-active {
   background: linear-gradient(135deg, #005aa9 0%, #003d73 100%);
   color: #ffffff;
   border-color: transparent;
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0, 90, 169, 0.3);
+  cursor: default;
 }
 
-.gridToggleButton svg {
-  transition: transform 0.3s ease;
+.gridPageBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.gridToggleButton:hover svg {
-  transform: translateY(2px);
+/* ====== Badge tồn kho + bộ lọc xe ====== */
+.stockBadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 5px 12px;
+  border-radius: 50px;
+  background: rgba(16, 185, 129, 0.92);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+}
+
+.vehicleFilter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* ====== Process Section ====== */
@@ -1581,8 +1630,8 @@
   }
 
   .servicesGrid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
   }
 }
 
@@ -1735,11 +1784,6 @@
     min-height: 0;
   }
 
-  .gridToggleButton {
-    padding: 12px 28px;
-    font-size: 13px;
-  }
-
   .overlayViewBtn {
     padding: 8px 18px;
     font-size: 12px;
@@ -1874,13 +1918,6 @@
     padding: 3px 8px;
     top: 8px;
     left: 8px;
-  }
-
-  .gridToggleButton {
-    width: 100%;
-    justify-content: center;
-    padding: 12px 20px;
-    border-radius: 12px;
   }
 
   .processSection {

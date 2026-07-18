@@ -1,0 +1,209 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  height: calc(100vh - 48px);
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #0f172a;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.levelStats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.statChip {
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.statError { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
+.statWarn { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+.statInfo { background: rgba(59, 130, 246, 0.12); color: #1d4ed8; }
+.statDebug { background: rgba(100, 116, 139, 0.12); color: #475569; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.levelSelect,
+.searchInput {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 220px;
+}
+
+.levelSelect:focus,
+.searchInput:focus {
+  outline: none;
+  border-color: #005aa9;
+  box-shadow: 0 0 0 3px rgba(0, 90, 169, 0.12);
+}
+
+.toolbarActions {
+  display: flex;
+  gap: 8px;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.actionBtn:hover {
+  border-color: #005aa9;
+  color: #005aa9;
+}
+
+.actionBtnLive {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #059669;
+}
+
+.errorBanner {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ===== Console ===== */
+.console {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #0d1117;
+  border-radius: 14px;
+  padding: 14px 0;
+  font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.consoleEmpty {
+  padding: 24px;
+  color: #8b949e;
+  text-align: center;
+}
+
+.logLine {
+  display: grid;
+  grid-template-columns: 96px 52px 200px minmax(0, 1fr);
+  gap: 10px;
+  padding: 1px 16px;
+  color: #c9d1d9;
+}
+
+.logLine:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.logTime {
+  color: #8b949e;
+  white-space: nowrap;
+}
+
+.logLevel {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.logLogger {
+  color: #79c0ff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logMessage {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.levelERROR .logLevel { color: #f85149; }
+.levelERROR .logMessage { color: #ffa198; }
+.levelWARN .logLevel { color: #d29922; }
+.levelWARN .logMessage { color: #e3b341; }
+.levelINFO .logLevel { color: #3fb950; }
+.levelDEBUG .logLevel { color: #8b949e; }
+.levelDEBUG .logMessage { color: #8b949e; }
+
+@media (max-width: 768px) {
+  .page {
+    padding: 14px;
+    height: auto;
+  }
+
+  .console {
+    height: 60vh;
+    flex: none;
+  }
+
+  .logLine {
+    grid-template-columns: 80px 46px minmax(0, 1fr);
+  }
+
+  .logLogger {
+    display: none;
+  }
+}

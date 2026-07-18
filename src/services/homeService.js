@@ -92,6 +92,11 @@ export async function fetchHomeProducts(params = {}) {
   return request(`/home/products${qs ? `?${qs}` : ''}`);
 }
 
+// Danh sách kho/cửa hàng còn hàng của một phụ tùng (GET /home/products/{catalogItemId}/stock-locations)
+export async function fetchProductStockLocations(catalogItemId) {
+  return request(`/home/products/${encodeURIComponent(catalogItemId)}/stock-locations`);
+}
+
 // Upload ảnh lên Cloudinary (POST /home/uploads/)
 export async function uploadImage(file) {
   const formData = new FormData();

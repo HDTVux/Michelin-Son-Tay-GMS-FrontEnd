@@ -313,6 +313,71 @@
   background: var(--detail-border);
 }
 
+/* Tình trạng tồn kho (chỉ phụ tùng) */
+.stockSection {
+  margin-top: 16px;
+}
+
+.stockStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.stockStatusIn {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.stockStatusOut {
+  background: rgba(148, 163, 184, 0.12);
+  color: #64748b;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.stockLocationsTitle {
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--detail-muted);
+}
+
+.stockLocationList {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stockLocationItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--detail-border);
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.stockLocationName {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--detail-text);
+}
+
+.stockLocationAddress {
+  font-size: 12px;
+  color: var(--detail-muted);
+}
+
 .bookingBtn {
   width: 100%;
   min-height: 46px;

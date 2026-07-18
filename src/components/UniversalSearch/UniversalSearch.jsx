@@ -52,6 +52,7 @@ const SEARCHABLE_FUNCTIONS = [
   { id: 'announcement-campaign', label: 'Chiến dịch thông báo', path: '/announcement_campaign', roles: ['RECEPTIONIST', 'MANAGER'] },
   { id: 'feedback-management', label: 'Quản lý feedback', path: '/feedback-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'system-log-management', label: 'Nhật ký hệ thống', path: '/system-log-management', roles: ['ADMIN'] },
+  { id: 'backend-logs', label: 'Log Backend', path: '/backend-logs', roles: ['ADMIN'] },
   { id: 'revenue-management', label: 'Quản lý doanh thu', path: '/revenue-management', roles: ['ACCOUNTANT', 'MANAGER', 'ADMIN'] },
   { id: 'staff-profile', label: 'Hồ sơ nhân viên', path: '/staff-profile', roles: 'ALL' },
   { id: 'attendance-checkin', label: 'Chấm công QR', path: '/attendance-checkin', roles: 'ALL' },

@@ -1,7 +1,7 @@
 import styles from './ServiceDetail.module.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { fetchHomeProductDetail, fetchHomeServiceDetail } from '../../services/homeService';
+import { fetchHomeProductDetail, fetchHomeServiceDetail, fetchProductStockLocations } from '../../services/homeService';
 import {
   fetchWarehouseCatalogItemDetail,
   fetchWarehouseSpecificationsByCatalogItemId,
@@ -351,6 +351,36 @@ const ServiceDetail = () => {
   const [error, setError] = useState('');
   const [activeImg, setActiveImg] = useState(serviceFallback);
   const [activeTab, setActiveTab] = useState('description');
+  const [stockLocations, setStockLocations] = useState([]);
+  const [stockLoaded, setStockLoaded] = useState(false);
+
+  // Với phụ tùng: tải danh sách kho/cửa hàng còn hàng để hiển thị tình trạng tồn kho
+  useEffect(() => {
+    const catalogId = toPositiveNumber(service?.catalogItemId);
+    if (service?.itemType !== 'PART' || !catalogId) {
+      setStockLocations([]);
+      setStockLoaded(false);
+      return undefined;
+    }
+
+    let active = true;
+    fetchProductStockLocations(catalogId)
+      .then((res) => {
+        if (!active) return;
+        const payload = res?.data?.data ?? res?.data ?? res;
+        setStockLocations(Array.isArray(payload) ? payload : []);
+      })
+      .catch(() => {
+        if (active) setStockLocations([]);
+      })
+      .finally(() => {
+        if (active) setStockLoaded(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [service?.catalogItemId, service?.itemType]);
 
   useEffect(() => {
     if (routeParam === 'preview') {
@@ -374,7 +404,7 @@ const ServiceDetail = () => {
           ...normalized.media.filter((m) => !isVideoMedia(m)).map((m) => m.mediaUrl),
         ].filter(Boolean);
         setActiveImg(imageCandidates[0] || serviceFallback);
-      } catch (err) {
+      } catch {
         setError('Không thể đọc dữ liệu xem trước.');
       } finally {
         setLoading(false);
@@ -633,6 +663,35 @@ const ServiceDetail = () => {
                 <dd>{isPart ? 'Phụ tùng chính hãng' : service.estimateTimeText}</dd>
               </div>
             </dl>
+
+            {isPart && stockLoaded && (
+              <div className={styles.stockSection}>
+                {stockLocations.length > 0 ? (
+                  <>
+                    <div className={`${styles.stockStatus} ${styles.stockStatusIn}`}>
+                      ✓ Còn hàng
+                    </div>
+                    <div className={styles.stockLocationsTitle}>Có sẵn tại:</div>
+                    <ul className={styles.stockLocationList}>
+                      {stockLocations.map((loc) => (
+                        <li key={loc.warehouseId} className={styles.stockLocationItem}>
+                          <span className={styles.stockLocationName}>
+                            {loc.warehouseName || loc.warehouseCode}
+                          </span>
+                          {loc.address && (
+                            <span className={styles.stockLocationAddress}>{loc.address}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <div className={`${styles.stockStatus} ${styles.stockStatusOut}`}>
+                    Liên hệ để kiểm tra hàng
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className={styles.divider} />
 

@@ -59,20 +59,9 @@ const normalizeCategoryToken = (value) => String(value ?? '')
   .normalize('NFD')
   .replaceAll(/[\u0300-\u036f]/g, '')
   .replaceAll(/\s+/g, ' ');
-const HOME_PUBLIC_CATEGORY_CODE_MAP = {
-  SAFETY_TIRE: 'TIRE',
-};
-const resolveHomePublicCategoryCode = (categoryCode, categoryLabel = '') => {
-  const rawCode = String(categoryCode || '').trim().toUpperCase();
-  if (rawCode && HOME_PUBLIC_CATEGORY_CODE_MAP[rawCode]) {
-    return HOME_PUBLIC_CATEGORY_CODE_MAP[rawCode];
-  }
-
-  const normalizedLabel = normalizeCategoryToken(categoryLabel);
-  if (normalizedLabel === 'lop') return 'TIRE';
-
-  return rawCode;
-};
+// categoryCode giờ là mã thật của Hạng mục báo giá (bảng work_category) do backend trả về,
+// server lọc bằng exact match nên FE truyền thẳng, không map/đổi mã nữa.
+const resolveHomePublicCategoryCode = (categoryCode) => String(categoryCode || '').trim().toUpperCase();
 const getCategoryId = (item) => toPositiveNumber(
   item?.workCategoryId
   ?? item?.itemCategoryId
@@ -194,8 +183,21 @@ const extractList = (res) => {
   return Array.isArray(payload) ? payload : [];
 };
 
-const ITEMS_PER_ROW = 4;
-const INITIAL_ROWS = 1;
+const ITEMS_PER_ROW = 6;
+const MAX_ROWS_PER_PAGE = 6;
+const PAGE_SIZE = ITEMS_PER_ROW * MAX_ROWS_PER_PAGE;
+
+// Dữ liệu hãng xe / dòng xe phổ biến tại VN để lọc phụ tùng theo xe tương thích (compatibleCars)
+const CAR_DATA = {
+  Toyota: ['Vios', 'Camry', 'Innova', 'Corolla Cross', 'Fortuner', 'Yaris', 'Hilux', 'Wigo'],
+  Honda: ['City', 'Civic', 'CR-V', 'HR-V', 'Accord', 'Brio'],
+  Hyundai: ['Accent', 'Grand i10', 'Elantra', 'Tucson', 'Santa Fe', 'Creta', 'Kona'],
+  Kia: ['Morning', 'Soluto', 'K3', 'Seltos', 'Sorento', 'Carnival', 'Sonet'],
+  Mazda: ['Mazda 2', 'Mazda 3', 'Mazda 6', 'CX-5', 'CX-8', 'BT-50'],
+  Ford: ['Ranger', 'Everest', 'Explorer', 'Territory'],
+  Mitsubishi: ['Xpander', 'Outlander', 'Attrage', 'Triton', 'Pajero Sport'],
+  VinFast: ['Fadil', 'Lux A2.0', 'Lux SA2.0', 'VF e34', 'VF 8', 'VF 9', 'VF 5'],
+};
 const HOME_ROW_LIMIT = 5;
 const HOME_PRODUCTS_PAGE_SIZE = 500;
 const HOME_ALL_PRODUCT_TYPES = ['SERVICE', 'PART'];
@@ -250,6 +252,11 @@ const normalizeHomeProductResults = (settledResults, requestedTypes) => {
         rawPrice: item?.showPrice === true
           ? (parsePriceNumber(item?.price) ?? parsePriceNumber(item?.displayPrice))
           : null,
+        brandName: String(item?.brandName || '').trim(),
+        productLineName: String(item?.productLineName || '').trim(),
+        compatibleCars: String(item?.compatibleCars || '').trim(),
+        inStock: item?.inStock === true,
+        availableQty: Number.isFinite(Number(item?.availableQty)) ? Number(item.availableQty) : null,
       };
     })
     .filter((item) => item.id || item.title);
@@ -299,11 +306,13 @@ const Services = ({ homeRows = false }) => {
   const [currentCatalogError, setCurrentCatalogError] = useState('');
   const [catalogFilter, setCatalogFilter] = useState('SERVICE');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [gridExpanded, setGridExpanded] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
   const [priceSort, setPriceSort] = useState('DEFAULT');
   const [searchQuery, setSearchQuery] = useState('');
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
+  const [vehicleMake, setVehicleMake] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const didResetCatalogScrollRef = useRef(false);
   const categoryDropdownRef = useRef(null);
@@ -386,6 +395,9 @@ const Services = ({ homeRows = false }) => {
             </Link>
           </div>
           <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
+          {service.itemType === 'PART' && service.inStock && (
+            <div className="stockBadge">Còn hàng</div>
+          )}
         </div>
         <div className="serviceCard-content">
           <h3 className="serviceTitle">{service.title}</h3>
@@ -465,7 +477,7 @@ const Services = ({ homeRows = false }) => {
     const updateFilters = () => {
       setCatalogFilter(routeCatalogType);
       if (!routeCategoryCode) setCategoryFilter('ALL');
-      setGridExpanded(false);
+      setCurrentPage(0);
     };
     
     updateFilters();
@@ -617,7 +629,9 @@ const Services = ({ homeRows = false }) => {
     setCatalogFilter(nextType);
     setCategoryFilter('ALL');
     setCategoryDropdownOpen(false);
-    setGridExpanded(false);
+    setCurrentPage(0);
+    setVehicleMake('');
+    setVehicleModel('');
     updateCatalogSearchParams(nextType);
   };
 
@@ -630,7 +644,7 @@ const Services = ({ homeRows = false }) => {
         label: 'Tất cả',
       });
       setCategoryFilter('ALL');
-      setGridExpanded(false);
+      setCurrentPage(0);
       setCategoryDropdownOpen(false);
       updateCatalogSearchParams(catalogFilter);
       return;
@@ -648,7 +662,7 @@ const Services = ({ homeRows = false }) => {
       count: item.count,
     });
     setCategoryFilter(item.categoryKey);
-    setGridExpanded(false);
+    setCurrentPage(0);
     setCategoryDropdownOpen(false);
     updateCatalogSearchParams(
       catalogFilter,
@@ -685,7 +699,7 @@ const Services = ({ homeRows = false }) => {
     if (!matchedCategory) return;
     if (categoryFilter !== matchedCategory.categoryKey) {
       setCategoryFilter(matchedCategory.categoryKey);
-      setGridExpanded(false);
+      setCurrentPage(0);
     }
   }, [servicesLoading, categoryFilter, categoryOptions, routeCategoryCode]);
 
@@ -729,6 +743,17 @@ const Services = ({ homeRows = false }) => {
       );
     }
 
+    // Lọc theo hãng xe / dòng xe tương thích (chỉ áp dụng cho phụ tùng)
+    if (catalogFilter === 'PART' && (vehicleMake || vehicleModel)) {
+      filtered = filtered.filter((item) => {
+        const cars = String(item.compatibleCars || '').toLowerCase();
+        if (!cars) return false;
+        if (vehicleMake && !cars.includes(vehicleMake.toLowerCase())) return false;
+        if (vehicleModel && !cars.includes(vehicleModel.toLowerCase())) return false;
+        return true;
+      });
+    }
+
     const minPrice = parsePriceFilterValue(priceMin);
     const maxPrice = parsePriceFilterValue(priceMax);
     if (minPrice != null || maxPrice != null) {
@@ -755,14 +780,20 @@ const Services = ({ homeRows = false }) => {
     }
 
     return filtered;
-  }, [catalogFilter, catalogItems, priceSort, searchQuery, priceMin, priceMax]);
+  }, [catalogFilter, catalogItems, priceSort, searchQuery, priceMin, priceMax, vehicleMake, vehicleModel]);
 
-  const gridItemsToShow = useMemo(() => {
-    if (gridExpanded) return visibleServices;
-    return visibleServices.slice(0, ITEMS_PER_ROW * INITIAL_ROWS);
-  }, [gridExpanded, visibleServices]);
+  // Phân trang client-side: tối đa 6 hàng × 6 sản phẩm mỗi trang
+  const totalPages = Math.max(1, Math.ceil(visibleServices.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages - 1);
+  const gridItemsToShow = useMemo(
+    () => visibleServices.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE),
+    [safePage, visibleServices],
+  );
 
-  const hasMoreItems = visibleServices.length > ITEMS_PER_ROW * INITIAL_ROWS;
+  const handlePageChange = useCallback((nextPage) => {
+    setCurrentPage(nextPage);
+    document.querySelector('.servicesCatalogLayout')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   // Dynamic title/label/subtitle based on active filter
   const dynamicLabel = useMemo(() => {
@@ -887,7 +918,7 @@ const Services = ({ homeRows = false }) => {
                 value={priceSort}
                 onChange={(e) => {
                   setPriceSort(e.target.value);
-                  setGridExpanded(false);
+                  setCurrentPage(0);
                 }}
               >
                 <option value="DEFAULT">Mặc định</option>
@@ -906,7 +937,7 @@ const Services = ({ homeRows = false }) => {
                   placeholder="0"
                   onChange={(e) => {
                     setPriceMin(sanitizePriceInput(e.target.value));
-                    setGridExpanded(false);
+                    setCurrentPage(0);
                   }}
                 />
               </label>
@@ -919,7 +950,7 @@ const Services = ({ homeRows = false }) => {
                   placeholder="VD: 500000"
                   onChange={(e) => {
                     setPriceMax(sanitizePriceInput(e.target.value));
-                    setGridExpanded(false);
+                    setCurrentPage(0);
                   }}
                 />
               </label>
@@ -930,13 +961,54 @@ const Services = ({ homeRows = false }) => {
                   onClick={() => {
                     setPriceMin('');
                     setPriceMax('');
-                    setGridExpanded(false);
+                    setCurrentPage(0);
                   }}
                 >
                   Xóa
                 </button>
               )}
             </div>
+
+            {catalogFilter === 'PART' && (
+              <div className="vehicleFilter">
+                <label className="sortSelectWrap" htmlFor="servicesVehicleMake">
+                  <span>Hãng xe</span>
+                  <select
+                    id="servicesVehicleMake"
+                    className="sortSelect"
+                    value={vehicleMake}
+                    onChange={(e) => {
+                      setVehicleMake(e.target.value);
+                      setVehicleModel('');
+                      setCurrentPage(0);
+                    }}
+                  >
+                    <option value="">Tất cả</option>
+                    {Object.keys(CAR_DATA).map((make) => (
+                      <option key={make} value={make}>{make}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="sortSelectWrap" htmlFor="servicesVehicleModel">
+                  <span>Dòng xe</span>
+                  <select
+                    id="servicesVehicleModel"
+                    className="sortSelect"
+                    value={vehicleModel}
+                    disabled={!vehicleMake}
+                    onChange={(e) => {
+                      setVehicleModel(e.target.value);
+                      setCurrentPage(0);
+                    }}
+                  >
+                    <option value="">Tất cả</option>
+                    {(CAR_DATA[vehicleMake] || []).map((model) => (
+                      <option key={model} value={model}>{model}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
           </div>
 
           <div className="toolbarSearch">
@@ -948,7 +1020,7 @@ const Services = ({ homeRows = false }) => {
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                setGridExpanded(false);
+                setCurrentPage(0);
               }}
             />
             {searchQuery && (
@@ -957,7 +1029,7 @@ const Services = ({ homeRows = false }) => {
                 className="searchClear"
                 onClick={() => {
                   setSearchQuery('');
-                  setGridExpanded(false);
+                  setCurrentPage(0);
                 }}
               >
                 ✕
@@ -1058,6 +1130,9 @@ const Services = ({ homeRows = false }) => {
                         </Link>
                       </div>
                       <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
+                      {service.itemType === 'PART' && service.inStock && (
+                        <div className="stockBadge">Còn hàng</div>
+                      )}
                     </div>
                     <div className="serviceCard-content">
                       <h3 className="serviceTitle">{service.title}</h3>
@@ -1079,24 +1154,36 @@ const Services = ({ homeRows = false }) => {
               ))}
             </div>
           )}
-          {hasMoreItems && !isCatalogLoading && (
-            <div className="gridToggleWrapper">
+          {totalPages > 1 && !isCatalogLoading && (
+            <div className="gridPagination" role="navigation" aria-label="Phân trang sản phẩm">
               <button
                 type="button"
-                className="gridToggleButton"
-                onClick={() => setGridExpanded((prev) => !prev)}
+                className="gridPageBtn gridPageBtn--nav"
+                onClick={() => handlePageChange(safePage - 1)}
+                disabled={safePage === 0}
+                aria-label="Trang trước"
               >
-                {gridExpanded ? (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
-                    Thu gọn
-                  </>
-                ) : (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-                    Xem thêm ({visibleServices.length - ITEMS_PER_ROW * INITIAL_ROWS} sản phẩm)
-                  </>
-                )}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              {Array.from({ length: totalPages }, (_, pageIdx) => (
+                <button
+                  key={pageIdx}
+                  type="button"
+                  className={`gridPageBtn ${pageIdx === safePage ? 'is-active' : ''}`}
+                  onClick={() => handlePageChange(pageIdx)}
+                  aria-current={pageIdx === safePage ? 'page' : undefined}
+                >
+                  {pageIdx + 1}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="gridPageBtn gridPageBtn--nav"
+                onClick={() => handlePageChange(safePage + 1)}
+                disabled={safePage >= totalPages - 1}
+                aria-label="Trang sau"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
               </button>
             </div>
           )}

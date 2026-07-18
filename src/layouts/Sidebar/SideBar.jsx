@@ -228,6 +228,7 @@ const NAV_GROUPS = [
                 icon: <Terminal size={15} />,
                 items: [
                     { id: 'system-log-management', label: 'Nhật ký hệ thống', path: '/system-log-management', icon: <Terminal size={18} />, roles: [STAFF_ROLE.ADMIN] },
+                    { id: 'backend-logs', label: 'Log Backend', path: '/backend-logs', icon: <FileClock size={18} />, roles: [STAFF_ROLE.ADMIN] },
                 ]
             }
         ],

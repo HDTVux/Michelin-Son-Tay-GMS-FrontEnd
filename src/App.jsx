@@ -73,6 +73,7 @@ import AttendanceRequest from './pages/DashBoard/AttendanceRequest/AttendanceReq
 import AttendanceRequestManagement from './pages/DashBoard/AttendanceRequestManagement/AttendanceRequestManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
+import BackendLogViewer from './pages/DashBoard/BackendLogViewer/BackendLogViewer.jsx';
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
 import VehicleManagement from './pages/DashBoard/VehicleManagement/VehicleManagement.jsx';
 import WarehouseManagement from './pages/DashBoard/WarehouseManagement/WarehouseManagement.jsx';
@@ -486,6 +487,7 @@ export default function App() {
               <Route path="feedback-management" element={staffRoute(<FeedbackManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="vehicle-management" element={staffRoute(<VehicleManagement />, ROLE_GROUP.RECEPTIONIST_OR_ADMIN)} />
               <Route path="system-log-management" element={staffRoute(<SystemLogManagement />, ROLE_GROUP.ADMIN_ONLY)} />
+              <Route path="backend-logs" element={staffRoute(<BackendLogViewer />, ROLE_GROUP.ADMIN_ONLY)} />
               <Route path="warehouse-management" element={staffRoute(<WarehouseManagement />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-excel-import" element={staffRoute(<WarehouseExcelImport />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-config" element={staffRoute(<WarehouseConfig />, ROLE_GROUP.WAREHOUSE_ADMIN)} />
