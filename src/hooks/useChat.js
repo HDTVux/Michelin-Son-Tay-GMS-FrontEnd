@@ -340,7 +340,12 @@ export const useChat = ({ enabled = true, mock = true, reconnectDelay = 5000 } =
       if (client?.connected) {
         client.publish({
           destination: '/app/chat.send',
-          body: JSON.stringify({ ...payload, clientMsgId, conversationId }),
+          // Cột `text` phía BE là NOT NULL — tin nhắn chỉ gửi ảnh/file/sticker (không kèm
+          // chữ) có payload.text = undefined, JSON.stringify sẽ BỎ HẲN field này khỏi JSON
+          // gửi đi, khiến BE nhận null và insert lỗi (DataIntegrityViolationException),
+          // làm tin nhắn không bao giờ tới được người nhận dù người gửi vẫn thấy bong bóng
+          // hiện cục bộ. Luôn gửi text dạng chuỗi (rỗng nếu không có) để tránh lỗi này.
+          body: JSON.stringify({ ...payload, text: payload.text || '', clientMsgId, conversationId }),
         });
         return Promise.resolve(optimisticMessage);
       }
