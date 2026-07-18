@@ -288,7 +288,7 @@ const PERSONAL_NAV_ITEMS = [
   { id: 'work-history-admin', label: 'Lịch sử công việc', path: '/work-history/admin', icon: <Briefcase size={18} />, roles: [STAFF_ROLE.ADMIN] },
 ];
 
-const StaffHeader = ({ notificationState, notificationBell, chatButton, onOpenAiAssistant }) => {
+const StaffHeader = ({ notificationState, notificationBell, chatButton, onOpenAiAssistant, aiAssistantState }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -364,7 +364,7 @@ const StaffHeader = ({ notificationState, notificationBell, chatButton, onOpenAi
       </div>
 
       <div className="staff-header__right">
-        <UniversalSearch staffRoles={staffRoles} className="staff-header__search-container" />
+        <UniversalSearch staffRoles={staffRoles} className="staff-header__search-container" aiState={aiAssistantState} />
 
         {/* Universal QR/Barcode scanner */}
         <button

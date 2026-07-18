@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, Loader2, Layers, User, FileText, Download, Upload, Undo } from 'lucide-react';
+import { Search, X, Loader2, Layers, User, FileText, Download, Upload, Undo, Sparkles } from 'lucide-react';
 import { request } from '../../services/apiClient.js';
 import './UniversalSearch.css';
 
@@ -169,7 +169,7 @@ const querySearch = async (searchTerm, staffRoles) => {
  * tickets and warehouse documents. Shared by the desktop header (always
  * inline) and the mobile popover (mounted only while open).
  */
-const UniversalSearch = ({ staffRoles = [], className = '', autoFocus = false, onNavigate }) => {
+const UniversalSearch = ({ staffRoles = [], className = '', autoFocus = false, onNavigate, aiState }) => {
   const navigate = useNavigate();
   const containerRef = useRef(null);
 
@@ -235,6 +235,20 @@ const UniversalSearch = ({ staffRoles = [], className = '', autoFocus = false, o
     onNavigate?.();
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      const trimmed = searchQuery.trim();
+      if (trimmed && aiState) {
+        e.preventDefault();
+        aiState.openPanel();
+        aiState.sendMessage(trimmed);
+        setIsSearchFocused(false);
+        setSearchQuery('');
+        onNavigate?.();
+      }
+    }
+  };
+
   const suggestedFunctions = useMemo(() => {
     return SEARCHABLE_FUNCTIONS.filter((item) => {
       return item.roles === 'ALL' || (Array.isArray(item.roles) && item.roles.some((r) => normalizedRoles.includes(normalizeRoleName(r))));
@@ -258,17 +272,37 @@ const UniversalSearch = ({ staffRoles = [], className = '', autoFocus = false, o
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => setIsSearchFocused(true)}
+          onKeyDown={handleKeyDown}
           className="universal-search__input"
         />
         {searchQuery ? (
-          <button
-            type="button"
-            className="universal-search__clear"
-            onClick={() => setSearchQuery('')}
-            aria-label="Xóa từ khóa"
-          >
-            <X size={14} />
-          </button>
+          <>
+            <button
+              type="button"
+              className="universal-search__clear"
+              onClick={() => setSearchQuery('')}
+              aria-label="Xóa từ khóa"
+            >
+              <X size={14} />
+            </button>
+            {aiState && (
+              <button
+                type="button"
+                className="universal-search__ai-submit"
+                onClick={() => {
+                  aiState.openPanel();
+                  aiState.sendMessage(searchQuery.trim());
+                  setIsSearchFocused(false);
+                  setSearchQuery('');
+                  onNavigate?.();
+                }}
+                title="Hỏi Trợ lý AI (Enter)"
+                aria-label="Hỏi Trợ lý AI"
+              >
+                <Sparkles size={14} />
+              </button>
+            )}
+          </>
         ) : (
           <span className="universal-search__shortcut">Ctrl K</span>
         )}
@@ -284,6 +318,22 @@ const UniversalSearch = ({ staffRoles = [], className = '', autoFocus = false, o
             !hasResults ? (
               <div className="universal-search__empty">
                 <p>Không tìm thấy kết quả phù hợp cho "{searchQuery}"</p>
+                {aiState && (
+                  <button
+                    type="button"
+                    className="universal-search__ask-ai-btn"
+                    onClick={() => {
+                      aiState.openPanel();
+                      aiState.sendMessage(searchQuery.trim());
+                      setIsSearchFocused(false);
+                      setSearchQuery('');
+                      onNavigate?.();
+                    }}
+                  >
+                    <Sparkles size={14} />
+                    <span>Hỏi Trợ lý AI hoặc nhấn Enter</span>
+                  </button>
+                )}
               </div>
             ) : (
               <>

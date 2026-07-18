@@ -581,6 +581,7 @@ const StaffLayout = () => {
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
         chatButton={hasStaffToken ? <ChatMobileNavButton chatState={chatState} /> : null}
+        aiAssistantState={aiAssistantState}
       />
       <main className="staffLayout__content">
         {hasStaffToken && (
@@ -589,6 +590,7 @@ const StaffLayout = () => {
             notificationBell={<StaffNotificationBell {...notificationState} />}
             chatButton={<ChatLauncher chatState={chatState} />}
             onOpenAiAssistant={aiAssistantState.openPanel}
+            aiAssistantState={aiAssistantState}
           />
         )}
         <div className="staffLayout__page-container">

@@ -320,7 +320,7 @@ const readSidebarState = (storageKey, fallbackValue) => {
     }
 };
 
-const SideBar = ({ isCollapsed, setIsCollapsed, chatButton }) => {
+const SideBar = ({ isCollapsed, setIsCollapsed, chatButton, aiAssistantState }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -635,6 +635,7 @@ const SideBar = ({ isCollapsed, setIsCollapsed, chatButton }) => {
                             className="sidebar__mobile-search-inner"
                             autoFocus
                             onNavigate={() => setIsMobileSearchOpen(false)}
+                            aiState={aiAssistantState}
                         />
                     </div>
                 )}
