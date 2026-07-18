@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -33,6 +33,32 @@ const getMonday = (date) => {
   const day = date.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   return addDays(date, diff);
+};
+
+const MONTHS_VI = [
+  'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+  'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12',
+];
+
+const getMonthRange = (date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  return { from: toISODate(first), to: toISODate(last) };
+};
+
+const addMonths = (date, delta) => {
+  const next = new Date(date.getFullYear(), date.getMonth() + delta, 1);
+  return next;
+};
+
+const calcHoursBetween = (checkIn, checkOut) => {
+  if (!checkIn || !checkOut) return 0;
+  const [inH, inM] = String(checkIn).split(':').map(Number);
+  const [outH, outM] = String(checkOut).split(':').map(Number);
+  if ([inH, inM, outH, outM].some((n) => Number.isNaN(n))) return 0;
+  return Math.max(0, (outH * 60 + outM - (inH * 60 + inM)) / 60);
 };
 
 const extractArrayPayload = (payload) => {
@@ -84,6 +110,10 @@ const statusMeta = (status) => {
 export default function AttendanceManagement() {
   const navigate = useNavigate();
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
+  const [pickerMonth, setPickerMonth] = useState(() => getMonday(new Date()));
+  const [pickerViewMode, setPickerViewMode] = useState('days'); // 'days' | 'years'
+  const weekPickerRef = useRef(null);
   const [staffList, setStaffList] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [records, setRecords] = useState([]);
@@ -97,6 +127,11 @@ export default function AttendanceManagement() {
 
   const [detailTarget, setDetailTarget] = useState(null);
   const [checkOutForm, setCheckOutForm] = useState({ checkOutTime: '', notes: '' });
+
+  const [viewMode, setViewMode] = useState('week'); // 'week' | 'month'
+  const [monthDate, setMonthDate] = useState(() => new Date());
+  const [monthRecords, setMonthRecords] = useState([]);
+  const [loadingMonth, setLoadingMonth] = useState(false);
 
   const weekDates = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -162,7 +197,81 @@ export default function AttendanceManagement() {
     })();
   }, [loadStaff, loadShifts]);
 
+  useEffect(() => {
+    if (!showWeekPicker) return undefined;
+    const handleOutsideClick = (e) => {
+      if (weekPickerRef.current && !weekPickerRef.current.contains(e.target)) {
+        setShowWeekPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showWeekPicker]);
+
+  const pickerDays = useMemo(() => {
+    const year = pickerMonth.getFullYear();
+    const month = pickerMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const offset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+    const days = [];
+    for (let i = 0; i < offset; i += 1) days.push(null);
+    for (let d = 1; d <= lastDay.getDate(); d += 1) days.push(new Date(year, month, d));
+    return days;
+  }, [pickerMonth]);
+
+  const pickerYearOptions = useMemo(() => {
+    const start = pickerMonth.getFullYear() - 5;
+    return Array.from({ length: 12 }, (_, i) => start + i);
+  }, [pickerMonth]);
+
+  const openWeekPicker = () => {
+    setPickerMonth(weekStart);
+    setPickerViewMode('days');
+    setShowWeekPicker((prev) => !prev);
+  };
+
+  const handlePickerHeaderNav = (delta) => {
+    if (pickerViewMode === 'years') {
+      setPickerMonth((prev) => new Date(prev.getFullYear() + delta * 12, prev.getMonth(), 1));
+    } else {
+      setPickerMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+    }
+  };
+
+  const handleSelectPickerYear = (year) => {
+    setPickerMonth((prev) => new Date(year, prev.getMonth(), 1));
+    setPickerViewMode('days');
+  };
+
+  const handlePickerDayClick = (day) => {
+    if (!day) return;
+    setWeekStart(getMonday(day));
+    setShowWeekPicker(false);
+  };
+
   useEffect(() => { loadAttendance(); }, [loadAttendance]);
+
+  const loadMonthAttendance = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    setLoadingMonth(true);
+    try {
+      const { from, to } = getMonthRange(monthDate);
+      const response = await fetchManagerAttendance({ from, to }, token);
+      setMonthRecords(extractArrayPayload(response).map(normalizeAttendanceRecord));
+    } catch (err) {
+      toast.error(err?.message || 'Không tải được thống kê tháng.');
+      setMonthRecords([]);
+    } finally {
+      setLoadingMonth(false);
+    }
+  }, [monthDate]);
+
+  useEffect(() => {
+    if (viewMode !== 'month') return;
+    loadMonthAttendance();
+  }, [viewMode, loadMonthAttendance]);
 
   const recordMap = useMemo(() => {
     const map = new Map();
@@ -181,6 +290,45 @@ export default function AttendanceManagement() {
 
   const navWeek = (delta) => setWeekStart((prev) => addDays(prev, delta * 7));
   const goToday = () => setWeekStart(getMonday(new Date()));
+
+  const navMonth = (delta) => setMonthDate((prev) => addMonths(prev, delta));
+  const goThisMonth = () => setMonthDate(new Date());
+
+  const monthStats = useMemo(() => {
+    const map = new Map();
+    filteredStaff.forEach((s) => {
+      map.set(s.staffId, {
+        staffId: s.staffId,
+        fullName: s.fullName,
+        present: 0,
+        late: 0,
+        absent: 0,
+        off: 0,
+        totalHours: 0,
+      });
+    });
+
+    monthRecords.forEach((r) => {
+      const entry = map.get(r.staffId);
+      if (!entry) return;
+      const key = String(r.status || '').toUpperCase();
+      if (key === 'PRESENT') entry.present += 1;
+      else if (key === 'LATE') entry.late += 1;
+      else if (key === 'ABSENT') entry.absent += 1;
+      else if (key === 'OFF') entry.off += 1;
+      entry.totalHours += calcHoursBetween(r.checkInTime, r.checkOutTime);
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi'));
+  }, [monthRecords, filteredStaff]);
+
+  const monthTotals = useMemo(() => monthStats.reduce((acc, s) => ({
+    present: acc.present + s.present,
+    late: acc.late + s.late,
+    absent: acc.absent + s.absent,
+    off: acc.off + s.off,
+    totalHours: acc.totalHours + s.totalHours,
+  }), { present: 0, late: 0, absent: 0, off: 0, totalHours: 0 }), [monthStats]);
 
   const openCheckIn = (staff, dateStr) => {
     setCheckInTarget({ staffId: staff.staffId, staffName: staff.fullName, date: dateStr });
@@ -259,13 +407,108 @@ export default function AttendanceManagement() {
         </button>
       </div>
 
+      <div className={styles.viewTabs}>
+        <button
+          type="button"
+          className={`${styles.viewTabBtn} ${viewMode === 'week' ? styles.viewTabBtnActive : ''}`}
+          onClick={() => setViewMode('week')}
+        >
+          Xem theo tuần
+        </button>
+        <button
+          type="button"
+          className={`${styles.viewTabBtn} ${viewMode === 'month' ? styles.viewTabBtnActive : ''}`}
+          onClick={() => setViewMode('month')}
+        >
+          Thống kê theo tháng
+        </button>
+      </div>
+
       <div className={styles.toolbar}>
-        <div className={styles.weekNav}>
-          <button type="button" className={styles.navBtn} onClick={() => navWeek(-1)}>‹ Tuần trước</button>
-          <span className={styles.weekLabel}>{weekLabel}</span>
-          <button type="button" className={styles.navBtn} onClick={() => navWeek(1)}>Tuần sau ›</button>
-          <button type="button" className={styles.todayBtn} onClick={goToday}>Tuần này</button>
-        </div>
+        {viewMode === 'week' ? (
+          <div className={styles.weekNav}>
+            <button type="button" className={styles.navBtn} onClick={() => navWeek(-1)}>‹ Tuần trước</button>
+            <div className={styles.weekPickerWrap} ref={weekPickerRef}>
+              <button type="button" className={styles.weekLabelBtn} onClick={openWeekPicker} title="Chọn tuần hiển thị">
+                📅 {weekLabel}
+              </button>
+              {showWeekPicker && (
+                <div className={styles.miniCalendarPopup}>
+                  <div className={styles.miniCalendarHeader}>
+                    <button type="button" className={styles.miniCalendarNavBtn} onClick={() => handlePickerHeaderNav(-1)}>‹</button>
+                    <button
+                      type="button"
+                      className={styles.miniCalendarMonthBtn}
+                      onClick={() => setPickerViewMode((m) => (m === 'years' ? 'days' : 'years'))}
+                      title="Bấm để chọn nhanh theo năm"
+                    >
+                      {pickerViewMode === 'years'
+                        ? `${pickerYearOptions[0]} - ${pickerYearOptions[pickerYearOptions.length - 1]}`
+                        : pickerMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+                    </button>
+                    <button type="button" className={styles.miniCalendarNavBtn} onClick={() => handlePickerHeaderNav(1)}>›</button>
+                  </div>
+
+                  {pickerViewMode === 'years' ? (
+                    <div className={styles.miniCalendarYearGrid}>
+                      {pickerYearOptions.map((year) => (
+                        <button
+                          type="button"
+                          key={year}
+                          className={[
+                            styles.miniCalendarYearBtn,
+                            year === pickerMonth.getFullYear() ? styles.miniCalendarDaySelected : '',
+                            year === new Date().getFullYear() ? styles.miniCalendarDayToday : '',
+                          ].filter(Boolean).join(' ')}
+                          onClick={() => handleSelectPickerYear(year)}
+                        >
+                          {year}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <div className={styles.miniCalendarWeekDays}>
+                        {DOW_LABELS.map((d) => <span key={d}>{d}</span>)}
+                      </div>
+                      <div className={styles.miniCalendarGrid}>
+                        {pickerDays.map((day, index) => {
+                          const isInSelectedWeek = day && day >= weekStart && day <= weekDates[6];
+                          const isToday = day && day.toDateString() === new Date().toDateString();
+                          return (
+                            <button
+                              type="button"
+                              key={day ? day.toISOString() : `empty-${index}`}
+                              className={[
+                                styles.miniCalendarDay,
+                                !day ? styles.miniCalendarDayEmpty : '',
+                                isInSelectedWeek ? styles.miniCalendarDaySelected : '',
+                                isToday && !isInSelectedWeek ? styles.miniCalendarDayToday : '',
+                              ].filter(Boolean).join(' ')}
+                              disabled={!day}
+                              onClick={() => handlePickerDayClick(day)}
+                            >
+                              {day ? day.getDate() : ''}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <button type="button" className={styles.navBtn} onClick={() => navWeek(1)}>Tuần sau ›</button>
+            <button type="button" className={styles.todayBtn} onClick={goToday}>Tuần này</button>
+          </div>
+        ) : (
+          <div className={styles.weekNav}>
+            <button type="button" className={styles.navBtn} onClick={() => navMonth(-1)}>‹ Tháng trước</button>
+            <span className={styles.weekLabel}>{MONTHS_VI[monthDate.getMonth()]} {monthDate.getFullYear()}</span>
+            <button type="button" className={styles.navBtn} onClick={() => navMonth(1)}>Tháng sau ›</button>
+            <button type="button" className={styles.todayBtn} onClick={goThisMonth}>Tháng này</button>
+          </div>
+        )}
         <div className={styles.searchBox}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" style={{ flexShrink: 0 }}>
             <circle cx="11" cy="11" r="8" />
@@ -283,12 +526,14 @@ export default function AttendanceManagement() {
         </div>
       </div>
 
-      <div className={styles.legend}>
-        <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.badgePresent}`} />Có mặt</span>
-        <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.badgeLate}`} />Muộn</span>
-        <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.badgeAbsent}`} />Vắng</span>
-        <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.badgeOff}`} />Nghỉ</span>
-      </div>
+      {viewMode === 'week' && (
+        <div className={styles.legend}>
+          <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.badgePresent}`} />Có mặt</span>
+          <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.badgeLate}`} />Muộn</span>
+          <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.badgeAbsent}`} />Vắng</span>
+          <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.badgeOff}`} />Nghỉ</span>
+        </div>
+      )}
 
       {loading && (
         <div className={styles.loadingContainer}>
@@ -303,7 +548,7 @@ export default function AttendanceManagement() {
         </div>
       )}
 
-      {!loading && !error && (
+      {!loading && !error && viewMode === 'week' && (
         <div className={styles.gridWrapper}>
           {loadingAttendance && <p className={styles.refreshHint}>Đang đồng bộ điểm danh tuần này...</p>}
           <table className={styles.grid}>
@@ -367,6 +612,66 @@ export default function AttendanceManagement() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && !error && viewMode === 'month' && (
+        <div className={styles.gridWrapper}>
+          {loadingMonth ? (
+            <div className={styles.loadingContainer}>
+              <div className={styles.spinner} />
+              <p>Đang tải thống kê tháng...</p>
+            </div>
+          ) : (
+            <table className={styles.monthTable}>
+              <thead>
+                <tr>
+                  <th className={styles.staffHeaderCell}>Nhân viên</th>
+                  <th>Có mặt</th>
+                  <th>Muộn</th>
+                  <th>Vắng</th>
+                  <th>Nghỉ</th>
+                  <th>Tổng ngày công</th>
+                  <th>Tổng giờ làm</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthStats.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className={styles.emptyRowCell}>Không tìm thấy nhân viên phù hợp.</td>
+                  </tr>
+                ) : (
+                  monthStats.map((s) => (
+                    <tr key={s.staffId}>
+                      <td className={styles.staffCell}>
+                        <div className={styles.staffAvatar}>{(s.fullName || '?')[0]?.toUpperCase()}</div>
+                        <span className={styles.staffName}>{s.fullName}</span>
+                      </td>
+                      <td>{s.present}</td>
+                      <td>{s.late}</td>
+                      <td>{s.absent}</td>
+                      <td>{s.off}</td>
+                      <td>{s.present + s.late}</td>
+                      <td>{s.totalHours.toFixed(1)}h</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {monthStats.length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td className={styles.staffCell}><strong>Tổng cộng</strong></td>
+                    <td><strong>{monthTotals.present}</strong></td>
+                    <td><strong>{monthTotals.late}</strong></td>
+                    <td><strong>{monthTotals.absent}</strong></td>
+                    <td><strong>{monthTotals.off}</strong></td>
+                    <td><strong>{monthTotals.present + monthTotals.late}</strong></td>
+                    <td><strong>{monthTotals.totalHours.toFixed(1)}h</strong></td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          )}
         </div>
       )}
 

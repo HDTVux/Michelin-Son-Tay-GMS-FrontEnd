@@ -32,6 +32,38 @@
   color: #6b7280;
 }
 
+.viewTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.viewTabBtn {
+  min-height: 38px;
+  padding: 9px 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 2px solid #e5e7eb;
+  background: #fff;
+  color: #4b5563;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.viewTabBtn:hover {
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.viewTabBtnActive,
+.viewTabBtnActive:hover {
+  border-color: #1e90ff;
+  background: #1e90ff;
+  color: #fff;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -84,6 +116,172 @@
   font-size: 14px;
   font-weight: 700;
   color: #1f2937;
+}
+
+.weekPickerWrap {
+  position: relative;
+}
+
+.weekLabelBtn {
+  min-width: 150px;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.weekLabelBtn:hover {
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.miniCalendarPopup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: 260px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.18);
+}
+
+.miniCalendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.miniCalendarNavBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2937;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.miniCalendarNavBtn:hover {
+  border-color: #1e90ff;
+  color: #1e90ff;
+}
+
+.miniCalendarMonthBtn {
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: capitalize;
+  color: #1f2937;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.miniCalendarWeekDays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.miniCalendarWeekDays span {
+  display: block;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  padding: 2px 0;
+}
+
+.miniCalendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.miniCalendarDay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.miniCalendarDay:hover:not(:disabled) {
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.miniCalendarDayEmpty {
+  cursor: default;
+  visibility: hidden;
+}
+
+.miniCalendarDayToday {
+  border: 1px solid #1e90ff;
+  color: #1e90ff;
+}
+
+.miniCalendarDaySelected {
+  background: #1e90ff;
+  color: #fff;
+  border-radius: 0;
+}
+
+.miniCalendarDaySelected:hover {
+  background: #1e90ff !important;
+  color: #fff !important;
+}
+
+.miniCalendarYearGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.miniCalendarYearBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.miniCalendarYearBtn:hover:not(:disabled) {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1e40af;
 }
 
 .searchBox {
@@ -196,6 +394,36 @@
   width: 100%;
   border-collapse: collapse;
   min-width: 760px;
+}
+
+.monthTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.monthTable th {
+  padding: 12px 16px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.monthTable td {
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #1f2937;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.monthTable tfoot td {
+  background: #f9fafb;
+  border-top: 2px solid #e5e7eb;
+  border-bottom: none;
 }
 
 .staffHeaderCell {
