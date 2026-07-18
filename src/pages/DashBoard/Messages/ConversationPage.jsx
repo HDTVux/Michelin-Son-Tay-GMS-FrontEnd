@@ -54,20 +54,40 @@ const useVisualViewportHeight = () => {
     const prevOverflow = style.overflow;
     style.overflow = 'hidden';
 
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+
     const vv = window.visualViewport;
     const syncHeight = () => {
       if (!vv) return;
       document.documentElement.style.setProperty('--conversation-page-vh', `${vv.height}px`);
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    const handleScroll = () => {
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
     };
 
     if (vv) {
       syncHeight();
       vv.addEventListener('resize', syncHeight);
+      vv.addEventListener('scroll', syncHeight);
     }
+
+    window.addEventListener('scroll', handleScroll);
 
     return () => {
       style.overflow = prevOverflow;
-      if (vv) vv.removeEventListener('resize', syncHeight);
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      if (vv) {
+        vv.removeEventListener('resize', syncHeight);
+        vv.removeEventListener('scroll', syncHeight);
+      }
+      window.removeEventListener('scroll', handleScroll);
       document.documentElement.style.removeProperty('--conversation-page-vh');
     };
   }, []);
