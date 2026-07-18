@@ -119,6 +119,12 @@
   color: #005aa9;
 }
 
+.staff-header__chat-container {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 /* Override fixed positioning of the notification bell when inside StaffHeader */
 .staff-header__bell-container .staffNotification {
   position: relative !important;

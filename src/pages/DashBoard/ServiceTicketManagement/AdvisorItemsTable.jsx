@@ -36,6 +36,8 @@ import LotPicker from './LotPicker.jsx';
 import ReturnEntryRequestModal from './ReturnEntryRequestModal.jsx';
 import WorkCategoryPicker from './WorkCategoryPicker.jsx';
 import { manageServiceTicketEstimateStatus } from '../../../services/serviceTicketService.js';
+import { fetchComboItems } from '../../../services/comboService.js';
+import { fetchWarehouseCatalogItemDetail } from '../../../services/warehouseService.js';
 
 const TAX_NAME_MAX_LENGTH = 100;
 const HIDE_BUY_X_GET_Y_UI = true;
@@ -1067,6 +1069,7 @@ export default function AdvisorItemsTable({
         saveEdit,
         syncEstimate,
         softDeleteEditRow,
+        expandComboToRows,
         estimate,
         selectedFallbackPricingConfigId,
         setSelectedFallbackPricingConfigId,
@@ -1476,6 +1479,7 @@ export default function AdvisorItemsTable({
     const [selectedCatalogItem, setSelectedCatalogItem] = useState(null);
     const [selectedWarehouse, setSelectedWarehouse] = useState(null);
     const [pickerCategoryCode, setPickerCategoryCode] = useState('');
+    const [pickerItemType, setPickerItemType] = useState('');
 
     const [workCategoryPickerOpen, setWorkCategoryPickerOpen] = useState(false);
     const [categoryPickerRowIndex, setCategoryPickerRowIndex] = useState(null);
@@ -1590,9 +1594,147 @@ export default function AdvisorItemsTable({
         setCatalogPickerOpen(false);
         setActiveRowIndex(null);
         setPickerCategoryCode("");
+        setPickerItemType("");
     };
 
-    const handlePickCatalogItem = (item, warehouseDetail) => {
+    const handlePickCatalogItem = async (item, warehouseDetail) => {
+        if (item?.itemType === 'COMBO') {
+            setCatalogPickerOpen(false);
+            try {
+                const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+                const comboId = item.itemId || item.id;
+                const res = await fetchComboItems(comboId, null, token);
+                const comboSubItems = res?.data?.data || res?.data || res || [];
+                if (comboSubItems.length === 0) {
+                    notify('Gói Combo này chưa được cấu hình sản phẩm con!');
+                    setActiveRowIndex(null);
+                    setPickerCategoryCode("");
+                    return;
+                }
+
+                // Tải chi tiết catalog (gồm thông tin kho & lô) cho từng sản phẩm con
+                const detailPromises = comboSubItems.map(sub => 
+                    fetchWarehouseCatalogItemDetail(sub.includedItemId, token).catch(() => null)
+                );
+                const detailResponses = await Promise.all(detailPromises);
+
+                const activeRow = tableRows[activeRowIndex];
+                const expandedRows = [];
+
+                for (let i = 0; i < comboSubItems.length; i++) {
+                    const sub = comboSubItems[i];
+                    const detailRes = detailResponses[i];
+                    const catalogDetail = detailRes?.data?.data || detailRes?.data || detailRes;
+                    if (!catalogDetail) continue;
+
+                    const row = {
+                        estimateItemId: null,
+                        workCategoryId: catalogDetail.itemCategoryId || catalogDetail.workCategoryId || activeRow?.workCategoryId,
+                        workCategoryCode: catalogDetail.categoryCode || activeRow?.workCategoryCode || '',
+                        workCategoryTaxRuleId: catalogDetail.workCategoryTaxRuleId || activeRow?.workCategoryTaxRuleId || '',
+                        itemId: catalogDetail.itemId || catalogDetail.id,
+                        itemName: catalogDetail.itemName || catalogDetail.name || '',
+                        unit: catalogDetail.unit || '',
+                        warehouseId: '',
+                        warehouseName: '',
+                        warehouseAvailableQuantity: null,
+                        itemTaxRuleId: catalogDetail.taxRuleId || catalogDetail.tax_rule_id || '',
+                        newCategoryName: catalogDetail.categoryName || activeRow?.newCategoryName || '',
+                        quantity: sub.quantity || 1,
+                        unitPrice: catalogDetail.price || 0,
+                        importPrice: catalogDetail.importPrice || null,
+                        markupBaseUnitPrice: null,
+                        taxRuleId: '',
+                        isRemoved: false,
+                        isLockedFromPreviousVersion: false,
+                        entryItemId: null,
+                        entryCode: null,
+                    };
+
+                    if (catalogDetail.itemType === 'PART') {
+                        const warehouses = catalogDetail.warehouseDetails || [];
+                        let allocated = false;
+
+                        // 1. Phân bổ theo Lô thủ công nếu cấu hình là MANUAL
+                        if (sub.allocationMethod === 'MANUAL' && sub.entryItemId) {
+                            let foundLot = null;
+                            let foundWarehouse = null;
+                            for (const w of warehouses) {
+                                if (Array.isArray(w.lots)) {
+                                    const lot = w.lots.find(l => Number(l.entryItemId) === Number(sub.entryItemId));
+                                    if (lot && (lot.remainingQuantity || 0) > 0) {
+                                        foundLot = lot;
+                                        foundWarehouse = w;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (foundLot && foundWarehouse) {
+                                row.entryItemId = foundLot.entryItemId;
+                                row.entryCode = foundLot.entryCode;
+                                row.warehouseId = foundWarehouse.warehouseId;
+                                row.warehouseName = foundWarehouse.warehouseName || foundWarehouse.warehouseCode || '';
+                                row.warehouseAvailableQuantity = foundLot.remainingQuantity;
+                                row.unitPrice = foundLot.sellingPrice ?? catalogDetail.price;
+                                if (foundLot.importPrice) row.importPrice = foundLot.importPrice;
+                                allocated = true;
+                            } else {
+                                notify(`Lô hàng cấu hình sẵn của phụ tùng "${catalogDetail.itemName}" đã hết hàng. Đang chuyển sang tự động FIFO.`);
+                            }
+                        }
+
+                        // 2. Phân bổ theo FIFO (hoặc fallback FIFO khi lô thủ công hết hàng)
+                        if (!allocated) {
+                            let selectedLot = null;
+                            let selectedWarehouseDetail = null;
+                            for (const w of warehouses) {
+                                if (Array.isArray(w.lots)) {
+                                    const firstAvailableLot = w.lots.find(l => (l.remainingQuantity || 0) > 0);
+                                    if (firstAvailableLot) {
+                                        selectedLot = firstAvailableLot;
+                                        selectedWarehouseDetail = w;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (selectedLot && selectedWarehouseDetail) {
+                                row.entryItemId = selectedLot.entryItemId;
+                                row.entryCode = selectedLot.entryCode;
+                                row.warehouseId = selectedWarehouseDetail.warehouseId;
+                                row.warehouseName = selectedWarehouseDetail.warehouseName || selectedWarehouseDetail.warehouseCode || '';
+                                row.warehouseAvailableQuantity = selectedLot.remainingQuantity;
+                                row.unitPrice = selectedLot.sellingPrice ?? catalogDetail.price;
+                                if (selectedLot.importPrice) row.importPrice = selectedLot.importPrice;
+                                allocated = true;
+                            }
+                        }
+
+                        // 3. Nếu hết hàng hoàn toàn trong kho
+                        if (!allocated) {
+                            notify(`Phụ tùng "${catalogDetail.itemName}" đã hết hàng hoàn toàn trong kho!`);
+                            row.warehouseId = '';
+                            row.warehouseName = 'Hết hàng trong kho';
+                            row.warehouseAvailableQuantity = 0;
+                            row.entryItemId = null;
+                            row.entryCode = null;
+                        }
+                    }
+                    expandedRows.push(row);
+                }
+
+                if (expandedRows.length > 0) {
+                    expandComboToRows(activeRowIndex, expandedRows);
+                }
+            } catch (err) {
+                notify('Có lỗi xảy ra khi phân rã Combo: ' + err.message);
+            } finally {
+                setActiveRowIndex(null);
+                setPickerCategoryCode("");
+            }
+            return;
+        }
+
         const hasLots = Array.isArray(warehouseDetail?.lots) && warehouseDetail.lots.length > 0;
         if (hasLots) {
             setSelectedCatalogItem(item);
@@ -1959,6 +2101,36 @@ export default function AdvisorItemsTable({
             ) : null}
             {isTicketLocked ? null : (
                 <div style={{ marginTop: 16 }}>
+                    {showInputs && (
+                        <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn--ghost"
+                                onClick={() => {
+                                    // Tự động sử dụng dòng trống ở cuối để kích hoạt CatalogPicker
+                                    setActiveRowIndex(tableRows.length - 1);
+                                    setPickerCategoryCode("");
+                                    setPickerItemType("COMBO");
+                                    setCatalogPickerOpen(true);
+                                }}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    backgroundColor: '#f8fafc',
+                                    border: '1px dashed #cbd5e1',
+                                    color: '#0f172a',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                                Chọn từ Combo
+                            </button>
+                        </div>
+                    )}
                     <EstimateActions
                         canCreateNew={canCreateNew}
                         canCreateNewVersion={canCreateNewVersion}
@@ -2146,6 +2318,7 @@ export default function AdvisorItemsTable({
                 categoryCode={pickerCategoryCode}
                 vehicleBrand={vehicleBrand}
                 vehicleModel={vehicleModel}
+                initialItemType={pickerItemType}
             />
 
             <LotPicker

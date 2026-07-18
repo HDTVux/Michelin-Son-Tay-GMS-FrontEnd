@@ -4,12 +4,36 @@ import { fetchCatalogItems } from '../../../services/blogService.js';
 import { fetchComboItems, saveComboItems } from '../../../services/comboService.js';
 import {
   createWarehouseCatalogItem,
-  updateWarehouseCatalogItem
+  updateWarehouseCatalogItem,
+  searchWarehouseCatalogItemsDetail,
+  fetchWarehouseItemCategories,
+  fetchWarehouseBrands,
+  fetchWarehouseProductLines
 } from '../../../services/warehouseService.js';
 import styles from './ServiceManagement.module.css';
 import { Settings, Pencil, Plus, Search, X, Check, Eye, Trash2, Layers } from 'lucide-react';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
+
+const getLotsForCatalogItem = (catalogItem) => {
+  if (!catalogItem) return [];
+  const warehouses = catalogItem.warehouseDetails || [];
+  const lots = [];
+  warehouses.forEach(w => {
+    if (Array.isArray(w.lots)) {
+      w.lots.forEach(lot => {
+        if ((lot.remainingQuantity || 0) > 0) {
+          lots.push({
+            ...lot,
+            warehouseId: w.warehouseId,
+            warehouseName: w.warehouseName || w.warehouseCode || `Kho #${w.warehouseId}`
+          });
+        }
+      });
+    }
+  });
+  return lots;
+};
 
 export default function ComboManagement() {
   useScrollToTop();
@@ -45,12 +69,19 @@ export default function ComboManagement() {
   const [comboDescription, setComboDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
 
+  // Database lists to prevent foreign key constraint violations
+  const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [productLines, setProductLines] = useState([]);
+
   // Form sub-items (parts/services in combo) state
   const [subItems, setSubItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItemToAdd, setSelectedItemToAdd] = useState(null);
   const [odometerKmToAdd, setOdometerKmToAdd] = useState(0);
   const [quantityToAdd, setQuantityToAdd] = useState(1);
+  const [allocationMethodToAdd, setAllocationMethodToAdd] = useState('FIFO');
+  const [entryItemIdToAdd, setEntryItemIdToAdd] = useState('');
 
   // Debounce search input
   useEffect(() => {
@@ -58,14 +89,17 @@ export default function ComboManagement() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Load all available catalog items (parts & services) for picker
+  // Load all available catalog items (parts & services) for picker and default catalog settings
   useEffect(() => {
     const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
     const loadCatalogData = async () => {
       try {
-        const [servicesRes, partsRes] = await Promise.all([
-          fetchCatalogItems({ size: 1000, itemType: 'SERVICE' }, token).catch(() => null),
-          fetchCatalogItems({ size: 1000, itemType: 'PART' }, token).catch(() => null)
+        const [servicesRes, partsRes, categoriesRes, brandsRes, productLinesRes] = await Promise.all([
+          searchWarehouseCatalogItemsDetail({ size: 1000, itemType: 'SERVICE' }, token).catch(() => null),
+          searchWarehouseCatalogItemsDetail({ size: 1000, itemType: 'PART' }, token).catch(() => null),
+          fetchWarehouseItemCategories(token).catch(() => null),
+          fetchWarehouseBrands(token).catch(() => null),
+          fetchWarehouseProductLines(token).catch(() => null)
         ]);
 
         const extractList = (res) => {
@@ -75,6 +109,19 @@ export default function ComboManagement() {
         const services = extractList(servicesRes);
         const parts = extractList(partsRes);
         setCatalogList([...services, ...parts]);
+
+        const catsPayload = categoriesRes?.data?.data ?? categoriesRes?.data ?? categoriesRes ?? [];
+        const cats = Array.isArray(catsPayload) ? catsPayload : (Array.isArray(catsPayload?.content) ? catsPayload.content : []);
+        setCategories(cats);
+
+        const brandsPayload = brandsRes?.data?.data ?? brandsRes?.data ?? brandsRes ?? [];
+        const brs = Array.isArray(brandsPayload) ? brandsPayload : (Array.isArray(brandsPayload?.content) ? brandsPayload.content : []);
+        setBrands(brs);
+
+        const plsPayload = productLinesRes?.data?.data ?? productLinesRes?.data ?? productLinesRes ?? [];
+        const pls = Array.isArray(plsPayload) ? plsPayload : (Array.isArray(plsPayload?.content) ? plsPayload.content : []);
+        setProductLines(pls);
+        console.log('Combo configuration default lists loaded:', { cats, brs, pls });
       } catch (err) {
         console.error('Failed to load catalog items for combos:', err);
       }
@@ -186,10 +233,17 @@ export default function ComboManagement() {
     const includedItemId = Number(selectedItemToAdd.itemId);
     const quantity = Number(quantityToAdd) || 1;
     const odometerKm = Number(odometerKmToAdd) || 0;
+    const allocationMethod = selectedItemToAdd.itemType === 'PART' ? allocationMethodToAdd : 'FIFO';
+    const entryItemId = (selectedItemToAdd.itemType === 'PART' && allocationMethod === 'MANUAL' && entryItemIdToAdd)
+      ? Number(entryItemIdToAdd)
+      : null;
 
     // Check duplicate combo item
     const duplicateIndex = subItems.findIndex(
-      item => Number(item.includedItemId) === includedItemId && Number(item.odometerKm || 0) === odometerKm
+      item => Number(item.includedItemId) === includedItemId && 
+              Number(item.odometerKm || 0) === odometerKm &&
+              (item.allocationMethod || 'FIFO') === allocationMethod &&
+              (item.entryItemId || null) === entryItemId
     );
 
     if (duplicateIndex !== -1) {
@@ -201,6 +255,8 @@ export default function ComboManagement() {
         includedItemId,
         quantity,
         odometerKm,
+        allocationMethod,
+        entryItemId,
         comboId: editingItem ? editingItem.itemId : null
       }]);
     }
@@ -209,6 +265,8 @@ export default function ComboManagement() {
     setSearchQuery('');
     setQuantityToAdd(1);
     setOdometerKmToAdd(0);
+    setAllocationMethodToAdd('FIFO');
+    setEntryItemIdToAdd('');
   };
 
   // Remove local sub-item
@@ -232,6 +290,25 @@ export default function ComboManagement() {
     setSubItems(next);
   };
 
+  const handleAllocationMethodChange = (index, value) => {
+    const next = [...subItems];
+    next[index].allocationMethod = value;
+    if (value === 'FIFO') {
+      next[index].entryItemId = null;
+    } else {
+      const matchedCatalog = catalogMap.get(Number(next[index].includedItemId));
+      const lots = getLotsForCatalogItem(matchedCatalog);
+      next[index].entryItemId = lots[0]?.entryItemId || null;
+    }
+    setSubItems(next);
+  };
+
+  const handleEntryItemIdChange = (index, value) => {
+    const next = [...subItems];
+    next[index].entryItemId = value ? Number(value) : null;
+    setSubItems(next);
+  };
+
   // Handle submit form (Create or Update BOTH master and sub-items)
   const handleSubmitForm = async (e) => {
     e.preventDefault();
@@ -250,9 +327,15 @@ export default function ComboManagement() {
 
       // Generate a random SKU code & defaults for database compatibility constraints
       const defaultSku = editingItem?.sku || `CB-${Date.now().toString().slice(-6)}`;
-      const defaultCategoryId = editingItem?.workCategoryId || editingItem?.itemCategoryId || 1;
-      const defaultBrandId = editingItem?.brandId || 1;
-      const defaultProductLineId = editingItem?.productLineId || editingItem?.product_line_id || 1;
+      
+      // Resolve valid defaults from databases to prevent foreign key errors
+      const firstActiveCategory = categories[0]?.workCategoryId || categories[0]?.itemCategoryId || 1;
+      const firstActiveBrand = brands[0]?.brandId || 1;
+      const firstActiveProductLine = productLines[0]?.productLineId || 1;
+
+      const defaultCategoryId = editingItem?.workCategoryId || editingItem?.itemCategoryId || firstActiveCategory;
+      const defaultBrandId = editingItem?.brandId || firstActiveBrand;
+      const defaultProductLineId = editingItem?.productLineId || editingItem?.product_line_id || firstActiveProductLine;
 
       const masterPayload = {
         itemName: itemName.trim(),
@@ -292,7 +375,9 @@ export default function ComboManagement() {
         comboId: finalCatalogItemId,
         includedItemId: item.includedItemId,
         quantity: item.quantity,
-        odometerKm: item.odometerKm || 0
+        odometerKm: item.odometerKm || 0,
+        allocationMethod: item.allocationMethod || 'FIFO',
+        entryItemId: item.entryItemId || null
       }));
 
       await saveComboItems(finalCatalogItemId, subItemsPayload, token);
@@ -692,8 +777,10 @@ export default function ComboManagement() {
                           <tr>
                             <th style={{ width: '40px' }}>STT</th>
                             <th>TÊN PHỤ TÙNG / DỊCH VỤ CON</th>
-                            <th style={{ width: '110px' }}>LOẠI</th>
-                            <th style={{ width: '140px' }}>MỐC KM BẢO DƯỠNG</th>
+                            <th style={{ width: '90px' }}>LOẠI</th>
+                            <th style={{ width: '130px' }}>MỐC KM BẢO DƯỠNG</th>
+                            <th style={{ width: '140px' }}>PHƯƠNG THỨC CẤP PHÁT</th>
+                            <th style={{ width: '200px' }}>LÔ HÀNG THỦ CÔNG</th>
                             <th style={{ width: '90px' }}>SỐ LƯỢNG</th>
                             <th style={{ width: '60px', textAlign: 'center' }}>XÓA</th>
                           </tr>
@@ -701,6 +788,8 @@ export default function ComboManagement() {
                         <tbody>
                           {subItems.map((item, idx) => {
                             const matchedCatalog = catalogMap.get(Number(item.includedItemId));
+                            const isPart = matchedCatalog?.itemType === 'PART';
+                            const lots = getLotsForCatalogItem(matchedCatalog);
                             return (
                               <tr key={idx}>
                                 <td>{idx + 1}</td>
@@ -714,7 +803,7 @@ export default function ComboManagement() {
                                 </td>
                                 <td>
                                   <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#475569' }}>
-                                    {matchedCatalog?.itemType === 'SERVICE' ? 'Dịch vụ' : 'Phụ tùng'}
+                                    {isPart ? 'Phụ tùng' : 'Dịch vụ'}
                                   </span>
                                 </td>
                                 <td>
@@ -730,6 +819,38 @@ export default function ComboManagement() {
                                     <option value="40000">40.000 km</option>
                                     <option value="80000">80.000 km</option>
                                   </select>
+                                </td>
+                                <td>
+                                  {isPart ? (
+                                    <select
+                                      value={item.allocationMethod || 'FIFO'}
+                                      onChange={(e) => handleAllocationMethodChange(idx, e.target.value)}
+                                      style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 4px', fontSize: '11.5px', background: '#fff' }}
+                                    >
+                                      <option value="FIFO">FIFO (Tự động)</option>
+                                      <option value="MANUAL">Chọn lô thủ công</option>
+                                    </select>
+                                  ) : (
+                                    <span style={{ color: '#64748b', fontSize: '11.5px' }}>Tự động (FIFO)</span>
+                                  )}
+                                </td>
+                                <td>
+                                  {isPart && (item.allocationMethod === 'MANUAL') ? (
+                                    <select
+                                      value={item.entryItemId || ''}
+                                      onChange={(e) => handleEntryItemIdChange(idx, e.target.value)}
+                                      style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 4px', fontSize: '11.5px', background: '#fff' }}
+                                    >
+                                      <option value="">-- Chọn lô hàng --</option>
+                                      {lots.map(lot => (
+                                        <option key={lot.entryItemId} value={lot.entryItemId}>
+                                          {lot.entryCode} ({lot.warehouseName} - Còn {lot.remainingQuantity} - Giá {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(lot.sellingPrice)})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Không áp dụng</span>
+                                  )}
                                 </td>
                                 <td>
                                   <input

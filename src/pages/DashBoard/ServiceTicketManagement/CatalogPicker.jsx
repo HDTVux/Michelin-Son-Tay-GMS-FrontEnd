@@ -79,6 +79,7 @@ function CatalogPicker({
   categoryCode = '',
   vehicleBrand = '',
   vehicleModel = '',
+  initialItemType = '',
 }) {
   const dialogRef = useRef(null); // Tạo ref để điều khiển thẻ dialog
 
@@ -198,7 +199,7 @@ function CatalogPicker({
       setBrandId('');
       setProductLineId('');
       setCategoryCodeFilter(categoryCode || '');
-      setItemType('');
+      setItemType(initialItemType || '');
       setMinPrice('');
       setMaxPrice('');
       setSortBy('');
@@ -209,7 +210,7 @@ function CatalogPicker({
         setShowFilters(false);
       }
     }
-  }, [open, categoryCode]);
+  }, [open, categoryCode, initialItemType]);
 
   // Effect này bắt sự kiện khi prop 'open' thay đổi để mở/đóng Modal chính giữa màn hình
   useEffect(() => {

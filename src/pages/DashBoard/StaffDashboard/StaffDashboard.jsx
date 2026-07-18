@@ -24,6 +24,11 @@ import { searchAdminCustomers } from '../../../services/customerService.js';
 import { buildRevenueDashboard } from '../../../services/revenueService.js';
 import { fetchItemProfitReport } from '../../../services/warehouseService.js';
 import styles from './StaffDashboard.module.css';
+import calStyles from '../StaffAttendance/StaffAttendance.module.css';
+
+const CAL_DOW_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+const DASHBOARD_ICONS = ['📊', '🏠', '📅', '🛠️', '👥', '📦', '💵', '⚙️', '📈', '📋', '📁', '⭐'];
 
 const getAuthToken = () =>
   localStorage.getItem('authToken') || localStorage.getItem('staffToken') || '';
@@ -498,6 +503,7 @@ const DEFAULT_PANELS = [
   { id: 'attendancePie', title: 'Trạng thái tháng này', eyebrow: 'Tỷ lệ', description: 'Tỷ lệ có mặt / đi muộn / vắng trong tháng', icon: 'chart', category: 'attendance', size: 'half', visible: true },
   { id: 'onTimeRate', title: 'Tỷ lệ đi làm đúng giờ', eyebrow: 'Đúng giờ', description: 'Tỷ lệ chấm công đúng giờ so với đi muộn trong tháng', icon: 'clock', category: 'attendance', size: 'half', visible: true },
   { id: 'attendanceHistory', title: 'Lịch sử tháng', eyebrow: 'Chấm công', description: 'Bảng chi tiết chấm công theo từng ngày', icon: 'clock', category: 'attendance', size: 'full', visible: true },
+  { id: 'myAttendanceList', title: 'Chấm công của tôi', eyebrow: 'Chấm công', description: 'Danh sách chấm công dạng list: ngày, giờ vào, giờ ra và số giờ làm', icon: 'clock', category: 'attendance', size: 'half', visible: true },
   { id: 'genderRatio', title: 'Tỷ lệ giới tính khách hàng', eyebrow: 'Khách hàng', description: 'Phân bổ giới tính khách hàng đã đăng ký', icon: 'user', category: 'customer', size: 'half', visible: true },
   { id: 'notifications', title: 'Thông báo gần đây', eyebrow: 'Thông báo', description: 'Danh sách thông báo hệ thống mới nhất', icon: 'bell', category: 'notification', size: 'full', visible: true },
   { id: 'profitTreemap', title: 'Lợi nhuận theo sản phẩm/dịch vụ', eyebrow: 'Lợi nhuận', description: 'Treemap lợi nhuận, màu theo biên lợi nhuận', icon: 'chart', category: 'revenue', size: 'full', visible: true },
@@ -521,7 +527,7 @@ const WIDGET_CATEGORY_ORDER = ['booking', 'revenue', 'customer', 'work', 'attend
 // since the number of rows is open-ended. Everything else (charts, treemap, quick
 // actions) instead gets a hard minimum height so it can never be squeezed below the
 // point where its content stops being readable.
-const LIST_WIDGET_IDS = new Set(['schedule', 'tasks', 'notifications', 'attendanceHistory', 'topPurchasedItems']);
+const LIST_WIDGET_IDS = new Set(['schedule', 'tasks', 'notifications', 'attendanceHistory', 'myAttendanceList', 'topPurchasedItems']);
 
 const WIDGET_MIN_CONTENT_HEIGHT = {
   attendanceChart: 260,
@@ -534,6 +540,7 @@ const WIDGET_MIN_CONTENT_HEIGHT = {
   tasks: 140,
   notifications: 160,
   attendanceHistory: 160,
+  myAttendanceList: 160,
   topPurchasedItems: 160,
 };
 const DEFAULT_MIN_WIDGET_HEIGHT = 120;
@@ -648,6 +655,7 @@ export default function StaffDashboard() {
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [newDashboardName, setNewDashboardName] = useState('');
   const [newDashboardStartEmpty, setNewDashboardStartEmpty] = useState(false);
+  const [selectedIcon, setSelectedIcon] = useState('📊');
   const widgetManagerRef = useRef(null);
   const widgetManagerTriggerRef = useRef(null);
 
@@ -1179,6 +1187,7 @@ export default function StaffDashboard() {
     const initialLayout = {
       stats: DEFAULT_STATS.map((s) => ({ id: s.id, visible: !newDashboardStartEmpty })),
       panels: DEFAULT_PANELS.map((p) => ({ id: p.id, size: p.size, visible: !newDashboardStartEmpty })),
+      icon: selectedIcon,
     };
 
     const payload = {
@@ -1212,9 +1221,15 @@ export default function StaffDashboard() {
     const name = newDashboardName.trim();
     if (!token || !name || !activeConfig) return;
 
+    let layout = {};
+    try {
+      layout = JSON.parse(activeConfig.layoutConfig) || {};
+    } catch (e) {}
+    layout.icon = selectedIcon;
+
     const payload = {
       dashboardName: name,
-      layoutConfig: activeConfig.layoutConfig,
+      layoutConfig: JSON.stringify(layout),
       isActive: true,
     };
 
@@ -2177,6 +2192,124 @@ export default function StaffDashboard() {
       );
     }
 
+    if (w.id === 'myAttendanceList') {
+      const header = (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Chấm công của tôi</span>
+          <button type="button" className={styles.textButton} onClick={() => navigate('/staff-attendance')}>
+            Xem tất cả <Icon name="arrow" />
+          </button>
+        </div>
+      );
+
+      if (w.size === 'large') {
+        const firstDay = new Date(currentYear, currentMonth - 1, 1);
+        const startOffset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+        const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+        const today = new Date();
+        const recordMap = {};
+        attendance.forEach((r) => {
+          if (!r?.date) return;
+          const day = parseInt(String(r.date).slice(-2), 10);
+          if (!Number.isNaN(day)) recordMap[day] = r;
+        });
+
+        return (
+          <div style={{ padding: 16 }}>
+            {header}
+            <div className={calStyles['calendar-grid']}>
+              {CAL_DOW_LABELS.map((d) => (
+                <div key={d} className={calStyles['cal-header']}>{d}</div>
+              ))}
+              {Array.from({ length: startOffset }, (_, i) => (
+                <div key={`empty-${i}`} className={calStyles['cal-empty']} />
+              ))}
+              {Array.from({ length: daysInMonth }, (_, i) => {
+                const day = i + 1;
+                const record = recordMap[day];
+                const tone = record ? statusTone(record.status) : null;
+                const dow = new Date(currentYear, currentMonth - 1, day).getDay();
+                const isWeekend = dow === 0 || dow === 6;
+                const isToday = today.getDate() === day && today.getMonth() + 1 === currentMonth && today.getFullYear() === currentYear;
+                const isFuture = new Date(currentYear, currentMonth - 1, day) > today;
+
+                return (
+                  <div
+                    key={day}
+                    className={[
+                      calStyles['cal-cell'],
+                      record ? calStyles['cal-cell--has'] : '',
+                      isWeekend ? calStyles['cal-cell--weekend'] : '',
+                      isToday ? calStyles['cal-cell--today'] : '',
+                      isFuture ? calStyles['cal-cell--future'] : '',
+                    ].join(' ')}
+                  >
+                    <div className={calStyles['cal-day-num']}>{day}</div>
+                    {record && (
+                      <>
+                        <div className={`${calStyles['cal-badge']} ${calStyles[`status-badge--${tone}`]}`}>
+                          {record.status === 'ABSENT' ? 'Vắng' : (record.checkInTime ? record.checkInTime.slice(0, 5) : '—')}
+                        </div>
+                        {record.checkOutTime && (
+                          <div className={calStyles['cal-checkout']}>↩ {record.checkOutTime.slice(0, 5)}</div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
+      const items = w.size === 'small' ? attendance.slice(-4) : attendance.slice(-8);
+      const compactCell = { padding: '8px 6px', whiteSpace: 'nowrap' };
+      return (
+        <div style={{ padding: 16 }}>
+          {header}
+          <div className={styles.tableWrap} style={{ maxHeight: 'none', overflow: 'visible' }}>
+            <table className={styles.table} style={{ minWidth: 0, width: '100%', tableLayout: 'fixed' }}>
+              <thead>
+                <tr>
+                  <th style={compactCell}>Ngày</th>
+                  <th style={compactCell}>Vào</th>
+                  <th style={compactCell}>Ra</th>
+                  <th style={compactCell}>Giờ làm</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendance.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className={styles.tableEmpty}>
+                      Chưa có dữ liệu chấm công.
+                    </td>
+                  </tr>
+                ) : (
+                  items.map((item) => {
+                    const hours = calcHours(item.checkInTime, item.checkOutTime);
+                    const dateLabel = item.date
+                      ? new Date(`${item.date}T00:00:00`).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+                      : '—';
+                    return (
+                      <tr key={`${item.date}-${item.shiftType || ''}`}>
+                        <td style={compactCell}>
+                          <strong>{dateLabel}</strong>
+                        </td>
+                        <td style={compactCell}>{item.checkInTime || '—'}</td>
+                        <td style={compactCell}>{item.checkOutTime || '—'}</td>
+                        <td style={compactCell}>{hours > 0 ? `${hours.toFixed(1)}h` : '—'}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
     if (w.id === 'profitTreemap') {
       // The chart area is `flex: 1` under the header instead of a fixed
       // `height - assumedHeaderPx` calculation — that math broke whenever the header
@@ -2460,20 +2593,31 @@ export default function StaffDashboard() {
         <div className={styles.configControlsGroup}>
           <span className={styles.configControlsLabel}>Chọn Dashboard:</span>
           <div className={styles.dashboardTabs}>
-            {configs.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`${styles.tabBtn} ${activeConfigId === c.id ? styles.activeTab : ''}`}
-                onClick={() => handleActivateConfig(c.id)}
-              >
-                {c.dashboardName} {c.isActive ? '★' : ''}
-              </button>
-            ))}
+            {configs.map((c) => {
+              let icon = '';
+              try {
+                const layout = JSON.parse(c.layoutConfig);
+                icon = layout?.icon || (c.isActive ? '⭐' : '');
+              } catch (e) {
+                icon = c.isActive ? '⭐' : '';
+              }
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`${styles.tabBtn} ${activeConfigId === c.id ? styles.activeTab : ''}`}
+                  onClick={() => handleActivateConfig(c.id)}
+                >
+                  {icon && <span style={{ marginRight: '6px' }}>{icon}</span>}
+                  {c.dashboardName}
+                </button>
+              );
+            })}
             <button
               type="button"
               className={styles.createTabBtn}
               onClick={() => {
+                setSelectedIcon('📊');
                 setNewDashboardName('');
                 setNewDashboardStartEmpty(false);
                 setShowCreateModal(true);
@@ -2490,6 +2634,12 @@ export default function StaffDashboard() {
                 type="button"
                 className={styles.actionBtn}
                 onClick={() => {
+                  let currentIcon = '📊';
+                  try {
+                    const layout = JSON.parse(activeConfig.layoutConfig);
+                    currentIcon = layout?.icon || '📊';
+                  } catch (e) {}
+                  setSelectedIcon(currentIcon);
                   setNewDashboardName(activeConfig.dashboardName);
                   setShowRenameModal(true);
                 }}
@@ -2797,6 +2947,38 @@ export default function StaffDashboard() {
               className={styles.modalInput}
               autoFocus
             />
+            
+            <div style={{ margin: '16px 0 20px 0', textAlign: 'left' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#475569' }}>
+                Chọn biểu tượng (Icon):
+              </label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {DASHBOARD_ICONS.map((icon) => (
+                  <button
+                    key={icon}
+                    type="button"
+                    style={{
+                      fontSize: '20px',
+                      padding: '4px',
+                      borderRadius: '8px',
+                      border: selectedIcon === icon ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                      background: selectedIcon === icon ? '#eff6ff' : 'white',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      width: '38px',
+                      height: '38px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onClick={() => setSelectedIcon(icon)}
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className={styles.startModeGroup}>
               <button
                 type="button"
@@ -2839,7 +3021,7 @@ export default function StaffDashboard() {
       {showRenameModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
-            <h3>Đổi tên Dashboard</h3>
+            <h3>Chỉnh sửa Dashboard</h3>
             <input
               type="text"
               value={newDashboardName}
@@ -2847,6 +3029,38 @@ export default function StaffDashboard() {
               className={styles.modalInput}
               autoFocus
             />
+
+            <div style={{ margin: '16px 0 20px 0', textAlign: 'left' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#475569' }}>
+                Chọn biểu tượng (Icon):
+              </label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {DASHBOARD_ICONS.map((icon) => (
+                  <button
+                    key={icon}
+                    type="button"
+                    style={{
+                      fontSize: '20px',
+                      padding: '4px',
+                      borderRadius: '8px',
+                      border: selectedIcon === icon ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                      background: selectedIcon === icon ? '#eff6ff' : 'white',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      width: '38px',
+                      height: '38px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onClick={() => setSelectedIcon(icon)}
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className={styles.modalActions}>
               <button
                 type="button"
@@ -2861,7 +3075,7 @@ export default function StaffDashboard() {
                 disabled={!newDashboardName.trim()}
                 onClick={handleRenameConfig}
               >
-                Đổi tên
+                Lưu thay đổi
               </button>
             </div>
           </div>

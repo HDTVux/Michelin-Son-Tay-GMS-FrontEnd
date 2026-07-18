@@ -70,7 +70,7 @@ const SEARCHABLE_FUNCTIONS = [
   { id: 'shift-management', label: 'Quản lý ca làm việc', path: '/shift-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'attendance-management', label: 'Chấm công nhân viên', path: '/attendance-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'attendance-locations', label: 'Vị trí chấm công (QR)', path: '/attendance-locations', roles: ['MANAGER', 'ADMIN'] },
-  { id: 'attendance-request-management', label: 'Duyệt đơn chấm công/nghỉ', path: '/attendance-request-management', roles: ['MANAGER', 'ADMIN'] },
+  { id: 'attendance-request-management', label: 'Duyệt đơn chấm công', path: '/attendance-request-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'staff-notification-sender', label: 'Thông báo nhân viên', path: '/staff-notification-sender', roles: ['RECEPTIONIST', 'MANAGER', 'ADMIN'] },
   { id: 'promotion-management', label: 'Quản lý khuyến mãi', path: '/promotion-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'maintenance-reminders', label: 'Nhắc lịch bảo dưỡng', path: '/maintenance-reminders', roles: ['RECEPTIONIST', 'MANAGER'] },
@@ -454,7 +454,7 @@ const PERSONAL_NAV_ITEMS = [
   { id: 'work-history-admin', label: 'Lịch sử công việc', path: '/work-history/admin', icon: <Briefcase size={18} />, roles: [STAFF_ROLE.ADMIN] },
 ];
 
-const StaffHeader = ({ notificationState, notificationBell }) => {
+const StaffHeader = ({ notificationState, notificationBell, chatButton }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -803,6 +803,11 @@ const StaffHeader = ({ notificationState, notificationBell }) => {
         >
           <ScanQrCode size={20} />
         </button>
+
+        {/* Chat nội bộ nhân viên */}
+        <div className="staff-header__chat-container">
+          {chatButton}
+        </div>
 
         {/* Render notification bell here */}
         <div className="staff-header__bell-container">

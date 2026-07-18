@@ -1,0 +1,6 @@
+Sticker pack nguồn: OpenMoji (https://openmoji.org)
+Giấy phép: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
+Design by OpenMoji – the open-source emoji and icon project. License: CC BY-SA 4.0.
+
+Bộ sticker này được tải và đóng gói cục bộ trong public/stickers/openmoji/,
+không phụ thuộc vào bất kỳ API hay dịch vụ mạng ngoài nào khi runtime.

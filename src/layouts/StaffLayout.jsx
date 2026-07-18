@@ -1,10 +1,13 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLayoutEffect, useState, useEffect, useMemo } from 'react';
 import { useNotifications } from '../hooks/useNotifications.js';
+import { useChat } from '../hooks/useChat.js';
 import SideBar from './Sidebar/SideBar.jsx';
 import MobileNavbar from './MobileNavbar/MobileNavbar.jsx';
 import StaffHeader from './StaffHeader/StaffHeader.jsx';
 import UserTour from '../components/UserTour/UserTour.jsx';
+import ChatLauncher from '../components/Chat/ChatLauncher.jsx';
+import ChatWindowDock from '../components/Chat/ChatWindowDock.jsx';
 import './StaffLayout.css';
 
 
@@ -575,6 +578,9 @@ const StaffLayout = () => {
   }, [isCollapsed]);
 
   const notificationState = useNotifications({ enabled: hasStaffToken, notifyOnReceive: true });
+  // mock: true vì backend chat (/api/chat/*, /ws-chat) chưa được đội BE triển khai.
+  // Khi BE hoàn thành theo contract trong src/services/chatService.js, đổi thành mock: false.
+  const chatState = useChat({ enabled: hasStaffToken, mock: true });
 
   useLayoutEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -599,13 +605,15 @@ const StaffLayout = () => {
           <StaffHeader
             notificationState={notificationState}
             notificationBell={<StaffNotificationBell {...notificationState} />}
+            chatButton={<ChatLauncher chatState={chatState} />}
           />
         )}
         <div className="staffLayout__page-container">
-          <Outlet context={{ notificationState }} />
+          <Outlet context={{ notificationState, chatState }} />
         </div>
       </main>
       {hasStaffToken && <MobileNavbar notificationState={notificationState} />}
+      {hasStaffToken && <ChatWindowDock chatState={chatState} />}
       <UserTour type="staff" />
     </div>
   );

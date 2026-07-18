@@ -1,8 +1,29 @@
 import { useEffect, useState, useMemo } from 'react';
 import { fetchComboItems, saveComboItems } from '../../../services/comboService.js';
 import { fetchCatalogItems } from '../../../services/blogService.js';
+import { searchWarehouseCatalogItemsDetail } from '../../../services/warehouseService.js';
 import styles from './ServiceManagement.module.css';
 import { Search, Plus, Trash2, X, Settings } from 'lucide-react';
+
+const getLotsForCatalogItem = (catalogItem) => {
+  if (!catalogItem) return [];
+  const warehouses = catalogItem.warehouseDetails || [];
+  const lots = [];
+  warehouses.forEach(w => {
+    if (Array.isArray(w.lots)) {
+      w.lots.forEach(lot => {
+        if ((lot.remainingQuantity || 0) > 0) {
+          lots.push({
+            ...lot,
+            warehouseId: w.warehouseId,
+            warehouseName: w.warehouseName || w.warehouseCode || `Kho #${w.warehouseId}`
+          });
+        }
+      });
+    }
+  });
+  return lots;
+};
 
 export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -13,6 +34,8 @@ export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
   const [selectedItemToAdd, setSelectedItemToAdd] = useState(null);
   const [odometerKmToAdd, setOdometerKmToAdd] = useState(0);
   const [quantityToAdd, setQuantityToAdd] = useState(1);
+  const [allocationMethodToAdd, setAllocationMethodToAdd] = useState('FIFO');
+  const [entryItemIdToAdd, setEntryItemIdToAdd] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -25,8 +48,8 @@ export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
     const loadCatalog = async () => {
       try {
         const [servicesRes, partsRes] = await Promise.all([
-          fetchCatalogItems({ size: 1000, itemType: 'SERVICE' }, token).catch(() => null),
-          fetchCatalogItems({ size: 1000, itemType: 'PART' }, token).catch(() => null)
+          searchWarehouseCatalogItemsDetail({ size: 1000, itemType: 'SERVICE' }, token).catch(() => null),
+          searchWarehouseCatalogItemsDetail({ size: 1000, itemType: 'PART' }, token).catch(() => null)
         ]);
 
         const extractList = (res) => {
@@ -92,10 +115,17 @@ export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
     const includedItemId = Number(selectedItemToAdd.itemId);
     const quantity = Number(quantityToAdd) || 1;
     const odometerKm = Number(odometerKmToAdd) || 0;
+    const allocationMethod = selectedItemToAdd.itemType === 'PART' ? allocationMethodToAdd : 'FIFO';
+    const entryItemId = (selectedItemToAdd.itemType === 'PART' && allocationMethod === 'MANUAL' && entryItemIdToAdd)
+      ? Number(entryItemIdToAdd)
+      : null;
 
     // Check duplicate
     const duplicateIndex = subItems.findIndex(
-      item => Number(item.includedItemId) === includedItemId && Number(item.odometerKm || 0) === odometerKm
+      item => Number(item.includedItemId) === includedItemId && 
+              Number(item.odometerKm || 0) === odometerKm &&
+              (item.allocationMethod || 'FIFO') === allocationMethod &&
+              (item.entryItemId || null) === entryItemId
     );
 
     if (duplicateIndex !== -1) {
@@ -107,6 +137,8 @@ export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
         includedItemId,
         quantity,
         odometerKm,
+        allocationMethod,
+        entryItemId,
         comboId: comboItem.itemId
       }]);
     }
@@ -115,6 +147,8 @@ export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
     setSearchQuery('');
     setQuantityToAdd(1);
     setOdometerKmToAdd(0);
+    setAllocationMethodToAdd('FIFO');
+    setEntryItemIdToAdd('');
   };
 
   // Remove local item
@@ -138,6 +172,25 @@ export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
     setSubItems(next);
   };
 
+  const handleAllocationMethodChange = (index, value) => {
+    const next = [...subItems];
+    next[index].allocationMethod = value;
+    if (value === 'FIFO') {
+      next[index].entryItemId = null;
+    } else {
+      const matchedCatalog = catalogMap.get(Number(next[index].includedItemId));
+      const lots = getLotsForCatalogItem(matchedCatalog);
+      next[index].entryItemId = lots[0]?.entryItemId || null;
+    }
+    setSubItems(next);
+  };
+
+  const handleEntryItemIdChange = (index, value) => {
+    const next = [...subItems];
+    next[index].entryItemId = value ? Number(value) : null;
+    setSubItems(next);
+  };
+
   // Save config to backend
   const handleSaveConfig = async () => {
     try {
@@ -151,7 +204,9 @@ export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
         comboId: comboItem.itemId,
         includedItemId: item.includedItemId,
         quantity: item.quantity,
-        odometerKm: item.odometerKm || 0
+        odometerKm: item.odometerKm || 0,
+        allocationMethod: item.allocationMethod || 'FIFO',
+        entryItemId: item.entryItemId || null
       }));
 
       await saveComboItems(comboItem.itemId, payload, token);
@@ -311,17 +366,21 @@ export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
                 <table className={styles['service-table']} style={{ fontSize: '12.5px' }}>
                   <thead>
                     <tr>
-                      <th style={{ width: '50px' }}>STT</th>
+                      <th style={{ width: '40px' }}>STT</th>
                       <th>TÊN PHỤ TÙNG / DỊCH VỤ CON</th>
-                      <th style={{ width: '120px' }}>LOẠI</th>
-                      <th style={{ width: '155px' }}>MỐC KM BẢO DƯỠNG</th>
-                      <th style={{ width: '100px' }}>SỐ LƯỢNG</th>
-                      <th style={{ width: '80px', textAlign: 'center' }}>XÓA</th>
+                      <th style={{ width: '90px' }}>LOẠI</th>
+                      <th style={{ width: '130px' }}>MỐC KM BẢO DƯỠNG</th>
+                      <th style={{ width: '140px' }}>PHƯƠNG THỨC CẤP PHÁT</th>
+                      <th style={{ width: '200px' }}>LÔ HÀNG THỦ CÔNG</th>
+                      <th style={{ width: '90px' }}>SỐ LƯỢNG</th>
+                      <th style={{ width: '60px', textAlign: 'center' }}>XÓA</th>
                     </tr>
                   </thead>
                   <tbody>
                     {subItems.map((item, idx) => {
                       const matchedCatalog = catalogMap.get(Number(item.includedItemId));
+                      const isPart = matchedCatalog?.itemType === 'PART';
+                      const lots = getLotsForCatalogItem(matchedCatalog);
                       return (
                         <tr key={idx}>
                           <td>{idx + 1}</td>
@@ -335,7 +394,7 @@ export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
                           </td>
                           <td>
                             <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#475569' }}>
-                              {matchedCatalog?.itemType === 'SERVICE' ? 'Dịch vụ' : 'Phụ tùng'}
+                              {isPart ? 'Phụ tùng' : 'Dịch vụ'}
                             </span>
                           </td>
                           <td>
@@ -353,12 +412,44 @@ export default function ComboItemsConfigModal({ isOpen, onClose, comboItem }) {
                             </select>
                           </td>
                           <td>
+                            {isPart ? (
+                              <select
+                                value={item.allocationMethod || 'FIFO'}
+                                onChange={(e) => handleAllocationMethodChange(idx, e.target.value)}
+                                style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 4px', fontSize: '11.5px', background: '#fff' }}
+                              >
+                                <option value="FIFO">FIFO (Tự động)</option>
+                                <option value="MANUAL">Chọn lô thủ công</option>
+                              </select>
+                            ) : (
+                              <span style={{ color: '#64748b', fontSize: '11.5px' }}>Tự động (FIFO)</span>
+                            )}
+                          </td>
+                          <td>
+                            {isPart && (item.allocationMethod === 'MANUAL') ? (
+                              <select
+                                value={item.entryItemId || ''}
+                                onChange={(e) => handleEntryItemIdChange(idx, e.target.value)}
+                                style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 4px', fontSize: '11.5px', background: '#fff' }}
+                              >
+                                <option value="">-- Chọn lô hàng --</option>
+                                {lots.map(lot => (
+                                  <option key={lot.entryItemId} value={lot.entryItemId}>
+                                    {lot.entryCode} ({lot.warehouseName} - Còn {lot.remainingQuantity} - Giá {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(lot.sellingPrice)})
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Không áp dụng</span>
+                            )}
+                          </td>
+                          <td>
                             <input
                               type="number"
                               min="1"
                               value={item.quantity}
                               onChange={(e) => handleQtyChange(idx, e.target.value)}
-                              style={{ width: '60px', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '4px', textAlign: 'center', fontSize: '12px' }}
+                              style={{ width: '50px', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '4px', textAlign: 'center', fontSize: '12px' }}
                             />
                           </td>
                           <td style={{ textAlign: 'center' }}>

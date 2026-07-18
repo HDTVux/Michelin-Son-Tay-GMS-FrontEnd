@@ -2970,6 +2970,31 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		[isCreating, isSaving],
 	);
 
+	// Phân rã Combo bảo dưỡng thành các phụ tùng/dịch vụ con
+	const expandComboToRows = useCallback((index, expandedRows) => {
+		if (isCreating) {
+			setDraftRows((prev) => {
+				const base = Array.isArray(prev) ? prev : [];
+				const next = [...base];
+				next[index] = expandedRows[0];
+				if (expandedRows.length > 1) {
+					next.splice(index + 1, 0, ...expandedRows.slice(1));
+				}
+				return normalizeDraftRows(next);
+			});
+		} else if (isEditing) {
+			setEditRows((prev) => {
+				const base = Array.isArray(prev) ? prev : [];
+				const next = [...base];
+				next[index] = expandedRows[0];
+				if (expandedRows.length > 1) {
+					next.splice(index + 1, 0, ...expandedRows.slice(1));
+				}
+				return normalizeDraftRows(next);
+			});
+		}
+	}, [isCreating, isEditing]);
+
 	return {
 		estimate,
 		loading,
@@ -3029,6 +3054,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		syncEstimate,
 		softDeleteEditRow,
 		softDeleteDraftRow,
+		expandComboToRows,
 		inventory,
 		selectedFallbackPricingConfigId,
 		setSelectedFallbackPricingConfigId,
