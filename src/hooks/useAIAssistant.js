@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { sendAiMessage } from '../services/aiAssistantService.js';
 
 const MAX_HISTORY_TURNS = 10;
@@ -18,13 +18,31 @@ const MOCK_REPLY =
  * @param {boolean} options.mock - Khi true (mặc định), trả lời giả lập vì backend/API key
  *   chưa sẵn sàng. Đặt false khi backend đã triển khai /api/ai-assistant/chat.
  */
+const STORAGE_KEY = 'gmsAIAssistantMessages';
+
 export const useAIAssistant = ({ enabled = true, mock = true } = {}) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Failed to load AI assistant messages:', e);
+      return [];
+    }
+  });
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
   const messagesRef = useRef([]);
   messagesRef.current = messages;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch (e) {
+      console.error('Failed to save AI assistant messages:', e);
+    }
+  }, [messages]);
 
   const openPanel = useCallback(() => setIsOpen(true), []);
   const closePanel = useCallback(() => setIsOpen(false), []);
