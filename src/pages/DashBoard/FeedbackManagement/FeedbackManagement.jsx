@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { formatDateTimeViNoSeconds, formatTimeHHmm } from '../../../components/timeUtils.js';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
+import { fetchAllStaff } from '../../../services/adminService.js';
 import { fetchFeedbackPaged } from '../../../services/feedbackService.js';
 import {
   fetchServiceTicketsPaged,
   fetchTicketAssignments,
 } from '../../../services/serviceTicketService.js';
+import { createStaffNotification } from '../../../services/staffNotificationService.js';
 import styles from './FeedbackManagement.module.css';
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -36,6 +39,10 @@ const ROLE_LABELS = {
   MANAGER: 'Quản lý',
   ADMIN: 'Admin',
 };
+
+const LOW_RATING_THRESHOLD = 4; // dưới 4 sao thì cảnh báo manager
+const LOW_RATING_ALERTED_STORAGE_KEY = 'lowRatingFeedbackAlertedKeys';
+const LOW_RATING_ALERTED_MAX_KEYS = 500;
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
 
@@ -177,6 +184,84 @@ const buildModalTicketInfo = (detail, ticketCodeFallback, serviceTicketIdFallbac
     advisorName: compactText(payload?.advisorName, ''),
     advisorId: toSafePositiveInt(payload?.advisorId),
   };
+};
+
+const getFeedbackAlertKey = (feedback) => {
+  const feedbackId = toSafePositiveInt(feedback?.feedbackId ?? feedback?.id);
+  if (feedbackId) return `fb-${feedbackId}`;
+  const ticketId = getServiceTicketIdFromAny(feedback);
+  return ticketId ? `ticket-${ticketId}` : null;
+};
+
+const readAlertedFeedbackKeys = () => {
+  try {
+    const raw = localStorage.getItem(LOW_RATING_ALERTED_STORAGE_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(list) ? list.map(String) : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const saveAlertedFeedbackKeys = (keys) => {
+  try {
+    const list = [...keys].slice(-LOW_RATING_ALERTED_MAX_KEYS);
+    localStorage.setItem(LOW_RATING_ALERTED_STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    // localStorage đầy hoặc bị chặn: bỏ qua, lần sau có thể gửi lại cảnh báo
+  }
+};
+
+const isLowRatingFeedback = (feedback) => {
+  const rating = Number(feedback?.starRating);
+  return Number.isFinite(rating) && rating > 0 && rating < LOW_RATING_THRESHOLD;
+};
+
+const isManagerStaff = (staff) => {
+  const roles = Array.isArray(staff?.roles) ? staff.roles : [];
+  return roles.some((role) => {
+    const code = String(role?.roleCode || role?.roleName || '').trim().toUpperCase();
+    return code.includes('MANAGER') || code === 'QUẢN LÝ';
+  });
+};
+
+const readCurrentStaffId = () => {
+  try {
+    const raw = localStorage.getItem('staffProfile');
+    const profile = raw ? JSON.parse(raw) : null;
+    return toSafePositiveInt(profile?.staffId ?? profile?.id);
+  } catch {
+    return null;
+  }
+};
+
+const fetchManagerStaffIds = async (token) => {
+  const response = await fetchAllStaff({ page: 0, size: 300, status: 'ACTIVE' }, token);
+  const payload = extractPayload(response) ?? {};
+  const rows = Array.isArray(payload?.content)
+    ? payload.content
+    : Array.isArray(payload?.items)
+      ? payload.items
+      : Array.isArray(payload)
+        ? payload
+        : [];
+  const ids = rows
+    .filter(isManagerStaff)
+    .map((staff) => toSafePositiveInt(staff?.staffId ?? staff?.id))
+    .filter(Boolean);
+  return [...new Set(ids)];
+};
+
+const buildLowRatingAlertMessage = (feedback) => {
+  const rating = Math.trunc(Number(feedback?.starRating));
+  const ticketId = getServiceTicketIdFromAny(feedback);
+  const comment = compactText(feedback?.comment, '');
+  const parts = [
+    `Khách hàng đánh giá ${rating}/5 sao${ticketId ? ` cho phiếu dịch vụ #${ticketId}` : ''}.`,
+  ];
+  if (comment) parts.push(`Nhận xét: "${comment}".`);
+  parts.push('Vui lòng kiểm tra tại trang Quản lý feedback.');
+  return parts.join(' ');
 };
 
 function FeedbackManagement() {
@@ -337,6 +422,56 @@ function FeedbackManagement() {
   useEffect(() => {
     loadFeedback();
   }, [loadFeedback]);
+
+  const lowRatingAlertRunningRef = useRef(false);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token || items.length === 0 || lowRatingAlertRunningRef.current) return;
+
+    const alertedKeys = readAlertedFeedbackKeys();
+    const pendingAlerts = items
+      .map((feedback) => ({ feedback, key: getFeedbackAlertKey(feedback) }))
+      .filter(({ feedback, key }) => key && !alertedKeys.has(key) && isLowRatingFeedback(feedback));
+
+    if (pendingAlerts.length === 0) return;
+
+    lowRatingAlertRunningRef.current = true;
+
+    (async () => {
+      try {
+        const managerIds = await fetchManagerStaffIds(token);
+        if (managerIds.length === 0) return;
+
+        const sentBy = readCurrentStaffId();
+        for (const { feedback, key } of pendingAlerts) {
+          const results = await Promise.allSettled(
+            managerIds.map((staffId) =>
+              createStaffNotification({
+                staffId,
+                title: 'Cảnh báo: Feedback đánh giá thấp',
+                message: buildLowRatingAlertMessage(feedback),
+                notificationType: 'WARNING',
+                isRead: false,
+                sentBy,
+              }),
+            ),
+          );
+          if (results.some((result) => result.status === 'fulfilled')) {
+            alertedKeys.add(key);
+          }
+        }
+        saveAlertedFeedbackKeys(alertedKeys);
+        toast.warn(
+          `Đã gửi cảnh báo tới quản lý về ${pendingAlerts.length} feedback dưới ${LOW_RATING_THRESHOLD} sao.`,
+        );
+      } catch {
+        // Không chặn trang nếu gửi cảnh báo thất bại; lần tải sau sẽ thử lại
+      } finally {
+        lowRatingAlertRunningRef.current = false;
+      }
+    })();
+  }, [getToken, items]);
 
   const safePage = Math.min(Math.max(0, page), Math.max(0, totalPages - 1));
   const safeSize = Number.isFinite(size) && size >= 1 ? Math.trunc(size) : DEFAULT_PAGE_SIZE;
@@ -581,11 +716,18 @@ function FeedbackManagement() {
               ) : (
                 items.map((item, index) => {
                   const ticketId = getServiceTicketIdFromAny(item);
+                  const isLowRating = isLowRatingFeedback(item);
                   return (
-                    <tr key={`${ticketId || 'feedback'}-${index}`}>
+                    <tr
+                      key={`${ticketId || 'feedback'}-${index}`}
+                      className={isLowRating ? styles.lowRatingRow : undefined}
+                    >
                       <td>{safePage * safeSize + index + 1}</td>
                       <td className={styles.ticketCodeCell}>{ticketId || '-'}</td>
-                      <td>{renderStars(item?.starRating)}</td>
+                      <td>
+                        {renderStars(item?.starRating)}
+                        {isLowRating && <span className={styles.lowRatingBadge}>Cần chú ý</span>}
+                      </td>
                       <td className={styles.leftCell}>{compactText(item?.comment)}</td>
                       <td className={styles.leftCell}>{compactText(item?.detailFeedback)}</td>
                       <td>

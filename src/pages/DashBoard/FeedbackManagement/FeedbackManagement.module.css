@@ -687,3 +687,24 @@
     align-items: stretch;
   }
 }
+
+.lowRatingRow {
+  background: #fef2f2;
+}
+
+.lowRatingRow:hover {
+  background: #fee2e2;
+}
+
+.lowRatingBadge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}

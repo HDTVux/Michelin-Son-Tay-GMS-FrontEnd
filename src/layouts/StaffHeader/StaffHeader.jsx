@@ -20,6 +20,7 @@ import {
   ShoppingCart,
   ScanQrCode,
   FileClock,
+  Sparkles,
 } from 'lucide-react';
 import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
 import UniversalScannerModal from '../../components/UniversalScanner/UniversalScannerModal.jsx';
@@ -287,7 +288,7 @@ const PERSONAL_NAV_ITEMS = [
   { id: 'work-history-admin', label: 'Lịch sử công việc', path: '/work-history/admin', icon: <Briefcase size={18} />, roles: [STAFF_ROLE.ADMIN] },
 ];
 
-const StaffHeader = ({ notificationState, notificationBell, chatButton }) => {
+const StaffHeader = ({ notificationState, notificationBell, chatButton, onOpenAiAssistant }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -429,7 +430,21 @@ const StaffHeader = ({ notificationState, notificationBell, chatButton }) => {
                   <span className="staff-header__dropdown-item-label">{item.label}</span>
                 </button>
               ))}
-              {personalItems.length > 0 && <hr className="staff-header__dropdown-divider" />}
+              {onOpenAiAssistant && (
+                <button
+                  type="button"
+                  className="staff-header__dropdown-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsProfileDropdownOpen(false);
+                    onOpenAiAssistant();
+                  }}
+                >
+                  <span className="staff-header__dropdown-item-icon"><Sparkles size={18} /></span>
+                  <span className="staff-header__dropdown-item-label">Trợ lý AI</span>
+                </button>
+              )}
+              {(personalItems.length > 0 || onOpenAiAssistant) && <hr className="staff-header__dropdown-divider" />}
               <button
                 type="button"
                 className="staff-header__dropdown-item logout"

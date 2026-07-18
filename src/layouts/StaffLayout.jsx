@@ -2,6 +2,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLayoutEffect, useState, useEffect, useMemo } from 'react';
 import { useNotifications } from '../hooks/useNotifications.js';
 import { useChat } from '../hooks/useChat.js';
+import { useAIAssistant } from '../hooks/useAIAssistant.js';
 import SideBar from './Sidebar/SideBar.jsx';
 import MobileNavbar from './MobileNavbar/MobileNavbar.jsx';
 import StaffHeader from './StaffHeader/StaffHeader.jsx';
@@ -9,6 +10,7 @@ import UserTour from '../components/UserTour/UserTour.jsx';
 import ChatLauncher from '../components/Chat/ChatLauncher.jsx';
 import ChatWindowDock from '../components/Chat/ChatWindowDock.jsx';
 import ChatMobileNavButton from '../components/Chat/ChatMobileNavButton.jsx';
+import AIAssistantPanel from '../components/AIAssistant/AIAssistantPanel.jsx';
 import { initNotificationSound } from '../utils/notificationSound.js';
 import './StaffLayout.css';
 
@@ -556,6 +558,7 @@ const StaffLayout = () => {
   const notificationState = useNotifications({ enabled: hasStaffToken, notifyOnReceive: true });
   // Backend chat (/api/chat/*, /ws-chat) đã triển khai theo contract trong src/services/chatService.js.
   const chatState = useChat({ enabled: hasStaffToken, mock: false });
+  const aiAssistantState = useAIAssistant({ enabled: hasStaffToken, mock: false  });
 
   useLayoutEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -585,14 +588,16 @@ const StaffLayout = () => {
             notificationState={notificationState}
             notificationBell={<StaffNotificationBell {...notificationState} />}
             chatButton={<ChatLauncher chatState={chatState} />}
+            onOpenAiAssistant={aiAssistantState.openPanel}
           />
         )}
         <div className="staffLayout__page-container">
-          <Outlet context={{ notificationState, chatState }} />
+          <Outlet context={{ notificationState, chatState, aiAssistantState }} />
         </div>
       </main>
       {hasStaffToken && <MobileNavbar notificationState={notificationState} />}
       {hasStaffToken && <ChatWindowDock chatState={chatState} />}
+      {hasStaffToken && <AIAssistantPanel aiState={aiAssistantState} />}
       <UserTour type="staff" />
     </div>
   );

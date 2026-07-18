@@ -1,129 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
 
+import {
+  ACTION_LABELS,
+  MODULE_LABELS,
+  ROLE_LABELS,
+  SEVERITY_LABELS,
+  exportSystemLogs,
+  fetchSystemLogStats,
+  fetchSystemLogsPaged,
+} from '../../../services/systemLogService.js';
 import styles from './SystemLogManagement.module.css';
 
-const SEVERITY = {
-  INFO: 'Thông tin',
-  WARNING: 'Cảnh báo',
-  CRITICAL: 'Nghiêm trọng',
-};
-
-const ACTION_TYPES = {
-  LOGIN: 'Đăng nhập',
-  FAILED_LOGIN: 'Đăng nhập thất bại',
-  VIEW: 'Xem dữ liệu',
-  UPDATE: 'Cập nhật',
-  DELETE: 'Xóa',
-  PERMISSION: 'Phân quyền',
-  PRICE_OVERRIDE: 'Ghi đè giá',
-};
-
-const SAMPLE_LOGS = [
-  {
-    id: 'log-001',
-    timestamp: '2026-03-22T10:15:30',
-    userName: 'John Doe',
-    role: 'Quản trị',
-    severity: SEVERITY.INFO,
-    actionType: ACTION_TYPES.LOGIN,
-    actionPerformed: 'Đăng nhập thành công',
-    module: 'Xác thực',
-    targetId: 'Người dùng: JohnDoe',
-    ipAddress: '192.168.1.10',
-    device: 'Chrome (Windows)',
-  },
-  {
-    id: 'log-002',
-    timestamp: '2026-03-22T10:17:02',
-    userName: 'Jane Doe',
-    role: 'Người dùng',
-    severity: SEVERITY.INFO,
-    actionType: ACTION_TYPES.VIEW,
-    actionPerformed: 'Xem hồ sơ',
-    module: 'Hồ sơ',
-    targetId: 'Người dùng: JaneDoe',
-    ipAddress: '192.168.1.21',
-    device: 'Safari (iOS)',
-  },
-  {
-    id: 'log-003',
-    timestamp: '2026-03-22T10:20:11',
-    userName: 'Peter Pan',
-    role: 'Biên tập',
-    severity: SEVERITY.WARNING,
-    actionType: ACTION_TYPES.UPDATE,
-    actionPerformed: 'Chỉnh sửa tài liệu',
-    module: 'Tài liệu',
-    targetId: 'Tài liệu: POL-2026-03',
-    ipAddress: '10.0.2.15',
-    device: 'Edge (Windows)',
-  },
-  {
-    id: 'log-004',
-    timestamp: '2026-03-22T10:22:45',
-    userName: 'Alice',
-    role: 'Người xem',
-    severity: SEVERITY.INFO,
-    actionType: ACTION_TYPES.VIEW,
-    actionPerformed: 'Xem báo cáo',
-    module: 'Báo cáo',
-    targetId: 'Báo cáo: System-Weekly',
-    ipAddress: '172.16.0.8',
-    device: 'Chrome (macOS)',
-  },
-  {
-    id: 'log-005',
-    timestamp: '2026-03-22T10:25:09',
-    userName: 'VuHDT',
-    role: 'Quản trị',
-    severity: SEVERITY.CRITICAL,
-    actionType: ACTION_TYPES.PERMISSION,
-    actionPerformed: 'Đổi quyền thành Admin',
-    module: 'Người dùng',
-    targetId: 'Người dùng: TranMinhK',
-    ipAddress: '192.168.5.9',
-    device: 'Chrome (Windows)',
-  },
-  {
-    id: 'log-006',
-    timestamp: '2026-03-22T10:28:58',
-    userName: 'Hệ thống',
-    role: 'Hệ thống',
-    severity: SEVERITY.CRITICAL,
-    actionType: ACTION_TYPES.PRICE_OVERRIDE,
-    actionPerformed: 'Ghi đè giá (BR010)',
-    module: 'Danh mục',
-    targetId: 'Dịch vụ: OilChange#101',
-    ipAddress: '127.0.0.1',
-    device: 'Job Runner',
-  },
-  {
-    id: 'log-007',
-    timestamp: '2026-03-22T10:33:41',
-    userName: 'John Doe',
-    role: 'Quản trị',
-    severity: SEVERITY.CRITICAL,
-    actionType: ACTION_TYPES.DELETE,
-    actionPerformed: 'Đã xóa phiếu',
-    module: 'Phiếu',
-    targetId: 'Phiếu #8899',
-    ipAddress: '192.168.1.10',
-    device: 'Chrome (Windows)',
-  },
-  {
-    id: 'log-008',
-    timestamp: '2026-03-22T10:35:10',
-    userName: 'Không rõ',
-    role: 'Khách',
-    severity: SEVERITY.WARNING,
-    actionType: ACTION_TYPES.FAILED_LOGIN,
-    actionPerformed: 'Đăng nhập thất bại',
-    module: 'Xác thực',
-    targetId: 'Người dùng: (không rõ)',
-    ipAddress: '203.0.113.88',
-    device: 'Android WebView',
-  },
-];
+const PAGE_SIZE = 10;
 
 function pad2(number) {
   return String(number).padStart(2, '0');
@@ -136,61 +25,29 @@ function formatTimestampVi(dateTimeString) {
   return `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
 }
 
-function getActionTone(log) {
-  const action = String(log?.actionPerformed || '').toLowerCase();
-  const actionType = String(log?.actionType || '').toLowerCase();
-
-  if (action.includes('xóa') || actionType.includes('xóa')) return 'critical';
-  if (action.includes('ghi đè giá') || action.includes('br010') || actionType.includes('ghi đè')) return 'warning';
-
-  if (log?.severity === SEVERITY.CRITICAL) return 'critical';
-  if (log?.severity === SEVERITY.WARNING) return 'warning';
-  return 'info';
-}
-
-function toDayStart(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(`${dateStr}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function toDayEnd(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(`${dateStr}T23:59:59.999`);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function getSeverityClass(severity, styles) {
-  if (severity === SEVERITY.CRITICAL) return styles.sevCritical;
-  if (severity === SEVERITY.WARNING) return styles.sevWarning;
+function getSeverityClass(severityCode) {
+  if (severityCode === 'CRITICAL') return styles.sevCritical;
+  if (severityCode === 'WARNING') return styles.sevWarning;
   return styles.sevInfo;
 }
 
-function matchesDateRange(log, start, end) {
-  if (!start && !end) return true;
-  const t = new Date(log.timestamp);
-  if (Number.isNaN(t.getTime())) return false;
-  if (start && t < start) return false;
-  if (end && t > end) return false;
-  return true;
+function getActionToneClass(log) {
+  if (log?.action === 'DELETE' || log?.severity === 'CRITICAL') return styles.tone_critical;
+  if (log?.action === 'PRICE_OVERRIDE' || log?.severity === 'WARNING') return styles.tone_warning;
+  return styles.tone_info;
 }
 
-function matchesSelectFilters(log, filters) {
-  const isAll = (value) => value === 'Tất cả' || value === 'All' || value == null || value === '';
+const EMPTY_FILTER = { startDate: '', endDate: '', role: '', action: '', severity: '' };
 
-  if (!isAll(filters.role) && log.role !== filters.role) return false;
-  if (!isAll(filters.actionType) && log.actionType !== filters.actionType) return false;
-  if (!isAll(filters.severity) && log.severity !== filters.severity) return false;
-  return true;
-}
-
-function matchesSearch(log, query) {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  const hay = `${log.userName} ${log.role} ${log.actionPerformed} ${log.module} ${log.targetId} ${log.ipAddress} ${log.device}`
-    .toLowerCase()
-    .trim();
-  return hay.includes(q);
+function buildApiParams(filter, search) {
+  return {
+    startDate: filter.startDate ? `${filter.startDate}T00:00:00` : '',
+    endDate: filter.endDate ? `${filter.endDate}T23:59:59` : '',
+    role: filter.role,
+    action: filter.action,
+    severity: filter.severity,
+    search,
+  };
 }
 
 export default function SystemLogManagement() {
@@ -205,79 +62,92 @@ export default function SystemLogManagement() {
     [],
   );
 
-  const [filterDraft, setFilterDraft] = useState({
-    startDate: '',
-    endDate: '',
-    role: 'Tất cả',
-    actionType: 'Tất cả',
-    severity: 'Tất cả',
-  });
-  const [appliedFilter, setAppliedFilter] = useState(filterDraft);
-
+  const [filterDraft, setFilterDraft] = useState(EMPTY_FILTER);
+  const [appliedFilter, setAppliedFilter] = useState(EMPTY_FILTER);
   const [searchDraft, setSearchDraft] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
 
-  const roles = useMemo(() => {
-    const unique = Array.from(new Set(SAMPLE_LOGS.map((l) => l.role).filter(Boolean)));
-    unique.sort((a, b) => a.localeCompare(b));
-    return ['Tất cả', ...unique];
-  }, []);
+  const [page, setPage] = useState(0);
+  const [logs, setLogs] = useState([]);
+  const [pageMeta, setPageMeta] = useState({ totalPages: 0, totalElements: 0 });
+  const [stats, setStats] = useState({ total: 0, loginFailedCount: 0, dataChangeCount: 0 });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [detailLog, setDetailLog] = useState(null);
 
-  const actionTypes = useMemo(() => {
-    const unique = Array.from(new Set(SAMPLE_LOGS.map((l) => l.actionType).filter(Boolean)));
-    unique.sort((a, b) => a.localeCompare(b));
-    return ['Tất cả', ...unique];
-  }, []);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    const params = buildApiParams(appliedFilter, appliedSearch);
+    try {
+      const [listRes, statsRes] = await Promise.all([
+        fetchSystemLogsPaged({ ...params, page, size: PAGE_SIZE }),
+        fetchSystemLogStats(params),
+      ]);
+      const pageData = listRes?.data ?? listRes;
+      setLogs(Array.isArray(pageData?.content) ? pageData.content : []);
+      setPageMeta({
+        totalPages: Number(pageData?.totalPages) || 0,
+        totalElements: Number(pageData?.totalElements) || 0,
+      });
+      const statsData = statsRes?.data ?? statsRes;
+      setStats({
+        total: Number(statsData?.total) || 0,
+        loginFailedCount: Number(statsData?.loginFailedCount) || 0,
+        dataChangeCount: Number(statsData?.dataChangeCount) || 0,
+      });
+    } catch (err) {
+      setError(err?.message || 'Không tải được nhật ký hệ thống.');
+    } finally {
+      setLoading(false);
+    }
+  }, [appliedFilter, appliedSearch, page]);
 
-  const severities = useMemo(() => ['Tất cả', SEVERITY.INFO, SEVERITY.WARNING, SEVERITY.CRITICAL], []);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const actionToneClassMap = useMemo(
-    () => ({
-      info: styles.tone_info,
-      warning: styles.tone_warning,
-      critical: styles.tone_critical,
-    }),
-    [],
-  );
-
-  const filteredLogs = useMemo(() => {
-    const start = toDayStart(appliedFilter.startDate);
-    const end = toDayEnd(appliedFilter.endDate);
-    return SAMPLE_LOGS.filter((log) => {
-      if (!matchesDateRange(log, start, end)) return false;
-      if (!matchesSelectFilters(log, appliedFilter)) return false;
-      if (!matchesSearch(log, appliedSearch)) return false;
-      return true;
-    });
-  }, [appliedFilter, appliedSearch]);
-
-  const stats = useMemo(() => {
-    const total = SAMPLE_LOGS.length;
-    const failedLoginAttempts = SAMPLE_LOGS.filter((l) => l.actionType === ACTION_TYPES.FAILED_LOGIN).length;
-    const dataModifications = SAMPLE_LOGS.filter((l) =>
-      [ACTION_TYPES.UPDATE, ACTION_TYPES.DELETE, ACTION_TYPES.PERMISSION, ACTION_TYPES.PRICE_OVERRIDE].includes(
-        l.actionType,
-      ),
-    ).length;
-    return { total, failedLoginAttempts, dataModifications };
-  }, []);
+  // Nếu tổng số trang giảm (do filter), kéo page về trang cuối hợp lệ
+  useEffect(() => {
+    if (pageMeta.totalPages > 0 && page >= pageMeta.totalPages) {
+      setPage(pageMeta.totalPages - 1);
+    }
+  }, [pageMeta.totalPages, page]);
 
   const onApplyFilter = () => {
+    setPage(0);
     setAppliedFilter(filterDraft);
   };
 
   const onReset = () => {
-    const reset = { startDate: '', endDate: '', role: 'Tất cả', actionType: 'Tất cả', severity: 'Tất cả' };
-    setFilterDraft(reset);
-    setAppliedFilter(reset);
+    setFilterDraft(EMPTY_FILTER);
+    setAppliedFilter(EMPTY_FILTER);
     setSearchDraft('');
     setAppliedSearch('');
+    setPage(0);
   };
 
   const onSearch = (e) => {
     e?.preventDefault?.();
+    setPage(0);
     setAppliedSearch(searchDraft);
   };
+
+  const onExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportSystemLogs(buildApiParams(appliedFilter, appliedSearch));
+      toast.success('Đã xuất dữ liệu nhật ký (CSV).');
+    } catch (err) {
+      toast.error(err?.message || 'Xuất dữ liệu nhật ký thất bại.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const totalPages = pageMeta.totalPages || 1;
 
   return (
     <div className={styles.page}>
@@ -290,11 +160,11 @@ export default function SystemLogManagement() {
         </div>
         <div className={`ui-card ${styles.statCard}`}>
           <div className={styles.statLabel}>Số lần đăng nhập thất bại</div>
-          <div className={styles.statValue}>{stats.failedLoginAttempts.toLocaleString('vi-VN')}</div>
+          <div className={styles.statValue}>{stats.loginFailedCount.toLocaleString('vi-VN')}</div>
         </div>
         <div className={`ui-card ${styles.statCard}`}>
           <div className={styles.statLabel}>Số lần thay đổi dữ liệu</div>
-          <div className={styles.statValue}>{stats.dataModifications.toLocaleString('vi-VN')}</div>
+          <div className={styles.statValue}>{stats.dataChangeCount.toLocaleString('vi-VN')}</div>
         </div>
       </div>
 
@@ -330,9 +200,10 @@ export default function SystemLogManagement() {
               value={filterDraft.role}
               onChange={(e) => setFilterDraft((p) => ({ ...p, role: e.target.value }))}
             >
-              {roles.map((r) => (
-                <option key={r} value={r}>
-                  {r}
+              <option value="">Tất cả</option>
+              {Object.entries(ROLE_LABELS).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -342,12 +213,13 @@ export default function SystemLogManagement() {
             <label htmlFor={controlIds.actionType}>Loại hành động</label>
             <select
               id={controlIds.actionType}
-              value={filterDraft.actionType}
-              onChange={(e) => setFilterDraft((p) => ({ ...p, actionType: e.target.value }))}
+              value={filterDraft.action}
+              onChange={(e) => setFilterDraft((p) => ({ ...p, action: e.target.value }))}
             >
-              {actionTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              <option value="">Tất cả</option>
+              {Object.entries(ACTION_LABELS).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -360,9 +232,10 @@ export default function SystemLogManagement() {
               value={filterDraft.severity}
               onChange={(e) => setFilterDraft((p) => ({ ...p, severity: e.target.value }))}
             >
-              {severities.map((s) => (
-                <option key={s} value={s}>
-                  {s}
+              <option value="">Tất cả</option>
+              {Object.entries(SEVERITY_LABELS).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -380,7 +253,7 @@ export default function SystemLogManagement() {
           <form className={styles.searchArea} onSubmit={onSearch}>
             <input
               className={styles.searchInput}
-              placeholder="Tìm theo tên"
+              placeholder="Tìm theo tên, mô tả, mã đối tượng"
               value={searchDraft}
               onChange={(e) => setSearchDraft(e.target.value)}
               aria-label="Tìm kiếm"
@@ -408,64 +281,143 @@ export default function SystemLogManagement() {
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className={styles.emptyCell}>
+                    Đang tải nhật ký...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={8} className={styles.emptyCell}>
+                    {error}{' '}
+                    <button type="button" className="ui-btn" onClick={loadData}>
+                      Thử lại
+                    </button>
+                  </td>
+                </tr>
+              ) : logs.length === 0 ? (
                 <tr>
                   <td colSpan={8} className={styles.emptyCell}>
                     Không có nhật ký phù hợp với bộ lọc hiện tại.
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log) => {
-                  const actionTone = getActionTone(log);
-                  const actionToneClass = actionToneClassMap[actionTone] || styles.tone_info;
-                  const severityClass = getSeverityClass(log.severity, styles);
-                  return (
-                    <tr key={log.id}>
-                      <td className={styles.mono}>{formatTimestampVi(log.timestamp)}</td>
-                      <td>{log.userName}</td>
-                      <td>{log.role}</td>
-                      <td>
-                        <span className={`${styles.severityBadge} ${severityClass}`}>
-                          {log.severity}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`${styles.actionBadge} ${actionToneClass}`}>
-                          {log.actionPerformed}
-                        </span>
-                        <div className={styles.subText}>{log.module}</div>
-                      </td>
-                      <td className={styles.mono}>{log.targetId}</td>
-                      <td>
-                        <div className={styles.mono}>{log.ipAddress}</div>
-                        <div className={styles.subText}>{log.device}</div>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="ui-btn"
-                          onClick={() => console.log('Xem chi tiết:', log)}
-                        >
-                          Xem chi tiết
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
+                logs.map((log) => (
+                  <tr key={log.logId}>
+                    <td className={styles.mono}>{formatTimestampVi(log.createdAt)}</td>
+                    <td>{log.actorName || 'Không rõ'}</td>
+                    <td>{ROLE_LABELS[log.actorRole] || log.actorRole || '-'}</td>
+                    <td>
+                      <span className={`${styles.severityBadge} ${getSeverityClass(log.severity)}`}>
+                        {SEVERITY_LABELS[log.severity] || log.severity}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`${styles.actionBadge} ${getActionToneClass(log)}`}>
+                        {ACTION_LABELS[log.action] || log.action}
+                      </span>
+                      <div className={styles.subText}>{MODULE_LABELS[log.module] || log.module}</div>
+                    </td>
+                    <td className={styles.mono}>
+                      {log.targetType || log.targetId
+                        ? `${log.targetType || ''}${log.targetType && log.targetId ? ': ' : ''}${log.targetId || ''}`
+                        : '-'}
+                    </td>
+                    <td>
+                      <div className={styles.mono}>{log.ipAddress || '-'}</div>
+                      <div className={styles.subText}>{log.userAgent ? log.userAgent.slice(0, 40) : ''}</div>
+                    </td>
+                    <td>
+                      <button type="button" className="ui-btn" onClick={() => setDetailLog(log)}>
+                        Xem chi tiết
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="ui-actions ui-actions--end">
-          <button type="button" className="ui-btn ui-btn--primary" onClick={() => console.log('Tạo báo cáo')}>
-            Tạo báo cáo
-          </button>
-          <button type="button" className="ui-btn" onClick={() => console.log('Xuất dữ liệu nhật ký')}>
-            Xuất dữ liệu nhật ký
-          </button>
+        <div className={styles.footerRow}>
+          <div className={styles.pagination}>
+            <button
+              type="button"
+              className="ui-btn"
+              disabled={page <= 0 || loading}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              Trang trước
+            </button>
+            <span className={styles.pageInfo}>
+              Trang {page + 1} / {totalPages} · {pageMeta.totalElements.toLocaleString('vi-VN')} bản ghi
+            </span>
+            <button
+              type="button"
+              className="ui-btn"
+              disabled={page + 1 >= totalPages || loading}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Trang sau
+            </button>
+          </div>
+
+          <div className="ui-actions ui-actions--end">
+            <button type="button" className="ui-btn ui-btn--primary" onClick={onExport} disabled={exporting}>
+              {exporting ? 'Đang xuất...' : 'Xuất dữ liệu nhật ký (CSV)'}
+            </button>
+          </div>
         </div>
       </div>
+
+      {detailLog && (
+        <div className={styles.modalOverlay} onClick={() => setDetailLog(null)} role="presentation">
+          <div
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chi tiết nhật ký"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader}>
+              <h3>Chi tiết nhật ký #{detailLog.logId}</h3>
+              <button type="button" className="ui-btn" onClick={() => setDetailLog(null)}>
+                Đóng
+              </button>
+            </div>
+            <dl className={styles.detailList}>
+              <dt>Thời gian</dt>
+              <dd>{formatTimestampVi(detailLog.createdAt)}</dd>
+              <dt>Người dùng</dt>
+              <dd>
+                {detailLog.actorName || 'Không rõ'}
+                {detailLog.actorStaffId ? ` (mã NV: ${detailLog.actorStaffId})` : ''}
+              </dd>
+              <dt>Vai trò</dt>
+              <dd>{ROLE_LABELS[detailLog.actorRole] || detailLog.actorRole || '-'}</dd>
+              <dt>Hành động</dt>
+              <dd>{ACTION_LABELS[detailLog.action] || detailLog.action}</dd>
+              <dt>Phân hệ</dt>
+              <dd>{MODULE_LABELS[detailLog.module] || detailLog.module}</dd>
+              <dt>Mức độ</dt>
+              <dd>{SEVERITY_LABELS[detailLog.severity] || detailLog.severity}</dd>
+              <dt>Mô tả</dt>
+              <dd>{detailLog.description || '-'}</dd>
+              <dt>Đối tượng</dt>
+              <dd>
+                {detailLog.targetType || detailLog.targetId
+                  ? `${detailLog.targetType || ''}${detailLog.targetType && detailLog.targetId ? ': ' : ''}${detailLog.targetId || ''}`
+                  : '-'}
+              </dd>
+              <dt>Địa chỉ IP</dt>
+              <dd className={styles.mono}>{detailLog.ipAddress || '-'}</dd>
+              <dt>Trình duyệt / Thiết bị</dt>
+              <dd className={styles.breakAll}>{detailLog.userAgent || '-'}</dd>
+            </dl>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
