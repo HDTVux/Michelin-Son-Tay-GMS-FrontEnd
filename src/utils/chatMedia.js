@@ -4,6 +4,42 @@
 
 const VIDEO_COMPRESS_THRESHOLD_BYTES = 18 * 1024 * 1024; // ~18MB
 
+// Ảnh chụp mặc định của iPhone dùng định dạng HEIC/HEIF — CHỈ Safari (macOS/iOS) giải mã
+// được qua <img>/canvas, mọi trình duyệt khác (Chrome/Edge/Firefox trên Windows/Android)
+// đều không xem/nén được, khiến người nhận không phải dùng Safari thấy ảnh vỡ/không hiện.
+// iOS thường để trống `file.type` khi chọn ảnh HEIC qua input — phải nhận diện thêm qua
+// đuôi file.
+const isHeicFile = (file) => {
+  const type = (file?.type || '').toLowerCase();
+  if (type === 'image/heic' || type === 'image/heif') return true;
+  return /\.hei[cf]$/i.test(file?.name || '');
+};
+
+/** Convert HEIC/HEIF -> JPEG (chạy trước bước nén ảnh chung) để mọi trình duyệt xem được. */
+const convertHeicToJpeg = async (file) => {
+  try {
+    const heic2any = (await import('heic2any')).default;
+    const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+    const jpegBlob = Array.isArray(result) ? result[0] : result;
+    const jpegName = file.name.replace(/\.hei[cf]$/i, '.jpg');
+    return new File([jpegBlob], jpegName || 'photo.jpg', { type: 'image/jpeg' });
+  } catch {
+    // Nếu decode thất bại (file lỗi/không đúng định dạng thật), gửi file gốc — người
+    // dùng Safari vẫn xem được bình thường, chỉ mất tính năng convert cho trình duyệt khác.
+    return file;
+  }
+};
+
+// iPhone quay video mặc định đóng gói .mov + codec HEVC (H.265) — Safari phát được nhưng
+// Chrome trên Windows/Android nói chung KHÔNG phát được (thiếu hỗ trợ phần cứng/license),
+// nên phải luôn convert sang .mp4/H.264 (định dạng tương thích mọi nơi) bất kể dung lượng,
+// không chỉ khi vượt ngưỡng nén như trước.
+const isQuickTimeFile = (file) => {
+  const type = (file?.type || '').toLowerCase();
+  if (type === 'video/quicktime') return true;
+  return /\.mov$/i.test(file?.name || '');
+};
+
 let ffmpegInstance = null;
 let ffmpegLoadPromise = null;
 
@@ -42,32 +78,48 @@ const loadFfmpeg = async (onProgress) => {
  * @returns {Promise<File>}
  */
 export const compressImage = async (file, onProgress) => {
-  if (!file || !file.type?.startsWith('image/')) return file;
+  if (!file) return file;
+  // HEIC/HEIF: file.type thường RỖNG trên iOS (không phải "image/heic") nên phải nhận
+  // diện qua đuôi file — nếu chỉ check `file.type?.startsWith('image/')` như trước sẽ bỏ
+  // qua luôn bước convert này và gửi thẳng file HEIC gốc lên server.
+  const isHeic = isHeicFile(file);
+  if (!isHeic && !file.type?.startsWith('image/')) return file;
+
+  let workingFile = file;
+  if (isHeic) {
+    onProgress?.(0.05);
+    workingFile = await convertHeicToJpeg(file);
+  }
 
   const imageCompression = (await import('browser-image-compression')).default;
 
   try {
-    const compressed = await imageCompression(file, {
+    const compressed = await imageCompression(workingFile, {
       maxSizeMB: 1,
       maxWidthOrHeight: 1920,
       useWebWorker: true,
       onProgress: onProgress ? (p) => onProgress(p / 100) : undefined,
     });
-    return new File([compressed], file.name, { type: compressed.type || file.type });
+    return new File([compressed], workingFile.name, { type: compressed.type || workingFile.type });
   } catch {
-    return file;
+    return workingFile;
   }
 };
 
 /**
- * Nén video nếu vượt ngưỡng kích thước, dùng ffmpeg.wasm (lazy-load).
+ * Nén video nếu vượt ngưỡng kích thước, dùng ffmpeg.wasm (lazy-load). Riêng video .mov/
+ * HEVC (mặc định của iPhone) LUÔN được convert sang .mp4/H.264 dù nhỏ hơn ngưỡng — vì vấn
+ * đề ở đây không phải dung lượng mà là ĐỊNH DẠNG không phát được trên Chrome (Windows/
+ * Android) khi người nhận không dùng Safari.
  * @param {File} file
  * @param {(progress:number)=>void} [onProgress]
  * @returns {Promise<File>}
  */
 export const maybeCompressVideo = async (file, onProgress) => {
-  if (!file || !file.type?.startsWith('video/')) return file;
-  if (file.size <= VIDEO_COMPRESS_THRESHOLD_BYTES) return file;
+  if (!file) return file;
+  const isQuickTime = isQuickTimeFile(file);
+  if (!isQuickTime && !file.type?.startsWith('video/')) return file;
+  if (!isQuickTime && file.size <= VIDEO_COMPRESS_THRESHOLD_BYTES) return file;
 
   try {
     const ffmpeg = await loadFfmpeg(onProgress);

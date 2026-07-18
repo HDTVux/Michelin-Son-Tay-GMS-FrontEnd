@@ -17,6 +17,7 @@
     "browser-image-compression": "^2.0.2",
     "chart.js": "^4.5.1",
     "emoji-picker-react": "^4.19.1",
+    "heic2any": "^0.0.4",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.17.0",

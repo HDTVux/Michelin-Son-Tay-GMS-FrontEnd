@@ -52,7 +52,19 @@ const ChatComposer = ({ mock, onSend }) => {
       } else if (kind === 'video') {
         processedFile = await maybeCompressVideo(file, (p) => updatePending(id, { progress: p * 0.5 }));
       }
-      updatePending(id, { file: processedFile, status: 'ready', progress: 0.5 });
+
+      // File HEIC/HEIF (ảnh) hay .mov (video) gốc của iPhone không tự render được qua
+      // <img>/<video> trên trình duyệt không phải Safari — nếu vẫn dùng previewUrl tạo từ
+      // file GỐC ở trên, khung xem trước lúc soạn tin sẽ trống/vỡ. compressImage/
+      // maybeCompressVideo đã convert file này sang JPEG/MP4 (xem chatMedia.js), nên phải
+      // tạo lại previewUrl từ file ĐÃ CONVERT.
+      if (processedFile !== file && (kind === 'image' || kind === 'video')) {
+        const nextPreviewUrl = URL.createObjectURL(processedFile);
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        updatePending(id, { file: processedFile, previewUrl: nextPreviewUrl, status: 'ready', progress: 0.5 });
+      } else {
+        updatePending(id, { file: processedFile, status: 'ready', progress: 0.5 });
+      }
     } catch {
       updatePending(id, { status: 'ready', progress: 0.5 });
     }
