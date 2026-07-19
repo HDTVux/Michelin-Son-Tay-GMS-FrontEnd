@@ -516,6 +516,29 @@ export const fetchServiceTicketBookingHistoryByCustomerId = (customerId, token) 
   });
 };
 
+// Advisor: lấy danh sách phụ tùng/dịch vụ khách đã sử dụng (tổng hợp từ các phiếu dịch vụ gần nhất theo customerId)
+// Endpoint: GET /api/service-ticket/advisor/booking/history/items?customerId={customerId}
+export const fetchServiceTicketUsedItemsHistoryByCustomerId = (customerId, token) => {
+  if (!token) {
+    const error = new Error('Vui lòng đăng nhập để xem lịch sử phụ tùng/dịch vụ.');
+    error.status = 401;
+    return Promise.reject(error);
+  }
+
+  const idNum = typeof customerId === 'number' ? customerId : Number(customerId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    const error = new Error('Thiếu customerId hợp lệ.');
+    error.status = 400;
+    return Promise.reject(error);
+  }
+
+  const qs = new URLSearchParams({ customerId: String(idNum) }).toString();
+  return request(`/api/service-ticket/advisor/booking/history/items?${qs}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 // Tạo nhắc lịch bảo dưỡng (reminder) cho phiếu dịch vụ
 // Endpoint: POST /api/service-ticket/remind/create
 // Request body: { serviceTicketId, vehicleId, customerId, reminderDate: 'YYYY-MM-DD', reminderTime: 'HH:mm', note }

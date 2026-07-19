@@ -12,7 +12,8 @@ import Receipt from '../Receipt/Receipt.jsx';
 import { getDefaultSafetyInspectionCategories } from '../../../services/safetyInspectionService.js';
 import { fetchAllCustomers } from '../../../services/adminService.js';
 import { fetchFallbackPricingConfigs } from '../../../services/warehouseService.js';
-import { Contact, Search, X } from 'lucide-react';
+import { fetchServiceTicketUsedItemsHistoryByCustomerId } from '../../../services/serviceTicketService.js';
+import { Contact, ExternalLink, Search, X } from 'lucide-react';
 import RankBadge from '../../../components/RankBadge/RankBadge.jsx';
 
 const DURATION_MINUTES = 60;	// Thời lượng mặc định cho 1 slot
@@ -121,6 +122,54 @@ export default function CreateBooking() {
 		setShowDirectoryModal(false);
 		setDirectorySearch('');
 	};
+
+	// Danh sách phụ tùng/dịch vụ khách đã sử dụng (dựa trên lịch sử phiếu dịch vụ gần nhất)
+	const [usedItems, setUsedItems] = useState([]);
+	const [usedItemsLoading, setUsedItemsLoading] = useState(false);
+	const [usedItemsError, setUsedItemsError] = useState('');
+
+	useEffect(() => {
+		const customerId = customerChecked?.customerId;
+		if (!customerChecked?.exists || !customerId) {
+			setUsedItems([]);
+			setUsedItemsError('');
+			setUsedItemsLoading(false);
+			return;
+		}
+
+		const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+		if (!token) return;
+
+		let active = true;
+		setUsedItemsLoading(true);
+		setUsedItemsError('');
+
+		fetchServiceTicketUsedItemsHistoryByCustomerId(customerId, token)
+			.then((res) => {
+				if (!active) return;
+				const rows = Array.isArray(res?.data) ? res.data : [];
+				const mapped = rows.map((row, idx) => ({
+					key: `${row.serviceTicketId ?? idx}-${row.itemName ?? idx}-${idx}`,
+					itemName: row.itemName || 'Chưa đặt tên',
+					categoryName: row.categoryName || '',
+					ticketCode: row.ticketCode,
+					receivedAt: row.receivedAt,
+				}));
+				setUsedItems(mapped);
+			})
+			.catch((err) => {
+				if (!active) return;
+				setUsedItemsError(err?.message || 'Không thể tải lịch sử phụ tùng/dịch vụ.');
+				setUsedItems([]);
+			})
+			.finally(() => {
+				if (active) setUsedItemsLoading(false);
+			});
+
+		return () => {
+			active = false;
+		};
+	}, [customerChecked?.customerId, customerChecked?.exists]);
 
 	// Quản lý trạng thái báo giá dự kiến
 	const [selectedEstimate, setSelectedEstimate] = useState(null);
@@ -648,6 +697,49 @@ export default function CreateBooking() {
 						) : (
 							<div className={psStyles.customerInfoEmpty}>
 								Nhập số điện thoại hoặc chọn từ danh bạ để hiển thị thông tin khách.
+							</div>
+						)}
+
+						{customerChecked?.exists && (
+							<div className={styles.usedItemsBlock}>
+								<h4 className={styles.usedItemsTitle}>Phụ tùng / dịch vụ đã sử dụng</h4>
+								{usedItemsLoading && <div className={psStyles.hintText}>Đang tải lịch sử...</div>}
+								{!usedItemsLoading && usedItemsError && (
+									<div className={psStyles.errorText}>{usedItemsError}</div>
+								)}
+								{!usedItemsLoading && !usedItemsError && usedItems.length === 0 && (
+									<div className={styles.usedItemsEmpty}>Chưa có phụ tùng/dịch vụ nào được ghi nhận.</div>
+								)}
+								{!usedItemsLoading && !usedItemsError && usedItems.length > 0 && (
+									<div className={styles.usedItemsList}>
+										{usedItems.map((item) => (
+											<div key={item.key} className={styles.usedItemRow}>
+												<div className={styles.usedItemInfo}>
+													<div className={styles.usedItemName} title={item.itemName}>
+														{item.itemName}
+													</div>
+													<div className={styles.usedItemMeta}>
+														{item.categoryName ? `${item.categoryName} · ` : ''}
+														{item.ticketCode || '-'}
+														{item.receivedAt
+															? ` · ${new Date(item.receivedAt).toLocaleDateString('vi-VN')}`
+															: ''}
+													</div>
+												</div>
+												<button
+													type="button"
+													className={styles.usedItemOpenBtn}
+													onClick={() => navigate(`/service-ticket-detail/${item.ticketCode}`)}
+													disabled={!item.ticketCode}
+													title="Mở phiếu dịch vụ"
+												>
+													<ExternalLink size={12} style={{ marginRight: 4 }} />
+													Mở phiếu
+												</button>
+											</div>
+										))}
+									</div>
+								)}
 							</div>
 						)}
 					</section>
