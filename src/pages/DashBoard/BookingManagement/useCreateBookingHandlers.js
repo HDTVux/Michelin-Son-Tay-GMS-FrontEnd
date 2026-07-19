@@ -124,7 +124,6 @@ export function useCreateBookingHandlers({
 	setIsEstimateEditing,
 	setEstimateTableKey,
 	setCancellingEstimate,
-	setStepIndex,
 }) {
 	const submitInFlightRef = useRef(false);	// Ref chống spam click submit
 
@@ -430,7 +429,6 @@ export function useCreateBookingHandlers({
 		setSubmitSuccess('');
 		setCreatedBookingForCheckIn(null);
 		setSubmitLocked(false);
-		if (setStepIndex) setStepIndex(0);
 	}, [
 		setAvailableSlots,
 		setCreatedBookingForCheckIn,
@@ -445,7 +443,6 @@ export function useCreateBookingHandlers({
 		setSubmitSuccess,
 		setSubmitLocked,
 		setSubmitting,
-		setStepIndex,
 	]);
 
 	// Hàm hủy báo giá dự kiến
