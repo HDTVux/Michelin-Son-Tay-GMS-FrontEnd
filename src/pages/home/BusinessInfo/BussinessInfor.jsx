@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Phone, X } from 'lucide-react';
+import { Phone, X, Bot } from 'lucide-react';
 import zaloLogo from '../../../assets/logo-zalo-vector.png';
 import messengerLogo from '../../../assets/messenger-logo.webp';
+import { useCustomerAiAssistant } from '../../../context/CustomerAiAssistantContext.jsx';
 import './BusinessInfo.css';
 
 export default function BussinessInfor() {
 	const [isVisible, setIsVisible] = useState(true);
+	const aiState = useCustomerAiAssistant();
 	const mapLink1 =
 		'https://maps.app.goo.gl/5p1HHhrirKYLRCCe9';
 	const mapEmbed1 =
@@ -78,6 +80,17 @@ export default function BussinessInfor() {
 					>
 						<X size={18} strokeWidth={2.5} />
 					</button>
+					{!aiState.isOpen && (
+						<button
+							type="button"
+							className="floatingCircle floatingCircle--ai"
+							onClick={aiState.openPanel}
+							aria-label="Mở trợ lý ảo"
+						>
+							<span className="floatingCircle__tooltip">Trợ lý ảo</span>
+							<span className="floatingCircle__icon"><Bot size={26} strokeWidth={2.2} /></span>
+						</button>
+					)}
 					<a className="floatingCircle floatingCircle--zalo" href="https://zalo.me/thietbilop" target="_blank" rel="noreferrer" aria-label="Liên hệ Zalo">
 						<span className="floatingCircle__tooltip">Chat Zalo</span>
 						<span className="floatingCircle__icon floatingCircle__icon--logo">

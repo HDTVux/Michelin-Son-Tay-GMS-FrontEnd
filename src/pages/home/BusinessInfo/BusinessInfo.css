@@ -462,6 +462,7 @@
 .floatingCircle:nth-child(2) { animation-delay: 0.1s; }
 .floatingCircle:nth-child(3) { animation-delay: 0.2s; }
 .floatingCircle:nth-child(4) { animation-delay: 0.3s; }
+.floatingCircle:nth-child(5) { animation-delay: 0.4s; }
 
 @keyframes slideInRight {
 	from { transform: translateX(120px); opacity: 0; }
@@ -599,6 +600,29 @@
 	0% { transform: translateY(0); }
 	50% { transform: translateY(-10px); }
 	100% { transform: translateY(0); }
+}
+
+/* Trợ lý ảo AI - button (không phải link), style riêng nhưng cùng khối/kích thước với 3 nút trên */
+.floatingCircle--ai {
+	background: linear-gradient(135deg, #005aa9 0%, #0b7dd6 100%);
+	color: #ffffff;
+	border: none;
+	padding: 0;
+	font: inherit;
+}
+
+.floatingCircle--ai:hover {
+	transform: scale(1.16) translateY(-6px);
+	box-shadow: 0 12px 32px rgba(0, 90, 169, 0.45), 0 0 0 4px rgba(0, 90, 169, 0.3);
+}
+
+.floatingCircle--ai:hover .floatingCircle__icon {
+	animation: aiPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes aiPulse {
+	0%, 100% { transform: scale(1); }
+	50% { transform: scale(1.12); }
 }
 
 /* Ripple effect on click */

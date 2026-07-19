@@ -7,7 +7,6 @@ const parseMarkdownToJsx = (text) => {
 
   const lines = text.split('\n');
   const result = [];
-  let inList = false;
   let listItems = [];
 
   const renderTextWithFormatting = (str) => {
@@ -41,7 +40,6 @@ const parseMarkdownToJsx = (text) => {
         </ul>
       );
       listItems = [];
-      inList = false;
     }
   };
 
@@ -59,7 +57,6 @@ const parseMarkdownToJsx = (text) => {
       flushList(i);
       result.push(<h1 key={`h1-${i}`} className="ai-assistant__h1">{renderTextWithFormatting(trimmed.substring(2).trim())}</h1>);
     } else if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
-      inList = true;
       listItems.push(trimmed.substring(2).trim());
     } else if (!trimmed) {
       flushList(i);
@@ -74,19 +71,105 @@ const parseMarkdownToJsx = (text) => {
 };
 
 
-const AIAssistantPanel = ({ aiState }) => {
-  const { isOpen, messages, isSending, closePanel, sendMessage } = aiState;
+// Rút gọn số lớn cho gọn UI: 12345 -> "12.3K", 1200000 -> "1.2M".
+const formatCompactNumber = (n) => {
+  if (n === null || n === undefined) return '—';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return `${n}`;
+};
+
+// Tách theo từng "từ + khoảng trắng theo sau" để reveal dần từng cụm — không tách riêng
+// khoảng trắng thành 1 bước (sẽ gây khựng vô nghĩa giữa các từ).
+const splitIntoRevealChunks = (text) => text.match(/\S+\s*/g) || (text ? [text] : []);
+
+const AIAssistantPanel = ({
+  aiState,
+  title = 'Trợ lý AI',
+  emptyText = 'Xin chào! Tôi có thể giúp gì cho bạn hôm nay?',
+  showTokenUsage = true,
+}) => {
+  const { isOpen, messages, isSending, closePanel, sendMessage, quota } = aiState;
   const [draft, setDraft] = useState('');
   const listRef = useRef(null);
   const [width, setWidth] = useState(380);
   const [isResizing, setIsResizing] = useState(false);
   const isResizingRef = useRef(false);
 
+  // ==== Hiệu ứng "generative" (chữ hiện dần) cho tin nhắn AI mới nhất ====
+  // Backend không stream thật (Gemini trả về nguyên văn), nên hiệu ứng này giả lập
+  // client-side: cắt câu trả lời thành các cụm từ rồi hiện dần từng cụm, đồng thời
+  // (chỉ khi có usage.totalTokens — tức staff) tính số token hiển thị theo tỉ lệ số
+  // cụm đã hiện, tạo cảm giác token đang tăng dần theo văn bản như đang được sinh ra.
+  const [revealChunks, setRevealChunks] = useState(null); // { id, chunks, totalTokens }
+  const [revealCount, setRevealCount] = useState(0);
+  // "Tin nhắn cuối cùng đã bắt đầu reveal" lưu ở state (không dùng ref) vì được ĐỌC
+  // ngay trong lúc render — theo đúng pattern React khuyến nghị cho việc reset state
+  // khi một giá trị đổi ("Adjusting state when a prop changes" trong docs React).
+  // Khởi tạo bằng id tin nhắn cuối CÓ SẴN lúc mount (lịch sử load từ localStorage) —
+  // nếu không, mỗi lần mở lại panel/tải lại trang sẽ tưởng lịch sử cũ là tin nhắn mới
+  // và chạy lại hiệu ứng reveal cho nó, dù người dùng không vừa gửi gì cả.
+  const [lastSeenMessageId, setLastSeenMessageId] = useState(() => messages[messages.length - 1]?.id ?? null);
+
+  const lastMessage = messages[messages.length - 1];
+  if (lastMessage && lastMessage.role !== 'user' && !lastMessage.isError && lastMessage.id !== lastSeenMessageId) {
+    setLastSeenMessageId(lastMessage.id);
+    setRevealChunks({
+      id: lastMessage.id,
+      chunks: splitIntoRevealChunks(lastMessage.text),
+      totalTokens: lastMessage.usage?.totalTokens ?? null,
+    });
+    setRevealCount(0);
+  }
+
+  useEffect(() => {
+    if (!revealChunks || revealCount >= revealChunks.chunks.length) return undefined;
+    // Câu dài thì hiện nhiều cụm/nhịp hơn để tổng thời gian animation không quá lâu.
+    const step = revealChunks.chunks.length > 150 ? 4 : revealChunks.chunks.length > 80 ? 2 : 1;
+    const delay = 16 + Math.random() * 18;
+    const timer = setTimeout(() => setRevealCount((c) => Math.min(c + step, revealChunks.chunks.length)), delay);
+    return () => clearTimeout(timer);
+  }, [revealChunks, revealCount]);
+
+  const isRevealingMessage = (id) => revealChunks?.id === id && revealCount < revealChunks.chunks.length;
+
+  const getDisplayText = (m) =>
+    revealChunks?.id === m.id ? revealChunks.chunks.slice(0, revealCount).join('') : m.text;
+
+  const getDisplayTokens = (m) => {
+    if (m.usage?.totalTokens == null) return null;
+    if (revealChunks?.id === m.id && revealChunks.chunks.length > 0) {
+      return Math.round(m.usage.totalTokens * (revealCount / revealChunks.chunks.length));
+    }
+    return m.usage.totalTokens;
+  };
+
+  // ==== Counter token ước lượng, tăng dần khi đang chờ Gemini trả lời (chưa có text) ====
+  // Đây là số GIẢ LẬP (client tự đếm để tạo cảm giác đang xử lý) vì lúc này chưa có
+  // response nên chưa thể biết số token thật — số thật chỉ xuất hiện sau khi có usage
+  // ở trên. Chỉ hiện cho staff (showTokenUsage) để không gây hiểu nhầm với khách hàng.
+  const [pendingTokenEstimate, setPendingTokenEstimate] = useState(0);
+  const [prevIsSending, setPrevIsSending] = useState(isSending);
+
+  // Reset về 0 mỗi khi bắt đầu một lượt chờ mới — cùng pattern render-phase như trên.
+  if (isSending !== prevIsSending) {
+    setPrevIsSending(isSending);
+    if (isSending) setPendingTokenEstimate(0);
+  }
+
+  useEffect(() => {
+    if (!isSending || !showTokenUsage) return undefined;
+    const interval = setInterval(() => {
+      setPendingTokenEstimate((prev) => prev + Math.floor(Math.random() * 3) + 1);
+    }, 90);
+    return () => clearInterval(interval);
+  }, [isSending, showTokenUsage]);
+
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, revealCount]);
 
   const handleSend = () => {
     const text = draft.trim();
@@ -145,7 +228,7 @@ const AIAssistantPanel = ({ aiState }) => {
     document.removeEventListener('touchend', handleTouchEnd);
   };
 
-  const handleTouchStart = (e) => {
+  const handleTouchStart = () => {
     setIsResizing(true);
     isResizingRef.current = true;
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -175,25 +258,45 @@ const AIAssistantPanel = ({ aiState }) => {
           onTouchStart={handleTouchStart}
         />
         <header className="ai-assistant__header">
-          <div className="ai-assistant__headerTitle">
-            <Sparkles size={18} />
-            <span>Trợ lý AI</span>
+          <div className="ai-assistant__headerRow">
+            <div className="ai-assistant__headerTitle">
+              <Sparkles size={18} />
+              <span>{title}</span>
+            </div>
+            <button
+              type="button"
+              className="ai-assistant__iconBtn"
+              onClick={closePanel}
+              aria-label="Đóng trợ lý AI"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button
-            type="button"
-            className="ai-assistant__iconBtn"
-            onClick={closePanel}
-            aria-label="Đóng trợ lý AI"
-          >
-            <X size={18} />
-          </button>
+
+          {/* Quota-token: chỉ staff mới thấy (theo dõi vận hành) — hook không set quota cho kênh khách hàng. */}
+          {quota && (
+            <div
+              className="ai-assistant__quota"
+              title="Mức sử dụng token trong ngày hôm nay (số liệu nội bộ, không phải quota thật từ Google)"
+            >
+              <div className="ai-assistant__quotaBar">
+                <div
+                  className="ai-assistant__quotaBarFill"
+                  style={{ width: `${Math.min(100, (quota.tokensUsed / quota.tokenLimit) * 100)}%` }}
+                />
+              </div>
+              <span className="ai-assistant__quotaLabel">
+                {formatCompactNumber(quota.tokensUsed)}/{formatCompactNumber(quota.tokenLimit)} token · {quota.requestsUsed}/{quota.requestLimit} lượt
+              </span>
+            </div>
+          )}
         </header>
 
         <div className="ai-assistant__body" ref={listRef}>
           {messages.length === 0 ? (
             <div className="ai-assistant__empty">
               <Sparkles size={28} />
-              <p>Xin chào! Tôi có thể giúp gì cho bạn hôm nay?</p>
+              <p>{emptyText}</p>
             </div>
           ) : (
             messages.map((m) => (
@@ -201,7 +304,11 @@ const AIAssistantPanel = ({ aiState }) => {
                 key={m.id}
                 className={`ai-assistant__bubble ${m.role === 'user' ? 'is-user' : 'is-ai'} ${m.isError ? 'is-error' : ''}`}
               >
-                {parseMarkdownToJsx(m.text)}
+                {parseMarkdownToJsx(getDisplayText(m))}
+                {isRevealingMessage(m.id) && <span className="ai-assistant__revealCursor" />}
+                {showTokenUsage && m.usage?.totalTokens != null && (
+                  <div className="ai-assistant__bubbleMeta">{getDisplayTokens(m)} token</div>
+                )}
               </div>
             ))
           )}
@@ -210,6 +317,9 @@ const AIAssistantPanel = ({ aiState }) => {
               <span className="ai-assistant__dot" />
               <span className="ai-assistant__dot" />
               <span className="ai-assistant__dot" />
+              {showTokenUsage && (
+                <span className="ai-assistant__typingTokens">~{pendingTokenEstimate} token</span>
+              )}
             </div>
           )}
         </div>
