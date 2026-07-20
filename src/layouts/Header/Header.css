@@ -25,17 +25,31 @@
 
 .headerContainer {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
   margin: 0 auto;
   max-width: 1400px;
   transition: transform 0.2s ease;
+}
+
+.headerTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.headerSearchSlot {
+  flex: 1;
+  max-width: 760px;
+  margin: 0 24px;
 }
 
 .headerRight {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .headerCartBtn {
@@ -81,15 +95,13 @@
 .headerHotline {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: #ffffff;
   text-decoration: none;
-  padding: 8px 12px;
+  padding: 6px 14px 6px 6px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.45);
-  font-weight: 700;
-  font-size: 14px;
   white-space: nowrap;
   transition: all 0.2s ease;
 }
@@ -105,21 +117,34 @@
   outline-offset: 2px;
 }
 
-.headerHotlineIcon {
-  font-size: 16px;
-  line-height: 1;
+.headerHotlineCallBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #fce500;
+  color: #0a0f1c;
+  flex-shrink: 0;
 }
 
-.headerHotlineLabel {
-  font-size: 13px;
-  font-weight: 700;
-  opacity: 0.95;
+.headerHotlineInfo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
 }
 
 .headerHotlineText {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.01em;
+}
+
+.headerHotlineCaption {
+  font-size: 11.5px;
+  font-weight: 600;
+  opacity: 0.85;
 }
 
 .headerLogo {
@@ -186,6 +211,8 @@
 .headerNav {
   display: flex;
   gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .headerNav a {
@@ -340,13 +367,18 @@
 .partsDropdownPanel {
   display: flex;
   gap: 20px;
-  min-width: 560px;
+  min-width: 260px;
   padding: 16px;
 }
 
 .partsDropdownSection {
   flex: 1;
   min-width: 0;
+}
+
+.partsByVehicleDropdownPanel {
+  min-width: 220px;
+  padding: 8px;
 }
 
 .partsDropdownHeading {
@@ -389,11 +421,6 @@
   color: #094F9D;
 }
 
-.partsDropdownVehicles {
-  border-left: 1px solid rgba(9, 79, 157, 0.12);
-  padding-left: 20px;
-}
-
 .vehicleBrandList {
   display: flex;
   flex-direction: column;
@@ -404,7 +431,8 @@
   position: relative;
 }
 
-a.vehicleBrandLink {
+a.vehicleBrandLink,
+span.vehicleBrandLink {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -416,6 +444,10 @@ a.vehicleBrandLink {
   font-size: 13.5px;
   font-weight: 600;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+span.vehicleBrandLink {
+  cursor: default;
 }
 
 .vehicleBrandLink:hover,
@@ -465,6 +497,82 @@ a.vehicleBrandLink {
 .vehicleModelFlyout a:hover {
   background: rgba(9, 79, 157, 0.08);
   color: #094F9D;
+}
+
+.vehicleTypeList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vehicleTypeRow {
+  position: relative;
+}
+
+.vehicleTypeLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #0a0f1c;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: default;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.vehicleTypeRow:hover > .vehicleTypeLabel,
+.vehicleTypeRow:focus-within > .vehicleTypeLabel {
+  background: rgba(9, 79, 157, 0.08);
+  color: #094F9D;
+}
+
+.vehicleTypeFlyout {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  min-width: 200px;
+  background: #ffffff;
+  border: 1px solid rgba(9, 79, 157, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  padding: 8px;
+  z-index: 1150;
+}
+
+.vehicleTypeRow:hover > .vehicleTypeFlyout,
+.vehicleTypeRow:focus-within > .vehicleTypeFlyout {
+  display: block;
+}
+
+.vehicleTypeRow--static {
+  cursor: default;
+}
+
+.vehicleTypeLabel--static {
+  color: rgba(10, 15, 28, 0.45);
+  cursor: default;
+}
+
+.vehicleTypeRow:hover > .vehicleTypeLabel--static,
+.vehicleTypeRow:focus-within > .vehicleTypeLabel--static {
+  background: transparent;
+  color: rgba(10, 15, 28, 0.45);
+}
+
+.comingSoonBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(9, 79, 157, 0.08);
+  color: #094F9D;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 @media (max-width: 1024px) {
@@ -530,6 +638,68 @@ a.vehicleBrandLink {
   .vehicleBrandRow.open .vehicleModelFlyout,
   .vehicleBrandRow:focus-within .vehicleModelFlyout {
     display: flex;
+  }
+
+  .partsByVehicleDropdownPanel {
+    min-width: 0;
+    padding: 0;
+  }
+
+  .vehicleTypeFlyout {
+    position: static;
+    display: none;
+    box-shadow: none;
+    border: none;
+    background: rgba(255, 255, 255, 0.04);
+    margin-left: 12px;
+    max-height: none;
+  }
+
+  .vehicleTypeRow.open > .vehicleTypeFlyout,
+  .vehicleTypeRow:focus-within > .vehicleTypeFlyout {
+    display: block;
+  }
+
+  /* Panel nền mờ tối trên mobile — chữ tối (#0a0f1c) của bản desktop nền trắng
+     cần đổi sang màu sáng để đọc được trên nền overlay tối này. */
+  .partsDropdownHeading,
+  .partsDropdownStatus {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .partsDropdownList a,
+  a.vehicleBrandLink,
+  span.vehicleBrandLink,
+  .vehicleModelFlyout a,
+  .vehicleTypeLabel {
+    color: #ffffff;
+  }
+
+  .partsDropdownList a:hover,
+  .vehicleBrandLink:hover,
+  .vehicleBrandRow:hover .vehicleBrandLink,
+  .vehicleBrandRow:focus-within a.vehicleBrandLink,
+  .vehicleModelFlyout a:hover,
+  .vehicleTypeRow:hover > .vehicleTypeLabel,
+  .vehicleTypeRow:focus-within > .vehicleTypeLabel {
+    background: rgba(0, 90, 169, 0.25);
+    color: #ffffff;
+  }
+
+  .vehicleTypeLabel--static,
+  .vehicleTypeRow:hover > .vehicleTypeLabel--static,
+  .vehicleTypeRow:focus-within > .vehicleTypeLabel--static {
+    color: rgba(255, 255, 255, 0.45);
+    background: transparent;
+  }
+
+  .vehicleBrandArrow {
+    opacity: 0.7;
+  }
+
+  .comingSoonBadge {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.75);
   }
 }
 
@@ -737,6 +907,18 @@ a.vehicleBrandLink {
     padding: 10px 4%;
   }
 
+  .headerTopRow {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .headerSearchSlot {
+    order: 3;
+    flex-basis: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+
   .mainHeader.scrolled {
     padding: 10px 4%;
   }
@@ -755,36 +937,35 @@ a.vehicleBrandLink {
   }
 
   .headerHotline {
-    padding: 8px 10px;
-    white-space: normal;
-    flex-wrap: wrap;
+    padding: 4px 10px 4px 4px;
   }
 
-  .headerHotlineLabel {
+  .headerHotlineCallBtn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .headerHotlineCaption {
     display: none;
-  }
-
-  .headerHotlineText {
-    display: inline;
-    white-space: normal;
   }
 
   .headerNav {
     position: fixed;
-    top: 70px;
+    top: 110px;
     left: 0;
     right: 0;
     background: linear-gradient(180deg, rgba(10, 15, 28, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
     backdrop-filter: blur(12px);
     flex-direction: column;
     padding: 24px 5%;
+    border-top: none;
     transform: translateY(-100%);
     opacity: 0;
     visibility: hidden;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     border-bottom: 2px solid rgba(0, 90, 169, 0.3);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    max-height: calc(100vh - 140px);
+    max-height: calc(100vh - 180px);
     overflow-y: auto;
   }
 
@@ -887,7 +1068,7 @@ a.vehicleBrandLink {
   }
 
   .headerNav {
-    top: 55px;
+    top: 109px;
     padding: 15px 4%;
   }
 

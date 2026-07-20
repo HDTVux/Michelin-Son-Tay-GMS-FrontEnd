@@ -6,6 +6,7 @@ import logo from '../../assets/LogoNonBackground.png';
 import { DEFAULT_AVATAR, handleAvatarError } from '../../assets/defaultAvatar.js';
 import { useCart } from '../../context/CartContext.jsx';
 import { fetchHomeProducts } from '../../services/homeService.js';
+import CustomerSearch from '../../components/CustomerSearch/CustomerSearch.jsx';
 
 // Dữ liệu hãng xe / dòng xe phổ biến tại VN để lọc phụ tùng theo xe (đồng bộ với CAR_DATA của Services.jsx)
 const CAR_DATA = {
@@ -17,6 +18,12 @@ const CAR_DATA = {
   Ford: ['Ranger', 'Everest', 'Explorer', 'Territory'],
   Mitsubishi: ['Xpander', 'Outlander', 'Attrage', 'Triton', 'Pajero Sport'],
   VinFast: ['Fadil', 'Lux A2.0', 'Lux SA2.0', 'VF e34', 'VF 8', 'VF 9', 'VF 5'],
+};
+
+// Xe khác (xe tải / xe khách) — chỉ liệt kê tới hãng xe, chưa cần xuống dòng xe cụ thể
+const OTHER_VEHICLE_DATA = {
+  'Xe tải': ['Hino', 'Isuzu', 'Hyundai', 'Thaco', 'Dongfeng', 'Howo', 'Mitsubishi Fuso', 'Veam'],
+  'Xe khách': ['Thaco', 'Hyundai', 'Samco', 'Isuzu', 'Hino', 'Mercedes-Benz', 'Ford'],
 };
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
@@ -269,9 +276,88 @@ const Header = () => {
   return (
     <header className={`mainHeader ${isScrolled ? 'scrolled' : ''}`}>
       <div className="headerContainer">
-        <Link to="/" className="headerLogo" onClick={closeMenu}>
-          <img src={logo} alt='logo' id='Logo' />
-        </Link>
+        <div className="headerTopRow">
+          <Link to="/" className="headerLogo" onClick={closeMenu}>
+            <img src={logo} alt='logo' id='Logo' />
+          </Link>
+
+          <div className="headerSearchSlot">
+            <CustomerSearch />
+          </div>
+
+          <div className="headerRight">
+            <a
+              className="headerHotline"
+              href={`tel:${STORE_PHONE_TEL}`}
+              aria-label={`Gọi hotline ${STORE_PHONE_DISPLAY}`}
+              onClick={closeMenu}
+            >
+              <span className="headerHotlineCallBtn" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.4 21 3 13.6 3 4.5a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.46.57 3.58a1 1 0 0 1-.25 1.01l-2.2 2.2z" />
+                </svg>
+              </span>
+              <span className="headerHotlineInfo">
+                <span className="headerHotlineText">{STORE_PHONE_DISPLAY}</span>
+                <span className="headerHotlineCaption">Tổng đài tư vấn</span>
+              </span>
+            </a>
+
+            <Link
+              to="/cart"
+              className={`headerCartBtn ${isActive('/cart') ? 'active' : ''}`}
+              aria-label={`Giỏ hàng, ${totalQuantity} sản phẩm`}
+              onClick={closeMenu}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+              {totalQuantity > 0 && (
+                <span className="headerCartBadge">{totalQuantity > 99 ? '99+' : totalQuantity}</span>
+              )}
+            </Link>
+
+            <div className={`headerAuth ${isMenuOpen ? 'open' : ''}`}>
+              {isAuthed ? (
+                <div className="headerUser" ref={dropdownRef}>
+                  <button
+                    className={`userChip ${isUserDropdownOpen ? 'open' : ''}`}
+                    onClick={() => setIsUserDropdownOpen((v) => !v)}
+                    aria-label="Tài khoản"
+                  >
+                    <img className="avatarCircle" src={DEFAULT_AVATAR} alt={customerName || 'Avatar'} onError={handleAvatarError} />
+                    <span className="userGreeting">Xin chào, {customerName}</span>
+                  </button>
+                  {isUserDropdownOpen && (
+                    <div className="userDropdown">
+                      <Link to="/user-profile" onClick={() => setIsUserDropdownOpen(false)}>Tài khoản của tôi</Link>
+                      <Link to="/my-bookings" onClick={() => setIsUserDropdownOpen(false)}>Đặt lịch của tôi</Link>
+                      <button type="button" onClick={handleLogout}>Đăng xuất</button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  className="btnNavLogin"
+                  onClick={() => { setShowCustomerLogin(true); closeMenu(); }}
+                >
+                  Đăng nhập
+                </button>
+              )}
+            </div>
+
+            <button
+              className={`mobileMenuToggle ${isMenuOpen ? 'active' : ''}`}
+              onClick={toggleMenu}
+              aria-label="Toggle menu"
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+        </div>
 
         <nav className={`headerNav ${isMenuOpen ? 'open' : ''}`} ref={navDropdownsRef}>
           <Link
@@ -363,32 +449,104 @@ const Header = () => {
                     ))}
                   </div>
                 </div>
-                <div className="partsDropdownSection partsDropdownVehicles">
-                  <div className="partsDropdownHeading">Chọn theo xe</div>
-                  <div className="vehicleBrandList">
-                    {carBrands.map((brand) => (
-                      <div key={brand} className="vehicleBrandRow">
-                        <Link
-                          to={`/parts?vehicleMake=${encodeURIComponent(brand)}`}
-                          className="vehicleBrandLink"
-                          onClick={() => { closeMenu(); scrollToTop(); }}
-                        >
-                          {brand}
-                          <span className="vehicleBrandArrow">›</span>
-                        </Link>
-                        <div className="vehicleModelFlyout">
-                          {CAR_DATA[brand].map((model) => (
+              </div>
+            )}
+          </div>
+
+          <div
+            className={`navDropdown ${openMenu === 'partsByVehicle' ? 'open' : ''}`}
+            onMouseEnter={() => handleNavDropdownEnter('partsByVehicle')}
+            onMouseLeave={handleNavDropdownLeave}
+          >
+            <div className={`navDropdownTrigger ${isActive('/parts') && (location.search.includes('vehicleMake') || location.search.includes('vehicleModel')) ? 'active' : ''}`}>
+              <Link
+                to="/parts"
+                onClick={() => { closeMenu(); scrollToTop(); }}
+              >
+                Phụ tùng theo xe
+              </Link>
+              <button
+                type="button"
+                className="navDropdownCaret"
+                aria-label="Mở danh mục phụ tùng theo xe"
+                aria-expanded={openMenu === 'partsByVehicle'}
+                onClick={(e) => { e.preventDefault(); toggleNavDropdown('partsByVehicle'); }}
+              >
+                ▾
+              </button>
+            </div>
+            {openMenu === 'partsByVehicle' && (
+              <div className="navDropdownPanel partsByVehicleDropdownPanel">
+                <div className="vehicleTypeList">
+                  <div className="vehicleTypeRow">
+                    <span className="vehicleTypeLabel">
+                      Theo hãng xe
+                      <span className="vehicleBrandArrow">›</span>
+                    </span>
+                    <div className="vehicleTypeFlyout">
+                      <div className="vehicleBrandList">
+                        {carBrands.map((brand) => (
+                          <div key={brand} className="vehicleBrandRow">
                             <Link
-                              key={model}
-                              to={`/parts?vehicleMake=${encodeURIComponent(brand)}&vehicleModel=${encodeURIComponent(model)}`}
+                              to={`/parts?vehicleMake=${encodeURIComponent(brand)}`}
+                              className="vehicleBrandLink"
                               onClick={() => { closeMenu(); scrollToTop(); }}
                             >
-                              {model}
+                              {brand}
+                              <span className="vehicleBrandArrow">›</span>
                             </Link>
-                          ))}
-                        </div>
+                            <div className="vehicleModelFlyout">
+                              {CAR_DATA[brand].map((model) => (
+                                <Link
+                                  key={model}
+                                  to={`/parts?vehicleMake=${encodeURIComponent(brand)}&vehicleModel=${encodeURIComponent(model)}`}
+                                  onClick={() => { closeMenu(); scrollToTop(); }}
+                                >
+                                  {model}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  </div>
+
+                  <div className="vehicleTypeRow">
+                    <span className="vehicleTypeLabel">
+                      Xe khác
+                      <span className="vehicleBrandArrow">›</span>
+                    </span>
+                    <div className="vehicleTypeFlyout">
+                      <div className="vehicleBrandList">
+                        {Object.keys(OTHER_VEHICLE_DATA).map((vehicleCategory) => (
+                          <div key={vehicleCategory} className="vehicleBrandRow">
+                            <span className="vehicleBrandLink">
+                              {vehicleCategory}
+                              <span className="vehicleBrandArrow">›</span>
+                            </span>
+                            <div className="vehicleModelFlyout">
+                              {OTHER_VEHICLE_DATA[vehicleCategory].map((brand) => (
+                                <Link
+                                  key={brand}
+                                  to={`/parts?vehicleMake=${encodeURIComponent(brand)}`}
+                                  onClick={() => { closeMenu(); scrollToTop(); }}
+                                >
+                                  {brand}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="vehicleTypeRow vehicleTypeRow--static">
+                    <span className="vehicleTypeLabel vehicleTypeLabel--static">
+                      Máy móc, thiết bị khác
+                      <span className="comingSoonBadge">Sắp ra mắt</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -418,72 +576,6 @@ const Header = () => {
           </Link>
         </nav>
 
-        <div className="headerRight">
-          <a
-            className="headerHotline"
-            href={`tel:${STORE_PHONE_TEL}`}
-            aria-label={`Gọi hotline ${STORE_PHONE_DISPLAY}`}
-            onClick={closeMenu}
-          >
-            <span className="headerHotlineIcon" aria-hidden="true">☎</span>
-            <span className="headerHotlineLabel">Hotline:</span>
-            <span className="headerHotlineText">{STORE_PHONE_DISPLAY}</span>
-          </a>
-
-          <Link
-            to="/cart"
-            className={`headerCartBtn ${isActive('/cart') ? 'active' : ''}`}
-            aria-label={`Giỏ hàng, ${totalQuantity} sản phẩm`}
-            onClick={closeMenu}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-            </svg>
-            {totalQuantity > 0 && (
-              <span className="headerCartBadge">{totalQuantity > 99 ? '99+' : totalQuantity}</span>
-            )}
-          </Link>
-
-          <div className={`headerAuth ${isMenuOpen ? 'open' : ''}`}>
-            {isAuthed ? (
-              <div className="headerUser" ref={dropdownRef}>
-                <button
-                  className={`userChip ${isUserDropdownOpen ? 'open' : ''}`}
-                  onClick={() => setIsUserDropdownOpen((v) => !v)}
-                  aria-label="Tài khoản"
-                >
-                  <img className="avatarCircle" src={DEFAULT_AVATAR} alt={customerName || 'Avatar'} onError={handleAvatarError} />
-                  <span className="userGreeting">Xin chào, {customerName}</span>
-                </button>
-                {isUserDropdownOpen && (
-                  <div className="userDropdown">
-                    <Link to="/user-profile" onClick={() => setIsUserDropdownOpen(false)}>Tài khoản của tôi</Link>
-                    <Link to="/my-bookings" onClick={() => setIsUserDropdownOpen(false)}>Đặt lịch của tôi</Link>
-                    <button type="button" onClick={handleLogout}>Đăng xuất</button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button
-                className="btnNavLogin"
-                onClick={() => { setShowCustomerLogin(true); closeMenu(); }}
-              >
-                Đăng nhập
-              </button>
-            )}
-          </div>
-
-          <button
-            className={`mobileMenuToggle ${isMenuOpen ? 'active' : ''}`}
-            onClick={toggleMenu}
-            aria-label="Toggle menu"
-          >
-            <span></span>
-            <span></span>
-            <span></span>
-          </button>
-        </div>
         {showCustomerLogin && (
           <CustomerLogin onClose={() => setShowCustomerLogin(false)} />
         )}
