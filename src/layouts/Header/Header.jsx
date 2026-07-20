@@ -1,10 +1,96 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Header.css';
 import CustomerLogin from '../../features/auth/components/CustomerLoginModal.jsx';
 import logo from '../../assets/LogoNonBackground.png';
 import { DEFAULT_AVATAR, handleAvatarError } from '../../assets/defaultAvatar.js';
 import { useCart } from '../../context/CartContext.jsx';
+import { fetchHomeProducts } from '../../services/homeService.js';
+
+// Dữ liệu hãng xe / dòng xe phổ biến tại VN để lọc phụ tùng theo xe (đồng bộ với CAR_DATA của Services.jsx)
+const CAR_DATA = {
+  Toyota: ['Vios', 'Camry', 'Innova', 'Corolla Cross', 'Fortuner', 'Yaris', 'Hilux', 'Wigo'],
+  Honda: ['City', 'Civic', 'CR-V', 'HR-V', 'Accord', 'Brio'],
+  Hyundai: ['Accent', 'Grand i10', 'Elantra', 'Tucson', 'Santa Fe', 'Creta', 'Kona'],
+  Kia: ['Morning', 'Soluto', 'K3', 'Seltos', 'Sorento', 'Carnival', 'Sonet'],
+  Mazda: ['Mazda 2', 'Mazda 3', 'Mazda 6', 'CX-5', 'CX-8', 'BT-50'],
+  Ford: ['Ranger', 'Everest', 'Explorer', 'Territory'],
+  Mitsubishi: ['Xpander', 'Outlander', 'Attrage', 'Triton', 'Pajero Sport'],
+  VinFast: ['Fadil', 'Lux A2.0', 'Lux SA2.0', 'VF e34', 'VF 8', 'VF 9', 'VF 5'],
+};
+
+const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
+const extractList = (res) => {
+  const payload = extractPayload(res);
+  if (Array.isArray(payload?.content)) return payload.content;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.list)) return payload.list;
+  if (Array.isArray(payload?.categories)) return payload.categories;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return Array.isArray(payload) ? payload : [];
+};
+const toPositiveNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
+};
+const firstNonEmptyString = (...values) => {
+  for (const value of values) {
+    if (value == null || typeof value === 'object') continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return '';
+};
+const normalizeCategoryToken = (value) => String(value ?? '')
+  .trim()
+  .toLowerCase()
+  .normalize('NFD')
+  .replaceAll(/[̀-ͯ]/g, '')
+  .replaceAll(/\s+/g, ' ');
+const getCategoryId = (item) => toPositiveNumber(
+  item?.workCategoryId
+  ?? item?.itemCategoryId
+  ?? item?.categoryId
+  ?? item?.category?.id
+  ?? item?.category?.categoryId
+  ?? item?.itemCategory?.id
+  ?? item?.itemCategory?.categoryId
+  ?? item?.workCategory?.id
+  ?? item?.workCategory?.categoryId,
+);
+const getCategoryCode = (item) => firstNonEmptyString(
+  item?.categoryCode,
+  item?.itemCategoryCode,
+  item?.workCategoryCode,
+  item?.category?.code,
+  item?.category?.categoryCode,
+  item?.itemCategory?.code,
+  item?.itemCategory?.categoryCode,
+  item?.workCategory?.code,
+  item?.workCategory?.categoryCode,
+);
+const getCategoryName = (item) => firstNonEmptyString(
+  item?.categoryName,
+  item?.itemCategoryName,
+  item?.workCategoryName,
+  typeof item?.category === 'string' ? item.category : undefined,
+  typeof item?.itemCategory === 'string' ? item.itemCategory : undefined,
+  typeof item?.workCategory === 'string' ? item.workCategory : undefined,
+  item?.category?.name,
+  item?.category?.categoryName,
+  item?.itemCategory?.name,
+  item?.itemCategory?.categoryName,
+  item?.workCategory?.name,
+  item?.workCategory?.categoryName,
+);
+const getCategoryKey = (item) => {
+  const id = getCategoryId(item);
+  if (id != null) return `id:${id}`;
+  const code = normalizeCategoryToken(getCategoryCode(item));
+  if (code) return `code:${code}`;
+  const name = normalizeCategoryToken(getCategoryName(item));
+  return name ? `name:${name}` : '';
+};
 
 const Header = () => {
   const STORE_PHONE_TEL = '0987545680';
@@ -16,7 +102,12 @@ const Header = () => {
   const [isAuthed, setIsAuthed] = useState(false);
   const [customerName, setCustomerName] = useState('Khách hàng');
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null); // 'services' | 'parts' | null
+  const [partCategories, setPartCategories] = useState([]);
+  const [partCategoriesLoading, setPartCategoriesLoading] = useState(false);
   const dropdownRef = useRef(null);
+  const navDropdownsRef = useRef(null);
+  const navCloseTimeoutRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { totalQuantity } = useCart();
@@ -39,7 +130,33 @@ const Header = () => {
   };
 
   const closeMenu = () => {
+    clearNavCloseTimeout();
     setIsMenuOpen(false);
+    setOpenMenu(null);
+  };
+
+  const toggleNavDropdown = (key) => {
+    clearNavCloseTimeout();
+    setOpenMenu((prev) => (prev === key ? null : key));
+  };
+
+  const clearNavCloseTimeout = () => {
+    if (navCloseTimeoutRef.current) {
+      clearTimeout(navCloseTimeoutRef.current);
+      navCloseTimeoutRef.current = null;
+    }
+  };
+
+  const handleNavDropdownEnter = (key) => {
+    if (!window.matchMedia('(hover: hover)').matches) return;
+    clearNavCloseTimeout();
+    setOpenMenu(key);
+  };
+
+  const handleNavDropdownLeave = () => {
+    if (!window.matchMedia('(hover: hover)').matches) return;
+    clearNavCloseTimeout();
+    navCloseTimeoutRef.current = setTimeout(() => setOpenMenu(null), 250);
   };
 
   // Đọc token + tên (nếu có) từ localStorage để biết trạng thái đăng nhập
@@ -72,15 +189,59 @@ const Header = () => {
     }
   }, [showCustomerLogin, refreshAuth]);
 
-  // Đóng menu user khi click ra ngoài
+  // Đóng menu user + dropdown danh mục khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsUserDropdownOpen(false);
       }
+      if (navDropdownsRef.current && !navDropdownsRef.current.contains(e.target)) {
+        clearNavCloseTimeout();
+        setOpenMenu(null);
+      }
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // Đóng dropdown khi chuyển trang
+  useEffect(() => {
+    clearNavCloseTimeout();
+    setOpenMenu(null);
+  }, [location.pathname]);
+
+  // Dọn timeout đóng dropdown khi unmount
+  useEffect(() => () => clearNavCloseTimeout(), []);
+
+  // Tải danh mục phụ tùng công khai một lần để hiển thị trong mega-menu "Phụ tùng"
+  useEffect(() => {
+    let active = true;
+    setPartCategoriesLoading(true);
+    fetchHomeProducts({ page: 0, size: 500, itemType: 'PART' })
+      .then((res) => {
+        if (!active) return;
+        const items = extractList(res);
+        const derived = new Map();
+        items.forEach((item) => {
+          const categoryKey = getCategoryKey(item);
+          if (!categoryKey || derived.has(categoryKey)) return;
+          const categoryCode = getCategoryCode(item);
+          if (!categoryCode) return;
+          derived.set(categoryKey, {
+            categoryKey,
+            categoryCode,
+            label: getCategoryName(item) || categoryCode,
+          });
+        });
+        setPartCategories(Array.from(derived.values()).sort((a, b) => a.label.localeCompare(b.label, 'vi')));
+      })
+      .catch(() => {
+        if (active) setPartCategories([]);
+      })
+      .finally(() => {
+        if (active) setPartCategoriesLoading(false);
+      });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -103,6 +264,8 @@ const Header = () => {
     globalThis.dispatchEvent(new Event('authChange'));
   };
 
+  const carBrands = useMemo(() => Object.keys(CAR_DATA), []);
+
   return (
     <header className={`mainHeader ${isScrolled ? 'scrolled' : ''}`}>
       <div className="headerContainer">
@@ -110,7 +273,7 @@ const Header = () => {
           <img src={logo} alt='logo' id='Logo' />
         </Link>
 
-        <nav className={`headerNav ${isMenuOpen ? 'open' : ''}`}>
+        <nav className={`headerNav ${isMenuOpen ? 'open' : ''}`} ref={navDropdownsRef}>
           <Link
             to="/"
             className={isActive('/') ? 'active' : ''}
@@ -119,33 +282,129 @@ const Header = () => {
             Trang chủ
           </Link>
           <Link
-            to="/car-parts-lookup"
-            className={isActive('/car-parts-lookup') ? 'active' : ''}
-            onClick={() => { closeMenu(); scrollToTop(); }}
-          >
-            Tra cứu
-          </Link>
-          <Link
             to="/about"
             className={isActive('/about') ? 'active' : ''}
             onClick={() => { closeMenu(); scrollToTop(); }}
           >
             Giới thiệu
           </Link>
+
+          <div
+            className={`navDropdown ${openMenu === 'services' ? 'open' : ''}`}
+            onMouseEnter={() => handleNavDropdownEnter('services')}
+            onMouseLeave={handleNavDropdownLeave}
+          >
+            <div className="navDropdownTrigger">
+              <Link
+                to="/services"
+                className={isActive('/services') ? 'active' : ''}
+                onClick={() => { closeMenu(); scrollToTop(); }}
+              >
+                Dịch vụ
+              </Link>
+              <button
+                type="button"
+                className="navDropdownCaret"
+                aria-label="Mở danh mục dịch vụ"
+                aria-expanded={openMenu === 'services'}
+                onClick={(e) => { e.preventDefault(); toggleNavDropdown('services'); }}
+              >
+                ▾
+              </button>
+            </div>
+            {openMenu === 'services' && (
+              <div className="navDropdownPanel servicesDropdownPanel">
+                <Link to="/services" onClick={() => { closeMenu(); scrollToTop(); }}>Dịch vụ</Link>
+                <Link to="/combos" onClick={() => { closeMenu(); scrollToTop(); }}>Combo</Link>
+              </div>
+            )}
+          </div>
+
+          <div
+            className={`navDropdown ${openMenu === 'parts' ? 'open' : ''}`}
+            onMouseEnter={() => handleNavDropdownEnter('parts')}
+            onMouseLeave={handleNavDropdownLeave}
+          >
+            <div className="navDropdownTrigger">
+              <Link
+                to="/parts"
+                className={isActive('/parts') ? 'active' : ''}
+                onClick={() => { closeMenu(); scrollToTop(); }}
+              >
+                Phụ tùng
+              </Link>
+              <button
+                type="button"
+                className="navDropdownCaret"
+                aria-label="Mở danh mục phụ tùng"
+                aria-expanded={openMenu === 'parts'}
+                onClick={(e) => { e.preventDefault(); toggleNavDropdown('parts'); }}
+              >
+                ▾
+              </button>
+            </div>
+            {openMenu === 'parts' && (
+              <div className="navDropdownPanel partsDropdownPanel">
+                <div className="partsDropdownSection partsDropdownCategories">
+                  <div className="partsDropdownHeading">Danh mục</div>
+                  {partCategoriesLoading && (
+                    <div className="partsDropdownStatus">Đang tải...</div>
+                  )}
+                  {!partCategoriesLoading && partCategories.length === 0 && (
+                    <div className="partsDropdownStatus">Chưa có danh mục</div>
+                  )}
+                  <div className="partsDropdownList">
+                    {partCategories.map((cat) => (
+                      <Link
+                        key={cat.categoryKey}
+                        to={`/parts?categoryCode=${encodeURIComponent(cat.categoryCode)}`}
+                        onClick={() => { closeMenu(); scrollToTop(); }}
+                      >
+                        {cat.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+                <div className="partsDropdownSection partsDropdownVehicles">
+                  <div className="partsDropdownHeading">Chọn theo xe</div>
+                  <div className="vehicleBrandList">
+                    {carBrands.map((brand) => (
+                      <div key={brand} className="vehicleBrandRow">
+                        <Link
+                          to={`/parts?vehicleMake=${encodeURIComponent(brand)}`}
+                          className="vehicleBrandLink"
+                          onClick={() => { closeMenu(); scrollToTop(); }}
+                        >
+                          {brand}
+                          <span className="vehicleBrandArrow">›</span>
+                        </Link>
+                        <div className="vehicleModelFlyout">
+                          {CAR_DATA[brand].map((model) => (
+                            <Link
+                              key={model}
+                              to={`/parts?vehicleMake=${encodeURIComponent(brand)}&vehicleModel=${encodeURIComponent(model)}`}
+                              onClick={() => { closeMenu(); scrollToTop(); }}
+                            >
+                              {model}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <Link
-            to="/services"
-            className={isActive('/services') ? 'active' : ''}
+            to="/car-parts-lookup"
+            className={isActive('/car-parts-lookup') ? 'active' : ''}
             onClick={() => { closeMenu(); scrollToTop(); }}
           >
-            Dịch vụ
+            Tra cứu
           </Link>
-          <Link
-            to="/parts"
-            className={isActive('/parts') ? 'active' : ''}
-            onClick={() => { closeMenu(); scrollToTop(); }}
-          >
-            Phụ tùng
-          </Link>
+
           <Link
             to="/"
             className=""

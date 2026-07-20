@@ -229,6 +229,266 @@
   width: 60%;
 }
 
+/* Mega-menu dropdown cho "Dịch vụ" / "Phụ tùng" */
+.navDropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.navDropdownTrigger {
+  display: flex;
+  align-items: center;
+}
+
+.navDropdownTrigger a {
+  padding-right: 6px;
+}
+
+.navDropdownCaret {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 8px 8px 8px 0;
+  transition: transform 0.2s ease;
+}
+
+.navDropdown.open .navDropdownCaret {
+  transform: rotate(180deg);
+}
+
+.navDropdownPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: #ffffff;
+  border: 1px solid rgba(9, 79, 157, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  padding: 8px;
+  z-index: 1100;
+}
+
+.servicesDropdownPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.servicesDropdownPanel a {
+  color: #0a0f1c;
+  text-decoration: none;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.servicesDropdownPanel a:hover {
+  background: rgba(9, 79, 157, 0.08);
+  color: #094F9D;
+}
+
+.partsDropdownPanel {
+  display: flex;
+  gap: 20px;
+  min-width: 560px;
+  padding: 16px;
+}
+
+.partsDropdownSection {
+  flex: 1;
+  min-width: 0;
+}
+
+.partsDropdownHeading {
+  color: rgba(10, 15, 28, 0.5);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px 10px;
+}
+
+.partsDropdownStatus {
+  color: rgba(10, 15, 28, 0.55);
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.partsDropdownList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.partsDropdownList a {
+  color: #0a0f1c;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.partsDropdownList a:hover {
+  background: rgba(9, 79, 157, 0.08);
+  color: #094F9D;
+}
+
+.partsDropdownVehicles {
+  border-left: 1px solid rgba(9, 79, 157, 0.12);
+  padding-left: 20px;
+}
+
+.vehicleBrandList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vehicleBrandRow {
+  position: relative;
+}
+
+a.vehicleBrandLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #0a0f1c;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.vehicleBrandLink:hover,
+.vehicleBrandRow:hover .vehicleBrandLink,
+.vehicleBrandRow:focus-within a.vehicleBrandLink {
+  background: rgba(9, 79, 157, 0.08);
+  color: #094F9D;
+}
+
+.vehicleBrandArrow {
+  opacity: 0.5;
+}
+
+.vehicleModelFlyout {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  min-width: 180px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid rgba(9, 79, 157, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  padding: 8px;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 1150;
+}
+
+.vehicleBrandRow:hover .vehicleModelFlyout,
+.vehicleBrandRow:focus-within .vehicleModelFlyout {
+  display: flex;
+}
+
+.vehicleModelFlyout a {
+  color: #0a0f1c;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.vehicleModelFlyout a:hover {
+  background: rgba(9, 79, 157, 0.08);
+  color: #094F9D;
+}
+
+@media (max-width: 1024px) {
+  .navDropdown {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .navDropdownTrigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .navDropdownTrigger a {
+    flex: 1;
+  }
+
+  .navDropdownCaret {
+    color: #ffffff;
+    font-size: 16px;
+    padding: 14px 16px;
+  }
+
+  .navDropdownPanel {
+    position: static;
+    box-shadow: none;
+    border: none;
+    background: rgba(255, 255, 255, 0.04);
+    margin: 0 0 6px;
+  }
+
+  .partsDropdownPanel {
+    flex-direction: column;
+    min-width: 0;
+    gap: 12px;
+  }
+
+  .partsDropdownList {
+    max-height: none;
+  }
+
+  .partsDropdownVehicles {
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding-left: 0;
+    padding-top: 12px;
+  }
+
+  .vehicleBrandList {
+    max-height: none;
+  }
+
+  .vehicleModelFlyout {
+    position: static;
+    display: none;
+    box-shadow: none;
+    border: none;
+    background: rgba(255, 255, 255, 0.04);
+    margin-left: 12px;
+  }
+
+  .vehicleBrandRow.open .vehicleModelFlyout,
+  .vehicleBrandRow:focus-within .vehicleModelFlyout {
+    display: flex;
+  }
+}
+
 .headerAuth {
   display: flex;
   align-items: center;

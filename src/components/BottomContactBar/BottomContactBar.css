@@ -1,0 +1,126 @@
+.bottomContactBar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 90%;
+  max-width: 520px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 40px;
+  padding: 10px 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+  animation: slideUpContactBar 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpContactBar {
+  from {
+    transform: translate(-50%, 100px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.contactBarBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 30px;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 800;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.contactBarIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rescueBtn {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: #ffffff;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.rescueBtn:hover {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.35);
+  transform: translateY(-2px);
+}
+
+.zaloBtn {
+  background: linear-gradient(135deg, #0068ff 0%, #0053cc 100%);
+  color: #ffffff;
+  border: 1px solid rgba(0, 104, 255, 0.2);
+}
+
+.zaloBtn:hover {
+  background: linear-gradient(135deg, #3385ff 0%, #0068ff 100%);
+  box-shadow: 0 8px 24px rgba(0, 104, 255, 0.35);
+  transform: translateY(-2px);
+}
+
+.contactBarText {
+  white-space: nowrap;
+}
+
+/* Mobile responsive view */
+@media (max-width: 600px) {
+  .bottomContactBar {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    border-radius: 0;
+    border: none;
+    border-top: 1.5px solid rgba(0, 90, 169, 0.12);
+    padding: 10px 12px;
+    background: #ffffff;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+    gap: 10px;
+    animation: slideUpMobileContactBar 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideUpMobileContactBar {
+    from {
+      transform: translateY(100px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .contactBarBtn {
+    min-height: 44px;
+    font-size: 13.5px;
+    padding: 0 12px;
+  }
+
+  /* Push other bottom floating elements up to avoid overlap */
+  .backToTop,
+  .ai-assistant__launcher,
+  .floatingContact {
+    bottom: 72px !important;
+  }
+}

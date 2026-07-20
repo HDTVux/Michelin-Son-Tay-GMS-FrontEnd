@@ -738,8 +738,8 @@
 
 .servicesGrid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
   animation: gridFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -781,6 +781,8 @@
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
+  max-width: 1300px;
+  width: 100%;
 }
 
 .servicesTypeTitle {
@@ -851,7 +853,9 @@
 .servicesRowGrid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 24px;
+  gap: 8px;
+  max-width: 1300px;
+  width: 100%;
 }
 
 .servicesRowGrid .serviceGridItem {
@@ -968,7 +972,7 @@
 .serviceCard-imageTop {
   position: relative;
   width: 100%;
-  height: 220px;
+  height: 240px;
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -1048,25 +1052,29 @@
 
 /* Card Content */
 .serviceCard-content {
-  padding: 20px 18px 18px;
+  padding: 10px 12px 12px;
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   min-height: 0;
 }
 
 .serviceTitle {
   font-size: 16px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   color: #0a0f1c;
-  line-height: 1.35;
-  min-height: 44px;
+  line-height: 1.3;
+  min-height: 36px;
+  text-align: center;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
+  width: 100%;
 }
 
 .serviceDescription {
@@ -1105,10 +1113,12 @@
   font-size: 16px;
   font-weight: 800;
   color: #005aa9;
-  margin-bottom: 16px;
-  min-height: 40px;
+  margin-bottom: 4px;
+  min-height: 20px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .btnAddToCartNew {
@@ -1312,7 +1322,7 @@
 
 .processHeader {
   text-align: center;
-  margin-bottom: 60px;
+  margin-bottom: 20px;
   opacity: 0;
   transform: translateY(40px);
   transition: opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1904,16 +1914,17 @@
   }
 
   .serviceCard-imageTop {
-    height: 160px;
+    height: 230px;
   }
 
   .serviceTitle {
     font-size: 14px;
+    margin-bottom: 4px;
   }
 
   .servicePriceInCard {
     font-size: 14px;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     min-height: auto;
   }
 
@@ -2056,12 +2067,12 @@
   }
 
   .serviceCard-imageTop {
-    height: 130px;
+    height: 180px;
   }
 
   .serviceTitle {
     font-size: 13px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .serviceDescription {
@@ -2123,5 +2134,329 @@
 
   .processStepDesc {
     font-size: 12px;
+  }
+}
+
+/* ====== Best Sellers Section ====== */
+.bestSellersSection {
+  margin-bottom: 56px;
+  position: relative;
+}
+
+.bestSellersGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 420px));
+  gap: 20px;
+}
+
+.bestSellerCard {
+  border: 1.5px solid transparent;
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.bestSellerCard .serviceCard-imageTop {
+  height: 260px;
+}
+
+/* Rank Glow and Colors */
+.bestSellerCard.rank-1 {
+  border-color: #ffd100;
+  box-shadow: 0 10px 30px rgba(255, 209, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.bestSellerCard.rank-2 {
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 30px rgba(148, 163, 184, 0.1), 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.bestSellerCard.rank-3 {
+  border-color: #ca8a04;
+  box-shadow: 0 10px 30px rgba(202, 138, 4, 0.1), 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+/* Hover highlights */
+.bestSellerCard.rank-1:hover {
+  border-color: #ffd100;
+  box-shadow: 0 20px 48px rgba(255, 209, 0, 0.24) !important;
+}
+
+.bestSellerCard.rank-2:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 20px 48px rgba(148, 163, 184, 0.22) !important;
+}
+
+.bestSellerCard.rank-3:hover {
+  border-color: #b45309;
+  box-shadow: 0 20px 48px rgba(180, 83, 9, 0.22) !important;
+}
+
+/* Rank Badges */
+.rankBadge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.rankBadge-1 {
+  background: linear-gradient(135deg, #ffd100 0%, #f59e0b 100%);
+  color: #0a0f1c;
+  border-color: rgba(255, 209, 0, 0.4);
+  animation: badgePulse 2s infinite ease-in-out;
+}
+
+.rankBadge-2 {
+  background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%);
+  color: #0f172a;
+}
+
+.rankBadge-3 {
+  background: linear-gradient(135deg, #ffedd5 0%, #d97706 100%);
+  color: #ffffff;
+}
+
+.rankBadge-4,
+.rankBadge-5,
+.rankBadge-6 {
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+}
+
+.rankNumber {
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1;
+}
+
+.rankCrown {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.bestSellerCard .catalogTypeBadge {
+  left: auto;
+  right: 12px;
+}
+
+.bestSellerCard .stockBadge {
+  top: 48px;
+}
+
+@keyframes badgePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); box-shadow: 0 4px 20px rgba(255, 209, 0, 0.45); }
+  100% { transform: scale(1); }
+}
+
+/* Responsiveness for Best Sellers */
+@media (max-width: 1200px) {
+  .bestSellersGrid {
+    grid-template-columns: repeat(3, minmax(0, 380px));
+    gap: 20px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 992px) {
+  .bestSellersGrid {
+    grid-template-columns: repeat(2, minmax(0, 380px));
+    gap: 20px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .bestSellersGrid {
+    grid-template-columns: repeat(2, minmax(0, 280px));
+    gap: 12px;
+    justify-content: center;
+  }
+  
+  .bestSellerCard .serviceCard-imageTop {
+    height: 200px;
+  }
+}
+
+.serviceCardLink {
+  text-decoration: none;
+  display: block;
+  width: 100%;
+  color: inherit;
+}
+
+.homeServicesLayout {
+  display: grid;
+  grid-template-columns: 20% minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+  width: 100%;
+  padding-left: 32px;
+}
+
+.homeQuickAccessSidebar {
+  position: sticky;
+  top: 100px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 90, 169, 0.12);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 90, 169, 0.05);
+}
+
+.homeSidebarGroup {
+  margin-bottom: 24px;
+}
+
+.homeSidebarGroup:last-child {
+  margin-bottom: 0;
+}
+
+.homeSidebarGroupTitle {
+  font-size: 16px;
+  font-weight: 800;
+  color: #005aa9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-left: 3px solid #ffd100;
+  padding-left: 8px;
+  margin: 0 0 16px 0;
+}
+
+.homeSidebarItemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.homeSidebarItemBox {
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  background: #fafafa;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.homeSidebarItemBox:hover {
+  border-color: rgba(0, 90, 169, 0.15);
+  background: #fdfdfd;
+}
+
+.homeSidebarItemTrigger {
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+}
+
+.triggerName {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  transition: color 0.2s ease;
+}
+
+.triggerCaret {
+  font-size: 12px;
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.homeSidebarItemTrigger.expanded .triggerName {
+  color: #005aa9;
+}
+
+.homeSidebarItemTrigger.expanded .triggerCaret {
+  transform: rotate(180deg);
+  color: #005aa9;
+}
+
+.homeSidebarSubList {
+  list-style: none;
+  padding: 4px 14px 12px 14px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+}
+
+.homeSidebarSubItem {
+  margin: 0;
+}
+
+.homeSidebarSubLink {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  display: block;
+  padding: 2px 0;
+}
+
+.homeSidebarSubLink:hover {
+  color: #005aa9;
+  transform: translateX(4px);
+}
+
+.homeSidebarStoreBtns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.homeSidebarStoreBtn {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(0, 90, 169, 0.12);
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+}
+
+.homeSidebarStoreBtn:hover {
+  background: linear-gradient(135deg, #ffd100 0%, #f5a623 100%);
+  border-color: #ffd100;
+  color: #0f172a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 209, 0, 0.35);
+}
+
+/* Responsive layout adjustments */
+@media (max-width: 1024px) {
+  .homeServicesLayout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding-left: 0;
+  }
+
+  .homeQuickAccessSidebar {
+    display: none !important;
   }
 }

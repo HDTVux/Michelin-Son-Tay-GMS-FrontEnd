@@ -4,6 +4,7 @@ import Footer from './Footer/Footer.jsx';
 import BackToTop from '../components/BackToTop/BackToTop.jsx';
 import UserTour from '../components/UserTour/UserTour.jsx';
 import CustomerAiWidget from '../components/AIAssistant/CustomerAiWidget.jsx';
+import BottomContactBar from '../components/BottomContactBar/BottomContactBar.jsx';
 import { CustomerAiAssistantProvider } from '../context/CustomerAiAssistantContext.jsx';
 import { CartProvider } from '../context/CartContext.jsx';
 import './MainLayout.css';
@@ -26,6 +27,7 @@ const MainLayoutContent = ({ isStaff }) => (
     <BackToTop />
     <UserTour type="customer" />
     {!isStaff && <CustomerAiWidget />}
+    {!isStaff && <BottomContactBar />}
   </div>
 );
 

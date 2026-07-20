@@ -280,6 +280,37 @@ const normalizeHomeProductResults = (settledResults, requestedTypes) => {
   };
 };
 
+const getBestSellingItems = (items) => {
+  if (!items || items.length === 0) return [];
+  const popularKeywords = ['lốp', 'vỏ', 'dầu', 'nhớt', 'cân chỉnh', 'thước lái', 'phanh', 'thắng', 'ắc quy', 'bình', 'bảo dưỡng'];
+  return items
+    .map(item => {
+      let score = 0;
+      const titleLower = (item.title || '').toLowerCase();
+      
+      // Boost score based on popular keywords
+      popularKeywords.forEach((kw, index) => {
+        if (titleLower.includes(kw)) {
+          score += (popularKeywords.length - index) * 15;
+        }
+      });
+      
+      // Boost items with images
+      if (item.image) score += 50;
+      
+      // Boost if in stock
+      if (item.inStock) score += 20;
+
+      // Deterministic pseudo-randomness based on ID/title to keep it stable
+      const hash = item.id ? (item.id % 10) : ((item.title || '').length % 10);
+      score += hash;
+
+      return { ...item, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+};
+
 const loadHomeCatalogItems = async (requestedTypes, categoryCode = '') => {
   logServicesDebug('loadHomeCatalogItems:start', { requestedTypes, categoryCode });
   const settledResults = await Promise.allSettled(
@@ -301,6 +332,8 @@ const Services = ({ homeRows = false }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const routeCatalogType = String(searchParams.get('type') || '').trim().toUpperCase();
   const routeCategoryCode = String(searchParams.get('categoryCode') || '').trim();
+  const routeVehicleMake = String(searchParams.get('vehicleMake') || '').trim();
+  const routeVehicleModel = String(searchParams.get('vehicleModel') || '').trim();
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');
@@ -318,9 +351,13 @@ const Services = ({ homeRows = false }) => {
   });
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
-  const [vehicleMake, setVehicleMake] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleMake, setVehicleMake] = useState(() => routeVehicleMake);
+  const [vehicleModel, setVehicleModel] = useState(() => routeVehicleModel);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [expandedSidebarItems, setExpandedSidebarItems] = useState({
+    'sv-1': true,
+    'pt-1': true,
+  });
   const didResetCatalogScrollRef = useRef(false);
   const categoryDropdownRef = useRef(null);
 
@@ -421,53 +458,313 @@ const Services = ({ homeRows = false }) => {
   const serviceItems = useMemo(() => services.filter((item) => item.itemType === 'SERVICE'), [services]);
   const homePartItems = useMemo(() => partItems.slice(0, HOME_ROW_LIMIT), [partItems]);
   const homeServiceItems = useMemo(() => serviceItems.slice(0, HOME_ROW_LIMIT), [serviceItems]);
+  const bestSellers = useMemo(() => getBestSellingItems(services), [services]);
 
   const renderCatalogCard = (service, idx) => (
     <div key={service.id || `${service.itemType}-${idx}`} className="serviceGridItem">
-      <div className="serviceCard">
-        <div className="serviceCard-imageTop">
-          <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
-          <div className="serviceCard-overlay">
-            <Link
-              to={service.serviceId || service.catalogItemId ? (service.itemType === 'PART' ? `/parts/${service.catalogItemId || service.serviceId}` : `/services/${service.serviceId || service.catalogItemId}`) : (service.itemType === 'PART' ? '/parts' : '/services')}
-              state={
-                service.catalogItemId != null || service.serviceId != null
-                  ? { catalogItemId: service.catalogItemId, serviceId: service.serviceId, itemType: service.itemType || 'SERVICE' }
-                  : undefined
-              }
-              className="overlayViewBtn"
-            >
-              Xem chi tiết →
-            </Link>
+      <Link
+        to={service.serviceId || service.catalogItemId ? (service.itemType === 'PART' ? `/parts/${service.catalogItemId || service.serviceId}` : `/services/${service.serviceId || service.catalogItemId}`) : (service.itemType === 'PART' ? '/parts' : '/services')}
+        state={
+          service.catalogItemId != null || service.serviceId != null
+            ? { catalogItemId: service.catalogItemId, serviceId: service.serviceId, itemType: service.itemType || 'SERVICE' }
+            : undefined
+        }
+        className="serviceCardLink"
+      >
+        <div className="serviceCard">
+          <div className="serviceCard-imageTop">
+            <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
+            <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
+            {service.itemType === 'PART' && service.inStock && (
+              <div className="stockBadge">Còn hàng</div>
+            )}
           </div>
-          <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
-          {service.itemType === 'PART' && service.inStock && (
-            <div className="stockBadge">Còn hàng</div>
-          )}
+          <div className="serviceCard-content">
+            <h3 className="serviceTitle">{service.title}</h3>
+            <div className="servicePriceInCard">{service.price || 'Liên hệ'}</div>
+          </div>
         </div>
-        <div className="serviceCard-content">
-          <h3 className="serviceTitle">{service.title}</h3>
-          <div className="servicePriceInCard">{service.price || 'Liên hệ'}</div>
-          <div className="serviceCard-footer">
+      </Link>
+    </div>
+  );
+
+  const renderHomeSidebarAccordion = () => {
+    const serviceItemsList = [
+      {
+        id: 'sv-1',
+        name: 'Thay lốp & cân mâm',
+        subItems: [
+          { name: 'Lốp du lịch chính hãng', link: '/services?search=lốp' },
+          { name: 'Cân mâm bấm chì', link: '/services?search=mâm' },
+          { name: 'Vá lốp chuẩn Michelin', link: '/services?search=vá lốp' }
+        ]
+      },
+      {
+        id: 'sv-2',
+        name: 'Cân chỉnh thước lái',
+        subItems: [
+          { name: 'Cân thước lái Hunter', link: '/services?search=thước lái' },
+          { name: 'Góc đặt bánh xe chuẩn', link: '/services?search=thước lái' }
+        ]
+      },
+      {
+        id: 'sv-3',
+        name: 'Bảo dưỡng định kỳ',
+        subItems: [
+          { name: 'Bảo dưỡng nhanh', link: '/services?search=bảo dưỡng' },
+          { name: 'Thay nước làm mát', link: '/services?search=nước làm mát' }
+        ]
+      },
+      {
+        id: 'sv-4',
+        name: 'Thay dầu động cơ',
+        subItems: [
+          { name: 'Thay dầu chính hãng', link: '/services?search=dầu' },
+          { name: 'Thay lọc dầu động cơ', link: '/services?search=lọc dầu' }
+        ]
+      },
+      {
+        id: 'sv-5',
+        name: 'Cân bằng động bánh xe',
+        subItems: [
+          { name: 'Cân bằng động Hunter', link: '/services?search=cân bằng' }
+        ]
+      },
+      {
+        id: 'sv-6',
+        name: 'Sửa chữa hệ thống phanh',
+        subItems: [
+          { name: 'Thay thế má phanh', link: '/services?search=phanh' },
+          { name: 'Láng đĩa phanh', link: '/services?search=phanh' }
+        ]
+      },
+      {
+        id: 'sv-7',
+        name: 'Cứu hộ ô tô 24/7',
+        subItems: [
+          { name: 'Cứu hộ lốp Sơn Tây', link: 'tel:0987545680' },
+          { name: 'Cứu hộ ắc quy 24/7', link: 'tel:0987545680' }
+        ]
+      }
+    ];
+
+    const partItemsList = [
+      {
+        id: 'pt-1',
+        name: 'Lốp xe Michelin',
+        subItems: [
+          { name: 'Michelin Primacy 4', link: '/parts?search=primacy' },
+          { name: 'Michelin Pilot Sport 5', link: '/parts?search=pilot' },
+          { name: 'Michelin Energy XM2+', link: '/parts?search=energy' }
+        ]
+      },
+      {
+        id: 'pt-2',
+        name: 'Ắc quy xe hơi',
+        subItems: [
+          { name: 'Ắc quy Atlas BX', link: '/parts?search=atlas' },
+          { name: 'Ắc quy Varta', link: '/parts?search=varta' },
+          { name: 'Ắc quy GS', link: '/parts?search=gs' }
+        ]
+      },
+      {
+        id: 'pt-3',
+        name: 'Dầu nhớt chính hãng',
+        subItems: [
+          { name: 'Dầu nhớt Mobil 1', link: '/parts?search=mobil' },
+          { name: 'Dầu Castrol Magnatec', link: '/parts?search=castrol' }
+        ]
+      },
+      {
+        id: 'pt-4',
+        name: 'Má phanh & đĩa phanh',
+        subItems: [
+          { name: 'Má phanh Bendix', link: '/parts?search=phanh' },
+          { name: 'Má phanh Bosch', link: '/parts?search=phanh' }
+        ]
+      },
+      {
+        id: 'pt-5',
+        name: 'Lọc dầu & lọc gió',
+        subItems: [
+          { name: 'Lọc gió động cơ', link: '/parts?search=lọc' },
+          { name: 'Lọc gió cabin', link: '/parts?search=lọc' }
+        ]
+      },
+      {
+        id: 'pt-6',
+        name: 'Gạt mưa cao cấp',
+        subItems: [
+          { name: 'Gạt mưa Bosch', link: '/parts?search=gạt' },
+          { name: 'Gạt mưa silicone', link: '/parts?search=gạt' }
+        ]
+      },
+      {
+        id: 'pt-7',
+        name: 'Mâm lazang thể thao',
+        subItems: [
+          { name: 'Mâm đúc lazang', link: '/parts?search=mâm' }
+        ]
+      }
+    ];
+
+    const toggleItem = (itemId) => {
+      setExpandedSidebarItems((prev) => ({
+        ...prev,
+        [itemId]: !prev[itemId],
+      }));
+    };
+
+    const handleStoreClick = (storeId) => {
+      const storeUrls = {
+        sontay1: 'https://maps.app.goo.gl/5p1HHhrirKYLRCCe9',
+        sontay2: 'https://maps.app.goo.gl/Y5rKFqkFBD2JUoyi6'
+      };
+      window.open(storeUrls[storeId], '_blank', 'noopener,noreferrer');
+    };
+
+    return (
+      <div className="homeSidebarAccordion">
+        {/* Nhóm Dịch Vụ */}
+        <div className="homeSidebarGroup">
+          <h3 className="homeSidebarGroupTitle">Dịch vụ chính hãng</h3>
+          <div className="homeSidebarItemsList">
+            {serviceItemsList.map((item) => (
+              <div key={item.id} className="homeSidebarItemBox">
+                <button
+                  type="button"
+                  className={`homeSidebarItemTrigger ${expandedSidebarItems[item.id] ? 'expanded' : ''}`}
+                  onClick={() => toggleItem(item.id)}
+                >
+                  <span className="triggerName">{item.name}</span>
+                  <span className="triggerCaret">▾</span>
+                </button>
+                {expandedSidebarItems[item.id] && (
+                  <ul className="homeSidebarSubList">
+                    {item.subItems.map((sub, idx) => (
+                      <li key={idx} className="homeSidebarSubItem">
+                        {sub.link.startsWith('tel:') ? (
+                          <a href={sub.link} className="homeSidebarSubLink">{sub.name}</a>
+                        ) : (
+                          <Link to={sub.link} className="homeSidebarSubLink">{sub.name}</Link>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Nhóm Phụ Tùng */}
+        <div className="homeSidebarGroup">
+          <h3 className="homeSidebarGroupTitle">Phụ tùng chính hãng</h3>
+          <div className="homeSidebarItemsList">
+            {partItemsList.map((item) => (
+              <div key={item.id} className="homeSidebarItemBox">
+                <button
+                  type="button"
+                  className={`homeSidebarItemTrigger ${expandedSidebarItems[item.id] ? 'expanded' : ''}`}
+                  onClick={() => toggleItem(item.id)}
+                >
+                  <span className="triggerName">{item.name}</span>
+                  <span className="triggerCaret">▾</span>
+                </button>
+                {expandedSidebarItems[item.id] && (
+                  <ul className="homeSidebarSubList">
+                    {item.subItems.map((sub, idx) => (
+                      <li key={idx} className="homeSidebarSubItem">
+                        {sub.link.startsWith('tel:') ? (
+                          <a href={sub.link} className="homeSidebarSubLink">{sub.name}</a>
+                        ) : (
+                          <Link to={sub.link} className="homeSidebarSubLink">{sub.name}</Link>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Nhóm Cửa Hàng */}
+        <div className="homeSidebarGroup">
+          <h3 className="homeSidebarGroupTitle">Cơ sở Michelin</h3>
+          <div className="homeSidebarStoreBtns">
             <button
               type="button"
-              className="btnAddToCartNew"
-              onClick={() => handleAddToCartAndGo(service)}
+              className="homeSidebarStoreBtn"
+              onClick={() => handleStoreClick('sontay1')}
             >
-              Thêm vào giỏ
+              📍 Cơ sở 1: QL21 Sơn Tây
             </button>
             <button
               type="button"
-              className="btnBuyNowNew"
-              onClick={() => handleAddToCartAndGo(service)}
+              className="homeSidebarStoreBtn"
+              onClick={() => handleStoreClick('sontay2')}
             >
-              Mua ngay
+              📍 Cơ sở 2: Biên Phòng
             </button>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const renderBestSellersRow = () => {
+    if (bestSellers.length === 0) return null;
+    return (
+      <section className="bestSellersSection" aria-label="Sản phẩm bán chạy nhất">
+        <div className="servicesTypeHeader">
+          <div>
+            <h2 className="servicesTypeTitle">Sản Phẩm & Dịch Vụ Bán Chạy Nhất</h2>
+            <p className="servicesTypeSubtitle">Top 6 sản phẩm và dịch vụ được đông đảo khách hàng tin dùng tại Michelin Sơn Tây.</p>
+          </div>
+        </div>
+        <div className="bestSellersGrid">
+          {bestSellers.map((item, index) => {
+            const rank = index + 1;
+            return (
+              <div key={item.id || `${item.itemType}-${index}`} className="serviceGridItem">
+                <Link
+                  to={item.serviceId || item.catalogItemId ? (item.itemType === 'PART' ? `/parts/${item.catalogItemId || item.serviceId}` : `/services/${item.serviceId || item.catalogItemId}`) : (item.itemType === 'PART' ? '/parts' : '/services')}
+                  state={
+                    item.catalogItemId != null || item.serviceId != null
+                      ? { catalogItemId: item.catalogItemId, serviceId: item.serviceId, itemType: item.itemType || 'SERVICE' }
+                      : undefined
+                  }
+                  className="serviceCardLink"
+                >
+                  <div className={`serviceCard bestSellerCard rank-${rank}`}>
+                    {/* Rank Badge */}
+                    <div className={`rankBadge rankBadge-${rank}`}>
+                      <span className="rankNumber">#{rank}</span>
+                      {rank === 1 && <span className="rankCrown" role="img" aria-label="Crown">👑</span>}
+                    </div>
+
+                    <div className="serviceCard-imageTop">
+                      <img src={item.image || serviceFallback} alt={item.title} className="serviceCard-image" />
+                      <div className="catalogTypeBadge">{item.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
+                      {item.itemType === 'PART' && item.inStock && (
+                        <div className="stockBadge">Còn hàng</div>
+                      )}
+                    </div>
+                    
+                    <div className="serviceCard-content">
+                      <h3 className="serviceTitle">{item.title}</h3>
+                      <div className="servicePriceInCard">{item.price || 'Liên hệ'}</div>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
 
   const renderCatalogRow = (title, subtitle, items, moreTo) => (
     <section className="servicesTypeSection" aria-label={title}>
@@ -1111,48 +1408,29 @@ const Services = ({ homeRows = false }) => {
             <div className="servicesGrid">
               {gridItemsToShow.map((service, idx) => (
                 <div key={service.id || idx} className="serviceGridItem">
-                  <div className="serviceCard">
-                    <div className="serviceCard-imageTop">
-                      <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
-                      <div className="serviceCard-overlay">
-                        <Link
-                          to={service.serviceId || service.catalogItemId ? (service.itemType === 'PART' ? `/parts/${service.catalogItemId || service.serviceId}` : `/services/${service.serviceId || service.catalogItemId}`) : (service.itemType === 'PART' ? '/parts' : '/services')}
-                          state={
-                            service.catalogItemId != null || service.serviceId != null
-                              ? { catalogItemId: service.catalogItemId, serviceId: service.serviceId, itemType: service.itemType || 'SERVICE' }
-                              : undefined
-                          }
-                          className="overlayViewBtn"
-                        >
-                          Xem chi tiết →
-                        </Link>
+                  <Link
+                    to={service.serviceId || service.catalogItemId ? (service.itemType === 'PART' ? `/parts/${service.catalogItemId || service.serviceId}` : `/services/${service.serviceId || service.catalogItemId}`) : (service.itemType === 'PART' ? '/parts' : '/services')}
+                    state={
+                      service.catalogItemId != null || service.serviceId != null
+                        ? { catalogItemId: service.catalogItemId, serviceId: service.serviceId, itemType: service.itemType || 'SERVICE' }
+                        : undefined
+                    }
+                    className="serviceCardLink"
+                  >
+                    <div className="serviceCard">
+                      <div className="serviceCard-imageTop">
+                        <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
+                        <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
+                        {service.itemType === 'PART' && service.inStock && (
+                          <div className="stockBadge">Còn hàng</div>
+                        )}
                       </div>
-                      <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
-                      {service.itemType === 'PART' && service.inStock && (
-                        <div className="stockBadge">Còn hàng</div>
-                      )}
-                    </div>
-                    <div className="serviceCard-content">
-                      <h3 className="serviceTitle">{service.title}</h3>
-                      <div className="servicePriceInCard">{service.price || 'Liên hệ'}</div>
-                      <div className="serviceCard-footer">
-                        <button
-                          type="button"
-                          className="btnAddToCartNew"
-                          onClick={() => handleAddToCartAndGo(service)}
-                        >
-                          Thêm vào giỏ
-                        </button>
-                        <button
-                          type="button"
-                          className="btnBuyNowNew"
-                          onClick={() => handleAddToCartAndGo(service)}
-                        >
-                          Mua ngay
-                        </button>
+                      <div className="serviceCard-content">
+                        <h3 className="serviceTitle">{service.title}</h3>
+                        <div className="servicePriceInCard">{service.price || 'Liên hệ'}</div>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 </div>
               ))}
             </div>
@@ -1196,24 +1474,33 @@ const Services = ({ homeRows = false }) => {
         )}
 
         {homeRows && (
-        <div className="servicesRowsWrapper">
-          {servicesLoading && (
-            <div className="serviceStatus">
-              <div className="loadingSpinner" />
-              <span>Đang tải danh mục...</span>
+        <div className="homeServicesLayout">
+          <aside className="homeQuickAccessSidebar">
+            {renderHomeSidebarAccordion()}
+          </aside>
+
+          <div className="homeServicesMain">
+            <div className="servicesRowsWrapper" style={{ padding: 0 }}>
+              {servicesLoading && (
+                <div className="serviceStatus">
+                  <div className="loadingSpinner" />
+                  <span>Đang tải danh mục...</span>
+                </div>
+              )}
+              {!servicesLoading && servicesError && (
+                <div className="serviceStatus error">
+                  {servicesError}
+                </div>
+              )}
+              {!servicesLoading && !servicesError && (
+                <>
+                  {renderBestSellersRow()}
+                  {renderCatalogRow('Dịch vụ', 'Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp.', homeServiceItems, '/services')}
+                  {renderCatalogRow('Phụ tùng', 'Phụ tùng chính hãng, đa dạng chủng loại.', homePartItems, '/parts')}
+                </>
+              )}
             </div>
-          )}
-          {!servicesLoading && servicesError && (
-            <div className="serviceStatus error">
-              {servicesError}
-            </div>
-          )}
-          {!servicesLoading && !servicesError && (
-            <>
-              {renderCatalogRow('Dịch vụ', 'Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp.', homeServiceItems, '/services')}
-              {renderCatalogRow('Phụ tùng', 'Phụ tùng chính hãng, đa dạng chủng loại.', homePartItems, '/parts')}
-            </>
-          )}
+          </div>
         </div>
         )}
       </section>

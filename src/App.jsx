@@ -8,6 +8,7 @@ import GlobalRequestButtonLoading from './components/GlobalRequestButtonLoading.
 //Home page and common pages
 import Home from './pages/home/Home.jsx';
 import Services from './pages/home/Services/Services.jsx';
+import Combos from './pages/home/Combos/Combos.jsx';
 import About from './pages/About/About.jsx';
 import Booking from './pages/Booking/Booking.jsx';
 import ToastBox from './components/Toast/ToastBox.jsx';
@@ -527,6 +528,7 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="services" element={<Services />} />
               <Route path="parts" element={<Services />} />
+              <Route path="combos" element={<Combos />} />
               <Route path="services/:serviceId" element={<ServiceDetail />} />
               <Route path="parts/:serviceId" element={<ServiceDetail />} />
               <Route path="about" element={<About />} />
