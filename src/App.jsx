@@ -92,6 +92,8 @@ import RankingHistory from './pages/RankingHistory/RankingHistory.jsx';
 import NotFound from './pages/NotFound/NotFound.jsx';
 import EditBooking from './pages/EditBooking/EditBooking.jsx';
 import CarPartsLookup from './pages/CarPartsLookup/CarPartsLookup.jsx';
+import Cart from './pages/Cart/Cart.jsx';
+import Checkout from './pages/Checkout/Checkout.jsx';
 
 //Receptionist pages
 import CreatBooking from './pages/DashBoard/BookingManagement/CreateBooking.jsx';
@@ -535,6 +537,8 @@ export default function App() {
               <Route path="customer-dashboard" element={<CustomerDashboard />} />
               <Route path="ranking-history" element={<RankingHistory />} />
               <Route path="car-parts-lookup" element={<CarPartsLookup />} />
+              <Route path="cart" element={<Cart />} />
+              <Route path="checkout" element={<Checkout />} />
             </Route>
 
             {/* Các route phụ trợ khác */}

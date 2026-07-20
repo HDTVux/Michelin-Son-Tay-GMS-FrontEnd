@@ -1,7 +1,9 @@
 import './Services.css';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { fetchHomeProducts } from '../../../services/homeService';
+import { useCart } from '../../../context/CartContext.jsx';
 import serviceFallback from '../../../assets/lop and mam.jpg';
 import serviceHeroImage from '../../../assets/anh_dich_vu.jpg';
 import partHeroImage from '../../../assets/anh_kho.jpg';
@@ -371,6 +373,27 @@ const Services = ({ homeRows = false }) => {
   ];
   */
 
+  const { addItem } = useCart();
+
+  // Thêm nhanh một sản phẩm/dịch vụ từ card vào giỏ hàng
+  const handleAddToCart = (service) => {
+    const catalogId = service?.catalogItemId || service?.serviceId;
+    if (!catalogId) {
+      toast('Sản phẩm này chưa hỗ trợ thêm vào giỏ hàng.', { containerId: 'app-toast' });
+      return;
+    }
+    addItem({
+      id: catalogId,
+      serviceId: service.serviceId,
+      itemType: service.itemType,
+      name: service.title,
+      price: service.rawPrice,
+      priceText: String(service.price || '').replace(/^Giá:\s*/, ''),
+      thumbnail: service.image,
+    });
+    toast(`Đã thêm "${service.title}" vào giỏ hàng.`, { containerId: 'app-toast' });
+  };
+
   const partItems = useMemo(() => services.filter((item) => item.itemType === 'PART'), [services]);
   const serviceItems = useMemo(() => services.filter((item) => item.itemType === 'SERVICE'), [services]);
   const homePartItems = useMemo(() => partItems.slice(0, HOME_ROW_LIMIT), [partItems]);
@@ -404,6 +427,15 @@ const Services = ({ homeRows = false }) => {
           <p className="serviceDescription">{service.description || 'Hiện chưa có mô tả.'}</p>
           <div className="serviceCard-footer">
             <div className="servicePrice">{service.price || 'Liên hệ'}</div>
+            <button
+              type="button"
+              className="btnAddCart"
+              onClick={() => handleAddToCart(service)}
+              aria-label={`Thêm ${service.title} vào giỏ hàng`}
+              title="Thêm vào giỏ hàng"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            </button>
             <Link
               to="/booking"
               state={service.catalogItemId != null ? { catalogItemId: service.catalogItemId, itemType: service.itemType } : undefined}
@@ -1139,6 +1171,15 @@ const Services = ({ homeRows = false }) => {
                       <p className="serviceDescription">{service.description || 'Hiện chưa có mô tả.'}</p>
                       <div className="serviceCard-footer">
                         <div className="servicePrice">{service.price || 'Liên hệ'}</div>
+                        <button
+                          type="button"
+                          className="btnAddCart"
+                          onClick={() => handleAddToCart(service)}
+                          aria-label={`Thêm ${service.title} vào giỏ hàng`}
+                          title="Thêm vào giỏ hàng"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                        </button>
                         <Link
                           to="/booking"
                           state={service.catalogItemId != null ? { catalogItemId: service.catalogItemId, itemType: service.itemType } : undefined}

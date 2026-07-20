@@ -8,6 +8,8 @@ import {
 } from '../../services/warehouseService.js';
 import serviceFallback from '../../assets/lop and mam.jpg';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
+import { useCart } from '../../context/CartContext.jsx';
+import { toast } from 'react-toastify';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
 const stripHtml = (value) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -337,6 +339,7 @@ const ServiceDetail = () => {
   const { serviceId: routeParam } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { addItem } = useCart();
 
   useScrollToTop([routeParam]);
 
@@ -566,6 +569,25 @@ const ServiceDetail = () => {
     navigate('/booking', { state: catalogId ? { catalogItemId: catalogId } : undefined });
   };
 
+  // Thêm sản phẩm hiện tại vào giỏ hàng (mua online hoặc đặt cọc rồi đến xưởng)
+  const handleAddToCart = () => {
+    const catalogId = service?.catalogItemId || service?.serviceId;
+    if (!catalogId) {
+      toast('Sản phẩm này chưa hỗ trợ thêm vào giỏ hàng.', { containerId: 'app-toast' });
+      return;
+    }
+    addItem({
+      id: catalogId,
+      serviceId: service?.serviceId,
+      itemType: service?.itemType,
+      name: service?.title,
+      price: service?.showPrice ? service?.priceNum : null,
+      priceText: service?.showPrice ? (service?.displayPriceText || '') : 'Liên hệ',
+      thumbnail: service?.mediaThumbnail || '',
+    });
+    toast(`Đã thêm "${service?.title}" vào giỏ hàng.`, { containerId: 'app-toast' });
+  };
+
   const detailTabs = [
     { key: 'description', label: 'Mô tả' },
     { key: 'info', label: 'Thông tin' },
@@ -697,6 +719,14 @@ const ServiceDetail = () => {
 
             <button className={styles.bookingBtn} onClick={handleBooking} type="button">
               <span>Đặt lịch ngay</span>
+            </button>
+
+            <button className={styles.cartBtn} onClick={handleAddToCart} type="button">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+              <span>Thêm vào giỏ hàng</span>
             </button>
 
             <a href="tel:0987545680" className={styles.hotlineLink}>

@@ -357,8 +357,8 @@
   position: fixed;
   bottom: 92px; /* nằm trên nút BackToTop (bottom: 30px, cao 50px) */
   right: 30px;
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   border: none;
   border-radius: 50%;
   background: linear-gradient(135deg, #005aa9, #0b7dd6);
@@ -400,11 +400,11 @@
   transform: translateY(-50%) translateX(0);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .ai-assistant__launcher {
     bottom: 76px;
     right: 20px;
-    width: 50px;
-    height: 50px;
+    width: 45px;
+    height: 45px;
   }
 }

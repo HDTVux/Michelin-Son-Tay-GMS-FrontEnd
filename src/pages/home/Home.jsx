@@ -8,6 +8,8 @@ import Banner from './Banner/Banner.jsx';
 import Form from './Form/Form.jsx';
 import BussinessInfor from './BusinessInfo/BussinessInfor.jsx';
 import Partners from './Partners/Partners.jsx';
+import VehicleBrands from './VehicleBrands/VehicleBrands.jsx';
+import Testimonials from './Testimonials/Testimonials.jsx';
 
 const SITE_TITLE = 'Đại lý garage Sơn Tây - michelinsontay - Trung tâm dịch vụ lốp xe uy tín';
 const SITE_DESCRIPTION =
@@ -188,7 +190,9 @@ const Home = () => {
         {!isAuthenticated && <Form/>}
 
         <Service homeRows />
+        <VehicleBrands/>
         <Partners/>
+        <Testimonials/>
         <BussinessInfor/>
         </>
     );

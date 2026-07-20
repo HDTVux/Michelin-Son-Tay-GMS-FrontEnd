@@ -445,8 +445,8 @@
 }
 
 .floatingCircle {
-	width: 60px;
-	height: 60px;
+	width: 50px;
+	height: 50px;
 	border-radius: 50%;
 	display: flex;
 	align-items: center;
@@ -644,7 +644,7 @@
 	transition: transform 0s, opacity 0s;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
 	.floatingContact {
 		right: 20px;
 		bottom: 80px;
@@ -652,8 +652,8 @@
 	}
 
 	.floatingCircle {
-		width: 50px;
-		height: 50px;
+		width: 45px;
+		height: 45px;
 	}
 
 	.floatingCircle__tooltip {
@@ -662,17 +662,17 @@
 	}
 
 	.floatingContact__close {
-		width: 30px;
-		height: 30px;
-		margin-right: 10px;
+		width: 24px;
+		height: 24px;
+		margin-right: 10.5px;
 	}
 }
 
 /* Nút X to để thu gọn/tắt kênh liên hệ, đặt trên đầu stack các nút liên hệ */
 /* margin-right bù phần chênh lệch với .floatingCircle (60px) để tâm nút X thẳng hàng với tâm các nút bên dưới dù dùng align-items: flex-end */
 .floatingContact__close {
-	width: 38px;
-	height: 38px;
+	width: 28px;
+	height: 28px;
 	margin-right: 11px;
 	border-radius: 50%;
 	background: #ffffff;
@@ -698,11 +698,11 @@
 /* bottom được đẩy cao hơn nút "Lên đầu trang" để 2 nút không đè lên nhau */
 .floatingContact__trigger {
 	position: fixed;
-	right: 24px;
+	right: 30px;
 	bottom: 100px;
 	z-index: 100;
-	width: 64px;
-	height: 64px;
+	width: 50px;
+	height: 50px;
 	border-radius: 50%;
 	background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
 	color: #ffffff;
@@ -712,7 +712,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 24px;
+	font-size: 20px;
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 	animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) backwards;
 }
@@ -722,12 +722,12 @@
 	box-shadow: 0 8px 24px rgba(0, 90, 169, 0.45), 0 0 0 4px rgba(0, 90, 169, 0.3);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
 	.floatingContact__trigger {
-		right: 16px;
+		right: 20px;
 		bottom: 80px;
-		width: 54px;
-		height: 54px;
-		font-size: 20px;
+		width: 45px;
+		height: 45px;
+		font-size: 18px;
 	}
 }

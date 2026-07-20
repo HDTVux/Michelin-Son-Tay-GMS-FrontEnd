@@ -25,7 +25,7 @@ const CustomerAiWidget = () => {
           onClick={aiState.openPanel}
           aria-label="Mở trợ lý ảo"
         >
-          <Bot size={24} />
+          <Bot size={22} />
           <span className="ai-assistant__launcherLabel">Trợ lý ảo</span>
         </button>
       )}

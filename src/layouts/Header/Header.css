@@ -38,6 +38,46 @@
   gap: 12px;
 }
 
+.headerCartBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.headerCartBtn:hover,
+.headerCartBtn.active {
+  background: #fce500;
+  color: #0a0f1c;
+  border-color: #fce500;
+}
+
+.headerCartBadge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 .headerHotline {
   display: inline-flex;
   align-items: center;

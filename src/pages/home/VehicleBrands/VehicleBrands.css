@@ -1,0 +1,109 @@
+.vehicleBrandsSection {
+  position: relative;
+  padding: 70px 5%;
+  background: #ffffff;
+}
+
+.vehicleBrandsContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.vehicleBrandsHeader {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 40px;
+}
+
+.vehicleBrandsTitle {
+  font-size: 34px;
+  font-weight: 700;
+  margin: 10px 0 14px;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.vehicleBrandsTitle .titlePart1 {
+  color: #0a0f1c;
+  margin-right: 10px;
+}
+
+.vehicleBrandsTitle .titlePart2 {
+  color: #005aa9;
+}
+
+.vehicleBrandsSubtitle {
+  color: #475569;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.vehicleBrandsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.vehicleBrandCard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px 16px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid rgba(0, 90, 169, 0.12);
+  text-decoration: none;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+
+.vehicleBrandCard:hover {
+  transform: translateY(-4px);
+  background: #ffffff;
+  border-color: rgba(0, 90, 169, 0.35);
+  box-shadow: 0 10px 24px rgba(0, 90, 169, 0.12);
+}
+
+.vehicleBrandName {
+  font-weight: 800;
+  font-size: 16px;
+  color: #0a0f1c;
+  letter-spacing: 0.3px;
+}
+
+.vehicleBrandsFooter {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.vehicleBrandsMore {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #005aa9;
+  font-weight: 800;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.vehicleBrandsMore:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .vehicleBrandsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .vehicleBrandsSection {
+    padding: 50px 5%;
+  }
+  .vehicleBrandsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .vehicleBrandsTitle {
+    font-size: 26px;
+  }
+}

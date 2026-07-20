@@ -112,15 +112,27 @@ export default function Booking() {
   const legacyServiceId = location.state?.serviceId != null ? Number(location.state.serviceId) : null;
   const preselectedItemType = toItemType(location.state?.itemType);
 
+  // Luồng đến từ trang thanh toán giỏ hàng (nhận tại xưởng, đã đặt cọc):
+  // sản phẩm đã chọn sẵn nên bỏ qua bước chọn dịch vụ, chỉ cần chọn ngày giờ.
+  const cartCatalogItemIds = Array.isArray(location.state?.catalogItemIds)
+    ? location.state.catalogItemIds.map(String).filter(Boolean)
+    : [];
+  const fromCart = location.state?.fromCart === true && cartCatalogItemIds.length > 0;
+  const cartOrderCode = String(location.state?.orderCode || '').trim();
+  const cartCustomerName = String(location.state?.customerName || '').trim();
+
   // Các state để quản lý bước hiện tại
-  const [stepIndex, setStepIndex] = useState(0); // 0: chọn dịch vụ, 1: chọn lịch, 2: điền thông tin, 3: hoàn tất
+  const [stepIndex, setStepIndex] = useState(fromCart ? 1 : 0); // 0: chọn dịch vụ, 1: chọn lịch, 2: điền thông tin, 3: hoàn tất
   useScrollToTop([stepIndex], 'smooth');
   const [services, setServices] = useState([]);  // Danh sách dịch vụ/phụ tùng được tải về từ API
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState('');
 
   // State để quản lý lựa chọn dịch vụ/phụ tùng, thông tin tìm kiếm/lọc, thông tin lịch hẹn và khách hàng
-  const [selectedIds, setSelectedIds] = useState(() => (preselectedCatalogItemId ? [preselectedCatalogItemId] : []));
+  const [selectedIds, setSelectedIds] = useState(() => {
+    if (fromCart) return cartCatalogItemIds;
+    return preselectedCatalogItemId ? [preselectedCatalogItemId] : [];
+  });
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [activeTab, setActiveTab] = useState(preselectedItemType);
@@ -130,7 +142,12 @@ export default function Booking() {
 
   // State để quản lý thông tin lịch hẹn và khách hàng
   const [schedule, setSchedule] = useState({ date: '', time: '' });
-  const [info, setInfo] = useState({ name: '', phone: prefilledPhone, note: '' });
+  const [info, setInfo] = useState({
+    name: cartCustomerName,
+    phone: prefilledPhone,
+    // Gắn mã đơn đã đặt cọc vào ghi chú để lễ tân đối soát khi xác nhận lịch
+    note: cartOrderCode ? `Đơn hàng ${cartOrderCode} - đã đặt cọc online.` : '',
+  });
 
   // State để quản lý token khách hàng
   const [customerToken, setCustomerToken] = useState(() => getValidToken('customerToken'));

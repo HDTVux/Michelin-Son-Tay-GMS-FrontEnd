@@ -404,6 +404,32 @@
   transform: translateY(1px);
 }
 
+.cartBtn {
+  width: 100%;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px 18px;
+  border: 2px solid var(--detail-primary);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--detail-primary);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.cartBtn:hover {
+  background: rgba(0, 90, 169, 0.08);
+}
+
+.cartBtn:active {
+  transform: translateY(1px);
+}
+
 .hotlineLink {
   display: inline-flex;
   justify-content: center;

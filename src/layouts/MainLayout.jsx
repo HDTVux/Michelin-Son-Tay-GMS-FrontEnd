@@ -5,6 +5,7 @@ import BackToTop from '../components/BackToTop/BackToTop.jsx';
 import UserTour from '../components/UserTour/UserTour.jsx';
 import CustomerAiWidget from '../components/AIAssistant/CustomerAiWidget.jsx';
 import { CustomerAiAssistantProvider } from '../context/CustomerAiAssistantContext.jsx';
+import { CartProvider } from '../context/CartContext.jsx';
 import './MainLayout.css';
 
 // MainLayout cũng được dùng cho trang chi tiết dịch vụ trên domain staff —
@@ -37,7 +38,10 @@ const MainLayout = () => {
   const isStaff = isStaffSubdomain();
   return (
     <CustomerAiAssistantProvider>
-      <MainLayoutContent isStaff={isStaff} />
+      {/* CartProvider: giỏ hàng dùng chung cho Header (badge) và các trang con qua Outlet */}
+      <CartProvider>
+        <MainLayoutContent isStaff={isStaff} />
+      </CartProvider>
     </CustomerAiAssistantProvider>
   );
 };

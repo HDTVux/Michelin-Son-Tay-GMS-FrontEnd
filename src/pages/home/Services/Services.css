@@ -1039,6 +1039,28 @@
   transform: translateX(3px);
 }
 
+.btnAddCart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.btnAddCart:hover {
+  border-color: #dc2626;
+  color: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.18);
+}
+
 /* ====== Grid Toggle Button ====== */
 /* ====== Pagination ====== */
 .gridPagination {

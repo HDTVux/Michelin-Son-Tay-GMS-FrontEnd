@@ -78,7 +78,7 @@ export default function BussinessInfor() {
 						title="Thu gọn kênh liên hệ"
 						aria-label="Thu gọn kênh liên hệ"
 					>
-						<X size={18} strokeWidth={2.5} />
+						<X size={14} strokeWidth={2.5} />
 					</button>
 					{!aiState.isOpen && (
 						<button
@@ -88,7 +88,7 @@ export default function BussinessInfor() {
 							aria-label="Mở trợ lý ảo"
 						>
 							<span className="floatingCircle__tooltip">Trợ lý ảo</span>
-							<span className="floatingCircle__icon"><Bot size={26} strokeWidth={2.2} /></span>
+							<span className="floatingCircle__icon"><Bot size={22} strokeWidth={2.2} /></span>
 						</button>
 					)}
 					<a className="floatingCircle floatingCircle--zalo" href="https://zalo.me/thietbilop" target="_blank" rel="noreferrer" aria-label="Liên hệ Zalo">
@@ -99,7 +99,7 @@ export default function BussinessInfor() {
 					</a>
 					<a className="floatingCircle floatingCircle--call" href="tel:0987545680" aria-label="Gọi điện">
 						<span className="floatingCircle__tooltip">Gọi ngay</span>
-						<span className="floatingCircle__icon"><Phone size={26} strokeWidth={2.2} /></span>
+						<span className="floatingCircle__icon"><Phone size={22} strokeWidth={2.2} /></span>
 					</a>
 					<a className="floatingCircle floatingCircle--messenger" href="https://m.me/michelinsontay" target="_blank" rel="noreferrer" aria-label="Nhắn tin Messenger">
 						<span className="floatingCircle__tooltip">Nhắn tin Messenger</span>

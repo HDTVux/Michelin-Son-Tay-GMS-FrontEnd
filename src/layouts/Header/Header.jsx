@@ -4,6 +4,7 @@ import './Header.css';
 import CustomerLogin from '../../features/auth/components/CustomerLoginModal.jsx';
 import logo from '../../assets/LogoNonBackground.png';
 import { DEFAULT_AVATAR, handleAvatarError } from '../../assets/defaultAvatar.js';
+import { useCart } from '../../context/CartContext.jsx';
 
 const Header = () => {
   const STORE_PHONE_TEL = '0987545680';
@@ -18,6 +19,7 @@ const Header = () => {
   const dropdownRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const { totalQuantity } = useCart();
 
   const isActive = (path) => location.pathname === path || (path !== '/' && location.pathname.startsWith(`${path}/`));
 
@@ -163,6 +165,21 @@ const Header = () => {
             <span className="headerHotlineLabel">Hotline:</span>
             <span className="headerHotlineText">{STORE_PHONE_DISPLAY}</span>
           </a>
+
+          <Link
+            to="/cart"
+            className={`headerCartBtn ${isActive('/cart') ? 'active' : ''}`}
+            aria-label={`Giỏ hàng, ${totalQuantity} sản phẩm`}
+            onClick={closeMenu}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+            </svg>
+            {totalQuantity > 0 && (
+              <span className="headerCartBadge">{totalQuantity > 99 ? '99+' : totalQuantity}</span>
+            )}
+          </Link>
 
           <div className={`headerAuth ${isMenuOpen ? 'open' : ''}`}>
             {isAuthed ? (

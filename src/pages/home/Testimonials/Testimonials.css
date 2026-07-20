@@ -1,0 +1,95 @@
+.testimonialsSection {
+  position: relative;
+  padding: 70px 5%;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.testimonialsContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.testimonialsHeader {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.testimonialsTitle {
+  font-size: 34px;
+  font-weight: 700;
+  margin: 10px 0 0;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.testimonialsTitle .titlePart1 {
+  color: #0a0f1c;
+  margin-right: 10px;
+}
+
+.testimonialsTitle .titlePart2 {
+  color: #005aa9;
+}
+
+.testimonialsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.testimonialCard {
+  background: #ffffff;
+  border: 1px solid rgba(0, 90, 169, 0.1);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 8px 24px rgba(10, 15, 28, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.testimonialStars {
+  display: flex;
+  gap: 4px;
+}
+
+.testimonialContent {
+  color: #334155;
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0;
+  flex: 1;
+}
+
+.testimonialAuthor {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid rgba(0, 90, 169, 0.1);
+  padding-top: 14px;
+}
+
+.testimonialName {
+  font-weight: 800;
+  color: #0a0f1c;
+  font-size: 14px;
+}
+
+.testimonialVehicle {
+  color: #64748b;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .testimonialsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .testimonialsSection {
+    padding: 50px 5%;
+  }
+  .testimonialsTitle {
+    font-size: 26px;
+  }
+}
