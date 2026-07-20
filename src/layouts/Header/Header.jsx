@@ -134,10 +134,17 @@ const Header = () => {
           </Link>
           <Link
             to="/services"
-            className={isActive('/services') || isActive('/parts') ? 'active' : ''}
+            className={isActive('/services') ? 'active' : ''}
             onClick={() => { closeMenu(); scrollToTop(); }}
           >
-            Dịch vụ & phụ tùng
+            Dịch vụ
+          </Link>
+          <Link
+            to="/parts"
+            className={isActive('/parts') ? 'active' : ''}
+            onClick={() => { closeMenu(); scrollToTop(); }}
+          >
+            Phụ tùng
           </Link>
           <Link
             to="/"

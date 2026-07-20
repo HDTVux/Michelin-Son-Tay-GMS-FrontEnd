@@ -21,14 +21,14 @@ const VehicleBrands = () => (
 
       <div className="vehicleBrandsGrid">
         {BRANDS.map((brand) => (
-          <Link key={brand} to="/services?type=PART" className="vehicleBrandCard">
+          <Link key={brand} to="/parts" className="vehicleBrandCard">
             <span className="vehicleBrandName">{brand}</span>
           </Link>
         ))}
       </div>
 
       <div className="vehicleBrandsFooter">
-        <Link to="/services?type=PART" className="vehicleBrandsMore">
+        <Link to="/parts" className="vehicleBrandsMore">
           Xem tất cả dòng xe được hỗ trợ
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </Link>

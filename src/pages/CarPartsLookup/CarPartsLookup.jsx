@@ -246,7 +246,7 @@ export default function CarPartsLookup() {
                               <span className={styles.price}>{formatCurrency(bestPrice)}</span>
                             )}
                           </div>
-                          <button className={styles.viewDetailBtn} onClick={() => window.location.href = `/services?type=PART&search=${item.sku}`}>
+                          <button className={styles.viewDetailBtn} onClick={() => window.location.href = `/parts?search=${item.sku}`}>
                             Xem chi tiết
                           </button>
                         </div>

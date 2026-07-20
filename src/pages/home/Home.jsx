@@ -158,6 +158,8 @@ const Home = () => {
 
         <Banner/>
         
+        <Service homeRows />
+
         {/* Phần giới thiệu về Michelin và Video */}
         <section className="introVideoSection" ref={introSectionRef}>
             <div className="introVideoContainer">
@@ -187,11 +189,9 @@ const Home = () => {
             </div>
         </section>
 
-        {!isAuthenticated && <Form/>}
-
-        <Service homeRows />
         <VehicleBrands/>
         <Partners/>
+        {!isAuthenticated && <Form/>}
         <Testimonials/>
         <BussinessInfor/>
         </>

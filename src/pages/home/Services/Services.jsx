@@ -1,6 +1,6 @@
 import './Services.css';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { fetchHomeProducts } from '../../../services/homeService';
 import { useCart } from '../../../context/CartContext.jsx';
@@ -297,6 +297,7 @@ const loadHomeCatalogItems = async (requestedTypes, categoryCode = '') => {
 
 const Services = ({ homeRows = false }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const routeCatalogType = String(searchParams.get('type') || '').trim().toUpperCase();
   const routeCategoryCode = String(searchParams.get('categoryCode') || '').trim();
@@ -306,11 +307,15 @@ const Services = ({ homeRows = false }) => {
   const [currentCatalogServices, setCurrentCatalogServices] = useState([]);
   const [currentCatalogLoading, setCurrentCatalogLoading] = useState(() => !homeRows);
   const [currentCatalogError, setCurrentCatalogError] = useState('');
-  const [catalogFilter, setCatalogFilter] = useState('SERVICE');
+  const [catalogFilter, setCatalogFilter] = useState(() => {
+    return homeRows ? 'SERVICE' : (location.pathname.startsWith('/parts') ? 'PART' : 'SERVICE');
+  });
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(0);
   const [priceSort, setPriceSort] = useState('DEFAULT');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    return String(searchParams.get('search') || '').trim();
+  });
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const [vehicleMake, setVehicleMake] = useState('');
@@ -394,6 +399,24 @@ const Services = ({ homeRows = false }) => {
     toast(`Đã thêm "${service.title}" vào giỏ hàng.`, { containerId: 'app-toast' });
   };
 
+  const handleAddToCartAndGo = (service) => {
+    const catalogId = service?.catalogItemId || service?.serviceId;
+    if (!catalogId) {
+      toast('Sản phẩm này chưa hỗ trợ thêm vào giỏ hàng.', { containerId: 'app-toast' });
+      return;
+    }
+    addItem({
+      id: catalogId,
+      serviceId: service.serviceId,
+      itemType: service.itemType,
+      name: service.title,
+      price: service.rawPrice,
+      priceText: String(service.price || '').replace(/^Giá:\s*/, ''),
+      thumbnail: service.image,
+    });
+    navigate('/cart');
+  };
+
   const partItems = useMemo(() => services.filter((item) => item.itemType === 'PART'), [services]);
   const serviceItems = useMemo(() => services.filter((item) => item.itemType === 'SERVICE'), [services]);
   const homePartItems = useMemo(() => partItems.slice(0, HOME_ROW_LIMIT), [partItems]);
@@ -406,7 +429,7 @@ const Services = ({ homeRows = false }) => {
           <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
           <div className="serviceCard-overlay">
             <Link
-              to={service.serviceId || service.catalogItemId ? `/services/${service.serviceId || service.catalogItemId}` : '/services'}
+              to={service.serviceId || service.catalogItemId ? (service.itemType === 'PART' ? `/parts/${service.catalogItemId || service.serviceId}` : `/services/${service.serviceId || service.catalogItemId}`) : (service.itemType === 'PART' ? '/parts' : '/services')}
               state={
                 service.catalogItemId != null || service.serviceId != null
                   ? { catalogItemId: service.catalogItemId, serviceId: service.serviceId, itemType: service.itemType || 'SERVICE' }
@@ -424,26 +447,22 @@ const Services = ({ homeRows = false }) => {
         </div>
         <div className="serviceCard-content">
           <h3 className="serviceTitle">{service.title}</h3>
-          <p className="serviceDescription">{service.description || 'Hiện chưa có mô tả.'}</p>
+          <div className="servicePriceInCard">{service.price || 'Liên hệ'}</div>
           <div className="serviceCard-footer">
-            <div className="servicePrice">{service.price || 'Liên hệ'}</div>
             <button
               type="button"
-              className="btnAddCart"
-              onClick={() => handleAddToCart(service)}
-              aria-label={`Thêm ${service.title} vào giỏ hàng`}
-              title="Thêm vào giỏ hàng"
+              className="btnAddToCartNew"
+              onClick={() => handleAddToCartAndGo(service)}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+              Thêm vào giỏ
             </button>
-            <Link
-              to="/booking"
-              state={service.catalogItemId != null ? { catalogItemId: service.catalogItemId, itemType: service.itemType } : undefined}
-              className="btnBookNow"
+            <button
+              type="button"
+              className="btnBuyNowNew"
+              onClick={() => handleAddToCartAndGo(service)}
             >
-              Đặt lịch
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </Link>
+              Mua ngay
+            </button>
           </div>
         </div>
       </div>
@@ -504,21 +523,21 @@ const Services = ({ homeRows = false }) => {
 
   useEffect(() => {
     if (homeRows) return;
-    if (routeCatalogType !== 'PART' && routeCatalogType !== 'SERVICE') return;
     
-    const updateFilters = () => {
-      setCatalogFilter(routeCatalogType);
-      if (!routeCategoryCode) setCategoryFilter('ALL');
-      setCurrentPage(0);
-    };
+    const targetType = location.pathname.startsWith('/parts') ? 'PART' : 'SERVICE';
+    setCatalogFilter(targetType);
+    if (!routeCategoryCode) setCategoryFilter('ALL');
     
-    updateFilters();
+    const searchVal = String(searchParams.get('search') || '').trim();
+    setSearchQuery(searchVal);
+    
+    setCurrentPage(0);
     
     if (location.state?.resetCatalogScroll && !didResetCatalogScrollRef.current) {
       didResetCatalogScrollRef.current = true;
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     }
-  }, [homeRows, location.state?.resetCatalogScroll, routeCatalogType, routeCategoryCode]);
+  }, [homeRows, location.pathname, location.state?.resetCatalogScroll, routeCategoryCode, searchParams]);
 
   useEffect(() => {
     if (homeRows) return;
@@ -644,63 +663,29 @@ const Services = ({ homeRows = false }) => {
   const catalogItems = homeRows ? services : currentCatalogServices;
   const isCatalogLoading = homeRows ? servicesLoading : currentCatalogLoading;
   const effectiveCatalogError = homeRows ? servicesError : currentCatalogError;
-  const updateCatalogSearchParams = useCallback((nextType, nextCategoryCode = '') => {
+  const updateCatalogSearchParams = useCallback((nextCategoryCode = '') => {
     const nextParams = new URLSearchParams();
-    nextParams.set('type', nextType);
     const safeCategoryCode = String(nextCategoryCode || '').trim();
     if (safeCategoryCode) nextParams.set('categoryCode', safeCategoryCode);
-    logServicesDebug('updateSearchParams', {
-      nextType,
-      nextCategoryCode: safeCategoryCode,
-      query: nextParams.toString(),
-    });
     setSearchParams(nextParams, { replace: true });
   }, [setSearchParams]);
 
-  const handleCatalogFilterChange = (nextType) => {
-    setCatalogFilter(nextType);
-    setCategoryFilter('ALL');
-    setCategoryDropdownOpen(false);
-    setCurrentPage(0);
-    setVehicleMake('');
-    setVehicleModel('');
-    updateCatalogSearchParams(nextType);
-  };
-
   const handleCategorySelect = useCallback((item = null) => {
     if (!item) {
-      logServicesDebug('categoryClick', {
-        catalogFilter,
-        categoryKey: 'ALL',
-        categoryCode: '',
-        label: 'Tất cả',
-      });
       setCategoryFilter('ALL');
       setCurrentPage(0);
       setCategoryDropdownOpen(false);
-      updateCatalogSearchParams(catalogFilter);
+      updateCatalogSearchParams('');
       return;
     }
 
-    logServicesDebug('categoryClick', {
-      catalogFilter,
-      categoryKey: item.categoryKey,
-      categoryCode: item.categoryCode || '',
-      publicCategoryCode: resolveHomePublicCategoryCode(
-        item.categoryCode,
-        item.label || item.categoryName || '',
-      ),
-      label: item.label,
-      count: item.count,
-    });
     setCategoryFilter(item.categoryKey);
     setCurrentPage(0);
     setCategoryDropdownOpen(false);
     updateCatalogSearchParams(
-      catalogFilter,
       resolveHomePublicCategoryCode(item.categoryCode, item.label || item.categoryName || ''),
     );
-  }, [catalogFilter, updateCatalogSearchParams]);
+  }, [updateCatalogSearchParams]);
 
   const syncCategoryFilterFromRoute = useCallback(() => {
     const normalizedRouteCategoryCode = routeCategoryCode.toUpperCase();
@@ -890,186 +875,15 @@ const Services = ({ homeRows = false }) => {
             ← Về trang chủ
           </Link>
         )}
-        <div
-          ref={servicesHeroRef}
-          className={`servicesHero ${servicesIntroVisible ? 'visible' : ''} ${homeRows ? 'isHome' : ''}`}
-        >
-          <div className="servicesHeroContent">
-            <div className="servicesLabel">{homeRows ? 'DANH MỤC' : dynamicLabel}</div>
-            <h1 className="servicesTitle">
-              <span className="titlePart1">{homeRows ? 'Dịch vụ & phụ tùng' : dynamicTitlePart1}</span>
-              <span className="titlePart2">chính hãng</span>
-            </h1>
-            <p className="servicesSubtitle">
-              {homeRows
-                ? 'Phụ tùng chính hãng và dịch vụ bảo dưỡng, sửa chữa chuyên nghiệp.'
-                : ''}
-            </p>
-          </div>
-          {!homeRows && (
-            <div className="servicesHeroVisual">
-              <div className="servicesHeroDescription">
-                {heroDescription}
-              </div>
-              <div className="servicesHeroImageFrame">
-                <img src={heroImage} alt={heroImageAlt} className="servicesHeroImage" />
-              </div>
-            </div>
-          )}
-        </div>
+        {homeRows && (
+          <div
+            ref={servicesHeroRef}
+            className={`servicesHero ${servicesIntroVisible ? 'visible' : ''} isHome`}
+          />
+        )}
 
         {!homeRows && (
         <>
-        {/* Unified Toolbar: filters + sort + search */}
-        <div className="unifiedToolbar">
-          <div className="toolbarLeft">
-            {[
-              { value: 'SERVICE', label: 'Dịch vụ' },
-              { value: 'PART', label: 'Phụ tùng' },
-            ].map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                className={`catalogFilterButton ${catalogFilter === item.value ? 'is-active' : ''}`}
-                onClick={() => handleCatalogFilterChange(item.value)}
-              >
-                {item.label}
-                {catalogFilter === item.value && (
-                  <span className="filterCount">{services.filter(s => s.itemType === item.value).length}</span>
-                )}
-              </button>
-            ))}
-
-            <span className="toolbarDivider" />
-
-            <label className="sortSelectWrap" htmlFor="servicesPriceSort">
-              <span>Sắp xếp giá</span>
-              <select
-                id="servicesPriceSort"
-                className="sortSelect"
-                value={priceSort}
-                onChange={(e) => {
-                  setPriceSort(e.target.value);
-                  setCurrentPage(0);
-                }}
-              >
-                <option value="DEFAULT">Mặc định</option>
-                <option value="ASC">Giá tăng dần</option>
-                <option value="DESC">Giá giảm dần</option>
-              </select>
-            </label>
-            <div className="priceRangeFilter">
-              <div className="priceRangeTitle">Khoảng giá</div>
-              <label className="priceRangeField">
-                <span>Từ</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={priceMin}
-                  placeholder="0"
-                  onChange={(e) => {
-                    setPriceMin(sanitizePriceInput(e.target.value));
-                    setCurrentPage(0);
-                  }}
-                />
-              </label>
-              <label className="priceRangeField">
-                <span>Đến</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={priceMax}
-                  placeholder="VD: 500000"
-                  onChange={(e) => {
-                    setPriceMax(sanitizePriceInput(e.target.value));
-                    setCurrentPage(0);
-                  }}
-                />
-              </label>
-              {(priceMin || priceMax) && (
-                <button
-                  type="button"
-                  className="priceRangeClear"
-                  onClick={() => {
-                    setPriceMin('');
-                    setPriceMax('');
-                    setCurrentPage(0);
-                  }}
-                >
-                  Xóa
-                </button>
-              )}
-            </div>
-
-            {catalogFilter === 'PART' && (
-              <div className="vehicleFilter">
-                <label className="sortSelectWrap" htmlFor="servicesVehicleMake">
-                  <span>Hãng xe</span>
-                  <select
-                    id="servicesVehicleMake"
-                    className="sortSelect"
-                    value={vehicleMake}
-                    onChange={(e) => {
-                      setVehicleMake(e.target.value);
-                      setVehicleModel('');
-                      setCurrentPage(0);
-                    }}
-                  >
-                    <option value="">Tất cả</option>
-                    {Object.keys(CAR_DATA).map((make) => (
-                      <option key={make} value={make}>{make}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="sortSelectWrap" htmlFor="servicesVehicleModel">
-                  <span>Dòng xe</span>
-                  <select
-                    id="servicesVehicleModel"
-                    className="sortSelect"
-                    value={vehicleModel}
-                    disabled={!vehicleMake}
-                    onChange={(e) => {
-                      setVehicleModel(e.target.value);
-                      setCurrentPage(0);
-                    }}
-                  >
-                    <option value="">Tất cả</option>
-                    {(CAR_DATA[vehicleMake] || []).map((model) => (
-                      <option key={model} value={model}>{model}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            )}
-          </div>
-
-          <div className="toolbarSearch">
-            <svg className="searchIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input
-              type="text"
-              className="searchInput"
-              placeholder="Tìm kiếm dịch vụ, phụ tùng..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(0);
-              }}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                className="searchClear"
-                onClick={() => {
-                  setSearchQuery('');
-                  setCurrentPage(0);
-                }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* Grid layout */}
         <div className="servicesCatalogLayout">
           <aside
@@ -1077,51 +891,203 @@ const Services = ({ homeRows = false }) => {
             className={`categorySidebar ${categoryDropdownOpen ? 'is-open' : ''}`}
             aria-label="Lọc theo danh mục"
           >
-            <div className="categorySidebarLabel">Danh mục</div>
-            <button
-              type="button"
-              className={`categorySidebarTrigger ${categoryDropdownOpen ? 'is-open' : ''}`}
-              onClick={() => setCategoryDropdownOpen((prev) => !prev)}
-              aria-expanded={categoryDropdownOpen}
-              disabled={servicesLoading && categoryOptions.length === 0}
-            >
-              <span className="categorySidebarTriggerText">{activeCategoryLabel}</span>
-              <span className="categoryCount categoryCountTrigger">{activeCategoryCount}</span>
-              <span className="categorySidebarTriggerIcon" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </span>
-            </button>
-            {categoryDropdownOpen && (
-            <div className="categorySidebarList" role="listbox" aria-label="Danh mục">
+            {/* Sidebar Title */}
+            <h2 className="sidebarPageTitle">
+              {catalogFilter === 'PART' ? 'Phụ tùng chính hãng' : 'Dịch vụ chính hãng'}
+            </h2>
+
+            {/* Search Input */}
+            <div className="sidebarSearch">
+              <div className="toolbarSearch">
+                <svg className="searchIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input
+                  type="text"
+                  className="searchInput"
+                  placeholder={catalogFilter === 'PART' ? 'Tìm phụ tùng...' : 'Tìm dịch vụ...'}
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(0);
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="searchClear"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setCurrentPage(0);
+                    }}
+                    aria-label="Xóa tìm kiếm"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Category Select */}
+            <div className="categorySidebarGroup">
+              <div className="categorySidebarLabel">Danh mục</div>
               <button
                 type="button"
-                className={`categorySidebarItem ${activeCategoryFilter === 'ALL' ? 'is-active' : ''}`}
-                onClick={() => handleCategorySelect()}
+                className={`categorySidebarTrigger ${categoryDropdownOpen ? 'is-open' : ''}`}
+                onClick={() => setCategoryDropdownOpen((prev) => !prev)}
+                aria-expanded={categoryDropdownOpen}
+                disabled={servicesLoading && categoryOptions.length === 0}
               >
-                <span>Tất cả</span>
-                <span className="categoryCount">{services.filter((item) => item.itemType === catalogFilter).length}</span>
+                <span className="categorySidebarTriggerText">{activeCategoryLabel}</span>
+                <span className="categoryCount categoryCountTrigger">{activeCategoryCount}</span>
+                <span className="categorySidebarTriggerIcon" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </span>
               </button>
-              {categoryOptions.map((item) => (
+              {categoryDropdownOpen && (
+              <div className="categorySidebarList" role="listbox" aria-label="Danh mục">
                 <button
-                  key={item.categoryKey}
                   type="button"
-                  className={`categorySidebarItem ${activeCategoryFilter === item.categoryKey ? 'is-active' : ''}`}
-                  onClick={() => handleCategorySelect(item)}
+                  className={`categorySidebarItem ${activeCategoryFilter === 'ALL' ? 'is-active' : ''}`}
+                  onClick={() => handleCategorySelect()}
                 >
-                  <span>{item.label}</span>
-                  <span className="categoryCount">{item.count}</span>
+                  <span>Tất cả</span>
+                  <span className="categoryCount">{services.filter((item) => item.itemType === catalogFilter).length}</span>
                 </button>
-              ))}
-              {servicesLoading && categoryOptions.length === 0 && (
-                <div className="categorySidebarHint">Đang tải danh mục...</div>
-              )}
-              {!servicesLoading && categoryOptions.length === 0 && (
-                <div className="categorySidebarHint">Chưa có danh mục.</div>
+                {categoryOptions.map((item) => (
+                  <button
+                    key={item.categoryKey}
+                    type="button"
+                    className={`categorySidebarItem ${activeCategoryFilter === item.categoryKey ? 'is-active' : ''}`}
+                    onClick={() => handleCategorySelect(item)}
+                  >
+                    <span>{item.label}</span>
+                    <span className="categoryCount">{item.count}</span>
+                  </button>
+                ))}
+                {servicesLoading && categoryOptions.length === 0 && (
+                  <div className="categorySidebarHint">Đang tải danh mục...</div>
+                )}
+                {!servicesLoading && categoryOptions.length === 0 && (
+                  <div className="categorySidebarHint">Chưa có danh mục.</div>
+                )}
+              </div>
               )}
             </div>
-            )}
+
+            {/* Filters Stacked Below Category */}
+            <div className="sidebarFilters">
+              {/* Sort Filter */}
+              <div className="sidebarFilterGroup">
+                <span className="sidebarFilterLabel">Sắp xếp giá</span>
+                <label className="sortSelectWrap" htmlFor="servicesPriceSort">
+                  <select
+                    id="servicesPriceSort"
+                    className="sortSelect"
+                    value={priceSort}
+                    onChange={(e) => {
+                      setPriceSort(e.target.value);
+                      setCurrentPage(0);
+                    }}
+                  >
+                    <option value="DEFAULT">Mặc định</option>
+                    <option value="ASC">Giá tăng dần</option>
+                    <option value="DESC">Giá giảm dần</option>
+                  </select>
+                </label>
+              </div>
+
+              {/* Compatible vehicles filter (parts only) */}
+              {catalogFilter === 'PART' && (
+                <div className="sidebarFilterGroup">
+                  <span className="sidebarFilterLabel">Dòng xe tương thích</span>
+                  <div className="sidebarVehicleFilter">
+                    <label className="sortSelectWrap" htmlFor="servicesVehicleMake">
+                      <span>Hãng xe</span>
+                      <select
+                        id="servicesVehicleMake"
+                        className="sortSelect"
+                        value={vehicleMake}
+                        onChange={(e) => {
+                          setVehicleMake(e.target.value);
+                          setVehicleModel('');
+                          setCurrentPage(0);
+                        }}
+                      >
+                        <option value="">Tất cả</option>
+                        {Object.keys(CAR_DATA).map((make) => (
+                          <option key={make} value={make}>{make}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="sortSelectWrap" htmlFor="servicesVehicleModel">
+                      <span>Dòng xe</span>
+                      <select
+                        id="servicesVehicleModel"
+                        className="sortSelect"
+                        value={vehicleModel}
+                        disabled={!vehicleMake}
+                        onChange={(e) => {
+                          setVehicleModel(e.target.value);
+                          setCurrentPage(0);
+                        }}
+                      >
+                        <option value="">Tất cả</option>
+                        {(CAR_DATA[vehicleMake] || []).map((model) => (
+                          <option key={model} value={model}>{model}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Price range filter */}
+              <div className="sidebarFilterGroup">
+                <span className="sidebarFilterLabel">Khoảng giá</span>
+                <div className="priceRangeFilter sidebarPriceRange">
+                  <label className="priceRangeField">
+                    <span>Từ</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={priceMin}
+                      placeholder="0"
+                      onChange={(e) => {
+                        setPriceMin(sanitizePriceInput(e.target.value));
+                        setCurrentPage(0);
+                      }}
+                    />
+                  </label>
+                  <label className="priceRangeField">
+                    <span>Đến</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={priceMax}
+                      placeholder="VD: 500000"
+                      onChange={(e) => {
+                        setPriceMax(sanitizePriceInput(e.target.value));
+                        setCurrentPage(0);
+                      }}
+                    />
+                  </label>
+                  {(priceMin || priceMax) && (
+                    <button
+                      type="button"
+                      className="priceRangeClear"
+                      onClick={() => {
+                        setPriceMin('');
+                        setPriceMax('');
+                        setCurrentPage(0);
+                      }}
+                    >
+                      Xóa
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </aside>
 
           <div className="servicesGridWrapper">
@@ -1150,7 +1116,7 @@ const Services = ({ homeRows = false }) => {
                       <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
                       <div className="serviceCard-overlay">
                         <Link
-                          to={service.serviceId || service.catalogItemId ? `/services/${service.serviceId || service.catalogItemId}` : '/services'}
+                          to={service.serviceId || service.catalogItemId ? (service.itemType === 'PART' ? `/parts/${service.catalogItemId || service.serviceId}` : `/services/${service.serviceId || service.catalogItemId}`) : (service.itemType === 'PART' ? '/parts' : '/services')}
                           state={
                             service.catalogItemId != null || service.serviceId != null
                               ? { catalogItemId: service.catalogItemId, serviceId: service.serviceId, itemType: service.itemType || 'SERVICE' }
@@ -1168,26 +1134,22 @@ const Services = ({ homeRows = false }) => {
                     </div>
                     <div className="serviceCard-content">
                       <h3 className="serviceTitle">{service.title}</h3>
-                      <p className="serviceDescription">{service.description || 'Hiện chưa có mô tả.'}</p>
+                      <div className="servicePriceInCard">{service.price || 'Liên hệ'}</div>
                       <div className="serviceCard-footer">
-                        <div className="servicePrice">{service.price || 'Liên hệ'}</div>
                         <button
                           type="button"
-                          className="btnAddCart"
-                          onClick={() => handleAddToCart(service)}
-                          aria-label={`Thêm ${service.title} vào giỏ hàng`}
-                          title="Thêm vào giỏ hàng"
+                          className="btnAddToCartNew"
+                          onClick={() => handleAddToCartAndGo(service)}
                         >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                          Thêm vào giỏ
                         </button>
-                        <Link
-                          to="/booking"
-                          state={service.catalogItemId != null ? { catalogItemId: service.catalogItemId, itemType: service.itemType } : undefined}
-                          className="btnBookNow"
+                        <button
+                          type="button"
+                          className="btnBuyNowNew"
+                          onClick={() => handleAddToCartAndGo(service)}
                         >
-                          Đặt lịch
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                        </Link>
+                          Mua ngay
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1248,8 +1210,8 @@ const Services = ({ homeRows = false }) => {
           )}
           {!servicesLoading && !servicesError && (
             <>
-              {renderCatalogRow('Dịch vụ', 'Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp.', homeServiceItems, '/services?type=SERVICE')}
-              {renderCatalogRow('Phụ tùng', 'Phụ tùng chính hãng, đa dạng chủng loại.', homePartItems, '/services?type=PART')}
+              {renderCatalogRow('Dịch vụ', 'Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp.', homeServiceItems, '/services')}
+              {renderCatalogRow('Phụ tùng', 'Phụ tùng chính hãng, đa dạng chủng loại.', homePartItems, '/parts')}
             </>
           )}
         </div>

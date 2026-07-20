@@ -8,7 +8,7 @@
   position: relative;
   z-index: 2;
   min-height: auto;
-  padding: 80px 5% 60px;
+  padding: 80px 20px 60px;
   background: linear-gradient(180deg, #f8fafc 0%, #ffffff 40%, #f0f4f8 100%);
   color: #0a0f1c;
   overflow-x: hidden;
@@ -405,10 +405,10 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(196px, 232px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
   gap: 24px;
-  max-width: 1480px;
-  margin: -10px auto 0;
+  max-width: 100%;
+  margin: -10px 0 0;
   align-items: start;
 }
 
@@ -418,8 +418,100 @@
   z-index: 12;
   width: 100%;
   min-width: 0;
-  max-width: 232px;
+  max-width: 260px;
   margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sidebarPageTitle {
+  font-size: 15px;
+  font-weight: 800;
+  color: #005aa9;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-left: 3px solid #ffd100;
+  padding-left: 8px;
+  line-height: 1.2;
+}
+
+.categorySidebarGroup {
+  position: relative;
+}
+
+.sidebarFilters {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.sidebarFilterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebarFilterLabel {
+  font-size: 13px;
+  font-weight: 800;
+  color: #475569;
+}
+
+.sidebarVehicleFilter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.categorySidebar .toolbarSearch {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.categorySidebar .sortSelectWrap {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+.categorySidebar .sortSelect {
+  width: 100%;
+  min-width: 0;
+}
+
+.categorySidebar .priceRangeFilter {
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 12px 14px;
+  border-radius: 12px;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.categorySidebar .priceRangeField {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.categorySidebar .priceRangeField input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+.categorySidebar .priceRangeClear {
+  width: 100%;
+  min-height: 34px;
 }
 
 .categorySidebarLabel {
@@ -1007,6 +1099,65 @@
   font-weight: 800;
   color: #005aa9;
   white-space: nowrap;
+}
+
+.servicePriceInCard {
+  font-size: 16px;
+  font-weight: 800;
+  color: #005aa9;
+  margin-bottom: 16px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.btnAddToCartNew {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #005aa9;
+  background: #ffffff;
+  color: #005aa9;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btnAddToCartNew:hover {
+  background: rgba(0, 90, 169, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 90, 169, 0.1);
+}
+
+.btnBuyNowNew {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffd100 0%, #f5c400 100%);
+  color: #0a0f1c;
+  font-size: 12px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(255, 209, 0, 0.3);
+}
+
+.btnBuyNowNew:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(255, 209, 0, 0.45);
+  background: linear-gradient(135deg, #ffe033 0%, #ffd100 100%);
 }
 
 .btnBookNow {
@@ -1760,11 +1911,10 @@
     font-size: 14px;
   }
 
-  .serviceDescription {
-    font-size: 12px;
+  .servicePriceInCard {
+    font-size: 14px;
     margin-bottom: 10px;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
+    min-height: auto;
   }
 
   .serviceCard-content {
@@ -1933,6 +2083,12 @@
     width: 100%;
     justify-content: center;
     padding: 8px 14px;
+  }
+
+  .btnAddToCartNew,
+  .btnBuyNowNew {
+    width: 100%;
+    justify-content: center;
   }
 
   .catalogTypeBadge {

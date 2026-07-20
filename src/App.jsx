@@ -515,6 +515,7 @@ export default function App() {
             </Route>
             <Route element={<MainLayout />}>
               <Route path="services/:serviceId" element={<ServiceDetail />} />
+              <Route path="parts/:serviceId" element={<ServiceDetail />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </>
@@ -525,8 +526,9 @@ export default function App() {
             <Route element={<MainLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="services" element={<Services />} />
-              <Route path="parts" element={<Navigate to="/services" replace />} />
+              <Route path="parts" element={<Services />} />
               <Route path="services/:serviceId" element={<ServiceDetail />} />
+              <Route path="parts/:serviceId" element={<ServiceDetail />} />
               <Route path="about" element={<About />} />
               <Route path="customer-login" element={<CustomerLogin />} />
               <Route path="booking" element={<Booking />} />
