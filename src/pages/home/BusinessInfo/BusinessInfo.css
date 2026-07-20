@@ -1,8 +1,6 @@
 .businessSection {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 32px;
-	padding: 40px 24px;
+	display: block;
+	padding: 60px 24px;
 	background-image: url('../../../assets/anh_nen.png');
 	background-size: cover;
 	background-position: 82% 76%;
@@ -729,5 +727,203 @@
 		width: 45px;
 		height: 45px;
 		font-size: 18px;
+	}
+}
+
+/* ====== Unified Showroom System Layout ====== */
+.businessInfoContainer {
+	display: grid;
+	grid-template-columns: 38% 62%;
+	gap: 28px;
+	width: 100%;
+	max-width: 1400px;
+	margin: 0 auto;
+	position: relative;
+	z-index: 1;
+	align-items: stretch;
+}
+
+.contactDetailsCard {
+	background: linear-gradient(135deg, rgba(255, 252, 245, 0.94) 0%, rgba(255, 248, 235, 0.88) 100%);
+	border-radius: 20px;
+	padding: 32px 28px;
+	border: 1px solid rgba(255, 230, 172, 0.25);
+	box-shadow: 0 20px 60px rgba(15, 23, 42, 0.24), 0 0 0 1px rgba(255, 230, 172, 0.14) inset;
+	backdrop-filter: blur(10px);
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+}
+
+.showroomMainTitle {
+	font-size: 22px;
+	font-weight: 850;
+	color: #005aa9;
+	margin: 0;
+	border-bottom: 2px solid #ffd100;
+	padding-bottom: 12px;
+	letter-spacing: 0.5px;
+	text-align: left;
+}
+
+.contactInfoList {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.contactInfoItem {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.contactInfoIcon {
+	width: 38px;
+	height: 38px;
+	border-radius: 50%;
+	background: rgba(0, 90, 169, 0.08);
+	color: #005aa9;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.contactInfoContent {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	align-items: flex-start;
+}
+
+.contactInfoLabel {
+	font-size: 11px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: #64748b;
+}
+
+.contactInfoValue {
+	font-size: 16px;
+	font-weight: 800;
+	color: #1e293b;
+	text-decoration: none;
+	transition: color 0.2s ease;
+	text-align: left;
+}
+
+.contactInfoValue:hover {
+	color: #005aa9;
+}
+
+.showroomAddresses {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	border-top: 1px dashed rgba(0, 90, 169, 0.15);
+	padding-top: 20px;
+}
+
+.showroomAddressBlock {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	align-items: flex-start;
+}
+
+.showroomAddressTitle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 14px;
+	font-weight: 800;
+	color: #005aa9;
+}
+
+.pinIcon {
+	color: #dc2626;
+}
+
+.showroomAddressText {
+	font-size: 13.5px;
+	color: #475569;
+	margin: 0;
+	line-height: 1.45;
+	text-align: left;
+}
+
+.contactMapsGrid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 20px;
+	width: 100%;
+}
+
+.miniMapCard {
+	padding: 18px !important;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	height: 100%;
+}
+
+.miniMapHeader {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.mapCardDot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #ffd100;
+	box-shadow: 0 0 8px #ffd100;
+}
+
+.miniMapTitle {
+	font-size: 15px;
+	font-weight: 800;
+	color: #1e293b;
+}
+
+.miniMapFrame {
+	aspect-ratio: auto !important;
+	height: 170px !important;
+}
+
+.miniMapButton {
+	margin-top: 12px !important;
+	padding: 12px !important;
+	font-size: 14px !important;
+}
+
+/* Tablet and Mobile adjustments */
+@media (max-width: 1024px) {
+	.businessInfoContainer {
+		grid-template-columns: 1fr;
+		gap: 24px;
+	}
+}
+
+@media (max-width: 600px) {
+	.contactMapsGrid {
+		grid-template-columns: 1fr;
+		gap: 16px;
+	}
+	
+	.contactDetailsCard {
+		padding: 24px 20px;
+	}
+	
+	.showroomMainTitle {
+		font-size: 20px;
+	}
+	
+	.miniMapFrame {
+		height: 150px !important;
 	}
 }

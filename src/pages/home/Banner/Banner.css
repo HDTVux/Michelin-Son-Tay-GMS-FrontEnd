@@ -78,6 +78,14 @@ body {
     will-change: transform;
     margin: 0;                     /* Đảm bảo không có margin gây lệch */
     padding: 0;                    /* Đảm bảo không có padding gây lệch */
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-drag: none;
+    cursor: grab;
+}
+
+.slides:active {
+    cursor: grabbing;
 }
 
 .slide {
@@ -118,6 +126,9 @@ body {
     object-position: center center;
     min-height: 600px;
     display: block;
+    user-select: none;
+    pointer-events: none;
+    -webkit-user-drag: none;
 }
 
 

@@ -1,15 +1,12 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import './Home.css';
-import TVC from '../../assets/Garage Car Service.mp4';
 import welcomePoster from '../../assets/munganh_nen_chao_mung.jpg';
 import Service from './Services/Services.jsx';
 import Banner from './Banner/Banner.jsx';
 import Form from './Form/Form.jsx';
 import BussinessInfor from './BusinessInfo/BussinessInfor.jsx';
 import Partners from './Partners/Partners.jsx';
-import VehicleBrands from './VehicleBrands/VehicleBrands.jsx';
-import Testimonials from './Testimonials/Testimonials.jsx';
 
 const SITE_TITLE = 'Đại lý garage Sơn Tây - michelinsontay - Trung tâm dịch vụ lốp xe uy tín';
 const SITE_DESCRIPTION =
@@ -17,9 +14,6 @@ const SITE_DESCRIPTION =
 
 const Home = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [introVisible, setIntroVisible] = useState(false);
-    const [shouldLoadIntroVideo, setShouldLoadIntroVideo] = useState(false);
-    const introSectionRef = useRef(null);
 
     const seoUrl = useMemo(() => {
         const siteOrigin = import.meta.env.VITE_SITE_URL || window.location.origin;
@@ -27,8 +21,6 @@ const Home = () => {
     }, []);
 
     const seoImageUrl = useMemo(() => new URL(welcomePoster, seoUrl).href, [seoUrl]);
-
-
 
     const checkAuthStatus = () => {
         const token = localStorage.getItem('customerToken');
@@ -63,46 +55,6 @@ const Home = () => {
             window.removeEventListener('authChange', handleAuthChange);
         };
     }, []);
-
-    useEffect(() => {
-        const introSection = introSectionRef.current;
-        const revealIntro = () => {
-            setIntroVisible(true);
-            setShouldLoadIntroVideo(true);
-        };
-
-        if (!introSection || !('IntersectionObserver' in window)) {
-            const fallbackTimer = window.setTimeout(revealIntro, 0);
-            return () => window.clearTimeout(fallbackTimer);
-        }
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        revealIntro();
-                        observer.unobserve(entry.target);
-                    }
-                });
-            },
-            { rootMargin: '240px 0px', threshold: 0.15 }
-        );
-
-        observer.observe(introSection);
-
-        return () => observer.disconnect();
-    }, []);
-
-
-    const introText = [
-        'Michelin Sơn Tây là địa chỉ lốp uy tín ở Sơn Tây.',
-        'Là đại lý duy nhất. Chuyên cung cấp lốp dầu ắc quy chính hãng.',
-        'Sửa chữa ôtô cứu hộ 24/7',
-        'Sơn- Gò- Hàn.',
-        'Chăm sóc làm đẹp xe từ A–Z.'
-    ];
-
-
 
     return (
         <>
@@ -160,39 +112,8 @@ const Home = () => {
         
         <Service homeRows />
 
-        {/* Phần giới thiệu về Michelin và Video */}
-        <section className="introVideoSection" ref={introSectionRef}>
-            <div className="introVideoContainer">
-                <div className="introVideoRow">
-                    <div className={`introTextCol ${introVisible ? 'visible' : ''}`}>
-                        <h2 className="introWelcome">Chào mừng đến với</h2>
-                        <h1 className="introTitle">
-                            <span className="titlePart1">Michelin </span>
-                            <span className="titlePart2">Sơn Tây</span>
-                        </h1>
-                        <div className="introTextList">
-                            {introText.map((text, idx) => (
-                                <div key={idx} className="introTextItemWrapper">
-                                    <div className="introTextIcon">✓</div>
-                                    <p className="introTextItem">{text}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="introVideoMedia">
-                        <video autoPlay loop muted playsInline poster={welcomePoster} preload="none">
-                            {shouldLoadIntroVideo && <source src={TVC} type="video/mp4" />}
-                        </video>
-                        <div className="introVideoOverlay" />
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <VehicleBrands/>
         <Partners/>
         {!isAuthenticated && <Form/>}
-        <Testimonials/>
         <BussinessInfor/>
         </>
     );

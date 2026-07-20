@@ -84,17 +84,21 @@ export default function Banner() {
 
     function onPointerDown(e) {
         pointer.current.dragging = true;
-        pointer.current.startX = e.clientX ?? e.touches?.[0]?.clientX;
+        pointer.current.startX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
+        pointer.current.deltaX = 0;
+        setIsPaused(true);
     }
     function onPointerMove(e) {
         if (!pointer.current.dragging) return;
-        const x = e.clientX ?? e.touches?.[0]?.clientX;
+        const x = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
         pointer.current.deltaX = x - pointer.current.startX;
     }
     function onPointerUp() {
+        if (!pointer.current.dragging) return;
         pointer.current.dragging = false;
+        setIsPaused(false);
         const dx = pointer.current.deltaX;
-        if (Math.abs(dx) > 50) {
+        if (Math.abs(dx) > 40) {
             if (dx < 0) setIndex(i => (i + 1) % slides.length);
             else setIndex(i => (i - 1 + slides.length) % slides.length);
         }
@@ -130,7 +134,7 @@ export default function Banner() {
                     >
                         {slides.map((s) => (
                             <div className="slide" key={s.id}>
-                                <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image fixed-zoom" />
+                                <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image fixed-zoom" draggable={false} />
                                 <div className={`slide-text ${textVisible && index === s.id - 1 ? 'visible' : ''}`}>
                                     <h1 className="banner-title">
                                         <span className="titlePart1">{s.title}</span>
