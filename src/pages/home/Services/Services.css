@@ -2460,3 +2460,176 @@
     display: none !important;
   }
 }
+
+/* ====== Row Promo Banners Section ====== */
+.catalogRowBanners {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  max-width: 1300px;
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 24px;
+}
+
+.rowPromoBanner {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 160px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 90, 169, 0.08);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.rowPromoBanner:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 90, 169, 0.06);
+}
+
+.bannerService1 {
+  background: linear-gradient(135deg, #f0f7ff 0%, #e0efff 100%);
+}
+
+.bannerService2 {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.bannerPart1 {
+  background: linear-gradient(135deg, #fffcf0 0%, #fef3c7 100%);
+}
+
+.bannerPart2 {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.rowPromoBannerOverlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.7) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.rowPromoBannerContent {
+  position: relative;
+  z-index: 2;
+}
+
+.rowBannerBadge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.bannerService1 .rowBannerBadge {
+  background: rgba(0, 90, 169, 0.08);
+  color: #005aa9;
+}
+
+.bannerService2 .rowBannerBadge {
+  background: rgba(202, 138, 4, 0.12);
+  color: #a16207;
+}
+
+.bannerPart1 .rowBannerBadge {
+  background: rgba(202, 138, 4, 0.12);
+  color: #a16207;
+}
+
+.bannerPart2 .rowBannerBadge {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+}
+
+.rowBannerTitle {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.rowBannerDesc {
+  font-size: 13px;
+  color: #475569;
+  margin: 0 0 16px 0;
+  line-height: 1.45;
+  max-width: 90%;
+}
+
+.rowBannerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  width: fit-content;
+}
+
+.rowBannerBtn.btnBlue {
+  background: #005aa9;
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(0, 90, 169, 0.15);
+}
+
+.rowBannerBtn.btnBlue:hover {
+  background: #004480;
+  transform: translateY(-1px);
+}
+
+.rowBannerBtn.btnGold {
+  background: #a16207;
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(161, 98, 7, 0.15);
+}
+
+.rowBannerBtn.btnGold:hover {
+  background: #854d0e;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .catalogRowBanners {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 8px;
+    margin-bottom: 20px;
+  }
+  
+  .rowPromoBanner {
+    padding: 20px;
+    min-height: auto;
+  }
+}
+
+/* Push homepage layout elements tightly up against slide */
+.servicesPage.isHomePage {
+  padding-top: 28px !important;
+}
+
+.servicesPage.isHomePage .servicesHero {
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.servicesPage.isHomePage .homeQuickAccessSidebar {
+  transform: translateY(-64px) !important;
+}

@@ -717,12 +717,6 @@ const Services = ({ homeRows = false }) => {
     if (bestSellers.length === 0) return null;
     return (
       <section className="bestSellersSection" aria-label="Sản phẩm bán chạy nhất">
-        <div className="servicesTypeHeader">
-          <div>
-            <h2 className="servicesTypeTitle">Sản Phẩm & Dịch Vụ Bán Chạy Nhất</h2>
-            <p className="servicesTypeSubtitle">Top 6 sản phẩm và dịch vụ được đông đảo khách hàng tin dùng tại Michelin Sơn Tây.</p>
-          </div>
-        </div>
         <div className="bestSellersGrid">
           {bestSellers.map((item, index) => {
             const rank = index + 1;
@@ -766,31 +760,83 @@ const Services = ({ homeRows = false }) => {
     );
   };
 
-  const renderCatalogRow = (title, subtitle, items, moreTo) => (
-    <section className="servicesTypeSection" aria-label={title}>
-      <div className="servicesTypeHeader">
-        <div>
-          <h2 className="servicesTypeTitle">{title}</h2>
-          <p className="servicesTypeSubtitle">{subtitle}</p>
-        </div>
-        <div className="servicesTypeActions">
-          <Link to={moreTo} state={{ resetCatalogScroll: true }} className="servicesTypeMore">
-            Xem thêm
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </Link>
-        </div>
-      </div>
-      {items.length === 0 ? (
-        <div className="serviceStatus serviceStatusInline">Chưa có hạng mục để hiển thị.</div>
-      ) : (
-        <div className="servicesRowScroller">
-          <div className="servicesRowGrid">
-            {items.map(renderCatalogCard)}
+  const renderCatalogRow = (title, subtitle, items, moreTo) => {
+    const isService = title.toLowerCase().includes('dịch vụ');
+    
+    return (
+      <section className="servicesTypeSection" aria-label={title}>
+        <div className="servicesTypeHeader">
+          <div>
+            <h2 className="servicesTypeTitle">{title}</h2>
+            <p className="servicesTypeSubtitle">{subtitle}</p>
+          </div>
+          <div className="servicesTypeActions">
+            <Link to={moreTo} state={{ resetCatalogScroll: true }} className="servicesTypeMore">
+              Xem thêm
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </Link>
           </div>
         </div>
-      )}
-    </section>
-  );
+
+        {/* 2 Banners hình chữ nhật ngay dưới Tiêu đề và ở trên các Items */}
+        <div className="catalogRowBanners">
+          {isService ? (
+            <>
+              <div className="rowPromoBanner bannerService1">
+                <div className="rowPromoBannerOverlay" />
+                <div className="rowPromoBannerContent">
+                  <span className="rowBannerBadge">BẢO DƯỠNG NHANH</span>
+                  <h4 className="rowBannerTitle">Đặt lịch hẹn trực tuyến</h4>
+                  <p className="rowBannerDesc">Giảm ngay 10% chi phí công thợ cho gói bảo dưỡng định kỳ tiếp theo.</p>
+                  <Link to="/booking" className="rowBannerBtn btnBlue">Đặt lịch ngay →</Link>
+                </div>
+              </div>
+              <div className="rowPromoBanner bannerService2">
+                <div className="rowPromoBannerOverlay" />
+                <div className="rowPromoBannerContent">
+                  <span className="rowBannerBadge">TIÊU CHUẨN HUNTER</span>
+                  <h4 className="rowBannerTitle">Cân chỉnh thước lái 3D</h4>
+                  <p className="rowBannerDesc">Đảm bảo lốp xe mòn đều, tay lái chuẩn xác và hành trình êm ái.</p>
+                  <Link to="/services?search=thước lái" className="rowBannerBtn btnGold">Tìm hiểu thêm →</Link>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="rowPromoBanner bannerPart1">
+                <div className="rowPromoBannerOverlay" />
+                <div className="rowPromoBannerContent">
+                  <span className="rowBannerBadge">LỐP CHÍNH HÃNG</span>
+                  <h4 className="rowBannerTitle">Thay lốp Michelin cao cấp</h4>
+                  <p className="rowBannerDesc">Mua 4 lốp Michelin miễn phí cân chỉnh thước lái Hunter 3D trị giá 800k.</p>
+                  <Link to="/parts?search=lốp" className="rowBannerBtn btnGold">Mua lốp ngay →</Link>
+                </div>
+              </div>
+              <div className="rowPromoBanner bannerPart2">
+                <div className="rowPromoBannerOverlay" />
+                <div className="rowPromoBannerContent">
+                  <span className="rowBannerBadge">ẮC QUY & DẦU NHỚT</span>
+                  <h4 className="rowBannerTitle">Ắc quy & Dầu chính hiệu</h4>
+                  <p className="rowBannerDesc">Atlas, Varta, GS và dầu Castrol, Mobil chính hãng giá cạnh tranh nhất.</p>
+                  <Link to="/parts?search=dầu" className="rowBannerBtn btnBlue">Xem phụ tùng →</Link>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {items.length === 0 ? (
+          <div className="serviceStatus serviceStatusInline">Chưa có hạng mục để hiển thị.</div>
+        ) : (
+          <div className="servicesRowScroller">
+            <div className="servicesRowGrid">
+              {items.map(renderCatalogCard)}
+            </div>
+          </div>
+        )}
+      </section>
+    );
+  };
 
   useEffect(() => {
     let active = true;
@@ -1165,7 +1211,7 @@ const Services = ({ homeRows = false }) => {
   return (
     <>
       {/* Hero + Grid Section */}
-      <section className="servicesPage">
+      <section className={`servicesPage ${homeRows ? 'isHomePage' : ''}`}>
         <div className="servicesPage-bg" />
         {!homeRows && (
           <Link to="/" className="servicesBackHome">
