@@ -37,7 +37,7 @@ function getActionToneClass(log) {
   return styles.tone_info;
 }
 
-const EMPTY_FILTER = { startDate: '', endDate: '', role: '', action: '', severity: '' };
+const EMPTY_FILTER = { startDate: '', endDate: '', role: '', action: '', severity: '', module: '' };
 
 function buildApiParams(filter, search) {
   return {
@@ -46,6 +46,7 @@ function buildApiParams(filter, search) {
     role: filter.role,
     action: filter.action,
     severity: filter.severity,
+    module: filter.module,
     search,
   };
 }
@@ -58,6 +59,7 @@ export default function SystemLogManagement() {
       role: 'syslog-role',
       actionType: 'syslog-action-type',
       severity: 'syslog-severity',
+      module: 'syslog-module',
     }),
     [],
   );
@@ -218,6 +220,22 @@ export default function SystemLogManagement() {
             >
               <option value="">Tất cả</option>
               {Object.entries(ACTION_LABELS).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="ui-field">
+            <label htmlFor={controlIds.module}>Phân hệ</label>
+            <select
+              id={controlIds.module}
+              value={filterDraft.module}
+              onChange={(e) => setFilterDraft((p) => ({ ...p, module: e.target.value }))}
+            >
+              <option value="">Tất cả</option>
+              {Object.entries(MODULE_LABELS).map(([code, label]) => (
                 <option key={code} value={code}>
                   {label}
                 </option>

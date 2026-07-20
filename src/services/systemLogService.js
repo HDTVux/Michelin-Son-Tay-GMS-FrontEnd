@@ -43,6 +43,16 @@ export const MODULE_LABELS = {
   WAREHOUSE: 'Kho',
   PROMOTION: 'Khuyến mãi',
   BILLING: 'Thanh toán',
+  AI: 'Trợ lý AI',
+  CATALOG: 'Danh mục xe/phụ tùng',
+  SERVICE: 'Dịch vụ',
+  ESTIMATION: 'Báo giá',
+  ATTENDANCE: 'Chấm công',
+  DASHBOARD: 'Bảng điều khiển',
+  VEHICLE: 'Phương tiện',
+  CHAT: 'Trò chuyện',
+  NOTIFICATION: 'Thông báo',
+  FEEDBACK: 'Phản hồi',
 };
 
 export const ROLE_LABELS = {
@@ -52,6 +62,7 @@ export const ROLE_LABELS = {
   RECEPTIONIST: 'Lễ tân',
   TECHNICIAN: 'Kỹ thuật viên',
   ACCOUNTANT: 'Kế toán',
+  CUSTOMER: 'Khách hàng',
 };
 
 const buildQuery = (params) => {
