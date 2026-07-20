@@ -25,6 +25,7 @@ import {
 import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
 import UniversalScannerModal from '../../components/UniversalScanner/UniversalScannerModal.jsx';
 import UniversalSearch from '../../components/UniversalSearch/UniversalSearch.jsx';
+import PushNotificationToggle from '../../components/PushNotification/PushNotificationToggle.jsx';
 import './StaffHeader.css';
 
 const STAFF_ROLE = {
@@ -444,7 +445,9 @@ const StaffHeader = ({ notificationState, notificationBell, chatButton, onOpenAi
                   <span className="staff-header__dropdown-item-label">Trợ lý AI</span>
                 </button>
               )}
-              {(personalItems.length > 0 || onOpenAiAssistant) && <hr className="staff-header__dropdown-divider" />}
+              <hr className="staff-header__dropdown-divider" />
+              <PushNotificationToggle />
+              <hr className="staff-header__dropdown-divider" />
               <button
                 type="button"
                 className="staff-header__dropdown-item logout"

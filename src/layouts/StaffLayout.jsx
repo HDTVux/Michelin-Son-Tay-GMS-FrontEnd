@@ -555,9 +555,38 @@ const StaffLayout = () => {
     initNotificationSound();
   }, []);
 
+  // Đăng ký Service Worker cho Web Push ngay khi nhân viên đã đăng nhập, để
+  // thông báo cấp hệ điều hành hoạt động cả khi đã tắt web (việc bật/tắt
+  // subscription do PushNotificationToggle xử lý). Idempotent — an toàn gọi lại.
+  useEffect(() => {
+    if (!hasStaffToken || !('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
+      /* Bỏ qua: trình duyệt không hỗ trợ hoặc context không an toàn (không phải HTTPS/localhost) */
+    });
+  }, [hasStaffToken]);
+
   const notificationState = useNotifications({ enabled: hasStaffToken, notifyOnReceive: true });
   // Backend chat (/api/chat/*, /ws-chat) đã triển khai theo contract trong src/services/chatService.js.
   const chatState = useChat({ enabled: hasStaffToken, mock: false });
+
+  // Mở đúng cửa sổ chat khi người dùng bấm thông báo đẩy tin nhắn (URL kèm ?openChat=<id>).
+  const { openConversation } = chatState;
+  useEffect(() => {
+    if (!hasStaffToken) return;
+    const params = new URLSearchParams(location.search);
+    const openChat = params.get('openChat');
+    if (!openChat) return;
+
+    const convId = Number(openChat);
+    if (Number.isFinite(convId)) openConversation(convId);
+
+    params.delete('openChat');
+    const nextSearch = params.toString();
+    navigate(
+      { pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' },
+      { replace: true },
+    );
+  }, [hasStaffToken, location.pathname, location.search, openConversation, navigate]);
   const aiAssistantState = useAIAssistant({ enabled: hasStaffToken, mock: false  });
 
   useLayoutEffect(() => {

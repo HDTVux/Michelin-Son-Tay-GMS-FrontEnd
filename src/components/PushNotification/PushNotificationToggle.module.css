@@ -1,0 +1,75 @@
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.toggle:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.toggle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.toggle.on {
+  color: #065f46;
+}
+
+.toggleIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.toggleLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d1d5db;
+  flex-shrink: 0;
+}
+
+.dot.dotOn {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.hintIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.hint.info {
+  color: #1e40af;
+  background: #eff6ff;
+}
+
+.hint.warn {
+  color: #9a3412;
+  background: #fff7ed;
+}
