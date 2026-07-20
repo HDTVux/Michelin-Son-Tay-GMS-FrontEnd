@@ -1,13 +1,7 @@
-import { useState } from 'react';
-import { Phone, X, Bot, MapPin, Mail, MessageSquare } from 'lucide-react';
-import zaloLogo from '../../../assets/logo-zalo-vector.png';
-import messengerLogo from '../../../assets/messenger-logo.webp';
-import { useCustomerAiAssistant } from '../../../context/CustomerAiAssistantContext.jsx';
+import { Phone, MapPin, Mail, MessageSquare } from 'lucide-react';
 import './BusinessInfo.css';
 
 export default function BussinessInfor() {
-	const [isVisible, setIsVisible] = useState(true);
-	const aiState = useCustomerAiAssistant();
 	const mapLink1 = 'https://maps.app.goo.gl/5p1HHhrirKYLRCCe9';
 	const mapEmbed1 = 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3723.108082288589!2d105.4970050747155!3d21.06834498641888!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x313459fb2de59b03%3A0x61f544260e8428eb!2sMichelin%20Car%20Service%20-%20ABM%20S%C6%A1n%20T%C3%A2y!5e0!3m2!1svi!2s!4v1769338851955!5m2!1svi!2s';
 
@@ -119,57 +113,6 @@ export default function BussinessInfor() {
 					</div>
 				</div>
 			</div>
-
-			{/* Floating Kênh liên hệ */}
-			{isVisible ? (
-				<div className="floatingContact">
-					<button
-						type="button"
-						className="floatingContact__close"
-						onClick={() => setIsVisible(false)}
-						title="Thu gọn kênh liên hệ"
-						aria-label="Thu gọn kênh liên hệ"
-					>
-						<X size={14} strokeWidth={2.5} />
-					</button>
-					{!aiState.isOpen && (
-						<button
-							type="button"
-							className="floatingCircle floatingCircle--ai"
-							onClick={aiState.openPanel}
-							aria-label="Mở trợ lý ảo"
-						>
-							<span className="floatingCircle__tooltip">Trợ lý ảo</span>
-							<span className="floatingCircle__icon"><Bot size={22} strokeWidth={2.2} /></span>
-						</button>
-					)}
-					<a className="floatingCircle floatingCircle--zalo" href="https://zalo.me/thietbilop" target="_blank" rel="noreferrer" aria-label="Liên hệ Zalo">
-						<span className="floatingCircle__tooltip">Chat Zalo</span>
-						<span className="floatingCircle__icon floatingCircle__icon--logo">
-							<img src={zaloLogo} alt="Zalo" />
-						</span>
-					</a>
-					<a className="floatingCircle floatingCircle--call" href="tel:0987545680" aria-label="Gọi điện">
-						<span className="floatingCircle__tooltip">Gọi ngay</span>
-						<span className="floatingCircle__icon"><Phone size={22} strokeWidth={2.2} /></span>
-					</a>
-					<a className="floatingCircle floatingCircle--messenger" href="https://m.me/michelinsontay" target="_blank" rel="noreferrer" aria-label="Nhắn tin Messenger">
-						<span className="floatingCircle__tooltip">Nhắn tin Messenger</span>
-						<span className="floatingCircle__icon floatingCircle__icon--logo floatingCircle__icon--messengerLogo">
-							<img src={messengerLogo} alt="Messenger" />
-						</span>
-					</a>
-				</div>
-			) : (
-				<button
-					className="floatingContact__trigger"
-					onClick={() => setIsVisible(true)}
-					title="Mở kênh liên hệ"
-					aria-label="Mở kênh liên hệ"
-				>
-					📞
-				</button>
-			)}
 		</section>
 	);
 }

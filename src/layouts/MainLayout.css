@@ -7,3 +7,307 @@
     padding: 0;                    /* Bỏ padding để không có viền xám */
     background: var(--ui-bg, #ffffff);
 }
+
+/* Floating Kênh liên hệ - Toàn cục */
+/* Lúc bung ra: thẳng hàng (cùng right) với nút "Lên đầu trang" (.backToTop: right 30px, bottom 30px, cao 50px), nằm cao hơn để 2 khối không đè lên nhau */
+.floatingContact {
+	position: fixed;
+	right: 30px;
+	bottom: 100px;
+	z-index: 100;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 12px;
+}
+
+@keyframes floatBounce {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-6px); }
+}
+
+.floatingCircle {
+	width: 50px;
+	height: 50px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-decoration: none;
+	cursor: pointer;
+	position: relative;
+	transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16), 0 0 0 3px rgba(255, 255, 255, 0.9);
+	animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+
+.floatingCircle:nth-child(2) { animation-delay: 0.1s; }
+.floatingCircle:nth-child(3) { animation-delay: 0.2s; }
+.floatingCircle:nth-child(4) { animation-delay: 0.3s; }
+.floatingCircle:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes slideInRight {
+	from { transform: translateX(120px); opacity: 0; }
+	to { transform: translateX(0); opacity: 1; }
+}
+
+.floatingCircle__icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 0;
+	transition: transform 0.3s ease;
+}
+
+/* Logo Zalo lấp đầy toàn bộ vòng tròn để nhìn giống icon app thật */
+.floatingCircle__icon--logo {
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	overflow: hidden;
+}
+
+.floatingCircle__icon--logo svg,
+.floatingCircle__icon--logo img {
+	width: 100%;
+	height: 100%;
+	display: block;
+	object-fit: cover;
+}
+
+/* Ảnh logo Zalo có viền trắng quanh nét vẽ nên phóng to (crop) nhiều hơn để lấp đầy nút tròn */
+.floatingCircle--zalo img {
+	transform: scale(1.9);
+}
+
+/* Logo Messenger đã gần như lấp đầy khung nên chỉ cần zoom nhẹ để bỏ viền trắng mỏng */
+.floatingCircle--messenger img {
+	transform: scale(1.12);
+}
+
+/* Tooltip hiện tên kênh liên hệ khi hover, trượt ra từ mép trái nút */
+.floatingCircle__tooltip {
+	position: absolute;
+	right: calc(100% + 14px);
+	top: 50%;
+	transform: translateY(-50%) translateX(6px);
+	background: #1f2937;
+	color: #ffffff;
+	font-size: 13px;
+	font-weight: 700;
+	white-space: nowrap;
+	padding: 7px 14px;
+	border-radius: 8px;
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.floatingCircle__tooltip::after {
+	content: '';
+	position: absolute;
+	left: 100%;
+	top: 50%;
+	transform: translateY(-50%);
+	border: 6px solid transparent;
+	border-left-color: #1f2937;
+}
+
+.floatingCircle:hover .floatingCircle__tooltip {
+	opacity: 1;
+	transform: translateY(-50%) translateX(0);
+}
+
+/* Zalo - Blue */
+.floatingCircle--zalo {
+	background: #ffffff;
+	padding: 0;
+}
+
+.floatingCircle--zalo:hover {
+	transform: scale(1.16) translateY(-6px);
+	box-shadow: 0 12px 32px rgba(0, 104, 255, 0.45), 0 0 0 4px rgba(0, 104, 255, 0.3);
+}
+
+.floatingCircle--zalo:hover .floatingCircle__icon {
+	animation: zaloShake 0.5s ease-in-out infinite;
+}
+
+@keyframes zaloShake {
+	0%, 100% { transform: rotate(0deg); }
+	25% { transform: rotate(-6deg); }
+	75% { transform: rotate(6deg); }
+}
+
+/* Gọi - Green */
+.floatingCircle--call {
+	background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+	color: #ffffff;
+}
+
+.floatingCircle--call:hover {
+	transform: scale(1.16) translateY(-6px);
+	box-shadow: 0 12px 32px rgba(16, 185, 129, 0.45), 0 0 0 4px rgba(16, 185, 129, 0.3);
+}
+
+.floatingCircle--call:hover .floatingCircle__icon {
+	animation: ringBell 0.5s ease-in-out infinite;
+}
+
+@keyframes ringBell {
+	0%, 100% { transform: rotate(0deg); }
+	20% { transform: rotate(-15deg); }
+	40% { transform: rotate(15deg); }
+	60% { transform: rotate(-10deg); }
+	80% { transform: rotate(10deg); }
+}
+
+/* Messenger - Blue/Purple */
+.floatingCircle--messenger {
+	background: #ffffff;
+	padding: 0;
+}
+
+.floatingCircle--messenger:hover {
+	transform: scale(1.16) translateY(-6px);
+	box-shadow: 0 12px 32px rgba(0, 104, 255, 0.4), 0 0 0 4px rgba(160, 51, 255, 0.25);
+}
+
+.floatingCircle--messenger:hover .floatingCircle__icon {
+	animation: flyUp 0.4s ease-out;
+}
+
+@keyframes flyUp {
+	0% { transform: translateY(0); }
+	50% { transform: translateY(-10px); }
+	100% { transform: translateY(0); }
+}
+
+/* Trợ lý ảo AI - button (không phải link), style riêng nhưng cùng khối/kích thước với 3 nút trên */
+.floatingCircle--ai {
+	background: linear-gradient(135deg, #005aa9 0%, #0b7dd6 100%);
+	color: #ffffff;
+	border: none;
+	padding: 0;
+	font: inherit;
+}
+
+.floatingCircle--ai:hover {
+	transform: scale(1.16) translateY(-6px);
+	box-shadow: 0 12px 32px rgba(0, 90, 169, 0.45), 0 0 0 4px rgba(0, 90, 169, 0.3);
+}
+
+.floatingCircle--ai:hover .floatingCircle__icon {
+	animation: aiPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes aiPulse {
+	0%, 100% { transform: scale(1); }
+	50% { transform: scale(1.12); }
+}
+
+/* Ripple effect on click */
+.floatingCircle::after {
+	content: '';
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.4);
+	transform: scale(0);
+	opacity: 0;
+	transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+.floatingCircle:active::after {
+	transform: scale(1.5);
+	opacity: 0;
+	transition: transform 0s, opacity 0s;
+}
+
+@media (max-width: 768px) {
+	.floatingContact {
+		right: 20px;
+		bottom: 80px;
+		gap: 10px;
+	}
+
+	.floatingCircle {
+		width: 45px;
+		height: 45px;
+	}
+
+	.floatingCircle__tooltip {
+		font-size: 12px;
+		padding: 6px 12px;
+	}
+
+	.floatingContact__close {
+		width: 24px;
+		height: 24px;
+		margin-right: 10.5px;
+	}
+}
+
+/* Nút X to để thu gọn/tắt kênh liên hệ, đặt trên đầu stack các nút liên hệ */
+.floatingContact__close {
+	width: 28px;
+	height: 28px;
+	margin-right: 11px;
+	border-radius: 50%;
+	background: #ffffff;
+	border: none;
+	color: #6b7280;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.06);
+	margin-bottom: 2px;
+	transition: color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+	animation: floatBounce 3s ease-in-out infinite;
+}
+
+.floatingContact__close:hover {
+	color: #ffffff;
+	background: #ef4444;
+	transform: scale(1.12) rotate(90deg);
+}
+
+/* Trigger button when minimized */
+.floatingContact__trigger {
+	position: fixed;
+	right: 30px;
+	bottom: 100px;
+	z-index: 100;
+	width: 50px;
+	height: 50px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #005aa9 0%, #00407f 100%);
+	color: #ffffff;
+	border: none;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18), 0 0 0 3px rgba(255, 255, 255, 0.8);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 20px;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+
+.floatingContact__trigger:hover {
+	transform: scale(1.1) rotate(15deg);
+	box-shadow: 0 8px 24px rgba(0, 90, 169, 0.45), 0 0 0 4px rgba(0, 90, 169, 0.3);
+}
+
+@media (max-width: 768px) {
+	.floatingContact__trigger {
+		right: 20px;
+		bottom: 80px;
+		width: 45px;
+		height: 45px;
+		font-size: 18px;
+	}
+}

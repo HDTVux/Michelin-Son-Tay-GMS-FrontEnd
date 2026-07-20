@@ -239,10 +239,54 @@
 .navDropdownTrigger {
   display: flex;
   align-items: center;
+  position: relative;
+  padding: 8px 10px 8px 16px;
+  border-radius: 8px;
+  transition: background 0.3s ease;
+}
+
+.navDropdownTrigger::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ffffff, rgba(255, 255, 255, 0.8));
+  transition: width 0.3s ease;
+}
+
+.navDropdownTrigger:hover,
+.navDropdown.open .navDropdownTrigger {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.navDropdownTrigger:hover::before,
+.navDropdown.open .navDropdownTrigger::before {
+  width: 60%;
+}
+
+.navDropdownTrigger.active {
+  color: #e8f2ff;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.navDropdownTrigger.active::before {
+  width: 60%;
 }
 
 .navDropdownTrigger a {
-  padding-right: 6px;
+  padding: 0;
+  position: static;
+}
+
+.navDropdownTrigger a::before {
+  content: none;
+}
+
+.navDropdownTrigger a:hover {
+  background: transparent;
 }
 
 .navDropdownCaret {
@@ -252,7 +296,7 @@
   cursor: pointer;
   font-size: 11px;
   line-height: 1;
-  padding: 8px 8px 8px 0;
+  padding: 0 0 0 6px;
   transition: transform 0.2s ease;
 }
 

@@ -294,10 +294,9 @@ const Header = () => {
             onMouseEnter={() => handleNavDropdownEnter('services')}
             onMouseLeave={handleNavDropdownLeave}
           >
-            <div className="navDropdownTrigger">
+            <div className={`navDropdownTrigger ${isActive('/services') ? 'active' : ''}`}>
               <Link
                 to="/services"
-                className={isActive('/services') ? 'active' : ''}
                 onClick={() => { closeMenu(); scrollToTop(); }}
               >
                 Dịch vụ
@@ -325,10 +324,9 @@ const Header = () => {
             onMouseEnter={() => handleNavDropdownEnter('parts')}
             onMouseLeave={handleNavDropdownLeave}
           >
-            <div className="navDropdownTrigger">
+            <div className={`navDropdownTrigger ${isActive('/parts') ? 'active' : ''}`}>
               <Link
                 to="/parts"
-                className={isActive('/parts') ? 'active' : ''}
                 onClick={() => { closeMenu(); scrollToTop(); }}
               >
                 Phụ tùng

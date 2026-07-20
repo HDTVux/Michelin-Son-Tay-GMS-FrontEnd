@@ -1552,6 +1552,7 @@ const Services = ({ homeRows = false }) => {
       </section>
 
       {/* Quy trình dịch vụ */}
+      {homeRows && (
       <section className="processSection">
         <div className="processInner">
           <div
@@ -1624,6 +1625,7 @@ const Services = ({ homeRows = false }) => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Gói dịch vụ được tin dùng */}
       {/* <section className="combosPage">
