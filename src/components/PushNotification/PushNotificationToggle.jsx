@@ -27,8 +27,7 @@ const PushNotificationToggle = ({ enabled = true }) => {
       <div className={`${styles.hint} ${styles.info}`}>
         <Share size={16} className={styles.hintIcon} />
         <span>
-          Để nhận thông báo trên iPhone/iPad: nhấn <strong>Chia sẻ</strong> →{' '}
-          <strong>Thêm vào Màn hình chính</strong>, rồi mở app từ màn hình chính.
+          <strong>Chia sẻ</strong> → <strong>Thêm vào MH chính</strong> để bật thông báo.
         </span>
       </div>
     );
@@ -40,8 +39,7 @@ const PushNotificationToggle = ({ enabled = true }) => {
       <div className={`${styles.hint} ${styles.warn}`}>
         <Ban size={16} className={styles.hintIcon} />
         <span>
-          Thông báo đang bị chặn. Hãy vào cài đặt trình duyệt cho trang này và
-          cho phép <strong>Thông báo</strong>.
+          Thông báo đang bị chặn. Bật lại trong cài đặt trình duyệt.
         </span>
       </div>
     );

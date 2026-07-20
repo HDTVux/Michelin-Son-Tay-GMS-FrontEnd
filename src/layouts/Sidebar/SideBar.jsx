@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
+import PushNotificationToggle from '../../components/PushNotification/PushNotificationToggle.jsx';
 import {
     LayoutDashboard,
     User,
@@ -572,6 +573,8 @@ const SideBar = ({ isCollapsed, setIsCollapsed, chatButton, aiAssistantState }) 
                             </button>
                         ))}
                         {personalItems.length > 0 && <hr className="sidebar__profile-dropdown-divider" />}
+                        <PushNotificationToggle />
+                        <hr className="sidebar__profile-dropdown-divider" />
                         <button
                             type="button"
                             role="menuitem"
