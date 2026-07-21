@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Eye, Pencil } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { Package, Eye, Pencil, Columns3, Star } from 'lucide-react';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import ItemDetailModal from './ItemDetailModal.jsx';
 import EditItemModal from './EditItemModal.jsx';
@@ -230,6 +231,119 @@ const getWarehouseSellingPrice = (detail) => {
   return price;
 };
 
+const ITEM_TYPE_LABELS = { PART: 'Phụ tùng', SERVICE: 'Dịch vụ', PRODUCT: 'Sản phẩm' };
+const getItemTypeText = (item) => ITEM_TYPE_LABELS[String(item?.itemType || '').toUpperCase()] || item?.itemType || '-';
+const getWarrantyText = (item) => {
+  const months = toFiniteNumber(item?.warrantyDurationMonths ?? item?.warranty_duration_months);
+  return months != null ? `${months} tháng` : '-';
+};
+const truncateText = (value, maxLen = 60) => {
+  const text = String(value ?? '').trim();
+  if (!text) return '-';
+  return text.length > maxLen ? `${text.slice(0, maxLen)}…` : text;
+};
+
+// Column catalog for the "column visibility" picker. `pinned` columns are always shown
+// and excluded from the picker; the rest default to the state below but can be toggled
+// and resized by the user (persisted to localStorage, see COLUMN_PREFS_KEY).
+const TABLE_COLUMNS = [
+  { key: 'select', label: '', pinned: true, defaultWidth: 48 },
+  { key: 'favorite', label: '★', defaultVisible: false, defaultWidth: 56 },
+  { key: 'image', label: 'ẢNH', defaultVisible: true, defaultWidth: 64 },
+  { key: 'itemName', label: 'TÊN', defaultVisible: true, defaultWidth: 220 },
+  { key: 'sku', label: 'SKU', defaultVisible: true, defaultWidth: 120 },
+  { key: 'warehouse', label: 'KHO', defaultVisible: true, defaultWidth: 140 },
+  { key: 'quantity', label: 'SỐ LƯỢNG', defaultVisible: true, defaultWidth: 110 },
+  { key: 'reserved', label: 'KHÁCH GIỮ HÀNG', defaultVisible: false, defaultWidth: 140 },
+  { key: 'price', label: 'GIÁ (KHO)', defaultVisible: true, defaultWidth: 130 },
+  { key: 'unit', label: 'ĐƠN VỊ', defaultVisible: false, defaultWidth: 90 },
+  { key: 'origin', label: 'XUẤT XỨ', defaultVisible: false, defaultWidth: 100 },
+  { key: 'color', label: 'MÀU', defaultVisible: false, defaultWidth: 90 },
+  { key: 'brand', label: 'HÃNG', defaultVisible: false, defaultWidth: 120 },
+  { key: 'productLine', label: 'DÒNG SP', defaultVisible: false, defaultWidth: 130 },
+  { key: 'itemType', label: 'LOẠI', defaultVisible: false, defaultWidth: 100 },
+  { key: 'warranty', label: 'BẢO HÀNH', defaultVisible: false, defaultWidth: 110 },
+  { key: 'description', label: 'MÔ TẢ', defaultVisible: false, defaultWidth: 240 },
+  { key: 'compatibleCars', label: 'XE TƯƠNG THÍCH', defaultVisible: false, defaultWidth: 180 },
+  { key: 'barcode', label: 'MÃ VẠCH', defaultVisible: false, defaultWidth: 130 },
+  { key: 'actions', label: 'Thao tác', pinned: true, defaultWidth: 100 },
+];
+const MIN_COLUMN_WIDTH = 50;
+const COLUMN_PREFS_KEY = 'gms_warehouse_table_columns_v1';
+const REORDERABLE_COLUMN_KEYS = TABLE_COLUMNS.filter((c) => !c.pinned).map((c) => c.key);
+// Columns whose value isn't a single per-item scalar (multi-line-per-warehouse, image, actions) can't be sorted.
+const UNSORTABLE_COLUMN_KEYS = ['image', 'actions'];
+
+const loadColumnPrefs = () => {
+  const visibility = {};
+  const widths = {};
+  let order = [...REORDERABLE_COLUMN_KEYS];
+  TABLE_COLUMNS.forEach((c) => {
+    visibility[c.key] = c.pinned ? true : Boolean(c.defaultVisible);
+    widths[c.key] = c.defaultWidth;
+  });
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(COLUMN_PREFS_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.visibility && typeof parsed.visibility === 'object') {
+          Object.keys(visibility).forEach((key) => {
+            if (typeof parsed.visibility[key] === 'boolean' && !TABLE_COLUMNS.find((c) => c.key === key)?.pinned) {
+              visibility[key] = parsed.visibility[key];
+            }
+          });
+        }
+        if (parsed.widths && typeof parsed.widths === 'object') {
+          Object.keys(widths).forEach((key) => {
+            const w = Number(parsed.widths[key]);
+            if (Number.isFinite(w) && w >= MIN_COLUMN_WIDTH) widths[key] = w;
+          });
+        }
+        if (Array.isArray(parsed.order)) {
+          // Keep only known reorderable keys, then append any new columns that weren't in the saved order yet.
+          const savedKnown = parsed.order.filter((key) => REORDERABLE_COLUMN_KEYS.includes(key));
+          const missing = REORDERABLE_COLUMN_KEYS.filter((key) => !savedKnown.includes(key));
+          order = [...savedKnown, ...missing];
+        }
+      }
+    } catch {
+      // Ignore malformed/inaccessible storage.
+    }
+  }
+  return { visibility, widths, order };
+};
+
+const saveColumnPrefs = (visibility, widths, order) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(COLUMN_PREFS_KEY, JSON.stringify({ visibility, widths, order }));
+  } catch {
+    // Ignore quota/private mode.
+  }
+};
+
+const FAVORITE_ITEMS_KEY = 'gms_warehouse_favorite_items_v1';
+
+const loadFavoriteIds = () => {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = window.localStorage.getItem(FAVORITE_ITEMS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed.map(Number).filter(Number.isFinite) : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const saveFavoriteIds = (ids) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(FAVORITE_ITEMS_KEY, JSON.stringify(Array.from(ids)));
+  } catch {
+    // Ignore quota/private mode.
+  }
+};
 
 // ...existing code...
 
@@ -268,11 +382,158 @@ export default function PartManagement() {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Column visibility + width + order picker (persisted to localStorage)
+  const [columnPrefs, setColumnPrefs] = useState(loadColumnPrefs);
+  const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false);
+  const columnPickerRef = useRef(null);
+  const resizingColumnRef = useRef(null);
+  const draggedColumnKeyRef = useRef(null);
+  const [dragOverColumnKey, setDragOverColumnKey] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  // Row selection (checkbox column) + favorite/star marking (persisted to localStorage)
+  const [selectedRowIds, setSelectedRowIds] = useState(() => new Set());
+  const [favoriteIds, setFavoriteIds] = useState(loadFavoriteIds);
+
+  const toggleRowSelected = (itemId) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  };
+
+  const toggleFavorite = (itemId) => {
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      saveFavoriteIds(next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!isColumnPickerOpen) return undefined;
+    const handleClickOutside = (e) => {
+      if (columnPickerRef.current && !columnPickerRef.current.contains(e.target)) {
+        setIsColumnPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isColumnPickerOpen]);
+
+  const toggleColumnVisibility = (key) => {
+    setColumnPrefs((prev) => {
+      const next = { ...prev, visibility: { ...prev.visibility, [key]: !prev.visibility[key] } };
+      saveColumnPrefs(next.visibility, next.widths, next.order);
+      return next;
+    });
+  };
+
+  const resetColumnPrefs = () => {
+    const fresh = { visibility: {}, widths: {}, order: [...REORDERABLE_COLUMN_KEYS] };
+    TABLE_COLUMNS.forEach((c) => {
+      fresh.visibility[c.key] = c.pinned ? true : Boolean(c.defaultVisible);
+      fresh.widths[c.key] = c.defaultWidth;
+    });
+    setColumnPrefs(fresh);
+    setSortConfig({ key: null, direction: 'asc' });
+    saveColumnPrefs(fresh.visibility, fresh.widths, fresh.order);
+  };
+
+  const handleColumnResizeStart = (key, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = columnPrefs.widths[key] ?? TABLE_COLUMNS.find((c) => c.key === key)?.defaultWidth ?? 120;
+    resizingColumnRef.current = { key, startX, startWidth };
+
+    const handleMouseMove = (moveEvent) => {
+      const current = resizingColumnRef.current;
+      if (!current) return;
+      const nextWidth = Math.max(MIN_COLUMN_WIDTH, Math.round(current.startWidth + (moveEvent.clientX - current.startX)));
+      setColumnPrefs((prev) => ({ ...prev, widths: { ...prev.widths, [current.key]: nextWidth } }));
+    };
+    const handleMouseUp = () => {
+      const current = resizingColumnRef.current;
+      resizingColumnRef.current = null;
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      if (current) {
+        setColumnPrefs((prev) => {
+          saveColumnPrefs(prev.visibility, prev.widths, prev.order);
+          return prev;
+        });
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Drag-and-drop column reordering. Only non-pinned columns (STT/Thao tác stay put) can move.
+  const handleColumnDragStart = (key, e) => {
+    if (TABLE_COLUMNS.find((c) => c.key === key)?.pinned) return;
+    draggedColumnKeyRef.current = key;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', key);
+  };
+
+  const handleColumnDragOver = (key, e) => {
+    if (!draggedColumnKeyRef.current || TABLE_COLUMNS.find((c) => c.key === key)?.pinned) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverColumnKey !== key) setDragOverColumnKey(key);
+  };
+
+  const handleColumnDrop = (targetKey, e) => {
+    e.preventDefault();
+    const draggedKey = draggedColumnKeyRef.current;
+    draggedColumnKeyRef.current = null;
+    setDragOverColumnKey(null);
+    if (!draggedKey || draggedKey === targetKey) return;
+    setColumnPrefs((prev) => {
+      const order = prev.order.filter((k) => k !== draggedKey);
+      const targetIndex = order.indexOf(targetKey);
+      order.splice(targetIndex === -1 ? order.length : targetIndex, 0, draggedKey);
+      const next = { ...prev, order };
+      saveColumnPrefs(next.visibility, next.widths, next.order);
+      return next;
+    });
+  };
+
+  const handleColumnDragEnd = () => {
+    draggedColumnKeyRef.current = null;
+    setDragOverColumnKey(null);
+  };
+
+  const handleSortClick = (key) => {
+    if (UNSORTABLE_COLUMN_KEYS.includes(key)) return;
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+    setPage(0);
+  };
+
+  const visibleColumns = useMemo(() => {
+    const selectCol = TABLE_COLUMNS.find((c) => c.key === 'select');
+    const actionsCol = TABLE_COLUMNS.find((c) => c.key === 'actions');
+    const middle = columnPrefs.order
+      .map((key) => TABLE_COLUMNS.find((c) => c.key === key))
+      .filter((c) => c && columnPrefs.visibility[c.key]);
+    return [selectCol, ...middle, actionsCol].filter(Boolean);
+  }, [columnPrefs.order, columnPrefs.visibility]);
+
   const [items, setItems] = useState([]);
   const [totalElementsServer, setTotalElementsServer] = useState(0);
   const [totalPagesServer, setTotalPagesServer] = useState(1);
 
-  const hasClientOnlyFilters = Boolean(originFilter || colorFilter);
+  const hasClientOnlyFilters = Boolean(originFilter || colorFilter || sortConfig.key);
   const pageForFetch = hasClientOnlyFilters ? 0 : page;
   const sizeForFetch = hasClientOnlyFilters ? 500 : size;
 
@@ -332,6 +593,7 @@ export default function PartManagement() {
         const content = Array.isArray(payload?.content) ? payload.content : [];
         if (cancelled) return;
         setItems(content);
+        setSelectedRowIds(new Set());
         setTotalElementsServer(Number(payload?.totalElements ?? content.length));
         setTotalPagesServer(
           Number(payload?.totalPages ?? Math.max(1, Math.ceil((payload?.totalElements ?? content.length) / Math.max(1, sizeForFetch)))),
@@ -368,14 +630,53 @@ export default function PartManagement() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
   }, [items]);
 
+  const getColumnSortValue = (colKey, item) => {
+    const details = getWarehouseDetails(item);
+    const scopedDetails = selectedWarehouseId
+      ? details.filter((d) => String(d?.warehouseId ?? d?.warehouse_id) === String(selectedWarehouseId))
+      : details;
+    switch (colKey) {
+      case 'favorite': return favoriteIds.has(item.itemId) ? 1 : 0;
+      case 'itemName': return item.itemName || '';
+      case 'sku': return item.sku || '';
+      case 'unit': return item.unit || '';
+      case 'origin': return getItemOriginText(item);
+      case 'color': return getItemColorText(item);
+      case 'brand': return item.brand || '';
+      case 'productLine': return item.productLine || '';
+      case 'itemType': return getItemTypeText(item);
+      case 'warranty': return toFiniteNumber(item.warrantyDurationMonths) ?? -1;
+      case 'description': return item.description || '';
+      case 'compatibleCars': return item.compatibleCars || '';
+      case 'barcode': return item.barcode || '';
+      case 'warehouse': return getWarehouseDisplayName(scopedDetails[0] || {});
+      case 'quantity': return scopedDetails.reduce((sum, d) => sum + (getWarehouseAvailableQty(d) ?? 0), 0);
+      case 'reserved': return scopedDetails.reduce((sum, d) => sum + (getWarehouseReservedQty(d) ?? 0), 0);
+      case 'price': return getWarehouseSellingPrice(scopedDetails[0] || {}) ?? toFiniteNumber(item.price) ?? -1;
+      default: return '';
+    }
+  };
+
+  const compareBySort = (a, b, key, direction) => {
+    const av = getColumnSortValue(key, a);
+    const bv = getColumnSortValue(key, b);
+    const result = typeof av === 'number' && typeof bv === 'number'
+      ? av - bv
+      : String(av ?? '').localeCompare(String(bv ?? ''), 'vi');
+    return direction === 'desc' ? -result : result;
+  };
+
   const filteredItems = useMemo(() => {
     const list = Array.isArray(items) ? items : [];
-    return list.filter((item) => {
+    const filtered = list.filter((item) => {
       const matchesOrigin = !originFilter || getItemOriginText(item) === originFilter;
       const matchesColor = !colorFilter || getItemColorText(item) === colorFilter;
       return matchesOrigin && matchesColor;
     });
-  }, [colorFilter, items, originFilter]);
+    if (!sortConfig.key) return filtered;
+    return [...filtered].sort((a, b) => compareBySort(a, b, sortConfig.key, sortConfig.direction));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colorFilter, items, originFilter, sortConfig, selectedWarehouseId, favoriteIds]);
 
   const itemsLengthFallback = Array.isArray(items) ? items.length : 0;
   const totalElements = hasClientOnlyFilters
@@ -400,6 +701,69 @@ export default function PartManagement() {
     const start = safePage * size;
     return filteredItems.slice(start, start + size);
   }, [filteredItems, hasClientOnlyFilters, items, safePage, size]);
+
+  const isAllPagedSelected = paged.length > 0 && paged.every((it) => selectedRowIds.has(it.itemId));
+  const isSomePagedSelected = !isAllPagedSelected && paged.some((it) => selectedRowIds.has(it.itemId));
+
+  const toggleSelectAllOnPage = () => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (isAllPagedSelected) {
+        paged.forEach((it) => next.delete(it.itemId));
+      } else {
+        paged.forEach((it) => next.add(it.itemId));
+      }
+      return next;
+    });
+  };
+
+  const handleExportSelectedToExcel = () => {
+    const selectedItems = paged.filter((it) => selectedRowIds.has(it.itemId));
+    if (selectedItems.length === 0) return;
+    const header = [
+      'STT', 'Tên', 'SKU', 'Kho', 'Số lượng', 'Khách giữ hàng', 'Giá (Kho)',
+      'Đơn vị', 'Xuất xứ', 'Màu', 'Hãng', 'Dòng SP', 'Loại', 'Bảo hành', 'Mô tả', 'Xe tương thích', 'Mã vạch',
+    ];
+    const rows = selectedItems.map((item, idx) => {
+      const details = getWarehouseDetails(item);
+      const warehouseNames = details.map((d) => getWarehouseDisplayName(d)).join(', ') || '-';
+      const totalQuantity = details.reduce((sum, d) => sum + (getWarehouseAvailableQty(d) ?? 0), 0);
+      const totalReserved = details.reduce((sum, d) => sum + (getWarehouseReservedQty(d) ?? 0), 0);
+      const price = getWarehouseSellingPrice(details[0] || {}) ?? toFiniteNumber(item.price) ?? 0;
+      return [
+        idx + 1,
+        item.itemName || '',
+        item.sku || '',
+        warehouseNames,
+        totalQuantity,
+        totalReserved,
+        price,
+        item.unit || '',
+        getItemOriginText(item),
+        getItemColorText(item),
+        item.brand || '',
+        item.productLine || '',
+        getItemTypeText(item),
+        item.warrantyDurationMonths ?? '',
+        item.description || '',
+        item.compatibleCars || '',
+        item.barcode || '',
+      ];
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    XLSX.utils.book_append_sheet(wb, ws, 'PhuTungDaChon');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `phu-tung-da-chon-${Date.now()}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const handleResetFilters = () => {
     setPage(0);
@@ -441,6 +805,105 @@ export default function PartManagement() {
         </div>
       );
     });
+  };
+
+  const renderTableCell = (colKey, item) => {
+    switch (colKey) {
+      case 'select':
+        return (
+          <input
+            type="checkbox"
+            checked={selectedRowIds.has(item.itemId)}
+            onChange={() => toggleRowSelected(item.itemId)}
+            aria-label={`Chọn ${item.itemName || 'dòng'}`}
+          />
+        );
+      case 'favorite': {
+        const isFavorite = favoriteIds.has(item.itemId);
+        return (
+          <button
+            type="button"
+            className={styles['favorite-btn']}
+            onClick={() => toggleFavorite(item.itemId)}
+            title={isFavorite ? 'Bỏ đánh dấu sao' : 'Đánh dấu sao'}
+          >
+            <Star size={16} fill={isFavorite ? '#f59e0b' : 'none'} color="#f59e0b" />
+          </button>
+        );
+      }
+      case 'image':
+        return <ItemTableImage item={item} />;
+      case 'itemName':
+        return <span style={{ fontWeight: 500 }}>{item.itemName ?? '-'}</span>;
+      case 'sku':
+        return <span title={item.sku}>{item.sku || '-'}</span>;
+      case 'warehouse':
+        return renderWarehouseLines(item, (d) => <span>{getWarehouseDisplayName(d)}</span>);
+      case 'quantity':
+        return renderWarehouseLines(item, (d) => {
+          const qty = getWarehouseAvailableQty(d);
+          return <span>{qty == null ? '-' : new Intl.NumberFormat('vi-VN').format(qty)}</span>;
+        });
+      case 'reserved':
+        return renderWarehouseLines(item, (d) => {
+          const reservedQty = getWarehouseReservedQty(d);
+          return <span>{reservedQty == null ? '-' : new Intl.NumberFormat('vi-VN').format(reservedQty)}</span>;
+        });
+      case 'price':
+        return renderWarehouseLines(
+          item,
+          (d) => {
+            const sellingPrice = getWarehouseSellingPrice(d);
+            return <span>{formatCurrencyVnd(sellingPrice)} ₫</span>;
+          },
+          formatPrice(item),
+        );
+      case 'unit':
+        return item.unit || '-';
+      case 'origin':
+        return getItemOriginText(item);
+      case 'color':
+        return getItemColorText(item);
+      case 'brand':
+        return item.brand || '-';
+      case 'productLine':
+        return item.productLine || '-';
+      case 'itemType':
+        return getItemTypeText(item);
+      case 'warranty':
+        return getWarrantyText(item);
+      case 'description':
+        return <span title={item.description || ''}>{truncateText(item.description)}</span>;
+      case 'compatibleCars':
+        return item.compatibleCars || '-';
+      case 'barcode':
+        return item.barcode || '-';
+      case 'actions':
+        return (
+          <div className={styles['action-buttons']} style={{ justifyContent: 'center', gap: '6px' }}>
+            <button
+              className={`${styles['action-btn']} ${styles['view-btn']}`}
+              onClick={() => setSelectedItem(item)}
+              title="Xem chi tiết"
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: 0 }}
+            >
+              <Eye size={16} />
+            </button>
+            {isManagerOrWarehouseManager && (
+              <button
+                className={`${styles['action-btn']} ${styles['edit-btn']}`}
+                onClick={() => setEditingItem(item)}
+                title="Sửa danh mục"
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: 0 }}
+              >
+                <Pencil size={16} />
+              </button>
+            )}
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   const handleDownloadTemplate = async () => {
@@ -500,24 +963,54 @@ export default function PartManagement() {
 
   return (
     <div className={styles['service-page']}>
-      <div className={styles['service-header']}>
-        <div className={styles['service-header-title']}>
-          <span className={styles['header-icon']}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M14.7 6.1a5.3 5.3 0 0 0-6.9 6.9l-4.2 4.2a1.6 1.6 0 0 0 2.3 2.3l4.2-4.2a5.3 5.3 0 0 0 6.9-6.9l-2.4 2.4-2.9-.7-.7-2.9 2.4-2.4Z" />
-            </svg>
-          </span>
-          <h1>Quản lý kho</h1>
-        </div>
-        <div className={styles['header-actions']}>
-          <button className={styles['primary-button']} onClick={() => navigate('/part-management/create-product')}>
-            Thêm phụ tùng
-          </button>
-          <span className={styles['total-count']}>{totalElements} phụ tùng</span>
-        </div>
-      </div>
-
       <div className={styles['pending-filters']}>
+        <div className={styles['pending-filters-title-row']}>
+          <div className={styles['service-header-title']}>
+            <span className={styles['header-icon']}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14.7 6.1a5.3 5.3 0 0 0-6.9 6.9l-4.2 4.2a1.6 1.6 0 0 0 2.3 2.3l4.2-4.2a5.3 5.3 0 0 0 6.9-6.9l-2.4 2.4-2.9-.7-.7-2.9 2.4-2.4Z" />
+              </svg>
+            </span>
+            <h1>Quản lý kho</h1>
+          </div>
+          <div className={styles['footer-right-group']}>
+            <button className={styles['primary-button']} onClick={() => navigate('/part-management/create-product')}>
+              Thêm phụ tùng
+            </button>
+            <div className={styles['column-picker']} ref={columnPickerRef}>
+              <button
+                type="button"
+                className={styles['column-picker-btn']}
+                onClick={() => setIsColumnPickerOpen((prev) => !prev)}
+                title="Chọn cột hiển thị"
+              >
+                <Columns3 size={16} />
+                Cột hiển thị
+              </button>
+              {isColumnPickerOpen && (
+                <div className={styles['column-picker-panel']}>
+                  <div className={styles['column-picker-panel__header']}>
+                    <span>Chọn cột hiển thị</span>
+                    <button type="button" className={styles['column-picker-reset']} onClick={resetColumnPrefs}>
+                      Mặc định
+                    </button>
+                  </div>
+                  {TABLE_COLUMNS.filter((c) => !c.pinned).map((c) => (
+                    <label key={c.key} className={styles['column-picker-item']}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(columnPrefs.visibility[c.key])}
+                        onChange={() => toggleColumnVisibility(c.key)}
+                      />
+                      {c.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <span className={styles['total-count']}>{totalElements} phụ tùng</span>
+          </div>
+        </div>
         <div className={styles['filter-card-controls']}>
           <div className={styles['field']}>
             <label htmlFor="filter-status">Trạng thái</label>
@@ -612,11 +1105,15 @@ export default function PartManagement() {
           <button
             type="button"
             className={styles['ghost-button']}
-            onClick={handleDownloadTemplate}
+            onClick={selectedRowIds.size > 0 ? handleExportSelectedToExcel : handleDownloadTemplate}
             disabled={isDownloadingTemplate || isSyncingExcel}
-            title="Xuất file mẫu Excel theo kho"
+            title={selectedRowIds.size > 0 ? 'Xuất các dòng đã chọn ra file Excel' : 'Xuất file mẫu Excel theo kho'}
           >
-            {isDownloadingTemplate ? 'Đang tải mẫu...' : 'Xuất file Excel'}
+            {isDownloadingTemplate
+              ? 'Đang tải mẫu...'
+              : selectedRowIds.size > 0
+                ? `Xuất Excel đã chọn (${selectedRowIds.size})`
+                : 'Xuất file Excel'}
           </button>
 
           <button
@@ -647,98 +1144,95 @@ export default function PartManagement() {
 
       <div className={styles['service-card']}>
         <div className={styles['table-wrapper']}>
-          <table className={styles['service-table']}>
+          <table className={styles['service-table']} style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              {visibleColumns.map((c) => (
+                <col key={c.key} style={{ width: `${columnPrefs.widths[c.key] ?? c.defaultWidth}px` }} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
-                <th>STT</th>
-                <th style={{ width: '45px', textAlign: 'center', padding: '8px 4px' }}>ẢNH</th>
-                <th>TÊN</th>
-                <th>SKU</th>
-                <th>KHO</th>
-                <th>SỐ LƯỢNG</th>
-                <th>KHÁCH GIỮ HÀNG</th>
-                <th>GIÁ (KHO)</th>
-                <th>ĐƠN VỊ</th>
-                <th>XUẤT XỨ</th>
-                <th>MÀU</th>
-                <th>Thao tác</th>
+                {visibleColumns.map((c) => {
+                  const isLeftAligned = ['itemName', 'description', 'compatibleCars'].includes(c.key);
+                  const isSortable = !c.pinned && !UNSORTABLE_COLUMN_KEYS.includes(c.key);
+                  const isSorted = sortConfig.key === c.key;
+                  return (
+                    <th
+                      key={c.key}
+                      className={[
+                        styles['resizable-th'],
+                        isLeftAligned && styles['td-left'],
+                        dragOverColumnKey === c.key && styles['th-drag-over'],
+                      ].filter(Boolean).join(' ')}
+                      draggable={!c.pinned}
+                      onDragStart={(e) => handleColumnDragStart(c.key, e)}
+                      onDragOver={(e) => handleColumnDragOver(c.key, e)}
+                      onDrop={(e) => handleColumnDrop(c.key, e)}
+                      onDragEnd={handleColumnDragEnd}
+                    >
+                      {c.key === 'select' ? (
+                        <input
+                          type="checkbox"
+                          checked={isAllPagedSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = isSomePagedSelected;
+                          }}
+                          onChange={toggleSelectAllOnPage}
+                          aria-label="Chọn tất cả"
+                        />
+                      ) : (
+                        <span
+                          className={isSortable ? styles['th-label-sortable'] : undefined}
+                          onClick={isSortable ? () => handleSortClick(c.key) : undefined}
+                          title={isSortable ? 'Kéo để đổi vị trí cột, bấm để sắp xếp' : undefined}
+                        >
+                          {c.key === 'favorite' ? <span style={{ color: '#b45309' }}>{c.label}</span> : c.label}
+                          {isSorted && <span className={styles['sort-arrow']}>{sortConfig.direction === 'asc' ? ' ▲' : ' ▼'}</span>}
+                        </span>
+                      )}
+                      <span
+                        className={styles['resize-handle']}
+                        draggable={false}
+                        onMouseDown={(e) => handleColumnResizeStart(c.key, e)}
+                      />
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
-                    <td colSpan="13" className={styles['empty-row']}>Đang tải dữ liệu...</td>
+                    <td colSpan={visibleColumns.length} className={styles['empty-row']}>Đang tải dữ liệu...</td>
                 </tr>
               )}
               {!isLoading && totalElements === 0 && (
                 <tr>
-                    <td colSpan="13" className={styles['empty-row']}>Không có phụ tùng nào.</td>
+                    <td colSpan={visibleColumns.length} className={styles['empty-row']}>Không có phụ tùng nào.</td>
                 </tr>
               )}
               {!isLoading &&
                 paged.map((item, idx) => {
                   const key = buildRowKeyWithIndex(item.itemId, idx);
-                  const displayIndex = safePage * size + idx + 1;
                   return (
                     <tr key={String(key)}>
-                      <td>{displayIndex}</td>
-                      <td style={{ width: '45px', padding: '4px', textAlign: 'center' }}>
-                        <ItemTableImage item={item} />
-                      </td>
-                      <td style={{ textAlign: 'left', fontWeight: 500 }}>{item.itemName ?? '-'}</td>
-                      <td title={item.sku}>{item.sku || '-'}</td>
-                      <td className={styles['warehouse-cell']}>
-                        {renderWarehouseLines(item, (d) => (
-                          <span>{getWarehouseDisplayName(d)}</span>
-                        ))}
-                      </td>
-                      <td className={`${styles['warehouse-cell']} ${styles['td-number']}`}>
-                        {renderWarehouseLines(item, (d) => {
-                          const qty = getWarehouseAvailableQty(d);
-                          return <span>{qty == null ? '-' : new Intl.NumberFormat('vi-VN').format(qty)}</span>;
-                        })}
-                      </td>
-                        <td className={`${styles['warehouse-cell']} ${styles['td-number']}`}>
-                          {renderWarehouseLines(item, (d) => {
-                            const reservedQty = getWarehouseReservedQty(d);
-                            return <span>{reservedQty == null ? '-' : new Intl.NumberFormat('vi-VN').format(reservedQty)}</span>;
-                          })}
-                        </td>
-                      <td className={`${styles['warehouse-cell']} ${styles['td-number']}`}>
-                        {renderWarehouseLines(
-                          item,
-                          (d) => {
-                            const sellingPrice = getWarehouseSellingPrice(d);
-                            return <span>{formatCurrencyVnd(sellingPrice)} ₫</span>;
-                          },
-                          formatPrice(item),
-                        )}
-                      </td>
-                      <td>{item.unit || '-'}</td>
-                      <td>{getItemOriginText(item)}</td>
-                      <td>{getItemColorText(item)}</td>
-                      <td>
-                        <div className={styles['action-buttons']} style={{ justifyContent: 'center', gap: '6px' }}>
-                          <button
-                            className={`${styles['action-btn']} ${styles['view-btn']}`}
-                            onClick={() => setSelectedItem(item)}
-                            title="Xem chi tiết"
-                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: 0 }}
-                          >
-                            <Eye size={16} />
-                          </button>
-                          {isManagerOrWarehouseManager && (
-                            <button
-                              className={`${styles['action-btn']} ${styles['edit-btn']}`}
-                              onClick={() => setEditingItem(item)}
-                              title="Sửa danh mục"
-                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: 0 }}
-                            >
-                              <Pencil size={16} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                      {visibleColumns.map((c) => {
+                        const isWarehouseCell = ['warehouse', 'quantity', 'reserved', 'price'].includes(c.key);
+                        const isNumberCell = ['quantity', 'reserved', 'price'].includes(c.key);
+                        const isLeftAligned = ['itemName', 'description', 'compatibleCars'].includes(c.key);
+                        const cellClassName = [
+                          isWarehouseCell && styles['warehouse-cell'],
+                          isNumberCell && styles['td-number'],
+                          isLeftAligned && styles['td-left'],
+                          c.key === 'sku' && styles['td-ellipsis'],
+                          ['image', 'select', 'favorite'].includes(c.key) && styles['td-compact'],
+                        ].filter(Boolean).join(' ') || undefined;
+                        return (
+                          <td key={c.key} className={cellClassName}>
+                            {renderTableCell(c.key, item)}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })}
@@ -829,20 +1323,6 @@ export default function PartManagement() {
         </div>
 
         <div className={styles['service-footer']}>
-          <div className={styles['page-size']}>
-            <span>Hiển thị:</span>
-            <select
-              value={String(size)}
-              onChange={(e) => {
-                setSize(Number(e.target.value));
-                setPage(0);
-              }}
-            >
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </select>
-          </div>
           <div className={styles['pagination']}>
             <button
               className={styles['primary-button']}
@@ -868,6 +1348,20 @@ export default function PartManagement() {
             >
               Sau
             </button>
+          </div>
+          <div className={styles['page-size']}>
+            <span>Hiển thị:</span>
+            <select
+              value={String(size)}
+              onChange={(e) => {
+                setSize(Number(e.target.value));
+                setPage(0);
+              }}
+            >
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
           </div>
         </div>
       </div>

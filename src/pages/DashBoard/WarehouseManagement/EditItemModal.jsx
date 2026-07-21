@@ -9,6 +9,30 @@ import {
     fetchWarehouseItemCategories,
 } from '../../../services/warehouseService.js';
 import { getItemColorText, getItemOriginText } from '../PartManagement/itemFormatters.js';
+import BlogFormModal from '../PartManagement/BlogFormModal.jsx';
+
+const toNullablePositiveNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num > 0 ? num : null;
+};
+
+// Backend may surface the linked article record under any of these shapes.
+const getServiceServiceId = (item) => {
+    if (!item || typeof item !== 'object') return null;
+    const candidates = [
+        item?.serviceServiceId,
+        item?.service_service_id,
+        item?.serviceId,
+        item?.service_id,
+        item?.service?.serviceId,
+        item?.service?.service_service_id,
+    ];
+    for (const value of candidates) {
+        const parsed = toNullablePositiveNumber(value);
+        if (parsed != null) return parsed;
+    }
+    return null;
+};
 
 const toFiniteNumber = (value) => {
     if (value === null || value === undefined || value === '') return null;
@@ -50,6 +74,10 @@ export default function EditItemModal({ item, onClose, onSaved }) {
     // Nested Warehouse and Lot fields state
     const [warehouseDetailsState, setWarehouseDetailsState] = useState([]);
 
+    // Raw catalog detail payload, kept for the linked article/blog editor below
+    const [detailPayload, setDetailPayload] = useState(null);
+    const [showBlogEditor, setShowBlogEditor] = useState(false);
+
     useEffect(() => {
         let cancelled = false;
         const load = async () => {
@@ -83,6 +111,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                 })).filter(c => (c.type === 'PART' || !c.type || c.type === 'null') && c.id);
 
                 if (!cancelled) {
+                    setDetailPayload(base);
                     setCategories(mappedCats);
                     setItemName(base.itemName || '');
                     setSku(base.sku || '');
@@ -130,6 +159,8 @@ export default function EditItemModal({ item, onClose, onSaved }) {
     }, [item]);
 
     if (!item) return null;
+
+    const itemHasBlog = getServiceServiceId(detailPayload) != null;
 
     // Handlers for updating local warehouse values
     const handleWarehouseChange = (whIndex, field, value) => {
@@ -305,9 +336,20 @@ export default function EditItemModal({ item, onClose, onSaved }) {
             <div className={styles['modal-box']} style={{ width: 'min(1000px, 95vw)', position: 'relative', zIndex: 10 }}>
                 <div className={styles['modal-header']}>
                     <h3>Chỉnh sửa danh mục & Tồn kho</h3>
-                    <button type="button" className={styles['modal-close']} onClick={onClose} aria-label="Đóng" disabled={saving}>
-                        ×
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button
+                            type="button"
+                            className={styles['ghost-button']}
+                            onClick={() => setShowBlogEditor(true)}
+                            disabled={loading || saving}
+                            title={itemHasBlog ? 'Sửa bài viết phụ tùng' : 'Tạo bài viết phụ tùng'}
+                        >
+                            {itemHasBlog ? 'Sửa bài viết' : 'Tạo bài viết'}
+                        </button>
+                        <button type="button" className={styles['modal-close']} onClick={onClose} aria-label="Đóng" disabled={saving}>
+                            ×
+                        </button>
+                    </div>
                 </div>
 
                 <form onSubmit={handleSave} className={styles['modal-body']}>
@@ -686,6 +728,22 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                     )}
                 </form>
             </div>
+
+            {showBlogEditor && (
+                <BlogFormModal
+                    item={{
+                        ...detailPayload,
+                        itemId: item?.itemId ?? item?.id,
+                        itemType: 'PART',
+                    }}
+                    mode={itemHasBlog ? 'edit' : 'createFromCatalog'}
+                    onClose={() => setShowBlogEditor(false)}
+                    onSaved={(saved) => {
+                        setDetailPayload((prev) => ({ ...(prev || {}), ...saved }));
+                        setShowBlogEditor(false);
+                    }}
+                />
+            )}
         </div>
     );
 }

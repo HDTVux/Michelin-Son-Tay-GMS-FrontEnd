@@ -39,14 +39,6 @@
   margin: 0;
 }
 
-.header-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
-
 .total-count {
   background: #fef3c7;
   color: #d97706;
@@ -58,6 +50,13 @@
 }
 
 /* ─── Filter section ─── */
+.pending-filters-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .pending-filters {
   display: flex;
   flex-direction: column;
@@ -199,37 +198,22 @@
   text-align: center;
   font-size: 14px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Cột ẢNH */
-.service-table th:nth-child(2),
-.service-table td:nth-child(2) {
-  width: 45px;
-  min-width: 45px;
-  max-width: 45px;
-  padding: 4px;
-  text-align: center;
-}
-
-/* Cột TÊN — căn trái */
-.service-table th:nth-child(3),
-.service-table td:nth-child(3) {
+/* Column widths are driven by <colgroup> (see columnPrefs.widths); the rules below only
+   handle per-column alignment/overflow, keyed by column identity rather than position,
+   since columns can now be hidden/reordered by the user. */
+.td-left {
   text-align: left;
-  min-width: 200px;
 }
 
-/* Cột THAO TÁC — cố định */
-.service-table th:last-child,
-.service-table td:last-child {
-  white-space: nowrap;
-  min-width: 180px;
+.td-compact {
+  padding: 4px;
 }
 
-/* Cột SKU — Thu hẹp & thêm dấu 3 chấm */
-.service-table th:nth-child(4),
-.service-table td:nth-child(4) {
-  max-width: 90px;
-  min-width: 70px;
+.td-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -266,6 +250,135 @@
 
 .service-table tbody tr:hover {
   background: #f5f8ff;
+}
+
+.resizable-th {
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resizable-th span:first-child {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background: rgba(37, 99, 235, 0.35);
+}
+
+.th-label-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.th-label-sortable:hover {
+  text-decoration: underline;
+}
+
+.sort-arrow {
+  color: #2563eb;
+}
+
+.th-drag-over {
+  background: rgba(37, 99, 235, 0.12);
+  box-shadow: inset 2px 0 0 #2563eb;
+}
+
+.column-picker {
+  position: relative;
+}
+
+.column-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid #16a34a;
+  border-radius: 6px;
+  background: #22c55e;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.column-picker-btn:hover {
+  background: #16a34a;
+}
+
+.column-picker-btn:active {
+  background: #15803d;
+}
+
+.column-picker-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  padding: 8px;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.column-picker-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.column-picker-reset {
+  border: none;
+  background: none;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: pointer;
+  padding: 0;
+}
+
+.column-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: #1f2937;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.column-picker-item:hover {
+  background: #f1f5f9;
 }
 
 .empty-row {
@@ -330,6 +443,21 @@
   flex-wrap: nowrap;
 }
 
+.favorite-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.favorite-btn:hover {
+  background: #f1f5f9;
+}
+
 .action-btn {
   padding: 7px 14px;
   border-radius: 8px;
@@ -390,7 +518,15 @@
   gap: 12px;
   padding-top: 16px;
   border-top: 2px solid #f3f4f6;
-  margin-top: 4px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.footer-right-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .page-size {
