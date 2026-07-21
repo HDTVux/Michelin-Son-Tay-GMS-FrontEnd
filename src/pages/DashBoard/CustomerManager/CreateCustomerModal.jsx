@@ -72,9 +72,30 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
     setPinDigits(nextDigits);
   };
 
+  const validateEmailValue = (value) => {
+    if (!value.trim()) return '';
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? '' : 'Email không hợp lệ';
+  };
+
+  const validatePhoneValue = (value) => {
+    if (!value.trim()) return 'Vui lòng nhập số điện thoại';
+    return /^\d{10}$/.test(value) ? '' : 'Số điện thoại không hợp lệ';
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === 'email') {
+      setErrors((prev) => ({ ...prev, email: validateEmailValue(value) }));
+      return;
+    }
+
+    if (name === 'phone') {
+      setErrors((prev) => ({ ...prev, phone: validatePhoneValue(value) }));
+      return;
+    }
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -144,15 +165,11 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
       newErrors.fullName = 'Vui lòng nhập họ tên';
     }
 
-    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email không hợp lệ';
-    }
+    const emailError = validateEmailValue(formData.email);
+    if (emailError) newErrors.email = emailError;
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Vui lòng nhập số điện thoại';
-    } else if (!/^\d{10}$/.test(formData.phone)) {
-      newErrors.phone = 'Số điện thoại không hợp lệ';
-    }
+    const phoneError = validatePhoneValue(formData.phone);
+    if (phoneError) newErrors.phone = phoneError;
 
     if (pinValue?.length !== PIN_LENGTH || !/^\d{6}$/.test(pinValue)) {
       newErrors.pin = 'PIN phải gồm 6 chữ số';

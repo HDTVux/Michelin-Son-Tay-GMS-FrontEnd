@@ -10,7 +10,8 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
     email: '',
     phone: '',
     gender: '',
-    dob: ''
+    dob: '',
+    customerType: 'INDIVIDUAL'
   });
 
   const [errors, setErrors] = useState({});
@@ -26,13 +27,35 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
       email: customer.email || '',
       phone: customer.phone || '',
       gender: customer.gender || '',
-      dob: customer.dob || ''
+      dob: customer.dob || '',
+      customerType: customer.customerType || 'INDIVIDUAL'
     });
   }, [open, customer]);
+
+  const validateEmailValue = (value) => {
+    if (!value.trim()) return '';
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? '' : 'Email không đúng định dạng';
+  };
+
+  const validatePhoneValue = (value) => {
+    if (!value.trim()) return 'SĐT không được để trống';
+    return /^(03|05|07|08|09)\d{8}$/.test(value) ? '' : 'SĐT không hợp lệ (phải gồm 10 chữ số)';
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === 'email') {
+      setErrors((prev) => ({ ...prev, email: validateEmailValue(value) }));
+      return;
+    }
+
+    if (name === 'phone') {
+      setErrors((prev) => ({ ...prev, phone: validatePhoneValue(value) }));
+      return;
+    }
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -43,19 +66,12 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
     if (!formData.fullName.trim()) {
       nextErrors.fullName = 'Họ tên không được để trống';
     }
-    if (!formData.email.trim()) {
-      nextErrors.email = 'Email không được để trống';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      nextErrors.email = 'Email không đúng định dạng';
-    }
-    if (!formData.phone.trim()) {
-      nextErrors.phone = 'SĐT không được để trống';
-    } else if (!/^(03|05|07|08|09)\d{8}$/.test(formData.phone)) {
-      nextErrors.phone = 'SĐT không hợp lệ (phải gồm 10 chữ số)';
-    }
-    if (!formData.gender) {
-      nextErrors.gender = 'Vui lòng chọn giới tính';
-    }
+
+    const emailError = validateEmailValue(formData.email);
+    if (emailError) nextErrors.email = emailError;
+
+    const phoneError = validatePhoneValue(formData.phone);
+    if (phoneError) nextErrors.phone = phoneError;
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -82,7 +98,8 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
         email: formData.email.trim(),
         phone: formData.phone.trim(),
         gender: formData.gender,
-        dob: formData.dob || null
+        dob: formData.dob || null,
+        customerType: formData.customerType
       };
 
       const customerId = customer.customerId || customer.id;
@@ -90,7 +107,7 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
 
       if (response?.success) {
         toast.success('Cập nhật thông tin khách hàng thành công!');
-        onUpdated?.(response?.data || { ...customer, ...payload });
+        onUpdated?.({ ...customer, ...payload, ...response?.data });
         onClose();
       }
     } catch (error) {
@@ -135,7 +152,7 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
 
             <div className={styles.formGroup}>
               <label className={styles.label} htmlFor="edit_email">
-                Email <span className={styles.required}>*</span>
+                Email
               </label>
               <input
                 id="edit_email"
@@ -167,24 +184,40 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
 
             <div className={styles.formGroup}>
               <label className={styles.label} htmlFor="edit_gender">
-                Giới tính <span className={styles.required}>*</span>
+                Giới tính
               </label>
               <select
                 id="edit_gender"
                 name="gender"
                 value={formData.gender}
                 onChange={handleInputChange}
-                className={`${styles.select} ${errors.gender ? styles.inputError : ''}`}
+                className={styles.select}
               >
                 <option value="">Chọn giới tính</option>
                 <option value="MALE">Nam</option>
                 <option value="FEMALE">Nữ</option>
                 <option value="OTHER">Khác</option>
               </select>
-              {errors.gender && <span className={styles.errorText}>{errors.gender}</span>}
             </div>
 
-            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+            <div className={styles.formGroup}>
+              <label className={styles.label} htmlFor="edit_customerType">
+                Loại khách hàng
+              </label>
+              <select
+                id="edit_customerType"
+                name="customerType"
+                value={formData.customerType}
+                onChange={handleInputChange}
+                className={styles.select}
+              >
+                <option value="INDIVIDUAL">Khách lẻ</option>
+                <option value="DEALER">Đại lý</option>
+                <option value="GARAGE">Garage khác</option>
+              </select>
+            </div>
+
+            <div className={styles.formGroup}>
               <label className={styles.label} htmlFor="edit_dob">
                 Ngày sinh
               </label>

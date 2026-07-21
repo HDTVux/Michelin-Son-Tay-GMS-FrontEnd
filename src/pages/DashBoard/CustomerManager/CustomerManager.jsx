@@ -23,6 +23,19 @@ const resolveCustomerStatus = (customer) =>
   customer?.userStatus ??
   customer?.customerAuth?.status;
 
+const getCustomerTypeText = (customerType) => {
+  switch (customerType) {
+    case 'DEALER':
+      return 'Đại lý';
+    case 'GARAGE':
+      return 'Garage khác';
+    case 'INDIVIDUAL':
+      return 'Khách lẻ';
+    default:
+      return 'Khách lẻ';
+  }
+};
+
 const getInitials = (name) => {
   if (!name) return 'KH';
   const parts = name.trim().split(/\s+/);
@@ -359,7 +372,12 @@ const CustomerManager = () => {
                         {getInitials(customer.fullName)}
                       </div>
                       <div className={styles.contactInfo}>
-                        <span className={styles.contactName}>{customer.fullName}</span>
+                        <span className={styles.contactNameRow}>
+                          <span className={styles.contactName}>{customer.fullName}</span>
+                          <span className={`${styles.customerTypeTag} ${customer.customerType === 'DEALER' ? styles.customerTypeTagDealer : ''}`}>
+                            {getCustomerTypeText(customer.customerType)}
+                          </span>
+                        </span>
                         <span className={styles.contactPhone}>{customer.phone}</span>
                       </div>
                       <div className={styles.quickActions}>
@@ -417,6 +435,9 @@ const CustomerManager = () => {
                     {selectedCustomer.isGuest && (
                       <span className={`${styles.statusBadge} ${styles.statusVip}`}>Guest</span>
                     )}
+                    <span className={`${styles.customerTypeTag} ${selectedCustomer.customerType === 'DEALER' ? styles.customerTypeTagDealer : ''}`}>
+                      {getCustomerTypeText(selectedCustomer.customerType)}
+                    </span>
                     <RankBadge rank={selectedCustomer.currentRank || 'BRONZE'} size="sm" />
                   </div>
                 </div>
@@ -468,6 +489,10 @@ const CustomerManager = () => {
                 <div className={styles.detailField}>
                   <span className={styles.detailLabel}>Số lần đặt lịch</span>
                   <span className={styles.detailValue}>{selectedCustomer.totalBookings || 0} lần</span>
+                </div>
+                <div className={styles.detailField}>
+                  <span className={styles.detailLabel}>Loại khách hàng</span>
+                  <span className={styles.detailValue}>{getCustomerTypeText(selectedCustomer.customerType)}</span>
                 </div>
               </div>
 

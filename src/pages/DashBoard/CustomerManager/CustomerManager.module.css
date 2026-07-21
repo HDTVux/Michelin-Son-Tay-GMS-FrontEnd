@@ -237,6 +237,13 @@
   min-width: 0;
 }
 
+.contactNameRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .contactName {
   font-weight: 600;
   font-size: 14px;
@@ -244,6 +251,23 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.customerTypeTag {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.customerTypeTagDealer {
+  background: #eef2ff;
+  color: #4338ca;
 }
 
 .contactPhone {
