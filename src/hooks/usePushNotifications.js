@@ -44,6 +44,67 @@ const isStandalone = () => {
 };
 
 /**
+ * Xin trình duyệt đánh dấu dữ liệu site là "bền vững" để giảm khả năng bị dọn
+ * (kéo theo mất service worker + push subscription) khi máy thiếu dung lượng
+ * hoặc lâu không mở app.
+ *
+ * Chỉ gọi ngay sau khi người dùng vừa cấp quyền thông báo: Chrome cấp im lặng,
+ * còn Firefox hiện thêm một hộp thoại — đặt ở đây thì nó nằm trong đúng luồng
+ * "đang bật thông báo", không bật lên bất chợt.
+ */
+const requestPersistentStorage = async () => {
+  try {
+    if (!navigator.storage?.persist || !navigator.storage?.persisted) return;
+    if (await navigator.storage.persisted()) return; // đã bền vững rồi
+    await navigator.storage.persist();
+  } catch {
+    /* Không hỗ trợ hoặc bị từ chối — không ảnh hưởng việc bật thông báo */
+  }
+};
+
+// Chỉ đồng bộ lại tối đa 1 lần / khoảng này khi tab quay lại hiển thị.
+const RESYNC_MIN_INTERVAL_MS = 6 * 60 * 60 * 1000;
+let lastResyncAt = 0;
+
+/**
+ * Tự chữa subscription: đảm bảo trình duyệt có subscription hợp lệ VÀ backend
+ * biết về nó (upsert sẽ bật lại active=true nếu trước đó bị prune do 404/410).
+ *
+ * Gọi mỗi lần mở app. Xử lý các trường hợp làm push "tự nhiên mất hiệu lực":
+ *  - BE đã prune subscription (active=false) nhưng trình duyệt vẫn còn subscription;
+ *  - push service xoay endpoint lúc app đóng (không tab nào nhận được message);
+ *  - iOS/WebKit thu hồi subscription sau một thời gian không dùng.
+ */
+export const resyncPushSubscription = async ({ force = false } = {}) => {
+  if (!detectSupport() || !VAPID_PUBLIC_KEY) return false;
+  // Chưa từng cấp quyền thì không tự ý đăng ký (tránh bật lén sau khi user tắt).
+  if (Notification.permission !== 'granted') return false;
+
+  const now = Date.now();
+  if (!force && now - lastResyncAt < RESYNC_MIN_INTERVAL_MS) return false;
+  lastResyncAt = now;
+
+  try {
+    const registration = await navigator.serviceWorker.register(SW_URL, { scope: '/' });
+    await navigator.serviceWorker.ready;
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+
+    await savePushSubscription(subscription);
+    return true;
+  } catch {
+    lastResyncAt = 0; // cho phép thử lại ở lần sau
+    return false;
+  }
+};
+
+/**
  * Quản lý vòng đời Web Push cho khu vực nhân viên:
  * - đăng ký service worker,
  * - đọc trạng thái subscription/permission,
@@ -125,6 +186,10 @@ export const usePushNotifications = ({ enabled = true } = {}) => {
       }
 
       await savePushSubscription(subscription);
+
+      // Sau khi bật thành công mới xin lưu trữ bền vững, để subscription sống lâu hơn.
+      await requestPersistentStorage();
+
       setIsSubscribed(true);
       return true;
     } catch (err) {

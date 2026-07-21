@@ -11,6 +11,7 @@ import ChatLauncher from '../components/Chat/ChatLauncher.jsx';
 import ChatWindowDock from '../components/Chat/ChatWindowDock.jsx';
 import ChatMobileNavButton from '../components/Chat/ChatMobileNavButton.jsx';
 import AIAssistantPanel from '../components/AIAssistant/AIAssistantPanel.jsx';
+import { resyncPushSubscription } from '../hooks/usePushNotifications.js';
 import { initNotificationSound } from '../utils/notificationSound.js';
 import './StaffLayout.css';
 
@@ -558,11 +559,37 @@ const StaffLayout = () => {
   // Đăng ký Service Worker cho Web Push ngay khi nhân viên đã đăng nhập, để
   // thông báo cấp hệ điều hành hoạt động cả khi đã tắt web (việc bật/tắt
   // subscription do PushNotificationToggle xử lý). Idempotent — an toàn gọi lại.
+  //
+  // Đồng thời TỰ ĐỒNG BỘ subscription lên backend mỗi lần mở app: đây là cơ chế
+  // tự chữa khi push "mất hiệu lực sau một thời gian" (BE prune do 404/410, push
+  // service xoay endpoint lúc app đóng, iOS thu hồi subscription...).
   useEffect(() => {
-    if (!hasStaffToken || !('serviceWorker' in navigator)) return;
+    if (!hasStaffToken || !('serviceWorker' in navigator)) return undefined;
+
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
       /* Bỏ qua: trình duyệt không hỗ trợ hoặc context không an toàn (không phải HTTPS/localhost) */
     });
+
+    resyncPushSubscription({ force: true });
+
+    // Service worker báo endpoint vừa bị xoay -> đồng bộ ngay.
+    const onSwMessage = (event) => {
+      if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGE') {
+        resyncPushSubscription({ force: true });
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', onSwMessage);
+
+    // App mở lâu ngày (PWA) -> kiểm tra lại khi quay lại tab, có tiết chế tần suất.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') resyncPushSubscription();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', onSwMessage);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [hasStaffToken]);
 
   const notificationState = useNotifications({ enabled: hasStaffToken, notifyOnReceive: true });

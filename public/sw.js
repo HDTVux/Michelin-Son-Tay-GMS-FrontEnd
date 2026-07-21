@@ -103,11 +103,25 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Khi push service xoay endpoint, tự đăng ký lại và báo cho các tab đang mở
-// để chúng gửi subscription mới lên backend.
+// Khi push service xoay endpoint: TỰ đăng ký lại ngay trong service worker
+// (không phụ thuộc có tab đang mở hay không — đây là lúc app thường đã đóng),
+// rồi báo cho tab nào đang mở để đồng bộ lên backend. Nếu không có tab nào,
+// lần mở app kế tiếp sẽ tự đồng bộ (xem resyncPushSubscription ở phía app).
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
     (async () => {
+      try {
+        const appServerKey = event.oldSubscription?.options?.applicationServerKey;
+        if (appServerKey) {
+          await self.registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: appServerKey,
+          });
+        }
+      } catch {
+        /* Không đăng ký lại được — app sẽ tự chữa ở lần mở kế tiếp */
+      }
+
       const clientList = await self.clients.matchAll({
         type: 'window',
         includeUncontrolled: true,
