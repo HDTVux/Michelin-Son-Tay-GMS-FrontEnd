@@ -641,6 +641,7 @@ export function pickAdvisorCatalogItem({
 	activeRowIndex,
 	onChange,
 	closeCatalogPicker,
+	workCategoryById,
 }) {
 	if (activeRowIndex == null) return;
 	const id = item?.itemId ?? item?.id ?? null;
@@ -664,6 +665,21 @@ export function pickAdvisorCatalogItem({
 	const rawTaxId = item?.taxRuleId ?? item?.tax_rule_id ?? item?.taxRule?.taxRuleId ?? item?.taxRule?.id ?? '';
 	const entryItemId = item?.entryItemId ?? null;
 	const entryCode = item?.entryCode ?? null;
+
+	// Tự động điền Hạng mục dựa trên hạng mục gắn sẵn của sản phẩm/dịch vụ vừa chọn, cho phép
+	// người dùng chọn Diễn giải trước mà không cần chọn Hạng mục trước. Phải chạy TRƯỚC các
+	// onChange bên dưới vì set 'newCategoryName' sẽ tự xoá itemId/itemName/unit của dòng
+	// (theo logic đổi hạng mục thủ công) — nếu chạy sau sẽ xoá mất sản phẩm vừa chọn.
+	const itemWorkCategoryId = toIdOrNull(item?.workCategoryId ?? item?.work_category_id);
+	const foundCategory = itemWorkCategoryId && workCategoryById ? workCategoryById.get(itemWorkCategoryId) : null;
+	if (foundCategory) {
+		const workCategoryCode = String(foundCategory?.categoryCode ?? '').trim();
+		const categoryTaxRuleId = foundCategory?.taxRuleId;
+		onChange(activeRowIndex, 'workCategoryId', itemWorkCategoryId);
+		onChange(activeRowIndex, 'workCategoryCode', workCategoryCode);
+		onChange(activeRowIndex, 'newCategoryName', foundCategory?.categoryName || workCategoryCode || '');
+		onChange(activeRowIndex, 'workCategoryTaxRuleId', categoryTaxRuleId == null ? '' : String(categoryTaxRuleId));
+	}
 
 	onChange(activeRowIndex, 'itemId', id);
 	onChange(activeRowIndex, 'itemName', name);
@@ -689,6 +705,7 @@ export function pickAdvisorCatalogItem({
 
 	const taxIdNum = toIdOrNull(rawTaxId);
 	if (taxIdNum) onChange(activeRowIndex, 'taxRuleId', '');
+
 	closeCatalogPicker();
 }
 
@@ -2193,6 +2210,16 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		return map;
 	}, [workCategories]);
 
+	// Danh sách hạng mục được index theo id để lookup nhanh khi tự động điền hạng mục từ sản phẩm/dịch vụ đã chọn
+	const workCategoryById = useMemo(() => {
+		const map = new Map();
+		for (const c of Array.isArray(workCategories) ? workCategories : []) {
+			const id = toIdOrNull(c?.workCateId ?? c?.workCategoryId ?? c?.id);
+			if (id) map.set(id, c);
+		}
+		return map;
+	}, [workCategories]);
+
 	// Danh sách tên hạng mục để hiển thị trong dropdown khi chọn hạng mục cho dòng ước tính
 	const categorySuggestions = useMemo(() => {
 		return (Array.isArray(workCategories) ? workCategories : [])
@@ -3006,6 +3033,7 @@ export function useAdvisorItemsTableHandlers(serviceTicketId, options = {}) {
 		workCategories,
 		workCategoriesLoading,
 		workCategoriesError,
+		workCategoryById,
 		categorySuggestions,
 		isAddingNewTaxRule,
 		taxName,

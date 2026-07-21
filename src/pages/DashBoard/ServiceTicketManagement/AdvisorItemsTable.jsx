@@ -365,9 +365,7 @@ function EstimateItemRow({
     const isWarehouseLockedItem = ['RESERVED', 'COMMITTED', 'RELEASED'].includes(stockStatus);
     const isLocked = Boolean(row?.isLockedFromPreviousVersion) || isGift || isWarehouseLockedItem;
     const allowInputs = showInputs && !isLocked;
-    const categoryFilled =
-        Boolean(String(row?.newCategoryName ?? row?.categoryName ?? '').trim()) || Boolean(toIdOrNull(row?.workCategoryId));
-    const allowItemActions = allowInputs && categoryFilled;
+    const allowItemActions = allowInputs;
 
     const stt = String(idx + 1).padStart(2, '0');
     const manualTaxRuleId = toIdOrNull(row?.taxRuleId);
@@ -396,12 +394,7 @@ function EstimateItemRow({
     const rowActionKey = getWarehouseActionKey(row);
     const isWarehouseActionBusy = warehouseActionBusyKey === rowActionKey;
 
-    let itemPlaceholder = 'Diễn giải';
-    if (categoryFilled) {
-        if (isPredefinedCategory) itemPlaceholder = 'Chọn sản phẩm ';
-    } else {
-        itemPlaceholder = 'Nhập hạng mục trước';
-    }
+    const itemPlaceholder = isPredefinedCategory ? 'Chọn sản phẩm ' : 'Diễn giải';
 
     return (
         <tr
@@ -1027,6 +1020,7 @@ export default function AdvisorItemsTable({
     const {
         categorySuggestions,
         workCategoriesLoading,
+        workCategoryById,
         taxRules,
         taxRulesLoading,
         taxRuleById,
@@ -1577,12 +1571,6 @@ export default function AdvisorItemsTable({
     const openCatalogPicker = (rowIndex, rowObj) => {
         const giftRaw = rowObj?.isGift ?? rowObj?.is_gift;
         if (giftRaw === true || String(giftRaw ?? '').trim().toLowerCase() === 'true') return;
-        const hasCategory =
-            Boolean(String(rowObj?.newCategoryName ?? rowObj?.categoryName ?? '').trim()) || Boolean(toIdOrNull(rowObj?.workCategoryId));
-        if (!hasCategory) {
-            notify('Vui lòng nhập/chọn hạng mục trước khi thao tác diễn giải hoặc chọn sản phẩm.');
-            return;
-        }
 
         setActiveRowIndex(rowIndex);
         const code = String(rowObj?.workCategoryCode ?? '').trim();
@@ -1627,11 +1615,16 @@ export default function AdvisorItemsTable({
                     const catalogDetail = detailRes?.data?.data || detailRes?.data || detailRes;
                     if (!catalogDetail) continue;
 
+                    const subItemWorkCategoryId = toIdOrNull(catalogDetail.workCategoryId);
+                    const subItemCategory = subItemWorkCategoryId ? workCategoryById.get(subItemWorkCategoryId) : null;
+
                     const row = {
                         estimateItemId: null,
-                        workCategoryId: catalogDetail.itemCategoryId || catalogDetail.workCategoryId || activeRow?.workCategoryId,
-                        workCategoryCode: catalogDetail.categoryCode || activeRow?.workCategoryCode || '',
-                        workCategoryTaxRuleId: catalogDetail.workCategoryTaxRuleId || activeRow?.workCategoryTaxRuleId || '',
+                        workCategoryId: subItemCategory ? subItemWorkCategoryId : activeRow?.workCategoryId,
+                        workCategoryCode: subItemCategory ? String(subItemCategory.categoryCode ?? '').trim() : (activeRow?.workCategoryCode || ''),
+                        workCategoryTaxRuleId: subItemCategory
+                            ? (subItemCategory.taxRuleId == null ? '' : String(subItemCategory.taxRuleId))
+                            : (activeRow?.workCategoryTaxRuleId || ''),
                         itemId: catalogDetail.itemId || catalogDetail.id,
                         itemName: catalogDetail.itemName || catalogDetail.name || '',
                         unit: catalogDetail.unit || '',
@@ -1639,7 +1632,9 @@ export default function AdvisorItemsTable({
                         warehouseName: '',
                         warehouseAvailableQuantity: null,
                         itemTaxRuleId: catalogDetail.taxRuleId || catalogDetail.tax_rule_id || '',
-                        newCategoryName: catalogDetail.categoryName || activeRow?.newCategoryName || '',
+                        newCategoryName: subItemCategory
+                            ? (subItemCategory.categoryName || subItemCategory.categoryCode || '')
+                            : (activeRow?.newCategoryName || ''),
                         quantity: sub.quantity || 1,
                         unitPrice: catalogDetail.price || 0,
                         importPrice: catalogDetail.importPrice || null,
@@ -1746,6 +1741,7 @@ export default function AdvisorItemsTable({
                 item: picked,
                 activeRowIndex,
                 onChange,
+                workCategoryById,
                 closeCatalogPicker: () => {
                     setCatalogPickerOpen(false);
                     setActiveRowIndex(null);
@@ -1773,6 +1769,7 @@ export default function AdvisorItemsTable({
             item: picked,
             activeRowIndex,
             onChange,
+            workCategoryById,
             closeCatalogPicker: () => {
                 setLotPickerOpen(false);
                 setCatalogPickerOpen(false);
