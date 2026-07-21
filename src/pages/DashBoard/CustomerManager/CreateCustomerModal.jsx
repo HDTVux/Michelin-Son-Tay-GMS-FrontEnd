@@ -20,6 +20,7 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
 
   const [useDefaultPin, setUseDefaultPin] = useState(true);
   const [pinDigits, setPinDigits] = useState(() => new Array(PIN_LENGTH).fill('1'));
+  const [showPin, setShowPin] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,6 +55,7 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
     }
     setUseDefaultPin(true);
     setPinDigits(new Array(PIN_LENGTH).fill('1'));
+    setShowPin(false);
   }, [open, initialData]);
 
   const focusPinIndex = (index) => {
@@ -142,9 +144,7 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
       newErrors.fullName = 'Vui lòng nhập họ tên';
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Vui lòng nhập email';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email không hợp lệ';
     }
 
@@ -152,10 +152,6 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
       newErrors.phone = 'Vui lòng nhập số điện thoại';
     } else if (!/^\d{10}$/.test(formData.phone)) {
       newErrors.phone = 'Số điện thoại không hợp lệ';
-    }
-
-    if (!formData.gender) {
-      newErrors.gender = 'Vui lòng chọn giới tính';
     }
 
     if (pinValue?.length !== PIN_LENGTH || !/^\d{6}$/.test(pinValue)) {
@@ -262,7 +258,7 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
 
             <div className={styles.formGroup}>
               <label className={styles.label} htmlFor="cm_email">
-                Email <span className={styles.required}>*</span>
+                Email
               </label>
               <input
                 id="cm_email"
@@ -294,68 +290,82 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
 
             <div className={styles.formGroup}>
               <label className={styles.label} htmlFor="cm_gender">
-                Giới tính <span className={styles.required}>*</span>
+                Giới tính
               </label>
               <select
                 id="cm_gender"
                 name="gender"
                 value={formData.gender}
                 onChange={handleInputChange}
-                className={`${styles.select} ${errors.gender ? styles.inputError : ''}`}
+                className={styles.select}
               >
                 <option value="">Chọn giới tính</option>
                 <option value="MALE">Nam</option>
                 <option value="FEMALE">Nữ</option>
                 <option value="OTHER">Khác</option>
               </select>
-              {errors.gender && <span className={styles.errorText}>{errors.gender}</span>}
             </div>
 
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
               <label className={styles.label} htmlFor="cm_pin_0">
-                PIN <span className={styles.required}>*</span>
+                Mã PIN <span className={styles.required}>*</span>
               </label>
 
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={useDefaultPin}
-                  onChange={(e) => {
-                    const nextChecked = e.target.checked;
-                    setUseDefaultPin(nextChecked);
-                    if (nextChecked) {
-                      setPinDigits(new Array(PIN_LENGTH).fill('1'));
-                      if (errors.pin) setErrors((prev) => ({ ...prev, pin: '' }));
-                    } else {
-                      setPinDigits(new Array(PIN_LENGTH).fill(''));
-                      setTimeout(() => focusPinIndex(0), 0);
-                    }
-                  }}
-                  className={styles.checkbox}
-                />
-                <span>Đặt PIN mặc định: 111111</span>
-              </label>
-
-              <div className={`${styles.pinInputs} ${errors.pin ? styles.pinInputsError : ''}`} onPaste={handlePinPaste}>
-                {pinDigits.map((digit, idx) => (
+              <div className={styles.pinCard}>
+                <label className={styles.pinDefaultToggle}>
                   <input
-                    key={PIN_KEYS[idx]}
-                    ref={(el) => {
-                      pinInputRefs.current[idx] = el;
+                    type="checkbox"
+                    checked={useDefaultPin}
+                    onChange={(e) => {
+                      const nextChecked = e.target.checked;
+                      setUseDefaultPin(nextChecked);
+                      if (nextChecked) {
+                        setPinDigits(new Array(PIN_LENGTH).fill('1'));
+                        if (errors.pin) setErrors((prev) => ({ ...prev, pin: '' }));
+                      } else {
+                        setPinDigits(new Array(PIN_LENGTH).fill(''));
+                        setTimeout(() => focusPinIndex(0), 0);
+                      }
                     }}
-                    id={idx === 0 ? 'cm_pin_0' : undefined}
-                    type="password"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(ev) => handlePinChange(idx, ev.target.value)}
-                    onKeyDown={(ev) => handlePinKeyDown(idx, ev)}
-                    disabled={useDefaultPin}
-                    className={styles.pinInput}
-                    aria-label={`PIN ${idx + 1}`}
+                    className={styles.checkbox}
                   />
-                ))}
+                  <span>Dùng PIN mặc định (111111)</span>
+                </label>
+
+                <div className={styles.pinRow}>
+                  <div className={`${styles.pinInputs} ${errors.pin ? styles.pinInputsError : ''}`} onPaste={handlePinPaste}>
+                    {pinDigits.map((digit, idx) => (
+                      <input
+                        key={PIN_KEYS[idx]}
+                        ref={(el) => {
+                          pinInputRefs.current[idx] = el;
+                        }}
+                        id={idx === 0 ? 'cm_pin_0' : undefined}
+                        type={showPin ? 'text' : 'password'}
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(ev) => handlePinChange(idx, ev.target.value)}
+                        onKeyDown={(ev) => handlePinKeyDown(idx, ev)}
+                        disabled={useDefaultPin}
+                        className={styles.pinInput}
+                        aria-label={`Chữ số PIN ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    className={styles.pinToggleVisibility}
+                    onClick={() => setShowPin((prev) => !prev)}
+                    aria-label={showPin ? 'Ẩn mã PIN' : 'Hiện mã PIN'}
+                  >
+                    {showPin ? 'Ẩn' : 'Hiện'}
+                  </button>
+                </div>
+
+                <span className={styles.pinHint}>Nhập đủ 6 chữ số, hoặc dán mã PIN đã sao chép vào ô đầu tiên.</span>
               </div>
               {errors.pin && <span className={styles.errorText}>{errors.pin}</span>}
             </div>

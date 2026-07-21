@@ -298,7 +298,7 @@ const CustomerManager = () => {
               <Search className={styles.searchIcon} size={16} />
               <input
                 type="text"
-                placeholder="Tìm tên, SĐT..."
+                placeholder="Tìm tên, SĐT, biển số xe..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
