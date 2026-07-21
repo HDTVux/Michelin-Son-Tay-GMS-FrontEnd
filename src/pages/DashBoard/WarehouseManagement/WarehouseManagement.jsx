@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { toast } from 'react-toastify';
 import { Package, Eye, Pencil, Columns3, Star } from 'lucide-react';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import ItemDetailModal from './ItemDetailModal.jsx';
 import EditItemModal from './EditItemModal.jsx';
+import BulkEditItemsModal from './BulkEditItemsModal.jsx';
 import { fetchHomeServiceDetail, fetchHomeProductDetail } from '../../../services/homeService.js';
 
 const getServiceIdFromUnknownShape = (input) => {
@@ -394,6 +396,28 @@ export default function PartManagement() {
   // Row selection (checkbox column) + favorite/star marking (persisted to localStorage)
   const [selectedRowIds, setSelectedRowIds] = useState(() => new Set());
   const [favoriteIds, setFavoriteIds] = useState(loadFavoriteIds);
+  const [contextMenu, setContextMenu] = useState(null); // { x, y } | null
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const contextMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!contextMenu) return undefined;
+    const closeMenu = (e) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target)) setContextMenu(null);
+    };
+    const closeOnEscape = (e) => {
+      if (e.key === 'Escape') setContextMenu(null);
+    };
+    const closeOnScroll = () => setContextMenu(null);
+    document.addEventListener('mousedown', closeMenu);
+    document.addEventListener('scroll', closeOnScroll, true);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeMenu);
+      document.removeEventListener('scroll', closeOnScroll, true);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [contextMenu]);
 
   const toggleRowSelected = (itemId) => {
     setSelectedRowIds((prev) => {
@@ -402,6 +426,14 @@ export default function PartManagement() {
       else next.add(itemId);
       return next;
     });
+  };
+
+  const handleRowContextMenu = (item, e) => {
+    e.preventDefault();
+    if (!selectedRowIds.has(item.itemId)) {
+      setSelectedRowIds(new Set([item.itemId]));
+    }
+    setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
   const toggleFavorite = (itemId) => {
@@ -717,9 +749,9 @@ export default function PartManagement() {
     });
   };
 
-  const handleExportSelectedToExcel = () => {
-    const selectedItems = paged.filter((it) => selectedRowIds.has(it.itemId));
-    if (selectedItems.length === 0) return;
+  const getSelectedItems = () => paged.filter((it) => selectedRowIds.has(it.itemId));
+
+  const buildSelectedExportRows = (selectedItems) => {
     const header = [
       'STT', 'Tên', 'SKU', 'Kho', 'Số lượng', 'Khách giữ hàng', 'Giá (Kho)',
       'Đơn vị', 'Xuất xứ', 'Màu', 'Hãng', 'Dòng SP', 'Loại', 'Bảo hành', 'Mô tả', 'Xe tương thích', 'Mã vạch',
@@ -750,6 +782,13 @@ export default function PartManagement() {
         item.barcode || '',
       ];
     });
+    return { header, rows };
+  };
+
+  const handleExportSelectedToExcel = () => {
+    const selectedItems = getSelectedItems();
+    if (selectedItems.length === 0) return;
+    const { header, rows } = buildSelectedExportRows(selectedItems);
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
     XLSX.utils.book_append_sheet(wb, ws, 'PhuTungDaChon');
@@ -763,6 +802,26 @@ export default function PartManagement() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+    setContextMenu(null);
+  };
+
+  const escapeCsvCell = (value) => {
+    const text = String(value ?? '');
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+
+  const handleCopySelectedAsCsv = async () => {
+    const selectedItems = getSelectedItems();
+    if (selectedItems.length === 0) return;
+    const { header, rows } = buildSelectedExportRows(selectedItems);
+    const csv = [header, ...rows].map((row) => row.map(escapeCsvCell).join(',')).join('\n');
+    try {
+      await navigator.clipboard.writeText(csv);
+      toast.success(`Đã sao chép ${selectedItems.length} dòng dạng CSV.`);
+    } catch {
+      toast.error('Không thể sao chép vào clipboard.');
+    }
+    setContextMenu(null);
   };
 
   const handleResetFilters = () => {
@@ -1215,7 +1274,11 @@ export default function PartManagement() {
                 paged.map((item, idx) => {
                   const key = buildRowKeyWithIndex(item.itemId, idx);
                   return (
-                    <tr key={String(key)}>
+                    <tr
+                      key={String(key)}
+                      className={selectedRowIds.has(item.itemId) ? styles['row-selected'] : undefined}
+                      onContextMenu={(e) => handleRowContextMenu(item, e)}
+                    >
                       {visibleColumns.map((c) => {
                         const isWarehouseCell = ['warehouse', 'quantity', 'reserved', 'price'].includes(c.key);
                         const isNumberCell = ['quantity', 'reserved', 'price'].includes(c.key);
@@ -1366,12 +1429,51 @@ export default function PartManagement() {
         </div>
       </div>
 
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className={styles['context-menu']}
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <div className={styles['context-menu__header']}>{selectedRowIds.size} dòng đã chọn</div>
+          <button type="button" className={styles['context-menu__item']} onClick={handleExportSelectedToExcel}>
+            Xuất Excel
+          </button>
+          <button type="button" className={styles['context-menu__item']} onClick={handleCopySelectedAsCsv}>
+            Sao chép dạng CSV
+          </button>
+          {isManagerOrWarehouseManager && (
+            <button
+              type="button"
+              className={styles['context-menu__item']}
+              onClick={() => {
+                setIsBulkEditOpen(true);
+                setContextMenu(null);
+              }}
+            >
+              Sửa hàng loạt
+            </button>
+          )}
+        </div>
+      )}
+
       <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       <EditItemModal
         item={editingItem}
         onClose={() => setEditingItem(null)}
         onSaved={() => setRefreshKey((k) => k + 1)}
       />
+      {isBulkEditOpen && (
+        <BulkEditItemsModal
+          items={getSelectedItems()}
+          onClose={() => setIsBulkEditOpen(false)}
+          onSaved={() => {
+            setIsBulkEditOpen(false);
+            setSelectedRowIds(new Set());
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
     </div>
   );
 }

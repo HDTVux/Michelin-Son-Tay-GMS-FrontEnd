@@ -458,6 +458,47 @@
   background: #f1f5f9;
 }
 
+.row-selected {
+  background: #eff6ff !important;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  min-width: 200px;
+  padding: 6px;
+}
+
+.context-menu__header {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.context-menu__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: #1f2937;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.context-menu__item:hover {
+  background: #f1f5f9;
+}
+
 .action-btn {
   padding: 7px 14px;
   border-radius: 8px;
