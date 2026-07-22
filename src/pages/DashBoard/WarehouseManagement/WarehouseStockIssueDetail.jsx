@@ -7,6 +7,7 @@ import {
   confirmWarehouseStockIssue,
   fetchWarehouseStockIssueDetail,
   uploadWarehouseStockIssueAttachment,
+  updateWarehouseStockIssue,
 } from '../../../services/warehouseService.js';
 import { getStatusTextVi, getStatusTone } from '../../../components/statusUtils.js';
 import { formatCurrencyVnd } from '../PartManagement/itemFormatters.js';
@@ -39,30 +40,89 @@ EntryField.propTypes = {
   fullRow: PropTypes.bool,
 };
 
-const IssueSummaryCard = ({ issue, statusLabel, statusValue }) => (
-  <section className={styles.card}>
-    <div className={styles.headerRow}>
-      <div className={styles.titleBlock}>
-        <div className={styles.entryCode}>{issue?.issueCode || `#${issue?.issueId || '-'}`}</div>
-        <span className={`${commonStyles.badge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
+const IssueSummaryCard = ({ issue, statusLabel, statusValue, isDraft, onUpdateIssue }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [receiverName, setReceiverName] = useState(issue?.receiverName || '');
+  const [receiverPhone, setReceiverPhone] = useState(issue?.receiverPhone || '');
+  const [licensePlate, setLicensePlate] = useState(issue?.licensePlate || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setReceiverName(issue?.receiverName || '');
+    setReceiverPhone(issue?.receiverPhone || '');
+    setLicensePlate(issue?.licensePlate || '');
+  }, [issue]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onUpdateIssue({ receiverName, receiverPhone, licensePlate });
+      setIsEditing(false);
+      toast.success('Cập nhật thông tin người nhận thành công.');
+    } catch (err) {
+      toast.error(err?.message || 'Lỗi cập nhật thông tin người nhận.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <section className={styles.card}>
+      <div className={styles.headerRow}>
+        <div className={styles.titleBlock}>
+          <div className={styles.entryCode}>{issue?.issueCode || `#${issue?.issueId || '-'}`}</div>
+          <span className={`${commonStyles.badge} ${badgeClassByStatus(statusValue)}`}>{statusLabel}</span>
+        </div>
+        {isDraft && !isEditing && (
+          <button type="button" className="ui-btn ui-btn--primary ui-btn--small" onClick={() => setIsEditing(true)}>
+            Sửa TT người nhận
+          </button>
+        )}
       </div>
-    </div>
 
-    <div className={styles.detailGrid}>
-      <EntryField label="Mã phiếu xuất" value={issue?.issueCode || '-'} />
-      <EntryField label="Kho" value={issue?.warehouseName ?? '-'} />
-      <EntryField label="Trạng thái" value={getStatusTextVi(issue?.status, issue?.status || '-')} />
-      <EntryField label="Lý do" value={issue?.issueReason || '-'} fullRow />
+      <div className={styles.detailGrid}>
+        <EntryField label="Mã phiếu xuất" value={issue?.issueCode || '-'} />
+        <EntryField label="Kho" value={issue?.warehouseName ?? '-'} />
+        <EntryField label="Trạng thái" value={getStatusTextVi(issue?.status, issue?.status || '-')} />
+        <EntryField label="Lý do" value={issue?.issueReason || '-'} fullRow />
 
-      <EntryField label="Mã phiếu dịch vụ" value={issue?.serviceTicketCode ?? '-'} />
+        <EntryField label="Mã phiếu dịch vụ" value={issue?.serviceTicketCode ?? '-'} />
 
-      <EntryField label="Người tạo" value={issue?.createdByName ?? '-'} />
-      <EntryField label="Ngày tạo" value={issue?.createdAt || '-'} />
-      <EntryField label="Người xác nhận" value={issue?.confirmedByName ?? '-'} />
-      <EntryField label="Ngày xác nhận" value={issue?.confirmedAt || '-'} />
-    </div>
-  </section>
-);
+        <EntryField label="Người tạo" value={issue?.createdByName ?? '-'} />
+        <EntryField label="Ngày tạo" value={issue?.createdAt || '-'} />
+        <EntryField label="Người xác nhận" value={issue?.confirmedByName ?? '-'} />
+        <EntryField label="Ngày xác nhận" value={issue?.confirmedAt || '-'} />
+        
+        {isEditing ? (
+          <>
+            <div className={styles.fullRow}>
+              <label><strong>Người nhận:</strong></label>
+              <input type="text" value={receiverName} onChange={(e) => setReceiverName(e.target.value)} className="ui-input" style={{marginLeft: '10px'}} />
+            </div>
+            <div className={styles.fullRow}>
+              <label><strong>SĐT người nhận:</strong></label>
+              <input type="text" value={receiverPhone} onChange={(e) => setReceiverPhone(e.target.value)} className="ui-input" style={{marginLeft: '10px'}} />
+            </div>
+            <div className={styles.fullRow}>
+              <label><strong>Biển số xe:</strong></label>
+              <input type="text" value={licensePlate} onChange={(e) => setLicensePlate(e.target.value)} className="ui-input" style={{marginLeft: '10px'}} />
+            </div>
+            <div className={styles.fullRow} style={{ marginTop: '10px' }}>
+              <button type="button" className="ui-btn ui-btn--primary ui-btn--small" onClick={handleSave} disabled={isSaving}>Lưu</button>
+              <button type="button" className="ui-btn ui-btn--outline ui-btn--small" onClick={() => setIsEditing(false)} disabled={isSaving} style={{marginLeft: '10px'}}>Hủy</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <EntryField label="Người nhận" value={issue?.receiverName ?? '-'} />
+            <EntryField label="SĐT người nhận" value={issue?.receiverPhone ?? '-'} />
+            <EntryField label="Biển số xe" value={issue?.licensePlate ?? '-'} />
+          </>
+        )}
+      </div>
+    </section>
+  );
+};
 
 IssueSummaryCard.propTypes = {
   issue: PropTypes.shape({
@@ -82,9 +142,14 @@ IssueSummaryCard.propTypes = {
     createdBy: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     createdByName: PropTypes.string,
     createdAt: PropTypes.string,
+    receiverName: PropTypes.string,
+    receiverPhone: PropTypes.string,
+    licensePlate: PropTypes.string,
   }),
   statusLabel: PropTypes.string.isRequired,
   statusValue: PropTypes.string.isRequired,
+  isDraft: PropTypes.bool,
+  onUpdateIssue: PropTypes.func,
 };
 
 const IssueItemsCard = ({ items }) => (
@@ -358,6 +423,17 @@ export default function WarehouseStockIssueDetail() {
     }
   };
 
+  const handleUpdateIssue = async (updateData) => {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+    if (!token) throw new Error('Vui lòng đăng nhập.');
+    const payload = {
+      ...issue,
+      ...updateData,
+    };
+    await updateWarehouseStockIssue(issue.issueId, payload, token);
+    await fetchDetail(issue.issueId);
+  };
+
   let bodyContent;
   if (loading) {
     bodyContent = (
@@ -378,6 +454,8 @@ export default function WarehouseStockIssueDetail() {
           issue={issue}
           statusLabel={statusLabel}
           statusValue={statusValue}
+          isDraft={isDraft}
+          onUpdateIssue={handleUpdateIssue}
         />
         <IssueItemsCard items={issue?.items} />
 
@@ -454,6 +532,104 @@ export default function WarehouseStockIssueDetail() {
     );
   }
 
+  const handlePrint = () => {
+    if (!issue) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Trình duyệt đã chặn popup. Vui lòng cho phép popup để in phiếu.');
+      return;
+    }
+    
+    const html = `
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8">
+        <title>Phiếu Xuất Kho ${issue.issueCode || issue.issueId}</title>
+        <style>
+          body { font-family: 'Times New Roman', serif; line-height: 1.5; color: #000; padding: 20px; font-size: 14px; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .header h1 { margin: 0; font-size: 20px; text-transform: uppercase; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+          .info-item { margin-bottom: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          .signatures { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; margin-top: 50px; }
+          .signature-box { margin-bottom: 80px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>PHIẾU XUẤT KHO</h1>
+          <p>Mã phiếu: ${issue.issueCode || issue.issueId}</p>
+          <p>Ngày tạo: ${issue.createdAt || '...'}</p>
+        </div>
+        
+        <div class="info-grid">
+          <div class="info-item"><strong>Người nhận hàng:</strong> ${issue.receiverName || '...........................................'}</div>
+          <div class="info-item"><strong>Số điện thoại:</strong> ${issue.receiverPhone || '...........................................'}</div>
+          <div class="info-item"><strong>Biển số xe:</strong> ${issue.licensePlate || '...........................................'}</div>
+          <div class="info-item"><strong>Lý do xuất:</strong> ${issue.issueReason || '...........................................'}</div>
+          <div class="info-item"><strong>Xuất tại kho:</strong> ${issue.warehouseName || '...........................................'}</div>
+          <div class="info-item"><strong>Phiếu dịch vụ:</strong> ${issue.serviceTicketCode || '...........................................'}</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Mã SP</th>
+              <th>Tên sản phẩm</th>
+              <th>ĐVT</th>
+              <th>Số lượng</th>
+              <th>Đơn giá</th>
+              <th>Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(issue.items || []).map((item, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td>${item.itemId || ''}</td>
+                <td>${item.itemName || ''}</td>
+                <td>${item.unit || ''}</td>
+                <td>${item.quantity || 0}</td>
+                <td>${formatCurrencyVnd(item.exportPrice)} ₫</td>
+                <td>${formatCurrencyVnd((item.quantity || 0) * (item.exportPrice || 0))} ₫</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div class="signatures">
+          <div class="signature-box">
+            <strong>Người nhận hàng</strong><br>
+            <i>(Ký, ghi rõ họ tên)</i>
+          </div>
+          <div class="signature-box">
+            <strong>Thủ kho</strong><br>
+            <i>(Ký, ghi rõ họ tên)</i>
+          </div>
+          <div class="signature-box">
+            <strong>Người lập phiếu</strong><br>
+            <i>(Ký, ghi rõ họ tên)</i><br>
+            <br><br><br><br>
+            ${issue.createdByName || ''}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
   return (
     <div className={commonStyles.page}>
       <div className={styles.wrapper}>
@@ -462,9 +638,14 @@ export default function WarehouseStockIssueDetail() {
             <h1 className={commonStyles.title}>Chi tiết phiếu xuất kho</h1>
             <p className={styles.subtitle}>Xem thông tin chi tiết phiếu xuất kho và danh sách sản phẩm xuất.</p>
           </div>
-          <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate('/warehouse-stock-issues')}>
-            Quay lại
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" className="ui-btn ui-btn--outline" onClick={handlePrint}>
+              In phiếu
+            </button>
+            <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate('/warehouse-stock-issues')}>
+              Quay lại
+            </button>
+          </div>
         </header>
 
         {bodyContent}

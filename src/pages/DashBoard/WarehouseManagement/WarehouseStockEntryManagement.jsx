@@ -79,6 +79,9 @@ export default function WarehouseStockEntryManagement() {
     return stateId ? String(stateId) : String(DEFAULT_WAREHOUSE_ID);
   });
   const [status, setStatus] = useState('ALL');
+  const [search, setSearch] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [entries, setEntries] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -106,6 +109,9 @@ export default function WarehouseStockEntryManagement() {
       const params = { page: nextPage, size: nextSize };
       if (warehouseId && warehouseId !== 'ALL') params.warehouseId = warehouseId;
       if (status && status !== 'ALL') params.status = status;
+      if (search) params.search = search.trim();
+      if (fromDate) params.fromDate = fromDate;
+      if (toDate) params.toDate = toDate;
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
       const res = await fetchWarehouseStockEntries(params, token);
       const pageData = extractEntryPage(res);
@@ -165,9 +171,12 @@ export default function WarehouseStockEntryManagement() {
     const warehouseId = warehouseIdInput === 'ALL' ? 'ALL' : toWarehouseIdText(warehouseIdInput);
     if (!warehouseId) return;
 
-    fetchList({ warehouseIdOverride: warehouseId, pageOverride: page, sizeOverride: size });
+    const timer = setTimeout(() => {
+      fetchList({ warehouseIdOverride: warehouseId, pageOverride: page, sizeOverride: size });
+    }, 300);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [warehouseIdInput, status, page, size]);
+  }, [warehouseIdInput, status, search, fromDate, toDate, page, size]);
 
   const stats = useMemo(() => {
     const total = totalElements;
@@ -295,6 +304,46 @@ export default function WarehouseStockEntryManagement() {
                 </option>
               ))}
             </select>
+          </div>
+          <div className={commonStyles.field}>
+            <label htmlFor="stock-entry-search">Tìm kiếm</label>
+            <input
+              type="text"
+              id="stock-entry-search"
+              className={commonStyles.input}
+              placeholder="Mã phiếu..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+              }}
+            />
+          </div>
+          <div className={commonStyles.field}>
+            <label htmlFor="stock-entry-from-date">Từ ngày</label>
+            <input
+              type="date"
+              id="stock-entry-from-date"
+              className={commonStyles.input}
+              value={fromDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+                setPage(0);
+              }}
+            />
+          </div>
+          <div className={commonStyles.field}>
+            <label htmlFor="stock-entry-to-date">Đến ngày</label>
+            <input
+              type="date"
+              id="stock-entry-to-date"
+              className={commonStyles.input}
+              value={toDate}
+              onChange={(e) => {
+                setToDate(e.target.value);
+                setPage(0);
+              }}
+            />
           </div>
         </section>
 

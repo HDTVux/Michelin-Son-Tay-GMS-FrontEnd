@@ -6,7 +6,7 @@ import bookingStyles from '../Booking.module.css';
 // Hàm chuẩn hóa loại mục (dịch vụ hoặc phụ tùng) 
 const normalizeItemType = (value) => {
   const text = String(value || '').trim().toUpperCase();
-  if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') {
+  if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART' || text === 'EQUIPMENT' || text === 'MACHINERY') {
     return 'PART';
   }
   return 'SERVICE';

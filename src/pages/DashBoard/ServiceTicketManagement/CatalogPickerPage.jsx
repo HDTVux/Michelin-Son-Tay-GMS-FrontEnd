@@ -1028,6 +1028,9 @@ export default function CatalogPickerPage() {
                     } else if (itemTypeRaw === 'EQUIPMENT') {
                       typeLabel = 'Thiết bị';
                       typeClass = styles.tagEquipment;
+                    } else if (itemTypeRaw === 'MACHINERY') {
+                      typeLabel = 'Máy móc';
+                      typeClass = styles.tagEquipment;
                     } else if (itemTypeRaw === 'COMBO') {
                       typeLabel = 'Combo';
                       typeClass = styles.tagCombo;

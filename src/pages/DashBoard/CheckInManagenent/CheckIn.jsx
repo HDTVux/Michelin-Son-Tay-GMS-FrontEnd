@@ -114,6 +114,7 @@ const normalizeBookingItemType = (item) => {
         || text === 'SPAREPART'
         || text === 'ACCESSORY'
         || text === 'EQUIPMENT'
+        || text === 'MACHINERY'
         || hasPartText(text)
     ) {
         return 'PART';
