@@ -792,8 +792,8 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     }, [canUnapplyPromotionFromCurrentEstimate, isEstimateVersionRevision]);
     // Tính toán xem có thể áp dụng khuyến mãi mới cho báo giá hiện tại hay ko dựa trên việc có thể áp dụng khuyến mãi cho báo giá hiện tại và loại khuyến mãi đó 
     const visiblePromotionTypes = useMemo(
-        () => PROMOTION_TYPES.filter(({ type }) => type === 'PERCENT'),
-        [],
+        () => PROMOTION_TYPES.filter(({ type }) => type === 'PERCENT' || !isNewEstimateVersionPromotionLimited),
+        [isNewEstimateVersionPromotionLimited],
     );
 
     useEffect(() => {

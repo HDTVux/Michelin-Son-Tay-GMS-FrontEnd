@@ -366,14 +366,14 @@ export function usePartsSalesHandlers({ navigate }) {
 		const token = getToken();
 		if (!token) return;
 		setPromotionsLoading(true);
-		fetchAvailablePromotions(token, '', customerId)
-			.then((res) => {
+		// promotionType là param bắt buộc ở backend nên phải gọi riêng cho từng loại rồi gộp lại
+		Promise.all(['PERCENT', 'BUY_X_GET_Y'].map((type) => fetchAvailablePromotions(token, type, customerId)))
+			.then((responses) => {
 				if (!active) return;
-				const raw = res?.data;
-				// API có thể trả list phẳng hoặc group theo loại
-				const list = Array.isArray(raw)
-					? raw
-					: [...(raw?.PERCENT ?? []), ...(raw?.BUY_X_GET_Y ?? [])];
+				const list = responses.flatMap((res) => {
+					const raw = res?.data;
+					return Array.isArray(raw) ? raw : [];
+				});
 				setAvailablePromotions(list.filter(Boolean));
 			})
 			.catch(() => {

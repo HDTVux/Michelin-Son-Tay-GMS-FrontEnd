@@ -61,10 +61,8 @@ const defaultForm = {
   startDate: '',
   endDate: '',
   usageLimit: '',
-  buyItemId: '',
-  buyQuantity: '',
-  getItemId: '',
-  getQuantity: '',
+  buyItems: [],
+  giftItems: [],
   promotionItems: [],
   promotionCustomers: [],
 };
@@ -79,14 +77,6 @@ const NUMERIC_INPUT_RULES = {
   discountPercent: {
     decimal: true,
     invalidMessage: 'Phần trăm giảm chỉ được nhập số dương, có thể có phần thập phân.',
-  },
-  buyQuantity: {
-    decimal: false,
-    invalidMessage: 'Số lượng mua chỉ được nhập số nguyên dương.',
-  },
-  getQuantity: {
-    decimal: false,
-    invalidMessage: 'Số lượng tặng chỉ được nhập số nguyên dương.',
   },
   minOrderValue: {
     decimal: false,
@@ -114,8 +104,13 @@ const isPositiveIntegerValue = (value) => {
 const isValidDateInput = (value) => {
   const text = String(value ?? '').trim();
   if (!DATE_INPUT_PATTERN.test(text)) return false;
-  const date = new Date(`${text}T00:00:00`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text;
+  const [year, month, day] = text.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return (
+    date.getFullYear() === year
+    && date.getMonth() === month - 1
+    && date.getDate() === day
+  );
 };
 
 const getDiscountPercentError = (value) => {
@@ -149,6 +144,24 @@ const normalizeIdArray = (value) => {
   return [...new Set(ids)];
 };
 
+const normalizeBuyGiftItems = (value) => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const result = [];
+  value.forEach((item) => {
+    const catalogItemId = toPositiveId(item?.catalogItemId ?? item?.itemId ?? item?.id);
+    if (!catalogItemId || seen.has(catalogItemId)) return;
+    const quantityNum = Number(item?.quantity);
+    seen.add(catalogItemId);
+    result.push({
+      catalogItemId,
+      quantity: Number.isInteger(quantityNum) && quantityNum > 0 ? quantityNum : 1,
+      itemName: String(item?.itemName ?? item?.name ?? '').trim() || `Catalog #${catalogItemId}`,
+    });
+  });
+  return result;
+};
+
 const extractPageContent = (response) => {
   const payload = response?.data?.data ?? response?.data ?? response;
   if (Array.isArray(payload)) return payload;
@@ -165,18 +178,6 @@ const extractPromotionDetail = (response, fallback) => {
 const getCatalogItemId = (item) => toPositiveId(item?.itemId ?? item?.id ?? item?.catalogItemId);
 const getCatalogItemName = (item) => String(item?.itemName ?? item?.name ?? item?.title ?? '').trim();
 const getCatalogItemMeta = (item) => String(item?.sku ?? item?.partNumber ?? item?.barcode ?? '').trim();
-const getCatalogItemSearchLabel = (item) => {
-  const id = getCatalogItemId(item);
-  const name = getCatalogItemName(item);
-  const meta = getCatalogItemMeta(item);
-  if (!id && !name) return '';
-  return [
-    name || `Catalog #${id}`,
-    id ? `ID: ${id}` : '',
-    meta,
-  ].filter(Boolean).join(' - ');
-};
-
 const getCustomerId = (customer) => toPositiveId(customer?.customerId ?? customer?.id ?? customer?.customerProfileId);
 const getCustomerName = (customer) => String(customer?.fullName ?? customer?.customerName ?? customer?.name ?? '').trim();
 const getCustomerMeta = (customer) => String(customer?.phone ?? customer?.email ?? '').trim();
@@ -235,17 +236,17 @@ const buildPromotionFormErrors = (rawForm, existingPromotions = [], currentPromo
   }
 
   if (type === 'BUY_X_GET_Y') {
-    if (!isPositiveIntegerValue(rawForm?.buyQuantity)) {
-      nextErrors.buyQuantity = 'Số lượng mua phải là số nguyên lớn hơn 0.';
+    const buyItems = Array.isArray(rawForm?.buyItems) ? rawForm.buyItems : [];
+    const giftItems = Array.isArray(rawForm?.giftItems) ? rawForm.giftItems : [];
+    if (buyItems.length === 0) {
+      nextErrors.buyItems = 'Vui lòng chọn ít nhất 1 sản phẩm cần mua.';
+    } else if (buyItems.some((item) => !isPositiveIntegerValue(item?.catalogItemId) || !isPositiveIntegerValue(item?.quantity))) {
+      nextErrors.buyItems = 'Số lượng mua của từng sản phẩm phải là số nguyên lớn hơn 0.';
     }
-    if (!isPositiveIntegerValue(rawForm?.getQuantity)) {
-      nextErrors.getQuantity = 'Số lượng tặng phải là số nguyên lớn hơn 0.';
-    }
-    if (String(rawForm?.buyItemId ?? '').trim() !== '' && !isPositiveIntegerValue(rawForm?.buyItemId)) {
-      nextErrors.buyItemId = 'Mã sản phẩm mua phải là số nguyên lớn hơn 0.';
-    }
-    if (String(rawForm?.getItemId ?? '').trim() !== '' && !isPositiveIntegerValue(rawForm?.getItemId)) {
-      nextErrors.getItemId = 'Mã sản phẩm tặng phải là số nguyên lớn hơn 0.';
+    if (giftItems.length === 0) {
+      nextErrors.giftItems = 'Vui lòng chọn ít nhất 1 sản phẩm tặng.';
+    } else if (giftItems.some((item) => !isPositiveIntegerValue(item?.catalogItemId) || !isPositiveIntegerValue(item?.quantity))) {
+      nextErrors.giftItems = 'Số lượng tặng của từng sản phẩm phải là số nguyên lớn hơn 0.';
     }
   }
 
@@ -332,16 +333,14 @@ export default function PromotionManagement() {
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState('');
   const [selectedCatalogItems, setSelectedCatalogItems] = useState([]);
-  const [buyCatalogSearch, setBuyCatalogSearch] = useState('');
-  const [buyCatalogResults, setBuyCatalogResults] = useState([]);
-  const [buyCatalogLoading, setBuyCatalogLoading] = useState(false);
-  const [buyCatalogError, setBuyCatalogError] = useState('');
-  const [selectedBuyCatalogItem, setSelectedBuyCatalogItem] = useState(null);
-  const [getCatalogSearch, setGetCatalogSearch] = useState('');
-  const [getCatalogResults, setGetCatalogResults] = useState([]);
-  const [getCatalogLoading, setGetCatalogLoading] = useState(false);
-  const [getCatalogError, setGetCatalogError] = useState('');
-  const [selectedGetCatalogItem, setSelectedGetCatalogItem] = useState(null);
+  const [buyGroupSearch, setBuyGroupSearch] = useState('');
+  const [buyGroupResults, setBuyGroupResults] = useState([]);
+  const [buyGroupLoading, setBuyGroupLoading] = useState(false);
+  const [buyGroupError, setBuyGroupError] = useState('');
+  const [giftGroupSearch, setGiftGroupSearch] = useState('');
+  const [giftGroupResults, setGiftGroupResults] = useState([]);
+  const [giftGroupLoading, setGiftGroupLoading] = useState(false);
+  const [giftGroupError, setGiftGroupError] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerResults, setCustomerResults] = useState([]);
   const [customerLoading, setCustomerLoading] = useState(false);
@@ -356,6 +355,14 @@ export default function PromotionManagement() {
   );
   const detailPromotionCustomers = useMemo(
     () => normalizeIdArray(selectedPromotion?.promotionCustomers),
+    [selectedPromotion],
+  );
+  const detailBuyItems = useMemo(
+    () => normalizeBuyGiftItems(selectedPromotion?.buyItems),
+    [selectedPromotion],
+  );
+  const detailGiftItems = useMemo(
+    () => normalizeBuyGiftItems(selectedPromotion?.giftItems),
     [selectedPromotion],
   );
   const normalizedStatusFilter = ['ACTIVE', 'INACTIVE'].includes(statusFilter) ? statusFilter : 'ALL';
@@ -398,16 +405,14 @@ export default function PromotionManagement() {
     setCatalogError('');
     setCatalogLoading(false);
     setSelectedCatalogItems([]);
-    setBuyCatalogSearch('');
-    setBuyCatalogResults([]);
-    setBuyCatalogError('');
-    setBuyCatalogLoading(false);
-    setSelectedBuyCatalogItem(null);
-    setGetCatalogSearch('');
-    setGetCatalogResults([]);
-    setGetCatalogError('');
-    setGetCatalogLoading(false);
-    setSelectedGetCatalogItem(null);
+    setBuyGroupSearch('');
+    setBuyGroupResults([]);
+    setBuyGroupError('');
+    setBuyGroupLoading(false);
+    setGiftGroupSearch('');
+    setGiftGroupResults([]);
+    setGiftGroupError('');
+    setGiftGroupLoading(false);
     setCustomerSearch('');
     setCustomerResults([]);
     setCustomerError('');
@@ -444,10 +449,8 @@ export default function PromotionManagement() {
       });
       setCatalogSearch(String(draft.catalogSearch ?? ''));
       setSelectedCatalogItems(Array.isArray(draft.selectedCatalogItems) ? draft.selectedCatalogItems : []);
-      setBuyCatalogSearch(String(draft.buyCatalogSearch ?? ''));
-      setSelectedBuyCatalogItem(draft.selectedBuyCatalogItem || null);
-      setGetCatalogSearch(String(draft.getCatalogSearch ?? ''));
-      setSelectedGetCatalogItem(draft.selectedGetCatalogItem || null);
+      setBuyGroupSearch(String(draft.buyGroupSearch ?? ''));
+      setGiftGroupSearch(String(draft.giftGroupSearch ?? ''));
       setCustomerSearch(String(draft.customerSearch ?? ''));
       setSelectedCustomers(Array.isArray(draft.selectedCustomers) ? draft.selectedCustomers : []);
     } catch {
@@ -464,27 +467,23 @@ export default function PromotionManagement() {
       form: { ...form, promotionId: null },
       catalogSearch,
       selectedCatalogItems,
-      buyCatalogSearch,
-      selectedBuyCatalogItem,
-      getCatalogSearch,
-      selectedGetCatalogItem,
+      buyGroupSearch,
+      giftGroupSearch,
       customerSearch,
       selectedCustomers,
     };
     localStorage.setItem(PROMOTION_CREATE_DRAFT_KEY, JSON.stringify(draft));
   }, [
-    buyCatalogSearch,
+    buyGroupSearch,
     catalogSearch,
     customerSearch,
     editing,
     form,
-    getCatalogSearch,
+    giftGroupSearch,
     isCreatePage,
     openModal,
-    selectedBuyCatalogItem,
     selectedCatalogItems,
     selectedCustomers,
-    selectedGetCatalogItem,
   ]);
 
   useEffect(() => {
@@ -531,39 +530,37 @@ export default function PromotionManagement() {
 
   useEffect(() => {
     if (!openModal || !isBuyXGetY) {
-      setBuyCatalogResults([]);
-      setBuyCatalogLoading(false);
-      setBuyCatalogError('');
+      setBuyGroupResults([]);
+      setBuyGroupLoading(false);
+      setBuyGroupError('');
       return undefined;
     }
 
-    const keyword = buyCatalogSearch.trim();
-    const selectedId = getCatalogItemId(selectedBuyCatalogItem);
-    const selectedLabel = getCatalogItemSearchLabel(selectedBuyCatalogItem);
-    if (!keyword || (selectedId && selectedLabel === keyword && String(form.buyItemId || '') === String(selectedId))) {
-      setBuyCatalogResults([]);
-      setBuyCatalogLoading(false);
-      setBuyCatalogError('');
+    const keyword = buyGroupSearch.trim();
+    if (!keyword) {
+      setBuyGroupResults([]);
+      setBuyGroupLoading(false);
+      setBuyGroupError('');
       return undefined;
     }
 
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        setBuyCatalogLoading(true);
-        setBuyCatalogError('');
+        setBuyGroupLoading(true);
+        setBuyGroupError('');
         const response = await searchWarehouseCatalogItems(
           { page: 0, size: 10, search: keyword, isActive: true },
           getAuthToken(),
         );
         if (cancelled) return;
-        setBuyCatalogResults(extractPageContent(response));
+        setBuyGroupResults(extractPageContent(response));
       } catch (err) {
         if (cancelled) return;
-        setBuyCatalogResults([]);
-        setBuyCatalogError(err?.message || 'Khong the tim catalog item.');
+        setBuyGroupResults([]);
+        setBuyGroupError(err?.message || 'Khong the tim catalog item.');
       } finally {
-        if (!cancelled) setBuyCatalogLoading(false);
+        if (!cancelled) setBuyGroupLoading(false);
       }
     }, 300);
 
@@ -571,43 +568,41 @@ export default function PromotionManagement() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [buyCatalogSearch, form.buyItemId, isBuyXGetY, openModal, selectedBuyCatalogItem]);
+  }, [buyGroupSearch, isBuyXGetY, openModal]);
 
   useEffect(() => {
     if (!openModal || !isBuyXGetY) {
-      setGetCatalogResults([]);
-      setGetCatalogLoading(false);
-      setGetCatalogError('');
+      setGiftGroupResults([]);
+      setGiftGroupLoading(false);
+      setGiftGroupError('');
       return undefined;
     }
 
-    const keyword = getCatalogSearch.trim();
-    const selectedId = getCatalogItemId(selectedGetCatalogItem);
-    const selectedLabel = getCatalogItemSearchLabel(selectedGetCatalogItem);
-    if (!keyword || (selectedId && selectedLabel === keyword && String(form.getItemId || '') === String(selectedId))) {
-      setGetCatalogResults([]);
-      setGetCatalogLoading(false);
-      setGetCatalogError('');
+    const keyword = giftGroupSearch.trim();
+    if (!keyword) {
+      setGiftGroupResults([]);
+      setGiftGroupLoading(false);
+      setGiftGroupError('');
       return undefined;
     }
 
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        setGetCatalogLoading(true);
-        setGetCatalogError('');
+        setGiftGroupLoading(true);
+        setGiftGroupError('');
         const response = await searchWarehouseCatalogItems(
           { page: 0, size: 10, search: keyword, isActive: true },
           getAuthToken(),
         );
         if (cancelled) return;
-        setGetCatalogResults(extractPageContent(response));
+        setGiftGroupResults(extractPageContent(response));
       } catch (err) {
         if (cancelled) return;
-        setGetCatalogResults([]);
-        setGetCatalogError(err?.message || 'Khong the tim catalog item.');
+        setGiftGroupResults([]);
+        setGiftGroupError(err?.message || 'Khong the tim catalog item.');
       } finally {
-        if (!cancelled) setGetCatalogLoading(false);
+        if (!cancelled) setGiftGroupLoading(false);
       }
     }, 300);
 
@@ -615,7 +610,7 @@ export default function PromotionManagement() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [getCatalogSearch, form.getItemId, isBuyXGetY, openModal, selectedGetCatalogItem]);
+  }, [giftGroupSearch, isBuyXGetY, openModal]);
 
   useEffect(() => {
     if (!openModal || normalizeTargetTypeValue(form.targetType) !== 'SPECIFIC') {
@@ -745,16 +740,10 @@ export default function PromotionManagement() {
     }
     const promotionItems = normalizeIdArray(source?.promotionItems);
     const promotionCustomers = normalizeIdArray(source?.promotionCustomers);
-    const buyItemId = toPositiveId(source?.buyItemId);
-    const getItemId = toPositiveId(source?.getItemId);
-    const buyCatalogItem = buyItemId ? { itemId: buyItemId, itemName: `Catalog #${buyItemId}` } : null;
-    const getCatalogItem = getItemId ? { itemId: getItemId, itemName: `Catalog #${getItemId}` } : null;
+    const buyItems = normalizeBuyGiftItems(source?.buyItems);
+    const giftItems = normalizeBuyGiftItems(source?.giftItems);
     setSelectedCatalogItems(promotionItems.map((id) => ({ itemId: id, itemName: `Catalog #${id}` })));
     setSelectedCustomers(promotionCustomers.map((id) => ({ customerId: id, fullName: `Customer #${id}` })));
-    setSelectedBuyCatalogItem(buyCatalogItem);
-    setBuyCatalogSearch(getCatalogItemSearchLabel(buyCatalogItem));
-    setSelectedGetCatalogItem(getCatalogItem);
-    setGetCatalogSearch(getCatalogItemSearchLabel(getCatalogItem));
     setForm({
       promotionId: source?.promotionId ?? null,
       code: source?.code || '',
@@ -768,10 +757,8 @@ export default function PromotionManagement() {
       startDate: source?.startDate || '',
       endDate: source?.endDate || '',
       usageLimit: source?.usageLimit ?? '',
-      buyItemId: buyItemId ?? '',
-      buyQuantity: source?.buyQuantity ?? '',
-      getItemId: getItemId ?? '',
-      getQuantity: source?.getQuantity ?? '',
+      buyItems,
+      giftItems,
       promotionItems,
       promotionCustomers,
     });
@@ -876,57 +863,40 @@ export default function PromotionManagement() {
     }));
   }, []);
 
-  const updateBogoCatalogSearch = useCallback((field, value) => {
-    if (field === 'buyItemId') {
-      setBuyCatalogSearch(value);
-      setSelectedBuyCatalogItem(null);
-      setForm((prev) => ({ ...prev, buyItemId: '' }));
-      clearFieldErrors(['buyItemId']);
-      return;
-    }
-
-    setGetCatalogSearch(value);
-    setSelectedGetCatalogItem(null);
-    setForm((prev) => ({ ...prev, getItemId: '' }));
-    clearFieldErrors(['getItemId']);
-  }, [clearFieldErrors]);
-
-  const selectBogoCatalogItem = useCallback((field, item) => {
+  const addGroupItem = useCallback((groupField, item) => {
     const id = getCatalogItemId(item);
     if (!id) return;
-    const label = getCatalogItemSearchLabel(item);
-
-    if (field === 'buyItemId') {
-      setSelectedBuyCatalogItem(item);
-      setBuyCatalogSearch(label);
-      setBuyCatalogResults([]);
-      setBuyCatalogError('');
-    } else {
-      setSelectedGetCatalogItem(item);
-      setGetCatalogSearch(label);
-      setGetCatalogResults([]);
-      setGetCatalogError('');
-    }
-
-    setForm((prev) => ({ ...prev, [field]: id }));
-    clearFieldErrors([field]);
+    setForm((prev) => {
+      const list = Array.isArray(prev[groupField]) ? prev[groupField] : [];
+      if (list.some((entry) => entry.catalogItemId === id)) return prev;
+      return {
+        ...prev,
+        [groupField]: [...list, { catalogItemId: id, quantity: 1, itemName: getCatalogItemName(item) || `Catalog #${id}` }],
+      };
+    });
+    clearFieldErrors([groupField]);
   }, [clearFieldErrors]);
 
-  const clearBogoCatalogItem = useCallback((field) => {
-    if (field === 'buyItemId') {
-      setSelectedBuyCatalogItem(null);
-      setBuyCatalogSearch('');
-      setBuyCatalogResults([]);
-      setBuyCatalogError('');
-    } else {
-      setSelectedGetCatalogItem(null);
-      setGetCatalogSearch('');
-      setGetCatalogResults([]);
-      setGetCatalogError('');
-    }
+  const removeGroupItem = useCallback((groupField, catalogItemId) => {
+    const id = toPositiveId(catalogItemId);
+    if (!id) return;
+    setForm((prev) => ({
+      ...prev,
+      [groupField]: (Array.isArray(prev[groupField]) ? prev[groupField] : []).filter((entry) => entry.catalogItemId !== id),
+    }));
+  }, []);
 
-    setForm((prev) => ({ ...prev, [field]: '' }));
-    clearFieldErrors([field]);
+  const updateGroupItemQuantity = useCallback((groupField, catalogItemId, value) => {
+    const id = toPositiveId(catalogItemId);
+    if (!id) return;
+    if (!INTEGER_INPUT_PATTERN.test(String(value ?? ''))) return;
+    setForm((prev) => ({
+      ...prev,
+      [groupField]: (Array.isArray(prev[groupField]) ? prev[groupField] : []).map((entry) => (
+        entry.catalogItemId === id ? { ...entry, quantity: value } : entry
+      )),
+    }));
+    clearFieldErrors([groupField]);
   }, [clearFieldErrors]);
 
   const updateFormField = useCallback((field, value) => {
@@ -943,16 +913,14 @@ export default function PromotionManagement() {
       setCustomerResults([]);
     }
     if (field === 'type' && normalizeTypeValue(value) === 'PERCENT') {
-      setBuyCatalogSearch('');
-      setBuyCatalogResults([]);
-      setBuyCatalogError('');
-      setBuyCatalogLoading(false);
-      setSelectedBuyCatalogItem(null);
-      setGetCatalogSearch('');
-      setGetCatalogResults([]);
-      setGetCatalogError('');
-      setGetCatalogLoading(false);
-      setSelectedGetCatalogItem(null);
+      setBuyGroupSearch('');
+      setBuyGroupResults([]);
+      setBuyGroupError('');
+      setBuyGroupLoading(false);
+      setGiftGroupSearch('');
+      setGiftGroupResults([]);
+      setGiftGroupError('');
+      setGiftGroupLoading(false);
     }
 
     setForm((prev) => {
@@ -962,10 +930,8 @@ export default function PromotionManagement() {
           ? {
               ...prev,
               type: nextType,
-              buyItemId: '',
-              buyQuantity: '',
-              getItemId: '',
-              getQuantity: '',
+              buyItems: [],
+              giftItems: [],
             }
           : {
               ...prev,
@@ -1015,7 +981,7 @@ export default function PromotionManagement() {
     }
 
     if (field === 'type') {
-      clearFieldErrors(['type', 'discountPercent', 'buyItemId', 'buyQuantity', 'getItemId', 'getQuantity']);
+      clearFieldErrors(['type', 'discountPercent', 'buyItems', 'giftItems']);
       return;
     }
 
@@ -1079,15 +1045,22 @@ export default function PromotionManagement() {
     }
 
     if (submitType === 'BUY_X_GET_Y') {
-      const buyQty = Number(form.buyQuantity);
-      const getQty = Number(form.getQuantity);
-      if (!Number.isFinite(buyQty) || buyQty <= 0 || !Number.isFinite(getQty) || getQty <= 0) {
-        toast.error('Vui lòng nhập số lượng mua/tặng hợp lệ cho chương trình Mua X tặng Y.');
+      const buyItems = Array.isArray(form.buyItems) ? form.buyItems : [];
+      const giftItems = Array.isArray(form.giftItems) ? form.giftItems : [];
+      const hasInvalidItem = [...buyItems, ...giftItems].some(
+        (item) => !isPositiveIntegerValue(item?.catalogItemId) || !isPositiveIntegerValue(item?.quantity),
+      );
+      if (buyItems.length === 0 || giftItems.length === 0 || hasInvalidItem) {
+        toast.error('Vui lòng chọn đầy đủ sản phẩm và số lượng mua/tặng hợp lệ cho chương trình Mua X tặng Y.');
         return;
       }
     }
 
     try {
+      const toBuyGiftPayload = (list) => (Array.isArray(list) ? list.map((item) => ({
+        catalogItemId: Number(item.catalogItemId),
+        quantity: Number(item.quantity),
+      })) : []);
       const payload = {
         ...form,
         code: normalizePromotionCode(form.code),
@@ -1096,10 +1069,8 @@ export default function PromotionManagement() {
         applyTo: normalizeApplyToValue(form.applyTo),
         targetType: normalizeTargetTypeValue(form.targetType),
         discountPercent: submitType === 'PERCENT' ? form.discountPercent : '',
-        buyItemId: submitType === 'BUY_X_GET_Y' ? form.buyItemId : '',
-        buyQuantity: submitType === 'BUY_X_GET_Y' ? form.buyQuantity : '',
-        getItemId: submitType === 'BUY_X_GET_Y' ? form.getItemId : '',
-        getQuantity: submitType === 'BUY_X_GET_Y' ? form.getQuantity : '',
+        buyItems: submitType === 'BUY_X_GET_Y' ? toBuyGiftPayload(form.buyItems) : [],
+        giftItems: submitType === 'BUY_X_GET_Y' ? toBuyGiftPayload(form.giftItems) : [],
         promotionItems: normalizeApplyToValue(form.applyTo) === 'SPECIFIC' ? normalizeIdArray(form.promotionItems) : [],
         promotionCustomers: normalizeTargetTypeValue(form.targetType) === 'SPECIFIC' ? normalizeIdArray(form.promotionCustomers) : [],
       };
@@ -1140,68 +1111,76 @@ export default function PromotionManagement() {
     formErrors[field] ? `${baseClassName} ${styles.inputError}` : baseClassName
   );
 
-  const renderBogoCatalogSelector = ({
-    field,
+  const renderGroupItemSelector = ({
+    groupField,
     label,
     searchValue,
-    selectedItem,
+    onSearchChange,
     results,
     loading: selectorLoading,
     error: selectorError,
   }) => {
-    const selectedId = toPositiveId(form[field]);
-    const selectedName = getCatalogItemName(selectedItem);
-    const selectedMeta = getCatalogItemMeta(selectedItem);
+    const selectedList = Array.isArray(form[groupField]) ? form[groupField] : [];
+    const selectedIds = new Set(selectedList.map((entry) => entry.catalogItemId));
 
     return (
-      <div className={styles.formGroup}>
-        <label className={styles.label}>{label}</label>
+      <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+        <label className={styles.label}>{label} <span className={styles.required}>*</span></label>
         <input
-          className={getFieldClassName(field, styles.input)}
+          className={getFieldClassName(groupField, styles.input)}
           placeholder="Tìm theo tên, SKU, mã sản phẩm..."
           value={searchValue}
-          onChange={(e) => updateBogoCatalogSearch(field, e.target.value)}
-          aria-invalid={Boolean(formErrors[field])}
+          onChange={(e) => onSearchChange(e.target.value)}
+          aria-invalid={Boolean(formErrors[groupField])}
         />
-        {formErrors[field] && <span className={styles.errorText}>{formErrors[field]}</span>}
-        {selectedId && (
-          <div className={styles.selectedChips}>
-            <span className={styles.selectedChip}>
-              {selectedName || `Catalog #${selectedId}`}
-              {selectedMeta ? ` - ${selectedMeta}` : ''}
+        {formErrors[groupField] && <span className={styles.errorText}>{formErrors[groupField]}</span>}
+        <div className={styles.selectedChips}>
+          {selectedList.length === 0 ? (
+            <span className={styles.selectorHint}>Chưa chọn sản phẩm nào.</span>
+          ) : selectedList.map((entry) => (
+            <span key={entry.catalogItemId} className={styles.selectedChip}>
+              {entry.itemName || `Catalog #${entry.catalogItemId}`}
+              <input
+                className={styles.groupItemQuantityInput}
+                type="text"
+                inputMode="numeric"
+                value={entry.quantity}
+                onChange={(e) => updateGroupItemQuantity(groupField, entry.catalogItemId, e.target.value)}
+                aria-label={`Số lượng ${entry.itemName || entry.catalogItemId}`}
+              />
               <button
                 type="button"
-                onClick={() => clearBogoCatalogItem(field)}
+                onClick={() => removeGroupItem(groupField, entry.catalogItemId)}
                 aria-label="Remove catalog item"
               >
                 x
               </button>
             </span>
-          </div>
-        )}
+          ))}
+        </div>
         <div className={styles.selectorResults}>
           {selectorLoading && <div className={styles.selectorHint}>Đang tìm catalog item...</div>}
           {!selectorLoading && selectorError && <div className={styles.selectorError}>{selectorError}</div>}
-          {!selectorLoading && !selectorError && searchValue.trim() && results.length === 0 && !selectedId && (
+          {!selectorLoading && !selectorError && searchValue.trim() && results.length === 0 && (
             <div className={styles.selectorHint}>Không có catalog item phù hợp.</div>
           )}
           {!selectorLoading && !selectorError && results.map((item) => {
             const id = getCatalogItemId(item);
             if (!id) return null;
-            const alreadySelected = selectedId === id;
+            const alreadySelected = selectedIds.has(id);
             return (
               <button
                 key={id}
                 type="button"
                 className={styles.selectorRow}
-                onClick={() => selectBogoCatalogItem(field, item)}
+                onClick={() => addGroupItem(groupField, item)}
                 disabled={alreadySelected}
               >
                 <span>
                   <strong>{getCatalogItemName(item) || `Catalog #${id}`}</strong>
                   <small>ID: {id}{getCatalogItemMeta(item) ? ` - ${getCatalogItemMeta(item)}` : ''}</small>
                 </span>
-                <em>{alreadySelected ? 'Đã chọn' : 'Chọn'}</em>
+                <em>{alreadySelected ? 'Đã chọn' : 'Thêm'}</em>
               </button>
             );
           })}
@@ -1445,23 +1424,36 @@ export default function PromotionManagement() {
                         {normalizeTargetTypeValue(selectedPromotion?.targetType) === 'SPECIFIC' ? 'Nhóm khách hàng cụ thể' : 'Tất cả khách hàng'}
                       </strong>
                     </div>
-                    <div className={styles.detailItem}>
-                      <span className={styles.detailLabel}>Số lượng mua (X)</span>
-                      <strong className={styles.detailValue}>{formatPlainNumber(selectedPromotion?.buyQuantity)}</strong>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span className={styles.detailLabel}>Sản phẩm mua</span>
-                      <strong className={styles.detailValue}>{selectedPromotion?.buyItemId || '-'}</strong>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span className={styles.detailLabel}>Số lượng tặng (Y)</span>
-                      <strong className={styles.detailValue}>{formatPlainNumber(selectedPromotion?.getQuantity)}</strong>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span className={styles.detailLabel}>Sản phẩm tặng</span>
-                      <strong className={styles.detailValue}>{selectedPromotion?.getItemId || '-'}</strong>
-                    </div>
                   </div>
+
+                  {normalizeTypeValue(selectedPromotion?.type) === 'BUY_X_GET_Y' && (
+                    <>
+                      <div className={styles.detailSection}>
+                        <h4 className={styles.detailSectionTitle}>Nhóm sản phẩm cần mua (phải mua đủ tất cả)</h4>
+                        <div className={styles.detailChips}>
+                          {detailBuyItems.length === 0 ? (
+                            <span className={styles.selectorHint}>Chưa cấu hình sản phẩm mua.</span>
+                          ) : detailBuyItems.map((item) => (
+                            <span key={item.catalogItemId} className={styles.detailChip}>
+                              {item.itemName} × {formatPlainNumber(item.quantity)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className={styles.detailSection}>
+                        <h4 className={styles.detailSectionTitle}>Nhóm sản phẩm được tặng</h4>
+                        <div className={styles.detailChips}>
+                          {detailGiftItems.length === 0 ? (
+                            <span className={styles.selectorHint}>Chưa cấu hình sản phẩm tặng.</span>
+                          ) : detailGiftItems.map((item) => (
+                            <span key={item.catalogItemId} className={styles.detailChip}>
+                              {item.itemName} × {formatPlainNumber(item.quantity)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className={styles.detailSection}>
                     <h4 className={styles.detailSectionTitle}>Catalog item áp dụng</h4>
@@ -1579,50 +1571,24 @@ export default function PromotionManagement() {
                 </div>
                 {isBuyXGetY && (
                   <>
-                    {renderBogoCatalogSelector({
-                      field: 'buyItemId',
-                      label: 'Mã sản phẩm mua (tuỳ chọn)',
-                      searchValue: buyCatalogSearch,
-                      selectedItem: selectedBuyCatalogItem,
-                      results: buyCatalogResults,
-                      loading: buyCatalogLoading,
-                      error: buyCatalogError,
+                    {renderGroupItemSelector({
+                      groupField: 'buyItems',
+                      label: 'Nhóm sản phẩm cần mua (phải mua đủ tất cả)',
+                      searchValue: buyGroupSearch,
+                      onSearchChange: setBuyGroupSearch,
+                      results: buyGroupResults,
+                      loading: buyGroupLoading,
+                      error: buyGroupError,
                     })}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Số lượng mua (X) <span className={styles.required}>*</span></label>
-                      <input
-                        className={getFieldClassName('buyQuantity', styles.input)}
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="Ví dụ: 2"
-                        value={form.buyQuantity}
-                        onChange={(e) => updateNumericFormField('buyQuantity', e.target.value)}
-                        aria-invalid={Boolean(formErrors.buyQuantity)}
-                      />
-                      {formErrors.buyQuantity && <span className={styles.errorText}>{formErrors.buyQuantity}</span>}
-                    </div>
-                    {renderBogoCatalogSelector({
-                      field: 'getItemId',
-                      label: 'Mã sản phẩm tặng (tuỳ chọn)',
-                      searchValue: getCatalogSearch,
-                      selectedItem: selectedGetCatalogItem,
-                      results: getCatalogResults,
-                      loading: getCatalogLoading,
-                      error: getCatalogError,
+                    {renderGroupItemSelector({
+                      groupField: 'giftItems',
+                      label: 'Nhóm sản phẩm được tặng',
+                      searchValue: giftGroupSearch,
+                      onSearchChange: setGiftGroupSearch,
+                      results: giftGroupResults,
+                      loading: giftGroupLoading,
+                      error: giftGroupError,
                     })}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Số lượng tặng (Y) <span className={styles.required}>*</span></label>
-                      <input
-                        className={getFieldClassName('getQuantity', styles.input)}
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="Ví dụ: 1"
-                        value={form.getQuantity}
-                        onChange={(e) => updateNumericFormField('getQuantity', e.target.value)}
-                        aria-invalid={Boolean(formErrors.getQuantity)}
-                      />
-                      {formErrors.getQuantity && <span className={styles.errorText}>{formErrors.getQuantity}</span>}
-                    </div>
                   </>
                 )}
                 <div className={styles.formGroup}>

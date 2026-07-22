@@ -63,6 +63,17 @@ const normalizeIdList = (value) => {
   return [...new Set(ids)];
 };
 
+const normalizeBuyGiftItemList = (value) => {
+  if (!Array.isArray(value)) return null;
+  return value
+    .map((item) => ({
+      catalogItemId: toNumberOrNull(item?.catalogItemId),
+      quantity: toNumberOrNull(item?.quantity),
+    }))
+    .filter((item) => Number.isInteger(item.catalogItemId) && item.catalogItemId > 0
+      && Number.isInteger(item.quantity) && item.quantity > 0);
+};
+
 const normalizePromotionPayload = (payload = {}) => ({
   promotionId: toNumberOrNull(payload.promotionId),
   code: payload.code?.trim() || '',
@@ -71,10 +82,8 @@ const normalizePromotionPayload = (payload = {}) => ({
   discountPercent: toNumberOrNull(payload.discountPercent),
   isActive: Boolean(payload.isActive),
   applyTo: payload.applyTo?.trim() || null,
-  buyItemId: toNumberOrNull(payload.buyItemId),
-  buyQuantity: toNumberOrNull(payload.buyQuantity),
-  getItemId: toNumberOrNull(payload.getItemId),
-  getQuantity: toNumberOrNull(payload.getQuantity),
+  buyItems: payload.type?.trim() === 'BUY_X_GET_Y' ? normalizeBuyGiftItemList(payload.buyItems) : null,
+  giftItems: payload.type?.trim() === 'BUY_X_GET_Y' ? normalizeBuyGiftItemList(payload.giftItems) : null,
   targetType: payload.targetType?.trim() || null,
   minOrderValue: toNumberOrNull(payload.minOrderValue),
   startDate: payload.startDate || null,
