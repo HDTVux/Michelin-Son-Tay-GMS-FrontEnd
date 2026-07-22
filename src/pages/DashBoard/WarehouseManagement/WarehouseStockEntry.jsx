@@ -81,10 +81,13 @@ const QUANTITY_MAX_VALUE = 999999;
 const IMPORT_PRICE_MAX_VALUE = 999999999;
 const MARKUP_MULTIPLIER_MAX_VALUE = 999.99;
 
-const buildDraftPayload = (warehouseId, supplierName, notes, selectedItems) => ({
+const buildDraftPayload = (warehouseId, supplierName, notes, delivererName, delivererPhone, licensePlate, selectedItems) => ({
   warehouseId: Number(warehouseId) || DEFAULT_WAREHOUSE_ID,
   supplierName: String(supplierName || '').trim(),
   notes: String(notes || '').trim(),
+  delivererName: String(delivererName || '').trim(),
+  delivererPhone: String(delivererPhone || '').trim(),
+  licensePlate: String(licensePlate || '').trim(),
   items: (Array.isArray(selectedItems) ? selectedItems : []).map((row) => ({
     itemId: Number(row.itemId) || 0,
     quantity: Number(row.quantity) || 0,
@@ -108,6 +111,9 @@ export default function WarehouseStockEntry() {
   const [supplierName, setSupplierName] = useState('');
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
+  const [delivererName, setDelivererName] = useState('');
+  const [delivererPhone, setDelivererPhone] = useState('');
+  const [licensePlate, setLicensePlate] = useState('');
   const [keyword, setKeyword] = useState('');
   const [submittedKeyword, setSubmittedKeyword] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
@@ -126,6 +132,9 @@ export default function WarehouseStockEntry() {
       if (draft.warehouseId != null) setWarehouseId(toWarehouseIdText(draft.warehouseId) || String(DEFAULT_WAREHOUSE_ID));
       if (typeof draft.supplierName === 'string') setSupplierName(draft.supplierName);
       if (typeof draft.notes === 'string') setNotes(draft.notes);
+      if (typeof draft.delivererName === 'string') setDelivererName(draft.delivererName);
+      if (typeof draft.delivererPhone === 'string') setDelivererPhone(draft.delivererPhone);
+      if (typeof draft.licensePlate === 'string') setLicensePlate(draft.licensePlate);
       if (Array.isArray(draft.selectedItems)) {
         setSelectedItems(
           draft.selectedItems
@@ -429,7 +438,7 @@ export default function WarehouseStockEntry() {
     setIsSubmitting(true);
 
     try {
-      const payload = buildDraftPayload(warehouseIdText, supplierName, notes, selectedItems);
+      const payload = buildDraftPayload(warehouseIdText, supplierName, notes, delivererName, delivererPhone, licensePlate, selectedItems);
       const response = await createWarehouseStockEntryWithAttachment(payload, attachmentFile, token);
       localStorage.removeItem(DRAFT_STORAGE_KEY);
       notify(response?.message || 'Xác nhận nhập kho thành công.');
@@ -562,6 +571,40 @@ export default function WarehouseStockEntry() {
                     {notes.length}/{NOTES_MAX_LENGTH}
                   </div>
                 </label>
+                {/* Tạm ẩn theo yêu cầu
+                <label className={styles.field}>
+                  <span>Người giao</span>
+                  <input
+                    type="text"
+                    value={delivererName}
+                    onChange={(e) => setDelivererName(e.target.value.slice(0, 100))}
+                    maxLength={100}
+                    placeholder="Nhập người giao"
+                  />
+                </label>
+
+                <label className={styles.field}>
+                  <span>SĐT người giao</span>
+                  <input
+                    type="text"
+                    value={delivererPhone}
+                    onChange={(e) => setDelivererPhone(e.target.value.slice(0, 20))}
+                    maxLength={20}
+                    placeholder="Nhập SĐT người giao"
+                  />
+                </label>
+
+                <label className={styles.field}>
+                  <span>Biển số xe</span>
+                  <input
+                    type="text"
+                    value={licensePlate}
+                    onChange={(e) => setLicensePlate(e.target.value.slice(0, 20))}
+                    maxLength={20}
+                    placeholder="Nhập biển số xe"
+                  />
+                </label>
+                */}
               </div>
             </div>
 

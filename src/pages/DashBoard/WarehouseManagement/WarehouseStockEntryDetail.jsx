@@ -47,6 +47,9 @@ const EntrySummaryCard = ({ entry, statusLabel, statusValue }) => (
       <EntryField label="Người tạo" value={entry?.createdByName || '-'} />
       <EntryField label="Ngày duyệt" value={entry?.confirmedAt || '-'} />
       <EntryField label="Người duyệt" value={entry?.confirmedByName || '-'} />
+      <EntryField label="Người giao" value={entry?.delivererName || '-'} />
+      <EntryField label="SĐT người giao" value={entry?.delivererPhone || '-'} />
+      <EntryField label="Biển số xe" value={entry?.licensePlate || '-'} />
     </div>
   </section>
 );
@@ -369,6 +372,104 @@ export default function WarehouseStockEntryDetail() {
     );
   }
 
+  const handlePrint = () => {
+    if (!entry) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Trình duyệt đã chặn popup. Vui lòng cho phép popup để in phiếu.');
+      return;
+    }
+    
+    const html = `
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8">
+        <title>Phiếu Nhập Kho ${entry.entryCode || entry.entryId}</title>
+        <style>
+          body { font-family: 'Times New Roman', serif; line-height: 1.5; color: #000; padding: 20px; font-size: 14px; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .header h1 { margin: 0; font-size: 20px; text-transform: uppercase; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+          .info-item { margin-bottom: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          .signatures { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; margin-top: 50px; }
+          .signature-box { margin-bottom: 80px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>PHIẾU NHẬP KHO</h1>
+          <p>Mã phiếu: ${entry.entryCode || entry.entryId}</p>
+          <p>Ngày lập: ${entry.createdAt || '...'}</p>
+        </div>
+        
+        <div class="info-grid">
+          <div class="info-item"><strong>Nhà cung cấp:</strong> ${entry.supplierName || '...........................................'}</div>
+          <div class="info-item"><strong>Người giao hàng:</strong> ${entry.delivererName || '...........................................'}</div>
+          <div class="info-item"><strong>Số điện thoại:</strong> ${entry.delivererPhone || '...........................................'}</div>
+          <div class="info-item"><strong>Biển số xe:</strong> ${entry.licensePlate || '...........................................'}</div>
+          <div class="info-item"><strong>Nhập tại kho:</strong> ${entry.warehouseName || '...........................................'}</div>
+          <div class="info-item"><strong>Ghi chú:</strong> ${entry.notes || '...........................................'}</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Mã SP</th>
+              <th>Tên sản phẩm</th>
+              <th>ĐVT</th>
+              <th>Số lượng</th>
+              <th>Giá nhập</th>
+              <th>Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(entry.items || []).map((item, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td>${item.itemId || ''}</td>
+                <td>${item.itemName || ''}</td>
+                <td>${item.unit || 'Cái'}</td>
+                <td>${item.quantity || 0}</td>
+                <td>${new Intl.NumberFormat('vi-VN').format(item.importPrice || 0)} ₫</td>
+                <td>${new Intl.NumberFormat('vi-VN').format((item.quantity || 0) * (item.importPrice || 0))} ₫</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div class="signatures">
+          <div class="signature-box">
+            <strong>Người giao hàng</strong><br>
+            <i>(Ký, ghi rõ họ tên)</i>
+          </div>
+          <div class="signature-box">
+            <strong>Thủ kho</strong><br>
+            <i>(Ký, ghi rõ họ tên)</i>
+          </div>
+          <div class="signature-box">
+            <strong>Người lập phiếu</strong><br>
+            <i>(Ký, ghi rõ họ tên)</i><br>
+            <br><br><br><br>
+            ${entry.createdByName || ''}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
   return (
     <div className={commonStyles.page}>
       <div className={styles.wrapper}>
@@ -377,9 +478,14 @@ export default function WarehouseStockEntryDetail() {
             <h1 className={commonStyles.title}>Chi tiết phiếu nhập kho</h1>
             <p className={styles.subtitle}>Xem thông tin phiếu và xác nhận khi đang ở trạng thái Nháp.</p>
           </div>
-          <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate('/warehouse-stock-entries')}>
-            Quay lại
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" className="ui-btn ui-btn--outline" onClick={handlePrint}>
+              In phiếu
+            </button>
+            <button type="button" className="ui-btn ui-btn--ghost" onClick={() => navigate('/warehouse-stock-entries')}>
+              Quay lại
+            </button>
+          </div>
         </header>
 
         {bodyContent}

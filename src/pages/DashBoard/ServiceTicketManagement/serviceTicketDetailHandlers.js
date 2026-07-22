@@ -287,6 +287,7 @@ function normalizeTicketItemType(item) {
         typeText === 'SPAREPART' ||
         typeText === 'ACCESSORY' ||
         typeText === 'EQUIPMENT' ||
+        typeText === 'MACHINERY' ||
         hasPartText(typeText)
     ) {
         return 'PART';

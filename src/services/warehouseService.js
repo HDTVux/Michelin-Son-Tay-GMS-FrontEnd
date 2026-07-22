@@ -864,6 +864,20 @@ export const fetchWarehouseStockIssues = (params, token) => {
   });
 };
 
+// PUT: /api/warehouse/stock-issues/{id}
+export const updateWarehouseStockIssue = (id, payload, token) => {
+  const idNum = typeof id === 'number' ? id : Number(id);
+  const safeId = Number.isFinite(idNum) ? idNum : 0;
+  return request(`/api/warehouse/stock-issues/${encodeURIComponent(String(safeId))}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+};
+
 // POST: /api/warehouse/return-entries/items/{returnItemId}/attachments
 // Upload ảnh chứng minh cho 1 sản phẩm trong phiếu hoàn
 export const uploadReturnEntryItemAttachment = async (returnItemId, file, token) => {

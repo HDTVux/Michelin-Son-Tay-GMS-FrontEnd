@@ -15,10 +15,12 @@ const getToken = () =>
   localStorage.getItem('adminToken') ||
   '';
 
-const ITEM_TYPES = ['PART', 'EQUIPMENT', 'COMBO', 'MAINTENANCE_PACKAGE', 'SERVICE'];
+const ITEM_TYPES = ['PART', 'EQUIPMENT', 'MACHINERY', 'COMBO', 'MAINTENANCE_PACKAGE', 'SERVICE'];
+
 const TYPE_LABEL = {
-  PART: 'Phụ tùng (PART)',
+  PART: 'Linh kiện (PART)',
   EQUIPMENT: 'Thiết bị (EQUIPMENT)',
+  MACHINERY: 'Máy móc (MACHINERY)',
   COMBO: 'Gói Combo (COMBO)',
   MAINTENANCE_PACKAGE: 'Gói bảo dưỡng (MAINTENANCE_PACKAGE)',
   SERVICE: 'Dịch vụ (SERVICE)',

@@ -537,6 +537,7 @@ function CatalogPicker({
                   <option value="">-- Tất cả phân loại --</option>
                   <option value="PART">Phụ tùng / Sản phẩm</option>
                   <option value="SERVICE">Dịch vụ</option>
+                  <option value="MACHINERY">Máy móc</option>
                   <option value="EQUIPMENT">Thiết bị</option>
                   <option value="COMBO">Combo</option>
                   <option value="MAINTENANCE_PACKAGE">Gói bảo dưỡng</option>
@@ -688,6 +689,7 @@ function CatalogPicker({
                   <option value="">-- Tất cả phân loại --</option>
                   <option value="PART">Phụ tùng / Sản phẩm</option>
                   <option value="SERVICE">Dịch vụ</option>
+                  <option value="MACHINERY">Máy móc</option>
                   <option value="EQUIPMENT">Thiết bị</option>
                   <option value="COMBO">Combo</option>
                   <option value="MAINTENANCE_PACKAGE">Gói bảo dưỡng</option>
@@ -873,6 +875,13 @@ function CatalogPicker({
                             );
                           } else if (itemTypeRaw === 'EQUIPMENT') {
                             typeLabel = 'Thiết bị';
+                            typeColor = '#6b7280';
+                            typeBg = '#f3f4f6';
+                            typeIcon = (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="20" x2="6" y2="10"/><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="22" x2="12" y2="10"/></svg>
+                            );
+                          } else if (itemTypeRaw === 'MACHINERY') {
+                            typeLabel = 'Máy móc';
                             typeColor = '#6b7280';
                             typeBg = '#f3f4f6';
                             typeIcon = (
@@ -1134,6 +1143,9 @@ function CatalogPicker({
                       typeClass = styles.tagService;
                     } else if (itemTypeRaw === 'EQUIPMENT') {
                       typeLabel = 'Thiết bị';
+                      typeClass = styles.tagEquipment;
+                    } else if (itemTypeRaw === 'MACHINERY') {
+                      typeLabel = 'Máy móc';
                       typeClass = styles.tagEquipment;
                     } else if (itemTypeRaw === 'COMBO') {
                       typeLabel = 'Combo';

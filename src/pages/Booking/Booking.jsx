@@ -27,7 +27,7 @@ const STEPS = [
 // Chuyển đổi giá trị đầu vào thành loại mục (SERVICE hoặc PART)
 const toItemType = (value) => {
   const text = String(value || '').trim().toUpperCase();
-  if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
+  if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART' || text === 'EQUIPMENT' || text === 'MACHINERY') return 'PART';
   return 'SERVICE';
 };
 
@@ -205,24 +205,11 @@ export default function Booking() {
     setServicesLoading(true);
     setServicesError('');
 
-    // Sử dụng Promise.allSettled để gọi đồng thời 2 API lấy dịch vụ và phụ tùng, một API lỗi sẽ không ảnh hưởng đến API còn lại
-    Promise.allSettled([
-      fetchHomeProducts({ page: 0, size: 500, itemType: 'SERVICE' }), 
-      fetchHomeProducts({ page: 0, size: 500, itemType: 'PART' }),
-    ])
-      .then((results) => {
+    // Fetch tất cả sản phẩm mà không giới hạn itemType, sau đó phân loại ở client
+    fetchHomeProducts({ page: 0, size: 500 })
+      .then((res) => {
         if (!active) return;
-
-        const [serviceRes, partRes] = results;
-        // Kết hợp kết quả từ cả 2 API, đánh dấu nguồn gốc để phân biệt khi xử lý sau này
-        const mergedRaw = [
-          ...(serviceRes?.status === 'fulfilled'
-            ? extractHomeProductsList(serviceRes.value).map((item) => ({ ...item, __sourceType: 'SERVICE' }))
-            : []),
-          ...(partRes?.status === 'fulfilled'
-            ? extractHomeProductsList(partRes.value).map((item) => ({ ...item, __sourceType: 'PART' }))
-            : []),
-        ];
+        const mergedRaw = extractHomeProductsList(res) || [];
 
         // Chuyển đổi dữ liệu thô từ API thành định dạng chuẩn để hiển thị trong UI, đồng thời lọc bỏ các mục không có catalogItemId hợp lệ
         const mapped = mergedRaw
@@ -280,20 +267,9 @@ export default function Booking() {
           const selectedItem = finalList.find((s) => s.id === preselectedCatalogItemId);
           if (selectedItem?.itemType) setActiveTab(toItemType(selectedItem.itemType));
         }
-
-        const serviceFailed = serviceRes?.status === 'rejected';
-        const partFailed = partRes?.status === 'rejected';
-        // Nếu cả 2 API đều lỗi, hiển thị thông báo lỗi. Nếu chỉ một API lỗi, vẫn hiển thị dữ liệu từ API còn lại và không hiện lỗi
-        if (serviceFailed && partFailed) {
-          const msg = serviceRes?.reason?.message
-            || partRes?.reason?.message
-            || 'Không thể tải danh sách dịch vụ/phụ tùng.';
-          setServicesError(msg);
-        }
       })
       .catch((err) => {
-        if (!active) return;
-        setServicesError(err?.message || 'Không thể tải danh sách dịch vụ/phụ tùng.');
+        if (active) setServicesError(err?.message || 'Không thể tải danh sách dịch vụ/phụ tùng.');
       })
       .finally(() => {
         if (active) setServicesLoading(false);

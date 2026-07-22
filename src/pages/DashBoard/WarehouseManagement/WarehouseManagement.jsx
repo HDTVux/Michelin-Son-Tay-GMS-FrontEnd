@@ -233,7 +233,7 @@ const getWarehouseSellingPrice = (detail) => {
   return price;
 };
 
-const ITEM_TYPE_LABELS = { PART: 'Phụ tùng', SERVICE: 'Dịch vụ', PRODUCT: 'Sản phẩm' };
+const ITEM_TYPE_LABELS = { PART: 'Phụ tùng', SERVICE: 'Dịch vụ', PRODUCT: 'Sản phẩm', MACHINERY: 'Máy móc', EQUIPMENT: 'Thiết bị', COMBO: 'Combo', MAINTENANCE_PACKAGE: 'Gói bảo dưỡng' };
 const getItemTypeText = (item) => ITEM_TYPE_LABELS[String(item?.itemType || '').toUpperCase()] || item?.itemType || '-';
 const getWarrantyText = (item) => {
   const months = toFiniteNumber(item?.warrantyDurationMonths ?? item?.warranty_duration_months);
@@ -615,8 +615,10 @@ export default function PartManagement() {
         const params = {
           page: pageForFetch,
           size: sizeForFetch,
-          itemType: 'PART',
         };
+        // Lấy tất cả trừ SERVICE, COMBO, MAINTENANCE_PACKAGE để gộp Phụ tùng, Máy móc, Thiết bị
+        // Nếu API backend chỉ hỗ trợ 1 itemType, chúng ta sẽ phải gọi lấy tất cả và lọc ở client,
+        // hoặc backend hỗ trợ không truyền itemType thì trả về tất cả.
         if (debouncedSearch) params.search = debouncedSearch;
         if (statusFilter) params.isActive = statusFilter === 'true' ? 1 : 0;
 
