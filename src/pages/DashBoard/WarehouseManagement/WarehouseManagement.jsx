@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
-import { Package, Eye, Pencil, Columns3, Star } from 'lucide-react';
+import { Package, Eye, Pencil, Columns3, Star, Wrench, Layers } from 'lucide-react';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import ItemDetailModal from './ItemDetailModal.jsx';
 import EditItemModal from './EditItemModal.jsx';
@@ -1091,41 +1091,55 @@ export default function PartManagement() {
             <h1>Quản lý kho</h1>
           </div>
           <div className={styles['footer-right-group']}>
-            <button className={styles['primary-button']} onClick={() => navigate('/part-management/create-product')}>
-              Thêm phụ tùng
+            <button
+              type="button"
+              className={styles['primary-button']}
+              style={{
+                background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                borderColor: '#15803d',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 6px rgba(22, 163, 74, 0.25)',
+              }}
+              onClick={() => navigate('/part-management/create-product')}
+            >
+              <Package size={16} />
+              <span>Thêm phụ tùng</span>
             </button>
-            <div className={styles['column-picker']} ref={columnPickerRef}>
-              <button
-                type="button"
-                className={styles['column-picker-btn']}
-                onClick={() => setIsColumnPickerOpen((prev) => !prev)}
-                title="Chọn cột hiển thị"
-              >
-                <Columns3 size={16} />
-                Cột hiển thị
-              </button>
-              {isColumnPickerOpen && (
-                <div className={styles['column-picker-panel']}>
-                  <div className={styles['column-picker-panel__header']}>
-                    <span>Chọn cột hiển thị</span>
-                    <button type="button" className={styles['column-picker-reset']} onClick={resetColumnPrefs}>
-                      Mặc định
-                    </button>
-                  </div>
-                  {TABLE_COLUMNS.filter((c) => !c.pinned).map((c) => (
-                    <label key={c.key} className={styles['column-picker-item']}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(columnPrefs.visibility[c.key])}
-                        onChange={() => toggleColumnVisibility(c.key)}
-                      />
-                      {c.label}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-            <span className={styles['total-count']}>{totalElements} phụ tùng</span>
+            <button
+              type="button"
+              className={styles['primary-button']}
+              style={{
+                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                borderColor: '#0369a1',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)',
+              }}
+              onClick={() => navigate('/service-management/create-service')}
+            >
+              <Wrench size={16} />
+              <span>Thêm dịch vụ</span>
+            </button>
+            <button
+              type="button"
+              className={styles['primary-button']}
+              style={{
+                background: 'linear-gradient(135deg, #9333ea 0%, #7e22ce 100%)',
+                borderColor: '#7e22ce',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 6px rgba(147, 51, 234, 0.25)',
+              }}
+              onClick={() => navigate('/combo-management/create-combo')}
+            >
+              <Layers size={16} />
+              <span>Thêm combo</span>
+            </button>
+            <span className={styles['total-count']}>{totalElements} mục</span>
           </div>
         </div>
         <div className={styles['filter-card-controls']}>
@@ -1260,6 +1274,38 @@ export default function PartManagement() {
           >
             Nhập file Excel
           </button>
+
+          <div className={styles['column-picker']} ref={columnPickerRef}>
+            <button
+              type="button"
+              className={styles['column-picker-btn']}
+              onClick={() => setIsColumnPickerOpen((prev) => !prev)}
+              title="Chọn cột hiển thị"
+            >
+              <Columns3 size={16} />
+              Cột hiển thị
+            </button>
+            {isColumnPickerOpen && (
+              <div className={styles['column-picker-panel']}>
+                <div className={styles['column-picker-panel__header']}>
+                  <span>Chọn cột hiển thị</span>
+                  <button type="button" className={styles['column-picker-reset']} onClick={resetColumnPrefs}>
+                    Mặc định
+                  </button>
+                </div>
+                {TABLE_COLUMNS.filter((c) => !c.pinned).map((c) => (
+                  <label key={c.key} className={styles['column-picker-item']}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(columnPrefs.visibility[c.key])}
+                      onChange={() => toggleColumnVisibility(c.key)}
+                    />
+                    {c.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
 
           <input
             ref={excelInputRef}

@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import styles from './ServiceManagement.module.css';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import CompatibleCarsSelector from '../../../components/CompatibleCarsSelector.jsx';
 import {
-	createWarehouseBrand,
 	createWarehouseCatalogItem,
 	createWarehouseItemCategory,
-	createWarehouseProductLine,
 	createWarehouseSpecAttribute,
 	createWarehouseSpecificationValue,
 	createTaxRule,
@@ -19,7 +17,10 @@ import {
 	fetchWarehouseSpecAttributes,
 	fetchWarehouseSpecificationsByCatalogItemId,
 	fetchTaxRules,
+	fetchWarehouseProductUnits,
+	createWarehouseProductUnit,
 } from '../../../services/warehouseService.js';
+import { createServiceForCatalog } from '../../../services/blogService.js';
 
 const extractPayload = (response) => response?.data?.data ?? response?.data ?? response;
 
@@ -107,78 +108,134 @@ const mapSpecAttributeItem = (item) => {
 	};
 };
 
-// Spec templates removed: specDrafts are dynamic per-service now.
-// Each service can add the attributes it needs; if an attribute does not exist
-// it will be created via the API when the user requests it.
-
 const CATEGORY_TYPE_FIXED = 'SERVICE';
+const OTHER_OPTION_VALUE = '__OTHER__';
+
+// Helper functions for formatting description and editor HTML
+const stripHtml = (value) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+const escapeHtml = (value) => String(value || '')
+	.replace(/&/g, '&amp;')
+	.replace(/</g, '&lt;')
+	.replace(/>/g, '&gt;')
+	.replace(/"/g, '&quot;')
+	.replace(/'/g, '&#39;');
+const normalizeEditorHtml = (rawHtml) => {
+	if (typeof window === 'undefined') return String(rawHtml || '');
+	const wrapper = document.createElement('div');
+	wrapper.innerHTML = String(rawHtml || '').trim();
+	wrapper.querySelectorAll('b').forEach((node) => {
+		const strong = document.createElement('strong');
+		strong.innerHTML = node.innerHTML;
+		node.replaceWith(strong);
+	});
+	wrapper.querySelectorAll('i').forEach((node) => {
+		const em = document.createElement('em');
+		em.innerHTML = node.innerHTML;
+		node.replaceWith(em);
+	});
+	return wrapper.innerHTML;
+};
+const composeDescriptionHtml = (introText, detailHtml) => {
+	const sections = [];
+	const introTrim = String(introText || '').trim();
+	if (introTrim) {
+		const introParagraphs = introTrim.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => `<p>${escapeHtml(line)}</p>`).join('');
+		sections.push('<h3>Giới thiệu</h3>');
+		sections.push(introParagraphs);
+	}
+	const normalizedDetail = normalizeEditorHtml(detailHtml);
+	if (stripHtml(normalizedDetail)) {
+		sections.push('<h3>Chi tiết dịch vụ</h3>');
+		sections.push(normalizedDetail);
+	}
+	if (!sections.length) return normalizedDetail;
+	return sections.join('');
+};
 
 export default function CreateService() {
 	useScrollToTop();
 	const navigate = useNavigate();
 	const notify = useCallback((message) => toast(message, { containerId: 'app-toast' }), []);
 
+	const location = useLocation();
+	const initialDraft = useMemo(() => {
+		if (
+			!location.state?.fromCategorySelection &&
+			!location.state?.fromBrandSelection &&
+			!location.state?.fromProductLineSelection &&
+			!location.state?.fromOriginSelection &&
+			!location.state?.fromColorSelection &&
+			!location.state?.fromProductTaxSelection &&
+			!location.state?.fromAttributeSelection &&
+			!location.state?.fromUnitSelection
+		) {
+			sessionStorage.removeItem('gms_create_service_draft');
+			delete window._gms_create_service_imageFile;
+			delete window._gms_create_service_imagePreviewUrl;
+			delete window._gms_create_service_blogMediaFiles;
+			return null;
+		}
+		try {
+			const raw = sessionStorage.getItem('gms_create_service_draft');
+			if (raw) return JSON.parse(raw);
+		} catch (e) {
+			console.error(e);
+		}
+		return null;
+	}, [location]);
+
 	// Step 1: Category
 	const [categories, setCategories] = useState([]);
 	const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
-	const [selectedCategoryId, setSelectedCategoryId] = useState('');
-	const selectedCategoryIdRef = useRef('');
-	const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
-	const previousCategoryIdRef = useRef('');
-	const [categoryCode, setCategoryCode] = useState('');
-	const [categoryName, setCategoryName] = useState('');
-	const [categoryType] = useState(CATEGORY_TYPE_FIXED);
-	const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+	const [selectedCategoryId, setSelectedCategoryId] = useState(() => initialDraft?.selectedCategoryId ?? '');
+	const selectedCategoryIdRef = useRef(initialDraft?.selectedCategoryId ?? '');
 
-	// Tax rules for category
+	// Tax rules (fetched for product tax configuration)
 	const [taxRules, setTaxRules] = useState([]);
 	const [isTaxRulesLoading, setIsTaxRulesLoading] = useState(false);
-	const [selectedTaxRuleId, setSelectedTaxRuleId] = useState('');
-	const [isAddingNewTaxRule, setIsAddingNewTaxRule] = useState(false);
-	const [taxName, setTaxName] = useState('');
-	const [taxRate, setTaxRate] = useState('');
-	const [isCreatingTaxRule, setIsCreatingTaxRule] = useState(false);
 
-	// Step 2: Service brand
+	// Step 2: Brand
 	const [brands, setBrands] = useState([]);
 	const [isBrandsLoading, setIsBrandsLoading] = useState(false);
-	const [selectedBrandId, setSelectedBrandId] = useState('');
-	const selectedBrandIdRef = useRef('');
-	const [isAddingNewBrand, setIsAddingNewBrand] = useState(false);
-	const previousBrandIdRef = useRef('');
-	const [brandName, setBrandName] = useState('');
-	const [isCreatingBrand, setIsCreatingBrand] = useState(false);
+	const [selectedBrandId, setSelectedBrandId] = useState(() => initialDraft?.selectedBrandId ?? '');
+	const selectedBrandIdRef = useRef(initialDraft?.selectedBrandId ?? '');
 
 	// Step 3: Service line
 	const [productLines, setProductLines] = useState([]);
 	const [isProductLinesLoading, setIsProductLinesLoading] = useState(false);
-	const [selectedProductLineId, setSelectedProductLineId] = useState('');
-	const selectedProductLineIdRef = useRef('');
-	const [isAddingNewProductLine, setIsAddingNewProductLine] = useState(false);
-	const previousProductLineIdRef = useRef('');
-	const [productLineName, setProductLineName] = useState('');
-	const [isCreatingProductLine, setIsCreatingProductLine] = useState(false);
+	const [selectedProductLineId, setSelectedProductLineId] = useState(() => initialDraft?.selectedProductLineId ?? '');
+	const selectedProductLineIdRef = useRef(initialDraft?.selectedProductLineId ?? '');
 
 	// Step 4: Catalog item
 	const [isCreatingCatalogItem, setIsCreatingCatalogItem] = useState(false);
 	const [createdCatalogItem, setCreatedCatalogItem] = useState(null);
 	const itemType = 'SERVICE';
-	const [selectedProductTaxRuleId, setSelectedProductTaxRuleId] = useState('');
-	const [isAddingNewProductTaxRule, setIsAddingNewProductTaxRule] = useState(false);
-	const [productTaxName, setProductTaxName] = useState('');
-	const [productTaxRate, setProductTaxRate] = useState('');
-	const [isCreatingProductTaxRule, setIsCreatingProductTaxRule] = useState(false);
-	const [sku, setSku] = useState('');
-	const [price, setPrice] = useState('');
-	const [showPrice, setShowPrice] = useState(true);
-	const [unit, setUnit] = useState('');
-	const [description, setDescription] = useState('');
-	const [compatibleCars, setCompatibleCars] = useState('');
-	// Image file is kept only in component state (no upload at create time)
-	const [imageFile, setImageFile] = useState(null);
-	const [imagePreviewUrl, setImagePreviewUrl] = useState('');
-	// const [imageUrl, setImageUrl] = useState('');
-	const [warrantyDurationMonths, setWarrantyDurationMonths] = useState('');
+	const [selectedProductTaxRuleId, setSelectedProductTaxRuleId] = useState(() => initialDraft?.selectedProductTaxRuleId ?? '');
+	const [sku, setSku] = useState(() => initialDraft?.sku ?? '');
+	const fileInputRef = useRef(null);
+	const [price, setPrice] = useState(() => initialDraft?.price ?? '');
+	const [showPrice, setShowPrice] = useState(() => initialDraft?.showPrice ?? true);
+	const [unit, setUnit] = useState(() => initialDraft?.unit ?? '');
+	// Unit dropdown inline
+	const [units, setUnits] = useState([]);
+	const [isUnitsLoading, setIsUnitsLoading] = useState(false);
+	const [showUnitDropdown, setShowUnitDropdown] = useState(false);
+	const [unitSearchQuery, setUnitSearchQuery] = useState('');
+	const [newUnitName, setNewUnitName] = useState('');
+	const [isCreatingUnit, setIsCreatingUnit] = useState(false);
+	const [showAddUnitInput, setShowAddUnitInput] = useState(false);
+	const unitDropdownRef = useRef(null);
+	const [origin, setOrigin] = useState(() => initialDraft?.origin ?? '');
+	const [customOrigin, setCustomOrigin] = useState(() => initialDraft?.customOrigin ?? '');
+	const [color, setColor] = useState(() => initialDraft?.color ?? '');
+	const [customColor, setCustomColor] = useState(() => initialDraft?.customColor ?? '');
+	const [description, setDescription] = useState(() => initialDraft?.description ?? '');
+	const [compatibleCars, setCompatibleCars] = useState(() => initialDraft?.compatibleCars ?? '');
+	const [imageFile, setImageFile] = useState(() => window._gms_create_service_imageFile ?? null);
+	const [imagePreviewUrl, setImagePreviewUrl] = useState(() => {
+		return window._gms_create_service_imagePreviewUrl ?? '';
+	});
+	const [warrantyDurationMonths, setWarrantyDurationMonths] = useState(() => initialDraft?.warrantyDurationMonths ?? '');
 
 	// Step 5-6: Spec attributes + specification values
 	const [specAttributes, setSpecAttributes] = useState([]);
@@ -198,15 +255,36 @@ export default function CreateService() {
 		isCreatingNew: false,
 	});
 
-	const [specDrafts, setSpecDrafts] = useState(() => [makeSpecDraft()]);
+	const [specDrafts, setSpecDrafts] = useState(() => initialDraft?.specDrafts ?? [makeSpecDraft()]);
 
-	const addSpecDraft = useCallback(() => {
-		setSpecDrafts((prev) => [...(Array.isArray(prev) ? prev : []), makeSpecDraft()]);
-	}, []);
+	// Blog/article creation states
+	const createBlogEnabled = true;
+	const [introText, setIntroText] = useState(() => initialDraft?.introText ?? '');
+	const [detailHtml, setDetailHtml] = useState(() => initialDraft?.detailHtml ?? '');
+	const [blogMediaFiles, setBlogMediaFiles] = useState(() => {
+		return Array.isArray(window._gms_create_service_blogMediaFiles) ? window._gms_create_service_blogMediaFiles : [];
+	});
+	const [isBlogSubmitting, setIsBlogSubmitting] = useState(false);
+	const editorRef = useRef(null);
 
-	const removeSpecDraft = useCallback((index) => {
-		setSpecDrafts((prev) => (Array.isArray(prev) ? prev.filter((_, i) => i !== index) : []));
-	}, []);
+	const [itemNameInput, setItemNameInput] = useState(() => initialDraft?.itemNameInput ?? '');
+	const [itemNameManualEdited, setItemNameManualEdited] = useState(() => Boolean(initialDraft?.itemNameManualEdited));
+
+	const createdCatalogItemId = useMemo(() => {
+		return createdCatalogItem?.itemId ?? createdCatalogItem?.catalogItemId ?? createdCatalogItem?.id ?? null;
+	}, [createdCatalogItem]);
+
+	const selectedCategory = useMemo(() => {
+		const id = String(selectedCategoryId || '').trim();
+		if (!id || id === 'null' || id === 'undefined') return null;
+		return categories.find((c) => c.itemCategoryId && String(c.itemCategoryId) === id) || null;
+	}, [categories, selectedCategoryId]);
+
+	const handleRandomServiceCode = useCallback(() => {
+		if (createdCatalogItemId) return;
+		const baseTitle = String(itemNameInput || selectedCategory?.categoryName || 'Dich Vu').trim();
+		setSku(generateServiceCode(baseTitle));
+	}, [createdCatalogItemId, itemNameInput, selectedCategory?.categoryName]);
 
 	useEffect(() => {
 		selectedBrandIdRef.current = String(selectedBrandId || '');
@@ -220,24 +298,6 @@ export default function CreateService() {
 		selectedProductLineIdRef.current = String(selectedProductLineId || '');
 	}, [selectedProductLineId]);
 
-	const categoryPlaceholder = useMemo(() => {
-		if (isCategoriesLoading) return 'Đang tải danh sách nhóm...';
-		if (categories.length) return 'Chọn nhóm';
-		return 'Chưa có nhóm';
-	}, [categories, isCategoriesLoading]);
-
-	const brandPlaceholder = useMemo(() => {
-		if (isBrandsLoading) return 'Đang tải danh sách thương hiệu dịch vụ...';
-		if (brands.length) return 'Chọn thương hiệu dịch vụ';
-		return 'Chưa có thương hiệu dịch vụ';
-	}, [brands.length, isBrandsLoading]);
-
-	const productLinePlaceholder = useMemo(() => {
-		if (isProductLinesLoading) return 'Đang tải danh sách dòng dịch vụ...';
-		if (productLines.length) return 'Chọn dòng dịch vụ';
-		return 'Chưa có dòng dịch vụ';
-	}, [isProductLinesLoading, productLines.length]);
-
 	useEffect(() => {
 		let cancelled = false;
 
@@ -249,71 +309,58 @@ export default function CreateService() {
 				setIsProductLinesLoading(true);
 				setIsSpecAttributesLoading(true);
 				setIsTaxRulesLoading(true);
+				setIsUnitsLoading(true);
 
-				const [catRes, brandRes, lineRes, attrRes, taxRes] = await Promise.all([
+				const [catRes, brandRes, lineRes, specRes, taxRes, unitRes] = await Promise.all([
 					fetchWarehouseItemCategories(token),
 					fetchWarehouseBrands(token),
 					fetchWarehouseProductLines(token),
 					fetchWarehouseSpecAttributes(token),
 					fetchTaxRules(token),
+					fetchWarehouseProductUnits(token),
 				]);
+
+				if (cancelled) return;
 
 				const catList = Array.isArray(extractPayload(catRes)) ? extractPayload(catRes) : [];
 				const brandList = Array.isArray(extractPayload(brandRes)) ? extractPayload(brandRes) : [];
 				const lineList = Array.isArray(extractPayload(lineRes)) ? extractPayload(lineRes) : [];
-				const attrList = Array.isArray(extractPayload(attrRes)) ? extractPayload(attrRes) : [];
+				const specList = Array.isArray(extractPayload(specRes)) ? extractPayload(specRes) : [];
 				const taxList = Array.isArray(extractPayload(taxRes)) ? extractPayload(taxRes) : [];
+				const unitList = Array.isArray(extractPayload(unitRes)) ? extractPayload(unitRes) : [];
 
-				const allCategories = catList.map(mapCategoryItem).filter(Boolean);
-				const serviceCategories = allCategories.filter(
-					(c) => String(c.categoryType || '').trim().toUpperCase() === 'SERVICE',
-				);
-				// Fallback for old data: if there is no SERVICE category yet, show all existing categories.
-				const catsNorm = serviceCategories.length ? serviceCategories : allCategories;
-				const brandsNorm = brandList.map(mapBrandItem).filter(Boolean);
-				const linesNorm = lineList.map(mapProductLineItem).filter(Boolean);
-				const attrsNorm = attrList.map(mapSpecAttributeItem).filter(Boolean);
-				const taxNorm = taxList.map(mapTaxRuleItem).filter(Boolean);
+				const serviceCats = catList
+					.map(mapCategoryItem)
+					.filter(Boolean)
+					.filter((c) => String(c.categoryType || '').toUpperCase() === CATEGORY_TYPE_FIXED)
+					.filter((c) => String(c.isActive || '1') === '1' || c.isActive === true);
 
-				if (cancelled) return;
-				setCategories(catsNorm);
-				setBrands(brandsNorm);
-				setProductLines(linesNorm);
-				setSpecAttributes(attrsNorm);
-				setTaxRules(taxNorm);
+				const activeBrands = brandList.map(mapBrandItem).filter(Boolean);
 
-				const prevCat = String(selectedCategoryIdRef.current || '').trim();
-				const prevBrand = String(selectedBrandIdRef.current || '').trim();
-				const prevLine = String(selectedProductLineIdRef.current || '').trim();
+				const activeLines = lineList
+					.map(mapProductLineItem)
+					.filter(Boolean)
+					.filter((l) => String(l.isActive || '1') === '1' || l.isActive === true);
 
-				const categoryExists = prevCat &&
-					prevCat !== 'null' &&
-					prevCat !== 'undefined' &&
-					catsNorm.some((c) => c.itemCategoryId && String(c.itemCategoryId) === prevCat);
-				setSelectedCategoryId(categoryExists ? prevCat : '');
+				const activeSpecs = specList.map(mapSpecAttributeItem).filter(Boolean);
+				const mappedTaxes = taxList.map(mapTaxRuleItem).filter(Boolean);
+				const mappedUnits = unitList
+					.map((u) => ({
+						unitId: u.unitId ?? u.id,
+						unitName: u.unitName ?? u.name ?? '',
+						isActive: u.isActive ?? u.active ?? '1',
+					}))
+					.filter((u) => u.unitName && (String(u.isActive) === '1' || u.isActive === true));
 
-				const brandExists = prevBrand &&
-					prevBrand !== 'null' &&
-					prevBrand !== 'undefined' &&
-					brandsNorm.some((b) => b.brandId && String(b.brandId) === prevBrand);
-				setSelectedBrandId(brandExists ? prevBrand : '');
-
-				const lineExists = prevLine &&
-					prevLine !== 'null' &&
-					prevLine !== 'undefined' &&
-					linesNorm.some((l) => l.productLineId && String(l.productLineId) === prevLine);
-				setSelectedProductLineId(lineExists ? prevLine : '');
+				setCategories(serviceCats);
+				setBrands(activeBrands);
+				setProductLines(activeLines);
+				setSpecAttributes(activeSpecs);
+				setTaxRules(mappedTaxes);
+				setUnits(mappedUnits);
 			} catch (err) {
 				if (cancelled) return;
-				setCategories([]);
-				setBrands([]);
-				setProductLines([]);
-				setSpecAttributes([]);
-				setTaxRules([]);
-				setSelectedCategoryId('');
-				setSelectedBrandId('');
-				setSelectedProductLineId('');
-				notify(err?.message || 'Không thể tải dữ liệu kho.');
+				notify(err?.message || 'Không thể tải danh mục.');
 			} finally {
 				if (!cancelled) {
 					setIsCategoriesLoading(false);
@@ -321,27 +368,106 @@ export default function CreateService() {
 					setIsProductLinesLoading(false);
 					setIsSpecAttributesLoading(false);
 					setIsTaxRulesLoading(false);
+					setIsUnitsLoading(false);
 				}
 			}
 		};
 
 		run();
+
 		return () => {
 			cancelled = true;
 		};
 	}, [notify]);
 
-	const selectedCategory = useMemo(() => {
-		const id = String(selectedCategoryId || '').trim();
-		if (!id || id === 'null' || id === 'undefined') return null;
-		return categories.find((c) => c.itemCategoryId && String(c.itemCategoryId) === id) || null;
-	}, [categories, selectedCategoryId]);
+	useEffect(() => {
+		if (!createdCatalogItemId) return;
+		let cancelled = false;
+		(async () => {
+			try {
+				const token = localStorage.getItem('authToken');
+				setIsSpecsLoading(true);
+				const res = await fetchWarehouseSpecificationsByCatalogItemId(createdCatalogItemId, token);
+				if (cancelled) return;
+				const list = Array.isArray(extractPayload(res)) ? extractPayload(res) : [];
+				setSavedSpecs(list);
+			} catch {
+				if (cancelled) return;
+				setSavedSpecs([]);
+			} finally {
+				if (!cancelled) setIsSpecsLoading(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [createdCatalogItemId]);
 
-	const selectedTaxRule = useMemo(() => {
-		const id = String(selectedTaxRuleId || '').trim();
-		if (!id || id === 'null' || id === 'undefined') return null;
-		return taxRules.find((t) => t.taxRuleId && String(t.taxRuleId) === id) || null;
-	}, [selectedTaxRuleId, taxRules]);
+	const saveDraft = useCallback(
+		(targetPath) => {
+			const draft = {
+				selectedCategoryId,
+				selectedBrandId,
+				selectedProductLineId,
+				selectedProductTaxRuleId,
+				sku,
+				price,
+				showPrice,
+				unit,
+				origin,
+				customOrigin,
+				color,
+				customColor,
+				description,
+				compatibleCars,
+				warrantyDurationMonths,
+				specDrafts,
+				introText,
+				detailHtml,
+				itemNameInput,
+				itemNameManualEdited,
+			};
+			sessionStorage.setItem('gms_create_service_draft', JSON.stringify(draft));
+			if (imageFile) {
+				window._gms_create_service_imageFile = imageFile;
+				window._gms_create_service_imagePreviewUrl = imagePreviewUrl;
+			}
+			if (blogMediaFiles.length > 0) {
+				window._gms_create_service_blogMediaFiles = blogMediaFiles;
+			}
+			navigate(targetPath);
+		},
+		[
+			selectedCategoryId,
+			selectedBrandId,
+			selectedProductLineId,
+			selectedProductTaxRuleId,
+			sku,
+			price,
+			showPrice,
+			unit,
+			origin,
+			customOrigin,
+			color,
+			customColor,
+			description,
+			compatibleCars,
+			warrantyDurationMonths,
+			specDrafts,
+			introText,
+			detailHtml,
+			itemNameInput,
+			itemNameManualEdited,
+			imageFile,
+			imagePreviewUrl,
+			blogMediaFiles,
+			navigate,
+		],
+	);
+
+	const handleCategoryInputClick = useCallback(() => {
+		saveDraft('/part-management/select-category');
+	}, [saveDraft]);
 
 	const selectedProductTaxRule = useMemo(() => {
 		const id = String(selectedProductTaxRuleId || '').trim();
@@ -369,6 +495,7 @@ export default function CreateService() {
 	}, [productLines, selectedProductLineId]);
 
 	useEffect(() => {
+		if (isProductLinesLoading || productLines.length === 0) return;
 		const brandIdNum = Number(selectedBrandId) || null;
 		const list = Array.isArray(filteredProductLines) ? filteredProductLines : [];
 		const current = String(selectedProductLineId || '').trim();
@@ -377,11 +504,10 @@ export default function CreateService() {
 			return;
 		}
 		if (current && list.some((l) => String(l.productLineId) === current)) return;
-		if (current) setSelectedProductLineId('');
-	}, [filteredProductLines, selectedBrandId, selectedProductLineId]);
+		setSelectedProductLineId('');
+	}, [filteredProductLines, selectedBrandId, selectedProductLineId, isProductLinesLoading, productLines]);
 
 	useEffect(() => {
-		// Auto-map attributeId for known spec codes if attribute exists.
 		setSpecDrafts((prev) => {
 			const list = Array.isArray(prev) ? prev : [];
 			return list.map((d) => {
@@ -398,384 +524,107 @@ export default function CreateService() {
 		const catName = String(selectedCategory?.categoryName || '').trim();
 		const brand = String(selectedBrand?.brandName || '').trim();
 		const line = String(selectedProductLine?.lineName || '').trim();
+
 		if (catName) parts.push(catName);
 		if (brand) parts.push(brand);
 		if (line) parts.push(line);
 
-		const valueByCode = new Map();
-		for (const d of Array.isArray(specDrafts) ? specDrafts : []) {
-			const v = String(d?.specValue || '').trim();
-			const code = String(d?.code || '').trim().toUpperCase();
-			if (!v || !code) continue;
-			valueByCode.set(code, v);
-		}
-		// Use the current specDrafts order to append spec values to the name
-		const orderedCodes = (Array.isArray(specDrafts) ? specDrafts : []).map((s) => String(s.code || '').toUpperCase()).filter(Boolean);
-		for (const c of orderedCodes) {
-			const v = valueByCode.get(c);
-			if (v) parts.push(v);
-		}
-		return parts.join(' ').replaceAll(/\s+/g, ' ').trim();
-	}, [selectedBrand?.brandName, selectedCategory?.categoryName, selectedProductLine?.lineName, specDrafts]);
+		const activeSpecs = (Array.isArray(specDrafts) ? specDrafts : []).filter((d) => String(d.specValue || '').trim());
+		activeSpecs.forEach((s) => {
+			const val = String(s.specValue || '').trim();
+			const unitStr = String(s.unit || '').trim();
+			if (val) parts.push(unitStr ? `${val}${unitStr}` : val);
+		});
 
-	const createdCatalogItemId = useMemo(() => {
-		const raw = createdCatalogItem?.itemId ?? createdCatalogItem?.catalogItemId ?? createdCatalogItem?.id;
-		const n = typeof raw === 'number' ? raw : Number(raw);
-		return Number.isFinite(n) && n > 0 ? n : null;
-	}, [createdCatalogItem]);
-
-	const canShowBrandStep = useMemo(() => {
-		return Boolean(String(selectedCategoryId || '').trim()) && !isAddingNewCategory;
-	}, [isAddingNewCategory, selectedCategoryId]);
-
-	const canShowProductLineStep = useMemo(() => {
-		return canShowBrandStep && Boolean(String(selectedBrandId || '').trim()) && !isAddingNewBrand;
-	}, [canShowBrandStep, isAddingNewBrand, selectedBrandId]);
-
-	const canShowCatalogItemStep = useMemo(() => {
-		return canShowProductLineStep && Boolean(String(selectedProductLineId || '').trim()) && !isAddingNewProductLine;
-	}, [canShowProductLineStep, isAddingNewProductLine, selectedProductLineId]);
-
-	const canShowSpecsStep = Boolean(createdCatalogItemId);
+		return parts.join(' ');
+	}, [selectedCategory, selectedBrand, selectedProductLine, specDrafts]);
 
 	useEffect(() => {
-		if (!createdCatalogItemId) {
-			setSavedSpecs([]);
-			return;
+		if (!itemNameManualEdited) {
+			setItemNameInput(computedItemName);
 		}
-		let cancelled = false;
-		(async () => {
-			try {
-				setIsSpecsLoading(true);
-				const token = localStorage.getItem('authToken');
-				const res = await fetchWarehouseSpecificationsByCatalogItemId(createdCatalogItemId, token);
-				const list = Array.isArray(extractPayload(res)) ? extractPayload(res) : [];
-				if (cancelled) return;
-				setSavedSpecs(list);
-			} catch {
-				if (cancelled) return;
-				setSavedSpecs([]);
-			} finally {
-				if (!cancelled) setIsSpecsLoading(false);
+	}, [computedItemName, itemNameManualEdited]);
+
+	const handleBrandInputClick = useCallback(() => {
+		saveDraft('/part-management/select-brand');
+	}, [saveDraft]);
+
+	const filteredUnitsInline = useMemo(() => {
+		const q = unitSearchQuery.trim().toLowerCase();
+		return units.filter((u) => !q || u.unitName.toLowerCase().includes(q));
+	}, [units, unitSearchQuery]);
+
+	const isNewUnitDuplicate = useMemo(() => {
+		const n = newUnitName.trim().toUpperCase();
+		return n ? units.some((u) => u.unitName.trim().toUpperCase() === n) : false;
+	}, [units, newUnitName]);
+
+	const handleSelectUnitInline = useCallback((unitName) => {
+		setUnit(unitName);
+		setShowUnitDropdown(false);
+		setUnitSearchQuery('');
+	}, []);
+
+	const handleCreateUnitInline = useCallback(async () => {
+		const name = newUnitName.trim();
+		if (!name || isNewUnitDuplicate || isCreatingUnit) return;
+		try {
+			setIsCreatingUnit(true);
+			const token = localStorage.getItem('authToken');
+			const res = await createWarehouseProductUnit(name, token);
+			const created = extractPayload(res);
+			const createdName = created?.unitName ?? created?.name ?? name;
+
+			const listRes = await fetchWarehouseProductUnits(token);
+			const listRaw = Array.isArray(extractPayload(listRes)) ? extractPayload(listRes) : [];
+			setUnits(listRaw.map((u) => ({ unitId: u.unitId ?? u.id, unitName: u.unitName ?? u.name ?? '' })).filter((u) => u.unitName && (String(u.isActive ?? u.active ?? '1') === '1' || u.isActive === true)));
+			setUnit(createdName);
+			setNewUnitName('');
+			setShowAddUnitInput(false);
+			setShowUnitDropdown(false);
+			notify('Đã thêm đơn vị mới.');
+		} catch (err) {
+			notify(err?.message || 'Không thể tạo đơn vị.');
+		} finally {
+			setIsCreatingUnit(false);
+		}
+	}, [newUnitName, isNewUnitDuplicate, isCreatingUnit, notify]);
+
+	useEffect(() => {
+		if (!showUnitDropdown) return;
+		const handler = (e) => {
+			if (unitDropdownRef.current && !unitDropdownRef.current.contains(e.target)) {
+				setShowUnitDropdown(false);
 			}
-		})();
-		return () => {
-			cancelled = true;
 		};
-	}, [createdCatalogItemId]);
+		document.addEventListener('mousedown', handler);
+		return () => document.removeEventListener('mousedown', handler);
+	}, [showUnitDropdown]);
 
+	const handleUnitInputClick = useCallback(() => {
+		if (!createdCatalogItem) setShowUnitDropdown((v) => !v);
+	}, [createdCatalogItem]);
 
-	const startAddNewBrand = useCallback(() => {
-		previousBrandIdRef.current = String(selectedBrandId || '');
-		setIsAddingNewBrand(true);
-		setSelectedBrandId('');
-		setBrandName('');
-	}, [selectedBrandId]);
+	const handleProductTaxInputClick = useCallback(() => {
+		saveDraft('/part-management/select-tax');
+	}, [saveDraft]);
 
-	const stopAddNewBrand = useCallback(() => {
-		setIsAddingNewBrand(false);
-		const restored = previousBrandIdRef.current;
-		const restoredExists = restored && brands.some((b) => String(b?.brandId) === String(restored));
-		if (restoredExists) {
-			setSelectedBrandId(restored);
+	const handleProductLineInputClick = useCallback(() => {
+		if (!selectedBrandId) {
+			notify('Vui lòng chọn thương hiệu dịch vụ trước khi chọn dòng dịch vụ.');
 			return;
 		}
-		setSelectedBrandId('');
-	}, [brands]);
+		saveDraft('/part-management/select-product-line');
+	}, [saveDraft, selectedBrandId, notify]);
 
-	const handleCreateBrand = useCallback(async () => {
-		if (isCreatingBrand) return;
-		const name = String(brandName || '').trim();
-		if (!name) {
-			notify('Vui lòng nhập tên thương hiệu dịch vụ.');
-			return;
-		}
+	const handleOriginInputClick = useCallback(() => {
+		saveDraft('/part-management/select-origin');
+	}, [saveDraft]);
 
-		try {
-			setIsCreatingBrand(true);
-			const token = localStorage.getItem('authToken');
-			const response = await createWarehouseBrand(
-				{
-					brandId: null,
-					brandName: name,
-					logoUrl: null,
-					isActive: '1',
-				},
-				token,
-			);
-			const payload = response?.data?.data ?? response?.data ?? response;
-			const created = mapBrandItem(payload);
-			const createdId = Number(created?.brandId) || null;
-			if (!createdId) {
-				notify('Tạo thương hiệu dịch vụ thất bại (không nhận được brandId).');
-				return;
-			}
+	const handleColorInputClick = useCallback(() => {
+		saveDraft('/part-management/select-color');
+	}, [saveDraft]);
 
-			setBrands((prev) => {
-				const list = Array.isArray(prev) ? prev : [];
-				const withoutDup = list.filter((b) => Number(b?.brandId) !== createdId);
-				return [created, ...withoutDup];
-			});
-
-			setIsAddingNewBrand(false);
-			setSelectedBrandId(String(createdId));
-			notify('Đã thêm thương hiệu dịch vụ mới.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo thương hiệu dịch vụ.');
-		} finally {
-			setIsCreatingBrand(false);
-		}
-	}, [brandName, isCreatingBrand, notify]);
-
-	const startAddNewCategory = useCallback(() => {
-		previousCategoryIdRef.current = String(selectedCategoryId || '');
-		setIsAddingNewCategory(true);
-		setSelectedCategoryId('');
-		setCategoryCode('');
-		setCategoryName('');
-		setSelectedTaxRuleId('');
-		setIsAddingNewTaxRule(false);
-		setTaxName('');
-		setTaxRate('');
-	}, [selectedCategoryId]);
-
-	const stopAddNewCategory = useCallback(() => {
-		setIsAddingNewCategory(false);
-		const restored = previousCategoryIdRef.current;
-		const restoredExists = restored && categories.some((c) => String(c?.itemCategoryId) === String(restored));
-		if (restoredExists) {
-			setSelectedCategoryId(restored);
-			return;
-		}
-		setSelectedCategoryId('');
-	}, [categories]);
-
-	const handleCreateCategory = useCallback(async () => {
-		if (isCreatingCategory) return;
-		const code = String(categoryCode || '').trim();
-		const name = String(categoryName || '').trim();
-		const type = CATEGORY_TYPE_FIXED;
-		const taxRuleIdNumRaw = selectedTaxRuleId ? Number(selectedTaxRuleId) : null;
-		const taxRuleIdNum = Number.isFinite(taxRuleIdNumRaw) && taxRuleIdNumRaw > 0 ? taxRuleIdNumRaw : null;
-		if (!code || !name) {
-			notify('Vui lòng nhập đủ: Mã nhóm, Tên nhóm.');
-			return;
-		}
-		try {
-			setIsCreatingCategory(true);
-			const token = localStorage.getItem('authToken');
-
-			const basePayload = {
-				// Legacy id field (some envs still expect itemCategoryId)
-				itemCategoryId: null,
-				// New id field (work category)
-				workCategoryId: null,
-				categoryCode: code,
-				categoryName: name,
-				displayOrder: 0,
-				isActive: true,
-				estimateItemEstimateItem: 0,
-				isDefault: true,
-				taxRuleId: taxRuleIdNum,
-				categoryType: type,
-			};
-
-			const res = await createWarehouseItemCategory(basePayload, token);
-
-			const created = mapCategoryItem(extractPayload(res));
-			const createdId = Number(created?.itemCategoryId) || null;
-			if (!createdId) {
-				notify('Tạo nhóm thất bại (không nhận được itemCategoryId).');
-				return;
-			}
-			setCategories((prev) => {
-				const list = Array.isArray(prev) ? prev : [];
-				const withoutDup = list.filter((c) => Number(c?.itemCategoryId) !== createdId);
-				return [created, ...withoutDup];
-			});
-			setIsAddingNewCategory(false);
-			setSelectedCategoryId(String(createdId));
-			notify('Đã thêm nhóm mới.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo nhóm.');
-		} finally {
-			setIsCreatingCategory(false);
-		}
-	}, [categoryCode, categoryName, isCreatingCategory, notify, selectedTaxRuleId]);
-
-	const startAddNewTaxRule = useCallback(() => {
-		if (isTaxRulesLoading) return;
-		setIsAddingNewTaxRule(true);
-		setTaxName('');
-		setTaxRate('');
-	}, [isTaxRulesLoading]);
-
-	const stopAddNewTaxRule = useCallback(() => {
-		if (isCreatingTaxRule) return;
-		setIsAddingNewTaxRule(false);
-		setTaxName('');
-		setTaxRate('');
-	}, [isCreatingTaxRule]);
-
-	const handleCreateTaxRule = useCallback(async () => {
-		if (isCreatingTaxRule) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			notify('Vui lòng đăng nhập để tạo loại thuế.');
-			return;
-		}
-		const name = String(taxName || '').trim();
-		if (!name) {
-			notify('Vui lòng nhập tên thuế.');
-			return;
-		}
-		const rateNumber = Number(String(taxRate || '').trim());
-		if (Number.isNaN(rateNumber)) {
-			notify('Vui lòng nhập thuế suất hợp lệ.');
-			return;
-		}
-		try {
-			setIsCreatingTaxRule(true);
-			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
-			const created = mapTaxRuleItem(extractPayload(res));
-			const createdId = Number(created?.taxRuleId) || null;
-			if (!createdId) {
-				notify('Tạo thuế thất bại (không nhận được taxRuleId).');
-				return;
-			}
-			setTaxRules((prev) => {
-				const list = Array.isArray(prev) ? prev : [];
-				const withoutDup = list.filter((t) => Number(t?.taxRuleId) !== createdId);
-				return [created, ...withoutDup];
-			});
-			setSelectedTaxRuleId(String(createdId));
-			setIsAddingNewTaxRule(false);
-			setTaxName('');
-			setTaxRate('');
-			notify('Đã thêm thuế mới.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo thuế.');
-		} finally {
-			setIsCreatingTaxRule(false);
-		}
-	}, [isCreatingTaxRule, notify, taxName, taxRate]);
-
-	const startAddNewProductTaxRule = useCallback(() => {
-		if (isTaxRulesLoading) return;
-		setIsAddingNewProductTaxRule(true);
-		setProductTaxName('');
-		setProductTaxRate('');
-	}, [isTaxRulesLoading]);
-
-	const stopAddNewProductTaxRule = useCallback(() => {
-		if (isCreatingProductTaxRule) return;
-		setIsAddingNewProductTaxRule(false);
-		setProductTaxName('');
-		setProductTaxRate('');
-	}, [isCreatingProductTaxRule]);
-
-	const handleCreateProductTaxRule = useCallback(async () => {
-		if (isCreatingProductTaxRule) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			notify('Vui lòng đăng nhập để tạo loại thuế.');
-			return;
-		}
-		const name = String(productTaxName || '').trim();
-		if (!name) {
-			notify('Vui lòng nhập tên thuế.');
-			return;
-		}
-		const rateNumber = Number(String(productTaxRate || '').trim());
-		if (Number.isNaN(rateNumber)) {
-			notify('Vui lòng nhập thuế suất hợp lệ.');
-			return;
-		}
-		try {
-			setIsCreatingProductTaxRule(true);
-			const res = await createTaxRule({ taxName: name, taxRate: rateNumber }, token);
-			const created = mapTaxRuleItem(extractPayload(res));
-			const createdId = Number(created?.taxRuleId) || null;
-			if (!createdId) {
-				notify('Tạo thuế thất bại (không nhận được taxRuleId).');
-				return;
-			}
-			setTaxRules((prev) => {
-				const list = Array.isArray(prev) ? prev : [];
-				const withoutDup = list.filter((t) => Number(t?.taxRuleId) !== createdId);
-				return [created, ...withoutDup];
-			});
-			setSelectedProductTaxRuleId(String(createdId));
-			setIsAddingNewProductTaxRule(false);
-			setProductTaxName('');
-			setProductTaxRate('');
-			notify('Đã thêm thuế mới cho dịch vụ.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo thuế.');
-		} finally {
-			setIsCreatingProductTaxRule(false);
-		}
-	}, [isCreatingProductTaxRule, notify, productTaxName, productTaxRate]);
-
-	const startAddNewProductLine = useCallback(() => {
-		previousProductLineIdRef.current = String(selectedProductLineId || '');
-		setIsAddingNewProductLine(true);
-		setSelectedProductLineId('');
-		setProductLineName('');
-	}, [selectedProductLineId]);
-
-	const stopAddNewProductLine = useCallback(() => {
-		setIsAddingNewProductLine(false);
-		const restored = previousProductLineIdRef.current;
-		const restoredExists = restored && productLines.some((l) => String(l?.productLineId) === String(restored));
-		if (restoredExists) {
-			setSelectedProductLineId(restored);
-			return;
-		}
-		setSelectedProductLineId('');
-	}, [productLines]);
-
-	const handleCreateProductLine = useCallback(async () => {
-		if (isCreatingProductLine) return;
-		const brandId = Number(selectedBrandId) || null;
-		if (!brandId) {
-			notify('Vui lòng chọn thương hiệu dịch vụ trước khi tạo dòng dịch vụ.');
-			return;
-		}
-		const name = String(productLineName || '').trim();
-		if (!name) {
-			notify('Vui lòng nhập tên dòng dịch vụ.');
-			return;
-		}
-		try {
-			setIsCreatingProductLine(true);
-			const token = localStorage.getItem('authToken');
-			const res = await createWarehouseProductLine(
-				{ productLineId: null, brandId, lineName: name, isActive: '1' },
-				token,
-			);
-			const created = mapProductLineItem(extractPayload(res));
-			const createdId = Number(created?.productLineId) || null;
-			if (!createdId) {
-				notify('Tạo dòng dịch vụ thất bại (không nhận được productLineId).');
-				return;
-			}
-			setProductLines((prev) => {
-				const list = Array.isArray(prev) ? prev : [];
-				const withoutDup = list.filter((l) => Number(l?.productLineId) !== createdId);
-				return [created, ...withoutDup];
-			});
-			setIsAddingNewProductLine(false);
-			setSelectedProductLineId(String(createdId));
-			notify('Đã thêm dòng dịch vụ mới.');
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo dòng dịch vụ.');
-		} finally {
-			setIsCreatingProductLine(false);
-		}
-	}, [isCreatingProductLine, notify, productLineName, selectedBrandId]);
-
-	// Image file selection (local preview only)
 	const handleImageFileChange = useCallback(
 		(e) => {
 			const file = e?.target?.files?.[0] ?? null;
@@ -797,875 +646,881 @@ export default function CreateService() {
 		[imagePreviewUrl],
 	);
 
-	useEffect(() => {
-		return () => {
-			if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
-		};
-	}, [imagePreviewUrl]);
+	const handleSubmitService = useCallback(
+		async (e) => {
+			if (e) e.preventDefault();
+			if (isCreatingCatalogItem) return;
 
-	const handleRandomServiceCode = useCallback(() => {
-		setSku(generateServiceCode(computedItemName));
-	}, [computedItemName]);
-
-	const handleSubmitService = useCallback(async () => {
-		if (isCreatingCatalogItem) return;
-		const token = localStorage.getItem('authToken');
-		if (!token) {
-			notify('Vui lòng đăng nhập để tạo dịch vụ.');
-			return;
-		}
-		const categoryId = Number(selectedCategoryId) || null;
-		const brandId = Number(selectedBrandId) || null;
-		const productLineId = selectedProductLineId ? Number(selectedProductLineId) : null;
-		if (!categoryId) {
-			notify('Vui lòng chọn hạng mục dịch vụ (Item Category).');
-			return;
-		}
-		if (!brandId) {
-			notify('Vui lòng chọn thương hiệu dịch vụ.');
-			return;
-		}
-		if (!productLineId) {
-			notify('Vui lòng chọn dòng dịch vụ.');
-			return;
-		}
-		const skuTrim = String(sku || '').trim();
-		if (!skuTrim) {
-			notify('Vui lòng nhập mã dịch vụ.');
-			return;
-		}
-		const itemName = computedItemName;
-		if (!itemName) {
-			notify('Vui lòng nhập đủ thông tin để tạo tên dịch vụ (nhóm/thương hiệu/dòng).');
-			return;
-		}
-		const priceNum = showPrice ? Number(String(price || '').trim()) : 0;
-		if (showPrice && (!Number.isFinite(priceNum) || priceNum <= 0)) {
-			notify('Giá dịch vụ phải lớn hơn 0.');
-			return;
-		}
-		const warrantyNum = String(warrantyDurationMonths || '').trim() === '' ? 0 : Number(warrantyDurationMonths);
-		if (!Number.isFinite(warrantyNum) || warrantyNum < 0) {
-			notify('Bảo hành (tháng) không hợp lệ.');
-			return;
-		}
-
-		try {
-			setIsCreatingCatalogItem(true);
-			const taxRuleIdNumRaw = selectedProductTaxRuleId ? Number(selectedProductTaxRuleId) : null;
-			const taxRuleIdNum = Number.isFinite(taxRuleIdNumRaw) && taxRuleIdNumRaw > 0 ? taxRuleIdNumRaw : null;
-			const res = await createWarehouseCatalogItem(
-				{
-					itemName,
-					itemType,
-					warrantyDurationMonths: Math.trunc(warrantyNum),
-					serviceServiceId: null,
-					sku: skuTrim,
-					price: showPrice ? priceNum : 0,
-					showPrice,
-					description: String(description || '').trim(),
-					// imageUrl: String(imageUrl || '').trim(),
-					unit: String(unit || '').trim(),
-					comboDurationMonths: 0,
-					comboDescription: '',
-					isRecurring: false,
-					brandId,
-					productLineId,
-					product_line_id: productLineId,
-					// Backward compatible (older warehouse API)
-					itemCategoryId: categoryId,
-					// Newer API shape (work category)
-					workCategoryId: categoryId,
-					taxRuleId: taxRuleIdNum,
-					tax_rule_id: taxRuleIdNum,
-					compatibleCars: String(compatibleCars || '').trim(),
-				},
-				token,
-			);
-			const created = extractPayload(res);
-			const createdId = Number(created?.itemId ?? created?.catalogItemId ?? created?.id ?? 0) || null;
-			if (!createdId) {
-				notify('Tạo dịch vụ thất bại (không nhận được CatalogItemId/itemId).');
+			const token = localStorage.getItem('authToken');
+			const categoryId = Number(selectedCategoryId) || null;
+			const brandId = Number(selectedBrandId) || null;
+			const productLineId = selectedProductLineId ? Number(selectedProductLineId) : null;
+			if (!categoryId) {
+				notify('Vui lòng chọn hạng mục dịch vụ.');
 				return;
 			}
-			setCreatedCatalogItem(created);
-			notify(`Đã tạo dịch vụ (#${createdId}).`);
-		} catch (err) {
-			notify(err?.message || 'Không thể tạo dịch vụ.');
-		} finally {
-			setIsCreatingCatalogItem(false);
-		}
-	}, [
-		description,
-		computedItemName,
-		// imageUrl,
-		isCreatingCatalogItem,
-		itemType,
-		notify,
-		price,
-		selectedBrandId,
-		selectedCategoryId,
-		selectedProductLineId,
-		selectedProductTaxRuleId,
-		showPrice,
-		sku,
-		unit,
-		warrantyDurationMonths,
-		compatibleCars,
-	]);
-
-	const handleCreateSpecAttributeIfNeeded = useCallback(
-		async (draftIndex) => {
-			const d = specDrafts?.[draftIndex];
-			if (!d) return null;
-			if (d.attributeId) return Number(d.attributeId) || null;
-			const token = localStorage.getItem('authToken');
-			if (!token) {
-				notify('Vui lòng đăng nhập để tạo thuộc tính thông số.');
-				return null;
+			if (!brandId) {
+				notify('Vui lòng chọn thương hiệu dịch vụ.');
+				return;
 			}
+			let finalIntroText = String(introText || '').trim();
+			let finalDetailHtml = detailHtml;
+			if (!finalIntroText && !stripHtml(finalDetailHtml)) {
+				const descTrim = String(description || '').trim();
+				if (descTrim) {
+					finalIntroText = descTrim;
+					finalDetailHtml = `<p>${escapeHtml(descTrim)}</p>`;
+				} else {
+					notify('Vui lòng nhập mô tả dịch vụ hoặc tóm tắt/nội dung bài viết.');
+					return;
+				}
+			}
+			const skuTrim = String(sku || '').trim();
+			if (!skuTrim) {
+				notify('Vui lòng nhập mã dịch vụ (SKU).');
+				return;
+			}
+			const itemName = String(itemNameInput || '').trim();
+			if (!itemName) {
+				notify('Vui lòng nhập tên dịch vụ.');
+				return;
+			}
+			const priceNum = showPrice ? Number(String(price || '').trim()) : 0;
+			if (showPrice && (!Number.isFinite(priceNum) || priceNum <= 0)) {
+				notify('Giá dịch vụ phải lớn hơn 0.');
+				return;
+			}
+			const warrantyNum = String(warrantyDurationMonths || '').trim() === '' ? 0 : Number(warrantyDurationMonths);
+			if (!Number.isFinite(warrantyNum) || warrantyNum < 0) {
+				notify('Bảo hành (tháng) không hợp lệ.');
+				return;
+			}
+			const resolvedOrigin = origin === OTHER_OPTION_VALUE ? String(customOrigin || '').trim() : String(origin || '').trim();
+			const resolvedColor = color === OTHER_OPTION_VALUE ? String(customColor || '').trim() : String(color || '').trim();
+
 			try {
-				setSpecDrafts((prev) => prev.map((x, idx) => (idx === draftIndex ? { ...x, creatingAttribute: true } : x)));
-				// Generate attributeCode if missing (safe fallback from displayName)
-				const codeCandidate = String(d.code || '').trim();
-				const attributeCode =
-					codeCandidate ||
-					String(d.displayName || '')
-						.trim()
-						.toUpperCase()
-						.replace(/[^A-Z0-9]+/g, '_')
-						.slice(0, 50);
-				const res = await createWarehouseSpecAttribute(
+				setIsCreatingCatalogItem(true);
+				const taxRuleIdNumRaw = selectedProductTaxRuleId ? Number(selectedProductTaxRuleId) : null;
+				const taxRuleIdNum = Number.isFinite(taxRuleIdNumRaw) && taxRuleIdNumRaw > 0 ? taxRuleIdNumRaw : null;
+				const res = await createWarehouseCatalogItem(
 					{
-						attributeId: null,
-						attributeCode,
-						displayName: String(d.displayName || '').trim() || attributeCode,
-						unit: String(d.unit || '').trim(),
+						itemName,
+						itemType: 'SERVICE',
+						warrantyDurationMonths: Math.trunc(warrantyNum),
+						serviceServiceId: null,
+						sku: skuTrim,
+						price: showPrice ? priceNum : 0,
+						showPrice,
+						description: String(description || '').trim(),
+						madeIn: resolvedOrigin,
+						origin: resolvedOrigin,
+						color: resolvedColor,
+						unit: String(unit || '').trim(),
+						comboDurationMonths: 0,
+						comboDescription: '',
+						isRecurring: false,
+						brandId,
+						productLineId,
+						product_line_id: productLineId,
+						itemCategoryId: categoryId,
+						workCategoryId: categoryId,
+						taxRuleId: taxRuleIdNum,
+						tax_rule_id: taxRuleIdNum,
+						compatibleCars: String(compatibleCars || '').trim(),
 					},
 					token,
 				);
-				const created = mapSpecAttributeItem(extractPayload(res));
-				const createdId = Number(created?.attributeId) || null;
+				const created = extractPayload(res);
+				const createdId = Number(created?.itemId ?? created?.catalogItemId ?? created?.id ?? 0) || null;
 				if (!createdId) {
-					notify('Tạo thuộc tính thất bại (không nhận được attributeId).');
-					return null;
+					notify('Tạo dịch vụ thất bại (không nhận được CatalogItemId/itemId).');
+					return;
 				}
-				setSpecAttributes((prev) => {
-					const list = Array.isArray(prev) ? prev : [];
-					const withoutDup = list.filter((a) => Number(a?.attributeId) !== createdId);
-					return [created, ...withoutDup];
-				});
-				setSpecDrafts((prev) =>
-					prev.map((x, idx) =>
-						idx === draftIndex
-							? {
-								...x,
-								attributeId: String(createdId),
-								code: String(created?.attributeCode || '').toUpperCase(),
-								displayName: created?.displayName || x.displayName,
-								unit: created?.unit || x.unit,
-								creatingAttribute: false,
-								isCreatingNew: false,
+				setCreatedCatalogItem(created);
+				sessionStorage.removeItem('gms_create_service_draft');
+				delete window._gms_create_service_imageFile;
+				delete window._gms_create_service_imagePreviewUrl;
+				delete window._gms_create_service_blogMediaFiles;
+				notify(`Đã tạo dịch vụ (#${createdId}).`);
+
+				const draftsToSave = Array.isArray(specDrafts) ? specDrafts.filter((d) => String(d.specValue || '').trim() && d.attributeId) : [];
+				if (draftsToSave.length > 0) {
+					notify('Đang lưu các thông số...');
+					for (let i = 0; i < draftsToSave.length; i++) {
+						const d = draftsToSave[i];
+						try {
+							await createWarehouseSpecificationValue(
+								{ specId: null, itemId: createdId, attributeId: Number(d.attributeId), specValue: String(d.specValue).trim() },
+								token,
+							);
+						} catch (err) {
+							notify(`Không thể lưu thông số "${d.displayName}": ${err.message}`);
+						}
+					}
+					try {
+						const specRes = await fetchWarehouseSpecificationsByCatalogItemId(createdId, token);
+						const specList = Array.isArray(extractPayload(specRes)) ? extractPayload(specRes) : [];
+						setSavedSpecs(specList);
+					} catch {
+						// ignore spec fetch error
+					}
+				}
+
+				if (createBlogEnabled) {
+					notify('Đang tạo bài viết chi tiết...');
+					setIsBlogSubmitting(true);
+					try {
+						const formData = new FormData();
+						const title = String(itemName || '').trim();
+						const skuText = String(skuTrim || '').trim();
+						const resolvedPrice = showPrice ? priceNum : 0;
+						const warrantyNumInt = Math.trunc(warrantyNum);
+						const serviceStatus = 'ACTIVE';
+						const fullDescription = composeDescriptionHtml(finalIntroText, finalDetailHtml);
+						const shortDescription = finalIntroText;
+
+						formData.append('title', title);
+						formData.append('itemName', title);
+						formData.append('sku', skuText);
+						formData.append('itemCode', skuText);
+						formData.append('partCode', skuText);
+						formData.append('unit', String(unit || '').trim());
+						formData.append('price', String(resolvedPrice));
+						formData.append('shortDescription', shortDescription);
+						formData.append('fullDescription', fullDescription);
+						formData.append('showPrice', showPrice ? 'true' : 'false');
+						formData.append('displayPrice', String(resolvedPrice));
+						formData.append('status', serviceStatus);
+						formData.append('catalogItemId', String(createdId));
+						if (Number.isFinite(warrantyNumInt) && warrantyNumInt >= 0) {
+							formData.append('estimateTime', String(warrantyNumInt));
+						}
+						if (imageFile) {
+							formData.append('thumbnailFile', imageFile);
+						}
+						blogMediaFiles.forEach((m) => {
+							if (m.file) {
+								formData.append('mediaFiles', m.file);
 							}
-						: x,
-					),
-				);
-				return createdId;
+						});
+
+						await createServiceForCatalog(createdId, formData, token);
+						notify('Đã tạo bài viết chi tiết cho dịch vụ thành công!', 'success');
+					} catch (blogErr) {
+						notify(`Tạo bài viết chi tiết thất bại: ${blogErr.message}`);
+					} finally {
+						setIsBlogSubmitting(false);
+					}
+				}
+
+				navigate('/service-management');
 			} catch (err) {
-				notify(err?.message || 'Không thể tạo thuộc tính thông số.');
-				setSpecDrafts((prev) => prev.map((x, idx) => (idx === draftIndex ? { ...x, creatingAttribute: false } : x)));
-				return null;
-			}
-		},
-		[notify, specDrafts],
-	);
-
-	const handleSaveSpecificationValue = useCallback(
-		async (draftIndex) => {
-			if (!createdCatalogItemId) {
-				notify('Vui lòng tạo dịch vụ trước khi lưu thông số.');
-				return;
-			}
-			const d = specDrafts?.[draftIndex];
-			if (!d) return;
-			const value = String(d.specValue || '').trim();
-			if (!value) {
-				notify('Vui lòng nhập giá trị thông số.');
-				return;
-			}
-			const token = localStorage.getItem('authToken');
-			if (!token) {
-				notify('Vui lòng đăng nhập để lưu thông số.');
-				return;
-			}
-
-			// Require attributeId to be present before saving spec value
-			const attributeId = Number(d.attributeId) || null;
-			if (!attributeId) {
-				notify('Vui lòng chọn hoặc tạo thuộc tính trước khi lưu giá trị.');
-				return;
-			}
-
-			try {
-				setSpecDrafts((prev) => prev.map((x, idx) => (idx === draftIndex ? { ...x, creatingSpec: true } : x)));
-				await createWarehouseSpecificationValue(
-					{ specId: null, itemId: createdCatalogItemId, attributeId, specValue: value },
-					token,
-				);
-				const res = await fetchWarehouseSpecificationsByCatalogItemId(createdCatalogItemId, token);
-				const list = Array.isArray(extractPayload(res)) ? extractPayload(res) : [];
-				setSavedSpecs(list);
-				notify('Đã lưu thông số.');
-			} catch (err) {
-				notify(err?.message || 'Không thể lưu thông số.');
+				notify(err?.message || 'Không thể tạo dịch vụ.');
 			} finally {
-				setSpecDrafts((prev) => prev.map((x, idx) => (idx === draftIndex ? { ...x, creatingSpec: false } : x)));
+				setIsCreatingCatalogItem(false);
 			}
 		},
-		[createdCatalogItemId, notify, specDrafts],
+		[
+			description,
+			color,
+			itemNameInput,
+			customColor,
+			customOrigin,
+			isCreatingCatalogItem,
+			notify,
+			origin,
+			price,
+			selectedBrandId,
+			selectedCategoryId,
+			selectedProductLineId,
+			selectedProductTaxRuleId,
+			showPrice,
+			sku,
+			unit,
+			warrantyDurationMonths,
+			specDrafts,
+			createBlogEnabled,
+			introText,
+			detailHtml,
+			blogMediaFiles,
+			imageFile,
+			navigate,
+			compatibleCars,
+		],
 	);
+
+	const handleKeyDown = useCallback((e) => {
+		if (e.key === 'Enter') {
+			const target = e.target;
+			const isTextArea = target.tagName === 'TEXTAREA';
+			const isContentEditable = target.contentEditable === 'true' || target.getAttribute('contenteditable') === 'true';
+			if (!isTextArea && !isContentEditable) {
+				e.preventDefault();
+			}
+		}
+	}, []);
+
+	const syncDetailFromEditor = useCallback(() => {
+		setDetailHtml(normalizeEditorHtml(editorRef.current?.innerHTML || ''));
+	}, []);
+
+	const applyInlineTag = useCallback((tagName, attrs = null) => {
+		const editor = editorRef.current;
+		if (!editor) return;
+		editor.focus();
+		const selection = window.getSelection();
+		if (!selection || selection.rangeCount === 0) return;
+		const range = selection.getRangeAt(0);
+		if (!editor.contains(range.commonAncestorContainer) || range.collapsed) return;
+
+		const wrapper = document.createElement(tagName);
+		if (attrs && typeof attrs === 'object') {
+			Object.entries(attrs).forEach(([k, v]) => wrapper.setAttribute(k, v));
+		}
+		try {
+			range.surroundContents(wrapper);
+		} catch {
+			const fragment = range.extractContents();
+			wrapper.appendChild(fragment);
+			range.insertNode(wrapper);
+		}
+		selection.removeAllRanges();
+		syncDetailFromEditor();
+	}, [syncDetailFromEditor]);
+
+	const applyListTag = useCallback((listTagName) => {
+		const editor = editorRef.current;
+		if (!editor) return;
+		editor.focus();
+		const selection = window.getSelection();
+		if (!selection || selection.rangeCount === 0) return;
+		const range = selection.getRangeAt(0);
+		if (!editor.contains(range.commonAncestorContainer)) return;
+
+		const text = range.toString();
+		const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+
+		const listNode = document.createElement(listTagName);
+		if (lines.length > 0) {
+			lines.forEach((line) => {
+				const li = document.createElement('li');
+				li.textContent = line;
+				listNode.appendChild(li);
+			});
+		} else {
+			const li = document.createElement('li');
+			li.textContent = 'Mục mới';
+			listNode.appendChild(li);
+		}
+
+		if (!range.collapsed) {
+			range.deleteContents();
+		}
+		range.insertNode(listNode);
+		selection.removeAllRanges();
+		syncDetailFromEditor();
+	}, [syncDetailFromEditor]);
+
+	const handleToolbarClick = useCallback(
+		(action) => {
+			if (action === 'bold') applyInlineTag('strong');
+			if (action === 'italic') applyInlineTag('em');
+			if (action === 'uppercase') applyInlineTag('span', { style: 'text-transform: uppercase;' });
+			if (action === 'ol') applyListTag('ol');
+			if (action === 'ul') applyListTag('ul');
+		},
+		[applyInlineTag, applyListTag],
+	);
+
+	const handleBlogMediaChange = useCallback((e) => {
+		const files = Array.from(e?.target?.files || []);
+		if (!files.length) return;
+		const mapped = files.map((file) => ({
+			id: `media-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+			file,
+			previewUrl: URL.createObjectURL(file),
+		}));
+		setBlogMediaFiles((prev) => [...(Array.isArray(prev) ? prev : []), ...mapped]);
+		e.target.value = '';
+	}, []);
+
+	const removeBlogMedia = useCallback((index) => {
+		setBlogMediaFiles((prev) => {
+			const list = Array.isArray(prev) ? [...prev] : [];
+			const removed = list.splice(index, 1)[0];
+			if (removed?.previewUrl) {
+				URL.revokeObjectURL(removed.previewUrl);
+			}
+			return list;
+		});
+	}, []);
 
 	return (
-		<div className={styles['service-page']}>
+		<div className={styles['service-page']} onKeyDown={handleKeyDown}>
 			<section className={styles['service-card']}>
 				<div className={styles['service-card__header']}>
 					<div className={styles['service-card__title']}>
-						<strong>Tạo dịch vụ</strong>
+						<strong>Tạo dịch vụ mới</strong>
 					</div>
 				</div>
 
-				<div className={styles['pending-filters']}>
-					<div style={{ fontWeight: 600, marginBottom: 8 }}>Tên dịch vụ</div>
-					<div className={styles['filter-card__hint']}>
-						{computedItemName || 'Nhập nhóm/thương hiệu/dòng + thông số để tạo tên dịch vụ'}
-					</div>
-				</div>
-
-				{/* Step 1: Category */}
-				<div className={styles['pending-filters']}>
-					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-						<div style={{ fontWeight: 600 }}>1) Hạng mục dịch vụ</div>
-						{isAddingNewCategory ? (
-							<div style={{ display: 'flex', gap: 8 }}>
-								<button
-									type="button"
-									className={styles['primary-button']}
-									onClick={handleCreateCategory}
-									disabled={isCreatingCategory || Boolean(createdCatalogItemId)}
-								>
-									{isCreatingCategory ? 'Đang thêm...' : 'Xác nhận thêm hạng mục'}
-								</button>
-								<button
-									type="button"
-									className={styles['ghost-button']}
-									onClick={stopAddNewCategory}
-									disabled={isCreatingCategory || Boolean(createdCatalogItemId)}
-								>
-									Chọn từ danh sách
-								</button>
-							</div>
+				{/* Avatar Image Upload Box */}
+				<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+					<div
+						onClick={() => {
+							if (!createdCatalogItemId && fileInputRef.current) {
+								fileInputRef.current.click();
+							}
+						}}
+						style={{
+							width: '120px',
+							height: '120px',
+							borderRadius: '16px',
+							border: imagePreviewUrl ? '2px solid #e2e8f0' : '2px dashed #cbd5e1',
+							backgroundColor: '#f8fafc',
+							display: 'flex',
+							flexDirection: 'column',
+							alignItems: 'center',
+							justifyContent: 'center',
+							cursor: createdCatalogItemId ? 'default' : 'pointer',
+							overflow: 'hidden',
+							position: 'relative',
+							transition: 'all 0.2s ease-in-out',
+							boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+						}}
+						onMouseEnter={(e) => {
+							if (!createdCatalogItemId) {
+								e.currentTarget.style.borderColor = '#1E90FF';
+								e.currentTarget.style.backgroundColor = '#eff6ff';
+							}
+						}}
+						onMouseLeave={(e) => {
+							if (!createdCatalogItemId) {
+								e.currentTarget.style.borderColor = imagePreviewUrl ? '#e2e8f0' : '#cbd5e1';
+								e.currentTarget.style.backgroundColor = '#f8fafc';
+							}
+						}}
+					>
+						{imagePreviewUrl ? (
+							<>
+								<img
+									src={imagePreviewUrl}
+									alt="Avatar Preview"
+									style={{
+										width: '100%',
+										height: '100%',
+										objectFit: 'cover',
+									}}
+								/>
+								{!createdCatalogItemId && (
+									<div
+										style={{
+											position: 'absolute',
+											bottom: 0,
+											left: 0,
+											right: 0,
+											backgroundColor: 'rgba(0, 0, 0, 0.6)',
+											color: '#fff',
+											fontSize: '11px',
+											textAlign: 'center',
+											padding: '4px 0',
+											fontWeight: '500',
+										}}
+									>
+										Thay đổi
+									</div>
+								)}
+							</>
 						) : (
-							<button
-								type="button"
-								className={styles['primary-button']}
-								onClick={startAddNewCategory}
-								disabled={isCategoriesLoading || Boolean(createdCatalogItemId)}
-							>
-								Thêm nhóm
-							</button>
+							<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#64748b' }}>
+								<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 4 }}>
+									<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+									<circle cx="8.5" cy="8.5" r="1.5" />
+									<polyline points="21 15 16 10 5 21" />
+								</svg>
+								<span style={{ fontSize: '12px', fontWeight: '500' }}>Thêm ảnh</span>
+							</div>
 						)}
 					</div>
 
-					{isAddingNewCategory ? (
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 12, marginBottom: 0 }}>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="categoryCode">Mã nhóm</label>
-								<input id="categoryCode" value={categoryCode} onChange={(e) => setCategoryCode(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="categoryName">Tên nhóm</label>
-								<input id="categoryName" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="categoryType">Loại</label>
-								<input id="categoryType" value={categoryType} disabled />
-							</div>
-							<div style={{ gridColumn: '1 / -1', marginTop: 12 }}>
-								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-									<div style={{ fontWeight: 600 }}>Thuế</div>
-									{isAddingNewTaxRule ? (
-										<div style={{ display: 'flex', gap: 8 }}>
-											<button
-												type="button"
-												className={styles['primary-button']}
-												onClick={handleCreateTaxRule}
-												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
-											>
-												{isCreatingTaxRule ? 'Đang thêm...' : 'Xác nhận thuế'}
-											</button>
-											<button
-												type="button"
-												className={styles['ghost-button']}
-												onClick={stopAddNewTaxRule}
-												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
-											>
-												Hủy
-											</button>
-										</div>
-									) : (
-										<button
-											type="button"
-											className={styles['ghost-button']}
-											onClick={startAddNewTaxRule}
-											disabled={isTaxRulesLoading || Boolean(createdCatalogItemId)}
-										>
-											Thêm thuế
-										</button>
-									)}
-								</div>
+					<input
+						type="file"
+						ref={fileInputRef}
+						accept="image/*"
+						onChange={handleImageFileChange}
+						style={{ display: 'none' }}
+						disabled={Boolean(createdCatalogItemId)}
+					/>
 
-								{isAddingNewTaxRule ? (
-									<div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-										<div className="ui-field" style={{ marginBottom: 0 }}>
-											<label htmlFor="taxName">Tên thuế</label>
-											<input
-												id="taxName"
-												value={taxName}
-												onChange={(e) => setTaxName(e.target.value)}
-												placeholder="Ví dụ: VAT 10%"
-												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
-											/>
-										</div>
-										<div className="ui-field" style={{ marginBottom: 0 }}>
-											<label htmlFor="taxRate">Thuế suất</label>
-											<input
-												id="taxRate"
-												value={taxRate}
-												onChange={(e) => setTaxRate(e.target.value)}
-												placeholder="10 hoặc 0.1"
-												disabled={isCreatingTaxRule || Boolean(createdCatalogItemId)}
-											/>
-										</div>
-									</div>
-								) : (
-									<div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-										<div className="ui-field" style={{ marginBottom: 0 }}>
-											<label htmlFor="taxRuleSelect">Chọn thuế</label>
-											<select
-												id="taxRuleSelect"
-												value={selectedTaxRuleId}
-												onChange={(e) => setSelectedTaxRuleId(e.target.value)}
-												disabled={isTaxRulesLoading || isCreatingCategory || Boolean(createdCatalogItemId)}
-											>
-												<option value="">Không áp dụng</option>
-												{taxRules.map((t) => (
-													<option key={String(t.taxRuleId)} value={String(t.taxRuleId)}>
-														{getTaxRuleSelectLabel(t) || `#${t.taxRuleId}`}
-													</option>
-												))}
-											</select>
-											{selectedTaxRule ? (
-												<div className={styles['filter-card__hint']}>
-													Thuế suất: {formatTaxRatePercent(selectedTaxRule) || '--'}
-												</div>
-											) : null}
-										</div>
-									</div>
-								)}
-							</div>
-						</div>
-					) : (
-						<div className="ui-field" style={{ marginBottom: 0 }}>
-							<select
-								id="categorySelect"
-								value={selectedCategoryId}
-								onChange={(e) => setSelectedCategoryId(e.target.value)}
-								disabled={isCategoriesLoading || Boolean(createdCatalogItemId)}
-							>
-								<option value="">{categoryPlaceholder}</option>
-								{categories.map((c) => (
-									<option key={String(c.itemCategoryId)} value={String(c.itemCategoryId)}>
-										{c.categoryName || c.categoryCode || `#${c.itemCategoryId}`}
-									</option>
-								))}
-							</select>
-						</div>
+					{imagePreviewUrl && !createdCatalogItemId && (
+						<button
+							type="button"
+							onClick={(e) => {
+								e.stopPropagation();
+								if (imagePreviewUrl) {
+									URL.revokeObjectURL(imagePreviewUrl);
+								}
+								setImageFile(null);
+								setImagePreviewUrl('');
+								if (fileInputRef.current) {
+									fileInputRef.current.value = '';
+								}
+							}}
+							style={{
+								background: 'none',
+								border: 'none',
+								color: '#ef4444',
+								fontSize: '12px',
+								fontWeight: '600',
+								marginTop: '8px',
+								cursor: 'pointer',
+								textDecoration: 'underline',
+								padding: '2px 8px',
+							}}
+						>
+							Xoá ảnh
+						</button>
 					)}
 				</div>
 
-				{/* Step 2: Service brand */}
-				{canShowBrandStep ? (
-					<div className={styles['pending-filters']}>
-						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-							<div style={{ fontWeight: 600 }}>2) Thương hiệu dịch vụ</div>
-							{isAddingNewBrand ? (
-								<div style={{ display: 'flex', gap: 8 }}>
-									<button type="button" className={styles['primary-button']} onClick={handleCreateBrand} disabled={isCreatingBrand || Boolean(createdCatalogItemId)}>
-										{isCreatingBrand ? 'Đang thêm...' : 'Xác nhận thêm thương hiệu'}
-									</button>
-									<button type="button" className={styles['ghost-button']} onClick={stopAddNewBrand} disabled={isCreatingBrand || Boolean(createdCatalogItemId)}>
-										Chọn từ danh sách
-									</button>
-								</div>
-							) : (
-								<button type="button" className={styles['primary-button']} onClick={startAddNewBrand} disabled={isBrandsLoading || Boolean(createdCatalogItemId)}>
-									Thêm thương hiệu
-								</button>
-							)}
-						</div>
-
-						{isAddingNewBrand ? (
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="brandName">Tên thương hiệu dịch vụ (mới)</label>
-								<input id="brandName" value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Nhập tên thương hiệu dịch vụ" autoComplete="off" disabled={Boolean(createdCatalogItemId)} />
-							</div>
-						) : (
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<select id="brandSelect" value={selectedBrandId} onChange={(e) => setSelectedBrandId(e.target.value)} disabled={isBrandsLoading || !brands.length || Boolean(createdCatalogItemId)}>
-									<option value="">{brandPlaceholder}</option>
-									{brands.map((b) => (
-										<option key={String(b.brandId)} value={String(b.brandId)}>
-											{b.brandName || `#${b.brandId}`}
-										</option>
-									))}
-								</select>
-							</div>
-						)}
+				{/* Service Name Card */}
+				<div className={styles['pending-filters']}>
+					<div style={{ fontWeight: 600, marginBottom: 8 }}>Tên dịch vụ</div>
+					<div className="ui-field" style={{ marginBottom: 0 }}>
+						<input
+							id="itemNameInput"
+							type="text"
+							value={itemNameInput}
+							onChange={(e) => {
+								setItemNameInput(e.target.value);
+								setItemNameManualEdited(true);
+							}}
+							placeholder="Nhập tên dịch vụ, hoặc chọn nhóm/hãng/dòng để tạo tên gợi ý"
+							disabled={Boolean(createdCatalogItemId)}
+						/>
 					</div>
-				) : null}
+					{!createdCatalogItemId && computedItemName && computedItemName !== itemNameInput.trim() && (
+						<button
+							type="button"
+							className={styles['ghost-button']}
+							style={{ marginTop: 8, fontSize: 12.5, padding: '6px 12px' }}
+							onClick={() => {
+								setItemNameInput(computedItemName);
+								setItemNameManualEdited(false);
+							}}
+						>
+							Dùng tên gợi ý: "{computedItemName}"
+						</button>
+					)}
+				</div>
 
-				{/* Step 3: Service line */}
-				{canShowProductLineStep ? (
-					<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
-						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-							<div style={{ fontWeight: 600 }}>3) Dòng dịch vụ</div>
-							{isAddingNewProductLine ? (
-								<div style={{ display: 'flex', gap: 8 }}>
-									<button type="button" className={styles['primary-button']} onClick={handleCreateProductLine} disabled={isCreatingProductLine || Boolean(createdCatalogItemId)}>
-										{isCreatingProductLine ? 'Đang thêm...' : 'Xác nhận thêm dòng dịch vụ'}
-									</button>
-									<button type="button" className={styles['ghost-button']} onClick={stopAddNewProductLine} disabled={isCreatingProductLine || Boolean(createdCatalogItemId)}>
-										Chọn từ danh sách
-									</button>
-								</div>
-							) : (
-								<button type="button" className={styles['primary-button']} onClick={startAddNewProductLine} disabled={!selectedBrandId || isProductLinesLoading || Boolean(createdCatalogItemId)}>
-									Thêm dòng dịch vụ
-								</button>
-							)}
+				{/* Steps 1, 2, 3 Grid (Hạng mục dịch vụ, Hãng, Dòng sản phẩm) */}
+				<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16, marginTop: 12 }}>
+					{/* Step 1: Category */}
+					<div className={styles['pending-filters']} style={{ marginTop: 0 }}>
+						<div style={{ fontWeight: 600, marginBottom: 8 }}>1) Hạng mục dịch vụ</div>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<input
+								id="categorySelect"
+								readOnly
+								placeholder="Nhấn vào đây để chọn hạng mục dịch vụ..."
+								value={selectedCategory ? selectedCategory.categoryName || selectedCategory.categoryCode : ''}
+								onClick={handleCategoryInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
 						</div>
-
-						{isAddingNewProductLine ? (
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="productLineName">Tên dòng dịch vụ (mới)</label>
-								<input id="productLineName" value={productLineName} onChange={(e) => setProductLineName(e.target.value)} placeholder="Nhập tên dòng dịch vụ" autoComplete="off" disabled={Boolean(createdCatalogItemId)} />
-							</div>
-						) : (
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<select id="productLineSelect" value={selectedProductLineId} onChange={(e) => setSelectedProductLineId(e.target.value)} disabled={isProductLinesLoading || !filteredProductLines.length || Boolean(createdCatalogItemId)}>
-									<option value="">{productLinePlaceholder}</option>
-									{filteredProductLines.map((l) => (
-										<option key={String(l.productLineId)} value={String(l.productLineId)}>
-											{l.lineName || `#${l.productLineId}`}
-										</option>
-									))}
-								</select>
-							</div>
-						)}
 					</div>
-				) : null}
+
+					{/* Step 2: Brand */}
+					<div className={styles['pending-filters']} style={{ marginTop: 0 }}>
+						<div style={{ fontWeight: 600, marginBottom: 8 }}>2) Hãng / Thương hiệu dịch vụ</div>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<input
+								id="brandSelect"
+								readOnly
+								placeholder="Nhấn vào đây để chọn thương hiệu dịch vụ..."
+								value={selectedBrand ? selectedBrand.brandName : ''}
+								onClick={handleBrandInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
+						</div>
+					</div>
+
+					{/* Step 3: Product line */}
+					<div className={styles['pending-filters']} style={{ marginTop: 0 }}>
+						<div style={{ fontWeight: 600, marginBottom: 8 }}>3) Dòng dịch vụ</div>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<input
+								id="productLineSelect"
+								readOnly
+								placeholder="Nhấn vào đây để chọn dòng dịch vụ..."
+								value={selectedProductLine ? selectedProductLine.lineName : ''}
+								onClick={handleProductLineInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
+						</div>
+					</div>
+				</div>
 
 				{/* Step 4: Catalog item fields */}
-				{canShowCatalogItemStep ? (
-					<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
-						<div style={{ fontWeight: 600, marginBottom: 8 }}>4) Thông tin dịch vụ (Catalog Item)</div>
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="itemType">Loại</label>
-								<input id="itemType" value={itemType} disabled />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="sku">Mã dịch vụ</label>
-								<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-									<input
-										id="sku"
-										value={sku}
-										onChange={(e) => setSku(e.target.value)}
-										disabled={Boolean(createdCatalogItemId)}
-										style={{ flex: 1 }}
-									/>
+				<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
+					<div style={{ fontWeight: 600, marginBottom: 8 }}>4) Thông tin dịch vụ</div>
+					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="sku" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+								<span>Mã dịch vụ (SKU)</span>
+								{!createdCatalogItemId && (
 									<button
 										type="button"
 										className={styles['ghost-button']}
+										style={{ padding: '2px 8px', fontSize: '11px', height: 'auto', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #d1d5db' }}
 										onClick={handleRandomServiceCode}
-										disabled={Boolean(createdCatalogItemId)}
-										style={{ whiteSpace: 'nowrap' }}
 									>
-										Random mã
+										<span>Random mã</span>
 									</button>
-								</div>
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-									<label htmlFor="price" style={{ marginBottom: 0 }}>Giá</label>
-									<label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#6b7280', userSelect: 'none' }}>
-										<input
-											type="checkbox"
-											checked={showPrice}
-											onChange={(e) => setShowPrice(e.target.checked)}
-											disabled={Boolean(createdCatalogItemId)}
-											style={{ display: 'none' }}
-										/>
+								)}
+							</label>
+							<input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} disabled={Boolean(createdCatalogItemId)} placeholder="DV-..." />
+						</div>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+								<label htmlFor="price" style={{ marginBottom: 0 }}>Giá dịch vụ</label>
+								<label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#6b7280', userSelect: 'none' }}>
+									<input
+										type="checkbox"
+										checked={showPrice}
+										onChange={(e) => setShowPrice(e.target.checked)}
+										disabled={Boolean(createdCatalogItemId)}
+										style={{ display: 'none' }}
+									/>
+									<span style={{
+										width: '32px',
+										height: '18px',
+										backgroundColor: showPrice ? '#3b82f6' : '#d1d5db',
+										borderRadius: '999px',
+										display: 'inline-block',
+										position: 'relative',
+										transition: 'background-color 0.2s',
+									}}>
 										<span style={{
-											width: '32px',
-											height: '18px',
-											backgroundColor: showPrice ? '#3b82f6' : '#d1d5db',
-											borderRadius: '999px',
+											width: '14px',
+											height: '14px',
+											backgroundColor: '#ffffff',
+											borderRadius: '50%',
 											display: 'inline-block',
-											position: 'relative',
-											transition: 'background-color 0.2s',
-										}}>
-											<span style={{
-												width: '14px',
-												height: '14px',
-												backgroundColor: '#ffffff',
-												borderRadius: '50%',
-												display: 'inline-block',
-												position: 'absolute',
-												top: '2px',
-												left: showPrice ? '16px' : '2px',
-												transition: 'left 0.2s',
-												boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-											}} />
-										</span>
-										<span style={{ fontWeight: 500 }}>Hiển thị giá</span>
-									</label>
-								</div>
+											position: 'absolute',
+											top: '2px',
+											left: showPrice ? '16px' : '2px',
+											transition: 'left 0.2s',
+											boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+										}} />
+									</span>
+									<span style={{ fontWeight: 500 }}>Hiển thị giá</span>
+								</label>
+							</div>
+							<input
+								id="price"
+								type="number"
+								min="1"
+								inputMode="numeric"
+								pattern="[0-9]*"
+								value={price}
+								onChange={(e) => setPrice(e.target.value)}
+								disabled={Boolean(createdCatalogItemId) || !showPrice}
+								placeholder={showPrice ? "Nhập giá dịch vụ..." : "Liên hệ"}
+							/>
+						</div>
+					</div>
+					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginTop: 12 }}>
+						<div className="ui-field" style={{ marginBottom: 0, position: 'relative' }} ref={unitDropdownRef}>
+							<label htmlFor="unit">Đơn vị tính</label>
+							<div style={{ display: 'flex', gap: 6 }}>
 								<input
-									id="price"
-									type="number"
-									min="1"
-									value={price}
-									onChange={(e) => setPrice(e.target.value)}
-									disabled={Boolean(createdCatalogItemId) || !showPrice}
-									placeholder={showPrice ? "Nhập giá dịch vụ..." : "Liên hệ"}
+									id="unit"
+									readOnly
+									placeholder={isUnitsLoading ? 'Đang tải...' : 'Chọn đơn vị...'}
+									value={unit}
+									onClick={handleUnitInputClick}
+									style={{ cursor: createdCatalogItem ? 'not-allowed' : 'pointer', flex: 1 }}
+									disabled={Boolean(createdCatalogItem)}
 								/>
-							</div>
-						</div>
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="unit">Đơn vị</label>
-								<input id="unit" value={unit} onChange={(e) => setUnit(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
-							</div>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label htmlFor="warranty">Bảo hành (tháng)</label>
-								<input id="warranty" type="number" value={warrantyDurationMonths} onChange={(e) => setWarrantyDurationMonths(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
-							</div>
-						</div>
-
-						<div style={{ marginTop: 12 }}>
-							<div className="ui-field" style={{ marginBottom: 0 }}>
-								<label>Xe tương thích</label>
-								<CompatibleCarsSelector
-									value={compatibleCars}
-									onChange={setCompatibleCars}
-									disabled={Boolean(createdCatalogItemId)}
-								/>
-							</div>
-						</div>
-
-						<div style={{ marginTop: 12 }}>
-							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-								<div style={{ fontWeight: 600 }}>Thuế dịch vụ</div>
-								{isAddingNewProductTaxRule ? (
-									<div style={{ display: 'flex', gap: 8 }}>
-										<button
-											type="button"
-											className={styles['primary-button']}
-											onClick={handleCreateProductTaxRule}
-											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
-										>
-											{isCreatingProductTaxRule ? 'Đang thêm...' : 'Xác nhận thuế'}
-										</button>
-										<button
-											type="button"
-											className={styles['ghost-button']}
-											onClick={stopAddNewProductTaxRule}
-											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
-										>
-											Hủy
-										</button>
-									</div>
-								) : (
+								{!createdCatalogItem && (
 									<button
 										type="button"
-										className={styles['ghost-button']}
-										onClick={startAddNewProductTaxRule}
-										disabled={isTaxRulesLoading || Boolean(createdCatalogItemId)}
+										title="Thêm đơn vị mới"
+										onClick={() => { setShowUnitDropdown(true); setShowAddUnitInput(true); setUnitSearchQuery(''); }}
+										style={{
+											width: 34, height: 34, border: '1px solid #d1d5db', borderRadius: 8,
+											background: '#f9fafb', cursor: 'pointer', display: 'flex',
+											alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+											fontSize: 18, color: '#374151', lineHeight: 1,
+										}}
 									>
-										Thêm thuế
+										+
 									</button>
 								)}
 							</div>
 
-							{isAddingNewProductTaxRule ? (
-								<div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-									<div className="ui-field" style={{ marginBottom: 0 }}>
-										<label htmlFor="productTaxName">Tên thuế</label>
+							{showUnitDropdown && (
+								<div style={{
+									position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
+									background: 'white', border: '1px solid #e5e7eb', borderRadius: 10,
+									boxShadow: '0 8px 24px rgba(0,0,0,.12)', marginTop: 4, overflow: 'hidden',
+								}}>
+									<div style={{ padding: '8px 10px', borderBottom: '1px solid #f3f4f6' }}>
 										<input
-											id="productTaxName"
-											value={productTaxName}
-											onChange={(e) => setProductTaxName(e.target.value)}
-											placeholder="Ví dụ: VAT 10%"
-											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
+											autoFocus
+											placeholder="Tìm đơn vị..."
+											value={unitSearchQuery}
+											onChange={(e) => { setUnitSearchQuery(e.target.value); setShowAddUnitInput(false); }}
+											style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }}
 										/>
 									</div>
-									<div className="ui-field" style={{ marginBottom: 0 }}>
-										<label htmlFor="productTaxRate">Thuế suất</label>
-										<input
-											id="productTaxRate"
-											value={productTaxRate}
-											onChange={(e) => setProductTaxRate(e.target.value)}
-											placeholder="10 hoặc 0.1"
-											disabled={isCreatingProductTaxRule || Boolean(createdCatalogItemId)}
-										/>
-									</div>
-							</div>
-							) : (
-								<div className="ui-field" style={{ marginBottom: 0 }}>
-									<label htmlFor="productTaxRuleSelect">Chọn thuế</label>
-									<select
-										id="productTaxRuleSelect"
-										value={selectedProductTaxRuleId}
-										onChange={(e) => setSelectedProductTaxRuleId(e.target.value)}
-										disabled={isTaxRulesLoading || isCreatingCatalogItem || Boolean(createdCatalogItemId)}
-									>
-										<option value="">Không áp dụng</option>
-										{taxRules.map((t) => (
-											<option key={String(t.taxRuleId)} value={String(t.taxRuleId)}>
-												{getTaxRuleSelectLabel(t) || `#${t.taxRuleId}`}
-											</option>
+
+									<div style={{ maxHeight: 180, overflowY: 'auto' }}>
+										{filteredUnitsInline.length === 0 ? (
+											<div style={{ padding: '10px 14px', color: '#9ca3af', fontSize: 13 }}>Không tìm thấy đơn vị</div>
+										) : filteredUnitsInline.map((u) => (
+											<div
+												key={u.unitId}
+												onClick={() => handleSelectUnitInline(u.unitName)}
+												style={{
+													padding: '9px 14px', cursor: 'pointer', fontSize: 13,
+													background: unit === u.unitName ? '#eff6ff' : 'white',
+													color: unit === u.unitName ? '#2563eb' : '#111827',
+													fontWeight: unit === u.unitName ? 600 : 400,
+												}}
+												onMouseEnter={(e) => { if (unit !== u.unitName) e.currentTarget.style.background = '#f9fafb'; }}
+												onMouseLeave={(e) => { if (unit !== u.unitName) e.currentTarget.style.background = 'white'; }}
+											>
+												{u.unitName}
+											</div>
 										))}
-									</select>
-									{selectedProductTaxRule ? (
-										<div className={styles['filter-card__hint']}>
-											Thuế suất: {formatTaxRatePercent(selectedProductTaxRule) || '--'}
-										</div>
-									) : null}
+									</div>
+
+									<div style={{ borderTop: '1px solid #f3f4f6', padding: '8px 10px' }}>
+										{!showAddUnitInput ? (
+											<button
+												type="button"
+												onClick={() => setShowAddUnitInput(true)}
+												style={{ width: '100%', padding: '7px', border: '1px dashed #d1d5db', borderRadius: 6, background: 'none', cursor: 'pointer', color: '#2563eb', fontSize: 13, fontWeight: 600 }}
+											>
+												+ Thêm đơn vị mới
+											</button>
+										) : (
+											<div style={{ display: 'flex', gap: 6 }}>
+												<div style={{ flex: 1 }}>
+													<input
+														autoFocus
+														placeholder="Tên đơn vị mới..."
+														value={newUnitName}
+														onChange={(e) => setNewUnitName(e.target.value)}
+														onKeyDown={(e) => e.key === 'Enter' && handleCreateUnitInline()}
+														style={{
+															width: '100%', padding: '6px 10px', fontSize: 13, boxSizing: 'border-box',
+															border: `1px solid ${isNewUnitDuplicate ? '#ef4444' : '#d1d5db'}`, borderRadius: 6,
+															background: isNewUnitDuplicate ? '#fef2f2' : 'white',
+														}}
+													/>
+													{isNewUnitDuplicate && <span style={{ color: '#ef4444', fontSize: 11 }}>Đơn vị đã tồn tại!</span>}
+												</div>
+												<button
+													type="button"
+													onClick={handleCreateUnitInline}
+													disabled={isCreatingUnit || !newUnitName.trim() || isNewUnitDuplicate}
+													style={{
+														padding: '6px 12px', background: '#2563eb', color: 'white', border: 'none',
+														borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+														opacity: (isCreatingUnit || !newUnitName.trim() || isNewUnitDuplicate) ? 0.5 : 1,
+													}}
+												>
+													{isCreatingUnit ? '...' : 'Tạo'}
+												</button>
+												<button
+													type="button"
+													onClick={() => { setShowAddUnitInput(false); setNewUnitName(''); }}
+													style={{ padding: '6px 10px', background: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+												>
+													Hủy
+												</button>
+											</div>
+										)}
+									</div>
 								</div>
 							)}
 						</div>
-						<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
-							<label htmlFor="description">Mô tả</label>
-							<textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="warranty">Bảo hành (tháng)</label>
+							<input id="warranty" type="number" value={warrantyDurationMonths} onChange={(e) => setWarrantyDurationMonths(e.target.value)} disabled={Boolean(createdCatalogItemId)} />
 						</div>
-						<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
-							<label htmlFor="imageFile">Ảnh </label>
-							<input id="imageFile" type="file" accept="image/*" onChange={handleImageFileChange} disabled={Boolean(createdCatalogItemId)} />
-							{imagePreviewUrl ? (
-								<div style={{ marginTop: 8 }}>
-									{imageFile?.name ? <div style={{ fontSize: 12, marginBottom: 6 }}>{imageFile.name}</div> : null}
-									<img src={imagePreviewUrl} alt="Preview" style={{ maxWidth: 240, maxHeight: 240, objectFit: 'contain' }} />
-								</div>
-							) : null}
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="origin">Xuất xứ</label>
+							<input
+								id="origin"
+								readOnly
+								placeholder="Nhấn vào đây để chọn xuất xứ..."
+								value={origin === OTHER_OPTION_VALUE ? customOrigin : origin}
+								onClick={handleOriginInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
 						</div>
-
-						<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center', marginTop: 12 }}>
-							<button type="button" className={styles['primary-button']} onClick={handleSubmitService} disabled={isCreatingCatalogItem || Boolean(createdCatalogItemId)}>
-								{createdCatalogItemId ? `Đã tạo (#${createdCatalogItemId})` : isCreatingCatalogItem ? 'Đang tạo...' : 'Tạo dịch vụ'}
-							</button>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="color">Màu sắc</label>
+							<input
+								id="color"
+								readOnly
+								placeholder="Nhấn vào đây để chọn màu..."
+								value={color === OTHER_OPTION_VALUE ? customColor : color}
+								onClick={handleColorInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
 						</div>
-					</div>
-				) : null}
-
-				{/* Step 5-6: Specs */}
-				{canShowSpecsStep ? (
-					<div className={styles['pending-filters']} style={{ marginTop: 12 }}>
-						<div style={{ fontWeight: 600, marginBottom: 8 }}>5-6) Thông số (Spec Attribute + Specification Value)</div>
-						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-
-						</div>
-
-						<table className={styles['service-table']}>
-							<thead>
-								<tr>
-									<th style={{ width: 140 }}>Mã</th>
-									<th style={{ width: 220 }}>Thuộc tính</th>
-									<th>Giá trị</th>
-									<th style={{ width: 160 }}>Hành động</th>
-								</tr>
-							</thead>
-							<tbody>
-								{specDrafts.map((d, idx) => {
-									const options = Array.isArray(specAttributes) ? specAttributes : [];
-									const selectedAttr = specAttributes.find((sa) => String(sa.attributeId) === String(d.attributeId));
-									const selectedUnit = selectedAttr?.unit || '';
-
-									return (
-										<tr key={d.id}>
-											<td>{d.code}</td>
-											<td>
-												{d.isCreatingNew ? (
-													<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-														<input
-															className={styles['spec-input']}
-															value={d.displayName}
-															onChange={(e) =>
-																setSpecDrafts((prev) => prev.map((x, i) => (i === idx ? { ...x, displayName: e.target.value } : x)))
-															}
-															placeholder="Tên hiển thị"
-															disabled={d.creatingAttribute}
-														/>
-														<div style={{ display: 'flex', gap: 8 }}>
-															<input
-																className={styles['spec-input']}
-																value={d.unit}
-																onChange={(e) =>
-																setSpecDrafts((prev) => prev.map((x, i) => (i === idx ? { ...x, unit: e.target.value } : x)))
-															}
-															placeholder="Đơn vị"
-															disabled={d.creatingAttribute}
-															/>
-															<button
-																type="button"
-																className={styles['ghost-button']}
-																onClick={() => handleCreateSpecAttributeIfNeeded(idx)}
-																disabled={d.creatingAttribute || !d.displayName}
-															>
-																{d.creatingAttribute ? 'Đang tạo...' : 'Tạo thuộc tính'}
-															</button>
-															<button
-																type="button"
-																className={styles['ghost-button']}
-																onClick={() => setSpecDrafts((prev) => prev.map((x, i) => (i === idx ? { ...x, isCreatingNew: false } : x)))}
-															>
-																Huỷ
-															</button>
-														</div>
-													</div>
-												) : (
-													<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-														<select
-															className={styles['spec-select']}
-															value={d.attributeId || ''}
-															onChange={(e) => {
-																const val = e.target.value;
-																const attr = specAttributes.find((a) => String(a.attributeId) === String(val));
-																setSpecDrafts((prev) =>
-																	prev.map((x, i) =>
-																		i === idx
-																			? {
-																				...x,
-																				attributeId: val,
-																				code: attr?.attributeCode || x.code,
-																				displayName: attr?.displayName || x.displayName,
-																				unit: attr?.unit || x.unit,
-																			}
-																		: x,
-																	),
-																);
-															}}
-															disabled={isSpecAttributesLoading}
-														>
-															<option value="">Chọn thuộc tính</option>
-															{options.map((a) => (
-																<option key={String(a.attributeId)} value={String(a.attributeId)}>
-																	{a.displayName || a.attributeCode}
-																</option>
-															))}
-														</select>
-														<input className={styles['spec-input']} value={selectedUnit} readOnly placeholder="Đơn vị" style={{ minWidth: 100 }} />
-														<button
-															type="button"
-															className={styles['ghost-button']}
-															onClick={() => setSpecDrafts((prev) => prev.map((x, i) => (i === idx ? { ...x, isCreatingNew: true } : x)))}
-															disabled={d.creatingAttribute}
-														>
-															Tạo thuộc tính
-														</button>
-													</div>
-												)}
-											</td>
-											<td>
-												<input
-													className={styles['spec-input']}
-													value={d.specValue}
-													onChange={(e) =>
-														setSpecDrafts((prev) => prev.map((x, i) => (i === idx ? { ...x, specValue: e.target.value } : x)))
-													}
-													disabled={d.creatingSpec}
-												/>
-											</td>
-											<td>
-												<div style={{ display: 'flex', gap: 8 }}>
-													<button
-														type="button"
-														className={styles['primary-button']}
-														onClick={() => handleSaveSpecificationValue(idx)}
-														disabled={!createdCatalogItemId || d.creatingAttribute || d.creatingSpec || !d.attributeId || !String(d.specValue || '').trim()}
-													>
-														{d.creatingSpec ? 'Đang lưu...' : 'Lưu'}
-													</button>
-													<button
-														type="button"
-														className={styles['ghost-button']}
-														onClick={() => removeSpecDraft(idx)}
-														disabled={d.creatingAttribute || d.creatingSpec}
-													>
-														Xoá
-													</button>
-												</div>
-											</td>
-										</tr>
-									);
-								})}
-						</tbody>
-					</table>
-
-					<div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-						<button type="button" className={styles['ghost-button']} onClick={addSpecDraft}>
-							Thêm thông số
-						</button>
 					</div>
 
 					<div style={{ marginTop: 12 }}>
-						<div style={{ fontWeight: 600, marginBottom: 8,fontSize: 16 }}>Thông số đã lưu</div>
-						{isSpecsLoading ? (
-							<div className={styles['filter-card__hint']}>Đang tải...</div>
-						) : savedSpecs.length ? (
-							<table className={styles['service-table']}>
-								<thead>
-									<tr>
-										<th style={{ fontWeight: 600, fontSize: 15 }}>Thuộc tính</th>
-										<th style={{ fontWeight: 600, fontSize: 15 }}>Giá trị</th>
-                                        <th style={{ fontWeight: 600, fontSize: 15 }}>Đơn vị</th>
-									</tr>
-								</thead>
-								<tbody>
-									{savedSpecs.map((s, i) => {
-										const attr = specAttributes.find((a) => Number(a.attributeId) === Number(s?.attributeId));
-										return (
-											<tr key={`${s?.specId ?? ''}-${i}`}>
-												<td>{attr?.displayName || attr?.attributeCode || s?.attributeId || '-'}</td>
-												<td>{s?.specValue ?? '-'}</td>
-												<td>{s?.specUnit || attr?.unit || '-'}</td>
-											</tr>
-										);
-									})}
-								</tbody>
-							</table>
-						) : (
-							<div className={styles['filter-card__hint']}>Chưa có thông số.</div>
-						)}
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label>Xe tương thích</label>
+							<CompatibleCarsSelector
+								value={compatibleCars}
+								onChange={setCompatibleCars}
+								disabled={Boolean(createdCatalogItemId)}
+							/>
+						</div>
 					</div>
-				</div>
-				) : null}
-			</section>
-					<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-						<button type="button" className={styles['primary-button']} onClick={() => navigate(-1)}>
-							Quay lại
+
+					<div style={{ marginTop: 12 }}>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<label htmlFor="productTaxRuleSelect">Chọn thuế dịch vụ</label>
+							<input
+								id="productTaxRuleSelect"
+								readOnly
+								placeholder="Nhấn vào đây để chọn thuế..."
+								value={selectedProductTaxRule ? `${getTaxRuleSelectLabel(selectedProductTaxRule)} (${formatTaxRatePercent(selectedProductTaxRule)})` : 'Không áp dụng'}
+								onClick={handleProductTaxInputClick}
+								style={{ cursor: 'pointer' }}
+								disabled={isTaxRulesLoading || isCreatingCatalogItem || Boolean(createdCatalogItemId)}
+							/>
+						</div>
+					</div>
+					<div className="ui-field" style={{ marginTop: 12, marginBottom: 0 }}>
+						<label htmlFor="description">Mô tả ngắn</label>
+						<textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={Boolean(createdCatalogItemId)} placeholder="Nhập mô tả ngắn cho dịch vụ..." />
+					</div>
+
+					{!createdCatalogItemId && (
+						<div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #cbd5e1' }}>
+							<div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+								<div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+									Bài viết giới thiệu chi tiết dịch vụ
+								</div>
+								<div className="ui-field" style={{ marginBottom: 0 }}>
+									<label htmlFor="introText" style={{ fontWeight: 500 }}>Tóm tắt ngắn (Intro)</label>
+									<textarea
+										id="introText"
+										value={introText}
+										onChange={(e) => setIntroText(e.target.value)}
+										placeholder="Nhập phần giới thiệu ngắn hoặc tóm tắt của bài viết dịch vụ..."
+										style={{ minHeight: '80px' }}
+									/>
+								</div>
+
+								<div className="ui-field" style={{ marginBottom: 0 }}>
+									<label style={{ fontWeight: 500 }}>Chi tiết dịch vụ</label>
+									<div className={styles['editor-toolbar']}>
+										<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('bold')}><strong>B</strong></button>
+										<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('italic')}><em>I</em></button>
+										<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('uppercase')}>UPPER</button>
+										<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('ol')}>OL</button>
+										<button type="button" className={styles['editor-tool-btn']} onMouseDown={(e) => e.preventDefault()} onClick={() => handleToolbarClick('ul')}>UL</button>
+									</div>
+									<div
+										ref={editorRef}
+										className={styles['rich-editor']}
+										contentEditable
+										suppressContentEditableWarning
+										onInput={syncDetailFromEditor}
+										onBlur={syncDetailFromEditor}
+										style={{
+											minHeight: '200px',
+											border: '1px solid #cbd5e1',
+											borderRadius: '6px',
+											padding: '12px',
+											backgroundColor: '#fff',
+											overflowY: 'auto',
+										}}
+									/>
+									<div className={styles['editor-hint']}>Output HTML dùng các thẻ {'<strong>'}, {'<em>'}, span uppercase, {'<ol>'}, {'<ul>'}.</div>
+								</div>
+
+								<div className="ui-field" style={{ marginBottom: 0 }}>
+									<label style={{ fontWeight: 500 }}>Tải lên ảnh bổ sung cho bài viết (Media)</label>
+									<input
+										type="file"
+										accept="image/*,video/*"
+										multiple
+										onChange={handleBlogMediaChange}
+										style={{ padding: '6px', fontSize: '13px' }}
+									/>
+									{blogMediaFiles.length > 0 && (
+										<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+											{blogMediaFiles.map((m, idx) => (
+												<div key={m.id || idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', border: '1px solid #cbd5e1', overflow: 'hidden' }}>
+													<img src={m.previewUrl} alt="media preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+													<button
+														type="button"
+														onClick={() => removeBlogMedia(idx)}
+														style={{
+															position: 'absolute',
+															top: '2px',
+															right: '2px',
+															backgroundColor: 'rgba(239, 68, 68, 0.9)',
+															color: 'white',
+															border: 'none',
+															borderRadius: '50%',
+															width: '18px',
+															height: '18px',
+															fontSize: '11px',
+															cursor: 'pointer',
+															display: 'flex',
+															alignItems: 'center',
+															justifyContent: 'center',
+															padding: 0,
+														}}
+													>
+														×
+													</button>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							</div>
+						</div>
+					)}
+
+					<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center', marginTop: 16 }}>
+						<button
+							type="button"
+							className={styles['primary-button']}
+							onClick={handleSubmitService}
+							disabled={isCreatingCatalogItem || isBlogSubmitting}
+						>
+							{createdCatalogItemId ? `Đã tạo (#${createdCatalogItemId})` : (isCreatingCatalogItem || isBlogSubmitting) ? 'Đang tạo...' : 'Tạo dịch vụ'}
 						</button>
 					</div>
+				</div>
+			</section>
+
+			<div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 16 }}>
+				<button type="button" className={styles['primary-button']} onClick={() => navigate('/service-management')}>
+					Quay lại
+				</button>
+			</div>
 		</div>
 	);
 }
