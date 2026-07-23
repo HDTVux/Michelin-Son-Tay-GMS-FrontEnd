@@ -1,7 +1,8 @@
 .booking-page {
-  max-width: 1200px;
+  max-width: 100%;
+  width: 100%;
   margin: 0 auto;
-  padding: 32px 20px 60px;
+  padding: 24px 28px 60px;
   color: #1f2937;
   font-family: 'Inter', sans-serif;
 }
@@ -122,8 +123,11 @@
 }
 
 @media (max-width: 768px) {
-  .booking-page { padding: 20px 14px 48px; }
-  .booking-page .stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; }
-  /* Trên mobile cũng giữ khoảng cách hợp lý giữa số bước và thanh tiến trình */
-  .booking-page .progress-track { inset: 32px 0 auto; }
+  .booking-page { padding: 16px 10px 140px; width: 100%; }
+  .booking-page .stepper { gap: 8px; }
+  .booking-page .stepper .dot { width: 32px; height: 32px; font-size: 12px; }
+  .booking-page .stepper .label { font-size: 10px; line-height: 1.2; }
+  .booking-page .progress-track { top: 20px; height: 4px; }
+  .booking-page .section-title { font-size: 15px; margin-bottom: 8px; }
+  .booking-page .btn { padding: 10px 14px; font-size: 13px; }
 }

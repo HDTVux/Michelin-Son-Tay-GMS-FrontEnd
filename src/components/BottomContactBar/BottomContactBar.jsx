@@ -1,7 +1,13 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import './BottomContactBar.css';
 
 const BottomContactBar = () => {
+  const location = useLocation();
+  if (location.pathname === '/booking' || location.pathname.startsWith('/booking')) {
+    return null;
+  }
+
   return (
     <div className="bottomContactBar">
       <a href="tel:0987545680" className="contactBarBtn rescueBtn" aria-label="Gọi cứu hộ 24/7">

@@ -24,10 +24,12 @@ const STEPS = [
   { id: 'done', label: 'Hoàn tất' },
 ];
 
-// Chuyển đổi giá trị đầu vào thành loại mục (SERVICE hoặc PART)
+// Chuyển đổi giá trị đầu vào thành loại mục (SERVICE, PART, COMBO, hoặc EQUIPMENT)
 const toItemType = (value) => {
   const text = String(value || '').trim().toUpperCase();
-  if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART' || text === 'EQUIPMENT' || text === 'MACHINERY') return 'PART';
+  if (text === 'COMBO' || text === 'COMBO_ITEM') return 'COMBO';
+  if (text === 'EQUIPMENT' || text === 'MACHINERY' || text === 'TOOL' || text === 'DEVICE') return 'EQUIPMENT';
+  if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
   return 'SERVICE';
 };
 
