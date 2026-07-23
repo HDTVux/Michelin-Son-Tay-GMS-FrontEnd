@@ -357,11 +357,22 @@ Hãy trả về duy nhất 1 đoạn JSON chuẩn không chứa mã markdown bac
     try {
       setIsAiGenerating(true);
 
-      const res = await sendAiMessage({ message: prompt }).catch(() => null);
+      const res = await sendAiMessage({ message: prompt }).catch((err) => {
+        console.warn('[AI Combo Generator] Backend Gemini API returned error, falling back:', err?.message);
+        return null;
+      });
+
       const replyText = res?.reply ?? res?.data?.reply ?? (typeof res === 'string' ? res : '');
       const usageData = res?.usage ?? res?.data?.usage;
 
-      if (replyText) {
+      const isErrorReply = !replyText ||
+        replyText.includes('AI_UPSTREAM_ERROR') ||
+        replyText.includes('503') ||
+        replyText.includes('UNAVAILABLE') ||
+        replyText.includes('high demand') ||
+        replyText.includes('sự cố');
+
+      if (!isErrorReply) {
         let parsed = null;
         try {
           const cleanJson = replyText.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -383,7 +394,8 @@ Hãy trả về duy nhất 1 đoạn JSON chuẩn không chứa mã markdown bac
       }
 
       generateFallbackComboArticle(prompt);
-    } catch {
+    } catch (err) {
+      console.warn('[AI Combo Generator] Exception during AI generation, using fallback:', err);
       generateFallbackComboArticle(prompt);
     } finally {
       setIsAiGenerating(false);
@@ -1084,6 +1096,7 @@ Hãy trả về duy nhất 1 đoạn JSON chuẩn không chứa mã markdown bac
                 )}
                 <button
                   type="button"
+                  data-gms-no-global-loading="true"
                   className={styles['primary-button']}
                   style={{
                     background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',

@@ -21,6 +21,8 @@ import {
 	createWarehouseProductUnit,
 } from '../../../services/warehouseService.js';
 import { createServiceForCatalog } from '../../../services/blogService.js';
+import { sendAiMessage } from '../../../services/aiAssistantService.js';
+import { Sparkles } from 'lucide-react';
 
 const extractPayload = (response) => response?.data?.data ?? response?.data ?? response;
 
@@ -265,6 +267,8 @@ export default function CreateService() {
 		return Array.isArray(window._gms_create_service_blogMediaFiles) ? window._gms_create_service_blogMediaFiles : [];
 	});
 	const [isBlogSubmitting, setIsBlogSubmitting] = useState(false);
+	const [isAiGenerating, setIsAiGenerating] = useState(false);
+	const [aiTokenUsage, setAiTokenUsage] = useState(null);
 	const editorRef = useRef(null);
 
 	const [itemNameInput, setItemNameInput] = useState(() => initialDraft?.itemNameInput ?? '');
@@ -620,6 +624,122 @@ export default function CreateService() {
 	const handleOriginInputClick = useCallback(() => {
 		saveDraft('/part-management/select-origin');
 	}, [saveDraft]);
+
+	// ── AI Article Auto-Generator & Token Calculator for Service ──
+	const calculateTokenUsage = useCallback((promptStr, introStr, detailStr, resUsage) => {
+		if (resUsage?.totalTokens && resUsage?.promptTokens) {
+			return {
+				promptTokens: Number(resUsage.promptTokens) || 0,
+				responseTokens: Number(resUsage.responseTokens) || ((Number(resUsage.totalTokens) || 0) - (Number(resUsage.promptTokens) || 0)),
+				totalTokens: Number(resUsage.totalTokens) || 0,
+			};
+		}
+		const promptTokens = Math.ceil((promptStr || '').length / 3.5);
+		const responseTokens = Math.ceil(((introStr || '').length + (detailStr || '').length) / 3.5);
+		const totalTokens = promptTokens + responseTokens;
+		return { promptTokens, responseTokens, totalTokens };
+	}, []);
+
+	const generateFallbackServiceArticle = useCallback((promptText = '') => {
+		const title = String(itemNameInput || selectedCategory?.categoryName || 'Dịch vụ bảo dưỡng ô tô').trim();
+		const formattedPrice = price ? `${Number(price).toLocaleString('vi-VN')} VNĐ` : 'Ưu đãi liên hệ';
+		const duration = warrantyDurationMonths ? `${warrantyDurationMonths} tháng` : 'Theo quy chuẩn nhà sản xuất';
+
+		const intro = `Dịch vụ ${title} tại Michelin Sơn Tây cam kết mang tới giải pháp chăm sóc xe toàn diện với mức chi phí ưu đãi chỉ ${formattedPrice}. Kỹ thuật viên lành nghề cùng máy móc hiện đại giúp xế yêu luôn bền bỉ và an toàn.`;
+
+		const detailHtmlContent = `
+<h3>Tổng quan dịch vụ ${title}</h3>
+<p>Dịch vụ <strong>${title}</strong> được Garage Michelin Sơn Tây triển khai với quy trình thi công tiêu chuẩn nghiêm ngặt. Chúng tôi ứng dụng công nghệ chẩn đoán tiên tiến cùng thiết bị chuyên dụng, đáp ứng hoàn hảo mọi yêu cầu khắt khe của khách hàng.</p>
+
+<h3>Quy trình thi công tiêu chuẩn tại Michelin Sơn Tây</h3>
+<ul>
+  <li><strong>Bước 1:</strong> Tiếp nhận xe, đọc lỗi chẩn đoán toàn diện và tư vấn giải pháp tối ưu.</li>
+  <li><strong>Bước 2:</strong> Tiến hành thi công ${title} đúng kỹ thuật theo tiêu chuẩn nhà sản xuất.</li>
+  <li><strong>Bước 3:</strong> Kiểm tra vận hành thực tế, vệ sinh khu vực thi công và kiểm định an toàn.</li>
+  <li><strong>Bước 4:</strong> Bàn giao xe kèm phiếu bảo hành dịch vụ chính hãng <strong>${duration}</strong>.</li>
+</ul>
+
+<h3>Cam kết chất lượng dịch vụ</h3>
+<p>Chúng tôi cam kết sử dụng linh kiện và vật tư <strong>chính hãng 100%</strong>. Bảo hành dịch vụ <strong>${duration}</strong>, hỗ trợ kỹ thuật và kiểm tra tổng quát xe miễn phí cho mọi khách hàng.</p>
+		`.trim();
+
+		setIntroText(intro);
+		setDetailHtml(detailHtmlContent);
+		if (editorRef.current) {
+			editorRef.current.innerHTML = detailHtmlContent;
+		}
+		const usage = calculateTokenUsage(promptText, intro, detailHtmlContent, null);
+		setAiTokenUsage(usage);
+	}, [itemNameInput, selectedCategory, price, warrantyDurationMonths, calculateTokenUsage]);
+
+	const handleAiGenerateServiceArticle = useCallback(async () => {
+		if (isAiGenerating) return;
+
+		const title = String(itemNameInput || '').trim();
+		const categoryName = selectedCategory?.categoryName || '';
+		const prompt = `Bạn là chuyên gia truyền thông ô tô của Garage Michelin Sơn Tây. Hãy viết một bài viết giới thiệu thật hấp dẫn, chuyên nghiệp và đầy đủ thông tin cho Dịch vụ chăm sóc xe sau:
+- Tên dịch vụ: ${title || 'Dịch vụ bảo dưỡng xe chuyên nghiệp'}
+- Giá dịch vụ: ${price ? Number(price).toLocaleString('vi-VN') + ' VNĐ' : 'Ưu đãi liên hệ'}
+- Danh mục dịch vụ: ${categoryName || 'Bảo dưỡng định kỳ'}
+- Thời gian bảo hành: ${warrantyDurationMonths ? warrantyDurationMonths + ' tháng' : 'Theo quy định'}
+- Đơn vị tính: ${unit || 'Lượt/Gói'}
+- Xe tương thích: ${compatibleCars || 'Tất cả các dòng xe ô tô'}
+- Ghi chú/Mô tả dịch vụ: ${description || 'Dịch vụ thi công tiêu chuẩn chất lượng cao'}
+
+YÊU CẦU ĐỊNH DẠNG:
+Hãy trả về duy nhất 1 đoạn JSON chuẩn không chứa mã markdown backtick với cấu trúc:
+{
+  "intro": "Phần tóm tắt ngắn 2-3 câu làm nổi bật điểm sáng của dịch vụ...",
+  "detailHtml": "<h3>Giới thiệu dịch vụ</h3><p>...</p><h3>Quy trình thi công</h3><ul><li>...</li></ul><h3>Cam kết chất lượng</h3><p>...</p>"
+}`;
+
+		try {
+			setIsAiGenerating(true);
+
+			const res = await sendAiMessage({ message: prompt }).catch((err) => {
+				console.warn('[AI Service Generator] Backend Gemini API returned error, falling back:', err?.message);
+				return null;
+			});
+
+			const replyText = res?.reply ?? res?.data?.reply ?? (typeof res === 'string' ? res : '');
+			const usageData = res?.usage ?? res?.data?.usage;
+
+			const isErrorReply = !replyText ||
+				replyText.includes('AI_UPSTREAM_ERROR') ||
+				replyText.includes('503') ||
+				replyText.includes('UNAVAILABLE') ||
+				replyText.includes('high demand') ||
+				replyText.includes('sự cố');
+
+			if (!isErrorReply) {
+				let parsed = null;
+				try {
+					const cleanJson = replyText.replace(/```json/gi, '').replace(/```/g, '').trim();
+					parsed = JSON.parse(cleanJson);
+				} catch {
+					// JSON parse failure
+				}
+
+				if (parsed?.intro && parsed?.detailHtml) {
+					setIntroText(parsed.intro);
+					setDetailHtml(parsed.detailHtml);
+					if (editorRef.current) {
+						editorRef.current.innerHTML = parsed.detailHtml;
+					}
+					const usage = calculateTokenUsage(prompt, parsed.intro, parsed.detailHtml, usageData);
+					setAiTokenUsage(usage);
+					return;
+				}
+			}
+
+			generateFallbackServiceArticle(prompt);
+		} catch (err) {
+			console.warn('[AI Service Generator] Exception, using fallback:', err);
+			generateFallbackServiceArticle(prompt);
+		} finally {
+			setIsAiGenerating(false);
+		}
+	}, [itemNameInput, selectedCategory, price, warrantyDurationMonths, unit, compatibleCars, description, isAiGenerating, calculateTokenUsage, generateFallbackServiceArticle]);
 
 	const handleColorInputClick = useCallback(() => {
 		saveDraft('/part-management/select-color');
@@ -1415,8 +1535,51 @@ export default function CreateService() {
 					{!createdCatalogItemId && (
 						<div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #cbd5e1' }}>
 							<div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-								<div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-									Bài viết giới thiệu chi tiết dịch vụ
+								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #cbd5e1', paddingBottom: '8px', flexWrap: 'wrap', gap: 8 }}>
+									<div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+										Bài viết giới thiệu chi tiết dịch vụ
+									</div>
+									<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+										{aiTokenUsage && (
+											<div style={{
+												display: 'inline-flex',
+												alignItems: 'center',
+												gap: '6px',
+												fontSize: '12px',
+												color: '#334155',
+												backgroundColor: '#f1f5f9',
+												padding: '4px 8px',
+												borderRadius: '6px',
+												border: '1px solid #cbd5e1',
+											}}>
+												<Sparkles size={13} style={{ color: '#6366f1' }} />
+												<span>Token sử dụng: <strong>{aiTokenUsage.totalTokens.toLocaleString('vi-VN')}</strong> (Input: {aiTokenUsage.promptTokens} | Output: {aiTokenUsage.responseTokens})</span>
+											</div>
+										)}
+										<button
+											type="button"
+											data-gms-no-global-loading="true"
+											className={styles['primary-button']}
+											style={{
+												background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+												borderColor: '#4f46e5',
+												display: 'inline-flex',
+												alignItems: 'center',
+												gap: '6px',
+												fontSize: '13px',
+												padding: '6px 14px',
+												boxShadow: '0 2px 6px rgba(99, 102, 241, 0.25)',
+												cursor: isAiGenerating || isCreatingCatalogItem ? 'not-allowed' : 'pointer',
+												opacity: isAiGenerating || isCreatingCatalogItem ? 0.7 : 1,
+											}}
+											onClick={handleAiGenerateServiceArticle}
+											disabled={isAiGenerating || isCreatingCatalogItem}
+											title="Tự động đọc thông tin form và sử dụng AI để tạo bài viết dịch vụ"
+										>
+											<Sparkles size={16} />
+											<span>{isAiGenerating ? 'AI đang viết bài...' : '✨ AI tự động viết bài'}</span>
+										</button>
+									</div>
 								</div>
 								<div className="ui-field" style={{ marginBottom: 0 }}>
 									<label htmlFor="introText" style={{ fontWeight: 500 }}>Tóm tắt ngắn (Intro)</label>

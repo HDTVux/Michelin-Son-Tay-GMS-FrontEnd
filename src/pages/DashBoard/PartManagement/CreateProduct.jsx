@@ -23,6 +23,8 @@ import {
 	createWarehouseProductUnit,
 } from '../../../services/warehouseService.js';
 import { createServiceForCatalog } from '../../../services/blogService.js';
+import { sendAiMessage } from '../../../services/aiAssistantService.js';
+import { Sparkles } from 'lucide-react';
 
 const extractPayload = (response) => response?.data?.data ?? response?.data ?? response;
 
@@ -271,6 +273,8 @@ export default function CreateProduct() {
 		return Array.isArray(window._gms_create_product_blogMediaFiles) ? window._gms_create_product_blogMediaFiles : [];
 	});
 	const [isBlogSubmitting, setIsBlogSubmitting] = useState(false);
+	const [isAiGenerating, setIsAiGenerating] = useState(false);
+	const [aiTokenUsage, setAiTokenUsage] = useState(null);
 	const editorRef = useRef(null);
 
 	// Tên sản phẩm: gợi ý tự động từ nhóm/hãng/dòng/thông số, nhưng cho phép nhập tay.
@@ -858,6 +862,126 @@ export default function CreateProduct() {
 			}
 		};
 	}, [isScanning, stopScanningSku]);
+
+	// ── AI Article Auto-Generator & Token Calculator for Product ──
+	const calculateTokenUsage = useCallback((promptStr, introStr, detailStr, resUsage) => {
+		if (resUsage?.totalTokens && resUsage?.promptTokens) {
+			return {
+				promptTokens: Number(resUsage.promptTokens) || 0,
+				responseTokens: Number(resUsage.responseTokens) || ((Number(resUsage.totalTokens) || 0) - (Number(resUsage.promptTokens) || 0)),
+				totalTokens: Number(resUsage.totalTokens) || 0,
+			};
+		}
+		const promptTokens = Math.ceil((promptStr || '').length / 3.5);
+		const responseTokens = Math.ceil(((introStr || '').length + (detailStr || '').length) / 3.5);
+		const totalTokens = promptTokens + responseTokens;
+		return { promptTokens, responseTokens, totalTokens };
+	}, []);
+
+	const generateFallbackProductArticle = useCallback((promptText = '') => {
+		const title = String(itemNameInput || selectedCategory?.categoryName || 'Phụ tùng ô tô chính hãng').trim();
+		const brandName = selectedBrand?.brandName || 'Michelin Sơn Tây';
+		const formattedPrice = price ? `${Number(price).toLocaleString('vi-VN')} VNĐ` : 'Ưu đãi liên hệ';
+		const originText = origin || 'Chính hãng';
+
+		const intro = `${title} thương hiệu ${brandName} được phân phối chính hãng tại Michelin Sơn Tây với mức giá ưu đãi ${formattedPrice}. Sản phẩm đáp ứng tiêu chuẩn kỹ thuật nghiêm ngặt, đảm bảo độ bền và an toàn tối đa cho xế yêu.`;
+
+		const detailHtmlContent = `
+<h3>Tổng quan sản phẩm ${title}</h3>
+<p>Sản phẩm <strong>${title}</strong> từ thương hiệu <strong>${brandName}</strong> được thiết kế tối ưu cho khả năng vận hành bền bỉ và ổn định. Sản phẩm đạt đầy đủ các chứng nhận chất lượng quốc tế, phù hợp hoàn hảo cho hệ thống xe ô tô tại Việt Nam.</p>
+
+<h3>Đặc điểm nổi bật & Thông số kỹ thuật</h3>
+<ul>
+  <li><strong>Thương hiệu uy tín:</strong> Sản xuất bởi ${brandName} với công nghệ vật liệu chịu lực, chống mài mòn cao.</li>
+  <li><strong>Khả năng tương thích:</strong> Phù hợp cho ${compatibleCars || 'nhiều dòng xe ô tô phổ biến tại Việt Nam'}.</li>
+  <li><strong>Xuất xứ & Bảo hành:</strong> Xuất xứ ${originText}, bảo hành chính hãng theo tiêu chuẩn nhà sản xuất.</li>
+</ul>
+
+<h3>Cam kết từ Michelin Sơn Tây</h3>
+<p>Chúng tôi cam kết cung cấp phụ tùng <strong>chính hãng 100%</strong>, hỗ trợ kiểm tra quy chuẩn và tư vấn lắp đặt chuyên nghiệp bởi đội ngũ kỹ thuật viên giàu kinh nghiệm.</p>
+		`.trim();
+
+		setIntroText(intro);
+		setDetailHtml(detailHtmlContent);
+		if (editorRef.current) {
+			editorRef.current.innerHTML = detailHtmlContent;
+		}
+		const usage = calculateTokenUsage(promptText, intro, detailHtmlContent, null);
+		setAiTokenUsage(usage);
+	}, [itemNameInput, selectedBrand, selectedCategory, price, origin, compatibleCars, calculateTokenUsage]);
+
+	const handleAiGenerateProductArticle = useCallback(async () => {
+		if (isAiGenerating) return;
+
+		const title = String(itemNameInput || '').trim();
+		const brandName = selectedBrand?.brandName || '';
+		const categoryName = selectedCategory?.categoryName || '';
+		const productLineName = selectedProductLine?.productLineName || '';
+
+		const prompt = `Bạn là chuyên gia truyền thông ô tô của Garage Michelin Sơn Tây. Hãy viết một bài viết giới thiệu thật hấp dẫn, chuyên nghiệp và đầy đủ thông tin cho Phụ tùng sản phẩm ô tô sau:
+- Tên phụ tùng: ${title || 'Phụ tùng ô tô chính hãng'}
+- Thương hiệu: ${brandName || 'Chính hãng'}
+- Danh mục: ${categoryName || 'Phụ tùng ô tô'}
+- Dòng sản phẩm: ${productLineName || 'Tiêu chuẩn'}
+- Giá sản phẩm: ${price ? Number(price).toLocaleString('vi-VN') + ' VNĐ' : 'Ưu đãi liên hệ'}
+- Xuất xứ: ${origin || 'Chính hãng'}
+- Dòng xe tương thích: ${compatibleCars || 'Nhiều dòng xe phổ biến'}
+- Mô tả sản phẩm: ${description || 'Sản phẩm đạt chuẩn chất lượng quốc tế'}
+
+YÊU CẦU ĐỊNH DẠNG:
+Hãy trả về duy nhất 1 đoạn JSON chuẩn không chứa mã markdown backtick với cấu trúc:
+{
+  "intro": "Phần tóm tắt ngắn 2-3 câu làm nổi bật điểm sáng của phụ tùng...",
+  "detailHtml": "<h3>Tổng quan sản phẩm</h3><p>...</p><h3>Thông số & Đặc điểm nổi bật</h3><ul><li>...</li></ul><h3>Chính sách bảo hành & Cam kết</h3><p>...</p>"
+}`;
+
+		try {
+			setIsAiGenerating(true);
+
+			const res = await sendAiMessage({ message: prompt }).catch((err) => {
+				console.warn('[AI Product Generator] Backend Gemini API returned error, falling back:', err?.message);
+				return null;
+			});
+
+			const replyText = res?.reply ?? res?.data?.reply ?? (typeof res === 'string' ? res : '');
+			const usageData = res?.usage ?? res?.data?.usage;
+
+			const isErrorReply = !replyText ||
+				replyText.includes('AI_UPSTREAM_ERROR') ||
+				replyText.includes('503') ||
+				replyText.includes('UNAVAILABLE') ||
+				replyText.includes('high demand') ||
+				replyText.includes('sự cố');
+
+			if (!isErrorReply) {
+				let parsed = null;
+				try {
+					const cleanJson = replyText.replace(/```json/gi, '').replace(/```/g, '').trim();
+					parsed = JSON.parse(cleanJson);
+				} catch {
+					// JSON parse failure
+				}
+
+				if (parsed?.intro && parsed?.detailHtml) {
+					setIntroText(parsed.intro);
+					setDetailHtml(parsed.detailHtml);
+					if (editorRef.current) {
+						editorRef.current.innerHTML = parsed.detailHtml;
+					}
+					const usage = calculateTokenUsage(prompt, parsed.intro, parsed.detailHtml, usageData);
+					setAiTokenUsage(usage);
+					return;
+				}
+			}
+
+			generateFallbackProductArticle(prompt);
+		} catch (err) {
+			console.warn('[AI Product Generator] Exception, using fallback:', err);
+			generateFallbackProductArticle(prompt);
+		} finally {
+			setIsAiGenerating(false);
+		}
+	}, [itemNameInput, selectedBrand, selectedCategory, selectedProductLine, price, origin, compatibleCars, description, isAiGenerating, calculateTokenUsage, generateFallbackProductArticle]);
 
 	const handleSubmitProduct = useCallback(async () => {
 		if (isCreatingCatalogItem) return;
@@ -1661,8 +1785,51 @@ export default function CreateProduct() {
 					{!createdCatalogItemId && (
 						<div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #cbd5e1' }}>
 							<div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-								<div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-									Bài viết giới thiệu chi tiết sản phẩm
+								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #cbd5e1', paddingBottom: '8px', flexWrap: 'wrap', gap: 8 }}>
+									<div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+										Bài viết giới thiệu chi tiết sản phẩm
+									</div>
+									<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+										{aiTokenUsage && (
+											<div style={{
+												display: 'inline-flex',
+												alignItems: 'center',
+												gap: '6px',
+												fontSize: '12px',
+												color: '#334155',
+												backgroundColor: '#f1f5f9',
+												padding: '4px 8px',
+												borderRadius: '6px',
+												border: '1px solid #cbd5e1',
+											}}>
+												<Sparkles size={13} style={{ color: '#6366f1' }} />
+												<span>Token sử dụng: <strong>{aiTokenUsage.totalTokens.toLocaleString('vi-VN')}</strong> (Input: {aiTokenUsage.promptTokens} | Output: {aiTokenUsage.responseTokens})</span>
+											</div>
+										)}
+										<button
+											type="button"
+											data-gms-no-global-loading="true"
+											className={styles['primary-button']}
+											style={{
+												background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+												borderColor: '#4f46e5',
+												display: 'inline-flex',
+												alignItems: 'center',
+												gap: '6px',
+												fontSize: '13px',
+												padding: '6px 14px',
+												boxShadow: '0 2px 6px rgba(99, 102, 241, 0.25)',
+												cursor: isAiGenerating || isCreatingCatalogItem ? 'not-allowed' : 'pointer',
+												opacity: isAiGenerating || isCreatingCatalogItem ? 0.7 : 1,
+											}}
+											onClick={handleAiGenerateProductArticle}
+											disabled={isAiGenerating || isCreatingCatalogItem}
+											title="Tự động đọc thông tin form và sử dụng AI để tạo bài viết sản phẩm"
+										>
+											<Sparkles size={16} />
+											<span>{isAiGenerating ? 'AI đang viết bài...' : '✨ AI tự động viết bài'}</span>
+										</button>
+									</div>
 								</div>
 								<div className="ui-field" style={{ marginBottom: 0 }}>
 									<label htmlFor="introText" style={{ fontWeight: 500 }}>Tóm tắt ngắn (Intro)</label>
