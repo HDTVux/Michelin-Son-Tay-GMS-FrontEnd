@@ -8,6 +8,7 @@ import serviceFallback from '../../../assets/lop and mam.jpg';
 import serviceHeroImage from '../../../assets/anh_dich_vu.jpg';
 import partHeroImage from '../../../assets/anh_kho.jpg';
 import processImg from '../../../assets/Quy trình 7 bước (1).png';
+import DynamicBanner from '../../../components/DynamicBanner/DynamicBanner.jsx';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
 const toPositiveNumber = (value) => {
@@ -1430,6 +1431,9 @@ const Services = ({ homeRows = false }) => {
                   )}
                 </div>
               </div>
+            </div>
+            <div style={{ marginTop: '30px' }}>
+              <DynamicBanner locationCode="SERVICES_BANNER" variant="sidebar" />
             </div>
           </aside>
 

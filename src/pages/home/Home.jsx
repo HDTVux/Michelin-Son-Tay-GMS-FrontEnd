@@ -7,6 +7,7 @@ import Banner from './Banner/Banner.jsx';
 import Form from './Form/Form.jsx';
 import BussinessInfor from './BusinessInfo/BussinessInfor.jsx';
 import Partners from './Partners/Partners.jsx';
+import DynamicBanner from '../../components/DynamicBanner/DynamicBanner.jsx';
 
 const SITE_TITLE = 'Đại lý garage Sơn Tây - michelinsontay - Trung tâm dịch vụ lốp xe uy tín';
 const SITE_DESCRIPTION =
@@ -111,6 +112,10 @@ const Home = () => {
         <Banner/>
         
         <Service homeRows />
+
+        <div className="container" style={{ padding: '0 20px' }}>
+            <DynamicBanner locationCode="HOME_SUB" />
+        </div>
 
         <Partners/>
         {!isAuthenticated && <Form/>}

@@ -1,0 +1,121 @@
+.dynamic-banner-container {
+    width: 100%;
+    margin: 30px 0;
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    background: #f5f5f5;
+}
+
+.dynamic-banner-track {
+    display: flex;
+    transition: transform 0.5s ease-in-out;
+    width: 100%;
+    height: 100%;
+}
+
+.dynamic-banner-slide {
+    min-width: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.dynamic-banner-image {
+    width: 100%;
+    max-height: 350px;
+    object-fit: cover;
+    display: block;
+    cursor: pointer;
+}
+
+.dynamic-banner-link {
+    width: 100%;
+    display: block;
+}
+
+.dynamic-banner-dots {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+}
+
+.dynamic-banner-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    padding: 0;
+}
+
+.dynamic-banner-dot.active {
+    background: #fff;
+    transform: scale(1.2);
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+@media (max-width: 768px) {
+    .dynamic-banner-image {
+        max-height: 200px;
+    }
+}
+
+/* SIDEBAR VARIANT - Beautiful Glassmorphism & Hover effects */
+.dynamic-banner-container.variant-sidebar {
+    margin: 0 0 20px 0;
+    border-radius: 18px;
+    box-shadow: 0 10px 40px -10px rgba(0,0,0,0.2);
+    background: linear-gradient(145deg, rgba(255,255,255,0.4), rgba(255,255,255,0.1));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    overflow: hidden; /* Ensure gradient border doesn't leak */
+}
+
+/* Gradient glowing border effect using pseudo-element */
+.dynamic-banner-container.variant-sidebar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 18px;
+    padding: 2px;
+    background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.dynamic-banner-container.variant-sidebar:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 50px -15px rgba(59, 130, 246, 0.3);
+}
+
+.dynamic-banner-container.variant-sidebar:hover::before {
+    opacity: 1; /* Show glowing border on hover */
+}
+
+.variant-sidebar .dynamic-banner-image {
+    max-height: none; /* Let it scale based on natural aspect ratio */
+    border-radius: 16px;
+    transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
+    display: block;
+}
+
+.variant-sidebar:hover .dynamic-banner-image {
+    transform: scale(1.05);
+}
+

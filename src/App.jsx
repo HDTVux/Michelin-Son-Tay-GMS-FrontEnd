@@ -73,6 +73,7 @@ import AttendanceCheckin from './pages/DashBoard/AttendanceCheckin/AttendanceChe
 import AttendanceRequest from './pages/DashBoard/AttendanceRequest/AttendanceRequest.jsx';
 import AttendanceRequestManagement from './pages/DashBoard/AttendanceRequestManagement/AttendanceRequestManagement.jsx';
 import PromotionManagement from './pages/DashBoard/PromotionManagement/PromotionManagement.jsx';
+import SliderManagement from './pages/DashBoard/SliderManagement/SliderManagement.jsx';
 import SystemLogManagement from './pages/DashBoard/SystemReport/SystemLogManagement.jsx';
 import BackendLogViewer from './pages/DashBoard/BackendLogViewer/BackendLogViewer.jsx';
 import FeedbackManagement from './pages/DashBoard/FeedbackManagement/FeedbackManagement.jsx';
@@ -467,6 +468,7 @@ export default function App() {
               <Route path="service-management/create-service" element={staffRoute(<CreateService />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="promotion-management" element={staffRoute(<PromotionManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="promotion-management/create" element={staffRoute(<PromotionManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
+              <Route path="slider-management" element={staffRoute(<SliderManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="shift-management" element={staffRoute(<ShiftManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="attendance-management" element={staffRoute(<AttendanceManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="attendance-locations" element={staffRoute(<AttendanceLocationManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />

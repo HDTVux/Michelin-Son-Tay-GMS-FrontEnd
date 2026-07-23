@@ -3,26 +3,16 @@ import './Banner.css';
 import wheel1 from '../../../assets/wheel1.png'
 import wheel2 from '../../../assets/wheel2.jpg'
 import wheel3 from '../../../assets/wheel3.jpg'
+import { sliderService } from '../../../services/sliderService';
 
 export default function Banner() {
-    const slides = [
-        {
-            id: 1,
-            img: wheel1,
-            title: 'GARA Ô TÔ SƠN TÂY DỊCH VỤ 24/7',
-        },
-        {
-            id: 2,
-            img: wheel2,
-            title: 'CUNG CẤP LỐP, DẦU NHỚT, ẮC QUY CHÍNH HÃNG',
-        },
-        {
-            id: 3,
-            img: wheel3,
-            title: 'GARAGE HIỆN ĐẠI, DỊCH VỤ CHUẨN QUỐC TẾ',
-        }
+    const defaultSlides = [
+        { id: 'd1', img: wheel1, title: 'GARA Ô TÔ SƠN TÂY DỊCH VỤ 24/7' },
+        { id: 'd2', img: wheel2, title: 'CUNG CẤP LỐP, DẦU NHỚT, ẮC QUY CHÍNH HÃNG' },
+        { id: 'd3', img: wheel3, title: 'GARAGE HIỆN ĐẠI, DỊCH VỤ CHUẨN QUỐC TẾ' }
     ];
 
+    const [slides, setSlides] = useState([]);
     const [index, setIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
     const [textVisible, setTextVisible] = useState(true);
@@ -32,8 +22,38 @@ export default function Banner() {
     const pointer = useRef({ startX: 0, deltaX: 0, dragging: false });
 
     useEffect(() => {
+        const fetchDynamicSlides = async () => {
+            try {
+                const data = await sliderService.getSliderByLocation('HOME_MAIN');
+                if (data && data.items && data.items.length > 0) {
+                    const activeAndSortedItems = data.items
+                        .filter(item => item.isActive !== false)
+                        .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+
+                    if (activeAndSortedItems.length > 0) {
+                        const mappedSlides = activeAndSortedItems.map(item => ({
+                            id: item.id,
+                            img: item.imageUrl,
+                            title: item.title || item.subtitle || '', // Fallback to subtitle if no title
+                            link: item.targetUrl
+                        }));
+                        setSlides(mappedSlides);
+                        return;
+                    }
+                }
+                // Fallback if no dynamic slides are found
+                setSlides(defaultSlides);
+            } catch (error) {
+                console.error("Failed to fetch dynamic slider, using defaults", error);
+                setSlides(defaultSlides);
+            }
+        };
+        fetchDynamicSlides();
+    }, []);
+
+    useEffect(() => {
         const id = setInterval(() => {
-            if (!isPaused) {
+            if (!isPaused && slides.length > 0) {
                 setTextVisible(false);
                 setTimeout(() => {
                     setIndex(i => (i + 1) % slides.length);
@@ -98,12 +118,14 @@ export default function Banner() {
         pointer.current.dragging = false;
         setIsPaused(false);
         const dx = pointer.current.deltaX;
-        if (Math.abs(dx) > 40) {
+        if (Math.abs(dx) > 40 && slides.length > 0) {
             if (dx < 0) setIndex(i => (i + 1) % slides.length);
             else setIndex(i => (i - 1 + slides.length) % slides.length);
         }
         pointer.current.deltaX = 0;
     }
+
+    if (slides.length === 0) return null;
 
     return (
         <section
@@ -132,14 +154,23 @@ export default function Banner() {
                         onTouchMove={onPointerMove}
                         onTouchEnd={onPointerUp}
                     >
-                        {slides.map((s) => (
+                        {slides.map((s, idx) => (
                             <div className="slide" key={s.id}>
-                                <img src={s.img} alt={`Banner slide ${s.id}`} className="slide-image fixed-zoom" draggable={false} />
-                                <div className={`slide-text ${textVisible && index === s.id - 1 ? 'visible' : ''}`}>
-                                    <h1 className="banner-title">
-                                        <span className="titlePart1">{s.title}</span>
-                                    </h1>
-                                </div>
+                                {s.link ? (
+                                    <a href={s.link} target="_blank" rel="noopener noreferrer">
+                                        <img src={s.img} alt={`Banner slide ${idx + 1}`} className="slide-image fixed-zoom" draggable={false} />
+                                    </a>
+                                ) : (
+                                    <img src={s.img} alt={`Banner slide ${idx + 1}`} className="slide-image fixed-zoom" draggable={false} />
+                                )}
+                                
+                                {s.title && (
+                                    <div className={`slide-text ${textVisible && index === idx ? 'visible' : ''}`}>
+                                        <h1 className="banner-title">
+                                            <span className="titlePart1">{s.title}</span>
+                                        </h1>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

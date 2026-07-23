@@ -48,6 +48,7 @@ const SEARCHABLE_FUNCTIONS = [
   { id: 'attendance-request-management', label: 'Duyệt đơn chấm công', path: '/attendance-request-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'staff-notification-sender', label: 'Thông báo nhân viên', path: '/staff-notification-sender', roles: ['RECEPTIONIST', 'MANAGER', 'ADMIN'] },
   { id: 'promotion-management', label: 'Quản lý khuyến mãi', path: '/promotion-management', roles: ['MANAGER', 'ADMIN'] },
+  { id: 'slider-management', label: 'Quản lý Slider & Banner', path: '/slider-management', roles: ['MANAGER', 'ADMIN'] },
   { id: 'maintenance-reminders', label: 'Nhắc lịch bảo dưỡng', path: '/maintenance-reminders', roles: ['RECEPTIONIST', 'MANAGER'] },
   { id: 'announcement-campaign', label: 'Chiến dịch thông báo', path: '/announcement_campaign', roles: ['RECEPTIONIST', 'MANAGER'] },
   { id: 'feedback-management', label: 'Quản lý feedback', path: '/feedback-management', roles: ['MANAGER', 'ADMIN'] },
