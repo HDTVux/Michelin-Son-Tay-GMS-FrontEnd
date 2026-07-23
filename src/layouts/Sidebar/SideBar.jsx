@@ -43,6 +43,8 @@ import {
     ShoppingCart,
     MapPin,
     ScanQrCode,
+    ListTodo,
+    Image,
 } from 'lucide-react';
 import UniversalScannerModal from '../../components/UniversalScanner/UniversalScannerModal.jsx';
 import UniversalSearch from '../../components/UniversalSearch/UniversalSearch.jsx';
@@ -218,6 +220,7 @@ const NAV_GROUPS = [
                 icon: <Megaphone size={15} />,
                 items: [
                     { id: 'promotion-management', label: 'Quản lý khuyến mãi', path: '/promotion-management', icon: <Gift size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                    { id: 'slider-management', label: 'Quản lý Slider & Banner', path: '/slider-management', icon: <Image size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                     { id: 'maintenance-reminders', label: 'Nhắc lịch bảo dưỡng', path: '/maintenance-reminders', icon: <Bell size={18} />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER] },
                     { id: 'announcement-campaign', label: 'Chiến dịch thông báo', path: '/announcement_campaign', icon: <Megaphone size={18} />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER] },
                     { id: 'feedback-management', label: 'Quản lý feedback', path: '/feedback-management', icon: <Star size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
