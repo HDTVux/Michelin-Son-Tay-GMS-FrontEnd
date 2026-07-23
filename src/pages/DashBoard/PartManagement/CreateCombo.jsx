@@ -11,8 +11,9 @@ import {
   fetchWarehouseBrands,
   fetchWarehouseProductLines,
 } from '../../../services/warehouseService.js';
+import { sendAiMessage } from '../../../services/aiAssistantService.js';
 import styles from './ServiceManagement.module.css';
-import { Search, X, Plus, Trash2, Layers } from 'lucide-react';
+import { Search, X, Plus, Trash2, Layers, Sparkles } from 'lucide-react';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
 const stripHtml = (value) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -114,6 +115,8 @@ export default function CreateCombo() {
   const [introText, setIntroText] = useState('');
   const [detailHtml, setDetailHtml] = useState('');
   const [blogMediaFiles, setBlogMediaFiles] = useState([]);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [aiTokenUsage, setAiTokenUsage] = useState(null);
   const editorRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -277,6 +280,115 @@ export default function CreateCombo() {
     if (action === 'ul') return applyExecCommand('insertUnorderedList');
     return undefined;
   }, [applyExecCommand, applyInlineTag]);
+
+  // ── AI Article Auto-Generator & Token Calculator ──
+  const calculateTokenUsage = useCallback((promptStr, introStr, detailStr, resUsage) => {
+    if (resUsage?.totalTokens && resUsage?.promptTokens) {
+      return {
+        promptTokens: Number(resUsage.promptTokens) || 0,
+        responseTokens: Number(resUsage.responseTokens) || ((Number(resUsage.totalTokens) || 0) - (Number(resUsage.promptTokens) || 0)),
+        totalTokens: Number(resUsage.totalTokens) || 0,
+      };
+    }
+    const promptTokens = Math.ceil((promptStr || '').length / 3.5);
+    const responseTokens = Math.ceil(((introStr || '').length + (detailStr || '').length) / 3.5);
+    const totalTokens = promptTokens + responseTokens;
+    return { promptTokens, responseTokens, totalTokens };
+  }, []);
+
+  const generateFallbackComboArticle = useCallback((promptText = '') => {
+    const title = String(itemName || 'Gói Combo bảo dưỡng xe chuyên nghiệp').trim();
+    const formattedPrice = price ? `${Number(price).toLocaleString('vi-VN')} VNĐ` : 'Ưu đãi liên hệ';
+    const duration = comboDurationMonths ? `${comboDurationMonths} tháng` : 'Theo quy chuẩn nhà sản xuất';
+
+    const subItemsFormatted = subItems.map((item) => {
+      const matched = catalogMap.get(Number(item.includedItemId));
+      return matched?.itemName ? `${matched.itemName} (Số lượng: ${item.quantity || 1})` : null;
+    }).filter(Boolean);
+
+    const intro = `Gói ${title} tại Michelin Sơn Tây giúp xế yêu vận hành êm ái, bền bỉ với chi phí ưu đãi trọn gói chỉ ${formattedPrice}. Quy trình thi công đạt chuẩn quốc tế cùng chính sách bảo hành uy tín ${duration}.`;
+
+    const detailHtmlContent = `
+<h3>Giới thiệu gói ${title}</h3>
+<p>Dịch vụ <strong>${title}</strong> tại Garage Michelin Sơn Tây là sự kết hợp hoàn hảo giữa các hạng mục chăm sóc xe chuyên sâu và phụ tùng chính hãng. Gói dịch vụ giúp tối ưu hiệu suất động cơ, đảm bảo an toàn tuyệt đối cho hành trình của bạn.</p>
+
+<h3>Các hạng mục nổi bật trong gói Combo</h3>
+${subItemsFormatted.length > 0
+  ? `<ul>${subItemsFormatted.map((name) => `<li><strong>${name}</strong></li>`).join('')}</ul>`
+  : `<p>Combo bao gồm kiểm tra xe tổng thể, thay dầu nhớt động cơ cao cấp, kiểm tra cân chỉnh hệ thống lốp xe, bảo dưỡng hệ thống phanh và kiểm tra bình ắc quy.</p>`
+}
+
+<h3>Cam kết chất lượng từ Michelin Sơn Tây</h3>
+<p>Tất cả sản phẩm và thiết bị thi công cam kết <strong>chính hãng 100%</strong>. Áp dụng chính sách bảo hành <strong>${duration}</strong>. Đội ngũ kỹ thuật viên giàu kinh nghiệm trực tiếp thực hiện và kiểm định chất lượng trước khi bàn giao xe cho khách hàng.</p>
+    `.trim();
+
+    setIntroText(intro);
+    setDetailHtml(detailHtmlContent);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = detailHtmlContent;
+    }
+    const usage = calculateTokenUsage(promptText, intro, detailHtmlContent, null);
+    setAiTokenUsage(usage);
+  }, [itemName, price, comboDurationMonths, subItems, catalogMap, calculateTokenUsage]);
+
+  const handleAiGenerateArticle = useCallback(async () => {
+    if (isAiGenerating) return;
+
+    const title = String(itemName || '').trim();
+    const subItemsFormatted = subItems.map((item) => {
+      const matched = catalogMap.get(Number(item.includedItemId));
+      return matched?.itemName ? `${matched.itemName} (Số lượng: ${item.quantity || 1})` : null;
+    }).filter(Boolean);
+
+    const prompt = `Bạn là chuyên gia truyền thông ô tô của Garage Michelin Sơn Tây. Hãy viết một bài viết giới thiệu thật hấp dẫn, chuyên nghiệp và đầy đủ thông tin cho Gói Combo bảo dưỡng sau:
+- Tên gói Combo: ${title || 'Gói bảo dưỡng xe định kỳ'}
+- Giá gói Combo: ${price ? Number(price).toLocaleString('vi-VN') + ' VNĐ' : 'Ưu đãi liên hệ'}
+- Thời gian bảo hành/hiệu lực: ${comboDurationMonths ? comboDurationMonths + ' tháng' : 'Theo quy định'}
+- Các dịch vụ & phụ tùng đi kèm trong gói: ${subItemsFormatted.length > 0 ? subItemsFormatted.join(', ') : 'Kiểm tra xe tổng thể, thay dầu nhớt chính hãng, cân chỉnh lốp và phanh'}
+- Ghi chú/Mô tả từ Garage: ${comboDescription || 'Hạng mục bảo dưỡng tối ưu cho xế yêu'}
+
+YÊU CẦU ĐỊNH DẠNG:
+Hãy trả về duy nhất 1 đoạn JSON chuẩn không chứa mã markdown backtick với cấu trúc:
+{
+  "intro": "Phần tóm tắt ngắn 2-3 câu làm nổi bật điểm sáng của gói combo...",
+  "detailHtml": "<h3>Giới thiệu gói Combo</h3><p>...</p><h3>Hạng mục chi tiết</h3><ul><li>...</li></ul><h3>Quyền lợi bảo dưỡng</h3><p>...</p>"
+}`;
+
+    try {
+      setIsAiGenerating(true);
+
+      const res = await sendAiMessage({ message: prompt }).catch(() => null);
+      const replyText = res?.reply ?? res?.data?.reply ?? (typeof res === 'string' ? res : '');
+      const usageData = res?.usage ?? res?.data?.usage;
+
+      if (replyText) {
+        let parsed = null;
+        try {
+          const cleanJson = replyText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          parsed = JSON.parse(cleanJson);
+        } catch {
+          // JSON parse failure
+        }
+
+        if (parsed?.intro && parsed?.detailHtml) {
+          setIntroText(parsed.intro);
+          setDetailHtml(parsed.detailHtml);
+          if (editorRef.current) {
+            editorRef.current.innerHTML = parsed.detailHtml;
+          }
+          const usage = calculateTokenUsage(prompt, parsed.intro, parsed.detailHtml, usageData);
+          setAiTokenUsage(usage);
+          return;
+        }
+      }
+
+      generateFallbackComboArticle(prompt);
+    } catch {
+      generateFallbackComboArticle(prompt);
+    } finally {
+      setIsAiGenerating(false);
+    }
+  }, [itemName, price, comboDurationMonths, subItems, comboDescription, catalogMap, isAiGenerating, calculateTokenUsage, generateFallbackComboArticle]);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -949,8 +1061,50 @@ export default function CreateCombo() {
 
           {/* Card 3: Bài viết giới thiệu gói Combo (Hiển thị trên landing page) */}
           <div className={styles['pending-filters']} style={{ marginTop: 16 }}>
-            <div style={{ fontWeight: 600, marginBottom: 12, fontSize: '15px', color: '#0f172a' }}>
-              3) Bài viết giới thiệu gói Combo (hiển thị trên landing page)
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontWeight: 600, fontSize: '15px', color: '#0f172a' }}>
+                3) Bài viết giới thiệu gói Combo (hiển thị trên landing page)
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {aiTokenUsage && (
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '12px',
+                    color: '#334155',
+                    backgroundColor: '#f1f5f9',
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                  }}>
+                    <Sparkles size={13} style={{ color: '#6366f1' }} />
+                    <span>Token sử dụng: <strong>{aiTokenUsage.totalTokens.toLocaleString('vi-VN')}</strong> (Input: {aiTokenUsage.promptTokens} | Output: {aiTokenUsage.responseTokens})</span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className={styles['primary-button']}
+                  style={{
+                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    borderColor: '#4f46e5',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '13px',
+                    padding: '6px 14px',
+                    boxShadow: '0 2px 6px rgba(99, 102, 241, 0.25)',
+                    cursor: isAiGenerating || isSubmitting ? 'not-allowed' : 'pointer',
+                    opacity: isAiGenerating || isSubmitting ? 0.7 : 1,
+                  }}
+                  onClick={handleAiGenerateArticle}
+                  disabled={isAiGenerating || isSubmitting}
+                  title="Tự động đọc thông tin form và sử dụng AI để tạo bài viết giới thiệu"
+                >
+                  <Sparkles size={16} />
+                  <span>{isAiGenerating ? 'AI đang viết bài...' : '✨ AI tự động viết bài'}</span>
+                </button>
+              </div>
             </div>
 
             <div className="ui-field" style={{ marginBottom: 16 }}>
