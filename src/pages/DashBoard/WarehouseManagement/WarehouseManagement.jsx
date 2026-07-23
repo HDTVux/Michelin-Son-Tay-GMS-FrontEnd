@@ -235,6 +235,52 @@ const getWarehouseSellingPrice = (detail) => {
 
 const ITEM_TYPE_LABELS = { PART: 'Phụ tùng', SERVICE: 'Dịch vụ', PRODUCT: 'Sản phẩm', MACHINERY: 'Máy móc', EQUIPMENT: 'Thiết bị', COMBO: 'Combo', MAINTENANCE_PACKAGE: 'Gói bảo dưỡng' };
 const getItemTypeText = (item) => ITEM_TYPE_LABELS[String(item?.itemType || '').toUpperCase()] || item?.itemType || '-';
+
+const renderItemTypeBadge = (item) => {
+  const rawType = String(item?.itemType || item?.type || '').toUpperCase();
+  const label = getItemTypeText(item);
+
+  let bg = '#f1f5f9';
+  let color = '#475569';
+  let border = '#e2e8f0';
+
+  if (rawType === 'SERVICE') {
+    bg = '#e0f2fe';
+    color = '#0369a1';
+    border = '#bae6fd';
+  } else if (rawType === 'PART' || rawType === 'PRODUCT' || rawType === 'SPARE_PART' || rawType === 'SPAREPART') {
+    bg = '#dcfce7';
+    color = '#15803d';
+    border = '#bbf7d0';
+  } else if (rawType === 'COMBO' || rawType === 'COMBO_ITEM' || rawType === 'MAINTENANCE_PACKAGE') {
+    bg = '#f3e8ff';
+    color = '#6b21a8';
+    border = '#e9d5ff';
+  } else if (rawType === 'EQUIPMENT' || rawType === 'MACHINERY' || rawType === 'TOOL' || rawType === 'DEVICE') {
+    bg = '#fef3c7';
+    color = '#b45309';
+    border = '#fde68a';
+  }
+
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '3px 10px',
+        borderRadius: '12px',
+        fontSize: '12px',
+        fontWeight: '700',
+        lineHeight: '1.4',
+        whiteSpace: 'nowrap',
+        backgroundColor: bg,
+        color: color,
+        border: `1px solid ${border}`,
+      }}
+    >
+      {label}
+    </span>
+  );
+};
 const getWarrantyText = (item) => {
   const months = toFiniteNumber(item?.warrantyDurationMonths ?? item?.warranty_duration_months);
   return months != null ? `${months} tháng` : '-';
@@ -254,6 +300,7 @@ const TABLE_COLUMNS = [
   { key: 'image', label: 'ẢNH', defaultVisible: true, defaultWidth: 64 },
   { key: 'itemName', label: 'TÊN', defaultVisible: true, defaultWidth: 220 },
   { key: 'sku', label: 'SKU', defaultVisible: true, defaultWidth: 120 },
+  { key: 'itemType', label: 'LOẠI', defaultVisible: true, defaultWidth: 110 },
   { key: 'warehouse', label: 'KHO', defaultVisible: true, defaultWidth: 140 },
   { key: 'quantity', label: 'SỐ LƯỢNG', defaultVisible: true, defaultWidth: 110 },
   { key: 'reserved', label: 'KHÁCH GIỮ HÀNG', defaultVisible: false, defaultWidth: 140 },
@@ -263,7 +310,6 @@ const TABLE_COLUMNS = [
   { key: 'color', label: 'MÀU', defaultVisible: false, defaultWidth: 90 },
   { key: 'brand', label: 'HÃNG', defaultVisible: false, defaultWidth: 120 },
   { key: 'productLine', label: 'DÒNG SP', defaultVisible: false, defaultWidth: 130 },
-  { key: 'itemType', label: 'LOẠI', defaultVisible: false, defaultWidth: 100 },
   { key: 'warranty', label: 'BẢO HÀNH', defaultVisible: false, defaultWidth: 110 },
   { key: 'description', label: 'MÔ TẢ', defaultVisible: false, defaultWidth: 240 },
   { key: 'compatibleCars', label: 'XE TƯƠNG THÍCH', defaultVisible: false, defaultWidth: 180 },
@@ -271,7 +317,7 @@ const TABLE_COLUMNS = [
   { key: 'actions', label: 'Thao tác', pinned: true, defaultWidth: 100 },
 ];
 const MIN_COLUMN_WIDTH = 50;
-const COLUMN_PREFS_KEY = 'gms_warehouse_table_columns_v1';
+const COLUMN_PREFS_KEY = 'gms_warehouse_table_columns_v2';
 const REORDERABLE_COLUMN_KEYS = TABLE_COLUMNS.filter((c) => !c.pinned).map((c) => c.key);
 // Columns whose value isn't a single per-item scalar (multi-line-per-warehouse, image, actions) can't be sorted.
 const UNSORTABLE_COLUMN_KEYS = ['image', 'actions'];
@@ -372,6 +418,7 @@ export default function PartManagement() {
   const [statusFilter, setStatusFilter] = useState('');
   const [originFilter, setOriginFilter] = useState('');
   const [colorFilter, setColorFilter] = useState('');
+  const [itemTypeFilter, setItemTypeFilter] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
 
@@ -565,7 +612,7 @@ export default function PartManagement() {
   const [totalElementsServer, setTotalElementsServer] = useState(0);
   const [totalPagesServer, setTotalPagesServer] = useState(1);
 
-  const hasClientOnlyFilters = Boolean(originFilter || colorFilter || sortConfig.key);
+  const hasClientOnlyFilters = Boolean(originFilter || colorFilter || itemTypeFilter || sortConfig.key);
   const pageForFetch = hasClientOnlyFilters ? 0 : page;
   const sizeForFetch = hasClientOnlyFilters ? 500 : size;
 
@@ -576,7 +623,7 @@ export default function PartManagement() {
 
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, originFilter, colorFilter]);
+  }, [statusFilter, originFilter, colorFilter, itemTypeFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -705,12 +752,20 @@ export default function PartManagement() {
     const filtered = list.filter((item) => {
       const matchesOrigin = !originFilter || getItemOriginText(item) === originFilter;
       const matchesColor = !colorFilter || getItemColorText(item) === colorFilter;
-      return matchesOrigin && matchesColor;
+      const matchesItemType = !itemTypeFilter || (() => {
+        const raw = String(item?.itemType || item?.type || '').toUpperCase();
+        if (itemTypeFilter === 'PART') return raw === 'PART' || raw === 'PRODUCT' || raw === 'SPARE_PART' || raw === 'SPAREPART';
+        if (itemTypeFilter === 'COMBO') return raw === 'COMBO' || raw === 'COMBO_ITEM' || raw === 'MAINTENANCE_PACKAGE';
+        if (itemTypeFilter === 'EQUIPMENT') return raw === 'EQUIPMENT' || raw === 'MACHINERY' || raw === 'TOOL' || raw === 'DEVICE';
+        if (itemTypeFilter === 'SERVICE') return raw === 'SERVICE';
+        return raw === itemTypeFilter;
+      })();
+      return matchesOrigin && matchesColor && matchesItemType;
     });
     if (!sortConfig.key) return filtered;
     return [...filtered].sort((a, b) => compareBySort(a, b, sortConfig.key, sortConfig.direction));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [colorFilter, items, originFilter, sortConfig, selectedWarehouseId, favoriteIds]);
+  }, [colorFilter, items, originFilter, itemTypeFilter, sortConfig, selectedWarehouseId, favoriteIds]);
 
   const itemsLengthFallback = Array.isArray(items) ? items.length : 0;
   const totalElements = hasClientOnlyFilters
@@ -834,6 +889,7 @@ export default function PartManagement() {
     setStatusFilter('');
     setOriginFilter('');
     setColorFilter('');
+    setItemTypeFilter('');
   };
 
 
@@ -930,7 +986,7 @@ export default function PartManagement() {
       case 'productLine':
         return item.productLine || '-';
       case 'itemType':
-        return getItemTypeText(item);
+        return renderItemTypeBadge(item);
       case 'warranty':
         return getWarrantyText(item);
       case 'description':
@@ -1074,6 +1130,24 @@ export default function PartManagement() {
         </div>
         <div className={styles['filter-card-controls']}>
           <div className={styles['field']}>
+            <label htmlFor="filter-item-type">Phân loại</label>
+            <select
+              id="filter-item-type"
+              className={styles['status-filter']}
+              value={itemTypeFilter}
+              onChange={(e) => {
+                setItemTypeFilter(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="">Tất cả loại</option>
+              <option value="SERVICE">Dịch vụ</option>
+              <option value="PART">Phụ tùng</option>
+              <option value="COMBO">Combo</option>
+              <option value="EQUIPMENT">Thiết bị</option>
+            </select>
+          </div>
+          <div className={styles['field']}>
             <label htmlFor="filter-status">Trạng thái</label>
             <select
               id="filter-status"
@@ -1214,7 +1288,7 @@ export default function PartManagement() {
             <thead>
               <tr>
                 {visibleColumns.map((c) => {
-                  const isLeftAligned = ['itemName', 'description', 'compatibleCars'].includes(c.key);
+                  const isLeftAligned = ['itemName', 'sku', 'description', 'compatibleCars'].includes(c.key);
                   const isSortable = !c.pinned && !UNSORTABLE_COLUMN_KEYS.includes(c.key);
                   const isSorted = sortConfig.key === c.key;
                   return (
@@ -1284,7 +1358,7 @@ export default function PartManagement() {
                       {visibleColumns.map((c) => {
                         const isWarehouseCell = ['warehouse', 'quantity', 'reserved', 'price'].includes(c.key);
                         const isNumberCell = ['quantity', 'reserved', 'price'].includes(c.key);
-                        const isLeftAligned = ['itemName', 'description', 'compatibleCars'].includes(c.key);
+                        const isLeftAligned = ['itemName', 'sku', 'description', 'compatibleCars'].includes(c.key);
                         const cellClassName = [
                           isWarehouseCell && styles['warehouse-cell'],
                           isNumberCell && styles['td-number'],

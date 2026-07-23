@@ -206,7 +206,7 @@
    handle per-column alignment/overflow, keyed by column identity rather than position,
    since columns can now be hidden/reordered by the user. */
 .td-left {
-  text-align: left;
+  text-align: left !important;
 }
 
 .td-compact {
