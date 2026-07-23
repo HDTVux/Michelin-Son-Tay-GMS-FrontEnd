@@ -55,6 +55,7 @@ const normalizeItemType = (value) => {
   const text = String(value || '').trim().toUpperCase();
   if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
   if (text === 'COMBO' || text === 'COMBO_ITEM') return 'COMBO';
+  if (text === 'EQUIPMENT' || text === 'MACHINERY' || text === 'TOOL' || text === 'DEVICE') return 'EQUIPMENT';
   return 'SERVICE';
 };
 const normalizeCategoryToken = (value) => String(value ?? '')
@@ -204,7 +205,7 @@ const CAR_DATA = {
 };
 const HOME_ROW_LIMIT = 5;
 const HOME_PRODUCTS_PAGE_SIZE = 500;
-const HOME_ALL_PRODUCT_TYPES = ['SERVICE', 'PART', 'COMBO'];
+const HOME_ALL_PRODUCT_TYPES = ['SERVICE', 'PART', 'COMBO', 'EQUIPMENT'];
 const logServicesDebug = (label, payload) => {
   console.info(`[Services] ${label}`, payload);
 };
@@ -215,9 +216,14 @@ const buildHomeProductParams = (itemType, categoryCode = '') => {
   return params;
 };
 
-const getCatalogFetchTypes = (catalogType) => [catalogType];
+const getCatalogFetchTypes = (catalogType) => {
+  if (catalogType === 'EQUIPMENT') return ['EQUIPMENT', 'MACHINERY'];
+  return [catalogType];
+};
 const countCatalogItemsByType = (items = [], catalogType = 'SERVICE') => (
-  items.filter((item) => item?.itemType === catalogType).length
+  catalogType === 'EQUIPMENT'
+    ? items.filter((item) => item?.itemType === 'EQUIPMENT' || item?.itemType === 'MACHINERY').length
+    : items.filter((item) => item?.itemType === catalogType).length
 );
 
 const normalizeHomeProductResults = (settledResults, requestedTypes) => {
@@ -346,6 +352,7 @@ const Services = ({ homeRows = false, initialCatalogType = null }) => {
     if (initialCatalogType) return initialCatalogType;
     if (location.pathname.startsWith('/parts')) return 'PART';
     if (location.pathname.startsWith('/combos')) return 'COMBO';
+    if (location.pathname.startsWith('/equipments') || location.pathname.startsWith('/machinery')) return 'EQUIPMENT';
     return 'SERVICE';
   });
   const [categoryFilter, setCategoryFilter] = useState('ALL');
@@ -903,6 +910,8 @@ const Services = ({ homeRows = false, initialCatalogType = null }) => {
       targetType = 'PART';
     } else if (location.pathname.startsWith('/combos')) {
       targetType = 'COMBO';
+    } else if (location.pathname.startsWith('/equipments') || location.pathname.startsWith('/machinery')) {
+      targetType = 'EQUIPMENT';
     }
     setCatalogFilter(targetType);
     if (!routeCategoryCode) setCategoryFilter('ALL');
@@ -1272,7 +1281,7 @@ const Services = ({ homeRows = false, initialCatalogType = null }) => {
           >
             {/* Sidebar Title */}
             <h2 className="sidebarPageTitle">
-              {catalogFilter === 'PART' ? 'Phụ tùng chính hãng' : (catalogFilter === 'COMBO' ? 'Combo dịch vụ tiết kiệm' : 'Dịch vụ chính hãng')}
+              {catalogFilter === 'PART' ? 'Phụ tùng chính hãng' : (catalogFilter === 'COMBO' ? 'Combo dịch vụ tiết kiệm' : (catalogFilter === 'EQUIPMENT' ? 'Máy móc & Thiết bị' : 'Dịch vụ chính hãng'))}
             </h2>
 
             {/* Search Input */}
@@ -1282,7 +1291,7 @@ const Services = ({ homeRows = false, initialCatalogType = null }) => {
                 <input
                   type="text"
                   className="searchInput"
-                  placeholder={catalogFilter === 'PART' ? 'Tìm phụ tùng...' : (catalogFilter === 'COMBO' ? 'Tìm gói combo...' : 'Tìm dịch vụ...')}
+                  placeholder={catalogFilter === 'PART' ? 'Tìm phụ tùng...' : (catalogFilter === 'COMBO' ? 'Tìm gói combo...' : (catalogFilter === 'EQUIPMENT' ? 'Tìm máy móc, thiết bị...' : 'Tìm dịch vụ...'))}
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);

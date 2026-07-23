@@ -509,24 +509,27 @@ span.vehicleBrandLink {
   position: relative;
 }
 
-.vehicleTypeLabel {
+.vehicleTypeLabel,
+a.vehicleTypeLabel {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: #0a0f1c;
+  color: #0a0f1c !important;
+  text-decoration: none;
   padding: 8px 10px;
   border-radius: 8px;
   font-size: 13.5px;
   font-weight: 600;
-  cursor: default;
+  cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
 .vehicleTypeRow:hover > .vehicleTypeLabel,
-.vehicleTypeRow:focus-within > .vehicleTypeLabel {
+.vehicleTypeRow:focus-within > .vehicleTypeLabel,
+a.vehicleTypeLabel:hover {
   background: rgba(9, 79, 157, 0.08);
-  color: #094F9D;
+  color: #094F9D !important;
 }
 
 .vehicleTypeFlyout {

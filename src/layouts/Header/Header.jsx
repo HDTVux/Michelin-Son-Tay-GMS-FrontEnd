@@ -401,6 +401,7 @@ const Header = () => {
               <div className="navDropdownPanel servicesDropdownPanel">
                 <Link to="/services" onClick={() => { closeMenu(); scrollToTop(); }}>Dịch vụ</Link>
                 <Link to="/combos" onClick={() => { closeMenu(); scrollToTop(); }}>Combo</Link>
+                <Link to="/equipments" onClick={() => { closeMenu(); scrollToTop(); }}>Máy móc & Thiết bị</Link>
               </div>
             )}
           </div>
@@ -542,11 +543,15 @@ const Header = () => {
                     </div>
                   </div>
 
-                  <div className="vehicleTypeRow vehicleTypeRow--static">
-                    <span className="vehicleTypeLabel vehicleTypeLabel--static">
-                      Máy móc, thiết bị khác
-                      <span className="comingSoonBadge">Sắp ra mắt</span>
-                    </span>
+                  <div className="vehicleTypeRow">
+                    <Link
+                      to="/equipments"
+                      className="vehicleTypeLabel"
+                      onClick={() => { closeMenu(); scrollToTop(); }}
+                      style={{ textDecoration: 'none', color: '#0a0f1c', display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}
+                    >
+                      <span>Máy móc, thiết bị khác</span>
+                    </Link>
                   </div>
                 </div>
               </div>
