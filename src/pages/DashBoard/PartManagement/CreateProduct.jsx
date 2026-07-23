@@ -202,7 +202,7 @@ export default function CreateProduct() {
 	// Step 4: Catalog item
 	const [isCreatingCatalogItem, setIsCreatingCatalogItem] = useState(false);
 	const [createdCatalogItem, setCreatedCatalogItem] = useState(null);
-	const itemType = 'PART';
+	const [itemType, setItemType] = useState(() => initialDraft?.itemType ?? location.state?.defaultItemType ?? 'PART');
 	const [selectedProductTaxRuleId, setSelectedProductTaxRuleId] = useState(() => initialDraft?.selectedProductTaxRuleId ?? '');
 	const [sku, setSku] = useState(() => initialDraft?.sku ?? '');
 	const [isScanning, setIsScanning] = useState(false);
@@ -425,6 +425,7 @@ export default function CreateProduct() {
 			detailHtml,
 			itemNameInput,
 			itemNameManualEdited,
+			itemType,
 		};
 		// Preserve file states in window object before navigating away
 		window._gms_create_product_imageFile = imageFile;
@@ -454,6 +455,7 @@ export default function CreateProduct() {
 		detailHtml,
 		itemNameInput,
 		itemNameManualEdited,
+		itemType,
 		imageFile,
 		imagePreviewUrl,
 		blogMediaFiles,
@@ -1476,8 +1478,26 @@ Hãy trả về duy nhất 1 đoạn JSON chuẩn không chứa mã markdown bac
 					)}
 				</div>
 
-				{/* Steps 1, 2, 3 Grid (Hạng mục, Hãng, Dòng sản phẩm) */}
+				{/* Steps Grid */}
 				<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16, marginTop: 12 }}>
+					{/* Step 0: Product Type */}
+					<div className={styles['pending-filters']} style={{ marginTop: 0 }}>
+						<div style={{ fontWeight: 600, marginBottom: 8 }}>Loại hàng hóa</div>
+						<div className="ui-field" style={{ marginBottom: 0 }}>
+							<select
+								value={itemType}
+								onChange={(e) => setItemType(e.target.value)}
+								className={styles['dropdown-select']}
+								disabled={isCreatingCatalogItem || createdCatalogItemId}
+								style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+							>
+								<option value="PART">Phụ tùng</option>
+								<option value="MACHINERY">Máy móc</option>
+								<option value="EQUIPMENT">Thiết bị</option>
+							</select>
+						</div>
+					</div>
+
 					{/* Step 1: Category */}
 					<div className={styles['pending-filters']} style={{ marginTop: 0 }}>
 						<div style={{ fontWeight: 600, marginBottom: 8 }}>1) Hạng mục sản phẩm</div>

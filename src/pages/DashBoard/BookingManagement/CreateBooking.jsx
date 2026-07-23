@@ -70,6 +70,7 @@ export default function CreateBooking() {
 		name: String(sourceReminder?.customerName || '').trim(),
 		phone: String(sourceReminder?.customerPhone || '').trim(),
 		note: String(sourceReminder?.note || '').trim(),
+		referrerPhone: '',
 	});
 
 	// State cho modal danh bạ chọn khách hàng
@@ -663,6 +664,20 @@ export default function CreateBooking() {
 								disabled={submitLocked}
 							/>
 							<div className={psStyles.hintText}>{noteRemaining} ký tự còn lại</div>
+						</div>
+
+						<div className="ui-field">
+							<label htmlFor="create-booking-referrerPhone">
+								Người giới thiệu (không bắt buộc)
+							</label>
+							<input
+								id="create-booking-referrerPhone"
+								type="tel"
+								placeholder="Nhập số điện thoại người giới thiệu (nếu có)"
+								value={info.referrerPhone || ''}
+								onChange={(e) => setInfo((prev) => ({ ...prev, referrerPhone: e.target.value }))}
+								disabled={submitLocked}
+							/>
 						</div>
 					</section>
 

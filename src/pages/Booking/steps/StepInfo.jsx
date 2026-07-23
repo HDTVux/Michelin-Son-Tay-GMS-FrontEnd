@@ -57,13 +57,25 @@ export default function StepInfo({ value, onChange, onBack, onSubmit, loading = 
         </div>
         <div className={styles.field}>
           <textarea
-            rows="6"
+            rows="4"
             placeholder="VD: Kiểm tra thêm tiếng kêu ở bánh trước, cần lấy xe trước 17h, ..."
             value={value.note}
             onChange={handleChange('note')}
             maxLength={NOTE_MAX_LENGTH}
           />
           <div className={styles['char-count']}>{noteRemaining} ký tự còn lại</div>
+        </div>
+
+        <div className={styles.field} style={{marginTop: '16px'}}>
+          <label>Người giới thiệu (không bắt buộc) </label>
+          <input
+            type="tel"
+            placeholder="Nhập số điện thoại người giới thiệu (nếu có)"
+            value={value.referrerPhone || ''}
+            onChange={handleChange('referrerPhone')}
+            maxLength={20}
+          />
+          <div className={styles['info-note']} style={{fontSize: '12px', marginTop: '4px'}}>* Nhập số điện thoại người giới thiệu để tích điểm thưởng cho người giới thiệu.</div>
         </div>
       </div>
 

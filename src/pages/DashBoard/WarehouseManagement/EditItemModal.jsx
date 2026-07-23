@@ -62,6 +62,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
     // Catalog fields
     const [itemName, setItemName] = useState('');
     const [sku, setSku] = useState('');
+    const [itemType, setItemType] = useState('');
     const [unit, setUnit] = useState('');
     const [price, setPrice] = useState('');
     const [origin, setOrigin] = useState('');
@@ -115,6 +116,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                     setCategories(mappedCats);
                     setItemName(base.itemName || '');
                     setSku(base.sku || '');
+                    setItemType(base.itemType || '');
                     setUnit(base.unit || '');
                     setPrice(base.price != null ? String(base.price) : '');
                     setOrigin(getItemOriginText(base) || '');
@@ -287,6 +289,7 @@ export default function EditItemModal({ item, onClose, onSaved }) {
             const payload = {
                 itemName: itemName.trim(),
                 sku: sku.trim(),
+                itemType: itemType || null,
                 unit: unit.trim(),
                 price: price === '' ? null : priceNum,
                 origin: origin.trim(),
@@ -381,6 +384,29 @@ export default function EditItemModal({ item, onClose, onSaved }) {
                                             required
                                             disabled={saving}
                                         />
+                                    </div>
+                                    <div className={styles['field']}>
+                                        <label htmlFor="edit-item-type">Phân loại hàng hóa</label>
+                                        <select
+                                            id="edit-item-type"
+                                            value={itemType}
+                                            onChange={(e) => setItemType(e.target.value)}
+                                            disabled={saving}
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 14px',
+                                                fontSize: '14px',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '6px',
+                                                backgroundColor: '#ffffff',
+                                                height: '42px'
+                                            }}
+                                        >
+                                            <option value="">-- Chọn phân loại --</option>
+                                            <option value="PART">Phụ tùng (PART)</option>
+                                            <option value="MACHINERY">Máy móc (MACHINERY)</option>
+                                            <option value="EQUIPMENT">Thiết bị (EQUIPMENT)</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <div className={styles['field-row']}>

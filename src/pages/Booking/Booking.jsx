@@ -149,6 +149,7 @@ export default function Booking() {
     phone: prefilledPhone,
     // Gắn mã đơn đã đặt cọc vào ghi chú để lễ tân đối soát khi xác nhận lịch
     note: cartOrderCode ? `Đơn hàng ${cartOrderCode} - đã đặt cọc online.` : '',
+    referrerPhone: '',
   });
 
   // State để quản lý token khách hàng
@@ -369,6 +370,7 @@ export default function Booking() {
       appointmentTime: schedule.time,
       userNote: trimmedNote,
       selectedServiceIds: catalogItemIds,
+      referrerPhone: info.referrerPhone || null,
     };
 
     // Cập nhật logic để xác định xem là tạo mới hay sửa lịch dựa trên customerToken và modifyBookingId

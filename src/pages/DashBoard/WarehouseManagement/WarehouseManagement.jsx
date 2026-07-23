@@ -1105,6 +1105,22 @@ export default function PartManagement() {
               type="button"
               className={styles['primary-button']}
               style={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                borderColor: '#d97706',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 6px rgba(245, 158, 11, 0.25)',
+              }}
+              onClick={() => navigate('/part-management/create-product', { state: { defaultItemType: 'MACHINERY' } })}
+            >
+              <Package size={16} />
+              <span>Thêm máy móc, thiết bị</span>
+            </button>
+            <button
+              type="button"
+              className={styles['primary-button']}
+              style={{
                 background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
                 borderColor: '#0369a1',
                 display: 'inline-flex',
@@ -1152,7 +1168,7 @@ export default function PartManagement() {
               <option value="SERVICE">Dịch vụ</option>
               <option value="PART">Phụ tùng</option>
               <option value="COMBO">Combo</option>
-              <option value="EQUIPMENT">Thiết bị</option>
+              <option value="EQUIPMENT">Máy móc, thiết bị</option>
             </select>
           </div>
           <div className={styles['field']}>

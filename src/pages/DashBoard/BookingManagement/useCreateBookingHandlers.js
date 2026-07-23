@@ -303,6 +303,7 @@ export function useCreateBookingHandlers({
 				userNote: trimmedNote,
 				fullName: String(info?.name ?? '').trim(),
 				phone: String(info?.phone ?? '').trim(),
+				referrerPhone: String(info?.referrerPhone ?? '').trim(),
 			};
 			if (Number.isFinite(estimateIdNum) && estimateIdNum > 0) {
 				payload.estimateId = estimateIdNum;
@@ -420,7 +421,7 @@ export function useCreateBookingHandlers({
 		setSchedule({ date: '', time: '' });
 		setScheduleMode('manual');
 		setShowSchedulePicker(false);
-		setInfo({ name: '', phone: '', note: '' });
+		setInfo({ name: '', phone: '', note: '', referrerPhone: '' });
 		setAvailableSlots([]);
 		setSlotsError('');
 		setSlotsLoading(false);
