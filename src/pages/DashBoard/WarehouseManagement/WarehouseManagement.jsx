@@ -635,12 +635,6 @@ export default function PartManagement() {
         const list = Array.isArray(payload) ? payload : [];
         if (cancelled) return;
         setWarehouses(list);
-
-        // Auto-select first active warehouse (if none selected).
-        if (!selectedWarehouseId) {
-          const firstActive = list.find((w) => w?.isActive === true) || list[0] || null;
-          if (firstActive?.warehouseId != null) setSelectedWarehouseId(String(firstActive.warehouseId));
-        }
       } catch {
         if (!cancelled) setWarehouses([]);
       }
