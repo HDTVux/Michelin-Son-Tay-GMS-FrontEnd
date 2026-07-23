@@ -273,6 +273,11 @@ export default function CreateProduct() {
 	const [isBlogSubmitting, setIsBlogSubmitting] = useState(false);
 	const editorRef = useRef(null);
 
+	// Tên sản phẩm: gợi ý tự động từ nhóm/hãng/dòng/thông số, nhưng cho phép nhập tay.
+	// Một khi người dùng đã tự sửa, ngừng ghi đè theo gợi ý tự động.
+	const [itemNameInput, setItemNameInput] = useState(() => initialDraft?.itemNameInput ?? '');
+	const [itemNameManualEdited, setItemNameManualEdited] = useState(() => Boolean(initialDraft?.itemNameManualEdited));
+
 	const addSpecDraft = useCallback(() => {
 		setSpecDrafts((prev) => [...(Array.isArray(prev) ? prev : []), makeSpecDraft()]);
 	}, []);
@@ -414,6 +419,8 @@ export default function CreateProduct() {
 			createBlogEnabled,
 			introText,
 			detailHtml,
+			itemNameInput,
+			itemNameManualEdited,
 		};
 		// Preserve file states in window object before navigating away
 		window._gms_create_product_imageFile = imageFile;
@@ -441,6 +448,8 @@ export default function CreateProduct() {
 		createBlogEnabled,
 		introText,
 		detailHtml,
+		itemNameInput,
+		itemNameManualEdited,
 		imageFile,
 		imagePreviewUrl,
 		blogMediaFiles,
@@ -528,6 +537,23 @@ export default function CreateProduct() {
 		}
 		return parts.join(' ').replaceAll(/\s+/g, ' ').trim();
 	}, [selectedBrand?.brandName, selectedCategory?.categoryName, selectedProductLine?.lineName, specDrafts]);
+
+
+
+	useEffect(() => {
+		if (itemNameManualEdited) return;
+		setItemNameInput(computedItemName);
+	}, [computedItemName, itemNameManualEdited]);
+
+	const handleItemNameInputChange = useCallback((e) => {
+		setItemNameManualEdited(true);
+		setItemNameInput(e.target.value);
+	}, []);
+
+	const handleUseSuggestedItemName = useCallback(() => {
+		setItemNameManualEdited(false);
+		setItemNameInput(computedItemName);
+	}, [computedItemName]);
 
 	const createdCatalogItemId = useMemo(() => {
 		const raw = createdCatalogItem?.itemId ?? createdCatalogItem?.catalogItemId ?? createdCatalogItem?.id;
@@ -868,9 +894,9 @@ export default function CreateProduct() {
 			notify('Vui lòng nhập SKU.');
 			return;
 		}
-		const itemName = computedItemName;
+		const itemName = String(itemNameInput || '').trim();
 		if (!itemName) {
-			notify('Vui lòng nhập đủ thông tin để tạo tên sản phẩm (nhóm/hãng/dòng).');
+			notify('Vui lòng nhập tên sản phẩm (hoặc chọn đủ nhóm/hãng/dòng để tạo tên gợi ý).');
 			return;
 		}
 		const priceNum = showPrice ? Number(String(price || '').trim()) : 0;
@@ -1019,7 +1045,7 @@ export default function CreateProduct() {
 	}, [
 		description,
 		color,
-		computedItemName,
+		itemNameInput,
 		customColor,
 		customOrigin,
 		isCreatingCatalogItem,
@@ -1304,9 +1330,26 @@ export default function CreateProduct() {
 
 				<div className={styles['pending-filters']}>
 					<div style={{ fontWeight: 600, marginBottom: 8 }}>Tên sản phẩm</div>
-					<div className={styles['filter-card__hint']}>
-						{computedItemName || 'Nhập nhóm/hãng/dòng + thông số để tạo tên'}
+					<div className="ui-field" style={{ marginBottom: 0 }}>
+						<input
+							id="itemNameInput"
+							type="text"
+							value={itemNameInput}
+							onChange={handleItemNameInputChange}
+							placeholder="Nhập tên sản phẩm, hoặc chọn nhóm/hãng/dòng + thông số để tạo tên gợi ý"
+							disabled={Boolean(createdCatalogItemId)}
+						/>
 					</div>
+					{!createdCatalogItemId && computedItemName && computedItemName !== itemNameInput.trim() && (
+						<button
+							type="button"
+							className={styles['ghost-button']}
+							style={{ marginTop: 8, fontSize: 12.5, padding: '6px 12px' }}
+							onClick={handleUseSuggestedItemName}
+						>
+							Dùng tên gợi ý: "{computedItemName}"
+						</button>
+					)}
 				</div>
 
 				{/* Steps 1, 2, 3 Grid (Hạng mục, Hãng, Dòng sản phẩm) */}

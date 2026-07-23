@@ -31,8 +31,13 @@ export default function BlogFormPage({ itemType = 'PART' }) {
   const location = useLocation();
   const { itemId } = useParams();
   const [searchParams] = useSearchParams();
-  const normalizedItemType = String(itemType || '').trim().toUpperCase() === 'SERVICE' ? 'SERVICE' : 'PART';
-  const backPath = normalizedItemType === 'SERVICE' ? '/service-management' : '/part-management';
+  const rawItemType = String(itemType || '').trim().toUpperCase();
+  const normalizedItemType = rawItemType === 'SERVICE' ? 'SERVICE' : rawItemType === 'COMBO' ? 'COMBO' : 'PART';
+  const backPath = normalizedItemType === 'SERVICE'
+    ? '/service-management'
+    : normalizedItemType === 'COMBO'
+      ? '/combo-management'
+      : '/part-management';
   const routeItemId = toPositiveNumber(itemId);
 
   const routeState = location.state && typeof location.state === 'object' ? location.state : {};

@@ -54,6 +54,7 @@ const parsePriceFilterValue = (value) => {
 const normalizeItemType = (value) => {
   const text = String(value || '').trim().toUpperCase();
   if (text === 'PART' || text === 'PRODUCT' || text === 'SPARE_PART' || text === 'SPAREPART') return 'PART';
+  if (text === 'COMBO' || text === 'COMBO_ITEM') return 'COMBO';
   return 'SERVICE';
 };
 const normalizeCategoryToken = (value) => String(value ?? '')
@@ -203,7 +204,7 @@ const CAR_DATA = {
 };
 const HOME_ROW_LIMIT = 5;
 const HOME_PRODUCTS_PAGE_SIZE = 500;
-const HOME_ALL_PRODUCT_TYPES = ['SERVICE', 'PART'];
+const HOME_ALL_PRODUCT_TYPES = ['SERVICE', 'PART', 'COMBO'];
 const logServicesDebug = (label, payload) => {
   console.info(`[Services] ${label}`, payload);
 };
@@ -327,7 +328,7 @@ const loadHomeCatalogItems = async (requestedTypes, categoryCode = '') => {
   return normalized;
 };
 
-const Services = ({ homeRows = false }) => {
+const Services = ({ homeRows = false, initialCatalogType = null }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -342,7 +343,10 @@ const Services = ({ homeRows = false }) => {
   const [currentCatalogLoading, setCurrentCatalogLoading] = useState(() => !homeRows);
   const [currentCatalogError, setCurrentCatalogError] = useState('');
   const [catalogFilter, setCatalogFilter] = useState(() => {
-    return homeRows ? 'SERVICE' : (location.pathname.startsWith('/parts') ? 'PART' : 'SERVICE');
+    if (initialCatalogType) return initialCatalogType;
+    if (location.pathname.startsWith('/parts')) return 'PART';
+    if (location.pathname.startsWith('/combos')) return 'COMBO';
+    return 'SERVICE';
   });
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(0);
@@ -457,8 +461,10 @@ const Services = ({ homeRows = false }) => {
 
   const partItems = useMemo(() => services.filter((item) => item.itemType === 'PART'), [services]);
   const serviceItems = useMemo(() => services.filter((item) => item.itemType === 'SERVICE'), [services]);
+  const comboItems = useMemo(() => services.filter((item) => item.itemType === 'COMBO'), [services]);
   const homePartItems = useMemo(() => partItems.slice(0, HOME_ROW_LIMIT), [partItems]);
   const homeServiceItems = useMemo(() => serviceItems.slice(0, HOME_ROW_LIMIT), [serviceItems]);
+  const homeComboItems = useMemo(() => comboItems.slice(0, HOME_ROW_LIMIT), [comboItems]);
   const bestSellers = useMemo(() => getBestSellingItems(services), [services]);
 
   const renderCatalogCard = (service, idx) => (
@@ -475,7 +481,7 @@ const Services = ({ homeRows = false }) => {
         <div className="serviceCard">
           <div className="serviceCard-imageTop">
             <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
-            <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
+            <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : (service.itemType === 'COMBO' ? 'Combo' : 'Dịch vụ')}</div>
             {service.itemType === 'PART' && service.inStock && (
               <div className="stockBadge">Còn hàng</div>
             )}
@@ -761,8 +767,9 @@ const Services = ({ homeRows = false }) => {
     );
   };
 
-  const renderCatalogRow = (title, subtitle, items, moreTo) => {
-    const isService = title.toLowerCase().includes('dịch vụ');
+  const renderCatalogRow = (title, subtitle, items, moreTo, typeKey = '') => {
+    const isCombo = typeKey === 'COMBO' || title.toLowerCase().includes('combo');
+    const isService = !isCombo && (typeKey === 'SERVICE' || title.toLowerCase().includes('dịch vụ'));
     
     return (
       <section className="servicesTypeSection" aria-label={title}>
@@ -781,7 +788,28 @@ const Services = ({ homeRows = false }) => {
 
         {/* 2 Banners hình chữ nhật ngay dưới Tiêu đề và ở trên các Items */}
         <div className="catalogRowBanners">
-          {isService ? (
+          {isCombo ? (
+            <>
+              <div className="rowPromoBanner bannerCombo1">
+                <div className="rowPromoBannerOverlay" />
+                <div className="rowPromoBannerContent">
+                  <span className="rowBannerBadge">GÓI TIẾT KIỆM</span>
+                  <h4 className="rowBannerTitle">Gói bảo dưỡng Combo trọn gói</h4>
+                  <p className="rowBannerDesc">Tối ưu chi phí bảo dưỡng định kỳ với đầy đủ quy trình kiểm tra & thay thế.</p>
+                  <Link to="/combos" className="rowBannerBtn btnGold">Xem các gói Combo →</Link>
+                </div>
+              </div>
+              <div className="rowPromoBanner bannerCombo2">
+                <div className="rowPromoBannerOverlay" />
+                <div className="rowPromoBannerContent">
+                  <span className="rowBannerBadge">ƯU ĐÃI ĐẶC BIỆT</span>
+                  <h4 className="rowBannerTitle">Đặt lịch bảo dưỡng Combo</h4>
+                  <p className="rowBannerDesc">Tặng kèm dịch vụ cân bằng lốp và kiểm tra an toàn 10 điểm miễn phí.</p>
+                  <Link to="/booking" className="rowBannerBtn btnBlue">Đặt lịch ngay →</Link>
+                </div>
+              </div>
+            </>
+          ) : isService ? (
             <>
               <div className="rowPromoBanner bannerService1">
                 <div className="rowPromoBannerOverlay" />
@@ -868,7 +896,14 @@ const Services = ({ homeRows = false }) => {
   useEffect(() => {
     if (homeRows) return;
     
-    const targetType = location.pathname.startsWith('/parts') ? 'PART' : 'SERVICE';
+    let targetType = 'SERVICE';
+    if (initialCatalogType) {
+      targetType = initialCatalogType;
+    } else if (location.pathname.startsWith('/parts')) {
+      targetType = 'PART';
+    } else if (location.pathname.startsWith('/combos')) {
+      targetType = 'COMBO';
+    }
     setCatalogFilter(targetType);
     if (!routeCategoryCode) setCategoryFilter('ALL');
     
@@ -1237,7 +1272,7 @@ const Services = ({ homeRows = false }) => {
           >
             {/* Sidebar Title */}
             <h2 className="sidebarPageTitle">
-              {catalogFilter === 'PART' ? 'Phụ tùng chính hãng' : 'Dịch vụ chính hãng'}
+              {catalogFilter === 'PART' ? 'Phụ tùng chính hãng' : (catalogFilter === 'COMBO' ? 'Combo dịch vụ tiết kiệm' : 'Dịch vụ chính hãng')}
             </h2>
 
             {/* Search Input */}
@@ -1247,7 +1282,7 @@ const Services = ({ homeRows = false }) => {
                 <input
                   type="text"
                   className="searchInput"
-                  placeholder={catalogFilter === 'PART' ? 'Tìm phụ tùng...' : 'Tìm dịch vụ...'}
+                  placeholder={catalogFilter === 'PART' ? 'Tìm phụ tùng...' : (catalogFilter === 'COMBO' ? 'Tìm gói combo...' : 'Tìm dịch vụ...')}
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -1470,7 +1505,7 @@ const Services = ({ homeRows = false }) => {
                     <div className="serviceCard">
                       <div className="serviceCard-imageTop">
                         <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
-                        <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : 'Dịch vụ'}</div>
+                        <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : (service.itemType === 'COMBO' ? 'Combo' : 'Dịch vụ')}</div>
                         {service.itemType === 'PART' && service.inStock && (
                           <div className="stockBadge">Còn hàng</div>
                         )}
@@ -1545,8 +1580,9 @@ const Services = ({ homeRows = false }) => {
               {!servicesLoading && !servicesError && (
                 <>
                   {renderBestSellersRow()}
-                  {renderCatalogRow('Dịch vụ', 'Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp.', homeServiceItems, '/services')}
-                  {renderCatalogRow('Phụ tùng', 'Phụ tùng chính hãng, đa dạng chủng loại.', homePartItems, '/parts')}
+                  {renderCatalogRow('Dịch vụ', 'Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp.', homeServiceItems, '/services', 'SERVICE')}
+                  {renderCatalogRow('Phụ tùng', 'Phụ tùng chính hãng, đa dạng chủng loại.', homePartItems, '/parts', 'PART')}
+                  {renderCatalogRow('Gói Combo', 'Gói dịch vụ bảo dưỡng trọn gói, tiết kiệm chi phí.', homeComboItems, '/combos', 'COMBO')}
                 </>
               )}
             </div>

@@ -65,6 +65,7 @@ import PartManagement from './pages/DashBoard/PartManagement/PartManagement.jsx'
 import CreateService from './pages/DashBoard/PartManagement/CreateService.jsx';
 import BlogFormPage from './pages/DashBoard/PartManagement/BlogFormPage.jsx';
 import ComboManagement from './pages/DashBoard/PartManagement/ComboManagement.jsx';
+import CreateCombo from './pages/DashBoard/PartManagement/CreateCombo.jsx';
 import ShiftManagement from './pages/DashBoard/ShiftManagement/ShiftManagement.jsx';
 import AttendanceManagement from './pages/DashBoard/AttendanceManagement/AttendanceManagement.jsx';
 import AttendanceLocationManagement from './pages/DashBoard/AttendanceLocationManagement/AttendanceLocationManagement.jsx';
@@ -451,6 +452,8 @@ export default function App() {
                <Route path="part-management/select-unit" element={staffRoute(<UnitSelection />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="service-management" element={staffRoute(<BlogManagement />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="combo-management" element={staffRoute(<ComboManagement />, ROLE_GROUP.SERVICE_CATALOG)} />
+              <Route path="combo-management/create-combo" element={staffRoute(<CreateCombo />, ROLE_GROUP.SERVICE_CATALOG)} />
+              <Route path="combo-management/blog/:itemId" element={staffRoute(<BlogFormPage itemType="COMBO" />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="warehouse-stock-entries" element={staffRoute(<WarehouseStockEntryManagement />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-stock-entries/:entryId" element={staffRoute(<WarehouseStockEntryDetail />, ROLE_GROUP.WAREHOUSE)} />
               <Route path="warehouse-stock-entry" element={staffRoute(<WarehouseStockEntry />, ROLE_GROUP.WAREHOUSE)} />

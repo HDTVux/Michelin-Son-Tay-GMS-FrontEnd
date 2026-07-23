@@ -373,12 +373,14 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved,
   const isCreateNew = !isEdit && !isCreateFromCatalog;
   const normalizedItemType = useMemo(() => {
     const rawType = String(baseItem?.itemType || '').trim().toUpperCase();
-    return rawType === 'SERVICE' ? 'SERVICE' : 'PART';
+    if (rawType === 'SERVICE') return 'SERVICE';
+    if (rawType === 'COMBO') return 'COMBO';
+    return 'PART';
   }, [baseItem?.itemType]);
-  const itemTypeLabel = normalizedItemType === 'SERVICE' ? 'Dịch vụ' : 'Phụ tùng';
-  const itemCodeLabel = normalizedItemType === 'SERVICE' ? 'Mã dịch vụ' : 'Mã phụ tùng';
-  const itemPriceLabel = normalizedItemType === 'SERVICE' ? 'Giá dịch vụ' : 'Giá phụ tùng';
-  const itemToastLabel = normalizedItemType === 'SERVICE' ? 'dich vu' : 'phu tung';
+  const itemTypeLabel = normalizedItemType === 'SERVICE' ? 'Dịch vụ' : normalizedItemType === 'COMBO' ? 'Combo' : 'Phụ tùng';
+  const itemCodeLabel = normalizedItemType === 'SERVICE' ? 'Mã dịch vụ' : normalizedItemType === 'COMBO' ? 'Mã combo' : 'Mã phụ tùng';
+  const itemPriceLabel = normalizedItemType === 'SERVICE' ? 'Giá dịch vụ' : normalizedItemType === 'COMBO' ? 'Giá combo' : 'Giá phụ tùng';
+  const itemToastLabel = normalizedItemType === 'SERVICE' ? 'dich vu' : normalizedItemType === 'COMBO' ? 'combo' : 'phu tung';
   const initialDescription = useMemo(() => splitDescriptionSections(baseItem.description || ''), [baseItem.description]);
 
   const [itemName, setItemName] = useState(baseItem.itemName || '');
@@ -902,9 +904,12 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved,
       description: description || undefined,
       warrantyDurationMonths: toNullablePositiveNumber(warrantyMonths) ?? undefined,
       serviceServiceId: safeServiceServiceId ?? null,
-      comboDurationMonths: 0,
-      comboDescription: '',
-      isRecurring: false,
+      // Preserve combo-specific fields from the source catalog item instead of
+      // resetting them — this payload is also used to update existing combos,
+      // and hardcoding these would wipe out the combo's real configuration.
+      comboDurationMonths: baseItem?.comboDurationMonths ?? undefined,
+      comboDescription: baseItem?.comboDescription ?? undefined,
+      isRecurring: baseItem?.isRecurring === true || baseItem?.isRecurring === 1,
       isActive,
       is_active: 1,
       brandId: toNullablePositiveNumber(brandId) ?? undefined,
@@ -1503,7 +1508,7 @@ export default function BlogFormModal({ item, mode = 'create', onClose, onSaved,
             </div>
             <div className={styles.field}>
               <label htmlFor="item-warranty">
-                {normalizedItemType === 'SERVICE' ? 'Thời gian dự kiến (phút)' : 'Bảo hành (tháng)'}
+                {normalizedItemType === 'SERVICE' ? 'Thời gian dự kiến (phút)' : normalizedItemType === 'COMBO' ? 'Thời hạn gói (tháng)' : 'Bảo hành (tháng)'}
               </label>
               <input
                 id="item-warranty"

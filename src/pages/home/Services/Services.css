@@ -2512,6 +2512,14 @@
   background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
 }
 
+.bannerCombo1 {
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+}
+
+.bannerCombo2 {
+  background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+}
+
 .rowPromoBannerOverlay {
   position: absolute;
   inset: 0;

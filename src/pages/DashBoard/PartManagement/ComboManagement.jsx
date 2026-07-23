@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../../hooks/useScrollToTop.js';
 import { fetchCatalogItems } from '../../../services/blogService.js';
 import { fetchComboItems, saveComboItems } from '../../../services/comboService.js';
+import { fetchHomeProducts } from '../../../services/homeService.js';
 import {
   createWarehouseCatalogItem,
   updateWarehouseCatalogItem,
@@ -14,6 +16,74 @@ import styles from './ServiceManagement.module.css';
 import { Settings, Pencil, Plus, Search, X, Check, Eye, Trash2, Layers } from 'lucide-react';
 
 const extractPayload = (res) => res?.data?.data ?? res?.data ?? res;
+
+// ── Bài viết (landing page) link resolution — mirrors PartManagement.jsx ──
+const SERVICE_LINK_CACHE_KEY = 'gms_service_link_cache_v3';
+const toNullablePositiveNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
+};
+const getServiceServiceId = (item) => {
+  if (!item || typeof item !== 'object') return null;
+  const candidates = [
+    item?.serviceServiceId, item?.service_service_id, item?.service_serviceId, item?.serviceServiceID,
+    item?.serviceId, item?.service_id,
+    item?.data?.serviceId, item?.data?.service_service_id, item?.data?.serviceServiceId,
+    item?.service?.serviceId, item?.service?.service_service_id, item?.service?.serviceServiceId,
+    item?.serviceInfo?.serviceId, item?.serviceInfo?.service_service_id, item?.serviceInfo?.serviceServiceId,
+  ];
+  for (const value of candidates) {
+    const parsed = toNullablePositiveNumber(value);
+    if (parsed != null) return parsed;
+  }
+  return null;
+};
+const buildHomeServiceMap = (homeRes) => {
+  const payload = extractPayload(homeRes);
+  const list = Array.isArray(payload) ? payload : Array.isArray(payload?.content) ? payload.content : [];
+  const map = new Map();
+  list.forEach((entry) => {
+    const catalogItemId = toNullablePositiveNumber(entry?.catalogItemId ?? entry?.catalog_item_id ?? entry?.catalogId ?? entry?.itemId);
+    const serviceId = toNullablePositiveNumber(
+      entry?.serviceId ?? entry?.service_id ?? entry?.serviceServiceId ?? entry?.service_service_id
+      ?? entry?.service?.serviceId ?? entry?.service?.service_id,
+    );
+    if (catalogItemId != null && serviceId != null) map.set(catalogItemId, serviceId);
+  });
+  return map;
+};
+const readServiceLinkCache = () => {
+  if (typeof window === 'undefined') return new Map();
+  try {
+    const raw = window.localStorage.getItem(SERVICE_LINK_CACHE_KEY);
+    if (!raw) return new Map();
+    const parsed = JSON.parse(raw);
+    const map = new Map();
+    Object.entries(parsed || {}).forEach(([k, v]) => {
+      const cid = toNullablePositiveNumber(k);
+      const sid = toNullablePositiveNumber(v);
+      if (cid != null && sid != null) map.set(cid, sid);
+    });
+    return map;
+  } catch {
+    return new Map();
+  }
+};
+const writeServiceLinkCache = (catalogItemId, serviceId) => {
+  if (typeof window === 'undefined') return;
+  const cid = toNullablePositiveNumber(catalogItemId);
+  const sid = toNullablePositiveNumber(serviceId);
+  if (cid == null || sid == null) return;
+  try {
+    const raw = window.localStorage.getItem(SERVICE_LINK_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    parsed[String(cid)] = sid;
+    window.localStorage.setItem(SERVICE_LINK_CACHE_KEY, JSON.stringify(parsed));
+  } catch {
+    // Ignore quota/private mode.
+  }
+};
+const hasBlog = (item) => getServiceServiceId(item) != null;
 
 const getLotsForCatalogItem = (catalogItem) => {
   if (!catalogItem) return [];
@@ -37,6 +107,7 @@ const getLotsForCatalogItem = (catalogItem) => {
 
 export default function ComboManagement() {
   useScrollToTop();
+  const navigate = useNavigate();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -143,11 +214,26 @@ export default function ComboManagement() {
       if (debouncedSearch) params.search = debouncedSearch;
       if (statusFilter) params.isActive = statusFilter === 'true';
 
-      const res = await fetchCatalogItems(params, token);
+      const [res, homeRes] = await Promise.all([
+        fetchCatalogItems(params, token),
+        fetchHomeProducts({ page: 0, size: 500, itemType: 'COMBO' }).catch(() => null),
+      ]);
       const payload = extractPayload(res);
       const content = Array.isArray(payload?.content) ? payload.content : (Array.isArray(payload) ? payload : []);
 
-      setItems(content);
+      const homeServiceIdByCatalogId = buildHomeServiceMap(homeRes);
+      const cachedServiceIdByCatalogId = readServiceLinkCache();
+      const withBlogInfo = content.map((item) => {
+        const itemId = toNullablePositiveNumber(item.itemId);
+        const homeServiceId = itemId != null ? homeServiceIdByCatalogId.get(itemId) ?? null : null;
+        const cachedServiceId = itemId != null ? cachedServiceIdByCatalogId.get(itemId) ?? null : null;
+        const itemServiceId = getServiceServiceId(item);
+        const resolvedServiceId = itemServiceId ?? homeServiceId ?? cachedServiceId;
+        if (itemId != null && itemServiceId != null) writeServiceLinkCache(itemId, itemServiceId);
+        return { ...item, serviceServiceId: resolvedServiceId ?? null, service_service_id: resolvedServiceId ?? null };
+      });
+
+      setItems(withBlogInfo);
       setTotalElements(Number(payload?.totalElements ?? content.length));
       setTotalPages(Number(payload?.totalPages ?? Math.max(1, Math.ceil(content.length / size))));
     } catch (err) {
@@ -183,22 +269,6 @@ export default function ComboManagement() {
       return matchName || matchSku;
     }).slice(0, 10);
   }, [catalogList, searchQuery]);
-
-  // Open Form modal for Create
-  const handleOpenCreate = () => {
-    setEditingItem(null);
-    setItemName('');
-    setPrice('');
-    setShowPrice(true);
-    setComboDurationMonths(12);
-    setIsRecurring(false);
-    setComboDescription('');
-    setIsActive(true);
-    setSubItems([]);
-    setSelectedItemToAdd(null);
-    setSearchQuery('');
-    setIsFormOpen(true);
-  };
 
   // Open Form modal for Edit
   const handleOpenEdit = async (item) => {
@@ -405,7 +475,7 @@ export default function ComboManagement() {
           <h1>Quản lý gói Combo bảo dưỡng</h1>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <button className={styles['primary-button']} onClick={handleOpenCreate}>
+          <button className={styles['primary-button']} onClick={() => navigate('/combo-management/create-combo')}>
             <Plus size={16} /> Thêm gói Combo mới
           </button>
           <span className={styles['total-count']}>{totalElements} Gói Combo</span>
@@ -497,6 +567,17 @@ export default function ComboManagement() {
                         style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: 0 }}
                       >
                         <Pencil size={16} />
+                      </button>
+                      <button
+                        className={`${styles['action-btn']} ${hasBlog(item) ? styles['edit-btn'] : styles['create-btn']}`}
+                        onClick={() => navigate(
+                          `/combo-management/blog/${encodeURIComponent(String(item.itemId))}?mode=${hasBlog(item) ? 'edit' : 'createFromCatalog'}`,
+                          { state: { item, mode: hasBlog(item) ? 'edit' : 'createFromCatalog' } },
+                        )}
+                        title={hasBlog(item) ? 'Sửa bài viết hiển thị trên landing page' : 'Tạo bài viết hiển thị trên landing page'}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 10px', height: '32px', fontSize: 12 }}
+                      >
+                        <Eye size={14} /> {hasBlog(item) ? 'Sửa bài viết' : 'Tạo bài viết'}
                       </button>
                     </div>
                   </td>
