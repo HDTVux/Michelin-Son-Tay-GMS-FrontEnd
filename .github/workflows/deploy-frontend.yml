@@ -22,6 +22,8 @@ jobs:
 
       # 3. Cài đặt thư viện và Build ra file tĩnh
       - name: Install and Build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || vars.VITE_API_BASE_URL }}
         run: |
           npm install
           npm run build
@@ -34,5 +36,5 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           source: "dist/*"                     # 💡 SỬA Ở ĐÂY: Nếu React dùng thư mục 'build' thì đổi thành "build/*"
-          target: "/var/www/Michelin-Son-Tay-GMS-FrontEnd"  # 💡 SỬA Ở ĐÂY: Đường dẫn tới thư mục Frontend trên VPS của bạn
+          target: "/var/www/Michelin-Son-Tay-GMS-FrontEnd/dist"  # 💡 SỬA Ở ĐÂY: Đường dẫn tới thư mục Frontend trên VPS của bạn
           strip_components: 1                  # Bỏ qua lớp thư mục cha (dist/ hoặc build/) để copy trực tiếp các file con vào target
