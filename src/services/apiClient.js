@@ -1,5 +1,5 @@
 // Lấy URL cơ sở từ biến môi trường (Environment Variable)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.sontaygarage.vn';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 const AUTH_REDIRECT_ERROR_KEY = 'authRedirectError';
 const LOGIN_PATH = '/login';
 
