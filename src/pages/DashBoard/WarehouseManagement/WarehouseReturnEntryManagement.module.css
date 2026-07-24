@@ -117,17 +117,15 @@
   padding: 16px;
 }
 
-.filterCardLabels,
-.filterCardControls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+.filterCardLabels {
+  display: none;
 }
 
-.filterCardLabels {
-  color: #374151;
-  font-size: 14px;
-  font-weight: 600;
+.filterCardControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
 }
 
 .field {
@@ -135,6 +133,7 @@
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+  flex: 1 1 180px;
 }
 
 .field label {
@@ -143,7 +142,8 @@
   font-weight: 600;
 }
 
-.select {
+.select,
+.input {
   width: 100%;
   min-height: 44px;
   padding: 12px 14px;
@@ -157,12 +157,14 @@
   transition: all 0.3s;
 }
 
-.select:hover {
+.select:hover,
+.input:hover {
   border-color: #cbd5e1;
   background: #f9fafb;
 }
 
-.select:focus {
+.select:focus,
+.input:focus {
   border-color: #1E90FF;
   box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.1);
 }
@@ -480,8 +482,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .filterCardLabels,
-  .filterCardControls {
+  .filterCardLabels {
     grid-template-columns: 1fr;
   }
 

@@ -3,6 +3,24 @@
   margin: 0 auto;
 }
 
+.filterGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: flex-end;
+}
+
+.filterGrid > div {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.filterGrid > div > select,
+.filterGrid > div > input {
+  width: 100%;
+}
+
 .emptyCell {
   text-align: center;
   color: #64748b;

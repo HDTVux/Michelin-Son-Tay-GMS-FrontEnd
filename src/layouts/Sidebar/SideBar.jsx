@@ -224,6 +224,7 @@ const NAV_GROUPS = [
                     { id: 'maintenance-reminders', label: 'Nhắc lịch bảo dưỡng', path: '/maintenance-reminders', icon: <Bell size={18} />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER] },
                     { id: 'announcement-campaign', label: 'Chiến dịch thông báo', path: '/announcement_campaign', icon: <Megaphone size={18} />, roles: [STAFF_ROLE.RECEPTIONIST, STAFF_ROLE.MANAGER] },
                     { id: 'feedback-management', label: 'Quản lý feedback', path: '/feedback-management', icon: <Star size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
+                    { id: 'point-config', label: 'Cấu hình Điểm & Hạng', path: '/point-config', icon: <Star size={18} />, roles: [STAFF_ROLE.MANAGER, STAFF_ROLE.ADMIN] },
                 ]
             },
             {

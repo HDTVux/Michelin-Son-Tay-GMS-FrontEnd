@@ -46,6 +46,13 @@ export const updateCustomerProfile = (payload, token) =>
     body: JSON.stringify(payload),
   });
 
+// Switch customer role between INDIVIDUAL and DEALER
+export const switchCustomerRole = (token) =>
+  request('/api/customer/profile/switch-role', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
 // Upload avatar
 export const uploadAvatar = (file, token) => {
   const formData = new FormData();

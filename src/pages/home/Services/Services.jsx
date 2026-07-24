@@ -469,9 +469,11 @@ const Services = ({ homeRows = false, initialCatalogType = null }) => {
   const partItems = useMemo(() => services.filter((item) => item.itemType === 'PART'), [services]);
   const serviceItems = useMemo(() => services.filter((item) => item.itemType === 'SERVICE'), [services]);
   const comboItems = useMemo(() => services.filter((item) => item.itemType === 'COMBO'), [services]);
+  const equipmentItems = useMemo(() => services.filter((item) => item.itemType === 'EQUIPMENT'), [services]);
   const homePartItems = useMemo(() => partItems.slice(0, HOME_ROW_LIMIT), [partItems]);
   const homeServiceItems = useMemo(() => serviceItems.slice(0, HOME_ROW_LIMIT), [serviceItems]);
   const homeComboItems = useMemo(() => comboItems.slice(0, HOME_ROW_LIMIT), [comboItems]);
+  const homeEquipmentItems = useMemo(() => equipmentItems.slice(0, HOME_ROW_LIMIT), [equipmentItems]);
   const bestSellers = useMemo(() => getBestSellingItems(services), [services]);
 
   const renderCatalogCard = (service, idx) => (
@@ -487,8 +489,15 @@ const Services = ({ homeRows = false, initialCatalogType = null }) => {
       >
         <div className="serviceCard">
           <div className="serviceCard-imageTop">
-            <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
-            <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : (service.itemType === 'COMBO' ? 'Combo' : 'Dịch vụ')}</div>
+            <img 
+              src={service.image || serviceFallback} 
+              alt={service.title} 
+              className="serviceCard-image" 
+              onError={(e) => { e.target.onerror = null; e.target.src = serviceFallback; }}
+            />
+            <div className="catalogTypeBadge">
+              {service.itemType === 'PART' ? 'Phụ tùng' : (service.itemType === 'COMBO' ? 'Combo' : (service.itemType === 'EQUIPMENT' ? 'Thiết bị' : 'Dịch vụ'))}
+            </div>
             {service.itemType === 'PART' && service.inStock && (
               <div className="stockBadge">Còn hàng</div>
             )}
@@ -1513,8 +1522,15 @@ const Services = ({ homeRows = false, initialCatalogType = null }) => {
                   >
                     <div className="serviceCard">
                       <div className="serviceCard-imageTop">
-                        <img src={service.image || serviceFallback} alt={service.title} className="serviceCard-image" />
-                        <div className="catalogTypeBadge">{service.itemType === 'PART' ? 'Phụ tùng' : (service.itemType === 'COMBO' ? 'Combo' : 'Dịch vụ')}</div>
+                        <img 
+                          src={service.image || serviceFallback} 
+                          alt={service.title} 
+                          className="serviceCard-image" 
+                          onError={(e) => { e.target.onerror = null; e.target.src = serviceFallback; }}
+                        />
+                        <div className="catalogTypeBadge">
+                          {service.itemType === 'PART' ? 'Phụ tùng' : (service.itemType === 'COMBO' ? 'Combo' : (service.itemType === 'EQUIPMENT' ? 'Thiết bị' : 'Dịch vụ'))}
+                        </div>
                         {service.itemType === 'PART' && service.inStock && (
                           <div className="stockBadge">Còn hàng</div>
                         )}
@@ -1591,6 +1607,7 @@ const Services = ({ homeRows = false, initialCatalogType = null }) => {
                   {renderBestSellersRow()}
                   {renderCatalogRow('Dịch vụ', 'Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp.', homeServiceItems, '/services', 'SERVICE')}
                   {renderCatalogRow('Phụ tùng', 'Phụ tùng chính hãng, đa dạng chủng loại.', homePartItems, '/parts', 'PART')}
+                  {renderCatalogRow('Thiết bị & Máy móc', 'Các thiết bị và máy móc chuyên dụng, hiện đại.', homeEquipmentItems, '/equipments', 'EQUIPMENT')}
                   {renderCatalogRow('Gói Combo', 'Gói dịch vụ bảo dưỡng trọn gói, tiết kiệm chi phí.', homeComboItems, '/combos', 'COMBO')}
                 </>
               )}

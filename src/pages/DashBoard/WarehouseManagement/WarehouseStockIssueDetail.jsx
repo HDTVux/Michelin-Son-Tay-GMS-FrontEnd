@@ -96,15 +96,15 @@ const IssueSummaryCard = ({ issue, statusLabel, statusValue, isDraft, onUpdateIs
         {isEditing ? (
           <>
             <div className={styles.fullRow}>
-              <label><strong>Người nhận:</strong></label>
+              <label><strong>Người nhận (Khách hàng):</strong></label>
               <input type="text" value={receiverName} onChange={(e) => setReceiverName(e.target.value)} className="ui-input" style={{marginLeft: '10px'}} />
             </div>
             <div className={styles.fullRow}>
-              <label><strong>SĐT người nhận:</strong></label>
+              <label><strong>SĐT người nhận (Khách hàng):</strong></label>
               <input type="text" value={receiverPhone} onChange={(e) => setReceiverPhone(e.target.value)} className="ui-input" style={{marginLeft: '10px'}} />
             </div>
             <div className={styles.fullRow}>
-              <label><strong>Biển số xe:</strong></label>
+              <label><strong>Biển số xe (Khách hàng):</strong></label>
               <input type="text" value={licensePlate} onChange={(e) => setLicensePlate(e.target.value)} className="ui-input" style={{marginLeft: '10px'}} />
             </div>
             <div className={styles.fullRow} style={{ marginTop: '10px' }}>
@@ -114,9 +114,9 @@ const IssueSummaryCard = ({ issue, statusLabel, statusValue, isDraft, onUpdateIs
           </>
         ) : (
           <>
-            <EntryField label="Người nhận" value={issue?.receiverName ?? '-'} />
-            <EntryField label="SĐT người nhận" value={issue?.receiverPhone ?? '-'} />
-            <EntryField label="Biển số xe" value={issue?.licensePlate ?? '-'} />
+            <EntryField label="Người nhận (Khách hàng)" value={issue?.receiverName ?? '-'} />
+            <EntryField label="SĐT người nhận (Khách hàng)" value={issue?.receiverPhone ?? '-'} />
+            <EntryField label="Biển số xe (Khách hàng)" value={issue?.licensePlate ?? '-'} />
           </>
         )}
       </div>
@@ -567,9 +567,9 @@ export default function WarehouseStockIssueDetail() {
         </div>
         
         <div class="info-grid">
-          <div class="info-item"><strong>Người nhận hàng:</strong> ${issue.receiverName || '...........................................'}</div>
-          <div class="info-item"><strong>Số điện thoại:</strong> ${issue.receiverPhone || '...........................................'}</div>
-          <div class="info-item"><strong>Biển số xe:</strong> ${issue.licensePlate || '...........................................'}</div>
+          <div class="info-item"><strong>Người nhận hàng (Khách hàng):</strong> ${issue.receiverName || '...........................................'}</div>
+          <div class="info-item"><strong>Số điện thoại (Khách hàng):</strong> ${issue.receiverPhone || '...........................................'}</div>
+          <div class="info-item"><strong>Biển số xe (Khách hàng):</strong> ${issue.licensePlate || '...........................................'}</div>
           <div class="info-item"><strong>Lý do xuất:</strong> ${issue.issueReason || '...........................................'}</div>
           <div class="info-item"><strong>Xuất tại kho:</strong> ${issue.warehouseName || '...........................................'}</div>
           <div class="info-item"><strong>Phiếu dịch vụ:</strong> ${issue.serviceTicketCode || '...........................................'}</div>
