@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useState, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
-// Lưu ý: Nếu bạn để CSS chung thì giữ nguyên dòng này. 
-// Nếu tách file thì đổi thành import styles from './CatalogPicker.module.css';
+import { Package, Columns3 } from 'lucide-react';
 import styles from './CatalogPicker.module.css';
 import {
   searchWarehouseCatalogItemsDetail,
@@ -9,12 +8,262 @@ import {
   fetchWarehouseProductLines,
   fetchWarehouseItemCategories,
 } from '../../../services/warehouseService.js';
+import { fetchHomeServiceDetail, fetchHomeProductDetail } from '../../../services/homeService.js';
+import ItemDetailModal from '../WarehouseManagement/ItemDetailModal.jsx';
 import { formatCurrencyVnd, toIdOrNull } from './useAdvisorItemsTableHandlers.js';
+
+const TABLE_COLUMNS = [
+  { key: 'select', label: 'CHỌN', pinned: true, defaultWidth: 130 },
+  { key: 'image', label: 'ẢNH', defaultVisible: true, defaultWidth: 64 },
+  { key: 'itemName', label: 'TÊN SẢN PHẨM', defaultVisible: true, defaultWidth: 220 },
+  { key: 'sku', label: 'SKU', defaultVisible: true, defaultWidth: 120 },
+  { key: 'itemType', label: 'LOẠI', defaultVisible: true, defaultWidth: 110 },
+  { key: 'brand', label: 'HÃNG', defaultVisible: true, defaultWidth: 120 },
+  { key: 'color', label: 'MÀU SẮC', defaultVisible: true, defaultWidth: 90 },
+  { key: 'origin', label: 'XUẤT XỨ', defaultVisible: true, defaultWidth: 100 },
+  { key: 'price', label: 'GIÁ', defaultVisible: true, defaultWidth: 130 },
+  { key: 'unit', label: 'ĐƠN VỊ', defaultVisible: true, defaultWidth: 80 },
+  { key: 'productLine', label: 'DÒNG SP', defaultVisible: false, defaultWidth: 130 },
+  { key: 'description', label: 'MÔ TẢ', defaultVisible: false, defaultWidth: 200 },
+  { key: 'compatibleCars', label: 'XE TƯƠNG THÍCH', defaultVisible: false, defaultWidth: 160 },
+];
+const MIN_COLUMN_WIDTH = 50;
+const COLUMN_PREFS_KEY = 'gms_catalog_picker_columns_v2';
+const REORDERABLE_COLUMN_KEYS = TABLE_COLUMNS.filter((c) => !c.pinned).map((c) => c.key);
+
+const loadColumnPrefs = () => {
+  const visibility = {};
+  const widths = {};
+  let order = [...REORDERABLE_COLUMN_KEYS];
+  TABLE_COLUMNS.forEach((c) => {
+    visibility[c.key] = c.pinned ? true : Boolean(c.defaultVisible);
+    widths[c.key] = c.defaultWidth;
+  });
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(COLUMN_PREFS_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.visibility && typeof parsed.visibility === 'object') {
+          Object.keys(visibility).forEach((key) => {
+            if (typeof parsed.visibility[key] === 'boolean' && !TABLE_COLUMNS.find((c) => c.key === key)?.pinned) {
+              visibility[key] = parsed.visibility[key];
+            }
+          });
+        }
+        if (parsed.widths && typeof parsed.widths === 'object') {
+          Object.keys(widths).forEach((key) => {
+            const w = Number(parsed.widths[key]);
+            if (Number.isFinite(w) && w >= MIN_COLUMN_WIDTH) widths[key] = w;
+          });
+        }
+        if (Array.isArray(parsed.order)) {
+          const savedKnown = parsed.order.filter((key) => REORDERABLE_COLUMN_KEYS.includes(key));
+          const missing = REORDERABLE_COLUMN_KEYS.filter((key) => !savedKnown.includes(key));
+          order = [...savedKnown, ...missing];
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }
+  return { visibility, widths, order };
+};
+
+const saveColumnPrefs = (visibility, widths, order) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(COLUMN_PREFS_KEY, JSON.stringify({ visibility, widths, order }));
+  } catch {
+    // Ignore
+  }
+};
 
 function toFiniteNumber(value) {
   if (value === null || value === undefined || value === '') return null;
   const num = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(num) ? num : null;
+}
+
+function toNullablePositiveNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+function getServiceIdFromUnknownShape(input) {
+  if (!input || typeof input !== 'object') return null;
+  for (const [rawKey, rawValue] of Object.entries(input)) {
+    const key = String(rawKey || '').toLowerCase();
+    if (key.includes('service') && key.includes('id')) {
+      const val = toNullablePositiveNumber(rawValue);
+      if (val != null) return val;
+    }
+  }
+  return null;
+}
+
+function getServiceServiceId(item) {
+  if (!item || typeof item !== 'object') return null;
+  const candidates = [
+    item.service_service_id, item.serviceServiceId, item.service_serviceId, item.serviceServiceID,
+    item.serviceId, item.service_id,
+    item?.data?.serviceId, item?.data?.service_service_id, item?.data?.serviceServiceId,
+    item?.service?.service_service_id, item?.service?.serviceServiceId,
+    item?.service?.service_id, item?.serviceInfo?.service_service_id,
+    item?.serviceInfo?.serviceServiceId, item?.serviceInfo?.service_id,
+  ];
+  for (const value of candidates) {
+    const parsed = toNullablePositiveNumber(value);
+    if (parsed != null) return parsed;
+  }
+  return getServiceIdFromUnknownShape(item);
+}
+
+function ItemTableImage({ item }) {
+  const id = item?.itemId ?? item?.id ?? null;
+  const initialImg = item?.imageUrl || item?.thumbnailUrl || item?.mediaThumbnail || item?.photoUrl || '';
+  const [imgUrl, setImgUrl] = useState(initialImg);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadImg = async () => {
+      if (!id) return;
+      try {
+        const serviceId = getServiceServiceId(item);
+        let serviceDetail = null;
+        if (serviceId) {
+          try {
+            const serviceRes = await fetchHomeServiceDetail(serviceId);
+            serviceDetail = serviceRes?.data?.data ?? serviceRes?.data ?? serviceRes;
+          } catch {
+            // ignore
+          }
+        }
+        if (!serviceDetail) {
+          try {
+            const homeProductRes = await fetchHomeProductDetail(id);
+            serviceDetail = homeProductRes?.data?.data ?? homeProductRes?.data ?? homeProductRes;
+          } catch {
+            // ignore
+          }
+        }
+
+        if (serviceDetail && !cancelled) {
+          let serviceImg = serviceDetail.thumbnailUrl || serviceDetail.mediaThumbnail || serviceDetail.imageUrl;
+          if (!serviceImg) {
+            const mediaList = serviceDetail.media || serviceDetail.mediaList || [];
+            if (Array.isArray(mediaList) && mediaList.length > 0) {
+              const firstImgMedia = mediaList.find((m) => {
+                const url = String(m?.mediaUrl || m?.url || '').trim();
+                const type = String(m?.mediaType || m?.type || '').trim().toUpperCase();
+                const isVideo = type === 'VIDEO' || /\.(mp4|webm|ogg)$/i.test(url);
+                return url && !isVideo;
+              });
+              if (firstImgMedia) {
+                serviceImg = String(firstImgMedia.mediaUrl || firstImgMedia.url).trim();
+              }
+            }
+          }
+          if (!serviceImg) {
+            const htmlContent = serviceDetail.fullDescription || serviceDetail.descriptionHtml || serviceDetail.description || '';
+            const match = htmlContent.match(/<img[^>]+src=["']([^"']+)["']/i);
+            if (match && match[1]) {
+              serviceImg = match[1];
+            }
+          }
+          if (serviceImg) {
+            setImgUrl(serviceImg);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadImg();
+    return () => { cancelled = true; };
+  }, [id, item]);
+
+  return (
+    <div style={{ position: 'relative', width: '40px', height: '40px', margin: '0 auto' }}>
+      {imgUrl && !err ? (
+        <img
+          src={imgUrl}
+          alt={item?.itemName || 'item image'}
+          style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
+          onError={() => setErr(true)}
+        />
+      ) : null}
+      {(!imgUrl || err) && (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#f1f5f9',
+            borderRadius: '6px',
+            color: '#94a3b8',
+            border: '1px solid #e2e8f0',
+          }}
+        >
+          <Package size={20} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const ITEM_TYPE_LABELS = { PART: 'Phụ tùng', SERVICE: 'Dịch vụ', PRODUCT: 'Sản phẩm', MACHINERY: 'Máy móc', EQUIPMENT: 'Thiết bị', COMBO: 'Combo', MAINTENANCE_PACKAGE: 'Gói bảo dưỡng' };
+function getItemTypeText(item) {
+  return ITEM_TYPE_LABELS[String(item?.itemType || '').toUpperCase()] || item?.itemType || '-';
+}
+
+function renderItemTypeBadge(item) {
+  const rawType = String(item?.itemType || item?.type || '').toUpperCase();
+  const label = getItemTypeText(item);
+
+  let bg = '#f1f5f9';
+  let color = '#475569';
+  let border = '#e2e8f0';
+
+  if (rawType === 'SERVICE') {
+    bg = '#e0f2fe';
+    color = '#0369a1';
+    border = '#bae6fd';
+  } else if (rawType === 'PART' || rawType === 'PRODUCT' || rawType === 'SPARE_PART' || rawType === 'SPAREPART') {
+    bg = '#dcfce7';
+    color = '#15803d';
+    border = '#bbf7d0';
+  } else if (rawType === 'COMBO' || rawType === 'COMBO_ITEM' || rawType === 'MAINTENANCE_PACKAGE') {
+    bg = '#f3e8ff';
+    color = '#6b21a8';
+    border = '#e9d5ff';
+  } else if (rawType === 'EQUIPMENT' || rawType === 'MACHINERY' || rawType === 'TOOL' || rawType === 'DEVICE') {
+    bg = '#fef3c7';
+    color = '#b45309';
+    border = '#fde68a';
+  }
+
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '3px 10px',
+        borderRadius: '12px',
+        fontSize: '12px',
+        fontWeight: '700',
+        lineHeight: '1.4',
+        whiteSpace: 'nowrap',
+        backgroundColor: bg,
+        color: color,
+        border: `1px solid ${border}`,
+      }}
+    >
+      {label}
+    </span>
+  );
 }
 
 function getWarehouseDisplayName(detail) {
@@ -165,6 +414,118 @@ function CatalogPicker({
     if (sortBy) count++;
     return count;
   }, [itemType, brandId, productLineId, categoryCodeFilter, minPrice, maxPrice, sortBy]);
+
+  // Selected item detail modal
+  const [detailItem, setDetailItem] = useState(null);
+
+  // Column preferences, resizing, reordering, and visibility
+  const [columnPrefs, setColumnPrefs] = useState(loadColumnPrefs);
+  const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false);
+  const columnPickerRef = useRef(null);
+  const resizingColumnRef = useRef(null);
+  const draggedColumnKeyRef = useRef(null);
+  const [dragOverColumnKey, setDragOverColumnKey] = useState(null);
+
+  useEffect(() => {
+    if (!isColumnPickerOpen) return undefined;
+    const handleClickOutside = (e) => {
+      if (columnPickerRef.current && !columnPickerRef.current.contains(e.target)) {
+        setIsColumnPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isColumnPickerOpen]);
+
+  const toggleColumnVisibility = (key) => {
+    setColumnPrefs((prev) => {
+      const next = { ...prev, visibility: { ...prev.visibility, [key]: !prev.visibility[key] } };
+      saveColumnPrefs(next.visibility, next.widths, next.order);
+      return next;
+    });
+  };
+
+  const resetColumnPrefs = () => {
+    const fresh = { visibility: {}, widths: {}, order: [...REORDERABLE_COLUMN_KEYS] };
+    TABLE_COLUMNS.forEach((c) => {
+      fresh.visibility[c.key] = c.pinned ? true : Boolean(c.defaultVisible);
+      fresh.widths[c.key] = c.defaultWidth;
+    });
+    setColumnPrefs(fresh);
+    saveColumnPrefs(fresh.visibility, fresh.widths, fresh.order);
+  };
+
+  const handleColumnResizeStart = (key, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = columnPrefs.widths[key] ?? TABLE_COLUMNS.find((c) => c.key === key)?.defaultWidth ?? 120;
+    resizingColumnRef.current = { key, startX, startWidth };
+
+    const handleMouseMove = (moveEvent) => {
+      const current = resizingColumnRef.current;
+      if (!current) return;
+      const nextWidth = Math.max(MIN_COLUMN_WIDTH, Math.round(current.startWidth + (moveEvent.clientX - current.startX)));
+      setColumnPrefs((prev) => ({ ...prev, widths: { ...prev.widths, [current.key]: nextWidth } }));
+    };
+    const handleMouseUp = () => {
+      const current = resizingColumnRef.current;
+      resizingColumnRef.current = null;
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      if (current) {
+        setColumnPrefs((prev) => {
+          saveColumnPrefs(prev.visibility, prev.widths, prev.order);
+          return prev;
+        });
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleColumnDragStart = (key, e) => {
+    if (TABLE_COLUMNS.find((c) => c.key === key)?.pinned) return;
+    draggedColumnKeyRef.current = key;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', key);
+  };
+
+  const handleColumnDragOver = (key, e) => {
+    if (!draggedColumnKeyRef.current || TABLE_COLUMNS.find((c) => c.key === key)?.pinned) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverColumnKey !== key) setDragOverColumnKey(key);
+  };
+
+  const handleColumnDrop = (targetKey, e) => {
+    e.preventDefault();
+    const draggedKey = draggedColumnKeyRef.current;
+    draggedColumnKeyRef.current = null;
+    setDragOverColumnKey(null);
+    if (!draggedKey || draggedKey === targetKey) return;
+    setColumnPrefs((prev) => {
+      const order = prev.order.filter((k) => k !== draggedKey);
+      const targetIndex = order.indexOf(targetKey);
+      order.splice(targetIndex === -1 ? order.length : targetIndex, 0, draggedKey);
+      const next = { ...prev, order };
+      saveColumnPrefs(next.visibility, next.widths, next.order);
+      return next;
+    });
+  };
+
+  const handleColumnDragEnd = () => {
+    draggedColumnKeyRef.current = null;
+    setDragOverColumnKey(null);
+  };
+
+  const visibleColumns = useMemo(() => {
+    const selectCol = TABLE_COLUMNS.find((c) => c.key === 'select');
+    const middle = columnPrefs.order
+      .map((key) => TABLE_COLUMNS.find((c) => c.key === key))
+      .filter((c) => c && columnPrefs.visibility[c.key]);
+    return [selectCol, ...middle].filter(Boolean);
+  }, [columnPrefs.order, columnPrefs.visibility]);
 
   // Auto-select warehouse if an item belongs to exactly one warehouse
   useEffect(() => {
@@ -476,6 +837,46 @@ function CatalogPicker({
               >
                 {showFilters ? 'Ẩn bộ lọc ▲' : 'Bộ lọc ▼'}
               </button>
+              <div className={styles.columnPicker} ref={columnPickerRef}>
+                <button
+                  type="button"
+                  className={styles.columnPickerBtn}
+                  onClick={() => setIsColumnPickerOpen((prev) => !prev)}
+                  title="Chọn cột hiển thị"
+                >
+                  <Columns3 size={16} className={styles.columnPickerIcon} />
+                  <span>Cột hiển thị</span>
+                  <span className={styles.columnPickerCountBadge}>
+                    {visibleColumns.length - 1}/{TABLE_COLUMNS.length - 1}
+                  </span>
+                </button>
+                {isColumnPickerOpen && (
+                  <div className={styles.columnPickerPanel}>
+                    <div className={styles.columnPickerPanelHeader}>
+                      <span className={styles.columnPickerPanelTitle}>CỘT HIỂN THỊ</span>
+                      <button type="button" className={styles.columnPickerReset} onClick={resetColumnPrefs}>
+                        Mặc định
+                      </button>
+                    </div>
+                    <div className={styles.columnPickerList}>
+                      {TABLE_COLUMNS.filter((c) => !c.pinned).map((c) => {
+                        const isChecked = Boolean(columnPrefs.visibility[c.key]);
+                        return (
+                          <label key={c.key} className={`${styles.columnPickerItem} ${isChecked ? styles.columnPickerItemActive : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleColumnVisibility(c.key)}
+                              className={styles.columnCheckbox}
+                            />
+                            <span className={styles.columnItemLabel}>{c.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className={styles.mobileFilterToggleRow}>
@@ -832,17 +1233,39 @@ function CatalogPicker({
           <>
             {!isMobile ? (
               <div className={styles.tableWrap}>
-                <table className={styles.table}>
+                <table className={styles.table} style={{ tableLayout: 'fixed' }}>
+                  <colgroup>
+                    {visibleColumns.map((c) => (
+                      <col key={c.key} style={{ width: `${columnPrefs.widths[c.key] ?? c.defaultWidth}px` }} />
+                    ))}
+                  </colgroup>
                   <thead>
                     <tr>
-                      <th>Chọn</th>
-                      <th>Tên</th>
-                      <th>SKU</th>
-                      <th>HÃNG</th>
-                      <th>Màu sắc</th>
-                      <th>Xuất xứ</th>
-                      <th>GIÁ</th>
-                      <th>ĐV</th>
+                      {visibleColumns.map((c) => {
+                        const isLeftAligned = ['itemName', 'sku', 'description', 'compatibleCars'].includes(c.key);
+                        return (
+                          <th
+                            key={c.key}
+                            className={[
+                              styles.resizableTh,
+                              isLeftAligned && styles.tdLeft,
+                              dragOverColumnKey === c.key && styles.thDragOver,
+                            ].filter(Boolean).join(' ')}
+                            draggable={!c.pinned}
+                            onDragStart={(e) => handleColumnDragStart(c.key, e)}
+                            onDragOver={(e) => handleColumnDragOver(c.key, e)}
+                            onDrop={(e) => handleColumnDrop(c.key, e)}
+                            onDragEnd={handleColumnDragEnd}
+                          >
+                            <span>{c.label}</span>
+                            <span
+                              className={styles.resizeHandle}
+                              draggable={false}
+                              onMouseDown={(e) => handleColumnResizeStart(c.key, e)}
+                            />
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
@@ -858,50 +1281,6 @@ function CatalogPicker({
                           const rawNotify = String(selectedDetail?.notify ?? '').trim();
                           const notifyText = rawNotify === 'Đang dùng giá nhập kho nhập mới nhất' ? '' : rawNotify;
 
-                          const itemTypeRaw = String(it?.itemType || '').trim().toUpperCase();
-                          let typeLabel = 'Phụ tùng';
-                          let typeColor = '#3b82f6';
-                          let typeBg = '#eff6ff';
-                          let typeIcon = (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                          );
-
-                          if (itemTypeRaw === 'SERVICE') {
-                            typeLabel = 'Dịch vụ';
-                            typeColor = '#10b981';
-                            typeBg = '#ecfdf5';
-                            typeIcon = (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                            );
-                          } else if (itemTypeRaw === 'EQUIPMENT') {
-                            typeLabel = 'Thiết bị';
-                            typeColor = '#6b7280';
-                            typeBg = '#f3f4f6';
-                            typeIcon = (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="20" x2="6" y2="10"/><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="22" x2="12" y2="10"/></svg>
-                            );
-                          } else if (itemTypeRaw === 'MACHINERY') {
-                            typeLabel = 'Máy móc';
-                            typeColor = '#6b7280';
-                            typeBg = '#f3f4f6';
-                            typeIcon = (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="20" x2="6" y2="10"/><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="22" x2="12" y2="10"/></svg>
-                            );
-                          } else if (itemTypeRaw === 'COMBO') {
-                            typeLabel = 'Combo';
-                            typeColor = '#f59e0b';
-                            typeBg = '#fffbeb';
-                            typeIcon = (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                            );
-                          } else if (itemTypeRaw === 'MAINTENANCE_PACKAGE') {
-                            typeLabel = 'Gói';
-                            typeColor = '#8b5cf6';
-                            typeBg = '#f5f3ff';
-                            typeIcon = (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                            );
-                          }
                           const hasAnyPrice = (
                             toFiniteNumber(it?.price) != null
                             || toFiniteNumber(it?.unitPrice) != null
@@ -982,7 +1361,7 @@ function CatalogPicker({
                             actionControl = (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                 {selectControl}
-                                {canPickAnyWarehouse ? null : <span>Hết hàng</span>}
+                                {canPickAnyWarehouse ? null : <span style={{ color: '#ef4444', fontSize: '12px' }}>Hết hàng</span>}
                                 <button
                                   type="button"
                                   className="ui-btn ui-btn--primary"
@@ -1005,53 +1384,77 @@ function CatalogPicker({
                               </button>
                             );
                           }
-                          const rowKey = String(it?.itemId ?? it?.id ?? `res-${i}`);
-                          return (
-                            <Fragment key={rowKey}>
-                              <tr>
-                                <td data-label="Chọn">
-                                  {actionControl}
-                                </td>
-                                <td data-label="Tên">
-                                  <div className={styles.nameCellWrapper} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <span
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 4,
-                                        backgroundColor: typeBg,
-                                        color: typeColor,
-                                        padding: '2px 8px',
-                                        borderRadius: '4px',
-                                        fontSize: '11px',
-                                        fontWeight: '700',
-                                        textTransform: 'uppercase',
-                                        border: `1px solid ${typeColor}30`,
-                                        flexShrink: 0
-                                      }}
-                                      title={`Loại: ${typeLabel}`}
-                                    >
-                                      {typeIcon}
-                                      {typeLabel}
-                                    </span>
-                                    <span className={styles.itemNameText}>{it?.itemName || it?.name || '-'}</span>
+
+                          const renderTableCell = (colKey) => {
+                            switch (colKey) {
+                              case 'select':
+                                return actionControl;
+                              case 'image':
+                                return <ItemTableImage item={it} />;
+                              case 'itemName':
+                                return (
+                                  <div className={styles.nameCellWrapper} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6, textAlign: 'left' }}>
+                                    <span className={styles.itemNameText} style={{ fontWeight: 500 }}>{it?.itemName || it?.name || '-'}</span>
                                     {isItemCompatible(it) && (
                                       <span className={styles.compatibleBadge} title={`Tương thích với xe ${vehicleBrand} ${vehicleModel}`}>
                                         ✓ Tương thích
                                       </span>
                                     )}
                                   </div>
-                                </td>
-                                <td data-label="SKU">{it?.sku || '-'}</td>
-                                <td data-label="Hãng">{it?.brand || '-'}</td>
-                                <td data-label="Màu sắc">{it?.color || '-'}</td>
-                                <td data-label="Xuất xứ">{it?.madeIn || '-'}</td>
-                                <td data-label="Giá" className={styles.tdNumber}>{priceCellText}</td>
-                                <td data-label="Đơn vị">{it?.unit || '-'}</td>
+                                );
+                              case 'sku':
+                                return it?.sku || '-';
+                              case 'itemType':
+                                return renderItemTypeBadge(it);
+                              case 'brand':
+                                return it?.brand || '-';
+                              case 'color':
+                                return it?.color || '-';
+                              case 'origin':
+                                return it?.madeIn || it?.origin || '-';
+                              case 'price':
+                                return priceCellText;
+                              case 'unit':
+                                return it?.unit || '-';
+                              case 'productLine':
+                                return it?.productLine || '-';
+                              case 'description':
+                                return <span title={it?.description || ''}>{it?.description || '-'}</span>;
+                              case 'compatibleCars':
+                                return it?.compatibleCars || '-';
+                              default:
+                                return null;
+                            }
+                          };
+
+                          const rowKey = String(it?.itemId ?? it?.id ?? `res-${i}`);
+                          return (
+                            <Fragment key={rowKey}>
+                              <tr
+                                onClick={(e) => {
+                                  if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+                                  setDetailItem(it);
+                                }}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                {visibleColumns.map((c) => {
+                                  const isNumberCell = ['price'].includes(c.key);
+                                  const isLeftAligned = ['itemName', 'sku', 'description', 'compatibleCars'].includes(c.key);
+                                  const cellClassName = [
+                                    isNumberCell && styles.tdNumber,
+                                    isLeftAligned && styles.tdLeft,
+                                    ['image'].includes(c.key) && styles.tdCompact,
+                                  ].filter(Boolean).join(' ') || undefined;
+                                  return (
+                                    <td key={c.key} className={cellClassName} data-label={c.label}>
+                                      {renderTableCell(c.key)}
+                                    </td>
+                                  );
+                                })}
                               </tr>
                               {notifyText ? (
                                 <tr className={styles.notifyRow}>
-                                  <td className={styles.notifyCell} colSpan={8}>
+                                  <td className={styles.notifyCell} colSpan={visibleColumns.length}>
                                     {notifyText}
                                   </td>
                                 </tr>
@@ -1062,7 +1465,7 @@ function CatalogPicker({
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={8} className={styles.emptyRow}>
+                        <td colSpan={visibleColumns.length} className={styles.emptyRow}>
                           Không có kết quả.
                         </td>
                       </tr>
@@ -1356,6 +1759,13 @@ function CatalogPicker({
           </>
         )}
       </div>
+
+      {detailItem && (
+        <ItemDetailModal
+          item={detailItem}
+          onClose={() => setDetailItem(null)}
+        />
+      )}
     </dialog>
   );
 }

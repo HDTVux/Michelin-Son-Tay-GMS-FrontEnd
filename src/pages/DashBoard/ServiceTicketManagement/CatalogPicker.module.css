@@ -9,8 +9,8 @@
   border-radius: 8px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   width: 96vw;
-  max-width: 1280px;
-  height: 85vh; /* THAY max-height THÀNH height: 85vh ĐỂ CỐ ĐỊNH */
+  max-width: 96vw;
+  height: 88vh; /* THAY max-height THÀNH height: 88vh ĐỂ CỐ ĐỊNH */
   background-color: #ffffff;
   margin: auto; 
   display: flex; /* THÊM Flexbox */
@@ -97,10 +97,29 @@
 ========================================= */
 .tableWrap {
   flex: 1; /* Bảng sẽ tự động giãn ra chiếm hết không gian trống */
-  overflow-y: auto; /* Thanh cuộn dọc sẽ xuất hiện ở ĐÂY nếu nhiều dòng */
+  overflow-y: auto; /* Thanh cuộn dọc xuất hiện ở đây */
   overflow-x: auto; /* Cho phép cuộn ngang để nhìn đủ cột */
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #ffffff;
+  scrollbar-width: thin;
+  scrollbar-color: #1E90FF #f1f1f1;
+}
+
+.tableWrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.tableWrap::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.tableWrap::-webkit-scrollbar-thumb {
+  background-color: #1E90FF;
+  border-radius: 10px;
+  border: 2px solid #f1f1f1;
 }
 
 .table {
@@ -108,30 +127,53 @@
   min-width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 0.95rem;
+  font-size: 14px;
 }
 
 .table th,
 .table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
   text-align: center;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .table th {
-  background-color: #f5f5f5;
+  background-color: #f9fafb;
   font-weight: 600;
-  color: #555555;
-  white-space: nowrap;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.table tbody tr:nth-child(odd) {
+  background-color: #fafafa;
 }
 
 .table tbody tr:hover {
-  background-color: #fafafa;
+  background-color: #f5f8ff;
+}
+
+.tdLeft {
+  text-align: left !important;
+  padding-left: 16px !important;
+}
+
+.tdCompact {
+  padding: 4px !important;
 }
 
 .tdNumber {
   text-align: right;
-  font-weight: 500;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 /* Notify row under each product row (per selected warehouse) */
@@ -154,12 +196,12 @@
 /* Dropdown chọn kho */
 .warehouseSelect {
   width: 100%;
-  min-width: 220px;
-  padding: 8px 10px;
+  min-width: 160px;
+  padding: 6px 8px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   background-color: #ffffff;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: #111827;
 }
 
@@ -1029,9 +1071,10 @@
 .nameCellWrapper {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
   flex-wrap: wrap;
+  text-align: left;
 }
 
 .itemNameText {
@@ -1068,6 +1111,195 @@
   margin-left: 6px;
   vertical-align: middle;
   white-space: nowrap;
+}
+
+/* Resizable & Draggable Headers */
+.resizableTh {
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.resizableTh > span:first-child {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+.resizeHandle:hover,
+.resizeHandle:active {
+  background: rgba(37, 99, 235, 0.35);
+}
+
+.thDragOver {
+  background: rgba(37, 99, 235, 0.12) !important;
+  box-shadow: inset 2px 0 0 #2563eb;
+}
+
+/* Column Picker Dropdown */
+.columnPicker {
+  position: relative;
+  display: inline-block;
+}
+
+.columnPickerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.columnPickerBtn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.columnPickerBtn:active {
+  background: #f1f5f9;
+}
+
+.columnPickerIcon {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.columnPickerCountBadge {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 2px;
+}
+
+.columnPickerPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1000;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.15), 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  padding: 10px 8px;
+  width: 230px;
+  max-height: 360px;
+  display: flex;
+  flex-direction: column;
+  animation: columnPickerFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes columnPickerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.columnPickerPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 8px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 6px;
+}
+
+.columnPickerPanelTitle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.columnPickerReset {
+  border: none;
+  background: #f1f5f9;
+  color: #2563eb;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.columnPickerReset:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.columnPickerList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+}
+
+.columnPickerItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: 0.85rem;
+  color: #475569;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  user-select: none;
+}
+
+.columnPickerItem:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.columnPickerItemActive {
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.columnCheckbox {
+  accent-color: #2563eb;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.columnItemLabel {
+  flex: 1;
 }
 
 
