@@ -361,71 +361,118 @@ function buildStockAllocationUpdatePayload({ estimateId, serviceTicketId, estima
     const items = Array.isArray(estimateItems) ? estimateItems : [];
     if (!estId || !ticketId || items.length === 0) return [];
 
-    // Thu thập tất cả item từ các trường khác nhau và loại bỏ trùng lặp
-    const rows = items
-        .filter((it) => !it?.isRemoved)
-        .map((it) => {
-            const estimateItemId =
-                it?.estimateItemId ??
-                it?.estimateItemID ??
-                it?.estimate_item_id ??
-                it?.id ??
-                null;
+    const rows = [];
 
-            // Lấy itemId từ nhiều trường khác nhau để đảm bảo có ID chính xác cho việc giữ chỗ vật tư.
-            const itemId =
-                it?.itemId ??
-                it?.catalogItemId ??
-                it?.serviceItemId ??
-                it?.productId ??
-                it?.item?.itemId ??
-                it?.catalogItem?.itemId ??
-                it?.serviceItem?.itemId ??
-                null;
-            // Chuyển quantity thành số dương hoặc null, loại bỏ các giá trị không hợp lệ.
-            const quantity = toPositiveNumberOrNull(it?.quantity ?? it?.qty);
-            if (!toPositiveNumberOrNull(estimateItemId) || !toPositiveNumberOrNull(itemId) || !quantity) return null;
+    for (const it of items) {
+        if (it?.isRemoved) continue;
 
-            // Lấy warehouseId từ nhiều trường khác nhau 
-            const warehouseId =
-                it?.warehouseId ??
-                it?.warehouseID ??
-                it?.warehouse_id ??
-                it?.warehouse?.warehouseId ??
-                it?.warehouse?.id ??
-                undefined;
+        const estimateItemId =
+            it?.estimateItemId ??
+            it?.estimateItemID ??
+            it?.estimate_item_id ??
+            it?.id ??
+            null;
 
-            // Chuyển warehouseId thành số dương hoặc null, loại bỏ các giá trị không hợp lệ.
-            const warehouseIdNum = toPositiveNumberOrNull(warehouseId);
-            if (!warehouseIdNum) return null;
+        const estItemNum = toPositiveNumberOrNull(estimateItemId);
+        if (!estItemNum) continue;
 
-            // Lấy allocationId từ nhiều trường khác nhau để đảm bảo có ID chính xác 
-            const allocationId =
-                it?.allocationId ??
-                it?.stockAllocationId ??
-                it?.stock_allocation_id ??
-                it?.reservationId ??
-                undefined;
+        const isCombo =
+            it?.itemType === 'COMBO' ||
+            String(it?.workCategoryCode ?? '').toUpperCase() === 'COMBO' ||
+            String(it?.newCategoryName ?? '').trim().toLowerCase() === 'combo' ||
+            String(it?.categoryName ?? '').trim().toLowerCase() === 'combo' ||
+            (Array.isArray(it?.comboSubItems) && it.comboSubItems.length > 0);
 
-            // Lấy trạng thái giữ chỗ vật tư từ nhiều trường khác nhau, chuẩn hóa thành UPPERCASE hoặc undefined nếu không xác định.
-            const status = it?.allocationStatus ?? it?.stockAllocationStatus ?? it?.stock_allocation_status ?? undefined;
-            const createdBy = it?.createdBy ?? it?.created_by ?? undefined;
-            const entryItemId = toPositiveNumberOrNull(it?.entryItemId ?? it?.entry_item_id ?? null);
+        if (isCombo && Array.isArray(it?.comboSubItems) && it.comboSubItems.length > 0) {
+            const parentQty = toPositiveNumberOrNull(it?.quantity ?? it?.qty) || 1;
 
-            return {
-                ...(allocationId == null ? {} : { allocationId }),
-                serviceTicketId: ticketId,
-                estimateItemId: Number(estimateItemId),
-                warehouseId: Number(warehouseIdNum),
-                itemId: Number(itemId),
-                estimateId: estId,
-                quantity: Number(quantity),
-                ...(status == null ? {} : { status }),
-                ...(createdBy == null ? {} : { createdBy }),
-                entryItemId: entryItemId ?? null,
-            };
-        })
-        .filter(Boolean);
+            for (const sub of it.comboSubItems) {
+                const subType = String(sub?.itemType || sub?.type || '').toUpperCase();
+                const isService = subType === 'SERVICE' || subType === 'SERVICE_PACK';
+                if (isService) continue; // Phân bổ kho CHỈ áp dụng cho Phụ tùng, Linh kiện, Máy móc thiết bị
+
+                const subItemId = toPositiveNumberOrNull(sub?.includedItemId ?? sub?.itemId ?? sub?.id);
+                if (!subItemId) continue;
+
+                const rawWId =
+                    sub?.warehouseId ??
+                    sub?.warehouseID ??
+                    sub?.warehouse_id ??
+                    sub?.warehouse?.warehouseId ??
+                    sub?.warehouse?.id ??
+                    it?.warehouseId ?? 1;
+
+                const warehouseIdNum = toPositiveNumberOrNull(rawWId) || 1;
+                const subQty = (toPositiveNumberOrNull(sub?.quantity ?? sub?.qty) || 1) * parentQty;
+                const allocationId = sub?.allocationId ?? sub?.stockAllocationId ?? sub?.stock_allocation_id ?? undefined;
+                const status = sub?.allocationStatus ?? sub?.stockAllocationStatus ?? sub?.stock_allocation_status ?? undefined;
+                const createdBy = sub?.createdBy ?? sub?.created_by ?? undefined;
+                const entryItemId = toPositiveNumberOrNull(sub?.entryItemId ?? sub?.entry_item_id ?? null);
+
+                rows.push({
+                    ...(allocationId == null ? {} : { allocationId }),
+                    serviceTicketId: ticketId,
+                    estimateItemId: Number(estItemNum),
+                    warehouseId: Number(warehouseIdNum),
+                    itemId: Number(subItemId),
+                    estimateId: estId,
+                    quantity: Number(subQty),
+                    ...(status == null ? {} : { status }),
+                    ...(createdBy == null ? {} : { createdBy }),
+                    entryItemId: entryItemId ?? null,
+                });
+            }
+            continue;
+        }
+
+        const itemId =
+            it?.itemId ??
+            it?.catalogItemId ??
+            it?.serviceItemId ??
+            it?.productId ??
+            it?.item?.itemId ??
+            it?.catalogItem?.itemId ??
+            it?.serviceItem?.itemId ??
+            null;
+
+        const quantity = toPositiveNumberOrNull(it?.quantity ?? it?.qty);
+        if (!toPositiveNumberOrNull(itemId) || !quantity) continue;
+
+        const warehouseId =
+            it?.warehouseId ??
+            it?.warehouseID ??
+            it?.warehouse_id ??
+            it?.warehouse?.warehouseId ??
+            it?.warehouse?.id ??
+            undefined;
+
+        const warehouseIdNum = toPositiveNumberOrNull(warehouseId);
+        if (!warehouseIdNum) continue;
+
+        const allocationId =
+            it?.allocationId ??
+            it?.stockAllocationId ??
+            it?.stock_allocation_id ??
+            it?.reservationId ??
+            undefined;
+
+        const status = it?.allocationStatus ?? it?.stockAllocationStatus ?? it?.stock_allocation_status ?? undefined;
+        const createdBy = it?.createdBy ?? it?.created_by ?? undefined;
+        const entryItemId = toPositiveNumberOrNull(it?.entryItemId ?? it?.entry_item_id ?? null);
+
+        rows.push({
+            ...(allocationId == null ? {} : { allocationId }),
+            serviceTicketId: ticketId,
+            estimateItemId: Number(estItemNum),
+            warehouseId: Number(warehouseIdNum),
+            itemId: Number(itemId),
+            estimateId: estId,
+            quantity: Number(quantity),
+            ...(status == null ? {} : { status }),
+            ...(createdBy == null ? {} : { createdBy }),
+            entryItemId: entryItemId ?? null,
+        });
+    }
 
     return rows;
 }

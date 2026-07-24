@@ -352,8 +352,19 @@ export async function handleSubmitReturnEntryAction({
 	extraItems,
 }) {
 	const row = returnModalItem;
-	const itemId = toIdOrNull(row?.itemId);
-	const allocationId = toIdOrNull(row?.allocationId);
+	const itemId = toIdOrNull(
+		row?.stockAllocation?.itemId ??
+		row?.allocation?.itemId ??
+		row?.allocatedItemId ??
+		row?.includedItemId ??
+		row?.itemId
+	);
+	const allocationId = toIdOrNull(
+		row?.allocationId ??
+		row?.stockAllocationId ??
+		row?.stockAllocation?.allocationId ??
+		row?.allocation?.allocationId
+	);
 	const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
 
 	if (!token) {
@@ -672,7 +683,13 @@ export function pickAdvisorCatalogItem({
 	// (theo logic đổi hạng mục thủ công) — nếu chạy sau sẽ xoá mất sản phẩm vừa chọn.
 	const itemWorkCategoryId = toIdOrNull(item?.workCategoryId ?? item?.work_category_id);
 	const foundCategory = itemWorkCategoryId && workCategoryById ? workCategoryById.get(itemWorkCategoryId) : null;
-	if (foundCategory) {
+	const isComboItem = item?.itemType === 'COMBO' || item?.isCombo || String(item?.workCategoryCode ?? '').toUpperCase() === 'COMBO' || String(item?.newCategoryName || '').trim().toLowerCase() === 'combo';
+
+	if (isComboItem) {
+		onChange(activeRowIndex, 'workCategoryId', null);
+		onChange(activeRowIndex, 'workCategoryCode', 'COMBO');
+		onChange(activeRowIndex, 'newCategoryName', 'Combo');
+	} else if (foundCategory) {
 		const workCategoryCode = String(foundCategory?.categoryCode ?? '').trim();
 		const categoryTaxRuleId = foundCategory?.taxRuleId;
 		onChange(activeRowIndex, 'workCategoryId', itemWorkCategoryId);
@@ -683,6 +700,10 @@ export function pickAdvisorCatalogItem({
 
 	onChange(activeRowIndex, 'itemId', id);
 	onChange(activeRowIndex, 'itemName', name);
+	onChange(activeRowIndex, 'itemType', isComboItem ? 'COMBO' : (item?.itemType || ''));
+	if (Array.isArray(item?.comboSubItems)) {
+		onChange(activeRowIndex, 'comboSubItems', item.comboSubItems);
+	}
 	onChange(activeRowIndex, 'unitPrice', price);
 	// Giữ giá vốn để tính lại ngay khi đổi cấu hình Markup toàn phiếu
 	onChange(activeRowIndex, 'importPrice', item?.importPrice ?? item?.import_price ?? null);

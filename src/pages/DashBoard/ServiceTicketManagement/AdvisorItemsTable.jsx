@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
-import { List, Search, Trash2 } from 'lucide-react';
+import { List, Search, Trash2, ChevronDown, ChevronUp, Layers, Package } from 'lucide-react';
 import styles from './ServiceTicketDetail.module.css';
 import { validateTaxName, validateTaxRatePercent, validateTextInput } from '../../../components/inputValidation.js';
 
@@ -354,6 +354,65 @@ function EstimateItemRow({
     const [isMobileExpanded, setIsMobileExpanded] = useState(false);
     const categoryInputRef = useRef(null);
 
+    const isCombo =
+        row?.itemType === 'COMBO' ||
+        String(row?.workCategoryCode ?? '').toUpperCase() === 'COMBO' ||
+        String(row?.newCategoryName ?? '').trim().toLowerCase() === 'combo' ||
+        String(row?.categoryName ?? '').trim().toLowerCase() === 'combo' ||
+        (Array.isArray(row?.comboSubItems) && row.comboSubItems.length > 0);
+
+    const [isComboExpanded, setIsComboExpanded] = useState(false);
+    const [comboSubItems, setComboSubItems] = useState(() => Array.isArray(row?.comboSubItems) ? row.comboSubItems : []);
+    const [loadingComboItems, setLoadingComboItems] = useState(false);
+
+    useEffect(() => {
+        if (Array.isArray(row?.comboSubItems) && row.comboSubItems.length > 0) {
+            setComboSubItems(row.comboSubItems);
+        }
+    }, [row?.comboSubItems]);
+
+    const handleToggleComboExpand = async () => {
+        const nextState = !isComboExpanded;
+        setIsComboExpanded(nextState);
+
+        const hasMissingNames = comboSubItems.length > 0 && comboSubItems.some(sub => !sub.itemName && !sub.includedItemName);
+
+        if (nextState && (comboSubItems.length === 0 || hasMissingNames) && (row?.itemId || row?.id)) {
+            setLoadingComboItems(true);
+            try {
+                const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
+                const comboId = row.itemId || row.id;
+                const res = await fetchComboItems(comboId, null, token);
+                const rawSubItems = res?.data?.data || res?.data || res || [];
+                if (Array.isArray(rawSubItems) && rawSubItems.length > 0) {
+                    const detailPromises = rawSubItems.map(sub =>
+                        fetchWarehouseCatalogItemDetail(sub.includedItemId, token).catch(() => null)
+                    );
+                    const detailResponses = await Promise.all(detailPromises);
+
+                    const enrichedSubItems = rawSubItems.map((sub, i) => {
+                        const detailRes = detailResponses[i];
+                        const catalogDetail = detailRes?.data?.data || detailRes?.data || detailRes || {};
+                        return {
+                            includedItemId: sub.includedItemId,
+                            itemName: catalogDetail.itemName || catalogDetail.name || sub.itemName || `Sản phẩm #${sub.includedItemId}`,
+                            itemType: catalogDetail.itemType || sub.itemType || 'PART',
+                            quantity: sub.quantity || 1,
+                            unit: catalogDetail.unit || sub.unit || '',
+                            price: catalogDetail.price || catalogDetail.sellingPrice || sub.price || 0,
+                        };
+                    });
+                    setComboSubItems(enrichedSubItems);
+                    onChange?.(idx, 'comboSubItems', enrichedSubItems);
+                }
+            } catch (err) {
+                console.warn('Failed to load combo items:', err);
+            } finally {
+                setLoadingComboItems(false);
+            }
+        }
+    };
+
     const filteredCategorySuggestions = useMemo(() => {
         const list = Array.isArray(categorySuggestions) ? categorySuggestions : [];
         const q = normalizeSuggestionText(row.newCategoryName).trim();
@@ -397,8 +456,8 @@ function EstimateItemRow({
     const itemPlaceholder = isPredefinedCategory ? 'Chọn sản phẩm ' : 'Diễn giải';
 
     return (
+        <Fragment key={`advisor-row-${stt}-${row.key}`}>
         <tr
-            key={`advisor-row-${stt}-${row.key}`}
             className={`${isGift ? styles.giftRow : ''} ${isMobileExpanded ? styles.isMobileExpanded : ''}`.trim() || undefined}
         >
             <td data-label="STT">
@@ -480,35 +539,62 @@ function EstimateItemRow({
             </td>
             <td data-label="Diễn giải">
                 {allowInputs ? (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <input
-                            id={idx === 0 ? "tour-input-description" : undefined}
-                            className={styles.tableInput}
-                            value={row.itemName ?? ''}
-                            placeholder={itemPlaceholder}
-                            readOnly={isPredefinedCategory}
-                            onChange={
-                                !allowItemActions || isPredefinedCategory
-                                    ? undefined
-                                    : (e) => onChange(idx, 'itemName', e.target.value)
-                            }
-                            disabled={isSaving || !allowItemActions}
-                        />
-                        <button
-                            id={idx === 0 ? "tour-btn-select-product" : undefined}
-                            type="button"
-                            className={`ui-btn ui-btn--ghost ${styles.pickButtonNoWrap}`}
-                            onClick={() => openCatalogPicker(idx, row)}
-                            disabled={isSaving || !allowItemActions}
-                            title="Chọn sản phẩm"
-                        >
-                            <Search size={16} />
-                        </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <input
+                                id={idx === 0 ? "tour-input-description" : undefined}
+                                className={styles.tableInput}
+                                value={row.itemName ?? ''}
+                                placeholder={itemPlaceholder}
+                                readOnly={isPredefinedCategory}
+                                onChange={
+                                    !allowItemActions || isPredefinedCategory
+                                        ? undefined
+                                        : (e) => onChange(idx, 'itemName', e.target.value)
+                                }
+                                disabled={isSaving || !allowItemActions}
+                            />
+                            <button
+                                id={idx === 0 ? "tour-btn-select-product" : undefined}
+                                type="button"
+                                className={`ui-btn ui-btn--ghost ${styles.pickButtonNoWrap}`}
+                                onClick={() => openCatalogPicker(idx, row)}
+                                disabled={isSaving || !allowItemActions}
+                                title="Chọn sản phẩm"
+                            >
+                                <Search size={16} />
+                            </button>
+                        </div>
+                        {isCombo ? (
+                            <div>
+                                <button
+                                    type="button"
+                                    className={styles.comboToggleBtn}
+                                    onClick={handleToggleComboExpand}
+                                    title={isComboExpanded ? 'Thu gọn chi tiết Combo' : 'Xem chi tiết sản phẩm con trong Combo'}
+                                >
+                                    <Layers size={13} />
+                                    {isComboExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                    <span>{isComboExpanded ? 'Thu gọn Combo' : 'Xem chi tiết Combo'}</span>
+                                </button>
+                            </div>
+                        ) : null}
                     </div>
                 ) : (
-                    <div className={styles.itemNameCell}>
+                    <div className={styles.itemNameCell} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
                         <span>{row.itemName || ''}</span>
-                        {/* BUY_X_GET_Y UI hidden: gift badge intentionally disabled */}
+                        {isCombo ? (
+                            <button
+                                type="button"
+                                className={styles.comboToggleBtn}
+                                onClick={handleToggleComboExpand}
+                                title={isComboExpanded ? 'Thu gọn chi tiết Combo' : 'Xem chi tiết sản phẩm con trong Combo'}
+                            >
+                                <Layers size={13} />
+                                {isComboExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                <span>{isComboExpanded ? 'Thu gọn Combo' : 'Xem chi tiết Combo'}</span>
+                            </button>
+                        ) : null}
                     </div>
                 )}
             </td>
@@ -736,6 +822,122 @@ function EstimateItemRow({
                 </td>
             ) : null}
         </tr>
+        {isCombo && isComboExpanded ? (
+            <tr className={styles.comboDetailTr}>
+                <td colSpan={12} className={styles.comboDetailTd}>
+                    <div className={styles.comboDetailBox}>
+                        <div className={styles.comboDetailHeader}>
+                            <span className={styles.comboDetailTitle}>
+                                <Layers size={14} /> Chi tiết sản phẩm &amp; dịch vụ thuộc Gói Combo
+                            </span>
+                            {loadingComboItems ? (
+                                <span className={styles.comboDetailLoading}>Đang tải chi tiết...</span>
+                            ) : (
+                                <span className={styles.comboDetailCount}>{comboSubItems.length} hạng mục con</span>
+                            )}
+                        </div>
+                        {loadingComboItems ? (
+                            <div style={{ padding: '10px 12px', fontSize: '13px', color: '#64748b' }}>Đang tải dữ liệu sản phẩm con...</div>
+                        ) : comboSubItems.length === 0 ? (
+                            <div style={{ padding: '10px 12px', fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>Gói Combo này chưa có dữ liệu chi tiết sản phẩm con.</div>
+                        ) : (
+                            <table className={styles.comboSubItemsTable}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '45px', textAlign: 'center' }}>STT</th>
+                                        <th style={{ width: '110px' }}>HẠNG MỤC</th>
+                                        <th>DIỄN GIẢI (SẢN PHẨM / DỊCH VỤ CON)</th>
+                                        <th style={{ width: '80px', textAlign: 'center' }}>SL</th>
+                                        <th style={{ width: '110px', textAlign: 'right' }}>ĐƠN GIÁ</th>
+                                        {showTaxColumn ? <th style={{ width: '90px', textAlign: 'center' }}>THUẾ</th> : null}
+                                        {showDiscountColumn ? <th style={{ width: '100px', textAlign: 'right' }}>GIẢM GIÁ</th> : null}
+                                        <th style={{ width: '120px', textAlign: 'right' }}>THÀNH TIỀN</th>
+                                        <th style={{ width: '170px' }}>XUẤT KHO</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {comboSubItems.map((sub, sIdx) => {
+                                        const subStt = `${stt}.${sIdx + 1}`;
+                                        const subName = sub.includedItemName || sub.itemName || sub.name || sub.serviceName || `Sản phẩm #${sIdx + 1}`;
+                                        const isService = sub.itemType === 'SERVICE' || sub.type === 'SERVICE';
+                                        const subQty = Number(sub.quantity) || 1;
+                                        const subUnit = sub.unit || sub.unitName || '';
+                                        const subPriceNum = Number(sub.price ?? sub.unitPrice ?? 0);
+                                        const subTaxRate = Number(sub.taxRate ?? sub.appliedTaxRate ?? row?.appliedTaxRate ?? 0);
+                                        const subDiscountNum = Number(sub.discountAmount ?? 0);
+                                        const subTotalBase = subQty * subPriceNum;
+                                        const subTaxAmount = subTaxRate > 0 ? (subTotalBase * subTaxRate) / 100 : 0;
+                                        const subTotalWithVat = subTotalBase + subTaxAmount - subDiscountNum;
+
+                                        const rawStockStatus =
+                                            sub?.stockAllocationStatus ??
+                                            sub?.allocationStatus ??
+                                            sub?.status ??
+                                            sub?.stockAllocation?.status ??
+                                            row?.stockAllocationStatus ??
+                                            '';
+                                        const stockStatusUpper = String(rawStockStatus || '').trim().toUpperCase();
+                                        const subStockText = isService ? '-' : (stockStatusUpper ? getStockAllocationDisplay(stockStatusUpper) : 'Chưa giữ hàng');
+                                        const subStockClass = isService ? '' : getStockAllocationClassName(stockStatusUpper || 'DRAFT', styles);
+                                        const subWarehouse = sub.warehouseName || (sub.warehouseId ? `Kho #${sub.warehouseId}` : (row?.warehouseName ?? 'Kho chính'));
+                                        const subLot = sub.entryCode ? ` - Lô: ${sub.entryCode}` : (sub.entryItemId ? ` - Lô #${sub.entryItemId}` : (row?.entryCode ? ` - Lô: ${row.entryCode}` : ''));
+
+                                        return (
+                                            <tr key={`sub-${sIdx}-${sub.includedItemId || sIdx}`}>
+                                                <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b', fontSize: '12px' }}>{subStt}</td>
+                                                <td>
+                                                    <span className={isService ? styles.badgeService : styles.badgePart}>
+                                                        {isService ? 'Dịch vụ' : 'Phụ tùng'}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div style={{ fontWeight: 600, color: '#1e293b' }}>{subName}</div>
+                                                    {sub.includedItemId ? (
+                                                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>Mã: #{sub.includedItemId}</div>
+                                                    ) : null}
+                                                </td>
+                                                <td style={{ textAlign: 'center', fontWeight: 600 }}>
+                                                    {subQty} {subUnit ? <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 400 }}>({subUnit})</span> : null}
+                                                </td>
+                                                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                                    {formatCurrencyVnd(subPriceNum)}
+                                                </td>
+                                                {showTaxColumn ? (
+                                                    <td style={{ textAlign: 'center', fontSize: '12px' }}>
+                                                        {subTaxRate > 0 ? `${subTaxRate}%` : '0%'}
+                                                    </td>
+                                                ) : null}
+                                                {showDiscountColumn ? (
+                                                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                                        {subDiscountNum > 0 ? formatCurrencyVnd(subDiscountNum) : '-'}
+                                                    </td>
+                                                ) : null}
+                                                <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
+                                                    {formatCurrencyVnd(subTotalWithVat)}
+                                                </td>
+                                                <td>
+                                                    {isService ? (
+                                                        <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>-</span>
+                                                    ) : (
+                                                        <div>
+                                                            <span className={subStockClass}>{subStockText}</span>
+                                                            <div style={{ fontSize: '11px', fontStyle: 'italic', fontWeight: '600', color: '#64748b', marginTop: '2px' }}>
+                                                                (Kho: {subWarehouse}{subLot})
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </td>
+            </tr>
+        ) : null}
+        </Fragment>
     );
 }
 
@@ -1588,145 +1790,58 @@ export default function AdvisorItemsTable({
     const handlePickCatalogItem = async (item, warehouseDetail) => {
         if (item?.itemType === 'COMBO') {
             setCatalogPickerOpen(false);
+            let comboSubItems = [];
             try {
                 const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
                 const comboId = item.itemId || item.id;
                 const res = await fetchComboItems(comboId, null, token);
-                const comboSubItems = res?.data?.data || res?.data || res || [];
-                if (comboSubItems.length === 0) {
-                    notify('Gói Combo này chưa được cấu hình sản phẩm con!');
-                    setActiveRowIndex(null);
-                    setPickerCategoryCode("");
-                    return;
-                }
+                const rawSubItems = res?.data?.data || res?.data || res || [];
+                if (Array.isArray(rawSubItems) && rawSubItems.length > 0) {
+                    const detailPromises = rawSubItems.map(sub =>
+                        fetchWarehouseCatalogItemDetail(sub.includedItemId, token).catch(() => null)
+                    );
+                    const detailResponses = await Promise.all(detailPromises);
 
-                // Tải chi tiết catalog (gồm thông tin kho & lô) cho từng sản phẩm con
-                const detailPromises = comboSubItems.map(sub => 
-                    fetchWarehouseCatalogItemDetail(sub.includedItemId, token).catch(() => null)
-                );
-                const detailResponses = await Promise.all(detailPromises);
-
-                const activeRow = tableRows[activeRowIndex];
-                const expandedRows = [];
-
-                for (let i = 0; i < comboSubItems.length; i++) {
-                    const sub = comboSubItems[i];
-                    const detailRes = detailResponses[i];
-                    const catalogDetail = detailRes?.data?.data || detailRes?.data || detailRes;
-                    if (!catalogDetail) continue;
-
-                    const subItemWorkCategoryId = toIdOrNull(catalogDetail.workCategoryId);
-                    const subItemCategory = subItemWorkCategoryId ? workCategoryById.get(subItemWorkCategoryId) : null;
-
-                    const row = {
-                        estimateItemId: null,
-                        workCategoryId: subItemCategory ? subItemWorkCategoryId : activeRow?.workCategoryId,
-                        workCategoryCode: subItemCategory ? String(subItemCategory.categoryCode ?? '').trim() : (activeRow?.workCategoryCode || ''),
-                        workCategoryTaxRuleId: subItemCategory
-                            ? (subItemCategory.taxRuleId == null ? '' : String(subItemCategory.taxRuleId))
-                            : (activeRow?.workCategoryTaxRuleId || ''),
-                        itemId: catalogDetail.itemId || catalogDetail.id,
-                        itemName: catalogDetail.itemName || catalogDetail.name || '',
-                        unit: catalogDetail.unit || '',
-                        warehouseId: '',
-                        warehouseName: '',
-                        warehouseAvailableQuantity: null,
-                        itemTaxRuleId: catalogDetail.taxRuleId || catalogDetail.tax_rule_id || '',
-                        newCategoryName: subItemCategory
-                            ? (subItemCategory.categoryName || subItemCategory.categoryCode || '')
-                            : (activeRow?.newCategoryName || ''),
-                        quantity: sub.quantity || 1,
-                        unitPrice: catalogDetail.price || 0,
-                        importPrice: catalogDetail.importPrice || null,
-                        markupBaseUnitPrice: null,
-                        taxRuleId: '',
-                        isRemoved: false,
-                        isLockedFromPreviousVersion: false,
-                        entryItemId: null,
-                        entryCode: null,
-                    };
-
-                    if (catalogDetail.itemType === 'PART') {
-                        const warehouses = catalogDetail.warehouseDetails || [];
-                        let allocated = false;
-
-                        // 1. Phân bổ theo Lô thủ công nếu cấu hình là MANUAL
-                        if (sub.allocationMethod === 'MANUAL' && sub.entryItemId) {
-                            let foundLot = null;
-                            let foundWarehouse = null;
-                            for (const w of warehouses) {
-                                if (Array.isArray(w.lots)) {
-                                    const lot = w.lots.find(l => Number(l.entryItemId) === Number(sub.entryItemId));
-                                    if (lot && (lot.remainingQuantity || 0) > 0) {
-                                        foundLot = lot;
-                                        foundWarehouse = w;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (foundLot && foundWarehouse) {
-                                row.entryItemId = foundLot.entryItemId;
-                                row.entryCode = foundLot.entryCode;
-                                row.warehouseId = foundWarehouse.warehouseId;
-                                row.warehouseName = foundWarehouse.warehouseName || foundWarehouse.warehouseCode || '';
-                                row.warehouseAvailableQuantity = foundLot.remainingQuantity;
-                                row.unitPrice = foundLot.sellingPrice ?? catalogDetail.price;
-                                if (foundLot.importPrice) row.importPrice = foundLot.importPrice;
-                                allocated = true;
-                            } else {
-                                notify(`Lô hàng cấu hình sẵn của phụ tùng "${catalogDetail.itemName}" đã hết hàng. Đang chuyển sang tự động FIFO.`);
-                            }
-                        }
-
-                        // 2. Phân bổ theo FIFO (hoặc fallback FIFO khi lô thủ công hết hàng)
-                        if (!allocated) {
-                            let selectedLot = null;
-                            let selectedWarehouseDetail = null;
-                            for (const w of warehouses) {
-                                if (Array.isArray(w.lots)) {
-                                    const firstAvailableLot = w.lots.find(l => (l.remainingQuantity || 0) > 0);
-                                    if (firstAvailableLot) {
-                                        selectedLot = firstAvailableLot;
-                                        selectedWarehouseDetail = w;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (selectedLot && selectedWarehouseDetail) {
-                                row.entryItemId = selectedLot.entryItemId;
-                                row.entryCode = selectedLot.entryCode;
-                                row.warehouseId = selectedWarehouseDetail.warehouseId;
-                                row.warehouseName = selectedWarehouseDetail.warehouseName || selectedWarehouseDetail.warehouseCode || '';
-                                row.warehouseAvailableQuantity = selectedLot.remainingQuantity;
-                                row.unitPrice = selectedLot.sellingPrice ?? catalogDetail.price;
-                                if (selectedLot.importPrice) row.importPrice = selectedLot.importPrice;
-                                allocated = true;
-                            }
-                        }
-
-                        // 3. Nếu hết hàng hoàn toàn trong kho
-                        if (!allocated) {
-                            notify(`Phụ tùng "${catalogDetail.itemName}" đã hết hàng hoàn toàn trong kho!`);
-                            row.warehouseId = '';
-                            row.warehouseName = 'Hết hàng trong kho';
-                            row.warehouseAvailableQuantity = 0;
-                            row.entryItemId = null;
-                            row.entryCode = null;
-                        }
-                    }
-                    expandedRows.push(row);
-                }
-
-                if (expandedRows.length > 0) {
-                    expandComboToRows(activeRowIndex, expandedRows);
+                    comboSubItems = rawSubItems.map((sub, i) => {
+                        const detailRes = detailResponses[i];
+                        const catalogDetail = detailRes?.data?.data || detailRes?.data || detailRes || {};
+                        return {
+                            includedItemId: sub.includedItemId,
+                            itemName: catalogDetail.itemName || catalogDetail.name || sub.itemName || `Sản phẩm #${sub.includedItemId}`,
+                            itemType: catalogDetail.itemType || sub.itemType || 'PART',
+                            quantity: sub.quantity || 1,
+                            unit: catalogDetail.unit || sub.unit || '',
+                            price: catalogDetail.price || catalogDetail.sellingPrice || sub.price || 0,
+                        };
+                    });
                 }
             } catch (err) {
-                notify('Có lỗi xảy ra khi phân rã Combo: ' + err.message);
-            } finally {
-                setActiveRowIndex(null);
-                setPickerCategoryCode("");
+                console.warn('Could not fetch combo items on pick:', err);
             }
+
+            const pickedCombo = {
+                ...item,
+                itemId: item.itemId || item.id,
+                itemName: item.itemName || item.name || item.title || '',
+                itemType: 'COMBO',
+                newCategoryName: 'Combo',
+                workCategoryCode: 'COMBO',
+                unit: item.unit || 'Gói',
+                sellingPrice: item.sellingPrice ?? item.price ?? item.unitPrice ?? 0,
+                comboSubItems,
+            };
+
+            pickAdvisorCatalogItem({
+                item: pickedCombo,
+                activeRowIndex,
+                onChange,
+                workCategoryById,
+                closeCatalogPicker: () => {
+                    setCatalogPickerOpen(false);
+                    setActiveRowIndex(null);
+                    setPickerCategoryCode("");
+                },
+            });
             return;
         }
 

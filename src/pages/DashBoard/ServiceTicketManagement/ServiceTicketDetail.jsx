@@ -118,13 +118,33 @@ function getEstimateIdValue(estimate) {
 
 // Lấy ID kho hàng của một item từ các trường có thể có trong đối tượng item
 function getEstimateItemWarehouseId(item) {
-    return toPositiveNumberOrNull(
+    const directWId = toPositiveNumberOrNull(
         item?.warehouseId ??
         item?.warehouseID ??
         item?.warehouse_id ??
         item?.warehouse?.warehouseId ??
         item?.warehouse?.id,
     );
+    if (directWId != null) return directWId;
+
+    if (Array.isArray(item?.comboSubItems)) {
+        for (const sub of item.comboSubItems) {
+            const subType = String(sub?.itemType || sub?.type || '').toUpperCase();
+            const isPhysical = subType === 'PART' || subType === 'EQUIPMENT' || (subType !== 'SERVICE' && subType !== 'SERVICE_PACK');
+            if (isPhysical) {
+                const subWId = toPositiveNumberOrNull(
+                    sub?.warehouseId ??
+                    sub?.warehouseID ??
+                    sub?.warehouse_id ??
+                    sub?.warehouse?.warehouseId ??
+                    sub?.warehouse?.id ??
+                    1,
+                );
+                if (subWId != null) return subWId;
+            }
+        }
+    }
+    return null;
 }
 
 // Lấy trạng thái kho hàng của một item từ các trường có thể có trong đối tượng item
