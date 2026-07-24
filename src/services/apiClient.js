@@ -1,5 +1,5 @@
 // Lấy URL cơ sở từ biến môi trường (Environment Variable)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.sontaygarage.vn';
 const AUTH_REDIRECT_ERROR_KEY = 'authRedirectError';
 const LOGIN_PATH = '/login';
 
@@ -40,9 +40,9 @@ async function request(path, options = {}) {
   const { method = 'GET', headers = {}, body } = options;
   let response;
 
-	// Lấy token từ localStorage và tự động đính kèm nếu có
-	const authToken = localStorage.getItem('authToken');
-	const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+  // Lấy token từ localStorage và tự động đính kèm nếu có
+  const authToken = localStorage.getItem('authToken');
+  const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
   try {
     // 1. Thực hiện gọi API bằng Fetch API
@@ -72,10 +72,10 @@ async function request(path, options = {}) {
   // 3. Kiểm tra mã trạng thái HTTP (Status Code)
   // Nếu status không nằm trong khoảng 200-299
   if (!response.ok) {
-		// Token hết hạn hoặc không hợp lệ: xóa token
-		if (response.status === 401 || response.status === 403) {
+    // Token hết hạn hoặc không hợp lệ: xóa token
+    if (response.status === 401 || response.status === 403) {
       clearAuthData();
-		}
+    }
     // Lấy thông báo lỗi từ dữ liệu trả về hoặc dùng thông báo mặc định
     const message = buildErrorMessage(response, data);
 
