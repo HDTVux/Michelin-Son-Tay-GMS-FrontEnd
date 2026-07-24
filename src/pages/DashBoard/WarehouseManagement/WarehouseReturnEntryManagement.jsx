@@ -70,6 +70,8 @@ export default function WarehouseReturnEntryManagement() {
   const [warehouseIdInput, setWarehouseIdInput] = useState(String(DEFAULT_WAREHOUSE_ID));
   const [status, setStatus] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [entries, setEntries] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -98,6 +100,8 @@ export default function WarehouseReturnEntryManagement() {
       if (warehouseId && warehouseId !== 'ALL') params.warehouseId = warehouseId;
       if (status && status !== 'ALL') params.status = status;
       if (search && search.trim()) params.search = search.trim();
+      if (fromDate) params.fromDate = fromDate;
+      if (toDate) params.toDate = toDate;
       params.page = nextPage;
       params.size = nextSize;
       const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
@@ -159,9 +163,12 @@ export default function WarehouseReturnEntryManagement() {
     const warehouseId = warehouseIdInput === 'ALL' ? 'ALL' : toWarehouseIdText(warehouseIdInput);
     if (!warehouseId) return;
 
-    fetchList({ warehouseIdOverride: warehouseId, pageOverride: page, sizeOverride: size });
+    const timer = setTimeout(() => {
+      fetchList({ warehouseIdOverride: warehouseId, pageOverride: page, sizeOverride: size });
+    }, 300);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [warehouseIdInput, status, page, size]);
+  }, [warehouseIdInput, status, search, fromDate, toDate, page, size]);
 
   const stats = useMemo(() => {
     const total = totalElements;
@@ -334,15 +341,39 @@ export default function WarehouseReturnEntryManagement() {
             <input
               id="return-entry-search"
               type="text"
-              className={styles.select}
+              className={styles.input}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setPage(0);
-                fetchList({ pageOverride: 0 });
               }}
               placeholder="Mã phiếu, phiếu xuất..."
-              style={{ minWidth: 180 }}
+            />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="return-entry-from-date">Từ ngày</label>
+            <input
+              type="date"
+              id="return-entry-from-date"
+              className={styles.input}
+              value={fromDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+                setPage(0);
+              }}
+            />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="return-entry-to-date">Đến ngày</label>
+            <input
+              type="date"
+              id="return-entry-to-date"
+              className={styles.input}
+              value={toDate}
+              onChange={(e) => {
+                setToDate(e.target.value);
+                setPage(0);
+              }}
             />
           </div>
           </div>

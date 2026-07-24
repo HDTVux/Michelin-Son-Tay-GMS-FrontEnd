@@ -11,7 +11,8 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
     phone: '',
     gender: '',
     dob: '',
-    customerType: 'INDIVIDUAL'
+    customerType: 'INDIVIDUAL',
+    isDealer: false
   });
 
   const [errors, setErrors] = useState({});
@@ -28,7 +29,8 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
       phone: customer.phone || '',
       gender: customer.gender || '',
       dob: customer.dob || '',
-      customerType: customer.customerType || 'INDIVIDUAL'
+      customerType: customer.customerType || 'INDIVIDUAL',
+      isDealer: customer.isDealer || false
     });
   }, [open, customer]);
 
@@ -99,7 +101,8 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
         phone: formData.phone.trim(),
         gender: formData.gender,
         dob: formData.dob || null,
-        customerType: formData.customerType
+        customerType: formData.customerType,
+        isDealer: formData.isDealer
       };
 
       const customerId = customer.customerId || customer.id;
@@ -229,6 +232,19 @@ const EditCustomerModal = ({ open, onClose, customer, onUpdated }) => {
                 onChange={handleInputChange}
                 className={styles.input}
               />
+            </div>
+
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <label className={styles.pinDefaultToggle} style={{ marginTop: '15px' }}>
+                <input
+                  type="checkbox"
+                  name="isDealer"
+                  checked={formData.isDealer || false}
+                  onChange={(e) => handleInputChange({ target: { name: 'isDealer', value: e.target.checked } })}
+                  className={styles.checkbox}
+                />
+                <span>Cấp quyền Đại lý (Cho phép chuyển đổi giao diện Khách lẻ / Đại lý)</span>
+              </label>
             </div>
           </div>
 

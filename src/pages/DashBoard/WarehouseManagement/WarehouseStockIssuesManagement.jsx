@@ -348,6 +348,7 @@ export default function WarehouseStockIssues() {
 							type="text"
 							id="stock-issue-search"
 							className={styles.input}
+							/* input style for search */
 							placeholder="Mã phiếu..."
 							value={search}
 							onChange={(e) => {

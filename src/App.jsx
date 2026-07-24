@@ -85,6 +85,7 @@ import WarehouseExcelImport from './pages/DashBoard/WarehouseManagement/Warehous
 import WarehouseConfig from './pages/DashBoard/WarehouseManagement/WarehouseConfig.jsx';
 import RevenueManagement from './pages/DashBoard/RevenueManagement/RevenueManagement.jsx';
 import KPIManagement from './pages/DashBoard/KPIManagement/KPIManagement.jsx';
+import PointConfig from './pages/DashBoard/PointConfig/PointConfig.jsx';
 
 //Customer pages
 import CustomerLogin from './features/auth/components/CustomerLoginModal.jsx';
@@ -470,6 +471,7 @@ export default function App() {
               <Route path="blog-management" element={<Navigate to="/service-management" replace />} />
               <Route path="service-management/blog/:itemId" element={staffRoute(<BlogFormPage itemType="SERVICE" />, ROLE_GROUP.SERVICE_CATALOG)} />
               <Route path="service-management/create-service" element={staffRoute(<CreateService />, ROLE_GROUP.SERVICE_CATALOG)} />
+              <Route path="point-config" element={staffRoute(<PointConfig />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="promotion-management" element={staffRoute(<PromotionManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="promotion-management/create" element={staffRoute(<PromotionManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />
               <Route path="slider-management" element={staffRoute(<SliderManagement />, ROLE_GROUP.MANAGER_OR_ADMIN)} />

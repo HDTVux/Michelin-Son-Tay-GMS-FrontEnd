@@ -254,7 +254,7 @@ export default function WarehouseStockEntryManagement() {
           </article>
         </section>
 
-        <section className={commonStyles.toolbar}>
+        <section className={styles.filterGrid}>
           <div className={commonStyles.field}>
             <label htmlFor="stock-entry-warehouse">Kho</label>
             <select

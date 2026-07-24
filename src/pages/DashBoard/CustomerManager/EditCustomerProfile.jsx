@@ -45,6 +45,8 @@ const mapCustomerToFormData = (customer) => ({
   dob: customer.dob || customer.dateOfBirth || '',
   createdAt: customer.createdAt || '',
   totalBookings: customer.totalBookings ?? null,
+  isDealer: customer.isDealer || false,
+  customerType: customer.customerType || 'INDIVIDUAL'
 });
 
 const getAuthToken = () =>
@@ -70,7 +72,9 @@ const EditCustomerProfile = () => {
     gender: 'MALE',
     dob: '',
     createdAt: '',
-    totalBookings: null
+    totalBookings: null,
+    isDealer: false,
+    customerType: 'INDIVIDUAL'
   });
 
   const [errors, setErrors] = useState({});
@@ -169,7 +173,9 @@ const EditCustomerProfile = () => {
         dob: formData.dob || null,
         gender: formData.gender,
         avatar: null,
-        firstBookingAt: null
+        firstBookingAt: null,
+        isDealer: formData.isDealer,
+        customerType: formData.customerType
       };
 
 		const response = await updateCustomer(customerId, payload, token);
@@ -186,6 +192,8 @@ const EditCustomerProfile = () => {
 			gender: updated.gender ?? prev.gender,
 			createdAt: updated.createdAt ?? prev.createdAt,
 			totalBookings: updated.totalBookings ?? prev.totalBookings,
+            isDealer: updated.isDealer ?? prev.isDealer,
+            customerType: updated.customerType ?? prev.customerType,
         }));
       }
 
@@ -358,6 +366,23 @@ const EditCustomerProfile = () => {
                   </select>
                 </div>
 
+                {/* Loại khách hàng */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="ecp_customerType">Loại khách hàng</label>
+                  <select
+                    id="ecp_customerType"
+                    name="customerType"
+                    value={formData.customerType}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                    className={`${styles.select} ${isEditing ? '' : styles.inputDisabled}`}
+                  >
+                    <option value="INDIVIDUAL">Khách lẻ</option>
+                    <option value="DEALER">Đại lý</option>
+                    <option value="GARAGE">Garage khác</option>
+                  </select>
+                </div>
+
                 {/* Ngày sinh */}
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="ecp_dob">Ngày sinh</label>
@@ -370,6 +395,21 @@ const EditCustomerProfile = () => {
                     disabled={!isEditing}
                     className={`${styles.input} ${isEditing ? '' : styles.inputDisabled}`}
                   />
+                </div>
+
+                {/* Là Đại lý */}
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label className={styles.pinDefaultToggle} style={{ marginTop: '15px' }}>
+                    <input
+                      type="checkbox"
+                      name="isDealer"
+                      checked={formData.isDealer || false}
+                      onChange={(e) => handleChange({ target: { name: 'isDealer', value: e.target.checked } })}
+                      disabled={!isEditing}
+                      className={styles.checkbox}
+                    />
+                    <span>Cấp quyền Đại lý (Cho phép chuyển đổi giao diện Khách lẻ / Đại lý)</span>
+                  </label>
                 </div>
               </div>
             </div>

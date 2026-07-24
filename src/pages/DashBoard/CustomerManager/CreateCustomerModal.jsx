@@ -40,7 +40,8 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
         gender: initialData.gender || '',
         dob: initialData.dob || '',
         avatar: initialData.avatar || '',
-        customerType: initialData.customerType || 'INDIVIDUAL'
+        customerType: initialData.customerType || 'INDIVIDUAL',
+        isDealer: initialData.isDealer || false
       });
     } else {
       setFormData({
@@ -50,7 +51,8 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
         gender: '',
         dob: '',
         avatar: '',
-        customerType: 'INDIVIDUAL'
+        customerType: 'INDIVIDUAL',
+        isDealer: false
       });
     }
     setUseDefaultPin(true);
@@ -223,7 +225,8 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
         gender: formData.gender,
         dob: formData.dob,
         avatar: formData.avatar,
-        customerType: formData.customerType || 'INDIVIDUAL'
+        customerType: formData.customerType || 'INDIVIDUAL',
+        isDealer: formData.isDealer || false
       };
 
       const response = await createCustomer(payload, token);
@@ -412,6 +415,19 @@ const CreateCustomerModal = ({ open, onClose, onCreated, initialData }) => {
                 onChange={handleInputChange}
                 className={styles.input}
               />
+            </div>
+
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <label className={styles.pinDefaultToggle} style={{ marginTop: '15px' }}>
+                <input
+                  type="checkbox"
+                  name="isDealer"
+                  checked={formData.isDealer || false}
+                  onChange={(e) => handleInputChange({ target: { name: 'isDealer', value: e.target.checked } })}
+                  className={styles.checkbox}
+                />
+                <span>Cấp quyền Đại lý (Cho phép chuyển đổi giao diện Khách lẻ / Đại lý)</span>
+              </label>
             </div>
 
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollToTop } from '../../hooks/useScrollToTop.js';
-import { fetchCustomerProfile, updateCustomerProfile, uploadAvatar } from '../../services/customerService.js';
+import { fetchCustomerProfile, updateCustomerProfile, uploadAvatar, switchCustomerRole, fetchMyRanking } from '../../services/customerService.js';
 import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
 import styles from './UserProfile.module.css';
 import headerStyles from './UserProfile.header.module.css';
@@ -70,7 +70,9 @@ const normalizeProfile = (...sources) => ({
   email: firstText(...sources.map(source => source?.email)),
   dob: firstText(...sources.map(source => source?.dob ?? source?.dateOfBirth)),
   gender: firstText(...sources.map(source => source?.gender)),
-  avatar: firstText(...sources.map(source => source?.avatar ?? source?.avatarUrl)) || null
+  avatar: firstText(...sources.map(source => source?.avatar ?? source?.avatarUrl)) || null,
+  isDealer: sources.find(s => s?.isDealer !== undefined)?.isDealer ?? false,
+  customerType: sources.find(s => s?.customerType !== undefined)?.customerType ?? 'INDIVIDUAL'
 });
 
 const UserProfile = () => {
@@ -78,6 +80,7 @@ const UserProfile = () => {
   const fileInputRef = useRef(null);
 
   const [customerProfile, setCustomerProfile] = useState(emptyCustomerProfile);
+  const [rankingInfo, setRankingInfo] = useState(null);
 
   const [stats] = useState({
     totalServices: 15,
@@ -138,6 +141,17 @@ const UserProfile = () => {
         setUpdateFormData(profileData);
         setAvatarPreview(profileData.avatar);
         saveStoredProfile(profileData, token);
+
+        if (profileData.customerId || tokenProfile.customerId) {
+          try {
+            const rankRes = await fetchMyRanking(profileData.customerId || tokenProfile.customerId, token);
+            if (rankRes?.data) {
+              setRankingInfo(rankRes.data);
+            }
+          } catch (rankErr) {
+            console.error('Error loading ranking:', rankErr);
+          }
+        }
       } catch (error) {
         console.error('Error loading profile:', error);
         const cachedProfile = readStoredProfile(token);
@@ -208,6 +222,33 @@ const UserProfile = () => {
       onClick: () => setShowPasswordModal(true)
     }
   ];
+
+  const handleSwitchRole = async () => {
+    try {
+      const token = getCustomerToken();
+      if (!token) return;
+      const res = await switchCustomerRole(token);
+      if (res?.success || res?.code === 200) {
+        alert("Chuyển đổi giao diện thành công!");
+        window.location.reload();
+      } else {
+        alert("Có lỗi xảy ra khi chuyển đổi giao diện");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Lỗi khi chuyển đổi: " + e.message);
+    }
+  };
+
+  if (customerProfile.isDealer) {
+    quickActions.push({
+      id: 7,
+      icon: '🔄',
+      title: 'Chuyển giao diện Khách lẻ / Đại lý',
+      description: `Giao diện hiện tại: ${customerProfile.customerType === 'DEALER' ? 'Đại lý' : 'Khách lẻ'}`,
+      onClick: handleSwitchRole
+    });
+  }
 
   // Update Profile Functions
   const handleAvatarChange = (e) => {
@@ -463,17 +504,32 @@ const UserProfile = () => {
             </section>
 
             <section className={statsStyles['stats-section']}>
-              <h2 className={statsStyles['section-title']}>Thống kê sử dụng dịch vụ</h2>
+              <h2 className={statsStyles['section-title']}>Hạng thành viên & Thống kê</h2>
               <div className={statsStyles['stats-grid']}>
                 <div className={`${statsStyles['stat-card']} ${statsStyles['white']}`}>
-                  <div className={statsStyles['stat-icon']}>📊</div>
-                  <div className={statsStyles['stat-label']}>Tổng số lần sử dụng dịch vụ</div>
-                  <div className={`${statsStyles['stat-value']} ${statsStyles['blue']}`}>{stats.totalServices}</div>
+                  <div className={statsStyles['stat-icon']}>🌟</div>
+                  <div className={statsStyles['stat-label']}>Hạng Khách lẻ</div>
+                  <div className={`${statsStyles['stat-value']} ${statsStyles['blue']}`}>
+                    {rankingInfo?.rankLabelVi || 'Đồng'}
+                  </div>
                 </div>
+                
+                {customerProfile.isDealer && (
+                  <div className={`${statsStyles['stat-card']} ${statsStyles['white']}`}>
+                    <div className={statsStyles['stat-icon']}>🏢</div>
+                    <div className={statsStyles['stat-label']}>Hạng Đại lý</div>
+                    <div className={`${statsStyles['stat-value']} ${statsStyles['blue']}`}>
+                      {rankingInfo?.dealerRankLabelVi || 'Cấp 1'}
+                    </div>
+                  </div>
+                )}
+
                 <div className={`${statsStyles['stat-card']} ${statsStyles['blue']}`}>
-                  <div className={statsStyles['stat-icon']}>💰</div>
-                  <div className={statsStyles['stat-label']}>Tổng tiền tích lũy</div>
-                  <div className={`${statsStyles['stat-value']} ${statsStyles['white']}`}>{stats.totalAmount.toLocaleString('vi-VN')} ₫</div>
+                  <div className={statsStyles['stat-icon']}>💎</div>
+                  <div className={statsStyles['stat-label']}>Điểm tích lũy</div>
+                  <div className={`${statsStyles['stat-value']} ${statsStyles['white']}`}>
+                    {rankingInfo?.totalPoints?.toLocaleString('vi-VN') || 0} điểm
+                  </div>
                 </div>
               </div>
             </section>
