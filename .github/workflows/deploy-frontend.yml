@@ -1,0 +1,38 @@
+name: CI/CD Deploy Frontend
+
+on:
+  push:
+    branches: [ "main" ] # Chạy khi push code lên develop hoặc main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Tải code từ GitHub về
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Cài đặt môi trường Node.js trên GitHub
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24' # Bạn có thể đổi thành 18 nếu project dùng Node 18
+          cache: 'npm'
+
+      # 3. Cài đặt thư viện và Build ra file tĩnh
+      - name: Install and Build
+        run: |
+          npm install
+          npm run build
+
+      # 4. Copy thư mục build từ GitHub lên VPS
+      - name: Copy files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          source: "dist/*"                     # 💡 SỬA Ở ĐÂY: Nếu React dùng thư mục 'build' thì đổi thành "build/*"
+          target: "/var/www/Michelin-Son-Tay-GMS-FrontEnd"  # 💡 SỬA Ở ĐÂY: Đường dẫn tới thư mục Frontend trên VPS của bạn
+          strip_components: 1                  # Bỏ qua lớp thư mục cha (dist/ hoặc build/) để copy trực tiếp các file con vào target
