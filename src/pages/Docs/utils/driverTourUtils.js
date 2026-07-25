@@ -100,7 +100,33 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
     prevBtnText: '◄ Quay lại',
     doneBtnText: 'Hoàn thành Tour 🎉',
     onHighlightStarted: (element, step) => {
-      // ONLY auto open profile dropdown when step.autoOpenDropdown is explicitly true
+      // 1. Close Chat Popover if current step is NOT a Chat step
+      if (!step || (!step.autoOpenChat && !step.autoOpenChatNew)) {
+        const chatBtn = document.querySelector('.chat-widget__launcherBtn');
+        const chatPopover = document.querySelector('.chat-widget__popover');
+        if (chatPopover && chatBtn) {
+          chatBtn.click();
+        }
+      }
+
+      // 2. Close Notification Panel if current step is NOT a Notification step
+      if (!step || !step.autoOpenNotification) {
+        const notifEl = document.querySelector('.staffNotification');
+        if (notifEl && notifEl.hasAttribute('open')) {
+          notifEl.removeAttribute('open');
+        }
+      }
+
+      // 3. Close Profile Dropdown if current step is NOT a Profile Dropdown step
+      if (!step || !step.autoOpenDropdown) {
+        const dropdown = document.querySelector('.staff-header__dropdown');
+        const profileBtn = document.querySelector('.staff-header__profile-avatar-btn');
+        if (dropdown && profileBtn) {
+          profileBtn.click();
+        }
+      }
+
+      // 4. Auto open profile dropdown when step.autoOpenDropdown is explicitly true
       if (step && step.autoOpenDropdown === true) {
         setTimeout(() => {
           const profileBtn = document.querySelector('.staff-header__profile-avatar-btn');
@@ -111,7 +137,7 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
         }, 150);
       }
 
-      // Auto open Chat dropdown & click (+) New Chat button
+      // 5. Auto open Chat dropdown & click (+) New Chat button
       if (step && (step.autoOpenChat === true || step.autoOpenChatNew === true)) {
         setTimeout(() => {
           const chatBtn = document.querySelector('.chat-widget__launcherBtn');
@@ -131,13 +157,13 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
         }, 150);
       }
 
-      // Auto open Notification dropdown when step.autoOpenNotification is true
+      // 6. Auto open Notification dropdown when step.autoOpenNotification is true
       if (step && step.autoOpenNotification === true) {
         setTimeout(() => {
           const detailsEl = document.querySelector('.staffNotification');
           const summaryBtn = document.querySelector('.staffNotification__button');
-          if (detailsEl && !detailsEl.hasAttribute('open')) {
-            if (summaryBtn) {
+          if (detailsEl) {
+            if (summaryBtn && !detailsEl.hasAttribute('open')) {
               summaryBtn.click();
             } else {
               detailsEl.setAttribute('open', 'true');
