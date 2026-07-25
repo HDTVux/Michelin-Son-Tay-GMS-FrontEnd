@@ -45,6 +45,7 @@ import {
     ScanQrCode,
     ListTodo,
     Image,
+    BookOpen,
 } from 'lucide-react';
 import UniversalScannerModal from '../../components/UniversalScanner/UniversalScannerModal.jsx';
 import UniversalSearch from '../../components/UniversalSearch/UniversalSearch.jsx';
@@ -140,6 +141,7 @@ const NAV_GROUPS = [
         defaultOpen: true,
         items: [
             { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: 'ALL' },
+            { id: 'docs', label: 'Tài liệu hướng dẫn', path: '/docs', icon: <BookOpen size={18} />, roles: 'ALL' },
             { id: 'system-tutorials', label: 'Hướng dẫn sử dụng', path: '/system-tutorials', icon: <HelpCircle size={18} />, roles: 'ALL' },
         ],
     },

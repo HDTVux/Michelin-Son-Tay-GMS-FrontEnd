@@ -136,6 +136,7 @@ import StaffNotifications from './pages/DashBoard/StaffNotifications/StaffNotifi
 import MessagesList from './pages/DashBoard/Messages/MessagesList.jsx';
 import ConversationPage from './pages/DashBoard/Messages/ConversationPage.jsx';
 import SystemTutorials from './pages/DashBoard/SystemTutorials/SystemTutorials.jsx';
+import DocsPage from './pages/Docs/DocsPage.jsx';
 
 
 // Import Technician pages
@@ -397,6 +398,10 @@ export default function App() {
             <Route path="login" element={<Login />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             
+            {/* Trang Tài liệu hướng dẫn (Docs) tách biệt độc lập */}
+            <Route path="docs" element={<DocsPage />} />
+            <Route path="docs/*" element={<DocsPage />} />
+            
             {/* Nhóm trang dashboard nhân viên dùng SideBar */}
             <Route element={<StaffAreaRoute><StaffLayout /></StaffAreaRoute>}>
               <Route path="dashboard" element={staffRoute(<StaffDashboard />)} />
@@ -559,6 +564,8 @@ export default function App() {
             </Route>
 
             {/* Các route phụ trợ khác */}
+            <Route path="docs" element={<DocsPage />} />
+            <Route path="docs/*" element={<DocsPage />} />
             <Route path="vat-invoice" element={<VatInvoiceView />} />
             <Route path="login" element={<ExternalRedirect to="https://staff.sontaygarage.vn/login" />} />
             <Route path="*" element={<NotFound />} />
