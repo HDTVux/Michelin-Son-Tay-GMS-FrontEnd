@@ -8,7 +8,7 @@ export const DOCS_SECTIONS = [
       {
         id: "1.1",
         number: "1.1.",
-        title: "Tổng quan hệ thống Michelin Sơn Tây GMS",
+        title: "Tổng quan Michelin Sơn Tây GMS",
         desc: "Khái quát toàn bộ các phân hệ nghiệp vụ trong garage từ Lễ tân đến Thu ngân.",
         content: {
           overview: "Michelin Sơn Tây GMS là hệ thống quản lý tổng thể chuỗi dịch vụ bảo dưỡng, sửa chữa ô tô và vật tư kho. Hệ thống bao gồm 5 phân hệ cốt lõi liên kết chặt chẽ với nhau.",
@@ -16,15 +16,34 @@ export const DOCS_SECTIONS = [
             "1. Lễ tân tiếp nhận xe, mở hàng chờ và ghi nhận yêu cầu của khách hàng.",
             "2. Cố vấn dịch vụ khảo sát an toàn 32 hạng mục và lập báo giá chi tiết.",
             "3. Kỹ thuật viên thực hiện các công việc sửa chữa theo phiếu được giao.",
-            "4. Thủ kho xuất phụ tùng và vật tư thay thế chính hãng Michelin.",
+            "4. Thủ kho / Quản lý kho xuất phụ tùng và vật tư thay thế chính hãng Michelin.",
             "5. Thu ngân kiểm tra hóa đơn, áp dụng khuyến mãi và thu tiền."
-          ]
+          ],
+          roles: [
+            { code: "RECEPTIONIST", name: "Lễ tân", desc: "Tiếp nhận xe, quản lý hàng chờ, mở phiếu dịch vụ ban đầu & thông tin khách hàng." },
+            { code: "ADVISOR", name: "Cố vấn dịch vụ", desc: "Khảo sát an toàn 32 hạng mục, tư vấn giải pháp, lập báo giá & xin duyệt từ khách." },
+            { code: "TECHNICIAN", name: "Kỹ thuật viên", desc: "Tiếp nhận công việc (My Tasks), thay lốp Michelin, cân bằng chì, căn chỉnh 3D Hunter." },
+            { code: "WAREHOUSE_KEEPER", name: "Thủ kho", desc: "Nhập/xuất phụ tùng thực tế, quét mã QR/Barcode tem lốp, quản lý khay kệ A-100." },
+            { code: "WAREHOUSE_MANAGER", name: "Quản lý kho", desc: "Cài đặt ngưỡng tồn kho an toàn, duyệt phiếu nhập/xuất & xử lý kiểm kê chênh lệch." },
+            { code: "ACCOUNTANT", name: "Thu ngân & Kế toán", desc: "Tạo mã VietQR động thanh toán, xuất hóa đơn GTGT & chốt báo cáo dòng tiền." },
+            { code: "MANAGER", name: "Quản lý Showroom", desc: "Giám sát toàn bộ KPI garage, báo cáo doanh thu & đánh giá tiến độ đào tạo nhân viên." },
+            { code: "ADMIN", name: "Quản trị viên hệ thống", desc: "Quản lý tài khoản người dùng, phân quyền vai trò, cấu hình danh mục dịch vụ & cài đặt hệ thống." }
+          ],
+          roleMerging: {
+            title: "Cơ chế Gộp chức vụ (Kiêm nhiệm Đa vai trò)",
+            desc: "Trong thực tế vận hành garage, một nhân viên có thể kiêm nhiệm cùng lúc nhiều vai trò (Ví dụ: Thủ kho kiêm Quản lý kho, Cố vấn dịch vụ kiêm Lễ tân, Quản lý kiêm Kế toán). Hệ thống Michelin GMS hỗ trợ tự động hợp nhất tất cả các quyền hạn:",
+            points: [
+              "Hệ thống tự động ghi nhận danh sách các vị trí nhân viên kiêm nhiệm (ví dụ: vừa làm Quản lý kho vừa làm Thủ kho, hoặc vừa làm Lễ tân vừa làm Cố vấn dịch vụ).",
+              "Không cần đăng xuất hay đổi tài khoản: Thanh menu bên trái tự động hiển thị đầy đủ tất cả các tính năng thuộc mọi vai trò mà nhân viên được giao.",
+              "Tự động liên thông quyền hạn: Khi nhân viên được giao vai trò cao hơn (như Quản lý kho), hệ thống tự động cấp kèm các quyền thao tác cơ sở (như Thủ kho) để nhân viên thực hiện quy trình công việc liên tục không bị gián đoạn."
+            ]
+          }
         },
         sandboxType: "overview",
         quiz: {
           question: "Thứ tự luồng làm việc tiêu chuẩn trên hệ thống Michelin GMS là gì?",
           options: [
-            "Lễ tân tiếp nhận -> Cố vấn báo giá -> Kỹ thuật làm việc -> Thủ kho xuất hàng -> Thu ngân thanh toán",
+            "Lễ tân tiếp nhận -> Cố vấn báo giá -> Kỹ thuật làm việc -> Thủ kho / Quản lý kho xuất hàng -> Thu ngân thanh toán",
             "Thu ngân thanh toán -> Kỹ thuật làm việc -> Cố vấn báo giá",
             "Thủ kho xuất hàng trước -> Lễ tân tiếp nhận sau",
             "Cố vấn tự sửa chữa không cần Kỹ thuật viên"
@@ -32,8 +51,62 @@ export const DOCS_SECTIONS = [
           correctIndex: 0
         },
         tourSteps: [
-          { element: '[data-tour-id="general"]', popover: { title: "1.1 Màn hình chung", description: "Nơi truy cập Dashboard và Tài liệu hướng dẫn hệ thống.", side: "right" } },
-          { element: '[data-tour-id="dashboard"]', popover: { title: "Dashboard tổng quan", description: "Xem nhanh chỉ số doanh thu, lịch hẹn và phiếu dịch vụ hôm nay.", side: "right" } }
+          { 
+            element: "body", 
+            popover: { 
+              title: "👋 Chào mừng bạn đến với Michelin Sơn Tây GMS!", 
+              description: "Hệ thống Quản lý Garage Michelin đã sẵn sàng. Chúng tôi sẽ hướng dẫn nhanh các khu vực chức năng chính trên màn hình.", 
+              side: "bottom" 
+            } 
+          },
+          { 
+            element: ".staff-header, .staff-header__left", 
+            popover: { 
+              title: "🖥️ Thanh Header Navbar điều hướng", 
+              description: "Thanh điều hướng phía trên chứa thương hiệu Michelin Sơn Tây và các liên kết truy cập nhanh phân hệ chính.", 
+              side: "bottom" 
+            } 
+          },
+          { 
+            element: ".staff-header__search-container, .sidebar__search-wrapper", 
+            popover: { 
+              title: "🔍 Ô Tìm kiếm Mọi thứ & Trợ lý AI (Ctrl + K)", 
+              description: "Tra cứu thông minh tất cả dữ liệu (Biển số xe, Khách hàng, Mã phiếu, SKU lốp Michelin) kết hợp Trợ lý AI giải đáp nghiệp vụ tức thì.", 
+              side: "bottom" 
+            } 
+          },
+          { 
+            element: ".staff-header__scan-btn, .staff-header__chat-container", 
+            popover: { 
+              title: "📷 & 💬 Bộ công cụ Nhanh: Quét mã QR/Barcode & Nhắn tin (Message)", 
+              description: "Cụm công cụ mở camera quét mã tem lốp Michelin/phiếu dịch vụ tức thì và nhắn tin trao đổi nội bộ thời gian thực giữa các phân hệ.", 
+              side: "bottom" 
+            } 
+          },
+          { 
+            element: ".sidebar, .sidebar__nav, [data-tour-id=\"general\"]", 
+            popover: { 
+              title: "📌 Thanh menu điều hướng chức năng", 
+              description: "Nơi chứa toàn bộ phân hệ làm việc (Lễ tân, Cố vấn, Kỹ thuật viên, Kho, Thu ngân) và Trung tâm Tài liệu /docs.", 
+              side: "right" 
+            } 
+          },
+          { 
+            element: ".mobile-navbar, .mobile-navbar__dock", 
+            popover: { 
+              title: "📱 Thanh Mobile Bottom Dock (Linh hoạt trên Điện thoại)", 
+              description: "Trải nghiệm mượt mà trên di động: Bạn có thể nhấn giữ để thu gọn / mở rộng menu, hoặc kéo thả vị trí dock tới góc làm việc thuận tay nhất!", 
+              side: "top" 
+            } 
+          },
+          { 
+            element: ".staff-header__profile-container, .sidebar__profile", 
+            popover: { 
+              title: "👤 Tài khoản & Đổi mật khẩu", 
+              description: "Xem thông tin cá nhân, cập nhật hồ sơ, đổi mật khẩu và xem lịch sử chấm công của bạn.", 
+              side: "bottom" 
+            } 
+          }
         ]
       },
       {
@@ -265,13 +338,36 @@ export const DOCS_SECTIONS = [
             },
             sandboxType: "stockin",
             quiz: {
-              question: "Công cụ nào giúp Thủ kho nhập mã lốp Michelin nhanh chóng không cần gõ tay?",
+              question: "Công cụ nào giúp Thủ kho / Quản lý kho nhập mã lốp Michelin nhanh chóng không cần gõ tay?",
               options: ["Thiết bị Quét mã QR / Barcode", "Máy in hóa đơn", "Bảng tính Excel", "Thước đo độ sâu"],
               correctIndex: 0
             },
             tourSteps: [
               { element: '[data-tour-id="warehouse-management"]', popover: { title: "Quản lý kho", description: "Tổng quan vị trí khay kệ, tồn kho lốp và phụ tùng ô tô.", side: "right" } },
               { element: '[data-tour-id="warehouse-stock-entries"]', popover: { title: "Quản lý phiếu nhập", description: "Lập và theo dõi các đợt nhập phụ tùng mới vào kho.", side: "right" } }
+            ]
+          },
+          {
+            id: "2.4.2",
+            number: "2.4.2.",
+            title: "Nghiệp vụ Quản lý kho & Kiểm kê định kỳ",
+            desc: "Phê duyệt phiếu nhập/xuất kho, thiết lập định mức tồn kho tối thiểu & xử lý lệch tồn kho.",
+            content: {
+              overview: "Quản lý kho chịu trách nhiệm tối ưu hóa luồng vật tư, cảnh báo thiếu lốp Michelin và phê duyệt toàn bộ phiếu xuất nhập.",
+              steps: [
+                "1. Thiết lập ngưỡng tồn kho tối thiểu (Safety Stock Level) cho từng cỡ lốp Michelin.",
+                "2. Duyệt phiếu yêu cầu xuất phụ tùng từ Cố vấn dịch vụ / Kỹ thuật viên.",
+                "3. Thực hiện kiểm kê kho định kỳ (Physical Count) và tạo phiếu điều chỉnh chênh lệch số liệu thực tế."
+              ]
+            },
+            sandboxType: "warehouse_manager",
+            quiz: {
+              question: "Nhiệm vụ chính của Quản lý kho khi số lượng lốp Michelin trong kho xuống dưới ngưỡng an toàn là gì?",
+              options: ["Cảnh báo hệ thống & Đề xuất tạo đơn nhập kho mới", "Tắt hệ thống phần mềm", "Tự ý tăng giá lốp", "Xóa bớt phiếu cũ"],
+              correctIndex: 0
+            },
+            tourSteps: [
+              { element: '[data-tour-id="warehouse-management"]', popover: { title: "Quản lý kho", description: "Màn hình dành riêng cho Quản lý kho để duyệt phiếu và kiểm soát tồn kho.", side: "right" } }
             ]
           }
         ]
@@ -312,7 +408,7 @@ export const DOCS_SECTIONS = [
     id: "3",
     number: "3.",
     title: "Luồng nghiệp vụ liên phân hệ",
-    description: "Sơ đồ phối hợp nhịp nhàng giữa Lễ tân, Cố vấn, Kỹ thuật viên, Thủ kho và Kế toán.",
+    description: "Sơ đồ phối hợp nhịp nhàng giữa Lễ tân, Cố vấn, Kỹ thuật viên, Thủ kho, Quản lý kho và Kế toán.",
     topics: [
       {
         id: "3.1",
@@ -324,7 +420,7 @@ export const DOCS_SECTIONS = [
           steps: [
             "Bước 1 (Lễ tân): Tiếp nhận xe & Chuyển hàng chờ.",
             "Bước 2 (Cố vấn): Khảo sát 32 hạng mục -> Lập báo giá gửi khách duyệt.",
-            "Bước 3 (Thủ kho): Nhận yêu cầu vật tư -> Xuất lốp/phụ tùng cho thợ.",
+            "Bước 3 (Thủ kho / Quản lý kho): Nhận yêu cầu vật tư -> Xuất lốp/phụ tùng cho thợ.",
             "Bước 4 (Kỹ thuật viên): Thay lốp, cân chỉnh thước lái -> Chụp ảnh nghiệm thu.",
             "Bước 5 (Cố vấn): Kiểm tra chất lượng (QC) -> Chuyển thanh toán.",
             "Bước 6 (Thu ngân): In hóa đơn -> Thu tiền -> Bàn giao xe cho khách."
@@ -334,7 +430,7 @@ export const DOCS_SECTIONS = [
         quiz: {
           question: "Sau khi Cố vấn báo giá được khách hàng duyệt, dữ liệu tự động chuyển tới những phân hệ nào?",
           options: [
-            "Thủ kho (xuất vật tư) và Kỹ thuật viên (thực hiện công việc)",
+            "Thủ kho / Quản lý kho (xuất vật tư) và Kỹ thuật viên (thực hiện công việc)",
             "Chỉ có Bảo vệ garage",
             "Công ty bảo hiểm bên ngoài",
             "Không chuyển đi đâu cả"

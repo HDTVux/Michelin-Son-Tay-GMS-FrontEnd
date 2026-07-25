@@ -455,7 +455,7 @@ export default function DocsPage() {
                   }}
                 >
                   <Play size={16} />
-                  <span>Khởi chạy Driver.js Live Tour</span>
+                  <span>Khởi chạy hướng dẫn</span>
                 </button>
               )}
             </div>
@@ -504,6 +504,50 @@ export default function DocsPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Sector: Các vai trò chức vụ trong hệ thống */}
+              {activeNode.content?.roles && activeNode.content.roles.length > 0 && (
+                <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#60a5fa', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Users size={18} />
+                    <span>Các Vai trò & Chức vụ trong Hệ thống</span>
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                    {activeNode.content.roles.map((r) => (
+                      <div key={r.code} style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{r.name}</strong>
+                          <span style={{ fontSize: '0.7rem', padding: '2px 6px', background: 'rgba(37,99,235,0.2)', color: '#60a5fa', borderRadius: '4px', fontWeight: 600 }}>
+                            Vai trò chính
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>{r.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sector: Cơ chế gộp chức vụ */}
+              {activeNode.content?.roleMerging && (
+                <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '10px' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38bdf8', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Layers size={18} />
+                    <span>{activeNode.content.roleMerging.title}</span>
+                  </h3>
+                  <p style={{ fontSize: '0.875rem', color: '#cbd5e1', marginBottom: '12px', lineHeight: 1.5 }}>
+                    {activeNode.content.roleMerging.desc}
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {activeNode.content.roleMerging.points.map((pt, pIdx) => (
+                      <div key={pIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.85rem', color: '#e2e8f0' }}>
+                        <CheckCircle2 size={16} color="#38bdf8" style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <span>{pt}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Section 2: Interactive Sandbox Preview */}
@@ -553,7 +597,7 @@ export default function DocsPage() {
             <a href="#theory" className="docs-toc__item">1. Lý thuyết & Các bước</a>
             <a href="#sandbox" className="docs-toc__item">2. Mô phỏng Dummy UI</a>
             <a href="#quiz" className="docs-toc__item">3. Bài kiểm tra thực hành</a>
-            <a href="#tour" className="docs-toc__item">4. Tour Driver.js hệ thống</a>
+            <a href="#tour" className="docs-toc__item">4. Tour Hướng dẫn tương tác</a>
           </aside>
         </div>
       )}

@@ -15,23 +15,47 @@ export const ONBOARDING_STEPS = [
     }
   },
   {
-    element: '.sidebar, .sidebar__nav, [data-tour-id="general"]',
+    element: '.staff-header, .staff-header__left',
     popover: {
-      title: '📌 Thanh điều hướng chức năng',
-      description: 'Nơi chứa toàn bộ phân hệ làm việc (Lễ tân, Cố vấn, Kỹ thuật viên, Kho, Doanh thu) và Trung tâm Tài liệu /docs.',
-      side: 'right'
-    }
-  },
-  {
-    element: '.sidebar__search-wrapper',
-    popover: {
-      title: '🔍 Ô tìm kiếm nhanh (Ctrl + K)',
-      description: 'Gõ biển số xe, tên khách hàng hoặc mã phiếu dịch vụ để tra cứu tức thì ở bất kỳ đâu.',
+      title: '🖥️ Thanh Header Navbar điều hướng',
+      description: 'Thanh điều hướng phía trên chứa thương hiệu Michelin Sơn Tây và các liên kết truy cập nhanh phân hệ chính.',
       side: 'bottom'
     }
   },
   {
-    element: '.sidebar__profile',
+    element: '.staff-header__search-container, .sidebar__search-wrapper',
+    popover: {
+      title: '🔍 Ô Tìm kiếm Mọi thứ & Trợ lý AI (Ctrl + K)',
+      description: 'Tra cứu thông minh tất cả dữ liệu (Biển số xe, Khách hàng, Mã phiếu, SKU lốp Michelin) kết hợp Trợ lý AI giải đáp nghiệp vụ tức thì.',
+      side: 'bottom'
+    }
+  },
+  {
+    element: '.staff-header__scan-btn, .staff-header__chat-container',
+    popover: {
+      title: '📷 & 💬 Bộ công cụ Nhanh: Quét mã QR/Barcode & Nhắn tin (Message)',
+      description: 'Cụm công cụ mở camera quét mã tem lốp Michelin/phiếu dịch vụ tức thì và nhắn tin trao đổi nội bộ thời gian thực giữa các phân hệ.',
+      side: 'bottom'
+    }
+  },
+  {
+    element: '.sidebar, .sidebar__nav, [data-tour-id="general"]',
+    popover: {
+      title: '📌 Thanh menu điều hướng chức năng',
+      description: 'Nơi chứa toàn bộ phân hệ làm việc (Lễ tân, Cố vấn, Kỹ thuật viên, Kho, Thu ngân) và Trung tâm Tài liệu /docs.',
+      side: 'right'
+    }
+  },
+  {
+    element: '.mobile-navbar, .mobile-navbar__dock',
+    popover: {
+      title: '📱 Thanh Mobile Bottom Dock (Linh hoạt trên Điện thoại)',
+      description: 'Trải nghiệm mượt mà trên di động: Bạn có thể nhấn giữ để thu gọn / mở rộng menu, hoặc kéo thả vị trí dock tới góc làm việc thuận tay nhất!',
+      side: 'top'
+    }
+  },
+  {
+    element: '.staff-header__profile-container, .sidebar__profile',
     popover: {
       title: '👤 Tài khoản & Đổi mật khẩu',
       description: 'Xem thông tin cá nhân, cập nhật hồ sơ, đổi mật khẩu và xem lịch sử chấm công của bạn.',
@@ -53,6 +77,20 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
     activeDriverInstance = null;
   }
 
+  // Dynamically filter steps to only include elements that are visible on the current screen (handles Mobile vs Desktop)
+  const visibleSteps = steps.filter(step => {
+    if (!step.element || step.element === 'body') return true;
+    const matchedEls = Array.from(document.querySelector(step.element) ? [document.querySelector(step.element)] : document.querySelectorAll(step.element));
+    return matchedEls.some(el => {
+      if (!el) return false;
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    });
+  });
+
+  const finalSteps = visibleSteps.length > 0 ? visibleSteps : steps;
+
   const driverObj = driver({
     showProgress: true,
     animate: true,
@@ -66,7 +104,7 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
       if (onComplete) onComplete();
       driverObj.destroy();
     },
-    steps: steps.map(step => ({
+    steps: finalSteps.map(step => ({
       element: step.element,
       popover: {
         title: step.popover?.title || 'Hướng dẫn thao tác',
@@ -90,21 +128,20 @@ export const launchDriverTour = (tourSteps = [], onComplete = null, navigate = n
   // Clear any pending tour
   sessionStorage.removeItem('pendingDriverTour');
 
-  // Check if target elements exist in current page DOM
-  const hasOnPageElements = tourSteps.some(step => Boolean(document.querySelector(step.element)));
+  const isCurrentDocsPage = window.location.pathname.startsWith('/docs');
 
-  if (hasOnPageElements) {
-    startDriverJsTour(tourSteps, onComplete);
-  } else if (navigate) {
+  if (navigate && isCurrentDocsPage) {
+    // When called from /docs, save pending tour and navigate to live app dashboard
     sessionStorage.setItem('pendingDriverTour', JSON.stringify({
       steps: tourSteps,
-      targetPath: targetPath,
+      targetPath: targetPath || '/dashboard',
       completedTopicId: tourSteps.topicId || null
     }));
 
     window.dispatchEvent(new CustomEvent('triggerTour'));
-    navigate(targetPath);
+    navigate(targetPath || '/dashboard');
   } else {
+    // Already on live app screen, run tour directly
     startDriverJsTour(tourSteps, onComplete);
   }
 };
