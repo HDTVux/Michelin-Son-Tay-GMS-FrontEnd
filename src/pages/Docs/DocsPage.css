@@ -355,7 +355,11 @@
   }
 
   .docs-header__title {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .docs-header__badge {
@@ -363,7 +367,12 @@
   }
 
   .docs-header__actions {
-    gap: 8px;
+    gap: 6px;
+  }
+
+  .docs-header__actions button {
+    padding: 6px 10px !important;
+    font-size: 0.78rem !important;
   }
 
   .docs-search-btn span:last-child {
@@ -391,19 +400,22 @@
   }
 
   .docs-content {
-    padding: 20px 14px;
+    padding: 16px 12px;
     width: 100%;
     max-width: 100%;
+    box-sizing: border-box;
   }
 
   .docs-article__title {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
+    line-height: 1.25;
   }
 
   .docs-article__desc {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     margin-bottom: 20px;
-    padding-bottom: 16px;
+    padding-bottom: 14px;
+    line-height: 1.5;
   }
 
   .docs-cards-grid {
@@ -415,11 +427,84 @@
     display: flex !important;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
+    padding: 10px 12px;
     background: #0b1329;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     position: sticky;
     top: 56px;
     z-index: 90;
+  }
+
+  /* Bottom Action Row mobile stack */
+  .docs-bottom-action-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .docs-bottom-action-row button {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .docs-header__title {
+    display: none;
+  }
+
+  .docs-content {
+    padding: 12px 10px;
+  }
+
+  .docs-article__title {
+    font-size: 1.25rem;
+  }
+
+  /* Mode Switcher text compact on mobile */
+  .docs-header__actions button span {
+    font-size: 0.72rem;
+  }
+}
+
+/* Small mobile devices (iPhone SE / 375px screens) */
+@media (max-width: 385px) {
+  .docs-header {
+    padding: 0 8px;
+    height: 50px;
+  }
+
+  .docs-header__logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .docs-header__actions {
+    gap: 4px;
+  }
+
+  .docs-header__actions button {
+    padding: 4px 6px !important;
+    font-size: 0.7rem !important;
+  }
+
+  .docs-bottom-action-row button {
+    padding: 10px 12px !important;
+    font-size: 0.78rem !important;
+  }
+
+  .docs-bottom-action-row button span {
+    font-size: 0.75rem !important;
+  }
+
+  .docs-mobile-nav-bar {
+    top: 50px;
+    padding: 8px 10px;
+  }
+
+  .docs-mobile-nav-bar button {
+    padding: 6px 10px !important;
+    font-size: 0.78rem !important;
   }
 }
