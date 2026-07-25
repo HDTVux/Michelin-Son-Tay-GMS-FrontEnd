@@ -437,7 +437,7 @@ export default function DocsPage() {
               {activeNode.tourSteps && (
                 <button
                   type="button"
-                  onClick={() => launchDriverTour(activeNode.tourSteps, () => handleMarkTopicCompleted(activeNode.id))}
+                  onClick={() => launchDriverTour(activeNode.tourSteps, () => handleMarkTopicCompleted(activeNode.id), navigate, '/dashboard')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

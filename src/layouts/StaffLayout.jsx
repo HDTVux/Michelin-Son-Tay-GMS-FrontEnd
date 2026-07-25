@@ -13,6 +13,7 @@ import ChatMobileNavButton from '../components/Chat/ChatMobileNavButton.jsx';
 import AIAssistantPanel from '../components/AIAssistant/AIAssistantPanel.jsx';
 import { resyncPushSubscription } from '../hooks/usePushNotifications.js';
 import { initNotificationSound } from '../utils/notificationSound.js';
+import { checkAndRunPendingDriverTour } from '../pages/Docs/utils/driverTourUtils.js';
 import './StaffLayout.css';
 
 
@@ -555,6 +556,10 @@ const StaffLayout = () => {
   useEffect(() => {
     initNotificationSound();
   }, []);
+
+  useEffect(() => {
+    checkAndRunPendingDriverTour();
+  }, [location.pathname]);
 
   // Đăng ký Service Worker cho Web Push ngay khi nhân viên đã đăng nhập, để
   // thông báo cấp hệ điều hành hoạt động cả khi đã tắt web (việc bật/tắt
