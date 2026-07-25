@@ -55,3 +55,10 @@
   border-color: #22d3ee;
   color: #164e63;
 }
+
+/* Hạng Kim Cương */
+.diamond {
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-color: #8b5cf6;
+  color: #4c1d95;
+}
