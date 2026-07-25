@@ -79,7 +79,7 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
 
   // Dynamically filter steps to only include elements that are visible on the current screen (handles Mobile vs Desktop)
   const visibleSteps = steps.filter(step => {
-    if (!step.element || step.element === 'body' || step.autoOpenDropdown || step.targetPath) return true;
+    if (!step.element || step.element === 'body' || step.autoOpenDropdown || step.autoOpenChat || step.autoOpenChatNew || step.autoOpenNotification || step.targetPath) return true;
     const matchedEls = Array.from(document.querySelector(step.element) ? [document.querySelector(step.element)] : document.querySelectorAll(step.element));
     return matchedEls.some(el => {
       if (!el) return false;
@@ -107,6 +107,41 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
           const dropdown = document.querySelector('.staff-header__dropdown');
           if (profileBtn && !dropdown) {
             profileBtn.click();
+          }
+        }, 150);
+      }
+
+      // Auto open Chat dropdown & click (+) New Chat button
+      if (step && (step.autoOpenChat === true || step.autoOpenChatNew === true)) {
+        setTimeout(() => {
+          const chatBtn = document.querySelector('.chat-widget__launcherBtn');
+          const popover = document.querySelector('.chat-widget__popover');
+          if (chatBtn && !popover) {
+            chatBtn.click();
+          }
+
+          if (step.autoOpenChatNew === true) {
+            setTimeout(() => {
+              const newBtn = document.querySelector('.chat-widget__popoverNewBtn');
+              if (newBtn) {
+                newBtn.click();
+              }
+            }, 220);
+          }
+        }, 150);
+      }
+
+      // Auto open Notification dropdown when step.autoOpenNotification is true
+      if (step && step.autoOpenNotification === true) {
+        setTimeout(() => {
+          const detailsEl = document.querySelector('.staffNotification');
+          const summaryBtn = document.querySelector('.staffNotification__button');
+          if (detailsEl && !detailsEl.hasAttribute('open')) {
+            if (summaryBtn) {
+              summaryBtn.click();
+            } else {
+              detailsEl.setAttribute('open', 'true');
+            }
           }
         }, 150);
       }
@@ -138,10 +173,24 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
       activeDriverInstance = null;
       if (onComplete) onComplete();
       driverObj.destroy();
+
+      // Return to /docs if launched from /docs and tour is completed
+      const remainingPending = sessionStorage.getItem('pendingDriverTour');
+      const isFromDocs = sessionStorage.getItem('driverTourIsFromDocs') === 'true';
+
+      if (!remainingPending && isFromDocs && window.location.pathname !== '/docs') {
+        sessionStorage.removeItem('driverTourIsFromDocs');
+        setTimeout(() => {
+          window.location.href = '/docs';
+        }, 200);
+      }
     },
     steps: finalSteps.map(step => ({
       element: step.element,
       autoOpenDropdown: step.autoOpenDropdown || false,
+      autoOpenChat: step.autoOpenChat || false,
+      autoOpenChatNew: step.autoOpenChatNew || false,
+      autoOpenNotification: step.autoOpenNotification || false,
       targetPath: step.targetPath || null,
       popover: {
         title: step.popover?.title || 'Hướng dẫn thao tác',
@@ -161,6 +210,9 @@ export const launchDriverTour = (tourSteps = [], onComplete = null, navigate = n
     alert('Bài học này chưa cấu hình tour tương tác!');
     return;
   }
+
+  // Flag tour as launched from /docs so completion returns to /docs
+  sessionStorage.setItem('driverTourIsFromDocs', 'true');
 
   // Clear any pending tour
   sessionStorage.removeItem('pendingDriverTour');
@@ -227,6 +279,9 @@ export const checkAndRunFirstTimeStaffOnboarding = () => {
   try {
     const hasSeen = localStorage.getItem('hasSeenStaffTour');
     if (!hasSeen) {
+      // System onboarding tour - do NOT return to /docs
+      sessionStorage.setItem('driverTourIsFromDocs', 'false');
+
       // Mark immediately synchronously to prevent duplicate triggers
       isOnboardingStarted = true;
       localStorage.setItem('hasSeenStaffTour', 'true');

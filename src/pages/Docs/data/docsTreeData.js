@@ -187,24 +187,69 @@ export const DOCS_SECTIONS = [
       {
         id: "1.3",
         number: "1.3.",
-        title: "Thanh công cụ & Ô tìm kiếm nhanh (Ctrl + K)",
-        desc: "Hướng dẫn tra cứu tức thì chức năng, phiếu dịch vụ và thông tin khách hàng.",
+        title: "Thanh công cụ & Tìm mọi thứ",
+        desc: "Hướng dẫn tra cứu tức thì tích hợp Trợ lý AI, quét QR/Barcode mọi thứ, chat nội bộ real-time và hệ thống thông báo.",
+        targetPath: "/dashboard",
         content: {
-          overview: "Hệ thống hỗ trợ công cụ Universal Search tích hợp sẵn. Nhấn phím Ctrl + K (hoặc Cmd + K) để mở khung tìm kiếm tức thì.",
+          overview: "Thanh công cụ Header tập trung toàn bộ tiện ích làm việc quan trọng nhất: Tra cứu thông minh tích hợp Trợ lý AI, Quét QR/Barcode mọi thứ, Chat nhắn tin trao đổi nội bộ real-time và Trung tâm Thông báo hệ thống.",
           steps: [
-            "1. Nhấn phím tắt Ctrl + K ở bất kỳ màn hình nào.",
-            "2. Gõ biển số xe, tên khách hàng hoặc mã phiếu dịch vụ (ví dụ: '29A-888.88').",
-            "3. Sử dụng phím mũi tên lên/xuống để chọn và bấm Enter để tới trang chi tiết."
+            "1. **Ô Tìm kiếm mọi thứ & Trợ lý AI**: Nhấn phím tắt *Ctrl + K* để tra cứu biển số xe, mã phiếu, SKU lốp Michelin hoặc hỏi đáp nghiệp vụ 24/7.",
+            "2. **Bộ quét mã QR / Barcode**: Nhấp biểu tượng *Camera* để quét nhanh tem lốp Michelin SKU, mã QR phiếu dịch vụ hoặc mã xe nhận diện.",
+            "3. **Tin nhắn nội bộ Real-time**: Nhấp biểu tượng *Đoạn chat* để mở danh sách hội thoại tin nhắn trao đổi làm việc giữa các phân hệ.",
+            "4. **Tạo cuộc trò chuyện mới**: Nhấp vào nút *Thêm (+)* ở góc phải Menu Chat để tìm kiếm nhân viên theo tên/vai trò và tạo phòng chat mới.",
+            "5. **Trung tâm Thông báo hệ thống**: Theo dõi quả chuông thông báo ca làm việc, cập nhật trạng thái phiếu dịch vụ & lịch hẹn khách hàng."
           ]
         },
         sandboxType: "search",
         quiz: {
-          question: "Tổ hợp phím tắt nào giúp mở ô Tìm kiếm nhanh tức thì?",
+          question: "Tổ hợp phím tắt nào giúp mở ô Tìm kiếm mọi thứ & Trợ lý AI tức thì?",
           options: ["Ctrl + C", "Ctrl + K (hoặc Cmd + K)", "Alt + F4", "Shift + Enter"],
           correctIndex: 1
         },
         tourSteps: [
-          { element: '.sidebar__search-wrapper', popover: { title: "Ô Tìm kiếm nhanh", description: "Gõ từ khóa để tra cứu chức năng hoặc tìm phiếu dịch vụ.", side: "bottom" } }
+          { 
+            element: ".staff-header__search-container, .universal-search", 
+            popover: { 
+              title: "🔍 1. Ô Tìm kiếm Mọi thứ & Trợ lý AI (Ctrl + K)", 
+              description: "Tra cứu tức thì tất cả dữ liệu (Biển số xe, Khách hàng, Mã phiếu, SKU lốp Michelin) kết hợp Trợ lý AI giải đáp thắc mắc nghiệp vụ 24/7.", 
+              side: "bottom" 
+            } 
+          },
+          { 
+            element: ".staff-header__scan-btn", 
+            popover: { 
+              title: "📷 2. Bộ Quét mã QR / Barcode Đa năng", 
+              description: "Nhấp để mở Camera quét tem lốp Michelin SKU, mã QR phiếu dịch vụ hoặc mã xe nhận diện tức thì mà không cần nhập tay.", 
+              side: "bottom" 
+            } 
+          },
+          { 
+            element: ".chat-widget__launcherBtn, .staff-header__chat-container", 
+            autoOpenChat: true,
+            popover: { 
+              title: "💬 3. Tin nhắn Nội bộ & Tự động mở Box Đoạn chat", 
+              description: "Nhấp mở Menu Đoạn chat thời gian thực. Hệ thống tự động bật danh sách hội thoại tin nhắn làm việc giữa các phân hệ.", 
+              side: "left" 
+            } 
+          },
+          { 
+            element: ".chat-widget__popoverNewBtn, .chat-widget__popover", 
+            autoOpenChatNew: true,
+            popover: { 
+              title: "✏️ 4. Nút Thêm Cuộc trò chuyện mới (Tạo Chat mới)", 
+              description: "Nhấp vào biểu tượng Cây bút (+) để tìm kiếm nhân viên theo tên/chức vụ và khởi tạo phòng chat làm việc trực tiếp.", 
+              side: "left" 
+            } 
+          },
+          { 
+            element: ".staffNotification__button, .staffNotification", 
+            autoOpenNotification: true,
+            popover: { 
+              title: "🔔 5. Trung tâm Thông báo & Dropdown Thông báo Live", 
+              description: "Tự động nhấp mở Bảng Thông báo real-time. Theo dõi thông báo ca làm việc, duyệt phiếu xuất kho, lịch hẹn mới và các thông báo khẩn cấp.", 
+              side: "left" 
+            } 
+          }
         ]
       }
     ]

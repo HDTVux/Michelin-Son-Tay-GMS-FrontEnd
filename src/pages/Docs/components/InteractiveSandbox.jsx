@@ -23,7 +23,13 @@ import {
   Clock,
   HeartHandshake,
   ShieldCheck,
-  PackageCheck
+  PackageCheck,
+  ScanQrCode,
+  MessageCircle,
+  Bell,
+  Pencil,
+  Sparkles,
+  ChevronDown
 } from 'lucide-react';
 
 export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Nghiệp vụ' }) {
@@ -516,91 +522,94 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
             </div>
 
             {/* Mini Browser Viewport Content Canvas */}
-            <div style={{ padding: '20px', background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
+            <div style={{ padding: '20px', background: 'radial-gradient(circle at 12% 16%, rgba(247, 220, 3, 0.22), transparent 22%), radial-gradient(circle at 88% 20%, rgba(0, 90, 169, 0.16), transparent 24%), linear-gradient(135deg, #f9fbfe 0%, #eef3f9 100%)' }}>
               {formData.miniTab !== 'profile' ? (
                 /* Tab 1: 100% Authentic Split Layout Login Screen (Identical to /login) */
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                  gap: '20px',
-                  background: 'rgba(15, 23, 42, 0.95)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  padding: '24px',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+                  minHeight: '420px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  overflow: 'hidden',
+                  boxShadow: '0 20px 50px rgba(15, 23, 42, 0.15)'
                 }}>
-                  {/* Left Column: Michelin Hero Brand Section */}
+                  {/* Left Column: Michelin Hero Mascot & Brand Section (Identical to /login) */}
                   <div style={{
+                    backgroundImage: `linear-gradient(180deg, rgba(10, 24, 43, 0.25), rgba(10, 24, 43, 0.72)), url(${Mascot})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    padding: '28px 24px',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: '20px',
-                    background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9))',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    textAlign: 'center'
+                    justifyContent: 'space-between',
+                    color: '#ffffff'
                   }}>
                     <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 12px',
-                      background: 'rgba(250, 204, 21, 0.15)',
-                      border: '1px solid rgba(250, 204, 21, 0.4)',
-                      color: '#facc15',
-                      borderRadius: '20px',
-                      fontSize: '0.75rem',
-                      fontWeight: 800,
-                      marginBottom: '14px',
-                      letterSpacing: '0.5px'
+                      alignSelf: 'flex-start',
+                      padding: '8px 14px',
+                      border: '1px solid rgba(255, 255, 255, 0.35)',
+                      borderRadius: '8px',
+                      background: 'rgba(255, 255, 255, 0.18)',
+                      backdropFilter: 'blur(8px)',
+                      color: '#ffffff',
+                      fontSize: '0.95rem',
+                      fontWeight: 900,
+                      letterSpacing: '0.5px',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.2)'
                     }}>
-                      <span>MICHELIN GMS SƠN TÂY</span>
+                      Michelin Sơn Tây
                     </div>
 
-                    <img
-                      src={Mascot}
-                      alt="Michelin Mascot"
-                      style={{
-                        width: '110px',
-                        height: '110px',
-                        objectFit: 'contain',
-                        borderRadius: '50%',
-                        border: '3px solid #facc15',
-                        boxShadow: '0 6px 18px rgba(250, 204, 21, 0.3)',
-                        marginBottom: '14px'
-                      }}
-                    />
-
-                    <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 6px 0', lineHeight: 1.3 }}>
-                      Hệ thống Quản lý Garage Michelin Sơn Tây
-                    </h3>
-                    <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
-                      Giải pháp vận hành & chăm sóc lốp xe ô tô chuyên nghiệp.
-                    </p>
+                    <div>
+                      <p style={{ margin: '0 0 8px 0', color: 'rgba(255, 255, 255, 0.85)', fontSize: '0.72rem', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Trung tâm dịch vụ tiêu chuẩn Michelin
+                      </p>
+                      <h3 style={{ margin: 0, color: '#ffffff', fontSize: '1.45rem', fontWeight: 900, lineHeight: 1.15, textShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
+                        Sẵn sàng<br />cho mọi<br />hành trình
+                      </h3>
+                    </div>
                   </div>
 
-                  {/* Right Column: Authentic Login Form */}
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '10px' }}>
-                    <div style={{ marginBottom: '16px' }}>
-                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '2px' }}>
+                  {/* Right Column: Authentic Login Form (Identical to /login) */}
+                  <div style={{
+                    background: 'radial-gradient(circle at 0% 0%, rgba(247, 220, 3, 0.18), transparent 26%), linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.97))',
+                    padding: '28px 24px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{ marginBottom: '18px' }}>
+                      <p style={{ margin: '0 0 4px 0', color: '#005aa9', fontSize: '0.72rem', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Đăng nhập nội bộ
-                      </span>
-                      <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 4px 0' }}>
+                      </p>
+                      <h4 style={{ margin: '0 0 4px 0', color: '#101828', fontSize: '1.4rem', fontWeight: 900 }}>
                         Chào mừng trở lại
                       </h4>
-                      <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+                      <p style={{ margin: 0, color: '#667085', fontSize: '0.78rem', fontWeight: 550 }}>
                         Đăng nhập tài khoản nhân viên để tiếp tục làm việc.
                       </p>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
+                        <label style={{ display: 'block', marginBottom: '6px', color: '#475467', fontSize: '0.75rem', fontWeight: 800 }}>
                           Số điện thoại hoặc email
                         </label>
                         <div style={{ position: 'relative' }}>
-                          <span style={{ position: 'absolute', left: '10px', top: '9px', fontSize: '0.7rem', fontWeight: 800, color: '#64748b' }}>ID</span>
+                          <span style={{
+                            position: 'absolute',
+                            left: '10px',
+                            top: '8px',
+                            background: '#edf4fb',
+                            color: '#005aa9',
+                            fontSize: '0.68rem',
+                            fontWeight: 900,
+                            padding: '3px 8px',
+                            borderRadius: '5px'
+                          }}>
+                            ID
+                          </span>
                           <input
                             type="text"
                             value={formData.loginPhone !== undefined ? formData.loginPhone : '0988123456'}
@@ -608,24 +617,38 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
                             placeholder="Nhập số điện thoại hoặc email"
                             style={{
                               width: '100%',
-                              padding: '8px 12px 8px 32px',
-                              background: '#0f172a',
-                              border: '1px solid rgba(59, 130, 246, 0.4)',
-                              color: '#38bdf8',
+                              height: '40px',
+                              padding: '0 12px 0 48px',
+                              background: '#ffffff',
+                              border: '1px solid #d0dae5',
                               borderRadius: '6px',
-                              fontSize: '0.85rem',
-                              fontWeight: 600
+                              color: '#101828',
+                              fontSize: '0.825rem',
+                              fontWeight: 650,
+                              outline: 'none'
                             }}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
+                        <label style={{ display: 'block', marginBottom: '6px', color: '#475467', fontSize: '0.75rem', fontWeight: 800 }}>
                           Mật khẩu
                         </label>
                         <div style={{ position: 'relative' }}>
-                          <span style={{ position: 'absolute', left: '10px', top: '9px', fontSize: '0.7rem', fontWeight: 800, color: '#64748b' }}>PIN</span>
+                          <span style={{
+                            position: 'absolute',
+                            left: '10px',
+                            top: '8px',
+                            background: '#edf4fb',
+                            color: '#005aa9',
+                            fontSize: '0.68rem',
+                            fontWeight: 900,
+                            padding: '3px 8px',
+                            borderRadius: '5px'
+                          }}>
+                            PIN
+                          </span>
                           <input
                             type="password"
                             value={formData.loginPass !== undefined ? formData.loginPass : '123456'}
@@ -633,19 +656,22 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
                             placeholder="Nhập mật khẩu"
                             style={{
                               width: '100%',
-                              padding: '8px 12px 8px 36px',
-                              background: '#0f172a',
-                              border: '1px solid rgba(255, 255, 255, 0.15)',
-                              color: '#fff',
+                              height: '40px',
+                              padding: '0 12px 0 48px',
+                              background: '#ffffff',
+                              border: '1px solid #d0dae5',
                               borderRadius: '6px',
-                              fontSize: '0.85rem'
+                              color: '#101828',
+                              fontSize: '0.825rem',
+                              fontWeight: 650,
+                              outline: 'none'
                             }}
                           />
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.75rem', color: '#94a3b8' }}>
-                        Quên mật khẩu? <span style={{ color: '#60a5fa', fontWeight: 600, marginLeft: '4px', cursor: 'pointer' }}>Khôi phục</span>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.75rem', color: '#475467', fontWeight: 600 }}>
+                        Quên mật khẩu? <span style={{ color: '#005aa9', fontWeight: 850, marginLeft: '4px', cursor: 'pointer' }}>Khôi phục</span>
                       </div>
 
                       <button
@@ -744,28 +770,296 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
         </div>
       )}
 
-      {/* Sandbox 3: Search Bar Simulator */}
+      {/* Sandbox 3: Header Toolbar Mini Simulator (100% Authentic Match to Screenshot) */}
       {type === 'search' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#64748b' }} />
-            <input 
-              type="text" 
-              placeholder="Gõ thử biển số xe '29A' hoặc mã phiếu 'ST-2026'..."
-              value={formData.searchQuery}
-              onChange={(e) => setFormData({...formData, searchQuery: e.target.value})}
-              style={{ width: '100%', padding: '10px 12px 10px 36px', background: '#0f172a', border: '1px solid rgba(96,165,250,0.4)', color: '#fff', borderRadius: '8px' }}
-            />
-          </div>
-          {formData.searchQuery && (
-            <div style={{ background: '#1e293b', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>Kết quả tìm kiếm phù hợp:</span>
-              <div style={{ padding: '8px', background: '#0f172a', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ fontWeight: 700, color: '#60a5fa' }}>Xe 29A-888.99 (Toyota Camry)</span>
-                  <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block' }}>Chủ xe: Trần Văn Mạnh • Phiếu #ST-8891</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Header Canvas Container Matching Screenshot */}
+          <div style={{
+            background: 'linear-gradient(135deg, #f8fafc, #edf5fd)',
+            border: '1px solid #cbd5e1',
+            borderRadius: '16px',
+            padding: '16px 24px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.05)'
+          }}>
+
+            {/* Header Right Toolbar Cluster - Matching User's Screenshot 100% */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '12px',
+              position: 'relative',
+              width: '100%'
+            }}>
+              {/* 1. Pill-shaped Universal Search Bar with AI Icon Button */}
+              <div style={{
+                flex: 1,
+                maxWidth: '380px',
+                height: '42px',
+                background: '#f1f5f9',
+                border: '1px solid #e2e8f0',
+                borderRadius: '9999px',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '4px 6px 4px 16px',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.03)'
+              }}>
+                <Search size={18} style={{ color: '#64748b', marginRight: '10px', flexShrink: 0 }} />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm mọi thứ..."
+                  value={formData.searchQuery || ''}
+                  onChange={(e) => setFormData({ ...formData, searchQuery: e.target.value })}
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    color: '#334155',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    minWidth: 0
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleAction('AI_CLICKED', 'Đã bật Trợ lý AI! Bạn có thể gõ bất kỳ câu hỏi nghiệp vụ hoặc tra cứu dữ liệu.')}
+                  title="Trợ lý AI"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    background: 'rgba(56, 189, 248, 0.2)',
+                    border: '1px solid #bae6fd',
+                    color: '#0284c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
+                >
+                  <Sparkles size={16} />
+                </button>
+              </div>
+
+              {/* 2. Scanner Button - Soft Rounded Square */}
+              <button
+                type="button"
+                onClick={() => {
+                  handleAction('SCANNER_OPENED', 'Đã bật Camera quét mã QR/Barcode tem lốp Michelin SKU & phiếu dịch vụ.');
+                  setFormData({ ...formData, openModal: 'scanner' });
+                }}
+                title="Quét mã QR / Barcode"
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '14px',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                  color: '#1e293b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+              >
+                <ScanQrCode size={20} />
+              </button>
+
+              {/* 3. Chat Button - Soft Rounded Square */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, openModal: formData.openModal === 'chat' ? null : 'chat' })}
+                  title="Tin nhắn nội bộ"
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '14px',
+                    background: formData.openModal === 'chat' ? '#eff6ff' : '#ffffff',
+                    border: formData.openModal === 'chat' ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                    color: formData.openModal === 'chat' ? '#2563eb' : '#1e293b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
+                >
+                  <MessageCircle size={20} />
+                </button>
+
+                {/* Live Chat Dropdown Replica */}
+                {formData.openModal === 'chat' && (
+                  <div style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: '50px',
+                    width: '310px',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.12)',
+                    zIndex: 20
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <strong style={{ color: '#0f172a', fontSize: '0.875rem' }}>💬 Đoạn chat nội bộ</strong>
+                      <button
+                        type="button"
+                        onClick={() => handleAction('CHAT_NEW', 'Đã nhấp Nút Thêm (+)! Tìm kiếm nhân viên để tạo phòng chat mới.')}
+                        style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Pencil size={13} />
+                        <span>+ Tạo chat</span>
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div onClick={() => handleAction('CHAT_OPENED', 'Đã mở phòng chat với Cố vấn Nguyễn Văn A')} style={{ padding: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer' }}>
+                        <div style={{ fontWeight: 700, color: '#1e40af', fontSize: '0.825rem' }}>Cố vấn Nguyễn Văn A</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Đã xác nhận xuất lốp Michelin 225/55R17</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Notification Bell Button - Circular Badge */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, openModal: formData.openModal === 'bell' ? null : 'bell' })}
+                  title="Thông báo"
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    background: formData.openModal === 'bell' ? '#eff6ff' : '#ffffff',
+                    border: formData.openModal === 'bell' ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                    color: formData.openModal === 'bell' ? '#2563eb' : '#1e293b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
+                >
+                  <Bell size={20} />
+                </button>
+
+                {/* Live Notification Dropdown Replica */}
+                {formData.openModal === 'bell' && (
+                  <div style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: '50px',
+                    width: '310px',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.12)',
+                    zIndex: 20
+                  }}>
+                    <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.875rem', marginBottom: '10px' }}>🔔 Thông báo ca làm việc</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem', color: '#334155' }}>
+                      <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>● Đã duyệt Phiếu xuất lốp #ST-OUT-889</div>
+                      <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>● Lịch hẹn mới từ khách 29A-888.99</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. User Profile Avatar with Online Dot & Dropdown Chevron */}
+              <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setFormData({ ...formData, openModal: formData.openModal === 'profile' ? null : 'profile' })}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  position: 'relative',
+                  border: '2px solid #ffffff',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                }}>
+                  <img
+                    src={Mascot}
+                    alt="Nhân viên"
+                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                  {/* Online Dot (Bottom-Left) */}
+                  <span style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    background: '#22c55e',
+                    border: '2px solid #ffffff'
+                  }} />
+                  {/* Chevron Down Badge (Bottom-Right) */}
+                  <span style={{
+                    position: 'absolute',
+                    bottom: '-2px',
+                    right: '-2px',
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                  }}>
+                    <ChevronDown size={10} style={{ color: '#64748b' }} />
+                  </span>
                 </div>
-                <button type="button" onClick={() => handleAction('NAVIGATED', 'Đã chuyển hướng đến Phiếu dịch vụ ST-8891')} style={{ padding: '4px 10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>Mở phiếu</button>
+
+                {/* Profile Dropdown Replica */}
+                {formData.openModal === 'profile' && (
+                  <div style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: '50px',
+                    width: '240px',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.12)',
+                    zIndex: 20
+                  }}>
+                    <div style={{ padding: '8px 10px', borderBottom: '1px solid #e2e8f0', marginBottom: '8px' }}>
+                      <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.85rem' }}>Nguyễn Văn Nhân Viên</div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Chức vụ: Cố vấn dịch vụ</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.8rem' }}>
+                      <div onClick={() => handleAction('NAVIGATED', 'Đã chuyển hướng đến Trang Hồ sơ cá nhân (/staff-profile)')} style={{ padding: '8px 10px', borderRadius: '6px', cursor: 'pointer', color: '#1e40af', fontWeight: 600 }}>👤 Hồ sơ cá nhân</div>
+                      <div onClick={() => handleAction('LOGOUT', 'Đã đăng xuất tài khoản!')} style={{ padding: '8px 10px', borderRadius: '6px', cursor: 'pointer', color: '#ef4444', fontWeight: 700, background: '#fef2f2' }}>🚪 Đăng xuất</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Typing Search Result Display */}
+          {formData.searchQuery && (
+            <div style={{ background: '#ffffff', padding: '14px', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '6px' }}>Kết quả tìm kiếm từ Universal Search & AI:</span>
+              <div style={{ padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontWeight: 800, color: '#0284c7', fontSize: '0.875rem' }}>Xe 29A-888.99 (Toyota Camry)</span>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b', display: 'block' }}>Chủ xe: Trần Văn Mạnh • Phiếu dịch vụ #ST-8891</span>
+                </div>
+                <button type="button" onClick={() => handleAction('NAVIGATED', 'Đã điều hướng tới Phiếu dịch vụ ST-8891')} style={{ padding: '6px 14px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
+                  Mở phiếu ➔
+                </button>
               </div>
             </div>
           )}

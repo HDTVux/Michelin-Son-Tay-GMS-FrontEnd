@@ -21,7 +21,8 @@ import {
   X,
   ExternalLink,
   Globe,
-  LogIn
+  LogIn,
+  ArrowRight
 } from 'lucide-react';
 import { DOCS_SECTIONS } from './data/docsTreeData.js';
 import { launchDriverTour } from './utils/driverTourUtils.js';
@@ -223,6 +224,11 @@ export default function DocsPage() {
     if (leaf) return leaf;
 
     return allTopics[0] || { id: '1.1', title: 'Tổng quan Michelin Sơn Tây GMS', desc: 'Hướng dẫn tổng quan' };
+  }, [allTopics, activeTopicId]);
+
+  const nextTopic = useMemo(() => {
+    const currentTopicIndex = allTopics.findIndex(t => t.id === activeTopicId);
+    return currentTopicIndex !== -1 && currentTopicIndex < allTopics.length - 1 ? allTopics[currentTopicIndex + 1] : null;
   }, [allTopics, activeTopicId]);
 
   const toggleSection = (secId) => {
@@ -873,8 +879,17 @@ export default function DocsPage() {
               <TopicQuiz quiz={activeNode.quiz} onPass={(score) => handleMarkTopicCompleted(activeNode.id, score)} />
             )}
 
-            {/* Section 4: Mark Complete Button */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '32px' }}>
+            {/* Section 4: Bottom Action Buttons (Mark Complete & Open Next Topic) */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '16px',
+              marginTop: '36px',
+              paddingTop: '20px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+              flexWrap: 'wrap'
+            }}>
               <button
                 type="button"
                 onClick={() => {
@@ -888,14 +903,15 @@ export default function DocsPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  padding: '12px 24px',
-                  background: completedTopicIds.includes(activeNode.id) ? '#16a34a' : '#2563eb',
-                  color: '#fff',
-                  border: 'none',
+                  padding: '12px 22px',
+                  background: completedTopicIds.includes(activeNode.id) ? 'rgba(22, 163, 74, 0.2)' : 'rgba(37, 99, 235, 0.2)',
+                  color: completedTopicIds.includes(activeNode.id) ? '#4ade80' : '#60a5fa',
+                  border: completedTopicIds.includes(activeNode.id) ? '1px solid rgba(74, 222, 128, 0.4)' : '1px solid rgba(96, 165, 250, 0.4)',
                   borderRadius: '8px',
                   fontWeight: 700,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer'
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 <CheckCircle2 size={18} />
@@ -903,6 +919,40 @@ export default function DocsPage() {
                   {completedTopicIds.includes(activeNode.id) ? 'Đã hoàn thành mục này' : 'Xác nhận Đã đọc & Hoàn thành mục này'}
                 </span>
               </button>
+
+              {nextTopic && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!completedTopicIds.includes(activeNode.id)) {
+                      if (activeNode.isOverview && activeNode.childTopics) {
+                        activeNode.childTopics.forEach(child => handleMarkTopicCompleted(child.id));
+                      } else {
+                        handleMarkTopicCompleted(activeNode.id);
+                      }
+                    }
+                    setActiveTopicId(nextTopic.id);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '12px 24px',
+                    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)',
+                    transition: 'transform 0.15s ease'
+                  }}
+                >
+                  <span>Mở bài tiếp theo ({nextTopic.number ? `${nextTopic.number} ` : ''}{nextTopic.title})</span>
+                  <ArrowRight size={18} />
+                </button>
+              )}
             </div>
           </main>
 
