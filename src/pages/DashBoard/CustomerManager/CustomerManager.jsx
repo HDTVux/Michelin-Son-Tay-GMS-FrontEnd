@@ -377,6 +377,11 @@ const CustomerManager = () => {
                           <span className={`${styles.customerTypeTag} ${customer.customerType === 'DEALER' ? styles.customerTypeTagDealer : ''}`}>
                             {getCustomerTypeText(customer.customerType)}
                           </span>
+                          {customer.isDealer && (
+                            <span className={`${styles.customerTypeTag} ${styles.customerTypeTagDealerAccount}`} title="Có quyền truy cập giao diện Đại lý">
+                              TK Đại lý
+                            </span>
+                          )}
                         </span>
                         <span className={styles.contactPhone}>{customer.phone}</span>
                       </div>
@@ -438,6 +443,11 @@ const CustomerManager = () => {
                     <span className={`${styles.customerTypeTag} ${selectedCustomer.customerType === 'DEALER' ? styles.customerTypeTagDealer : ''}`}>
                       {getCustomerTypeText(selectedCustomer.customerType)}
                     </span>
+                    {selectedCustomer.isDealer && (
+                      <span className={`${styles.customerTypeTag} ${styles.customerTypeTagDealerAccount}`} title="Có quyền truy cập giao diện Đại lý">
+                        TK Đại lý
+                      </span>
+                    )}
                     <RankBadge rank={selectedCustomer.currentRank || 'BRONZE'} size="sm" />
                   </div>
                 </div>

@@ -5,6 +5,7 @@ const RANK_CONFIG = {
   SILVER:   { label: 'Bạc',      emoji: '🥈', className: 'silver' },
   GOLD:     { label: 'Vàng',     emoji: '🥇', className: 'gold'   },
   PLATINUM: { label: 'Bạch Kim', emoji: '💎', className: 'platinum' },
+  DIAMOND:  { label: 'Kim Cương', emoji: '👑', className: 'diamond' },
 };
 
 /**

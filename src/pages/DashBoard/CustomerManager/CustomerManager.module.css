@@ -270,6 +270,11 @@
   color: #4338ca;
 }
 
+.customerTypeTagDealerAccount {
+  background: #fdf4ff;
+  color: #c026d3;
+}
+
 .contactPhone {
   font-size: 12px;
   color: #64748b;
