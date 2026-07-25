@@ -16,6 +16,7 @@
     "@zxing/library": "^0.23.0",
     "browser-image-compression": "^2.0.2",
     "chart.js": "^4.5.1",
+    "driver.js": "^1.8.0",
     "emoji-picker-react": "^4.19.1",
     "heic2any": "^0.0.4",
     "html5-qrcode": "^2.3.8",
