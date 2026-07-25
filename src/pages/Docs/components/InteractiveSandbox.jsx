@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Mascot from '../../../assets/Mascot.jpg';
 import { 
   Play, 
   CheckCircle2, 
@@ -429,46 +430,317 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
         </div>
       )}
 
-      {/* Sandbox 2: Profile Password Change Simulator */}
+      {/* Sandbox 2: Mini Browser Login & Profile Simulator */}
       {type === 'profile' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Mật khẩu mới:</label>
-              <input 
-                type="password" 
-                placeholder="Nhập mật khẩu mới..."
-                value={formData.newPassword} 
-                onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
-                style={{ width: '100%', padding: '8px 12px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px' }}
-              />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Mini Browser Window Frame */}
+          <div style={{
+            background: '#0f172a',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)'
+          }}>
+            {/* Mini Browser Top Header / URL Bar */}
+            <div style={{
+              background: '#1e293b',
+              padding: '10px 14px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              {/* Window Dot Controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444', display: 'inline-block' }}></span>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#eab308', display: 'inline-block' }}></span>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
+              </div>
+
+              {/* URL Address Bar */}
+              <div style={{
+                flex: 1,
+                maxWidth: '520px',
+                background: '#0f172a',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: '6px',
+                padding: '5px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '0.8rem',
+                color: '#94a3b8'
+              }}>
+                <ShieldCheck size={14} color="#4ade80" />
+                <span style={{ color: '#38bdf8', fontWeight: 600, fontFamily: 'monospace' }}>
+                  https://staff.sontaygarage.vn{formData.miniTab === 'profile' ? '/staff-profile' : '/login'}
+                </span>
+              </div>
+
+              {/* Viewport Switcher Buttons */}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, miniTab: 'login' })}
+                  style={{
+                    padding: '4px 10px',
+                    background: formData.miniTab !== 'profile' ? '#2563eb' : 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Tab Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, miniTab: 'profile' })}
+                  style={{
+                    padding: '4px 10px',
+                    background: formData.miniTab === 'profile' ? '#2563eb' : 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Tab Hồ sơ
+                </button>
+              </div>
             </div>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Xác nhận mật khẩu:</label>
-              <input 
-                type="password" 
-                placeholder="Nhập lại mật khẩu..."
-                value={formData.confirmPassword} 
-                onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                style={{ width: '100%', padding: '8px 12px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px' }}
-              />
+
+            {/* Mini Browser Viewport Content Canvas */}
+            <div style={{ padding: '20px', background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
+              {formData.miniTab !== 'profile' ? (
+                /* Tab 1: 100% Authentic Split Layout Login Screen (Identical to /login) */
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: '20px',
+                  background: 'rgba(15, 23, 42, 0.95)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  padding: '24px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+                }}>
+                  {/* Left Column: Michelin Hero Brand Section */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: '20px',
+                    background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9))',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 12px',
+                      background: 'rgba(250, 204, 21, 0.15)',
+                      border: '1px solid rgba(250, 204, 21, 0.4)',
+                      color: '#facc15',
+                      borderRadius: '20px',
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      marginBottom: '14px',
+                      letterSpacing: '0.5px'
+                    }}>
+                      <span>MICHELIN GMS SƠN TÂY</span>
+                    </div>
+
+                    <img
+                      src={Mascot}
+                      alt="Michelin Mascot"
+                      style={{
+                        width: '110px',
+                        height: '110px',
+                        objectFit: 'contain',
+                        borderRadius: '50%',
+                        border: '3px solid #facc15',
+                        boxShadow: '0 6px 18px rgba(250, 204, 21, 0.3)',
+                        marginBottom: '14px'
+                      }}
+                    />
+
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 6px 0', lineHeight: 1.3 }}>
+                      Hệ thống Quản lý Garage Michelin Sơn Tây
+                    </h3>
+                    <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
+                      Giải pháp vận hành & chăm sóc lốp xe ô tô chuyên nghiệp.
+                    </p>
+                  </div>
+
+                  {/* Right Column: Authentic Login Form */}
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '10px' }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '2px' }}>
+                        Đăng nhập nội bộ
+                      </span>
+                      <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 4px 0' }}>
+                        Chào mừng trở lại
+                      </h4>
+                      <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+                        Đăng nhập tài khoản nhân viên để tiếp tục làm việc.
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
+                          Số điện thoại hoặc email
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: '10px', top: '9px', fontSize: '0.7rem', fontWeight: 800, color: '#64748b' }}>ID</span>
+                          <input
+                            type="text"
+                            value={formData.loginPhone !== undefined ? formData.loginPhone : '0988123456'}
+                            onChange={(e) => setFormData({ ...formData, loginPhone: e.target.value })}
+                            placeholder="Nhập số điện thoại hoặc email"
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px 8px 32px',
+                              background: '#0f172a',
+                              border: '1px solid rgba(59, 130, 246, 0.4)',
+                              color: '#38bdf8',
+                              borderRadius: '6px',
+                              fontSize: '0.85rem',
+                              fontWeight: 600
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
+                          Mật khẩu
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: '10px', top: '9px', fontSize: '0.7rem', fontWeight: 800, color: '#64748b' }}>PIN</span>
+                          <input
+                            type="password"
+                            value={formData.loginPass !== undefined ? formData.loginPass : '123456'}
+                            onChange={(e) => setFormData({ ...formData, loginPass: e.target.value })}
+                            placeholder="Nhập mật khẩu"
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px 8px 36px',
+                              background: '#0f172a',
+                              border: '1px solid rgba(255, 255, 255, 0.15)',
+                              color: '#fff',
+                              borderRadius: '6px',
+                              fontSize: '0.85rem'
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.75rem', color: '#94a3b8' }}>
+                        Quên mật khẩu? <span style={{ color: '#60a5fa', fontWeight: 600, marginLeft: '4px', cursor: 'pointer' }}>Khôi phục</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleAction('LOGIN_SUCCESS', 'Đăng nhập thành công! Hệ thống xác thực Token & mở giao diện Dashboard với Menu Hồ sơ cá nhân.');
+                          setFormData({ ...formData, miniTab: 'profile' });
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          background: 'linear-gradient(135deg, #facc15, #eab308)',
+                          color: '#0f172a',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontWeight: 800,
+                          fontSize: '0.875rem',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 14px rgba(250, 204, 21, 0.35)',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        Đăng nhập
+                      </button>
+
+                      <div style={{ textAlign: 'center', fontSize: '0.72rem', color: '#64748b', margin: '4px 0' }}>
+                        <span>Hoặc tiếp tục bằng Google Workspace Nội bộ</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Tab 2: Live Profile & Password Change Simulator */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(30, 41, 59, 0.8)', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#2563eb', color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      NV
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#f8fafc', fontSize: '0.9rem' }}>Nguyễn Văn Mạnh (Kỹ thuật viên)</div>
+                      <div style={{ fontSize: '0.75rem', color: '#4ade80' }}>● Đã xác thực Session Token • Garage Sơn Tây</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Mật khẩu mới:</label>
+                      <input
+                        type="password"
+                        placeholder="Mật khẩu mới..."
+                        value={formData.newPassword || ''}
+                        onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Xác nhận mật khẩu:</label>
+                      <input
+                        type="password"
+                        placeholder="Nhập lại mật khẩu..."
+                        value={formData.confirmPassword || ''}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!formData.newPassword) {
+                          handleAction('ERROR', 'Vui lòng nhập mật khẩu mới!');
+                        } else if (formData.newPassword !== formData.confirmPassword) {
+                          handleAction('ERROR', 'Mật khẩu xác nhận không trùng khớp!');
+                        } else {
+                          handleAction('SUCCESS', 'Đổi mật khẩu thành công! Mật khẩu đã mã hóa Bcrypt trong DB.');
+                        }
+                      }}
+                      style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}
+                    >
+                      Thử Đổi Mật Khẩu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, miniTab: 'login' })}
+                      style={{ padding: '8px 16px', background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}
+                    >
+                      Giả lập Đăng xuất
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          <button 
-            type="button"
-            onClick={() => {
-              if (!formData.newPassword) {
-                handleAction('ERROR', 'Vui lòng nhập mật khẩu mới!');
-              } else if (formData.newPassword !== formData.confirmPassword) {
-                handleAction('ERROR', 'Mật khẩu xác nhận không trùng khớp!');
-              } else {
-                handleAction('SUCCESS', 'Đổi mật khẩu thành công! Mật khẩu đã mã hóa Bcrypt trong DB.');
-              }
-            }}
-            style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, alignSelf: 'flex-start' }}
-          >
-            Thử Đổi mật khẩu
-          </button>
         </div>
       )}
 

@@ -14,7 +14,14 @@ import {
   CheckCircle2,
   Users,
   CheckSquare,
-  BookMarked
+  BookMarked,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Menu,
+  X,
+  ExternalLink,
+  Globe,
+  LogIn
 } from 'lucide-react';
 import { DOCS_SECTIONS } from './data/docsTreeData.js';
 import { launchDriverTour } from './utils/driverTourUtils.js';
@@ -33,6 +40,8 @@ export default function DocsPage() {
   const [completedTopicIds, setCompletedTopicIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileTreeOpen, setIsMobileTreeOpen] = useState(false);
 
   // Read current logged in staff profile ID
   const staffProfile = useMemo(() => {
@@ -67,34 +76,63 @@ export default function DocsPage() {
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
+      let completed = [];
       try {
         const res = await fetch(`/api/v1/docs/progress/${staffId}`);
         if (res.ok) {
           const json = await res.json();
           if (isMounted && json && Array.isArray(json.data)) {
-            const completed = json.data
-              .filter(item => item.status === 'COMPLETED')
-              .map(item => item.topicId);
-            setCompletedTopicIds(completed);
-            return;
+            completed = json.data
+              .filter((item) => item.status === 'COMPLETED')
+              .map((item) => item.topicId);
           }
         }
       } catch (err) {
         console.warn('Backend unavailable, using local storage progress', err);
       }
 
-      try {
-        const raw = localStorage.getItem(`docs_progress_${staffId}`);
-        if (isMounted && raw) {
-          setCompletedTopicIds(JSON.parse(raw));
+      if (completed.length === 0) {
+        try {
+          const raw = localStorage.getItem(`docs_progress_${staffId}`);
+          if (raw) {
+            completed = JSON.parse(raw);
+          }
+        } catch (err) {
+          console.warn('Storage read error:', err);
         }
-      } catch (err) {
-        console.warn('Storage read error:', err);
+      }
+
+      if (isMounted) {
+        setCompletedTopicIds(completed);
+        if (completed.length > 0) {
+          // Auto jump to the next uncompleted topic in line
+          const firstUncompleted = allTopics.find(t => !completed.includes(t.id));
+          if (firstUncompleted) {
+            setActiveTopicId(firstUncompleted.id);
+          }
+        }
       }
     };
     load();
     return () => { isMounted = false; };
-  }, [staffId]);
+  }, [staffId, allTopics]);
+
+  // Auto scroll to top on active topic change or initial load
+  useEffect(() => {
+    const scrollToTop = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      const contentEl = document.querySelector('.docs-content');
+      if (contentEl) {
+        contentEl.scrollTop = 0;
+      }
+    };
+
+    scrollToTop();
+    const timer = setTimeout(scrollToTop, 100);
+    return () => clearTimeout(timer);
+  }, [activeTopicId]);
 
   // Record completed topic
   const handleMarkTopicCompleted = async (topicId, score = 100) => {
@@ -109,13 +147,14 @@ export default function DocsPage() {
 
       // Sync backend DB
       try {
+        const targetNode = allTopics.find(t => t.id === topicId);
         await fetch('/api/v1/docs/progress', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             staffId: staffId,
             topicId: topicId,
-            sectionId: activeTopicId.split('.')[0],
+            sectionId: targetNode?.sectionId || '1',
             status: 'COMPLETED',
             score: score
           })
@@ -143,7 +182,7 @@ export default function DocsPage() {
         id: foundSec.id,
         number: foundSec.number,
         title: foundSec.title,
-        desc: foundSec.description || `Tổng quan về ${foundSec.title}`,
+        desc: foundSec.description,
         childTopics: childTopics,
         sandboxType: childTopics[0]?.sandboxType || 'overview',
         quiz: childTopics[0]?.quiz,
@@ -179,27 +218,25 @@ export default function DocsPage() {
       }
     }
 
-    // Check leaf topic
-    const foundTopic = allTopics.find(t => t.id === activeTopicId);
-    if (foundTopic) return foundTopic;
+    // Leaf topic resolution
+    const leaf = allTopics.find(t => t.id === activeTopicId);
+    if (leaf) return leaf;
 
-    return {
-      id: '1',
-      title: DOCS_SECTIONS[0].title,
-      desc: DOCS_SECTIONS[0].description,
-      childTopics: DOCS_SECTIONS[0].topics || [],
-      isOverview: true,
-      content: { overview: DOCS_SECTIONS[0].description, steps: [] }
-    };
+    return allTopics[0] || { id: '1.1', title: 'Tổng quan Michelin Sơn Tây GMS', desc: 'Hướng dẫn tổng quan' };
   }, [allTopics, activeTopicId]);
 
-  const toggleSection = (id) => {
-    setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleSection = (secId) => {
+    setExpandedSections(prev => ({ ...prev, [secId]: !prev[secId] }));
   };
 
   const handleHeaderClick = (id) => {
     toggleSection(id);
     setActiveTopicId(id);
+  };
+
+  const handleSelectTopic = (id) => {
+    setActiveTopicId(id);
+    setIsMobileTreeOpen(false);
   };
 
   const currentProgressPercent = Math.round((completedTopicIds.length / allTopics.length) * 100);
@@ -215,6 +252,178 @@ export default function DocsPage() {
     );
   }, [allTopics, searchTerm]);
 
+  // Render tree navigation
+  const renderTreeNav = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {DOCS_SECTIONS.map((sec) => {
+        const isSecOpen = expandedSections[sec.id] ?? true;
+        const isSecActive = activeTopicId === sec.id;
+        return (
+          <div key={sec.id} style={{ marginBottom: '8px' }}>
+            <button
+              type="button"
+              onClick={() => handleHeaderClick(sec.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                padding: '8px',
+                background: isSecActive ? 'rgba(37, 99, 235, 0.2)' : 'transparent',
+                border: 'none',
+                borderRadius: '6px',
+                color: isSecActive ? '#60a5fa' : '#cbd5e1',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                textAlign: 'left'
+              }}
+            >
+              <span>{sec.title}</span>
+              {isSecOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
+
+            {isSecOpen && (
+              <div style={{ paddingLeft: '12px', borderLeft: '1px solid rgba(255,255,255,0.1)', marginLeft: '8px', marginTop: '4px' }}>
+                {sec.topics && sec.topics.map((topic) => {
+                  const isDone = completedTopicIds.includes(topic.id);
+                  const isActive = activeTopicId === topic.id;
+                  return (
+                    <button
+                      key={topic.id}
+                      type="button"
+                      className={`docs-nav-item ${isActive ? 'is-active' : ''}`}
+                      onClick={() => handleSelectTopic(topic.id)}
+                      style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+                    >
+                      {isDone ? <CheckCircle2 size={14} color="#4ade80" /> : <span style={{ width: '14px' }} />}
+                      <span>{topic.title}</span>
+                    </button>
+                  );
+                })}
+
+                {sec.subGroups && sec.subGroups.map((sub) => {
+                  const isSubOpen = expandedSections[sub.id] ?? true;
+                  const isSubActive = activeTopicId === sub.id;
+                  return (
+                    <div key={sub.id} style={{ marginTop: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleHeaderClick(sub.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          width: '100%',
+                          padding: '4px 6px',
+                          background: isSubActive ? 'rgba(37, 99, 235, 0.2)' : 'transparent',
+                          border: 'none',
+                          borderRadius: '4px',
+                          color: isSubActive ? '#60a5fa' : '#94a3b8',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <span>{sub.title}</span>
+                        {isSubOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                      </button>
+
+                      {isSubOpen && (
+                        <div style={{ paddingLeft: '8px', borderLeft: '1px solid rgba(255,255,255,0.08)', marginLeft: '4px' }}>
+                          {sub.topics.map((topic) => {
+                            const isDone = completedTopicIds.includes(topic.id);
+                            const isActive = activeTopicId === topic.id;
+                            return (
+                              <button
+                                key={topic.id}
+                                type="button"
+                                className={`docs-nav-item ${isActive ? 'is-active' : ''}`}
+                                onClick={() => handleSelectTopic(topic.id)}
+                                style={{ padding: '5px 8px', fontSize: '0.825rem' }}
+                              >
+                                {isDone ? <CheckCircle2 size={14} color="#4ade80" /> : <span style={{ width: '14px' }} />}
+                                <span>{topic.title}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderFormattedText = (text) => {
+    if (!text || typeof text !== 'string') return text;
+
+    // Tokenize bold (**...**), italic (*...*), and URLs/paths
+    const tokens = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|staff\.sontaygarage\.vn\/login|staff\.sontaygarage\.vn|sontaygarage\.vn\/login|\/login|\/staff-profile)/g);
+
+    return tokens.map((part, i) => {
+      if (!part) return null;
+
+      // Bold **text**
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} style={{ color: '#f8fafc', fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+      }
+
+      // Italic *text*
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={i} style={{ color: '#93c5fd', fontStyle: 'italic' }}>{part.slice(1, -1)}</em>;
+      }
+
+      // Clickable URLs
+      if (part === 'staff.sontaygarage.vn') {
+        return (
+          <a
+            key={i}
+            href="https://staff.sontaygarage.vn/login"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#38bdf8', fontWeight: 700, textDecoration: 'underline', padding: '0 2px' }}
+          >
+            {part}
+          </a>
+        );
+      }
+
+      if (part === 'sontaygarage.vn/login' || part === 'staff.sontaygarage.vn/login' || part === '/login') {
+        return (
+          <a
+            key={i}
+            href="/login"
+            onClick={(e) => { e.preventDefault(); navigate('/login'); }}
+            style={{ color: '#38bdf8', fontWeight: 700, textDecoration: 'underline', padding: '0 2px', cursor: 'pointer' }}
+          >
+            {part}
+          </a>
+        );
+      }
+
+      if (part === '/staff-profile') {
+        return (
+          <a
+            key={i}
+            href="/staff-profile"
+            onClick={(e) => { e.preventDefault(); navigate('/staff-profile'); }}
+            style={{ color: '#38bdf8', fontWeight: 700, textDecoration: 'underline', padding: '0 2px', cursor: 'pointer' }}
+          >
+            {part}
+          </a>
+        );
+      }
+
+      return part;
+    });
+  };
+
   return (
     <div className="docs-layout">
       {/* Top Header */}
@@ -224,72 +433,66 @@ export default function DocsPage() {
             <BookOpen size={20} color="#ffffff" />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="docs-header__title">Michelin Sơn Tây GMS Docs</span>
-              <span className="docs-header__badge">v1.8 Interactive</span>
-            </div>
+            <span className="docs-header__title">Tài liệu Michelin GMS</span>
+            <span className="docs-header__badge" style={{ marginLeft: '8px' }}>
+              Tiến độ: {currentProgressPercent}%
+            </span>
           </div>
-        </div>
-
-        {/* View Mode Switcher */}
-        <div style={{ display: 'flex', background: 'rgba(30, 41, 59, 0.9)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <button
-            type="button"
-            onClick={() => setViewMode('learn')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: 'none',
-              background: viewMode === 'learn' ? '#2563eb' : 'transparent',
-              color: viewMode === 'learn' ? '#fff' : '#94a3b8',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <BookMarked size={15} />
-            <span>Học tập & Tra cứu</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('manager')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: 'none',
-              background: viewMode === 'manager' ? '#2563eb' : 'transparent',
-              color: viewMode === 'manager' ? '#fff' : '#94a3b8',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <Users size={15} />
-            <span>Quản lý Đánh giá</span>
-          </button>
         </div>
 
         <div className="docs-header__actions">
-          {/* Progress Indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(30, 41, 59, 0.6)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <Award size={18} color="#facc15" />
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Tiến độ của bạn</span>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#4ade80' }}>
-                {completedTopicIds.length}/{allTopics.length} bài ({currentProgressPercent}%)
-              </span>
-            </div>
+          {/* Mode Switcher */}
+          <div style={{ display: 'flex', background: 'rgba(30, 41, 59, 0.8)', padding: '3px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <button
+              type="button"
+              onClick={() => setViewMode('learn')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                background: viewMode === 'learn' ? '#2563eb' : 'transparent',
+                color: viewMode === 'learn' ? '#fff' : '#94a3b8',
+                fontWeight: 600,
+                fontSize: '0.825rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <BookMarked size={14} />
+              <span>Học tập</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('manager')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                background: viewMode === 'manager' ? '#2563eb' : 'transparent',
+                color: viewMode === 'manager' ? '#fff' : '#94a3b8',
+                fontWeight: 600,
+                fontSize: '0.825rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Award size={14} />
+              <span>Đánh giá Quản lý</span>
+            </button>
           </div>
 
-          <button type="button" className="docs-search-btn" onClick={() => setShowSearchModal(true)}>
+          <button 
+            type="button" 
+            className="docs-search-btn"
+            onClick={() => setShowSearchModal(true)}
+          >
             <Search size={16} />
-            <span>Tìm nhanh (Ctrl+K)</span>
+            <span>Tìm bài học...</span>
+            <span className="docs-search-shortcut">Ctrl K</span>
           </button>
 
           <button 
@@ -298,128 +501,128 @@ export default function DocsPage() {
             onClick={() => navigate('/dashboard')}
           >
             <ArrowLeft size={16} />
-            <span>Quay lại Dashboard</span>
+            <span>Về Dashboard</span>
           </button>
         </div>
       </header>
 
-      {/* Main View Area */}
+      {/* Mobile Top Navigation Bar */}
+      <div className="docs-mobile-nav-bar">
+        <button
+          type="button"
+          onClick={() => setIsMobileTreeOpen(prev => !prev)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            background: '#2563eb',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            fontWeight: 700,
+            fontSize: '0.85rem',
+            cursor: 'pointer'
+          }}
+        >
+          <BookOpen size={16} />
+          <span>Danh mục cây bài học</span>
+          <ChevronDown size={14} />
+        </button>
+
+        <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 600, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {activeNode.title}
+        </span>
+      </div>
+
+      {/* Mobile Tree Navigation Drawer */}
+      {isMobileTreeOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', zIndex: 998, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: '#0b1329', padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontWeight: 700, color: '#f8fafc', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BookOpen size={18} color="#60a5fa" />
+              <span>Danh mục Cây Bài Học</span>
+            </span>
+            <button type="button" onClick={() => setIsMobileTreeOpen(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}>
+              <X size={20} />
+            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            {renderTreeNav()}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
       {viewMode === 'manager' ? (
         <ManagerDocsDashboard />
       ) : (
         <div className="docs-container">
-          {/* Left Tree Sidebar */}
-          <aside className="docs-sidebar">
-            <div className="docs-sidebar__section-title">Danh mục cây bài học</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {DOCS_SECTIONS.map((sec) => {
-                const isSecOpen = expandedSections[sec.id] ?? true;
-                const isSecActive = activeTopicId === sec.id;
-                return (
-                  <div key={sec.id} style={{ marginBottom: '8px' }}>
-                    {/* Section Header (Clicking opens Overview Page + toggles tree) */}
-                    <button
-                      type="button"
-                      onClick={() => handleHeaderClick(sec.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                        padding: '8px',
-                        background: isSecActive ? 'rgba(37, 99, 235, 0.2)' : 'transparent',
-                        border: 'none',
-                        borderRadius: '6px',
-                        color: isSecActive ? '#60a5fa' : '#cbd5e1',
-                        fontWeight: 700,
-                        fontSize: '0.875rem',
-                        cursor: 'pointer',
-                        textAlign: 'left'
-                      }}
-                    >
-                      <span>{sec.title}</span>
-                      {isSecOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </button>
-
-                    {/* Section Sub-topics or Sub-groups */}
-                    {isSecOpen && (
-                      <div style={{ paddingLeft: '12px', borderLeft: '1px solid rgba(255,255,255,0.1)', marginLeft: '8px', marginTop: '4px' }}>
-                        {sec.topics && sec.topics.map((topic) => {
-                          const isDone = completedTopicIds.includes(topic.id);
-                          const isActive = activeTopicId === topic.id;
-                          return (
-                            <button
-                              key={topic.id}
-                              type="button"
-                              className={`docs-nav-item ${isActive ? 'is-active' : ''}`}
-                              onClick={() => setActiveTopicId(topic.id)}
-                              style={{ padding: '6px 10px', fontSize: '0.85rem' }}
-                            >
-                              {isDone ? <CheckCircle2 size={14} color="#4ade80" /> : <span style={{ width: '14px' }} />}
-                              <span>{topic.title}</span>
-                            </button>
-                          );
-                        })}
-
-                        {sec.subGroups && sec.subGroups.map((sub) => {
-                          const isSubOpen = expandedSections[sub.id] ?? true;
-                          const isSubActive = activeTopicId === sub.id;
-                          return (
-                            <div key={sub.id} style={{ marginTop: '6px' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleHeaderClick(sub.id)}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  width: '100%',
-                                  padding: '4px 6px',
-                                  background: isSubActive ? 'rgba(37, 99, 235, 0.2)' : 'transparent',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  color: isSubActive ? '#60a5fa' : '#94a3b8',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 600,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <span>{sub.title}</span>
-                                {isSubOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                              </button>
-
-                              {isSubOpen && (
-                                <div style={{ paddingLeft: '8px', borderLeft: '1px solid rgba(255,255,255,0.08)', marginLeft: '4px' }}>
-                                  {sub.topics.map((topic) => {
-                                    const isDone = completedTopicIds.includes(topic.id);
-                                    const isActive = activeTopicId === topic.id;
-                                    return (
-                                      <button
-                                        key={topic.id}
-                                        type="button"
-                                        className={`docs-nav-item ${isActive ? 'is-active' : ''}`}
-                                        onClick={() => setActiveTopicId(topic.id)}
-                                        style={{ padding: '5px 8px', fontSize: '0.825rem' }}
-                                      >
-                                        {isDone ? <CheckCircle2 size={14} color="#4ade80" /> : <span style={{ width: '14px' }} />}
-                                        <span>{topic.title}</span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+          {/* Left Tree Sidebar (Desktop) */}
+          <aside className={`docs-sidebar ${isSidebarCollapsed ? 'is-collapsed' : ''}`}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', padding: '0 4px' }}>
+              {!isSidebarCollapsed && (
+                <div className="docs-sidebar__section-title" style={{ marginBottom: 0 }}>
+                  Danh mục cây bài học
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsSidebarCollapsed(prev => !prev)}
+                title={isSidebarCollapsed ? "Mở rộng danh mục cây" : "Thu gọn danh mục cây"}
+                style={{
+                  padding: '5px 8px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '6px',
+                  color: '#60a5fa',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  marginLeft: isSidebarCollapsed ? 'auto' : '0',
+                  marginRight: isSidebarCollapsed ? 'auto' : '0',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+              </button>
             </div>
+
+            {!isSidebarCollapsed ? (
+              renderTreeNav()
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', marginTop: '12px' }}>
+                {DOCS_SECTIONS.map((sec) => (
+                  <button
+                    key={sec.id}
+                    type="button"
+                    onClick={() => {
+                      setIsSidebarCollapsed(false);
+                      handleHeaderClick(sec.id);
+                    }}
+                    title={sec.title}
+                    style={{
+                      padding: '8px',
+                      background: activeTopicId.startsWith(sec.id) ? 'rgba(37, 99, 235, 0.3)' : 'rgba(255, 255, 255, 0.05)',
+                      border: activeTopicId.startsWith(sec.id) ? '1px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: activeTopicId.startsWith(sec.id) ? '#60a5fa' : '#cbd5e1',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    {sec.number.replace('.', '')}
+                  </button>
+                ))}
+              </div>
+            )}
           </aside>
 
-          {/* Main Content Area */}
+          {/* Main Article Content */}
           <main className="docs-content">
             <div className="docs-breadcrumb">
               <span>Tài liệu</span>
@@ -495,12 +698,124 @@ export default function DocsPage() {
                 1. Lý thuyết & Các bước nghiệp vụ
               </h2>
               <p style={{ color: '#cbd5e1', fontSize: '0.925rem', lineHeight: 1.6, marginBottom: '16px' }}>
-                {activeNode.content?.overview}
+                {renderFormattedText(activeNode.content?.overview)}
               </p>
+
+              {/* Redesigned 2-Card Grid for Topic 1.2 Access Methods */}
+              {activeNode.id === '1.2' && (
+                <div style={{ marginTop: '16px', marginBottom: '24px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                    {/* Method 1 Card */}
+                    <div style={{
+                      background: 'rgba(15, 23, 42, 0.75)',
+                      border: '1px solid rgba(59, 130, 246, 0.35)',
+                      borderRadius: '12px',
+                      padding: '18px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.3)'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontWeight: 800, fontSize: '0.9rem' }}>
+                            <Globe size={20} color="#38bdf8" />
+                            <span>Cách 1: Tên miền Tiền tố (staff.)</span>
+                          </div>
+                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', fontWeight: 700 }}>
+                            Chính thức
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.5, margin: 0 }}>
+                          Gõ trực tiếp tên miền <strong style={{ color: '#38bdf8' }}>staff.sontaygarage.vn</strong> trên thanh trình duyệt. Phù hợp cho máy tính cố định tại Showroom.
+                        </p>
+                      </div>
+
+                      <a
+                        href="https://staff.sontaygarage.vn/login"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '10px 16px',
+                          background: 'rgba(56, 189, 248, 0.15)',
+                          border: '1px solid rgba(56, 189, 248, 0.4)',
+                          color: '#38bdf8',
+                          borderRadius: '8px',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          textDecoration: 'none',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <Globe size={16} />
+                        <span>Mở staff.sontaygarage.vn ➔</span>
+                      </a>
+                    </div>
+
+                    {/* Method 2 Card */}
+                    <div style={{
+                      background: 'rgba(15, 23, 42, 0.75)',
+                      border: '1px solid rgba(34, 197, 94, 0.35)',
+                      borderRadius: '12px',
+                      padding: '18px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justify: 'space-between',
+                      gap: '12px',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.3)'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4ade80', fontWeight: 800, fontSize: '0.9rem' }}>
+                            <LogIn size={20} color="#4ade80" />
+                            <span>Cách 2: Đường dẫn Hậu tố (/login)</span>
+                          </div>
+                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', fontWeight: 700 }}>
+                            Nhanh chóng
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.5, margin: 0 }}>
+                          Gõ địa chỉ <strong style={{ color: '#4ade80' }}>sontaygarage.vn/login</strong> trên bất kỳ thiết bị di động hay máy tính cá nhân để vào ngay trang đăng nhập.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => navigate('/login')}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '10px 16px',
+                          background: '#16a34a',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 12px rgba(22, 163, 74, 0.35)',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <LogIn size={16} />
+                        <span>Vào ngay màn hình /login ➔</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {activeNode.content?.steps?.map((stepText, idx) => (
                   <div key={idx} style={{ padding: '10px 14px', background: '#0f172a', borderLeft: '3px solid #3b82f6', borderRadius: '4px', color: '#f8fafc', fontSize: '0.875rem' }}>
-                    {stepText}
+                    {renderFormattedText(stepText)}
                   </div>
                 ))}
               </div>
@@ -591,7 +906,7 @@ export default function DocsPage() {
             </div>
           </main>
 
-          {/* Right TOC */}
+          {/* Right TOC (Desktop) */}
           <aside className="docs-toc">
             <div className="docs-toc__title">Cấu trúc bài học này</div>
             <a href="#theory" className="docs-toc__item">1. Lý thuyết & Các bước</a>
@@ -612,27 +927,36 @@ export default function DocsPage() {
             </div>
             <input 
               type="text" 
-              placeholder="Gõ mã bài (1.1, 2.1.1) hoặc từ khóa..."
+              placeholder="Gõ từ khóa (ví dụ: Tiếp nhận, Báo giá, Quét barcode, VietQR...)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               autoFocus
-              style={{ width: '100%', padding: '10px 14px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '8px', fontSize: '0.95rem', marginBottom: '16px' }}
+              style={{ width: '100%', padding: '10px 14px', background: '#1e293b', border: '1px solid rgba(96,165,250,0.4)', borderRadius: '8px', color: '#fff', fontSize: '0.95rem', marginBottom: '16px' }}
             />
             <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {searchResults.map(res => (
-                <button
-                  key={res.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveTopicId(res.id);
-                    setShowSearchModal(false);
-                  }}
-                  style={{ padding: '10px', background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', textAlign: 'left', cursor: 'pointer', color: '#f1f5f9' }}
-                >
-                  <div style={{ fontWeight: 700, color: '#60a5fa' }}>{res.number} {res.title}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' }}>{res.desc}</div>
-                </button>
-              ))}
+              {searchResults.length > 0 ? (
+                searchResults.map(item => (
+                  <div 
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTopicId(item.id);
+                      setShowSearchModal(false);
+                    }}
+                    style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  >
+                    <div>
+                      <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 700, marginRight: '6px' }}>{item.number || ''}</span>
+                      <span style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 600 }}>{item.title}</span>
+                      <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>{item.desc}</p>
+                    </div>
+                    <ChevronRight size={16} color="#94a3b8" />
+                  </div>
+                ))
+              ) : searchTerm ? (
+                <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', padding: '20px' }}>Không tìm thấy bài học phù hợp</p>
+              ) : (
+                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>Nhập từ khóa bất kỳ để tra cứu bài học</p>
+              )}
             </div>
           </div>
         </div>

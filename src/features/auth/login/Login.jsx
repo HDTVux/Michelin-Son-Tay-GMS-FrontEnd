@@ -4,6 +4,7 @@ import styles from './Login.module.css';
 import Mascot from '../../../assets/Mascot.jpg';
 import { loginStaff, getStaffGoogleOAuthUrl } from '../../../services/authService';
 import { AUTH_REDIRECT_ERROR_KEY } from '../../../services/apiClient';
+import { checkAndRunPendingDriverTour } from '../../../pages/Docs/utils/driverTourUtils.js';
 
 function EyeIcon({ closed = false }) {
   if (closed) {
@@ -37,6 +38,8 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    checkAndRunPendingDriverTour();
+
     const redirectError =
       typeof globalThis?.sessionStorage?.getItem === 'function'
         ? globalThis.sessionStorage.getItem(AUTH_REDIRECT_ERROR_KEY)

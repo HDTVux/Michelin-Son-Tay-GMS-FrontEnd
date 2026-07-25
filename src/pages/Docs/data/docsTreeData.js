@@ -112,29 +112,76 @@ export const DOCS_SECTIONS = [
       {
         id: "1.2",
         number: "1.2.",
-        title: "Đăng nhập, đổi mật khẩu & Hồ sơ cá nhân",
-        desc: "Quản lý tài khoản nhân viên, bảo mật mật khẩu và cập nhật thông tin cá nhân.",
+        title: "Đăng nhập & Tài khoản",
+        desc: "Quản lý tài khoản nhân viên, đăng nhập an toàn, đổi mật khẩu và cập nhật thông tin cá nhân.",
+        targetPath: "/login",
         content: {
-          overview: "Mỗi nhân viên được cấp một tài khoản định danh kèm mã số nhân viên (EmployeeNo) và vai trò tương ứng (Role).",
+          overview: "Mỗi nhân viên Michelin GMS được cấp một tài khoản định danh kèm vai trò nghiệp vụ tương ứng. Quy trình bắt đầu từ màn hình Đăng nhập hệ thống, sau đó quản lý thông tin cá nhân và tài khoản tại trang Hồ sơ nhân viên.",
           steps: [
-            "1. Nhập Tên đăng nhập / Email và Mật khẩu tại màn hình `/login`.",
-            "2. Truy cập 'Hồ sơ nhân viên' từ menu Dropdown ảnh đại diện góc trên góc trái.",
-            "3. Thay đổi mật khẩu định kỳ 90 ngày để đảm bảo an toàn hệ thống."
+            "1. **Màn hình Đăng nhập**: Truy cập tên miền staff.sontaygarage.vn hoặc sontaygarage.vn/login và nhập *Số điện thoại/Email* cùng *Mật khẩu* được cấp.",
+            "2. **Tại Dashboard**: Nhấp vào *Nút Hồ sơ đại diện* ở góc phải Thanh Header Navbar.",
+            "3. **Menu Dropdown Tài khoản**: Truy cập các mục *Hồ sơ nhân viên*, *Đổi mật khẩu*, *Trợ lý AI* & *Lịch sử chấm công*.",
+            "4. **Nút Đăng xuất màu đỏ**: Nhấp vào nút *Đăng xuất* ở cuối Menu để *thoát tài khoản an toàn* khi kết thúc ca làm việc.",
+            "5. **Trang Hồ sơ cá nhân**: Thực hiện *đổi mật khẩu định kỳ 90 ngày* & xem chi tiết *bảng chấm công ca làm việc*."
           ]
         },
         sandboxType: "profile",
         quiz: {
-          question: "Nơi nào cho phép bạn cập nhật thông tin cá nhân và đổi mật khẩu?",
+          question: "Thứ tự luồng thao tác Đăng nhập & Cài đặt Tài khoản cá nhân chuẩn là gì?",
           options: [
-            "Trang Đăng nhập",
-            "Menu Dropdown Tài khoản góc trên Sidebar -> Hồ sơ nhân viên",
-            "Phân hệ Quản lý Kho",
-            "Cài đặt trình duyệt"
+            "Đăng nhập tại /login -> Bấm ảnh đại diện trên Header -> Mở trang Hồ sơ nhân viên /staff-profile",
+            "Mở trang Hồ sơ nhân viên trước -> Đăng nhập sau",
+            "Đổi mật khẩu trực tiếp trên thanh Sidebar không cần đăng nhập",
+            "Gọi cho Quản trị viên đổi mật khẩu mỗi lần đăng nhập"
           ],
-          correctIndex: 1
+          correctIndex: 0
         },
         tourSteps: [
-          { element: '.sidebar__profile', popover: { title: "Tài khoản cá nhân", description: "Bấm vào ảnh đại diện để mở Menu Hồ sơ & Đổi mật khẩu.", side: "bottom" } }
+          { 
+            element: "form, body", 
+            popover: { 
+              title: "🔑 1. Màn hình Đăng nhập hệ thống (/login)", 
+              description: "Nhân viên nhập Số điện thoại/Email và Mật khẩu được cấp để truy cập vào hệ thống làm việc.", 
+              side: "bottom" 
+            } 
+          },
+          { 
+            element: ".staff-header__profile-container", 
+            targetPath: "/dashboard",
+            autoOpenDropdown: true,
+            popover: { 
+              title: "👤 2. Mở Menu Tài khoản cá nhân", 
+              description: "Sau khi vào Dashboard, nhấp vào ảnh đại diện góc phải Thanh Header để truy cập các cài đặt cá nhân.", 
+              side: "left" 
+            } 
+          },
+          { 
+            element: ".staff-header__dropdown", 
+            autoOpenDropdown: true,
+            popover: { 
+              title: "⚙️ 3. Danh sách Chức năng trong Menu Dropdown", 
+              description: "Menu bao gồm: Hồ sơ nhân viên, Đổi mật khẩu, Trợ lý AI và Lịch sử ca làm việc/chấm công.", 
+              side: "left" 
+            } 
+          },
+          { 
+            element: ".staff-header__dropdown-item.logout", 
+            autoOpenDropdown: true,
+            popover: { 
+              title: "🚪 4. Nút Đăng xuất an toàn (Logout)", 
+              description: "Nhấp vào nút Đăng xuất màu đỏ ở dưới cùng Menu để thoát tài khoản làm việc khi kết thúc ca.", 
+              side: "left" 
+            } 
+          },
+          { 
+            element: "[class*='staffProfilePage'], .staff-profile-card, .profile-page", 
+            targetPath: "/staff-profile",
+            popover: { 
+              title: "📋 5. Trang Chi tiết Hồ sơ & Đổi mật khẩu (/staff-profile)", 
+              description: "Quản lý thông tin cá nhân, thực hiện đổi mật khẩu định kỳ và theo dõi chi tiết lịch sử chấm công, ca làm việc.", 
+              side: "bottom" 
+            } 
+          }
         ]
       },
       {

@@ -79,7 +79,7 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
 
   // Dynamically filter steps to only include elements that are visible on the current screen (handles Mobile vs Desktop)
   const visibleSteps = steps.filter(step => {
-    if (!step.element || step.element === 'body') return true;
+    if (!step.element || step.element === 'body' || step.autoOpenDropdown || step.targetPath) return true;
     const matchedEls = Array.from(document.querySelector(step.element) ? [document.querySelector(step.element)] : document.querySelectorAll(step.element));
     return matchedEls.some(el => {
       if (!el) return false;
@@ -99,6 +99,41 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
     nextBtnText: 'Tiếp tục ➔',
     prevBtnText: '◄ Quay lại',
     doneBtnText: 'Hoàn thành Tour 🎉',
+    onHighlightStarted: (element, step) => {
+      // ONLY auto open profile dropdown when step.autoOpenDropdown is explicitly true
+      if (step && step.autoOpenDropdown === true) {
+        setTimeout(() => {
+          const profileBtn = document.querySelector('.staff-header__profile-avatar-btn');
+          const dropdown = document.querySelector('.staff-header__dropdown');
+          if (profileBtn && !dropdown) {
+            profileBtn.click();
+          }
+        }, 150);
+      }
+    },
+    onNextClick: () => {
+      const activeIdx = typeof driverObj.getActiveIndex === 'function' ? driverObj.getActiveIndex() : 0;
+      const nextIndex = activeIdx + 1;
+      if (nextIndex < finalSteps.length) {
+        const nextStep = finalSteps[nextIndex];
+        const currentPath = window.location.pathname;
+        const targetPath = nextStep.targetPath;
+
+        // Check if next step requires opening a new page route (e.g. /staff-profile)
+        if (targetPath && targetPath !== currentPath) {
+          const remainingSteps = finalSteps.slice(nextIndex);
+          sessionStorage.setItem('pendingDriverTour', JSON.stringify({
+            steps: remainingSteps,
+            targetPath: targetPath,
+            completedTopicId: steps.topicId || null
+          }));
+          driverObj.destroy();
+          window.location.href = targetPath;
+          return;
+        }
+      }
+      driverObj.moveNext();
+    },
     onDestroyStarted: () => {
       activeDriverInstance = null;
       if (onComplete) onComplete();
@@ -106,6 +141,8 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
     },
     steps: finalSteps.map(step => ({
       element: step.element,
+      autoOpenDropdown: step.autoOpenDropdown || false,
+      targetPath: step.targetPath || null,
       popover: {
         title: step.popover?.title || 'Hướng dẫn thao tác',
         description: step.popover?.description || '',
@@ -128,18 +165,23 @@ export const launchDriverTour = (tourSteps = [], onComplete = null, navigate = n
   // Clear any pending tour
   sessionStorage.removeItem('pendingDriverTour');
 
+  const destination = targetPath || '/dashboard';
   const isCurrentDocsPage = window.location.pathname.startsWith('/docs');
 
   if (navigate && isCurrentDocsPage) {
-    // When called from /docs, save pending tour and navigate to live app dashboard
+    // When called from /docs, save pending tour and navigate to live app destination route
     sessionStorage.setItem('pendingDriverTour', JSON.stringify({
       steps: tourSteps,
-      targetPath: targetPath || '/dashboard',
+      targetPath: destination,
       completedTopicId: tourSteps.topicId || null
     }));
 
     window.dispatchEvent(new CustomEvent('triggerTour'));
-    navigate(targetPath || '/dashboard');
+    if (destination === '/login') {
+      window.location.href = '/login';
+    } else {
+      navigate(destination);
+    }
   } else {
     // Already on live app screen, run tour directly
     startDriverJsTour(tourSteps, onComplete);
