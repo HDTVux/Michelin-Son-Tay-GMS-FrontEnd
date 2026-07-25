@@ -102,7 +102,7 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
     onHighlightStarted: (element, step) => {
       // 1. Close Chat Popover if current step is NOT a Chat step
       if (!step || (!step.autoOpenChat && !step.autoOpenChatNew)) {
-        const chatBtn = document.querySelector('.chat-widget__launcherBtn');
+        const chatBtn = document.querySelector('.chat-widget__launcherBtn, .sidebar__chat-container button, .mobile-navbar__chat-btn');
         const chatPopover = document.querySelector('.chat-widget__popover');
         if (chatPopover && chatBtn) {
           chatBtn.click();
@@ -119,8 +119,8 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
 
       // 3. Close Profile Dropdown if current step is NOT a Profile Dropdown step
       if (!step || !step.autoOpenDropdown) {
-        const dropdown = document.querySelector('.staff-header__dropdown');
-        const profileBtn = document.querySelector('.staff-header__profile-avatar-btn');
+        const dropdown = document.querySelector('.staff-header__dropdown, .sidebar__dropdown');
+        const profileBtn = document.querySelector('.staff-header__profile-avatar-btn, .sidebar__profile-avatar-btn');
         if (dropdown && profileBtn) {
           profileBtn.click();
         }
@@ -129,8 +129,8 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
       // 4. Auto open profile dropdown when step.autoOpenDropdown is explicitly true
       if (step && step.autoOpenDropdown === true) {
         setTimeout(() => {
-          const profileBtn = document.querySelector('.staff-header__profile-avatar-btn');
-          const dropdown = document.querySelector('.staff-header__dropdown');
+          const profileBtn = document.querySelector('.staff-header__profile-avatar-btn, .sidebar__profile-avatar-btn, .mobile-navbar__profile-btn');
+          const dropdown = document.querySelector('.staff-header__dropdown, .sidebar__dropdown');
           if (profileBtn && !dropdown) {
             profileBtn.click();
           }
@@ -140,7 +140,7 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
       // 5. Auto open Chat dropdown & click (+) New Chat button
       if (step && (step.autoOpenChat === true || step.autoOpenChatNew === true)) {
         setTimeout(() => {
-          const chatBtn = document.querySelector('.chat-widget__launcherBtn');
+          const chatBtn = document.querySelector('.chat-widget__launcherBtn, .sidebar__chat-container button, .mobile-navbar__chat-btn');
           const popover = document.querySelector('.chat-widget__popover');
           if (chatBtn && !popover) {
             chatBtn.click();
@@ -161,7 +161,7 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
       if (step && step.autoOpenNotification === true) {
         setTimeout(() => {
           const detailsEl = document.querySelector('.staffNotification');
-          const summaryBtn = document.querySelector('.staffNotification__button');
+          const summaryBtn = document.querySelector('.staffNotification__button, .mobile-navbar__bell-btn');
           if (detailsEl) {
             if (summaryBtn && !detailsEl.hasAttribute('open')) {
               summaryBtn.click();

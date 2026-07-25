@@ -146,7 +146,7 @@ export const DOCS_SECTIONS = [
             } 
           },
           { 
-            element: ".staff-header__profile-container", 
+            element: ".staff-header__profile-container, .sidebar__profile, .mobile-navbar__profile", 
             targetPath: "/dashboard",
             autoOpenDropdown: true,
             popover: { 
@@ -156,7 +156,7 @@ export const DOCS_SECTIONS = [
             } 
           },
           { 
-            element: ".staff-header__dropdown", 
+            element: ".staff-header__dropdown, .sidebar__dropdown", 
             autoOpenDropdown: true,
             popover: { 
               title: "⚙️ 3. Danh sách Chức năng trong Menu Dropdown", 
@@ -165,7 +165,7 @@ export const DOCS_SECTIONS = [
             } 
           },
           { 
-            element: ".staff-header__dropdown-item.logout", 
+            element: ".staff-header__dropdown-item.logout, .logout-btn", 
             autoOpenDropdown: true,
             popover: { 
               title: "🚪 4. Nút Đăng xuất an toàn (Logout)", 
@@ -208,7 +208,7 @@ export const DOCS_SECTIONS = [
         },
         tourSteps: [
           { 
-            element: ".staff-header__search-container, .universal-search", 
+            element: ".staff-header__search-container, .universal-search, .sidebar__search-wrapper", 
             popover: { 
               title: "🔍 1. Ô Tìm kiếm Mọi thứ & Trợ lý AI (Ctrl + K)", 
               description: "Tra cứu tức thì tất cả dữ liệu (Biển số xe, Khách hàng, Mã phiếu, SKU lốp Michelin) kết hợp Trợ lý AI giải đáp thắc mắc nghiệp vụ 24/7.", 
@@ -216,7 +216,7 @@ export const DOCS_SECTIONS = [
             } 
           },
           { 
-            element: ".staff-header__scan-btn", 
+            element: ".staff-header__scan-btn, .mobile-scan-btn", 
             popover: { 
               title: "📷 2. Bộ Quét mã QR / Barcode Đa năng", 
               description: "Nhấp để mở Camera quét tem lốp Michelin SKU, mã QR phiếu dịch vụ hoặc mã xe nhận diện tức thì mà không cần nhập tay.", 
@@ -224,7 +224,7 @@ export const DOCS_SECTIONS = [
             } 
           },
           { 
-            element: ".chat-widget__launcherBtn, .staff-header__chat-container", 
+            element: ".chat-widget__launcherBtn, .staff-header__chat-container, .mobile-navbar__chat-btn", 
             autoOpenChat: true,
             popover: { 
               title: "💬 3. Tin nhắn Nội bộ & Tự động mở Box Đoạn chat", 
@@ -242,7 +242,7 @@ export const DOCS_SECTIONS = [
             } 
           },
           { 
-            element: ".staffNotification__button, .staffNotification", 
+            element: ".staffNotification__button, .staffNotification, .mobile-navbar__bell-btn", 
             autoOpenNotification: true,
             popover: { 
               title: "🔔 5. Trung tâm Thông báo & Dropdown Thông báo Live", 
