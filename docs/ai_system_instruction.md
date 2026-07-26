@@ -104,8 +104,8 @@ Khi người dùng hỏi về cách truy cập chức năng, hãy hướng dẫn
 - **Tạo lịch cho khách vãng lai**: `/create-booking`
 - **Đặt lịch cho khách online (Quản lý yêu cầu đặt lịch)**: `/booking-request-management`
 - **Quản lý lịch đã đặt hẹn (Thay đổi lịch, Hủy lịch, Đánh dấu spam, Liên hệ khách)**: `/booking-management`
-- **Luồng Tiếp nhận xe (Check-in & Khảo sát 32 hạng mục)**: `/queue-management`
-- **Luồng điều phối phiếu dịch vụ cho Cố vấn**: `/advisor/inspection`, `/service-ticket-management`
+- **Luồng Tiếp nhận xe (Check-in xe thực tế từ Quản lý lịch hẹn)**: `/booking-management`, `/check-in`
+- **Luồng điều phối phiếu dịch vụ cho Cố vấn**: `/service-ticket-management`
 
 ### 4.2. Phân hệ Cố vấn Dịch vụ
 - **Bán hàng cho đại lý & garage**: `/parts-sales`

@@ -86,7 +86,7 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
     // If a step requires navigating to a different page route, keep all subsequent steps intact for the target page
     if (hasCrossPageRoute) return true;
 
-    if (!step.element || step.element === 'body' || step.autoOpenDropdown || step.autoOpenChat || step.autoOpenChatNew || step.autoOpenNotification || step.targetPath) return true;
+    if (!step.element || step.element === 'body' || step.autoOpenDropdown || step.autoOpenChat || step.autoOpenChatNew || step.autoOpenNotification || step.targetPath || step.allowMissing || step.autoClick || (step.element && step.element.includes('modal'))) return true;
     try {
       const el = document.querySelector(step.element);
       if (!el) return false;
@@ -179,6 +179,28 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
             }
           }
         }, 150);
+      }
+
+      // 7. Auto click element if autoClick is specified (e.g. opening modal)
+      const activeIdx = typeof driverObj?.getActiveIndex === 'function' ? driverObj.getActiveIndex() : -1;
+      const targetStepObj = (activeIdx >= 0 && activeIdx < finalSteps.length) ? finalSteps[activeIdx] : step;
+      const autoClickSelector = targetStepObj?.autoClick || step?.autoClick;
+
+      if (autoClickSelector) {
+        let attempts = 0;
+        const tryClick = () => {
+          const clickEl = document.querySelector(autoClickSelector)
+            || document.querySelector('[data-tour-id="view-assign-btn"]')
+            || document.querySelector('.assign-action-btn')
+            || document.querySelector('table tbody tr:first-child button:nth-child(2)');
+          if (clickEl) {
+            clickEl.click();
+          } else if (attempts < 15) {
+            attempts++;
+            setTimeout(tryClick, 200);
+          }
+        };
+        setTimeout(tryClick, 150);
       }
     },
     onNextClick: () => {

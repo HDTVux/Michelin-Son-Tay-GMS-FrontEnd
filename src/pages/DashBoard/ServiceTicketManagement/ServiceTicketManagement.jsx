@@ -465,7 +465,7 @@ function ServiceTicketManagement() {
 
 			{modal.open && (
 				<div className={styles['modal-overlay']} onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
-					<div className={styles['modal-box']}>
+					<div data-tour-id="assign-advisor-modal" className={styles['modal-box']}>
 						<div className={styles['modal-header']}>
 							<h3>Xem phân công</h3>
 							<button className={styles['modal-close']} onClick={closeModal}>×</button>
@@ -769,7 +769,7 @@ function TicketPanel({
 									<td>
 										<div className={styles['action-buttons']}>
 											<button className={styles['primary-button']} onClick={() => onViewDetail?.(item)}>Xem chi tiết</button>
-											<button className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
+											<button data-tour-id="view-assign-btn" className={styles['assign-action-btn']} onClick={() => onOpenAssign?.(item)}>Xem phân công</button>
 											{/* Hiện nút Thanh toán nếu isAccountant, có bill và trạng thái khác PAID */}
 											{isAccountant && item?.hasBill && (String(item?.ticketStatus ?? item?.status).toUpperCase() !== 'PAID') ? (
 												<button

@@ -421,30 +421,36 @@ export const DOCS_SECTIONS = [
             id: "2.1.5",
             number: "2.1.5.",
             title: "Luồng điều phối phiếu dịch vụ cho cố vấn",
-            desc: "Điều phối xe từ hàng chờ và bàn giao phiếu dịch vụ cho Cố vấn dịch vụ.",
-            targetPath: "/advisor/inspection",
+            desc: "Sau khi hoàn tất Check-in xe, hệ thống chuyển sang /service-ticket-management để phân công, cân đối workload và bàn giao phiếu cho Cố vấn dịch vụ.",
+            targetPath: "/service-ticket-management",
             content: {
-              overview: "Sau khi xe đã hoàn tất check-in tiếp nhận, Lễ tân điều phối xe từ Hàng chờ vào cầu nâng/khoang tiếp nhận và bàn giao phiếu cho Cố vấn dịch vụ phụ trách.",
+              overview: "Ngay sau khi Lễ tân hoàn tất Check-in tiếp nhận xe tại giao diện /check-in, hệ thống sẽ tự động khởi tạo Phiếu dịch vụ (Service Ticket) và điều hướng trực tiếp sang trang Điều phối phiếu dịch vụ (/service-ticket-management). Tại đây, Lễ tân hoặc Quản lý thực hiện kiểm tra thông tin phiếu, xem phân công Cố vấn dịch vụ (Advisor) phụ trách, cân đối khối lượng công việc (workload) để phân công lại nếu cần và chính thức bàn giao phiếu cho Cố vấn tiến hành khảo sát 32 hạng mục & lập báo giá.",
               steps: [
-                "1. Tại màn hình Hàng chờ (/queue-management), chọn xe ở trạng thái Đang chờ (WAITING).",
-                "2. Bấm 'Giao cho Cố vấn dịch vụ' và chọn tên Cố vấn (Advisor) được phân công.",
-                "3. Hệ thống khởi tạo Phiếu dịch vụ ban đầu (/service-ticket-management) và gửi thông báo tới Cố vấn.",
-                "4. Cố vấn dịch vụ nhận phiếu dịch vụ để điều phối công việc cho thợ sửa hoặc chính mình."
+                "1. **Chuyển sang trang Điều phối sau Check-in**: Ngay sau khi nhấn 'Xác nhận' ở trang tiếp nhận xe (/check-in), hệ thống khởi tạo Phiếu dịch vụ và chuyển trực tiếp tới màn hình Điều phối (/service-ticket-management).",
+                "2. **Tra cứu Phiếu dịch vụ**: Tìm phiếu vừa tạo theo Mã phiếu (ticketCode), Biển số xe hoặc Tên khách hàng trên danh sách.",
+                "3. **Kiểm tra Phân công Cố vấn**: Nhấp nút 'Xem phân công' trên dòng phiếu để xem Cố vấn dịch vụ (Advisor) đang đảm nhận.",
+                "4. **Cân đối Workload & Đổi Cố vấn**: Xem số lượng phiếu đang phụ trách (workload) của từng Cố vấn. Nếu Cố vấn hiện tại bận hoặc quá tải, bấm 'Đổi' để phân công cho Cố vấn khác rảnh hơn.",
+                "5. **Bàn giao phiếu cho Cố vấn**: Nhấp 'Xem chi tiết' để chuyển giao phiếu sang Phân hệ Cố vấn Dịch vụ – sẵn sàng cho công đoạn khảo sát an toàn 32 hạng mục, tạo báo giá gửi khách và phân công thợ thi công."
               ]
             },
             sandboxType: "inspection",
             quiz: {
-              question: "Sau luồng Check-in xe, Lễ tân thực hiện điều phối như thế nào?",
+              question: "Sau khi nhấn 'Xác nhận' hoàn tất tiếp nhận xe tại /check-in, hệ thống tự động chuyển tới giao diện nào để phân công và bàn giao cho Cố vấn?",
               options: [
-                "Bấm 'Giao cho Cố vấn dịch vụ' để bàn giao phiếu cho Cố vấn xử lý tiếp",
-                "Để xe nằm trong hàng chờ mãi mãi",
-                "Giao xe trực tiếp cho Thu ngân thanh toán",
-                "Hủy lịch hẹn của khách"
+                "Trang Điều phối phiếu dịch vụ - /service-ticket-management",
+                "Trang Quản lý Slider Banner",
+                "Trang Báo cáo Doanh thu năm",
+                "Trang Cài đặt Wifi garage"
               ],
               correctIndex: 0
             },
             tourSteps: [
-              { element: '[data-tour-id="advisor-inspection"]', popover: { title: "Điều phối cho Cố vấn", description: "Điều phối xe từ hàng chờ bàn giao cho Cố vấn dịch vụ.", side: "right" } }
+              { element: '[data-tour-id="sub-booking"]', popover: { title: "1. Menu Khách hàng & Dịch vụ", description: "Nhấp mở danh mục Quản lý khách hàng, đặt lịch hẹn và dịch vụ.", side: "right" } },
+              { element: '[data-tour-id="service-ticket-management"]', popover: { title: "2. Chọn Điều phối phiếu dịch vụ", description: "Nhấp chọn 'Điều phối phiếu dịch vụ' để chuyển tới giao diện quản lý toàn bộ các phiếu dịch vụ xưởng.", side: "right" } },
+              { targetPath: "/service-ticket-management", element: '[class*="ticket-page"], [class*="ticket-left"]', popover: { title: "3. Danh sách Phiếu tự động tạo sau Check-in", description: "Theo dõi phiếu dịch vụ vừa được khởi tạo ngay sau khi hoàn tất check-in tại /check-in.", side: "bottom" } },
+              { element: 'table tbody tr:first-child button:first-child', popover: { title: "4. Xem Chi tiết & Bàn giao Phiếu dịch vụ", description: "Nhấn 'Xem chi tiết' để mở đầy đủ nội dung phiếu dịch vụ và bàn giao cho Cố vấn tiến hành khảo sát 32 hạng mục, lập báo giá.", side: "bottom" } },
+              { element: '[data-tour-id="view-assign-btn"], table tbody tr:first-child button:nth-child(2)', autoClick: '[data-tour-id="view-assign-btn"]', popover: { title: "5. Nhấn Nút Xem Phân công Cố vấn", description: "Nhấp nút 'Xem phân công' trên dòng phiếu để mở popup phân công & điều phối Cố vấn dịch vụ.", side: "bottom" } },
+              { element: '[data-tour-id="assign-advisor-modal"], [class*="modal-box"]', autoClick: '[data-tour-id="view-assign-btn"]', allowMissing: true, popover: { title: "6. Popup Xem Phân công & Cân đối Workload", description: "Popup Xem phân công: Kiểm tra Cố vấn hiện tại, xem số phiếu đang làm (Workload) của các Cố vấn khác và bấm 'Đổi' nếu cần phân công Cố vấn rảnh hơn.", side: "top" } }
             ]
           }
         ]
