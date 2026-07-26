@@ -392,21 +392,22 @@
 
 /* Footer Bottom Actions */
 .actions {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1000;
+  position: sticky;
+  bottom: 12px;
+  z-index: 100;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 16px;
+  margin-top: 24px;
   padding: 16px 24px;
   background: var(--ui-surface-glass, rgba(255, 255, 255, 0.95));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.8));
   border-radius: 12px;
-  box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 20px -6px rgba(0, 0, 0, 0.05);
-  transition: left 0.25s ease, right 0.25s ease, bottom 0.25s ease;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 16px -6px rgba(0, 0, 0, 0.05);
+  transition: all 0.25s ease;
 }
 
 .actionsRight {
@@ -425,44 +426,6 @@
   border-color: var(--ui-danger-hover, #dc2626);
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
   transform: translateY(-1px);
-}
-
-@media (min-width: 1025px) {
-  :global(.sidebar:not(.is-collapsed)) ~ :global(.staffLayout__content) .actions {
-    left: calc(280px + 24px);
-  }
-
-  :global(.sidebar.is-collapsed) ~ :global(.staffLayout__content) .actions {
-    left: calc(76px + 24px);
-  }
-}
-
-@media (max-width: 1024px) {
-  .actions {
-    left: 24px;
-    right: 24px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .actionsRight {
-    flex: 1;
-    display: flex;
-    width: auto;
-  }
-
-  .actions > button,
-  .actionsRight button {
-    flex: 1;
-    width: 100%;
-    min-height: 44px;
-    padding: 10px 16px;
-    font-size: 14px;
-    justify-content: center;
-    white-space: nowrap;
-  }
 }
 
 /* Responsiveness */

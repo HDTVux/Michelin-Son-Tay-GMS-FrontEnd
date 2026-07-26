@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
 import Mascot from '../../../assets/Mascot.jpg';
+import CreateBooking from '../../DashBoard/BookingManagement/CreateBooking.jsx';
+import BookingRequestManagement from '../../DashBoard/BookingRequestManagement/BookingRequestManagement.jsx';
+import ConfirmedBookingManagement from '../../DashBoard/BookingManagement/ConfirmedBookingManagement.jsx';
+import PartsSales from '../../DashBoard/PartsSales/PartsSales.jsx';
+import CheckIn from '../../DashBoard/CheckInManagenent/CheckIn.jsx';
 import { 
   Play, 
   CheckCircle2, 
@@ -1066,45 +1071,183 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
         </div>
       )}
 
-      {/* Sandbox 4: Booking Check-in Simulator */}
+      {/* Sandbox 4: Authentic Embedded Live CreateBooking Component */}
       {type === 'booking' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Biển số xe:</label>
-              <input 
-                type="text" 
-                value={formData.licensePlate} 
-                onChange={(e) => setFormData({...formData, licensePlate: e.target.value})}
-                style={{ width: '100%', padding: '8px 12px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px' }}
-              />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Mini Browser Window Frame */}
+          <div style={{
+            background: '#0f172a',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)'
+          }}>
+            {/* Mini Browser Header / URL Bar */}
+            <div style={{ background: '#1e293b', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e' }} />
+              </div>
+              <div style={{ background: '#0f172a', padding: '4px 16px', borderRadius: '6px', fontSize: '0.75rem', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={12} style={{ color: '#3b82f6' }} />
+                <span>https://gms.michelin-sontay.vn/create-booking</span>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Zap size={14} style={{ color: '#facc15' }} />
+                Giao diện Thực tế 100%
+              </span>
             </div>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Khách hàng:</label>
-              <input 
-                type="text" 
-                value={formData.customerName} 
-                onChange={(e) => setFormData({...formData, customerName: e.target.value})}
-                style={{ width: '100%', padding: '8px 12px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Số KM hiện tại:</label>
-              <input 
-                type="text" 
-                value={formData.odometer} 
-                onChange={(e) => setFormData({...formData, odometer: e.target.value})}
-                style={{ width: '100%', padding: '8px 12px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px' }}
-              />
+
+            {/* Embedded Live Component Canvas */}
+            <div style={{ maxHeight: '680px', overflowY: 'auto', background: '#f8fafc', padding: '16px' }}>
+              <CreateBooking />
             </div>
           </div>
-          <button 
-            type="button"
-            onClick={() => handleAction('WAITING', `Đã tiếp nhận xe ${formData.licensePlate} (${formData.customerName}) vào Hàng chờ dịch vụ!`)}
-            style={{ padding: '10px 18px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, alignSelf: 'flex-start' }}
-          >
-            Thử Tiếp nhận Xe
-          </button>
+        </div>
+      )}
+
+      {/* Sandbox 4B: Authentic Embedded Live BookingRequestManagement Component */}
+      {type === 'online_booking' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Mini Browser Window Frame */}
+          <div style={{
+            background: '#0f172a',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)'
+          }}>
+            {/* Mini Browser Header / URL Bar */}
+            <div style={{ background: '#1e293b', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e' }} />
+              </div>
+              <div style={{ background: '#0f172a', padding: '4px 16px', borderRadius: '6px', fontSize: '0.75rem', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={12} style={{ color: '#3b82f6' }} />
+                <span>https://gms.michelin-sontay.vn/booking-request-management</span>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Zap size={14} style={{ color: '#facc15' }} />
+                Giao diện Thực tế 100%
+              </span>
+            </div>
+
+            {/* Embedded Live Component Canvas */}
+            <div style={{ maxHeight: '680px', overflowY: 'auto', background: '#f8fafc', padding: '16px' }}>
+              <BookingRequestManagement />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox 4C: Authentic Embedded Live ConfirmedBookingManagement Component */}
+      {type === 'confirmed_booking' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Mini Browser Window Frame */}
+          <div style={{
+            background: '#0f172a',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)'
+          }}>
+            {/* Mini Browser Header / URL Bar */}
+            <div style={{ background: '#1e293b', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e' }} />
+              </div>
+              <div style={{ background: '#0f172a', padding: '4px 16px', borderRadius: '6px', fontSize: '0.75rem', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={12} style={{ color: '#3b82f6' }} />
+                <span>https://gms.michelin-sontay.vn/booking-management</span>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Zap size={14} style={{ color: '#facc15' }} />
+                Giao diện Thực tế 100%
+              </span>
+            </div>
+
+            {/* Embedded Live Component Canvas */}
+            <div style={{ maxHeight: '680px', overflowY: 'auto', background: '#f8fafc', padding: '16px' }}>
+              <ConfirmedBookingManagement />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox 4D: Authentic Embedded Live PartsSales Component */}
+      {type === 'parts_sales' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Mini Browser Window Frame */}
+          <div style={{
+            background: '#0f172a',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)'
+          }}>
+            {/* Mini Browser Header / URL Bar */}
+            <div style={{ background: '#1e293b', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e' }} />
+              </div>
+              <div style={{ background: '#0f172a', padding: '4px 16px', borderRadius: '6px', fontSize: '0.75rem', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={12} style={{ color: '#3b82f6' }} />
+                <span>https://gms.michelin-sontay.vn/parts-sales</span>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Zap size={14} style={{ color: '#facc15' }} />
+                Giao diện Thực tế 100%
+              </span>
+            </div>
+
+            {/* Embedded Live Component Canvas */}
+            <div style={{ maxHeight: '680px', overflowY: 'auto', background: '#f8fafc', padding: '16px' }}>
+              <PartsSales />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox 4E: Authentic Embedded Live CheckIn Component */}
+      {type === 'check_in' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Mini Browser Window Frame */}
+          <div style={{
+            background: '#0f172a',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)'
+          }}>
+            {/* Mini Browser Header / URL Bar */}
+            <div style={{ background: '#1e293b', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e' }} />
+              </div>
+              <div style={{ background: '#0f172a', padding: '4px 16px', borderRadius: '6px', fontSize: '0.75rem', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={12} style={{ color: '#3b82f6' }} />
+                <span>https://gms.michelin-sontay.vn/check-in</span>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Zap size={14} style={{ color: '#facc15' }} />
+                Giao diện Thực tế 100%
+              </span>
+            </div>
+
+            {/* Embedded Live Component Canvas */}
+            <div style={{ maxHeight: '680px', overflowY: 'auto', background: '#f8fafc', padding: '16px', position: 'relative' }}>
+              <CheckIn />
+            </div>
+          </div>
         </div>
       )}
 

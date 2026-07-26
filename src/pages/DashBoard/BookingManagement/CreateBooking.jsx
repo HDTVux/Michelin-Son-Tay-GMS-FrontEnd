@@ -935,7 +935,7 @@ export default function CreateBooking() {
 				)}
 
 				{/* ===== Hàng nút hành động ===== */}
-				<div className={`${bookingStyles['booking-actions']} ${psStyles.actions}`}>
+				<div data-tour-id="create-booking-submit-actions" className={`${bookingStyles['booking-actions']} ${psStyles.actions}`}>
 					{submitSuccess ? (
 						<>
 							<button type="button" className={bookingStyles.btn} onClick={handleReset}>

@@ -246,7 +246,7 @@ function PendingPanel({
                         <option value="false">Có tài khoản</option>
                     </select>
                     <input type="date" value={date} onChange={(e) => onChangeDate?.(e.target.value)} />
-                    <select value={status} onChange={(e) => onChangeStatus?.(e.target.value)}>
+                    <select data-tour-id="booking-request-status-filter" value={status} onChange={(e) => onChangeStatus?.(e.target.value)}>
                         <option value="">Tất cả</option>
                         <option value="PENDING">{getBookingRequestStatusTextVi('PENDING')}</option>
                         <option value="CONFIRMED">{getBookingRequestStatusTextVi('CONFIRMED')}</option>
@@ -259,6 +259,7 @@ function PendingPanel({
                 <div className={styles['filter-card__actions']}>
                     <div className={styles['search-box']}>
                         <input
+                            data-tour-id="booking-request-search-input"
                             placeholder="Tìm kiếm..."
                             value={search}
                             onChange={(e) => onChangeSearch?.(e.target.value)}
@@ -270,7 +271,7 @@ function PendingPanel({
                 <p className={styles['filter-card__hint']}>(tìm kiếm theo cả tên, mã)</p>
             </div>
 
-            <div className={styles['booking-table__wrapper']}>
+            <div data-tour-id="booking-request-table" className={styles['booking-table__wrapper']}>
                 <table className={styles['booking-table']}>
                     <thead>
                         <tr>

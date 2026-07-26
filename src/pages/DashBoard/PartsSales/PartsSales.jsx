@@ -451,7 +451,7 @@ export default function PartsSales() {
 				{h.payError && <div className={styles.errorBanner}>{h.payError}</div>}
 
 				{/* ===== Hàng nút hành động ===== */}
-				<div className={`${bookingStyles['booking-actions']} ${styles.actions}`}>
+				<div data-tour-id="parts-sales-submit-actions" className={`${bookingStyles['booking-actions']} ${styles.actions}`}>
 					<button
 						type="button"
 						className={bookingStyles.btn}

@@ -275,7 +275,7 @@ function BookingPanel({
             <option value="false">Có tài khoản</option>
           </select>
           <input type="date" value={date} onChange={(e) => onChangeDate?.(e.target.value)} />
-          <select value={status} onChange={(e) => onChangeStatus?.(e.target.value)}>
+          <select data-tour-id="confirmed-booking-status-filter" value={status} onChange={(e) => onChangeStatus?.(e.target.value)}>
             <option value="">Tất cả</option>
             <option value="CONFIRMED">Đã xác nhận</option>
             <option value="DONE">Hoàn tất</option>
@@ -286,6 +286,7 @@ function BookingPanel({
         <div className={styles['filter-card__actions']}>
           <div className={styles['search-box']}>
             <input
+              data-tour-id="confirmed-booking-search-input"
               placeholder="Tìm kiếm..."
               value={search}
               onChange={(e) => onChangeSearch?.(e.target.value)}
@@ -297,7 +298,7 @@ function BookingPanel({
         <p className={styles['filter-card__hint']}>(tìm kiếm theo cả tên, mã)</p>
       </div>
 
-      <div className={styles['booking-table__wrapper']}>
+      <div data-tour-id="confirmed-booking-table" className={styles['booking-table__wrapper']}>
         <table className={styles['booking-table']}>
           <thead>
             <tr>
@@ -349,15 +350,16 @@ function BookingPanel({
                   
                   <td>
                     <div className={styles.pagination}>
-                      {canCheckIn ? (
-                        <button
-                          className={`${styles['primary-button']} ${item?.isPartsSale === true ? '' : styles['is-ghost']}`}
-                          disabled={!bookingCode}
-                          onClick={() => onCheckIn?.(item)}
-                        >
-                          {item?.isPartsSale === true ? 'Thanh toán' : 'Check-in'}
-                        </button>
-                      ) : null}
+                      <button
+                        data-tour-id="booking-checkin-btn"
+                        className={`${styles['primary-button']} ${item?.isPartsSale === true ? '' : styles['is-ghost']}`}
+                        disabled={!canCheckIn || !bookingCode}
+                        onClick={() => canCheckIn && onCheckIn?.(item)}
+                        style={!canCheckIn ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+                        title={!canCheckIn ? 'Nút Check-in khả dụng khi lịch hẹn ở trạng thái Đã xác nhận' : undefined}
+                      >
+                        {item?.isPartsSale === true ? 'Thanh toán' : 'Check-in'}
+                      </button>
                       <button
                         className={styles['primary-button']}
                         disabled={!bookingCode}

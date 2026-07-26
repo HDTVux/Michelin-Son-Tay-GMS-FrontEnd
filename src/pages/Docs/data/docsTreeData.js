@@ -268,54 +268,183 @@ export const DOCS_SECTIONS = [
           {
             id: "2.1.1",
             number: "2.1.1.",
-            title: "Tiếp nhận xe & Tạo lịch hẹn",
-            desc: "Đón tiếp khách hàng, nhập thông tin xe, số km và triệu chứng yêu cầu.",
+            title: "Tạo lịch cho khách vãng lai",
+            desc: "Tạo lịch giữ chỗ / đặt hẹn trực tiếp cho khách vãng lai đến garage hoặc gọi điện.",
+            targetPath: "/create-booking",
             content: {
-              overview: "Lễ tân là điểm chạm đầu tiên. Cần ghi nhận chính xác biển số xe, tên khách hàng và tình trạng xe khi vào garage.",
+              overview: "Thao tác tạo lịch giữ chỗ hoặc đặt hẹn nhanh chóng cho khách hàng vãng lai tới trực tiếp garage hoặc gọi điện tư vấn. Đảm bảo thông tin xe và thời gian được giữ trước khi xe đến.",
               steps: [
-                "1. Vào menu 'Khách hàng & Lịch hẹn' -> 'Quản lý lịch hẹn'.",
-                "2. Bấm nút '+ Tạo lịch giữ chỗ' hoặc 'Tiếp nhận xe trực tiếp'.",
-                "3. Quét mã QR đăng kiểm hoặc nhập tay Biển số xe & Tên chủ xe.",
-                "4. Ghi nhận số KM hiện tại và yêu cầu bảo dưỡng của khách."
+                "1. Truy cập menu 'Khách hàng & Lịch hẹn' -> 'Tạo lịch giữ chỗ' (/create-booking).",
+                "2. Tra cứu thông tin khách hàng qua Số điện thoại (tạo mới nếu chưa có trong hệ thống).",
+                "3. Nhập Biển số xe, tên chủ xe, dòng xe và số KM ước tính.",
+                "4. Lựa chọn dịch vụ dự kiến (thay lốp Michelin, thay dầu, bảo dưỡng...) và khung giờ hẹn.",
+                "5. Nhấn 'Tạo lịch hẹn giữ chỗ' để lưu thông tin lên hệ thống."
               ]
             },
             sandboxType: "booking",
             quiz: {
-              question: "Thông tin quan trọng nhất Lễ tân cần ghi nhận khi khách hàng đưa xe vào garage là gì?",
+              question: "Chức năng 'Tạo lịch giữ chỗ' (/create-booking) dùng chính cho đối tượng khách hàng nào?",
               options: [
-                "Biển số xe, Tên khách hàng & Số KM thực tế",
-                "Màu sơn xe",
-                "Sở thích nghe nhạc của khách",
-                "Giá xe trên thị trường"
+                "Khách vãng lai đến garage hoặc gọi điện đặt hẹn giữ chỗ",
+                "Khách hàng đã thanh toán xong phiếu dịch vụ",
+                "Đại lý nhập sỉ lốp trong kho",
+                "Kỹ thuật viên đang sửa xe"
               ],
               correctIndex: 0
             },
             tourSteps: [
-              { element: '[data-tour-id="sub-booking"]', popover: { title: "Khách hàng & Lịch hẹn", description: "Quản lý danh bạ khách, tạo lịch hẹn giữ chỗ và hàng chờ.", side: "right" } },
-              { element: '[data-tour-id="booking-management"]', popover: { title: "Quản lý lịch hẹn", description: "Xem danh sách xe đã đặt trước và tiếp nhận xe vào xưởng.", side: "right" } }
+              { element: '[data-tour-id="sub-booking"]', popover: { title: "1. Menu Khách hàng & Lịch hẹn", description: "Nhấp mở danh mục Quản lý khách hàng, lịch hẹn giữ chỗ và hàng chờ trên thanh điều hướng.", side: "right" } },
+              { element: '[data-tour-id="create-booking"]', popover: { title: "2. Chọn Tạo lịch giữ chỗ", description: "Nhấp chọn 'Tạo lịch giữ chỗ' để truy cập vào màn hình lập lịch trực tiếp cho khách vãng lai.", side: "right" } },
+              { targetPath: "/create-booking", element: "#create-booking-phone", popover: { title: "3. Nhập Số điện thoại Khách vãng lai", description: "Nhập SĐT của khách. Hệ thống sẽ tự động tra cứu xem khách hàng đã từng tới garage hay chưa.", side: "bottom" } },
+              { element: '[class*="selectDirectoryBtn"]', popover: { title: "4. Tra cứu nhanh từ Danh bạ", description: "Nhấp vào nút 'Chọn từ danh bạ' để tìm nhanh khách hàng đã có trong danh bạ garage mà không cần gõ tay.", side: "bottom" } },
+              { element: "#create-booking-fullname", popover: { title: "5. Nhập Họ và tên Khách hàng", description: "Nhập họ tên chủ xe hoặc thông tin người trực tiếp đưa xe tới làm dịch vụ.", side: "bottom" } },
+              { element: "#create-booking-note", popover: { title: "6. Ghi nhận Yêu cầu dịch vụ", description: "Nhập mô tả triệu chứng xe (tiếng kêu, đảo lốp, mòn vẹt) hoặc dịch vụ khách muốn làm.", side: "bottom" } },
+              { element: '[class*="customerInfoCard"]', popover: { title: "7. Hồ sơ & Hạng khách hàng", description: "Xem thông tin hạng thành viên (Bronze/Silver/Gold/Platinum) và lịch sử các phiếu dịch vụ xe đã sử dụng trước đây.", side: "bottom" } },
+              { element: '[class*="scheduleCard"]', popover: { title: "8. Chọn Khung giờ giữ chỗ", description: "Chọn ngày mong muốn và nhấp khung giờ khả dụng (10 ngày tới) hoặc bấm 'Dùng ngày giờ hiện tại'.", side: "bottom" } },
+              { element: '[class*="estimatePanel"]', popover: { title: "9. Bảng Báo giá dự kiến", description: "Thêm lốp Michelin, dầu nhớt hoặc tiền công dịch vụ dự kiến để thông tin chi phí trước cho khách.", side: "top" } },
+              { element: '[data-tour-id="create-booking-submit-actions"]', popover: { title: "10. Hoàn tất & In phiếu giữ chỗ", description: "Nhấn nút 'Tạo lịch' để lưu giữ chỗ hoặc nhấp 'In phiếu dịch vụ' để in chứng từ bản cứng cho khách.", side: "top" } }
             ]
           },
           {
             id: "2.1.2",
             number: "2.1.2.",
-            title: "Quản lý hàng chờ & Điều phối xe",
-            desc: "Theo dõi vị trí xe trong hàng chờ và chuyển cho Cố vấn dịch vụ.",
+            title: "Quản lý lịch khách đặt online",
+            desc: "Tiếp nhận, kiểm tra và phê duyệt các yêu cầu đặt lịch hẹn trực tuyến từ Website / App / Zalo của khách hàng.",
+            targetPath: "/booking-request-management",
             content: {
-              overview: "Giúp tối ưu thời gian chờ của khách và phân bổ xe vào các cầu nâng khả dụng.",
+              overview: "Quản lý tập trung toàn bộ danh sách các yêu cầu giữ chỗ / đặt lịch trực tuyến của khách hàng gửi từ Website, App di động hoặc Zalo OA. Lễ tân tiến hành kiểm tra thông tin, đối soát khung giờ trống và phê duyệt lịch hẹn.",
               steps: [
-                "1. Truy cập 'Quản lý hàng chờ đặt lịch'.",
-                "2. Kiểm tra danh sách xe đang đợi (Status: WAITING).",
-                "3. Bấm 'Giao cho Cố vấn' để chuyển xe sang công đoạn khảo sát."
+                "1. Truy cập menu 'Khách hàng & Lịch hẹn' -> 'Yêu cầu đặt lịch (Online)' (/booking-request-management).",
+                "2. Lọc danh sách theo trạng thái 'Chờ duyệt' (PENDING) hoặc tìm kiếm theo Tên / Số điện thoại khách hàng.",
+                "3. Nhấp vào mã đặt lịch để xem chi tiết thông tin xe, dịch vụ yêu cầu và thời gian đặt hẹn trực tuyến.",
+                "4. Nhấn 'Duyệt lịch hẹn' (CONFIRMED) để xác nhận giữ chỗ hoặc chọn 'Liên hệ điều chỉnh' nếu cần thỏa thuận lại khung giờ.",
+                "5. Hệ thống tự động gửi thông báo xác nhận lịch thành công sang Zalo OA / App cho khách hàng."
               ]
             },
-            sandboxType: "queue",
+            sandboxType: "online_booking",
             quiz: {
-              question: "Trạng thái xe trong hàng chờ chưa được nhận khảo sát là gì?",
-              options: ["COMPLETED", "WAITING (Đang chờ)", "CANCELLED", "PAID"],
-              correctIndex: 1
+              question: "Khi khách hàng gửi yêu cầu đặt hẹn từ Website / App di động, Lễ tân tiếp nhận và phê duyệt tại trang nào?",
+              options: [
+                "Trang 'Quản lý lịch khách đặt online' - /booking-request-management",
+                "Màn hình Quản lý Slider",
+                "Báo cáo Doanh thu Kế toán",
+                "Danh mục Phụ tùng Kho"
+              ],
+              correctIndex: 0
             },
             tourSteps: [
-              { element: '[data-tour-id="queue-management"]', popover: { title: "Hàng chờ đặt lịch", description: "Xem danh sách xe đang chờ điều phối vào khu vực dịch vụ.", side: "right" } }
+              { element: '[data-tour-id="sub-booking"]', popover: { title: "1. Menu Khách hàng & Lịch hẹn", description: "Nhấp mở danh mục Quản lý khách hàng, đặt lịch hẹn và hàng chờ.", side: "right" } },
+              { element: '[data-tour-id="booking-request-management"]', popover: { title: "2. Chọn Yêu cầu đặt lịch (Online)", description: "Nhấp chọn 'Yêu cầu đặt lịch (Online)' để chuyển tới màn hình quản lý lịch hẹn trực tuyến từ Web/App.", side: "right" } },
+              { targetPath: "/booking-request-management", element: '[data-tour-id="booking-request-status-filter"]', popover: { title: "3. Lọc Trạng thái 'Chờ duyệt' (PENDING)", description: "Chọn trạng thái 'Chờ duyệt' trên ô dropdown này để lọc ra các đơn đặt lịch hẹn online mới nhất đang chờ Lễ tân phê duyệt.", side: "bottom" } },
+              { element: '[data-tour-id="booking-request-search-input"]', popover: { title: "4. Tra cứu theo Tên / Số điện thoại", description: "Gõ số điện thoại hoặc tên khách hàng để tìm nhanh thông tin đơn đặt lịch cụ thể.", side: "bottom" } },
+              { element: '[data-tour-id="booking-request-table"]', popover: { title: "5. Bảng Danh sách Yêu cầu mới nhất", description: "Xem thông tin chủ xe, thời gian hẹn mong muốn, số điện thoại và dịch vụ đăng ký trực tuyến.", side: "bottom" } },
+              { element: '[data-tour-id="booking-request-table"] tbody tr:first-child', popover: { title: "6. Duyệt & Phê duyệt Lịch hẹn", description: "Nhấp vào đơn để xem chi tiết, bấm 'Duyệt' để xác nhận giữ chỗ hoặc chọn 'Liên hệ điều chỉnh' nếu cần đổi khung giờ.", side: "bottom" } }
+            ]
+          },
+          {
+            id: "2.1.3",
+            number: "2.1.3.",
+            title: "Quản lý lịch đã đặt hẹn",
+            desc: "Theo dõi, thay đổi lịch hẹn, hủy lịch, đánh dấu spam và liên hệ xác nhận với khách hàng.",
+            targetPath: "/booking-management",
+            content: {
+              overview: "Màn hình trung tâm giúp Lễ tân quản lý toàn bộ các lịch hẹn đã đặt (vãng lai & online): hỗ trợ thay đổi lịch, hủy lịch, loại bỏ rác/spam và duy trì liên lạc với khách.",
+              steps: [
+                "1. Truy cập 'Khách hàng & Lịch hẹn' -> 'Quản lý lịch hẹn' (/booking-management).",
+                "2. **Thay đổi lịch (Reschedule)**: Chọn lịch hẹn -> Bấm 'Đổi ngày/giờ' khi khách cần báo hoãn hoặc chọn khung giờ khác.",
+                "3. **Hủy lịch hẹn**: Chọn lịch hẹn -> Bấm 'Hủy lịch' và chọn lý do (Khách bận, hoãn kế hoạch...).",
+                "4. **Đánh dấu Spam**: Với các lịch hẹn ảo/spam, bấm 'Đánh dấu Spam' để chặn dữ liệu rác.",
+                "5. **Liên hệ khách hàng**: Bấm nút 'Gọi điện' hoặc 'Gửi Zalo/SMS' để chủ động nhắc lịch hẹn trước 30-60 phút."
+              ]
+            },
+            sandboxType: "confirmed_booking",
+            quiz: {
+              question: "Tại màn hình Quản lý lịch hẹn (/booking-management), Lễ tân có thể thực hiện những tác vụ nào?",
+              options: [
+                "Thay đổi lịch, Hủy lịch, Đánh dấu spam và Liên hệ xác nhận với khách",
+                "Chỉ xem lịch chứ không được phép chỉnh sửa",
+                "In hóa đơn thanh toán tiền",
+                "Quét mã QR nhập kho lốp"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: [
+              { element: '[data-tour-id="sub-booking"]', popover: { title: "1. Menu Khách hàng & Lịch hẹn", description: "Nhấp mở danh mục Quản lý khách hàng, đặt lịch hẹn và hàng chờ.", side: "right" } },
+              { element: '[data-tour-id="booking-management"]', popover: { title: "2. Chọn Quản lý lịch hẹn", description: "Nhấp chọn 'Quản lý lịch hẹn' để chuyển tới màn hình quản lý toàn bộ các lịch hẹn đã xác nhận.", side: "right" } },
+              { targetPath: "/booking-management", element: '[data-tour-id="confirmed-booking-status-filter"]', popover: { title: "3. Lọc Trạng thái Lịch hẹn", description: "Lọc lịch hẹn theo trạng thái 'Đã xác nhận' (CONFIRMED), 'Hoàn tất', 'Đã hủy' hoặc 'Chưa đến'.", side: "bottom" } },
+              { element: '[data-tour-id="confirmed-booking-search-input"]', popover: { title: "4. Tra cứu Khách hàng / Biển số xe", description: "Nhập Tên khách hàng, SĐT hoặc Mã đặt lịch để tra cứu nhanh thông tin giữ chỗ.", side: "bottom" } },
+              { element: '[data-tour-id="confirmed-booking-table"]', popover: { title: "5. Danh sách Lịch hẹn đã đặt", description: "Theo dõi họ tên khách, số điện thoại, biển số xe, thời gian gửi yêu cầu và thời gian hẹn thực tế.", side: "bottom" } },
+              { element: '[data-tour-id="confirmed-booking-table"] tbody tr:first-child', popover: { title: "6. Thao tác Đổi lịch / Hủy / Đánh dấu Spam", description: "Bấm 'Đổi ngày/giờ' khi khách báo hoãn, bấm 'Hủy lịch' kèm lý do, bấm 'Đánh dấu Spam' nếu là lịch rác, hoặc bấm 'Gọi điện/Zalo' để liên hệ khách.", side: "bottom" } }
+            ]
+          },
+          {
+            id: "2.1.4",
+            number: "2.1.4.",
+            title: "Luồng Tiếp nhận xe",
+            desc: "Bấm nút Check-in từ Quản lý lịch hẹn (/booking-management), nhập thông tin xe và hoàn tất quy trình tiếp nhận tại /check-in.",
+            targetPath: "/booking-management",
+            content: {
+              overview: "Khi khách hàng đưa xe tới garage làm dịch vụ, Lễ tân bắt đầu quy trình bằng cách bấm nút 'Check-in' trực tiếp trên dòng lịch hẹn của khách tại Quản lý lịch hẹn (/booking-management). Hệ thống tự động chuyển hướng tới trang Tiếp nhận xe (/check-in), nơi Lễ tân xác nhận thông tin biển số xe, nhập số KM hiển thị trên đồng hồ thực tế, chỉ định Cố vấn dịch vụ phụ trách và hoàn tất đưa xe vào Hàng chờ xưởng.",
+              steps: [
+                "1. Truy cập menu 'Khách hàng & Lịch hẹn' -> 'Quản lý lịch hẹn' (/booking-management).",
+                "2. Tìm lịch hẹn đã xác nhận của khách và nhấp nút 'Check-in' để chuyển hướng sang giao diện /check-in.",
+                "3. **[BẮT BUỘC]** Trang /check-in: Chọn biển số xe tiếp nhận trong danh sách xe của khách hoặc bấm 'Thêm xe mới'.",
+                "4. **[BẮT BUỘC]** Chọn Cố vấn dịch vụ (Advisor) phụ trách tiếp nhận phiếu, lập báo giá và phân công thợ xưởng.",
+                "5. **[KHÔNG BẮT BUỘC]** Nhập số KM (Odometer) thực tế trên đồng hồ xe và tải ảnh biển số xe.",
+                "6. **[KHÔNG BẮT BUỘC]** Chụp ảnh tình trạng xe (7 góc: trước, sau, 2 bên thân, nội thất, vết xước) để lưu bằng chứng.",
+                "7. Nhấn nút 'Xác nhận' để hoàn tất tiếp nhận xe, tự động khởi tạo Phiếu dịch vụ và đưa xe vào Hàng chờ xưởng."
+              ]
+            },
+            sandboxType: "check_in",
+            quiz: {
+              question: "Tại giao diện /check-in tiếp nhận xe, trường thông tin nào là BẮT BUỘC phải chọn/nhập?",
+              options: [
+                "Biển số xe tiếp nhận và Cố vấn dịch vụ phụ trách",
+                "Ảnh chụp 7 góc hiện trạng xe",
+                "Mô tả vết trầy xước nội thất",
+                "Tất cả các ô chụp ảnh hiện trạng đều bắt buộc"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: [
+              { element: '[data-tour-id="sub-booking"]', popover: { title: "1. Menu Khách hàng & Lịch hẹn", description: "Nhấp mở danh mục Quản lý khách hàng, đặt lịch hẹn và hàng chờ.", side: "right" } },
+              { element: '[data-tour-id="booking-management"]', popover: { title: "2. Chọn Quản lý lịch hẹn", description: "Nhấp chọn 'Quản lý lịch hẹn' để mở danh sách các lịch hẹn đã xác nhận.", side: "right" } },
+              { targetPath: "/booking-management", element: '[data-tour-id="booking-checkin-btn"]', popover: { title: "3. Nhấn Nút Check-in Tiếp nhận xe", description: "Nhấp nút 'Check-in' tại dòng lịch hẹn của khách để chuyển sang trang Tiếp nhận xe (/check-in).", side: "bottom" } },
+              { targetPath: "/check-in", element: '[class*="stepCard"]:first-of-type', popover: { title: "4. [BẮT BUỘC] Chọn Xe & Biển số xe", description: "Trường BẮT BUỘC: Xác nhận thông tin xe trong danh sách của khách hoặc bấm 'Thêm xe mới' để nhập biển số xe tiếp nhận.", side: "bottom" } },
+              { element: '#advisorSelect', popover: { title: "5. [BẮT BUỘC] Chọn Cố vấn dịch vụ", description: "Trường BẮT BUỘC: Phải chọn 1 Cố vấn dịch vụ (Advisor) để phụ trách khảo sát 32 hạng mục, phân công thợ và theo dõi xe.", side: "bottom" } },
+              { element: '#odometer', popover: { title: "6. [KHÔNG BẮT BUỘC] Nhập Số KM (Odometer)", description: "Trường KHÔNG BẮT BUỘC: Nhập Số KM hiển thị trên đồng hồ xe thực tế để theo dõi chu kỳ bảo dưỡng.", side: "bottom" } },
+              { element: '[class*="stepCard"]:nth-of-type(3)', popover: { title: "7. [KHÔNG BẮT BUỘC] Chụp ảnh Tình trạng xe", description: "Trường KHÔNG BẮT BUỘC: Lễ tân có thể chụp 7 góc ảnh hiện trạng xe (trước, sau, 2 bên thân, nội thất, hư hại) để lưu bằng chứng.", side: "top" } },
+              { element: '[data-tour-id="checkin-submit-actions"]', popover: { title: "8. Hoàn tất Check-in Tiếp nhận xe", description: "Nhấn nút 'Xác nhận' để hoàn tất tiếp nhận, tự động khởi tạo Phiếu dịch vụ và đưa xe vào Hàng chờ xưởng.", side: "top" } }
+            ]
+          },
+          {
+            id: "2.1.5",
+            number: "2.1.5.",
+            title: "Luồng điều phối phiếu dịch vụ cho cố vấn",
+            desc: "Điều phối xe từ hàng chờ và bàn giao phiếu dịch vụ cho Cố vấn dịch vụ.",
+            targetPath: "/advisor/inspection",
+            content: {
+              overview: "Sau khi xe đã hoàn tất check-in tiếp nhận, Lễ tân điều phối xe từ Hàng chờ vào cầu nâng/khoang tiếp nhận và bàn giao phiếu cho Cố vấn dịch vụ phụ trách.",
+              steps: [
+                "1. Tại màn hình Hàng chờ (/queue-management), chọn xe ở trạng thái Đang chờ (WAITING).",
+                "2. Bấm 'Giao cho Cố vấn dịch vụ' và chọn tên Cố vấn (Advisor) được phân công.",
+                "3. Hệ thống khởi tạo Phiếu dịch vụ ban đầu (/service-ticket-management) và gửi thông báo tới Cố vấn.",
+                "4. Cố vấn dịch vụ nhận phiếu dịch vụ để điều phối công việc cho thợ sửa hoặc chính mình."
+              ]
+            },
+            sandboxType: "inspection",
+            quiz: {
+              question: "Sau luồng Check-in xe, Lễ tân thực hiện điều phối như thế nào?",
+              options: [
+                "Bấm 'Giao cho Cố vấn dịch vụ' để bàn giao phiếu cho Cố vấn xử lý tiếp",
+                "Để xe nằm trong hàng chờ mãi mãi",
+                "Giao xe trực tiếp cho Thu ngân thanh toán",
+                "Hủy lịch hẹn của khách"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: [
+              { element: '[data-tour-id="advisor-inspection"]', popover: { title: "Điều phối cho Cố vấn", description: "Điều phối xe từ hàng chờ bàn giao cho Cố vấn dịch vụ.", side: "right" } }
             ]
           }
         ]
@@ -328,54 +457,95 @@ export const DOCS_SECTIONS = [
           {
             id: "2.2.1",
             number: "2.2.1.",
-            title: "Lập phiếu khảo sát an toàn 32 hạng mục",
-            desc: "Khảo sát lốp Michelin, phanh, gầm, ắc quy và dầu nhớt động cơ.",
+            title: "Bán hàng cho đại lý & garage",
+            desc: "Tạo đơn bán lốp, phụ tùng nhanh cho đại lý đối tác, garage liên kết hoặc khách mua lẻ trực tiếp.",
+            targetPath: "/parts-sales",
             content: {
-              overview: "Phiếu khảo sát an toàn giúp phát hiện sớm các nguy cơ hư hỏng và tư vấn gói bảo dưỡng tối ưu cho khách hàng.",
+              overview: "Chức năng bán hàng rút gọn dành cho Cố vấn dịch vụ / Bán hàng lập đơn bán lốp Michelin, dầu nhớt và phụ tùng cho Đại lý đối tác, Garage liên kết hoặc Khách mua lẻ. Hỗ trợ chọn loại khách hàng, tra cứu giá bán lẻ/sỉ theo kho, áp dụng chiết khấu khuyến mãi, in phiếu bán hàng và chuyển thanh toán trực tiếp.",
               steps: [
-                "1. Mở phân hệ 'Điều phối phiếu dịch vụ'.",
-                "2. Tiến hành kiểm tra độ sâu rãnh lốp Michelin, áp suất lốp và hệ thống phanh.",
-                "3. Đánh dấu trạng thái hạng mục: Đạt (Xanh), Cần chú ý (Vàng), Nguy hiểm (Đỏ).",
-                "4. Chụp ảnh bằng chứng thực tế đính kèm phiếu."
+                "1. Truy cập menu 'Khách hàng & Lịch hẹn' -> 'Bán hàng' (/parts-sales).",
+                "2. Nhập số điện thoại khách hàng hoặc bấm 'Chọn từ danh bạ' để chọn Đại lý / Garage đối tác.",
+                "3. Kiểm tra thông tin hồ sơ và phân loại khách hàng (Đại lý / Garage / Khách lẻ).",
+                "4. Thêm sản phẩm lốp Michelin, phụ tùng từ bảng báo giá linh kiện và chọn số lượng.",
+                "5. Nhập mã khuyến mãi hoặc chọn chương trình chiết khấu ưu đãi từ danh sách.",
+                "6. Nhấn 'Lưu nháp', 'In phiếu' hoặc 'Thanh toán' để hoàn tất thu tiền & xuất kho."
               ]
             },
-            sandboxType: "inspection",
+            sandboxType: "parts_sales",
             quiz: {
-              question: "Màu Đỏ trên phiếu kiểm tra hạng mục lốp/phanh thể hiện điều gì?",
+              question: "Khi Cố vấn dịch vụ thực hiện bán lốp & phụ tùng cho Đại lý đối tác hoặc Garage liên kết, thao tác tại màn hình nào?",
               options: [
-                "Đạt tiêu chuẩn an toàn tốt",
-                "Mức độ Nguy hiểm - Cần thay thế/sửa chữa gấp",
-                "Khách hàng đã thanh toán",
-                "Hàng mới nhập kho"
+                "Bán hàng cho đại lý & garage - /parts-sales",
+                "Màn hình Chấm công QR",
+                "Quản lý lịch hẹn online",
+                "Danh mục Phụ tùng hỏng"
               ],
-              correctIndex: 1
+              correctIndex: 0
             },
             tourSteps: [
-              { element: '[data-tour-id="advisor-inspection"]', popover: { title: "Điều phối phiếu dịch vụ", description: "Thực hiện khảo sát an toàn và lập báo giá tư vấn cho khách.", side: "right" } }
+              { element: '[data-tour-id="sub-booking"]', popover: { title: "1. Menu Khách hàng & Lịch hẹn", description: "Nhấp mở danh mục Quản lý khách hàng, đặt lịch hẹn và bán hàng.", side: "right" } },
+              { element: '[data-tour-id="parts-sales"]', popover: { title: "2. Chọn Bán hàng", description: "Nhấp chọn 'Bán hàng' để truy cập vào màn hình bán lốp & phụ tùng cho Đại lý / Garage.", side: "right" } },
+              { targetPath: "/parts-sales", element: "#parts-sales-phone", popover: { title: "3. Nhập SĐT Khách hàng / Đại lý", description: "Nhập SĐT khách hàng hoặc bấm 'Chọn từ danh bạ' để chọn nhanh Đại lý / Garage đối tác.", side: "bottom" } },
+              { element: '[class*="customerInfoCard"]', popover: { title: "4. Thông tin Khách hàng / Phân loại", description: "Xem thông tin phân loại khách hàng (Đại lý / Garage khác / Khách lẻ) và lịch sử giao dịch.", side: "bottom" } },
+              { element: '[class*="estimatePanel"]', popover: { title: "5. Bảng báo giá Linh kiện & Phụ tùng", description: "Chọn lốp Michelin, dầu nhớt, linh kiện phụ tùng từ kho và điều chỉnh số lượng xuất bán.", side: "top" } },
+              { element: '[class*="promotionCard"]', popover: { title: "6. Áp dụng Khuyến mãi & Chiết khấu", description: "Nhập mã giảm giá hoặc chọn voucher chiết khấu dành riêng cho đại lý / garage đối tác.", side: "top" } },
+              { element: '[data-tour-id="parts-sales-submit-actions"]', popover: { title: "7. Hoàn tất & In phiếu bán hàng", description: "Nhấn 'Lưu nháp', bấm 'In phiếu' hoặc chọn 'Thanh toán' để thu tiền và xuất kho trực tiếp.", side: "top" } }
             ]
           },
           {
             id: "2.2.2",
             number: "2.2.2.",
-            title: "Tạo báo giá & Xin duyệt từ Khách hàng",
-            desc: "Lập bảng dự toán chi phí phụ tùng, công thợ và gửi khách duyệt.",
+            title: "Điều phối phiếu dịch vụ (Phân công thợ sửa)",
+            desc: "Xem chi tiết phiếu dịch vụ, giao phiếu cho thợ sửa (Kỹ thuật viên) hoặc giao cho chính mình.",
+            targetPath: "/service-ticket-management",
             content: {
-              overview: "Báo giá rõ ràng minh bạch là uy tín của Michelin Sơn Tây. Chỉ tiến hành sửa chữa sau khi khách hàng đồng ý duyệt.",
+              overview: "Cố vấn dịch vụ quản lý danh sách phiếu dịch vụ, xem thông tin chi tiết và chủ động điều phối phân công công việc cho Kỹ thuật viên xưởng hoặc tự đảm nhận.",
               steps: [
-                "1. Thêm phụ tùng lốp/dầu/mỡ và dịch vụ tương ứng vào bảng báo giá.",
-                "2. Áp dụng mã giảm giá / Voucher ưu đãi (nếu có).",
-                "3. Nhấn 'Gửi báo giá cho khách' (qua Zalo/App hoặc xác nhận trực tiếp).",
-                "4. Chuyển trạng thái phiếu sang 'Khách đã duyệt (APPROVED)'."
+                "1. Truy cập 'Điều phối phiếu dịch vụ' (/service-ticket-management) để xem toàn bộ danh sách phiếu dịch vụ.",
+                "2. Nhấp vào phiếu cần điều phối để xem chi tiết các hạng mục sửa chữa và vật tư phụ tùng.",
+                "3. **Giao phiếu cho thợ sửa**: Chọn Kỹ thuật viên (thợ xưởng) phù hợp với chuyên môn (thay lốp, cân bằng chì, căn chỉnh ST Hunter...).",
+                "4. **Giao phiếu cho chính mình**: Nếu Cố vấn dịch vụ kiêm nhiệm trực tiếp sửa chữa, phân công phiếu cho bản thân.",
+                "5. Ghi nhận thời gian giao phiếu và theo dõi tiến độ thi công thực tế của thợ xưởng."
+              ]
+            },
+            sandboxType: "inspection",
+            quiz: {
+              question: "Cố vấn dịch vụ có thể phân công công việc trên Phiếu dịch vụ cho những ai?",
+              options: [
+                "Phân công cho thợ sửa (Kỹ thuật viên xưởng) hoặc giao cho chính bản thân mình",
+                "Chỉ được giao cho Thu ngân",
+                "Chỉ được giao cho khách tự làm",
+                "Không phân công được cho ai"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: [
+              { element: '[data-tour-id="service-ticket-management"]', popover: { title: "Điều phối phiếu dịch vụ", description: "Xem phiếu dịch vụ và phân công công việc cho Kỹ thuật viên hoặc chính mình.", side: "right" } }
+            ]
+          },
+          {
+            id: "2.2.3",
+            number: "2.2.3.",
+            title: "Báo giá với khách & Xác nhận báo giá",
+            desc: "Lập dự toán chi phí phụ tùng, gửi báo giá cho khách duyệt và xác nhận trạng thái báo giá.",
+            targetPath: "/service-ticket-management",
+            content: {
+              overview: "Báo giá minh bạch là cam kết dịch vụ hàng đầu tại Michelin Sơn Tây. Kỹ thuật viên chỉ thi công sau khi báo giá đã được khách hàng xác nhận duyệt.",
+              steps: [
+                "1. Thêm các sản phẩm lốp Michelin, phụ tùng thay thế và tiền công dịch vụ vào Bảng báo giá.",
+                "2. Áp dụng mã giảm giá, khuyến mãi combo hoặc chiết khấu hạng khách hàng (Bronze/Silver/Gold/Platinum).",
+                "3. **Báo giá với khách**: Gửi báo giá trực tiếp cho khách tại phòng chờ hoặc gửi qua Zalo OA/App di động.",
+                "4. **Xác nhận báo giá**: Sau khi khách đồng ý, chuyển trạng thái báo giá sang 'Khách đã duyệt (APPROVED)' để kích hoạt luồng xuất kho & thi công."
               ]
             },
             sandboxType: "quotation",
             quiz: {
-              question: "Kỹ thuật viên chỉ bắt đầu làm việc khi phiếu dịch vụ ở trạng thái nào?",
-              options: ["DRAFT (Bản nháp)", "Khách đã duyệt (APPROVED)", "REJECTED", "CANCELLED"],
+              question: "Kỹ thuật viên chỉ bắt đầu thi công sửa chữa khi báo giá ở trạng thái nào?",
+              options: ["DRAFT (Bản nháp)", "Khách đã duyệt (APPROVED)", "REJECTED (Từ chối)", "CANCELLED (Đã hủy)"],
               correctIndex: 1
             },
             tourSteps: [
-              { element: '[data-tour-id="service-ticket-management"]', popover: { title: "Phiếu dịch vụ", description: "Danh sách tổng hợp báo giá và phiếu dịch vụ đang thực hiện.", side: "right" } }
+              { element: '[data-tour-id="service-ticket-management"]', popover: { title: "Báo giá & Xác nhận báo giá", description: "Tạo báo giá gửi khách duyệt và xác nhận trước khi thi công.", side: "right" } }
             ]
           }
         ]
@@ -389,23 +559,56 @@ export const DOCS_SECTIONS = [
             id: "2.3.1",
             number: "2.3.1.",
             title: "Xem danh sách công việc hôm nay (My Tasks)",
-            desc: "Tiếp nhận phiếu công việc được giao và kiểm tra vật tư thay thế.",
+            desc: "Tiếp nhận phiếu công việc được giao, cập nhật tiến độ thi công và khoang sửa chữa.",
+            targetPath: "/my-tasks",
             content: {
-              overview: "Kỹ thuật viên nhận thông báo công việc tức thì trên bảng làm việc My Tasks.",
+              overview: "Kỹ thuật viên nhận thông báo công việc tức thì trên bảng làm việc My Tasks, tiến hành tiếp nhận và cập nhật tiến độ thi công thực tế.",
               steps: [
-                "1. Mở menu 'Công việc hôm nay' (My Tasks).",
-                "2. Xem danh sách các việc cần làm (Thay lốp, Cân chỉnh thước lái, Thay dầu).",
-                "3. Nhấn 'Bắt đầu làm việc' để ghi nhận thời gian thợ."
+                "1. Truy cập menu 'Công việc hôm nay' (My Tasks).",
+                "2. Xem danh sách các việc cần làm (Thay lốp Michelin, cân bằng chì, căn chỉnh thước lái 3D ST Hunter, thay dầu nhờn...).",
+                "3. Nhấn 'Bắt đầu làm việc' để ghi nhận thời gian thi công thực tế của thợ.",
+                "4. Cập nhật trạng thái thi công (Đang làm -> Hoàn thành) và khoang sửa chữa khả dụng."
               ]
             },
             sandboxType: "mytasks",
             quiz: {
-              question: "Nơi nào giúp Kỹ thuật viên biết chính xác xe nào cần sửa chữa hôm nay?",
-              options: ["Trang Quản lý Slider", "Menu 'Công việc hôm nay' (My Tasks)", "Quản lý Báo cáo Doanh thu", "Bảng lương nhân viên"],
-              correctIndex: 1
+              question: "Nơi nào giúp Kỹ thuật viên xem danh sách các công việc được phân công sửa chữa hôm nay?",
+              options: ["Menu 'Công việc hôm nay' (My Tasks)", "Trang Quản lý Slider", "Quản lý Báo cáo Doanh thu", "Bảng lương nhân viên"],
+              correctIndex: 0
             },
             tourSteps: [
               { element: '[data-tour-id="my-tasks"]', popover: { title: "Công việc hôm nay", description: "Giao diện làm việc của Kỹ thuật viên để cập nhật tiến độ công việc.", side: "right" } }
+            ]
+          },
+          {
+            id: "2.3.2",
+            number: "2.3.2.",
+            title: "Kiểm tra an toàn xe & Nhập thông số xe",
+            desc: "Kiểm tra an toàn kỹ thuật thực tế cho xe, đo đạc và nhập thông số lốp, phanh, gầm, ắc quy và ST Hunter.",
+            targetPath: "/advisor/inspection",
+            content: {
+              overview: "Kỹ thuật viên thực hiện kiểm tra an toàn chi tiết trên xe, tiến hành đo đạc thông số kỹ thuật thực tế (độ sâu rãnh lốp Michelin, áp suất lốp, thông số điện áp ắc quy, góc đặt bánh xe...) và nhập dữ liệu thông số lên phiếu kiểm tra.",
+              steps: [
+                "1. Mở màn hình 'Kiểm tra an toàn xe & Nhập thông số' trên phiếu công việc.",
+                "2. Đo độ sâu rãnh lốp Michelin (mm) bằng thước đo chuyên dụng và kiểm tra áp suất lốp (PSI/Bar).",
+                "3. Đo điện áp & dòng khởi động CCA của ắc quy, kiểm tra độ mòn má phanh và hệ thống gầm.",
+                "4. Nhập các thông số kỹ thuật thực tế đo được vào hệ thống kèm ghi chú khuyến nghị.",
+                "5. Đính kèm hình ảnh chụp thực tế vị trí mòn vẹt/hư hỏng để làm dữ liệu lưu vết cho xe."
+              ]
+            },
+            sandboxType: "inspection",
+            quiz: {
+              question: "Kỹ thuật viên thực hiện đo đạc và nhập các thông số kỹ thuật thực tế (độ sâu rãnh lốp, áp suất, điện áp ắc quy) ở đâu?",
+              options: [
+                "Màn hình 'Kiểm tra an toàn xe & Nhập thông số xe' trong Phân hệ Kỹ thuật viên & Xưởng",
+                "Màn hình Quản lý Slider",
+                "Báo cáo Doanh thu Kế toán",
+                "Danh mục Khuyến mãi"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: [
+              { element: '[data-tour-id="advisor-inspection"]', popover: { title: "Kiểm tra an toàn & Nhập thông số", description: "Đo đạc và nhập thông số kỹ thuật thực tế cho xe.", side: "right" } }
             ]
           }
         ]
@@ -418,48 +621,95 @@ export const DOCS_SECTIONS = [
           {
             id: "2.4.1",
             number: "2.4.1.",
-            title: "Tạo phiếu nhập kho & Quét mã QR",
-            desc: "Nhập vỏ lốp Michelin, dầu nhờn từ Nhà cung cấp vào hệ thống.",
+            title: "Quản lý phiếu nhập kho & In phiếu",
+            desc: "Lập & quản lý các đợt nhập lốp Michelin, dầu nhờn từ Nhà cung cấp, quét mã QR và in phiếu nhập kho.",
+            targetPath: "/warehouse-stock-entries",
             content: {
-              overview: "Đảm bảo dữ liệu tồn kho thực tế trùng khớp tuyệt đối với số lượng trên phần mềm.",
+              overview: "Quản lý toàn bộ quá trình nhập vật tư lốp Michelin, linh kiện phụ tùng từ Nhà cung cấp vào hệ thống, đảm bảo tồn kho thực tế trùng khớp tuyệt đối.",
               steps: [
-                "1. Vào 'Kho & Phụ tùng' -> 'Quản lý phiếu nhập'.",
-                "2. Chọn Nhà cung cấp & Bấm '+ Tạo phiếu nhập kho'.",
-                "3. Quét mã QR/Barcode trên tem lốp Michelin để tự động nhận diện SKU và vị trí khay/kệ kho."
+                "1. Vào menu 'Kho & Phụ tùng' -> 'Quản lý phiếu nhập' (/warehouse-stock-entries).",
+                "2. Chọn Nhà cung cấp & bấm '+ Tạo phiếu nhập kho mới'.",
+                "3. Sử dụng thiết bị quét mã QR/Barcode trên tem lốp Michelin để tự động nhận diện SKU, số lượng và gán vị trí khay/kệ kho.",
+                "4. Lưu phiếu nhập kho để cập nhật tăng số lượng tồn kho khả dụng.",
+                "5. Nhấn nút **'In phiếu nhập kho'** để in chứng từ giao nhận nhập vật tư lưu trữ."
               ]
             },
             sandboxType: "stockin",
             quiz: {
-              question: "Công cụ nào giúp Thủ kho / Quản lý kho nhập mã lốp Michelin nhanh chóng không cần gõ tay?",
-              options: ["Thiết bị Quét mã QR / Barcode", "Máy in hóa đơn", "Bảng tính Excel", "Thước đo độ sâu"],
+              question: "Sau khi lập và duyệt xong phiếu nhập lốp Michelin vào kho, Thủ kho thực hiện thao tác gì để lưu chứng từ?",
+              options: [
+                "Bấm nút 'In phiếu nhập kho' để in chứng từ giao nhận nhập vật tư",
+                "Tự tay xóa dữ liệu phiếu nhập",
+                "Gửi phiếu sang bên giao vận",
+                "Hủy toàn bộ đơn hàng"
+              ],
               correctIndex: 0
             },
             tourSteps: [
               { element: '[data-tour-id="warehouse-management"]', popover: { title: "Quản lý kho", description: "Tổng quan vị trí khay kệ, tồn kho lốp và phụ tùng ô tô.", side: "right" } },
-              { element: '[data-tour-id="warehouse-stock-entries"]', popover: { title: "Quản lý phiếu nhập", description: "Lập và theo dõi các đợt nhập phụ tùng mới vào kho.", side: "right" } }
+              { element: '[data-tour-id="warehouse-stock-entries"]', popover: { title: "Quản lý phiếu nhập", description: "Lập, quản lý và in phiếu nhập kho mới.", side: "right" } }
             ]
           },
           {
             id: "2.4.2",
             number: "2.4.2.",
-            title: "Nghiệp vụ Quản lý kho & Kiểm kê định kỳ",
-            desc: "Phê duyệt phiếu nhập/xuất kho, thiết lập định mức tồn kho tối thiểu & xử lý lệch tồn kho.",
+            title: "Quản lý phiếu xuất kho & In phiếu",
+            desc: "Xuất phụ tùng/lốp Michelin cho phiếu dịch vụ sửa chữa hoặc bán lẻ, chọn lô khả dụng và in phiếu xuất kho.",
+            targetPath: "/warehouse-stock-issues",
             content: {
-              overview: "Quản lý kho chịu trách nhiệm tối ưu hóa luồng vật tư, cảnh báo thiếu lốp Michelin và phê duyệt toàn bộ phiếu xuất nhập.",
+              overview: "Phê duyệt và quản lý luồng xuất lốp Michelin, vật tư phụ tùng thay thế cho các phiếu dịch vụ xưởng hoặc đơn hàng bán lẻ trực tiếp.",
               steps: [
-                "1. Thiết lập ngưỡng tồn kho tối thiểu (Safety Stock Level) cho từng cỡ lốp Michelin.",
-                "2. Duyệt phiếu yêu cầu xuất phụ tùng từ Cố vấn dịch vụ / Kỹ thuật viên.",
-                "3. Thực hiện kiểm kê kho định kỳ (Physical Count) và tạo phiếu điều chỉnh chênh lệch số liệu thực tế."
+                "1. Mở menu 'Kho & Phụ tùng' -> 'Quản lý phiếu xuất kho' (/warehouse-stock-issues).",
+                "2. Kiểm tra danh sách yêu cầu xuất phụ tùng từ Cố vấn dịch vụ / phiếu dịch vụ.",
+                "3. Chọn chính xác lô hàng khả dụng (Lot Picker) và xác định vị trí khay/kệ vật tư thực tế.",
+                "4. Duyệt xuất kho để hệ thống tự động trừ tồn kho khả dụng và ghi nhận giá vốn.",
+                "5. Nhấn nút **'In phiếu xuất kho'** để in phiếu xuất chứng từ bàn giao vật tư cho Kỹ thuật viên."
               ]
             },
             sandboxType: "warehouse_manager",
             quiz: {
-              question: "Nhiệm vụ chính của Quản lý kho khi số lượng lốp Michelin trong kho xuống dưới ngưỡng an toàn là gì?",
-              options: ["Cảnh báo hệ thống & Đề xuất tạo đơn nhập kho mới", "Tắt hệ thống phần mềm", "Tự ý tăng giá lốp", "Xóa bớt phiếu cũ"],
+              question: "Nút chức năng nào giúp xuất ra chứng từ bản cứng bàn giao phụ tùng cho thợ xưởng?",
+              options: [
+                "Nút 'In phiếu xuất kho'",
+                "Nút Xóa phiếu",
+                "Nút Hủy đơn",
+                "Nút Đóng trang"
+              ],
               correctIndex: 0
             },
             tourSteps: [
-              { element: '[data-tour-id="warehouse-management"]', popover: { title: "Quản lý kho", description: "Màn hình dành riêng cho Quản lý kho để duyệt phiếu và kiểm soát tồn kho.", side: "right" } }
+              { element: '[data-tour-id="warehouse-stock-issues"]', popover: { title: "Quản lý phiếu xuất kho", description: "Duyệt xuất kho phụ tùng và in phiếu xuất chứng từ.", side: "right" } }
+            ]
+          },
+          {
+            id: "2.4.3",
+            number: "2.4.3.",
+            title: "Quản lý hàng hoàn (Phiếu trả hàng) & In phiếu",
+            desc: "Tiếp nhận phụ tùng thừa hoặc hư hỏng hoàn trả về kho, đối soát và in phiếu hoàn trả kho.",
+            targetPath: "/warehouse-return-entries",
+            content: {
+              overview: "Xử lý nghiệp vụ trả hàng thừa sau sửa chữa hoặc linh kiện lỗi hoàn trả về kho từ xưởng/khách hàng, đảm bảo tính minh bạch dữ liệu kho.",
+              steps: [
+                "1. Mở menu 'Kho & Phụ tùng' -> 'Quản lý phiếu trả hàng' (/warehouse-return-entries).",
+                "2. Bấm '+ Tạo phiếu trả hàng về kho' (Return Entry) liên kết với phiếu dịch vụ hoặc đơn xuất trước đó.",
+                "3. Kiểm tra thực tế tình trạng tem mác lốp Michelin / phụ tùng hoàn trả và phân loại kho (Kho khả dụng hoặc Kho hàng hỏng).",
+                "4. Xác nhận nhập trả kho để hệ thống tự động hoàn lại số lượng tồn kho tương ứng.",
+                "5. Nhấn nút **'In phiếu hoàn trả'** để xuất chứng từ đối soát cho Kế toán và Thu ngân."
+              ]
+            },
+            sandboxType: "warehouse_manager",
+            quiz: {
+              question: "Khi xưởng sửa chữa dùng thừa lốp/phụ tùng hoàn trả lại kho, Thủ kho thực hiện quy trình nào?",
+              options: [
+                "Lập phiếu trả hàng về kho (/warehouse-return-entries) và bấm 'In phiếu hoàn trả'",
+                "Bỏ phụ tùng thừa đi",
+                "Tự ý bán phụ tùng thừa ngoài hệ thống",
+                "Không ghi nhận gì"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: [
+              { element: '[data-tour-id="warehouse-return-entries"]', popover: { title: "Quản lý hàng hoàn", description: "Lập phiếu nhập trả phụ tùng hoàn về kho và in phiếu.", side: "right" } }
             ]
           }
         ]

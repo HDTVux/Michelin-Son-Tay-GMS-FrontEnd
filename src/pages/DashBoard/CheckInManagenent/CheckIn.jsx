@@ -977,7 +977,7 @@ export default function CheckIn() {
             </div>
 
             {/* Footer: Các nút điều hướng Hủy/Xác nhận */}
-            <div className={styles.actions}>
+            <div data-tour-id="checkin-submit-actions" className={styles.actions}>
                 <button type="button" className={`ui-btn ${styles.cancelBtn}`} onClick={handleCancel}>
                     Hủy
                 </button>

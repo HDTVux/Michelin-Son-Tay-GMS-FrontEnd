@@ -78,15 +78,24 @@ export const startDriverJsTour = (steps = [], onComplete = null) => {
   }
 
   // Dynamically filter steps to only include elements that are visible on the current screen (handles Mobile vs Desktop)
+  let hasCrossPageRoute = false;
   const visibleSteps = steps.filter(step => {
+    if (step.targetPath && step.targetPath !== window.location.pathname) {
+      hasCrossPageRoute = true;
+    }
+    // If a step requires navigating to a different page route, keep all subsequent steps intact for the target page
+    if (hasCrossPageRoute) return true;
+
     if (!step.element || step.element === 'body' || step.autoOpenDropdown || step.autoOpenChat || step.autoOpenChatNew || step.autoOpenNotification || step.targetPath) return true;
-    const matchedEls = Array.from(document.querySelector(step.element) ? [document.querySelector(step.element)] : document.querySelectorAll(step.element));
-    return matchedEls.some(el => {
+    try {
+      const el = document.querySelector(step.element);
       if (!el) return false;
       const rect = el.getBoundingClientRect();
       const style = window.getComputedStyle(el);
       return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-    });
+    } catch {
+      return true;
+    }
   });
 
   const finalSteps = visibleSteps.length > 0 ? visibleSteps : steps;
