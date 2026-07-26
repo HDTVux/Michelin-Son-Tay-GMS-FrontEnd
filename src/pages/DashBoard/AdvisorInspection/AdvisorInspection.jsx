@@ -1700,7 +1700,7 @@ export default function AdvisorInspection() {
         <div className={styles.leftPanel}>
 
           {/* Filters */}
-          <div className={styles.pendingFilters}>
+          <div data-tour-id="advisor-filter-bar" className={styles.pendingFilters}>
             <div className={styles.filterCardGrid}>
               <div className={styles.filterItem}>
                 <label className={styles.filterLabel}>Khoảng lọc</label>
@@ -1991,6 +1991,7 @@ export default function AdvisorInspection() {
                 <>
                   <button
                     id={idx === 0 ? 'tour-view-btn' : undefined}
+                    data-tour-id="advisor-ticket-detail-btn"
                     className={`${styles.actionBtn} ${styles.viewBtn}`}
                     onClick={() => {
                       if (!code) return;
@@ -2005,6 +2006,7 @@ export default function AdvisorInspection() {
                     Mở
                   </button>
                   <button
+                    data-tour-id="advisor-history-btn"
                     className={`${styles.actionBtn} ${styles.historyBtn}`}
                     onClick={() => handleOpenRepairHistory(ticket)}
                     disabled={swapping || (!code && !ticketId)}
@@ -2016,6 +2018,7 @@ export default function AdvisorInspection() {
                   {hasTech ? (
                     <button
                       id={idx === 0 ? 'tour-assign-btn' : undefined}
+                      data-tour-id="advisor-assign-btn"
                       className={`${styles.actionBtn} ${styles.viewAssignBtn}`}
                       onClick={() => handleOpenModal(ticket)}
                       disabled={swapping}
@@ -2027,6 +2030,7 @@ export default function AdvisorInspection() {
                   ) : (
                     <button
                       id={idx === 0 ? 'tour-assign-btn' : undefined}
+                      data-tour-id="advisor-assign-btn"
                       className={`${styles.actionBtn} ${styles.assignBtn}`}
                       onClick={() => handleOpenModal(ticket)}
                       disabled={!ticketId || swapping}
@@ -2092,7 +2096,7 @@ export default function AdvisorInspection() {
       {/* Modal phân công KTV */}
       {showAssignModal && selectedTicket && (
         <div className={styles.modalOverlay} onClick={handleCloseModal}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div data-tour-id="advisor-assign-modal" className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>
                 Phân công KTV - {getTicketCode(selectedTicket) || '-'}
@@ -2372,7 +2376,7 @@ export default function AdvisorInspection() {
       {/* Modal xem lịch sử sửa chữa */}
       {showRepairHistoryModal && repairHistoryTicket && (
         <div className={styles.modalOverlay} onClick={() => setShowRepairHistoryModal(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div data-tour-id="advisor-history-modal" className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>Lịch sử sửa chữa</h3>
               <button className={styles.modalClose} onClick={() => setShowRepairHistoryModal(false)}>×</button>
@@ -2438,6 +2442,7 @@ export default function AdvisorInspection() {
                         <div className={styles.historyDetailActions}>
                           <button
                             type="button"
+                            data-tour-id="advisor-history-detail-btn"
                             className={styles.historyDetailBtn}
                             onClick={() => {
                               if (!detailCode) return;

@@ -5,6 +5,8 @@ import BookingRequestManagement from '../../DashBoard/BookingRequestManagement/B
 import ConfirmedBookingManagement from '../../DashBoard/BookingManagement/ConfirmedBookingManagement.jsx';
 import PartsSales from '../../DashBoard/PartsSales/PartsSales.jsx';
 import CheckIn from '../../DashBoard/CheckInManagenent/CheckIn.jsx';
+import ServiceTicketManagement from '../../DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
+import AdvisorInspection from '../../DashBoard/AdvisorInspection/AdvisorInspection.jsx';
 import { 
   Play, 
   CheckCircle2, 
@@ -1251,48 +1253,231 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
         </div>
       )}
 
-      {/* Sandbox 5: 32-Point Safety Inspection Tool Simulator */}
+      {/* Sandbox 5: Authentic Embedded Live ServiceTicketManagement Component */}
       {type === 'inspection' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <p style={{ fontSize: '0.875rem', color: '#cbd5e1', margin: 0 }}>Nhấp thay đổi trạng thái hạng mục lốp & phanh để thử nghiệm đánh giá độ an toàn:</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-            {[
-              { key: 'tireFrontLeft', label: 'Lốp Trước Trái' },
-              { key: 'tireFrontRight', label: 'Lốp Trước Phải' },
-              { key: 'tireRearLeft', label: 'Lốp Sau Trái' },
-              { key: 'tireRearRight', label: 'Lốp Sau Phải' },
-              { key: 'brakePads', label: 'Má phanh Trước' },
-              { key: 'battery', label: 'Ắc quy 12V GS' },
-            ].map((item) => (
-              <div key={item.key} style={{ background: '#1e293b', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>{item.label}</span>
-                <select 
-                  value={inspectionItems[item.key]}
-                  onChange={(e) => setInspectionItems({...inspectionItems, [item.key]: e.target.value})}
-                  style={{
-                    background: inspectionItems[item.key] === 'RED' ? '#991b1b' : inspectionItems[item.key] === 'YELLOW' ? '#854d0e' : '#166534',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '6px',
-                    borderRadius: '4px',
-                    width: '100%',
-                    fontWeight: 700
-                  }}
-                >
-                  <option value="GREEN">Đạt (An toàn)</option>
-                  <option value="YELLOW">Chú ý (Theo dõi)</option>
-                  <option value="RED">Nguy hiểm (Thay ngay)</option>
-                </select>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Mini Browser Window Frame */}
+          <div style={{
+            background: '#0f172a',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)'
+          }}>
+            {/* Mini Browser Header / URL Bar */}
+            <div style={{ background: '#1e293b', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e' }} />
               </div>
-            ))}
+              <div style={{ background: '#0f172a', padding: '4px 16px', borderRadius: '6px', fontSize: '0.75rem', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={12} style={{ color: '#3b82f6' }} />
+                <span>https://gms.michelin-sontay.vn/service-ticket-management</span>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Zap size={14} style={{ color: '#facc15' }} />
+                Giao diện Thực tế 100%
+              </span>
+            </div>
+
+            {/* Embedded Live Component Canvas */}
+            <div style={{ maxHeight: '680px', overflowY: 'auto', background: '#f8fafc', padding: '16px', position: 'relative' }}>
+              <ServiceTicketManagement />
+            </div>
           </div>
-          <button 
-            type="button"
-            onClick={() => handleAction('INSPECTED', 'Đã hoàn thành khảo sát 32 hạng mục! Đã phát hiện 1 lốp bị dính đinh cần thay thế.')}
-            style={{ padding: '10px 18px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, alignSelf: 'flex-start' }}
-          >
-            Lưu phiếu khảo sát
-          </button>
+        </div>
+      )}
+
+      {/* Sandbox 5B: Authentic Embedded Live AdvisorInspection Component */}
+      {type === 'advisor_inspection' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Mini Browser Window Frame */}
+          <div style={{
+            background: '#0f172a',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)'
+          }}>
+            {/* Mini Browser Header / URL Bar */}
+            <div style={{ background: '#1e293b', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e' }} />
+              </div>
+              <div style={{ background: '#0f172a', padding: '4px 16px', borderRadius: '6px', fontSize: '0.75rem', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={12} style={{ color: '#3b82f6' }} />
+                <span>https://gms.michelin-sontay.vn/advisor/inspection</span>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Zap size={14} style={{ color: '#facc15' }} />
+                Giao diện Thực tế 100%
+              </span>
+            </div>
+
+            {/* Embedded Live Component Canvas */}
+            <div style={{ maxHeight: '680px', overflowY: 'auto', background: '#f8fafc', padding: '16px', position: 'relative' }}>
+              <AdvisorInspection />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox 5C: Authentic Embedded Live ServiceTicketDetail Component */}
+      {type === 'service_ticket_detail' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Mini Browser Window Frame */}
+          <div style={{
+            background: '#0f172a',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)'
+          }}>
+            {/* Mini Browser Header / URL Bar */}
+            <div style={{ background: '#1e293b', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e' }} />
+              </div>
+              <div style={{ background: '#0f172a', padding: '4px 16px', borderRadius: '6px', fontSize: '0.75rem', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={12} style={{ color: '#3b82f6' }} />
+                <span>https://gms.michelin-sontay.vn/service-ticket-detail/ST-2026-8888</span>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Zap size={14} style={{ color: '#facc15' }} />
+                Giao diện Thực tế 100%
+              </span>
+            </div>
+
+            {/* Embedded Live Component Canvas */}
+            <div style={{ maxHeight: '680px', overflowY: 'auto', background: '#0f172a', padding: '20px', color: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Header Info Card */}
+              <div data-tour-id="detail-header-card" style={{ background: '#1e293b', padding: '16px 20px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 700 }}>PHIẾU DỊCH VỤ DỰ TOÁN</div>
+                  <h3 style={{ margin: '4px 0', fontSize: '1.25rem', color: '#fff' }}>ST-2026-8888 &bull; 30A-888.88</h3>
+                  <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Khách hàng: Nguyễn Văn A (0988 123 456) &bull; Odo: 45,200 km</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ padding: '6px 12px', borderRadius: '20px', background: 'rgba(234, 179, 8, 0.2)', color: '#facc15', fontWeight: 700, fontSize: '0.8rem', border: '1px solid rgba(250, 204, 21, 0.3)' }}>
+                    PENDING (Chờ duyệt)
+                  </span>
+                </div>
+              </div>
+
+              {/* Safety Inspection Card (Configurable Items) */}
+              <div data-tour-id="detail-inspection-card" style={{ background: '#1e293b', padding: '18px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h4 style={{ margin: 0, fontSize: '1rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Wrench size={18} />
+                    <span>Khảo sát Kiểm tra An toàn Xe (Hạng mục Cấu hình Hệ thống)</span>
+                  </h4>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '4px' }}>
+                    Cấu hình linh hoạt theo Garage
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                  {[
+                    { label: 'Lốp Trước Trái (225/45R17 Michelin)', status: 'YELLOW', note: 'Độ mòn 3mm - Nên thay' },
+                    { label: 'Lốp Trước Phải (225/45R17 Michelin)', status: 'GREEN', note: 'Độ mòn 5mm - An toàn' },
+                    { label: 'Má Phanh Trước', status: 'GREEN', note: 'Còn 80%' },
+                    { label: 'Ắc Quy GS 12V 60Ah', status: 'RED', note: 'Điện áp 11.2V - Thay ngay' },
+                  ].map((item, idx) => (
+                    <div key={idx} style={{ background: '#0f172a', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: 600, marginBottom: '4px' }}>{item.label}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontWeight: 700,
+                          background: item.status === 'RED' ? '#991b1b' : item.status === 'YELLOW' ? '#854d0e' : '#166534',
+                          color: '#fff'
+                        }}>
+                          {item.status === 'RED' ? 'CẦN THAY THẾ' : item.status === 'YELLOW' ? 'CHÚ Ý THEO DÕI' : 'AN TOÀN'}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{item.note}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Estimate Items Table Card */}
+              <div data-tour-id="detail-estimate-card" style={{ background: '#1e293b', padding: '18px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={18} />
+                  <span>Bảng Dự toán Báo giá Phụ tùng & Dịch vụ</span>
+                </h4>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ background: '#0f172a', color: '#94a3b8', textAlign: 'left' }}>
+                        <th style={{ padding: '8px 12px' }}>Tên Hàng / Dịch vụ</th>
+                        <th style={{ padding: '8px 12px' }}>Loại</th>
+                        <th style={{ padding: '8px 12px' }}>SL</th>
+                        <th style={{ padding: '8px 12px' }}>Đơn giá</th>
+                        <th style={{ padding: '8px 12px' }}>Thành tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 600 }}>Lốp Michelin 225/45R17 Pilot Sport 5</td>
+                        <td style={{ padding: '10px 12px', color: '#60a5fa' }}>Lốp xe</td>
+                        <td style={{ padding: '10px 12px' }}>2</td>
+                        <td style={{ padding: '10px 12px' }}>2,850,000 VNĐ</td>
+                        <td style={{ padding: '10px 12px', fontWeight: 700 }}>5,700,000 VNĐ</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 600 }}>Cân bằng chì & Căn chỉnh thước lái Hunter 3D</td>
+                        <td style={{ padding: '10px 12px', color: '#4ade80' }}>Công dịch vụ</td>
+                        <td style={{ padding: '10px 12px' }}>1</td>
+                        <td style={{ padding: '10px 12px' }}>450,000 VNĐ</td>
+                        <td style={{ padding: '10px 12px', fontWeight: 700 }}>450,000 VNĐ</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Promotion & Approval Action Card */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+                <div data-tour-id="detail-promotion-card" style={{ background: '#1e293b', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 600, marginBottom: '8px' }}>Mã Khuyến mãi & Chiết khấu</div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input readOnly value="MICHELIN2026 (-200k)" style={{ flex: 1, background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#facc15', padding: '6px 10px', fontSize: '0.85rem', fontWeight: 700 }} />
+                    <button type="button" style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 12px', fontWeight: 700, cursor: 'pointer' }}>Đã áp dụng</button>
+                  </div>
+                  <div style={{ marginTop: '10px', fontSize: '0.95rem', fontWeight: 800, color: '#4ade80' }}>
+                    Tổng tiền thanh toán: 5,950,000 VNĐ
+                  </div>
+                </div>
+
+                <div style={{ background: '#1e293b', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '10px' }}>
+                  <button
+                    data-tour-id="detail-approval-btn"
+                    type="button"
+                    style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(22, 163, 74, 0.4)' }}
+                  >
+                    ✓ Khách hàng duyệt báo giá (APPROVED)
+                  </button>
+                </div>
+              </div>
+
+              {/* Worklog & Progress Card */}
+              <div data-tour-id="detail-worklog-card" style={{ background: '#1e293b', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 700, marginBottom: '8px' }}>Nhật ký tiến độ thi công Kỹ thuật viên (Work Log)</div>
+                <div style={{ fontSize: '0.8rem', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div>&bull; 14:30 - KTV Trần Văn B bắt đầu thay 2 lốp Michelin Pilot Sport 5.</div>
+                  <div>&bull; 14:45 - Hoàn tất cân bằng chì động & đo góc đặt bánh xe Hunter 3D.</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

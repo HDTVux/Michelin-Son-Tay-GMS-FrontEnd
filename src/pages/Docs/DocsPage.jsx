@@ -956,14 +956,7 @@ export default function DocsPage() {
             </div>
           </main>
 
-          {/* Right TOC (Desktop) */}
-          <aside className="docs-toc">
-            <div className="docs-toc__title">Cấu trúc bài học này</div>
-            <a href="#theory" className="docs-toc__item">1. Lý thuyết & Các bước</a>
-            <a href="#sandbox" className="docs-toc__item">2. Mô phỏng Dummy UI</a>
-            <a href="#quiz" className="docs-toc__item">3. Bài kiểm tra thực hành</a>
-            <a href="#tour" className="docs-toc__item">4. Tour Hướng dẫn tương tác</a>
-          </aside>
+
         </div>
       )}
 

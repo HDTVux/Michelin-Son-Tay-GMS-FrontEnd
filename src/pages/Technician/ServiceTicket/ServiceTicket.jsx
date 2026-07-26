@@ -849,26 +849,26 @@ export const ServiceTicket = ({
           return;
         }
 
-        if (resolvedTicketCode === 'demo') {
+        if (resolvedTicketCode === 'demo' || String(resolvedTicketCode).toUpperCase().includes('DEMO')) {
           setServiceTicketStatus('ESTIMATED');
           assignServiceTicketId(99999);
           setHasSafetyInspectionEnabled(true);
           setTireData({
-            frontLeft: { size1: '205', size2: '55', size3: '16', mm: '6', pressure: '2.2', recommendedPressure: '2.2' },
-            frontRight: { size1: '205', size2: '55', size3: '16', mm: '6', pressure: '2.2', recommendedPressure: '2.2' },
-            rearLeft: { size1: '205', size2: '55', size3: '16', mm: '5', pressure: '2.3', recommendedPressure: '2.3' },
-            rearRight: { size1: '205', size2: '55', size3: '16', mm: '5', pressure: '2.3', recommendedPressure: '2.3' },
-            spare: { size1: '205', size2: '55', size3: '16', mm: '7', pressure: '2.5', recommendedPressure: '2.5' }
+            frontLeft: { size1: '225', size2: '45', size3: '17', mm: '3', pressure: '2.2', recommendedPressure: '2.3' },
+            frontRight: { size1: '225', size2: '45', size3: '17', mm: '5', pressure: '2.3', recommendedPressure: '2.3' },
+            rearLeft: { size1: '225', size2: '45', size3: '17', mm: '6', pressure: '2.3', recommendedPressure: '2.3' },
+            rearRight: { size1: '225', size2: '45', size3: '17', mm: '6', pressure: '2.3', recommendedPressure: '2.3' },
+            spare: { size1: '225', size2: '45', size3: '17', mm: '7', pressure: '2.3', recommendedPressure: '2.3' }
           });
-          setRecommendedTireSize('205/55R16');
-          setNotes('Xe vận hành bình thường, lốp mòn đều.');
+          setRecommendedTireSize('225/45R17');
+          setNotes('Khách hàng yêu cầu kiểm tra an toàn xe, thay 2 lốp Michelin Pilot Sport 5 và căn chỉnh thước lái Hunter 3D.');
           setInspectionStatus('COMPLETED');
           
           const mockChecks = [
-            { id: 1, workCategoryId: 1, name: 'Hệ thống phanh', good: true, warning: false, replace: false, note: 'Má phanh còn dày', advisorNote: 'Má phanh còn dày', displayOrder: 1, isCustom: false },
-            { id: 2, workCategoryId: 2, name: 'Hệ thống giảm xóc', good: true, warning: false, replace: false, note: 'Không chảy dầu', advisorNote: 'Không chảy dầu', displayOrder: 2, isCustom: false },
-            { id: 3, workCategoryId: 3, name: 'Hệ thống lái', good: false, warning: true, replace: false, note: 'Rơ nhẹ thanh liên kết', advisorNote: 'Rơ nhẹ thanh liên kết', displayOrder: 3, isCustom: false },
-            { id: 4, workCategoryId: 4, name: 'Độ chụm bánh xe', good: false, warning: false, replace: true, note: 'Sai lệch góc đặt bánh xe', advisorNote: 'Sai lệch góc đặt bánh xe', displayOrder: 4, isCustom: false },
+            { id: 1, workCategoryId: 1, name: 'Lốp xe Michelin (Độ gai & Áp suất lốp)', good: false, warning: true, replace: false, note: 'Lốp trước trái mòn 3mm', advisorNote: 'Nên thay 2 lốp Michelin Pilot Sport 5', displayOrder: 1, isCustom: false },
+            { id: 2, workCategoryId: 2, name: 'Hệ thống Phanh (Má phanh & Đĩa phanh)', good: true, warning: false, replace: false, note: 'Còn 80%', advisorNote: 'Phanh hoạt động an toàn', displayOrder: 2, isCustom: false },
+            { id: 3, workCategoryId: 3, name: 'Ắc quy GS 12V 60Ah & Hệ thống khởi động', good: false, warning: false, replace: true, note: 'Điện áp 11.2V yếu', advisorNote: 'Thay ngay ắc quy mới', displayOrder: 3, isCustom: false },
+            { id: 4, workCategoryId: 4, name: 'Dầu nhờn động cơ & Nước làm mát', good: true, warning: false, replace: false, note: 'Mức dầu đạt chuẩn', advisorNote: 'An toàn', displayOrder: 4, isCustom: false },
           ];
           setSafetyChecks(mockChecks);
           setLoading(false);
@@ -900,6 +900,28 @@ export const ServiceTicket = ({
         } else if (ticketDetail.ticketId) {
           assignServiceTicketId(ticketDetail.ticketId);
         }
+        if (resolvedTicketCode === 'demo' || String(resolvedTicketCode).toUpperCase().includes('DEMO')) {
+          const demoCategories = [
+            { id: 1, workCategoryId: 1, customCategoryId: null, name: 'Lốp xe Michelin (Độ gai & Áp suất)', good: false, warning: true, replace: false, note: 'Lốp trước trái mòn 3mm', advisorNote: 'Nên thay 2 lốp Michelin Pilot Sport 5', displayOrder: 1, isCustom: false },
+            { id: 2, workCategoryId: 2, customCategoryId: null, name: 'Hệ thống Phanh (Má phanh & Đĩa phanh)', good: true, warning: false, replace: false, note: 'Còn 80%', advisorNote: 'Phanh hoạt động an toàn', displayOrder: 2, isCustom: false },
+            { id: 3, workCategoryId: 3, customCategoryId: null, name: 'Ắc quy GS 12V 60Ah & Hệ thống điện', good: false, warning: false, replace: true, note: 'Điện áp 11.2V yếu', advisorNote: 'Thay ngay ắc quy mới', displayOrder: 3, isCustom: false },
+            { id: 4, workCategoryId: 4, customCategoryId: null, name: 'Dầu động cơ & Nước làm mát', good: true, warning: false, replace: false, note: 'Mức dầu đạt chuẩn', advisorNote: 'An toàn', displayOrder: 4, isCustom: false }
+          ];
+          setSafetyChecks(demoCategories);
+          setInspectionStatus('COMPLETED');
+          setHasSafetyInspectionEnabled(true);
+          setTireData({
+            frontLeft: { size1: '225', size2: '45', size3: '17', mm: '3', pressure: '2.2', recommendedPressure: '2.3' },
+            frontRight: { size1: '225', size2: '45', size3: '17', mm: '5', pressure: '2.3', recommendedPressure: '2.3' },
+            rearLeft: { size1: '225', size2: '45', size3: '17', mm: '6', pressure: '2.3', recommendedPressure: '2.3' },
+            rearRight: { size1: '225', size2: '45', size3: '17', mm: '6', pressure: '2.3', recommendedPressure: '2.3' },
+            spare: { size1: '225', size2: '45', size3: '17', mm: '7', pressure: '2.3', recommendedPressure: '2.3' }
+          });
+          setRecommendedTireSize('225/45R17');
+          setNotes('Khách hàng yêu cầu kiểm tra an toàn xe, thay 2 lốp Michelin Pilot Sport 5 và căn chỉnh thước lái Hunter 3D.');
+          return;
+        }
+
         const safetyEnabledFromTicket = ticketResponse?.data?.safetyInspectionEnabled !== false;
         let defaultChecks = [];
         let loadedInspectionStatus = safetyEnabledFromTicket ? 'PENDING' : 'SKIPPED';
@@ -1959,7 +1981,7 @@ export const ServiceTicket = ({
   }
 
   return (
-    <div className={styles.container}>
+    <div data-tour-id="detail-inspection-card" className={styles.container}>
       <div className={styles.header}>
         <div>
           <h1 id="tour-inspection-title" className={styles.title}>{isAdvisorMode ? 'Phiếu kiểm tra - Cố vấn viên' : 'Phiếu kiểm tra xe'}</h1>

@@ -1290,37 +1290,44 @@ export function useServiceTicketDetailData(ticketCodeParam, ticketFromState) {
             try {
                 setIsLoading(true);
                 setError('');
-                if (ticketCodeParam === 'demo') {
+                if (ticketCodeParam === 'demo' || String(ticketCodeParam).toUpperCase().includes('DEMO')) {
                     setTicketRaw({
                         serviceTicketId: 99999,
-                        ticketCode: 'demo',
+                        ticketCode: ticketCodeParam,
                         ticketStatus: 'ESTIMATED',
-                        receivedAt: '2026-06-17T09:00:00Z',
-                        estimatedDeliveryAt: '2026-06-17T17:00:00Z',
+                        receivedAt: '2026-07-26T09:00:00Z',
+                        estimatedDeliveryAt: '2026-07-26T17:00:00Z',
                         customer: {
                             customerId: 99999,
                             id: 99999,
-                            fullName: 'Nguyễn Văn A',
-                            phone: '0987654321',
+                            fullName: 'Nguyễn Văn A (Khách Hàng Demo)',
+                            phone: '0988 123 456',
                             email: 'nguyenvana@gmail.com'
                         },
                         vehicle: {
-                            licensePlate: '30A-99999',
-                            model: 'Camry',
+                            licensePlate: '30A-888.88',
+                            model: 'Camry 2.5Q',
                             make: 'Toyota',
-                            year: 2020,
-                            odometerReading: 45000
+                            year: 2022,
+                            odometerReading: 45200
                         },
                         booking: {
-                            bookingCode: 'B-12345',
-                            scheduledDate: '2026-06-17',
+                            bookingCode: 'B-88888',
+                            scheduledDate: '2026-07-26',
                             scheduledTime: '09:00'
                         },
-                        createdByName: 'Nguyễn Văn Cố Vấn',
-                        customerRequest: 'Khách hàng yêu cầu cân chỉnh độ chụm thước lái, kiểm tra hệ thống phanh và thay lốp.',
+                        createdByName: 'Cố vấn Dịch vụ Michelin Sơn Tây',
+                        customerRequest: 'Khách hàng yêu cầu kiểm tra an toàn xe, thay 2 lốp Michelin Pilot Sport 5, cân bằng chì và căn chỉnh Hunter 3D.',
                         safetyInspectionEnabled: true,
                         safetyInspectionStatus: 'COMPLETED',
-                        photos: []
+                        photos: [
+                            { photoId: 1, category: 'LICENSE_PLATE', url: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80', description: 'Ảnh biển số xe 30A-888.88' },
+                            { photoId: 2, category: 'FRONT', url: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80', description: 'Ảnh trước xe Camry 2.5Q' },
+                            { photoId: 3, category: 'BACK', url: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80', description: 'Ảnh sau xe' },
+                            { photoId: 4, category: 'LEFT', url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80', description: 'Ảnh sườn trái' },
+                            { photoId: 5, category: 'RIGHT', url: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80', description: 'Ảnh sườn phải' },
+                            { photoId: 6, category: 'DAMAGE', url: 'https://images.unsplash.com/photo-1600793575654-910699b5e4d4?auto=format&fit=crop&w=800&q=80', description: 'Vết trầy xước cản trước' }
+                        ]
                     });
                     setIsLoading(false);
                     return;
@@ -1330,6 +1337,48 @@ export function useServiceTicketDetailData(ticketCodeParam, ticketFromState) {
                 setTicketRaw(res?.data ?? null);
             } catch (err) {
                 if (ignore) return;
+                if (String(ticketCodeParam).toUpperCase().includes('DEMO')) {
+                    setTicketRaw({
+                        serviceTicketId: 99999,
+                        ticketCode: ticketCodeParam,
+                        ticketStatus: 'ESTIMATED',
+                        receivedAt: '2026-07-26T09:00:00Z',
+                        estimatedDeliveryAt: '2026-07-26T17:00:00Z',
+                        customer: {
+                            customerId: 99999,
+                            id: 99999,
+                            fullName: 'Nguyễn Văn A (Khách Hàng Demo)',
+                            phone: '0988 123 456',
+                            email: 'nguyenvana@gmail.com'
+                        },
+                        vehicle: {
+                            licensePlate: '30A-888.88',
+                            model: 'Camry 2.5Q',
+                            make: 'Toyota',
+                            year: 2022,
+                            odometerReading: 45200
+                        },
+                        booking: {
+                            bookingCode: 'B-88888',
+                            scheduledDate: '2026-07-26',
+                            scheduledTime: '09:00'
+                        },
+                        createdByName: 'Cố vấn Dịch vụ Michelin Sơn Tây',
+                        customerRequest: 'Khách hàng yêu cầu kiểm tra an toàn xe, thay 2 lốp Michelin Pilot Sport 5, cân bằng chì và căn chỉnh Hunter 3D.',
+                        safetyInspectionEnabled: true,
+                        safetyInspectionStatus: 'COMPLETED',
+                        photos: [
+                            { photoId: 1, category: 'LICENSE_PLATE', url: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80', description: 'Ảnh biển số xe 30A-888.88' },
+                            { photoId: 2, category: 'FRONT', url: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80', description: 'Ảnh trước xe Camry 2.5Q' },
+                            { photoId: 3, category: 'BACK', url: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80', description: 'Ảnh sau xe' },
+                            { photoId: 4, category: 'LEFT', url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80', description: 'Ảnh sườn trái' },
+                            { photoId: 5, category: 'RIGHT', url: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80', description: 'Ảnh sườn phải' },
+                            { photoId: 6, category: 'DAMAGE', url: 'https://images.unsplash.com/photo-1600793575654-910699b5e4d4?auto=format&fit=crop&w=800&q=80', description: 'Vết trầy xước cản trước' }
+                        ]
+                    });
+                    setIsLoading(false);
+                    return;
+                }
                 const msg = err?.message || 'Không thể tải chi tiết phiếu dịch vụ.';
                 const isUnauthorized = err?.status === 401 || err?.status === 403;
                 if (isUnauthorized) {

@@ -411,7 +411,7 @@ export const DOCS_SECTIONS = [
               { element: '[data-tour-id="booking-management"]', popover: { title: "2. Chọn Quản lý lịch hẹn", description: "Nhấp chọn 'Quản lý lịch hẹn' để mở danh sách các lịch hẹn đã xác nhận.", side: "right" } },
               { targetPath: "/booking-management", element: '[data-tour-id="booking-checkin-btn"]', popover: { title: "3. Nhấn Nút Check-in Tiếp nhận xe", description: "Nhấp nút 'Check-in' tại dòng lịch hẹn của khách để chuyển sang trang Tiếp nhận xe (/check-in).", side: "bottom" } },
               { targetPath: "/check-in", element: '[class*="stepCard"]:first-of-type', popover: { title: "4. [BẮT BUỘC] Chọn Xe & Biển số xe", description: "Trường BẮT BUỘC: Xác nhận thông tin xe trong danh sách của khách hoặc bấm 'Thêm xe mới' để nhập biển số xe tiếp nhận.", side: "bottom" } },
-              { element: '#advisorSelect', popover: { title: "5. [BẮT BUỘC] Chọn Cố vấn dịch vụ", description: "Trường BẮT BUỘC: Phải chọn 1 Cố vấn dịch vụ (Advisor) để phụ trách khảo sát 32 hạng mục, phân công thợ và theo dõi xe.", side: "bottom" } },
+              { element: '#advisorSelect', popover: { title: "5. [BẮT BUỘC] Chọn Cố vấn dịch vụ", description: "Trường BẮT BUỘC: Phải chọn 1 Cố vấn dịch vụ (Advisor) để phụ trách khảo sát an toàn xe, phân công thợ và theo dõi xe.", side: "bottom" } },
               { element: '#odometer', popover: { title: "6. [KHÔNG BẮT BUỘC] Nhập Số KM (Odometer)", description: "Trường KHÔNG BẮT BUỘC: Nhập Số KM hiển thị trên đồng hồ xe thực tế để theo dõi chu kỳ bảo dưỡng.", side: "bottom" } },
               { element: '[class*="stepCard"]:nth-of-type(3)', popover: { title: "7. [KHÔNG BẮT BUỘC] Chụp ảnh Tình trạng xe", description: "Trường KHÔNG BẮT BUỘC: Lễ tân có thể chụp 7 góc ảnh hiện trạng xe (trước, sau, 2 bên thân, nội thất, hư hại) để lưu bằng chứng.", side: "top" } },
               { element: '[data-tour-id="checkin-submit-actions"]', popover: { title: "8. Hoàn tất Check-in Tiếp nhận xe", description: "Nhấn nút 'Xác nhận' để hoàn tất tiếp nhận, tự động khởi tạo Phiếu dịch vụ và đưa xe vào Hàng chờ xưởng.", side: "top" } }
@@ -424,13 +424,13 @@ export const DOCS_SECTIONS = [
             desc: "Sau khi hoàn tất Check-in xe, hệ thống chuyển sang /service-ticket-management để phân công, cân đối workload và bàn giao phiếu cho Cố vấn dịch vụ.",
             targetPath: "/service-ticket-management",
             content: {
-              overview: "Ngay sau khi Lễ tân hoàn tất Check-in tiếp nhận xe tại giao diện /check-in, hệ thống sẽ tự động khởi tạo Phiếu dịch vụ (Service Ticket) và điều hướng trực tiếp sang trang Điều phối phiếu dịch vụ (/service-ticket-management). Tại đây, Lễ tân hoặc Quản lý thực hiện kiểm tra thông tin phiếu, xem phân công Cố vấn dịch vụ (Advisor) phụ trách, cân đối khối lượng công việc (workload) để phân công lại nếu cần và chính thức bàn giao phiếu cho Cố vấn tiến hành khảo sát 32 hạng mục & lập báo giá.",
+              overview: "Ngay sau khi Lễ tân hoàn tất Check-in tiếp nhận xe tại giao diện /check-in, hệ thống sẽ tự động khởi tạo Phiếu dịch vụ (Service Ticket) và điều hướng trực tiếp sang trang Điều phối phiếu dịch vụ (/service-ticket-management). Tại đây, Lễ tân hoặc Quản lý thực hiện kiểm tra thông tin phiếu, xem phân công Cố vấn dịch vụ (Advisor) phụ trách, cân đối khối lượng công việc (workload) để phân công lại nếu cần và chính thức bàn giao phiếu cho Cố vấn tiến hành khảo sát kiểm tra an toàn xe & lập báo giá.",
               steps: [
                 "1. **Chuyển sang trang Điều phối sau Check-in**: Ngay sau khi nhấn 'Xác nhận' ở trang tiếp nhận xe (/check-in), hệ thống khởi tạo Phiếu dịch vụ và chuyển trực tiếp tới màn hình Điều phối (/service-ticket-management).",
                 "2. **Tra cứu Phiếu dịch vụ**: Tìm phiếu vừa tạo theo Mã phiếu (ticketCode), Biển số xe hoặc Tên khách hàng trên danh sách.",
                 "3. **Kiểm tra Phân công Cố vấn**: Nhấp nút 'Xem phân công' trên dòng phiếu để xem Cố vấn dịch vụ (Advisor) đang đảm nhận.",
                 "4. **Cân đối Workload & Đổi Cố vấn**: Xem số lượng phiếu đang phụ trách (workload) của từng Cố vấn. Nếu Cố vấn hiện tại bận hoặc quá tải, bấm 'Đổi' để phân công cho Cố vấn khác rảnh hơn.",
-                "5. **Bàn giao phiếu cho Cố vấn**: Nhấp 'Xem chi tiết' để chuyển giao phiếu sang Phân hệ Cố vấn Dịch vụ – sẵn sàng cho công đoạn khảo sát an toàn 32 hạng mục, tạo báo giá gửi khách và phân công thợ thi công."
+                "5. **Bàn giao phiếu cho Cố vấn**: Nhấp 'Xem chi tiết' để chuyển giao phiếu sang Phân hệ Cố vấn Dịch vụ – sẵn sàng cho công đoạn khảo sát an toàn xe, tạo báo giá gửi khách và phân công thợ thi công."
               ]
             },
             sandboxType: "inspection",
@@ -448,7 +448,7 @@ export const DOCS_SECTIONS = [
               { element: '[data-tour-id="sub-booking"]', popover: { title: "1. Menu Khách hàng & Dịch vụ", description: "Nhấp mở danh mục Quản lý khách hàng, đặt lịch hẹn và dịch vụ.", side: "right" } },
               { element: '[data-tour-id="service-ticket-management"]', popover: { title: "2. Chọn Điều phối phiếu dịch vụ", description: "Nhấp chọn 'Điều phối phiếu dịch vụ' để chuyển tới giao diện quản lý toàn bộ các phiếu dịch vụ xưởng.", side: "right" } },
               { targetPath: "/service-ticket-management", element: '[class*="ticket-page"], [class*="ticket-left"]', popover: { title: "3. Danh sách Phiếu tự động tạo sau Check-in", description: "Theo dõi phiếu dịch vụ vừa được khởi tạo ngay sau khi hoàn tất check-in tại /check-in.", side: "bottom" } },
-              { element: 'table tbody tr:first-child button:first-child', popover: { title: "4. Xem Chi tiết & Bàn giao Phiếu dịch vụ", description: "Nhấn 'Xem chi tiết' để mở đầy đủ nội dung phiếu dịch vụ và bàn giao cho Cố vấn tiến hành khảo sát 32 hạng mục, lập báo giá.", side: "bottom" } },
+              { element: 'table tbody tr:first-child button:first-child', popover: { title: "4. Xem Chi tiết & Bàn giao Phiếu dịch vụ", description: "Nhấn 'Xem chi tiết' để mở đầy đủ nội dung phiếu dịch vụ và bàn giao cho Cố vấn tiến hành khảo sát an toàn xe, lập báo giá.", side: "bottom" } },
               { element: '[data-tour-id="view-assign-btn"], table tbody tr:first-child button:nth-child(2)', autoClick: '[data-tour-id="view-assign-btn"]', popover: { title: "5. Nhấn Nút Xem Phân công Cố vấn", description: "Nhấp nút 'Xem phân công' trên dòng phiếu để mở popup phân công & điều phối Cố vấn dịch vụ.", side: "bottom" } },
               { element: '[data-tour-id="assign-advisor-modal"], [class*="modal-box"]', autoClick: '[data-tour-id="view-assign-btn"]', allowMissing: true, popover: { title: "6. Popup Xem Phân công & Cân đối Workload", description: "Popup Xem phân công: Kiểm tra Cố vấn hiện tại, xem số phiếu đang làm (Workload) của các Cố vấn khác và bấm 'Đổi' nếu cần phân công Cố vấn rảnh hơn.", side: "top" } }
             ]
@@ -502,56 +502,83 @@ export const DOCS_SECTIONS = [
             id: "2.2.2",
             number: "2.2.2.",
             title: "Điều phối phiếu dịch vụ (Phân công thợ sửa)",
-            desc: "Xem chi tiết phiếu dịch vụ, giao phiếu cho thợ sửa (Kỹ thuật viên) hoặc giao cho chính mình.",
-            targetPath: "/service-ticket-management",
+            desc: "Điều hành trang /advisor/inspection: Bộ lọc tra cứu, xem hạng mục khảo sát an toàn xe, mở popup Phân công KTV, tra cứu Popup Lịch sử sửa chữa cũ và chuyển sang /service-ticket-detail/.",
+            targetPath: "/advisor/inspection",
             content: {
-              overview: "Cố vấn dịch vụ quản lý danh sách phiếu dịch vụ, xem thông tin chi tiết và chủ động điều phối phân công công việc cho Kỹ thuật viên xưởng hoặc tự đảm nhận.",
+              overview: "Giao diện Khảo sát & Phân công công việc (/advisor/inspection) là trung tâm điều hành chính của Cố vấn Dịch vụ: hỗ trợ lọc phiếu theo ngày/trạng thái/tìm kiếm, kiểm tra khảo sát an toàn xe (lốp Michelin, phanh, ắc quy, dầu nhờn - số lượng hạng mục được cấu hình linh hoạt theo hệ thống), mở Popup Phân công Kỹ thuật viên & cân đối khối lượng công việc (Workload), tra cứu Popup Lịch sử sửa chữa cũ của xe, và chuyển hướng trực tiếp sang trang Chi tiết phiếu dịch vụ (/service-ticket-detail/).",
               steps: [
-                "1. Truy cập 'Điều phối phiếu dịch vụ' (/service-ticket-management) để xem toàn bộ danh sách phiếu dịch vụ.",
-                "2. Nhấp vào phiếu cần điều phối để xem chi tiết các hạng mục sửa chữa và vật tư phụ tùng.",
-                "3. **Giao phiếu cho thợ sửa**: Chọn Kỹ thuật viên (thợ xưởng) phù hợp với chuyên môn (thay lốp, cân bằng chì, căn chỉnh ST Hunter...).",
-                "4. **Giao phiếu cho chính mình**: Nếu Cố vấn dịch vụ kiêm nhiệm trực tiếp sửa chữa, phân công phiếu cho bản thân.",
-                "5. Ghi nhận thời gian giao phiếu và theo dõi tiến độ thi công thực tế của thợ xưởng."
+                "1. **Bộ lọc & Tra cứu phiếu**: Dùng bộ lọc Khoảng lọc (Theo ngày, Tuần này, Tháng này, Tất cả), Trạng thái phiếu hoặc thanh Tìm kiếm (Biển số xe, Mã phiếu, Tên/SĐT khách) để tra cứu nhanh xe tiếp nhận.",
+                "2. **Theo dõi Danh sách phiếu & Hàng đợi**: Kiểm tra số thứ tự hàng đợi, trạng thái khảo sát an toàn xe và tiến độ xử lý từng phiếu.",
+                "3. **Mở Popup Phân công KTV / Xem Phân công**: Nhấp nút 'Phân công' (hoặc 'Xem phân công') trên dòng phiếu để mở Popup. Kiểm tra Advisor phụ trách, theo dõi khối lượng phiếu đang làm (Workload) của các thợ xưởng để phân công KTV rảnh hơn hoặc chọn phân công cho chính bản thân.",
+                "4. **Mở Popup Lịch sử sửa chữa**: Nhấp nút 'Lịch sử' trên dòng phiếu để mở Popup Lịch sử sửa chữa. Xem các phiếu dịch vụ cũ đã hoàn thành của xe, số km đã chạy, và các ghi chú/khuyến nghị bảo dưỡng ở lần trước.",
+                "5. **Truy cập trang Chi tiết phiếu dịch vụ (/service-ticket-detail/)**: Nhấp nút 'Mở' trên danh sách hoặc nhấp biểu tượng chi tiết trong Popup Lịch sử để chuyển sang trang `/service-ticket-detail/`.",
+                "6. **Thao tác tại trang Chi tiết phiếu dịch vụ (/service-ticket-detail/)**: Đánh giá/chỉnh sửa khảo sát an toàn xe thực tế (hạng mục cấu hình), lập dự toán báo giá lốp Michelin/phụ tùng/tiền công gửi khách duyệt, và theo dõi nhật ký tiến độ thi công của Kỹ thuật viên."
               ]
             },
-            sandboxType: "inspection",
+            sandboxType: "advisor_inspection",
             quiz: {
-              question: "Cố vấn dịch vụ có thể phân công công việc trên Phiếu dịch vụ cho những ai?",
+              question: "Tại màn hình /advisor/inspection, Cố vấn Dịch vụ có thể thực hiện những thao tác quan trọng nào?",
               options: [
-                "Phân công cho thợ sửa (Kỹ thuật viên xưởng) hoặc giao cho chính bản thân mình",
-                "Chỉ được giao cho Thu ngân",
-                "Chỉ được giao cho khách tự làm",
-                "Không phân công được cho ai"
+                "Lọc tra cứu phiếu, mở Popup Phân công KTV, xem Popup Lịch sử sửa chữa cũ và chuyển sang trang /service-ticket-detail/",
+                "Chỉ được in phiếu thu tiền",
+                "Chỉ được đổi mật khẩu cá nhân",
+                "Chỉ xem danh sách thợ xưởng nghỉ phép"
               ],
               correctIndex: 0
             },
             tourSteps: [
-              { element: '[data-tour-id="service-ticket-management"]', popover: { title: "Điều phối phiếu dịch vụ", description: "Xem phiếu dịch vụ và phân công công việc cho Kỹ thuật viên hoặc chính mình.", side: "right" } }
+              { element: '[data-tour-id="sub-advisor"]', popover: { title: "1. Menu Cố vấn Dịch vụ", description: "Nhấp mở danh mục làm việc của Phân hệ Cố vấn dịch vụ.", side: "right" } },
+              { element: '[data-tour-id="advisor-inspection"]', popover: { title: "2. Chọn Khảo sát & Phân công", description: "Nhấp chọn 'Khảo sát & Tiếp nhận phiếu' để mở giao diện điều hành chính /advisor/inspection.", side: "right" } },
+              { targetPath: "/advisor/inspection", element: '[data-tour-id="advisor-filter-bar"], [class*="pendingFilters"]', popover: { title: "3. Bộ Lọc Tìm Kiếm & Tra Cứu Phiếu", description: "Sử dụng bộ lọc Ngày, Tuần, Tháng, Trạng thái phiếu hoặc thanh Tìm kiếm (Biển số xe, Mã phiếu, SĐT khách).", side: "bottom" } },
+              { element: '[data-tour-id="advisor-assign-btn"], table tbody tr:first-child button:nth-child(3)', autoClick: '[data-tour-id="advisor-assign-btn"]', popover: { title: "4. Nhấn Nút Phân Công / Xem Phân Công", description: "Nhấp nút 'Phân công' (hoặc 'Xem phân công') trên dòng phiếu để mở popup điều phối Kỹ thuật viên xưởng.", side: "bottom" } },
+              { element: '[data-tour-id="advisor-assign-modal"], [class*="modalContent"]', allowMissing: true, popover: { title: "5. Popup Phân Công KTV & Cân Đối Workload", description: "Xem Advisor phụ trách, kiểm tra số phiếu đang thi công (Workload) của các thợ xưởng và bấm 'Phân công' cho KTV rảnh hơn hoặc chọn cho chính mình.", side: "top" } },
+              { element: '[data-tour-id="advisor-history-btn"], table tbody tr:first-child button:nth-child(2)', autoClick: '[data-tour-id="advisor-history-btn"]', popover: { title: "6. Nhấn Nút Lịch Sử Sửa Chữa", description: "Nhấp nút 'Lịch sử' trên dòng phiếu để mở popup xem lại toàn bộ lịch sử các lần dịch vụ trước của xe.", side: "bottom" } },
+              { element: '[data-tour-id="advisor-history-modal"], [class*="modalContent"]', allowMissing: true, popover: { title: "7. Popup Lịch Sử Sửa Chữa", description: "Popup Lịch sử: Xem các phiếu đã thanh toán trước đây, số km xe chạy và các ghi chú/khuyến nghị bảo dưỡng ở lần dịch vụ cũ.", side: "top" } },
+              { targetPath: "/service-ticket-detail/ST-DEMO-2026", element: '[data-tour-id="advisor-history-detail-btn"], [data-tour-id="advisor-ticket-detail-btn"], button[class*="historyDetailBtn"]', autoClick: '[data-tour-id="advisor-history-detail-btn"]', popover: { title: "8. Nhấn Nút Mở Chi Tiết Phiếu Dịch Vụ", description: "Nhấp nút 'Xem chi tiết' (hoặc 'Mở') trên popup lịch sử để điều hướng sang trang Chi tiết phiếu dịch vụ /service-ticket-detail/.", side: "bottom" } },
+              { targetPath: "/service-ticket-detail/ST-DEMO-2026", element: 'main, [class*="layout"], body', popover: { title: "9. Trang Chi Tiết Phiếu Dịch Vụ (/service-ticket-detail/)", description: "Màn hình chi tiết chuyên sâu: Quản lý toàn bộ thông tin xe, thực hiện đánh giá kiểm tra an toàn xe, lập dự toán báo giá lốp Michelin/phụ tùng gửi khách duyệt và theo dõi tiến độ thi công.", side: "bottom" } },
+              { element: '#tour-customer-info, [data-tour-id="detail-header-card"]', popover: { title: "10. Thông Tin Phiếu & Khách Hàng", description: "Xem thông tin tổng quan: Biển số xe, Mã phiếu, Odo số KM thực tế, Tên/SĐT khách hàng (Nguyễn Văn A - Khách Hàng Demo), Cố vấn phụ trách và Yêu cầu khách hàng.", side: "bottom" } },
+              { element: '[data-tour-id="detail-inspection-card"], #tour-safety-checklist-card', allowMissing: true, popover: { title: "11. Khảo Sát Kiểm Tra An Toàn Xe", description: "Đánh giá tình trạng thực tế của các hạng mục an toàn (lốp Michelin, phanh, ắc quy, dầu nhờn...) được cấu hình linh hoạt theo hệ thống garage.", side: "bottom" } },
+              { element: '[data-tour-id="detail-estimate-card"], #tour-estimate-section', allowMissing: true, popover: { title: "12. Bảng Dự Toán Báo Giá Phụ Tùng & Dịch Vụ", description: "Chọn thêm các sản phẩm lốp Michelin, dầu nhớt, phụ tùng thay thế từ kho và nhập tiền công dịch vụ kỹ thuật.", side: "bottom" } },
+              { element: '[data-tour-id="detail-promotion-card"], #tour-promotion-section', allowMissing: true, popover: { title: "13. Áp Dụng Mã Khuyến Mãi & Chiết Khấu", description: "Nhập mã voucher giảm giá (ví dụ KM10) hoặc bấm nút 'Áp dụng' để nhận ưu đãi chiết khấu tự động theo hạng thành viên khách hàng.", side: "bottom" } },
+              { element: '[data-tour-id="detail-confirm-estimate-btn"], [data-tour-id="detail-save-estimate-btn"], .ui-actions button.ui-btn--primary', allowMissing: true, popover: { title: "14. Gửi Báo Giá & Khách Duyệt (APPROVED)", description: "Nhấp nút 'Lưu báo giá' / 'Xác nhận báo giá' ở dưới cùng để lưu và gửi báo giá cho khách duyệt. Khi khách duyệt APPROVED, hệ thống tự động kích hoạt luồng xuất kho & thợ xưởng thi công.", side: "top" } },
+              { element: '[data-tour-id="detail-worklog-card"], #tour-work-log', allowMissing: true, popover: { title: "15. Nhật Ký Tiến Độ Thi Công Kỹ Thuật Viên", description: "Theo dõi nhật ký thời gian làm việc thực tế, thời điểm bắt đầu/hoàn tất và tiến độ công việc của KTV xưởng.", side: "top" } }
             ]
           },
           {
             id: "2.2.3",
             number: "2.2.3.",
-            title: "Báo giá với khách & Xác nhận báo giá",
-            desc: "Lập dự toán chi phí phụ tùng, gửi báo giá cho khách duyệt và xác nhận trạng thái báo giá.",
-            targetPath: "/service-ticket-management",
+            title: "Chi tiết phiếu dịch vụ & Lập báo giá (/service-ticket-detail)",
+            desc: "Hướng dẫn toàn bộ thành phần bên trong giao diện /service-ticket-detail: Đánh giá an toàn xe (hạng mục cấu hình), lập báo giá lốp Michelin/phụ tùng, áp dụng ưu đãi và gửi khách duyệt.",
+            targetPath: "/service-ticket-detail/ST-DEMO-2026",
             content: {
-              overview: "Báo giá minh bạch là cam kết dịch vụ hàng đầu tại Michelin Sơn Tây. Kỹ thuật viên chỉ thi công sau khi báo giá đã được khách hàng xác nhận duyệt.",
+              overview: "Trang Chi tiết phiếu dịch vụ (/service-ticket-detail/:ticketCode) tập trung toàn bộ nghiệp vụ chính của Cố vấn Dịch vụ: bao gồm quản lý thông tin xe & khách hàng, thực hiện khảo sát kiểm tra an toàn xe (với các hạng mục kiểm tra được cấu hình linh hoạt theo hệ thống garage), lập bảng dự toán báo giá lốp Michelin/linh kiện/tiền công, áp dụng voucher khuyến mãi & chiết khấu, gửi báo giá cho khách duyệt (APPROVED), và theo dõi nhật ký tiến độ làm việc của Kỹ thuật viên.",
               steps: [
-                "1. Thêm các sản phẩm lốp Michelin, phụ tùng thay thế và tiền công dịch vụ vào Bảng báo giá.",
-                "2. Áp dụng mã giảm giá, khuyến mãi combo hoặc chiết khấu hạng khách hàng (Bronze/Silver/Gold/Platinum).",
-                "3. **Báo giá với khách**: Gửi báo giá trực tiếp cho khách tại phòng chờ hoặc gửi qua Zalo OA/App di động.",
-                "4. **Xác nhận báo giá**: Sau khi khách đồng ý, chuyển trạng thái báo giá sang 'Khách đã duyệt (APPROVED)' để kích hoạt luồng xuất kho & thi công."
+                "1. **Thông tin Khách hàng & Xe**: Xem biển số xe, mã phiếu, số KM thực tế, tên/SĐT khách hàng và trạng thái phiếu dịch vụ.",
+                "2. **Khảo sát kiểm tra an toàn xe**: Đánh giá thực tế các hạng mục an toàn (lốp Michelin, phanh, ắc quy, dầu nhờn... số lượng hạng mục được cấu hình linh hoạt theo thiết lập của garage).",
+                "3. **Bảng dự toán Báo giá**: Chọn thêm các sản phẩm lốp Michelin, dầu nhớt, linh kiện phụ tùng từ kho và điều chỉnh tiền công dịch vụ kỹ thuật.",
+                "4. **Áp dụng Ưu đãi & Chiết khấu**: Nhập mã voucher giảm giá hoặc áp dụng chiết khấu tự động theo hạng thành viên khách hàng.",
+                "5. **Gửi Báo giá & Khách duyệt (APPROVED)**: Nhấn gửi thông tin báo giá tới khách hàng (qua Zalo OA/App di động hoặc trực tiếp). Khi khách đồng ý, chuyển trạng thái sang 'APPROVED' để kích hoạt luồng xuất kho & KTV thi công.",
+                "6. **Nhật ký tiến độ thi công**: Theo dõi nhật ký thời gian làm việc thực tế, trạng thái từng công đoạn sửa chữa và lịch sử cập nhật phiếu của Kỹ thuật viên xưởng."
               ]
             },
-            sandboxType: "quotation",
+            sandboxType: "service_ticket_detail",
             quiz: {
-              question: "Kỹ thuật viên chỉ bắt đầu thi công sửa chữa khi báo giá ở trạng thái nào?",
-              options: ["DRAFT (Bản nháp)", "Khách đã duyệt (APPROVED)", "REJECTED (Từ chối)", "CANCELLED (Đã hủy)"],
-              correctIndex: 1
+              question: "Số lượng các hạng mục kiểm tra an toàn xe trong giao diện /service-ticket-detail được xác định như thế nào?",
+              options: [
+                "Được cấu hình linh hoạt theo thiết lập của hệ thống garage",
+                "Cố định cứng 32 hạng mục không thể thay đổi",
+                "Cố định cứng 10 hạng mục",
+                "Do khách hàng tự quy định"
+              ],
+              correctIndex: 0
             },
             tourSteps: [
-              { element: '[data-tour-id="service-ticket-management"]', popover: { title: "Báo giá & Xác nhận báo giá", description: "Tạo báo giá gửi khách duyệt và xác nhận trước khi thi công.", side: "right" } }
+              { targetPath: "/service-ticket-detail/ST-DEMO-2026", element: '[data-tour-id="detail-header-card"]', popover: { title: "1. Thông tin Phiếu & Khách hàng", description: "Xem thông tin tổng quan: Biển số xe, Mã phiếu, Số KM, Trạng thái và Cố vấn phụ trách.", side: "bottom" } },
+              { element: '[data-tour-id="detail-inspection-card"]', popover: { title: "2. Khảo sát Kiểm tra An toàn Xe", description: "Đánh giá mức độ an toàn theo danh sách các hạng mục được cấu hình linh hoạt trên hệ thống.", side: "bottom" } },
+              { element: '[data-tour-id="detail-estimate-card"]', popover: { title: "3. Bảng Dự toán Báo giá & Phụ tùng", description: "Thêm lốp Michelin, dầu nhờn, phụ tùng từ kho và nhập chi phí tiền công dịch vụ.", side: "bottom" } },
+              { element: '[data-tour-id="detail-promotion-card"]', popover: { title: "4. Áp dụng Khuyến mãi & Chiết khấu", description: "Nhập mã voucher giảm giá hoặc chọn chiết khấu ưu đãi theo hạng khách hàng.", side: "bottom" } },
+              { element: '[data-tour-id="detail-approval-btn"]', popover: { title: "5. Gửi Báo giá & Khách duyệt (APPROVED)", description: "Gửi báo giá cho khách duyệt. Khi khách chuyển APPROVED, hệ thống cho phép xuất kho & thi công.", side: "bottom" } },
+              { element: '[data-tour-id="detail-worklog-card"]', popover: { title: "6. Nhật ký Tiến độ Thi công Xưởng", description: "Theo dõi nhật ký thời gian làm việc thực tế và tiến độ của Kỹ thuật viên thi công.", side: "top" } }
             ]
           }
         ]

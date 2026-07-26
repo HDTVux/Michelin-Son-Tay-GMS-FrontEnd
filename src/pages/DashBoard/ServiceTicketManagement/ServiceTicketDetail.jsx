@@ -376,7 +376,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
 
     // Hàm để tải lại danh sách khuyến mãi có sẵn cho khách hàng, có thể được gọi sau khi áp dụng hoặc hủy bỏ khuyến mãi để cập nhật lại danh sách khuyến mãi có sẵn và trạng thái áp dụng
     const refreshAvailablePromotions = useCallback(async (token = null, customerId = customerIdNum) => {
-        if (ticketCodeParam === 'demo') {
+        if (ticketCodeParam === 'demo' || String(ticketCodeParam).toUpperCase().includes('DEMO')) {
             setAvailablePromotions({
                 PERCENT: [
                     { promotionId: 10, promotionCode: 'KM10', promotionType: 'PERCENT', discountValue: 10, maxValue: 500000, minOrderValue: 0, description: 'Giảm 10% tổng hóa đơn, tối đa 500K' },
@@ -560,12 +560,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
         if (!token) return undefined;
 
-        if (ticketCodeParam === 'demo') {
+        if (ticketCodeParam === 'demo' || String(ticketCodeParam).toUpperCase().includes('DEMO')) {
             setDefaultSafetyCategories([
-                { id: 1, categoryName: 'Hệ thống phanh', displayOrder: 1 },
-                { id: 2, categoryName: 'Hệ thống giảm xóc', displayOrder: 2 },
-                { id: 3, categoryName: 'Hệ thống lái', displayOrder: 3 },
-                { id: 4, categoryName: 'Độ chụm bánh xe', displayOrder: 4 }
+                { id: 1, categoryName: 'Hệ thống lốp xe Michelin', displayOrder: 1 },
+                { id: 2, categoryName: 'Hệ thống phanh trước & sau', displayOrder: 2 },
+                { id: 3, categoryName: 'Ắc quy & Điện khởi động', displayOrder: 3 },
+                { id: 4, categoryName: 'Dầu nhớt & Nước làm mát', displayOrder: 4 }
             ]);
             return undefined;
         }
@@ -586,12 +586,16 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     useEffect(() => {
         const token = localStorage.getItem('authToken') || localStorage.getItem('staffToken');
         if (!token || !serviceTicketIdNum) {
+            if (String(ticketCodeParam).toUpperCase().includes('DEMO')) {
+                setPrintRecommendation('Khuyến nghị thay 2 lốp Michelin Pilot Sport 5 và cân bằng chìHunter 3D.');
+                return undefined;
+            }
             setPrintRecommendation('');
             return undefined;
         }
 
-        if (ticketCodeParam === 'demo') {
-            setPrintRecommendation('Cân chỉnh góc đặt bánh xe và thay lốp trước.');
+        if (ticketCodeParam === 'demo' || String(ticketCodeParam).toUpperCase().includes('DEMO')) {
+            setPrintRecommendation('Khuyến nghị thay 2 lốp Michelin Pilot Sport 5 và cân bằng chì Hunter 3D.');
             return undefined;
         }
 
@@ -1019,7 +1023,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     );
 
     const loadLatestEstimate = useCallback(async () => {
-        if (ticketCodeParam === 'demo') {
+        if (ticketCodeParam === 'demo' || String(ticketCodeParam).toUpperCase().includes('DEMO')) {
             setLatestEstimate({
                 estimateId: 12345,
                 estimateCode: 'EST-99999-01',
@@ -1199,10 +1203,12 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         if (!token) return;
         if (!serviceTicketIdNum) return;
 
-        if (ticketCodeParam === 'demo') {
+        if (ticketCodeParam === 'demo' || String(ticketCodeParam).toUpperCase().includes('DEMO')) {
             setAssignments([
-                { staffId: 1, fullName: 'Kỹ thuật viên A', roleInTicket: 'TECHNICIAN', status: 'ACTIVE' }
+                { staffId: 1, fullName: 'KTV Trần Văn B', roleInTicket: 'TECHNICIAN', status: 'ACTIVE' },
+                { staffId: 2, fullName: 'Cố vấn Dịch vụ Sơn Tây', roleInTicket: 'ADVISOR', status: 'ACTIVE' }
             ]);
+            setAssignmentsLoading(false);
             return;
         }
 
@@ -1224,13 +1230,14 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
     }, [serviceTicketIdNum, ticketCodeParam]);
 
     const hasTechnician = useMemo(() => {
+        if (ticketCodeParam === 'demo' || String(ticketCodeParam).toUpperCase().includes('DEMO')) return true;
         if (assignmentsLoading) return true;
         return assignments.some(
             (a) =>
                 String(a?.roleInTicket || a?.role || '').toUpperCase() === 'TECHNICIAN'
                 && String(a?.status || '').toUpperCase() !== 'CANCELLED',
         );
-    }, [assignments, assignmentsLoading]);
+    }, [assignments, assignmentsLoading, ticketCodeParam]);
     const advisorReadOnlyWithoutTechnician = isAdvisorOnlyViewRole && !assignmentsLoading && !hasTechnician;
 
     const canRequestPayment = ticketStatus === 'COMPLETED' && !assignmentsLoading && !isActionLocked && isEstimateApproved;
@@ -2209,6 +2216,26 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
         const code = String(promoCodes[type] || '').trim();
         const selectedId = String(selectedPromotions[type] || '').trim();
 
+        if (ticketCodeParam === 'demo' || String(ticketCodeParam).toUpperCase().includes('DEMO')) {
+            const promoItem = {
+                promotionId: 10,
+                promotionCode: code || 'KM10',
+                promotionType: 'PERCENT',
+                discountValue: 10,
+                maxValue: 500000,
+                description: 'Giảm 10% tổng hóa đơn (Áp dụng DEMO)'
+            };
+            setAppliedPromotions((prev) => ({ ...prev, [type]: promoItem }));
+            setLatestEstimate((prev) => ({
+                ...prev,
+                appliedPromotions: { [type]: promoItem },
+                discountAmount: 400000,
+                totalAmount: 3900000
+            }));
+            notify(`Đã áp dụng mã khuyến mãi ${promoItem.promotionCode} thành công!`);
+            return;
+        }
+
         if (!code && !selectedId) {
             setAppliedPromotions((prev) => ({ ...prev, [type]: null }));
             return;
@@ -2647,22 +2674,23 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
             <div className={styles.screenOnly}>
                 <div className={styles.layout}>
                     <main className={styles.main}>
-                        <header className={styles.header}>
-                            <div className={styles.headerLeft}>
-                                <div className={styles.titleRow}>
-                                    <h1 className={styles.title}>Phiếu dịch vụ #{ticket.ticketCode || ticketCodeParam || '-'}</h1>
-                                    <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
+                        <div data-tour-id="detail-header-card">
+                            <header className={styles.header} data-tour-id="detail-page-header">
+                                <div className={styles.headerLeft}>
+                                    <div className={styles.titleRow}>
+                                        <h1 className={styles.title}>Phiếu dịch vụ #{ticket.ticketCode || ticketCodeParam || '-'}</h1>
+                                        <span className={styles.statusPill}>{ticket.statusLabel || '-'}</span>
+                                    </div>
                                 </div>
-                            </div>
-                        </header>
+                            </header>
 
-                        {error && <div className={styles.errorBanner}>{error}</div>}
+                            {error && <div className={styles.errorBanner}>{error}</div>}
 
-                        {!hasBill && billLookupError ? (
-                            <div className={styles.errorBanner}>{billLookupError}</div>
-                        ) : null}
+                            {!hasBill && billLookupError ? (
+                                <div className={styles.errorBanner}>{billLookupError}</div>
+                            ) : null}
 
-                        <div className={`ui-card ${styles.card}`}>
+                            <div id="tour-customer-info" className={`ui-card ${styles.card}`}>
                             <div className={styles.screenInfoSection}>
                                 {/* Cột Trái: Thông tin khách & ticket */}
                                 <div id="tour-customer-info" className={`${styles.screenInfoColumn} ${styles.screenInfoColumnLeft}`}>
@@ -3047,6 +3075,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                     )}
                                 </section>
                             )}
+                        </div>
 
 
 
@@ -3170,6 +3199,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                 {canConfirmEstimate ? (
                                                     <button
                                                         type="button"
+                                                        data-tour-id="detail-confirm-estimate-btn"
                                                         className="ui-btn ui-btn--primary"
                                                         onClick={handleOpenEstimateTimePopup}
                                                         disabled={receiptApproving || statusUpdating || estimateLoading}
@@ -3205,6 +3235,7 @@ export default function ServiceTicketDetail({ ticketCodeOverride }) {
                                                 {canConfirmEstimate && (
                                                     <button
                                                         type="button"
+                                                        data-tour-id="detail-confirm-estimate-btn"
                                                         className="ui-btn ui-btn--primary"
                                                         onClick={handleOpenEstimateTimePopup}
                                                         disabled={receiptApproving || statusUpdating || estimateLoading}

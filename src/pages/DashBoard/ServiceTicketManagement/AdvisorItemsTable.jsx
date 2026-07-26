@@ -1953,7 +1953,7 @@ export default function AdvisorItemsTable({
     }, [photoPreview, closePhotoPreview]);
 
     return (
-        <section id="tour-estimate-section" className={`${styles.block}${className ? ` ${className}` : ''}`}>
+        <section id="tour-estimate-section" data-tour-id="detail-estimate-card" className={`${styles.block}${className ? ` ${className}` : ''}`}>
             <h2 className={styles.blockTitle}>{title}</h2>
 
 
