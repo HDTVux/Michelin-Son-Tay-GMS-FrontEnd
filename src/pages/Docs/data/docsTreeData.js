@@ -744,6 +744,119 @@ export const DOCS_SECTIONS = [
             tourSteps: [
               { element: '[data-tour-id="warehouse-return-entries"]', popover: { title: "Quản lý hàng hoàn", description: "Lập phiếu nhập trả phụ tùng hoàn về kho và in phiếu.", side: "right" } }
             ]
+          },
+          {
+            id: "2.4.4",
+            number: "2.4.4.",
+            title: "Quản lý kho (Tổng quan xuất nhập)",
+            desc: "Xem báo cáo tổng quan về tình trạng xuất nhập tồn của toàn bộ kho hàng.",
+            targetPath: "/warehouse-management",
+            content: {
+              overview: "Cung cấp cái nhìn toàn cảnh về lượng hàng hóa đang lưu trữ, hàng sắp hết và giá trị tồn kho hiện tại để có kế hoạch nhập hàng kịp thời.",
+              steps: [
+                "1. Truy cập menu 'Kho & Phụ tùng' -> 'Tổng quan kho' (/warehouse-management).",
+                "2. Sử dụng bộ lọc thời gian hoặc theo danh mục phụ tùng để xem số liệu xuất/nhập/tồn cụ thể.",
+                "3. Xem biểu đồ cảnh báo hàng tồn kho dưới định mức an toàn.",
+                "4. Xuất báo cáo Excel nếu cần gửi cho Quản lý chung."
+              ]
+            },
+            sandboxType: "warehouse_manager",
+            quiz: {
+              question: "Để xem cảnh báo hàng tồn kho dưới định mức an toàn, bạn vào trang nào?",
+              options: [
+                "Trang Tổng quan kho (/warehouse-management)",
+                "Trang Tạo lịch hẹn",
+                "Trang Bán hàng nhanh",
+                "Trang Chấm công QR"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: []
+          },
+          {
+            id: "2.4.5",
+            number: "2.4.5.",
+            title: "Cấu hình vị trí kho",
+            desc: "Thiết lập và quản lý sơ đồ, vị trí (kệ, tầng, dãy) để tối ưu việc tìm kiếm và xếp dỡ phụ tùng trong kho.",
+            targetPath: "/warehouse-config",
+            content: {
+              overview: "Tổ chức lại không gian kho bãi khoa học giúp tiết kiệm thời gian lấy hàng và quản lý hàng hóa theo từng khu vực chuyên biệt.",
+              steps: [
+                "1. Truy cập menu 'Kho & Phụ tùng' -> 'Cấu hình vị trí kho' (/warehouse-config).",
+                "2. Bấm 'Thêm vị trí mới' (Ví dụ: Kệ A - Tầng 1 - Dãy Lốp).",
+                "3. Liên kết phụ tùng hoặc danh mục phụ tùng cụ thể với vị trí vừa tạo.",
+                "4. Nhấn 'Lưu vị trí' để áp dụng. Sơ đồ kho sẽ được cập nhật."
+              ]
+            },
+            sandboxType: "warehouse_manager",
+            quiz: {
+              question: "Mục đích của việc Cấu hình vị trí kho là gì?",
+              options: [
+                "Tổ chức không gian kho bãi khoa học giúp tiết kiệm thời gian lấy hàng",
+                "Để bán xe ô tô mới",
+                "Để tính lương nhân viên",
+                "Để đăng Facebook"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: []
+          },
+          {
+            id: "2.4.6",
+            number: "2.4.6.",
+            title: "Cấu hình giá bán theo kho",
+            desc: "Cập nhật và điều chỉnh mức giá bán cho các sản phẩm/phụ tùng tại kho theo từng thời điểm.",
+            targetPath: "/warehouse-pricing",
+            content: {
+              overview: "Đảm bảo giá bán luôn chính xác và đồng bộ trên toàn hệ thống, phục vụ cho việc báo giá của Cố vấn dịch vụ và thanh toán của Kế toán.",
+              steps: [
+                "1. Truy cập menu 'Kho & Phụ tùng' -> 'Cấu hình giá bán' (/warehouse-pricing).",
+                "2. Tìm kiếm mã phụ tùng cần cập nhật giá.",
+                "3. Nhập mức giá bán mới hoặc tỷ lệ lợi nhuận mong muốn so với giá vốn (lô nhập).",
+                "4. Nhấn 'Cập nhật giá'. Giá mới sẽ ngay lập tức có hiệu lực cho các báo giá mới."
+              ]
+            },
+            sandboxType: "warehouse_manager",
+            quiz: {
+              question: "Khi cập nhật giá bán tại trang Cấu hình giá bán, giá mới sẽ có hiệu lực ở đâu?",
+              options: [
+                "Ngay lập tức trên toàn hệ thống và các báo giá mới",
+                "Chỉ áp dụng cho các báo giá cũ",
+                "Không có hiệu lực",
+                "Phải đợi 24h mới có hiệu lực"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: []
+          },
+          {
+            id: "2.4.7",
+            number: "2.4.7.",
+            title: "Danh mục phụ tùng",
+            desc: "Quản lý danh mục sản phẩm, nhóm hàng (lốp, ắc quy, dầu nhớt) hệ thống và thiết lập định mức tồn kho an toàn.",
+            targetPath: "/part-management",
+            content: {
+              overview: "Tạo mới hoặc chỉnh sửa thông tin sản phẩm cốt lõi giúp hệ thống phân loại và quản lý hàng hóa thống nhất.",
+              steps: [
+                "1. Truy cập menu 'Kho & Phụ tùng' -> 'Danh mục phụ tùng' (/part-management).",
+                "2. Bấm 'Thêm phụ tùng mới' để khai báo hàng hóa chưa có trong hệ thống.",
+                "3. Nhập Mã SKU, Tên phụ tùng, Đơn vị tính và Phân loại hàng.",
+                "4. Thiết lập định mức tồn kho an toàn để hệ thống tự động cảnh báo khi sắp hết hàng.",
+                "5. Nhấn 'Lưu thông tin'."
+              ]
+            },
+            sandboxType: "warehouse_manager",
+            quiz: {
+              question: "Thiết lập gì giúp hệ thống tự động cảnh báo khi sắp hết hàng?",
+              options: [
+                "Định mức tồn kho an toàn",
+                "Giá vốn",
+                "Số điện thoại nhà cung cấp",
+                "Số tài khoản ngân hàng"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: []
           }
         ]
       },
@@ -774,6 +887,93 @@ export const DOCS_SECTIONS = [
             tourSteps: [
               { element: '[data-tour-id="revenue-management"]', popover: { title: "Quản lý doanh thu", description: "Báo cáo dòng tiền, hóa đơn thanh toán và doanh số theo ca.", side: "right" } }
             ]
+          },
+          {
+            id: "2.5.2",
+            number: "2.5.2.",
+            title: "Bán hàng nhanh (Bán lẻ phụ tùng)",
+            desc: "Bán trực tiếp phụ tùng/linh kiện cho Khách lẻ, Đại lý hoặc Garage khác mà không cần qua quy trình xe vào xưởng.",
+            targetPath: "/parts-sales",
+            content: {
+              overview: "Thực hiện xuất bán nhanh các sản phẩm như lốp, dầu nhớt, ắc quy mua mang về, giúp đơn giản hóa quy trình và ghi nhận doanh thu tức thì.",
+              steps: [
+                "1. Truy cập menu 'Thu ngân & Kế toán' -> 'Bán hàng nhanh' (/parts-sales).",
+                "2. Chọn Khách hàng (hệ thống tự động tính chiết khấu hạng khách).",
+                "3. Chọn phụ tùng từ kho khả dụng. Hệ thống tự động tính tổng tiền và VAT.",
+                "4. Lựa chọn áp dụng chương trình khuyến mãi/voucher nếu có.",
+                "5. Nhấp 'Thanh toán' để tạo hóa đơn bán lẻ và đồng thời xuất kho phụ tùng."
+              ]
+            },
+            sandboxType: "payment",
+            quiz: {
+              question: "Khi sử dụng Bán hàng nhanh, điều gì xảy ra khi nhấn Thanh toán?",
+              options: [
+                "Tạo hóa đơn bán lẻ và đồng thời xuất kho phụ tùng",
+                "Tạo báo giá gửi cho khách",
+                "Chuyển xe vào hàng chờ",
+                "Không có gì xảy ra"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: []
+          },
+          {
+            id: "2.5.3",
+            number: "2.5.3.",
+            title: "Quản lý & Đối soát doanh thu",
+            desc: "Theo dõi, thống kê doanh thu theo ngày/tháng và đối soát tiền mặt, tiền chuyển khoản với các báo cáo ngân hàng.",
+            targetPath: "/revenue-management",
+            content: {
+              overview: "Tổng hợp dòng tiền vào từ các hoạt động dịch vụ và bán lẻ, giúp Kế toán kiểm soát tài chính chính xác và ngăn ngừa thất thoát.",
+              steps: [
+                "1. Truy cập menu 'Báo cáo & Hệ thống' -> 'Đối soát doanh thu' (/revenue-management).",
+                "2. Lọc dữ liệu báo cáo theo ngày, tuần hoặc tháng.",
+                "3. Xem chi tiết tỷ trọng doanh thu theo từng phương thức thanh toán.",
+                "4. Thực hiện đối soát số dư thực tế tại két và sao kê ngân hàng với số liệu ghi nhận trên phần mềm.",
+                "5. Nhấn 'Xác nhận đối soát' hoặc ghi chú nếu có chênh lệch."
+              ]
+            },
+            sandboxType: "payment",
+            quiz: {
+              question: "Bước quan trọng nào giúp Kế toán phát hiện chênh lệch dòng tiền?",
+              options: [
+                "Thực hiện đối soát số dư thực tế và sao kê ngân hàng với số liệu ghi nhận",
+                "In danh bạ khách hàng",
+                "Thêm mới danh mục phụ tùng",
+                "Đăng xuất khỏi hệ thống"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: []
+          },
+          {
+            id: "2.5.4",
+            number: "2.5.4.",
+            title: "Quản lý giá dịch vụ & Gói combo",
+            desc: "Hỗ trợ Kế toán thiết lập và điều chỉnh cấu trúc giá cho các gói dịch vụ, combo hoặc giá thi công lẻ.",
+            targetPath: "/combo-management",
+            content: {
+              overview: "Cấu hình giá linh hoạt nhằm thu hút khách hàng thông qua các gói combo bảo dưỡng, đồng thời tối ưu hóa lợi nhuận kinh doanh.",
+              steps: [
+                "1. Truy cập menu 'Bán hàng & Khuyến mãi' -> 'Quản lý Combo' (/combo-management) hoặc 'Dịch vụ lẻ' (/service-management).",
+                "2. Bấm 'Thêm mới' để tạo gói combo bảo dưỡng hoặc sửa đổi combo hiện có.",
+                "3. Chọn các phụ tùng (phương pháp FIFO/LIFO/Chọn lô) và nhân công đi kèm.",
+                "4. Thiết lập giá bán combo và điều kiện áp dụng.",
+                "5. Nhấn 'Lưu cấu hình' để cập nhật trên toàn hệ thống."
+              ]
+            },
+            sandboxType: "payment",
+            quiz: {
+              question: "Khi tạo một gói combo bảo dưỡng, Kế toán cần thiết lập những gì?",
+              options: [
+                "Các phụ tùng, nhân công đi kèm, giá bán combo và điều kiện áp dụng",
+                "Ngày nghỉ phép của kỹ thuật viên",
+                "Số điện thoại cố vấn",
+                "Tọa độ GPS chấm công"
+              ],
+              correctIndex: 0
+            },
+            tourSteps: []
           }
         ]
       }
