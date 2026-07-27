@@ -540,7 +540,7 @@ export const DOCS_SECTIONS = [
               { element: '[data-tour-id="detail-inspection-card"], #tour-safety-checklist-card', allowMissing: true, popover: { title: "11. Khảo Sát Kiểm Tra An Toàn Xe", description: "Đánh giá tình trạng thực tế của các hạng mục an toàn (lốp Michelin, phanh, ắc quy, dầu nhờn...) được cấu hình linh hoạt theo hệ thống garage.", side: "bottom" } },
               { element: '[data-tour-id="detail-estimate-card"], #tour-estimate-section', allowMissing: true, popover: { title: "12. Bảng Dự Toán Báo Giá Phụ Tùng & Dịch Vụ", description: "Chọn thêm các sản phẩm lốp Michelin, dầu nhớt, phụ tùng thay thế từ kho và nhập tiền công dịch vụ kỹ thuật.", side: "bottom" } },
               { element: '[data-tour-id="detail-promotion-card"], #tour-promotion-section', allowMissing: true, popover: { title: "13. Áp Dụng Mã Khuyến Mãi & Chiết Khấu", description: "Nhập mã voucher giảm giá (ví dụ KM10) hoặc bấm nút 'Áp dụng' để nhận ưu đãi chiết khấu tự động theo hạng thành viên khách hàng.", side: "bottom" } },
-              { element: '[data-tour-id="detail-confirm-estimate-btn"], [data-tour-id="detail-save-estimate-btn"], .ui-actions button.ui-btn--primary', allowMissing: true, popover: { title: "14. Gửi Báo Giá & Khách Duyệt (APPROVED)", description: "Nhấp nút 'Lưu báo giá' / 'Xác nhận báo giá' ở dưới cùng để lưu và gửi báo giá cho khách duyệt. Khi khách duyệt APPROVED, hệ thống tự động kích hoạt luồng xuất kho & thợ xưởng thi công.", side: "top" } },
+              { element: '[data-tour-id="detail-confirm-estimate-btn"], [data-tour-id="detail-save-estimate-btn"], .ui-actions button[class*="primary"]', allowMissing: true, popover: { title: "14. Gửi Báo Giá & Khách Duyệt (APPROVED)", description: "Nhấp nút 'Lưu báo giá' / 'Xác nhận báo giá' ở dưới cùng để lưu và gửi báo giá cho khách duyệt. Khi khách duyệt APPROVED, hệ thống tự động kích hoạt luồng xuất kho & thợ xưởng thi công.", side: "top" } },
               { element: '[data-tour-id="detail-worklog-card"], #tour-work-log', allowMissing: true, popover: { title: "15. Nhật Ký Tiến Độ Thi Công Kỹ Thuật Viên", description: "Theo dõi nhật ký thời gian làm việc thực tế, thời điểm bắt đầu/hoàn tất và tiến độ công việc của KTV xưởng.", side: "top" } }
             ]
           },
@@ -678,9 +678,28 @@ export const DOCS_SECTIONS = [
               ],
               correctIndex: 0
             },
-            tourSteps: [
-              { element: '[data-tour-id="warehouse-management"]', popover: { title: "Quản lý kho", description: "Tổng quan vị trí khay kệ, tồn kho lốp và phụ tùng ô tô.", side: "right" } },
-              { element: '[data-tour-id="warehouse-stock-entries"]', popover: { title: "Quản lý phiếu nhập", description: "Lập, quản lý và in phiếu nhập kho mới.", side: "right" } }
+                        tourSteps: [
+              { element: '[data-tour-id="warehouse-management"]', popover: { title: "1. Mở Phân Hệ", description: "Bấm vào menu Kho & Phụ Tùng ở thanh bên trái.", side: "right" } },
+              { element: '[data-tour-id="warehouse-stock-entries"]', popover: { title: "2. Chọn Chức Năng", description: "Chọn 'Quản lý phiếu nhập kho' để mở màn hình danh sách chứng từ.", side: "right" } },
+              { targetPath: "/warehouse-stock-entries", element: 'section[class*="statsGrid"]', popover: { title: "3. Thống Kê Tổng Quan", description: "Theo dõi nhanh tổng số phiếu Nháp và Đã xác nhận trên hệ thống.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entries", element: 'section[class*="filterGrid"]', popover: { title: "4. Bộ Lọc Tìm Kiếm", description: "Lọc chứng từ theo Kho, Trạng thái, Mã phiếu hoặc Khoảng thời gian từ ngày - đến ngày.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entries", element: 'table', popover: { title: "5. Bảng Danh Sách", description: "Khu vực hiển thị tất cả các chứng từ nhập kho đã và đang được tạo.", side: "top" } },
+              { targetPath: "/warehouse-stock-entries", element: 'table tbody tr:first-child button', popover: { title: "6. Xem Chi Tiết Phiếu", description: "Nhấp vào nút 'Xem chi tiết' để mở giao diện quản lý cụ thể của một phiếu nhập cũ.", side: "left" } },
+              { targetPath: "/warehouse-stock-entries", element: 'header button[class*="primary"]', popover: { title: "7. Bắt Đầu Tạo Phiếu", description: "Bấm nút 'Nhập kho' ở góc trên để chuyển sang màn hình tạo chứng từ nhập hàng mới.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entry", element: 'header[class*="heroCard"]', popover: { title: "8. Thông Tin Tiêu Đề", description: "Theo dõi thông tin Kho hiện tại, Ngày nhập và Số dòng hàng (số loại phụ tùng) đang tạo.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entry", element: 'select', popover: { title: "9. Chọn Kho", description: "Chọn Kho nhập hàng (mặc định hệ thống tự chọn Kho Tổng).", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entry", element: 'input[placeholder="Nhập tên nhà cung cấp"]', popover: { title: "10. Nhà Cung Cấp", description: "Nhập chính xác tên nhà cung cấp giao lô hàng này.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entry", element: 'input[type="date"]', popover: { title: "11. Ngày Nhập", description: "Kiểm tra và chỉnh sửa ngày nhập hàng nếu cần.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entry", element: 'input[placeholder*="ghi chú"]', popover: { title: "12. Ghi Chú", description: "Thêm ghi chú đặc biệt cho phiếu nhập này (nếu có).", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entry", element: 'input[placeholder*="keyword để tìm mã"]', popover: { title: "13. Tìm Phụ Tùng", description: "Sử dụng súng quét mã vạch hoặc nhập từ khóa để tìm, sau đó bấm Thêm vào bảng nhập.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entry", element: 'table', popover: { title: "14. Bảng Nhập Hàng", description: "Xem lại danh sách các phụ tùng bạn vừa chọn.", side: "top" } },
+              { targetPath: "/warehouse-stock-entry", element: 'table tbody tr:first-child input[type="number"]', popover: { title: "15. Điền Số Lượng & Giá", description: "Với mỗi mặt hàng, nhập số lượng thực nhận và Đơn giá nhập của từng phụ tùng.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entry", element: 'div[class*="summaryRow"]', popover: { title: "16. Kiểm Tra Tổng Tiền", description: "Đối chiếu lại Tổng số lượng và Tổng tiền nhập xem đã khớp hoàn toàn với hóa đơn giao hay chưa.", side: "top" } },
+              { targetPath: "/warehouse-stock-entry", element: 'label[class*="uploadBox"]', popover: { title: "17. Tệp Đính Kèm", description: "Kéo thả hoặc bấm để chọn tệp Ảnh chụp hóa đơn gốc/chứng từ giao hàng.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-entry", element: 'button[class*="ghostButton"]', popover: { title: "18. Xóa Form", description: "Bấm 'Xóa form' để làm mới toàn bộ các trường nhập liệu nếu có sai sót lớn.", side: "top" } },
+              { targetPath: "/warehouse-stock-entry", element: 'button[class*="primaryButton"]', popover: { title: "19. Xác Nhận Nhập Kho", description: "Sau khi kiểm tra kỹ lưỡng, bấm 'Xác nhận nhập kho' để lưu phiếu vào hệ thống.", side: "top" } },
+              { targetPath: "/warehouse-stock-entry", element: 'button[class*="backBottomButton"]', popover: { title: "20. Quay Lại", description: "Hoặc bấm nút này để hủy bỏ tạo phiếu và trở về màn hình danh sách.", side: "top" } },
+              { targetPath: "/warehouse-stock-entries/1", element: 'button[class*="ghost"]', popover: { title: "21. In Phiếu Nhập Kho", description: "Tại giao diện chi tiết, bấm 'In phiếu' để xuất chứng từ bản cứng. Thao tác này thường thực hiện khi phiếu ở trạng thái Đã duyệt.", side: "bottom" } }
             ]
           },
           {
@@ -710,8 +729,21 @@ export const DOCS_SECTIONS = [
               ],
               correctIndex: 0
             },
-            tourSteps: [
-              { element: '[data-tour-id="warehouse-stock-issues"]', popover: { title: "Quản lý phiếu xuất kho", description: "Duyệt xuất kho phụ tùng và in phiếu xuất chứng từ.", side: "right" } }
+                        tourSteps: [
+              { element: '[data-tour-id="warehouse-management"]', popover: { title: "1. Mở Phân Hệ", description: "Bấm vào menu Kho & Phụ Tùng ở thanh bên trái.", side: "right" } },
+              { element: '[data-tour-id="warehouse-stock-issues"]', popover: { title: "2. Chọn Chức Năng", description: "Chọn 'Quản lý phiếu xuất kho'.", side: "right" } },
+              { targetPath: "/warehouse-stock-issues", element: 'section[class*="statsGrid"]', popover: { title: "3. Thống Kê Tổng Quan", description: "Theo dõi nhanh số lượng phiếu xuất nháp và đã xuất.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-issues", element: 'section[class*="filterGrid"]', popover: { title: "4. Bộ Lọc Tìm Kiếm", description: "Lọc chứng từ xuất kho theo Phiếu dịch vụ hoặc Bán lẻ.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-issues", element: 'table', popover: { title: "5. Bảng Danh Sách", description: "Xem lại danh sách phiếu xuất kho đã được tạo tự động.", side: "top" } },
+              { targetPath: "/warehouse-stock-issues", element: 'table tbody tr:first-child', popover: { title: "6. Trạng Thái Phiếu", description: "Nháp (chờ xuất), Đã xuất, hoặc Đã hủy.", side: "right" } },
+              { targetPath: "/warehouse-stock-issues", element: 'table tbody tr:first-child button', popover: { title: "7. Xem Chi Tiết Phiếu", description: "Bấm nút mắt hoặc 'Xem chi tiết' ở cột cuối cùng.", side: "left" } },
+              { targetPath: "/warehouse-stock-issues/1", element: 'header[class*="heroCard"]', popover: { title: "8. Thông Tin Phiếu", description: "Xem lại ai là người nhận hàng, xuất cho xe nào, mục đích xuất.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-issues/1", element: 'table', popover: { title: "9. Danh Sách Phụ Tùng", description: "Kiểm tra số lượng xuất, số lượng thực tế trong kho.", side: "top" } },
+              { targetPath: "/warehouse-stock-issues/1", element: 'table tbody tr:first-child td:nth-child(4)', popover: { title: "10. Cột Vị Trí Lưu Kho", description: "Hiển thị vị trí kệ để kỹ thuật viên dễ dàng lấy hàng.", side: "bottom" } },
+              { targetPath: "/warehouse-stock-issues/1", element: 'table tbody tr:first-child td:last-child', popover: { title: "11. Trạng Thái Lấy Hàng", description: "Hiển thị trạng thái Đủ hàng hay Thiếu hàng.", side: "left" } },
+              { targetPath: "/warehouse-stock-issues/1", element: 'button[class*="primary"]', popover: { title: "12. Xác Nhận Xuất Kho", description: "Bấm 'Xuất kho' đối với phiếu Hợp lệ.", side: "top" } },
+              { targetPath: "/warehouse-stock-issues/1", element: 'button', popover: { title: "13. Quay Lại", description: "Thoát xem chi tiết và về màn hình danh sách.", side: "top" } },
+              { targetPath: "/warehouse-stock-issues/1", element: 'button[class*="ghost"]', popover: { title: "14. In Phiếu Xuất Kho", description: "Bấm 'In phiếu' góc phải trên cùng để đưa chứng từ xuất hàng cho thủ kho.", side: "bottom" } }
             ]
           },
           {
@@ -741,8 +773,19 @@ export const DOCS_SECTIONS = [
               ],
               correctIndex: 0
             },
-            tourSteps: [
-              { element: '[data-tour-id="warehouse-return-entries"]', popover: { title: "Quản lý hàng hoàn", description: "Lập phiếu nhập trả phụ tùng hoàn về kho và in phiếu.", side: "right" } }
+                                    tourSteps: [
+              { element: '[data-tour-id="sub-warehouse"]', popover: { title: "1. Mở Phân Hệ", description: "Bấm vào menu Kho & Phụ Tùng ở thanh bên trái.", side: "right" } },
+              { element: '[data-tour-id="warehouse-return-entries"]', popover: { title: "2. Chọn Chức Năng", description: "Chọn 'Quản lý phiếu trả hàng' để xử lý phụ tùng xuất dư.", side: "right" } },
+              { targetPath: "/warehouse-return-entries", element: 'button[class*="primary"]', popover: { title: "3. Nút Hàng Hoàn", description: "Nhấp để tạo phiếu hoàn kho mới.", side: "bottom" } },
+              { targetPath: "/warehouse-return-entry", element: 'select', popover: { title: "4. Chọn Kho Nhận", description: "Chọn kho sẽ nhận lại hàng hoàn (thường là Kho Tổng).", side: "bottom" } },
+              { targetPath: "/warehouse-return-entry", element: 'input[placeholder*="phiếu"]', popover: { title: "5. Tham Chiếu Phiếu Xuất", description: "Nhập mã phiếu xuất gốc hoặc số xe để liên kết dữ liệu.", side: "bottom" } },
+              { targetPath: "/warehouse-return-entry", element: 'input[type="date"]', popover: { title: "6. Ngày Hoàn Kho", description: "Thời gian kỹ thuật viên trả lại hàng.", side: "bottom" } },
+              { targetPath: "/warehouse-return-entry", element: 'table', popover: { title: "7. Bảng Hàng Trả Lại", description: "Chọn phụ tùng dư và điền số lượng hoàn lại.", side: "top" } },
+              { targetPath: "/warehouse-return-entry", element: 'table tbody tr:first-child input[type="number"]', popover: { title: "8. Số Lượng Hoàn", description: "Lưu ý: Không được lớn hơn số lượng đã xuất.", side: "left" } },
+              { targetPath: "/warehouse-return-entry", element: 'select:last-of-type', popover: { title: "9. Tình Trạng Hàng", description: "Xác nhận hàng còn Mới (nhập lại kho) hay Hư hỏng (chờ xử lý).", side: "left" } },
+              { targetPath: "/warehouse-return-entry", element: 'input[placeholder*="lý do"]', popover: { title: "10. Lý Do Hoàn", description: "Ghi rõ lý do (VD: Khách đổi ý, Sai thông số).", side: "bottom" } },
+              { targetPath: "/warehouse-return-entry", element: 'button[class*="primary"]', popover: { title: "11. Lưu Phiếu Hoàn", description: "Xác nhận đưa hàng trở lại tồn kho.", side: "top" } },
+              { targetPath: "/warehouse-return-entries", element: 'table', popover: { title: "12. Theo Dõi Lịch Sử", description: "Xem lại lịch sử hàng hoàn để đối soát tồn kho cuối tháng.", side: "top" } }
             ]
           },
           {
@@ -771,7 +814,17 @@ export const DOCS_SECTIONS = [
               ],
               correctIndex: 0
             },
-            tourSteps: []
+                                    tourSteps: [
+              { element: '[data-tour-id="sub-warehouse"]', popover: { title: "1. Mở Phân Hệ", description: "Bấm vào menu Kho & Phụ Tùng.", side: "right" } },
+              { element: '[data-tour-id="warehouse-management"]', popover: { title: "2. Chọn Chức Năng", description: "Chọn 'Quản lý kho' (tổng quan tồn kho).", side: "right" } },
+              { targetPath: "/warehouse-management", element: '#filter-warehouse', popover: { title: "3. Lọc Theo Kho", description: "Xem tồn kho của Kho Tổng, Cửa hàng hoặc Tủ trưng bày.", side: "bottom" } },
+              { targetPath: "/warehouse-management", element: 'input[placeholder*="Tìm"]', popover: { title: "4. Thanh Tìm Kiếm", description: "Tìm nhanh theo mã vạch (SKU) hoặc tên phụ tùng.", side: "bottom" } },
+              { targetPath: "/warehouse-management", element: 'table', popover: { title: "5. Bảng Tồn Kho", description: "Xem số lượng tồn kho.", side: "top" } },
+              { targetPath: "/warehouse-management", element: 'table thead tr th', popover: { title: "6. Cột Tồn Khả Dụng", description: "Số lượng có thể bán ngay.", side: "bottom" } },
+              { targetPath: "/warehouse-management", element: 'table tbody tr:first-child button[class*="view-btn"], table tbody tr:first-child button', popover: { title: "7. Thẻ Kho (Bin Card)", description: "Bấm Xem chi tiết để theo dõi biến động.", side: "left" } },
+              { targetPath: "/warehouse-management", element: 'div[class*="modal"]', popover: { title: "8. Chi Tiết Giao Dịch", description: "Theo dõi mọi biến động tăng/giảm của phụ tùng.", side: "top" } },
+              { targetPath: "/warehouse-management", element: 'button[class*="ghost-button"]', popover: { title: "9. Xuất Báo Cáo", description: "Bấm 'Xuất Excel' để tải báo cáo tồn kho.", side: "bottom" } }
+            ]
           },
           {
             id: "2.4.5",
@@ -799,7 +852,15 @@ export const DOCS_SECTIONS = [
               ],
               correctIndex: 0
             },
-            tourSteps: []
+                        tourSteps: [
+              { element: '[data-tour-id="warehouse-management"]', popover: { title: "1. Mở Phân Hệ", description: "Bấm vào Kho & Phụ Tùng.", side: "right" } },
+              { element: '[data-tour-id="warehouse-config"]', popover: { title: "2. Chọn Chức Năng", description: "Chọn 'Cấu hình kho & vị trí'.", side: "right" } },
+              { targetPath: "/warehouse-config", element: 'button[class*="primary"]', popover: { title: "3. Nút Thêm Mới", description: "Bấm '+ Thêm kho/vị trí' để tạo khu vực lưu trữ mới.", side: "bottom" } },
+              { targetPath: "/warehouse-config", element: 'input[placeholder*="Tên kho"]', popover: { title: "4. Tên Khu Vực", description: "Nhập tên (VD: Kệ lốp du lịch, Tủ dầu nhớt).", side: "bottom" } },
+              { targetPath: "/warehouse-config", element: 'input[placeholder*="Mã vị trí"]', popover: { title: "5. Mã Vị Trí", description: "Nhập mã gợi nhớ (VD: K1-T2).", side: "bottom" } },
+              { targetPath: "/warehouse-config", element: 'input[type="checkbox"]', popover: { title: "6. Trạng Thái Hoạt Động", description: "Bật/Tắt để cho phép hệ thống sử dụng vị trí này.", side: "right" } },
+              { targetPath: "/warehouse-config", element: 'button[class*="primary"]:last-of-type', popover: { title: "7. Lưu Cấu Hình", description: "Bấm 'Lưu' để hệ thống ghi nhận sơ đồ kho.", side: "top" } }
+            ]
           },
           {
             id: "2.4.6",
@@ -827,7 +888,14 @@ export const DOCS_SECTIONS = [
               ],
               correctIndex: 0
             },
-            tourSteps: []
+                        tourSteps: [
+              { element: '[data-tour-id="warehouse-management"]', popover: { title: "1. Mở Phân Hệ", description: "Bấm vào Kho & Phụ Tùng.", side: "right" } },
+              { element: '[data-tour-id="warehouse-pricing"]', popover: { title: "2. Chọn Chức Năng", description: "Chọn 'Cấu hình giá linh kiện'.", side: "right" } },
+              { targetPath: "/warehouse-pricing", element: 'button[class*="primary"]', popover: { title: "3. Nút Thiết Lập Giá", description: "Bấm 'Cập nhật giá bán' để điều chỉnh giá.", side: "bottom" } },
+              { targetPath: "/warehouse-pricing", element: 'table tbody tr:first-child input[type="number"]', popover: { title: "4. Điều Chỉnh Giá", description: "Nhập mức giá bán lẻ mới cho phụ tùng.", side: "bottom" } },
+              { targetPath: "/warehouse-pricing", element: 'table tbody tr:first-child input[type="number"]:last-of-type', popover: { title: "5. Giá Đại Lý", description: "Thiết lập giá chiết khấu riêng cho khách hàng sỉ/garage.", side: "bottom" } },
+              { targetPath: "/warehouse-pricing", element: 'button[class*="primary"]:last-of-type', popover: { title: "6. Áp Dụng Thay Đổi", description: "Lưu lại để đồng bộ giá bán trên toàn hệ thống.", side: "top" } }
+            ]
           },
           {
             id: "2.4.7",
@@ -856,7 +924,17 @@ export const DOCS_SECTIONS = [
               ],
               correctIndex: 0
             },
-            tourSteps: []
+                                    tourSteps: [
+              { element: '[data-tour-id="sub-warehouse"]', popover: { title: "1. Mở Phân Hệ", description: "Truy cập menu 'Kho & Phụ tùng'.", side: "right" } },
+              { element: '[data-tour-id="part-management"]', popover: { title: "2. Chọn Danh Mục", description: "Chọn 'Quản lý phụ tùng'.", side: "right" } },
+              { targetPath: "/part-management", element: 'button[class*="primary"]', popover: { title: "3. Tạo Phụ Tùng Mới", description: "Bấm '+ Thêm phụ tùng' để đăng ký mã hàng lên hệ thống.", side: "bottom" } },
+              { targetPath: "/part-management/create-product", element: 'input[name="sku"], input[placeholder*="SKU"]', popover: { title: "4. Mã SKU/Barcode", description: "Điền hoặc dùng súng quét mã vạch để nhập SKU.", side: "bottom" } },
+              { targetPath: "/part-management/create-product", element: 'input[name="itemName"], input[placeholder*="Tên"]', popover: { title: "5. Tên Phụ Tùng", description: "Ghi rõ kích cỡ, thương hiệu, loại gai (đối với lốp).", side: "bottom" } },
+              { targetPath: "/part-management/create-product", element: 'select', popover: { title: "6. Phân Loại Danh Mục", description: "Đưa vào nhóm tương ứng.", side: "bottom" } },
+              { targetPath: "/part-management/create-product", element: 'input[name="unit"], input[placeholder*="Đơn vị"]', popover: { title: "7. Đơn Vị Tính", description: "Quả, Cái, Lít, Chai...", side: "bottom" } },
+              { targetPath: "/part-management/create-product", element: 'input[type="number"]', popover: { title: "8. Giá Vốn Tham Khảo", description: "Giá nhập hàng dự kiến để tính lợi nhuận gộp.", side: "bottom" } },
+              { targetPath: "/part-management/create-product", element: 'button[class*="primary"]:last-of-type', popover: { title: "9. Lưu Dữ Liệu", description: "Lưu danh mục để có thể bắt đầu làm phiếu nhập kho.", side: "top" } }
+            ]
           }
         ]
       },
@@ -884,8 +962,15 @@ export const DOCS_SECTIONS = [
               options: ["Thanh toán VietQR động (Webhook ngân hàng)", "Ghi nợ viết tay", "Đổi quà tặng", "Tiền xu"],
               correctIndex: 0
             },
-            tourSteps: [
-              { element: '[data-tour-id="revenue-management"]', popover: { title: "Quản lý doanh thu", description: "Báo cáo dòng tiền, hóa đơn thanh toán và doanh số theo ca.", side: "right" } }
+                                    tourSteps: [
+              { element: '[data-tour-id="sub-service"]', popover: { title: "1. Mở Phân Hệ", description: "Truy cập menu 'Dịch vụ & Xưởng'.", side: "right" } },
+              { element: '[data-tour-id="service-ticket-management"]', popover: { title: "2. Chọn Phiếu Dịch Vụ", description: "Truy cập 'Phiếu dịch vụ' để lấy danh sách cần thanh toán.", side: "right" } },
+              { targetPath: "/service-ticket-management", element: 'select', popover: { title: "3. Chọn Trạng Thái", description: "Lọc các Phiếu dịch vụ ở trạng thái chờ thu tiền.", side: "bottom" } },
+              { targetPath: "/service-ticket-management", element: 'table', popover: { title: "4. Bảng Chờ Thu Tiền", description: "Danh sách xe đang đợi xuất bến.", side: "top" } },
+              { targetPath: "/service-ticket-management", element: 'table tbody tr:first-child button', popover: { title: "5. Nhấn Xem Chi Tiết", description: "Bấm vào phiếu để đối soát các hạng mục dịch vụ.", side: "left" } },
+              { targetPath: "/service-ticket/1", element: 'table', popover: { title: "6. Kiểm Tra Lại Hạng Mục", description: "Thu ngân đối chiếu công việc KTV đã làm và phụ tùng đã thay.", side: "top" } },
+              { targetPath: "/service-ticket/1", element: 'button[class*="primary"]', popover: { title: "7. Nút Thanh Toán", description: "Bấm 'Thanh toán' để chọn hình thức thu tiền.", side: "top" } },
+              { targetPath: "/service-ticket/1", element: 'button[class*="ghost"]', popover: { title: "8. In Phiếu Quyết Toán", description: "In hóa đơn chi tiết cho khách hàng.", side: "bottom" } }
             ]
           },
           {
@@ -915,7 +1000,22 @@ export const DOCS_SECTIONS = [
               ],
               correctIndex: 0
             },
-            tourSteps: []
+                        tourSteps: [
+              { element: '[data-tour-id="revenue-management"]', popover: { title: "1. Mở Phân Hệ", description: "Bấm vào menu Thu ngân & Kế toán ở thanh bên trái.", side: "right" } },
+              { element: '[data-tour-id="parts-sales"]', popover: { title: "2. Chọn Chức Năng", description: "Chọn 'Bán hàng nhanh' để tạo phiếu bán lẻ phụ tùng.", side: "right" } },
+              { targetPath: "/parts-sales", element: 'input[placeholder="Tra cứu khách hàng..."]', popover: { title: "3. Khách Hàng", description: "Nhập số điện thoại hoặc tên khách hàng để hệ thống tự động điền thông tin.", side: "bottom" } },
+              { targetPath: "/parts-sales", element: 'input[name="customerName"]', popover: { title: "4. Tên Khách Hàng", description: "Điền hoặc kiểm tra lại tên khách hàng.", side: "bottom" } },
+              { targetPath: "/parts-sales", element: 'input[name="customerPhone"]', popover: { title: "5. Số Điện Thoại", description: "Điền hoặc kiểm tra lại số điện thoại khách hàng.", side: "bottom" } },
+              { targetPath: "/parts-sales", element: 'input[name="vehiclePlate"]', popover: { title: "6. Biển Số Xe", description: "Tùy chọn: Nhập biển số xe nếu có.", side: "bottom" } },
+              { targetPath: "/parts-sales", element: 'input[placeholder*="Tìm phụ tùng"]', popover: { title: "7. Tìm Phụ Tùng", description: "Nhập mã SKU hoặc tên lốp, bình ắc quy, dầu nhớt... cần bán.", side: "bottom" } },
+              { targetPath: "/parts-sales", element: 'table', popover: { title: "8. Bảng Bán Hàng", description: "Hiển thị danh sách phụ tùng đã chọn để bán lẻ.", side: "top" } },
+              { targetPath: "/parts-sales", element: 'table tbody tr:first-child input[type="number"]', popover: { title: "9. Số Lượng", description: "Nhập số lượng bán thực tế. Lưu ý Tồn kho khả dụng báo bên dưới.", side: "bottom" } },
+              { targetPath: "/parts-sales", element: 'table tbody tr:first-child td:nth-child(8) input', popover: { title: "10. Giảm Giá Nhập Tay", description: "Kế toán có thể nhập số tiền hoặc % giảm giá thêm nếu được quản lý cho phép.", side: "bottom" } },
+              { targetPath: "/parts-sales", element: 'button[class*="summaryButton"]', popover: { title: "11. Thêm Chi Phí Khác", description: "Nhấn để cộng thêm phí vận chuyển, công tháo lắp ngoài nếu có.", side: "top" } },
+              { targetPath: "/parts-sales", element: 'div[class*="summaryRow"]', popover: { title: "12. Kiểm Tra Tổng Tiền", description: "Đối chiếu lại số tiền Cần thanh toán sau khi trừ chiết khấu.", side: "top" } },
+              { targetPath: "/parts-sales", element: 'button[class*="actionButton"]:nth-of-type(1)', popover: { title: "13. In Báo Giá", description: "Bấm để in báo giá tạm tính gửi khách hàng xem trước.", side: "top" } },
+              { targetPath: "/parts-sales", element: 'button[class*="primaryButton"]', popover: { title: "14. Thanh Toán", description: "Bấm 'Thanh toán & Xuất kho' để xác nhận thu tiền và hoàn tất giao dịch.", side: "top" } }
+            ]
           },
           {
             id: "2.5.3",
@@ -944,7 +1044,20 @@ export const DOCS_SECTIONS = [
               ],
               correctIndex: 0
             },
-            tourSteps: []
+                        tourSteps: [
+              { element: '[data-tour-id="revenue-management"]', popover: { title: "1. Mở Phân Hệ", description: "Truy cập 'Thu ngân & Kế toán' -> 'Quản lý Doanh thu' (/revenue-management).", side: "right" } },
+              { targetPath: "/revenue-management", element: 'section[class*="statsGrid"]', popover: { title: "2. Tổng Quan Trong Ngày", description: "Hiển thị Tổng doanh thu, Số lượng phiếu, Lãi gộp dự tính.", side: "bottom" } },
+              { targetPath: "/revenue-management", element: 'section[class*="statsGrid"] article:nth-child(2)', popover: { title: "3. Tỷ Trọng Thanh Toán", description: "Phân loại bao nhiêu % là Tiền mặt, Chuyển khoản, Thẻ.", side: "bottom" } },
+              { targetPath: "/revenue-management", element: 'input[type="date"]', popover: { title: "4. Bộ Lọc Thời Gian", description: "Lọc báo cáo theo ngày, tuần hoặc tháng.", side: "bottom" } },
+              { targetPath: "/revenue-management", element: 'button[class*="primary"]', popover: { title: "5. Lọc Dữ Liệu", description: "Nhấn 'Lọc' để truy xuất báo cáo.", side: "bottom" } },
+              { targetPath: "/revenue-management", element: 'table', popover: { title: "6. Bảng Kê Chứng Từ", description: "Liệt kê chi tiết từng hóa đơn, khách hàng, số tiền.", side: "top" } },
+              { targetPath: "/revenue-management", element: 'table tbody tr:first-child button', popover: { title: "7. Xem Hóa Đơn", description: "Xem lại hóa đơn bán lẻ hoặc phiếu dịch vụ đã thanh toán.", side: "left" } },
+              { targetPath: "/revenue-management", element: 'table tbody tr:first-child select', popover: { title: "8. Kiểm Tra Đối Soát", description: "Kế toán đánh dấu 'Đã khớp ngân hàng' cho các khoản chuyển khoản.", side: "left" } },
+              { targetPath: "/revenue-management", element: 'table tbody td[class*="unpaid"]', popover: { title: "9. Khoản Nợ Chưa Thu", description: "Theo dõi các khoản khách hàng ghi nợ.", side: "right" } },
+              { targetPath: "/revenue-management", element: 'button[class*="primary"]:last-of-type', popover: { title: "10. Chọn Xác Nhận Đối Soát", description: "Bấm 'Xác nhận đối soát' để khóa sổ ca làm việc hiện tại.", side: "top" } },
+              { targetPath: "/revenue-management", element: 'button[class*="ghost"]:first-of-type', popover: { title: "11. In Báo Cáo Chốt Ca", description: "Nhấn 'In báo cáo Z' để lưu trữ chứng từ kết ca.", side: "bottom" } },
+              { targetPath: "/revenue-management", element: 'button[class*="ghost"]:last-of-type', popover: { title: "12. Xuất File Excel", description: "Bấm nút 'Xuất Excel' ở góc phải để tải file bảng tính về.", side: "bottom" } }
+            ]
           },
           {
             id: "2.5.4",
@@ -973,7 +1086,23 @@ export const DOCS_SECTIONS = [
               ],
               correctIndex: 0
             },
-            tourSteps: []
+                        tourSteps: [
+              { element: '[data-tour-id="combo-management"]', popover: { title: "1. Mở Phân Hệ", description: "Truy cập 'Bán hàng & Khuyến mãi' -> 'Quản lý Combo' (/combo-management).", side: "right" } },
+              { targetPath: "/combo-management", element: 'section[class*="statsGrid"]', popover: { title: "2. Khung Nhìn Tổng Quan", description: "Hiển thị danh sách các gói dịch vụ, combo lốp đang triển khai.", side: "right" } },
+              { targetPath: "/combo-management", element: 'select[name="vehicleType"]', popover: { title: "3. Lọc Combo Tương Ứng", description: "Chọn bộ lọc theo 'Loại xe' hoặc 'Loại dịch vụ'.", side: "bottom" } },
+              { targetPath: "/combo-management", element: 'input[placeholder*="Tìm"]', popover: { title: "4. Thanh Tìm Kiếm", description: "Tra nhanh theo tên gói bảo dưỡng.", side: "bottom" } },
+              { targetPath: "/combo-management", element: 'table', popover: { title: "5. Bảng Dữ Liệu", description: "Xem số lượng phụ tùng thành phần, chi phí tổng và giá niêm yết.", side: "top" } },
+              { targetPath: "/combo-management", element: 'button[class*="primary"]', popover: { title: "6. Nút Tạo Mới", description: "Nhấp vào '+ Tạo gói Combo' để bắt đầu xây dựng gói.", side: "bottom" } },
+              { targetPath: "/combo-management/create-combo", element: 'input[name="comboName"]', popover: { title: "7. Khai Báo Thông Tin Chung", description: "Nhập Tên combo, Mô tả ngắn, và Loại xe áp dụng.", side: "right" } },
+              { targetPath: "/combo-management/create-combo", element: 'button[class*="ghost"]:first-of-type', popover: { title: "8. Chọn Phụ Tùng Thành Phần", description: "Tìm và thêm các mã lốp, dầu nhớt... vào danh sách combo.", side: "left" } },
+              { targetPath: "/combo-management/create-combo", element: 'button[class*="ghost"]:last-of-type', popover: { title: "9. Chọn Công Dịch Vụ", description: "Thêm các hạng mục tiền công thay thế.", side: "left" } },
+              { targetPath: "/combo-management/create-combo", element: 'input[name="sellingPrice"]', popover: { title: "10. Cài Đặt Giá Vốn & Giá Bán", description: "Nhập mức 'Giá bán ưu đãi' dựa trên tổng chi phí vốn hệ thống gợi ý.", side: "right" } },
+              { targetPath: "/combo-management/create-combo", element: 'input[name="discount"]', popover: { title: "11. Áp Dụng Chiết Khấu", description: "Điền phần trăm (%) giảm giá so với mua lẻ.", side: "right" } },
+              { targetPath: "/combo-management/create-combo", element: 'input[type="date"]', popover: { title: "12. Thời Hạn Áp Dụng", description: "Thiết lập ngày bắt đầu và kết thúc của gói Combo.", side: "right" } },
+              { targetPath: "/combo-management/create-combo", element: 'button[class*="primary"]', popover: { title: "13. Bấm Lưu Thiết Lập", description: "Nhấn 'Lưu cấu hình' để hệ thống đồng bộ combo này.", side: "top" } },
+              { targetPath: "/combo-management", element: 'table tbody tr:first-child button', popover: { title: "14. Chỉnh Sửa Kịp Thời", description: "Nhấp vào biểu tượng bút chì để điều chỉnh linh hoạt.", side: "left" } },
+              { targetPath: "/combo-management", element: 'table tbody tr:first-child input[type="checkbox"]', popover: { title: "15. Tạm Dừng Hoạt Động", description: "Nhấp công tắc Bật/Tắt để ẩn gói combo khi hết hạn.", side: "left" } }
+            ]
           }
         ]
       }

@@ -5,6 +5,7 @@ import BookingRequestManagement from '../../DashBoard/BookingRequestManagement/B
 import ConfirmedBookingManagement from '../../DashBoard/BookingManagement/ConfirmedBookingManagement.jsx';
 import PartsSales from '../../DashBoard/PartsSales/PartsSales.jsx';
 import CheckIn from '../../DashBoard/CheckInManagenent/CheckIn.jsx';
+import WarehouseStockEntryManagement from '../../DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
 import ServiceTicketManagement from '../../DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
 import AdvisorInspection from '../../DashBoard/AdvisorInspection/AdvisorInspection.jsx';
 import { 
@@ -24,6 +25,7 @@ import {
   Building2, 
   Car, 
   Store,
+  PackagePlus,
   Check,
   Zap,
   RotateCcw,
@@ -408,6 +410,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
                 <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Cài đặt Tồn kho An toàn (Min Threshold):</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <input 
+                    data-tour-id="sandbox-wm-input"
                     type="number" 
                     value={formData.minStockThreshold} 
                     onChange={(e) => setFormData({...formData, minStockThreshold: Number(e.target.value)})}
@@ -425,6 +428,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
 
           <div style={{ display: 'flex', gap: '10px' }}>
             <button 
+              data-tour-id="sandbox-wm-btn-approve"
               type="button"
               onClick={() => handleAction('APPROVED_STOCK_OUT', 'Quản lý kho đã phê duyệt Phiếu xuất kho #ST-OUT-889! Đã gửi thông báo cho Thủ kho soạn hàng.')}
               style={{ padding: '10px 18px', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -433,6 +437,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
               <span>Duyệt Phiếu Xuất Kho</span>
             </button>
             <button 
+              data-tour-id="sandbox-wm-btn-reconcile"
               type="button"
               onClick={() => handleAction('RECONCILED', 'Đã chốt kết quả kiểm kê kho định kỳ! Hệ thống tự động cân bằng chênh lệch +2 lốp.')}
               style={{ padding: '10px 18px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}
@@ -1547,12 +1552,14 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <input 
+              data-tour-id="sandbox-stockin-input"
               type="text" 
               value={formData.barcode} 
               readOnly
               style={{ flex: 1, padding: '10px 12px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.2)', color: '#4ade80', fontFamily: 'monospace', fontWeight: 700, borderRadius: '6px' }}
             />
             <button 
+              data-tour-id="sandbox-stockin-btn"
               type="button"
               onClick={() => handleAction('SCANNED', 'Đã quét thành công tem Michelin SKU: 225/55R17 Primacy 4! Khay vị trí: A-102. Tồn kho +4.')}
               style={{ padding: '10px 18px', background: '#d97706', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -1570,9 +1577,10 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1e293b', padding: '16px', borderRadius: '8px' }}>
             <div>
               <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block' }}>Mã VietQR động thanh toán:</span>
-              <span style={{ fontWeight: 800, color: '#60a5fa', fontSize: '1.1rem' }}>{finalAmount.toLocaleString('vi-VN')} VNĐ</span>
+              <span data-tour-id="sandbox-payment-qr" style={{ fontWeight: 800, color: '#60a5fa', fontSize: '1.1rem' }}>{finalAmount.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <button 
+              data-tour-id="sandbox-payment-btn"
               type="button"
               onClick={() => {
                 setPaymentDone(true);
@@ -1587,8 +1595,162 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
         </div>
       )}
 
+      {/* Sandbox: Warehouse Management Simulator */}
+      {type === 'warehouse_management' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontWeight: 700, color: '#f59e0b', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Box size={18} /> Tổng quan kho & Tồn kho an toàn
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ flex: 1, padding: '12px', background: '#0f172a', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Cảnh báo lốp Michelin dưới định mức:</span>
+                <div data-tour-id="sandbox-dashboard-alert" style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ef4444' }}>15 SKU</div>
+              </div>
+            </div>
+            <button data-tour-id="sandbox-dashboard-btn" type="button" onClick={() => handleAction('EXPORT_REPORT', 'Đã tải xuống Excel Báo cáo tồn kho mới nhất!')} style={{ padding: '10px 18px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>
+              Xuất Báo Cáo Excel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox: Warehouse Config Simulator */}
+      {type === 'warehouse_config' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontWeight: 700, color: '#22c55e', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Building2 size={18} /> Cấu hình vị trí khay kệ
+              </span>
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Thêm mã vị trí mới:</label>
+              <input data-tour-id="sandbox-config-input" type="text" placeholder="VD: Kệ A - Tầng 2..." style={{ width: '100%', padding: '8px 10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem' }} />
+            </div>
+            <button data-tour-id="sandbox-config-btn" type="button" onClick={() => handleAction('SAVE_LOCATION', 'Đã lưu vị trí "Kệ A - Tầng 2" vào Sơ đồ Kho!')} style={{ padding: '10px 18px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>
+              Lưu Vị Trí Mới
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox: Warehouse Pricing Simulator */}
+      {type === 'warehouse_pricing' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontWeight: 700, color: '#3b82f6', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <DollarSign size={18} /> Cấu hình Giá bán Phụ tùng
+              </span>
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Lốp Michelin Primacy 4 (Giá vốn: 2tr):</label>
+              <input data-tour-id="sandbox-pricing-input" type="text" placeholder="Nhập giá bán mới (VD: 2500000)" style={{ width: '100%', padding: '8px 10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem' }} />
+            </div>
+            <button data-tour-id="sandbox-pricing-btn" type="button" onClick={() => handleAction('UPDATE_PRICE', 'Đã áp dụng Giá bán mới! Các báo giá tiếp theo sẽ dùng mức giá này.')} style={{ padding: '10px 18px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>
+              Cập nhật Giá Bán
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox: Part Management Simulator */}
+      {type === 'part_management' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontWeight: 700, color: '#a855f7', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Wrench size={18} /> Thêm mới Mã Phụ Tùng (SKU)
+              </span>
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Tên phụ tùng:</label>
+              <input data-tour-id="sandbox-part-input" type="text" placeholder="Lọc nhớt Toyota Vios 2020..." style={{ width: '100%', padding: '8px 10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem' }} />
+            </div>
+            <button data-tour-id="sandbox-part-btn" type="button" onClick={() => handleAction('ADD_PART', 'Đã khởi tạo thành công Mã phụ tùng mới trong Danh mục!')} style={{ padding: '10px 18px', background: '#9333ea', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>
+              Lưu Thông Tin
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox: Parts Sales Simulator */}
+      {type === 'parts_sales' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontWeight: 700, color: '#ef4444', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShoppingBag size={18} /> Bán hàng nhanh (Bán lẻ)
+              </span>
+            </div>
+            <div style={{ background: '#0f172a', padding: '12px', borderRadius: '6px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1', fontSize: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px', marginBottom: '8px' }}>
+                <span>Bình ắc quy GS 45Ah</span>
+                <span style={{ fontWeight: 700 }}>x1</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#60a5fa', fontSize: '0.9rem', fontWeight: 800 }}>
+                <span>Tổng cộng:</span>
+                <span data-tour-id="sandbox-sales-total">1,250,000 đ</span>
+              </div>
+            </div>
+            <button data-tour-id="sandbox-sales-btn" type="button" onClick={() => handleAction('QUICK_SALE', 'Đã in Hóa đơn Bán lẻ & Tự động xuất kho 1 Bình ắc quy GS 45Ah!')} style={{ padding: '10px 18px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>
+              Thanh Toán Ngay
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox: Revenue Management Simulator */}
+      {type === 'revenue_management' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontWeight: 700, color: '#14b8a6', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CheckCircle2 size={18} /> Chốt Ca & Đối soát Doanh Thu
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div style={{ background: '#0f172a', padding: '12px', borderRadius: '6px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block' }}>Tiền mặt tại két:</span>
+                <span data-tour-id="sandbox-rev-cash" style={{ fontSize: '1.1rem', fontWeight: 800, color: '#facc15' }}>2,500,000 đ</span>
+              </div>
+              <div style={{ background: '#0f172a', padding: '12px', borderRadius: '6px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block' }}>Chuyển khoản (VietQR):</span>
+                <span data-tour-id="sandbox-rev-qr" style={{ fontSize: '1.1rem', fontWeight: 800, color: '#34d399' }}>12,850,000 đ</span>
+              </div>
+            </div>
+            <button data-tour-id="sandbox-rev-btn" type="button" onClick={() => handleAction('REVENUE_MATCHED', 'Xác nhận Khớp số liệu! Đã chốt ca làm việc và lưu vết đối soát.')} style={{ padding: '10px 18px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>
+              Xác nhận Đối Soát
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sandbox: Combo Management Simulator */}
+      {type === 'combo_management' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontWeight: 700, color: '#f43f5e', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <PackagePlus size={18} /> Tạo Gói Combo Dịch Vụ
+              </span>
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Tên Combo mới:</label>
+              <input data-tour-id="sandbox-combo-input" type="text" placeholder="Combo Bảo dưỡng Hè (Thay nhớt + Lọc)..." style={{ width: '100%', padding: '8px 10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem' }} />
+            </div>
+            <button data-tour-id="sandbox-combo-btn" type="button" onClick={() => handleAction('CREATE_COMBO', 'Tạo gói Combo thành công! Cố vấn dịch vụ đã có thể chọn gói này cho Khách.')} style={{ padding: '10px 18px', background: '#e11d48', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>
+              Lưu Gói Combo
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sandbox 10: General Fallback Action Simulator */}
-      {(!['overview', 'warehouse_manager', 'profile', 'search', 'booking', 'inspection', 'quotation', 'mytasks', 'stockin', 'payment'].includes(type)) && (
+      {(!['overview', 'warehouse_manager', 'profile', 'search', 'booking', 'inspection', 'quotation', 'mytasks', 'stockin', 'payment', 'warehouse_management', 'warehouse_config', 'warehouse_pricing', 'part_management', 'parts_sales', 'revenue_management', 'combo_management'].includes(type)) && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1e293b', padding: '16px', borderRadius: '8px' }}>
           <div>
             <span style={{ fontSize: '0.85rem', color: '#94a3b8', display: 'block' }}>Mô phỏng trạng thái hệ thống:</span>
