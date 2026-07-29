@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, X, Send, Cpu, ChevronDown } from 'lucide-react';
 import './aiAssistant.css';
 
-const renderTextWithFormatting = (str) => {
+const renderTextWithFormatting = (str, onLinkClick) => {
   if (!str) return null;
 
   const parts = [];
   // Matches:
-  // 1. **bold** -> Group 1
-  // 2. [text](url) -> Group 2 & 3
-  // 3. `code` -> Group 4
-  // 4. Standalone route starting with / (e.g. /attendance-locations, /booking) -> Group 5
-  const regex = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)|`([^`]+)`|(?<=\s|^|[\(\[\{\:"'\u201c])(\/(?:[a-z0-9\-]+(?:\/[a-z0-9\-]+)*)?)(?=\s|$|[\.,!\?\)\}\:"'\u201d])/gi;
+  // 1. <a href="url">text</a> -> Group 1 (url), Group 2 (text)
+  // 2. **bold** -> Group 3
+  // 3. [text](url) -> Group 4 & 5
+  // 4. `code` -> Group 6
+  // 5. Standalone route starting with / (e.g. /attendance-locations, /booking) -> Group 7
+  const regex = /<a\s+(?:[^>]*?\s+)?href=["']([^"']+)["'][^>]*>(.*?)<\/a>|\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)|`([^`]+)`|(?<=\s|^|[\(\[\{\:"'\u201c])(\/(?:[a-z0-9\-]+(?:\/[a-z0-9\-]+)*)?)(?=\s|$|[\.,!\?\)\}\:"'\u201d])/gi;
 
   let match;
   let lastIndex = 0;
@@ -21,10 +23,26 @@ const renderTextWithFormatting = (str) => {
       parts.push(str.substring(lastIndex, match.index));
     }
 
-    if (match[1] !== undefined) {
-      parts.push(<strong key={`bold-${match.index}`}>{match[1]}</strong>);
-    } else if (match[2] !== undefined && match[3] !== undefined) {
-      const url = match[3];
+    if (match[1] !== undefined && match[2] !== undefined) {
+      const url = match[1];
+      const linkText = match[2];
+      const isInternal = url.startsWith('/');
+      parts.push(
+        <a
+          key={`html-link-${match.index}`}
+          href={url}
+          target={isInternal ? '_self' : '_blank'}
+          rel={isInternal ? undefined : 'noopener noreferrer'}
+          className="ai-assistant__link"
+          onClick={(e) => isInternal && onLinkClick && onLinkClick(e, url)}
+        >
+          {linkText}
+        </a>
+      );
+    } else if (match[3] !== undefined) {
+      parts.push(<strong key={`bold-${match.index}`}>{match[3]}</strong>);
+    } else if (match[4] !== undefined && match[5] !== undefined) {
+      const url = match[5];
       const isInternal = url.startsWith('/');
       parts.push(
         <a
@@ -33,15 +51,21 @@ const renderTextWithFormatting = (str) => {
           target={isInternal ? '_self' : '_blank'}
           rel={isInternal ? undefined : 'noopener noreferrer'}
           className="ai-assistant__link"
+          onClick={(e) => isInternal && onLinkClick && onLinkClick(e, url)}
         >
-          {match[2]}
+          {match[4]}
         </a>
       );
-    } else if (match[4] !== undefined) {
-      const codeText = match[4];
+    } else if (match[6] !== undefined) {
+      const codeText = match[6];
       if (codeText.startsWith('/') && codeText.length > 1 && !codeText.includes(' ')) {
         parts.push(
-          <a key={`route-code-${match.index}`} href={codeText} className="ai-assistant__link">
+          <a
+            key={`route-code-${match.index}`}
+            href={codeText}
+            className="ai-assistant__link"
+            onClick={(e) => onLinkClick && onLinkClick(e, codeText)}
+          >
             {codeText}
           </a>
         );
@@ -52,10 +76,15 @@ const renderTextWithFormatting = (str) => {
           </code>
         );
       }
-    } else if (match[5] !== undefined) {
-      const routePath = match[5];
+    } else if (match[7] !== undefined) {
+      const routePath = match[7];
       parts.push(
-        <a key={`route-${match.index}`} href={routePath} className="ai-assistant__link">
+        <a
+          key={`route-${match.index}`}
+          href={routePath}
+          className="ai-assistant__link"
+          onClick={(e) => onLinkClick && onLinkClick(e, routePath)}
+        >
           {routePath}
         </a>
       );
@@ -71,7 +100,7 @@ const renderTextWithFormatting = (str) => {
   return parts.length > 0 ? parts : str;
 };
 
-const parseMarkdownToJsx = (text) => {
+const parseMarkdownToJsx = (text, onLinkClick) => {
   if (!text) return null;
 
   const lines = text.split('\n');
@@ -83,7 +112,7 @@ const parseMarkdownToJsx = (text) => {
       result.push(
         <ul key={`ul-${key}`} className="ai-assistant__list">
           {listItems.map((item, index) => (
-            <li key={`li-${key}-${index}`}>{renderTextWithFormatting(item)}</li>
+            <li key={`li-${key}-${index}`}>{renderTextWithFormatting(item, onLinkClick)}</li>
           ))}
         </ul>
       );
@@ -100,22 +129,22 @@ const parseMarkdownToJsx = (text) => {
       result.push(<hr key={`hr-${i}`} className="ai-assistant__hr" />);
     } else if (trimmed.startsWith('###### ')) {
       flushList(i);
-      result.push(<h6 key={`h6-${i}`} className="ai-assistant__h6">{renderTextWithFormatting(trimmed.substring(7).trim())}</h6>);
+      result.push(<h6 key={`h6-${i}`} className="ai-assistant__h6">{renderTextWithFormatting(trimmed.substring(7).trim(), onLinkClick)}</h6>);
     } else if (trimmed.startsWith('##### ')) {
       flushList(i);
-      result.push(<h5 key={`h5-${i}`} className="ai-assistant__h5">{renderTextWithFormatting(trimmed.substring(6).trim())}</h5>);
+      result.push(<h5 key={`h5-${i}`} className="ai-assistant__h5">{renderTextWithFormatting(trimmed.substring(6).trim(), onLinkClick)}</h5>);
     } else if (trimmed.startsWith('#### ')) {
       flushList(i);
-      result.push(<h4 key={`h4-${i}`} className="ai-assistant__h4">{renderTextWithFormatting(trimmed.substring(5).trim())}</h4>);
+      result.push(<h4 key={`h4-${i}`} className="ai-assistant__h4">{renderTextWithFormatting(trimmed.substring(5).trim(), onLinkClick)}</h4>);
     } else if (trimmed.startsWith('### ')) {
       flushList(i);
-      result.push(<h3 key={`h3-${i}`} className="ai-assistant__h3">{renderTextWithFormatting(trimmed.substring(4).trim())}</h3>);
+      result.push(<h3 key={`h3-${i}`} className="ai-assistant__h3">{renderTextWithFormatting(trimmed.substring(4).trim(), onLinkClick)}</h3>);
     } else if (trimmed.startsWith('## ')) {
       flushList(i);
-      result.push(<h2 key={`h2-${i}`} className="ai-assistant__h2">{renderTextWithFormatting(trimmed.substring(3).trim())}</h2>);
+      result.push(<h2 key={`h2-${i}`} className="ai-assistant__h2">{renderTextWithFormatting(trimmed.substring(3).trim(), onLinkClick)}</h2>);
     } else if (trimmed.startsWith('# ')) {
       flushList(i);
-      result.push(<h1 key={`h1-${i}`} className="ai-assistant__h1">{renderTextWithFormatting(trimmed.substring(2).trim())}</h1>);
+      result.push(<h1 key={`h1-${i}`} className="ai-assistant__h1">{renderTextWithFormatting(trimmed.substring(2).trim(), onLinkClick)}</h1>);
     } else if (trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('+ ')) {
       listItems.push(trimmed.substring(2).trim());
     } else if (/^\d+\.\s+/.test(trimmed)) {
@@ -124,7 +153,7 @@ const parseMarkdownToJsx = (text) => {
       flushList(i);
     } else {
       flushList(i);
-      result.push(<p key={`p-${i}`} className="ai-assistant__paragraph">{renderTextWithFormatting(line)}</p>);
+      result.push(<p key={`p-${i}`} className="ai-assistant__paragraph">{renderTextWithFormatting(line, onLinkClick)}</p>);
     }
   }
 
@@ -151,12 +180,20 @@ const AIAssistantPanel = ({
   emptyText = 'Xin chào! Tôi có thể giúp gì cho bạn hôm nay?',
   showTokenUsage = true,
 }) => {
+  const navigate = useNavigate();
   const { isOpen, messages, isSending, closePanel, sendMessage, quota, availableModels, selectedModel, setSelectedModel } = aiState;
   const [draft, setDraft] = useState('');
   const listRef = useRef(null);
   const [width, setWidth] = useState(380);
   const [isResizing, setIsResizing] = useState(false);
   const isResizingRef = useRef(false);
+
+  const handleLinkClick = (e, url) => {
+    if (url && url.startsWith('/')) {
+      e.preventDefault();
+      navigate(url);
+    }
+  };
 
   // ==== Hiệu ứng "generative" (chữ hiện dần) cho tin nhắn AI mới nhất ====
   // Backend không stream thật (Gemini trả về nguyên văn), nên hiệu ứng này giả lập
@@ -384,7 +421,7 @@ const AIAssistantPanel = ({
                 key={m.id}
                 className={`ai-assistant__bubble ${m.role === 'user' ? 'is-user' : 'is-ai'} ${m.isError ? 'is-error' : ''}`}
               >
-                {parseMarkdownToJsx(getDisplayText(m))}
+                {parseMarkdownToJsx(getDisplayText(m), handleLinkClick)}
                 {isRevealingMessage(m.id) && <span className="ai-assistant__revealCursor" />}
                 {(m.usedModel || (showTokenUsage && m.usage?.totalTokens != null)) && (
                   <div className="ai-assistant__bubbleMeta">
