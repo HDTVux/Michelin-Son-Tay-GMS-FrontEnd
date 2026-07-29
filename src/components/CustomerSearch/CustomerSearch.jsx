@@ -97,7 +97,7 @@ const CustomerSearch = ({ className = '' }) => {
 
   const askAi = (text) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || !aiState?.enabled) return;
     aiState.openPanel();
     aiState.sendMessage(trimmed);
     setQuery('');
@@ -113,7 +113,11 @@ const CustomerSearch = ({ className = '' }) => {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      askAi(query);
+      if (aiState?.enabled) {
+        askAi(query);
+      } else if (suggestions.length > 0) {
+        handleItemClick(suggestions[0].link);
+      }
     }
   };
 
@@ -140,15 +144,17 @@ const CustomerSearch = ({ className = '' }) => {
             <X size={14} />
           </button>
         )}
-        <button
-          type="button"
-          className="universal-search__ai-submit"
-          onClick={() => askAi(query)}
-          title="Hỏi Trợ lý AI (Enter)"
-          aria-label="Hỏi Trợ lý AI"
-        >
-          <Sparkles size={14} />
-        </button>
+        {aiState?.enabled && (
+          <button
+            type="button"
+            className="universal-search__ai-submit"
+            onClick={() => askAi(query)}
+            title="Hỏi Trợ lý AI (Enter)"
+            aria-label="Hỏi Trợ lý AI"
+          >
+            <Sparkles size={14} />
+          </button>
+        )}
       </div>
 
       {isFocused && query.trim() && (

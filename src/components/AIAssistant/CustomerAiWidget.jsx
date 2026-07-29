@@ -10,6 +10,8 @@ import './aiAssistant.css';
 const CustomerAiWidget = () => {
   const aiState = useCustomerAiAssistant();
 
+  if (!aiState || !aiState.enabled) return null;
+
   return (
     <AIAssistantPanel
       aiState={aiState}

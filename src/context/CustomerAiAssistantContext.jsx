@@ -11,7 +11,8 @@ const CustomerAiAssistantContext = createContext(null);
  * Nhờ dùng chung 1 instance nên panel/lịch sử chat là một, dù mở từ nút nào.
  */
 export const CustomerAiAssistantProvider = ({ children }) => {
-  const aiState = useAIAssistant({ enabled: true, mock: false, isPublic: true });
+  // Tạm ẩn AI cho khách hàng trên website landing page theo yêu cầu (enabled: false)
+  const aiState = useAIAssistant({ enabled: false, mock: false, isPublic: true });
   return (
     <CustomerAiAssistantContext.Provider value={aiState}>
       {children}

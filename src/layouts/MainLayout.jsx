@@ -85,7 +85,7 @@ const MainLayoutContent = ({ isStaff }) => {
                 <span className="floatingCircle__icon"><Bug size={22} strokeWidth={2.2} /></span>
               </button>
             )}
-            {!aiState.isOpen && (
+            {!isStaff && aiState?.enabled && !aiState.isOpen && (
               <button
                 type="button"
                 className="floatingCircle floatingCircle--ai"
