@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Header from './Header/Header.jsx';
 import Footer from './Footer/Footer.jsx';
@@ -8,7 +8,10 @@ import CustomerAiWidget from '../components/AIAssistant/CustomerAiWidget.jsx';
 import BottomContactBar from '../components/BottomContactBar/BottomContactBar.jsx';
 import { CustomerAiAssistantProvider, useCustomerAiAssistant } from '../context/CustomerAiAssistantContext.jsx';
 import { CartProvider } from '../context/CartContext.jsx';
-import { Phone, X, Bot } from 'lucide-react';
+import BugReportModal from '../components/BugReport/BugReportModal.jsx';
+import { useBugReportOpenEvent } from '../components/BugReport/bugReportBus.js';
+import { useShakeToReport } from '../hooks/useShakeToReport.js';
+import { Phone, X, Bot, Bug } from 'lucide-react';
 import zaloLogo from '../assets/logo-zalo-vector.png';
 import messengerLogo from '../assets/messenger-logo.webp';
 import './MainLayout.css';
@@ -22,7 +25,28 @@ const isStaffSubdomain = () => {
 
 const MainLayoutContent = ({ isStaff }) => {
   const [isVisible, setIsVisible] = useState(true);
+  const [isBugReportOpen, setIsBugReportOpen] = useState(false);
+  // Nút báo lỗi cần danh tính người gửi nên chỉ mở cho khách đã đăng nhập.
+  const [hasCustomerSession, setHasCustomerSession] = useState(
+    () => Boolean(localStorage.getItem('customerToken')),
+  );
   const aiState = useCustomerAiAssistant();
+
+  useEffect(() => {
+    const syncSession = () => setHasCustomerSession(Boolean(localStorage.getItem('customerToken')));
+    // 'authChange' do luồng đăng nhập/đăng xuất phát ra, 'storage' cho tab khác.
+    window.addEventListener('authChange', syncSession);
+    window.addEventListener('storage', syncSession);
+    return () => {
+      window.removeEventListener('authChange', syncSession);
+      window.removeEventListener('storage', syncSession);
+    };
+  }, []);
+
+  // Mở form từ mục "Báo lỗi phần mềm" trong dropdown avatar của Header.
+  useBugReportOpenEvent(useCallback(() => setIsBugReportOpen(true), []));
+  // Mobile không có nút nổi — lắc máy để báo lỗi.
+  useShakeToReport(!isStaff && hasCustomerSession && !isBugReportOpen);
 
   return (
     <div className="layoutRoot">
@@ -50,6 +74,17 @@ const MainLayoutContent = ({ isStaff }) => {
             >
               <X size={14} strokeWidth={2.5} />
             </button>
+            {hasCustomerSession && (
+              <button
+                type="button"
+                className="floatingCircle floatingCircle--bug"
+                onClick={() => setIsBugReportOpen(true)}
+                aria-label="Báo lỗi phần mềm"
+              >
+                <span className="floatingCircle__tooltip">Báo lỗi phần mềm</span>
+                <span className="floatingCircle__icon"><Bug size={22} strokeWidth={2.2} /></span>
+              </button>
+            )}
             {!aiState.isOpen && (
               <button
                 type="button"
@@ -88,6 +123,10 @@ const MainLayoutContent = ({ isStaff }) => {
             📞
           </button>
         )
+      )}
+
+      {!isStaff && (
+        <BugReportModal open={isBugReportOpen} onClose={() => setIsBugReportOpen(false)} />
       )}
     </div>
   );

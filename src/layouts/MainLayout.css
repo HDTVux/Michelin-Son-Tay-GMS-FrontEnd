@@ -207,6 +207,27 @@
 	50% { transform: scale(1.12); }
 }
 
+/* Nút báo lỗi phần mềm — chỉ hiện với khách hàng đã đăng nhập */
+.floatingCircle--bug {
+	background: linear-gradient(135deg, #e11d48 0%, #b91c1c 100%);
+	color: #ffffff;
+	border: none;
+	padding: 0;
+	font: inherit;
+}
+
+.floatingCircle--bug:hover {
+	transform: scale(1.16) translateY(-6px);
+	box-shadow: 0 12px 32px rgba(190, 18, 60, 0.45), 0 0 0 4px rgba(190, 18, 60, 0.3);
+}
+
+/* Mobile: bỏ nút cho thoáng — báo lỗi bằng cách lắc máy hoặc qua menu tài khoản */
+@media (max-width: 768px) {
+	.floatingCircle--bug {
+		display: none;
+	}
+}
+
 /* Ripple effect on click */
 .floatingCircle::after {
 	content: '';

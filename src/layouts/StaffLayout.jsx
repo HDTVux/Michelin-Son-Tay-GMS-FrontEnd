@@ -11,6 +11,7 @@ import ChatLauncher from '../components/Chat/ChatLauncher.jsx';
 import ChatWindowDock from '../components/Chat/ChatWindowDock.jsx';
 import ChatMobileNavButton from '../components/Chat/ChatMobileNavButton.jsx';
 import AIAssistantPanel from '../components/AIAssistant/AIAssistantPanel.jsx';
+import BugReportLauncher from '../components/BugReport/BugReportLauncher.jsx';
 import { resyncPushSubscription } from '../hooks/usePushNotifications.js';
 import { initNotificationSound } from '../utils/notificationSound.js';
 import { checkAndRunPendingDriverTour } from '../pages/Docs/utils/driverTourUtils.js';
@@ -661,6 +662,7 @@ const StaffLayout = () => {
       {hasStaffToken && <MobileNavbar notificationState={notificationState} />}
       {hasStaffToken && <ChatWindowDock chatState={chatState} />}
       {hasStaffToken && <AIAssistantPanel aiState={aiAssistantState} />}
+      {hasStaffToken && <BugReportLauncher />}
       <UserTour type="staff" />
     </div>
   );

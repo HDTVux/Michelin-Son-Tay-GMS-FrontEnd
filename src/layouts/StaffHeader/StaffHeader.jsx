@@ -21,11 +21,13 @@ import {
   ScanQrCode,
   FileClock,
   Sparkles,
+  Bug,
 } from 'lucide-react';
 import { getAvatarSrc, handleAvatarError } from '../../assets/defaultAvatar.js';
 import UniversalScannerModal from '../../components/UniversalScanner/UniversalScannerModal.jsx';
 import UniversalSearch from '../../components/UniversalSearch/UniversalSearch.jsx';
 import PushNotificationToggle from '../../components/PushNotification/PushNotificationToggle.jsx';
+import { openBugReportModal } from '../../components/BugReport/bugReportBus.js';
 import './StaffHeader.css';
 
 const STAFF_ROLE = {
@@ -445,6 +447,18 @@ const StaffHeader = ({ notificationState, notificationBell, chatButton, onOpenAi
                   <span className="staff-header__dropdown-item-label">Trợ lý AI</span>
                 </button>
               )}
+              <button
+                type="button"
+                className="staff-header__dropdown-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsProfileDropdownOpen(false);
+                  openBugReportModal();
+                }}
+              >
+                <span className="staff-header__dropdown-item-icon"><Bug size={18} /></span>
+                <span className="staff-header__dropdown-item-label">Báo lỗi phần mềm</span>
+              </button>
               <hr className="staff-header__dropdown-divider" />
               <PushNotificationToggle />
               <hr className="staff-header__dropdown-divider" />

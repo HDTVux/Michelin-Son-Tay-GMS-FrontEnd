@@ -7,6 +7,7 @@ import { DEFAULT_AVATAR, handleAvatarError } from '../../assets/defaultAvatar.js
 import { useCart } from '../../context/CartContext.jsx';
 import { fetchHomeProducts } from '../../services/homeService.js';
 import CustomerSearch from '../../components/CustomerSearch/CustomerSearch.jsx';
+import { openBugReportModal } from '../../components/BugReport/bugReportBus.js';
 
 // Dữ liệu hãng xe / dòng xe phổ biến tại VN để lọc phụ tùng theo xe (đồng bộ với CAR_DATA của Services.jsx)
 const CAR_DATA = {
@@ -333,6 +334,15 @@ const Header = () => {
                     <div className="userDropdown">
                       <Link to="/user-profile" onClick={() => setIsUserDropdownOpen(false)}>Tài khoản của tôi</Link>
                       <Link to="/my-bookings" onClick={() => setIsUserDropdownOpen(false)}>Đặt lịch của tôi</Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserDropdownOpen(false);
+                          openBugReportModal();
+                        }}
+                      >
+                        Báo lỗi phần mềm
+                      </button>
                       <button type="button" onClick={handleLogout}>Đăng xuất</button>
                     </div>
                   )}
