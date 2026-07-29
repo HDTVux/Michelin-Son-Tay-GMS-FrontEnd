@@ -8,6 +8,47 @@ import CheckIn from '../../DashBoard/CheckInManagenent/CheckIn.jsx';
 import WarehouseStockEntryManagement from '../../DashBoard/WarehouseManagement/WarehouseStockEntryManagement.jsx';
 import ServiceTicketManagement from '../../DashBoard/ServiceTicketManagement/ServiceTicketManagement.jsx';
 import AdvisorInspection from '../../DashBoard/AdvisorInspection/AdvisorInspection.jsx';
+// Các trang thật được nhúng vào khung trình duyệt mô phỏng của từng bài học.
+import StaffDashboard from '../../DashBoard/StaffDashboard/StaffDashboard.jsx';
+import StaffNotifications from '../../DashBoard/StaffNotifications/StaffNotifications.jsx';
+import DailySchedule from '../../DashBoard/DailySchedule/DailySchedule.jsx';
+import AttendanceCheckin from '../../DashBoard/AttendanceCheckin/AttendanceCheckin.jsx';
+import SystemTutorials from '../../DashBoard/SystemTutorials/SystemTutorials.jsx';
+import StaffProfile from '../../StaffProfile/StaffProfile.jsx';
+import CustomerManager from '../../DashBoard/CustomerManager/CustomerManager.jsx';
+import QueueManagement from '../../DashBoard/QueueManagement/QueueManagement.jsx';
+import VehicleManagement from '../../DashBoard/VehicleManagement/VehicleManagement.jsx';
+import MyTasks from '../../Technician/MyTasks/MyTasks.jsx';
+import WarehouseStockIssues from '../../DashBoard/WarehouseManagement/WarehouseStockIssuesManagement.jsx';
+import WarehouseReturnEntryManagement from '../../DashBoard/WarehouseManagement/WarehouseReturnEntryManagement.jsx';
+import WarehouseManagement from '../../DashBoard/WarehouseManagement/WarehouseManagement.jsx';
+import WarehouseConfig from '../../DashBoard/WarehouseManagement/WarehouseConfig.jsx';
+import WarehousePricing from '../../DashBoard/WarehouseManagement/WarehousePricing.jsx';
+import WarehouseFallbackPricing from '../../DashBoard/WarehouseManagement/WarehouseFallbackPricing.jsx';
+import WarehouseDefectiveInventory from '../../DashBoard/WarehouseManagement/WarehouseDefectiveInventory.jsx';
+import WarehouseDefectReport from '../../DashBoard/WarehouseManagement/WarehouseDefectReport.jsx';
+import WarehouseExcelImport from '../../DashBoard/WarehouseManagement/WarehouseExcelImport.jsx';
+import PartManagement from '../../DashBoard/PartManagement/PartManagement.jsx';
+import CreateProduct from '../../DashBoard/PartManagement/CreateProduct.jsx';
+import ServiceManagement from '../../DashBoard/PartManagement/ServiceManagement.jsx';
+import ComboManagement from '../../DashBoard/PartManagement/ComboManagement.jsx';
+import RevenueManagement from '../../DashBoard/RevenueManagement/RevenueManagement.jsx';
+import PromotionManagement from '../../DashBoard/PromotionManagement/PromotionManagement.jsx';
+import PointConfig from '../../DashBoard/PointConfig/PointConfig.jsx';
+import MaintenanceReminder from '../../DashBoard/MaintenanceReminder/MaintenanceReminder.jsx';
+import SendReminder from '../../DashBoard/SendReminder/SendReminder.jsx';
+import FeedbackManagement from '../../DashBoard/FeedbackManagement/FeedbackManagement.jsx';
+import SliderManagement from '../../DashBoard/SliderManagement/SliderManagement.jsx';
+import StaffManagement from '../../DashBoard/StaffManagement/StaffManagement.jsx';
+import EmployeeManager from '../../DashBoard/EmployeeManager/EmployeeManager.jsx';
+import ShiftManagement from '../../DashBoard/ShiftManagement/ShiftManagement.jsx';
+import AttendanceManagement from '../../DashBoard/AttendanceManagement/AttendanceManagement.jsx';
+import AttendanceLocationManagement from '../../DashBoard/AttendanceLocationManagement/AttendanceLocationManagement.jsx';
+import AttendanceRequestManagement from '../../DashBoard/AttendanceRequestManagement/AttendanceRequestManagement.jsx';
+import StaffNotificationSender from '../../DashBoard/StaffNotificationSender/StaffNotificationSender.jsx';
+import KPIManagement from '../../DashBoard/KPIManagement/KPIManagement.jsx';
+import SystemLogManagement from '../../DashBoard/SystemReport/SystemLogManagement.jsx';
+import BackendLogViewer from '../../DashBoard/BackendLogViewer/BackendLogViewer.jsx';
 import { 
   Play, 
   CheckCircle2, 
@@ -38,8 +79,277 @@ import {
   Bell,
   Pencil,
   Sparkles,
-  ChevronDown
+  ChevronDown,
+  LayoutDashboard,
+  Calendar,
+  CalendarDays,
+  BookOpen,
+  Contact,
+  Users,
+  Upload,
+  Undo,
+  AlertTriangle,
+  ClipboardList,
+  Percent,
+  FileSpreadsheet,
+  Layers,
+  Printer,
+  Gift,
+  Star,
+  Megaphone,
+  Image as ImageIcon,
+  MapPin,
+  TrendingUp,
+  Terminal
 } from 'lucide-react';
+import { SANDBOX_SCREENS } from '../data/sandboxScreens.js';
+
+// Map tên icon trong sandboxScreens.js -> component lucide tương ứng.
+const SCREEN_ICONS = {
+  LayoutDashboard, Bell, Calendar, CalendarDays, ScanQrCode, BookOpen, Contact, Clock, Car,
+  ShieldCheck, Wrench, Upload, Undo, AlertTriangle, ClipboardList, Percent, FileSpreadsheet,
+  Layers, Store, Printer, Gift, Star, HeartHandshake, Megaphone, MessageCircle,
+  Image: ImageIcon, Users, UserCheck, Check, MapPin, TrendingUp, FileText, Terminal, Box,
+};
+
+/**
+ * LIVE_SCREENS — bài học nào nhúng thẳng giao diện THẬT của trang đó vào khung
+ * trình duyệt mô phỏng (giống cách bài "Luồng Tiếp nhận xe" nhúng <CheckIn />).
+ * Nhờ vậy học viên thực hành trên đúng UI sẽ gặp khi làm việc thật, thay vì xem
+ * một khối mô phỏng vẽ lại.
+ */
+const LIVE_SCREENS = {
+  /* Bắt đầu nhanh */
+  dashboard_home: { url: '/dashboard', Component: StaffDashboard },
+  notifications_messages: { url: '/notifications', Component: StaffNotifications },
+  schedule_history: { url: '/daily-schedule', Component: DailySchedule },
+  attendance_personal: { url: '/attendance-checkin', Component: AttendanceCheckin },
+  docs_center: { url: '/system-tutorials', Component: SystemTutorials },
+  profile: { url: '/staff-profile', Component: StaffProfile },
+  /* Lễ tân */
+  customer_directory: { url: '/customer-manager', Component: CustomerManager },
+  queue_board: { url: '/queue-management', Component: QueueManagement },
+  vehicle_records: { url: '/vehicle-management', Component: VehicleManagement },
+  /* Kỹ thuật viên */
+  mytasks: { url: '/technician/my-tasks', Component: MyTasks },
+  tech_inspection: { url: '/advisor/inspection', Component: AdvisorInspection },
+  tech_progress: { url: '/technician/my-tasks', Component: MyTasks },
+  /* Kho & phụ tùng */
+  stock_issue: { url: '/warehouse-stock-issues', Component: WarehouseStockIssues },
+  stock_return: { url: '/warehouse-return-entries', Component: WarehouseReturnEntryManagement },
+  warehouse_management: { url: '/warehouse-management', Component: WarehouseManagement },
+  warehouse_config: { url: '/warehouse-config', Component: WarehouseConfig },
+  warehouse_pricing: { url: '/warehouse-pricing', Component: WarehousePricing },
+  part_management: { url: '/part-management', Component: PartManagement },
+  defective_inventory: { url: '/warehouse-defective-inventory', Component: WarehouseDefectiveInventory },
+  defect_report: { url: '/warehouse-defect-report', Component: WarehouseDefectReport },
+  fallback_markup: { url: '/warehouse-fallback-pricing', Component: WarehouseFallbackPricing },
+  excel_import: { url: '/warehouse-excel-import', Component: WarehouseExcelImport },
+  part_attributes: { url: '/part-management/create-product', Component: CreateProduct },
+  /* Thu ngân & kế toán */
+  quick_sale: { url: '/parts-sales', Component: PartsSales },
+  revenue_management: { url: '/revenue-management', Component: RevenueManagement },
+  combo_management: { url: '/combo-management', Component: ComboManagement },
+  service_catalog: { url: '/service-management', Component: ServiceManagement },
+  /* Marketing & CSKH */
+  promotion: { url: '/promotion-management', Component: PromotionManagement },
+  point_tier: { url: '/point-config', Component: PointConfig },
+  maintenance_reminder: { url: '/maintenance-reminders', Component: MaintenanceReminder },
+  announcement_campaign: { url: '/announcement_campaign', Component: SendReminder },
+  feedback: { url: '/feedback-management', Component: FeedbackManagement },
+  slider: { url: '/slider-management', Component: SliderManagement },
+  /* Nhân sự & chấm công */
+  staff_roles: { url: '/staff-manager', Component: StaffManagement },
+  employee_profile: { url: '/employee-manager', Component: EmployeeManager },
+  shift_config: { url: '/shift-management', Component: ShiftManagement },
+  attendance_summary: { url: '/attendance-management', Component: AttendanceManagement },
+  attendance_location: { url: '/attendance-locations', Component: AttendanceLocationManagement },
+  attendance_approval: { url: '/attendance-request-management', Component: AttendanceRequestManagement },
+  staff_notification: { url: '/staff-notification-sender', Component: StaffNotificationSender },
+  /* Báo cáo & hệ thống */
+  kpi: { url: '/kpi-management', Component: KPIManagement },
+  system_log: { url: '/system-log-management', Component: SystemLogManagement },
+  backend_log: { url: '/backend-logs', Component: BackendLogViewer },
+};
+
+/**
+ * Khung "trình duyệt mini" bọc quanh trang thật được nhúng — cùng kiểu với sandbox
+ * của bài Luồng Tiếp nhận xe để toàn bộ tài liệu có một ngôn ngữ hình ảnh thống nhất.
+ */
+function LivePageFrame({ url, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ background: '#0f172a', border: '1px solid rgba(59, 130, 246, 0.4)', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)' }}>
+        <div style={{ background: '#1e293b', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e' }} />
+          </div>
+          <div style={{ background: '#0f172a', padding: '4px 16px', borderRadius: '6px', fontSize: '0.75rem', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Globe size={12} style={{ color: '#3b82f6' }} />
+            <span>https://gms.michelin-sontay.vn{url}</span>
+          </div>
+          <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Zap size={14} style={{ color: '#facc15' }} />
+            Giao diện Thực tế 100%
+          </span>
+        </div>
+        <div style={{ maxHeight: '680px', overflowY: 'auto', background: '#f8fafc', padding: '16px', position: 'relative' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Nếu trang thật nhúng vào bị lỗi runtime (thiếu dữ liệu, API trả lỗi...), hiển thị
+ * bản mô phỏng tĩnh từ sandboxScreens.js thay vì làm sập cả trang tài liệu.
+ */
+class SandboxErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error) {
+    console.warn('Sandbox live page error:', error);
+  }
+
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+/**
+ * MockScreen — bản mô phỏng tĩnh dựng từ spec trong sandboxScreens.js. Dùng cho các
+ * bài chưa có trang thật nhúng được, và làm phương án dự phòng khi trang thật lỗi.
+ */
+function MockScreen({ spec, onAction }) {
+  const Icon = SCREEN_ICONS[spec.icon] || Sparkles;
+  const accent = spec.accent || '#3b82f6';
+
+  return (
+    <div style={{ background: '#1e293b', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <span style={{ fontWeight: 700, color: accent, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Icon size={18} /> {spec.title}
+        </span>
+        {spec.route && (
+          <code style={{ fontSize: '0.72rem', color: '#94a3b8', background: '#0f172a', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {spec.route}
+          </code>
+        )}
+      </div>
+
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {spec.toolbar?.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {spec.toolbar.map((chip, i) => (
+              <span
+                key={chip}
+                style={{
+                  fontSize: '0.75rem', fontWeight: 600, padding: '5px 12px', borderRadius: '999px',
+                  background: i === 0 ? accent : '#0f172a',
+                  color: i === 0 ? '#fff' : '#94a3b8',
+                  border: `1px solid ${i === 0 ? accent : 'rgba(255,255,255,0.12)'}`,
+                }}
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {spec.stats?.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+            {spec.stats.map((s) => (
+              <div key={s.label} style={{ background: '#0f172a', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>{s.label}</span>
+                <span style={{ fontSize: '1.05rem', fontWeight: 800, color: s.color || accent }}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {spec.fields?.map((f) => (
+          <div key={f.label}>
+            <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>{f.label}:</label>
+            <input
+              type="text"
+              placeholder={f.placeholder}
+              style={{ width: '100%', padding: '8px 10px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem' }}
+            />
+          </div>
+        ))}
+
+        {spec.table && (
+          <div style={{ overflowX: 'auto', background: '#0f172a', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: '380px' }}>
+              <thead>
+                <tr>
+                  {spec.table.columns.map((c) => (
+                    <th key={c} style={{ textAlign: 'left', padding: '9px 12px', color: '#94a3b8', fontWeight: 700, borderBottom: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap' }}>
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {spec.table.rows.map((row, ri) => (
+                  <tr key={`row-${ri}`}>
+                    {row.map((cell, ci) => (
+                      <td
+                        key={`cell-${ri}-${ci}`}
+                        style={{
+                          padding: '9px 12px', color: ci === 0 ? '#e2e8f0' : '#cbd5e1',
+                          fontWeight: ci === 0 ? 600 : 400,
+                          borderBottom: ri === spec.table.rows.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                        }}
+                      >
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {spec.actions?.map((a) => (
+            <button
+              key={a.label}
+              type="button"
+              onClick={() => onAction(a.status, a.message)}
+              style={{
+                padding: '10px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem',
+                border: a.variant === 'ghost' ? '1px solid rgba(255,255,255,0.2)' : 'none',
+                background: a.variant === 'ghost' ? 'transparent' : accent,
+                color: a.variant === 'ghost' ? '#cbd5e1' : '#fff',
+              }}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+
+        {spec.note && (
+          <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.5, borderLeft: `3px solid ${accent}`, paddingLeft: '10px' }}>
+            💡 {spec.note}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Nghiệp vụ' }) {
   // 10 Entry Points configuration for system overview matrix
@@ -449,7 +759,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
       )}
 
       {/* Sandbox 2: Mini Browser Login & Profile Simulator */}
-      {type === 'profile' && (
+      {type === 'profile' && !LIVE_SCREENS[type] && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {/* Mini Browser Window Frame */}
           <div style={{
@@ -1519,7 +1829,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
       )}
 
       {/* Sandbox 7: Technician My Tasks Simulator */}
-      {type === 'mytasks' && (
+      {type === 'mytasks' && !LIVE_SCREENS[type] && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Danh sách công việc cần làm trên xe 29A-888.99:</span>
           {[
@@ -1596,7 +1906,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
       )}
 
       {/* Sandbox: Warehouse Management Simulator */}
-      {type === 'warehouse_management' && (
+      {type === 'warehouse_management' && !LIVE_SCREENS[type] && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -1618,7 +1928,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
       )}
 
       {/* Sandbox: Warehouse Config Simulator */}
-      {type === 'warehouse_config' && (
+      {type === 'warehouse_config' && !LIVE_SCREENS[type] && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -1638,7 +1948,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
       )}
 
       {/* Sandbox: Warehouse Pricing Simulator */}
-      {type === 'warehouse_pricing' && (
+      {type === 'warehouse_pricing' && !LIVE_SCREENS[type] && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -1658,7 +1968,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
       )}
 
       {/* Sandbox: Part Management Simulator */}
-      {type === 'part_management' && (
+      {type === 'part_management' && !LIVE_SCREENS[type] && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -1704,7 +2014,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
       )}
 
       {/* Sandbox: Revenue Management Simulator */}
-      {type === 'revenue_management' && (
+      {type === 'revenue_management' && !LIVE_SCREENS[type] && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -1730,7 +2040,7 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
       )}
 
       {/* Sandbox: Combo Management Simulator */}
-      {type === 'combo_management' && (
+      {type === 'combo_management' && !LIVE_SCREENS[type] && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -1749,8 +2059,26 @@ export default function InteractiveSandbox({ type = 'overview', topicTitle = 'Ng
         </div>
       )}
 
+      {/* Nhúng giao diện THẬT của trang tương ứng vào khung trình duyệt mô phỏng */}
+      {LIVE_SCREENS[type] && (
+        <SandboxErrorBoundary
+          fallback={SANDBOX_SCREENS[type]
+            ? <MockScreen spec={SANDBOX_SCREENS[type]} onAction={handleAction} />
+            : null}
+        >
+          <LivePageFrame url={LIVE_SCREENS[type].url}>
+            {React.createElement(LIVE_SCREENS[type].Component)}
+          </LivePageFrame>
+        </SandboxErrorBoundary>
+      )}
+
+      {/* Bài chưa có trang thật nhúng được: dùng bản mô phỏng tĩnh theo spec */}
+      {!LIVE_SCREENS[type] && SANDBOX_SCREENS[type] && (
+        <MockScreen spec={SANDBOX_SCREENS[type]} onAction={handleAction} />
+      )}
+
       {/* Sandbox 10: General Fallback Action Simulator */}
-      {(!['overview', 'warehouse_manager', 'profile', 'search', 'booking', 'inspection', 'quotation', 'mytasks', 'stockin', 'payment', 'warehouse_management', 'warehouse_config', 'warehouse_pricing', 'part_management', 'parts_sales', 'revenue_management', 'combo_management'].includes(type)) && (
+      {!LIVE_SCREENS[type] && !SANDBOX_SCREENS[type] && (!['overview', 'warehouse_manager', 'profile', 'search', 'booking', 'online_booking', 'confirmed_booking', 'check_in', 'advisor_inspection', 'service_ticket_detail', 'inspection', 'quotation', 'mytasks', 'stockin', 'payment', 'warehouse_management', 'warehouse_config', 'warehouse_pricing', 'part_management', 'parts_sales', 'revenue_management', 'combo_management'].includes(type)) && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1e293b', padding: '16px', borderRadius: '8px' }}>
           <div>
             <span style={{ fontSize: '0.85rem', color: '#94a3b8', display: 'block' }}>Mô phỏng trạng thái hệ thống:</span>

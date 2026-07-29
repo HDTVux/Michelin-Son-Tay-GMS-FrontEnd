@@ -27,18 +27,18 @@ const authHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export const sendAiMessage = ({ message, history = [] }) =>
+export const sendAiMessage = ({ message, history = [], model = null }) =>
   request('/api/ai-assistant/chat', {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ message, history }),
+    body: JSON.stringify({ message, history, model }),
   }).then((response) => unwrapData(response, null));
 
 // Kênh công khai cho khách hàng trên website — không gửi token, BE tự rate-limit theo IP.
-export const sendPublicAiMessage = ({ message, history = [] }) =>
+export const sendPublicAiMessage = ({ message, history = [], model = null }) =>
   request('/home/ai-assistant/chat', {
     method: 'POST',
-    body: JSON.stringify({ message, history }),
+    body: JSON.stringify({ message, history, model }),
   }).then((response) => unwrapData(response, null));
 
 export const getAiQuota = () =>
@@ -46,3 +46,9 @@ export const getAiQuota = () =>
 
 export const getPublicAiQuota = () =>
   request('/home/ai-assistant/quota').then((response) => unwrapData(response, null));
+
+export const getAiModels = () =>
+  request('/api/ai-assistant/models', { headers: authHeaders() }).then((response) => unwrapData(response, []));
+
+export const getPublicAiModels = () =>
+  request('/home/ai-assistant/models').then((response) => unwrapData(response, []));

@@ -1,6 +1,75 @@
 import { useEffect, useRef, useState } from 'react';
-import { Sparkles, X, Send } from 'lucide-react';
+import { Sparkles, X, Send, Cpu, ChevronDown } from 'lucide-react';
 import './aiAssistant.css';
+
+const renderTextWithFormatting = (str) => {
+  if (!str) return null;
+
+  const parts = [];
+  // Matches:
+  // 1. **bold** -> Group 1
+  // 2. [text](url) -> Group 2 & 3
+  // 3. `code` -> Group 4
+  // 4. Standalone route starting with / (e.g. /attendance-locations, /booking) -> Group 5
+  const regex = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)|`([^`]+)`|(?<=\s|^|[\(\[\{\:"'\u201c])(\/(?:[a-z0-9\-]+(?:\/[a-z0-9\-]+)*)?)(?=\s|$|[\.,!\?\)\}\:"'\u201d])/gi;
+
+  let match;
+  let lastIndex = 0;
+
+  while ((match = regex.exec(str)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(str.substring(lastIndex, match.index));
+    }
+
+    if (match[1] !== undefined) {
+      parts.push(<strong key={`bold-${match.index}`}>{match[1]}</strong>);
+    } else if (match[2] !== undefined && match[3] !== undefined) {
+      const url = match[3];
+      const isInternal = url.startsWith('/');
+      parts.push(
+        <a
+          key={`link-${match.index}`}
+          href={url}
+          target={isInternal ? '_self' : '_blank'}
+          rel={isInternal ? undefined : 'noopener noreferrer'}
+          className="ai-assistant__link"
+        >
+          {match[2]}
+        </a>
+      );
+    } else if (match[4] !== undefined) {
+      const codeText = match[4];
+      if (codeText.startsWith('/') && codeText.length > 1 && !codeText.includes(' ')) {
+        parts.push(
+          <a key={`route-code-${match.index}`} href={codeText} className="ai-assistant__link">
+            {codeText}
+          </a>
+        );
+      } else {
+        parts.push(
+          <code key={`code-${match.index}`} className="ai-assistant__inlineCode">
+            {codeText}
+          </code>
+        );
+      }
+    } else if (match[5] !== undefined) {
+      const routePath = match[5];
+      parts.push(
+        <a key={`route-${match.index}`} href={routePath} className="ai-assistant__link">
+          {routePath}
+        </a>
+      );
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < str.length) {
+    parts.push(str.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : str;
+};
 
 const parseMarkdownToJsx = (text) => {
   if (!text) return null;
@@ -8,27 +77,6 @@ const parseMarkdownToJsx = (text) => {
   const lines = text.split('\n');
   const result = [];
   let listItems = [];
-
-  const renderTextWithFormatting = (str) => {
-    const parts = [];
-    const regex = /\*\*([^*]+)\*\*/g;
-    let match;
-    let lastIndex = 0;
-
-    while ((match = regex.exec(str)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(str.substring(lastIndex, match.index));
-      }
-      parts.push(<strong key={`bold-${match.index}`}>{match[1]}</strong>);
-      lastIndex = regex.lastIndex;
-    }
-
-    if (lastIndex < str.length) {
-      parts.push(str.substring(lastIndex));
-    }
-
-    return parts.length > 0 ? parts : str;
-  };
 
   const flushList = (key) => {
     if (listItems.length > 0) {
@@ -47,7 +95,19 @@ const parseMarkdownToJsx = (text) => {
     const line = lines[i];
     const trimmed = line.trim();
 
-    if (trimmed.startsWith('### ')) {
+    if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
+      flushList(i);
+      result.push(<hr key={`hr-${i}`} className="ai-assistant__hr" />);
+    } else if (trimmed.startsWith('###### ')) {
+      flushList(i);
+      result.push(<h6 key={`h6-${i}`} className="ai-assistant__h6">{renderTextWithFormatting(trimmed.substring(7).trim())}</h6>);
+    } else if (trimmed.startsWith('##### ')) {
+      flushList(i);
+      result.push(<h5 key={`h5-${i}`} className="ai-assistant__h5">{renderTextWithFormatting(trimmed.substring(6).trim())}</h5>);
+    } else if (trimmed.startsWith('#### ')) {
+      flushList(i);
+      result.push(<h4 key={`h4-${i}`} className="ai-assistant__h4">{renderTextWithFormatting(trimmed.substring(5).trim())}</h4>);
+    } else if (trimmed.startsWith('### ')) {
       flushList(i);
       result.push(<h3 key={`h3-${i}`} className="ai-assistant__h3">{renderTextWithFormatting(trimmed.substring(4).trim())}</h3>);
     } else if (trimmed.startsWith('## ')) {
@@ -56,8 +116,10 @@ const parseMarkdownToJsx = (text) => {
     } else if (trimmed.startsWith('# ')) {
       flushList(i);
       result.push(<h1 key={`h1-${i}`} className="ai-assistant__h1">{renderTextWithFormatting(trimmed.substring(2).trim())}</h1>);
-    } else if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+    } else if (trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('+ ')) {
       listItems.push(trimmed.substring(2).trim());
+    } else if (/^\d+\.\s+/.test(trimmed)) {
+      listItems.push(trimmed.replace(/^\d+\.\s+/, '').trim());
     } else if (!trimmed) {
       flushList(i);
     } else {
@@ -89,7 +151,7 @@ const AIAssistantPanel = ({
   emptyText = 'Xin chào! Tôi có thể giúp gì cho bạn hôm nay?',
   showTokenUsage = true,
 }) => {
-  const { isOpen, messages, isSending, closePanel, sendMessage, quota } = aiState;
+  const { isOpen, messages, isSending, closePanel, sendMessage, quota, availableModels, selectedModel, setSelectedModel } = aiState;
   const [draft, setDraft] = useState('');
   const listRef = useRef(null);
   const [width, setWidth] = useState(380);
@@ -263,6 +325,24 @@ const AIAssistantPanel = ({
               <Sparkles size={18} />
               <span>{title}</span>
             </div>
+            {availableModels && availableModels.length > 0 && (
+              <div className="ai-assistant__modelSelectorWrapper" title="Chọn Model Gemini ưu tiên">
+                <Cpu size={13} className="ai-assistant__modelIcon" />
+                <select
+                  className="ai-assistant__modelSelect"
+                  value={selectedModel || ''}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                >
+                  <option value="">⚡ Tự động (Auto)</option>
+                  {availableModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={12} className="ai-assistant__modelArrow" />
+              </div>
+            )}
             <button
               type="button"
               className="ai-assistant__iconBtn"
@@ -306,8 +386,12 @@ const AIAssistantPanel = ({
               >
                 {parseMarkdownToJsx(getDisplayText(m))}
                 {isRevealingMessage(m.id) && <span className="ai-assistant__revealCursor" />}
-                {showTokenUsage && m.usage?.totalTokens != null && (
-                  <div className="ai-assistant__bubbleMeta">{getDisplayTokens(m)} token</div>
+                {(m.usedModel || (showTokenUsage && m.usage?.totalTokens != null)) && (
+                  <div className="ai-assistant__bubbleMeta">
+                    {m.usedModel && <span className="ai-assistant__usedModelTag">{m.usedModel}</span>}
+                    {m.usedModel && showTokenUsage && m.usage?.totalTokens != null && ' · '}
+                    {showTokenUsage && m.usage?.totalTokens != null && `${getDisplayTokens(m)} token`}
+                  </div>
                 )}
               </div>
             ))
